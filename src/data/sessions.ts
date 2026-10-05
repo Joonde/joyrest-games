@@ -3,8 +3,18 @@ import { generateSessionCode } from "../core/code";
 import { compactBoard } from "../core/results";
 import type { SessionsRepository } from "./contracts";
 import { asNumber, asRecord, asString, toMillis } from "./convert";
+import { reportFromCache } from "./connection";
 import { lazySubscribe, loadFirestore, type FirestoreSdk } from "./firebase";
-import type { Leaderboard, LeaderboardEntry, PlayMode, ScreenMode, Session, SessionPhase, SessionState } from "./types";
+import type {
+  Leaderboard,
+  LeaderboardEntry,
+  PlayMode,
+  ScreenMode,
+  Session,
+  SessionPhase,
+  SessionState,
+  StepStage,
+} from "./types";
 
 async function sessionsCol() {
   const { db, sdk } = await loadFirestore();
@@ -13,6 +23,11 @@ async function sessionsCol() {
 
 /** Сколько документов можно запросить по коду. Это же число ограничено в firestore.rules. */
 const CODE_QUERY_LIMIT = 5;
+
+function parseStage(value: unknown, revealed: boolean): StepStage {
+  if (value === "ready" || value === "question" || value === "reveal" || value === "board") return value;
+  return revealed ? "reveal" : "ready";
+}
 
 function parsePhase(value: unknown): SessionPhase {
   return value === "playing" || value === "finished" ? value : "lobby";
@@ -36,12 +51,14 @@ function parseLeaderboard(value: unknown): Leaderboard {
       score: asNumber(entry.score),
     };
     if (typeof entry.colorIndex === "number") board[id].colorIndex = entry.colorIndex;
+    if (typeof entry.last === "number") board[id].last = entry.last;
+    if (typeof entry.captainUid === "string") board[id].captainUid = entry.captainUid;
   }
   return board;
 }
 
-function toSession(snap: DocumentSnapshot): Session | null {
-  const data = snap.data();
+function toSession(snap: DocumentSnapshot, timestamps: "estimate" | "none" = "none"): Session | null {
+  const data = snap.data({ serverTimestamps: timestamps });
   if (!data) return null;
   const state = asRecord(data.state);
   return {
@@ -60,6 +77,10 @@ function toSession(snap: DocumentSnapshot): Session | null {
       step: asNumber(state.step),
       startedAt: toMillis(state.startedAt),
       revealed: state.revealed === true,
+      stage: parseStage(state.stage, state.revealed === true),
+      timeLimit: typeof state.timeLimit === "number" ? state.timeLimit : null,
+      answered: asNumber(state.answered),
+      result: state.result ?? null,
     },
     leaderboard: parseLeaderboard(data.leaderboard),
     createdAt: toMillis(data.createdAt),
@@ -83,7 +104,7 @@ async function activeSessionsByCode(code: string): Promise<Session[]> {
       sdk.limit(CODE_QUERY_LIMIT),
     ),
   );
-  return snap.docs.map(toSession).filter((s): s is Session => s !== null);
+  return snap.docs.map((d) => toSession(d)).filter((s): s is Session => s !== null);
 }
 
 function newestFirst(sessions: Session[]): Session[] {
@@ -162,7 +183,7 @@ export const sessionsRepository: SessionsRepository = {
     const snap = await sdk.getDocs(
       sdk.query(col, sdk.where("code", "==", code), sdk.where("hostId", "==", hostId), sdk.limit(CODE_QUERY_LIMIT)),
     );
-    const sessions = newestFirst(snap.docs.map(toSession).filter((s): s is Session => s !== null));
+    const sessions = newestFirst(snap.docs.map((d) => toSession(d)).filter((s): s is Session => s !== null));
     return sessions.find((s) => s.state.phase !== "finished") ?? sessions[0] ?? null;
   },
 
@@ -174,7 +195,22 @@ export const sessionsRepository: SessionsRepository = {
   watch(sessionId, onChange, onError) {
     return lazySubscribe(async () => {
       const { col, sdk } = await sessionsCol();
-      return sdk.onSnapshot(sdk.doc(col, sessionId), (snap) => onChange(toSession(snap)), onError);
+      // serverTimestamps: "estimate" — пульт сразу видит своё время старта, не дожидаясь сервера.
+      // Метаданные нужны, чтобы заметить обрыв связи (данные из кэша) и восстановление.
+      let lastJson = "";
+      return sdk.onSnapshot(
+        sdk.doc(col, sessionId),
+        { includeMetadataChanges: true },
+        (snap) => {
+          reportFromCache(snap.metadata.fromCache);
+          const session = toSession(snap, "estimate");
+          const json = JSON.stringify(session);
+          if (json === lastJson) return;
+          lastJson = json;
+          onChange(session);
+        },
+        onError,
+      );
     }, onError);
   },
 
@@ -182,7 +218,7 @@ export const sessionsRepository: SessionsRepository = {
     const { col, sdk } = await sessionsCol();
     const snap = await sdk.getDocs(sdk.query(col, sdk.where("hostId", "==", hostId), sdk.limit(50)));
     return snap.docs
-      .map(toSession)
+      .map((d) => toSession(d))
       .filter((s): s is Session => s !== null)
       .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   },
@@ -193,8 +229,12 @@ export const sessionsRepository: SessionsRepository = {
     const patch: Partial<Record<`state.${keyof SessionState}`, unknown>> = { "state.phase": phase };
     if (phase === "playing") {
       patch["state.step"] = 0;
-      patch["state.startedAt"] = sdk.serverTimestamp();
+      patch["state.startedAt"] = null;
       patch["state.revealed"] = false;
+      patch["state.stage"] = "ready";
+      patch["state.timeLimit"] = null;
+      patch["state.answered"] = 0;
+      patch["state.result"] = null;
     }
     await sdk.updateDoc(sdk.doc(col, sessionId), patch);
   },
@@ -207,6 +247,19 @@ export const sessionsRepository: SessionsRepository = {
     }
     if (Object.keys(patch).length === 0) return;
     const { col, sdk } = await sessionsCol();
+    await sdk.updateDoc(sdk.doc(col, sessionId), patch);
+  },
+
+  async apply(sessionId, change) {
+    const { col, sdk } = await sessionsCol();
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(change.state ?? {})) {
+      patch[`state.${key}`] = key === "startedAt" && value === "server" ? sdk.serverTimestamp() : value;
+    }
+    for (const [pid, entry] of Object.entries(change.leaderboard ?? {})) {
+      patch[`leaderboard.${pid}`] = entry === null ? sdk.deleteField() : entry;
+    }
+    if (Object.keys(patch).length === 0) return;
     await sdk.updateDoc(sdk.doc(col, sessionId), patch);
   },
 

@@ -196,12 +196,15 @@ service cloud.firestore {
               && request.resource.data.teamId == null)
           );
 
-        // Гость может сменить имя и команду у своего телефона. Ведущий — что угодно.
+        // Гость может сменить имя и команду у своего телефона и отметиться «на связи»
+        // (seenAt — только время сервера). Ведущий — что угодно.
         allow update: if hostsThisSession()
           || (signedIn()
             && pid == request.auth.uid
             && resource.data.kind == 'player'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'teamId'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'teamId', 'seenAt'])
+            && (!('seenAt' in request.resource.data.diff(resource.data).affectedKeys())
+              || request.resource.data.seenAt == request.time)
             && validName(request.resource.data.name)
             && (request.resource.data.teamId == null
               || get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.teamId)).data.kind == 'team'));
@@ -212,8 +215,14 @@ service cloud.firestore {
       // ----- Ответы: один документ step_pid, без перезаписи -----
 
       match /answers/{answerId} {
-        // Ответы видит только пульт ведущего (и admin при автоочистке).
-        allow read: if hostsThisSession() || isAdmin();
+        // Ответы видит пульт ведущего (и admin при автоочистке). Телефон по id открывает только
+        // свой ответ или ответ своей команды — например, после перезагрузки страницы.
+        allow list: if hostsThisSession() || isAdmin();
+        allow get: if hostsThisSession() || isAdmin()
+          || (signedIn() && resource.data.uid == request.auth.uid)
+          || (signedIn()
+            && exists(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.auth.uid))
+            && get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.auth.uid)).data.teamId == resource.data.pid);
 
         allow create: if signedIn()
           && request.resource.data.keys().hasOnly(['step', 'pid', 'uid', 'value', 'submittedAt'])
@@ -223,10 +232,14 @@ service cloud.firestore {
           && answerId == string(request.resource.data.step) + '_' + request.resource.data.pid
           // Время ответа ставит сервер.
           && request.resource.data.submittedAt == request.time
-          // Отвечать можно только на текущий открытый шаг.
+          // Отвечать можно только на текущий открытый вопрос, пока не вышло время
+          // (3 секунды запаса на задержку сети).
           && session().state.phase == 'playing'
           && session().state.step == request.resource.data.step
           && session().state.revealed == false
+          && session().state.stage == 'question'
+          && (session().state.timeLimit == null
+            || request.time <= session().state.startedAt + duration.value(session().state.timeLimit + 3, 's'))
           // Отвечает сам игрок или капитан своей команды.
           && get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.pid)).data.captainUid == request.auth.uid;
 
@@ -234,6 +247,16 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if hostsThisSession() || isAdmin();
       }
+    }
+
+    // ---------- Часы: смещение часов устройства относительно сервера ----------
+
+    // Устройство пишет время сервера в свой документ и читает его обратно.
+    match /clock/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['t'])
+        && request.resource.data.t == request.time;
     }
 
     // ---------- Итоги прошедших игр (История игр) ----------

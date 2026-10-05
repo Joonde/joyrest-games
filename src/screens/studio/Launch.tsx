@@ -38,7 +38,7 @@ export function Launch() {
 
 function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfile }) {
   const [state, retry] = useLoad(() => gamesRepo.get(gameId), [gameId]);
-  if (state.status === "loading") return <Pending skeleton={<StudioSkeleton />} onRetry={retry} label="Готовим запуск" />;
+  if (state.status === "loading") return <Pending skeleton={<StudioSkeleton />} label="Готовим запуск" />;
   if (state.status === "error") return <LoadFailed onRetry={retry} />;
   const game = state.data;
   if (!game || !permissions.canLaunchGame(profile, game)) {

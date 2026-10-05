@@ -77,12 +77,35 @@ export type ScreenMode = "laptop" | "remote" | "none";
 
 export type SessionPhase = "lobby" | "playing" | "finished";
 
+/**
+ * Этап шага: ready — ведущий ещё не показал вопрос; question — вопрос открыт и идёт
+ * таймер, принимаются ответы; reveal — показан правильный ответ; board — таблица.
+ */
+export type StepStage = "ready" | "question" | "reveal" | "board";
+
 export interface SessionState {
   phase: SessionPhase;
   step: number;
   /** Момент начала текущего шага (serverTimestamp), null — шаг ещё не начат. */
   startedAt: number | null;
   revealed: boolean;
+  stage: StepStage;
+  /** Сколько секунд после startedAt принимаются ответы; null — без ограничения. */
+  timeLimit: number | null;
+  /** Сколько ответов пришло на шаг: пульт обновляет счётчик не чаще раза в 2 секунды. */
+  answered: number;
+  /** Итоги шага для экрана и телефонов (распределение ответов и т. п.): формат знает механика. */
+  result: unknown;
+}
+
+/**
+ * Одна запись пульта: состояние шага и таблица лидеров меняются вместе.
+ * `startedAt: "server"` — время ставит сервер.
+ */
+export interface SessionChange {
+  state?: Partial<Omit<SessionState, "startedAt">> & { startedAt?: "server" | null };
+  /** Запись участника целиком; null — убрать из таблицы. */
+  leaderboard?: Record<string, LeaderboardEntry | null>;
 }
 
 export type ParticipantKind = "player" | "team";
@@ -93,6 +116,10 @@ export interface LeaderboardEntry {
   score: number;
   /** Только у команд: порядковый номер цвета команды из темы. */
   colorIndex?: number;
+  /** Очки за последний показанный ответ (для «+100» на экране и телефоне). */
+  last?: number;
+  /** Только у команд: кто сейчас капитан (телефоны узнают это из документа сессии). */
+  captainUid?: string;
 }
 
 /** Ключ — id участника (игрока или команды). */
@@ -124,6 +151,9 @@ export interface Participant {
   teamId: string | null;
   /** Кто отвечает за участника: сам игрок или капитан команды. */
   captainUid: string;
+  joinedAt?: number | null;
+  /** Последний сигнал «я на связи» от телефона капитана. */
+  seenAt?: number | null;
 }
 
 export interface Answer {

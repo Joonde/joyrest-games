@@ -4,6 +4,7 @@
 import type {
   AnswersRepository,
   AuthService,
+  ClockService,
   GamesRepository,
   MediaRepository,
   ParticipantsRepository,
@@ -13,6 +14,7 @@ import type {
 } from "./contracts";
 import { answersRepository } from "./answers";
 import { authService as firebaseAuthService } from "./auth";
+import { clockService as firestoreClock } from "./clock";
 import { gamesRepository } from "./games";
 import { mediaRepository } from "./media";
 import { participantsRepository } from "./participants";
@@ -33,6 +35,7 @@ export const sessionsRepo: SessionsRepository = sessionsRepository;
 export const participantsRepo: ParticipantsRepository = participantsRepository;
 export const answersRepo: AnswersRepository = answersRepository;
 export const resultsRepo: ResultsRepository = resultsRepository;
+export const clock: ClockService = firestoreClock;
 
 export { answerId } from "./answers";
 export {
@@ -47,3 +50,5 @@ export {
   type SessionLoadState,
 } from "./hooks";
 export { preloadData } from "./firebase";
+export { connection } from "./connection";
+export { Cancelled, isPermanentError, retryDelay, withRetry } from "./retry";

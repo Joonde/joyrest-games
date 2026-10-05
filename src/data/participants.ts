@@ -1,5 +1,5 @@
 import type { DocumentSnapshot } from "firebase/firestore";
-import { asString } from "./convert";
+import { asString, toMillis } from "./convert";
 import type { ParticipantsRepository } from "./contracts";
 import { lazySubscribe, loadFirestore } from "./firebase";
 import type { Participant } from "./types";
@@ -18,6 +18,8 @@ function toParticipant(snap: DocumentSnapshot): Participant | null {
     kind: data.kind === "team" ? "team" : "player",
     teamId: typeof data.teamId === "string" ? data.teamId : null,
     captainUid: asString(data.captainUid),
+    joinedAt: toMillis(data.joinedAt),
+    seenAt: toMillis(data.seenAt),
   };
 }
 
@@ -64,6 +66,26 @@ export const participantsRepository: ParticipantsRepository = {
       .map(toParticipant)
       .filter((p): p is Participant => p !== null)
       .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  },
+
+  async rename(sessionId, pid, name) {
+    const { col, sdk } = await participantsCol(sessionId);
+    await sdk.updateDoc(sdk.doc(col, pid), { name });
+  },
+
+  async remove(sessionId, pid) {
+    const { col, sdk } = await participantsCol(sessionId);
+    await sdk.deleteDoc(sdk.doc(col, pid));
+  },
+
+  async setCaptain(sessionId, teamId, uid) {
+    const { col, sdk } = await participantsCol(sessionId);
+    await sdk.updateDoc(sdk.doc(col, teamId), { captainUid: uid });
+  },
+
+  async touch(sessionId, uid) {
+    const { col, sdk } = await participantsCol(sessionId);
+    await sdk.updateDoc(sdk.doc(col, uid), { seenAt: sdk.serverTimestamp() });
   },
 
   watch(sessionId, onChange, onError) {

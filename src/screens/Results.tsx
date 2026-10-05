@@ -14,7 +14,7 @@ export function Results() {
   const { resultId = "" } = useParams();
   const [state, retry] = useLoad(() => resultsRepo.get(resultId), [resultId]);
 
-  if (state.status === "loading") return <Pending skeleton={<PlaySkeleton />} onRetry={retry} label="Загружаем итоги" />;
+  if (state.status === "loading") return <Pending skeleton={<PlaySkeleton />} label="Загружаем итоги" />;
   if (state.status === "error") return <LoadFailed onRetry={retry} />;
   if (!state.data) return <Message title="Итоги не найдены">Проверьте ссылку.</Message>;
   return <ResultsView result={state.data} />;

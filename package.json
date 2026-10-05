@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-joyrest \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-joyrest \"vitest run --config vitest.rules.config.ts\"",
+    "simulate": "firebase emulators:exec --only firestore,auth --project demo-joyrest \"tsx scripts/simulate.ts\""
   },
   "dependencies": {
     "firebase": "^12.19.0",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "firebase-tools": "^15.32.1",
     "jsqr": "^1.4.0",
+    "tsx": "^4.23.15",
     "typescript": "~5.9",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"

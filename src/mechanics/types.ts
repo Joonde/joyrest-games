@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { Answer, Participant, Session } from "../data/types";
+import type { Answer, Participant, Session, SessionChange, SessionState } from "../data/types";
 
 export interface Step {
   id: string;
@@ -38,10 +38,47 @@ export interface ViewProps<Content> {
   content: Content;
 }
 
+/** Кто держит телефон: игрок (solo), капитан команды или участник команды (только смотрит). */
+export type PhoneRole = "player" | "captain" | "member";
+
 export interface PlayerViewProps<Content, AnswerValue> extends ViewProps<Content> {
+  /** Телефон гостя. */
   participant: Participant;
-  canAnswer: boolean;
+  /** Кто получает очки: сам игрок или его команда. */
+  pid: string;
+  role: PhoneRole;
+  /** Ответ на текущий шаг: null — ответа нет, undefined — ещё выясняем. */
+  myAnswer: { value: unknown } | null | undefined;
+  /** Ответ отправляется (нет связи — ждёт в очереди). */
+  sending: boolean;
   onAnswer: (value: AnswerValue) => void;
+}
+
+/** Что нужно для подсчёта очков, кроме самих ответов. */
+export interface ScoreContext {
+  state: SessionState;
+}
+
+/**
+ * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.
+ */
+export interface SessionControl {
+  /** Шаг игры и правки таблицы лидеров одной записью. */
+  apply(change: SessionChange): Promise<void>;
+  /** Убрать ответы шага («Назад» с открытого вопроса). */
+  clearAnswers(step: number): Promise<void>;
+  /** Спросить подтверждение и завершить игру. */
+  requestFinish(): void;
+}
+
+export interface HostControlsProps<Content> extends ViewProps<Content> {
+  /** Ответы на текущий шаг (их слушает только пульт). */
+  answers: Answer[];
+  /** Все участники: игроки, команды и телефоны команд. */
+  participants: Participant[];
+  control: SessionControl;
+  /** Репетиция: гостей нет, ничего не записывается. */
+  rehearsal: boolean;
 }
 
 /** Единый интерфейс механики (CLAUDE.md, раздел 6). Ядро знает только его. */
@@ -61,9 +98,9 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   Editor: ComponentType<EditorProps<Content>>;
   ScreenView: ComponentType<ViewProps<Content>>;
   PlayerView: ComponentType<PlayerViewProps<Content, AnswerValue>>;
-  HostControls: ComponentType<ViewProps<Content>>;
+  HostControls: ComponentType<HostControlsProps<Content>>;
   steps(content: Content): S[];
-  score(step: S, answers: Answer[]): ScoreDelta[];
+  score(step: S, answers: Answer[], context: ScoreContext): ScoreDelta[];
   validate(content: Content): ValidationError[];
 }
 

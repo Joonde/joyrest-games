@@ -19,6 +19,7 @@ import type {
   NewSessionOptions,
   Participant,
   Session,
+  SessionChange,
   SessionPhase,
   Unsubscribe,
   UserProfile,
@@ -105,6 +106,8 @@ export interface SessionsRepository {
   listByHost(hostId: string): Promise<Session[]>;
   setPhase(sessionId: string, phase: SessionPhase): Promise<void>;
   upsertLeaderboard(sessionId: string, entries: Record<string, LeaderboardEntry>): Promise<void>;
+  /** Только пульт: шаг игры и правки таблицы лидеров одной записью. */
+  apply(sessionId: string, change: SessionChange): Promise<void>;
   /** Завершает игру и одной записью сохраняет компактные итоги для истории. */
   finish(session: Session, participantsCount: number): Promise<void>;
   /**
@@ -120,6 +123,14 @@ export interface ParticipantsRepository {
   /** Создаёт команду; создатель становится капитаном. Возвращает id команды. */
   createTeam(sessionId: string, captainUid: string, name: string): Promise<string>;
   listTeams(sessionId: string): Promise<Participant[]>;
+  /** Только пульт: переименовать игрока или команду. */
+  rename(sessionId: string, pid: string, name: string): Promise<void>;
+  /** Только пульт: убрать игрока или команду из игры. */
+  remove(sessionId: string, pid: string): Promise<void>;
+  /** Только пульт: новый капитан команды. */
+  setCaptain(sessionId: string, teamId: string, uid: string): Promise<void>;
+  /** Телефон капитана: «я на связи» (раз в 30 секунд). */
+  touch(sessionId: string, uid: string): Promise<void>;
   /** Только для пульта ведущего. */
   watch(sessionId: string, onChange: (participants: Participant[]) => void, onError: (error: Error) => void): Unsubscribe;
 }
@@ -130,6 +141,18 @@ export interface AnswersRepository {
   submit(sessionId: string, step: number, pid: string, uid: string, value: unknown): Promise<SubmitResult>;
   /** Только для пульта ведущего: ответы на текущий шаг. */
   watch(sessionId: string, step: number, onChange: (answers: Answer[]) => void, onError: (error: Error) => void): Unsubscribe;
+  /** Свой ответ (или ответ своей команды) — телефон после перезагрузки или для участника команды. */
+  getOwn(sessionId: string, step: number, pid: string): Promise<Answer | null>;
+  /** Только пульт: убрать ответы шага («Назад» с открытого вопроса). */
+  clearStep(sessionId: string, step: number): Promise<void>;
+}
+
+/** Часы сервера: синхронный таймер на экране зала, пульте и телефонах. */
+export interface ClockService {
+  /** На сколько миллисекунд часы сервера впереди часов устройства (0, пока не измерено). */
+  offset(): number;
+  /** Измеряет смещение один раз за загрузку страницы (одна запись и одно чтение). */
+  sync(): Promise<number>;
 }
 
 export interface ResultsRepository {

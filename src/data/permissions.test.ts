@@ -123,3 +123,18 @@ describe("сессии", () => {
     expect(p.canListResults(guest, "host-1")).toBe(false);
   });
 });
+
+describe("картинки игр", () => {
+  it("смотрит любой вошедший, в том числе анонимный экран зала", () => {
+    expect(p.canViewMedia("anon-screen")).toBe(true);
+    expect(p.canViewMedia(null)).toBe(false);
+  });
+
+  it("добавляет и удаляет только тот, кто правит игру", () => {
+    expect(p.canChangeMedia(host, myGame)).toBe(true);
+    expect(p.canChangeMedia(other, myGame)).toBe(false);
+    expect(p.canChangeMedia(host, agencyGame)).toBe(false);
+    expect(p.canChangeMedia(owner, agencyGame)).toBe(true);
+    expect(p.canChangeMedia(off, myGame)).toBe(false);
+  });
+});

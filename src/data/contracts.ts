@@ -13,6 +13,8 @@ import type {
   GameResult,
   HostAccount,
   LeaderboardEntry,
+  MediaUpload,
+  MediaVariant,
   NewGame,
   NewSessionOptions,
   Participant,
@@ -62,8 +64,31 @@ export interface GamesRepository {
   listPersonal(ownerId: string): Promise<Game[]>;
   get(gameId: string): Promise<Game | null>;
   create(game: NewGame): Promise<string>;
+  /**
+   * Копия или дубль игры вместе с картинками: `mediaIds` — картинки, на которые ссылается
+   * содержимое (их знает механика). В копии у картинок те же id.
+   */
+  copy(sourceGameId: string, mediaIds: string[], draft: NewGame): Promise<string>;
   update(gameId: string, patch: GamePatch): Promise<void>;
+  /** Удаляет игру вместе со всеми её картинками. */
   remove(gameId: string): Promise<void>;
+}
+
+/**
+ * Картинки игр. Хранятся отдельными документами, а не в документе игры и не в снимке
+ * сессии: экран зала загружает их сам и заранее, телефоны гостей — только уменьшенную
+ * версию и только в режиме «без экрана».
+ */
+export interface MediaRepository {
+  /**
+   * Сохраняет картинку и сразу возвращает её id: запись ставится в очередь и уходит на
+   * сервер, когда есть связь (`saved` завершится после подтверждения сервера).
+   */
+  upload(gameId: string, image: MediaUpload): { mediaId: string; saved: Promise<void> };
+  /** Картинка по id (с кэшем в памяти); null — картинки нет. */
+  load(gameId: string, mediaId: string, variant: MediaVariant): Promise<Blob | null>;
+  /** Удаляет оба варианта картинки. */
+  remove(gameId: string, mediaId: string): Promise<void>;
 }
 
 export interface SessionsRepository {

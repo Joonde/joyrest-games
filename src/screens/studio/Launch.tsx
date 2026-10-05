@@ -15,8 +15,8 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
-import { getMechanic } from "../../mechanics/registry";
-import { getTheme, themesForRating } from "../../themes/registry";
+import { getMechanic, validateGame } from "../../mechanics/registry";
+import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
 const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
   { id: "laptop", title: "Ноутбук + экран", hint: "Экран зала на ноутбуке, управление с ноутбука или телефона." },
@@ -28,11 +28,6 @@ const PLAY_MODES: Array<{ id: PlayMode; title: string; hint: string }> = [
   { id: "solo", title: "Каждый сам за себя", hint: "Каждый гость играет со своего телефона." },
   { id: "teams", title: "Команды", hint: "Отвечает капитан, остальные видят вопрос." },
 ];
-
-const THEME_HINTS: Record<string, string> = {
-  joyrest: "Тёмное, для вечера и затемнённого зала.",
-  "joyrest-day": "Светлое, для дневных мероприятий и яркого света.",
-};
 
 export function Launch() {
   const { gameId = "" } = useParams();
@@ -58,6 +53,29 @@ function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfil
       </Message>
     );
   }
+  const errors = validateGame(game.mechanic, game.content);
+  if (errors.length > 0) {
+    const fixable = permissions.canEditGame(profile, game);
+    return (
+      <Message title="Игру пока нельзя запустить">
+        <p>{fixable ? "Исправьте в конструкторе:" : "В игре есть ошибки. Сообщите администратору агентства:"}</p>
+        <ul className="error-list">
+          {errors.slice(0, 5).map((e, i) => (
+            <li key={i}>{e.message}</li>
+          ))}
+          {errors.length > 5 && <li>И ещё замечаний: {errors.length - 5}.</li>}
+        </ul>
+        <div className="actions">
+          <Link className="btn btn--block" to={`/studio/games/${game.id}`}>
+            {fixable ? "Исправить игру" : "Открыть игру"}
+          </Link>
+          <Link className="btn btn--secondary btn--block" to="/studio">
+            В студию
+          </Link>
+        </div>
+      </Message>
+    );
+  }
   return <LaunchForm game={game} profile={profile} />;
 }
 
@@ -68,7 +86,9 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
   const playModes = PLAY_MODES.filter((m) => supports[m.id]);
   const themeChoices = themesForRating(game.ageRating);
   const [screenMode, setScreenMode] = useState<ScreenMode>(screenModes[0]?.id ?? "laptop");
-  const [playMode, setPlayMode] = useState<PlayMode>(playModes[0]?.id ?? "solo");
+  const [playMode, setPlayMode] = useState<PlayMode>(
+    playModes.some((m) => m.id === game.playMode) ? game.playMode : (playModes[0]?.id ?? "solo"),
+  );
   const [themeId, setThemeId] = useState(getTheme(game.themeId).id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

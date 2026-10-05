@@ -40,7 +40,12 @@ export interface Game {
   mechanic: string;
   themeId: string;
   ageRating: AgeRating;
-  /** Содержимое игры; формат знает только механика. */
+  /** Режим участников по умолчанию: предлагается при запуске сессии. */
+  playMode: PlayMode;
+  /**
+   * Содержимое игры; формат знает только механика. Картинок в нём нет — только их id
+   * (документы games/{id}/media/{mediaId}, см. MediaRepository).
+   */
   content: unknown;
   createdAt: number | null;
   updatedAt: number | null;
@@ -49,9 +54,23 @@ export interface Game {
 export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt">;
 
 /** Что можно менять в игре после создания. Область и владелец не меняются. */
-export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "content">>;
+export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content">>;
 
 export type PlayMode = "solo" | "teams";
+
+/**
+ * Вариант картинки: `full` — для экрана зала (WebP до 1280 px, ~150 КБ),
+ * `small` — уменьшенная для телефонов гостей в режиме «без экрана».
+ */
+export type MediaVariant = "full" | "small";
+
+/** Картинка, уже сжатая на устройстве ведущего: оба варианта сразу. */
+export interface MediaUpload {
+  full: Blob;
+  small: Blob;
+  width: number;
+  height: number;
+}
 
 /** Режимы проведения из раздела 4 CLAUDE.md. */
 export type ScreenMode = "laptop" | "remote" | "none";

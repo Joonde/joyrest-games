@@ -5,6 +5,7 @@ import { gamesRepo, permissions, useLoad, type Game, type GameScope, type UserPr
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
+import { gameMediaIds } from "../../mechanics/registry";
 import { GameCard } from "./GameCard";
 
 interface Props {
@@ -40,7 +41,7 @@ export function GameList({ scope, profile, onToast }: Props) {
   async function duplicate(game: Game, target: GameScope) {
     try {
       const draft = copyOfGame(game, target, profile.uid);
-      const id = await gamesRepo.create(draft);
+      const id = await gamesRepo.copy(game.id, gameMediaIds(game.mechanic, game.content), draft);
       const copy: Game = { ...draft, id, createdAt: Date.now(), updatedAt: Date.now() };
       if (target === scope) update((games) => [copy, ...games]);
       onToast(target === "personal" && scope !== "personal" ? "Копия добавлена в «Мои игры»" : "Копия создана");
@@ -112,7 +113,8 @@ export function GameList({ scope, profile, onToast }: Props) {
       >
         <p>
           «{toDelete?.title}» пропадёт из {toDelete?.scope === "agency" ? "библиотеки JoyRest у всех ведущих" : "ваших игр"}.
-          Идущие сессии и история игр не пострадают.
+          Вместе с игрой удалятся её картинки — в уже запущенных сессиях этой игры они пропадут. История игр не
+          пострадает.
         </p>
       </ConfirmDialog>
     </>

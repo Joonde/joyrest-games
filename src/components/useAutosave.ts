@@ -1,74 +1,125 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type SaveStatus = "saved" | "saving" | "error";
+/**
+ * saved — всё подтверждено сервером; saving — запись в пути; offline — связи нет, правки
+ * ждут в очереди на устройстве; error — сервер отказал, повторяем.
+ */
+export type SaveStatus = "saved" | "saving" | "offline" | "error";
 
-/** Через сколько после последней правки уходит сохранение и через сколько повтор после ошибки. */
+/** Через сколько после последней правки уходит запись. */
 const SAVE_DELAY_MS = 700;
+/** Если сервер молчит дольше, связи, скорее всего, нет. */
+const OFFLINE_AFTER_MS = 5000;
 const RETRY_DELAY_MS = 4000;
 
+function isOnline(): boolean {
+  return typeof navigator === "undefined" || navigator.onLine !== false;
+}
+
 /**
- * Автосохранение правок: копит изменения, отправляет их пачкой после паузы, повторяет
- * после ошибки и досылает при уходе со страницы. Ни одна правка не теряется.
+ * Автосохранение правок. Правки копятся 0,7 с и уходят пачкой, не дожидаясь ответа на
+ * предыдущую: слой данных сразу кладёт запись в очередь на устройстве (локальный кэш
+ * Firestore), поэтому при плохом интернете и даже после закрытия вкладки ничего не теряется.
+ * После отказа сервера пачка повторяется с самыми свежими значениями полей.
  */
 export function useAutosave<Patch extends object>(
   save: (patch: Patch) => Promise<void>,
 ): { status: SaveStatus; change: (patch: Patch) => void; flush: () => void } {
-  const [status, setStatus] = useState<SaveStatus>("saved");
+  const [, rerender] = useState(0);
   const pending = useRef<Patch | null>(null);
+  /** Самые свежие значения всех полей, которые меняли: для повтора после ошибки. */
+  const latest = useRef<Partial<Patch>>({});
   const timer = useRef<number | null>(null);
-  const inFlight = useRef(false);
+  const inFlight = useRef(0);
+  const oldestSent = useRef<number | null>(null);
+  const failed = useRef(false);
+  const [online, setOnline] = useState(isOnline);
+  const [slow, setSlow] = useState(false);
   const saveRef = useRef(save);
   saveRef.current = save;
+
+  const update = useCallback(() => rerender((n) => n + 1), []);
 
   const flush = useCallback(() => {
     if (timer.current !== null) {
       window.clearTimeout(timer.current);
       timer.current = null;
     }
-    if (inFlight.current || !pending.current) return;
     const patch = pending.current;
+    if (!patch) return;
     pending.current = null;
-    inFlight.current = true;
-    setStatus("saving");
+    inFlight.current += 1;
+    oldestSent.current ??= Date.now();
+    update();
     saveRef
       .current(patch)
       .then(() => {
-        inFlight.current = false;
-        if (pending.current) flush();
-        else setStatus("saved");
+        failed.current = false;
       })
       .catch(() => {
-        inFlight.current = false;
-        // Возвращаем неотправленное, новые правки поверх старых.
-        pending.current = { ...patch, ...pending.current };
-        setStatus("error");
-        timer.current = window.setTimeout(flush, RETRY_DELAY_MS);
+        failed.current = true;
+        const retry = {} as Patch;
+        for (const key of Object.keys(patch) as Array<keyof Patch>) {
+          retry[key] = latest.current[key] as Patch[keyof Patch];
+        }
+        pending.current = { ...retry, ...pending.current };
+        if (timer.current === null) timer.current = window.setTimeout(flush, RETRY_DELAY_MS);
+      })
+      .finally(() => {
+        inFlight.current -= 1;
+        if (inFlight.current === 0) {
+          oldestSent.current = null;
+          setSlow(false);
+        }
+        update();
       });
-  }, []);
+  }, [update]);
 
   const change = useCallback(
     (patch: Patch) => {
       pending.current = { ...pending.current, ...patch } as Patch;
-      setStatus("saving");
+      latest.current = { ...latest.current, ...patch };
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
+      update();
     },
-    [flush],
+    [flush, update],
   );
 
+  // Сервер долго не подтверждает запись — показываем «Нет связи».
   useEffect(() => {
-    // Телефон сворачивает вкладку без предупреждения: сохраняем сразу.
+    if (oldestSent.current === null) return;
+    const wait = Math.max(0, oldestSent.current + OFFLINE_AFTER_MS - Date.now());
+    const t = window.setTimeout(() => setSlow(true), wait);
+    return () => window.clearTimeout(t);
+  });
+
+  useEffect(() => {
+    // Телефон сворачивает вкладку без предупреждения: отправляем сразу.
     const onHide = () => {
       if (document.visibilityState === "hidden") flush();
     };
+    const onOnline = () => {
+      setOnline(true);
+      flush();
+    };
+    const onOffline = () => setOnline(false);
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("pagehide", flush);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", flush);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       flush();
     };
   }, [flush]);
+
+  const busy = pending.current !== null || inFlight.current > 0;
+  let status: SaveStatus = "saved";
+  if (busy) status = failed.current ? "error" : !online || slow ? "offline" : "saving";
 
   return { status, change, flush };
 }

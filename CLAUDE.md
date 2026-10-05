@@ -72,12 +72,28 @@ users/{uid}                 role, name, active
 games/{gameId}              scope: "agency" | "personal", ownerId, title,
                             mechanic, themeId, ageRating, content, updatedAt
 sessions/{sessionId}        code, hostId, mechanic, gameSnapshot, themeId,
-                            playMode: "solo" | "teams", screenMode,
-                            state { phase, step, startedAt, revealed },
-                            leaderboard
-sessions/{id}/participants/{pid}   name, kind: "player" | "team", teamId, captainUid
-sessions/{id}/answers/{step_pid}   value, submittedAt (serverTimestamp)
+                            playMode: "solo" | "teams",
+                            screenMode: "laptop" | "remote" | "none",
+                            state { phase: "lobby" | "playing" | "finished",
+                                    step, startedAt, revealed },
+                            leaderboard { [pid]: { name, kind, score } },
+                            createdAt (serverTimestamp)
+sessions/{id}/participants/{pid}   name, kind: "player" | "team", teamId, captainUid,
+                                   joinedAt (serverTimestamp)
+sessions/{id}/answers/{step_pid}   step, pid, uid, value, submittedAt (serverTimestamp)
 ```
+
+Уточнения к модели (этап 1):
+- `code` — 6 цифр, уникален среди незавершённых сессий. Сессия ищется запросом
+  `where code == X` с лимитом 5; из найденных берётся незавершённая.
+- Телефон гостя — документ участника с `pid = uid`, поэтому повторный вход не создаёт
+  дубль. В режиме teams команда — отдельный документ `kind: "team"` с автоматическим id,
+  её создатель — капитан (`captainUid`); телефоны участников команды ссылаются на неё
+  через `teamId`. В `leaderboard` попадают только игроки (solo) или только команды (teams).
+- Экран зала не слушает участников: пульт ведущего переносит новых участников в
+  `leaderboard` с нулём очков, и экран видит их через документ сессии.
+- Владелец агентства определяется по UID, зашитому в `firestore.rules` и
+  `src/data/config.ts`; его профиль `users/{uid}` создаётся при первом входе.
 
 Правила экономии лимитов:
 - Гости и экран зала слушают **только документ сессии**. Таблица лидеров хранится в нём.

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sheet } from "../../components/Sheet";
 import { Tabs } from "../../components/Tabs";
 import type { Participant, ScreenMode, Session } from "../../data/types";
+import { startState } from "../../core/session";
 import { themeStyle } from "../../themes/registry";
 import type { QuizContent } from "./content";
 import { QuizPlayerView, QuizScreenView } from "./views";
@@ -28,7 +29,7 @@ function previewSession(gameId: string, themeId: string, step: number, revealed:
     themeId,
     playMode: "solo",
     screenMode,
-    state: { phase: "playing", step, startedAt: null, revealed },
+    state: { ...startState(), step, revealed, stage: revealed ? "reveal" : "question" },
     leaderboard: {},
     createdAt: null,
   };
@@ -47,6 +48,8 @@ export function QuizPreview({ gameId, themeId, content, index, onIndex }: Props)
   const [view, setView] = useState<View>("screen");
   const [revealed, setRevealed] = useState(false);
   const [noScreen, setNoScreen] = useState(false);
+  // Ответ в предпросмотре: можно нажать вариант и посмотреть «Ответ принят» и «Верно».
+  const [answer, setAnswer] = useState<{ step: number; value: unknown } | null>(null);
   const step = index ?? 0;
   const total = content.questions.length;
   const session = previewSession(gameId, themeId, step, revealed, noScreen ? "none" : "laptop");
@@ -81,8 +84,11 @@ export function QuizPreview({ gameId, themeId, content, index, onIndex }: Props)
               session={session}
               content={content}
               participant={GUEST}
-              canAnswer={!revealed}
-              onAnswer={() => undefined}
+              pid={GUEST.id}
+              role="player"
+              myAnswer={answer?.step === step ? { value: answer.value } : null}
+              sending={false}
+              onAnswer={(value) => setAnswer({ step, value })}
             />
           </div>
         )}

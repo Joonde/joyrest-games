@@ -42,3 +42,8 @@ export function sortGames(games: Game[]): Game[] {
 export function gameSnapshot(game: Game): { title: string; mechanic: string; themeId: string; content: unknown } {
   return { title: game.title, mechanic: game.mechanic, themeId: game.themeId, content: game.content };
 }
+
+/** Содержимое игры из снимка сессии (`gameSnapshot.content`). */
+export function snapshotContent(snapshot: unknown): unknown {
+  return typeof snapshot === "object" && snapshot !== null ? (snapshot as { content?: unknown }).content ?? null : null;
+}

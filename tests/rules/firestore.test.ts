@@ -243,6 +243,22 @@ describe("participants", () => {
     await assertFails(updateDoc(doc(as(GUEST2), "sessions", "s1", "participants", GUEST), { name: "Чужое" }));
   });
 
+  it("гость отмечается «на связи» только временем сервера", async () => {
+    await addParticipant(GUEST, { name: "Анна", kind: "player", teamId: null, captainUid: GUEST });
+    const ref = doc(as(GUEST), "sessions", "s1", "participants", GUEST);
+    await assertSucceeds(updateDoc(ref, { seenAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { seenAt: new Date(0) }));
+    await assertFails(updateDoc(doc(as(GUEST2), "sessions", "s1", "participants", GUEST), { seenAt: serverTimestamp() }));
+  });
+
+  it("ведущий переименовывает, назначает капитана и удаляет участника", async () => {
+    await setSession({ playMode: "teams" });
+    await addParticipant("t1", { name: "Котики", kind: "team", teamId: null, captainUid: GUEST });
+    await assertSucceeds(updateDoc(doc(as(HOST), "sessions", "s1", "participants", "t1"), { name: "Коты", captainUid: GUEST2 }));
+    await assertFails(updateDoc(doc(as(GUEST), "sessions", "s1", "participants", "t1"), { captainUid: GUEST }));
+    await assertSucceeds(deleteDoc(doc(as(HOST), "sessions", "s1", "participants", "t1")));
+  });
+
   it("в завершённую сессию войти нельзя", async () => {
     await setSession({ "state.phase": "finished" });
     await assertFails(setDoc(doc(as(GUEST), "sessions", "s1", "participants", GUEST), player()));
@@ -260,7 +276,13 @@ describe("answers", () => {
 
   beforeEach(async () => {
     await addParticipant(GUEST, { name: "Анна", kind: "player", teamId: null, captainUid: GUEST });
-    await setSession({ "state.phase": "playing", "state.step": 2 });
+    await setSession({
+      "state.phase": "playing",
+      "state.step": 2,
+      "state.stage": "question",
+      "state.startedAt": serverTimestamp(),
+      "state.timeLimit": 30,
+    });
   });
 
   it("игрок отвечает на текущий шаг", async () => {
@@ -299,11 +321,43 @@ describe("answers", () => {
     await assertFails(setDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`), answer(2, GUEST, GUEST)));
   });
 
-  it("ответы читает только ведущий сессии", async () => {
+  it("ответы списком читает только ведущий сессии", async () => {
     await assertSucceeds(setDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`), answer(2, GUEST, GUEST)));
     await assertSucceeds(getDoc(doc(as(HOST), "sessions", "s1", "answers", `2_${GUEST}`)));
-    await assertFails(getDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`)));
+    await assertSucceeds(getDocs(query(collection(as(HOST), "sessions", "s1", "answers"), where("step", "==", 2))));
+    await assertFails(getDocs(query(collection(as(GUEST), "sessions", "s1", "answers"), where("step", "==", 2))));
     await assertFails(getDoc(doc(as(OTHER_HOST), "sessions", "s1", "answers", `2_${GUEST}`)));
+    await assertFails(getDoc(doc(as(GUEST2), "sessions", "s1", "answers", `2_${GUEST}`)));
+  });
+
+  it("телефон видит свой ответ и ответ своей команды", async () => {
+    await assertSucceeds(setDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`), answer(2, GUEST, GUEST)));
+    await assertSucceeds(getDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`)));
+    await addParticipant("t1", { name: "Котики", kind: "team", teamId: null, captainUid: GUEST2 });
+    await addParticipant(GUEST2, { name: "Боря", kind: "player", teamId: "t1", captainUid: GUEST2 });
+    await addParticipant("g3", { name: "Вика", kind: "player", teamId: "t1", captainUid: "g3" });
+    await assertSucceeds(setDoc(doc(as(GUEST2), "sessions", "s1", "answers", "2_t1"), answer(2, "t1", GUEST2)));
+    await assertSucceeds(getDoc(doc(as("g3"), "sessions", "s1", "answers", "2_t1")));
+    await assertFails(getDoc(doc(as(GUEST), "sessions", "s1", "answers", "2_t1")));
+  });
+
+  it("до показа вопроса и после конца времени отвечать нельзя", async () => {
+    await setSession({ "state.stage": "ready" });
+    await assertFails(setDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`), answer(2, GUEST, GUEST)));
+    await setSession({ "state.stage": "question", "state.startedAt": new Date(Date.now() - 60_000) });
+    await assertFails(setDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`), answer(2, GUEST, GUEST)));
+    await setSession({ "state.timeLimit": null });
+    await assertSucceeds(setDoc(doc(as(GUEST), "sessions", "s1", "answers", `2_${GUEST}`), answer(2, GUEST, GUEST)));
+  });
+});
+
+describe("clock: часы сервера", () => {
+  it("устройство пишет и читает только своё время сервера", async () => {
+    await assertSucceeds(setDoc(doc(as(GUEST), "clock", GUEST), { t: serverTimestamp() }));
+    await assertSucceeds(getDoc(doc(as(GUEST), "clock", GUEST)));
+    await assertFails(setDoc(doc(as(GUEST), "clock", GUEST), { t: new Date(0) }));
+    await assertFails(setDoc(doc(as(GUEST), "clock", GUEST2), { t: serverTimestamp() }));
+    await assertFails(getDoc(doc(as(GUEST2), "clock", GUEST)));
   });
 });
 

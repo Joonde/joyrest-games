@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authService } from "./auth";
 import type { AuthUser } from "./contracts";
+import { Cancelled, withRetry } from "./retry";
 import { sessionsRepository } from "./sessions";
 import type { Session, UserProfile } from "./types";
 import { usersRepository } from "./users";
@@ -33,19 +34,21 @@ export function useAuth(): [AuthState, () => void] {
           return;
         }
         setState({ status: "loading" });
-        usersRepository.loadProfile(user)
+        // Медленная сеть — не повод сказать «нет доступа»: профиль грузится, пока не придёт.
+        withRetry(() => usersRepository.loadProfile(user), () => cancelled)
           .catch(() => null)
           .then((profile) => {
             if (!cancelled) setState({ status: "signedIn", user, profile });
           });
       },
-      () => setState({ status: "error" }),
+      // SDK не загрузился (оборвалась сеть) — пробуем снова, экран остаётся в загрузке.
+      () => window.setTimeout(() => !cancelled && retry(), 2000),
     );
     return () => {
       cancelled = true;
       unsubscribe();
     };
-  }, [attempt]);
+  }, [attempt, retry]);
 
   return [state, retry];
 }
@@ -60,13 +63,12 @@ export function useGuestSignIn(): [GuestSignInState, () => void] {
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
-    authService
-      .ensureSignedIn()
+    withRetry(() => authService.ensureSignedIn(), () => cancelled)
       .then((user) => {
         if (!cancelled) setState({ status: "ready", uid: user.uid });
       })
-      .catch(() => {
-        if (!cancelled) setState({ status: "error" });
+      .catch((error: unknown) => {
+        if (!cancelled && !(error instanceof Cancelled)) setState({ status: "error" });
       });
     return () => {
       cancelled = true;
@@ -142,7 +144,7 @@ export function useSessionByCode(
     let unsubscribe: (() => void) | null = null;
     setState({ status: "loading" });
 
-    findSession(code, hostId)
+    withRetry(() => findSession(code, hostId), () => cancelled)
       .then((found) => {
         if (cancelled) return;
         if (!found) {
@@ -154,11 +156,14 @@ export function useSessionByCode(
         unsubscribe = sessionsRepository.watch(
           found.id,
           (session) => setState(session ? { status: "ready", session } : { status: "notFound" }),
-          () => setState({ status: "error", message: "Потеряна связь с сессией. Проверьте интернет." }),
+          // Обрыв сети подписка переживает сама; ошибка здесь — только отказ в доступе.
+          () => setState({ status: "error", message: "Нет доступа к этой сессии." }),
         );
       })
-      .catch(() => {
-        if (!cancelled) setState({ status: "error", message: "Не удалось загрузить сессию. Проверьте интернет." });
+      .catch((error: unknown) => {
+        if (!cancelled && !(error instanceof Cancelled)) {
+          setState({ status: "error", message: "Нет доступа к этой сессии." });
+        }
       });
 
     return () => {
@@ -188,13 +193,12 @@ export function useLoad<T>(
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
-    loadRef
-      .current()
+    withRetry(() => loadRef.current(), () => cancelled)
       .then((data) => {
         if (!cancelled) setState({ status: "ready", data });
       })
-      .catch(() => {
-        if (!cancelled) setState({ status: "error" });
+      .catch((error: unknown) => {
+        if (!cancelled && !(error instanceof Cancelled)) setState({ status: "error" });
       });
     return () => {
       cancelled = true;

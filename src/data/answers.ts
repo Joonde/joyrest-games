@@ -45,6 +45,30 @@ export const answersRepository: AnswersRepository = {
     }
   },
 
+  async getOwn(sessionId, step, pid) {
+    const { db, sdk } = await loadFirestore();
+    try {
+      return toAnswer(await sdk.getDoc(sdk.doc(db, "sessions", sessionId, "answers", answerId(step, pid))));
+    } catch (error) {
+      // Ответа нет: правила не пускают читать несуществующий документ чужой команды.
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "permission-denied") {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async clearStep(sessionId, step) {
+    const { db, sdk } = await loadFirestore();
+    const col = sdk.collection(db, "sessions", sessionId, "answers");
+    const snap = await sdk.getDocs(sdk.query(col, sdk.where("step", "==", step)));
+    for (let i = 0; i < snap.docs.length; i += 400) {
+      const batch = sdk.writeBatch(db);
+      snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  },
+
   watch(sessionId, step, onChange, onError) {
     return lazySubscribe(async () => {
       const { db, sdk } = await loadFirestore();

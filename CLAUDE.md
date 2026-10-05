@@ -36,7 +36,7 @@
   модули слоя данных.
 - Экраны и механики работают через интерфейсы `src/data/contracts.ts`: `AuthService`,
   `UsersRepository`, `GamesRepository`, `SessionsRepository`, `ParticipantsRepository`,
-  `AnswersRepository`, `ResultsRepository`. Экземпляры (`authService`, `gamesRepo`,
+  `AnswersRepository`, `ResultsRepository`, `MediaRepository`, `ClockService`. Экземпляры (`authService`, `gamesRepo`,
   `sessionsRepo`, …) и типы берутся только из `src/data/index.ts`. При переезде пишется
   новая реализация тех же интерфейсов, остальной код не меняется.
 - Логика прав («кто что может») продублирована в `src/data/permissions.ts` обычными
@@ -107,12 +107,16 @@ sessions/{sessionId}        code, hostId, gameId, gameTitle, mechanic, gameSnaps
                             playMode: "solo" | "teams",
                             screenMode: "laptop" | "remote" | "none",
                             state { phase: "lobby" | "playing" | "finished",
-                                    step, startedAt, revealed },
-                            leaderboard { [pid]: { name, kind, score, colorIndex? } },
+                                    step, startedAt, revealed,
+                                    stage: "ready" | "question" | "reveal" | "board",
+                                    timeLimit, answered, result },
+                            leaderboard { [pid]: { name, kind, score, colorIndex?,
+                                                   last?, captainUid? } },
                             createdAt (serverTimestamp)
 sessions/{id}/participants/{pid}   name, kind: "player" | "team", teamId, captainUid,
-                                   joinedAt (serverTimestamp)
+                                   joinedAt (serverTimestamp), seenAt? (сигнал капитана)
 sessions/{id}/answers/{step_pid}   step, pid, uid, value, submittedAt (serverTimestamp)
+clock/{uid}                 t (serverTimestamp) — смещение часов экрана зала и пульта
 results/{sessionId}         hostId, code, gameTitle, mechanic, themeId, playMode,
                             playedAt, participantsCount,
                             board [{ name, score, colorIndex? }] (по убыванию очков),
@@ -165,6 +169,34 @@ results/{sessionId}         hostId, code, gameTitle, mechanic, themeId, playMode
   или убранную в конструкторе, удаляем сразу; старые остаются до удаления игры, потому что
   на них может ссылаться уже запущенная сессия.
 
+Уточнения к модели (этап 4, квиз в игре):
+- Шаг игры проходит этапы `state.stage`: `ready` («Вопрос 2 из 8», ведущий ещё не показал) →
+  `question` (таймер: `startedAt` ставит сервер, `timeLimit` — секунды) → `reveal` (правильный
+  ответ, `revealed = true`) → `board` (таблица) → следующий шаг. «Назад» возвращает на этап:
+  с `reveal` очки шага снимаются (`last`), с `question` ответы шага удаляются.
+- Ответ принимается, только пока `stage == "question"` и не вышло время (`request.time ≤
+  startedAt + timeLimit + 3 с` в правилах — запас на сеть). То же в `permissions.canSubmitAnswer`.
+- `state.answered` — счётчик ответов для экрана, пульт пишет его не чаще раза в 2 секунды.
+  `state.result` — итоги шага от механики (квиз: распределение по вариантам, сколько верно,
+  засчитанные ведущим открытые ответы `accepted`).
+- `leaderboard[pid].last` — очки за последний показанный ответ («+100» на экране и телефоне).
+  Места при равных очках общие (10, 10, 7 → 1, 1, 3) — `rankedLeaderboard`.
+- Одинаковые имена: пульт вносит в таблицу «Аня», «Аня 2» (`uniqueName`), документ участника
+  не трогает. Ручные правки пульта: ± очки, переименовать, убрать участника.
+- Команды: капитан известен телефонам из `leaderboard[teamId].captainUid`. Телефон капитана раз
+  в 30 с пишет `seenAt`; если сигнала нет 90 с (или телефона капитана нет), пульт делает
+  капитаном следующего по времени входа участника команды (`captainChanges`), ведущий может
+  назначить капитана сам.
+- Телефон запоминает свой ответ (localStorage); после перезагрузки посреди шага и участник
+  команды при показе ответа читают ответ по id (`answersRepo.getOwn`): правила пускают `get`
+  своего ответа и ответа своей команды, списком ответы видит только пульт.
+- Часы: экран зала и пульт один раз пишут `clock/{uid}` с serverTimestamp и читают его, чтобы
+  таймер совпадал с сервером. Телефоны идут по своим часам (экономия операций).
+- «Репетиция» (`/studio/rehearsal/:id`) — тот же пульт и экран зала на сессии в памяти
+  (`core/session.applyChange`), без гостей и без записей в базу.
+- Демо-квиз (8 вопросов, `src/mechanics/quiz/demo.ts`) admin добавляет в «Библиотеку JoyRest»
+  кнопкой на вкладке библиотеки (`demoGames` в реестре).
+
 Правила экономии лимитов:
 - Гости и экран зала слушают **только документ сессии**. Таблица лидеров хранится в нём.
 - Ответы слушает только пульт ведущего.
@@ -197,10 +229,16 @@ interface Mechanic<Content, Answer> {
   parse(raw): Content;          // данные из базы → формат механики, без исключений
   mediaIds(content): string[];  // картинки игры (копируются вместе с ней)
   steps(content): Step[];   // последовательность шагов игры
-  score(step, answers): ScoreDelta[];
+  score(step, answers, { state }): ScoreDelta[]; // state: startedAt, timeLimit, result
   validate(content): ValidationError[]; // path "questions/<id>/<поле>" + понятная подсказка
 }
 ```
+
+`HostControls` получает ответы на шаг, участников и `SessionControl` (`apply` — одна запись
+состояния и таблицы, `clearAnswers`, `requestFinish`): на настоящей сессии он пишет в базу, в
+репетиции — в память. `PlayerView` получает `pid` (кто получает очки), роль телефона
+(`player`/`captain`/`member`) и свой ответ. Ход квиза — чистые функции `quiz/flow.ts`.
+Очки за скорость: самый быстрый верный ответ — максимум, ответ в последнюю секунду — половина.
 
 Ядро и экраны работают с механикой из реестра как с `AnyMechanic` (содержимое `unknown`)
 и всегда сначала вызывают `parse`. Игру с ошибками `validate()` запустить нельзя: кнопка
@@ -322,7 +360,15 @@ QR-код — только компонент `QrCode` (`src/brand/qrSvg.ts`): �
 `ConfirmDialog`. Подробности карточки (механика, тема, число вопросов, дата) — плашки `.meta`.
 
 Загрузка: вместо текста «Загружаем…» — каркас экрана (`src/components/Skeleton.tsx`)
-через `Pending`; если загрузка дольше 8 секунд — сообщение и кнопка «Повторить».
+через `Pending`. Медленная сеть — не ошибка: загрузка не прерывается и сама повторяется после
+сетевых сбоев с паузой 2, 4, 8, дальше каждые 10 секунд (`withRetry` в `src/data/retry.ts`).
+Через 8 секунд под каркасом — плашка «Подключаемся… интернет медленный, подождите» с
+индикатором и маленькой кнопкой «Обновить страницу», через 30 секунд — «Всё ещё подключаемся —
+проверьте связь или Wi‑Fi». Данные пришли — экран открывается сам. Ошибкой с остановкой
+(`LoadFailed`) показываются только настоящие ошибки: не найдено, нет доступа (`isPermanentError`).
+Обрыв связи во время работы — тонкая полоса сверху «Нет связи — переподключаемся…»
+(`ConnectionBanner`, источник — `connection` из слоя данных), после восстановления — короткое
+«Связь восстановлена»; экран не закрывается, подписки Firestore догоняют данные сами.
 Уведомления о действиях — `Toast` («Ссылка скопирована»).
 
 Скорость: Firebase грузится динамически (`src/data/firebase.ts`) через обёртки
@@ -354,7 +400,13 @@ QR-код — только компонент `QrCode` (`src/brand/qrSvg.ts`): �
 - Слабый интернет на площадке — норма: на телефон гостя передаём минимум данных,
   тяжёлые медиа только на экране зала.
 - Нагрузочный симулятор `scripts/simulate.ts`: запускает N виртуальных гостей
-  (до 500) против тестовой сессии. Прогонять перед каждым релизом механики.
+  (до 500) против тестовой сессии. Прогонять перед каждым релизом механики:
+  `GUESTS=500 npm run simulate` (`TEAMS=1` — режим команд). Демо-квиз, 8 вопросов:
+  50 гостей — ~4,4 тыс. чтений и ~510 записей на игру; 500 гостей — ~34 тыс. чтений и
+  ~4,5 тыс. записей (лимит Spark в сутки: 50 тыс. чтений, 20 тыс. записей). Основные
+  статьи: гости слушают документ сессии (~45–60 обновлений за игру) и проверки правил
+  при ответе (2 чтения на ответ).
+- Экран зала и телефон гостя не гаснут во время игры (Wake Lock, `useWakeLock`).
 - Конструктор сохраняет изменения автоматически, ни одна правка не теряется
   (`src/components/useAutosave.ts`: пачка правок через 0,7 с уходит сразу, не дожидаясь
   ответа на предыдущую, — запись ложится в очередь локального кэша Firestore и переживает

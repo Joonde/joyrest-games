@@ -3,7 +3,8 @@ import type { Mechanic } from "../types";
 import { createContent, mediaIds, parseContent, type QuizContent } from "./content";
 import { score, steps, type QuizStep } from "./logic";
 import { validateContent } from "./validate";
-import { QuizHostControls, QuizPlayerView, QuizScreenView } from "./views";
+import { QuizHostControls } from "./HostControls";
+import { QuizPlayerView, QuizScreenView } from "./views";
 
 // Конструктор нужен только в студии: отдельный чанк, телефон гостя его не качает.
 const QuizEditor = lazy(() => import("./Editor").then((m) => ({ default: m.QuizEditor })));

@@ -5,7 +5,8 @@ import { gamesRepo, permissions, useLoad, type Game, type GameScope, type UserPr
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
-import { gameMediaIds } from "../../mechanics/registry";
+import { demoGames, gameMediaIds } from "../../mechanics/registry";
+import { DEFAULT_THEME_ID } from "../../themes/registry";
 import { GameCard } from "./GameCard";
 
 interface Props {
@@ -67,6 +68,36 @@ export function GameList({ scope, profile, onToast }: Props) {
     }
   }
 
+  // Демо-игры, которых ещё нет в библиотеке (по названию).
+  const missingDemos =
+    scope === "agency" && canCreate && state.status === "ready"
+      ? demoGames.filter((d) => !state.data.some((g) => g.title === d.title))
+      : [];
+  const [addingDemo, setAddingDemo] = useState(false);
+
+  async function addDemo(demo: (typeof demoGames)[number]) {
+    setAddingDemo(true);
+    try {
+      const draft = {
+        scope: "agency" as const,
+        ownerId: profile.uid,
+        title: demo.title,
+        mechanic: demo.mechanic,
+        themeId: DEFAULT_THEME_ID,
+        ageRating: "0+" as const,
+        playMode: "solo" as const,
+        content: demo.content,
+      };
+      const id = await gamesRepo.create(draft);
+      update((games) => [{ ...draft, id, createdAt: Date.now(), updatedAt: Date.now() }, ...games]);
+      onToast("Демо-квиз добавлен в библиотеку");
+    } catch {
+      onToast("Не удалось добавить. Проверьте интернет.");
+    } finally {
+      setAddingDemo(false);
+    }
+  }
+
   return (
     <>
       <section className="card">
@@ -81,6 +112,18 @@ export function GameList({ scope, profile, onToast }: Props) {
         )}
       </section>
 
+      {missingDemos.map((demo) => (
+        <section key={demo.title} className="card">
+          <p className="eyebrow">Готовая игра</p>
+          <h3 className="game-card__title">{demo.title}</h3>
+          <p className="muted">8 вопросов всех типов: варианты, открытый ответ, на скорость. Видна всем ведущим.</p>
+          <div className="actions">
+            <button type="button" className="btn btn--secondary btn--block" disabled={addingDemo} onClick={() => void addDemo(demo)}>
+              {addingDemo ? "Добавляем…" : "Добавить в библиотеку"}
+            </button>
+          </div>
+        </section>
+      ))}
       {state.status === "loading" && <ListSkeleton />}
       {state.status === "error" && <LoadFailedInline onRetry={retry} />}
       {state.status === "ready" && state.data.length === 0 && <p className="muted empty">{intro.empty}</p>}

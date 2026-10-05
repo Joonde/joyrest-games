@@ -138,3 +138,38 @@ describe("картинки игр", () => {
     expect(p.canChangeMedia(off, myGame)).toBe(false);
   });
 });
+
+describe("ответы", () => {
+  const open = {
+    phase: "playing" as const,
+    step: 2,
+    startedAt: 10_000,
+    revealed: false,
+    stage: "question" as const,
+    timeLimit: 20,
+    answered: 0,
+    result: null,
+  };
+
+  it("только на открытый вопрос и пока идёт время (+3 с на сеть)", () => {
+    expect(p.canSubmitAnswer(open, 2, 15_000)).toBe(true);
+    expect(p.canSubmitAnswer(open, 2, 32_500)).toBe(true);
+    expect(p.canSubmitAnswer(open, 2, 33_500)).toBe(false);
+    expect(p.canSubmitAnswer(open, 3, 15_000)).toBe(false);
+    expect(p.canSubmitAnswer({ ...open, stage: "ready" }, 2, 15_000)).toBe(false);
+    expect(p.canSubmitAnswer({ ...open, revealed: true, stage: "reveal" }, 2, 15_000)).toBe(false);
+    expect(p.canSubmitAnswer({ ...open, timeLimit: null }, 2, 1e12)).toBe(true);
+  });
+
+  it("свой ответ и ответ своей команды видно, чужой — нет", () => {
+    const session = { hostId: "host-1" };
+    const mine = { uid: "g1", pid: "g1" };
+    const teamAnswer = { uid: "g2", pid: "t1" };
+    expect(p.canReadAnswer("host-1", session, teamAnswer, null)).toBe(true);
+    expect(p.canReadAnswer("g1", session, mine, { teamId: null })).toBe(true);
+    expect(p.canReadAnswer("g3", session, teamAnswer, { teamId: "t1" })).toBe(true);
+    expect(p.canReadAnswer("g4", session, teamAnswer, { teamId: "t2" })).toBe(false);
+    expect(p.canReadAnswer("g4", session, mine, { teamId: null })).toBe(false);
+    expect(p.canReadAnswer(null, session, mine, null)).toBe(false);
+  });
+});

@@ -48,7 +48,7 @@ export function GameEditor() {
 
 function EditorLoader({ gameId, profile }: { gameId: string; profile: UserProfile }) {
   const [state, retry] = useLoad(() => gamesRepo.get(gameId), [gameId]);
-  if (state.status === "loading") return <Pending skeleton={<StudioSkeleton />} onRetry={retry} label="Открываем игру" />;
+  if (state.status === "loading") return <Pending skeleton={<StudioSkeleton />} label="Открываем игру" />;
   if (state.status === "error") return <LoadFailed onRetry={retry} />;
   const game = state.data;
   if (!game || !permissions.canReadGame(profile, game)) {
@@ -161,9 +161,14 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
                 Запустить
               </button>
             ) : (
-              <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
-                Запустить
-              </Link>
+              <>
+                <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+                  Запустить
+                </Link>
+                <Link className="btn btn--secondary btn--block" to={`/studio/rehearsal/${game.id}`}>
+                  Репетиция без гостей
+                </Link>
+              </>
             )
           ) : (
             <>
@@ -171,9 +176,14 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
                 {copying ? "Копируем…" : "Скопировать в мои игры"}
               </button>
               {!launchBlocked && (
-                <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
-                  Запустить как есть
-                </Link>
+                <>
+                  <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
+                    Запустить как есть
+                  </Link>
+                  <Link className="btn btn--quiet btn--block" to={`/studio/rehearsal/${game.id}`}>
+                    Репетиция без гостей
+                  </Link>
+                </>
               )}
             </>
           )}

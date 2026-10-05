@@ -9,7 +9,10 @@ import {
   type QuizQuestion,
 } from "./content";
 import { IMPORT_EXAMPLE, parseImport } from "./importText";
-import { isCorrect, score, steps } from "./logic";
+import { applyChange, startState } from "../../core/session";
+import type { Session, SessionState } from "../../data/types";
+import { back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
+import { groupOpenAnswers, isCorrect, parseResult, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
 
@@ -166,21 +169,160 @@ describe("parseImport", () => {
 
 describe("steps и score", () => {
   const open = { ...newQuestion("open"), text: "Что зелёное?", answers: ["ёлка", "трава"], points: 50 };
-  const content = { questions: [choice({ points: 100 }), open] };
+  const speed = { ...newQuestion("speed"), text: "Быстро!", options: ["a", "b"], correct: 1, points: 200, timeLimit: 10 };
+  const content = { questions: [choice({ points: 100 }), open, speed] };
+  const state = (patch: Partial<SessionState> = {}): SessionState => ({
+    ...startState(),
+    stage: "question",
+    startedAt: 1_000,
+    timeLimit: 10,
+    ...patch,
+  });
+  const answer = (pid: string, value: unknown, submittedAt: number | null = 2_000) => ({
+    id: pid,
+    step: 0,
+    pid,
+    uid: pid,
+    value,
+    submittedAt,
+  });
+  const [first, second, third] = steps(content);
+  if (!first || !second || !third) throw new Error("нет шагов");
 
   it("один шаг на вопрос", () => {
-    expect(steps(content).map((s) => [s.id, s.answerable])).toEqual([
-      [content.questions[0]?.id, true],
-      [open.id, true],
+    expect(steps(content).map((s) => s.answerable)).toEqual([true, true, true]);
+    expect(steps(content).map((s) => s.id)).toEqual(content.questions.map((q) => q.id));
+  });
+
+  it("выбор варианта: очки только за верный номер", () => {
+    expect(score(first, [answer("a", 0), answer("b", 1), answer("c", "0")], { state: state() })).toEqual([
+      { pid: "a", delta: 100 },
     ]);
   });
 
-  it("очки только за верные ответы", () => {
-    const [first, second] = steps(content);
-    if (!first || !second) throw new Error("нет шагов");
-    const answer = (pid: string, value: unknown) => ({ id: pid, step: 0, pid, uid: pid, value, submittedAt: 1 });
-    expect(score(first, [answer("a", 0), answer("b", 1), answer("c", "0")])).toEqual([{ pid: "a", delta: 100 }]);
-    expect(score(second, [answer("a", "Елка!"), answer("b", "ель")])).toEqual([{ pid: "a", delta: 50 }]);
+  it("открытый ответ: без регистра и ё/е, плюс засчитанные ведущим опечатки", () => {
+    const answers = [answer("a", "Елка!"), answer("b", "ёлко"), answer("c", "ель")];
+    expect(score(second, answers, { state: state() })).toEqual([{ pid: "a", delta: 50 }]);
+    const withTypo = state({ result: { counts: [], correct: 0, total: 0, accepted: [normalizeAnswer("ёлко")] } });
+    expect(score(second, answers, { state: withTypo })).toEqual([
+      { pid: "a", delta: 50 },
+      { pid: "b", delta: 50 },
+    ]);
     expect(isCorrect(open, 3)).toBe(false);
+  });
+
+  it("на скорость: самый быстрый — максимум, в последнюю секунду — половина", () => {
+    // Старт в 1 000 мс, лимит 10 с: ответы через 2 с, 6 с и 10 с; неверный — 0.
+    const answers = [answer("fast", 1, 3_000), answer("mid", 1, 7_000), answer("late", 1, 11_000), answer("wrong", 0, 1_500)];
+    expect(score(third, answers, { state: state() })).toEqual([
+      { pid: "fast", delta: 200 },
+      { pid: "mid", delta: 150 },
+      { pid: "late", delta: 100 },
+    ]);
+  });
+
+  it("на скорость: одинаковое время — одинаковые очки, один ответ — максимум", () => {
+    const same = [answer("a", 1, 4_000), answer("b", 1, 4_000)];
+    expect(score(third, same, { state: state() }).map((d) => d.delta)).toEqual([200, 200]);
+    expect(score(third, [answer("a", 1, 9_000)], { state: state() })).toEqual([{ pid: "a", delta: 200 }]);
+    // Отметка времени ещё не пришла с сервера — как последняя секунда.
+    expect(score(third, [answer("a", 1, 2_000), answer("b", 1, null)], { state: state() }).map((d) => d.delta)).toEqual([
+      200, 100,
+    ]);
+  });
+});
+
+describe("ход игры на пульте", () => {
+  const q1 = choice({ points: 100, timeLimit: 20 });
+  const q2 = { ...newQuestion("open"), text: "Ответ?", answers: ["да"], points: 50 };
+  const content = { questions: [q1, q2] };
+  const player = (id: string, name: string, joinedAt = 1) => ({
+    id,
+    name,
+    kind: "player" as const,
+    teamId: null,
+    captainUid: id,
+    joinedAt,
+  });
+  const base: Session = {
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "quiz",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: startState(),
+    leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
+    createdAt: 0,
+  };
+  const ans = (step: number, pid: string, value: unknown) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: 5 });
+  const people = [player("a", "Аня"), player("b", "Боря"), player("c", "Аня", 2)];
+
+  it("показать вопрос → ответ → таблица → следующий → завершить", () => {
+    let s = base;
+    expect(primaryAction(s, content)).toBe("show");
+    s = applyChange(s, showQuestion(s, content), 1);
+    expect(s.state).toMatchObject({ stage: "question", startedAt: 1, timeLimit: 20 });
+    expect(primaryAction(s, content)).toBe("reveal");
+    s = applyChange(s, reveal(s, content, [ans(0, "a", 0), ans(0, "b", 1), ans(0, "c", 0)], people), 2);
+    expect(s.state).toMatchObject({ stage: "reveal", revealed: true });
+    expect(parseResult(s.state.result)).toEqual({ counts: [2, 1], correct: 2, total: 3, accepted: [] });
+    expect(s.leaderboard.a).toMatchObject({ score: 100, last: 100 });
+    expect(s.leaderboard.b?.score).toBe(0);
+    expect(s.leaderboard.b?.last ?? 0).toBe(0);
+    // Опоздавший гость с тем же именем внесён в таблицу с номером.
+    expect(s.leaderboard.c).toMatchObject({ name: "Аня 2", score: 100 });
+    s = applyChange(s, showBoard(), 3);
+    expect(primaryAction(s, content)).toBe("next");
+    s = applyChange(s, nextQuestion(s), 4);
+    expect(s.state).toMatchObject({ step: 1, stage: "ready", startedAt: null });
+    s = applyChange(s, showQuestion(s, content), 5);
+    s = applyChange(s, toggleAccepted(s, normalizeAnswer("ДА!")), 6);
+    s = applyChange(s, reveal(s, content, [ans(1, "b", "да")], people), 7);
+    expect(s.leaderboard.b).toMatchObject({ score: 50, last: 50 });
+    expect(s.leaderboard.a).toMatchObject({ score: 100, last: 0 });
+    s = applyChange(s, showBoard(), 8);
+    expect(primaryAction(s, content)).toBe("finish");
+  });
+
+  it("«Назад» снимает очки шага, повторный показ ответа считает заново", () => {
+    let s = applyChange(base, showQuestion(base, content), 1);
+    s = applyChange(s, reveal(s, content, [ans(0, "a", 0)], people), 2);
+    expect(s.leaderboard.a?.score).toBe(100);
+    const toQuestion = back(s);
+    s = applyChange(s, toQuestion?.change ?? {}, 3);
+    expect(s.state.stage).toBe("question");
+    expect(s.leaderboard.a).toMatchObject({ score: 0, last: 0 });
+    s = applyChange(s, reveal(s, content, [ans(0, "a", 0)], people), 4);
+    expect(s.leaderboard.a?.score).toBe(100);
+  });
+
+  it("«Назад» с открытого вопроса убирает ответы, с «готовы?» — на таблицу прошлого", () => {
+    const open = applyChange(base, showQuestion(base, content), 1);
+    expect(back(open)?.clearAnswers).toBe(0);
+    expect(back(base)).toBeNull();
+    const second = { ...base, state: { ...base.state, step: 1 } };
+    expect(back(second)?.change.state).toMatchObject({ step: 0, stage: "board" });
+  });
+
+  it("открытые ответы собираются в уникальные строки", () => {
+    const groups = groupOpenAnswers(q2, [ans(1, "a", "Да"), ans(1, "b", "да!"), ans(1, "c", "lf")], ["lf"]);
+    expect(groups).toEqual([
+      { key: "да", text: "Да", count: 2, status: "correct" },
+      { key: "lf", text: "lf", count: 1, status: "accepted" },
+    ]);
+  });
+});
+
+describe("демо-квиз", () => {
+  it("8 вопросов всех типов и без ошибок", async () => {
+    const { DEMO_QUIZ } = await import("./demo");
+    expect(DEMO_QUIZ.content.questions).toHaveLength(8);
+    expect(new Set(DEMO_QUIZ.content.questions.map((q) => q.kind))).toEqual(new Set(["choice", "open", "speed"]));
+    expect(validateContent(DEMO_QUIZ.content)).toEqual([]);
   });
 });

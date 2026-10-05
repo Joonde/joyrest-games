@@ -1866,3 +1866,610 @@ kbd {
 .quiz-phone__option:disabled:not(.is-chosen):not(.is-correct) {
   opacity: 0.5;
 }
+
+/* ---------- Медленная загрузка и обрыв связи ---------- */
+
+.spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.5px solid var(--color-border);
+  border-top-color: var(--color-highlight);
+  animation: spin 0.9s linear infinite;
+}
+
+.spinner--small {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* При «уменьшить движение» индикатор не крутится, а мягко мигает. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: skeleton-pulse 1.4s ease-in-out infinite !important;
+  }
+}
+
+/* Плашка под каркасом: не перекрывает его и не мешает, кнопка — на крайний случай. */
+.slow-note {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(24px + var(--bottom-clearance) + var(--safe-bottom));
+  z-index: 15;
+  width: max-content;
+  max-width: calc(100% - var(--gutter) * 2);
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  padding: 8px 8px 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 15px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
+.slow-note__text {
+  flex: 1 1 200px;
+}
+
+.btn.slow-note__reload {
+  font-size: 15px;
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+.connection-slot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.connection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: calc(4px + var(--safe-top)) 16px 4px;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-danger);
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.connection-banner--restored {
+  border-bottom-color: var(--color-success);
+}
+
+/* ---------- Игра: экран зала ---------- */
+
+.hall.is-idle,
+.hall.is-idle * {
+  cursor: none !important;
+}
+
+.screen-controls {
+  position: fixed;
+  top: max(16px, var(--safe-top));
+  right: max(16px, var(--safe-right));
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.hall.is-idle .screen-controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.quiz-stage {
+  position: relative;
+}
+
+.quiz-stage > .quiz-screen,
+.quiz-stage > .final {
+  padding-top: max(8cqh, var(--safe-top));
+}
+
+.stage-code {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(1.5cqh, var(--safe-bottom));
+  margin: 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 2.2cqh;
+}
+
+.quiz-screen--intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4cqh;
+  text-align: center;
+}
+
+.quiz-screen__intro {
+  font-size: 16cqh;
+  line-height: 1;
+}
+
+.quiz-screen__of {
+  color: var(--color-text-muted);
+  font-size: 0.5em;
+}
+
+.quiz-screen--board {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.quiz-screen__answered {
+  margin-left: auto;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.quiz-screen__answered + .quiz-screen__timer {
+  margin-left: 2cqw;
+}
+
+.quiz-screen__timer.is-over {
+  border-color: var(--color-danger);
+  font-size: 3cqh;
+}
+
+.quiz-screen__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.quiz-screen__count {
+  position: relative;
+  flex: none;
+  min-width: 14cqw;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz-screen__bar {
+  display: block;
+  height: 1cqh;
+  margin-top: 0.6cqh;
+  margin-left: auto;
+  border-radius: 1cqh;
+  background: var(--gradient-secondary);
+}
+
+/* Таблица лидеров экрана зала. */
+.board-view {
+  width: min(100%, 140cqh);
+  display: flex;
+  flex-direction: column;
+  gap: 2cqh;
+  font-size: 4cqh;
+}
+
+.board-view__title {
+  font-size: 7cqh;
+  text-align: center;
+}
+
+.board-view__empty,
+.board-view__more {
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.board-view__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2cqh;
+}
+
+.board-view__row {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding: 1.2cqh 2cqw;
+  border-radius: 1.6cqh;
+  background: var(--color-surface);
+  border: 0.3cqh solid var(--color-border);
+}
+
+.board-view__row--team {
+  background: var(--team-color);
+  color: var(--color-team-text);
+  border-color: transparent;
+}
+
+.board-view__place {
+  flex: none;
+  min-width: 2.2em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.board-view__name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-view__last {
+  flex: none;
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+.board-view__score {
+  flex: none;
+  min-width: 3em;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Финал. */
+.final {
+  width: 100%;
+  height: 100%;
+  padding: 6cqh 6cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3cqh;
+  text-align: center;
+  overflow: hidden;
+}
+
+.final__eyebrow {
+  color: var(--color-text-muted);
+  font-size: 3.5cqh;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.final__winners {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqh;
+}
+
+.final__winner {
+  font-family: var(--font-display);
+  font-size: 11cqh;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--gradient-code);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.final__winner--team {
+  padding: 1cqh 4cqw;
+  border-radius: 999px;
+  background: var(--team-color);
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--color-team-text);
+}
+
+.final__score {
+  font-size: 4cqh;
+  color: var(--color-text-muted);
+}
+
+.final__board {
+  text-align: left;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  font-size: 0.8em;
+}
+
+/* ---------- Игра: телефон гостя ---------- */
+
+.page--play {
+  gap: 16px;
+}
+
+.play-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: var(--control-height);
+}
+
+.play-head__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.play-head__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.team-badge--small {
+  padding: 4px 16px;
+  font-size: 15px;
+}
+
+.quiz-phone--center {
+  align-items: center;
+  text-align: center;
+}
+
+.quiz-phone__place {
+  font-family: var(--font-display);
+  font-size: 96px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: lining-nums;
+}
+
+.quiz-phone__score {
+  font-weight: 600;
+}
+
+.quiz-phone__verdict {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.quiz-phone__verdict.is-right {
+  color: var(--color-success);
+}
+
+.quiz-phone__verdict.is-wrong {
+  color: var(--color-danger);
+}
+
+.quiz-phone__plus {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.quiz-phone__status {
+  text-align: center;
+  font-size: 20px;
+}
+
+/* ---------- Игра: пульт ---------- */
+
+.big-code--small {
+  font-size: clamp(36px, 10vw, 56px);
+}
+
+.host-quiz__question {
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.host-quiz__answer {
+  color: var(--color-success);
+}
+
+.host-quiz__live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  font-size: 20px;
+}
+
+.host-quiz__timer {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.host-quiz__timer.is-over {
+  font-size: 28px;
+  color: var(--color-danger);
+}
+
+.btn.host-quiz__toggle {
+  justify-content: flex-start;
+  padding-left: 0;
+}
+
+.host-quiz__subtitle {
+  font-size: 22px;
+}
+
+.host-quiz__dist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.host-quiz__dist .is-correct {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.open-answers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.open-answers__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: var(--control-height);
+  padding: 4px 4px 4px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  border: 1.5px solid transparent;
+}
+
+.open-answers__item--correct,
+.open-answers__item--accepted {
+  border-color: var(--color-success);
+}
+
+.open-answers__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.open-answers__mark {
+  flex: none;
+  padding-right: 12px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.btn.open-answers__btn {
+  flex: none;
+  padding: 8px 16px;
+}
+
+.people-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.people-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.people-list__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.people-list__place {
+  flex: none;
+  min-width: 24px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.people-list__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.people-list__score {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.people-list__tools {
+  display: flex;
+  gap: 8px;
+}
+
+.btn.people-list__btn {
+  flex: 1;
+  padding: 8px;
+}
+
+.people-list__members {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 16px;
+}
+
+.people-list__members li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 8px;
+}
+
+/* ---------- Репетиция ---------- */
+
+.rehearsal {
+  display: grid;
+  gap: 16px;
+}
+
+.rehearsal__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 960px) {
+  .rehearsal {
+    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+    align-items: start;
+  }
+}

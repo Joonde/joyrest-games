@@ -5,7 +5,7 @@
  * (permissions.test.ts и tests/rules/firestore.test.ts).
  */
 import { ADMIN_UID } from "./config";
-import type { Game, GameScope, Session, UserProfile } from "./types";
+import type { Answer, Game, GameScope, Participant, Session, SessionState, UserProfile } from "./types";
 
 /** Кто действует: профиль ведущего или null (гость, не вошёл). */
 export type Actor = Pick<UserProfile, "uid" | "role" | "active"> | null;
@@ -98,4 +98,32 @@ export function canListResults(actor: Actor, hostId: string): boolean {
 
 export function canCleanupSessions(actor: Actor): boolean {
   return isAdmin(actor);
+}
+
+/** Запас на задержку сети после конца таймера; тот же запас — в firestore.rules. */
+export const ANSWER_GRACE_MS = 3000;
+
+/**
+ * Ответ принимается только на текущий открытый вопрос и пока не вышло время
+ * (по часам сервера, с запасом 3 секунды на сеть).
+ */
+export function canSubmitAnswer(state: SessionState, step: number, serverNow: number): boolean {
+  if (state.phase !== "playing" || state.step !== step || state.revealed || state.stage !== "question") return false;
+  if (state.timeLimit === null) return true;
+  return state.startedAt !== null && serverNow <= state.startedAt + state.timeLimit * 1000 + ANSWER_GRACE_MS;
+}
+
+/**
+ * Ответы списком видит только ведущий сессии. По id телефон открывает свой ответ
+ * или ответ своей команды.
+ */
+export function canReadAnswer(
+  uid: string | null,
+  session: Pick<Session, "hostId">,
+  answer: Pick<Answer, "uid" | "pid">,
+  myPhone: Pick<Participant, "teamId"> | null,
+): boolean {
+  if (uid === null) return false;
+  if (canControlSession(uid, session)) return true;
+  return answer.uid === uid || (myPhone?.teamId !== null && myPhone?.teamId === answer.pid);
 }

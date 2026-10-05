@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-/** Через сколько миллисекунд загрузка считается долгой. */
+/** Через сколько миллисекунд загрузка считается долгой и через сколько — очень долгой. */
 export const SLOW_LOADING_MS = 8000;
+export const VERY_SLOW_LOADING_MS = 30_000;
 
 export function Loading({ text = "Загружаем…" }: { text?: string }) {
   return (
@@ -25,53 +26,51 @@ export function Message({ title, children }: { title: string; children?: ReactNo
 interface PendingProps {
   /** Каркас экрана, пока идёт загрузка. */
   skeleton: ReactNode;
-  /** Повторить загрузку. Без него «Повторить» перезагружает страницу. */
-  onRetry?: () => void;
   /** Что именно грузится — для экранного диктора. */
   label: string;
 }
 
 /**
- * Каркас экрана вместо надписи «Загружаем…». Если загрузка идёт дольше 8 секунд,
- * показывает понятное сообщение и кнопку «Повторить».
+ * Каркас экрана вместо надписи «Загружаем…». Загрузка не прерывается: данные
+ * запрашиваются, пока не придут (повторы — в слое данных), и экран откроется сам.
+ * Через 8 секунд под каркасом появляется спокойная плашка, через 30 — подсказка про связь.
  */
-export function Pending({ skeleton, onRetry, label }: PendingProps) {
-  const [slow, setSlow] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+export function Pending({ skeleton, label }: PendingProps) {
+  const [waited, setWaited] = useState<"normal" | "slow" | "verySlow">("normal");
 
   useEffect(() => {
-    setSlow(false);
-    const timer = window.setTimeout(() => setSlow(true), SLOW_LOADING_MS);
-    return () => window.clearTimeout(timer);
-  }, [attempt]);
+    const slow = window.setTimeout(() => setWaited("slow"), SLOW_LOADING_MS);
+    const verySlow = window.setTimeout(() => setWaited("verySlow"), VERY_SLOW_LOADING_MS);
+    return () => {
+      window.clearTimeout(slow);
+      window.clearTimeout(verySlow);
+    };
+  }, []);
 
-  function retry() {
-    if (onRetry) {
-      onRetry();
-      setAttempt((n) => n + 1);
-    } else {
-      window.location.reload();
-    }
-  }
-
-  if (slow) {
-    return (
-      <LoadFailed title="Загрузка идёт дольше обычного" onRetry={retry}>
-        Похоже, интернет на площадке медленный. Проверьте связь или подойдите ближе к Wi‑Fi.
-      </LoadFailed>
-    );
-  }
   return (
     <div aria-busy="true" aria-label={label}>
       {skeleton}
+      {waited !== "normal" && (
+        <div className="slow-note" role="status">
+          <span className="spinner" aria-hidden="true" />
+          <span className="slow-note__text">
+            {waited === "slow"
+              ? "Подключаемся… интернет медленный, подождите"
+              : "Всё ещё подключаемся — проверьте связь или Wi‑Fi"}
+          </span>
+          <button type="button" className="btn btn--quiet slow-note__reload" onClick={() => window.location.reload()}>
+            Обновить страницу
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 /** Ошибка загрузки с кнопкой «Повторить». */
 export function LoadFailed({
-  title = "Нет связи",
-  children = "Проверьте интернет и попробуйте ещё раз.",
+  title = "Не удалось открыть",
+  children = "Нет доступа или данные удалены. Если вы уверены, что всё верно, попробуйте ещё раз.",
   onRetry,
 }: {
   title?: string;

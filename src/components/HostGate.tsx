@@ -15,7 +15,7 @@ interface Props {
 export function HostGate({ requireAdmin = false, skeleton, children }: Props) {
   const [auth, retry] = useAuth();
 
-  if (auth.status === "loading") return <Pending skeleton={skeleton} onRetry={retry} label="Проверяем вход" />;
+  if (auth.status === "loading") return <Pending skeleton={skeleton} label="Проверяем вход" />;
   if (auth.status === "error") return <LoadFailed onRetry={retry} />;
   if (auth.status === "signedOut" || auth.user.anonymous) return <LoginForm />;
 

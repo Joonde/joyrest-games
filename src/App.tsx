@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Loading } from "./components/Status";
+import { ConnectionBanner } from "./components/ConnectionBanner";
 import { Home } from "./screens/Home";
 import { JoinByCode } from "./screens/JoinByCode";
 import { NotFound } from "./screens/NotFound";
@@ -9,6 +10,7 @@ import { NotFound } from "./screens/NotFound";
 const Studio = lazy(() => import("./screens/studio/Studio").then((m) => ({ default: m.Studio })));
 const NewGame = lazy(() => import("./screens/studio/NewGame").then((m) => ({ default: m.NewGame })));
 const GameEditor = lazy(() => import("./screens/studio/GameEditor").then((m) => ({ default: m.GameEditor })));
+const Rehearsal = lazy(() => import("./screens/studio/Rehearsal").then((m) => ({ default: m.Rehearsal })));
 const Launch = lazy(() => import("./screens/studio/Launch").then((m) => ({ default: m.Launch })));
 const ChangePassword = lazy(() =>
   import("./screens/studio/ChangePassword").then((m) => ({ default: m.ChangePassword })),
@@ -23,6 +25,7 @@ const Play = lazy(() => import("./screens/Play").then((m) => ({ default: m.Play 
 export function App() {
   return (
     <BrowserRouter>
+      <ConnectionBanner />
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -30,6 +33,7 @@ export function App() {
           <Route path="/studio/new" element={<NewGame />} />
           <Route path="/studio/games/:gameId" element={<GameEditor />} />
           <Route path="/studio/launch/:gameId" element={<Launch />} />
+          <Route path="/studio/rehearsal/:gameId" element={<Rehearsal />} />
           <Route path="/studio/password" element={<ChangePassword />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/host/:code" element={<HostConsole />} />

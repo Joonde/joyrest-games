@@ -20,6 +20,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete }: Props) {
   const ready = validateGame(game.mechanic, game.content).length === 0;
 
   const menu: MenuAction[] = [{ label: editable ? "Открыть" : "Посмотреть", to: `/studio/games/${game.id}` }];
+  if (ready) menu.push({ label: "Репетиция без гостей", to: `/studio/rehearsal/${game.id}` });
   if (game.scope === "agency" && permissions.canCreateGame(profile, "agency", profile.uid)) {
     menu.push({ label: "Дублировать в библиотеке", onClick: () => onDuplicate("agency") });
   }

@@ -1,4 +1,5 @@
 import { quiz } from "./quiz";
+import { DEMO_QUIZ } from "./quiz/demo";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
 
 /**
@@ -56,3 +57,8 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
   const mechanic = getMechanic(mechanicId);
   return mechanic ? mechanic.mediaIds(mechanic.parse(content)) : [];
 }
+
+/** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
+export const demoGames: Array<{ mechanic: string; title: string; content: unknown }> = [
+  { mechanic: quiz.id, title: DEMO_QUIZ.title, content: DEMO_QUIZ.content },
+];

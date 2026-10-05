@@ -68,7 +68,12 @@ export interface GamesRepository {
 
 export interface SessionsRepository {
   create(hostId: string, options: NewSessionOptions): Promise<{ id: string; code: string }>;
+  /** Поиск по коду находит только незавершённые сессии (лобби и идущая игра). */
   findByCode(code: string): Promise<Session | null>;
+  /** Для пульта: своя сессия по коду, в том числе завершённая. */
+  findHostSessionByCode(code: string, hostId: string): Promise<Session | null>;
+  /** По id: так гость, который уже в игре, видит сессию и после завершения. */
+  get(sessionId: string): Promise<Session | null>;
   /** Подписка на документ сессии — единственное, что слушают гости и экран зала. */
   watch(sessionId: string, onChange: (session: Session | null) => void, onError: (error: Error) => void): Unsubscribe;
   /** Сессии ведущего, новые сверху. */

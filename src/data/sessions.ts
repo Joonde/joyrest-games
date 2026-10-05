@@ -66,10 +66,28 @@ function toSession(snap: DocumentSnapshot): Session | null {
   };
 }
 
-async function sessionsByCode(code: string): Promise<Session[]> {
+/**
+ * Фазы, в которых сессию можно найти по коду. Завершённую игру по коду не найти:
+ * её видят только ведущий (по своим сессиям) и admin. Тот же список — в firestore.rules.
+ */
+export const ACTIVE_PHASES: SessionPhase[] = ["lobby", "playing"];
+
+/** Незавершённые сессии с этим кодом (правила пропускают только такой запрос). */
+async function activeSessionsByCode(code: string): Promise<Session[]> {
   const { col, sdk } = await sessionsCol();
-  const snap = await sdk.getDocs(sdk.query(col, sdk.where("code", "==", code), sdk.limit(CODE_QUERY_LIMIT)));
+  const snap = await sdk.getDocs(
+    sdk.query(
+      col,
+      sdk.where("code", "==", code),
+      sdk.where("state.phase", "in", ACTIVE_PHASES),
+      sdk.limit(CODE_QUERY_LIMIT),
+    ),
+  );
   return snap.docs.map(toSession).filter((s): s is Session => s !== null);
+}
+
+function newestFirst(sessions: Session[]): Session[] {
+  return [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 }
 
 /** Компактные итоги сессии для results/{sessionId}. */
@@ -112,8 +130,7 @@ export const sessionsRepository: SessionsRepository = {
     const { col, sdk } = await sessionsCol();
     for (let attempt = 0; attempt < 10; attempt++) {
       const code = generateSessionCode();
-      const existing = await sessionsByCode(code);
-      if (existing.some((s) => s.state.phase !== "finished")) continue;
+      if ((await activeSessionsByCode(code)).length > 0) continue;
       const initialState = { phase: "lobby", step: 0, startedAt: null, revealed: false };
       const ref = await sdk.addDoc(col, {
         code,
@@ -134,11 +151,24 @@ export const sessionsRepository: SessionsRepository = {
     throw new Error("Не удалось подобрать свободный код сессии");
   },
 
-  /** Актуальная сессия по коду: незавершённая, а если таких нет — самая свежая. */
+  /** Незавершённая сессия по коду (самая свежая, если их вдруг несколько). */
   async findByCode(code) {
-    const sessions = await sessionsByCode(code);
-    const newestFirst = [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-    return newestFirst.find((s) => s.state.phase !== "finished") ?? newestFirst[0] ?? null;
+    return newestFirst(await activeSessionsByCode(code))[0] ?? null;
+  },
+
+  /** Для пульта: своя сессия с этим кодом, в том числе завершённая. */
+  async findHostSessionByCode(code, hostId) {
+    const { col, sdk } = await sessionsCol();
+    const snap = await sdk.getDocs(
+      sdk.query(col, sdk.where("code", "==", code), sdk.where("hostId", "==", hostId), sdk.limit(CODE_QUERY_LIMIT)),
+    );
+    const sessions = newestFirst(snap.docs.map(toSession).filter((s): s is Session => s !== null));
+    return sessions.find((s) => s.state.phase !== "finished") ?? sessions[0] ?? null;
+  },
+
+  async get(sessionId) {
+    const { col, sdk } = await sessionsCol();
+    return toSession(await sdk.getDoc(sdk.doc(col, sessionId)));
   },
 
   watch(sessionId, onChange, onError) {

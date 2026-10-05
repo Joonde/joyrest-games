@@ -29,7 +29,7 @@ export function HostConsole() {
 }
 
 function HostConsoleContent({ code, user }: { code: string; user: AuthUser }) {
-  const [state, retry] = useSessionByCode(code);
+  const [state, retry] = useSessionByCode(code, { hostId: user.uid });
 
   if (state.status === "loading") return <Pending skeleton={<ConsoleSkeleton />} onRetry={retry} label="Открываем пульт" />;
   if (state.status === "notFound") return <Message title="Сессия не найдена">Проверьте код: {code}</Message>;

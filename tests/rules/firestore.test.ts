@@ -19,7 +19,7 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const ADMIN = "bmBFBi7VmqVl7oIVyntw0QYRTYJ2";
 const HOST = "host-1";
@@ -65,6 +65,16 @@ function sessionData(hostId: string, phase = "lobby", playMode = "solo") {
     leaderboard: {},
     createdAt: serverTimestamp(),
   };
+}
+
+/** Тот же запрос, что делает телефон гостя: код + только незавершённые сессии. */
+function byActiveCode(db: ReturnType<typeof as>, max = 5) {
+  return query(
+    collection(db, "sessions"),
+    where("code", "==", "123456"),
+    where("state.phase", "in", ["lobby", "playing"]),
+    limit(max),
+  );
 }
 
 function as(uid: string) {
@@ -119,8 +129,52 @@ describe("sessions", () => {
 
   it("гость читает сессию и ищет её по коду с лимитом", async () => {
     await assertSucceeds(getDoc(doc(as(GUEST), "sessions", "s1")));
-    await assertSucceeds(getDocs(query(collection(as(GUEST), "sessions"), where("code", "==", "123456"), limit(5))));
-    await assertFails(getDocs(query(collection(as(GUEST), "sessions"), where("code", "==", "123456"))));
+    await assertSucceeds(getDocs(byActiveCode(as(GUEST))));
+    await assertFails(getDocs(byActiveCode(as(GUEST), 50)));
+  });
+
+  it("поиск по коду без фильтра незавершённых сессий запрещён", async () => {
+    await assertFails(getDocs(query(collection(as(GUEST), "sessions"), where("code", "==", "123456"), limit(5))));
+    await assertFails(
+      getDocs(
+        query(collection(as(GUEST), "sessions"), where("code", "==", "123456"), where("state.phase", "==", "finished"), limit(5)),
+      ),
+    );
+  });
+
+  it("сессия в лобби и идущая игра находятся по коду", async () => {
+    await assertSucceeds(getDocs(byActiveCode(as(GUEST))));
+    await setSession({ "state.phase": "playing" });
+    const snap = await assertSucceeds(getDocs(byActiveCode(as(GUEST))));
+    expect(snap.size).toBe(1);
+  });
+
+  it("после «Завершить игру» сессию по коду не находит ни гость, ни посторонний", async () => {
+    await setSession({ "state.phase": "finished" });
+    const guestSnap = await assertSucceeds(getDocs(byActiveCode(as(GUEST))));
+    expect(guestSnap.size).toBe(0);
+    const strangerSnap = await assertSucceeds(getDocs(byActiveCode(as("stranger"))));
+    expect(strangerSnap.size).toBe(0);
+    await assertFails(getDocs(byActiveCode(env.unauthenticatedContext().firestore())));
+  });
+
+  it("гость, который уже в игре, видит свою сессию и после завершения", async () => {
+    await addParticipant(GUEST, { name: "Анна", kind: "player", teamId: null, captainUid: GUEST });
+    await setSession({ "state.phase": "finished" });
+    await assertSucceeds(getDoc(doc(as(GUEST), "sessions", "s1")));
+  });
+
+  it("ведущий и admin находят завершённую сессию в своих списках", async () => {
+    await setSession({ "state.phase": "finished" });
+    const hostSnap = await assertSucceeds(
+      getDocs(query(collection(as(HOST), "sessions"), where("code", "==", "123456"), where("hostId", "==", HOST), limit(5))),
+    );
+    expect(hostSnap.size).toBe(1);
+    await assertSucceeds(getDocs(query(collection(as(HOST), "sessions"), where("hostId", "==", HOST))));
+    await assertFails(
+      getDocs(query(collection(as(OTHER_HOST), "sessions"), where("code", "==", "123456"), where("hostId", "==", HOST), limit(5))),
+    );
+    await assertSucceeds(getDocs(query(collection(as(ADMIN), "sessions"), where("code", "==", "123456"))));
   });
 
   it("неавторизованный не читает сессию", async () => {

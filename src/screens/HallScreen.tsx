@@ -13,7 +13,7 @@ import { teamColorVar, useTheme } from "../themes/registry";
 export function HallScreen() {
   const { code = "" } = useParams();
   const [auth, retryAuth] = useGuestSignIn();
-  const [state, retry] = useSessionByCode(code, auth.status === "ready");
+  const [state, retry] = useSessionByCode(code, { enabled: auth.status === "ready" });
 
   if (auth.status === "error") return <LoadFailed onRetry={retryAuth} />;
   if (auth.status === "loading" || state.status === "loading") {

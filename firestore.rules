@@ -101,12 +101,16 @@ service cloud.firestore {
         return signedIn() && resource.data.hostId == request.auth.uid;
       }
 
-      // Документ сессии читают все вошедшие: гости, экран зала, пульт.
+      // Документ сессии по id читают все вошедшие: гости, экран зала, пульт. Гость, который
+      // уже в игре, знает id и видит сессию до конца, в том числе после завершения.
       allow get: if signedIn();
-      // Поиск по коду — не больше 5 документов; ведущий видит все свои сессии,
-      // admin — все (автоочистка старых сессий).
+      // Поиск по коду — только незавершённые сессии (лобби и идущая игра) и не больше
+      // 5 документов: после «Завершить игру» по коду сессию не найти. Ведущий видит все
+      // свои сессии, admin — все (автоочистка старых сессий).
       allow list: if signedIn()
-        && (request.query.limit <= 5 || resource.data.hostId == request.auth.uid || isAdmin());
+        && ((request.query.limit <= 5 && resource.data.state.phase in ['lobby', 'playing'])
+          || resource.data.hostId == request.auth.uid
+          || isAdmin());
 
       allow create: if isHost()
         && request.resource.data.hostId == request.auth.uid

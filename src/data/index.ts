@@ -40,6 +40,7 @@ export {
   type AuthState,
   type GuestSignInState,
   type LoadState,
+  type SessionByCodeOptions,
   type SessionLoadState,
 } from "./hooks";
 export { preloadData } from "./firebase";

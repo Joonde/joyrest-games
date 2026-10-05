@@ -52,6 +52,7 @@ function parseLeaderboard(value: unknown): Leaderboard {
       kind: entry.kind === "team" ? "team" : "player",
       score: asNumber(entry.score),
     };
+    if (typeof entry.colorIndex === "number") board[id].colorIndex = entry.colorIndex;
   }
   return board;
 }

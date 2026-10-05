@@ -1,35 +1,82 @@
+import { brand, fonts, teamColors } from "./brand";
 import type { Theme } from "./types";
 
-/**
- * Базовая тема. Цвета временные: фирменный стиль JoyRest ещё не заполнен
- * (CLAUDE.md, раздел 8). Заменить значения, когда появятся цвета и шрифты с сайта.
- */
+/** Базовая тема: фирменный стиль JoyRest, вечерний (тёмный) вариант. */
 export const joyrest: Theme = {
   id: "joyrest",
-  title: "JoyRest",
+  title: "JoyRest · вечер",
   kind: "brand",
   ageRating: "0+",
   sounds: {},
   tokens: {
+    scheme: "dark",
     colors: {
-      bg: "#1f1147",
-      surface: "#2c1a63",
-      surfaceAlt: "#3a2580",
-      text: "#ffffff",
-      textMuted: "#c9bfef",
-      primary: "#ff5a5f",
-      primaryText: "#ffffff",
-      accent: "#ffc94d",
-      danger: "#ff6b6b",
-      success: "#4cd99a",
-      focus: "#ffc94d",
-      border: "#4b3896",
+      bg: brand.espresso,
+      surface: brand.cocoa,
+      surfaceAlt: brand.cocoaLight,
+      border: "rgba(227, 198, 140, 0.18)",
+      text: brand.cream,
+      textMuted: brand.taupe,
+      primary: brand.rose,
+      primaryText: brand.espresso,
+      secondaryText: brand.espresso,
+      highlight: brand.gold,
+      link: brand.coral,
+      danger: "#F2A79C",
+      success: brand.sage,
+      focus: brand.gold,
+      logo: brand.cream,
+      teamText: brand.espresso,
     },
-    fonts: {
-      body: "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
-      display: "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+    gradients: {
+      secondary: `linear-gradient(120deg, ${brand.gold} 0%, ${brand.sage} 100%)`,
+      secondaryStops: [brand.gold, brand.sage],
+      code: `linear-gradient(120deg, ${brand.gold} 0%, ${brand.sage} 100%)`,
+      codeStops: [brand.gold, brand.sage],
     },
-    radius: { sm: "8px", md: "14px", lg: "24px" },
-    background: "radial-gradient(circle at 20% 0%, #3a2580 0%, #1f1147 60%)",
+    teamColors,
+    fonts,
+    radius: { sm: "10px", md: "16px", lg: "24px" },
+    background: `radial-gradient(120% 70% at 50% 0%, #2F2A25 0%, ${brand.espresso} 65%)`,
+  },
+};
+
+/** Дневной (светлый) вариант фирменной темы. */
+export const joyrestDay: Theme = {
+  id: "joyrest-day",
+  title: "JoyRest · день",
+  kind: "brand",
+  ageRating: "0+",
+  sounds: {},
+  tokens: {
+    scheme: "light",
+    colors: {
+      bg: brand.cream,
+      surface: "#FFFFFF",
+      surfaceAlt: "#FAF4EE",
+      border: "rgba(54, 46, 41, 0.14)",
+      text: brand.ink,
+      textMuted: brand.taupeDark,
+      primary: brand.rose,
+      primaryText: brand.espresso,
+      secondaryText: brand.espresso,
+      highlight: "#9A7444",
+      link: "#8A5148",
+      danger: "#A6443A",
+      success: "#3F6B4A",
+      focus: "#8A5148",
+      logo: brand.espresso,
+      teamText: brand.espresso,
+    },
+    gradients: {
+      secondary: `linear-gradient(120deg, ${brand.gold} 0%, ${brand.sage} 100%)`,
+      secondaryStops: [brand.gold, brand.sage],
+      code: `linear-gradient(120deg, #8A5148 0%, ${brand.ink} 100%)`,
+      codeStops: ["#8A5148", brand.ink],
+    },
+    teamColors,
+    fonts,
+    radius: { sm: "10px", md: "16px", lg: "24px" },
+    background: `radial-gradient(120% 70% at 50% 0%, #FFFFFF 0%, ${brand.cream} 65%)`,
   },
 };

@@ -10,6 +10,7 @@ const Studio = lazy(() => import("./screens/Studio").then((m) => ({ default: m.S
 const Admin = lazy(() => import("./screens/Admin").then((m) => ({ default: m.Admin })));
 const HostConsole = lazy(() => import("./screens/HostConsole").then((m) => ({ default: m.HostConsole })));
 const HallScreen = lazy(() => import("./screens/HallScreen").then((m) => ({ default: m.HallScreen })));
+const Brand = lazy(() => import("./screens/Brand").then((m) => ({ default: m.Brand })));
 const Play = lazy(() => import("./screens/Play").then((m) => ({ default: m.Play })));
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />
           <Route path="/j" element={<JoinByCode />} />
+          <Route path="/brand" element={<Brand />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

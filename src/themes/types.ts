@@ -2,20 +2,41 @@ export type ThemeKind = "brand" | "seasonal" | "occasion";
 export type AgeRating = "0+" | "12+" | "18+";
 
 export interface ThemeTokens {
+  /** Тёмная или светлая схема: влияет на системные элементы браузера. */
+  scheme: "dark" | "light";
   colors: {
     bg: string;
     surface: string;
     surfaceAlt: string;
+    border: string;
     text: string;
     textMuted: string;
+    /** Основные кнопки. */
     primary: string;
     primaryText: string;
-    accent: string;
+    /** Текст на второстепенных кнопках с градиентом `gradients.secondary`. */
+    secondaryText: string;
+    /** Рамки выбранных вариантов и подсветки. */
+    highlight: string;
+    link: string;
     danger: string;
     success: string;
     focus: string;
-    border: string;
+    /** Цвет логотипа в варианте «по теме». */
+    logo: string;
+    /** Текст на пастельных цветах команд. */
+    teamText: string;
   };
+  gradients: {
+    /** Второстепенные кнопки и подсветки. Первый и последний цвет — для проверки контраста. */
+    secondary: string;
+    secondaryStops: [string, string];
+    /** Крупный код игры. */
+    code: string;
+    codeStops: [string, string];
+  };
+  /** Пастельные цвета команд по порядку подключения. */
+  teamColors: string[];
   fonts: { body: string; display: string };
   radius: { sm: string; md: string; lg: string };
   background: string;

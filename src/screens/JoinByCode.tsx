@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { Logo } from "../components/Logo";
 import { SESSION_CODE_LENGTH, isValidSessionCode, normalizeSessionCode } from "../core/code";
 
 export function JoinByCode() {
@@ -19,6 +20,7 @@ export function JoinByCode() {
 
   return (
     <main className="page page--center">
+      <Logo kind="full" className="logo--form" />
       <form className="card" onSubmit={onSubmit}>
         <h1>Вход в игру</h1>
         <label className="field">

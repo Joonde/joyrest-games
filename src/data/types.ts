@@ -34,6 +34,8 @@ export interface LeaderboardEntry {
   name: string;
   kind: ParticipantKind;
   score: number;
+  /** Только у команд: порядковый номер цвета команды из темы. */
+  colorIndex?: number;
 }
 
 /** Ключ — id участника (игрока или команды). */

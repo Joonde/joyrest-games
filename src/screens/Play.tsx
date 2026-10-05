@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
@@ -12,7 +12,9 @@ import {
   type Participant,
   type Session,
 } from "../data";
+import { Logo } from "../components/Logo";
 import { Loading, Message } from "../components/Status";
+import { teamColorVar, useTheme } from "../themes/registry";
 
 const NAME_STORAGE_KEY = "joyrest.playerName";
 
@@ -64,6 +66,7 @@ export function Play() {
 function PlayerScreen({ session, uid }: { session: Session; uid: string }) {
   const [me, setMe] = useState<Participant | null | undefined>(undefined);
   const [team, setTeam] = useState<Participant | null>(null);
+  useTheme(session.themeId);
 
   const reload = useCallback(async () => {
     const participant = await getMyParticipant(session.id, uid);
@@ -151,10 +154,9 @@ function JoinForm({
 
   return (
     <main className="page page--center">
+      <Logo kind="full" className="logo--form" />
       <form className="card" onSubmit={onSubmit}>
-        <p className="muted" style={{ margin: 0 }}>
-          Игра {formatSessionCode(session.code)}
-        </p>
+        <p className="eyebrow">Игра {formatSessionCode(session.code)}</p>
         <h1>Как вас зовут?</h1>
         <label className="field">
           Имя
@@ -185,7 +187,7 @@ function JoinForm({
                 <input maxLength={NAME_MAX_LENGTH} value={teamName} onChange={(e) => setTeamName(e.target.value)} />
               </label>
             )}
-            <button type="button" className="btn btn--secondary" onClick={loadTeams}>
+            <button type="button" className="btn btn--ghost" onClick={loadTeams}>
               Обновить список команд
             </button>
           </fieldset>
@@ -218,17 +220,23 @@ function Waiting({
   const scoreId = session.playMode === "teams" ? me.teamId : me.id;
   const score = scoreId ? session.leaderboard[scoreId]?.score : undefined;
   const isCaptain = team?.captainUid === uid;
+  const teamColor = me.teamId ? session.leaderboard[me.teamId]?.colorIndex : undefined;
 
   return (
     <main className="page page--center">
-      <div className="card" style={{ textAlign: "center" }}>
-        <p className="muted" style={{ margin: 0 }}>
-          Игра {formatSessionCode(session.code)}
-        </p>
+      <Logo kind="monogram" className="logo--mark" title="JoyRest" />
+      <div className="card" style={{ textAlign: "center", alignItems: "center" }}>
+        <p className="eyebrow">Игра {formatSessionCode(session.code)}</p>
         <h1>{me.name}</h1>
         {team && (
           <p>
-            Команда «{team.name}»{isCaptain ? " · вы капитан" : ""}
+            <span
+              className="team-badge"
+              style={{ "--team-color": teamColorVar(teamColor) } as CSSProperties}
+            >
+              Команда «{team.name}»
+            </span>
+            {isCaptain && <span className="muted"> · вы капитан</span>}
           </p>
         )}
         <div aria-live="polite">

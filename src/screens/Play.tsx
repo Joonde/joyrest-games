@@ -3,10 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import {
-  createTeam,
-  getMyParticipant,
-  joinAsPlayer,
-  listTeams,
+  participantsRepo,
   useGuestSignIn,
   useSessionByCode,
   type Participant,
@@ -38,7 +35,7 @@ function rememberName(name: string): void {
 export function Play() {
   const { code = "" } = useParams();
   const [auth, retryAuth] = useGuestSignIn();
-  const [state, retry] = useSessionByCode(code, auth.status === "ready");
+  const [state, retry] = useSessionByCode(code, { enabled: auth.status === "ready" });
 
   if (auth.status === "error") return <LoadFailed onRetry={retryAuth} />;
   if (auth.status === "loading" || state.status === "loading") {
@@ -70,10 +67,10 @@ function PlayerScreen({ session, uid }: { session: Session; uid: string }) {
   useTheme(session.themeId);
 
   const reload = useCallback(async () => {
-    const participant = await getMyParticipant(session.id, uid);
+    const participant = await participantsRepo.getMine(session.id, uid);
     setMe(participant);
     if (participant?.teamId) {
-      const teams = await listTeams(session.id);
+      const teams = await participantsRepo.listTeams(session.id);
       setTeam(teams.find((t) => t.id === participant.teamId) ?? null);
     }
   }, [session.id, uid]);
@@ -115,7 +112,8 @@ function JoinForm({
 
   const loadTeams = useCallback(() => {
     if (!teamsMode) return;
-    listTeams(session.id)
+    participantsRepo
+      .listTeams(session.id)
       .then((list) => {
         setTeams(list);
         setTeamId((current) => (current === "new" && list[0] ? list[0].id : current));
@@ -142,9 +140,9 @@ function JoinForm({
     try {
       let joinTeamId: string | null = null;
       if (teamsMode) {
-        joinTeamId = teamId === "new" ? await createTeam(session.id, uid, cleanTeam) : teamId;
+        joinTeamId = teamId === "new" ? await participantsRepo.createTeam(session.id, uid, cleanTeam) : teamId;
       }
-      await joinAsPlayer(session.id, uid, cleanPlayer, joinTeamId);
+      await participantsRepo.joinAsPlayer(session.id, uid, cleanPlayer, joinTeamId);
       rememberName(cleanPlayer);
       await onJoined();
     } catch {

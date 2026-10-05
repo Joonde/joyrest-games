@@ -1,5 +1,8 @@
+import type { AgeRating } from "../data/types";
+
+export type { AgeRating };
+
 export type ThemeKind = "brand" | "seasonal" | "occasion";
-export type AgeRating = "0+" | "12+" | "18+";
 
 export interface ThemeTokens {
   /** Тёмная или светлая схема: влияет на системные элементы браузера. */

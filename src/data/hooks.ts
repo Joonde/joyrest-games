@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { ensureSignedIn, loadUserProfile, watchAuth, type AuthUser } from "./auth";
-import { findSessionByCode, watchSession } from "./sessions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { authService } from "./auth";
+import type { AuthUser } from "./contracts";
+import { sessionsRepository } from "./sessions";
 import type { Session, UserProfile } from "./types";
+import { usersRepository } from "./users";
 
 /** Счётчик попыток: смена значения перезапускает загрузку в эффекте. */
 function useAttempt(): [number, () => void] {
@@ -24,14 +26,14 @@ export function useAuth(): [AuthState, () => void] {
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
-    const unsubscribe = watchAuth(
+    const unsubscribe = authService.watch(
       (user) => {
         if (!user) {
           setState({ status: "signedOut" });
           return;
         }
         setState({ status: "loading" });
-        loadUserProfile(user)
+        usersRepository.loadProfile(user)
           .catch(() => null)
           .then((profile) => {
             if (!cancelled) setState({ status: "signedIn", user, profile });
@@ -58,7 +60,8 @@ export function useGuestSignIn(): [GuestSignInState, () => void] {
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
-    ensureSignedIn()
+    authService
+      .ensureSignedIn()
       .then((user) => {
         if (!cancelled) setState({ status: "ready", uid: user.uid });
       })
@@ -79,12 +82,57 @@ export type SessionLoadState =
   | { status: "error"; message: string }
   | { status: "ready"; session: Session };
 
+// Телефон запоминает id сессий, в которые входил: после «Завершить игру» сессию уже
+// не найти по коду, а гость с погасшим экраном должен увидеть финал своей игры.
+const KNOWN_SESSIONS_KEY = "joyrest.knownSessions";
+const KNOWN_SESSIONS_MAX = 10;
+
+function knownSessions(): Array<[string, string]> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(KNOWN_SESSIONS_KEY) ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((e): e is [string, string] => Array.isArray(e) && typeof e[0] === "string" && typeof e[1] === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberSession(code: string, sessionId: string): void {
+  const list = [[code, sessionId] as [string, string], ...knownSessions().filter(([c]) => c !== code)];
+  try {
+    localStorage.setItem(KNOWN_SESSIONS_KEY, JSON.stringify(list.slice(0, KNOWN_SESSIONS_MAX)));
+  } catch {
+    // Приватный режим браузера: после завершения игры гость увидит «Игра не найдена».
+  }
+}
+
+async function findSession(code: string, hostId: string | undefined): Promise<Session | null> {
+  if (hostId) return sessionsRepository.findHostSessionByCode(code, hostId);
+  const active = await sessionsRepository.findByCode(code);
+  if (active) return active;
+  const knownId = knownSessions().find(([c]) => c === code)?.[1];
+  if (!knownId) return null;
+  const known = await sessionsRepository.get(knownId);
+  return known?.code === code ? known : null;
+}
+
+export interface SessionByCodeOptions {
+  /** false откладывает запрос, пока не готов вход. */
+  enabled?: boolean;
+  /** Пульт: искать среди своих сессий, в том числе завершённых. */
+  hostId?: string;
+}
+
 /**
  * Находит сессию по коду и слушает её документ. Firestore сам переподключается
  * после потери сети, поэтому гость автоматически видит текущий шаг.
- * `enabled = false` откладывает запрос, пока не готов вход. Второе значение — повторить.
+ * Второе значение — повторить.
  */
-export function useSessionByCode(code: string, enabled = true): [SessionLoadState, () => void] {
+export function useSessionByCode(
+  code: string,
+  { enabled = true, hostId }: SessionByCodeOptions = {},
+): [SessionLoadState, () => void] {
   const [state, setState] = useState<SessionLoadState>({ status: "loading" });
   const [attempt, retry] = useAttempt();
 
@@ -94,15 +142,16 @@ export function useSessionByCode(code: string, enabled = true): [SessionLoadStat
     let unsubscribe: (() => void) | null = null;
     setState({ status: "loading" });
 
-    findSessionByCode(code)
+    findSession(code, hostId)
       .then((found) => {
         if (cancelled) return;
         if (!found) {
           setState({ status: "notFound" });
           return;
         }
+        rememberSession(code, found.id);
         setState({ status: "ready", session: found });
-        unsubscribe = watchSession(
+        unsubscribe = sessionsRepository.watch(
           found.id,
           (session) => setState(session ? { status: "ready", session } : { status: "notFound" }),
           () => setState({ status: "error", message: "Потеряна связь с сессией. Проверьте интернет." }),
@@ -116,7 +165,45 @@ export function useSessionByCode(code: string, enabled = true): [SessionLoadStat
       cancelled = true;
       unsubscribe?.();
     };
-  }, [code, enabled, attempt]);
+  }, [code, enabled, hostId, attempt]);
 
   return [state, retry];
+}
+
+export type LoadState<T> = { status: "loading" } | { status: "error" } | { status: "ready"; data: T };
+
+/**
+ * Загрузка данных для экрана: состояние, «Повторить» и замена данных после правки
+ * (например, удалили игру — список обновился без нового запроса).
+ */
+export function useLoad<T>(
+  load: () => Promise<T>,
+  deps: readonly unknown[],
+): [LoadState<T>, () => void, (update: (data: T) => T) => void] {
+  const [state, setState] = useState<LoadState<T>>({ status: "loading" });
+  const [attempt, retry] = useAttempt();
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: "loading" });
+    loadRef
+      .current()
+      .then((data) => {
+        if (!cancelled) setState({ status: "ready", data });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: "error" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [...deps, attempt]);
+
+  const update = useCallback((fn: (data: T) => T) => {
+    setState((prev) => (prev.status === "ready" ? { status: "ready", data: fn(prev.data) } : prev));
+  }, []);
+
+  return [state, retry, update];
 }

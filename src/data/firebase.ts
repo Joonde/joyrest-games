@@ -58,6 +58,19 @@ export const loadFirestore = once(async (): Promise<{ db: Firestore; sdk: Firest
   return { db, sdk };
 });
 
+/**
+ * Второй экземпляр приложения только для создания аккаунтов ведущих: новый аккаунт
+ * входит в нём, а не в основном, поэтому администратор не разлогинивается.
+ * Вход хранится в памяти и не попадает в IndexedDB.
+ */
+export const loadSecondaryAuth = once(async (): Promise<{ auth: Auth; sdk: AuthSdk }> => {
+  const [{ initializeApp }, sdk] = await Promise.all([import("firebase/app"), import("./sdk/auth")]);
+  const app = initializeApp(useEmulators ? { ...firebaseConfig, projectId: "demo-joyrest" } : firebaseConfig, "accounts");
+  const auth = sdk.initializeAuth(app, { persistence: sdk.inMemoryPersistence });
+  if (useEmulators) sdk.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  return { auth, sdk };
+});
+
 /** Начинает качать SDK заранее, параллельно с кодом экрана. */
 export function preloadData(): void {
   void loadAuth().catch(() => undefined);

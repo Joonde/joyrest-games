@@ -87,3 +87,17 @@ export function LoadFailed({
     </Message>
   );
 }
+
+/** Ошибка загрузки внутри экрана (вкладки), без смены всего экрана. */
+export function LoadFailedInline({ onRetry, text = "Не удалось загрузить. Проверьте интернет." }: { onRetry: () => void; text?: string }) {
+  return (
+    <section className="card">
+      <p className="muted">{text}</p>
+      <div className="actions">
+        <button type="button" className="btn btn--secondary btn--block" onClick={onRetry}>
+          Повторить
+        </button>
+      </div>
+    </section>
+  );
+}

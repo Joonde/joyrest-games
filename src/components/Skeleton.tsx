@@ -88,3 +88,28 @@ export function ScreenSkeleton() {
     </main>
   );
 }
+
+/** Список карточек студии и истории; `bare` — строки внутри уже открытой карточки. */
+export function ListSkeleton({ count = 3, bare = false }: { count?: number; bare?: boolean }) {
+  const rows = Array.from({ length: count }, (_, i) => i);
+  if (bare) {
+    return (
+      <div className="stack stack--tight" aria-hidden="true">
+        {rows.map((i) => (
+          <span key={i} className="skeleton skeleton--choice" />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="stack" aria-busy="true" aria-label="Загружаем список">
+      {rows.map((i) => (
+        <section key={i} className="card">
+          <Bar width="70%" height={24} />
+          <Bar width="90%" height={16} />
+          <span className="skeleton skeleton--button" />
+        </section>
+      ))}
+    </div>
+  );
+}

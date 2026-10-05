@@ -198,7 +198,12 @@ a {
   gap: 8px;
 }
 
-.topbar__menu {
+/* Три действия в ряд не должны обрезать «JoyRest Games». */
+.topbar__actions .btn {
+  padding: 8px 16px;
+}
+
+.action-menu {
   position: relative;
   flex: none;
 }
@@ -246,6 +251,247 @@ a {
   .topbar__menu {
     display: none;
   }
+}
+
+/* ---------- Вкладки ----------
+   Тихие кнопки; у выбранной — полоса фирменного градиента снизу (градиент — только акценты). */
+
+.tabs {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.btn.tab {
+  position: relative;
+  padding: 8px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  color: var(--color-text-muted);
+  font-size: 16px;
+}
+
+.btn.tab[aria-selected="true"] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.btn.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: var(--gradient-secondary);
+}
+
+@media (min-width: 480px) {
+  .btn.tab {
+    font-size: 18px;
+  }
+}
+
+/* ---------- Карточки игр и итогов ---------- */
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.game-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.game-card__title {
+  min-width: 0;
+  font-size: 26px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.game-card__title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.game-card__title a:hover {
+  text-decoration: underline;
+}
+
+/* Подробности плашками: «Квиз», «JoyRest · вечер», «12 вопросов», дата. */
+.meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.meta li {
+  padding: 0 16px;
+  line-height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 8px 0;
+  text-align: center;
+}
+
+.line-clamp {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stack--none {
+  gap: 0;
+  min-width: 0;
+}
+
+.page-heading {
+  text-align: center;
+  align-items: center;
+}
+
+/* ---------- Итоговая таблица ---------- */
+
+.results li {
+  gap: 16px;
+}
+
+.results__name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.results__place {
+  flex: none;
+  min-width: 32px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.results__score {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.results li.results__more {
+  min-height: 0;
+  background: none;
+  justify-content: center;
+}
+
+/* ---------- Ведущие ---------- */
+
+.people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.people li {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.people__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.people__name {
+  font-weight: 600;
+}
+
+.people__item--off .people__name {
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 720px) {
+  .people li {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Временный пароль: крупно, моноширинно по цифрам, без переносов. */
+.credentials {
+  margin: 0;
+  display: grid;
+  gap: 4px 16px;
+}
+
+.credentials dt {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.credentials dd {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.credentials__password {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-highlight);
+  font-size: 26px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* ---------- Диалог подтверждения ---------- */
+
+.dialog {
+  width: min(480px, calc(100% - var(--gutter) * 2));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.dialog::backdrop {
+  background: rgba(20, 16, 14, 0.7);
+}
+
+.dialog .card {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
 /* ---------- Логотип ---------- */

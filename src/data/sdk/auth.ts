@@ -3,10 +3,15 @@
 export {
   browserLocalPersistence,
   connectAuthEmulator,
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
   indexedDBLocalPersistence,
   initializeAuth,
+  inMemoryPersistence,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInAnonymously,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
 } from "firebase/auth";

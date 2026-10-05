@@ -1,12 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import {
-  describeAuthError,
-  signInHost,
-  signOutUser,
-  useAuth,
-  type AuthUser,
-  type UserProfile,
-} from "../data";
+import { Link } from "react-router-dom";
+import { authService, permissions, useAuth, type AuthUser, type UserProfile } from "../data";
 import { Logo } from "./Logo";
 import { LoadFailed, Message, Pending } from "./Status";
 
@@ -26,20 +20,32 @@ export function HostGate({ requireAdmin = false, skeleton, children }: Props) {
   if (auth.status === "signedOut" || auth.user.anonymous) return <LoginForm />;
 
   const { user, profile } = auth;
-  if (!profile || !profile.active) {
+  // Отключённый ведущий не проходит дальше входа: ни студии, ни пульта, ни новых сессий.
+  if (!profile || !permissions.isActiveHost(profile)) {
     return (
-      <Message title="Нет доступа">
-        <p>Аккаунт {user.email} не подключён как ведущий. Попросите администратора добавить вас.</p>
-        <button className="btn btn--secondary" onClick={() => void signOutUser()}>
-          Выйти
-        </button>
+      <Message title={profile ? "Аккаунт отключён" : "Нет доступа"}>
+        <p>
+          {profile
+            ? "Администратор агентства отключил этот аккаунт. Чтобы вернуть доступ, обратитесь к нему."
+            : `Аккаунт ${user.email ?? ""} не подключён как ведущий. Попросите администратора добавить вас.`}
+        </p>
+        <div className="actions">
+          <button className="btn btn--secondary btn--block" onClick={() => void authService.signOut()}>
+            Выйти
+          </button>
+        </div>
       </Message>
     );
   }
-  if (requireAdmin && profile.role !== "admin") {
+  if (requireAdmin && !permissions.canManageHosts(profile)) {
     return (
       <Message title="Только для администратора">
         <p>Этот раздел доступен владельцу агентства.</p>
+        <div className="actions">
+          <Link className="btn btn--secondary btn--block" to="/studio">
+            В студию
+          </Link>
+        </div>
       </Message>
     );
   }
@@ -57,9 +63,9 @@ function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      await signInHost(email, password);
+      await authService.signInHost(email, password);
     } catch (e) {
-      setError(describeAuthError(e));
+      setError(authService.describeError(e));
     } finally {
       setBusy(false);
     }

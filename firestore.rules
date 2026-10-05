@@ -2,6 +2,8 @@ rules_version = '2';
 
 // Правила безопасности JoyRest Games. Модель данных — раздел 5 CLAUDE.md.
 // Тесты: tests/rules/firestore.test.ts (npm run test:rules).
+// Те же права продублированы обычными функциями в src/data/permissions.ts (для интерфейса
+// и будущего своего сервера) — меняйте оба места вместе.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -42,14 +44,19 @@ service cloud.firestore {
     // ---------- Ведущие ----------
 
     match /users/{uid} {
+      // Свой профиль читает и отключённый ведущий: так он видит, что аккаунт отключён.
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
       // Аккаунты ведёт только admin. Ведущий не может сам поменять себе роль.
+      // Владельца агентства нельзя отключить или понизить.
       allow create, update: if isAdmin()
-        && request.resource.data.keys().hasOnly(['role', 'name', 'active'])
+        && request.resource.data.keys().hasOnly(['role', 'name', 'active', 'email', 'createdAt'])
         && request.resource.data.role in ['admin', 'host']
         && validName(request.resource.data.name)
-        && request.resource.data.active is bool;
-      allow delete: if isAdmin();
+        && request.resource.data.active is bool
+        && (!('email' in request.resource.data) || request.resource.data.email is string)
+        && (uid != 'bmBFBi7VmqVl7oIVyntw0QYRTYJ2'
+          || (request.resource.data.role == 'admin' && request.resource.data.active == true));
+      allow delete: if isAdmin() && uid != 'bmBFBi7VmqVl7oIVyntw0QYRTYJ2';
     }
 
     // ---------- Игры ----------
@@ -62,10 +69,28 @@ service cloud.firestore {
         return (data.scope == 'agency' && isAdmin())
           || (data.scope == 'personal' && isHost() && data.ownerId == request.auth.uid);
       }
+      function validGame(data) {
+        return data.keys().hasOnly(['scope', 'ownerId', 'title', 'mechanic', 'themeId', 'ageRating',
+            'content', 'createdAt', 'updatedAt'])
+          && data.scope in ['agency', 'personal']
+          && data.title is string && data.title.size() > 0 && data.title.size() <= 80
+          && data.mechanic is string
+          && data.themeId is string
+          && data.ageRating in ['0+', '12+', '18+']
+          && data.updatedAt == request.time;
+      }
 
       allow read: if isHost() && canReadGame(resource.data);
-      allow create: if canWriteGame(request.resource.data);
-      allow update: if canWriteGame(resource.data) && canWriteGame(request.resource.data);
+      allow create: if canWriteGame(request.resource.data)
+        && validGame(request.resource.data)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      // Библиотека и владелец игры не меняются: копия — это новая игра.
+      allow update: if canWriteGame(resource.data)
+        && validGame(request.resource.data)
+        && request.resource.data.scope == resource.data.scope
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if canWriteGame(resource.data);
     }
 
@@ -76,11 +101,16 @@ service cloud.firestore {
         return signedIn() && resource.data.hostId == request.auth.uid;
       }
 
-      // Документ сессии читают все вошедшие: гости, экран зала, пульт.
+      // Документ сессии по id читают все вошедшие: гости, экран зала, пульт. Гость, который
+      // уже в игре, знает id и видит сессию до конца, в том числе после завершения.
       allow get: if signedIn();
-      // Поиск по коду — не больше 5 документов; ведущий видит все свои сессии.
+      // Поиск по коду — только незавершённые сессии (лобби и идущая игра) и не больше
+      // 5 документов: после «Завершить игру» по коду сессию не найти. Ведущий видит все
+      // свои сессии, admin — все (автоочистка старых сессий).
       allow list: if signedIn()
-        && (request.query.limit <= 5 || resource.data.hostId == request.auth.uid);
+        && ((request.query.limit <= 5 && resource.data.state.phase in ['lobby', 'playing'])
+          || resource.data.hostId == request.auth.uid
+          || isAdmin());
 
       allow create: if isHost()
         && request.resource.data.hostId == request.auth.uid
@@ -100,7 +130,8 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.state.phase in ['lobby', 'playing', 'finished'];
 
-      allow delete: if isSessionHost();
+      // Старые сессии удаляет admin при входе в /admin (Cloud Functions на Spark нет).
+      allow delete: if isSessionHost() || isAdmin();
 
       function session() {
         return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
@@ -142,14 +173,14 @@ service cloud.firestore {
             && (request.resource.data.teamId == null
               || get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.teamId)).data.kind == 'team'));
 
-        allow delete: if hostsThisSession();
+        allow delete: if hostsThisSession() || isAdmin();
       }
 
       // ----- Ответы: один документ step_pid, без перезаписи -----
 
       match /answers/{answerId} {
-        // Ответы видит только пульт ведущего.
-        allow read: if hostsThisSession();
+        // Ответы видит только пульт ведущего (и admin при автоочистке).
+        allow read: if hostsThisSession() || isAdmin();
 
         allow create: if signedIn()
           && request.resource.data.keys().hasOnly(['step', 'pid', 'uid', 'value', 'submittedAt'])
@@ -168,8 +199,38 @@ service cloud.firestore {
 
         // Повторное нажатие не меняет первый ответ.
         allow update: if false;
-        allow delete: if hostsThisSession();
+        allow delete: if hostsThisSession() || isAdmin();
       }
+    }
+
+    // ---------- Итоги прошедших игр (История игр) ----------
+
+    match /results/{sessionId} {
+      function validResult(data) {
+        return data.keys().hasOnly(['hostId', 'code', 'gameTitle', 'mechanic', 'themeId', 'playMode',
+            'playedAt', 'participantsCount', 'board', 'savedAt'])
+          && data.gameTitle is string && data.gameTitle.size() <= 80
+          && data.playMode in ['solo', 'teams']
+          && data.participantsCount is int && data.participantsCount >= 0
+          && data.board is list && data.board.size() <= 500
+          && data.savedAt == request.time;
+      }
+      function sessionData() {
+        return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+      }
+
+      // Ссылку на итоги открывают без входа: в них только названия и очки.
+      allow get: if true;
+      allow list: if signedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
+
+      // Итоги пишет владелец сессии при завершении игры или admin при автоочистке.
+      // Владелец итогов — всегда ведущий сессии.
+      allow create, update: if signedIn()
+        && validResult(request.resource.data)
+        && request.resource.data.hostId == sessionData().hostId
+        && (sessionData().hostId == request.auth.uid || isAdmin());
+
+      allow delete: if signedIn() && (resource.data.hostId == request.auth.uid || isAdmin());
     }
   }
 }

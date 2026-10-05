@@ -484,6 +484,14 @@ describe("results: история игр", () => {
     await assertFails(getDocs(collection(env.unauthenticatedContext().firestore(), "results")));
   });
 
+  it("гость с анонимным входом читает итоги по id, но не получает их списком", async () => {
+    await seedResult();
+    await assertSucceeds(getDoc(doc(as(GUEST), "results", "s1")));
+    await assertFails(getDocs(collection(as(GUEST), "results")));
+    await assertFails(getDocs(query(collection(as(GUEST), "results"), where("hostId", "==", HOST))));
+    await assertFails(getDocs(query(collection(as(GUEST), "results"), where("code", "==", "123456"), limit(1))));
+  });
+
   it("лишние поля и подмена времени не принимаются", async () => {
     await assertFails(setDoc(doc(as(HOST), "results", "s1"), { ...result(), extra: 1 }));
     await assertFails(setDoc(doc(as(HOST), "results", "s1"), { ...result(), savedAt: new Date(0) }));

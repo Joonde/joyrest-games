@@ -11,7 +11,7 @@ export function Home() {
       <Link className="btn btn--block" to="/j">
         Я гость: ввести код
       </Link>
-      <Link className="btn btn--ghost btn--block" to="/studio">
+      <Link className="btn btn--secondary btn--block" to="/studio">
         Я ведущий
       </Link>
     </main>

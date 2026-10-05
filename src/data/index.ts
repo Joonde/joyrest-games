@@ -17,4 +17,12 @@ export {
 } from "./sessions";
 export { createTeam, getMyParticipant, joinAsPlayer, listTeams, watchParticipants } from "./participants";
 export { answerId, submitAnswer, watchAnswers, type SubmitResult } from "./answers";
-export { useAuth, useSessionByCode, type AuthState, type SessionLoadState } from "./hooks";
+export {
+  useAuth,
+  useGuestSignIn,
+  useSessionByCode,
+  type AuthState,
+  type GuestSignInState,
+  type SessionLoadState,
+} from "./hooks";
+export { preloadData } from "./firebase";

@@ -14,22 +14,26 @@ import {
 } from "../data";
 import { HostGate } from "../components/HostGate";
 import { QrCode } from "../components/QrCode";
-import { Loading, Message } from "../components/Status";
+import { ConsoleSkeleton } from "../components/Skeleton";
+import { LoadFailed, Message, Pending } from "../components/Status";
+import { Toast, useToast } from "../components/Toast";
 import { TopBar } from "../components/TopBar";
-import { playUrl } from "../components/links";
+import { playUrl, playUrlHint } from "../components/links";
 import { teamColorVar, useTheme } from "../themes/registry";
 
 export function HostConsole() {
   const { code = "" } = useParams();
-  return <HostGate>{(user) => <HostConsoleContent code={code} user={user} />}</HostGate>;
+  return (
+    <HostGate skeleton={<ConsoleSkeleton />}>{(user) => <HostConsoleContent code={code} user={user} />}</HostGate>
+  );
 }
 
 function HostConsoleContent({ code, user }: { code: string; user: AuthUser }) {
-  const state = useSessionByCode(code);
+  const [state, retry] = useSessionByCode(code);
 
-  if (state.status === "loading") return <Loading text="Открываем пульт…" />;
+  if (state.status === "loading") return <Pending skeleton={<ConsoleSkeleton />} onRetry={retry} label="Открываем пульт" />;
   if (state.status === "notFound") return <Message title="Сессия не найдена">Проверьте код: {code}</Message>;
-  if (state.status === "error") return <Message title="Ошибка">{state.message}</Message>;
+  if (state.status === "error") return <LoadFailed onRetry={retry}>{state.message}</LoadFailed>;
   if (state.session.hostId !== user.uid) {
     return <Message title="Чужая сессия">Эту сессию запускал другой ведущий.</Message>;
   }
@@ -40,7 +44,7 @@ function Console({ session }: { session: Session }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [toast, showToast] = useToast();
   const link = playUrl(session.code);
   useTheme(session.themeId);
 
@@ -74,9 +78,9 @@ function Console({ session }: { session: Session }) {
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(link);
-      setCopied(true);
+      showToast("Ссылка скопирована");
     } catch {
-      setCopied(false);
+      showToast("Не удалось скопировать. Покажите гостям QR-код.");
     }
   }
 
@@ -85,28 +89,26 @@ function Console({ session }: { session: Session }) {
 
   return (
     <main className="page">
-      <TopBar title="Пульт" eyebrow="JoyRest Games">
-        <Link className="btn btn--ghost btn--small" to="/studio">
-          В студию
-        </Link>
-      </TopBar>
+      <TopBar title="Пульт" actions={[{ label: "В студию", to: "/studio" }]} />
 
-      <section className="card" style={{ alignItems: "center", textAlign: "center" }}>
+      <section className="card card--center" aria-label="Вход для гостей">
         <p className="eyebrow">Код игры</p>
         <div className="big-code">{formatSessionCode(session.code)}</div>
-        <QrCode value={link} label={`QR-код для входа в игру ${session.code}`} />
-        <p className="muted" style={{ wordBreak: "break-all" }}>
-          {link}
-        </p>
-        <div className="row" style={{ justifyContent: "center" }}>
-          <button className="btn btn--secondary" onClick={() => void copyLink()}>
-            {copied ? "Ссылка скопирована" : "Скопировать ссылку"}
-          </button>
+        <QrCode value={link} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />
+        <p className="link-hint muted">{playUrlHint(session.code)}</p>
+        <div className="actions">
           {session.screenMode !== "none" && (
-            <Link className="btn btn--secondary" to={`/screen/${session.code}`} target="_blank">
+            <Link className="btn btn--block" to={`/screen/${session.code}`} target="_blank">
               Открыть экран зала
             </Link>
           )}
+          <button
+            type="button"
+            className={session.screenMode === "none" ? "btn btn--block" : "btn btn--secondary btn--block"}
+            onClick={() => void copyLink()}
+          >
+            Скопировать ссылку
+          </button>
         </div>
         {session.screenMode === "none" && (
           <p className="muted">Режим без экрана: покажите гостям этот QR-код со своего телефона.</p>
@@ -164,6 +166,7 @@ function Console({ session }: { session: Session }) {
         )}
       </section>
 
+      <Toast text={toast} />
     </main>
   );
 }

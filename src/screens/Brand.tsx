@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Logo, type LogoKind, type LogoTone } from "../components/Logo";
+import { QrCode } from "../components/QrCode";
 import { TopBar } from "../components/TopBar";
 import { brand, teamColors } from "../themes/brand";
 
@@ -37,13 +38,10 @@ const tileVars = {
 
 /** Витрина фирменного стиля: палитра, шрифты, кнопки и варианты логотипа. */
 export function Brand() {
+  const [choice, setChoice] = useState("solo");
   return (
     <main className="page page--wide" style={tileVars}>
-      <TopBar title="Фирменный стиль" eyebrow="JoyRest · Радость без хлопот">
-        <Link className="btn btn--ghost btn--small" to="/">
-          На главную
-        </Link>
-      </TopBar>
+      <TopBar title="Фирменный стиль" actions={[{ label: "На главную", to: "/" }]} />
 
       <section className="card">
         <h2>Логотип</h2>
@@ -86,17 +84,38 @@ export function Brand() {
         <h1 style={{ fontSize: 44 }}>Cormorant Garamond — заголовки</h1>
         <div className="big-code">482 915</div>
         <p>Jost — основной текст, подписи и кнопки. Радость без хлопот.</p>
+        <p className="muted small">Основная, вторичная и тихая кнопки — других видов нет.</p>
         <div className="row">
           <button className="btn" type="button">
-            Начать игру
-          </button>
-          <button className="btn btn--secondary" type="button">
             Открыть экран зала
           </button>
-          <button className="btn btn--ghost" type="button">
+          <button className="btn btn--secondary" type="button">
+            Скопировать ссылку
+          </button>
+          <button className="btn btn--quiet" type="button">
             Выйти
           </button>
         </div>
+      </section>
+
+      <section className="card">
+        <h2>Выбор и QR-код</h2>
+        <fieldset>
+          <legend>Участники</legend>
+          {[
+            ["solo", "Каждый сам за себя", "Каждый гость играет со своего телефона."],
+            ["teams", "Команды", "Отвечает капитан, остальные видят вопрос."],
+          ].map(([id = "", title, hint]) => (
+            <label key={id} className="choice">
+              <input type="radio" name="demo" checked={choice === id} onChange={() => setChoice(id)} />
+              <span className="choice__text">
+                <span className="choice__title">{title}</span>
+                <span className="choice__hint">{hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <QrCode value="https://joyrest-games.netlify.app/play/482915" label="Пример QR-кода JoyRest" />
       </section>
     </main>
   );

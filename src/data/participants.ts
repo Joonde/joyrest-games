@@ -1,23 +1,11 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-  type DocumentSnapshot,
-} from "firebase/firestore";
+import type { DocumentSnapshot } from "firebase/firestore";
 import { asString } from "./convert";
-import { db } from "./firebase";
+import { lazySubscribe, loadFirestore } from "./firebase";
 import type { Participant, Unsubscribe } from "./types";
 
-function participantsCol(sessionId: string) {
-  return collection(db, "sessions", sessionId, "participants");
+async function participantsCol(sessionId: string) {
+  const { db, sdk } = await loadFirestore();
+  return { col: sdk.collection(db, "sessions", sessionId, "participants"), sdk };
 }
 
 function toParticipant(snap: DocumentSnapshot): Participant | null {
@@ -34,7 +22,8 @@ function toParticipant(snap: DocumentSnapshot): Participant | null {
 
 /** Телефон гостя. id документа совпадает с uid, поэтому повторный вход не создаёт дубль. */
 export async function getMyParticipant(sessionId: string, uid: string): Promise<Participant | null> {
-  return toParticipant(await getDoc(doc(participantsCol(sessionId), uid)));
+  const { col, sdk } = await participantsCol(sessionId);
+  return toParticipant(await sdk.getDoc(sdk.doc(col, uid)));
 }
 
 export async function joinAsPlayer(
@@ -43,35 +32,38 @@ export async function joinAsPlayer(
   name: string,
   teamId: string | null,
 ): Promise<void> {
-  const ref = doc(participantsCol(sessionId), uid);
-  const existing = await getDoc(ref);
+  const { col, sdk } = await participantsCol(sessionId);
+  const ref = sdk.doc(col, uid);
+  const existing = await sdk.getDoc(ref);
   if (existing.exists()) {
-    await updateDoc(ref, { name, teamId });
+    await sdk.updateDoc(ref, { name, teamId });
     return;
   }
-  await setDoc(ref, {
+  await sdk.setDoc(ref, {
     name,
     kind: "player",
     teamId,
     captainUid: uid,
-    joinedAt: serverTimestamp(),
+    joinedAt: sdk.serverTimestamp(),
   });
 }
 
 /** Создаёт команду; создатель становится капитаном. Возвращает id команды. */
 export async function createTeam(sessionId: string, captainUid: string, name: string): Promise<string> {
-  const ref = await addDoc(participantsCol(sessionId), {
+  const { col, sdk } = await participantsCol(sessionId);
+  const ref = await sdk.addDoc(col, {
     name,
     kind: "team",
     teamId: null,
     captainUid,
-    joinedAt: serverTimestamp(),
+    joinedAt: sdk.serverTimestamp(),
   });
   return ref.id;
 }
 
 export async function listTeams(sessionId: string): Promise<Participant[]> {
-  const snap = await getDocs(query(participantsCol(sessionId), where("kind", "==", "team")));
+  const { col, sdk } = await participantsCol(sessionId);
+  const snap = await sdk.getDocs(sdk.query(col, sdk.where("kind", "==", "team")));
   return snap.docs
     .map(toParticipant)
     .filter((p): p is Participant => p !== null)
@@ -84,9 +76,12 @@ export function watchParticipants(
   onChange: (participants: Participant[]) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(
-    participantsCol(sessionId),
-    (snap) => onChange(snap.docs.map(toParticipant).filter((p): p is Participant => p !== null)),
-    onError,
-  );
+  return lazySubscribe(async () => {
+    const { col, sdk } = await participantsCol(sessionId);
+    return sdk.onSnapshot(
+      col,
+      (snap) => onChange(snap.docs.map(toParticipant).filter((p): p is Participant => p !== null)),
+      onError,
+    );
+  }, onError);
 }

@@ -7,3 +7,8 @@ export function playUrl(code: string): string {
 export function joinHint(): string {
   return `${window.location.host}/j`;
 }
+
+/** Короткая подпись ссылки для гостя без протокола: «joyrest.ru/play/659142». */
+export function playUrlHint(code: string): string {
+  return `${window.location.host}/play/${code}`;
+}

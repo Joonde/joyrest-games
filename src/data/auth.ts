@@ -1,14 +1,7 @@
-import {
-  onAuthStateChanged,
-  signInAnonymously,
-  signInWithEmailAndPassword,
-  signOut,
-  type User,
-} from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import type { User } from "firebase/auth";
 import { ADMIN_UID } from "./config";
 import { asString } from "./convert";
-import { auth, db } from "./firebase";
+import { lazySubscribe, loadAuth, loadFirestore } from "./firebase";
 import type { Role, Unsubscribe, UserProfile } from "./types";
 
 export interface AuthUser {
@@ -22,12 +15,16 @@ function toAuthUser(user: User | null): AuthUser | null {
 }
 
 /** Колбэк вызывается сразу после восстановления входа и при каждом изменении. */
-export function watchAuth(callback: (user: AuthUser | null) => void): Unsubscribe {
-  return onAuthStateChanged(auth, (user) => callback(toAuthUser(user)));
+export function watchAuth(callback: (user: AuthUser | null) => void, onError: (error: Error) => void): Unsubscribe {
+  return lazySubscribe(async () => {
+    const { auth, sdk } = await loadAuth();
+    return sdk.onAuthStateChanged(auth, (user) => callback(toAuthUser(user)));
+  }, onError);
 }
 
 export async function signInHost(email: string, password: string): Promise<void> {
-  await signInWithEmailAndPassword(auth, email.trim(), password);
+  const { auth, sdk } = await loadAuth();
+  await sdk.signInWithEmailAndPassword(auth, email.trim(), password);
 }
 
 /**
@@ -35,15 +32,17 @@ export async function signInHost(email: string, password: string): Promise<void>
  * гость с погасшим экраном возвращается под тем же uid.
  */
 export async function ensureSignedIn(): Promise<AuthUser> {
+  const { auth, sdk } = await loadAuth();
   await auth.authStateReady();
   const current = toAuthUser(auth.currentUser);
   if (current) return current;
-  const credential = await signInAnonymously(auth);
+  const credential = await sdk.signInAnonymously(auth);
   return { uid: credential.user.uid, anonymous: true, email: null };
 }
 
 export async function signOutUser(): Promise<void> {
-  await signOut(auth);
+  const { auth, sdk } = await loadAuth();
+  await sdk.signOut(auth);
 }
 
 function isRole(value: unknown): value is Role {
@@ -56,8 +55,9 @@ function isRole(value: unknown): value is Role {
  */
 export async function loadUserProfile(user: AuthUser): Promise<UserProfile | null> {
   if (user.anonymous) return null;
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
+  const { db, sdk } = await loadFirestore();
+  const ref = sdk.doc(db, "users", user.uid);
+  const snap = await sdk.getDoc(ref);
   if (snap.exists()) {
     const data = snap.data();
     return {
@@ -74,13 +74,15 @@ export async function loadUserProfile(user: AuthUser): Promise<UserProfile | nul
       name: "Администратор",
       active: true,
     };
-    await setDoc(ref, { role: profile.role, name: profile.name, active: profile.active });
+    await sdk.setDoc(ref, { role: profile.role, name: profile.name, active: profile.active });
     return profile;
   }
   return null;
 }
 
 export function describeAuthError(error: unknown): string {
+  // Не догрузился чанк Firebase: браузер бросает TypeError без кода.
+  if (error instanceof TypeError) return "Нет связи с интернетом. Проверьте сеть и попробуйте снова.";
   const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
   switch (code) {
     case "auth/invalid-credential":

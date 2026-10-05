@@ -1,19 +1,7 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  getDocs,
-  limit,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-  type DocumentSnapshot,
-} from "firebase/firestore";
+import type { DocumentSnapshot } from "firebase/firestore";
 import { generateSessionCode } from "../core/code";
 import { asNumber, asRecord, asString, toMillis } from "./convert";
-import { db } from "./firebase";
+import { lazySubscribe, loadFirestore } from "./firebase";
 import type {
   Leaderboard,
   LeaderboardEntry,
@@ -26,7 +14,10 @@ import type {
   Unsubscribe,
 } from "./types";
 
-const sessionsCol = collection(db, "sessions");
+async function sessionsCol() {
+  const { db, sdk } = await loadFirestore();
+  return { col: sdk.collection(db, "sessions"), sdk };
+}
 
 /** Сколько документов можно запросить по коду. Это же число ограничено в firestore.rules. */
 const CODE_QUERY_LIMIT = 5;
@@ -82,7 +73,8 @@ function toSession(snap: DocumentSnapshot): Session | null {
 }
 
 async function sessionsByCode(code: string): Promise<Session[]> {
-  const snap = await getDocs(query(sessionsCol, where("code", "==", code), limit(CODE_QUERY_LIMIT)));
+  const { col, sdk } = await sessionsCol();
+  const snap = await sdk.getDocs(sdk.query(col, sdk.where("code", "==", code), sdk.limit(CODE_QUERY_LIMIT)));
   return snap.docs.map(toSession).filter((s): s is Session => s !== null);
 }
 
@@ -91,12 +83,13 @@ export async function createSession(
   hostId: string,
   options: NewSessionOptions,
 ): Promise<{ id: string; code: string }> {
+  const { col, sdk } = await sessionsCol();
   for (let attempt = 0; attempt < 10; attempt++) {
     const code = generateSessionCode();
     const existing = await sessionsByCode(code);
     if (existing.some((s) => s.state.phase !== "finished")) continue;
     const initialState = { phase: "lobby", step: 0, startedAt: null, revealed: false };
-    const ref = await addDoc(sessionsCol, {
+    const ref = await sdk.addDoc(col, {
       code,
       hostId,
       mechanic: options.mechanic,
@@ -106,7 +99,7 @@ export async function createSession(
       screenMode: options.screenMode,
       state: initialState,
       leaderboard: {},
-      createdAt: serverTimestamp(),
+      createdAt: sdk.serverTimestamp(),
     });
     return { id: ref.id, code };
   }
@@ -126,12 +119,16 @@ export function watchSession(
   onChange: (session: Session | null) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(doc(db, "sessions", sessionId), (snap) => onChange(toSession(snap)), onError);
+  return lazySubscribe(async () => {
+    const { col, sdk } = await sessionsCol();
+    return sdk.onSnapshot(sdk.doc(col, sessionId), (snap) => onChange(toSession(snap)), onError);
+  }, onError);
 }
 
 /** Сессии ведущего, новые сверху. */
 export async function listHostSessions(hostId: string): Promise<Session[]> {
-  const snap = await getDocs(query(sessionsCol, where("hostId", "==", hostId), limit(50)));
+  const { col, sdk } = await sessionsCol();
+  const snap = await sdk.getDocs(sdk.query(col, sdk.where("hostId", "==", hostId), sdk.limit(50)));
   return snap.docs
     .map(toSession)
     .filter((s): s is Session => s !== null)
@@ -140,13 +137,14 @@ export async function listHostSessions(hostId: string): Promise<Session[]> {
 
 /** Смена фазы с пульта. Время начала шага ставит сервер. */
 export async function setSessionPhase(sessionId: string, phase: SessionPhase): Promise<void> {
+  const { col, sdk } = await sessionsCol();
   const patch: Partial<Record<`state.${keyof SessionState}`, unknown>> = { "state.phase": phase };
   if (phase === "playing") {
     patch["state.step"] = 0;
-    patch["state.startedAt"] = serverTimestamp();
+    patch["state.startedAt"] = sdk.serverTimestamp();
     patch["state.revealed"] = false;
   }
-  await updateDoc(doc(db, "sessions", sessionId), patch);
+  await sdk.updateDoc(sdk.doc(col, sessionId), patch);
 }
 
 /** Точечно добавляет записи таблицы лидеров, не перезаписывая чужие. */
@@ -159,5 +157,6 @@ export async function upsertLeaderboardEntries(
     patch[`leaderboard.${id}`] = entry;
   }
   if (Object.keys(patch).length === 0) return;
-  await updateDoc(doc(db, "sessions", sessionId), patch);
+  const { col, sdk } = await sessionsCol();
+  await sdk.updateDoc(sdk.doc(col, sessionId), patch);
 }

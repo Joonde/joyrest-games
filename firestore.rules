@@ -1,0 +1,175 @@
+rules_version = '2';
+
+// Правила безопасности JoyRest Games. Модель данных — раздел 5 CLAUDE.md.
+// Тесты: tests/rules/firestore.test.ts (npm run test:rules).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Общие проверки ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Владелец агентства. Тот же UID в src/data/config.ts.
+    function isOwnerUid() {
+      return signedIn() && request.auth.uid == 'bmBFBi7VmqVl7oIVyntw0QYRTYJ2';
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isOwnerUid()
+        || (hasProfile() && profile().role == 'admin' && profile().active == true);
+    }
+
+    // Ведущий — активный host или admin.
+    function isHost() {
+      return isAdmin()
+        || (hasProfile() && profile().role == 'host' && profile().active == true);
+    }
+
+    function validName(name) {
+      return name is string && name.size() > 0 && name.size() <= 30;
+    }
+
+    // ---------- Ведущие ----------
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // Аккаунты ведёт только admin. Ведущий не может сам поменять себе роль.
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['role', 'name', 'active'])
+        && request.resource.data.role in ['admin', 'host']
+        && validName(request.resource.data.name)
+        && request.resource.data.active is bool;
+      allow delete: if isAdmin();
+    }
+
+    // ---------- Игры ----------
+
+    match /games/{gameId} {
+      function canReadGame(data) {
+        return data.scope == 'agency' || data.ownerId == request.auth.uid || isAdmin();
+      }
+      function canWriteGame(data) {
+        return (data.scope == 'agency' && isAdmin())
+          || (data.scope == 'personal' && isHost() && data.ownerId == request.auth.uid);
+      }
+
+      allow read: if isHost() && canReadGame(resource.data);
+      allow create: if canWriteGame(request.resource.data);
+      allow update: if canWriteGame(resource.data) && canWriteGame(request.resource.data);
+      allow delete: if canWriteGame(resource.data);
+    }
+
+    // ---------- Сессии ----------
+
+    match /sessions/{sessionId} {
+      function isSessionHost() {
+        return signedIn() && resource.data.hostId == request.auth.uid;
+      }
+
+      // Документ сессии читают все вошедшие: гости, экран зала, пульт.
+      allow get: if signedIn();
+      // Поиск по коду — не больше 5 документов; ведущий видит все свои сессии.
+      allow list: if signedIn()
+        && (request.query.limit <= 5 || resource.data.hostId == request.auth.uid);
+
+      allow create: if isHost()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.code is string
+        && request.resource.data.code.matches('^[0-9]{6}$')
+        && request.resource.data.playMode in ['solo', 'teams']
+        && request.resource.data.screenMode in ['laptop', 'remote', 'none']
+        && request.resource.data.state.phase == 'lobby'
+        && request.resource.data.createdAt == request.time;
+
+      // Менять state, leaderboard и остальное может только владелец сессии.
+      // Код, владелец и снимок игры после создания не меняются.
+      allow update: if isSessionHost()
+        && request.resource.data.hostId == resource.data.hostId
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.gameSnapshot == resource.data.gameSnapshot
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.state.phase in ['lobby', 'playing', 'finished'];
+
+      allow delete: if isSessionHost();
+
+      function session() {
+        return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+      }
+
+      function hostsThisSession() {
+        return signedIn() && session().hostId == request.auth.uid;
+      }
+
+      // ----- Участники: игрок, команда или телефон команды -----
+
+      match /participants/{pid} {
+        allow read: if signedIn();
+
+        // Гость: документ игрока с id = uid. Команда: создатель становится капитаном.
+        allow create: if signedIn()
+          && session().state.phase != 'finished'
+          && request.resource.data.keys().hasOnly(['name', 'kind', 'teamId', 'captainUid', 'joinedAt'])
+          && validName(request.resource.data.name)
+          && request.resource.data.captainUid == request.auth.uid
+          && request.resource.data.joinedAt == request.time
+          && (
+            (request.resource.data.kind == 'player'
+              && pid == request.auth.uid
+              && (request.resource.data.teamId == null
+                || get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.teamId)).data.kind == 'team'))
+            || (request.resource.data.kind == 'team'
+              && session().playMode == 'teams'
+              && request.resource.data.teamId == null)
+          );
+
+        // Гость может сменить имя и команду у своего телефона. Ведущий — что угодно.
+        allow update: if hostsThisSession()
+          || (signedIn()
+            && pid == request.auth.uid
+            && resource.data.kind == 'player'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'teamId'])
+            && validName(request.resource.data.name)
+            && (request.resource.data.teamId == null
+              || get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.teamId)).data.kind == 'team'));
+
+        allow delete: if hostsThisSession();
+      }
+
+      // ----- Ответы: один документ step_pid, без перезаписи -----
+
+      match /answers/{answerId} {
+        // Ответы видит только пульт ведущего.
+        allow read: if hostsThisSession();
+
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['step', 'pid', 'uid', 'value', 'submittedAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.step is int
+          && request.resource.data.pid is string
+          && answerId == string(request.resource.data.step) + '_' + request.resource.data.pid
+          // Время ответа ставит сервер.
+          && request.resource.data.submittedAt == request.time
+          // Отвечать можно только на текущий открытый шаг.
+          && session().state.phase == 'playing'
+          && session().state.step == request.resource.data.step
+          && session().state.revealed == false
+          // Отвечает сам игрок или капитан своей команды.
+          && get(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.pid)).data.captainUid == request.auth.uid;
+
+        // Повторное нажатие не меняет первый ответ.
+        allow update: if false;
+        allow delete: if hostsThisSession();
+      }
+    }
+  }
+}

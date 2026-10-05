@@ -6,6 +6,7 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
+  Bytes,
   collection,
   deleteDoc,
   doc,
@@ -441,6 +442,96 @@ describe("games", () => {
     await assertFails(deleteDoc(doc(as(HOST), "games", "a")));
     await assertSucceeds(deleteDoc(doc(as(HOST), "games", "p")));
     await assertSucceeds(deleteDoc(doc(as(ADMIN), "games", "a")));
+  });
+});
+
+describe("games: режим по умолчанию", () => {
+  it("playMode — только solo или teams", async () => {
+    await assertSucceeds(setDoc(doc(as(HOST), "games", "g1"), { ...gameData("personal", HOST), playMode: "teams" }));
+    await assertFails(setDoc(doc(as(HOST), "games", "g2"), { ...gameData("personal", HOST), playMode: "all" }));
+  });
+});
+
+function mediaData(size = 1000, extra: Record<string, unknown> = {}) {
+  return {
+    bytes: Bytes.fromUint8Array(new Uint8Array(size).fill(7)),
+    mime: "image/webp",
+    width: 1280,
+    height: 720,
+    variant: "full",
+    createdAt: serverTimestamp(),
+    ...extra,
+  };
+}
+
+async function seedMedia() {
+  await seedGames();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "games", "p", "media", "m1"), mediaData());
+    await setDoc(doc(ctx.firestore(), "games", "a", "media", "m1"), mediaData());
+  });
+}
+
+describe("games/{id}/media: картинки", () => {
+  it("владелец игры добавляет картинку, чужой ведущий и гость — нет", async () => {
+    await seedGames();
+    await assertSucceeds(setDoc(doc(as(HOST), "games", "p", "media", "m2"), mediaData()));
+    await assertFails(setDoc(doc(as(OTHER_HOST), "games", "p", "media", "m3"), mediaData()));
+    await assertFails(setDoc(doc(as(GUEST), "games", "p", "media", "m3"), mediaData()));
+    await assertFails(setDoc(doc(as(HOST), "games", "a", "media", "m3"), mediaData()));
+    await assertSucceeds(setDoc(doc(as(ADMIN), "games", "a", "media", "m3"), mediaData()));
+  });
+
+  it("картинка без игры не сохраняется", async () => {
+    await assertFails(setDoc(doc(as(HOST), "games", "nope", "media", "m1"), mediaData()));
+  });
+
+  it("слишком большая картинка, чужой формат и лишние поля не принимаются", async () => {
+    await seedGames();
+    await assertFails(setDoc(doc(as(HOST), "games", "p", "media", "big"), mediaData(500 * 1024)));
+    await assertFails(setDoc(doc(as(HOST), "games", "p", "media", "png"), mediaData(1000, { mime: "image/png" })));
+    await assertFails(setDoc(doc(as(HOST), "games", "p", "media", "x"), mediaData(1000, { hacked: true })));
+    await assertFails(setDoc(doc(as(HOST), "games", "p", "media", "t"), mediaData(1000, { createdAt: new Date(0) })));
+  });
+
+  it("картинку по id открывает любой вошедший (экран зала, гость), без входа — нет", async () => {
+    await seedMedia();
+    await assertSucceeds(getDoc(doc(as(GUEST), "games", "p", "media", "m1")));
+    await assertSucceeds(getDoc(doc(as(OTHER_HOST), "games", "a", "media", "m1")));
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), "games", "p", "media", "m1")));
+  });
+
+  it("списком картинки видит только тот, кто правит игру", async () => {
+    await seedMedia();
+    await assertSucceeds(getDocs(collection(as(HOST), "games", "p", "media")));
+    await assertFails(getDocs(collection(as(GUEST), "games", "p", "media")));
+    await assertFails(getDocs(collection(as(HOST), "games", "a", "media")));
+  });
+
+  it("картинку не перезаписать; удаляет тот, кто правит игру", async () => {
+    await seedMedia();
+    await assertFails(setDoc(doc(as(HOST), "games", "p", "media", "m1"), mediaData()));
+    await assertFails(deleteDoc(doc(as(OTHER_HOST), "games", "p", "media", "m1")));
+    await assertFails(deleteDoc(doc(as(GUEST), "games", "p", "media", "m1")));
+    await assertSucceeds(deleteDoc(doc(as(HOST), "games", "p", "media", "m1")));
+  });
+
+  it("копия общей игры создаётся одной пачкой вместе с картинками", async () => {
+    await seedMedia();
+    const db = as(HOST);
+    const batch = writeBatch(db);
+    batch.set(doc(db, "games", "copy"), gameData("personal", HOST, "Общая"));
+    batch.set(doc(db, "games", "copy", "media", "m1"), mediaData());
+    await assertSucceeds(batch.commit());
+  });
+
+  it("игра удаляется вместе с картинками одной пачкой", async () => {
+    await seedMedia();
+    const db = as(HOST);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "games", "p", "media", "m1"));
+    batch.delete(doc(db, "games", "p"));
+    await assertSucceeds(batch.commit());
   });
 });
 

@@ -3,6 +3,7 @@
 // Новую функцию Firestore сначала добавьте сюда.
 export {
   addDoc,
+  Bytes,
   collection,
   connectFirestoreEmulator,
   deleteDoc,

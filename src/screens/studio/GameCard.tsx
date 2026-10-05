@@ -3,7 +3,7 @@ import { formatDate } from "../../core/format";
 import { questionsLabel } from "../../core/results";
 import { permissions, type Game, type GameScope, type UserProfile } from "../../data";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
-import { countQuestions, mechanicTitle } from "../../mechanics/registry";
+import { countQuestions, mechanicTitle, validateGame } from "../../mechanics/registry";
 import { getTheme } from "../../themes/registry";
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
 export function GameCard({ game, profile, onDuplicate, onDelete }: Props) {
   const editable = permissions.canEditGame(profile, game);
   const date = game.updatedAt ?? game.createdAt;
+  const ready = validateGame(game.mechanic, game.content).length === 0;
 
   const menu: MenuAction[] = [{ label: editable ? "Открыть" : "Посмотреть", to: `/studio/games/${game.id}` }];
   if (game.scope === "agency" && permissions.canCreateGame(profile, "agency", profile.uid)) {
@@ -47,6 +48,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete }: Props) {
         <li>{questionsLabel(countQuestions(game.mechanic, game.content))}</li>
         {game.ageRating !== "0+" && <li>{game.ageRating}</li>}
         {date !== null && <li>{formatDate(date)}</li>}
+        {!ready && <li className="meta__warn">Не готова к запуску</li>}
       </ul>
       <div className="actions">
         <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>

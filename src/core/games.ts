@@ -25,6 +25,7 @@ export function copyOfGame(game: Game, scope: GameScope, ownerId: string): NewGa
     mechanic: game.mechanic,
     themeId: game.themeId,
     ageRating: game.ageRating,
+    playMode: game.playMode,
     content: game.content,
   };
 }

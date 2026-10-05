@@ -349,6 +349,11 @@ a {
   white-space: nowrap;
 }
 
+.meta li.meta__warn {
+  color: var(--color-text);
+  border-color: var(--color-danger);
+}
+
 .empty {
   padding: 8px 0;
   text-align: center;
@@ -632,9 +637,57 @@ a {
   font-size: 20px;
 }
 
-.field input:focus-visible {
+.field textarea {
+  min-height: calc(var(--control-height) * 2);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-control);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible {
   border-color: var(--color-highlight);
   outline-offset: 2px;
+}
+
+.field input:disabled,
+.field textarea:disabled {
+  opacity: 0.6;
+}
+
+.field [aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+/* Числа без системных стрелок: на телефоне они мелкие и мешают. */
+.field input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.field input[type="number"]::-webkit-inner-spin-button,
+.field input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .code-input {
@@ -1103,4 +1156,713 @@ legend {
 
 .page > .logo {
   align-self: center;
+}
+
+/* ---------- Конструктор ---------- */
+
+/* Индикатор автосохранения: всегда виден вверху экрана при прокрутке. */
+.save-status {
+  position: sticky;
+  top: calc(8px + var(--safe-top));
+  z-index: 5;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.save-status__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.save-status--saving .save-status__dot {
+  background: var(--color-highlight);
+  animation: skeleton-pulse 1s ease-in-out infinite;
+}
+
+.save-status--offline,
+.save-status--error {
+  color: var(--color-text);
+  border-color: var(--color-danger);
+}
+
+.save-status--offline .save-status__dot,
+.save-status--error .save-status__dot {
+  background: var(--color-danger);
+}
+
+/* Предупреждение внутри карточки: почему нельзя запустить. */
+.notice {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-danger);
+  background: var(--color-surface-alt);
+}
+
+.error-list {
+  margin: 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-danger);
+  font-weight: 500;
+}
+
+.q-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.q-card {
+  position: relative;
+  padding: 16px;
+  gap: 8px;
+}
+
+.q-card.is-dragging {
+  opacity: 0.5;
+}
+
+.q-card.drop-before::before,
+.q-card.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--gradient-secondary);
+}
+
+.q-card.drop-before::before {
+  top: -10px;
+}
+
+.q-card.drop-after::after {
+  bottom: -10px;
+}
+
+.q-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Ручка перетаскивания — только там, где есть мышь. */
+.q-card__handle {
+  display: none;
+  flex: none;
+  width: 32px;
+  height: var(--control-height);
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  cursor: grab;
+}
+
+.q-card__handle svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .q-card__handle {
+    display: flex;
+  }
+}
+
+.q-card__summary {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-height);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.q-card__summary:hover {
+  background: var(--color-surface-alt);
+}
+
+.q-card__number {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.q-card__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.q-card__text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.q-card__issue {
+  color: var(--color-danger);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.q-card__toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.q-card__toolbar .btn:last-child {
+  margin-left: auto;
+}
+
+.btn.q-card__move {
+  width: var(--control-height);
+  padding: 0;
+}
+
+.q-card__move svg,
+.q-row__remove svg,
+.sheet__close svg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.q-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Вариант ответа: кружок «верный», поле и кнопка удаления в одну строку. */
+.q-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.q-row > .radio {
+  margin: 0 8px 0 0;
+  width: 28px;
+  height: 28px;
+}
+
+.q-row__input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-control);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 18px;
+}
+
+.q-row__input:focus-visible {
+  border-color: var(--color-highlight);
+  outline-offset: 2px;
+}
+
+.q-row--correct .q-row__input {
+  border-color: var(--color-control-checked);
+  border-width: 2px;
+}
+
+.btn.q-row__remove {
+  flex: none;
+  width: var(--control-height);
+  padding: 0;
+}
+
+.q-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.q-image {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.media--placeholder {
+  min-height: 120px;
+  aspect-ratio: 16 / 9;
+}
+
+.media--problem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1.5px dashed var(--color-border);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.q-image__img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  background: var(--color-surface-alt);
+}
+
+/* ---------- Большое окно: импорт и предпросмотр ---------- */
+
+.sheet {
+  width: min(720px, calc(100% - var(--gutter) * 2));
+  max-height: calc(100dvh - 48px);
+}
+
+.sheet__card {
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 16px 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sheet__head h2 {
+  min-width: 0;
+  font-size: 24px;
+}
+
+.btn.sheet__close {
+  flex: none;
+  width: var(--control-height);
+  padding: 0;
+}
+
+.sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sheet__footer {
+  padding: 16px 24px calc(16px + var(--safe-bottom));
+  border-top: 1px solid var(--color-border);
+}
+
+/* На телефоне окно во весь экран: ничего не уходит за край. */
+@media (max-width: 719px) {
+  .sheet {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+  }
+
+  .sheet__card {
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    border: 0;
+    padding-top: var(--safe-top);
+  }
+
+  .sheet__body {
+    padding: 16px var(--gutter);
+  }
+
+  .sheet__footer {
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+  }
+}
+
+.preview-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.import-help {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.import-help summary {
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.import-help__list {
+  margin: 8px 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+kbd {
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.import-example {
+  margin: 0;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-family: inherit;
+  font-size: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.import-title {
+  font-size: 22px;
+}
+
+.import-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.import-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  border: 1.5px solid transparent;
+  overflow-wrap: anywhere;
+}
+
+.import-item--warn {
+  border-color: var(--color-danger);
+}
+
+.import-item__options {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-item__options .is-correct {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.import-item__options .is-correct::after {
+  content: " ✓";
+}
+
+/* ---------- Вопрос квиза: экран зала ----------
+   Размеры в единицах контейнера: на телевизоре контейнер — весь экран (.quiz-stage),
+   в студии — рамка предпросмотра 16:9. */
+
+.quiz-stage {
+  width: 100vw;
+  height: 100dvh;
+  container-type: size;
+}
+
+.preview-screen {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  container-type: size;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.quiz-screen {
+  width: 100%;
+  height: 100%;
+  padding: 5cqh 5cqw;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: "top" "question" "options";
+  gap: 3.5cqh;
+  font-size: 4cqh;
+  line-height: 1.25;
+}
+
+.quiz-screen--image {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "top top" "question question" "image options";
+  column-gap: 3cqw;
+}
+
+.quiz-screen--empty {
+  display: grid;
+  place-content: center;
+  color: var(--color-text-muted);
+}
+
+.quiz-screen__top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  font-size: 3cqh;
+  color: var(--color-text-muted);
+}
+
+.quiz-screen__badge {
+  padding: 0.3em 1em;
+  border-radius: 999px;
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+
+.quiz-screen__timer {
+  margin-left: auto;
+  display: grid;
+  place-content: center;
+  width: 9cqh;
+  height: 9cqh;
+  border-radius: 50%;
+  border: 0.5cqh solid var(--color-highlight);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 4.5cqh;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.quiz-screen__question {
+  grid-area: question;
+  font-size: 7cqh;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.quiz-screen__image {
+  grid-area: image;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  border-radius: 2cqh;
+}
+
+.quiz-screen__options {
+  grid-area: options;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 2cqh 2cqw;
+  min-height: 0;
+}
+
+.quiz-screen--image .quiz-screen__options {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.quiz-screen__option {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  min-height: 0;
+  padding: 1.5cqh 2cqw;
+  border-radius: 2cqh;
+  border: 0.3cqh solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  transition: opacity 0.2s ease;
+}
+
+.quiz-screen__option.is-correct {
+  border-color: var(--color-success);
+  border-width: 0.6cqh;
+}
+
+.quiz-screen__option.is-dimmed {
+  opacity: 0.4;
+}
+
+.quiz-screen__letter {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 1.8em;
+  height: 1.8em;
+  border-radius: 50%;
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+
+.quiz-screen__open {
+  grid-area: options;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  text-align: center;
+  font-size: 6cqh;
+}
+
+.quiz-screen__hint {
+  color: var(--color-text-muted);
+  font-size: 4cqh;
+}
+
+/* ---------- Вопрос квиза: телефон гостя ---------- */
+
+.preview-phone {
+  width: min(100%, 380px);
+  min-height: 520px;
+  max-height: 70dvh;
+  margin: 0 auto;
+  padding: 24px 20px;
+  overflow-y: auto;
+  border-radius: 32px;
+  border: 1px solid var(--color-border);
+}
+
+.quiz-phone {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quiz-phone__question {
+  font-size: 28px;
+  overflow-wrap: anywhere;
+}
+
+.quiz-phone__image {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+
+.quiz-phone__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Варианты ответа — карточки выбора, крупные, во всю ширину. */
+.quiz-phone__option {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 500;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.quiz-phone__option:disabled {
+  cursor: default;
+}
+
+.quiz-phone__option.is-chosen {
+  border-color: var(--color-highlight);
+  border-width: 3px;
+}
+
+.quiz-phone__option.is-correct {
+  border-color: var(--color-success);
+  border-width: 3px;
+}
+
+.quiz-phone__option.is-dimmed,
+.quiz-phone__option:disabled:not(.is-chosen):not(.is-correct) {
+  opacity: 0.5;
 }

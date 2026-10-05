@@ -10,6 +10,7 @@ const game: Game = {
   mechanic: "quiz",
   themeId: "joyrest",
   ageRating: "12+",
+  playMode: "teams",
   content: { questions: [1, 2] },
   createdAt: 1,
   updatedAt: 2,
@@ -24,6 +25,7 @@ describe("copyOfGame", () => {
       mechanic: "quiz",
       themeId: "joyrest",
       ageRating: "12+",
+      playMode: "teams",
       content: { questions: [1, 2] },
     });
   });

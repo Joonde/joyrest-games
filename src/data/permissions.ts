@@ -54,6 +54,19 @@ export function canDeleteGame(actor: Actor, game: GameRef): boolean {
   return canEditGame(actor, game);
 }
 
+/**
+ * Картинки игры (games/{id}/media) открывает любой вошедший, кто знает id картинки:
+ * экран зала и телефоны гостей входят анонимно, а id есть только в снимке сессии.
+ */
+export function canViewMedia(uid: string | null): boolean {
+  return uid !== null;
+}
+
+/** Добавлять и удалять картинки может тот, кто правит игру. */
+export function canChangeMedia(actor: Actor, game: GameRef): boolean {
+  return canEditGame(actor, game);
+}
+
 /** Копия в «Мои игры» доступна для любой игры, которую ведущий видит. */
 export function canCopyToPersonal(actor: Actor, game: GameRef): boolean {
   return canReadGame(actor, game) && canCreateGame(actor, "personal", actor?.uid ?? "");

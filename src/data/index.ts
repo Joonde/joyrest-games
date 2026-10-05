@@ -5,6 +5,7 @@ import type {
   AnswersRepository,
   AuthService,
   GamesRepository,
+  MediaRepository,
   ParticipantsRepository,
   ResultsRepository,
   SessionsRepository,
@@ -13,6 +14,7 @@ import type {
 import { answersRepository } from "./answers";
 import { authService as firebaseAuthService } from "./auth";
 import { gamesRepository } from "./games";
+import { mediaRepository } from "./media";
 import { participantsRepository } from "./participants";
 import { resultsRepository } from "./results";
 import { sessionsRepository } from "./sessions";
@@ -26,6 +28,7 @@ export type { Actor } from "./permissions";
 export const authService: AuthService = firebaseAuthService;
 export const usersRepo: UsersRepository = usersRepository;
 export const gamesRepo: GamesRepository = gamesRepository;
+export const mediaRepo: MediaRepository = mediaRepository;
 export const sessionsRepo: SessionsRepository = sessionsRepository;
 export const participantsRepo: ParticipantsRepository = participantsRepository;
 export const answersRepo: AnswersRepository = answersRepository;

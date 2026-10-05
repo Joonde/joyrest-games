@@ -6,7 +6,7 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Message } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
-import { selectableMechanics } from "../../mechanics/registry";
+import { newContent, selectableMechanics } from "../../mechanics/registry";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 
 export function NewGame() {
@@ -47,7 +47,8 @@ function NewGameForm({ profile }: { user: AuthUser; profile: UserProfile }) {
         mechanic,
         themeId: DEFAULT_THEME_ID,
         ageRating: "0+",
-        content: null,
+        playMode: "solo",
+        content: newContent(mechanic),
       });
       navigate(`/studio/games/${id}`, { replace: true });
     } catch {

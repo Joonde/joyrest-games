@@ -71,12 +71,13 @@ service cloud.firestore {
       }
       function validGame(data) {
         return data.keys().hasOnly(['scope', 'ownerId', 'title', 'mechanic', 'themeId', 'ageRating',
-            'content', 'createdAt', 'updatedAt'])
+            'playMode', 'content', 'createdAt', 'updatedAt'])
           && data.scope in ['agency', 'personal']
           && data.title is string && data.title.size() > 0 && data.title.size() <= 80
           && data.mechanic is string
           && data.themeId is string
           && data.ageRating in ['0+', '12+', '18+']
+          && (!('playMode' in data) || data.playMode in ['solo', 'teams'])
           && data.updatedAt == request.time;
       }
 
@@ -92,6 +93,38 @@ service cloud.firestore {
         && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if canWriteGame(resource.data);
+
+      // ----- Картинки игры: {mediaId} для экрана зала и {mediaId}-small для телефонов -----
+
+      match /media/{mediaId} {
+        function game() {
+          return get(/databases/$(database)/documents/games/$(gameId)).data;
+        }
+        // getAfter: копия игры создаётся одной пачкой вместе с первыми картинками.
+        function gameAfter() {
+          return getAfter(/databases/$(database)/documents/games/$(gameId)).data;
+        }
+        function validMedia(data) {
+          return data.keys().hasOnly(['bytes', 'mime', 'width', 'height', 'variant', 'createdAt'])
+            && data.bytes is bytes
+            && data.bytes.size() > 0 && data.bytes.size() <= 400 * 1024
+            && data.mime in ['image/webp', 'image/jpeg']
+            && data.variant in ['full', 'small']
+            && data.width is int && data.width > 0 && data.width <= 4096
+            && data.height is int && data.height > 0 && data.height <= 4096
+            && data.createdAt == request.time;
+        }
+
+        // Экран зала и телефоны гостей входят анонимно: картинку открывает любой
+        // вошедший, кто знает её id (id есть только в игре и снимке сессии).
+        allow get: if signedIn();
+        // Списком — только тот, кто правит игру (удаление игры вместе с картинками).
+        allow list: if canWriteGame(game());
+        allow create: if canWriteGame(gameAfter()) && validMedia(request.resource.data);
+        allow update: if false;
+        // get, а не getAfter: игра удаляется в той же пачке, что и последние картинки.
+        allow delete: if canWriteGame(game());
+      }
     }
 
     // ---------- Сессии ----------

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { leaderboardAdditions, sortedLeaderboard } from "../core/leaderboard";
@@ -15,7 +15,9 @@ import {
 import { HostGate } from "../components/HostGate";
 import { QrCode } from "../components/QrCode";
 import { Loading, Message } from "../components/Status";
+import { TopBar } from "../components/TopBar";
 import { playUrl } from "../components/links";
+import { teamColorVar, useTheme } from "../themes/registry";
 
 export function HostConsole() {
   const { code = "" } = useParams();
@@ -40,6 +42,7 @@ function Console({ session }: { session: Session }) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const link = playUrl(session.code);
+  useTheme(session.themeId);
 
   // Ответы и участников слушает только пульт.
   useEffect(
@@ -82,14 +85,15 @@ function Console({ session }: { session: Session }) {
 
   return (
     <main className="page">
-      <header className="stack" style={{ gap: 4 }}>
-        <p className="muted" style={{ margin: 0 }}>
-          Пульт ведущего
-        </p>
-        <div className="big-code">{formatSessionCode(session.code)}</div>
-      </header>
+      <TopBar title="Пульт" eyebrow="JoyRest Games">
+        <Link className="btn btn--ghost btn--small" to="/studio">
+          В студию
+        </Link>
+      </TopBar>
 
       <section className="card" style={{ alignItems: "center", textAlign: "center" }}>
+        <p className="eyebrow">Код игры</p>
+        <div className="big-code">{formatSessionCode(session.code)}</div>
         <QrCode value={link} label={`QR-код для входа в игру ${session.code}`} />
         <p className="muted" style={{ wordBreak: "break-all" }}>
           {link}
@@ -143,7 +147,16 @@ function Console({ session }: { session: Session }) {
           <ul className="list">
             {board.map((entry) => (
               <li key={entry.id}>
-                <span>{entry.name}</span>
+                <span>
+                  {entry.kind === "team" && (
+                    <span
+                      className="team-dot"
+                      style={{ "--team-color": teamColorVar(entry.colorIndex) } as CSSProperties}
+                      aria-hidden
+                    />
+                  )}
+                  {entry.name}
+                </span>
                 <span className="muted">{entry.score}</span>
               </li>
             ))}
@@ -151,9 +164,6 @@ function Console({ session }: { session: Session }) {
         )}
       </section>
 
-      <Link className="btn btn--secondary" to="/studio">
-        В студию
-      </Link>
     </main>
   );
 }

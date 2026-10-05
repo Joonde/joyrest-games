@@ -1,16 +1,17 @@
 import { Link } from "react-router-dom";
+import { Logo } from "../components/Logo";
 
 export function Home() {
   return (
     <main className="page page--center">
-      <div className="stack">
-        <h1>JoyRest Games</h1>
-        <p className="muted">Радость без хлопот</p>
-      </div>
+      <Logo kind="emblem" className="logo--form" />
+      <p className="muted" style={{ textAlign: "center" }}>
+        Радость без хлопот
+      </p>
       <Link className="btn btn--block" to="/j">
         Я гость: ввести код
       </Link>
-      <Link className="btn btn--secondary btn--block" to="/studio">
+      <Link className="btn btn--ghost btn--block" to="/studio">
         Я ведущий
       </Link>
     </main>

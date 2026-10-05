@@ -7,6 +7,7 @@ import {
   type AuthUser,
   type UserProfile,
 } from "../data";
+import { Logo } from "./Logo";
 import { Loading, Message } from "./Status";
 
 interface Props {
@@ -26,7 +27,7 @@ export function HostGate({ requireAdmin = false, children }: Props) {
     return (
       <Message title="Нет доступа">
         <p>Аккаунт {user.email} не подключён как ведущий. Попросите администратора добавить вас.</p>
-        <button className="btn btn--secondary" onClick={() => void signOutUser()}>
+        <button className="btn btn--ghost" onClick={() => void signOutUser()}>
           Выйти
         </button>
       </Message>
@@ -63,6 +64,7 @@ function LoginForm() {
 
   return (
     <main className="page page--center">
+      <Logo kind="monogram" className="logo--mark" title="" />
       <form className="card" onSubmit={onSubmit}>
         <h1>Вход для ведущего</h1>
         <label className="field">

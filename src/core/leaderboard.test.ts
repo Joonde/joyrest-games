@@ -18,6 +18,14 @@ describe("таблица лидеров", () => {
     });
   });
 
+  it("выдаёт командам цвета по порядку и не меняет их", () => {
+    const team2: Participant = { ...team, id: "t2", name: "Зайки" };
+    const board = { t1: { name: "Котики", kind: "team" as const, score: 3, colorIndex: 0 } };
+    expect(leaderboardAdditions(board, [team, team2], "teams")).toEqual({
+      t2: { name: "Зайки", kind: "team", score: 0, colorIndex: 1 },
+    });
+  });
+
   it("не трогает существующие записи и их очки", () => {
     const board = { u1: { name: "Анна", kind: "player" as const, score: 5 } };
     expect(leaderboardAdditions(board, [anna], "solo")).toEqual({});

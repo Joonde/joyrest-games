@@ -1,4 +1,4 @@
-/* Все цвета и размеры берутся из CSS-переменных темы (src/themes). */
+/* Все цвета, шрифты и радиусы — из CSS-переменных темы (src/themes). */
 *,
 *::before,
 *::after {
@@ -16,29 +16,50 @@ body {
   min-height: 100dvh;
   background: var(--background);
   background-color: var(--color-bg);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-body);
+  font-weight: 400;
   font-size: 18px;
-  line-height: 1.4;
+  line-height: 1.45;
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  line-height: 1.15;
-  margin: 0 0 0.5em;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  margin: 0 0 0.4em;
+}
+
+h1 {
+  font-size: 34px;
+}
+
+h2 {
+  font-size: 26px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-link);
+  text-underline-offset: 3px;
 }
 
 :focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
+
+/* ---------- Раскладка ---------- */
 
 .page {
   width: 100%;
@@ -73,6 +94,14 @@ a {
   color: var(--color-text-muted);
 }
 
+.eyebrow {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -86,6 +115,77 @@ a {
   gap: 12px;
 }
 
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.topbar__brand h1 {
+  margin: 0;
+}
+
+/* ---------- Логотип ---------- */
+/* Логотип — встроенный SVG с currentColor: цвет задаёт тема через --color-logo.
+   Размер задаётся шириной обёртки, высота следует из пропорций файла. */
+
+.logo {
+  display: block;
+  flex: none;
+  color: var(--color-logo);
+}
+
+.logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.logo--full {
+  aspect-ratio: 1000 / 775;
+}
+
+.logo--emblem {
+  aspect-ratio: 1000 / 723;
+}
+
+.logo--monogram {
+  aspect-ratio: 500 / 445;
+}
+
+.logo--mark {
+  width: 52px;
+}
+
+.logo--form {
+  width: min(240px, 62vw);
+  margin: 0 auto -8px;
+}
+
+.logo--splash {
+  width: 100%;
+  max-width: min(44vw, 80vh);
+}
+
+.logo--corner {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 20px;
+  width: clamp(48px, 9vh, 96px);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* ---------- Кнопки ---------- */
+
 .btn {
   appearance: none;
   display: inline-flex;
@@ -93,16 +193,22 @@ a {
   justify-content: center;
   gap: 8px;
   min-height: 56px;
-  padding: 12px 20px;
+  padding: 12px 22px;
   border-radius: var(--radius-md);
   border: 2px solid transparent;
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
   background: var(--color-primary);
   color: var(--color-primary-text);
-  transition: transform 0.1s ease, opacity 0.1s ease;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.btn:hover {
+  filter: brightness(1.05);
 }
 
 .btn:active {
@@ -115,19 +221,33 @@ a {
 }
 
 .btn--secondary {
+  background: var(--gradient-secondary);
+  color: var(--color-secondary-text);
+}
+
+.btn--ghost {
   background: transparent;
   color: var(--color-text);
   border-color: var(--color-border);
+}
+
+.btn--small {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 16px;
 }
 
 .btn--block {
   width: 100%;
 }
 
+/* ---------- Формы ---------- */
+
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  font-weight: 500;
 }
 
 .field input {
@@ -138,14 +258,21 @@ a {
   background: var(--color-surface-alt);
   color: var(--color-text);
   font: inherit;
+  font-weight: 400;
   font-size: 20px;
+}
+
+.field input:focus-visible {
+  border-color: var(--color-highlight);
+  outline-offset: 2px;
 }
 
 .code-input {
   text-align: center;
   letter-spacing: 0.3em;
-  font-size: 32px !important;
-  font-weight: 700;
+  font-family: var(--font-display) !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
 }
 
 .choice {
@@ -160,14 +287,14 @@ a {
 }
 
 .choice:has(input:checked) {
-  border-color: var(--color-accent);
+  border-color: var(--color-highlight);
 }
 
 .choice input {
   width: 22px;
   height: 22px;
   margin-top: 2px;
-  accent-color: var(--color-accent);
+  accent-color: var(--color-primary);
 }
 
 fieldset {
@@ -180,25 +307,34 @@ fieldset {
 }
 
 legend {
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: 8px;
 }
 
 .error {
   color: var(--color-danger);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .success {
   color: var(--color-success);
+  font-weight: 500;
 }
 
+/* ---------- Код игры и QR ---------- */
+
 .big-code {
-  font-size: clamp(48px, 12vw, 140px);
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: clamp(56px, 13vw, 150px);
+  font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--color-accent);
   line-height: 1;
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+  background: var(--gradient-code);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* QR всегда чёрный на белом при любой теме, иначе телефоны его не прочитают. */
@@ -218,6 +354,8 @@ legend {
   image-rendering: pixelated;
 }
 
+/* ---------- Списки и команды ---------- */
+
 .list {
   list-style: none;
   margin: 0;
@@ -230,6 +368,7 @@ legend {
 .list li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 12px 16px;
   border-radius: var(--radius-sm);
@@ -243,36 +382,172 @@ legend {
 }
 
 .chip {
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 999px;
   background: var(--color-surface-alt);
   border: 1px solid var(--color-border);
+  font-weight: 500;
+}
+
+.chip--team,
+.team-badge {
+  background: var(--team-color, var(--color-surface-alt));
+  color: var(--color-team-text);
+  border-color: transparent;
+}
+
+.team-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 999px;
   font-weight: 600;
 }
 
+.team-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--team-color, var(--color-border));
+  vertical-align: -1px;
+}
+
+/* ---------- Экран зала ---------- */
+
 .screen {
   min-height: 100dvh;
-  padding: 4vh 4vw;
+  padding: 5vh 5vw;
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4vw;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5vw;
   align-items: center;
 }
 
-.screen .qr {
-  max-width: min(36vh, 360px);
+.screen__brand {
+  display: flex;
+  justify-content: center;
+}
+
+.screen__join {
+  display: flex;
+  flex-direction: column;
+  gap: 2.4vh;
+  align-items: flex-start;
+}
+
+.screen__code {
+  display: flex;
+  align-items: center;
+  gap: 3vw;
+}
+
+.screen__code .big-code {
+  font-size: clamp(48px, 6.4vw, 140px);
+}
+
+.screen__join .qr {
+  width: min(28vh, 16vw);
+  max-width: none;
+  flex: none;
 }
 
 .screen-title {
-  font-size: clamp(28px, 4vw, 56px);
+  font-size: clamp(32px, 3.6vw, 64px);
+  margin: 0;
+}
+
+.screen-text {
+  font-size: clamp(18px, 1.8vw, 30px);
+  color: var(--color-text-muted);
+}
+
+.screen-center {
+  min-height: 100dvh;
+  padding: 12vh 6vw 6vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4vh;
+  text-align: center;
 }
 
 @media (max-width: 720px) {
   .screen {
     grid-template-columns: 1fr;
     text-align: center;
-    justify-items: center;
   }
+
+  .screen__join {
+    align-items: center;
+  }
+
+  .screen__code {
+    flex-direction: column;
+  }
+
+  .screen__join .qr {
+    width: min(60vw, 280px);
+  }
+
+  .logo--splash {
+    max-width: 70vw;
+  }
+}
+
+/* ---------- Витрина фирменного стиля ---------- */
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.swatch {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.swatch__color {
+  height: 56px;
+}
+
+.swatch__label {
+  padding: 6px 10px;
+}
+
+.logo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.logo-tile {
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.logo-tile .logo {
+  width: 100%;
+  max-width: 240px;
+}
+
+.logo-tile--dark {
+  background: var(--brand-dark-bg);
+  color: var(--brand-dark-text);
+}
+
+.logo-tile--light {
+  background: var(--brand-light-bg);
+  color: var(--brand-light-text);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -283,3 +558,8 @@ legend {
     animation: none !important;
   }
 }
+
+.page > .logo {
+  align-self: center;
+}
+

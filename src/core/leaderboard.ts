@@ -12,6 +12,7 @@ export function scoringParticipants(participants: Participant[], playMode: PlayM
 /**
  * Возвращает только новые или переименованные записи таблицы лидеров.
  * Очки существующих записей не трогаем: их меняет только подсчёт очков.
+ * Новая команда получает следующий по порядку цвет, и он больше не меняется.
  */
 export function leaderboardAdditions(
   leaderboard: Leaderboard,
@@ -19,10 +20,14 @@ export function leaderboardAdditions(
   playMode: PlayMode,
 ): Record<string, LeaderboardEntry> {
   const additions: Record<string, LeaderboardEntry> = {};
+  let nextColor = Object.values(leaderboard).filter((e) => e.kind === "team").length;
   for (const p of scoringParticipants(participants, playMode)) {
     const existing = leaderboard[p.id];
     if (!existing) {
-      additions[p.id] = { name: p.name, kind: p.kind, score: 0 };
+      additions[p.id] =
+        p.kind === "team"
+          ? { name: p.name, kind: p.kind, score: 0, colorIndex: nextColor++ }
+          : { name: p.name, kind: p.kind, score: 0 };
     } else if (existing.name !== p.name) {
       additions[p.id] = { ...existing, name: p.name };
     }

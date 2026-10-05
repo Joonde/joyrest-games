@@ -12,6 +12,8 @@ import {
   type UserProfile,
 } from "../data";
 import { HostGate } from "../components/HostGate";
+import { TopBar } from "../components/TopBar";
+import { DEFAULT_THEME_ID, themes } from "../themes/registry";
 
 const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
   { id: "laptop", title: "Ноутбук + экран", hint: "Экран зала на ноутбуке, управление с ноутбука или телефона." },
@@ -23,6 +25,11 @@ const PLAY_MODES: Array<{ id: PlayMode; title: string; hint: string }> = [
   { id: "solo", title: "Каждый сам за себя", hint: "Каждый гость играет со своего телефона." },
   { id: "teams", title: "Команды", hint: "Отвечает капитан, остальные видят вопрос." },
 ];
+
+const THEME_HINTS: Record<string, string> = {
+  joyrest: "Тёмное, для вечера и затемнённого зала.",
+  "joyrest-day": "Светлое, для дневных мероприятий и яркого света.",
+};
 
 const PHASE_TITLES: Record<Session["state"]["phase"], string> = {
   lobby: "ждёт начала",
@@ -38,6 +45,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const navigate = useNavigate();
   const [playMode, setPlayMode] = useState<PlayMode>("solo");
   const [screenMode, setScreenMode] = useState<ScreenMode>("laptop");
+  const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[] | null>(null);
@@ -56,7 +64,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       const { code } = await createSession(user.uid, {
         playMode,
         screenMode,
-        themeId: "joyrest",
+        themeId,
         mechanic: null,
         gameSnapshot: null,
       });
@@ -69,19 +77,16 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
 
   return (
     <main className="page">
-      <header className="row" style={{ justifyContent: "space-between" }}>
-        <h1 style={{ margin: 0 }}>Студия</h1>
-        <div className="row">
-          {profile.role === "admin" && (
-            <Link className="btn btn--secondary" to="/admin">
-              Ведущие
-            </Link>
-          )}
-          <button className="btn btn--secondary" onClick={() => void signOutUser()}>
-            Выйти
-          </button>
-        </div>
-      </header>
+      <TopBar title="Студия" eyebrow="JoyRest Games">
+        {profile.role === "admin" && (
+          <Link className="btn btn--ghost btn--small" to="/admin">
+            Ведущие
+          </Link>
+        )}
+        <button className="btn btn--ghost btn--small" onClick={() => void signOutUser()}>
+          Выйти
+        </button>
+      </TopBar>
       <p className="muted">
         {profile.name} · {user.email}
       </p>
@@ -121,6 +126,24 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
                 <strong>{mode.title}</strong>
                 <br />
                 <span className="muted">{mode.hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend>Оформление</legend>
+          {themes.map((theme) => (
+            <label key={theme.id} className="choice">
+              <input
+                type="radio"
+                name="themeId"
+                checked={themeId === theme.id}
+                onChange={() => setThemeId(theme.id)}
+              />
+              <span>
+                <strong>{theme.title}</strong>
+                <br />
+                <span className="muted">{THEME_HINTS[theme.id] ?? ""}</span>
               </span>
             </label>
           ))}

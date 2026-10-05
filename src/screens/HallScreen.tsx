@@ -1,31 +1,32 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { sortedLeaderboard } from "../core/leaderboard";
-import { ensureSignedIn, useSessionByCode, type Session } from "../data";
+import { useGuestSignIn, useSessionByCode, type Session } from "../data";
 import { Logo } from "../components/Logo";
 import { QrCode } from "../components/QrCode";
-import { Loading, Message } from "../components/Status";
+import { ScreenSkeleton } from "../components/Skeleton";
+import { LoadFailed, Message, Pending } from "../components/Status";
 import { joinHint, playUrl } from "../components/links";
 import { teamColorVar, useTheme } from "../themes/registry";
 
 export function HallScreen() {
   const { code = "" } = useParams();
-  const [ready, setReady] = useState(false);
-  const [authError, setAuthError] = useState(false);
+  const [auth, retryAuth] = useGuestSignIn();
+  const [state, retry] = useSessionByCode(code, auth.status === "ready");
 
-  useEffect(() => {
-    ensureSignedIn()
-      .then(() => setReady(true))
-      .catch(() => setAuthError(true));
-  }, []);
-
-  const state = useSessionByCode(code, ready);
-
-  if (authError) return <Message title="Нет связи">Проверьте интернет и обновите страницу.</Message>;
-  if (!ready || state.status === "loading") return <Loading text="Подключаем экран…" />;
+  if (auth.status === "error") return <LoadFailed onRetry={retryAuth} />;
+  if (auth.status === "loading" || state.status === "loading") {
+    return (
+      <Pending
+        skeleton={<ScreenSkeleton />}
+        onRetry={auth.status === "loading" ? retryAuth : retry}
+        label="Подключаем экран"
+      />
+    );
+  }
   if (state.status === "notFound") return <Message title="Сессия не найдена">Проверьте код: {code}</Message>;
-  if (state.status === "error") return <Message title="Ошибка">{state.message}</Message>;
+  if (state.status === "error") return <LoadFailed onRetry={retry}>{state.message}</LoadFailed>;
   return <Screen session={state.session} />;
 }
 
@@ -79,7 +80,7 @@ function Screen({ session }: { session: Session }) {
         <p className="screen-text">Отсканируйте QR-код или откройте {joinHint()} и введите код</p>
         <div className="screen__code">
           <div className="big-code">{formatSessionCode(session.code)}</div>
-          <QrCode value={playUrl(session.code)} label={`QR-код для входа в игру ${session.code}`} />
+          <QrCode value={playUrl(session.code)} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />
         </div>
         <p className="screen-text">
           {teams ? "Команд" : "Игроков"}: {board.length}

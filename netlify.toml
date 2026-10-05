@@ -12,3 +12,15 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Шрифты и собранные чанки не меняются под тем же именем: телефон гостя
+# кэширует их надолго и при повторном входе не качает заново.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

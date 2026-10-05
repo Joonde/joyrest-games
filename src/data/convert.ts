@@ -1,7 +1,15 @@
-import { Timestamp } from "firebase/firestore";
+// Без импорта firebase/firestore: модуль попадает в общий чанк, а SDK грузится отдельно.
+
+interface TimestampLike {
+  toMillis(): number;
+}
+
+function isTimestamp(value: unknown): value is TimestampLike {
+  return typeof value === "object" && value !== null && typeof (value as TimestampLike).toMillis === "function";
+}
 
 export function toMillis(value: unknown): number | null {
-  return value instanceof Timestamp ? value.toMillis() : null;
+  return isTimestamp(value) ? value.toMillis() : null;
 }
 
 export function asString(value: unknown, fallback = ""): string {

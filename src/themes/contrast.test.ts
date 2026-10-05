@@ -17,10 +17,15 @@ describe.each(themes)("контраст темы $id", (theme) => {
     ["второстепенный текст на карточке", colors.textMuted, colors.surface],
     ["второстепенный текст на вложенной карточке", colors.textMuted, colors.surfaceAlt],
     ["текст основной кнопки", colors.primaryText, colors.primary],
-    ["текст второстепенной кнопки (начало градиента)", colors.secondaryText, gradients.secondaryStops[0]],
-    ["текст второстепенной кнопки (конец градиента)", colors.secondaryText, gradients.secondaryStops[1]],
-    ["код игры (начало градиента)", gradients.codeStops[0], colors.bg],
-    ["код игры (конец градиента)", gradients.codeStops[1], colors.bg],
+    ["текст вторичной кнопки на фоне", colors.text, colors.bg],
+    ["текст вторичной кнопки на карточке", colors.text, colors.surface],
+    ["текст на акценте (начало градиента)", colors.accentText, gradients.secondaryStops[0]],
+    ["текст на акценте (конец градиента)", colors.accentText, gradients.secondaryStops[1]],
+    ["код игры на фоне (начало градиента)", gradients.codeStops[0], colors.bg],
+    ["код игры на фоне (конец градиента)", gradients.codeStops[1], colors.bg],
+    ["код игры на карточке пульта (начало градиента)", gradients.codeStops[0], colors.surface],
+    ["код игры на карточке пульта (конец градиента)", gradients.codeStops[1], colors.surface],
+    ["уведомление (фон и текст меняются местами)", colors.bg, colors.text],
     ["ссылки", colors.link, colors.bg],
     ["ошибки на карточке", colors.danger, colors.surface],
     ["успех на карточке", colors.success, colors.surface],
@@ -29,8 +34,13 @@ describe.each(themes)("контраст темы $id", (theme) => {
   });
 
   it.each([
-    ["рамка фокуса", colors.focus, colors.bg],
-    ["подсветка выбранного варианта", colors.highlight, colors.surfaceAlt],
+    ["рамка фокуса на фоне", colors.focus, colors.bg],
+    ["рамка фокуса на карточке", colors.focus, colors.surface],
+    ["рамка вторичной кнопки на фоне", colors.highlight, colors.bg],
+    ["рамка вторичной кнопки на карточке", colors.highlight, colors.surface],
+    ["обводка выбранного варианта", colors.highlight, colors.surfaceAlt],
+    ["кольцо невыбранной радиокнопки", colors.control, colors.surfaceAlt],
+    ["кольцо и точка выбранной радиокнопки", colors.controlChecked, colors.surfaceAlt],
   ])("%s ≥ 3", (_name, fg, bg) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(UI);
   });

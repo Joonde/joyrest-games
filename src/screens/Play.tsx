@@ -4,16 +4,17 @@ import { formatSessionCode } from "../core/code";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import {
   createTeam,
-  ensureSignedIn,
   getMyParticipant,
   joinAsPlayer,
   listTeams,
+  useGuestSignIn,
   useSessionByCode,
   type Participant,
   type Session,
 } from "../data";
 import { Logo } from "../components/Logo";
-import { Loading, Message } from "../components/Status";
+import { PlaySkeleton } from "../components/Skeleton";
+import { LoadFailed, Message, Pending } from "../components/Status";
 import { teamColorVar, useTheme } from "../themes/registry";
 
 const NAME_STORAGE_KEY = "joyrest.playerName";
@@ -36,19 +37,19 @@ function rememberName(name: string): void {
 
 export function Play() {
   const { code = "" } = useParams();
-  const [uid, setUid] = useState<string | null>(null);
-  const [authError, setAuthError] = useState(false);
+  const [auth, retryAuth] = useGuestSignIn();
+  const [state, retry] = useSessionByCode(code, auth.status === "ready");
 
-  useEffect(() => {
-    ensureSignedIn()
-      .then((user) => setUid(user.uid))
-      .catch(() => setAuthError(true));
-  }, []);
-
-  const state = useSessionByCode(code, uid !== null);
-
-  if (authError) return <Message title="Нет связи">Проверьте интернет и обновите страницу.</Message>;
-  if (!uid || state.status === "loading") return <Loading text="Подключаемся к игре…" />;
+  if (auth.status === "error") return <LoadFailed onRetry={retryAuth} />;
+  if (auth.status === "loading" || state.status === "loading") {
+    return (
+      <Pending
+        skeleton={<PlaySkeleton />}
+        onRetry={auth.status === "loading" ? retryAuth : retry}
+        label="Подключаемся к игре"
+      />
+    );
+  }
   if (state.status === "notFound") {
     return (
       <Message title="Игра не найдена">
@@ -59,8 +60,8 @@ export function Play() {
       </Message>
     );
   }
-  if (state.status === "error") return <Message title="Нет связи">{state.message}</Message>;
-  return <PlayerScreen session={state.session} uid={uid} />;
+  if (state.status === "error") return <LoadFailed onRetry={retry}>{state.message}</LoadFailed>;
+  return <PlayerScreen session={state.session} uid={auth.uid} />;
 }
 
 function PlayerScreen({ session, uid }: { session: Session; uid: string }) {
@@ -81,7 +82,7 @@ function PlayerScreen({ session, uid }: { session: Session; uid: string }) {
     reload().catch(() => setMe(null));
   }, [reload]);
 
-  if (me === undefined) return <Loading text="Проверяем, играли ли вы уже…" />;
+  if (me === undefined) return <Pending skeleton={<PlaySkeleton />} onRetry={() => void reload().catch(() => setMe(null))} label="Проверяем, играли ли вы уже" />;
 
   if (!me || (session.playMode === "teams" && !me.teamId)) {
     if (session.state.phase === "finished") {
@@ -187,7 +188,7 @@ function JoinForm({
                 <input maxLength={NAME_MAX_LENGTH} value={teamName} onChange={(e) => setTeamName(e.target.value)} />
               </label>
             )}
-            <button type="button" className="btn btn--ghost" onClick={loadTeams}>
+            <button type="button" className="btn btn--secondary" onClick={loadTeams}>
               Обновить список команд
             </button>
           </fieldset>

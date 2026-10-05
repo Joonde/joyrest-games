@@ -14,10 +14,14 @@ export interface ThemeTokens {
     /** Основные кнопки. */
     primary: string;
     primaryText: string;
-    /** Текст на второстепенных кнопках с градиентом `gradients.secondary`. */
-    secondaryText: string;
-    /** Рамки выбранных вариантов и подсветки. */
+    /** Текст на градиентных акцентах `gradients.secondary` (не кнопки). */
+    accentText: string;
+    /** Рамки вторичных кнопок, выбранных вариантов и подсветки. */
     highlight: string;
+    /** Кольцо невыбранной радиокнопки. */
+    control: string;
+    /** Кольцо и точка выбранной радиокнопки. */
+    controlChecked: string;
     link: string;
     danger: string;
     success: string;
@@ -28,7 +32,7 @@ export interface ThemeTokens {
     teamText: string;
   };
   gradients: {
-    /** Второстепенные кнопки и подсветки. Первый и последний цвет — для проверки контраста. */
+    /** Только акценты (бейджи, полосы), не кнопки. Первый и последний цвет — для проверки контраста. */
     secondary: string;
     secondaryStops: [string, string];
     /** Крупный код игры. */

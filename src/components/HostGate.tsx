@@ -8,18 +8,21 @@ import {
   type UserProfile,
 } from "../data";
 import { Logo } from "./Logo";
-import { Loading, Message } from "./Status";
+import { LoadFailed, Message, Pending } from "./Status";
 
 interface Props {
   requireAdmin?: boolean;
+  /** Каркас экрана, который показывается, пока проверяется вход. */
+  skeleton: ReactNode;
   children: (user: AuthUser, profile: UserProfile) => ReactNode;
 }
 
 /** Пускает дальше только вошедшего активного ведущего (или admin). */
-export function HostGate({ requireAdmin = false, children }: Props) {
-  const auth = useAuth();
+export function HostGate({ requireAdmin = false, skeleton, children }: Props) {
+  const [auth, retry] = useAuth();
 
-  if (auth.status === "loading") return <Loading />;
+  if (auth.status === "loading") return <Pending skeleton={skeleton} onRetry={retry} label="Проверяем вход" />;
+  if (auth.status === "error") return <LoadFailed onRetry={retry} />;
   if (auth.status === "signedOut" || auth.user.anonymous) return <LoginForm />;
 
   const { user, profile } = auth;
@@ -27,7 +30,7 @@ export function HostGate({ requireAdmin = false, children }: Props) {
     return (
       <Message title="Нет доступа">
         <p>Аккаунт {user.email} не подключён как ведущий. Попросите администратора добавить вас.</p>
-        <button className="btn btn--ghost" onClick={() => void signOutUser()}>
+        <button className="btn btn--secondary" onClick={() => void signOutUser()}>
           Выйти
         </button>
       </Message>

@@ -1,20 +1,7 @@
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-  type DocumentSnapshot,
-} from "firebase/firestore";
+import type { DocumentSnapshot } from "firebase/firestore";
 import { asNumber, asString, toMillis } from "./convert";
-import { db } from "./firebase";
+import { lazySubscribe, loadFirestore } from "./firebase";
 import type { Answer, Unsubscribe } from "./types";
-
-function answersCol(sessionId: string) {
-  return collection(db, "sessions", sessionId, "answers");
-}
 
 export function answerId(step: number, pid: string): string {
   return `${step}_${pid}`;
@@ -46,13 +33,14 @@ export async function submitAnswer(
   uid: string,
   value: unknown,
 ): Promise<SubmitResult> {
+  const { db, sdk } = await loadFirestore();
   try {
-    await setDoc(doc(answersCol(sessionId), answerId(step, pid)), {
+    await sdk.setDoc(sdk.doc(db, "sessions", sessionId, "answers", answerId(step, pid)), {
       step,
       pid,
       uid,
       value,
-      submittedAt: serverTimestamp(),
+      submittedAt: sdk.serverTimestamp(),
     });
     return "sent";
   } catch (error) {
@@ -70,9 +58,12 @@ export function watchAnswers(
   onChange: (answers: Answer[]) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(
-    query(answersCol(sessionId), where("step", "==", step)),
-    (snap) => onChange(snap.docs.map(toAnswer).filter((a): a is Answer => a !== null)),
-    onError,
-  );
+  return lazySubscribe(async () => {
+    const { db, sdk } = await loadFirestore();
+    return sdk.onSnapshot(
+      sdk.query(sdk.collection(db, "sessions", sessionId, "answers"), sdk.where("step", "==", step)),
+      (snap) => onChange(snap.docs.map(toAnswer).filter((a): a is Answer => a !== null)),
+      onError,
+    );
+  }, onError);
 }

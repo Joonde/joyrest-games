@@ -12,7 +12,8 @@ import {
   type UserProfile,
 } from "../data";
 import { HostGate } from "../components/HostGate";
-import { TopBar } from "../components/TopBar";
+import { StudioSkeleton } from "../components/Skeleton";
+import { TopBar, type TopBarAction } from "../components/TopBar";
 import { DEFAULT_THEME_ID, themes } from "../themes/registry";
 
 const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
@@ -38,7 +39,11 @@ const PHASE_TITLES: Record<Session["state"]["phase"], string> = {
 };
 
 export function Studio() {
-  return <HostGate>{(user, profile) => <StudioContent user={user} profile={profile} />}</HostGate>;
+  return (
+    <HostGate skeleton={<StudioSkeleton />}>
+      {(user, profile) => <StudioContent user={user} profile={profile} />}
+    </HostGate>
+  );
 }
 
 function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile }) {
@@ -75,19 +80,15 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
     }
   }
 
+  const actions: TopBarAction[] = [
+    ...(profile.role === "admin" ? [{ label: "Ведущие", to: "/admin" }] : []),
+    { label: "Выйти", onClick: () => void signOutUser() },
+  ];
+
   return (
     <main className="page">
-      <TopBar title="Студия" eyebrow="JoyRest Games">
-        {profile.role === "admin" && (
-          <Link className="btn btn--ghost btn--small" to="/admin">
-            Ведущие
-          </Link>
-        )}
-        <button className="btn btn--ghost btn--small" onClick={() => void signOutUser()}>
-          Выйти
-        </button>
-      </TopBar>
-      <p className="muted">
+      <TopBar title="Студия" actions={actions} />
+      <p className="muted small">
         {profile.name} · {user.email}
       </p>
 
@@ -104,10 +105,9 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
                 checked={screenMode === mode.id}
                 onChange={() => setScreenMode(mode.id)}
               />
-              <span>
-                <strong>{mode.title}</strong>
-                <br />
-                <span className="muted">{mode.hint}</span>
+              <span className="choice__text">
+                <span className="choice__title">{mode.title}</span>
+                <span className="choice__hint">{mode.hint}</span>
               </span>
             </label>
           ))}
@@ -122,10 +122,9 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
                 checked={playMode === mode.id}
                 onChange={() => setPlayMode(mode.id)}
               />
-              <span>
-                <strong>{mode.title}</strong>
-                <br />
-                <span className="muted">{mode.hint}</span>
+              <span className="choice__text">
+                <span className="choice__title">{mode.title}</span>
+                <span className="choice__hint">{mode.hint}</span>
               </span>
             </label>
           ))}
@@ -140,10 +139,9 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
                 checked={themeId === theme.id}
                 onChange={() => setThemeId(theme.id)}
               />
-              <span>
-                <strong>{theme.title}</strong>
-                <br />
-                <span className="muted">{THEME_HINTS[theme.id] ?? ""}</span>
+              <span className="choice__text">
+                <span className="choice__title">{theme.title}</span>
+                <span className="choice__hint">{THEME_HINTS[theme.id] ?? ""}</span>
               </span>
             </label>
           ))}
@@ -166,8 +164,10 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
           <ul className="list">
             {sessions.map((s) => (
               <li key={s.id}>
-                <Link to={`/host/${s.code}`}>{formatSessionCode(s.code)}</Link>
-                <span className="muted">
+                <Link className="nowrap" to={`/host/${s.code}`}>
+                  {formatSessionCode(s.code)}
+                </Link>
+                <span className="muted small">
                   {PHASE_TITLES[s.state.phase]}
                   {s.createdAt ? ` · ${new Date(s.createdAt).toLocaleDateString("ru-RU")}` : ""}
                 </span>

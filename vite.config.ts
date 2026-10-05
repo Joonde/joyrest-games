@@ -28,6 +28,11 @@ function inlineSvg(): Plugin {
 
 export default defineConfig({
   plugins: [inlineSvg(), react()],
+  build: {
+    // Firestore — один чанк около 550 КБ (160 КБ в gzip); он грузится динамически
+    // параллельно с каркасом экрана и не нужен на главной и вводе кода.
+    chunkSizeWarningLimit: 600,
+  },
   test: {
     include: ["src/**/*.test.ts"],
   },

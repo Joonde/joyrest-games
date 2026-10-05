@@ -1,18 +1,10 @@
-import type { DocumentSnapshot } from "firebase/firestore";
+import type { CollectionReference, DocumentSnapshot } from "firebase/firestore";
 import { generateSessionCode } from "../core/code";
+import { compactBoard } from "../core/results";
+import type { SessionsRepository } from "./contracts";
 import { asNumber, asRecord, asString, toMillis } from "./convert";
-import { lazySubscribe, loadFirestore } from "./firebase";
-import type {
-  Leaderboard,
-  LeaderboardEntry,
-  NewSessionOptions,
-  PlayMode,
-  ScreenMode,
-  Session,
-  SessionPhase,
-  SessionState,
-  Unsubscribe,
-} from "./types";
+import { lazySubscribe, loadFirestore, type FirestoreSdk } from "./firebase";
+import type { Leaderboard, LeaderboardEntry, PlayMode, ScreenMode, Session, SessionPhase, SessionState } from "./types";
 
 async function sessionsCol() {
   const { db, sdk } = await loadFirestore();
@@ -26,7 +18,7 @@ function parsePhase(value: unknown): SessionPhase {
   return value === "playing" || value === "finished" ? value : "lobby";
 }
 
-function parsePlayMode(value: unknown): PlayMode {
+export function parsePlayMode(value: unknown): PlayMode {
   return value === "teams" ? "teams" : "solo";
 }
 
@@ -56,6 +48,8 @@ function toSession(snap: DocumentSnapshot): Session | null {
     id: snap.id,
     code: asString(data.code),
     hostId: asString(data.hostId),
+    gameId: typeof data.gameId === "string" ? data.gameId : null,
+    gameTitle: asString(data.gameTitle),
     mechanic: typeof data.mechanic === "string" ? data.mechanic : null,
     gameSnapshot: data.gameSnapshot ?? null,
     themeId: asString(data.themeId, "joyrest"),
@@ -78,85 +72,147 @@ async function sessionsByCode(code: string): Promise<Session[]> {
   return snap.docs.map(toSession).filter((s): s is Session => s !== null);
 }
 
-/** Создаёт сессию с уникальным среди незавершённых сессий кодом. */
-export async function createSession(
-  hostId: string,
-  options: NewSessionOptions,
-): Promise<{ id: string; code: string }> {
-  const { col, sdk } = await sessionsCol();
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const code = generateSessionCode();
-    const existing = await sessionsByCode(code);
-    if (existing.some((s) => s.state.phase !== "finished")) continue;
-    const initialState = { phase: "lobby", step: 0, startedAt: null, revealed: false };
-    const ref = await sdk.addDoc(col, {
-      code,
-      hostId,
-      mechanic: options.mechanic,
-      gameSnapshot: options.gameSnapshot,
-      themeId: options.themeId,
-      playMode: options.playMode,
-      screenMode: options.screenMode,
-      state: initialState,
-      leaderboard: {},
-      createdAt: sdk.serverTimestamp(),
-    });
-    return { id: ref.id, code };
+/** Компактные итоги сессии для results/{sessionId}. */
+function resultData(sdk: FirestoreSdk, session: Session, participantsCount: number) {
+  return {
+    hostId: session.hostId,
+    code: session.code,
+    gameTitle: session.gameTitle,
+    mechanic: session.mechanic,
+    themeId: session.themeId,
+    playMode: session.playMode,
+    playedAt: session.createdAt !== null ? new Date(session.createdAt) : sdk.serverTimestamp(),
+    participantsCount,
+    board: compactBoard(session.leaderboard),
+    savedAt: sdk.serverTimestamp(),
+  };
+}
+
+/** Сколько старых сессий удаляется за один заход и сколько заходов за один вход admin. */
+const CLEANUP_PAGE = 20;
+const CLEANUP_ROUNDS = 5;
+/** Пакет записи Firestore — не больше 500 операций. */
+const BATCH_LIMIT = 400;
+
+/** Удаляет все документы подколлекции пакетами. */
+async function deleteAll(sdk: FirestoreSdk, col: CollectionReference): Promise<void> {
+  for (;;) {
+    const snap = await sdk.getDocs(sdk.query(col, sdk.limit(BATCH_LIMIT)));
+    if (snap.empty) return;
+    const batch = sdk.writeBatch(col.firestore);
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    if (snap.size < BATCH_LIMIT) return;
   }
-  throw new Error("Не удалось подобрать свободный код сессии");
 }
 
-/** Актуальная сессия по коду: незавершённая, а если таких нет — самая свежая. */
-export async function findSessionByCode(code: string): Promise<Session | null> {
-  const sessions = await sessionsByCode(code);
-  const newestFirst = [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-  return newestFirst.find((s) => s.state.phase !== "finished") ?? newestFirst[0] ?? null;
-}
-
-/** Подписка на документ сессии — единственное, что слушают гости и экран зала. */
-export function watchSession(
-  sessionId: string,
-  onChange: (session: Session | null) => void,
-  onError: (error: Error) => void,
-): Unsubscribe {
-  return lazySubscribe(async () => {
+export const sessionsRepository: SessionsRepository = {
+  /** Код уникален среди незавершённых сессий. */
+  async create(hostId, options) {
     const { col, sdk } = await sessionsCol();
-    return sdk.onSnapshot(sdk.doc(col, sessionId), (snap) => onChange(toSession(snap)), onError);
-  }, onError);
-}
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const code = generateSessionCode();
+      const existing = await sessionsByCode(code);
+      if (existing.some((s) => s.state.phase !== "finished")) continue;
+      const initialState = { phase: "lobby", step: 0, startedAt: null, revealed: false };
+      const ref = await sdk.addDoc(col, {
+        code,
+        hostId,
+        gameId: options.gameId,
+        gameTitle: options.gameTitle,
+        mechanic: options.mechanic,
+        gameSnapshot: options.gameSnapshot,
+        themeId: options.themeId,
+        playMode: options.playMode,
+        screenMode: options.screenMode,
+        state: initialState,
+        leaderboard: {},
+        createdAt: sdk.serverTimestamp(),
+      });
+      return { id: ref.id, code };
+    }
+    throw new Error("Не удалось подобрать свободный код сессии");
+  },
 
-/** Сессии ведущего, новые сверху. */
-export async function listHostSessions(hostId: string): Promise<Session[]> {
-  const { col, sdk } = await sessionsCol();
-  const snap = await sdk.getDocs(sdk.query(col, sdk.where("hostId", "==", hostId), sdk.limit(50)));
-  return snap.docs
-    .map(toSession)
-    .filter((s): s is Session => s !== null)
-    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-}
+  /** Актуальная сессия по коду: незавершённая, а если таких нет — самая свежая. */
+  async findByCode(code) {
+    const sessions = await sessionsByCode(code);
+    const newestFirst = [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    return newestFirst.find((s) => s.state.phase !== "finished") ?? newestFirst[0] ?? null;
+  },
 
-/** Смена фазы с пульта. Время начала шага ставит сервер. */
-export async function setSessionPhase(sessionId: string, phase: SessionPhase): Promise<void> {
-  const { col, sdk } = await sessionsCol();
-  const patch: Partial<Record<`state.${keyof SessionState}`, unknown>> = { "state.phase": phase };
-  if (phase === "playing") {
-    patch["state.step"] = 0;
-    patch["state.startedAt"] = sdk.serverTimestamp();
-    patch["state.revealed"] = false;
-  }
-  await sdk.updateDoc(sdk.doc(col, sessionId), patch);
-}
+  watch(sessionId, onChange, onError) {
+    return lazySubscribe(async () => {
+      const { col, sdk } = await sessionsCol();
+      return sdk.onSnapshot(sdk.doc(col, sessionId), (snap) => onChange(toSession(snap)), onError);
+    }, onError);
+  },
 
-/** Точечно добавляет записи таблицы лидеров, не перезаписывая чужие. */
-export async function upsertLeaderboardEntries(
-  sessionId: string,
-  entries: Record<string, LeaderboardEntry>,
-): Promise<void> {
-  const patch: Record<string, LeaderboardEntry> = {};
-  for (const [id, entry] of Object.entries(entries)) {
-    patch[`leaderboard.${id}`] = entry;
-  }
-  if (Object.keys(patch).length === 0) return;
-  const { col, sdk } = await sessionsCol();
-  await sdk.updateDoc(sdk.doc(col, sessionId), patch);
-}
+  async listByHost(hostId) {
+    const { col, sdk } = await sessionsCol();
+    const snap = await sdk.getDocs(sdk.query(col, sdk.where("hostId", "==", hostId), sdk.limit(50)));
+    return snap.docs
+      .map(toSession)
+      .filter((s): s is Session => s !== null)
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+  },
+
+  /** Смена фазы с пульта. Время начала шага ставит сервер. */
+  async setPhase(sessionId, phase) {
+    const { col, sdk } = await sessionsCol();
+    const patch: Partial<Record<`state.${keyof SessionState}`, unknown>> = { "state.phase": phase };
+    if (phase === "playing") {
+      patch["state.step"] = 0;
+      patch["state.startedAt"] = sdk.serverTimestamp();
+      patch["state.revealed"] = false;
+    }
+    await sdk.updateDoc(sdk.doc(col, sessionId), patch);
+  },
+
+  /** Точечно добавляет записи таблицы лидеров, не перезаписывая чужие. */
+  async upsertLeaderboard(sessionId, entries) {
+    const patch: Record<string, LeaderboardEntry> = {};
+    for (const [id, entry] of Object.entries(entries)) {
+      patch[`leaderboard.${id}`] = entry;
+    }
+    if (Object.keys(patch).length === 0) return;
+    const { col, sdk } = await sessionsCol();
+    await sdk.updateDoc(sdk.doc(col, sessionId), patch);
+  },
+
+  async finish(session, participantsCount) {
+    const { db, sdk } = await loadFirestore();
+    const batch = sdk.writeBatch(db);
+    batch.update(sdk.doc(db, "sessions", session.id), { "state.phase": "finished" });
+    batch.set(sdk.doc(db, "results", session.id), resultData(sdk, session, participantsCount));
+    await batch.commit();
+  },
+
+  async removeExpired(cutoff) {
+    const { db, sdk } = await loadFirestore();
+    const col = sdk.collection(db, "sessions");
+    let deleted = 0;
+    for (let round = 0; round < CLEANUP_ROUNDS; round++) {
+      const snap = await sdk.getDocs(
+        sdk.query(col, sdk.where("createdAt", "<", new Date(cutoff)), sdk.limit(CLEANUP_PAGE)),
+      );
+      for (const docSnap of snap.docs) {
+        const session = toSession(docSnap);
+        if (!session) continue;
+        const participants = sdk.collection(docSnap.ref, "participants");
+        const resultRef = sdk.doc(db, "results", session.id);
+        // Итоги завершённых игр уже в истории; незавершённую игру с участниками сохраняем как есть.
+        if (Object.keys(session.leaderboard).length > 0 && !(await sdk.getDoc(resultRef)).exists()) {
+          const count = await sdk.getCountFromServer(sdk.query(participants, sdk.where("kind", "==", "player")));
+          await sdk.setDoc(resultRef, resultData(sdk, session, count.data().count));
+        }
+        await deleteAll(sdk, sdk.collection(docSnap.ref, "answers"));
+        await deleteAll(sdk, participants);
+        await sdk.deleteDoc(docSnap.ref);
+        deleted++;
+      }
+      if (snap.size < CLEANUP_PAGE) return { deleted, more: false };
+    }
+    return { deleted, more: true };
+  },
+};

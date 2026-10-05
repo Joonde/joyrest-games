@@ -1,10 +1,15 @@
 import { useEffect } from "react";
 import { joyrest, joyrestDay } from "./joyrest";
-import type { Theme } from "./types";
+import type { AgeRating, Theme } from "./types";
 
 export const DEFAULT_THEME_ID = joyrest.id;
 
 export const themes: Theme[] = [joyrest, joyrestDay];
+
+/** Темы для игры с возрастным ограничением: 18+ не предлагаются в детских и обычных играх. */
+export function themesForRating(rating: AgeRating): Theme[] {
+  return themes.filter((t) => t.ageRating !== "18+" || rating === "18+");
+}
 
 export function getTheme(id: string): Theme {
   return themes.find((t) => t.id === id) ?? joyrest;

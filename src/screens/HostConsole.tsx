@@ -3,10 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { leaderboardAdditions, sortedLeaderboard } from "../core/leaderboard";
 import {
-  setSessionPhase,
-  upsertLeaderboardEntries,
+  participantsRepo,
+  permissions,
+  sessionsRepo,
   useSessionByCode,
-  watchParticipants,
   type AuthUser,
   type Participant,
   type Session,
@@ -34,7 +34,7 @@ function HostConsoleContent({ code, user }: { code: string; user: AuthUser }) {
   if (state.status === "loading") return <Pending skeleton={<ConsoleSkeleton />} onRetry={retry} label="Открываем пульт" />;
   if (state.status === "notFound") return <Message title="Сессия не найдена">Проверьте код: {code}</Message>;
   if (state.status === "error") return <LoadFailed onRetry={retry}>{state.message}</LoadFailed>;
-  if (state.session.hostId !== user.uid) {
+  if (!permissions.canControlSession(user.uid, state.session)) {
     return <Message title="Чужая сессия">Эту сессию запускал другой ведущий.</Message>;
   }
   return <Console session={state.session} />;
@@ -46,11 +46,12 @@ function Console({ session }: { session: Session }) {
   const [error, setError] = useState<string | null>(null);
   const [toast, showToast] = useToast();
   const link = playUrl(session.code);
+  const phones = participants.filter((p) => p.kind === "player").length;
   useTheme(session.themeId);
 
   // Ответы и участников слушает только пульт.
   useEffect(
-    () => watchParticipants(session.id, setParticipants, () => setError("Потеряна связь. Обновите страницу.")),
+    () => participantsRepo.watch(session.id, setParticipants, () => setError("Потеряна связь. Обновите страницу.")),
     [session.id],
   );
 
@@ -59,7 +60,7 @@ function Console({ session }: { session: Session }) {
   useEffect(() => {
     const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
     if (Object.keys(additions).length > 0) {
-      upsertLeaderboardEntries(session.id, additions).catch(() => setError("Не удалось обновить список игроков."));
+      sessionsRepo.upsertLeaderboard(session.id, additions).catch(() => setError("Не удалось обновить список игроков."));
     }
   }, [participants, session.id, session.leaderboard, session.playMode]);
 
@@ -67,7 +68,9 @@ function Console({ session }: { session: Session }) {
     setBusy(true);
     setError(null);
     try {
-      await setSessionPhase(session.id, phase);
+      // Завершение сразу сохраняет компактные итоги для «Истории игр».
+      if (phase === "finished") await sessionsRepo.finish(session, phones);
+      else await sessionsRepo.setPhase(session.id, phase);
     } catch {
       setError("Не удалось обновить сессию. Проверьте интернет.");
     } finally {
@@ -85,11 +88,11 @@ function Console({ session }: { session: Session }) {
   }
 
   const board = sortedLeaderboard(session.leaderboard);
-  const phones = participants.filter((p) => p.kind === "player").length;
 
   return (
     <main className="page">
       <TopBar title="Пульт" actions={[{ label: "В студию", to: "/studio" }]} />
+      {session.gameTitle && <p className="muted small line-clamp">{session.gameTitle}</p>}
 
       <section className="card card--center" aria-label="Вход для гостей">
         <p className="eyebrow">Код игры</p>
@@ -130,7 +133,16 @@ function Console({ session }: { session: Session }) {
             </button>
           </>
         )}
-        {session.state.phase === "finished" && <p>Игра завершена.</p>}
+        {session.state.phase === "finished" && (
+          <>
+            <p>Игра завершена. Итоги сохранены в «Истории игр».</p>
+            <div className="actions">
+              <Link className="btn btn--block" to={`/results/${session.id}`}>
+                Открыть итоги
+              </Link>
+            </div>
+          </>
+        )}
         {error && (
           <p className="error" role="alert">
             {error}

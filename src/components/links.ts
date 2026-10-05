@@ -12,3 +12,8 @@ export function joinHint(): string {
 export function playUrlHint(code: string): string {
   return `${window.location.host}/play/${code}`;
 }
+
+/** Публичная ссылка на итоги игры: открывается без входа. */
+export function resultsUrl(resultId: string): string {
+  return `${window.location.origin}/results/${resultId}`;
+}

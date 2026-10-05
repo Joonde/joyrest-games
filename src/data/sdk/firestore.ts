@@ -5,8 +5,10 @@ export {
   addDoc,
   collection,
   connectFirestoreEmulator,
+  deleteDoc,
   doc,
   getDoc,
+  getCountFromServer,
   getDocs,
   initializeFirestore,
   limit,
@@ -19,4 +21,5 @@ export {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";

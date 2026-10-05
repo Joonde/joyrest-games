@@ -1,0 +1,14 @@
+# Хостинг Netlify: автопубликация из GitHub, у каждой ветки своя тестовая ссылка.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA: любой адрес (/studio, /host/…, /play/…, /screen/…, /j) отдаёт index.html.
+# Существующие файлы (скрипты, стили, иконка) Netlify отдаёт раньше этого правила.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

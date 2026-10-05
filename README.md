@@ -28,4 +28,4 @@ VITE_USE_EMULATORS=true npm run dev
 - `src/screens/` — экраны по маршрутам `/studio`, `/admin`, `/host/:code`, `/screen/:code`, `/play/:code`, `/j`.
 - `firestore.rules` и `tests/rules/` — правила безопасности и их тесты.
 
-Хостинг: Vercel (`vercel.json`): сборка `npm run build`, папка `dist`, все маршруты отдают `index.html`.
+Хостинг: Netlify (`netlify.toml`): сборка `npm run build`, папка `dist`, все маршруты отдают `index.html`. Vercel не используем: он блокирует регистрацию из России.

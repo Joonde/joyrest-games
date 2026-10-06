@@ -50,7 +50,7 @@ fi
 
 # ---------------------------------------------------------------- система
 step "Обновление системы и пакеты"
-export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 apt-get update -q
 apt-get -y -q -o Dpkg::Options::=--force-confold upgrade
 apt-get -y -q install ca-certificates curl jq xxd openssl ufw fail2ban unattended-upgrades chrony python3-systemd

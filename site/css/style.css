@@ -666,19 +666,6 @@
   .package h3{ font-size: 19px; margin-bottom: 10px; }
   .package p{ color: var(--ink-soft); font-size: 14px; margin: 0; flex-grow: 1; }
   .package.featured{ border-color: var(--coral); background: linear-gradient(180deg, #fff, #F8ECE9); }
-  .show-picks{ display: flex; flex-wrap: wrap; gap: 8px; }
-  .show-pick{
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 7px 14px;
-    font-size: 13px;
-    font-family: 'Jost', sans-serif;
-    color: var(--ink);
-    cursor: pointer;
-    transition: border-color .2s ease, background .2s ease, color .2s ease;
-  }
-  .show-pick.active{ border-color: var(--coral); background: var(--coral); color: #fff; }
   .package.featured .pkg-num{ color: var(--coral); }
 
   /* Services */
@@ -970,7 +957,6 @@
     .rule-modal-close{ background: #2A2621; }
     .picker-btn{ background: #2A2621; }
     .picker-btn.active{ background: #33241F; }
-    .show-pick{ background: #2A2621; }
     .age-pick{ background: #2A2621; }
     .gallery-tile{ background: #2A2621; }
   }

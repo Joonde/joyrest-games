@@ -272,14 +272,6 @@
   setupSectionToggle('servicesToggleBtn', 'servicesList');
   setupSectionToggle('packagesToggleBtn', 'packagesList');
 
-  // Show-type quick picks (informational, feeds into request comment)
-  document.querySelectorAll('.show-pick').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.show-pick').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-
   // Event-type picker
   const PICKER_INFO = {
     wedding: `<strong>Пока не оказываем услугу организации свадеб</strong> — это в ближайших планах компании. Оставьте заявку, и мы напишем первыми, как только запустим направление. А пока можете полистать форматы игр ниже — многие из них (например, «Битва тостов») отлично подойдут для банкета своими силами.`,

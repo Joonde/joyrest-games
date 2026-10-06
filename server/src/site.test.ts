@@ -159,6 +159,11 @@ describe("исходники сайта (site/)", () => {
     for (const id of ["askError", "reviewError", "formError"]) expect(html).toContain(`id="${id}"`);
   });
 
+  it("в блоке «Шоу» нет кнопок без действия, пожелания — в комментарии к заявке", () => {
+    for (const text of [html, css, js]) expect(text).not.toContain("show-pick");
+    expect(html).toContain("напишите о пожеланиях в комментарии к заявке");
+  });
+
   it("в политике домен joy-rest.ru", () => {
     expect(html).toContain("joy-rest.ru");
     expect(html).not.toMatch(/[^-.\w]joyrest\.ru/);

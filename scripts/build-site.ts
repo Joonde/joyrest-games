@@ -61,6 +61,11 @@ const png = (svg: string, size: number) => new Resvg(svg, { fitTo: { mode: "widt
 writeFileSync(join(OUT, "favicon-32.png"), png(favicon, 32));
 writeFileSync(join(OUT, "apple-touch-icon.png"), png(favicon.replace(/(<rect width="512" height="512") rx="\d+"/, "$1"), 180));
 
+// Маска эмблемы для первого экрана: та же форма, чёрная заливка (CSS mask-image).
+// Кладём в img/ до отпечатков — имя получит хэш, ссылка в index.html перепишется.
+mkdirSync(join(OUT, "img"), { recursive: true });
+writeFileSync(join(OUT, "img", "joyrest-emblem-mask.svg"), brandSvg("joyrest-emblem").split('"currentColor"').join('"#000"'));
+
 // Логотипы: встраиваем в разметку, у каждого экземпляра свои id в clipPath.
 {
   const indexFile = join(OUT, "index.html");

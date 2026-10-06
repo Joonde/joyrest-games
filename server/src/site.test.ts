@@ -193,6 +193,120 @@ describe("исходники сайта (site/)", () => {
   });
 });
 
+describe("контраст сайта в светлой и тёмной теме (WCAG AA, как у платформы)", () => {
+  const root = resolve(import.meta.dirname, "../..");
+  const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+  const html = readFileSync(join(root, "site/index.html"), "utf8");
+
+  /** Переменные блока :root{…}: светлая тема — первый, тёмная — внутри prefers-color-scheme: dark. */
+  function tokens(block: string): Record<string, string> {
+    return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})\b/g)].map((m) => [m[1] ?? "", m[2] ?? ""]));
+  }
+  const lightBlock = css.slice(css.indexOf(":root{"), css.indexOf("}", css.indexOf(":root{")));
+  const darkStart = css.search(/@media \(prefers-color-scheme: dark\)\{\s*:root\{/);
+  const darkBlock = css.slice(darkStart, css.indexOf("}", darkStart));
+  const light = tokens(lightBlock);
+  const dark = { ...light, ...tokens(darkBlock) };
+  const dark2 = /\.emblem\{ --emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6})/.exec(css.slice(darkStart));
+
+  // [текст, фон, норма]: 4.5 — текст, 3 — крупный текст, рамки и графика.
+  const pairs = (t: Record<string, string>, surfaces: string[]): [string, string, number][] => [
+    ...surfaces.flatMap((bg): [string, string, number][] => [
+      [t.ink ?? "", bg, 4.5],
+      [t["ink-soft"] ?? "", bg, 4.5],
+      [t["accent-text"] ?? "", bg, 4.5],
+      [t["green-text"] ?? "", bg, 4.5],
+      [t["btn-outline-text"] ?? "", bg, 4.5],
+      [t["btn-outline"] ?? "", bg, 3],
+    ]),
+    // Текст на цветных заливках кнопок и плашек.
+    ...["coral", "emerald", "gold", "wine", "btn-primary-bg"].map((fill): [string, string, number] => [t["on-accent"] ?? "", t[fill] ?? "", 4.5]),
+    [t["btn-primary-text"] ?? "", t["btn-primary-bg"] ?? "", 4.5],
+    // «Задать вопрос» и тёмная кнопка меню: фон --ink, текст --bg.
+    [t.bg ?? "", t.ink ?? "", 4.5],
+  ];
+
+  it.each([
+    ["светлая", light, ["#FFFFFF"]],
+    ["тёмная", dark, []],
+  ] as const)("%s тема: текст, кнопки и рамки", (_name, t, extra) => {
+    const surfaces = [t.bg ?? "", t["bg-alt"] ?? "", ...extra];
+    for (const [fg, bg, need] of pairs(t, surfaces)) {
+      expect(fg, "нет цвета в токенах").toMatch(/^#/);
+      expect(bg, "нет цвета в токенах").toMatch(/^#/);
+      expect(contrastRatio(fg, bg), `${fg} на ${bg}`).toBeGreaterThanOrEqual(need);
+    }
+  });
+
+  it("эмблема различима на фоне в обеих темах (≥ 3)", () => {
+    const lightEmblem = /\.emblem\{\s*--emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6})/.exec(css);
+    for (const [colors, bg] of [[lightEmblem, light.bg], [dark2, dark.bg]] as const) {
+      expect(colors).not.toBeNull();
+      for (const c of colors?.slice(1) ?? []) expect(contrastRatio(c ?? "", bg ?? ""), `${c} на ${bg}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("нет белого текста на пастели и пастельного текста на фоне — только токены", () => {
+    expect(css).not.toMatch(/(?<![-\w])color:\s*(#fff\b|#ffffff\b|white\b)/i);
+    expect(css).not.toMatch(/(?<![-\w])color:\s*var\(--(coral|emerald|gold|wine)\)/);
+    expect(html).not.toMatch(/(?<![-\w])color:\s*(#fff\b|white\b|var\(--(coral|emerald|gold|wine)\))/i);
+  });
+});
+
+describe("тексты и устройство страницы", () => {
+  const root = resolve(import.meta.dirname, "../..");
+  const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+  const html = readFileSync(join(root, "site/index.html"), "utf8");
+  const js = readFileSync(join(root, "site/js/script.js"), "utf8");
+
+  it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, пост Telegram на месте", () => {
+    expect(html).toContain("Мы только открываемся — здесь появятся фото и отзывы с наших первых мероприятий. А пока заглядывайте в наш Telegram-канал.");
+    expect(html).toContain('<section id="reviews" data-review-form="off">');
+    expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
+    expect(html).toContain('id="tgPost"');
+  });
+
+  it("свадьбы — «скоро»: в форме заявки варианта нет, на первом экране приглушённо", () => {
+    expect(html).not.toMatch(/<option>Свадьба/);
+    expect(html).toContain('<li class="dir-soon">💍 Свадьбы — скоро</li>');
+    expect(html).toContain("Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.");
+    expect(html).not.toContain("Условие бронирования");
+  });
+
+  it("«Форматы программ» внутри сворачиваемых «Услуг», в меню — «Оставить заявку»", () => {
+    const start = html.indexOf('id="servicesList"');
+    const end = html.indexOf("/servicesList");
+    expect(html.indexOf('class="formats-block"')).toBeGreaterThan(start);
+    expect(html.indexOf('class="formats-block"')).toBeLessThan(end);
+    expect(html).toContain('<a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>');
+    expect(html).not.toContain("Обсудить мероприятие");
+  });
+
+  it("карточки, которые не нажимаются, не реагируют на наведение", () => {
+    expect(css).not.toMatch(/\.(event|package|step|service-row):hover/);
+  });
+
+  it("эмблема: из public/brand, статична при «уменьшить движение», датчик — без запроса разрешения", () => {
+    expect(html).toContain('data-brand-svg="joyrest-emblem"');
+    expect(html).toContain("--emblem-mask: url(/img/joyrest-emblem-mask.svg)"); // абсолютный: url() в переменной считается от файла стилей
+    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toMatch(/\.emblem-tilt, \.emblem-gradient\{ animation: none; transform: none; \}/);
+    expect(reduced).toMatch(/\.emblem-glint\{ animation: none; display: none; \}/);
+    // Анимируются только transform и opacity.
+    for (const name of ["emblemTilt", "emblemFlow", "emblemGlint"]) {
+      const body = css.slice(css.indexOf(`@keyframes ${name}{`), css.indexOf("\n  }", css.indexOf(`@keyframes ${name}{`)));
+      const props = [...body.matchAll(/([a-z-]+):/g)].map((m) => m[1]);
+      expect(props.every((p) => p === "transform" || p === "opacity"), `${name}: ${props.join(",")}`).toBe(true);
+    }
+    // Наклон ±8° и без вращения по кругу.
+    const tilt = css.slice(css.indexOf("@keyframes emblemTilt{"), css.indexOf("@keyframes emblemFlow{"));
+    for (const deg of tilt.match(/rotate[XY]\((-?\d+)deg\)/g) ?? []) expect(Math.abs(Number(/(-?\d+)/.exec(deg)?.[1]))).toBeLessThanOrEqual(8);
+    expect(tilt).not.toMatch(/rotateZ|rotate\(/);
+    expect(js).toContain("DeviceOrientationEvent.requestPermission === 'function'");
+    expect(js).not.toContain("requestPermission()");
+  });
+});
+
 describe("логотип сайта", () => {
   const root = resolve(import.meta.dirname, "../..");
   const html = readFileSync(join(root, "site/index.html"), "utf8");
@@ -235,7 +349,7 @@ describe("логотип сайта", () => {
     execFileSync(process.execPath, [join(root, "node_modules/tsx/dist/cli.mjs"), join(root, "scripts/build-site.ts")], { cwd: root });
     const out = join(root, "build/site");
     const built = readFileSync(join(out, "index.html"), "utf8");
-    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(2);
+    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3); // логотип, монограмма, эмблема
     expect(built).not.toContain("<metadata");
     expect(built).not.toContain("c2pa");
     const ids = [...built.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);

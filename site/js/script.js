@@ -264,7 +264,17 @@
     const wrap = document.getElementById(wrapId);
     if(!btn || !wrap) return;
     const section = wrap.closest('section');
+    // Высота по содержимому (в «Услугах» ещё и форматы, их список тоже раскрывается):
+    // анимируем до scrollHeight, после раскрытия снимаем ограничение.
+    wrap.addEventListener('transitionend', (e) => {
+      if(e.target === wrap && e.propertyName === 'max-height' && wrap.classList.contains('open')) wrap.style.maxHeight = 'none';
+    });
     const setOpen = (isOpen) => {
+      if(wrap.classList.contains('open') === isOpen) return;
+      const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      wrap.style.maxHeight = wrap.scrollHeight + 'px';
+      if(!isOpen){ void wrap.offsetHeight; wrap.style.maxHeight = '0px'; }
+      else if(instant){ wrap.style.maxHeight = 'none'; }
       wrap.classList.toggle('open', isOpen);
       section.classList.toggle('is-open', isOpen);
       btn.classList.toggle('open', isOpen);
@@ -277,6 +287,36 @@
   setupSectionToggle('eventsToggleBtn', 'eventsList');
   setupSectionToggle('servicesToggleBtn', 'servicesList');
   setupSectionToggle('packagesToggleBtn', 'packagesList');
+
+  // Эмблема первого экрана: вне экрана анимация на паузе (батарея). Наклон от датчика —
+  // только там, где он работает без запроса разрешения (на iPhone разрешение нужно —
+  // там остаётся плавная анимация из CSS). «Уменьшить движение» — статично.
+  const emblem = document.querySelector('.emblem');
+  if(emblem && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    if('IntersectionObserver' in window){
+      new IntersectionObserver((entries) => {
+        emblem.classList.toggle('is-paused', !entries[0].isIntersecting);
+      }).observe(emblem);
+    }
+    const needsPermission = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+    if('DeviceOrientationEvent' in window && !needsPermission){
+      const tilt = emblem.querySelector('.emblem-tilt');
+      const clamp = (v) => Math.max(-8, Math.min(8, v));
+      let base = null, frame = 0, last = null;
+      window.addEventListener('deviceorientation', (e) => {
+        if(e.beta === null || e.gamma === null) return;
+        if(base === null){ base = e.beta; emblem.classList.add('is-device'); }
+        last = e;
+        if(frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          const x = clamp((last.beta - base) / 4);
+          const y = clamp(last.gamma / 4);
+          tilt.style.transform = `rotateX(${x.toFixed(2)}deg) rotateY(${y.toFixed(2)}deg)`;
+        });
+      });
+    }
+  }
 
   // Шапка: «Услуги» раскрывает раздел, «Оставить заявку» ведёт к форме и ставит фокус в первое поле.
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -331,6 +371,8 @@
       updateCategoryHeaders();
       return;
     }
+    // Форматы лежат в сворачиваемых «Услугах»: раз их отфильтровали — показываем.
+    if(sectionToggles.services) sectionToggles.services(true);
     allTiles.forEach(t => {
       const events = (t.dataset.events || '').split(',');
       t.classList.toggle('filtered-out', !events.includes(eventType));

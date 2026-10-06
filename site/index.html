@@ -95,18 +95,27 @@
     <a href="#process">Как это работает</a>
     <a href="#reviews">Отзывы</a>
     <a href="#contact">Контакты</a>
-    <a href="#contact" class="nav-cta">Обсудить мероприятие</a>
+    <a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>
   </div>
 </header>
 
 <div class="wrap">
 
-  <section class="hero">
+  <section class="hero band">
     <span class="blob blob1"></span>
     <span class="blob blob2"></span>
     <div class="reveal">
+      <!-- Эмблема из public/brand (встраивает сборка). Цвет — фирменный градиент под маской
+           формы эмблемы (--emblem-mask, файл делает scripts/build-site.ts), блик и наклон —
+           только transform/opacity; «уменьшить движение» — статично (css/style.css, js/script.js). -->
+      <div class="emblem" aria-hidden="true" style="--emblem-mask: url(/img/joyrest-emblem-mask.svg)">
+        <div class="emblem-tilt">
+          <span class="emblem-svg" data-brand-svg="joyrest-emblem"></span>
+          <span class="emblem-paint"><span class="emblem-gradient"></span><span class="emblem-glint"></span></span>
+        </div>
+      </div>
       <h1>Радость <span class="accent">без хлопот</span></h1>
-      <p><strong style="color:var(--coral); font-weight:500;">JoyRest</strong> берёт на себя организацию праздника целиком, если это вам необходимо: площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет — вам остаётся только прийти и радоваться.</p>
+      <p><strong style="color:var(--accent-text); font-weight:500;">JoyRest</strong> берёт на себя организацию праздника целиком, если это вам необходимо: площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет — вам остаётся только прийти и радоваться.</p>
       <a href="#contact" class="hero-cta">Оставить заявку</a>
     </div>
     <div class="hero-side reveal">
@@ -116,7 +125,7 @@
           <li>🎉 Корпоративы</li>
           <li>🎂 Дни рождения</li>
           <li>✨ Частные события</li>
-          <li>💍 Свадьбы</li>
+          <li class="dir-soon">💍 Свадьбы — скоро</li>
           <li>🎲 Квизы, Мафия, Бункер, танцы и другие игры</li>
         </ul>
       </div>
@@ -158,7 +167,7 @@
         <div class="event e2 reveal">
           <h3>Корпоративы</h3>
           <p>Новогодние вечера, тимбилдинги, юбилеи компании — программы строим вокруг задач бизнеса: от нейтрального формата до вечеринки с диджеем и шоу-блоком.</p>
-          <p style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;">Условие бронирования — согласие на фото и отзыв компании для нашего портфолио.</p>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;">Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.</p>
         </div>
         <div class="event e3 reveal">
           <h3>Дни рождения</h3>
@@ -210,7 +219,6 @@
         <h3>Площадки</h3>
         <p>Подбор зала или локации по метражу, вместимости и техническому оснащению под ваш сценарий.</p>
       </div>
-    </div>
     </div>
 
     <div class="formats-block">
@@ -462,6 +470,7 @@
       </div>
       </div>
     </div>
+    </div><!-- /servicesList: «Форматы программ» тоже сворачиваются вместе с «Услугами» -->
   </section>
 
   <section class="is-collapsible" id="packages">
@@ -625,10 +634,12 @@
     <p class="event-note coverage-caption reveal">Схематичная карта, без привязки к точным географическим границам.</p>
   </section>
 
-  <section id="reviews">
+  <!-- data-review-form="off" прячет кнопку «Написать отзыв» и форму отзыва (css/style.css).
+       Вернуть — data-review-form="on". Тип review в /api/lead не трогаем. -->
+  <section id="reviews" data-review-form="off">
     <div class="section-head reveal">
       <h2>Отзывы и фотоотчёты</h2>
-      <p>Живые впечатления гостей и кадры с наших мероприятий появятся здесь после модерации.</p>
+      <p>Мы только открываемся — здесь появятся фото и отзывы с наших первых мероприятий. А пока заглядывайте в наш Telegram-канал.</p>
     </div>
 
     <button type="button" class="write-review-btn reveal" id="openReviewForm">✍️ Написать отзыв</button>
@@ -637,7 +648,7 @@
       <h3 style="font-size:19px; font-weight:500; margin-bottom:14px;">Мы в Telegram</h3>
       <!-- Виджет поста загружается, только когда блок подходит к экрану (js/script.js). -->
       <div class="tg-post" id="tgPost" data-telegram-post="JoyRest/3">
-        <a href="https://t.me/JoyRest/3" target="_blank" rel="noopener" style="color:var(--coral); text-decoration:underline;">Открыть пост в Telegram</a>
+        <a href="https://t.me/JoyRest/3" target="_blank" rel="noopener" style="color:var(--accent-text); text-decoration:underline;">Открыть пост в Telegram</a>
       </div>
     </div>
 
@@ -706,7 +717,7 @@
         <p>Оставьте контакты — свяжемся в течение дня и предложим варианты под ваш формат и бюджет.</p>
         <div class="contact-detail">
           <div>Телефон: <a href="tel:+79857822689" style="color:inherit;">+7 (985) 782-26-89</a></div>
-          <div>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" style="color:var(--coral); text-decoration:underline;">t.me/JoyRest</a></div>
+          <div>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" style="color:var(--accent-text); text-decoration:underline;">t.me/JoyRest</a></div>
           <div>Почта: joyrest@mail.ru</div>
           <div>Москва и Московская область</div>
         </div>
@@ -725,7 +736,6 @@
             <label for="type">Тип мероприятия</label>
             <select id="type">
               <optgroup label="Повод">
-                <option>Свадьба (скоро)</option>
                 <option>Корпоратив</option>
                 <option>День рождения</option>
                 <option>Частное событие</option>

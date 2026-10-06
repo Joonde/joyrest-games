@@ -114,6 +114,15 @@
   });
 
   // Price calculator
+  // Направления, которых пока нет (data-service-* у <body>, см. index.html): варианты списков
+  // с data-needs / data-unless убираем здесь — iPhone не прячет <option> стилями.
+  const serviceOn = (name) => document.body.dataset['service' + name[0].toUpperCase() + name.slice(1)] === 'on';
+  document.querySelectorAll('option[data-needs], option[data-unless]').forEach(option => {
+    const needs = (option.dataset.needs || '').split(' ').filter(Boolean);
+    const unless = (option.dataset.unless || '').split(' ').filter(Boolean);
+    if(needs.some(n => !serviceOn(n)) || (unless.length && unless.every(serviceOn))) option.remove();
+  });
+
   // Формат ведущего: опытный или стартовые форматы с молодыми ведущими (раздел «Пакеты услуг»).
   // Те же значения принимает /api/lead (hostLevel).
   const HOST_LEVELS = {
@@ -397,7 +406,7 @@
   // Event-type picker
   const PICKER_INFO = {
     wedding: `<strong>Пока не оказываем услугу организации свадеб</strong> — это в ближайших планах компании. Оставьте заявку, и мы напишем первыми, как только запустим направление. А пока можете полистать форматы игр ниже — многие из них (например, «Битва тостов») отлично подойдут для банкета своими силами.`,
-    corporate: `<strong>Для корпоративов чаще всего берут:</strong> квизы (в том числе под сферу вашей компании), классические командные игры (Мафия, Бункер, Шпион) и активности вроде «Живого оркестра» или «Битвы тостов». Ниже показаны только они — если нужно больше вариантов, нажмите «Показать все форматы».`,
+    corporate: `<strong>Для корпоративов хорошо подходят:</strong> квизы (в том числе под сферу вашей компании), классические командные игры (Мафия, Бункер, Шпион) и активности вроде «Живого оркестра» или «Битвы тостов». Ниже показаны только они — если нужно больше вариантов, нажмите «Показать все форматы».`,
     birthday: `<strong>Уточните возраст:</strong> подберём подходящие форматы отдельно для детского и отдельно для взрослого праздника.<div class="age-picks"><button type="button" class="age-pick" data-age="birthday-kids">Детский день рождения</button><button type="button" class="age-pick" data-age="birthday-adult">Взрослый день рождения</button></div>`,
     other: `Отлично — тогда показываем все форматы без ограничений: игры, квизы, танцевальные форматы, сезонные и алкоразвлечения. Листайте ниже и выбирайте, что откликается.`
   };

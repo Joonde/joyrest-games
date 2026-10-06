@@ -385,6 +385,18 @@
   .dir-list li{ font-size: 16px; color: var(--ink); }
   /* «Скоро» — приглушённо, как карточка «Свадьбы» в разделе мероприятий. */
   .dir-list li.dir-soon{ color: var(--ink-soft); font-style: italic; }
+  /* Направления, которых пока нет: у <body> data-service-dj / -music / -venue = "off".
+     data-needs="…" — показывать, только если включены все перечисленные;
+     data-unless="…" — замена, пока хотя бы одно из перечисленных выключено.
+     Варианты в <select> убирает js/script.js (iPhone не прячет <option> стилями). */
+  body[data-service-dj="off"] [data-needs~="dj"],
+  body[data-service-music="off"] [data-needs~="music"],
+  body[data-service-venue="off"] [data-needs~="venue"],
+  body[data-service-dj="on"] [data-unless="dj"],
+  body[data-service-music="on"] [data-unless="music"],
+  body[data-service-venue="on"] [data-unless="venue"],
+  body[data-service-dj="on"][data-service-venue="on"] [data-unless="dj venue"],
+  body[data-service-dj="on"][data-service-music="on"][data-service-venue="on"] [data-unless="dj music venue"]{ display: none !important; }
   /* Отзывы: кнопка и форма скрыты, пока data-review-form="off" у #reviews. */
   [data-review-form="off"] #openReviewForm,
   [data-review-form="off"] #reviewFormWrap{ display: none; }
@@ -785,7 +797,11 @@
   .calc-submit:hover{ transform: translateY(-2px); }
 
   /* Packages */
-  .packages{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .packages{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; counter-reset: pkg; }
+  /* Номера пакетов — счётчиком: скрытые пакеты (data-needs) не оставляют дыр в нумерации. */
+  .package:not(.package--start){ counter-increment: pkg; }
+  .pkg-num::before{ content: counter(pkg, decimal-leading-zero); }
+  .event-link{ margin-top: 16px; align-self: flex-start; }
   .package{
     background: #fff;
     border: 1px solid var(--line);
@@ -959,6 +975,12 @@
   .map-pulse{ animation: pulse 2.6s ease-in-out infinite; }
   .map-label{ font-family: 'Jost', sans-serif; font-size: 13px; fill: var(--ink); }
   .map-label.hub{ font-weight: 500; }
+  /* Города «Скоро»: приглушённо, без мигания. */
+  .map-dot--soon{ fill: var(--ink-soft); opacity: .55; }
+  .map-line--soon{ opacity: .45; stroke-dasharray: 3 4; }
+  .map-label--soon{ fill: var(--ink-soft); }
+  .map-soon{ fill: var(--bg); stroke: var(--line); stroke-width: 1; }
+  .map-soon-text{ font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; fill: var(--ink-soft); text-anchor: middle; }
   .coverage-caption{ text-align: center; margin-top: 8px; }
 
   /* Reviews & gallery placeholders */

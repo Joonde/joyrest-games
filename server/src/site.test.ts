@@ -319,6 +319,71 @@ describe("тексты и устройство страницы", () => {
     expect(js).toContain("hostLevelField.value = calcHostLevel.value");
   });
 
+  /** Видимый текст страницы при текущих data-service-*: без элементов data-needs с выключенным
+   *  направлением и без замен data-unless, когда все их направления включены. */
+  function visibleText(): string {
+    const services = Object.fromEntries([...html.matchAll(/data-service-(\w+)="(on|off)"/g)].map((m) => [m[1], m[2] === "on"]));
+    const VOID = new Set(["br", "img", "input", "meta", "link", "hr", "source", "rect", "circle", "line", "ellipse", "path"]);
+    const body = html.slice(html.indexOf("<body"), html.indexOf("</body>")).replace(/<!--[\s\S]*?-->/g, "").replace(/<script[\s\S]*?<\/script>/g, "");
+    let out = "", hiddenDepth = 0, depth = 0, last = 0;
+    for (const m of body.matchAll(/<(\/?)(\w+)([^>]*?)(\/?)>/g)) {
+      if (hiddenDepth === 0) out += body.slice(last, m.index);
+      last = (m.index ?? 0) + m[0].length;
+      const [, close, tag, attrs, selfClose] = m;
+      if (VOID.has((tag ?? "").toLowerCase()) || selfClose) continue;
+      if (close) { if (hiddenDepth && depth === hiddenDepth) hiddenDepth = 0; depth--; continue; }
+      depth++;
+      if (hiddenDepth) continue;
+      const needs = /data-needs="([^"]*)"/.exec(attrs ?? "")?.[1]?.split(" ") ?? [];
+      const unless = /data-unless="([^"]*)"/.exec(attrs ?? "")?.[1]?.split(" ") ?? [];
+      if (needs.some((n) => !services[n]) || (unless.length > 0 && unless.every((n) => services[n]))) hiddenDepth = depth;
+      out += " ";
+    }
+    return out.replace(/\s+/g, " ");
+  }
+
+  it("диджеи, музыканты и площадки пока скрыты одним переключателем на направление", () => {
+    expect(html).toContain('<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">');
+    const text = visibleText();
+    expect(text).not.toMatch(/дидже|площадк|музыкант|подрядчик|под ключ|кавер|квартет/i);
+    expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.");
+    // Старый текст первого экрана сохранён рядом — вернётся вместе с услугами.
+    expect(html).toContain("площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет");
+    expect(text).toContain("Ведущие");
+    expect(text).toContain("Дополнительный номер к программе: фокусник или другое шоу.");
+    // Включили всё — старые тексты видны, замен нет.
+    const allOn = html.replace(/data-service-(\w+)="off"/g, 'data-service-$1="on"');
+    expect(allOn).toContain('data-service-dj="on" data-service-music="on" data-service-venue="on"');
+    // Каждая комбинация замен data-unless покрыта правилом скрытия в CSS.
+    for (const combo of new Set([...html.matchAll(/data-unless="([^"]*)"/g)].map((m) => m[1]))) {
+      const selector = (combo ?? "").split(" ").map((n) => `[data-service-${n}="on"]`).join("") + ` [data-unless="${combo}"]`;
+      expect(css, combo).toContain(`body${selector}`);
+    }
+    for (const n of ["dj", "music", "venue"]) expect(css).toContain(`body[data-service-${n}="off"] [data-needs~="${n}"]`);
+    // Варианты списков убирает скрипт (iPhone не прячет <option> стилями).
+    expect(js).toContain("option[data-needs], option[data-unless]");
+  });
+
+  it("карта: работаем в Москве, остальные города — «Скоро» без мигания", () => {
+    const map = html.slice(html.indexOf('<svg class="coverage-map"'), html.indexOf("</svg>", html.indexOf('<svg class="coverage-map"')));
+    expect(map).toContain(">Москва</text>");
+    expect(map).not.toContain("офис");
+    expect(map.match(/>Скоро<\/text>/g)).toHaveLength(3);
+    expect(map.match(/map-pulse/g)).toHaveLength(1);
+    for (const city of ["Санкт-Петербург", "Курск", "Екатеринбург"]) expect(map).toContain(city);
+  });
+
+  it("честные формулировки: калькулятор вместо конструктора, «хорошо подходят»", () => {
+    expect(html).toContain("<h3>Рассчитать стоимость онлайн</h3>");
+    expect(html).toContain("Посчитайте примерную стоимость праздника за минуту — без звонков и ожидания.");
+    expect(html).toMatch(/<a href="#calculator" class="hbtn hbtn--secondary event-link">/);
+    expect(html).not.toContain("Конструктор мероприятия");
+    expect(js).toContain("Для корпоративов хорошо подходят:");
+    expect(js).not.toContain("чаще всего");
+    expect(html).not.toContain("Самые популярные");
+    expect(html).toContain("свяжемся в течение дня");
+  });
+
   it("карточки, которые не нажимаются, не реагируют на наведение", () => {
     expect(css).not.toMatch(/\.(event|package|step|service-row):hover/);
   });
@@ -357,7 +422,7 @@ describe("логотип сайта", () => {
   const css = readFileSync(join(root, "site/css/style.css"), "utf8");
 
   it("логотип — ссылка на начало страницы, файлы из public/brand", () => {
-    expect(html).toMatch(/<body id="top">/);
+    expect(html).toMatch(/<body id="top"[ >]/);
     expect(html).toMatch(/<a href="#top" class="logo"/);
     expect(html).toContain('data-brand-svg="joyrest-logo"');
     expect(html).toContain('data-brand-svg="joyrest-monogram"');

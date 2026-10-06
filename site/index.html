@@ -15,7 +15,10 @@
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body id="top">
+<!-- Направления, которых пока нет (скоро появятся). Включить — поставить "on":
+     всё с атрибутом data-needs появится, замены с data-unless скроются (css/style.css, js/script.js).
+     Список скрытого — CLAUDE.md, «Сайт агентства». -->
+<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">
 
 <div class="ripple-layer" id="rippleLayer"></div>
 
@@ -116,7 +119,8 @@
         </div>
       </div>
       <h1>Радость <span class="accent">без хлопот</span></h1>
-      <p><strong style="color:var(--accent-text); font-weight:500;">JoyRest</strong> берёт на себя организацию праздника целиком, если это вам необходимо: площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет — вам остаётся только прийти и радоваться.</p>
+      <p data-needs="dj music venue"><strong style="color:var(--accent-text); font-weight:500;">JoyRest</strong> берёт на себя организацию праздника целиком, если это вам необходимо: площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет — вам остаётся только прийти и радоваться.</p>
+      <p data-unless="dj music venue"><strong style="color:var(--accent-text); font-weight:500;">JoyRest</strong> берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.</p>
       <a href="#contact" class="hero-cta">Оставить заявку</a>
     </div>
     <div class="hero-side reveal">
@@ -132,7 +136,8 @@
       </div>
       <div class="stat">
         <div class="stat-num">Быстро</div>
-        <div class="stat-label">присылаем подходящие варианты площадки и подрядчиков, как только всё соберём</div>
+        <div class="stat-label" data-needs="venue">присылаем подходящие варианты площадки и подрядчиков, как только всё соберём</div>
+        <div class="stat-label" data-unless="venue">присылаем варианты программы под ваш формат, как только всё соберём</div>
       </div>
     </div>
   </section>
@@ -167,12 +172,13 @@
       <div class="event-list">
         <div class="event e2 reveal">
           <h3>Корпоративы</h3>
-          <p>Новогодние вечера, тимбилдинги, юбилеи компании — программы строим вокруг задач бизнеса: от нейтрального формата до вечеринки с диджеем и шоу-блоком.</p>
+          <p>Новогодние вечера, тимбилдинги, юбилеи компании — программы строим вокруг задач бизнеса: от нейтрального формата до вечеринки <span data-needs="dj">с диджеем и шоу-блоком</span><span data-unless="dj">с играми и шоу-блоком</span>.</p>
           <p style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;">Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.</p>
         </div>
         <div class="event e3 reveal">
           <h3>Дни рождения</h3>
-          <p>Взрослые и детские праздники с ведущим, аниматорами или диджеем — формат и площадку подбираем под возраст и число гостей.</p>
+          <p data-needs="dj venue">Взрослые и детские праздники с ведущим, аниматорами или диджеем — формат и площадку подбираем под возраст и число гостей.</p>
+          <p data-unless="dj venue">Взрослые и детские праздники с ведущим и аниматорами — формат и программу подбираем под возраст и число гостей.</p>
         </div>
         <div class="event e4 reveal">
           <h3>Частные события</h3>
@@ -181,11 +187,12 @@
         <div class="event e1 soon reveal">
           <span class="soon-badge" style="--badge-color: var(--coral);"><span class="dot"></span>Скоро — в разработке</span>
           <h3>Свадьбы</h3>
-          <p>Пока не оказываем эту услугу, но добавим в ближайших планах: церемонии, банкеты, подбор площадки и ведущего под пару. Оставьте заявку — сообщим первыми, когда запустим направление.</p>
+          <p>Пока не оказываем эту услугу, но добавим в ближайших планах: церемонии, банкеты, <span data-needs="venue">подбор площадки и ведущего под пару</span><span data-unless="venue">ведущий и программа для пары</span>. Оставьте заявку — сообщим первыми, когда запустим направление.</p>
         </div>
         <div class="event e3 reveal">
-          <h3>Конструктор мероприятия</h3>
-          <p>Онлайн-сборка практически любого мероприятия под личные предпочтения: формат, стиль, музыка и площадка — шаг за шагом, без звонков менеджеру.</p>
+          <h3>Рассчитать стоимость онлайн</h3>
+          <p>Посчитайте примерную стоимость праздника за минуту — без звонков и ожидания.</p>
+          <a href="#calculator" class="hbtn hbtn--secondary event-link">Открыть калькулятор</a>
         </div>
       </div>
       <p class="event-note reveal">Помимо этого проводим и другие форматы событий по индивидуальному запросу — напишите нам, обсудим повод.</p>
@@ -199,7 +206,8 @@
           Услуги
           <button type="button" class="section-toggle-btn" id="servicesToggleBtn" aria-expanded="false">Показать <span class="toggle-arrow">↓</span></button>
         </h2>
-        <p>Можно заказать всё сразу или только то, чего не хватает.</p>
+        <p data-needs="dj music venue">Можно заказать всё сразу или только то, чего не хватает.</p>
+        <p data-unless="dj music venue">Ведущие и игровые программы под ваш формат.</p>
       </div>
     </div>
     <div class="collapsible-wrap" id="servicesList">
@@ -208,15 +216,15 @@
         <h3>Ведущие</h3>
         <p>Подбор ведущего под формат и аудиторию — от камерного тона до энергичного шоу.</p>
       </div>
-      <div class="service-row reveal">
+      <div class="service-row reveal" data-needs="dj">
         <h3>Диджеи</h3>
         <p>Музыкальное сопровождение под возраст и настроение гостей, с оборудованием под площадку.</p>
       </div>
-      <div class="service-row reveal">
+      <div class="service-row reveal" data-needs="music">
         <h3>Музыканты</h3>
         <p>Живой звук — от струнного квартета на церемонии до кавер-группы на банкете.</p>
       </div>
-      <div class="service-row reveal">
+      <div class="service-row reveal" data-needs="venue">
         <h3>Площадки</h3>
         <p>Подбор зала или локации по метражу, вместимости и техническому оснащению под ваш сценарий.</p>
       </div>
@@ -224,7 +232,7 @@
 
     <div class="formats-block">
       <h3 style="font-size:24px; font-weight:600; margin-bottom:6px;">Форматы программ</h3>
-      <p style="font-size:14px; color:var(--ink-soft); margin:0 0 20px;">Самые популярные форматы — остальные скрыты под кнопкой ниже.</p>
+      <p style="font-size:14px; color:var(--ink-soft); margin:0 0 20px;">Основные форматы — остальные скрыты под кнопкой ниже.</p>
       <button type="button" class="filter-reset" id="filterResetBtn">← Показать все форматы, сбросить выбор повода</button>
       <div class="format-grid reveal">
         <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
@@ -481,29 +489,31 @@
           Пакеты услуг
           <button type="button" class="section-toggle-btn" id="packagesToggleBtn" aria-expanded="false">Показать <span class="toggle-arrow">↓</span></button>
         </h2>
-        <p>Берите по частям или всё сразу под ключ.</p>
+        <p data-needs="venue">Берите по частям или всё сразу под ключ.</p>
+        <p data-unless="venue">Ведущий и шоу — по отдельности или вместе.</p>
       </div>
     </div>
     <div class="collapsible-wrap" id="packagesList">
     <div class="packages">
       <div class="package reveal">
-        <div class="pkg-num">01</div>
+        <div class="pkg-num"></div>
         <h3>Ведущий</h3>
-        <p>Почасовая работа ведущего — от 7 000 ₽/час, минимум 1,5 часа. Точный расчёт — в калькуляторе выше.</p>
+        <p>Почасовая работа ведущего — от 7 000 ₽/час, минимум 1,5 часа. Точный расчёт — в калькуляторе ниже.</p>
       </div>
-      <div class="package reveal">
-        <div class="pkg-num">02</div>
+      <div class="package reveal" data-needs="dj">
+        <div class="pkg-num"></div>
         <h3>Диджей</h3>
         <p>Цена договорная и зависит от дня недели — обсуждаем отдельно от работы ведущего.</p>
       </div>
       <div class="package reveal">
-        <div class="pkg-num">03</div>
+        <div class="pkg-num"></div>
         <h3>Шоу</h3>
-        <p>Дополнительный номер к программе: музыкант, фокусник или другое направление.</p>
+        <p data-needs="music">Дополнительный номер к программе: музыкант, фокусник или другое направление.</p>
+        <p data-unless="music">Дополнительный номер к программе: фокусник или другое шоу.</p>
         <p class="calc-hint" style="margin-top:10px;">Состав и цена шоу обсуждаются индивидуально — напишите о пожеланиях в комментарии к заявке.</p>
       </div>
-      <div class="package featured reveal">
-        <div class="pkg-num">04</div>
+      <div class="package featured reveal" data-needs="venue">
+        <div class="pkg-num"></div>
         <h3>Под ключ</h3>
         <p>Ведущий, подбор площадки, составление программы — берём на себя ответственность за всё мероприятие целиком.</p>
       </div>
@@ -555,9 +565,10 @@
         </div>
         <select id="calcPackage">
           <option value="host">Только ведущий</option>
-          <option value="dj">+ Диджей</option>
-          <option value="show">+ Шоу (музыкант/фокусник/др.)</option>
-          <option value="full">Под ключ</option>
+          <option value="dj" data-needs="dj">+ Диджей</option>
+          <option value="show" data-needs="music">+ Шоу (музыкант/фокусник/др.)</option>
+          <option value="show" data-unless="music">+ Шоу (фокусник и др.)</option>
+          <option value="full" data-needs="venue">Под ключ</option>
         </select>
         <p class="calc-hint" id="calcPackageNote" style="display:none;">Этот пакет собирается индивидуально — ниже расчёт только за работу ведущего, остальное обсуждаем на созвоне.</p>
       </div>
@@ -639,7 +650,7 @@
         <div id="calcWeekendDiscountRow" style="display:none;"><span>Скидка выходного дня (−10%)</span><span id="calcWeekendDiscount">−0 ₽</span></div>
         <div id="calcHoursDiscountRow" style="display:none;"><span>Скидка за длительность 3+ часа (−5%)</span><span id="calcHoursDiscount">−0 ₽</span></div>
         <div id="calcHostDiscountRow" style="display:none;"><span id="calcHostDiscountLabel">Скидка «Новые лица» (−25%)</span><span id="calcHostDiscount">−0 ₽</span></div>
-        <div id="calcDjRow" style="display:none;"><span>Диджей</span><span>цена договорная</span></div>
+        <div id="calcDjRow" style="display:none;" data-needs="dj"><span>Диджей</span><span>цена договорная</span></div>
       </div>
       <p class="calc-hint" id="calcTaxiNote" style="display:none;">+ такси ведущему по факту, отдельно от расчёта выше.</p>
       <div class="calc-total">
@@ -647,7 +658,8 @@
         <span id="calcTotal">10 500 ₽</span>
       </div>
       <button type="button" class="calc-submit" id="calcSubmit">Отправить расчёт в заявку</button>
-      <p class="calc-hint">Расчёт ориентировочный: точная стоимость площадки и других услуг пакета обсуждается отдельно. Диджей — цена договорная, зависит от дня недели, обсуждается отдельно от этого расчёта.</p>
+      <p class="calc-hint" data-needs="dj venue">Расчёт ориентировочный: точная стоимость площадки и других услуг пакета обсуждается отдельно. Диджей — цена договорная, зависит от дня недели, обсуждается отдельно от этого расчёта.</p>
+      <p class="calc-hint" data-unless="dj venue">Расчёт ориентировочный: точную сумму уточним на созвоне. Шоу обсуждается отдельно от этого расчёта.</p>
     </div>
   </section>
 
@@ -657,23 +669,30 @@
       <p>Москва — база, но выезжаем и в другие города по договорённости.</p>
     </div>
     <div class="coverage-wrap reveal">
-      <svg class="coverage-map" viewBox="0 0 420 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта городов присутствия: Москва, Санкт-Петербург, Курск, Екатеринбург">
+      <!-- Работаем в Москве; остальные города — «Скоро», без мигания. -->
+      <svg class="coverage-map" viewBox="0 0 420 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта: работаем в Москве; Санкт-Петербург, Курск и Екатеринбург — скоро">
         <ellipse class="map-zone" cx="210" cy="140" rx="195" ry="105"></ellipse>
-        <line class="map-line" x1="150" y1="150" x2="112" y2="72"></line>
-        <line class="map-line" x1="150" y1="150" x2="97" y2="203"></line>
-        <line class="map-line" x1="150" y1="150" x2="328" y2="112"></line>
+        <line class="map-line map-line--soon" x1="150" y1="150" x2="112" y2="72"></line>
+        <line class="map-line map-line--soon" x1="150" y1="150" x2="97" y2="203"></line>
+        <line class="map-line map-line--soon" x1="150" y1="150" x2="328" y2="112"></line>
 
-        <circle class="map-dot map-pulse" cx="112" cy="72" r="5"></circle>
-        <text class="map-label" x="124" y="76">Санкт-Петербург</text>
+        <circle class="map-dot map-dot--soon" cx="112" cy="72" r="5"></circle>
+        <text class="map-label map-label--soon" x="124" y="76">Санкт-Петербург</text>
+        <rect class="map-soon" x="124" y="83" width="46" height="18" rx="9"></rect>
+        <text class="map-soon-text" x="147" y="96">Скоро</text>
 
-        <circle class="map-dot map-pulse" cx="97" cy="203" r="5"></circle>
-        <text class="map-label" x="109" y="207">Курск</text>
+        <circle class="map-dot map-dot--soon" cx="97" cy="203" r="5"></circle>
+        <text class="map-label map-label--soon" x="109" y="207">Курск</text>
+        <rect class="map-soon" x="109" y="214" width="46" height="18" rx="9"></rect>
+        <text class="map-soon-text" x="132" y="227">Скоро</text>
 
-        <circle class="map-dot map-pulse" cx="328" cy="112" r="5"></circle>
-        <text class="map-label" x="340" y="116">Екатеринбург</text>
+        <circle class="map-dot map-dot--soon" cx="328" cy="112" r="5"></circle>
+        <text class="map-label map-label--soon" x="318" y="98" text-anchor="end">Екатеринбург</text>
+        <rect class="map-soon" x="305" y="121" width="46" height="18" rx="9"></rect>
+        <text class="map-soon-text" x="328" y="134">Скоро</text>
 
         <circle class="map-dot hub map-pulse" cx="150" cy="150" r="7"></circle>
-        <text class="map-label hub" x="163" y="154">Москва — офис</text>
+        <text class="map-label hub" x="163" y="154">Москва</text>
       </svg>
     </div>
     <p class="event-note coverage-caption reveal">Схематичная карта, без привязки к точным географическим границам.</p>
@@ -737,7 +756,7 @@
       <div class="step reveal">
         <div class="step-index">02</div>
         <h3>Подбираем варианты</h3>
-        <p>Присылаем 2–3 варианта площадки и подрядчиков под ваш запрос. Для заказных мероприятий — см. про сроки ниже.</p>
+        <p><span data-needs="venue">Присылаем 2–3 варианта площадки и подрядчиков под ваш запрос.</span><span data-unless="venue">Предлагаем программу и ведущего под ваш запрос.</span> Для заказных мероприятий — см. про сроки ниже.</p>
       </div>
       <div class="step reveal">
         <div class="step-index">03</div>
@@ -751,7 +770,7 @@
       </div>
     </div>
     <div class="reveal" style="margin-top:28px; background:var(--bg-alt); border-left:3px solid var(--coral); border-radius:12px; padding:18px 22px; font-size:14px; color:var(--ink-soft); max-width:640px;">
-      ⏱ <strong style="color:var(--ink);">Про сроки:</strong> на мероприятия под заказ (особенно с большой площадкой или форматом «под ключ») пишите минимум за 2 недели, а лучше за месяц. При более срочном обращении может взиматься доплата за срочность — зависит от сложности запроса.
+      ⏱ <strong style="color:var(--ink);">Про сроки:</strong> на мероприятия под заказ (<span data-needs="venue">особенно с большой площадкой или форматом «под ключ»</span><span data-unless="venue">особенно по индивидуальному сценарию</span>) пишите минимум за 2 недели, а лучше за месяц. При более срочном обращении может взиматься доплата за срочность — зависит от сложности запроса.
     </div>
   </section>
 

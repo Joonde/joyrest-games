@@ -313,10 +313,26 @@
   setupSectionToggle('servicesToggleBtn', 'servicesList');
   setupSectionToggle('packagesToggleBtn', 'packagesList');
 
-  // Эмблема первого экрана: вне экрана анимация на паузе (батарея). Наклон от датчика —
-  // только там, где он работает без запроса разрешения (на iPhone разрешение нужно —
-  // там остаётся плавная анимация из CSS). «Уменьшить движение» — статично.
+  // Эмблема первого экрана. Пока она видна под шапкой, логотип в шапке скрыт (место
+  // сохраняется), ушла за верх экрана — логотип плавно появляется (без анимации при
+  // «уменьшить движение» — это делает CSS). Вне экрана анимация эмблемы на паузе (батарея).
+  // Наклон от датчика — только там, где он работает без запроса разрешения (на iPhone
+  // разрешение нужно — там остаётся плавная анимация из CSS).
   const emblem = document.querySelector('.emblem');
+  const siteHeader = document.getElementById('siteHeader');
+  if(emblem && 'IntersectionObserver' in window){
+    let logoObserver = null;
+    const watchLogo = () => {
+      if(logoObserver) logoObserver.disconnect();
+      // Верх «окна» — нижний край шапки: эмблема под шапкой уже не видна.
+      logoObserver = new IntersectionObserver((entries) => {
+        siteHeader.classList.toggle('logo-hidden', entries[0].isIntersecting);
+      }, { rootMargin: `-${Math.round(siteHeader.getBoundingClientRect().height)}px 0px 0px 0px` });
+      logoObserver.observe(emblem);
+    };
+    watchLogo();
+    window.addEventListener('resize', watchLogo);
+  }
   if(emblem && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     if('IntersectionObserver' in window){
       new IntersectionObserver((entries) => {
@@ -326,7 +342,7 @@
     const needsPermission = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
     if('DeviceOrientationEvent' in window && !needsPermission){
       const tilt = emblem.querySelector('.emblem-tilt');
-      const clamp = (v) => Math.max(-8, Math.min(8, v));
+      const clamp = (v) => Math.max(-12, Math.min(12, v));
       let base = null, frame = 0, last = null;
       window.addEventListener('deviceorientation', (e) => {
         if(e.beta === null || e.gamma === null) return;
@@ -335,8 +351,8 @@
         if(frame) return;
         frame = requestAnimationFrame(() => {
           frame = 0;
-          const x = clamp((last.beta - base) / 4);
-          const y = clamp(last.gamma / 4);
+          const x = clamp((last.beta - base) / 3);
+          const y = clamp(last.gamma / 3);
           tilt.style.transform = `rotateX(${x.toFixed(2)}deg) rotateY(${y.toFixed(2)}deg)`;
         });
       });

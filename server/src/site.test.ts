@@ -207,7 +207,8 @@ describe("контраст сайта в светлой и тёмной теме
   const darkBlock = css.slice(darkStart, css.indexOf("}", darkStart));
   const light = tokens(lightBlock);
   const dark = { ...light, ...tokens(darkBlock) };
-  const dark2 = /\.emblem\{ --emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6})/.exec(css.slice(darkStart));
+  const EMBLEM = /\.emblem\{[^}]*?--emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6}); --emb-4: (#\w{6})/;
+  const dark2 = EMBLEM.exec(css.slice(darkStart));
 
   // [текст, фон, норма]: 4.5 — текст, 3 — крупный текст, рамки и графика.
   const pairs = (t: Record<string, string>, surfaces: string[]): [string, string, number][] => [
@@ -238,11 +239,12 @@ describe("контраст сайта в светлой и тёмной теме
     }
   });
 
-  it("эмблема различима на фоне в обеих темах (≥ 3)", () => {
-    const lightEmblem = /\.emblem\{\s*--emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6})/.exec(css);
+  it("эмблема и её надписи: каждый цвет градиента с фоном ≥ 4.5 в обеих темах", () => {
+    const lightEmblem = EMBLEM.exec(css);
     for (const [colors, bg] of [[lightEmblem, light.bg], [dark2, dark.bg]] as const) {
       expect(colors).not.toBeNull();
-      for (const c of colors?.slice(1) ?? []) expect(contrastRatio(c ?? "", bg ?? ""), `${c} на ${bg}`).toBeGreaterThanOrEqual(3);
+      expect(colors?.slice(1)).toHaveLength(4);
+      for (const c of colors?.slice(1) ?? []) expect(contrastRatio(c ?? "", bg ?? ""), `${c} на ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
   });
 
@@ -328,16 +330,23 @@ describe("тексты и устройство страницы", () => {
     expect(reduced).toMatch(/\.emblem-tilt, \.emblem-gradient\{ animation: none; transform: none; \}/);
     expect(reduced).toMatch(/\.emblem-glint\{ animation: none; display: none; \}/);
     // Анимируются только transform и opacity.
-    for (const name of ["emblemTilt", "emblemFlow", "emblemGlint"]) {
+    for (const name of ["emblemTilt", "emblemFlow", "emblemGlint", "emblemGlow"]) {
       const body = css.slice(css.indexOf(`@keyframes ${name}{`), css.indexOf("\n  }", css.indexOf(`@keyframes ${name}{`)));
       const props = [...body.matchAll(/([a-z-]+):/g)].map((m) => m[1]);
       expect(props.every((p) => p === "transform" || p === "opacity"), `${name}: ${props.join(",")}`).toBe(true);
     }
     // Наклон ±8° и без вращения по кругу.
     const tilt = css.slice(css.indexOf("@keyframes emblemTilt{"), css.indexOf("@keyframes emblemFlow{"));
-    for (const deg of tilt.match(/rotate[XY]\((-?\d+)deg\)/g) ?? []) expect(Math.abs(Number(/(-?\d+)/.exec(deg)?.[1]))).toBeLessThanOrEqual(8);
+    for (const deg of tilt.match(/rotate[XY]\((-?\d+)deg\)/g) ?? []) expect(Math.abs(Number(/(-?\d+)/.exec(deg)?.[1]))).toBeLessThanOrEqual(12);
     expect(tilt).not.toMatch(/rotateZ|rotate\(/);
     expect(js).toContain("DeviceOrientationEvent.requestPermission === 'function'");
+    // Блик раз в ~5 с, свечение «дышит» в такт.
+    expect(css).toMatch(/\.emblem-glint\{[^}]*animation: emblemGlint 5s/);
+    expect(css).toMatch(/\.emblem-glow\{[^}]*animation: emblemGlow 5s/);
+    // Пока эмблема видна — логотип в шапке скрыт, место сохраняется (opacity/visibility, не display).
+    expect(css).toMatch(/header\.logo-hidden \.logo\{ opacity: 0;[^}]*visibility: hidden;/);
+    expect(css).not.toMatch(/logo-hidden[^{]*\{[^}]*display: none/);
+    expect(js).toContain("siteHeader.classList.toggle('logo-hidden', entries[0].isIntersecting)");
     expect(js).not.toContain("requestPermission()");
   });
 });

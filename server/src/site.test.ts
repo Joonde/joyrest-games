@@ -24,13 +24,15 @@ const siteDir = dir({
   "favicon.svg": "<svg/>",
 });
 
-function app(indexing: boolean) {
+const stubDir = dir({ "index.html": "<title>Скоро</title>", "joyrest-logo.svg": "<svg/>" });
+
+function app(indexing: boolean, enabled = true) {
   return buildApp({
     version: "abc",
     publicDir: platform,
     checkDatabase: async () => true,
-    site: { dir: siteDir, hosts: ["joy-rest.ru", "test.joy-rest.ru"], indexing },
-    lead: { telegram: null },
+    site: { dir: siteDir, enabled, stubDir, hosts: ["joy-rest.ru", "test.joy-rest.ru"], indexing },
+    lead: { telegram: { token: "t", chatId: "1" }, send: async () => {} },
   });
 }
 
@@ -96,6 +98,38 @@ describe("сайт агентства", () => {
     expect(robots.body).toBe("User-agent: *\nAllow: /\n");
     const page = await open.inject({ url: "/", headers: { host: "joy-rest.ru" } });
     expect(page.headers["x-robots-tag"]).toBeUndefined();
+  });
+});
+
+describe("сайт выключен (по умолчанию): заглушка «скоро»", () => {
+  const off = app(true, false);
+  afterAll(() => off.close());
+
+  it("на joy-rest.ru заглушка, файлов сайта нет, платформа не задета", async () => {
+    const page = await off.inject({ url: "/", headers: { host: "joy-rest.ru" } });
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain("Скоро");
+    expect(page.headers["cache-control"]).toBe("no-cache");
+    expect((await off.inject({ url: "/joyrest-logo.svg", headers: { host: "joy-rest.ru" } })).statusCode).toBe(200);
+    expect((await off.inject({ url: "/css/style.0123456789.css", headers: { host: "joy-rest.ru" } })).statusCode).toBe(404);
+    expect((await off.inject({ url: "/", headers: { host: "games.joy-rest.ru" } })).body).toContain("Платформа");
+  });
+
+  it("заявки не принимаются: /api/lead — 404", async () => {
+    const res = await off.inject({
+      method: "POST",
+      url: "/api/lead",
+      headers: { host: "joy-rest.ru", "content-type": "application/json" },
+      payload: JSON.stringify({ type: "question", consent: true, text: "Вопрос" }),
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("поисковикам закрыто, даже если индексация включена", async () => {
+    const robots = await off.inject({ url: "/robots.txt", headers: { host: "joy-rest.ru" } });
+    expect(robots.body).toBe("User-agent: *\nDisallow: /\n");
+    const page = await off.inject({ url: "/", headers: { host: "joy-rest.ru" } });
+    expect(page.headers["x-robots-tag"]).toBe("noindex, nofollow");
   });
 });
 

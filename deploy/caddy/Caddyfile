@@ -35,9 +35,10 @@ test.games.joy-rest.ru {
 }
 
 # Сайт агентства: файлы из того же образа, что и платформа (app-prod выбирает сайт по Host),
-# поэтому выкладка, откат и уведомления общие. Кэш и закрытие от поисковиков (robots.txt,
-# X-Robots-Tag; `sudo joyrest site-indexing on|off`) задаёт приложение. Заявки — POST /api/lead.
-# Заглушка «скоро» (soon/) больше не используется; остаётся в релизе для отката на прошлые версии.
+# поэтому выкладка, откат и уведомления общие. По умолчанию сайт ВЫКЛЮЧЕН: app-prod отдаёт
+# заглушку «скоро» (deploy/caddy/soon) и не принимает заявки. Включает только владелец —
+# `sudo joyrest site on` (settings.env), выкладка и перезагрузка сами его не включают.
+# Кэш и поисковики (robots.txt, X-Robots-Tag; `sudo joyrest site-indexing on|off`) — в приложении.
 joy-rest.ru {
 	import security
 	encode zstd gzip
@@ -46,9 +47,19 @@ joy-rest.ru {
 	}
 }
 
-# Тестовый сайт агентства — версия из ветки (app-test). Поисковикам не показываем никогда.
+# Тестовый сайт агентства — версия из ветки (app-test), всегда сайт, закрыт паролем.
+# Поисковикам не показываем никогда.
 test.joy-rest.ru {
 	import security
+	# Вход владельца — файл auth/test-site-owner.caddy («логин хэш»), его пишет
+	# `sudo joyrest site-password`; пароль нигде не хранится, только bcrypt-хэш.
+	# Первая строка — запирающая учётная запись: пароль случайный и никому не известен,
+	# поэтому пока пароль не задан, сайт закрыт для всех. Стоимость bcrypt 10 (~0,1 с на проверку):
+	# перебор паролей не должен нагружать сервер игр; взамен пароль не короче 12 символов.
+	basic_auth {
+		joyrest-locked $2a$10$/N7fNHww1DUIBwm1E/ekreNZizdVEaCV2nMSomPhm.v14TAmsH9j2
+		import /etc/caddy/auth/test-site-*.caddy
+	}
 	header {
 		X-Robots-Tag "noindex, nofollow"
 		defer

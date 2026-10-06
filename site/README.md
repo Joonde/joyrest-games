@@ -1,7 +1,8 @@
 # JoyRest — сайт агентства «Радость без хлопот» (joy-rest.ru)
 
 Сайт собирается в тот же образ, что и платформа, и выкладывается вместе с ней
-(CLAUDE.md, «Сайт агентства»): `main` → joy-rest.ru, ветки `claude/*` → test.joy-rest.ru.
+(CLAUDE.md, «Сайт агентства»): `main` → joy-rest.ru, ветки `claude/*` → test.joy-rest.ru (по паролю).
+Пока сайт выключен: на joy-rest.ru заглушка «скоро», включает владелец — `sudo joyrest site on`.
 
 Структура:
 - index.html — главная страница

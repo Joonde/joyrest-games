@@ -37,7 +37,7 @@ function setup(options: Setup = {}) {
     version: "abc",
     publicDir: null,
     checkDatabase: async () => true,
-    site: { dir: "/nonexistent", hosts: [HOST, "test.joy-rest.ru"], indexing: false },
+    site: { dir: "/nonexistent", enabled: true, stubDir: null, hosts: [HOST, "test.joy-rest.ru"], indexing: false },
     lead: {
       telegram: options.telegram === undefined ? TELEGRAM : options.telegram,
       send,
@@ -275,7 +275,7 @@ describe("/api/lead: Telegram", () => {
       version: "abc",
       publicDir: null,
       checkDatabase: async () => true,
-      site: { dir: "/nonexistent", hosts: [HOST], indexing: false },
+      site: { dir: "/nonexistent", enabled: true, stubDir: null, hosts: [HOST], indexing: false },
       lead: { telegram: TELEGRAM, send: async () => {} },
       logStream: { write: (line) => void lines.push(line) },
     });

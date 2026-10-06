@@ -1,6 +1,10 @@
 /**
  * Сайт агентства (joy-rest.ru): статические файлы из build/site, выбор по заголовку Host.
  *
+ * Пока сайт выключен (SITE_ENABLED не равно on — по умолчанию), на его адресах заглушка
+ * «скоро» (deploy/caddy/soon), заявки не принимаются. Включает только владелец:
+ * `sudo joyrest site on` (настройка на сервере, settings.env). test.joy-rest.ru — всегда сайт.
+ *
  * Кэш: css/, js/, img/ — с отпечатком содержимого в имени (собирает scripts/build-site.ts),
  * fonts/ — под тем же именем не меняются (CLAUDE.md, раздел 8), поэтому хранятся год.
  * index.html и robots.txt браузер перепроверяет каждый раз.
@@ -14,10 +18,19 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 export interface SiteOptions {
   /** Папка собранного сайта (build/site, в образе /app/site). */
   dir: string;
+  /** true — сайт; false — заглушка «скоро» и без заявок. */
+  enabled: boolean;
+  /** Заглушка «скоро» (в образе /app/deploy/caddy/soon); null — 404 вместо неё. */
+  stubDir: string | null;
   /** Адреса сайта без порта: joy-rest.ru (основное), test.joy-rest.ru (тестовое). */
   hosts: string[];
-  /** true — сайт открыт поисковикам. Переключает `sudo joyrest site-indexing on|off`. */
+  /** true — сайт открыт поисковикам (только при enabled). `sudo joyrest site-indexing on|off`. */
   indexing: boolean;
+}
+
+/** Только «on» включает. Пусто, нет переменной, опечатка — выключено. */
+export function isOn(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === "on";
 }
 
 export interface Site {
@@ -44,8 +57,10 @@ const NOT_FOUND_PAGE =
 export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
   const pattern = hostPattern(options.hosts);
   const isSite = (request: FastifyRequest) => pattern.test(request.headers.host ?? "");
+  // Заглушку поисковикам тоже не показываем: открыть можно только включённый сайт.
+  const indexing = options.enabled && options.indexing;
 
-  if (!options.indexing) {
+  if (!indexing) {
     app.addHook("onSend", async (request, reply, payload) => {
       if (isSite(request)) reply.header("X-Robots-Tag", "noindex, nofollow");
       return payload;
@@ -54,11 +69,11 @@ export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
 
   app.get("/robots.txt", { constraints: { host: pattern } }, async (_request, reply) => {
     reply.type("text/plain; charset=utf-8").header("Cache-Control", "no-cache");
-    return options.indexing ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n";
+    return indexing ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n";
   });
 
-  const dir = options.dir;
-  if (existsSync(join(dir, "index.html"))) {
+  const dir = options.enabled ? options.dir : options.stubDir;
+  if (dir && existsSync(join(dir, "index.html"))) {
     app.register(fastifyStatic, {
       root: dir,
       wildcard: false,

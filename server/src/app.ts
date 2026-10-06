@@ -55,7 +55,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   // Сайт агентства и заявки — только на его адресах (ограничение маршрутов по Host).
   const site = options.site ? registerSite(app, options.site) : null;
-  if (options.site && options.lead) {
+  // Заявки — только у включённого сайта: при `joyrest site off` /api/lead отвечает 404.
+  if (options.site?.enabled && options.lead) {
     registerLead(app, { ...options.lead, hosts: options.site.hosts }, { constraints: { host: hostPattern(options.site.hosts) } });
   }
 

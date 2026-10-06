@@ -126,6 +126,20 @@ Firebase удаляются, Firebase-код удаляется отдельны
   `public/brand/` встраиваются в элементы `data-brand-svg="<имя>"` (без метаданных, id
   уникальны, цвет — `--logo-color`, контраст с `--logo-bg` ≥ 3 в обеих темах сайта);
   иконки — `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png` (180×180) из `favicon.svg`.
+- **Пока сайт не открываем** (у владельца нет ИП, заявки принимать нельзя). На joy-rest.ru по
+  умолчанию заглушка «скоро» (`deploy/caddy/soon`, её отдаёт `app-prod`), `/api/lead` — 404.
+  Сайт включает только владелец: `sudo joyrest site on|off` → `SITE_ENABLED` в
+  `/srv/joyrest/settings.env` (без нового релиза). Включает только точное `on` (`isOn`);
+  ни слияние PR, ни выкладка, ни перезагрузка, ни CI сайт не включают — это проверяет
+  `server/src/siteSwitch.test.ts`. В compose значения по умолчанию — только `off`.
+- test.joy-rest.ru (`app-test`) показывает сайт всегда, `noindex` всегда и закрыт паролем:
+  `basic_auth` в Caddy. Хэш владельца — файл `/srv/joyrest/caddy/etc/auth/test-site-owner.caddy`
+  вне репозитория (пишет `sudo joyrest site-password`: скрытый ввод, bcrypt через
+  `caddy hash-password` по stdin, стоимость 10, пароль ≥ 12 символов; хранится только хэш).
+  В Caddyfile всегда есть запирающая учётная запись со случайным неизвестным паролем, поэтому
+  без хэша владельца сайт закрыт для всех (fail-closed), а Caddy не падает на пустом списке.
+- Caddyfile и команды `joyrest` на сервере берутся из основного релиза: изменения в них
+  начинают работать только после слияния в `main` и выкладки.
 - Сайт в том же образе (`/app/site`), что и платформа, поэтому выкладка, откат и уведомления
   общие: `main` → joy-rest.ru (`app-prod`), ветки `claude/*` → test.joy-rest.ru (`app-test`).
   Приложение выбирает сайт по заголовку Host (`SITE_HOSTS`, `server/src/site.ts`): у сайта
@@ -133,10 +147,11 @@ Firebase удаляются, Firebase-код удаляется отдельны
 - Кэш: `css/`, `js/`, `img/`, `fonts/` — год (`immutable`), `index.html` и `robots.txt` —
   `no-cache`. Сжатие — Caddy (`encode zstd gzip`).
 - Поисковики: `SITE_INDEXING` в `/srv/joyrest/settings.env`, переключает
-  `sudo joyrest site-indexing on|off`; по умолчанию `off` — `robots.txt` Disallow и
-  `X-Robots-Tag: noindex, nofollow` на всех ответах сайта. test.joy-rest.ru закрыт всегда.
+  `sudo joyrest site-indexing on|off` — включить можно только при `site on`, `site off`
+  сбрасывает индексацию в `off`; по умолчанию `off` — `robots.txt` Disallow и
+  `X-Robots-Tag: noindex, nofollow` на всех ответах сайта и заглушки. test.joy-rest.ru закрыт всегда.
   Открывает владелец сам, когда решены юридические вопросы (политика, ФИО, ИНН).
-- Заявки: формы шлют `POST /api/lead` (тот же домен, без CORS; только с адресов сайта)
+- Заявки (только при `site on`): формы шлют `POST /api/lead` (тот же домен, без CORS; только с адресов сайта)
   — типы `question`, `review`, `lead` (`server/src/lead.ts`). Тело ≤ 8 КБ, проверка полей и
   длины, управляющие символы вырезаются (кроме переводов строк), согласие обязательно,
   скрытое поле-ловушка `website` (бот получает 200, в Telegram ничего не уходит), лимит

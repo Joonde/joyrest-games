@@ -32,8 +32,12 @@ KEEP_DUMPS=5
 # незавершённая сессия выкладку не блокирует.
 ACTIVE_MINUTES=30
 HEALTH_TIMEOUT="${JOYREST_HEALTH_TIMEOUT:-120}"
-# Настройки без секретов (SITE_INDEXING). Секреты — только secrets.env.
+# Настройки без секретов (SITE_ENABLED, SITE_INDEXING). Секреты — только secrets.env.
+# Сайт и индексацию включает только владелец командами site / site-indexing: ни выкладка,
+# ни установка, ни перезагрузка этот файл не создают и не меняют (server/src/siteSwitch.test.ts).
 SETTINGS_FILE="$ROOT_DIR/settings.env"
+# Вход на test.joy-rest.ru: «логин bcrypt-хэш», Caddy подключает файл (Caddyfile, basic_auth).
+SITE_AUTH_DIR="$ROOT_DIR/caddy/etc/auth"
 
 usage() {
   cat <<'TEXT'
@@ -49,12 +53,17 @@ usage() {
   joyrest activate <тег>      выложить по тегу GHCR (main, release, sha-…)
   joyrest version             текущие версии
 
-Сайт агентства joy-rest.ru:
+Сайт агентства joy-rest.ru (по умолчанию выключен — заглушка «скоро»):
+  joyrest site [on|off] [force]
+                              включить (on) или выключить (off) сайт на joy-rest.ru;
+                              без аргумента — показать текущее состояние
+  joyrest site-password       логин и пароль для test.joy-rest.ru (пароль вводится скрыто,
+                              на сервере хранится только хэш)
   joyrest lead-bot [force]    бот для заявок с сайта: спросит токен (скрыто) и чат,
                               проверит, сохранит в secrets.env и перезапустит приложение
   joyrest site-indexing [on|off] [force]
-                              открыть (on) или закрыть (off) сайт для поисковиков;
-                              без аргумента — показать текущее значение
+                              открыть (on) или закрыть (off) сайт для поисковиков —
+                              только при включённом сайте; без аргумента — текущее значение
   force — применить, даже если идёт игра (приложение перезапустится на несколько секунд)
 TEXT
 }
@@ -202,6 +211,7 @@ ensure_dirs() {
     install -d -m 770 "$QUEUE_DIR"
   fi
   install -d -m 700 "$ROOT_DIR/backups" "$ROOT_DIR/backups/predeploy"
+  install -d -m 700 "$SITE_AUTH_DIR"
 }
 
 # Системные файлы из текущего релиза: команды, привратник, службы systemd, Caddy.
@@ -498,8 +508,10 @@ cmd_status() {
   echo
   echo -n "Здоровье (основная): "; health prod || true
   echo -n "Здоровье (тестовая): "; health test || true
-  echo "Сайт joy-rest.ru: индексация $(env_value "$SETTINGS_FILE" SITE_INDEXING | grep . || echo off)," \
-    "бот заявок $(grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest lead-bot)')"
+  echo "Сайт joy-rest.ru: $(site_enabled && echo включён || echo 'выключен (заглушка)'),"\
+    "индексация $(env_value "$SETTINGS_FILE" SITE_INDEXING | grep . || echo off)," \
+    "бот заявок $(grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest lead-bot)')," \
+    "пароль test.joy-rest.ru $([ -s "$SITE_AUTH_DIR/test-site-owner.caddy" ] && echo задан || echo 'НЕ задан (sudo joyrest site-password)')"
   echo
   df -h / | awk 'NR==2{print "Диск: занято " $5 " (" $3 " из " $2 ")"}'
   free -m | awk '/^Mem:/{print "Память: занято " $3 " МБ из " $2 " МБ"} /^Swap:/{print "Подкачка: " $3 " МБ из " $2 " МБ"}'
@@ -691,17 +703,91 @@ cmd_lead_bot() {
   echo "✅ Готово. Отправьте пробную заявку с https://joy-rest.ru (или test.joy-rest.ru)."
 }
 
+site_enabled() {
+  [ "$(env_value "$SETTINGS_FILE" SITE_ENABLED)" = on ]
+}
+
+# Сайт на joy-rest.ru: off (по умолчанию) — заглушка «скоро», заявки не принимаются (404).
+cmd_site() {
+  local value=${1:-} force=${2:-} current
+  current=$(env_value "$SETTINGS_FILE" SITE_ENABLED)
+  if [ -z "$value" ]; then
+    echo "Сайт joy-rest.ru: ${current:-off} (on — сайт и заявки, off — заглушка «скоро»)"
+    echo "Индексация: $(env_value "$SETTINGS_FILE" SITE_INDEXING | grep . || echo off)"
+    return 0
+  fi
+  need_root site
+  case "$value" in on|off) ;; *) die "Значение — on или off: sudo joyrest site on" ;; esac
+  [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
+  ensure_no_game "$force" "site $value"
+  set_env_value "$SETTINGS_FILE" SITE_ENABLED "$value" || die "Не удалось записать $SETTINGS_FILE."
+  # Выключенный сайт поисковикам не открыт: при следующем включении индексацию — заново.
+  if [ "$value" = off ]; then
+    set_env_value "$SETTINGS_FILE" SITE_INDEXING off || die "Не удалось записать $SETTINGS_FILE."
+  fi
+  log "Сайт joy-rest.ru: ${current:-off} → $value"
+  recreate_apps app-prod
+  if [ "$value" = on ]; then
+    echo "✅ Сайт включён на https://joy-rest.ru, заявки принимаются."
+    grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null \
+      || echo "⚠️  Бот заявок не настроен — формы отвечают «временно не работает»: sudo joyrest lead-bot"
+    echo "Поисковикам сайт закрыт; открыть — sudo joyrest site-indexing on"
+  else
+    echo "✅ Сайт выключен: на https://joy-rest.ru заглушка «скоро», заявки не принимаются."
+  fi
+}
+
+# Логин и пароль для test.joy-rest.ru. Пароль вводится скрыто, хэшируется в контейнере caddy
+# (через stdin, не аргументом), на сервере остаётся только bcrypt-хэш.
+cmd_site_password() {
+  need_root site-password
+  local user password again hash file tmp
+  [ -t 0 ] || die "Команда спрашивает пароль: запустите её в Termius — sudo joyrest site-password"
+  read -rp "Логин (латиница, цифры, точка, дефис; Enter — joyrest): " user
+  user=$(clean_value "$user")
+  user=${user:-joyrest}
+  [[ "$user" =~ ^[A-Za-z0-9._-]{3,32}$ ]] || die "Логин: 3–32 символа, латиница, цифры, точка, дефис, подчёркивание."
+  [ "$user" != joyrest-locked ] || die "Этот логин занят служебной записью — выберите другой."
+  echo "Пароль не короче 12 символов. При вводе символы не видны — это нормально."
+  IFS= read -rsp "Пароль: " password
+  echo
+  IFS= read -rsp "Пароль ещё раз: " again
+  echo
+  [ "$password" = "$again" ] || die "Пароли не совпали. Ничего не изменено."
+  # Длина в символах, а не в байтах (под sudo локаль бывает C, а кириллица — 2 байта).
+  [ "$(printf '%s' "$password" | LC_ALL=C.UTF-8 wc -m)" -ge 12 ] || die "Пароль короче 12 символов. Ничего не изменено."
+  hash=$(printf '%s\n' "$password" | dc exec -T caddy caddy hash-password --bcrypt-cost 10 2>/dev/null) || hash=""
+  password=""
+  again=""
+  [[ "$hash" =~ ^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$ ]] || die "Caddy не посчитал хэш (контейнер caddy запущен? joyrest status). Ничего не изменено."
+
+  ensure_dirs
+  file="$SITE_AUTH_DIR/test-site-owner.caddy"
+  tmp=$(umask 077 && mktemp "$file.XXXXXX") || die "Не удалось записать $file."
+  if ! { printf '%s %s\n' "$user" "$hash" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$file"; }; then
+    rm -f "$tmp"
+    die "Не удалось записать $file."
+  fi
+  log "Пароль test.joy-rest.ru обновлён (логин $user)"
+  reload_caddy
+  echo "✅ Готово: https://test.joy-rest.ru — логин $user и ваш пароль."
+}
+
 # Индексация сайта поисковиками: off (по умолчанию) — robots.txt Disallow и X-Robots-Tag noindex.
 cmd_site_indexing() {
   local value=${1:-} force=${2:-} current
   current=$(env_value "$SETTINGS_FILE" SITE_INDEXING)
   if [ -z "$value" ]; then
     echo "Индексация joy-rest.ru: ${current:-off} (on — открыт поисковикам, off — закрыт)"
+    site_enabled || echo "Сайт выключен (sudo joyrest site) — поисковикам закрыт в любом случае."
     return 0
   fi
   need_root site-indexing
   case "$value" in on|off) ;; *) die "Значение — on или off: sudo joyrest site-indexing on" ;; esac
   [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
+  if [ "$value" = on ] && ! site_enabled; then
+    die "Сайт выключен — открыть поисковикам можно только включённый сайт: сначала sudo joyrest site on"
+  fi
   ensure_no_game "$force" "site-indexing $value"
   set_env_value "$SETTINGS_FILE" SITE_INDEXING "$value" || die "Не удалось записать $SETTINGS_FILE."
   log "Индексация сайта: ${current:-off} → $value"
@@ -730,6 +816,8 @@ case "${1:-}" in
   process-queue) cmd_process_queue ;;
   auto-update)   cmd_auto_update ;;
   version)       cmd_version ;;
+  site)          shift; cmd_site "$@" ;;
+  site-password) cmd_site_password ;;
   lead-bot)      shift; cmd_lead_bot "$@" ;;
   site-indexing) shift; cmd_site_indexing "$@" ;;
   *)             usage ;;

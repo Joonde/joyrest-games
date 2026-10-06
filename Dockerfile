@@ -16,6 +16,7 @@ ENV NODE_ENV=production \
     PORT=8080 \
     PUBLIC_DIR=/app/public \
     SITE_DIR=/app/site \
+    SITE_STUB_DIR=/app/deploy/caddy/soon \
     APP_VERSION=${APP_VERSION}
 WORKDIR /app
 COPY --from=build /src/dist ./public

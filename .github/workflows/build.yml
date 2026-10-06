@@ -146,11 +146,18 @@ jobs:
             echo "Найден СЕКРЕТ DEPLOY_ENABLED: для выкладки нужна переменная (вкладка Variables), а не секрет."
           fi
           echo "::notice::Выкладка выключена: нужна переменная репозитория DEPLOY_ENABLED = true"
+      - name: Пометка [no-test]
+        if: github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[no-test]')
+        run: echo "::notice::В сообщении коммита [no-test] — выкладка на test.games.joy-rest.ru пропущена."
 
+  # [no-test] в сообщении коммита ветки claude/* — на test не выкладываем (тестовое окружение
+  # общее: сайт и платформа). Сборка, тесты и образ идут как обычно. main выкладывается всегда.
   deploy:
     name: Выкладка
     needs: [image, switch]
-    if: needs.switch.outputs.enabled == 'true'
+    if: >-
+      needs.switch.outputs.enabled == 'true' &&
+      (github.ref == 'refs/heads/main' || !contains(github.event.head_commit.message, '[no-test]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

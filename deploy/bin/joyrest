@@ -38,6 +38,20 @@ HEALTH_TIMEOUT="${JOYREST_HEALTH_TIMEOUT:-120}"
 SETTINGS_FILE="$ROOT_DIR/settings.env"
 # Вход на test.joy-rest.ru: «логин bcrypt-хэш», Caddy подключает файл (Caddyfile, basic_auth).
 SITE_AUTH_DIR="$ROOT_DIR/caddy/etc/auth"
+# Резервные копии: доступы restic и S3 — только backup.env (пишет `joyrest backup-setup`).
+# Сроки хранения копий в S3 указываются в политике персональных данных (CLAUDE.md).
+BACKUP_DIR="$ROOT_DIR/backups"
+BACKUP_ENV="$ROOT_DIR/backup.env"
+BACKUP_STATE="$BACKUP_DIR/state"
+KEEP_DAILY=7
+KEEP_WEEKLY=4
+KEEP_MONTHLY=3
+KEEP_LOCAL=3
+# Имя хоста в копиях постоянное: после переустановки сервера сроки хранения продолжаются.
+BACKUP_HOST=joyrest
+# «Раз в неделю» и «раз в месяц» с запасом: таймер запускается со случайным сдвигом.
+WEEK_SECONDS=$((6 * 86400 + 43200))
+MONTH_SECONDS=$((27 * 86400 + 43200))
 
 usage() {
   cat <<'TEXT'
@@ -65,6 +79,18 @@ usage() {
                               открыть (on) или закрыть (off) сайт для поисковиков —
                               только при включённом сайте; без аргумента — текущее значение
   force — применить, даже если идёт игра (приложение перезапустится на несколько секунд)
+
+Резервные копии (каждую ночь в 04:40, restic → Beget S3):
+  joyrest backup-setup        подключить хранилище S3: ключи (скрыто), пароль копий, первая копия
+  joyrest backup              сделать копию сейчас
+  joyrest backups             список копий и итоги проверок
+  joyrest restore <копия|latest> test
+                              восстановить копию в тестовую базу (test.games.joy-rest.ru)
+  joyrest restore <копия|latest> prod [force]
+                              восстановить основную базу (спросит подтверждение; force — даже
+                              если идёт игра); прежняя база остаётся joyrest_prod_before_restore
+  joyrest restore-settings    settings.env и пароль test.joy-rest.ru из последней копии
+  joyrest notify-bot          служебный бот: сообщения о неудачных копиях и итог недели
 TEXT
 }
 
@@ -163,6 +189,11 @@ psql_prod() {
   dc exec -T postgres psql -v ON_ERROR_STOP=1 -U joyrest -d joyrest_prod -tAc "$1"
 }
 
+# psql_in <база> <запрос>; служебная база postgres — для создания, удаления и переименования баз.
+psql_in() {
+  dc exec -T postgres psql -v ON_ERROR_STOP=1 -U joyrest -d "$1" -tAc "$2"
+}
+
 # Число сессий с активностью за последние ACTIVE_MINUTES минут (таблица sessions с полями
 # phase и updated_at появится в PR 3; пока её нет — 0). Если проверить не удалось — код 1:
 # выкладка без force тогда считает, что игра идёт.
@@ -210,7 +241,7 @@ ensure_dirs() {
     install -d -m 750 "$DEPLOY_DIR"
     install -d -m 770 "$QUEUE_DIR"
   fi
-  install -d -m 700 "$ROOT_DIR/backups" "$ROOT_DIR/backups/predeploy"
+  install -d -m 700 "$BACKUP_DIR" "$BACKUP_DIR/predeploy" "$BACKUP_DIR/daily" "$BACKUP_STATE" "$BACKUP_DIR/cache"
   install -d -m 700 "$SITE_AUTH_DIR"
 }
 
@@ -234,7 +265,7 @@ install_system() {
     done
     if [ "$reload" = 1 ]; then
       systemctl daemon-reload
-      systemctl enable --now joyrest-deploy.path joyrest-update.timer >/dev/null 2>&1
+      systemctl enable --now joyrest-deploy.path joyrest-update.timer joyrest-backup.timer >/dev/null 2>&1
     fi
   fi
 
@@ -297,15 +328,24 @@ run_migrations() {
   return "$code"
 }
 
-predeploy_dump() {
-  local file
-  file="$ROOT_DIR/backups/predeploy/$(date '+%Y%m%d-%H%M%S')-$(release_value prod APP_VERSION | cut -c1-12).dump"
-  if ! dc exec -T postgres pg_dump -U joyrest -Fc joyrest_prod > "$file" || [ ! -s "$file" ]; then
+# Дамп основной базы в файл. Файл проверяется: не пустой и читается pg_restore.
+dump_prod() {
+  local file=$1
+  if ! dc exec -T postgres pg_dump -U joyrest -Fc joyrest_prod > "$file" || [ ! -s "$file" ] \
+    || ! dc exec -T postgres pg_restore --list < "$file" > /dev/null; then
     rm -f "$file"
-    log "Дамп базы не получился"
     return 1
   fi
   chmod 600 "$file"
+}
+
+predeploy_dump() {
+  local file
+  file="$ROOT_DIR/backups/predeploy/$(date '+%Y%m%d-%H%M%S')-$(release_value prod APP_VERSION | cut -c1-12).dump"
+  if ! dump_prod "$file"; then
+    log "Дамп базы не получился"
+    return 1
+  fi
   log "Дамп базы перед выкладкой: $file ($(du -h "$file" | cut -f1))"
   find "$ROOT_DIR/backups/predeploy" -name '*.dump' -printf '%T@ %p\n' | sort -rn \
     | tail -n +$((KEEP_DUMPS + 1)) | cut -d' ' -f2- | xargs -r rm -f
@@ -495,6 +535,246 @@ telegram_call() {
   return 1
 }
 
+# ------------------------------------------------------------------ резервные копии
+# Каждую ночь (joyrest-backup.timer → backup-nightly): дамп joyrest_prod на диск
+# (backups/daily, KEEP_LOCAL последних) → restic в Beget S3 (зашифровано паролем restic,
+# пароль владелец хранит у себя) → forget по срокам хранения. Раз в неделю prune, выборочная
+# проверка целостности и итог в Telegram, раз в месяц — проверка восстановления во временную
+# базу. prune и проверки во время игры откладываются на следующую ночь (то же правило 30 минут).
+
+# Уведомление через служебного бота (sudo joyrest notify-bot). Нет бота — только журнал.
+notify() {
+  local token chat body reason
+  token=$(env_value "$ROOT_DIR/secrets.env" NOTIFY_TELEGRAM_TOKEN)
+  chat=$(env_value "$ROOT_DIR/secrets.env" NOTIFY_TELEGRAM_CHAT_ID)
+  if [ -z "$token" ] || [ -z "$chat" ]; then
+    log "Уведомление не отправлено (нет бота: sudo joyrest notify-bot): $1"
+    return 0
+  fi
+  body=$(jq -nc --arg chat "$chat" --arg text "$1" '{chat_id: $chat, text: $text}') || return 0
+  reason=$(telegram_call "$token" sendMessage "$body") || log "Уведомление не отправлено: $reason"
+  return 0
+}
+
+backup_configured() {
+  [ -n "$(env_value "$BACKUP_ENV" RESTIC_REPOSITORY)" ] && [ -n "$(env_value "$BACKUP_ENV" RESTIC_PASSWORD)" ]
+}
+
+# restic с доступами из backup.env (файл читается построчно, не исполняется). Пароль и ключи —
+# в окружении процесса (видно только root), не в аргументах.
+restic_run() {
+  command -v restic >/dev/null 2>&1 || { echo "restic не установлен (sudo joyrest backup-setup)"; return 1; }
+  (
+    RESTIC_REPOSITORY=$(env_value "$BACKUP_ENV" RESTIC_REPOSITORY)
+    RESTIC_PASSWORD=$(env_value "$BACKUP_ENV" RESTIC_PASSWORD)
+    AWS_ACCESS_KEY_ID=$(env_value "$BACKUP_ENV" AWS_ACCESS_KEY_ID)
+    AWS_SECRET_ACCESS_KEY=$(env_value "$BACKUP_ENV" AWS_SECRET_ACCESS_KEY)
+    RESTIC_CACHE_DIR="$BACKUP_DIR/cache"
+    export RESTIC_REPOSITORY RESTIC_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY RESTIC_CACHE_DIR
+    exec nice -n 10 restic --quiet "$@"
+  )
+}
+
+# Причина ошибки коротко: строка «Fatal: …» restic, иначе последняя непустая строка.
+short_reason() {
+  local line
+  line=$(printf '%s\n' "$1" | grep -m1 -E '^(Fatal|error|ERROR|pg_restore: error)' || true)
+  [ -n "$line" ] || line=$(printf '%s\n' "$1" | sed '/^[[:space:]]*$/d' | tail -n 1)
+  printf '%s' "${line#Fatal: }" | tr -d '\000-\037' | cut -c1-300
+}
+
+state_get() { cat "$BACKUP_STATE/$1" 2>/dev/null || true; }
+state_set() {
+  printf '%s\n' "$2" > "$BACKUP_STATE/$1.tmp" && mv -f "$BACKUP_STATE/$1.tmp" "$BACKUP_STATE/$1"
+}
+# due <имя> <секунд> — 0, если шаг ни разу не делали или делали давно.
+due() {
+  local last
+  last=$(state_get "$1")
+  [[ "$last" =~ ^[0-9]+$ ]] || return 0
+  [ $(($(date +%s) - last)) -ge "$2" ]
+}
+day_time() { date -d "@$1" '+%d.%m %H:%M'; }
+
+# Одна копия: дамп на диск → S3 (база и настройки) → forget по срокам.
+# 0 — готово, 1 — ошибка (причина в BACKUP_REASON), 2 — только на диске (S3 не настроен).
+BACKUP_REASON=""
+backup_once() {
+  local file out size paths=() path
+  ensure_dirs
+  if ! wait_postgres; then BACKUP_REASON="база не отвечает"; return 1; fi
+  file="$BACKUP_DIR/daily/$(date '+%Y%m%d-%H%M%S').dump"
+  if ! dump_prod "$file"; then BACKUP_REASON="не получился дамп базы (pg_dump)"; return 1; fi
+  size=$(du -h "$file" | cut -f1)
+  find "$BACKUP_DIR/daily" -name '*.dump' -printf '%T@ %p\n' | sort -rn \
+    | tail -n +$((KEEP_LOCAL + 1)) | cut -d' ' -f2- | xargs -r rm -f
+  log "[backup] дамп базы: $file ($size)"
+  if ! backup_configured; then
+    BACKUP_REASON="копия только на диске сервера: хранилище S3 не настроено (sudo joyrest backup-setup)"
+    return 2
+  fi
+
+  # restic читает уже проверенный файл: оборванный pg_dump не станет «копией».
+  if ! out=$(restic_run backup --host "$BACKUP_HOST" --tag db --stdin --stdin-filename joyrest_prod.dump < "$file" 2>&1); then
+    BACKUP_REASON="хранилище S3 не приняло копию: $(short_reason "$out")"
+    return 1
+  fi
+  for path in "$SETTINGS_FILE" "$SITE_AUTH_DIR"; do
+    if [ -e "$path" ]; then paths+=("$path"); fi
+  done
+  if [ ${#paths[@]} -gt 0 ] && ! out=$(restic_run backup --host "$BACKUP_HOST" --tag config "${paths[@]}" 2>&1); then
+    BACKUP_REASON="база сохранена, настройки — нет: $(short_reason "$out")"
+    return 1
+  fi
+  state_set last-ok "$(date +%s) $size"
+  log "[backup] копия в S3 сделана ($size)"
+  # Сроки хранения. Место освобождает prune (раз в неделю).
+  if ! out=$(restic_run forget --host "$BACKUP_HOST" --group-by host,tags \
+      --keep-daily "$KEEP_DAILY" --keep-weekly "$KEEP_WEEKLY" --keep-monthly "$KEEP_MONTHLY" 2>&1); then
+    log "[backup] forget не удался: $(short_reason "$out")"
+    notify "⚠️ Резервная копия сделана, но старые копии не отмечены к удалению: $(short_reason "$out")"
+  fi
+  return 0
+}
+
+# restore_into <база> <файл дампа>: база создаётся заново и заполняется из дампа.
+restore_into() {
+  local db=$1 file=$2
+  psql_in postgres "drop database if exists $db with (force)" >/dev/null 2>&1 || return 1
+  psql_in postgres "create database $db owner joyrest" >/dev/null || return 1
+  dc exec -T postgres pg_restore -U joyrest --no-owner --exit-on-error -d "$db" < "$file"
+}
+
+# Проверка восстановления: последняя копия из S3 → временная база → таблицы на месте → удалить.
+RESTORE_CHECK=""
+restore_check() {
+  local file out expected tables rows code=0
+  file=$(umask 077 && mktemp "$BACKUP_DIR/restorecheck.XXXXXX") || { RESTORE_CHECK="нет места для файла"; return 1; }
+  if ! out=$(restic_run dump --host "$BACKUP_HOST" --tag db latest /joyrest_prod.dump 2>&1 > "$file"); then
+    RESTORE_CHECK="копия не скачалась: $(short_reason "$out")"
+    code=1
+  elif ! out=$(restore_into joyrest_restorecheck "$file" 2>&1); then
+    RESTORE_CHECK="копия не восстановилась: $(short_reason "$out")"
+    code=1
+  else
+    expected=$(dc exec -T postgres pg_restore --list < "$file" | grep -c ' TABLE public ' || true)
+    tables=$(psql_in joyrest_restorecheck "select count(*) from pg_tables where schemaname = 'public'" || echo "?")
+    rows=$(psql_in joyrest_restorecheck "analyze; select coalesce(sum(n_live_tup), 0) from pg_stat_user_tables" | tail -n 1 || echo "?")
+    if [ "$tables" = "$expected" ]; then
+      RESTORE_CHECK="таблиц $tables, строк $rows"
+    else
+      RESTORE_CHECK="в копии таблиц $expected, восстановилось $tables"
+      code=1
+    fi
+  fi
+  psql_in postgres "drop database if exists joyrest_restorecheck with (force)" >/dev/null 2>&1 || true
+  rm -f "$file"
+  return "$code"
+}
+
+backup_count() {
+  restic_run snapshots --host "$BACKUP_HOST" --tag db --json 2>/dev/null | jq 'length' 2>/dev/null || echo "?"
+}
+
+# Строка для joyrest status и итогов недели.
+backup_summary() {
+  local last ok_time size age
+  last=$(state_get last-ok)
+  if ! backup_configured; then
+    echo "⚠️ хранилище S3 не настроено (sudo joyrest backup-setup), есть только копии на диске"
+    return 0
+  fi
+  if [ -z "$last" ]; then
+    echo "⚠️ в S3 ещё ни одной копии ($(state_get status))"
+    return 0
+  fi
+  ok_time=${last%% *}
+  size=${last#* }
+  age=$(($(date +%s) - ok_time))
+  if [ "$age" -gt $((36 * 3600)) ]; then
+    echo "⚠️ последняя копия $(day_time "$ok_time") ($size) — больше 36 часов назад; $(state_get status)"
+  else
+    echo "последняя $(day_time "$ok_time") ($size) ✅"
+  fi
+}
+
+# Ночной запуск (joyrest-backup.timer).
+cmd_backup_nightly() {
+  need_root backup-nightly
+  local code=0 active out game=0 check summary
+  ensure_dirs
+  exec 8>"$BACKUP_DIR/lock"
+  flock -n 8 || { log "[backup] другая копия ещё идёт — пропускаю"; return 0; }
+
+  backup_once || code=$?
+  case "$code" in
+    0) state_set status "ok $(date '+%F %T')" ;;
+    2) state_set status "local $(date '+%F %T')" ;;
+    *)
+      state_set status "failed $(date '+%F %T'): $BACKUP_REASON"
+      log "[backup] копия не сделана: $BACKUP_REASON"
+      notify "⚠️ Резервная копия не сделана: $BACKUP_REASON"
+      ;;
+  esac
+
+  if [ "$code" = 0 ]; then
+    if due last-prune "$WEEK_SECONDS" || due last-check "$WEEK_SECONDS" || due last-restore-check "$MONTH_SECONDS"; then
+      if ! active=$(active_games); then
+        game=1
+        log "[backup] не удалось проверить, идёт ли игра — prune и проверки на следующую ночь"
+      elif [ "$active" -gt 0 ]; then
+        game=1
+        log "[backup] идёт игра ($active) — prune и проверки на следующую ночь"
+      fi
+    fi
+    if [ "$game" = 0 ] && due last-prune "$WEEK_SECONDS"; then
+      if out=$(restic_run prune 2>&1); then
+        state_set last-prune "$(date +%s)"
+        log "[backup] prune: старые копии удалены"
+      else
+        log "[backup] prune не удался: $(short_reason "$out")"
+        notify "⚠️ Не удалось удалить старые резервные копии: $(short_reason "$out")"
+      fi
+    fi
+    if [ "$game" = 0 ] && due last-check "$WEEK_SECONDS"; then
+      state_set last-check "$(date +%s)"
+      if out=$(restic_run check --read-data-subset=10% 2>&1); then
+        state_set check-result "✅ $(date '+%d.%m')"
+        log "[backup] проверка целостности: ✅"
+      else
+        state_set check-result "❌ $(date '+%d.%m'): $(short_reason "$out")"
+        log "[backup] проверка целостности не прошла: $(short_reason "$out")"
+        notify "⚠️ Проверка целостности резервных копий не прошла: $(short_reason "$out")"
+      fi
+    fi
+    if [ "$game" = 0 ] && due last-restore-check "$MONTH_SECONDS"; then
+      state_set last-restore-check "$(date +%s)"
+      if restore_check; then
+        state_set restore-result "✅ $(date '+%d.%m'), $RESTORE_CHECK"
+        log "[backup] проверка восстановления: ✅ $RESTORE_CHECK"
+      else
+        state_set restore-result "❌ $(date '+%d.%m'): $RESTORE_CHECK"
+        log "[backup] проверка восстановления не прошла: $RESTORE_CHECK"
+        notify "⚠️ Проверка восстановления резервной копии не прошла: $RESTORE_CHECK"
+      fi
+    fi
+  fi
+
+  # Итог раз в неделю, после проверки целостности: если её отложили из-за игры — итог тоже.
+  # При ошибке копии сообщение уже ушло выше.
+  if due last-summary "$WEEK_SECONDS" && ! { [ "$game" = 1 ] && due last-check "$WEEK_SECONDS"; }; then
+    state_set last-summary "$(date +%s)"
+    if [ "$code" = 0 ]; then
+      check=$(state_get check-result)
+      summary="🗄 Резервные копии JoyRest: копий $(backup_count), $(backup_summary | sed 's/ ✅$//'), проверка целостности ${check:-ещё не проводилась}"
+      if [ -n "$(state_get restore-result)" ]; then summary+=", проверка восстановления $(state_get restore-result)"; fi
+      notify "$summary"
+    elif [ "$code" = 2 ]; then
+      notify "⚠️ Резервные копии: $BACKUP_REASON"
+    fi
+  fi
+}
+
 # ------------------------------------------------------------------ команды
 
 cmd_status() {
@@ -512,6 +792,8 @@ cmd_status() {
     "индексация $(env_value "$SETTINGS_FILE" SITE_INDEXING | grep . || echo off)," \
     "бот заявок $(grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest lead-bot)')," \
     "пароль test.joy-rest.ru $([ -s "$SITE_AUTH_DIR/test-site-owner.caddy" ] && echo задан || echo 'НЕ задан (sudo joyrest site-password)')"
+  echo "Резервная копия: $(backup_summary)," \
+    "служебный бот $(grep -q '^NOTIFY_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest notify-bot)')"
   echo
   df -h / | awk 'NR==2{print "Диск: занято " $5 " (" $3 " из " $2 ")"}'
   free -m | awk '/^Mem:/{print "Память: занято " $3 " МБ из " $2 " МБ"} /^Swap:/{print "Подкачка: " $3 " МБ из " $2 " МБ"}'
@@ -799,6 +1081,263 @@ cmd_site_indexing() {
   fi
 }
 
+# Служебный бот сервера (тот же, что пишет «✅ Выложено» из GitHub Actions): токен вводится
+# скрыто и хранится только в secrets.env. Приложения его не используют — перезапуск не нужен.
+cmd_notify_bot() {
+  need_root notify-bot
+  local token chat answer
+  [ -t 0 ] || die "Команда спрашивает токен: запустите её в Termius — sudo joyrest notify-bot"
+
+  echo "Токен служебного бота (JoyRest_Сервер): @BotFather → /mybots → бот → API Token."
+  echo "При вводе символы не видны — это нормально."
+  read -rsp "Токен бота: " token
+  echo
+  token=$(clean_value "$token")
+  [[ "$token" =~ ^[0-9]{6,12}:[A-Za-z0-9_-]{30,}$ ]] || die "Не похоже на токен (нужен вид 123456789:AA…). Ничего не изменено."
+
+  echo
+  echo "Чат для сообщений сервера — тот же, куда приходит «✅ Выложено» (TELEGRAM_CHAT_ID в GitHub):"
+  echo "id группы (например -1001234567890) или ваш личный id."
+  read -rp "Chat id: " chat
+  chat=$(clean_value "$chat")
+  [[ "$chat" =~ ^-?[0-9]{5,20}$ ]] || die "Chat id — число (у групп начинается с минуса). Ничего не изменено."
+
+  echo "Проверяю бота и отправляю пробное сообщение…"
+  if telegram_call "$token" getMe '{}' \
+    && telegram_call "$token" sendMessage "{\"chat_id\":\"$chat\",\"text\":\"✅ JoyRest: сообщения сервера (резервные копии) будут приходить сюда.\"}"; then
+    echo "✅ Пробное сообщение отправлено — проверьте чат."
+  else
+    echo "⚠️  Проверка не прошла (причина выше)."
+    read -rp "Сохранить всё равно? Напишите да или нет: " answer
+    [ "$(clean_value "$answer")" = да ] || die "Ничего не изменено."
+  fi
+
+  set_env_value "$ROOT_DIR/secrets.env" NOTIFY_TELEGRAM_TOKEN "$token" || die "Не удалось записать secrets.env."
+  set_env_value "$ROOT_DIR/secrets.env" NOTIFY_TELEGRAM_CHAT_ID "$chat" || die "Не удалось записать secrets.env."
+  token=""
+  log "Служебный бот: токен и чат обновлены (secrets.env)"
+  echo "✅ Готово. Сюда придёт сообщение, если резервная копия не получится, и итог раз в неделю."
+}
+
+# Пароль restic: 32 символа без похожих (0/O, 1/l/I) — удобно копировать и, если что, ввести руками.
+new_backup_password() {
+  local raw
+  raw=$(head -c 1024 /dev/urandom | LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789')
+  [ "${#raw}" -ge 32 ] || return 1
+  printf '%s' "${raw:0:32}"
+}
+
+# Хранилище restic: подключение к Beget S3, пароль копий, первая копия.
+cmd_backup_setup() {
+  need_root backup-setup
+  local endpoint bucket key secret password tmp out answer tries=0
+  [ -t 0 ] || die "Команда спрашивает ключи: запустите её в Termius — sudo joyrest backup-setup"
+  if ! command -v restic >/dev/null 2>&1; then
+    echo "Устанавливаю restic…"
+    apt-get -y -q install restic >/dev/null || die "Не удалось установить restic (apt-get install restic)."
+  fi
+  ensure_dirs
+  if backup_configured; then
+    read -rp "Резервные копии уже настроены. Настроить заново? Напишите да или нет: " answer
+    [ "$(clean_value "$answer")" = да ] || die "Ничего не изменено."
+  fi
+
+  echo "Данные бакета — в панели Beget: Облако → S3-хранилище → ваш бакет (RUNBOOK, «Резервные копии»)."
+  read -rp "Адрес хранилища (Enter — https://s3.ru1.storage.beget.cloud): " endpoint
+  endpoint=$(clean_value "$endpoint")
+  endpoint=${endpoint:-https://s3.ru1.storage.beget.cloud}
+  endpoint=${endpoint%/}
+  [[ "$endpoint" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]] || die "Адрес — вида https://s3.ru1.storage.beget.cloud. Ничего не изменено."
+  read -rp "Имя бакета: " bucket
+  bucket=$(clean_value "$bucket")
+  [[ "$bucket" =~ ^[a-z0-9][a-z0-9.-]{1,62}$ ]] || die "Имя бакета — строчные латинские буквы, цифры, точка, дефис. Ничего не изменено."
+  read -rp "Access key: " key
+  key=$(clean_value "$key")
+  [[ "$key" =~ ^[A-Za-z0-9]{8,128}$ ]] || die "Access key — латинские буквы и цифры. Ничего не изменено."
+  echo "Secret key (символы не видны — это нормально)."
+  read -rsp "Secret key: " secret
+  echo
+  secret=$(clean_value "$secret")
+  [[ "$secret" =~ ^[A-Za-z0-9/+=]{16,128}$ ]] || die "Не похоже на secret key. Ничего не изменено."
+
+  tmp=$(umask 077 && mktemp "$ROOT_DIR/.backup-env.XXXXXX") || die "Не удалось создать временный файл."
+  # shellcheck disable=SC2064
+  trap "rm -f '$tmp'" EXIT
+  printf 'RESTIC_REPOSITORY=s3:%s/%s/joyrest\nAWS_ACCESS_KEY_ID=%s\nAWS_SECRET_ACCESS_KEY=%s\nRESTIC_PASSWORD=probe\n' \
+    "$endpoint" "$bucket" "$key" "$secret" > "$tmp"
+
+  echo "Проверяю доступ к бакету…"
+  out=$(BACKUP_ENV=$tmp restic_run cat config 2>&1) || true
+  if [[ "$out" == *"wrong password"* ]]; then
+    # Копии уже есть (сервер переустановлен) — нужен сохранённый пароль.
+    echo "В бакете уже есть резервные копии JoyRest. Введите сохранённый пароль копий (символы не видны)."
+    read -rsp "Пароль копий: " password
+    echo
+    password=$(clean_value "$password")
+    set_env_value "$tmp" RESTIC_PASSWORD "$password" || die "Не удалось записать временный файл."
+    out=$(BACKUP_ENV=$tmp restic_run cat config 2>&1 >/dev/null) || die "Пароль не подошёл: $(short_reason "$out"). Ничего не изменено."
+    echo "✅ Пароль подошёл, копии доступны."
+  elif [[ "$out" == *"bucket does not exist"* ]]; then
+    die "Бакет $bucket не найден — проверьте имя в панели Beget. Ничего не изменено."
+  elif [[ "$out" == *"does not exist"* || "$out" == *"no such file or directory"* ]]; then
+    # Хранилища ещё нет (S3: «The specified key does not exist», локально — «no such file») —
+    # создаём с новым паролем.
+    password=$(new_backup_password) || die "Не удалось создать пароль."
+    echo
+    echo "Пароль резервных копий. Без него копии не расшифровать никому — ни вам, ни нам."
+    echo "Скопируйте строку ниже целиком (долгое нажатие → Copy) и сохраните в менеджер паролей"
+    echo "вместе с адресом хранилища, именем бакета и ключами S3."
+    echo
+    echo "$password"
+    echo
+    while :; do
+      read -rp "Сохранили? Введите последние 4 символа пароля: " answer
+      [ "$(clean_value "$answer")" = "${password: -4}" ] && break
+      tries=$((tries + 1))
+      [ "$tries" -lt 3 ] || die "Последние символы не совпали. Ничего не изменено — запустите команду заново, будет новый пароль."
+      echo "Не совпало. Проверьте, что пароль сохранён целиком, и попробуйте ещё раз."
+    done
+    set_env_value "$tmp" RESTIC_PASSWORD "$password" || die "Не удалось записать временный файл."
+    out=$(BACKUP_ENV=$tmp restic_run init 2>&1) || die "Хранилище не создалось: $(short_reason "$out"). Ничего не изменено."
+    # Убираем пароль с экрана и из прокрутки Termius.
+    printf '\033[3J\033[H\033[2J'
+    echo "✅ Хранилище создано, пароль убран с экрана."
+  else
+    die "Нет доступа к хранилищу: $(short_reason "$out"). Проверьте адрес и ключи. Ничего не изменено."
+  fi
+  password=""
+  secret=""
+
+  chmod 600 "$tmp" && mv -f "$tmp" "$BACKUP_ENV" || die "Не удалось записать $BACKUP_ENV."
+  trap - EXIT
+  log "[backup] хранилище restic настроено ($endpoint, бакет $bucket)"
+  echo "Делаю первую копию…"
+  cmd_backup
+  grep -q '^NOTIFY_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null \
+    || echo "Чтобы узнавать о неудачных копиях — служебный бот: sudo joyrest notify-bot"
+}
+
+# Копия сейчас (вручную).
+cmd_backup() {
+  need_root backup
+  local code=0
+  ensure_dirs
+  exec 8>"$BACKUP_DIR/lock"
+  flock -w 600 8 || die "Другая копия идёт дольше 10 минут."
+  backup_once || code=$?
+  case "$code" in
+    0) state_set status "ok $(date '+%F %T')"; echo "✅ Копия сделана ($(state_get last-ok | cut -d' ' -f2))." ;;
+    2) state_set status "local $(date '+%F %T')"; echo "⚠️  $BACKUP_REASON" ;;
+    *) state_set status "failed $(date '+%F %T'): $BACKUP_REASON"; die "Копия не сделана: $BACKUP_REASON" ;;
+  esac
+}
+
+cmd_backups() {
+  need_root backups
+  echo "Резервные копии базы в S3 (сроки: $KEEP_DAILY ежедневных, $KEEP_WEEKLY еженедельных, $KEEP_MONTHLY ежемесячных):"
+  if backup_configured; then
+    restic_run snapshots --host "$BACKUP_HOST" --tag db --compact || echo "⚠️  Нет доступа к хранилищу."
+    echo "Проверка целостности: $(state_get check-result | grep . || echo 'ещё не было')"
+    echo "Проверка восстановления: $(state_get restore-result | grep . || echo 'ещё не было')"
+  else
+    echo "  не настроено — sudo joyrest backup-setup"
+  fi
+  echo
+  echo "На диске сервера:"
+  find "$BACKUP_DIR/daily" "$BACKUP_DIR/predeploy" -name '*.dump' -printf '  %TF %TH:%TM  %s байт  %P (%h)\n' 2>/dev/null \
+    | sed "s|$BACKUP_DIR/||" | sort -r
+}
+
+# restore <копия|latest> test — в тестовую базу; restore <копия|latest> prod [force] — в основную.
+cmd_restore() {
+  need_root restore
+  local snap=${1:-} target=${2:-} force=${3:-} file out answer image version db
+  [[ "$snap" =~ ^(latest|[0-9a-f]{8,64})$ ]] \
+    || die "Укажите копию: sudo joyrest restore latest test (список копий — sudo joyrest backups)"
+  case "$target" in
+    test) [ -z "$force" ] || die "Тестовой базе force не нужен." ;;
+    prod) [ -z "$force" ] || [ "$force" = force ] || die "Третий аргумент — только force." ;;
+    *) die "Куда восстановить: test (тестовая база) или prod (основная)." ;;
+  esac
+  backup_configured || die "Хранилище не настроено: sudo joyrest backup-setup"
+  if [ "$target" = prod ]; then
+    [ -t 0 ] || die "Восстановление основной базы — только из Termius."
+    ensure_no_game "$force" "restore $snap prod"
+  fi
+
+  ensure_dirs
+  exec 8>"$BACKUP_DIR/lock"
+  flock -w 600 8 || die "Идёт резервная копия дольше 10 минут — повторите позже."
+  exec 9>"$DEPLOY_DIR/lock"
+  flock -w 900 9 || die "Идёт выкладка дольше 15 минут — повторите позже."
+
+  file=$(umask 077 && mktemp "$BACKUP_DIR/restore.XXXXXX") || die "Не удалось создать временный файл."
+  # shellcheck disable=SC2064
+  trap "rm -f '$file'" EXIT
+  echo "Скачиваю копию $snap…"
+  out=$(restic_run dump --host "$BACKUP_HOST" --tag db "$snap" /joyrest_prod.dump 2>&1 > "$file") \
+    || die "Копия не скачалась: $(short_reason "$out")"
+  dc exec -T postgres pg_restore --list < "$file" > /dev/null || die "Файл копии повреждён."
+
+  if [ "$target" = prod ]; then
+    restic_run snapshots --host "$BACKUP_HOST" --tag db --compact "$snap" 2>/dev/null | sed -n '3p' || true
+    echo "Основная база будет заменена копией $snap. Приложение остановится примерно на минуту."
+    echo "Текущая база сохранится как joyrest_prod_before_restore (до следующего восстановления)."
+    read -rp "Чтобы продолжить, напишите: восстановить " answer
+    [ "$(clean_value "$answer")" = восстановить ] || die "Ничего не изменено."
+    if dump_prod "$BACKUP_DIR/predeploy/$(date '+%Y%m%d-%H%M%S')-before-restore.dump"; then
+      log "[restore] дамп текущей базы сохранён в backups/predeploy"
+    else
+      echo "⚠️  Дамп текущей базы не получился — она всё равно сохранится как joyrest_prod_before_restore."
+    fi
+  fi
+
+  echo "Восстанавливаю во временную базу…"
+  out=$(restore_into joyrest_restore_tmp "$file" 2>&1) || die "Копия не восстановилась: $(short_reason "$out")"
+  db=$([ "$target" = prod ] && echo joyrest_prod || echo joyrest_test)
+  image=$(release_value "$target" APP_IMAGE)
+  version=$(release_value "$target" APP_VERSION)
+
+  dc stop "$(service_of "$target")" >/dev/null
+  if [ "$target" = prod ]; then
+    psql_in postgres "drop database if exists joyrest_prod_before_restore with (force)" >/dev/null 2>&1
+    psql_in postgres "alter database joyrest_prod rename to joyrest_prod_before_restore" >/dev/null \
+      || { dc up -d --no-deps app-prod; die "Не удалось отложить текущую базу. Ничего не изменено."; }
+  else
+    psql_in postgres "drop database if exists joyrest_test with (force)" >/dev/null 2>&1
+  fi
+  psql_in postgres "alter database joyrest_restore_tmp rename to $db" >/dev/null || die "Не удалось подставить базу."
+  log "[restore] $db восстановлена из копии $snap"
+
+  # Копия может быть старше схемы текущего кода: догоняем миграциями.
+  if ! run_migrations "$target" "$image"; then
+    if [ "$target" = prod ]; then
+      psql_in postgres "alter database joyrest_prod rename to joyrest_restore_failed" >/dev/null
+      psql_in postgres "alter database joyrest_prod_before_restore rename to joyrest_prod" >/dev/null
+      dc up -d --no-deps app-prod
+      die "Миграции на восстановленной базе не прошли — вернул прежнюю базу (копия — joyrest_restore_failed)."
+    fi
+    die "Миграции на восстановленной тестовой базе не прошли: joyrest logs app-test"
+  fi
+  dc up -d --no-deps "$(service_of "$target")" >/dev/null
+  wait_healthy "$target" "$version" || die "$(service_of "$target") не ответил после восстановления: joyrest logs $(service_of "$target") 100"
+  echo "✅ База $db восстановлена из копии $snap, приложение работает."
+}
+
+# Настройки (settings.env, пароль test.joy-rest.ru) из последней копии — после переустановки сервера.
+cmd_restore_settings() {
+  need_root restore-settings
+  local answer out
+  backup_configured || die "Хранилище не настроено: sudo joyrest backup-setup"
+  [ -t 0 ] || die "Запустите в Termius: sudo joyrest restore-settings"
+  read -rp "Заменить settings.env и пароль test.joy-rest.ru последней копией? Напишите да или нет: " answer
+  [ "$(clean_value "$answer")" = да ] || die "Ничего не изменено."
+  out=$(restic_run restore latest --host "$BACKUP_HOST" --tag config --target / 2>&1) \
+    || die "Не удалось восстановить: $(short_reason "$out")"
+  log "[restore] настройки восстановлены из копии"
+  echo "✅ Настройки восстановлены. Применить: sudo joyrest up"
+}
+
 cmd_version() {
   echo "основная: $(release_value prod APP_VERSION)"
   echo "тестовая: $(release_value test APP_VERSION)"
@@ -820,5 +1359,12 @@ case "${1:-}" in
   site-password) cmd_site_password ;;
   lead-bot)      shift; cmd_lead_bot "$@" ;;
   site-indexing) shift; cmd_site_indexing "$@" ;;
+  backup)        cmd_backup ;;
+  backup-setup)  cmd_backup_setup ;;
+  backup-nightly) cmd_backup_nightly ;;
+  backups)       cmd_backups ;;
+  restore)       shift; cmd_restore "$@" ;;
+  restore-settings) cmd_restore_settings ;;
+  notify-bot)    cmd_notify_bot ;;
   *)             usage ;;
 esac

@@ -4,10 +4,10 @@
  * (games.joy-rest.ru), сайт агентства и заявки (joy-rest.ru, по заголовку Host),
  * а на следующих этапах — /api и /ws платформы.
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import fastifyStatic from "@fastify/static";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { registerLead, type LeadOptions } from "./lead";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -27,8 +27,26 @@ export interface AppOptions {
   site?: SiteOptions | null;
   /** Заявки с сайта (POST /api/lead только с адресов сайта). */
   lead?: Omit<LeadOptions, "hosts"> | null;
+  /**
+   * Чья реализация слоя данных работает в браузере: свой сервер или Firebase (на время
+   * переезда). Сервер сообщает её меткой в index.html; по умолчанию — Firebase.
+   */
+  dataBackend?: DataBackend;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
+}
+
+export type DataBackend = "server" | "firebase";
+
+/** Свой сервер — только точное «server»; всё остальное (нет переменной, опечатка) — Firebase. */
+export function parseDataBackend(value: string | undefined): DataBackend {
+  return value?.trim().toLowerCase() === "server" ? "server" : "firebase";
+}
+
+/** index.html с меткой реализации слоя данных (src/data/index.ts читает её при запуске). */
+export function withDataBackend(html: string, backend: DataBackend): string {
+  const meta = `<meta name="joyrest-data" content="${backend}">`;
+  return html.includes("</head>") ? html.replace("</head>", `${meta}</head>`) : meta + html;
 }
 
 /** Частные сети: Docker раздаёт адреса контейнерам из них. Наружу у приложения портов нет. */
@@ -62,10 +80,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const publicDir = options.publicDir;
   if (publicDir && existsSync(join(publicDir, "index.html"))) {
+    // Страница приложения собирается один раз при запуске: файл в образе не меняется.
+    const indexHtml = withDataBackend(readFileSync(join(publicDir, "index.html"), "utf8"), options.dataBackend ?? "firebase");
+    const sendIndex = (reply: FastifyReply) => reply.header("Cache-Control", "no-cache").type("text/html; charset=utf-8").send(indexHtml);
+
     app.register(fastifyStatic, {
       root: publicDir,
       wildcard: false,
       index: false,
+      // index.html — только с меткой слоя данных (обработчик ниже), не файлом как есть.
+      allowedPath: (pathName) => pathName !== "/index.html",
       setHeaders(reply, path) {
         const url = "/" + path.slice(publicDir.length).replace(/\\/g, "/").replace(/^\/+/, "");
         reply.header("Cache-Control", IMMUTABLE.test(url) ? "public, max-age=31536000, immutable" : "no-cache");
@@ -78,12 +102,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       if (site?.isSite(request)) return site.notFound(request, reply);
       const path = request.url.split("?")[0];
       const isPage = request.method === "GET" || request.method === "HEAD";
+      if (isPage && path === "/index.html") return sendIndex(reply);
       if (!isPage || IMMUTABLE.test(path) || path.startsWith("/api/") || /\.[a-z0-9]+$/i.test(path)) {
         reply.code(404).send({ error: "not_found" });
         return;
       }
-      reply.header("Cache-Control", "no-cache");
-      reply.sendFile("index.html");
+      return sendIndex(reply);
     });
   } else if (site) {
     app.setNotFoundHandler((request, reply) => {

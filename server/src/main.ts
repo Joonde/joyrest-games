@@ -1,7 +1,7 @@
 /** Точка входа сервера в контейнере: настройки из переменных окружения. */
 import { resolve } from "node:path";
 import postgres from "postgres";
-import { buildApp } from "./app";
+import { buildApp, parseDataBackend } from "./app";
 import { isOn } from "./site";
 
 const port = Number(process.env.PORT ?? 8080);
@@ -40,6 +40,9 @@ const app = buildApp({
     telegram: leadToken && leadChat ? { token: leadToken, chatId: leadChat } : null,
     label: env("LEAD_LABEL") ?? undefined,
   },
+  // Слой данных в браузере: app-test — свой сервер, app-prod — Firebase до переключения
+  // (CLAUDE.md, «Платформа на своём сервере»).
+  dataBackend: parseDataBackend(process.env.DATA_BACKEND),
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

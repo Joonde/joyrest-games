@@ -159,6 +159,9 @@ describe("исходники сайта (site/)", () => {
     expect(html).toContain('<a class="hbtn hbtn--secondary" data-tg-chat href="" target="_blank" rel="noopener">Беседа</a>');
     expect(css).toContain('.tg-card a[data-tg-chat][href=""]{ display: none; }');
     expect(html).toContain('data-brand-qr="https://t.me/JoyRest"');
+    // Стили QR — только для внешнего SVG: вложенная монограмма держит свои размеры.
+    expect(css).toContain(".tg-card__qr > svg{");
+    expect(css).not.toMatch(/\.tg-card__qr svg\b/);
     // QR — только от 760px.
     expect(css).toMatch(/\.tg-card__qr\{ display: none; \}[\s\S]*@media \(min-width: 761px\)\{\s*\.tg-card__qr\{ display: block;/);
   });

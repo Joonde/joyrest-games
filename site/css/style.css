@@ -1029,7 +1029,8 @@
   /* «Беседа» появится, когда в href впишут ссылку. */
   .tg-card a[data-tg-chat][href=""]{ display: none; }
   .tg-card__qr{ display: none; }
-  .tg-card__qr svg{ display: block; width: 100%; height: auto; }
+  /* Только внешний SVG: вложенная монограмма держит свои размеры (как .qr > svg на платформе). */
+  .tg-card__qr > svg{ display: block; width: 100%; height: auto; }
   @media (min-width: 761px){
     .tg-card__qr{ display: block; width: 136px; flex: none; }
   }

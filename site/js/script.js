@@ -605,26 +605,3 @@
     if(ok) this.reset();
   });
 
-  // Пост Telegram: скрипт виджета грузим, только когда блок подходит к экрану.
-  const tgPost = document.getElementById('tgPost');
-  if(tgPost){
-    const loadWidget = () => {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = 'https://telegram.org/js/telegram-widget.js?22';
-      script.dataset.telegramPost = tgPost.dataset.telegramPost;
-      script.dataset.width = '100%';
-      tgPost.appendChild(script);
-    };
-    if('IntersectionObserver' in window){
-      const tgObserver = new IntersectionObserver((entries) => {
-        if(entries.some(entry => entry.isIntersecting)){
-          tgObserver.disconnect();
-          loadWidget();
-        }
-      }, { rootMargin: '400px 0px' });
-      tgObserver.observe(tgPost);
-    }else{
-      loadWidget();
-    }
-  }

@@ -15,6 +15,7 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, posix, relative, resolve } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
+import { qrSvg } from "../src/brand/qrSvg";
 import { hideFromScreenReaders, uniquifyIds } from "../src/brand/svgMarkup";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -70,7 +71,7 @@ writeFileSync(join(OUT, "img", "joyrest-emblem-mask.svg"), brandSvg("joyrest-emb
 {
   const indexFile = join(OUT, "index.html");
   let count = 0;
-  const html = readFileSync(indexFile, "utf8").replace(
+  let html = readFileSync(indexFile, "utf8").replace(
     /(<(\w+)\b[^>]*\bdata-brand-svg="([a-z-]+)"[^>]*>)(<\/\2>)/g,
     (_whole, open: string, _tag: string, name: string, close: string) => {
       if (!existsSync(join(BRAND, `${name}.svg`))) throw new Error(`Нет логотипа public/brand/${name}.svg`);
@@ -78,6 +79,15 @@ writeFileSync(join(OUT, "img", "joyrest-emblem-mask.svg"), brandSvg("joyrest-emb
       return open + hideFromScreenReaders(uniquifyIds(brandSvg(name), `s${count}`)) + close;
     },
   );
+  // QR-коды: элемент с data-brand-qr="<ссылка>" получает SVG от генератора платформы
+  // (src/brand/qrSvg.ts: кремовая плашка, тёмные модули, монограмма в центре).
+  let qrCount = 0;
+  html = html.replace(/(<(\w+)\b[^>]*\bdata-brand-qr="([^"]+)"[^>]*>)(<\/\2>)/g, (_whole, open: string, _tag: string, url: string, close: string) => {
+    qrCount += 1;
+    const monogram = uniquifyIds(brandSvg("joyrest-monogram"), `qr${qrCount}`);
+    // qrSvg уже скрывает SVG от экранного диктора; подпись — у обёртки (role="img", aria-label).
+    return open + qrSvg(url.replace(/&amp;/g, "&"), monogram).svg + close;
+  });
   if (html.includes("data-brand-svg") && count !== (html.match(/data-brand-svg=/g) ?? []).length) {
     throw new Error("Элемент data-brand-svg должен быть пустым: <span data-brand-svg=\"…\"></span>");
   }

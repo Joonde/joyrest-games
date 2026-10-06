@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { Resvg } from "@resvg/resvg-js";
+import jsQR from "jsqr";
 import { contrastRatio } from "../../src/themes/contrast";
 import { buildApp } from "./app";
 
@@ -145,10 +147,20 @@ describe("исходники сайта (site/)", () => {
     }
   });
 
-  it("виджет Telegram грузится лениво из скрипта, не из разметки", () => {
-    expect(html).not.toContain("telegram-widget.js");
-    expect(js).toContain("telegram-widget.js");
-    expect(js).toContain("IntersectionObserver");
+  it("Telegram: своя карточка канала без внешних скриптов, старого поста нет", () => {
+    for (const text of [html, css, js]) {
+      expect(text).not.toMatch(/telegram-widget|telegram\.org\/js|data-telegram-post|JoyRest\/3/);
+    }
+    expect(html).not.toMatch(/<script[^>]+src="https?:/);
+    expect(html).toContain("<h3>JoyRest в Telegram</h3>");
+    expect(html).toContain("Анонсы, идеи для праздников и закулисье наших мероприятий.");
+    expect(html).toContain('<a class="hbtn hbtn--primary" href="https://t.me/JoyRest" target="_blank" rel="noopener">Открыть канал</a>');
+    // «Беседа»: пустая ссылка — кнопки нет; добавить — вписать ссылку в href.
+    expect(html).toContain('<a class="hbtn hbtn--secondary" data-tg-chat href="" target="_blank" rel="noopener">Беседа</a>');
+    expect(css).toContain('.tg-card a[data-tg-chat][href=""]{ display: none; }');
+    expect(html).toContain('data-brand-qr="https://t.me/JoyRest"');
+    // QR — только от 760px.
+    expect(css).toMatch(/\.tg-card__qr\{ display: none; \}[\s\S]*@media \(min-width: 761px\)\{\s*\.tg-card__qr\{ display: block;/);
   });
 
   it("формы шлют на /api/lead, у каждой есть ловушка и место для ошибки", () => {
@@ -265,7 +277,7 @@ describe("тексты и устройство страницы", () => {
     expect(html).toContain("Мы только открываемся — здесь появятся фото и отзывы с наших первых мероприятий. А пока заглядывайте в наш Telegram-канал.");
     expect(html).toContain('<section id="reviews" data-review-form="off">');
     expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
-    expect(html).toContain('id="tgPost"');
+    expect(html).toContain('class="tg-card');
   });
 
   it("свадьбы — «скоро»: в форме заявки варианта нет, на первом экране приглушённо", () => {
@@ -458,7 +470,16 @@ describe("логотип сайта", () => {
     execFileSync(process.execPath, [join(root, "node_modules/tsx/dist/cli.mjs"), join(root, "scripts/build-site.ts")], { cwd: root });
     const out = join(root, "build/site");
     const built = readFileSync(join(out, "index.html"), "utf8");
-    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3); // логотип, монограмма, эмблема
+    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3); // логотип, монограмма, эмблема (у QR — свой атрибут)
+    expect(built).not.toMatch(/<svg[^>]*aria-hidden="true"[^>]*aria-hidden=/);
+    // QR канала распознаётся, как QR платформы (src/brand/qrSvg.test.ts): крупно и мелко.
+    const qr = /data-brand-qr="https:\/\/t\.me\/JoyRest">(<svg[\s\S]*?<\/svg>)<\/div>/.exec(built)?.[1] ?? "";
+    expect(qr).toContain("<svg");
+    for (const width of [600, 240]) {
+      const image = new Resvg(qr, { fitTo: { mode: "width", value: width } }).render();
+      const pixels = new Uint8ClampedArray(image.pixels.buffer, image.pixels.byteOffset, image.pixels.length);
+      expect(jsQR(pixels, image.width, image.height)?.data, `ширина ${width}`).toBe("https://t.me/JoyRest");
+    }
     expect(built).not.toContain("<metadata");
     expect(built).not.toContain("c2pa");
     const ids = [...built.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);

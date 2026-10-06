@@ -708,12 +708,22 @@
 
     <button type="button" class="write-review-btn reveal" id="openReviewForm">✍️ Написать отзыв</button>
 
-    <div class="telegram-embed reveal">
-      <h3 style="font-size:19px; font-weight:500; margin-bottom:14px;">Мы в Telegram</h3>
-      <!-- Виджет поста загружается, только когда блок подходит к экрану (js/script.js). -->
-      <div class="tg-post" id="tgPost" data-telegram-post="JoyRest/3">
-        <a href="https://t.me/JoyRest/3" target="_blank" rel="noopener" style="color:var(--accent-text); text-decoration:underline;">Открыть пост в Telegram</a>
+    <!-- Карточка канала вместо виджета поста Telegram (внешних скриптов нет).
+         «Беседа»: впишите ссылку в href у кнопки с data-tg-chat — пустая ссылка = кнопки нет.
+         QR-код (от 760px) встраивает сборка тем же генератором, что QrCode платформы. -->
+    <div class="tg-card reveal">
+      <div class="tg-card__body">
+        <div class="tg-card__head">
+          <svg class="tg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="12" fill="currentColor"/><path class="tg-icon__plane" d="M5.6 11.7l10.9-4.3c.6-.2 1 .1.9.8l-1.9 8.9c-.1.6-.6.8-1.1.5l-2.9-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3 5.5-5c.2-.2 0-.3-.3-.1l-6.8 4.3-2.9-.9c-.6-.2-.6-.6.1-.9z"/></svg>
+          <h3>JoyRest в Telegram</h3>
+        </div>
+        <p>Анонсы, идеи для праздников и закулисье наших мероприятий.</p>
+        <div class="tg-card__actions">
+          <a class="hbtn hbtn--primary" href="https://t.me/JoyRest" target="_blank" rel="noopener">Открыть канал</a>
+          <a class="hbtn hbtn--secondary" data-tg-chat href="" target="_blank" rel="noopener">Беседа</a>
+        </div>
       </div>
+      <div class="tg-card__qr" role="img" aria-label="QR-код канала t.me/JoyRest" data-brand-qr="https://t.me/JoyRest"></div>
     </div>
 
     <div class="review-form-wrap" id="reviewFormWrap">

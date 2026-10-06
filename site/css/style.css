@@ -1014,7 +1014,29 @@
     color: var(--ink-soft);
   }
 
-  .telegram-embed{ margin-top: 40px; max-width: 480px; }
+  /* Карточка канала Telegram: свой значок в цвет темы, кнопки, QR-код от 760px. */
+  .tg-card{
+    margin-top: 32px; display: flex; gap: 24px; align-items: center; max-width: 640px;
+    background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 24px;
+  }
+  .tg-card__body{ flex: 1; min-width: 0; }
+  .tg-card__head{ display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .tg-card__head h3{ font-size: 22px; margin: 0; }
+  .tg-icon{ width: 36px; height: 36px; flex: none; color: var(--accent-text); }
+  .tg-icon__plane{ fill: var(--bg); }
+  .tg-card p{ margin: 0 0 16px; color: var(--ink-soft); font-size: 15px; }
+  .tg-card__actions{ display: flex; flex-wrap: wrap; gap: 8px; }
+  /* «Беседа» появится, когда в href впишут ссылку. */
+  .tg-card a[data-tg-chat][href=""]{ display: none; }
+  .tg-card__qr{ display: none; }
+  .tg-card__qr svg{ display: block; width: 100%; height: auto; }
+  @media (min-width: 761px){
+    .tg-card__qr{ display: block; width: 136px; flex: none; }
+  }
+  @media (max-width: 760px){
+    .tg-card{ padding: 24px 20px; }
+    .tg-card__actions .hbtn{ flex: 1 1 100%; }
+  }
   .write-review-btn{
     background: var(--emerald);
     color: var(--on-accent);
@@ -1150,6 +1172,7 @@
     .picker-btn.active{ background: #33241F; }
     .age-pick{ background: #2A2621; }
     .gallery-tile{ background: #2A2621; }
+    .tg-card{ background: #2A2621; }
   }
 
   /* Формы: ошибка отправки и скрытое поле-ловушка для ботов (люди его не видят). */

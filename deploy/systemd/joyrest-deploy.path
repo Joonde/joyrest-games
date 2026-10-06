@@ -1,0 +1,10 @@
+# Очередь выкладки: привратник SSH кладёт файл queue/prod или queue/test — запускается выкладка.
+[Unit]
+Description=JoyRest: очередь выкладки
+
+[Path]
+PathExistsGlob=/srv/joyrest/deploy/queue/[a-z]*
+Unit=joyrest-deploy.service
+
+[Install]
+WantedBy=multi-user.target

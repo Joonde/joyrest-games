@@ -1,0 +1,9 @@
+[Unit]
+Description=JoyRest: выкладка из очереди
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/joyrest process-queue
+TimeoutStartSec=30min

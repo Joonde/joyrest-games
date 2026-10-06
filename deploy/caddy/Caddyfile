@@ -19,11 +19,19 @@ games.joy-rest.ru {
 	reverse_proxy app-prod:8080
 }
 
+# Тестовое окружение: проверки веток до выкладки на основной адрес. Поисковикам не показываем.
+test.games.joy-rest.ru {
+	import security
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+	reverse_proxy app-test:8080
+}
+
 # Основной сайт агентства — пока заглушка «скоро».
 joy-rest.ru {
 	import security
 	encode zstd gzip
-	root * /srv/soon
+	root * /etc/caddy/soon
 	file_server
 }
 

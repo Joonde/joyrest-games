@@ -1,16 +1,43 @@
 #!/usr/bin/env bash
 # Привратник SSH-ключа GitHub Actions (пользователь deploy, без sudo и без консоли).
-# Ключ в authorized_keys привязан к этой команде: что бы ни прислали, выполняется только
-# разобранная здесь команда. Сейчас — только проверка связи; выкладка появится в PR 2.
+# В authorized_keys ключ привязан к этой команде (restrict,command=…): что бы ни прислал
+# клиент, запускается этот файл, а присланная строка лежит в SSH_ORIGINAL_COMMAND.
+#
+# Строка целиком сверяется с белым списком ДО любого разбора; дальше — только встроенные
+# операции bash над уже проверенной строкой (без eval, read, разбиения на слова и шаблонов).
+# Выкладывает не привратник: он кладёт номер коммита в очередь, её забирает служба root
+# (joyrest-deploy.path → joyrest process-queue), которая проверяет формат ещё раз.
 set -euo pipefail
+export LC_ALL=C
 
-command="${SSH_ORIGINAL_COMMAND:-}"
-case "$command" in
+DEPLOY_DIR=/srv/joyrest/deploy
+QUEUE_DIR=$DEPLOY_DIR/queue
+RELEASE=/srv/joyrest/current/release.env
+
+deny() { echo "Команда не разрешена" >&2; exit 1; }   # присланную строку не повторяем
+
+command="${SSH_ORIGINAL_COMMAND-}"
+[[ ${#command} -le 60 && $command =~ ^(ping|status|deploy\ [0-9a-f]{40}(\ force)?|deploy-test\ [0-9a-f]{40})$ ]] || deny
+
+case "${command%% *}" in
   ping)
-    echo "pong $(sed -n 's/^APP_VERSION=//p' /srv/joyrest/current/release.env 2>/dev/null)"
+    echo "pong $(sed -n 's/^APP_VERSION=//p' "$RELEASE")"
+    ;;
+  status)
+    for env in prod test; do
+      echo "$env: $(cat "$DEPLOY_DIR/status-$env" 2>/dev/null || echo "нет данных")"
+    done
+    ;;
+  deploy | deploy-test)
+    if [ "${command%% *}" = deploy ]; then env="prod"; else env="test"; fi
+    request=${command#* }                       # «<коммит>» или «<коммит> force»
+    tmp=$(mktemp "$QUEUE_DIR/.request.XXXXXX")
+    printf '%s\n' "$request" > "$tmp"
+    chmod 660 "$tmp"
+    mv -f "$tmp" "$QUEUE_DIR/$env"              # атомарно; служба root заберёт
+    echo "queued $env ${request%% *}"
     ;;
   *)
-    echo "Команда не разрешена: ${command:0:60}" >&2
-    exit 1
+    deny
     ;;
 esac

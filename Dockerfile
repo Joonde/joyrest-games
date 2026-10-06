@@ -19,6 +19,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /src/dist ./public
 COPY --from=build /src/build/server ./server
+COPY server/migrations ./migrations
 COPY deploy ./deploy
 # Заглушка joy-rest.ru показывает логотип и иконку из фирменных файлов.
 COPY public/brand/joyrest-logo.svg public/brand/favicon.svg ./deploy/caddy/soon/

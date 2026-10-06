@@ -72,7 +72,22 @@ Firebase удаляются, Firebase-код удаляется отдельны
   (папка `deploy/` из образа), `current` → текущий релиз, `postgres/`, `caddy/`, `backups/`.
   Управление — команда `joyrest` (`deploy/bin/joyrest`), инструкции владельцу — `RUNBOOK.md`.
 - Пользователи сервера: владелец (sudo, вход по ключу из Termius), `deploy` — без sudo и
-  консоли, ключ GitHub Actions привязан к привратнику `deploy/bin/joyrest-gate`.
+  консоли, ключ GitHub Actions привязан к привратнику `deploy/bin/joyrest-gate`: он пропускает
+  только `ping`, `status`, `deploy <40 hex> [force]`, `deploy-test <40 hex>` и кладёт запрос
+  в очередь `/srv/joyrest/deploy/queue/`; выкладывает служба root (`deploy/systemd/`).
+- Выкладка (`joyrest deploy`, `.github/workflows/build.yml`, задача `deploy`): main →
+  games.joy-rest.ru, ветки `claude/*` → test.games.joy-rest.ru (`app-test`, база
+  `joyrest_test`, `mem_limit` 256m). Шаги: блокировка → проверка игры → образ по отпечатку →
+  дамп базы (`backups/predeploy`, 5 последних) → миграции (`server/migrations`, только
+  добавляющие) → переключение → `/health` с новой версией → иначе откат на прошлую.
+  Два пути: SSH из Actions и запасной — тег `release`/`test-release` в GHCR, который сервер
+  проверяет каждые 2 минуты (`joyrest-update.timer`, токен только `read:packages`). Итог
+  Actions проверяет по HTTPS `/health` и пишет в Telegram. Включается переменной
+  `DEPLOY_ENABLED=true`.
+- Блокировка выкладки во время игры: основная версия не выкладывается, если есть сессия с
+  `phase in ('lobby', 'playing')` и `updated_at` за последние 30 минут (`force` — обход).
+  Поэтому таблица `sessions` на сервере обязана иметь `phase` и `updated_at` (обновляется
+  при каждом действии пульта).
   После проверки выкладки: `PermitRootLogin no`, `PasswordAuthentication no` (`lock-ssh.sh`).
 - Первичная настройка: `deploy/setup/check.sh` (проверка связи, ничего не меняет) →
   `deploy/setup/install.sh` (система, ufw, fail2ban, автообновления, Docker, ротация логов

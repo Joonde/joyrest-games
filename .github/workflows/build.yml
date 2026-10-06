@@ -1,12 +1,20 @@
-# Проверки и сборка образа. Запускается только на push (main и ветки claude/*):
+# Проверки → образ → выкладка. Запускается только на push (main и ветки claude/*):
 # проверки PR идут по тому же коммиту, повторный прогон на pull_request не нужен —
 # так экономим минуты Actions (закрытый репозиторий: 2000 минут в месяц).
 name: Сборка
+
+# main выкладывается на games.joy-rest.ru, ветки claude/* — на test.games.joy-rest.ru.
+# Выкладка включается переменной репозитория DEPLOY_ENABLED=true (после настройки сервера).
 
 on:
   push:
     branches: [main, "claude/**"]
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Выложить на основной адрес, даже если идёт игра"
+        type: boolean
+        default: false
 
 concurrency:
   group: build-${{ github.ref }}
@@ -23,6 +31,17 @@ jobs:
     name: Тесты и проверки
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,17 +53,19 @@ jobs:
         run: npx tsc -b
       - name: Тесты
         run: npm test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:ci@localhost:5432/postgres
       - name: Сборка сайта и сервера
         run: npm run build && npm run build:server
       - name: Проверка скриптов сервера (shellcheck)
         run: shellcheck --severity=warning deploy/bin/* deploy/setup/*.sh
       - name: Проверка docker-compose
         run: |
-          printf 'APP_VERSION=ci\nAPP_IMAGE=%s:ci\n' "$IMAGE" > deploy/release.env
+          printf 'APP_IMAGE=%s:ci\nAPP_TEST_IMAGE=%s:ci\n' "$IMAGE" "$IMAGE" > /tmp/runtime.env
           printf 'ADMIN_EMAIL=ci@example.com\nPOSTGRES_PASSWORD=ci\n' > /tmp/secrets.env
-          docker compose -f deploy/compose.yml --env-file /tmp/secrets.env --env-file deploy/release.env config -q
+          docker compose -f deploy/compose.yml --env-file /tmp/secrets.env --env-file /tmp/runtime.env config -q
           # Наружу публикует порты только caddy (Docker обходит ufw).
-          published=$(docker compose -f deploy/compose.yml --env-file /tmp/secrets.env --env-file deploy/release.env config --format json \
+          published=$(docker compose -f deploy/compose.yml --env-file /tmp/secrets.env --env-file /tmp/runtime.env config --format json \
             | jq -r '.services | to_entries[] | select(.value.ports != null and (.value.ports | length) > 0) | .key')
           echo "Сервисы с открытыми портами: $published"
           [ "$published" = "caddy" ]
@@ -84,3 +105,137 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Выкладка
+    needs: image
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'test' }}
+      cancel-in-progress: false
+    env:
+      SHA: ${{ github.sha }}
+      FORCE: ${{ inputs.force && 'force' || '' }}
+      SERVER: 217.114.13.92
+    steps:
+      - name: Куда выкладываем
+        id: target
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            { echo "env=prod"; echo "host=games.joy-rest.ru"; echo "tag=release"
+              echo "command=deploy $SHA${FORCE:+ force}"; } >> "$GITHUB_OUTPUT"
+          else
+            { echo "env=test"; echo "host=test.games.joy-rest.ru"; echo "tag=test-release"
+              echo "command=deploy-test $SHA"; } >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Описание релиза в GHCR: тег release (test-release) указывает на образ коммита.
+      # По нему сервер сам забирает версию, если SSH недоступен (таймер раз в 2 минуты).
+      - name: Тег ${{ steps.target.outputs.tag }} в GHCR
+        run: docker buildx imagetools create --tag "$IMAGE:${{ steps.target.outputs.tag }}" "$IMAGE:sha-$SHA"
+
+      - name: SSH-ключ выкладки
+        id: key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "::warning::Секретов DEPLOY_SSH_KEY / DEPLOY_KNOWN_HOSTS нет — ждём, пока сервер заберёт релиз сам"
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          # Секреты — hex одной строкой (так их удобно копировать с телефона); пробелы и
+          # переводы строк, если Termius их добавил при копировании, убираем.
+          printf '%s' "$DEPLOY_SSH_KEY"     | tr -d ' \r\n' | xxd -r -p > ~/.ssh/deploy_key
+          printf '%s' "$DEPLOY_KNOWN_HOSTS" | tr -d ' \r\n' | xxd -r -p > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null \
+            || { echo "::error::DEPLOY_SSH_KEY не читается — скопирован не целиком?"; exit 1; }
+          grep -q '^217\.114\.13\.92 ssh-ed25519 ' ~/.ssh/known_hosts \
+            || { echo "::error::DEPLOY_KNOWN_HOSTS не похож на ключ сервера"; exit 1; }
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Выкладка по SSH
+        id: ssh
+        if: steps.key.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          COMMAND: ${{ steps.target.outputs.command }}
+        run: |
+          ssh_gate() {
+            ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=15 -o ServerAliveInterval=10 "deploy@$SERVER" "$1"
+          }
+          for attempt in 1 2 3; do
+            if ssh_gate ping && ssh_gate "$COMMAND"; then exit 0; fi
+            echo "Попытка $attempt по SSH не удалась"
+            sleep $((attempt * 10))
+          done
+          echo "::warning::SSH недоступен — сервер заберёт релиз сам по тегу ${{ steps.target.outputs.tag }}"
+          exit 1
+
+      # Итог проверяем по HTTPS одинаково для обоих путей: /health должен показать новую версию.
+      - name: Проверка /health
+        id: health
+        env:
+          HOST: ${{ steps.target.outputs.host }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            body=$(curl -fsS --max-time 10 "https://$HOST/health" 2>/dev/null || true)
+            if [ "$(echo "$body" | jq -r '.version // empty' 2>/dev/null)" = "$SHA" ] \
+               && [ "$(echo "$body" | jq -r '.ok' 2>/dev/null)" = true ]; then
+              echo "Выложено: $body"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::За 10 минут https://$HOST/health не показал версию $SHA (последний ответ: ${body:-нет})"
+          exit 1
+
+      - name: Состояние выкладки на сервере
+        id: status
+        if: failure() && steps.key.outputs.ready == 'true'
+        run: |
+          status=$(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 "deploy@$SERVER" status 2>/dev/null \
+            | grep "^${{ steps.target.outputs.env }}:" || echo "сервер недоступен по SSH")
+          echo "$status"
+          { echo "text<<EOF"; echo "$status"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Сообщение в Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          HOST: ${{ steps.target.outputs.host }}
+          HEALTH: ${{ steps.health.outcome }}
+          SSH: ${{ steps.ssh.outcome }}
+          STATUS: ${{ steps.status.outputs.text }}
+          TITLE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ] || { echo "Telegram не настроен"; exit 0; }
+          title=$(printf '%s' "$TITLE" | head -n 1 | cut -c1-80)
+          if [ "$HEALTH" = success ]; then
+            way=$([ "$SSH" = success ] && echo "по SSH" || echo "сервер забрал сам")
+            text="✅ Выложено на $HOST: ${SHA:0:7} «$title» ($way)"
+          else
+            text="❌ Не выложено на $HOST: ${SHA:0:7} «$title»
+          ${STATUS:-Сервер не подтвердил новую версию за 10 минут}
+          $RUN_URL"
+          fi
+          curl -fsS --max-time 15 -o /dev/null "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" --data-urlencode "text=$text" \
+            --data-urlencode "disable_web_page_preview=true" || echo "::warning::Telegram не принял сообщение"

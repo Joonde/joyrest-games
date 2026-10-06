@@ -1,0 +1,11 @@
+# Запасной путь выкладки: сервер сам проверяет теги release / test-release в GHCR.
+[Unit]
+Description=JoyRest: проверка новых релизов каждые 2 минуты
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+RandomizedDelaySec=15s
+
+[Install]
+WantedBy=timers.target

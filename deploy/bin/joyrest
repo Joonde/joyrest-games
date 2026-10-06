@@ -1,50 +1,434 @@
 #!/usr/bin/env bash
 # joyrest — управление сервером JoyRest Games с телефона (Termius).
 # Подробно — RUNBOOK.md. Команды, меняющие сервер, — через sudo.
+#
+# Выкладка (deploy) одна для всех путей: SSH из GitHub Actions (через привратник и очередь),
+# сервер сам забирает релиз (auto-update по тегу release в GHCR), вручную из Termius.
+# Шаги: блокировка → проверка активной игры → скачивание образа по коммиту → дамп базы →
+# миграции → переключение → проверка /health → при ошибке откат на прошлую версию.
 set -euo pipefail
 
-ROOT_DIR="/srv/joyrest"
-APP_REPO="ghcr.io/joonde/joyrest-app"
+# Docker и папки выкладки доступны только root: владелец (sudo без пароля) может писать
+# просто `joyrest status`, команда сама перезапустится через sudo.
+if [ "$(id -u)" != 0 ]; then
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    exec sudo -n "$0" "$@"
+  fi
+  case "${1:-}" in
+    ""|help|-h|--help) ;;
+    *) echo "❌ joyrest работает с правами администратора: sudo joyrest $*" >&2; exit 1 ;;
+  esac
+fi
+
+ROOT_DIR="${JOYREST_ROOT:-/srv/joyrest}"
+APP_REPO="${JOYREST_APP_REPO:-ghcr.io/joonde/joyrest-app}"
+REGISTRY="${JOYREST_REGISTRY:-https://ghcr.io}"
+DEPLOY_DIR="$ROOT_DIR/deploy"
+QUEUE_DIR="$DEPLOY_DIR/queue"
+SHA_RE='^[0-9a-f]{40}$'
+KEEP_RELEASES=3
+KEEP_DUMPS=5
+# Игра считается идущей, если в сессии была активность за последние 30 минут: забытая
+# незавершённая сессия выкладку не блокирует.
+ACTIVE_MINUTES=30
+HEALTH_TIMEOUT="${JOYREST_HEALTH_TIMEOUT:-120}"
 
 usage() {
   cat <<'TEXT'
 Команды:
-  joyrest status              что запущено, версия, здоровье, диск и память
+  joyrest status              версии, здоровье, последние выкладки, диск и память
   joyrest logs [сервис] [N]   последние N строк логов (по умолчанию все сервисы, 100 строк)
-                              сервисы: app-prod, caddy, postgres
+                              сервисы: app-prod, app-test, caddy, postgres
   joyrest restart [сервис]    перезапуск (без сервиса — всё)
-  joyrest up                  скачать образы текущей версии и запустить
-  joyrest activate <тег>      скачать версию из GHCR и сделать её текущей
-  joyrest version             текущая версия
+  joyrest up                  запустить всё в текущих версиях
+  joyrest deploy <коммит> [force]       выложить версию на основной адрес
+  joyrest deploy-test <коммит>          выложить версию на test.games.joy-rest.ru
+  joyrest rollback [test]     вернуть прошлую версию
+  joyrest activate <тег>      выложить по тегу GHCR (main, release, sha-…)
+  joyrest version             текущие версии
 TEXT
 }
 
+# ------------------------------------------------------------------ общее
+
+die() { echo "❌ $*" >&2; exit 1; }
+
 need_root() {
-  [ "$(id -u)" = 0 ] || { echo "Нужны права администратора: sudo joyrest $*" >&2; exit 1; }
+  [ "$(id -u)" = 0 ] || die "Нужны права администратора: sudo joyrest $*"
 }
 
-current_dir() { readlink -f "$ROOT_DIR/current"; }
+log() {
+  local line
+  line="$(date '+%F %T') $*"
+  echo "$line"
+  if [ -w "$DEPLOY_DIR" ]; then
+    echo "$line" >> "$DEPLOY_DIR/deploy.log"
+    # Журнал выкладок не растёт бесконечно.
+    if [ "$(wc -l < "$DEPLOY_DIR/deploy.log")" -gt 3000 ]; then
+      tail -n 2000 "$DEPLOY_DIR/deploy.log" > "$DEPLOY_DIR/deploy.log.tmp"
+      mv -f "$DEPLOY_DIR/deploy.log.tmp" "$DEPLOY_DIR/deploy.log"
+    fi
+  fi
+}
+
+env_link() {
+  case "$1" in
+    prod) echo "$ROOT_DIR/current" ;;
+    test) echo "$ROOT_DIR/test-current" ;;
+    *) die "Неизвестное окружение: $1" ;;
+  esac
+}
+
+service_of() { [ "$1" = prod ] && echo app-prod || echo app-test; }
+host_of() { [ "$1" = prod ] && echo games.joy-rest.ru || echo test.games.joy-rest.ru; }
+
+# Значение из release.env окружения; у тестового без своей версии — версия основного.
+release_value() {
+  local link file
+  link=$(env_link "$1")
+  [ -e "$link" ] || link="$ROOT_DIR/current"
+  file="$link/release.env"
+  [ -f "$file" ] || return 0
+  sed -n "s/^$2=//p" "$file"
+}
+
+write_runtime() {
+  local prod test
+  prod=$(release_value prod APP_IMAGE)
+  test=$(release_value test APP_IMAGE)
+  [ -n "$prod" ] || die "Нет текущей версии ($ROOT_DIR/current)."
+  printf 'APP_IMAGE=%s\nAPP_TEST_IMAGE=%s\n' "$prod" "${test:-$prod}" > "$ROOT_DIR/runtime.env.tmp"
+  mv -f "$ROOT_DIR/runtime.env.tmp" "$ROOT_DIR/runtime.env"
+}
 
 dc() {
-  local dir; dir=$(current_dir)
+  local dir; dir=$(readlink -f "$ROOT_DIR/current")
+  [ -f "$ROOT_DIR/runtime.env" ] || write_runtime
   docker compose --project-directory "$dir" -f "$dir/compose.yml" \
-    --env-file "$ROOT_DIR/secrets.env" --env-file "$dir/release.env" "$@"
+    --env-file "$ROOT_DIR/secrets.env" --env-file "$ROOT_DIR/runtime.env" "$@"
 }
 
 health() {
-  dc exec -T app-prod node -e \
-    "fetch('http://127.0.0.1:8080/health').then(r=>r.text()).then(t=>{console.log(t)},e=>{console.log('нет ответа: '+e.message);process.exit(1)})"
+  dc exec -T "$(service_of "$1")" node -e \
+    "fetch('http://127.0.0.1:8080/health').then(r=>r.text()).then(t=>console.log(t),e=>{console.log('нет ответа: '+e.message);process.exit(1)})"
 }
 
+health_ok() {
+  local body
+  body=$(health "$1" 2>/dev/null || true)
+  [[ "$body" == *'"ok":true'* && "$body" == *"\"version\":\"$2\""* ]]
+}
+
+wait_healthy() {
+  local env=$1 version=$2 body deadline=$((SECONDS + HEALTH_TIMEOUT))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    body=$(health "$env" 2>/dev/null || true)
+    if [[ "$body" == *'"ok":true'* && "$body" == *"\"version\":\"$version\""* ]]; then
+      return 0
+    fi
+    sleep 3
+  done
+  log "Нет ответа /health с версией $version: ${body:-пусто}"
+  return 1
+}
+
+set_status() {
+  printf '%s %s\n' "$(date '+%F %T')" "$2" > "$DEPLOY_DIR/status-$1.tmp"
+  chmod 644 "$DEPLOY_DIR/status-$1.tmp"
+  mv -f "$DEPLOY_DIR/status-$1.tmp" "$DEPLOY_DIR/status-$1"
+}
+
+psql_prod() {
+  dc exec -T postgres psql -v ON_ERROR_STOP=1 -U joyrest -d joyrest_prod -tAc "$1"
+}
+
+# Число сессий с активностью за последние ACTIVE_MINUTES минут (таблица sessions с полями
+# phase и updated_at появится в PR 3; пока её нет — 0). Если проверить не удалось — код 1:
+# выкладка без force тогда считает, что игра идёт.
+active_games() {
+  local exists count
+  exists=$(psql_prod "select to_regclass('public.sessions') is not null" 2>/dev/null) || return 1
+  case "$exists" in
+    f) echo 0; return 0 ;;
+    t) ;;
+    *) return 1 ;;
+  esac
+  count=$(psql_prod "select count(*) from sessions
+    where phase in ('lobby', 'playing') and updated_at > now() - interval '$ACTIVE_MINUTES minutes'" 2>/dev/null) \
+    || return 1
+  [[ "$count" =~ ^[0-9]+$ ]] || return 1
+  echo "$count"
+}
+
+wait_postgres() {
+  local deadline=$((SECONDS + 90))
+  until dc exec -T postgres pg_isready -U joyrest -d joyrest_prod >/dev/null 2>&1; do
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      log "PostgreSQL не запустилась за 90 секунд"
+      return 1
+    fi
+    sleep 2
+  done
+}
+
+ensure_test_db() {
+  local count
+  count=$(psql_prod "select count(*) from pg_database where datname = 'joyrest_test'") || return 1
+  if [ "$count" = 0 ]; then
+    psql_prod "create database joyrest_test owner joyrest" >/dev/null || return 1
+    log "Создана база joyrest_test"
+  fi
+}
+
+# Папки выкладки (на сервере после PR 1 их ещё нет).
+ensure_dirs() {
+  if getent group deploy >/dev/null 2>&1; then
+    install -d -m 750 -o root -g deploy "$DEPLOY_DIR"
+    install -d -m 770 -o root -g deploy "$QUEUE_DIR"
+  else
+    install -d -m 750 "$DEPLOY_DIR"
+    install -d -m 770 "$QUEUE_DIR"
+  fi
+  install -d -m 700 "$ROOT_DIR/backups" "$ROOT_DIR/backups/predeploy"
+}
+
+# Системные файлы из текущего релиза: команды, привратник, службы systemd, Caddy.
+# Возвращает 0, если Caddyfile изменился (нужен caddy reload).
+install_system() {
+  local dir changed=1
+  dir=$(readlink -f "$ROOT_DIR/current")
+  install -m 755 "$dir/bin/joyrest" /usr/local/bin/joyrest
+  install -m 755 "$dir/bin/joyrest-gate" /usr/local/bin/joyrest-gate
+
+  ensure_dirs
+
+  if [ -d "$dir/systemd" ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+    local unit reload=0
+    for unit in "$dir"/systemd/*; do
+      if ! cmp -s "$unit" "/etc/systemd/system/$(basename "$unit")"; then
+        install -m 644 "$unit" /etc/systemd/system/
+        reload=1
+      fi
+    done
+    if [ "$reload" = 1 ]; then
+      systemctl daemon-reload
+      systemctl enable --now joyrest-deploy.path joyrest-update.timer >/dev/null 2>&1
+    fi
+  fi
+
+  install -d -m 755 "$ROOT_DIR/caddy/etc"
+  if ! cmp -s "$dir/caddy/Caddyfile" "$ROOT_DIR/caddy/etc/Caddyfile"; then
+    install -m 644 "$dir/caddy/Caddyfile" "$ROOT_DIR/caddy/etc/Caddyfile.new"
+    mv -f "$ROOT_DIR/caddy/etc/Caddyfile.new" "$ROOT_DIR/caddy/etc/Caddyfile"
+    changed=0
+  fi
+  rm -rf "$ROOT_DIR/caddy/etc/soon.new"
+  cp -r "$dir/caddy/soon" "$ROOT_DIR/caddy/etc/soon.new"
+  rm -rf "$ROOT_DIR/caddy/etc/soon"
+  mv "$ROOT_DIR/caddy/etc/soon.new" "$ROOT_DIR/caddy/etc/soon"
+  return "$changed"
+}
+
+reload_caddy() {
+  if dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+    log "Caddy: новая конфигурация применена"
+  else
+    log "Caddy: reload не удался — перезапускаю"
+    dc restart caddy
+  fi
+}
+
+# Скачивает образ коммита и раскладывает его папку deploy/ в releases/<коммит>.
+# Каждый шаг проверяется явно: при вызове из очереди и таймера (`deploy_env … || …`) bash
+# отключает set -e внутри функций, поэтому на него здесь не полагаемся.
+fetch_release() {
+  local sha=$1 digest cid incoming="$ROOT_DIR/releases/.incoming-$1"
+  docker pull -q "$APP_REPO:sha-$sha" >/dev/null || return 1
+  digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$APP_REPO:sha-$sha" \
+    | grep -m1 "^$APP_REPO@sha256:" || true)
+  [ -n "$digest" ] || digest="$APP_REPO:sha-$sha"
+  if [ ! -f "$ROOT_DIR/releases/$sha/release.env" ]; then
+    cid=$(docker create "$APP_REPO:sha-$sha") || return 1
+    rm -rf "$incoming"
+    if ! docker cp "$cid:/app/deploy" "$incoming" >/dev/null; then
+      docker rm "$cid" >/dev/null 2>&1
+      return 1
+    fi
+    docker rm "$cid" >/dev/null 2>&1 || true
+    rm -rf "${ROOT_DIR:?}/releases/$sha"
+    mv "$incoming" "$ROOT_DIR/releases/$sha" || return 1
+  fi
+  # Запускаем по неизменяемому отпечатку образа, а не по тегу.
+  printf 'APP_VERSION=%s\nAPP_IMAGE=%s\n' "$sha" "$digest" > "$ROOT_DIR/releases/$sha/release.env" || return 1
+}
+
+# Пароль базы передаём файлом (--env-file), а не аргументом: аргументы видны в списке
+# процессов и в docker inspect.
+run_migrations() {
+  local env=$1 image=$2 db password envfile code=0
+  db=$([ "$env" = prod ] && echo joyrest_prod || echo joyrest_test)
+  password=$(sed -n 's/^POSTGRES_PASSWORD=//p' "$ROOT_DIR/secrets.env")
+  envfile=$(umask 077 && mktemp "$ROOT_DIR/.migrate-env.XXXXXX") || return 1
+  printf 'DATABASE_URL=postgres://joyrest:%s@postgres:5432/%s\n' "$password" "$db" > "$envfile"
+  docker run --rm --network joyrest_db --env-file "$envfile" "$image" node server/migrate-main.js || code=$?
+  rm -f "$envfile"
+  return "$code"
+}
+
+predeploy_dump() {
+  local file
+  file="$ROOT_DIR/backups/predeploy/$(date '+%Y%m%d-%H%M%S')-$(release_value prod APP_VERSION | cut -c1-12).dump"
+  if ! dc exec -T postgres pg_dump -U joyrest -Fc joyrest_prod > "$file" || [ ! -s "$file" ]; then
+    rm -f "$file"
+    log "Дамп базы не получился"
+    return 1
+  fi
+  chmod 600 "$file"
+  log "Дамп базы перед выкладкой: $file ($(du -h "$file" | cut -f1))"
+  find "$ROOT_DIR/backups/predeploy" -name '*.dump' -printf '%T@ %p\n' | sort -rn \
+    | tail -n +$((KEEP_DUMPS + 1)) | cut -d' ' -f2- | xargs -r rm -f
+}
+
+switch_to() {
+  local env=$1 sha=$2
+  ln -sfn "releases/$sha" "$(env_link "$env").new" || return 1
+  mv -Tf "$(env_link "$env").new" "$(env_link "$env")" || return 1
+  write_runtime
+}
+
+start_env() {
+  if [ "$1" = prod ]; then
+    if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
+  else
+    dc up -d --no-deps app-test
+  fi
+}
+
+# Старые релизы и образы: оставляем текущие и KEEP_RELEASES последних.
+prune_releases() {
+  local keep dir name
+  keep=" $(basename "$(readlink -f "$ROOT_DIR/current")") "
+  [ -e "$ROOT_DIR/test-current" ] && keep+="$(basename "$(readlink -f "$ROOT_DIR/test-current")") "
+  keep+="$(tail -n "$KEEP_RELEASES" "$DEPLOY_DIR/history-prod" 2>/dev/null | tr '\n' ' ') "
+  for dir in "$ROOT_DIR"/releases/*/; do
+    name=$(basename "$dir")
+    [[ "$name" =~ $SHA_RE ]] || continue
+    [[ "$keep" == *" $name "* ]] && continue
+    rm -rf "${ROOT_DIR:?}/releases/$name"
+    docker image rm "$APP_REPO:sha-$name" >/dev/null 2>&1 || true
+  done
+  docker image prune -f >/dev/null 2>&1 || true
+}
+
+# ------------------------------------------------------------------ выкладка
+
+# deploy_env <prod|test> <коммит> [force] — 0 успех, 1 ошибка (с откатом), 3 отложено (идёт игра).
+deploy_env() {
+  local env=$1 sha=$2 force=${3:-} prev result
+  [[ "$sha" =~ $SHA_RE ]] || die "Коммит — 40 символов 0-9a-f."
+  [ -z "$force" ] || [ "$force" = force ] || die "Третий аргумент — только force."
+
+  ensure_dirs
+  exec 9>"$DEPLOY_DIR/lock"
+  flock -w 900 9 || die "Другая выкладка идёт дольше 15 минут."
+
+  if [ "$(release_value "$env" APP_VERSION)" = "$sha" ] && [ -e "$(env_link "$env")" ] && health_ok "$env" "$sha"; then
+    set_status "$env" "ok $sha (уже выложена)"
+    log "[$env] $sha уже выложена"
+    return 0
+  fi
+
+  # Основную версию во время игры не трогаем. Не удалось проверить — считаем, что игра идёт:
+  # таймер повторит через 2 минуты, обойти можно только вручную (force).
+  if [ "$env" = prod ] && [ "$force" != force ]; then
+    local active
+    if ! active=$(active_games); then
+      set_status "$env" "blocked $sha: не удалось проверить, идёт ли игра (повтор через 2 мин; вручную — force)"
+      log "[$env] $sha отложена: не удалось проверить активные игры"
+      return 3
+    fi
+    if [ "$active" -gt 0 ]; then
+      set_status "$env" "blocked $sha: идёт игра ($active сесс. с активностью за $ACTIVE_MINUTES мин)"
+      log "[$env] $sha отложена: идёт игра ($active)"
+      return 3
+    fi
+  fi
+
+  set_status "$env" "running $sha"
+  log "[$env] выкладка $sha"
+  # До переключения версии любая ошибка оставляет сайт на прошлой версии. Метку failed-<env>
+  # здесь не ставим: таймер повторит попытку (сеть, GHCR и база могут ожить).
+  if ! fetch_release "$sha"; then
+    set_status "$env" "failed $sha: не скачался образ из GHCR, версия не переключалась"
+    log "[$env] $sha: не скачался образ"
+    return 1
+  fi
+  prev=$(basename "$(readlink -f "$(env_link "$env")" 2>/dev/null || true)")
+  # У тестового окружения без своей версии откатываемся на версию основного.
+  [[ "$prev" =~ $SHA_RE ]] || prev=$(release_value prod APP_VERSION)
+
+  if ! wait_postgres || ! ensure_test_db; then
+    set_status "$env" "failed $sha: база недоступна, версия не переключалась"
+    log "[$env] $sha: база недоступна"
+    return 1
+  fi
+  if [ "$env" = prod ] && ! predeploy_dump; then
+    set_status "$env" "failed $sha: не получился дамп базы, версия не переключалась"
+    log "[$env] $sha: не получился дамп базы"
+    return 1
+  fi
+
+  if ! run_migrations "$env" "$(sed -n 's/^APP_IMAGE=//p' "$ROOT_DIR/releases/$sha/release.env")"; then
+    set_status "$env" "failed $sha: ошибка миграции, версия не переключалась"
+    echo "$sha" > "$DEPLOY_DIR/failed-$env"
+    log "[$env] $sha: ошибка миграции"
+    return 1
+  fi
+
+  # Ошибку переключения или запуска ловит проверка /health ниже и откатывает.
+  switch_to "$env" "$sha" || log "[$env] $sha: ошибка переключения"
+  start_env "$env" || log "[$env] $sha: ошибка запуска контейнеров"
+  if wait_healthy "$env" "$sha"; then
+    echo "$sha" >> "$DEPLOY_DIR/history-$env"
+    tail -n 20 "$DEPLOY_DIR/history-$env" > "$DEPLOY_DIR/history-$env.tmp" && mv -f "$DEPLOY_DIR/history-$env.tmp" "$DEPLOY_DIR/history-$env"
+    rm -f "$DEPLOY_DIR/failed-$env"
+    set_status "$env" "ok $sha"
+    log "[$env] $sha выложена"
+    prune_releases
+    return 0
+  fi
+
+  echo "$sha" > "$DEPLOY_DIR/failed-$env"
+  if [[ "$prev" =~ $SHA_RE ]] && [ "$prev" != "$sha" ]; then
+    log "[$env] $sha не прошла проверку — откат на $prev"
+    switch_to "$env" "$prev" || log "[$env] ошибка переключения на $prev"
+    start_env "$env" || log "[$env] ошибка запуска контейнеров $prev"
+    if wait_healthy "$env" "$prev"; then result="откат на $prev"; else result="откат на $prev НЕ ПОДНЯЛСЯ"; fi
+  else
+    result="прошлой версии нет"
+  fi
+  set_status "$env" "failed $sha: не прошла /health, $result"
+  log "[$env] $sha: ошибка, $result"
+  return 1
+}
+
+# ------------------------------------------------------------------ команды
+
 cmd_status() {
-  echo "Версия: $(cmd_version)"
+  echo "Основная: $(release_value prod APP_VERSION | cut -c1-12)   тестовая: $(release_value test APP_VERSION | cut -c1-12)"
+  local env
+  for env in prod test; do
+    [ -f "$DEPLOY_DIR/status-$env" ] && echo "Выкладка $env: $(cat "$DEPLOY_DIR/status-$env")"
+  done
   echo
   dc ps --format 'table {{.Service}}\t{{.Status}}'
   echo
-  echo -n "Здоровье: "; health || true
+  echo -n "Здоровье (основная): "; health prod || true
+  echo -n "Здоровье (тестовая): "; health test || true
   echo
   df -h / | awk 'NR==2{print "Диск: занято " $5 " (" $3 " из " $2 ")"}'
   free -m | awk '/^Mem:/{print "Память: занято " $3 " МБ из " $2 " МБ"} /^Swap:/{print "Подкачка: " $3 " МБ из " $2 " МБ"}'
+  [ -f /var/run/reboot-required ] && echo "⚠️  Нужна перезагрузка (обновилось ядро) — RUNBOOK, «Обновления системы»"
   echo
   docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
 }
@@ -52,53 +436,162 @@ cmd_status() {
 cmd_logs() {
   local service="${1:-}" lines="${2:-100}"
   if [[ "$service" =~ ^[0-9]+$ ]]; then lines="$service"; service=""; fi
-  # shellcheck disable=SC2086
-  dc logs --no-color --timestamps --tail "$lines" $service
+  case "$service" in ""|app-prod|app-test|caddy|postgres) ;; *) die "Нет сервиса $service" ;; esac
+  [[ "$lines" =~ ^[0-9]+$ ]] || die "N — число строк"
+  if [ -n "$service" ]; then
+    dc logs --no-color --timestamps --tail "$lines" "$service"
+  else
+    dc logs --no-color --timestamps --tail "$lines"
+  fi
 }
 
 cmd_restart() {
-  need_root restart "$@"
-  # shellcheck disable=SC2086
-  dc restart ${1:-}
+  need_root restart
+  case "${1:-}" in
+    "") dc restart ;;
+    app-prod|app-test|caddy|postgres) dc restart "$1" ;;
+    *) die "Нет сервиса $1" ;;
+  esac
 }
 
 cmd_up() {
   need_root up
-  dc pull -q
-  dc up -d --remove-orphans
+  ensure_dirs
+  write_runtime
+  # Свежие копии caddy и postgres из GHCR (обновляются раз в неделю); без связи — работаем на старых.
+  dc pull -q caddy postgres >/dev/null 2>&1 || log "Не удалось обновить образы caddy/postgres — оставляю текущие"
+  dc up -d postgres
+  wait_postgres || die "PostgreSQL не запустилась за 90 секунд."
+  ensure_test_db || die "Не удалось создать базу joyrest_test."
+  if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
 }
 
+cmd_deploy() {
+  need_root deploy
+  deploy_env prod "${1:-}" "${2:-}"
+}
+
+cmd_deploy_test() {
+  need_root deploy-test
+  [ $# -le 1 ] || die "Тестовой выкладке force не нужен."
+  deploy_env test "${1:-}"
+}
+
+cmd_rollback() {
+  need_root rollback
+  local env=prod current prev
+  [ "${1:-}" = test ] && env="test"
+  current=$(release_value "$env" APP_VERSION)
+  prev=$(grep -vx "$current" "$DEPLOY_DIR/history-$env" 2>/dev/null | tail -n 1 || true)
+  [[ "$prev" =~ $SHA_RE ]] || die "Нет прошлой версии для отката."
+  log "[$env] откат вручную: $current → $prev"
+  deploy_env "$env" "$prev" force
+}
+
+# Выложить по тегу GHCR: коммит берётся из образа (APP_VERSION).
 cmd_activate() {
-  need_root activate "$@"
-  local tag="${1:?Укажите тег, например: sudo joyrest activate main}"
-  [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Неверный тег: $tag" >&2; exit 1; }
-  docker pull -q "$APP_REPO:$tag" >/dev/null
-  local cid version incoming="$ROOT_DIR/releases/.incoming"
-  cid=$(docker create "$APP_REPO:$tag")
-  rm -rf "$incoming"
-  docker cp "$cid:/app/deploy" "$incoming" >/dev/null
-  docker rm "$cid" >/dev/null
-  version=$(sed -n 's/^APP_VERSION=//p' "$incoming/release.env")
-  [ -n "$version" ] || { echo "В образе нет описания версии" >&2; exit 1; }
-  rm -rf "${ROOT_DIR:?}/releases/$version"
-  mv "$incoming" "$ROOT_DIR/releases/$version"
-  ln -sfn "releases/$version" "$ROOT_DIR/current"
-  install -m 755 "$ROOT_DIR/current/bin/joyrest" /usr/local/bin/joyrest
-  install -m 755 "$ROOT_DIR/current/bin/joyrest-gate" /usr/local/bin/joyrest-gate
-  cmd_up
-  echo "Текущая версия: $version"
+  need_root activate
+  local tag="${1:?Укажите тег, например: sudo joyrest activate main}" sha
+  [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || die "Неверный тег: $tag"
+  docker pull -q "$APP_REPO:$tag" >/dev/null || die "Не скачался образ $APP_REPO:$tag."
+  sha=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$APP_REPO:$tag" | sed -n 's/^APP_VERSION=//p')
+  [[ "$sha" =~ $SHA_RE ]] || die "В образе $tag нет версии-коммита."
+  docker tag "$APP_REPO:$tag" "$APP_REPO:sha-$sha"
+  deploy_env prod "$sha" force
+}
+
+# Очередь от привратника SSH: файлы queue/prod и queue/test с «<коммит> [force]».
+cmd_process_queue() {
+  need_root process-queue
+  local env file request sha force code entry
+  # Недописанные временные файлы привратника (.request.*) старше часа — мусор.
+  find "$QUEUE_DIR" -maxdepth 1 -name '.request.*' -mmin +60 -delete 2>/dev/null || true
+  # В очереди бывают только обычные файлы prod и test. Всё остальное (каталог, ссылка,
+  # другое имя) удаляем, иначе служба запускалась бы по кругу.
+  for entry in "$QUEUE_DIR"/[a-z]*; do
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    case "$(basename "$entry")" in
+      prod|test) [ -f "$entry" ] && [ ! -L "$entry" ] && continue ;;
+    esac
+    rm -rf -- "$entry"
+    log "Очередь: удалён лишний объект $(basename "$entry" | tr -cd 'a-z0-9._-' | cut -c1-40)"
+  done
+  for env in prod test; do
+    file="$QUEUE_DIR/$env"
+    [ -f "$file" ] || continue
+    request=$(head -c 100 "$file")
+    rm -f "$file"
+    # Привратнику не доверяем: формат проверяется заново.
+    if [[ "$request" =~ ^([0-9a-f]{40})(\ force)?$ ]]; then
+      sha=${BASH_REMATCH[1]}
+      force=${BASH_REMATCH[2]# }
+      [ "$env" = test ] && force=""
+      # Подоболочка: die внутри выкладки не обрывает обработку второго окружения.
+      code=0; ( deploy_env "$env" "$sha" "$force" ) || code=$?
+      log "[$env] очередь: $sha завершена с кодом $code"
+    else
+      log "[$env] очередь: отклонён запрос неверного формата"
+    fi
+  done
+}
+
+# Отпечаток образа по тегу в GHCR (только чтение, токен read:packages из входа docker).
+registry_digest() {
+  local tag=$1 repo_path=${APP_REPO#*/} auth="" token headers
+  if [[ "$REGISTRY" == https://* ]]; then
+    local cred
+    cred=$(jq -r --arg host "${REGISTRY#https://}" '.auths[$host].auth // empty' /root/.docker/config.json 2>/dev/null | base64 -d 2>/dev/null || true)
+    [ -n "$cred" ] || return 1
+    token=$(curl -fsS --max-time 15 -u "$cred" \
+      "$REGISTRY/token?service=${REGISTRY#https://}&scope=repository:$repo_path:pull" | jq -r '.token // empty') || return 1
+    [ -n "$token" ] || return 1
+    auth="Authorization: Bearer $token"
+  fi
+  headers=$(curl -fsSI --max-time 15 ${auth:+-H "$auth"} \
+    -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+    "$REGISTRY/v2/$repo_path/manifests/$tag") || return 1
+  echo "$headers" | tr -d '\r' | sed -n 's/^[Dd]ocker-[Cc]ontent-[Dd]igest: *//p'
+}
+
+# Запасной путь: каждые 2 минуты (таймер systemd) сверяем теги release / test-release.
+cmd_auto_update() {
+  need_root auto-update
+  local env tag remote deployed sha
+  for env in prod test; do
+    tag=$([ "$env" = prod ] && echo release || echo test-release)
+    remote=$(registry_digest "$tag" 2>/dev/null) || continue
+    [[ "$remote" =~ ^sha256:[0-9a-f]{64}$ ]] || continue
+    deployed=$(release_value "$env" APP_IMAGE)
+    [ "${deployed##*@}" = "$remote" ] && continue
+    [ "$env" = test ] && [ ! -e "$ROOT_DIR/test-current" ] && [ "$(release_value prod APP_IMAGE)" = "$APP_REPO@$remote" ] && continue
+    docker pull -q "$APP_REPO@$remote" >/dev/null 2>&1 || continue
+    sha=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$APP_REPO@$remote" | sed -n 's/^APP_VERSION=//p')
+    [[ "$sha" =~ $SHA_RE ]] || continue
+    [ "$(release_value "$env" APP_VERSION)" = "$sha" ] && continue
+    # Сломанный релиз не пытаемся выложить каждые 2 минуты.
+    [ "$(cat "$DEPLOY_DIR/failed-$env" 2>/dev/null)" = "$sha" ] && continue
+    docker tag "$APP_REPO@$remote" "$APP_REPO:sha-$sha"
+    log "[$env] сервер сам забирает релиз $sha (тег $tag)"
+    ( deploy_env "$env" "$sha" ) || true
+  done
 }
 
 cmd_version() {
-  sed -n 's/^APP_VERSION=//p' "$(current_dir)/release.env"
+  echo "основная: $(release_value prod APP_VERSION)"
+  echo "тестовая: $(release_value test APP_VERSION)"
 }
 
 case "${1:-}" in
-  status)   cmd_status ;;
-  logs)     shift; cmd_logs "$@" ;;
-  restart)  shift; cmd_restart "$@" ;;
-  up)       cmd_up ;;
-  activate) shift; cmd_activate "$@" ;;
-  version)  cmd_version ;;
-  *)        usage ;;
+  status)        cmd_status ;;
+  logs)          shift; cmd_logs "$@" ;;
+  restart)       shift; cmd_restart "$@" ;;
+  up)            cmd_up ;;
+  deploy)        shift; cmd_deploy "$@" ;;
+  deploy-test)   shift; cmd_deploy_test "$@" ;;
+  rollback)      shift; cmd_rollback "$@" ;;
+  activate)      shift; cmd_activate "$@" ;;
+  process-queue) cmd_process_queue ;;
+  auto-update)   cmd_auto_update ;;
+  version)       cmd_version ;;
+  *)             usage ;;
 esac

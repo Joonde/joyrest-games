@@ -1,6 +1,9 @@
 # JoyRest Games на сервере: Caddy (HTTPS) → приложение → PostgreSQL.
-# Запускается командой `joyrest` (deploy/bin/joyrest) из папки текущего релиза:
-#   переменные — /srv/joyrest/secrets.env (секреты) и release.env (версия образа).
+# Запускается командой `joyrest` (deploy/bin/joyrest) из папки текущего релиза основного
+# окружения. Переменные: /srv/joyrest/secrets.env (секреты) и /srv/joyrest/runtime.env
+# (образы: APP_IMAGE — основное окружение, APP_TEST_IMAGE — тестовое; пишет joyrest).
+# Caddyfile и заглушка лежат в /srv/joyrest/caddy/etc (копирует joyrest из релиза), чтобы
+# выкладка не пересоздавала caddy: новый Caddyfile применяется через `caddy reload`.
 # Наружу открыт только Caddy: 80, 443 и 443/udp (HTTP/3). У app и postgres портов нет,
 # база — во внутренней сети без выхода в интернет. Docker обходит ufw, поэтому
 # здесь не должно появиться других `ports:`.
@@ -21,8 +24,7 @@ services:
     environment:
       ACME_EMAIL: ${ADMIN_EMAIL}
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/soon:/srv/soon:ro
+      - /srv/joyrest/caddy/etc:/etc/caddy:ro
       - /srv/joyrest/caddy/data:/data
       - /srv/joyrest/caddy/config:/config
     networks: [web]
@@ -36,6 +38,7 @@ services:
       POSTGRES_USER: joyrest
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: joyrest_prod
+    # Одна PostgreSQL на оба окружения: базы joyrest_prod и joyrest_test (создаёт joyrest).
     # Настройки под 2 ГБ памяти на весь сервер.
     command:
       - postgres
@@ -78,6 +81,27 @@ services:
       start_period: 10s
     networks: [web, db]
     mem_limit: 384m
+    logging: *logging
+
+  # Тестовое окружение test.games.joy-rest.ru: своя база, меньше памяти, чтобы проверки
+  # и нагрузочный тест не задели основную версию.
+  app-test:
+    image: ${APP_TEST_IMAGE}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_test
+      PUBLIC_DIR: /app/public
+      NODE_OPTIONS: --max-old-space-size=160
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [web, db]
+    mem_limit: 256m
     logging: *logging
 
 networks:

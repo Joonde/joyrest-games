@@ -72,7 +72,33 @@ Firebase удаляются, Firebase-код удаляется отдельны
   (папка `deploy/` из образа), `current` → текущий релиз, `postgres/`, `caddy/`, `backups/`.
   Управление — команда `joyrest` (`deploy/bin/joyrest`), инструкции владельцу — `RUNBOOK.md`.
 - Пользователи сервера: владелец (sudo, вход по ключу из Termius), `deploy` — без sudo и
-  консоли, ключ GitHub Actions привязан к привратнику `deploy/bin/joyrest-gate`.
+  консоли, ключ GitHub Actions привязан к привратнику `deploy/bin/joyrest-gate`: он пропускает
+  только `ping`, `status`, `deploy <40 hex> [force]`, `deploy-test <40 hex>` и кладёт запрос
+  в очередь `/srv/joyrest/deploy/queue/`; выкладывает служба root (`deploy/systemd/`).
+- Выкладка (`joyrest deploy`, `.github/workflows/build.yml`, задача `deploy`): main →
+  games.joy-rest.ru, ветки `claude/*` → test.games.joy-rest.ru (`app-test`, база
+  `joyrest_test`, `mem_limit` 256m). Шаги: блокировка → проверка игры → образ по отпечатку →
+  дамп базы (`backups/predeploy`, 5 последних) → миграции (`server/migrations`, только
+  добавляющие) → переключение → `/health` с новой версией → иначе откат на прошлую.
+  Два пути: SSH из Actions и запасной — тег `release`/`test-release` в GHCR, который сервер
+  проверяет каждые 2 минуты (`joyrest-update.timer`, токен только `read:packages`). Итог
+  Actions проверяет по HTTPS `/health` и пишет в Telegram. Включается переменной
+  `DEPLOY_ENABLED=true`.
+- Блокировка выкладки во время игры: основная версия не выкладывается, если есть сессия с
+  `phase in ('lobby', 'playing')` и `updated_at` за последние 30 минут. Если проверить не
+  удалось (база не отвечает) — тоже считается, что игра идёт: статус `blocked`, таймер
+  повторит. `force` — только вручную (Termius или Run workflow с галочкой); CI сам `force`
+  не отправляет никогда, теги `release`/`test-release` ставит только при `DEPLOY_ENABLED`.
+- **Миграции только обратно совместимы (expand/contract).** Они выполняются до переключения
+  версии, а откат возвращает прошлый код, но не схему: новая схема обязана работать со
+  старым кодом. Можно: новые таблицы, колонки с `DEFAULT` или без `NOT NULL`, индексы.
+  Нельзя в обычной миграции: `DROP`, `RENAME`, смена типа, `SET NOT NULL`, `NOT NULL` без
+  `DEFAULT`, `TRUNCATE`, `DELETE`. Удаление — отдельной contract-миграцией (первая строка
+  `-- contract: <что и с какого релиза не используется>`), не раньше чем через релиз после
+  того, как код перестал это использовать. Переименование = новая колонка + код пишет в обе
+  + contract-миграция. Проверяет тест `server/src/migrationRules.test.ts`.
+  Поэтому таблица `sessions` на сервере обязана иметь `phase` и `updated_at` (обновляется
+  при каждом действии пульта).
   После проверки выкладки: `PermitRootLogin no`, `PasswordAuthentication no` (`lock-ssh.sh`).
 - Первичная настройка: `deploy/setup/check.sh` (проверка связи, ничего не меняет) →
   `deploy/setup/install.sh` (система, ufw, fail2ban, автообновления, Docker, ротация логов

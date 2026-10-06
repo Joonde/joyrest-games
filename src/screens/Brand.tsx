@@ -115,7 +115,7 @@ export function Brand() {
             </label>
           ))}
         </fieldset>
-        <QrCode value="https://joyrest-games.netlify.app/play/482915" label="Пример QR-кода JoyRest" />
+        <QrCode value="https://games.joy-rest.ru/play/482915" label="Пример QR-кода JoyRest" />
       </section>
     </main>
   );

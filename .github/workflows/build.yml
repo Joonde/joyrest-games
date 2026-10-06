@@ -108,10 +108,49 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Переключатель выкладки: переменная репозитория DEPLOY_ENABLED. Значение сравнивается с
+  # true без учёта пробелов, \r\n и регистра (при вставке с телефона в поле попадает перевод
+  # строки). Если выкладка выключена — в логе видно, что именно видит GitHub.
+  switch:
+    name: Переключатель выкладки
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: DEPLOY_ENABLED
+        id: check
+        env:
+          VALUE: ${{ vars.DEPLOY_ENABLED }}
+          AS_SECRET: ${{ secrets.DEPLOY_ENABLED != '' }}
+        run: |
+          # Убираем \r\n, невидимые символы (неразрывный пробел, нулевой ширины, BOM) и пробелы
+          # по краям; пробел внутри слова не прощаем.
+          clean=$(printf '%s' "$VALUE" | LC_ALL=C sed -e 's/\xc2\xa0/ /g; s/\xe2\x80[\x8b-\x8d]//g; s/\xef\xbb\xbf//g' \
+            | tr -d '\r\n' | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
+          if [ "$clean" = true ]; then
+            [ "$VALUE" = true ] || echo "Значение DEPLOY_ENABLED содержит лишние символы — они отброшены."
+            echo "Выкладка включена."
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "enabled=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$VALUE" ]; then
+            echo "Переменная репозитория DEPLOY_ENABLED не найдена (Settings → Secrets and variables → Actions → Variables)."
+          else
+            echo "Переменная DEPLOY_ENABLED не равна true. Значение по символам:"
+            printf '%s' "$VALUE" | od -An -c
+          fi
+          if [ "$AS_SECRET" = true ]; then
+            echo "Найден СЕКРЕТ DEPLOY_ENABLED: для выкладки нужна переменная (вкладка Variables), а не секрет."
+          fi
+          echo "::notice::Выкладка выключена: нужна переменная репозитория DEPLOY_ENABLED = true"
+
   deploy:
     name: Выкладка
-    needs: image
-    if: vars.DEPLOY_ENABLED == 'true'
+    needs: [image, switch]
+    if: needs.switch.outputs.enabled == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -146,10 +185,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # Описание релиза в GHCR: тег release (test-release) указывает на образ коммита.
       # По нему сервер сам забирает версию, если SSH недоступен (таймер раз в 2 минуты).
-      # Тег ставится только здесь и только при DEPLOY_ENABLED=true (условие задачи выше,
-      # повторено на шаге): без переключателя таймер на сервере ничего нового не увидит.
+      # Тег ставится только здесь и только при включённом переключателе (условие задачи выше,
+      # повторено на шаге): без него таймер на сервере ничего нового не увидит.
       - name: Тег ${{ steps.target.outputs.tag }} в GHCR
-        if: vars.DEPLOY_ENABLED == 'true'
+        if: needs.switch.outputs.enabled == 'true'
         run: docker buildx imagetools create --tag "$IMAGE:${{ steps.target.outputs.tag }}" "$IMAGE:sha-$SHA"
 
       - name: SSH-ключ выкладки
@@ -233,7 +272,22 @@ jobs:
           TITLE: ${{ github.event.head_commit.message }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ] || { echo "Telegram не настроен"; exit 0; }
+          # Секреты, вставленные с телефона, могут содержать пробелы и \r\n — убираем.
+          scrub() { printf '%s' "$1" | LC_ALL=C sed -e 's/\xc2\xa0//g; s/\xe2\x80[\x8b-\x8d]//g; s/\xef\xbb\xbf//g' | tr -d '[:space:]'; }
+          token=$(scrub "$TELEGRAM_BOT_TOKEN")
+          chat=$(scrub "$TELEGRAM_CHAT_ID")
+          # Очищенный токен может отличаться от секрета — маскируем его в логе отдельно.
+          [ -n "$token" ] && echo "::add-mask::$token"
+          if [ -z "$token" ] || [ -z "$chat" ]; then
+            echo "Telegram не настроен: нет секрета TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID"; exit 0
+          fi
+          if ! [[ "$token" =~ ^[0-9]+:[A-Za-z0-9_-]{30,}$ ]]; then
+            echo "::warning::Telegram: TELEGRAM_BOT_TOKEN не похож на токен бота (ожидается «число:строка» от @BotFather)"; exit 0
+          fi
+          if ! [[ "$chat" =~ ^-?[0-9]+$ || "$chat" =~ ^@[A-Za-z0-9_]{5,}$ ]]; then
+            echo "::warning::Telegram: TELEGRAM_CHAT_ID должен быть числом (например 123456789 или -100…) — сейчас «$chat»"; exit 0
+          fi
+
           title=$(printf '%s' "$TITLE" | head -n 1 | cut -c1-80)
           if [ "$HEALTH" = success ]; then
             way=$([ "$SSH" = success ] && echo "по SSH" || echo "сервер забрал сам")
@@ -243,6 +297,23 @@ jobs:
           ${STATUS:-Сервер не подтвердил новую версию за 10 минут}
           $RUN_URL"
           fi
-          curl -fsS --max-time 15 -o /dev/null "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" --data-urlencode "text=$text" \
-            --data-urlencode "disable_web_page_preview=true" || echo "::warning::Telegram не принял сообщение"
+
+          # Адрес с токеном передаётся curl через файл настроек, а не аргументом.
+          printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$token" > "$RUNNER_TEMP/tg.cfg"
+          code=$(curl -sS --max-time 15 -K "$RUNNER_TEMP/tg.cfg" -o "$RUNNER_TEMP/tg.json" -w '%{http_code}' \
+            --data-urlencode "chat_id=$chat" --data-urlencode "text=$text" \
+            --data-urlencode "disable_web_page_preview=true" 2> "$RUNNER_TEMP/tg.err") || code=000
+          rm -f "$RUNNER_TEMP/tg.cfg"
+          if [ "$code" = 200 ]; then
+            echo "Сообщение в Telegram отправлено."
+            exit 0
+          fi
+          reason=$(jq -r '.description // empty' "$RUNNER_TEMP/tg.json" 2>/dev/null || true)
+          case "$code:$reason" in
+            000:*) reason="нет связи с api.telegram.org ($(head -c 200 "$RUNNER_TEMP/tg.err" | sed "s/$token/***/g"))" ;;
+            401:*|404:*) reason="Telegram не принял токен ($reason) — проверьте TELEGRAM_BOT_TOKEN" ;;
+            400:*chat\ not\ found*) reason="чат не найден ($reason) — проверьте TELEGRAM_CHAT_ID и что вы нажали «Старт» у бота" ;;
+            403:*) reason="бот не может писать в этот чат ($reason) — нажмите «Старт» у бота или добавьте его в группу" ;;
+            *) reason="HTTP $code ${reason:-без описания}" ;;
+          esac
+          echo "::warning::Telegram не принял сообщение: $reason"

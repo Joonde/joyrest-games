@@ -1,4 +1,4 @@
-# Образ JoyRest Games: собранный сайт + сервер + файлы выкладки (deploy/).
+# Образ JoyRest Games: собранная платформа + сайт агентства + сервер + файлы выкладки (deploy/).
 # Собирается только в GitHub Actions; сервер его скачивает из GHCR и ничего не собирает.
 # Базовые образы берутся с Docker Hub здесь, в GitHub; сервер к Docker Hub не обращается.
 
@@ -7,7 +7,7 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build && npm run build:server
+RUN npm run build && npm run build:server && npm run build:site
 
 FROM node:22-bookworm-slim
 ARG APP_VERSION=dev
@@ -15,9 +15,13 @@ ARG APP_IMAGE=ghcr.io/joonde/joyrest-app:dev
 ENV NODE_ENV=production \
     PORT=8080 \
     PUBLIC_DIR=/app/public \
+    SITE_DIR=/app/site \
+    SITE_STUB_DIR=/app/deploy/caddy/soon \
     APP_VERSION=${APP_VERSION}
 WORKDIR /app
 COPY --from=build /src/dist ./public
+# Сайт агентства joy-rest.ru (site/ → build/site, scripts/build-site.ts).
+COPY --from=build /src/build/site ./site
 COPY --from=build /src/build/server ./server
 COPY server/migrations ./migrations
 COPY deploy ./deploy

@@ -13,10 +13,15 @@
 	}
 }
 
+# Адрес посетителя для приложения (лимиты по IP) — только тот, что видит Caddy: присланный
+# клиентом X-Forwarded-For перезаписывается, а не дописывается. Приложение верит этому
+# заголовку только от адресов внутренней сети Docker (server/src/app.ts, trustProxy).
 games.joy-rest.ru {
 	import security
 	encode zstd gzip
-	reverse_proxy app-prod:8080
+	reverse_proxy app-prod:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
 # Тестовое окружение: проверки веток до выкладки на основной адрес. Поисковикам не показываем.
@@ -24,15 +29,45 @@ test.games.joy-rest.ru {
 	import security
 	header X-Robots-Tag "noindex, nofollow"
 	encode zstd gzip
-	reverse_proxy app-test:8080
+	reverse_proxy app-test:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
-# Основной сайт агентства — пока заглушка «скоро».
+# Сайт агентства: файлы из того же образа, что и платформа (app-prod выбирает сайт по Host),
+# поэтому выкладка, откат и уведомления общие. По умолчанию сайт ВЫКЛЮЧЕН: app-prod отдаёт
+# заглушку «скоро» (deploy/caddy/soon) и не принимает заявки. Включает только владелец —
+# `sudo joyrest site on` (settings.env), выкладка и перезагрузка сами его не включают.
+# Кэш и поисковики (robots.txt, X-Robots-Tag; `sudo joyrest site-indexing on|off`) — в приложении.
 joy-rest.ru {
 	import security
 	encode zstd gzip
-	root * /etc/caddy/soon
-	file_server
+	reverse_proxy app-prod:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
+# Тестовый сайт агентства — версия из ветки (app-test), всегда сайт, закрыт паролем.
+# Поисковикам не показываем никогда.
+test.joy-rest.ru {
+	import security
+	# Вход владельца — файл auth/test-site-owner.caddy («логин хэш»), его пишет
+	# `sudo joyrest site-password`; пароль нигде не хранится, только bcrypt-хэш.
+	# Первая строка — запирающая учётная запись: пароль случайный и никому не известен,
+	# поэтому пока пароль не задан, сайт закрыт для всех. Стоимость bcrypt 10 (~0,1 с на проверку):
+	# перебор паролей не должен нагружать сервер игр; взамен пароль не короче 12 символов.
+	basic_auth {
+		joyrest-locked $2a$10$/N7fNHww1DUIBwm1E/ekreNZizdVEaCV2nMSomPhm.v14TAmsH9j2
+		import /etc/caddy/auth/test-site-*.caddy
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		defer
+	}
+	encode zstd gzip
+	reverse_proxy app-test:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
 www.joy-rest.ru {

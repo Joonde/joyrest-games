@@ -12,6 +12,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-joyrest \"vitest run --config vitest.rules.config.ts\"",
     "simulate": "firebase emulators:exec --only firestore,auth --project demo-joyrest \"tsx scripts/simulate.ts\"",
     "build:server": "esbuild server/src/main.ts server/src/migrate-main.ts --bundle --platform=node --target=node22 --format=esm --outdir=build/server --entry-names=[name] --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
+    "build:site": "tsx scripts/build-site.ts",
     "start:server": "node build/server/main.js"
   },
   "dependencies": {

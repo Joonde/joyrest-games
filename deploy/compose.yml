@@ -1,8 +1,10 @@
 # JoyRest Games на сервере: Caddy (HTTPS) → приложение → PostgreSQL.
 # Запускается командой `joyrest` (deploy/bin/joyrest) из папки текущего релиза основного
-# окружения. Переменные: /srv/joyrest/secrets.env (секреты) и /srv/joyrest/runtime.env
-# (образы: APP_IMAGE — основное окружение, APP_TEST_IMAGE — тестовое; пишет joyrest).
-# Caddyfile и заглушка лежат в /srv/joyrest/caddy/etc (копирует joyrest из релиза), чтобы
+# окружения. Переменные: /srv/joyrest/secrets.env (секреты, в том числе бот заявок сайта),
+# /srv/joyrest/runtime.env (образы: APP_IMAGE — основное окружение, APP_TEST_IMAGE — тестовое;
+# пишет joyrest) и /srv/joyrest/settings.env (настройки, например SITE_INDEXING).
+# Caddyfile и заглушка лежат в /srv/joyrest/caddy/etc (копирует joyrest из релиза), там же
+# auth/ — хэш пароля test.joy-rest.ru (пишет `joyrest site-password`, релиз его не трогает), чтобы
 # выкладка не пересоздавала caddy: новый Caddyfile применяется через `caddy reload`.
 # Наружу открыт только Caddy: 80, 443 и 443/udp (HTTP/3). У app и postgres портов нет,
 # база — во внутренней сети без выхода в интернет. Docker обходит ufw, поэтому
@@ -71,6 +73,16 @@ services:
       DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_prod
       PUBLIC_DIR: /app/public
       NODE_OPTIONS: --max-old-space-size=256
+      # Сайт агентства (joy-rest.ru). По умолчанию ВЫКЛЮЧЕН: заглушка «скоро», /api/lead — 404.
+      # Включает только владелец: sudo joyrest site on (settings.env). Индексация — тоже
+      # settings.env (sudo joyrest site-indexing on|off, только при site on). Бот заявок —
+      # secrets.env (sudo joyrest lead-bot). Значения по умолчанию здесь — только off
+      # (проверяет server/src/siteSwitch.test.ts).
+      SITE_HOSTS: joy-rest.ru
+      SITE_ENABLED: ${SITE_ENABLED:-off}
+      SITE_INDEXING: ${SITE_INDEXING:-off}
+      LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
+      LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:
@@ -92,6 +104,14 @@ services:
       DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_test
       PUBLIC_DIR: /app/public
       NODE_OPTIONS: --max-old-space-size=160
+      # Тестовый сайт test.joy-rest.ru: сайт всегда, закрыт паролем (Caddy, sudo joyrest
+      # site-password) и от поисковиков; заявки — в тот же чат с пометкой.
+      SITE_HOSTS: test.joy-rest.ru
+      SITE_ENABLED: "on"
+      SITE_INDEXING: "off"
+      LEAD_LABEL: "🧪 ТЕСТ (test.joy-rest.ru)"
+      LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
+      LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:

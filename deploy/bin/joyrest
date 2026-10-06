@@ -161,14 +161,19 @@ active_games() {
 wait_postgres() {
   local deadline=$((SECONDS + 90))
   until dc exec -T postgres pg_isready -U joyrest -d joyrest_prod >/dev/null 2>&1; do
-    [ "$SECONDS" -lt "$deadline" ] || die "PostgreSQL не запустилась за 90 секунд."
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      log "PostgreSQL не запустилась за 90 секунд"
+      return 1
+    fi
     sleep 2
   done
 }
 
 ensure_test_db() {
-  if [ "$(psql_prod "select count(*) from pg_database where datname = 'joyrest_test'")" = 0 ]; then
-    psql_prod "create database joyrest_test owner joyrest" >/dev/null
+  local count
+  count=$(psql_prod "select count(*) from pg_database where datname = 'joyrest_test'") || return 1
+  if [ "$count" = 0 ]; then
+    psql_prod "create database joyrest_test owner joyrest" >/dev/null || return 1
     log "Создана база joyrest_test"
   fi
 }
@@ -232,22 +237,27 @@ reload_caddy() {
 }
 
 # Скачивает образ коммита и раскладывает его папку deploy/ в releases/<коммит>.
+# Каждый шаг проверяется явно: при вызове из очереди и таймера (`deploy_env … || …`) bash
+# отключает set -e внутри функций, поэтому на него здесь не полагаемся.
 fetch_release() {
   local sha=$1 digest cid incoming="$ROOT_DIR/releases/.incoming-$1"
-  docker pull -q "$APP_REPO:sha-$sha" >/dev/null || die "Не скачался образ $APP_REPO:sha-$sha."
+  docker pull -q "$APP_REPO:sha-$sha" >/dev/null || return 1
   digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$APP_REPO:sha-$sha" \
     | grep -m1 "^$APP_REPO@sha256:" || true)
   [ -n "$digest" ] || digest="$APP_REPO:sha-$sha"
   if [ ! -f "$ROOT_DIR/releases/$sha/release.env" ]; then
-    cid=$(docker create "$APP_REPO:sha-$sha")
+    cid=$(docker create "$APP_REPO:sha-$sha") || return 1
     rm -rf "$incoming"
-    docker cp "$cid:/app/deploy" "$incoming" >/dev/null
-    docker rm "$cid" >/dev/null
+    if ! docker cp "$cid:/app/deploy" "$incoming" >/dev/null; then
+      docker rm "$cid" >/dev/null 2>&1
+      return 1
+    fi
+    docker rm "$cid" >/dev/null 2>&1 || true
     rm -rf "${ROOT_DIR:?}/releases/$sha"
-    mv "$incoming" "$ROOT_DIR/releases/$sha"
+    mv "$incoming" "$ROOT_DIR/releases/$sha" || return 1
   fi
   # Запускаем по неизменяемому отпечатку образа, а не по тегу.
-  printf 'APP_VERSION=%s\nAPP_IMAGE=%s\n' "$sha" "$digest" > "$ROOT_DIR/releases/$sha/release.env"
+  printf 'APP_VERSION=%s\nAPP_IMAGE=%s\n' "$sha" "$digest" > "$ROOT_DIR/releases/$sha/release.env" || return 1
 }
 
 run_migrations() {
@@ -262,7 +272,11 @@ run_migrations() {
 predeploy_dump() {
   local file
   file="$ROOT_DIR/backups/predeploy/$(date '+%Y%m%d-%H%M%S')-$(release_value prod APP_VERSION | cut -c1-12).dump"
-  dc exec -T postgres pg_dump -U joyrest -Fc joyrest_prod > "$file"
+  if ! dc exec -T postgres pg_dump -U joyrest -Fc joyrest_prod > "$file" || [ ! -s "$file" ]; then
+    rm -f "$file"
+    log "Дамп базы не получился"
+    return 1
+  fi
   chmod 600 "$file"
   log "Дамп базы перед выкладкой: $file ($(du -h "$file" | cut -f1))"
   find "$ROOT_DIR/backups/predeploy" -name '*.dump' -printf '%T@ %p\n' | sort -rn \
@@ -271,8 +285,8 @@ predeploy_dump() {
 
 switch_to() {
   local env=$1 sha=$2
-  ln -sfn "releases/$sha" "$(env_link "$env").new"
-  mv -Tf "$(env_link "$env").new" "$(env_link "$env")"
+  ln -sfn "releases/$sha" "$(env_link "$env").new" || return 1
+  mv -Tf "$(env_link "$env").new" "$(env_link "$env")" || return 1
   write_runtime
 }
 
@@ -329,14 +343,27 @@ deploy_env() {
 
   set_status "$env" "running $sha"
   log "[$env] выкладка $sha"
-  fetch_release "$sha"
+  # До переключения версии любая ошибка оставляет сайт на прошлой версии. Метку failed-<env>
+  # здесь не ставим: таймер повторит попытку (сеть, GHCR и база могут ожить).
+  if ! fetch_release "$sha"; then
+    set_status "$env" "failed $sha: не скачался образ из GHCR, версия не переключалась"
+    log "[$env] $sha: не скачался образ"
+    return 1
+  fi
   prev=$(basename "$(readlink -f "$(env_link "$env")" 2>/dev/null || true)")
   # У тестового окружения без своей версии откатываемся на версию основного.
   [[ "$prev" =~ $SHA_RE ]] || prev=$(release_value prod APP_VERSION)
 
-  wait_postgres
-  ensure_test_db
-  [ "$env" = prod ] && predeploy_dump
+  if ! wait_postgres || ! ensure_test_db; then
+    set_status "$env" "failed $sha: база недоступна, версия не переключалась"
+    log "[$env] $sha: база недоступна"
+    return 1
+  fi
+  if [ "$env" = prod ] && ! predeploy_dump; then
+    set_status "$env" "failed $sha: не получился дамп базы, версия не переключалась"
+    log "[$env] $sha: не получился дамп базы"
+    return 1
+  fi
 
   if ! run_migrations "$env" "$(sed -n 's/^APP_IMAGE=//p' "$ROOT_DIR/releases/$sha/release.env")"; then
     set_status "$env" "failed $sha: ошибка миграции, версия не переключалась"
@@ -345,8 +372,9 @@ deploy_env() {
     return 1
   fi
 
-  switch_to "$env" "$sha"
-  start_env "$env"
+  # Ошибку переключения или запуска ловит проверка /health ниже и откатывает.
+  switch_to "$env" "$sha" || log "[$env] $sha: ошибка переключения"
+  start_env "$env" || log "[$env] $sha: ошибка запуска контейнеров"
   if wait_healthy "$env" "$sha"; then
     echo "$sha" >> "$DEPLOY_DIR/history-$env"
     tail -n 20 "$DEPLOY_DIR/history-$env" > "$DEPLOY_DIR/history-$env.tmp" && mv -f "$DEPLOY_DIR/history-$env.tmp" "$DEPLOY_DIR/history-$env"
@@ -360,8 +388,8 @@ deploy_env() {
   echo "$sha" > "$DEPLOY_DIR/failed-$env"
   if [[ "$prev" =~ $SHA_RE ]] && [ "$prev" != "$sha" ]; then
     log "[$env] $sha не прошла проверку — откат на $prev"
-    switch_to "$env" "$prev"
-    start_env "$env"
+    switch_to "$env" "$prev" || log "[$env] ошибка переключения на $prev"
+    start_env "$env" || log "[$env] ошибка запуска контейнеров $prev"
     if wait_healthy "$env" "$prev"; then result="откат на $prev"; else result="откат на $prev НЕ ПОДНЯЛСЯ"; fi
   else
     result="прошлой версии нет"
@@ -420,8 +448,8 @@ cmd_up() {
   # Свежие копии caddy и postgres из GHCR (обновляются раз в неделю); без связи — работаем на старых.
   dc pull -q caddy postgres >/dev/null 2>&1 || log "Не удалось обновить образы caddy/postgres — оставляю текущие"
   dc up -d postgres
-  wait_postgres
-  ensure_test_db
+  wait_postgres || die "PostgreSQL не запустилась за 90 секунд."
+  ensure_test_db || die "Не удалось создать базу joyrest_test."
   if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
 }
 
@@ -462,7 +490,17 @@ cmd_activate() {
 # Очередь от привратника SSH: файлы queue/prod и queue/test с «<коммит> [force]».
 cmd_process_queue() {
   need_root process-queue
-  local env file request sha force code
+  local env file request sha force code entry
+  # В очереди бывают только обычные файлы prod и test. Всё остальное (каталог, ссылка,
+  # другое имя) удаляем, иначе служба запускалась бы по кругу.
+  for entry in "$QUEUE_DIR"/[a-z]*; do
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    case "$(basename "$entry")" in
+      prod|test) [ -f "$entry" ] && [ ! -L "$entry" ] && continue ;;
+    esac
+    rm -rf -- "$entry"
+    log "Очередь: удалён лишний объект $(basename "$entry" | tr -cd 'a-z0-9._-' | cut -c1-40)"
+  done
   for env in prod test; do
     file="$QUEUE_DIR/$env"
     [ -f "$file" ] || continue
@@ -473,7 +511,8 @@ cmd_process_queue() {
       sha=${BASH_REMATCH[1]}
       force=${BASH_REMATCH[2]# }
       [ "$env" = test ] && force=""
-      code=0; deploy_env "$env" "$sha" "$force" || code=$?
+      # Подоболочка: die внутри выкладки не обрывает обработку второго окружения.
+      code=0; ( deploy_env "$env" "$sha" "$force" ) || code=$?
       log "[$env] очередь: $sha завершена с кодом $code"
     else
       log "[$env] очередь: отклонён запрос неверного формата"
@@ -518,7 +557,7 @@ cmd_auto_update() {
     [ "$(cat "$DEPLOY_DIR/failed-$env" 2>/dev/null)" = "$sha" ] && continue
     docker tag "$APP_REPO@$remote" "$APP_REPO:sha-$sha"
     log "[$env] сервер сам забирает релиз $sha (тег $tag)"
-    deploy_env "$env" "$sha" || true
+    ( deploy_env "$env" "$sha" ) || true
   done
 }
 

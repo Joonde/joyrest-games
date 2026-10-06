@@ -134,6 +134,27 @@ describe("/api/lead: поля", () => {
     expect(checked.ok && checked.lead.type === "question" && checked.lead.fields.text).toBe("раз\n\nдва");
   });
 
+  it("формат ведущего (hostLevel): необязательный, только три значения, строка в Telegram", async () => {
+    const { app, post, sent } = setup();
+    expect((await post({ ...VALID.lead, hostLevel: "new" })).statusCode).toBe(200);
+    expect(sent.at(-1)).toContain("Ведущий: Новые лица (−25%)");
+    expect((await post({ ...VALID.lead, hostLevel: "first" })).statusCode).toBe(200);
+    expect(sent.at(-1)).toContain("Ведущий: Первый старт (−35%)");
+    expect((await post({ ...VALID.lead, hostLevel: "standard" })).statusCode).toBe(200);
+    expect(sent.at(-1)).toContain("Ведущий: опытный");
+    // Без поля (старая форма) — заявка принимается, строки о ведущем нет.
+    expect((await post(VALID.lead)).statusCode).toBe(200);
+    expect(sent.at(-1)).not.toContain("Ведущий:");
+    for (const bad of ["vip", "NEW", 1, true, { a: 1 }]) {
+      const res = await post({ ...VALID.lead, hostLevel: bad });
+      expect(res.statusCode, JSON.stringify(bad)).toBe(400);
+      expect(res.json().message).toContain("Формат ведущего");
+    }
+    // Только у заявки: в вопросе и отзыве поле лишнее.
+    expect((await post({ ...VALID.question, hostLevel: "new" })).statusCode).toBe(400);
+    await app.close();
+  });
+
   it("сообщение с меткой тестового окружения", () => {
     const checked = checkLead(VALID.question);
     if (!checked.ok) throw new Error("ожидалась верная заявка");

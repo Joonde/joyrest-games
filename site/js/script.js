@@ -114,6 +114,27 @@
   });
 
   // Price calculator
+  // Направления, которых пока нет (data-service-* у <body>, см. index.html): варианты списков
+  // с data-needs / data-unless убираем здесь — iPhone не прячет <option> стилями.
+  const serviceOn = (name) => document.body.dataset['service' + name[0].toUpperCase() + name.slice(1)] === 'on';
+  document.querySelectorAll('option[data-needs], option[data-unless]').forEach(option => {
+    const needs = (option.dataset.needs || '').split(' ').filter(Boolean);
+    const unless = (option.dataset.unless || '').split(' ').filter(Boolean);
+    if(needs.some(n => !serviceOn(n)) || (unless.length && unless.every(serviceOn))) option.remove();
+  });
+
+  // Формат ведущего: опытный или стартовые форматы с молодыми ведущими (раздел «Пакеты услуг»).
+  // Те же значения принимает /api/lead (hostLevel).
+  const HOST_LEVELS = {
+    standard: { title: 'Опытный ведущий', discount: 0 },
+    new: { title: 'Новые лица', discount: 25 },
+    first: { title: 'Первый старт', discount: 35 },
+  };
+  const calcHostLevel = document.getElementById('calcHostLevel');
+  const calcHostDiscountRow = document.getElementById('calcHostDiscountRow');
+  const calcHostDiscountLabel = document.getElementById('calcHostDiscountLabel');
+  const calcHostDiscount = document.getElementById('calcHostDiscount');
+  const hostLevelField = document.getElementById('hostLevel');
   const calcPackage = document.getElementById('calcPackage');
   const calcPackageNote = document.getElementById('calcPackageNote');
   const calcDayInputs = document.querySelectorAll('input[name="calcDay"]');
@@ -242,48 +263,150 @@
     }
     runningTotal -= hoursDiscountAmount;
 
+    // Стартовые форматы ведущего — последней скидкой, после всех остальных.
+    const level = HOST_LEVELS[calcHostLevel.value] || HOST_LEVELS.standard;
+    const hostDiscountAmount = runningTotal * level.discount / 100;
+    if(level.discount > 0){
+      calcHostDiscountRow.style.display = '';
+      calcHostDiscountLabel.textContent = `Скидка «${level.title}» (−${level.discount}%)`;
+      calcHostDiscount.textContent = `−${fmt(hostDiscountAmount)}`;
+    } else {
+      calcHostDiscountRow.style.display = 'none';
+    }
+    runningTotal -= hostDiscountAmount;
+
     calcTotal.textContent = fmt(runningTotal);
   }
-  [calcPackage, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
+  [calcPackage, calcHostLevel, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
   recalc();
 
   document.getElementById('calcSubmit').addEventListener('click', () => {
-    const summary = `Расчёт с калькулятора: пакет «${calcPackage.options[calcPackage.selectedIndex].text}», ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
+    const summary = `Расчёт с калькулятора: пакет «${calcPackage.options[calcPackage.selectedIndex].text}», ведущий — ${calcHostLevel.options[calcHostLevel.selectedIndex].text}, ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
       (calcCustom.checked ? `, индивидуальный сценарий (${calcComplexity.options[calcComplexity.selectedIndex].text})` : '') +
       `. Итого: ${calcTotal.textContent}.`;
     const messageField = document.getElementById('message');
     messageField.value = messageField.value ? messageField.value + '\n' + summary : summary;
+    hostLevelField.value = calcHostLevel.value;
     document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
   });
 
-  // Section collapse/expand toggles (Мероприятия / Услуги / Пакеты услуг)
+  // Section collapse/expand toggles (Мероприятия / Услуги / Пакеты услуг).
+  // У секции класс is-open: свёрнутая секция компактная (стили в css/style.css).
+  const sectionToggles = {};
   function setupSectionToggle(btnId, wrapId){
     const btn = document.getElementById(btnId);
     const wrap = document.getElementById(wrapId);
     if(!btn || !wrap) return;
-    btn.addEventListener('click', () => {
-      const isOpen = wrap.classList.toggle('open');
+    const section = wrap.closest('section');
+    // Высота по содержимому (в «Услугах» ещё и форматы, их список тоже раскрывается):
+    // анимируем до scrollHeight, после раскрытия снимаем ограничение.
+    wrap.addEventListener('transitionend', (e) => {
+      if(e.target === wrap && e.propertyName === 'max-height' && wrap.classList.contains('open')) wrap.style.maxHeight = 'none';
+    });
+    const setOpen = (isOpen) => {
+      if(wrap.classList.contains('open') === isOpen) return;
+      const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      wrap.style.maxHeight = wrap.scrollHeight + 'px';
+      if(!isOpen){ void wrap.offsetHeight; wrap.style.maxHeight = '0px'; }
+      else if(instant){ wrap.style.maxHeight = 'none'; }
+      wrap.classList.toggle('open', isOpen);
+      section.classList.toggle('is-open', isOpen);
       btn.classList.toggle('open', isOpen);
       btn.setAttribute('aria-expanded', isOpen);
       btn.childNodes[0].textContent = isOpen ? 'Скрыть ' : 'Показать ';
-    });
+    };
+    btn.addEventListener('click', () => setOpen(!wrap.classList.contains('open')));
+    sectionToggles[section.id] = setOpen;
   }
   setupSectionToggle('eventsToggleBtn', 'eventsList');
   setupSectionToggle('servicesToggleBtn', 'servicesList');
   setupSectionToggle('packagesToggleBtn', 'packagesList');
 
-  // Show-type quick picks (informational, feeds into request comment)
-  document.querySelectorAll('.show-pick').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.show-pick').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  // Эмблема первого экрана. Пока она видна под шапкой, логотип в шапке скрыт (место
+  // сохраняется), ушла за верх экрана — логотип плавно появляется (без анимации при
+  // «уменьшить движение» — это делает CSS). Вне экрана анимация эмблемы на паузе (батарея).
+  // Наклон от датчика — только там, где он работает без запроса разрешения (на iPhone
+  // разрешение нужно — там остаётся плавная анимация из CSS).
+  const emblem = document.querySelector('.emblem');
+  const siteHeader = document.getElementById('siteHeader');
+  if(emblem && 'IntersectionObserver' in window){
+    let logoObserver = null;
+    const watchLogo = () => {
+      if(logoObserver) logoObserver.disconnect();
+      // Верх «окна» — нижний край шапки: эмблема под шапкой уже не видна.
+      logoObserver = new IntersectionObserver((entries) => {
+        siteHeader.classList.toggle('logo-hidden', entries[0].isIntersecting);
+      }, { rootMargin: `-${Math.round(siteHeader.getBoundingClientRect().height)}px 0px 0px 0px` });
+      logoObserver.observe(emblem);
+    };
+    watchLogo();
+    window.addEventListener('resize', watchLogo);
+  }
+  if(emblem && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    if('IntersectionObserver' in window){
+      new IntersectionObserver((entries) => {
+        emblem.classList.toggle('is-paused', !entries[0].isIntersecting);
+      }).observe(emblem);
+    }
+    const needsPermission = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+    if('DeviceOrientationEvent' in window && !needsPermission){
+      const tilt = emblem.querySelector('.emblem-tilt');
+      const clamp = (v) => Math.max(-12, Math.min(12, v));
+      let base = null, frame = 0, last = null;
+      window.addEventListener('deviceorientation', (e) => {
+        if(e.beta === null || e.gamma === null) return;
+        if(base === null){ base = e.beta; emblem.classList.add('is-device'); }
+        last = e;
+        if(frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          const x = clamp((last.beta - base) / 3);
+          const y = clamp(last.gamma / 3);
+          tilt.style.transform = `rotateX(${x.toFixed(2)}deg) rotateY(${y.toFixed(2)}deg)`;
+        });
+      });
+    }
+  }
+
+  // Шапка: «Услуги» раскрывает раздел, «Оставить заявку» ведёт к форме и ставит фокус в первое поле.
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('[data-open-section]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const section = document.getElementById(link.dataset.openSection);
+      if(!section) return;
+      e.preventDefault();
+      if(sectionToggles[section.id]) sectionToggles[section.id](true);
+      section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+  // «Выбрать этот формат» на карточках стартовых форматов: ставит вариант в заявке и в
+  // калькуляторе и ведёт к форме (фокус — в первое поле, как у «Оставить заявку»).
+  document.querySelectorAll('[data-host-level]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      hostLevelField.value = link.dataset.hostLevel;
+      calcHostLevel.value = link.dataset.hostLevel;
+      recalc();
+      document.getElementById('contact').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      document.getElementById('name').focus({ preventScroll: true });
+    });
+  });
+  document.querySelectorAll('[data-focus-target]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const field = document.getElementById(link.dataset.focusTarget);
+      const target = document.querySelector(link.getAttribute('href'));
+      if(!field || !target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      // Фокус сразу, в том же нажатии: иначе iPhone не откроет клавиатуру.
+      field.focus({ preventScroll: true });
     });
   });
 
   // Event-type picker
   const PICKER_INFO = {
     wedding: `<strong>Пока не оказываем услугу организации свадеб</strong> — это в ближайших планах компании. Оставьте заявку, и мы напишем первыми, как только запустим направление. А пока можете полистать форматы игр ниже — многие из них (например, «Битва тостов») отлично подойдут для банкета своими силами.`,
-    corporate: `<strong>Для корпоративов чаще всего берут:</strong> квизы (в том числе под сферу вашей компании), классические командные игры (Мафия, Бункер, Шпион) и активности вроде «Живого оркестра» или «Битвы тостов». Ниже показаны только они — если нужно больше вариантов, нажмите «Показать все форматы».`,
+    corporate: `<strong>Для корпоративов хорошо подходят:</strong> квизы (в том числе под сферу вашей компании), классические командные игры (Мафия, Бункер, Шпион) и активности вроде «Живого оркестра» или «Битвы тостов». Ниже показаны только они — если нужно больше вариантов, нажмите «Показать все форматы».`,
     birthday: `<strong>Уточните возраст:</strong> подберём подходящие форматы отдельно для детского и отдельно для взрослого праздника.<div class="age-picks"><button type="button" class="age-pick" data-age="birthday-kids">Детский день рождения</button><button type="button" class="age-pick" data-age="birthday-adult">Взрослый день рождения</button></div>`,
     other: `Отлично — тогда показываем все форматы без ограничений: игры, квизы, танцевальные форматы, сезонные и алкоразвлечения. Листайте ниже и выбирайте, что откликается.`
   };
@@ -310,6 +433,8 @@
       updateCategoryHeaders();
       return;
     }
+    // Форматы лежат в сворачиваемых «Услугах»: раз их отфильтровали — показываем.
+    if(sectionToggles.services) sectionToggles.services(true);
     allTiles.forEach(t => {
       const events = (t.dataset.events || '').split(',');
       t.classList.toggle('filtered-out', !events.includes(eventType));
@@ -438,7 +563,6 @@
 
   // Touch/tap ripple effect
   const rippleLayer = document.getElementById('rippleLayer');
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!reduceMotion){
     document.addEventListener('pointerdown', (e) => {
       const r = document.createElement('span');
@@ -476,30 +600,8 @@
       contactMethod: document.getElementById('contactMethod').value,
       contactLink: document.getElementById('contactLink').value.trim(),
       message: document.getElementById('message').value.trim(),
+      hostLevel: hostLevelField.value,
     }, document.getElementById('formNote'), document.getElementById('formError'));
     if(ok) this.reset();
   });
 
-  // Пост Telegram: скрипт виджета грузим, только когда блок подходит к экрану.
-  const tgPost = document.getElementById('tgPost');
-  if(tgPost){
-    const loadWidget = () => {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = 'https://telegram.org/js/telegram-widget.js?22';
-      script.dataset.telegramPost = tgPost.dataset.telegramPost;
-      script.dataset.width = '100%';
-      tgPost.appendChild(script);
-    };
-    if('IntersectionObserver' in window){
-      const tgObserver = new IntersectionObserver((entries) => {
-        if(entries.some(entry => entry.isIntersecting)){
-          tgObserver.disconnect();
-          loadWidget();
-        }
-      }, { rootMargin: '400px 0px' });
-      tgObserver.observe(tgPost);
-    }else{
-      loadWidget();
-    }
-  }

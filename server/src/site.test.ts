@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { Resvg } from "@resvg/resvg-js";
+import jsQR from "jsqr";
 import { contrastRatio } from "../../src/themes/contrast";
 import { buildApp } from "./app";
 
@@ -145,10 +147,23 @@ describe("исходники сайта (site/)", () => {
     }
   });
 
-  it("виджет Telegram грузится лениво из скрипта, не из разметки", () => {
-    expect(html).not.toContain("telegram-widget.js");
-    expect(js).toContain("telegram-widget.js");
-    expect(js).toContain("IntersectionObserver");
+  it("Telegram: своя карточка канала без внешних скриптов, старого поста нет", () => {
+    for (const text of [html, css, js]) {
+      expect(text).not.toMatch(/telegram-widget|telegram\.org\/js|data-telegram-post|JoyRest\/3/);
+    }
+    expect(html).not.toMatch(/<script[^>]+src="https?:/);
+    expect(html).toContain("<h3>JoyRest в Telegram</h3>");
+    expect(html).toContain("Анонсы, идеи для праздников и закулисье наших мероприятий.");
+    expect(html).toContain('<a class="hbtn hbtn--primary" href="https://t.me/JoyRest" target="_blank" rel="noopener">Открыть канал</a>');
+    // «Беседа»: пустая ссылка — кнопки нет; добавить — вписать ссылку в href.
+    expect(html).toContain('<a class="hbtn hbtn--secondary" data-tg-chat href="" target="_blank" rel="noopener">Беседа</a>');
+    expect(css).toContain('.tg-card a[data-tg-chat][href=""]{ display: none; }');
+    expect(html).toContain('data-brand-qr="https://t.me/JoyRest"');
+    // Стили QR — только для внешнего SVG: вложенная монограмма держит свои размеры.
+    expect(css).toContain(".tg-card__qr > svg{");
+    expect(css).not.toMatch(/\.tg-card__qr svg\b/);
+    // QR — только от 760px.
+    expect(css).toMatch(/\.tg-card__qr\{ display: none; \}[\s\S]*@media \(min-width: 761px\)\{\s*\.tg-card__qr\{ display: block;/);
   });
 
   it("формы шлют на /api/lead, у каждой есть ловушка и место для ошибки", () => {
@@ -159,9 +174,260 @@ describe("исходники сайта (site/)", () => {
     for (const id of ["askError", "reviewError", "formError"]) expect(html).toContain(`id="${id}"`);
   });
 
+  it("в блоке «Шоу» нет кнопок без действия, пожелания — в комментарии к заявке", () => {
+    for (const text of [html, css, js]) expect(text).not.toContain("show-pick");
+    expect(html).toContain("напишите о пожеланиях в комментарии к заявке");
+  });
+
+  it("шапка: «Оставить заявку» ведёт к форме с фокусом, «Услуги» раскрывает раздел", () => {
+    expect(html).toMatch(/<a href="#contact" class="hbtn hbtn--primary" data-focus-target="name">Оставить заявку<\/a>/);
+    expect(html).toMatch(/<a href="#services" class="hbtn hbtn--secondary" data-open-section="services">Услуги<\/a>/);
+    expect(html).toContain('<input type="text" id="name"');
+    expect(js).toContain("[data-focus-target]");
+    expect(js).toContain("[data-open-section]");
+    // Кнопки для пальца — не ниже 44px.
+    expect(css).toMatch(/\.hbtn\{[^}]*min-height: 44px/);
+  });
+
+  it("полосы с фоном не шире страницы, пятна первого экрана — не ячейки сетки", () => {
+    expect(html).not.toMatch(/margin: 0 -32px/);
+    expect(css).toMatch(/\.band\{ margin-left: calc\(-1 \* var\(--wrap-pad\)\)/);
+    expect(css).toContain(".hero > *:not(.blob){ position: relative;");
+  });
+
+  it("свёрнутые разделы компактные, на телефоне между секциями не больше 64px", () => {
+    expect(css).toMatch(/section\.is-collapsible:not\(\.is-open\) \.section-head\{ margin-bottom: 0; padding-bottom: 0; border-bottom: none; \}/);
+    const phone = css.slice(css.indexOf("@media (max-width: 760px){\n    .nav-links"));
+    expect(phone).toMatch(/section\{ padding: 32px 0; \}/);
+    expect(html.match(/class="[^"]*is-collapsible[^"]*"/g)).toHaveLength(3);
+  });
+
   it("в политике домен joy-rest.ru", () => {
     expect(html).toContain("joy-rest.ru");
     expect(html).not.toMatch(/[^-.\w]joyrest\.ru/);
+  });
+});
+
+describe("контраст сайта в светлой и тёмной теме (WCAG AA, как у платформы)", () => {
+  const root = resolve(import.meta.dirname, "../..");
+  const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+  const html = readFileSync(join(root, "site/index.html"), "utf8");
+
+  /** Переменные блока :root{…}: светлая тема — первый, тёмная — внутри prefers-color-scheme: dark. */
+  function tokens(block: string): Record<string, string> {
+    return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})\b/g)].map((m) => [m[1] ?? "", m[2] ?? ""]));
+  }
+  const lightBlock = css.slice(css.indexOf(":root{"), css.indexOf("}", css.indexOf(":root{")));
+  const darkStart = css.search(/@media \(prefers-color-scheme: dark\)\{\s*:root\{/);
+  const darkBlock = css.slice(darkStart, css.indexOf("}", darkStart));
+  const light = tokens(lightBlock);
+  const dark = { ...light, ...tokens(darkBlock) };
+  const EMBLEM = /\.emblem\{[^}]*?--emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6}); --emb-4: (#\w{6})/;
+  const dark2 = EMBLEM.exec(css.slice(darkStart));
+
+  // [текст, фон, норма]: 4.5 — текст, 3 — крупный текст, рамки и графика.
+  const pairs = (t: Record<string, string>, surfaces: string[]): [string, string, number][] => [
+    ...surfaces.flatMap((bg): [string, string, number][] => [
+      [t.ink ?? "", bg, 4.5],
+      [t["ink-soft"] ?? "", bg, 4.5],
+      [t["accent-text"] ?? "", bg, 4.5],
+      [t["green-text"] ?? "", bg, 4.5],
+      [t["btn-outline-text"] ?? "", bg, 4.5],
+      [t["btn-outline"] ?? "", bg, 3],
+    ]),
+    // Текст на цветных заливках кнопок и плашек.
+    ...["coral", "emerald", "gold", "wine", "btn-primary-bg"].map((fill): [string, string, number] => [t["on-accent"] ?? "", t[fill] ?? "", 4.5]),
+    [t["btn-primary-text"] ?? "", t["btn-primary-bg"] ?? "", 4.5],
+    // «Задать вопрос» и тёмная кнопка меню: фон --ink, текст --bg.
+    [t.bg ?? "", t.ink ?? "", 4.5],
+  ];
+
+  it.each([
+    ["светлая", light, ["#FFFFFF"]],
+    ["тёмная", dark, []],
+  ] as const)("%s тема: текст, кнопки и рамки", (_name, t, extra) => {
+    const surfaces = [t.bg ?? "", t["bg-alt"] ?? "", ...extra];
+    for (const [fg, bg, need] of pairs(t, surfaces)) {
+      expect(fg, "нет цвета в токенах").toMatch(/^#/);
+      expect(bg, "нет цвета в токенах").toMatch(/^#/);
+      expect(contrastRatio(fg, bg), `${fg} на ${bg}`).toBeGreaterThanOrEqual(need);
+    }
+  });
+
+  it("эмблема и её надписи: каждый цвет градиента с фоном ≥ 4.5 в обеих темах", () => {
+    const lightEmblem = EMBLEM.exec(css);
+    for (const [colors, bg] of [[lightEmblem, light.bg], [dark2, dark.bg]] as const) {
+      expect(colors).not.toBeNull();
+      expect(colors?.slice(1)).toHaveLength(4);
+      for (const c of colors?.slice(1) ?? []) expect(contrastRatio(c ?? "", bg ?? ""), `${c} на ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("нет белого текста на пастели и пастельного текста на фоне — только токены", () => {
+    expect(css).not.toMatch(/(?<![-\w])color:\s*(#fff\b|#ffffff\b|white\b)/i);
+    expect(css).not.toMatch(/(?<![-\w])color:\s*var\(--(coral|emerald|gold|wine)\)/);
+    expect(html).not.toMatch(/(?<![-\w])color:\s*(#fff\b|white\b|var\(--(coral|emerald|gold|wine)\))/i);
+  });
+});
+
+describe("тексты и устройство страницы", () => {
+  const root = resolve(import.meta.dirname, "../..");
+  const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+  const html = readFileSync(join(root, "site/index.html"), "utf8");
+  const js = readFileSync(join(root, "site/js/script.js"), "utf8");
+
+  it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, пост Telegram на месте", () => {
+    expect(html).toContain("Мы только открываемся — здесь появятся фото и отзывы с наших первых мероприятий. А пока заглядывайте в наш Telegram-канал.");
+    expect(html).toContain('<section id="reviews" data-review-form="off">');
+    expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
+    expect(html).toContain('class="tg-card');
+  });
+
+  it("свадьбы — «скоро»: в форме заявки варианта нет, на первом экране приглушённо", () => {
+    expect(html).not.toMatch(/<option>Свадьба/);
+    expect(html).toContain('<li class="dir-soon">💍 Свадьбы — скоро</li>');
+    expect(html).toContain("Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.");
+    expect(html).not.toContain("Условие бронирования");
+  });
+
+  it("«Форматы программ» внутри сворачиваемых «Услуг», в меню — «Оставить заявку»", () => {
+    const start = html.indexOf('id="servicesList"');
+    const end = html.indexOf("/servicesList");
+    expect(html.indexOf('class="formats-block"')).toBeGreaterThan(start);
+    expect(html.indexOf('class="formats-block"')).toBeLessThan(end);
+    expect(html).toContain('<a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>');
+    expect(html).not.toContain("Обсудить мероприятие");
+  });
+
+  it("стартовые форматы: тексты владельца дословно, бейджи, общая строка, внутри «Пакетов»", () => {
+    const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    for (const phrase of [
+      "Новые лица — для тех, кто любит пробовать новое",
+      "Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.",
+      "Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 25% — мы честно делим с вами возможные шероховатости.",
+      "сценарий и программу готовим вместе с опытным ведущим JoyRest;",
+      "на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.",
+      "Первый старт — для самых смелых",
+      "Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.",
+      "Это максимальный эксперимент, поэтому и скидка максимальная — 35%.",
+      "сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;",
+      "на празднике ведущий работает самостоятельно — для него это настоящий первый выход.",
+      "Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.",
+    ]) expect(text, phrase).toContain(phrase);
+    expect(text.match(/игры, реквизит и оборудование — как в обычном формате;/g)).toHaveLength(2);
+    expect(html).toContain('<span class="pkg-badge">−25%</span>');
+    expect(html).toContain('<span class="pkg-badge">−35%</span>');
+    const list = html.slice(html.indexOf('id="packagesList"'), html.indexOf("</section>", html.indexOf('id="packagesList"')));
+    expect(list).toContain("packages--start");
+    expect(html.slice(html.indexOf('id="mobilePanel"'), html.indexOf("</header>"))).not.toMatch(/Новые лица|Первый старт/);
+  });
+
+  it("формат ведущего: калькулятор, поле заявки, кнопки карточек — одни и те же значения", () => {
+    const opts = (id: string) => [...(html.slice(html.indexOf(`id="${id}"`), html.indexOf("</select>", html.indexOf(`id="${id}"`))).matchAll(/value="(\w+)"/g))].map((m) => m[1]);
+    expect(opts("calcHostLevel")).toEqual(["standard", "new", "first"]);
+    expect(opts("hostLevel")).toEqual(["standard", "new", "first"]);
+    expect(html).toContain('data-host-level="new">Выбрать этот формат');
+    expect(html).toContain('data-host-level="first">Выбрать этот формат');
+    expect(js).toContain("hostLevel: hostLevelField.value");
+    // Скидка за формат — последней, после скидки за длительность.
+    expect(js.indexOf("runningTotal -= hostDiscountAmount")).toBeGreaterThan(js.indexOf("runningTotal -= hoursDiscountAmount"));
+    expect(js).toContain("hostLevelField.value = calcHostLevel.value");
+  });
+
+  /** Видимый текст страницы при текущих data-service-*: без элементов data-needs с выключенным
+   *  направлением и без замен data-unless, когда все их направления включены. */
+  function visibleText(): string {
+    const services = Object.fromEntries([...html.matchAll(/data-service-(\w+)="(on|off)"/g)].map((m) => [m[1], m[2] === "on"]));
+    const VOID = new Set(["br", "img", "input", "meta", "link", "hr", "source", "rect", "circle", "line", "ellipse", "path"]);
+    const body = html.slice(html.indexOf("<body"), html.indexOf("</body>")).replace(/<!--[\s\S]*?-->/g, "").replace(/<script[\s\S]*?<\/script>/g, "");
+    let out = "", hiddenDepth = 0, depth = 0, last = 0;
+    for (const m of body.matchAll(/<(\/?)(\w+)([^>]*?)(\/?)>/g)) {
+      if (hiddenDepth === 0) out += body.slice(last, m.index);
+      last = (m.index ?? 0) + m[0].length;
+      const [, close, tag, attrs, selfClose] = m;
+      if (VOID.has((tag ?? "").toLowerCase()) || selfClose) continue;
+      if (close) { if (hiddenDepth && depth === hiddenDepth) hiddenDepth = 0; depth--; continue; }
+      depth++;
+      if (hiddenDepth) continue;
+      const needs = /data-needs="([^"]*)"/.exec(attrs ?? "")?.[1]?.split(" ") ?? [];
+      const unless = /data-unless="([^"]*)"/.exec(attrs ?? "")?.[1]?.split(" ") ?? [];
+      if (needs.some((n) => !services[n]) || (unless.length > 0 && unless.every((n) => services[n]))) hiddenDepth = depth;
+      out += " ";
+    }
+    return out.replace(/\s+/g, " ");
+  }
+
+  it("диджеи, музыканты и площадки пока скрыты одним переключателем на направление", () => {
+    expect(html).toContain('<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">');
+    const text = visibleText();
+    expect(text).not.toMatch(/дидже|площадк|музыкант|подрядчик|под ключ|кавер|квартет/i);
+    expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.");
+    // Старый текст первого экрана сохранён рядом — вернётся вместе с услугами.
+    expect(html).toContain("площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет");
+    expect(text).toContain("Ведущие");
+    expect(text).toContain("Дополнительный номер к программе: фокусник или другое шоу.");
+    // Включили всё — старые тексты видны, замен нет.
+    const allOn = html.replace(/data-service-(\w+)="off"/g, 'data-service-$1="on"');
+    expect(allOn).toContain('data-service-dj="on" data-service-music="on" data-service-venue="on"');
+    // Каждая комбинация замен data-unless покрыта правилом скрытия в CSS.
+    for (const combo of new Set([...html.matchAll(/data-unless="([^"]*)"/g)].map((m) => m[1]))) {
+      const selector = (combo ?? "").split(" ").map((n) => `[data-service-${n}="on"]`).join("") + ` [data-unless="${combo}"]`;
+      expect(css, combo).toContain(`body${selector}`);
+    }
+    for (const n of ["dj", "music", "venue"]) expect(css).toContain(`body[data-service-${n}="off"] [data-needs~="${n}"]`);
+    // Варианты списков убирает скрипт (iPhone не прячет <option> стилями).
+    expect(js).toContain("option[data-needs], option[data-unless]");
+  });
+
+  it("карта: работаем в Москве, остальные города — «Скоро» без мигания", () => {
+    const map = html.slice(html.indexOf('<svg class="coverage-map"'), html.indexOf("</svg>", html.indexOf('<svg class="coverage-map"')));
+    expect(map).toContain(">Москва</text>");
+    expect(map).not.toContain("офис");
+    expect(map.match(/>Скоро<\/text>/g)).toHaveLength(3);
+    expect(map.match(/map-pulse/g)).toHaveLength(1);
+    for (const city of ["Санкт-Петербург", "Курск", "Екатеринбург"]) expect(map).toContain(city);
+  });
+
+  it("честные формулировки: калькулятор вместо конструктора, «хорошо подходят»", () => {
+    expect(html).toContain("<h3>Рассчитать стоимость онлайн</h3>");
+    expect(html).toContain("Посчитайте примерную стоимость праздника за минуту — без звонков и ожидания.");
+    expect(html).toMatch(/<a href="#calculator" class="hbtn hbtn--secondary event-link">/);
+    expect(html).not.toContain("Конструктор мероприятия");
+    expect(js).toContain("Для корпоративов хорошо подходят:");
+    expect(js).not.toContain("чаще всего");
+    expect(html).not.toContain("Самые популярные");
+    expect(html).toContain("свяжемся в течение дня");
+  });
+
+  it("карточки, которые не нажимаются, не реагируют на наведение", () => {
+    expect(css).not.toMatch(/\.(event|package|step|service-row):hover/);
+  });
+
+  it("эмблема: из public/brand, статична при «уменьшить движение», датчик — без запроса разрешения", () => {
+    expect(html).toContain('data-brand-svg="joyrest-emblem"');
+    expect(html).toContain("--emblem-mask: url(/img/joyrest-emblem-mask.svg)"); // абсолютный: url() в переменной считается от файла стилей
+    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toMatch(/\.emblem-tilt, \.emblem-gradient\{ animation: none; transform: none; \}/);
+    expect(reduced).toMatch(/\.emblem-glint\{ animation: none; display: none; \}/);
+    // Анимируются только transform и opacity.
+    for (const name of ["emblemTilt", "emblemFlow", "emblemGlint", "emblemGlow"]) {
+      const body = css.slice(css.indexOf(`@keyframes ${name}{`), css.indexOf("\n  }", css.indexOf(`@keyframes ${name}{`)));
+      const props = [...body.matchAll(/([a-z-]+):/g)].map((m) => m[1]);
+      expect(props.every((p) => p === "transform" || p === "opacity"), `${name}: ${props.join(",")}`).toBe(true);
+    }
+    // Наклон ±8° и без вращения по кругу.
+    const tilt = css.slice(css.indexOf("@keyframes emblemTilt{"), css.indexOf("@keyframes emblemFlow{"));
+    for (const deg of tilt.match(/rotate[XY]\((-?\d+)deg\)/g) ?? []) expect(Math.abs(Number(/(-?\d+)/.exec(deg)?.[1]))).toBeLessThanOrEqual(12);
+    expect(tilt).not.toMatch(/rotateZ|rotate\(/);
+    expect(js).toContain("DeviceOrientationEvent.requestPermission === 'function'");
+    // Блик раз в ~5 с, свечение «дышит» в такт.
+    expect(css).toMatch(/\.emblem-glint\{[^}]*animation: emblemGlint 5s/);
+    expect(css).toMatch(/\.emblem-glow\{[^}]*animation: emblemGlow 5s/);
+    // Пока эмблема видна — логотип в шапке скрыт, место сохраняется (opacity/visibility, не display).
+    expect(css).toMatch(/header\.logo-hidden \.logo\{ opacity: 0;[^}]*visibility: hidden;/);
+    expect(css).not.toMatch(/logo-hidden[^{]*\{[^}]*display: none/);
+    expect(js).toContain("siteHeader.classList.toggle('logo-hidden', entries[0].isIntersecting)");
+    expect(js).not.toContain("requestPermission()");
   });
 });
 
@@ -171,7 +437,7 @@ describe("логотип сайта", () => {
   const css = readFileSync(join(root, "site/css/style.css"), "utf8");
 
   it("логотип — ссылка на начало страницы, файлы из public/brand", () => {
-    expect(html).toMatch(/<body id="top">/);
+    expect(html).toMatch(/<body id="top"[ >]/);
     expect(html).toMatch(/<a href="#top" class="logo"/);
     expect(html).toContain('data-brand-svg="joyrest-logo"');
     expect(html).toContain('data-brand-svg="joyrest-monogram"');
@@ -190,7 +456,12 @@ describe("логотип сайта", () => {
     };
     for (const part of [css, dark]) {
       expect(contrastRatio(value(part, "logo-color"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(3);
+      // Контур вторичной кнопки шапки — с фоном шапки ≥ 3, её текст ≥ 4.5.
+      expect(contrastRatio(value(part, "btn-outline"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(value(part, "btn-outline-text"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(4.5);
     }
+    // Основная кнопка: тёмный текст на пыльной розе.
+    expect(contrastRatio(value(css, "btn-primary-text"), value(css, "btn-primary-bg"))).toBeGreaterThanOrEqual(4.5);
     expect(value(dark, "logo-color")).not.toBe(value(css, "logo-color"));
   });
 
@@ -202,7 +473,16 @@ describe("логотип сайта", () => {
     execFileSync(process.execPath, [join(root, "node_modules/tsx/dist/cli.mjs"), join(root, "scripts/build-site.ts")], { cwd: root });
     const out = join(root, "build/site");
     const built = readFileSync(join(out, "index.html"), "utf8");
-    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(2);
+    expect(built.match(/<svg aria-hidden="true"/g)).toHaveLength(3); // логотип, монограмма, эмблема (у QR — свой атрибут)
+    expect(built).not.toMatch(/<svg[^>]*aria-hidden="true"[^>]*aria-hidden=/);
+    // QR канала распознаётся, как QR платформы (src/brand/qrSvg.test.ts): крупно и мелко.
+    const qr = /data-brand-qr="https:\/\/t\.me\/JoyRest">(<svg[\s\S]*?<\/svg>)<\/div>/.exec(built)?.[1] ?? "";
+    expect(qr).toContain("<svg");
+    for (const width of [600, 240]) {
+      const image = new Resvg(qr, { fitTo: { mode: "width", value: width } }).render();
+      const pixels = new Uint8ClampedArray(image.pixels.buffer, image.pixels.byteOffset, image.pixels.length);
+      expect(jsQR(pixels, image.width, image.height)?.data, `ширина ${width}`).toBe("https://t.me/JoyRest");
+    }
     expect(built).not.toContain("<metadata");
     expect(built).not.toContain("c2pa");
     const ids = [...built.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);

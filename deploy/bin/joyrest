@@ -504,10 +504,10 @@ cmd_activate() {
 cmd_process_queue() {
   need_root process-queue
   local env file request sha force code entry
-  # В очереди бывают только обычные файлы prod и test. Всё остальное (каталог, ссылка,
-  # другое имя) удаляем, иначе служба запускалась бы по кругу.
   # Недописанные временные файлы привратника (.request.*) старше часа — мусор.
   find "$QUEUE_DIR" -maxdepth 1 -name '.request.*' -mmin +60 -delete 2>/dev/null || true
+  # В очереди бывают только обычные файлы prod и test. Всё остальное (каталог, ссылка,
+  # другое имя) удаляем, иначе служба запускалась бы по кругу.
   for entry in "$QUEUE_DIR"/[a-z]*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
     case "$(basename "$entry")" in

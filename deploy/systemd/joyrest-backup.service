@@ -1,0 +1,12 @@
+[Unit]
+Description=JoyRest: ночная резервная копия базы (restic → Beget S3)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/joyrest backup-nightly
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=3h

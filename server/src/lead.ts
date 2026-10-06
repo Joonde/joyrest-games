@@ -81,10 +81,22 @@ export type LeadType = keyof typeof RULES;
 /** Служебные поля формы: тип, согласие, оценка отзыва и ловушка. */
 const SERVICE_FIELDS = new Set(["type", "consent", "rating", "website"]);
 
+/** Формат ведущего в заявке: опытный или стартовые форматы с молодыми ведущими (скидка на работу ведущего). */
+export const HOST_LEVELS = {
+  standard: "опытный",
+  new: "Новые лица (−25%)",
+  first: "Первый старт (−35%)",
+} as const;
+export type HostLevel = keyof typeof HOST_LEVELS;
+
+function isHostLevel(value: unknown): value is HostLevel {
+  return value === "standard" || value === "new" || value === "first";
+}
+
 export type LeadData =
   | { type: "question"; fields: Record<keyof typeof QUESTION, string> }
   | { type: "review"; fields: Record<keyof typeof REVIEW, string>; rating: number }
-  | { type: "lead"; fields: Record<keyof typeof LEAD, string> };
+  | { type: "lead"; fields: Record<keyof typeof LEAD, string>; hostLevel?: HostLevel };
 
 export type Checked =
   | { ok: true; lead: LeadData; trap: boolean }
@@ -118,7 +130,7 @@ export function checkLead(body: unknown): Checked {
   const rules: Record<string, FieldRule> = RULES[type];
 
   for (const key of Object.keys(body)) {
-    if (!SERVICE_FIELDS.has(key) && !(key in rules)) {
+    if (!SERVICE_FIELDS.has(key) && !(key in rules) && !(type === "lead" && key === "hostLevel")) {
       return { ok: false, message: "Форма устарела. Обновите страницу и попробуйте ещё раз." };
     }
   }
@@ -148,7 +160,16 @@ export function checkLead(body: unknown): Checked {
     if (fields.guests !== "" && !/^\d{1,5}$/.test(fields.guests)) {
       return { ok: false, message: "Число гостей — только цифры." };
     }
-    return { ok: true, trap, lead: { type, fields: fields as Record<keyof typeof LEAD, string> } };
+    // Необязательное: старая форма поле не присылает — строки о ведущем тогда нет.
+    const hostLevel = body.hostLevel;
+    if (hostLevel !== undefined && hostLevel !== "" && !isHostLevel(hostLevel)) {
+      return { ok: false, message: "Формат ведущего выбран неверно. Обновите страницу и попробуйте ещё раз." };
+    }
+    return {
+      ok: true,
+      trap,
+      lead: { type, fields: fields as Record<keyof typeof LEAD, string>, ...(isHostLevel(hostLevel) ? { hostLevel } : {}) },
+    };
   }
   if (type === "review") {
     const rating = body.rating;
@@ -178,6 +199,7 @@ export function formatLead(lead: LeadData, label?: string): string {
       return (
         `${head}📩 Заявка с сайта JoyRest\n\n` +
         `Имя: ${f.name}\nТелефон: ${f.phone}\nТип мероприятия: ${or(f.eventType)}\n` +
+        (lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}\n` : "") +
         `Гостей: ${or(f.guests)}\nСвязь: ${contact}\nКомментарий: ${or(f.message)}`
       );
     }

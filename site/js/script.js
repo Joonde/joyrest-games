@@ -114,6 +114,18 @@
   });
 
   // Price calculator
+  // Формат ведущего: опытный или стартовые форматы с молодыми ведущими (раздел «Пакеты услуг»).
+  // Те же значения принимает /api/lead (hostLevel).
+  const HOST_LEVELS = {
+    standard: { title: 'Опытный ведущий', discount: 0 },
+    new: { title: 'Новые лица', discount: 25 },
+    first: { title: 'Первый старт', discount: 35 },
+  };
+  const calcHostLevel = document.getElementById('calcHostLevel');
+  const calcHostDiscountRow = document.getElementById('calcHostDiscountRow');
+  const calcHostDiscountLabel = document.getElementById('calcHostDiscountLabel');
+  const calcHostDiscount = document.getElementById('calcHostDiscount');
+  const hostLevelField = document.getElementById('hostLevel');
   const calcPackage = document.getElementById('calcPackage');
   const calcPackageNote = document.getElementById('calcPackageNote');
   const calcDayInputs = document.querySelectorAll('input[name="calcDay"]');
@@ -242,17 +254,30 @@
     }
     runningTotal -= hoursDiscountAmount;
 
+    // Стартовые форматы ведущего — последней скидкой, после всех остальных.
+    const level = HOST_LEVELS[calcHostLevel.value] || HOST_LEVELS.standard;
+    const hostDiscountAmount = runningTotal * level.discount / 100;
+    if(level.discount > 0){
+      calcHostDiscountRow.style.display = '';
+      calcHostDiscountLabel.textContent = `Скидка «${level.title}» (−${level.discount}%)`;
+      calcHostDiscount.textContent = `−${fmt(hostDiscountAmount)}`;
+    } else {
+      calcHostDiscountRow.style.display = 'none';
+    }
+    runningTotal -= hostDiscountAmount;
+
     calcTotal.textContent = fmt(runningTotal);
   }
-  [calcPackage, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
+  [calcPackage, calcHostLevel, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
   recalc();
 
   document.getElementById('calcSubmit').addEventListener('click', () => {
-    const summary = `Расчёт с калькулятора: пакет «${calcPackage.options[calcPackage.selectedIndex].text}», ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
+    const summary = `Расчёт с калькулятора: пакет «${calcPackage.options[calcPackage.selectedIndex].text}», ведущий — ${calcHostLevel.options[calcHostLevel.selectedIndex].text}, ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
       (calcCustom.checked ? `, индивидуальный сценарий (${calcComplexity.options[calcComplexity.selectedIndex].text})` : '') +
       `. Итого: ${calcTotal.textContent}.`;
     const messageField = document.getElementById('message');
     messageField.value = messageField.value ? messageField.value + '\n' + summary : summary;
+    hostLevelField.value = calcHostLevel.value;
     document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
   });
 
@@ -327,6 +352,18 @@
       e.preventDefault();
       if(sectionToggles[section.id]) sectionToggles[section.id](true);
       section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+  // «Выбрать этот формат» на карточках стартовых форматов: ставит вариант в заявке и в
+  // калькуляторе и ведёт к форме (фокус — в первое поле, как у «Оставить заявку»).
+  document.querySelectorAll('[data-host-level]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      hostLevelField.value = link.dataset.hostLevel;
+      calcHostLevel.value = link.dataset.hostLevel;
+      recalc();
+      document.getElementById('contact').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      document.getElementById('name').focus({ preventScroll: true });
     });
   });
   document.querySelectorAll('[data-focus-target]').forEach(link => {
@@ -538,6 +575,7 @@
       contactMethod: document.getElementById('contactMethod').value,
       contactLink: document.getElementById('contactLink').value.trim(),
       message: document.getElementById('message').value.trim(),
+      hostLevel: hostLevelField.value,
     }, document.getElementById('formNote'), document.getElementById('formError'));
     if(ok) this.reset();
   });

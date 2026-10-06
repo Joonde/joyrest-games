@@ -776,6 +776,27 @@
   .package h3{ font-size: 19px; margin-bottom: 10px; }
   .package p{ color: var(--ink-soft); font-size: 14px; margin: 0; flex-grow: 1; }
   .package.featured{ border-color: var(--coral); background: linear-gradient(180deg, #fff, #F8ECE9); }
+  /* Стартовые форматы с молодыми ведущими: две карточки после пакетов, бейдж скидки. */
+  .packages--start{ grid-template-columns: repeat(2, 1fr); margin-top: 24px; }
+  .package--start{ position: relative; border-color: var(--btn-outline); }
+  .pkg-badge{
+    align-self: flex-start; display: inline-block; margin-bottom: 12px; padding: 4px 12px; border-radius: 999px;
+    background: linear-gradient(120deg, var(--gold), var(--emerald)); color: var(--on-accent);
+    font-family: 'Jost', sans-serif; font-weight: 600; font-size: 14px; line-height: 1.4;
+  }
+  .package--start h3{ text-wrap: balance; }
+  .pkg-sub{ display: block; font-size: 0.8em; font-weight: 500; color: var(--ink-soft); margin-top: 4px; }
+  .package--start p{ flex-grow: 0; margin-bottom: 10px; }
+  .package--start .pkg-how{ color: var(--ink); font-weight: 500; margin: 6px 0 6px; }
+  .pkg-list{ list-style: none; margin: 0 0 16px; padding: 0; color: var(--ink-soft); font-size: 14px; flex-grow: 1; }
+  .pkg-list li{ position: relative; padding-left: 20px; margin-bottom: 6px; }
+  .pkg-list li::before{ content: "—"; position: absolute; left: 0; }
+  .pkg-choose{ align-self: flex-start; }
+  .start-note{ margin: 16px 0 0; color: var(--ink-soft); font-size: 14px; max-width: 70ch; }
+  @media (max-width: 760px){
+    .packages--start{ grid-template-columns: 1fr; gap: 16px; }
+    .pkg-choose{ align-self: stretch; }
+  }
   .package.featured .pkg-num{ color: var(--accent-text); }
 
   /* Services */

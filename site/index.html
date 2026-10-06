@@ -507,6 +507,38 @@
         <p>Ведущий, подбор площадки, составление программы — берём на себя ответственность за всё мероприятие целиком.</p>
       </div>
     </div>
+
+    <!-- Стартовые форматы с молодыми ведущими. Скидка — на работу ведущего (калькулятор,
+         поле «Формат ведущего» в заявке, hostLevel в /api/lead). Тексты согласованы с владельцем. -->
+    <div class="packages packages--start">
+      <div class="package package--start reveal">
+        <span class="pkg-badge">−25%</span>
+        <h3>Новые лица <span class="pkg-sub">— для тех, кто любит пробовать новое</span></h3>
+        <p>Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.</p>
+        <p>Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 25% — мы честно делим с вами возможные шероховатости.</p>
+        <p class="pkg-how">Как это устроено:</p>
+        <ul class="pkg-list">
+          <li>сценарий и программу готовим вместе с опытным ведущим JoyRest;</li>
+          <li>игры, реквизит и оборудование — как в обычном формате;</li>
+          <li>на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.</li>
+        </ul>
+        <a href="#contact" class="hbtn hbtn--secondary pkg-choose" data-host-level="new">Выбрать этот формат</a>
+      </div>
+      <div class="package package--start reveal">
+        <span class="pkg-badge">−35%</span>
+        <h3>Первый старт <span class="pkg-sub">— для самых смелых</span></h3>
+        <p>Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.</p>
+        <p>Это максимальный эксперимент, поэтому и скидка максимальная — 35%.</p>
+        <p class="pkg-how">Как это устроено:</p>
+        <ul class="pkg-list">
+          <li>сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;</li>
+          <li>игры, реквизит и оборудование — как в обычном формате;</li>
+          <li>на празднике ведущий работает самостоятельно — для него это настоящий первый выход.</li>
+        </ul>
+        <a href="#contact" class="hbtn hbtn--secondary pkg-choose" data-host-level="first">Выбрать этот формат</a>
+      </div>
+    </div>
+    <p class="start-note reveal">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
     </div>
   </section>
 
@@ -527,6 +559,17 @@
           <option value="full">Под ключ</option>
         </select>
         <p class="calc-hint" id="calcPackageNote" style="display:none;">Этот пакет собирается индивидуально — ниже расчёт только за работу ведущего, остальное обсуждаем на созвоне.</p>
+      </div>
+
+      <div class="calc-row">
+        <div class="calc-row-top">
+          <label for="calcHostLevel">Ведущий</label>
+        </div>
+        <select id="calcHostLevel">
+          <option value="standard">Опытный</option>
+          <option value="new">Новые лица (−25%)</option>
+          <option value="first">Первый старт (−35%)</option>
+        </select>
       </div>
 
       <div class="calc-row">
@@ -594,6 +637,7 @@
         <div id="calcDiscountRow" style="display:none;"><span>Скидка за количество гостей</span><span id="calcDiscount">−0 ₽</span></div>
         <div id="calcWeekendDiscountRow" style="display:none;"><span>Скидка выходного дня (−10%)</span><span id="calcWeekendDiscount">−0 ₽</span></div>
         <div id="calcHoursDiscountRow" style="display:none;"><span>Скидка за длительность 3+ часа (−5%)</span><span id="calcHoursDiscount">−0 ₽</span></div>
+        <div id="calcHostDiscountRow" style="display:none;"><span id="calcHostDiscountLabel">Скидка «Новые лица» (−25%)</span><span id="calcHostDiscount">−0 ₽</span></div>
         <div id="calcDjRow" style="display:none;"><span>Диджей</span><span>цена договорная</span></div>
       </div>
       <p class="calc-hint" id="calcTaxiNote" style="display:none;">+ такси ведущему по факту, отдельно от расчёта выше.</p>
@@ -771,6 +815,14 @@
                 <option>Не урони каплю (лето)</option>
               </optgroup>
               <option>Другое</option>
+            </select>
+          </div>
+          <div>
+            <label for="hostLevel">Формат ведущего</label>
+            <select id="hostLevel">
+              <option value="standard">Опытный ведущий</option>
+              <option value="new">Новые лица (−25%)</option>
+              <option value="first">Первый старт (−35%)</option>
             </select>
           </div>
           <div>

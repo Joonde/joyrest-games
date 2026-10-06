@@ -282,6 +282,41 @@ describe("тексты и устройство страницы", () => {
     expect(html).not.toContain("Обсудить мероприятие");
   });
 
+  it("стартовые форматы: тексты владельца дословно, бейджи, общая строка, внутри «Пакетов»", () => {
+    const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    for (const phrase of [
+      "Новые лица — для тех, кто любит пробовать новое",
+      "Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.",
+      "Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 25% — мы честно делим с вами возможные шероховатости.",
+      "сценарий и программу готовим вместе с опытным ведущим JoyRest;",
+      "на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.",
+      "Первый старт — для самых смелых",
+      "Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.",
+      "Это максимальный эксперимент, поэтому и скидка максимальная — 35%.",
+      "сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;",
+      "на празднике ведущий работает самостоятельно — для него это настоящий первый выход.",
+      "Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.",
+    ]) expect(text, phrase).toContain(phrase);
+    expect(text.match(/игры, реквизит и оборудование — как в обычном формате;/g)).toHaveLength(2);
+    expect(html).toContain('<span class="pkg-badge">−25%</span>');
+    expect(html).toContain('<span class="pkg-badge">−35%</span>');
+    const list = html.slice(html.indexOf('id="packagesList"'), html.indexOf("</section>", html.indexOf('id="packagesList"')));
+    expect(list).toContain("packages--start");
+    expect(html.slice(html.indexOf('id="mobilePanel"'), html.indexOf("</header>"))).not.toMatch(/Новые лица|Первый старт/);
+  });
+
+  it("формат ведущего: калькулятор, поле заявки, кнопки карточек — одни и те же значения", () => {
+    const opts = (id: string) => [...(html.slice(html.indexOf(`id="${id}"`), html.indexOf("</select>", html.indexOf(`id="${id}"`))).matchAll(/value="(\w+)"/g))].map((m) => m[1]);
+    expect(opts("calcHostLevel")).toEqual(["standard", "new", "first"]);
+    expect(opts("hostLevel")).toEqual(["standard", "new", "first"]);
+    expect(html).toContain('data-host-level="new">Выбрать этот формат');
+    expect(html).toContain('data-host-level="first">Выбрать этот формат');
+    expect(js).toContain("hostLevel: hostLevelField.value");
+    // Скидка за формат — последней, после скидки за длительность.
+    expect(js.indexOf("runningTotal -= hostDiscountAmount")).toBeGreaterThan(js.indexOf("runningTotal -= hoursDiscountAmount"));
+    expect(js).toContain("hostLevelField.value = calcHostLevel.value");
+  });
+
   it("карточки, которые не нажимаются, не реагируют на наведение", () => {
     expect(css).not.toMatch(/\.(event|package|step|service-row):hover/);
   });

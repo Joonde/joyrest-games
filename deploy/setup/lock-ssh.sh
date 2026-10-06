@@ -25,7 +25,8 @@ LoginGraceTime 30
 X11Forwarding no
 AllowUsers $owner deploy
 CONF
+mkdir -p /run/sshd
 sshd -t
-systemctl reload ssh
+systemctl reload ssh 2>/dev/null || systemctl restart ssh
 echo "✅ Готово: вход только по ключу, root входить не может."
 echo "Не закрывайте это окно: откройте НОВОЕ подключение в Termius и проверьте вход."

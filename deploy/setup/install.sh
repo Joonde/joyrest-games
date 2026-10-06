@@ -53,7 +53,7 @@ step "Обновление системы и пакеты"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get -y -q -o Dpkg::Options::=--force-confold upgrade
-apt-get -y -q install ca-certificates curl jq xxd openssl ufw fail2ban unattended-upgrades chrony
+apt-get -y -q install ca-certificates curl jq xxd openssl ufw fail2ban unattended-upgrades chrony python3-systemd
 
 step "Часовой пояс и точное время"
 timedatectl set-timezone Europe/Moscow
@@ -110,19 +110,6 @@ step "Пользователь deploy (только команда выклад�
 id deploy >/dev/null 2>&1 || useradd -m -s /bin/bash deploy
 passwd -l deploy >/dev/null
 install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
-DEPLOY_KEY_NEW=0
-if [ ! -s /home/deploy/.ssh/authorized_keys ] || [ "${ROTATE_DEPLOY_KEY:-0}" = 1 ]; then
-  tmp=$(mktemp -d)
-  ssh-keygen -q -t ed25519 -N "" -C "github-actions-deploy" -f "$tmp/key"
-  # restrict: без консоли и пробросов; запускается только привратник выкладки.
-  echo "restrict,command=\"/usr/local/bin/joyrest-gate\" $(cat "$tmp/key.pub")" > /home/deploy/.ssh/authorized_keys
-  DEPLOY_KEY_HEX=$(xxd -p "$tmp/key" | tr -d '\n')
-  shred -u "$tmp/key" "$tmp/key.pub" 2>/dev/null || rm -f "$tmp/key" "$tmp/key.pub"
-  rmdir "$tmp"
-  DEPLOY_KEY_NEW=1
-fi
-chown deploy:deploy /home/deploy/.ssh/authorized_keys
-chmod 600 /home/deploy/.ssh/authorized_keys
 
 step "Настройки SSH (вход по паролю пока остаётся)"
 cat > /etc/ssh/sshd_config.d/10-joyrest.conf <<CONF
@@ -132,8 +119,9 @@ LoginGraceTime 30
 X11Forwarding no
 AllowUsers root $OWNER_USER deploy
 CONF
+mkdir -p /run/sshd
 sshd -t
-systemctl reload ssh
+systemctl reload ssh 2>/dev/null || systemctl restart ssh
 
 # ---------------------------------------------------------------- защита
 step "Файрвол: только 22, 80, 443"
@@ -156,7 +144,7 @@ findtime = 10m
 bantime = 1h
 CONF
 systemctl enable fail2ban >/dev/null 2>&1
-systemctl restart fail2ban
+systemctl restart fail2ban || echo "⚠️  fail2ban не запустился — пришлите Claude вывод: journalctl -u fail2ban -n 30"
 
 # ---------------------------------------------------------------- Docker
 step "Docker"
@@ -238,6 +226,24 @@ for _ in $(seq 1 40); do
   fi
   sleep 3
 done
+
+# ---------------------------------------------------------------- ключ выкладки
+# Создаётся в самом конце: если установка прервётся раньше, повторный запуск создаст
+# и покажет ключ (иначе он остался бы на сервере, а вы бы его не увидели).
+step "Ключ выкладки для GitHub Actions"
+DEPLOY_KEY_NEW=0
+if [ ! -s /home/deploy/.ssh/authorized_keys ] || [ "${ROTATE_DEPLOY_KEY:-0}" = 1 ]; then
+  tmp=$(mktemp -d)
+  ssh-keygen -q -t ed25519 -N "" -C "github-actions-deploy" -f "$tmp/key"
+  # restrict: без консоли и пробросов; запускается только привратник выкладки.
+  echo "restrict,command=\"/usr/local/bin/joyrest-gate\" $(cat "$tmp/key.pub")" > /home/deploy/.ssh/authorized_keys
+  DEPLOY_KEY_HEX=$(xxd -p "$tmp/key" | tr -d '\n')
+  shred -u "$tmp/key" "$tmp/key.pub" 2>/dev/null || rm -f "$tmp/key" "$tmp/key.pub"
+  rmdir "$tmp"
+  DEPLOY_KEY_NEW=1
+fi
+chown deploy:deploy /home/deploy/.ssh/authorized_keys
+chmod 600 /home/deploy/.ssh/authorized_keys
 
 # ---------------------------------------------------------------- итог
 echo

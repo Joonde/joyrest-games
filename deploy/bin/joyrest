@@ -10,8 +10,14 @@ set -euo pipefail
 
 # Docker и папки выкладки доступны только root: владелец (sudo без пароля) может писать
 # просто `joyrest status`, команда сама перезапустится через sudo.
-if [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-  exec sudo -n "$0" "$@"
+if [ "$(id -u)" != 0 ]; then
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    exec sudo -n "$0" "$@"
+  fi
+  case "${1:-}" in
+    ""|help|-h|--help) ;;
+    *) echo "❌ joyrest работает с правами администратора: sudo joyrest $*" >&2; exit 1 ;;
+  esac
 fi
 
 ROOT_DIR="${JOYREST_ROOT:-/srv/joyrest}"

@@ -43,9 +43,17 @@ GHCR_TOKEN=""
 if grep -q '"ghcr.io"' /root/.docker/config.json 2>/dev/null; then
   echo "Вход в GHCR уже настроен — оставляю."
 else
-  echo "Вставьте токен GitHub (classic, только read:packages) и нажмите Enter (символы не видны):"
-  read -r -s GHCR_TOKEN; echo
-  [ -n "$GHCR_TOKEN" ] || fail "Токен пустой."
+  # Токен classic: ghp_ и 36 символов. Если при вставке он попал несколько раз подряд
+  # или с пробелами — берём первый целый токен.
+  for attempt in 1 2 3; do
+    echo "Вставьте токен GitHub (classic, только read:packages) и нажмите Enter (символы не видны):"
+    read -r -s raw_token; echo
+    GHCR_TOKEN=$(printf '%s' "$raw_token" | grep -oE 'ghp_[A-Za-z0-9]{36}' | head -n 1 || true)
+    unset raw_token
+    [ -n "$GHCR_TOKEN" ] && break
+    echo "Не похоже на токен classic (начинается с ghp_, 40 символов). Попытка $attempt из 3."
+  done
+  [ -n "$GHCR_TOKEN" ] || fail "Токен не распознан. Создайте токен classic с правом read:packages."
 fi
 
 # ---------------------------------------------------------------- система

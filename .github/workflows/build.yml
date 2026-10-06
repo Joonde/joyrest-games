@@ -108,6 +108,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Почему выкладка пропущена: переменная DEPLOY_ENABLED не видна как `true`. Показывает,
+  # что видит GitHub (значение переменной не секретно), и не заведена ли она секретом.
+  deploy-switch:
+    name: Выкладка выключена — почему
+    needs: image
+    if: vars.DEPLOY_ENABLED != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Что видит GitHub
+        env:
+          VALUE: ${{ vars.DEPLOY_ENABLED }}
+          AS_SECRET: ${{ secrets.DEPLOY_ENABLED != '' }}
+        run: |
+          if [ -z "$VALUE" ]; then
+            echo "Переменная репозитория DEPLOY_ENABLED не найдена (Settings → Secrets and variables → Actions → Variables)."
+          else
+            echo "Переменная DEPLOY_ENABLED видна, но не равна true. Значение по символам:"
+            printf '%s' "$VALUE" | od -An -c
+          fi
+          if [ "$AS_SECRET" = true ]; then
+            echo "Найден СЕКРЕТ DEPLOY_ENABLED: для выкладки нужна переменная (вкладка Variables), а не секрет."
+          fi
+          echo "::notice::Выкладка выключена: нужна переменная репозитория DEPLOY_ENABLED = true"
+
   deploy:
     name: Выкладка
     needs: image

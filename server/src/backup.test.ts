@@ -104,6 +104,14 @@ describe("резервные копии", () => {
     expect(init).toBeGreaterThan(confirm);
   });
 
+  it("коммит с [no-test] на test не выкладывается, main — всегда", () => {
+    const build = read(".github/workflows/build.yml");
+    const deploy = build.slice(build.indexOf("\n  deploy:"));
+    const condition = deploy.slice(deploy.indexOf("    if:"), deploy.indexOf("    runs-on:"));
+    expect(condition).toContain("needs.switch.outputs.enabled == 'true'");
+    expect(condition).toContain("github.ref == 'refs/heads/main' || !contains(github.event.head_commit.message, '[no-test]')");
+  });
+
   it("CI не запускает восстановление и настройку копий", () => {
     const workflows = readdirSync(join(ROOT, ".github/workflows")).map((name) => read(`.github/workflows/${name}`));
     for (const text of workflows) {

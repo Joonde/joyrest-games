@@ -90,6 +90,8 @@ jobs:
         id: tags
         run: |
           branch="${GITHUB_REF_NAME//\//-}"
+          # Теги release / test-release ставит только задача «Выкладка» (при DEPLOY_ENABLED).
+          case "${branch,,}" in release|test-release) echo "::error::Ветка с именем тега релиза"; exit 1 ;; esac
           echo "list=$IMAGE:sha-$GITHUB_SHA,$IMAGE:${branch,,}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
@@ -120,7 +122,9 @@ jobs:
       cancel-in-progress: false
     env:
       SHA: ${{ github.sha }}
-      FORCE: ${{ inputs.force && 'force' || '' }}
+      # force уходит на сервер только при ручном запуске (Run workflow + галочка) и только
+      # для основной версии. При push, повторах и блокировке «идёт игра» его нет.
+      FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && 'force' || '' }}
       SERVER: 217.114.13.92
     steps:
       - name: Куда выкладываем
@@ -142,7 +146,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # Описание релиза в GHCR: тег release (test-release) указывает на образ коммита.
       # По нему сервер сам забирает версию, если SSH недоступен (таймер раз в 2 минуты).
+      # Тег ставится только здесь и только при DEPLOY_ENABLED=true (условие задачи выше,
+      # повторено на шаге): без переключателя таймер на сервере ничего нового не увидит.
       - name: Тег ${{ steps.target.outputs.tag }} в GHCR
+        if: vars.DEPLOY_ENABLED == 'true'
         run: docker buildx imagetools create --tag "$IMAGE:${{ steps.target.outputs.tag }}" "$IMAGE:sha-$SHA"
 
       - name: SSH-ключ выкладки

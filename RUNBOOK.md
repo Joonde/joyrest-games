@@ -116,7 +116,32 @@ uname -r && joyrest status
 
 ### 8. Выкладка из GitHub
 
-**Бот Telegram для сообщений о выкладке:**
+Порядок важен: сначала обновить сервер, потом настроить Telegram, и только в конце включить
+выкладку переменной `DEPLOY_ENABLED`.
+
+**8.1. Обновить сервер** (только для сервера, установленного до PR 2; один раз, под `joy`).
+Блок сначала скачивает свежий образ `main` — иначе взялся бы старый образ с сервера и
+скопировал бы старую команду `joyrest`.
+
+```
+sudo docker pull -q ghcr.io/joonde/joyrest-app:main \
+  && cid=$(sudo docker create ghcr.io/joonde/joyrest-app:main) \
+  && sudo docker cp "$cid":/app/deploy/bin/joyrest /usr/local/bin/joyrest \
+  && sudo docker rm "$cid" >/dev/null \
+  && sudo joyrest activate main
+```
+
+В конце должно быть «[prod] … выложена». Проверка:
+
+```
+joyrest status && systemctl list-timers joyrest-update.timer --no-pager
+```
+
+В `joyrest status` — сервисы `app-prod` и `app-test` (healthy) и строка «Выкладка prod: … ok».
+Таймер `joyrest-update` включён, но пока `DEPLOY_ENABLED` не задана, GitHub не ставит тег
+`release`, и таймеру нечего забирать.
+
+**8.2. Бот Telegram для сообщений о выкладке:**
 1. Telegram → **@BotFather** → `/newbot` → название `JoyRest Монитор` → имя на `_bot`
    (например `joyrest_monitor_bot`). BotFather пришлёт токен вида `123456789:AA…`.
 2. Откройте своего бота и нажмите **Старт**, напишите ему любое слово.
@@ -124,18 +149,14 @@ uname -r && joyrest status
    (вместо `<ТОКЕН>` — токен целиком). Найдите `"chat":{"id":` — число после него
    и есть ID чата.
 
-**Секреты и переменная в GitHub** (Settings → Secrets and variables → Actions):
-- вкладка **Secrets** → New repository secret: `TELEGRAM_BOT_TOKEN` (токен),
-  `TELEGRAM_CHAT_ID` (число). `DEPLOY_SSH_KEY` и `DEPLOY_KNOWN_HOSTS` уже есть (шаг 5);
-- вкладка **Variables** → New repository variable: `DEPLOY_ENABLED` = `true`.
-  Пока её нет, GitHub только собирает образы и ничего не выкладывает.
+**8.3. Секреты в GitHub** (Settings → Secrets and variables → Actions → вкладка **Secrets** →
+New repository secret): `TELEGRAM_BOT_TOKEN` (токен), `TELEGRAM_CHAT_ID` (число).
+`DEPLOY_SSH_KEY` и `DEPLOY_KNOWN_HOSTS` уже есть (шаг 5).
 
-**Только для сервера, установленного до PR 2** (один раз, под `joy`): обновить
-команду `joyrest` и включить выкладку.
-
-```
-cid=$(sudo docker create ghcr.io/joonde/joyrest-app:main) && sudo docker cp "$cid":/app/deploy/bin/joyrest /usr/local/bin/joyrest && sudo docker rm "$cid" >/dev/null && sudo joyrest activate main
-```
+**8.4. Включить выкладку — последним:** вкладка **Variables** → New repository variable:
+`DEPLOY_ENABLED` = `true`. Пока её нет, GitHub только собирает образы: не выкладывает по SSH
+и не ставит теги `release` / `test-release`. Выключить выкладку — удалить переменную или
+поставить `false`.
 
 **Проверка:** любой новый коммит в `main` → через 3–5 минут в Telegram
 «✅ Выложено на games.joy-rest.ru … (по SSH)», `joyrest status` показывает ту же версию.
@@ -216,7 +237,9 @@ sudo joyrest restart app-prod
 - **Во время игры основную версию не выкладываем.** Если в какой-то сессии была активность
   за последние 30 минут, выкладка ждёт и сама пройдёт после игры (сообщение
   «❌ Не выложено … blocked: идёт игра» — это не авария). Забытая сессия без активности
-  выкладку не держит.
+  выкладку не держит. Если сервер не смог проверить, идёт ли игра (база не ответила),
+  выкладка тоже ждёт («blocked: не удалось проверить») и повторяется каждые 2 минуты.
+  GitHub сам `force` не отправляет никогда — только вы вручную.
 
 ### Посмотреть состояние
 

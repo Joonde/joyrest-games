@@ -143,18 +143,20 @@ psql_prod() {
 }
 
 # Число сессий с активностью за последние ACTIVE_MINUTES минут (таблица sessions с полями
-# phase и updated_at появится в PR 3; пока её нет — 0).
+# phase и updated_at появится в PR 3; пока её нет — 0). Если проверить не удалось — код 1:
+# выкладка без force тогда считает, что игра идёт.
 active_games() {
   local exists count
-  if ! exists=$(psql_prod "select to_regclass('public.sessions') is not null" 2>/dev/null); then
-    log "Не удалось проверить активные игры — считаю, что их нет" >&2
-    echo 0; return
-  fi
-  [ "$exists" = t ] || { echo 0; return; }
+  exists=$(psql_prod "select to_regclass('public.sessions') is not null" 2>/dev/null) || return 1
+  case "$exists" in
+    f) echo 0; return 0 ;;
+    t) ;;
+    *) return 1 ;;
+  esac
   count=$(psql_prod "select count(*) from sessions
     where phase in ('lobby', 'playing') and updated_at > now() - interval '$ACTIVE_MINUTES minutes'" 2>/dev/null) \
-    || { log "Не удалось проверить активные игры — считаю, что их нет" >&2; count=0; }
-  [[ "$count" =~ ^[0-9]+$ ]] || count=0
+    || return 1
+  [[ "$count" =~ ^[0-9]+$ ]] || return 1
   echo "$count"
 }
 
@@ -260,13 +262,17 @@ fetch_release() {
   printf 'APP_VERSION=%s\nAPP_IMAGE=%s\n' "$sha" "$digest" > "$ROOT_DIR/releases/$sha/release.env" || return 1
 }
 
+# Пароль базы передаём файлом (--env-file), а не аргументом: аргументы видны в списке
+# процессов и в docker inspect.
 run_migrations() {
-  local env=$1 image=$2 db password
+  local env=$1 image=$2 db password envfile code=0
   db=$([ "$env" = prod ] && echo joyrest_prod || echo joyrest_test)
   password=$(sed -n 's/^POSTGRES_PASSWORD=//p' "$ROOT_DIR/secrets.env")
-  docker run --rm --network joyrest_db \
-    -e "DATABASE_URL=postgres://joyrest:$password@postgres:5432/$db" \
-    "$image" node server/migrate-main.js
+  envfile=$(umask 077 && mktemp "$ROOT_DIR/.migrate-env.XXXXXX") || return 1
+  printf 'DATABASE_URL=postgres://joyrest:%s@postgres:5432/%s\n' "$password" "$db" > "$envfile"
+  docker run --rm --network joyrest_db --env-file "$envfile" "$image" node server/migrate-main.js || code=$?
+  rm -f "$envfile"
+  return "$code"
 }
 
 predeploy_dump() {
@@ -332,8 +338,15 @@ deploy_env() {
     return 0
   fi
 
+  # Основную версию во время игры не трогаем. Не удалось проверить — считаем, что игра идёт:
+  # таймер повторит через 2 минуты, обойти можно только вручную (force).
   if [ "$env" = prod ] && [ "$force" != force ]; then
-    local active; active=$(active_games)
+    local active
+    if ! active=$(active_games); then
+      set_status "$env" "blocked $sha: не удалось проверить, идёт ли игра (повтор через 2 мин; вручную — force)"
+      log "[$env] $sha отложена: не удалось проверить активные игры"
+      return 3
+    fi
     if [ "$active" -gt 0 ]; then
       set_status "$env" "blocked $sha: идёт игра ($active сесс. с активностью за $ACTIVE_MINUTES мин)"
       log "[$env] $sha отложена: идёт игра ($active)"
@@ -493,6 +506,8 @@ cmd_process_queue() {
   local env file request sha force code entry
   # В очереди бывают только обычные файлы prod и test. Всё остальное (каталог, ссылка,
   # другое имя) удаляем, иначе служба запускалась бы по кругу.
+  # Недописанные временные файлы привратника (.request.*) старше часа — мусор.
+  find "$QUEUE_DIR" -maxdepth 1 -name '.request.*' -mmin +60 -delete 2>/dev/null || true
   for entry in "$QUEUE_DIR"/[a-z]*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
     case "$(basename "$entry")" in

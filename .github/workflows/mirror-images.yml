@@ -1,0 +1,47 @@
+# Копии базовых образов в GHCR: сервер в России не обращается к Docker Hub.
+# Раз в неделю (обновления безопасности) и кнопкой Run workflow.
+name: Копии образов в GHCR
+
+on:
+  schedule:
+    - cron: "17 2 * * 1"   # понедельник, 05:17 по Москве
+  workflow_dispatch:
+  push:
+    branches: [main, "claude/**"]
+    paths: [.github/workflows/mirror-images.yml]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    name: Копирование
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["caddy:2-alpine", "postgres:17-alpine"]
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Копирую ${{ matrix.image }}
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          target="ghcr.io/joonde/joyrest-mirror/$IMAGE"
+          source_ann="index:org.opencontainers.image.source=https://github.com/${{ github.repository }}"
+          # Docker Hub иногда отвечает 429 — тогда берём ту же копию из зеркала Google.
+          for source in "docker.io/library/$IMAGE" "mirror.gcr.io/library/$IMAGE"; do
+            if docker buildx imagetools create --tag "$target" --annotation "$source_ann" "$source"; then
+              docker buildx imagetools inspect "$target" | head -5
+              exit 0
+            fi
+            echo "Не получилось из $source, пробую следующий источник"
+          done
+          exit 1

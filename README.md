@@ -10,7 +10,12 @@ npm run dev          # локальный запуск против боевог
 npm run build        # проверка типов и сборка в dist/
 npm test             # тесты логики (Vitest)
 npm run test:rules   # тесты firestore.rules в эмуляторе (нужна Java)
+npm run build:server # сервер (server/) в один файл build/server/main.js
 ```
+
+Свой сервер (переезд с Firebase): `server/` — код, `deploy/` — Docker Compose, Caddy, скрипты
+настройки и команда `joyrest`, `Dockerfile` — образ, который собирает GitHub Actions.
+Управление сервером с телефона — [RUNBOOK.md](RUNBOOK.md).
 
 Запуск против эмуляторов Firebase:
 

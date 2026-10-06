@@ -1,0 +1,32 @@
+# Caddy: сертификаты HTTPS выпускаются сами (Let's Encrypt, запасной — ZeroSSL).
+{
+	email {$ACME_EMAIL}
+}
+
+(security) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		-Server
+	}
+}
+
+games.joy-rest.ru {
+	import security
+	encode zstd gzip
+	reverse_proxy app-prod:8080
+}
+
+# Основной сайт агентства — пока заглушка «скоро».
+joy-rest.ru {
+	import security
+	encode zstd gzip
+	root * /srv/soon
+	file_server
+}
+
+www.joy-rest.ru {
+	redir https://joy-rest.ru{uri} permanent
+}

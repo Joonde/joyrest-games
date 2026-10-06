@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# joyrest — управление сервером JoyRest Games с телефона (Termius).
+# Подробно — RUNBOOK.md. Команды, меняющие сервер, — через sudo.
+set -euo pipefail
+
+ROOT_DIR="/srv/joyrest"
+APP_REPO="ghcr.io/joonde/joyrest-app"
+
+usage() {
+  cat <<'TEXT'
+Команды:
+  joyrest status              что запущено, версия, здоровье, диск и память
+  joyrest logs [сервис] [N]   последние N строк логов (по умолчанию все сервисы, 100 строк)
+                              сервисы: app-prod, caddy, postgres
+  joyrest restart [сервис]    перезапуск (без сервиса — всё)
+  joyrest up                  скачать образы текущей версии и запустить
+  joyrest activate <тег>      скачать версию из GHCR и сделать её текущей
+  joyrest version             текущая версия
+TEXT
+}
+
+need_root() {
+  [ "$(id -u)" = 0 ] || { echo "Нужны права администратора: sudo joyrest $*" >&2; exit 1; }
+}
+
+current_dir() { readlink -f "$ROOT_DIR/current"; }
+
+dc() {
+  local dir; dir=$(current_dir)
+  docker compose --project-directory "$dir" -f "$dir/compose.yml" \
+    --env-file "$ROOT_DIR/secrets.env" --env-file "$dir/release.env" "$@"
+}
+
+health() {
+  dc exec -T app-prod node -e \
+    "fetch('http://127.0.0.1:8080/health').then(r=>r.text()).then(t=>{console.log(t)},e=>{console.log('нет ответа: '+e.message);process.exit(1)})"
+}
+
+cmd_status() {
+  echo "Версия: $(cmd_version)"
+  echo
+  dc ps --format 'table {{.Service}}\t{{.Status}}'
+  echo
+  echo -n "Здоровье: "; health || true
+  echo
+  df -h / | awk 'NR==2{print "Диск: занято " $5 " (" $3 " из " $2 ")"}'
+  free -m | awk '/^Mem:/{print "Память: занято " $3 " МБ из " $2 " МБ"} /^Swap:/{print "Подкачка: " $3 " МБ из " $2 " МБ"}'
+  echo
+  docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
+}
+
+cmd_logs() {
+  local service="${1:-}" lines="${2:-100}"
+  if [[ "$service" =~ ^[0-9]+$ ]]; then lines="$service"; service=""; fi
+  # shellcheck disable=SC2086
+  dc logs --no-color --timestamps --tail "$lines" $service
+}
+
+cmd_restart() {
+  need_root restart "$@"
+  # shellcheck disable=SC2086
+  dc restart ${1:-}
+}
+
+cmd_up() {
+  need_root up
+  dc pull -q
+  dc up -d --remove-orphans
+}
+
+cmd_activate() {
+  need_root activate "$@"
+  local tag="${1:?Укажите тег, например: sudo joyrest activate main}"
+  [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Неверный тег: $tag" >&2; exit 1; }
+  docker pull -q "$APP_REPO:$tag" >/dev/null
+  local cid version incoming="$ROOT_DIR/releases/.incoming"
+  cid=$(docker create "$APP_REPO:$tag")
+  rm -rf "$incoming"
+  docker cp "$cid:/app/deploy" "$incoming" >/dev/null
+  docker rm "$cid" >/dev/null
+  version=$(sed -n 's/^APP_VERSION=//p' "$incoming/release.env")
+  [ -n "$version" ] || { echo "В образе нет описания версии" >&2; exit 1; }
+  rm -rf "${ROOT_DIR:?}/releases/$version"
+  mv "$incoming" "$ROOT_DIR/releases/$version"
+  ln -sfn "releases/$version" "$ROOT_DIR/current"
+  install -m 755 "$ROOT_DIR/current/bin/joyrest" /usr/local/bin/joyrest
+  install -m 755 "$ROOT_DIR/current/bin/joyrest-gate" /usr/local/bin/joyrest-gate
+  cmd_up
+  echo "Текущая версия: $version"
+}
+
+cmd_version() {
+  sed -n 's/^APP_VERSION=//p' "$(current_dir)/release.env"
+}
+
+case "${1:-}" in
+  status)   cmd_status ;;
+  logs)     shift; cmd_logs "$@" ;;
+  restart)  shift; cmd_restart "$@" ;;
+  up)       cmd_up ;;
+  activate) shift; cmd_activate "$@" ;;
+  version)  cmd_version ;;
+  *)        usage ;;
+esac

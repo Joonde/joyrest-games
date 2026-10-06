@@ -1,0 +1,35 @@
+# Проверка сервера снаружи: открыты только 22, 80, 443, сайт отвечает по HTTPS.
+# Запуск кнопкой Run workflow (около 2 минут).
+name: Проверка портов сервера
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SERVER_IP: 217.114.13.92
+
+jobs:
+  ports:
+    name: Порты и HTTPS
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - run: sudo apt-get install -y -qq nmap >/dev/null
+      - name: Открытые порты TCP
+        run: |
+          # Порты 1–10000 (среди них база 5432, приложение 8080, Docker API 2375/2376).
+          nmap -Pn -sT -T4 -p 1-10000,27017,50000 --open -oG - "$SERVER_IP" | tee nmap.txt
+          open=$(grep -oE '[0-9]+/open' nmap.txt | cut -d/ -f1 | sort -n | tr '\n' ' ')
+          echo "Открыты: $open"
+          [ "$open" = "22 80 443 " ] || { echo "::error::Лишние или закрытые порты: $open (ожидались 22 80 443)"; exit 1; }
+      - name: HTTPS и сайт
+        run: |
+          curl -fsS --max-time 15 https://games.joy-rest.ru/health
+          echo
+          curl -fsS --max-time 15 -o /dev/null -w 'joy-rest.ru: %{http_code}\n' https://joy-rest.ru/
+          code=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' http://games.joy-rest.ru/)
+          [ "$code" = 308 ] || [ "$code" = 301 ] || { echo "::error::HTTP не перенаправляет на HTTPS ($code)"; exit 1; }
+          echo "HTTP → HTTPS: $code"

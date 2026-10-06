@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JoyRest — скоро</title>
+<meta name="description" content="Агентство праздников JoyRest. Радость без хлопот.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #221E1B;
+    color: #FBF6F1;
+    font-family: "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid;
+    place-items: center;
+    padding: 32px max(20px, env(safe-area-inset-right)) 32px max(20px, env(safe-area-inset-left));
+    text-align: center;
+  }
+  main { max-width: 32rem; display: grid; gap: 24px; justify-items: center; }
+  .logo {
+    width: min(280px, 70vw);
+    aspect-ratio: 1000 / 775;
+    background: linear-gradient(135deg, #E3C68C, #A3C2AA);
+    -webkit-mask: url(/joyrest-logo.svg) center / contain no-repeat;
+    mask: url(/joyrest-logo.svg) center / contain no-repeat;
+  }
+  h1 {
+    margin: 0;
+    font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 8vw, 3rem);
+    text-wrap: balance;
+  }
+  p { margin: 0; color: #B5ABA2; font-size: 1.125rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <div class="logo" role="img" aria-label="JoyRest"></div>
+  <h1>Радость без хлопот</h1>
+  <p>Скоро здесь будет сайт агентства JoyRest.</p>
+</main>
+</body>
+</html>

@@ -6,12 +6,16 @@
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#FBF6F1">
 <title>JoyRest — организация мероприятий в Москве</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!-- Свои шрифты (css/fonts.css), без Google Fonts. Основные начертания — заранее. -->
+<link rel="preload" href="/fonts/jost-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/cormorant-garamond-cyrillic-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body id="top">
 
 <div class="ripple-layer" id="rippleLayer"></div>
 
@@ -26,8 +30,10 @@
       <input type="checkbox" required>
       <span>Согласен(на) на обработку персональных данных в соответствии с <span class="privacy-link">политикой конфиденциальности</span></span>
     </label>
+    <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
     <button type="submit">Отправить</button>
-    <p class="form-note" id="askNote">Спасибо! Ответим в ближайшее время.</p>
+    <p class="form-note" id="askNote" role="status">Спасибо! Ответим в ближайшее время.</p>
+    <p class="form-error" id="askError" role="alert"></p>
   </form>
 </div>
 
@@ -43,7 +49,7 @@
   <div class="rule-modal" style="max-width:560px; max-height:80vh; overflow-y:auto;">
     <button type="button" class="rule-modal-close" id="privacyModalClose" aria-label="Закрыть">✕</button>
     <h3>Политика обработки персональных данных</h3>
-    <p style="margin-bottom:12px;">Оператор персональных данных — организатор мероприятий JoyRest (ФИО, ИНН — и ОГРНИП, если применимо — будут указаны после завершения регистрации в качестве самозанятого или ИП). Настоящая политика определяет порядок обработки персональных данных посетителей сайта joyrest.ru в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
+    <p style="margin-bottom:12px;">Оператор персональных данных — организатор мероприятий JoyRest (ФИО, ИНН — и ОГРНИП, если применимо — будут указаны после завершения регистрации в качестве самозанятого или ИП). Настоящая политика определяет порядок обработки персональных данных посетителей сайта joy-rest.ru в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
     <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Какие данные собираются:</strong> имя, номер телефона, способ и ссылка для связи (Telegram/WhatsApp/ВК/MAX), количество гостей, комментарий к заявке, текст отзыва — то есть только то, что вы сами вводите в формы на сайте.</p>
     <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Цель обработки:</strong> связь с вами по поводу заявки на организацию мероприятия, ответ на вопрос, публикация отзыва (по вашему желанию и после согласования).</p>
     <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Передача третьим лицам:</strong> данные не передаются третьим лицам и не используются в рекламных целях. Заявки поступают напрямую организатору через мессенджер.</p>
@@ -54,7 +60,13 @@
 
 <header id="siteHeader">
   <div class="nav">
-    <div class="logo"><div class="logo-frame"><img src="img/logo.png" alt="JoyRest — Events &amp; Experiences" class="logo-img"></div></div>
+    <!-- Логотип из public/brand/: сборка (scripts/build-site.ts) встраивает SVG в data-brand-svg. -->
+    <a href="#top" class="logo" aria-label="JoyRest — Events &amp; Experiences, на начало страницы">
+      <span class="logo-frame"><span class="logo-tile">
+        <span class="logo-svg logo-svg--full" data-brand-svg="joyrest-logo"></span>
+        <span class="logo-svg logo-svg--monogram" data-brand-svg="joyrest-monogram"></span>
+      </span></span>
+    </a>
     <nav class="nav-links">
       <a href="#events">Мероприятия</a>
       <a href="#services">Форматы</a>
@@ -623,7 +635,10 @@
 
     <div class="telegram-embed reveal">
       <h3 style="font-size:19px; font-weight:500; margin-bottom:14px;">Мы в Telegram</h3>
-      <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-post="JoyRest/3" data-width="100%"></script>
+      <!-- Виджет поста загружается, только когда блок подходит к экрану (js/script.js). -->
+      <div class="tg-post" id="tgPost" data-telegram-post="JoyRest/3">
+        <a href="https://t.me/JoyRest/3" target="_blank" rel="noopener" style="color:var(--coral); text-decoration:underline;">Открыть пост в Telegram</a>
+      </div>
     </div>
 
     <div class="review-form-wrap" id="reviewFormWrap">
@@ -644,8 +659,10 @@
           <input type="checkbox" required>
           <span>Согласен(на) на обработку персональных данных в соответствии с <span class="privacy-link">политикой конфиденциальности</span></span>
         </label>
+        <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
         <button type="submit">Отправить отзыв</button>
-        <p class="form-note" id="reviewNote">Спасибо! Отзыв отправлен нам на модерацию — регистрация не нужна.</p>
+        <p class="form-note" id="reviewNote" role="status">Спасибо! Отзыв отправлен нам на модерацию — регистрация не нужна.</p>
+        <p class="form-error" id="reviewError" role="alert"></p>
       </form>
     </div>
   </section>
@@ -772,8 +789,10 @@
             <input type="checkbox" required>
             <span>Согласен(на) на обработку персональных данных в соответствии с <span class="privacy-link">политикой конфиденциальности</span></span>
           </label>
+          <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
           <button type="submit">Отправить заявку</button>
-          <p class="form-note" id="formNote">Спасибо! Заявка сохранена — свяжемся с вами в ближайшее время.</p>
+          <p class="form-note" id="formNote" role="status">Спасибо! Заявка отправлена — свяжемся с вами в ближайшее время.</p>
+          <p class="form-error" id="formError" role="alert"></p>
         </form>
       </div>
     </div>

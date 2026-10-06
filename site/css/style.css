@@ -9,6 +9,9 @@
     --emerald: #93A886;
     --gold: #C7A768;
     --wine: #AD8790;
+    /* Логотип (currentColor в SVG) и его подложка в рамке: контраст ≥ 3 (server/src/site.test.ts). */
+    --logo-color: #221E1B;
+    --logo-bg: #FBF6F1;
   }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html{ scroll-behavior: smooth; }
@@ -28,7 +31,12 @@
     content: '';
     position: fixed;
     inset: -30px;
-    background-image: url('https://images.unsplash.com/photo-1584890132374-d69d5d01483e?w=1600&q=60&auto=format&fit=crop');
+    /* Временно градиент в фирменных цветах вместо фото Unsplash (фото будет файлом в img/). */
+    background-image:
+      radial-gradient(ellipse at 15% 20%, var(--coral) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 30%, var(--gold) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 90%, var(--emerald) 0%, transparent 55%),
+      linear-gradient(135deg, var(--wine), var(--bg-alt));
     background-size: cover;
     background-position: center;
     filter: blur(28px) saturate(1.1);
@@ -78,14 +86,25 @@
     transition: padding .25s ease;
   }
   .logo{
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 22px;
-    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 8px;
+    border-radius: 15px;
   }
-  .logo-img{ height: 56px; width: auto; display: block; border-radius: 12px; }
+  .logo:focus-visible{ outline: 3px solid var(--coral); outline-offset: 3px; }
+  /* Фирменный логотип: полный (1000×775), на узких экранах — монограмма. */
+  .logo-tile{
+    display: flex; align-items: center; justify-content: center;
+    height: 56px; padding: 4px 8px; border-radius: 12px;
+    background: var(--logo-bg); color: var(--logo-color);
+  }
+  .logo-svg{ display: block; height: 100%; }
+  .logo-svg svg{ display: block; height: 100%; width: auto; }
+  .logo-svg--monogram{ display: none; height: 70%; }
+  @media (max-width: 400px){
+    .logo-svg--full{ display: none; }
+    .logo-svg--monogram{ display: block; }
+    .logo-tile{ height: 48px; }
+  }
   .logo-frame{
     display: inline-flex;
     padding: 3px;
@@ -933,6 +952,8 @@
   /* Real system dark mode (placed last so it correctly overrides equal-specificity rules above) */
   @media (prefers-color-scheme: dark){
     :root{
+      --logo-color: #FBF6F1;
+      --logo-bg: #211E1A;
       --bg: #211E1A;
       --bg-alt: #2A2621;
       --ink: #F3ECE3;
@@ -952,4 +973,15 @@
     .show-pick{ background: #2A2621; }
     .age-pick{ background: #2A2621; }
     .gallery-tile{ background: #2A2621; }
+  }
+
+  /* Формы: ошибка отправки и скрытое поле-ловушка для ботов (люди его не видят). */
+  .form-error{ font-size: 13px; color: #8A3B33; display: none; margin: 0; }
+  .form-error.show{ display: block; animation: fadeIn .4s ease; }
+  .form-error a{ color: inherit; text-decoration: underline; }
+  .ask-panel p.form-error{ color: #8A3B33; margin: 0; }
+  .hp-field{ position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+  button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
+  @media (prefers-color-scheme: dark){
+    .form-error, .ask-panel p.form-error{ color: #E3AA9C; }
   }

@@ -16,12 +16,52 @@
   }, { threshold: 0.15 });
   revealEls.forEach(el => io.observe(el));
 
-  // Floating "ask a question" widget
-  // Заявки больше не уходят в Telegram напрямую из браузера: токен бота убран из кода.
-  // TODO (Claude Code): отправлять на сервер POST /api/lead, сервер сам перешлёт в Telegram.
-  function sendToTelegram(text){
-    console.warn('Отправка заявок временно отключена: ждёт серверной части /api/lead');
-    return Promise.resolve();
+  // Отправка форм: POST /api/lead на сервер того же сайта, сервер пересылает в Telegram.
+  // Токена бота в браузере нет. «Спасибо» показываем только при ответе 200, при ошибке —
+  // понятный текст и ссылку на канал; введённое не стираем, чтобы можно было повторить.
+  const FALLBACK_URL = 'https://t.me/JoyRest';
+  function showError(el, message){
+    // Сервер сам предлагает написать в Telegram — делаем из этого ссылку.
+    const text = (message || 'Не получилось отправить.').replace(/\s*Напишите нам в Telegram: t\.me\/JoyRest\.?/i, '');
+    el.textContent = text + ' Напишите нам в Telegram: ';
+    const link = document.createElement('a');
+    link.href = FALLBACK_URL; link.target = '_blank'; link.rel = 'noopener';
+    link.textContent = 't.me/JoyRest';
+    el.append(link);
+    el.classList.add('show');
+  }
+  async function sendLead(form, payload, noteEl, errorEl){
+    const button = form.querySelector('button[type="submit"]');
+    if(button.disabled) return false;
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Отправляем…';
+    noteEl.classList.remove('show');
+    errorEl.classList.remove('show');
+    payload.consent = form.querySelector('.consent-row input[type="checkbox"]').checked;
+    payload.website = form.querySelector('input[name="website"]').value;
+    let ok = false;
+    try{
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      let data = null;
+      try{ data = await res.json(); }catch(_){ /* не JSON — ответил не наш сервер */ }
+      if(res.status === 200 && data && data.ok === true){
+        ok = true;
+        noteEl.classList.add('show');
+      }else{
+        showError(errorEl, data && data.message ? data.message : 'Не получилось отправить.');
+      }
+    }catch(_){
+      showError(errorEl, 'Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.');
+    }finally{
+      button.disabled = false;
+      button.textContent = label;
+    }
+    return ok;
   }
 
   const askFabBtn = document.getElementById('askFabBtn');
@@ -32,14 +72,17 @@
       askPanel.classList.remove('open');
     }
   });
-  document.getElementById('askForm').addEventListener('submit', function(e){
+  document.getElementById('askForm').addEventListener('submit', async function(e){
     e.preventDefault();
-    const contact = document.getElementById('askContact').value.trim();
-    const text = document.getElementById('askText').value.trim();
-    sendToTelegram(`💬 Новый вопрос с сайта JoyRest\n\nКонтакт: ${contact || '—'}\nВопрос: ${text}`);
-    document.getElementById('askNote').classList.add('show');
-    this.reset();
-    setTimeout(() => askPanel.classList.remove('open'), 1800);
+    const ok = await sendLead(this, {
+      type: 'question',
+      contact: document.getElementById('askContact').value.trim(),
+      text: document.getElementById('askText').value.trim(),
+    }, document.getElementById('askNote'), document.getElementById('askError'));
+    if(ok){
+      this.reset();
+      setTimeout(() => askPanel.classList.remove('open'), 1800);
+    }
   });
 
   // Review form: open/close, star rating, submit
@@ -56,15 +99,18 @@
   }
   setStars(5);
   stars.forEach(s => s.addEventListener('click', () => setStars(parseInt(s.dataset.v, 10))));
-  document.getElementById('reviewForm').addEventListener('submit', function(e){
+  document.getElementById('reviewForm').addEventListener('submit', async function(e){
     e.preventDefault();
-    const name = document.getElementById('reviewName').value.trim();
-    const rating = ratingInput.value;
-    const text = document.getElementById('reviewText').value.trim();
-    sendToTelegram(`⭐ Новый отзыв с сайта JoyRest\n\nИмя: ${name}\nОценка: ${'★'.repeat(rating)}${'☆'.repeat(5-rating)}\nОтзыв: ${text}`);
-    document.getElementById('reviewNote').classList.add('show');
-    this.reset();
-    setStars(5);
+    const ok = await sendLead(this, {
+      type: 'review',
+      name: document.getElementById('reviewName').value.trim(),
+      rating: parseInt(ratingInput.value, 10),
+      text: document.getElementById('reviewText').value.trim(),
+    }, document.getElementById('reviewNote'), document.getElementById('reviewError'));
+    if(ok){
+      this.reset();
+      setStars(5);
+    }
   });
 
   // Price calculator
@@ -419,24 +465,41 @@
   }));
 
   // Form
-  document.getElementById('leadForm').addEventListener('submit', function(e){
+  document.getElementById('leadForm').addEventListener('submit', async function(e){
     e.preventDefault();
-    const name = document.getElementById('name').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-    const type = document.getElementById('type').value;
-    const guests = document.getElementById('guests').value.trim();
-    const contactMethod = document.getElementById('contactMethod').value;
-    const contactLink = document.getElementById('contactLink').value.trim();
-    const message = document.getElementById('message').value.trim();
-    sendToTelegram(
-      `📩 Новая заявка с сайта JoyRest\n\n` +
-      `Имя: ${name}\n` +
-      `Телефон: ${phone}\n` +
-      `Тип мероприятия: ${type}\n` +
-      `Гостей: ${guests || '—'}\n` +
-      `Связь: ${contactMethod}${contactLink ? ' — ' + contactLink : ''}\n` +
-      `Комментарий: ${message || '—'}`
-    );
-    document.getElementById('formNote').classList.add('show');
-    this.reset();
+    const ok = await sendLead(this, {
+      type: 'lead',
+      name: document.getElementById('name').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      eventType: document.getElementById('type').value,
+      guests: document.getElementById('guests').value.trim(),
+      contactMethod: document.getElementById('contactMethod').value,
+      contactLink: document.getElementById('contactLink').value.trim(),
+      message: document.getElementById('message').value.trim(),
+    }, document.getElementById('formNote'), document.getElementById('formError'));
+    if(ok) this.reset();
   });
+
+  // Пост Telegram: скрипт виджета грузим, только когда блок подходит к экрану.
+  const tgPost = document.getElementById('tgPost');
+  if(tgPost){
+    const loadWidget = () => {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.dataset.telegramPost = tgPost.dataset.telegramPost;
+      script.dataset.width = '100%';
+      tgPost.appendChild(script);
+    };
+    if('IntersectionObserver' in window){
+      const tgObserver = new IntersectionObserver((entries) => {
+        if(entries.some(entry => entry.isIntersecting)){
+          tgObserver.disconnect();
+          loadWidget();
+        }
+      }, { rootMargin: '400px 0px' });
+      tgObserver.observe(tgPost);
+    }else{
+      loadWidget();
+    }
+  }

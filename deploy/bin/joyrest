@@ -80,6 +80,11 @@ usage() {
                               только при включённом сайте; без аргумента — текущее значение
   force — применить, даже если идёт игра (приложение перезапустится на несколько секунд)
 
+Платформа на своём сервере:
+  joyrest admin-password [test]
+                              пароль владельца агентства для входа в студию (вводится скрыто,
+                              хранится только хэш); test — для test.games.joy-rest.ru
+
 Резервные копии (каждую ночь в 04:40, restic → Beget S3):
   joyrest backup-setup        подключить хранилище S3: ключи (скрыто), пароль копий, первая копия
   joyrest backup              сделать копию сейчас
@@ -243,6 +248,9 @@ ensure_dirs() {
   fi
   install -d -m 700 "$BACKUP_DIR" "$BACKUP_DIR/predeploy" "$BACKUP_DIR/daily" "$BACKUP_STATE" "$BACKUP_DIR/cache"
   install -d -m 700 "$SITE_AUTH_DIR"
+  # Картинки игр: файлы вне базы, пишет приложение (пользователь node в образе, uid 1000).
+  install -d -m 755 "$ROOT_DIR/media"
+  install -d -m 700 -o 1000 -g 1000 "$ROOT_DIR/media/prod" "$ROOT_DIR/media/test"
 }
 
 # Системные файлы из текущего релиза: команды, привратник, службы systemd, Caddy.
@@ -1338,6 +1346,44 @@ cmd_restore_settings() {
   echo "✅ Настройки восстановлены. Применить: sudo joyrest up"
 }
 
+# Пароль владельца агентства для входа на своём сервере (CLAUDE.md, «Платформа на своём
+# сервере»). Пароль вводится скрыто и уходит в приложение через stdin (не аргументом):
+# server/admin-password.js (PR 3.1) хэширует его argon2id, в базе — только хэш.
+# test — для тестового окружения (своя база).
+cmd_admin_password() {
+  need_root admin-password
+  local target=${1:-prod} service email password again default out
+  case "$target" in prod|test) ;; *) die "Аргумент — test или ничего (основная версия)." ;; esac
+  service=$(service_of "$target")
+  [ -t 0 ] || die "Команда спрашивает пароль: запустите её в Termius — sudo joyrest admin-password${1:+ $1}"
+  if ! dc exec -T "$service" test -f server/admin-password.js 2>/dev/null; then
+    die "В этой версии приложения ($(release_value "$target" APP_VERSION | cut -c1-12)) ещё нет входа на своём сервере — команда заработает после выкладки PR 3.1."
+  fi
+  default=$(env_value "$ROOT_DIR/secrets.env" ADMIN_EMAIL)
+  read -rp "Почта для входа${default:+ (Enter — $default)}: " email
+  email=$(clean_value "$email")
+  email=${email:-$default}
+  [[ "$email" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || die "Не похоже на почту. Ничего не изменено."
+  echo "Пароль не короче 12 символов. При вводе символы не видны — это нормально."
+  IFS= read -rsp "Пароль: " password
+  echo
+  IFS= read -rsp "Пароль ещё раз: " again
+  echo
+  [ "$password" = "$again" ] || die "Пароли не совпали. Ничего не изменено."
+  [ "$(printf '%s' "$password" | LC_ALL=C.UTF-8 wc -m)" -ge 12 ] || die "Пароль короче 12 символов. Ничего не изменено."
+  # Почта — первая строка stdin, пароль — вторая. printf встроен в bash: пароль не попадает в
+  # аргументы процессов (их видно в списке процессов).
+  if ! out=$(printf '%s\n%s\n' "$email" "$password" | dc exec -T "$service" node server/admin-password.js 2>&1); then
+    password=""
+    again=""
+    die "Пароль не сохранён: $(printf '%s' "$out" | tail -n 1)"
+  fi
+  password=""
+  again=""
+  log "Пароль владельца агентства обновлён ($target)"
+  echo "✅ Готово: https://$(host_of "$target")/studio — почта $email и ваш пароль."
+}
+
 cmd_version() {
   echo "основная: $(release_value prod APP_VERSION)"
   echo "тестовая: $(release_value test APP_VERSION)"
@@ -1366,5 +1412,6 @@ case "${1:-}" in
   restore)       shift; cmd_restore "$@" ;;
   restore-settings) cmd_restore_settings ;;
   notify-bot)    cmd_notify_bot ;;
+  admin-password) shift; cmd_admin_password "$@" ;;
   *)             usage ;;
 esac

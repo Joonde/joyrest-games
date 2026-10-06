@@ -73,6 +73,10 @@ services:
       DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_prod
       PUBLIC_DIR: /app/public
       NODE_OPTIONS: --max-old-space-size=256
+      # Слой данных в браузере: Firebase, пока владелец не переключит основную версию на свой
+      # сервер (settings.env, PR 9). Картинки игр — файлы в /srv/joyrest/media/prod.
+      DATA_BACKEND: ${DATA_BACKEND:-firebase}
+      MEDIA_DIR: /app/media
       # Сайт агентства (joy-rest.ru). По умолчанию ВЫКЛЮЧЕН: заглушка «скоро», /api/lead — 404.
       # Включает только владелец: sudo joyrest site on (settings.env). Индексация — тоже
       # settings.env (sudo joyrest site-indexing on|off, только при site on). Бот заявок —
@@ -83,6 +87,8 @@ services:
       SITE_INDEXING: ${SITE_INDEXING:-off}
       LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
+    volumes:
+      - /srv/joyrest/media/prod:/app/media
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:
@@ -104,6 +110,9 @@ services:
       DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_test
       PUBLIC_DIR: /app/public
       NODE_OPTIONS: --max-old-space-size=160
+      # Тестовое окружение — всегда на своём сервере (проверка переезда), своя папка картинок.
+      DATA_BACKEND: server
+      MEDIA_DIR: /app/media
       # Тестовый сайт test.joy-rest.ru: сайт всегда, закрыт паролем (Caddy, sudo joyrest
       # site-password) и от поисковиков; заявки — в тот же чат с пометкой.
       SITE_HOSTS: test.joy-rest.ru
@@ -112,6 +121,8 @@ services:
       LEAD_LABEL: "🧪 ТЕСТ (test.joy-rest.ru)"
       LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
+    volumes:
+      - /srv/joyrest/media/test:/app/media
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:

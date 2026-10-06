@@ -2,12 +2,12 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { buildApp } from "./app";
+import { buildApp, parseDataBackend, withDataBackend } from "./app";
 
 function site(): string {
   const dir = mkdtempSync(join(tmpdir(), "joyrest-site-"));
   mkdirSync(join(dir, "assets"));
-  writeFileSync(join(dir, "index.html"), "<!doctype html><title>JoyRest</title>");
+  writeFileSync(join(dir, "index.html"), "<!doctype html><html><head><title>JoyRest</title></head><body></body></html>");
   writeFileSync(join(dir, "assets", "app-abc123.js"), "console.log(1)");
   writeFileSync(join(dir, "favicon.svg"), "<svg/>");
   return dir;
@@ -54,5 +54,37 @@ describe("сервер", () => {
     const res = await app.inject("/favicon.svg");
     expect(res.statusCode).toBe(200);
     expect(res.headers["cache-control"]).toBe("no-cache");
+  });
+
+  it("страница приложения сообщает реализацию слоя данных: по умолчанию Firebase", async () => {
+    for (const url of ["/", "/studio", "/index.html"]) {
+      const res = await app.inject(url);
+      expect(res.statusCode, url).toBe(200);
+      expect(res.body, url).toContain('<meta name="joyrest-data" content="firebase"></head>');
+      expect(res.headers["content-type"], url).toContain("text/html");
+    }
+  });
+
+  it("DATA_BACKEND=server — метка server", async () => {
+    const server = buildApp({ version: "abc", publicDir: site(), checkDatabase: async () => true, dataBackend: "server" });
+    const res = await server.inject("/host/123456");
+    expect(res.body).toContain('<meta name="joyrest-data" content="server">');
+    expect(res.body).not.toContain("firebase");
+    await server.close();
+  });
+});
+
+describe("переключатель слоя данных", () => {
+  it("свой сервер — только точное «server», остальное — Firebase", () => {
+    for (const value of [undefined, "", "firebase", "servers", "1", "on", "true"]) {
+      expect(parseDataBackend(value), String(value)).toBe("firebase");
+    }
+    for (const value of ["server", "SERVER", " server\r\n"]) expect(parseDataBackend(value), value).toBe("server");
+  });
+
+  it("метка вставляется в head", () => {
+    expect(withDataBackend("<html><head><title>x</title></head></html>", "server")).toBe(
+      '<html><head><title>x</title><meta name="joyrest-data" content="server"></head></html>',
+    );
   });
 });

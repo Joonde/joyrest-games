@@ -55,8 +55,8 @@ jobs:
         run: npm test
         env:
           TEST_DATABASE_URL: postgres://postgres:ci@localhost:5432/postgres
-      - name: Сборка сайта и сервера
-        run: npm run build && npm run build:server
+      - name: Сборка платформы, сервера и сайта агентства
+        run: npm run build && npm run build:server && npm run build:site
       - name: Проверка скриптов сервера (shellcheck)
         run: shellcheck --severity=warning deploy/bin/* deploy/setup/*.sh
       - name: Проверка docker-compose

@@ -13,10 +13,15 @@
 	}
 }
 
+# Адрес посетителя для приложения (лимиты по IP) — только тот, что видит Caddy: присланный
+# клиентом X-Forwarded-For перезаписывается, а не дописывается. Приложение верит этому
+# заголовку только от адресов внутренней сети Docker (server/src/app.ts, trustProxy).
 games.joy-rest.ru {
 	import security
 	encode zstd gzip
-	reverse_proxy app-prod:8080
+	reverse_proxy app-prod:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
 # Тестовое окружение: проверки веток до выкладки на основной адрес. Поисковикам не показываем.
@@ -24,15 +29,34 @@ test.games.joy-rest.ru {
 	import security
 	header X-Robots-Tag "noindex, nofollow"
 	encode zstd gzip
-	reverse_proxy app-test:8080
+	reverse_proxy app-test:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
-# Основной сайт агентства — пока заглушка «скоро».
+# Сайт агентства: файлы из того же образа, что и платформа (app-prod выбирает сайт по Host),
+# поэтому выкладка, откат и уведомления общие. Кэш и закрытие от поисковиков (robots.txt,
+# X-Robots-Tag; `sudo joyrest site-indexing on|off`) задаёт приложение. Заявки — POST /api/lead.
+# Заглушка «скоро» (soon/) больше не используется; остаётся в релизе для отката на прошлые версии.
 joy-rest.ru {
 	import security
 	encode zstd gzip
-	root * /etc/caddy/soon
-	file_server
+	reverse_proxy app-prod:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
+# Тестовый сайт агентства — версия из ветки (app-test). Поисковикам не показываем никогда.
+test.joy-rest.ru {
+	import security
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		defer
+	}
+	encode zstd gzip
+	reverse_proxy app-test:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
 www.joy-rest.ru {

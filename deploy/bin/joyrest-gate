@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Привратник SSH-ключа GitHub Actions (пользователь deploy, без sudo и без консоли).
+# Ключ в authorized_keys привязан к этой команде: что бы ни прислали, выполняется только
+# разобранная здесь команда. Сейчас — только проверка связи; выкладка появится в PR 2.
+set -euo pipefail
+
+command="${SSH_ORIGINAL_COMMAND:-}"
+case "$command" in
+  ping)
+    echo "pong $(sed -n 's/^APP_VERSION=//p' /srv/joyrest/current/release.env 2>/dev/null)"
+    ;;
+  *)
+    echo "Команда не разрешена: ${command:0:60}" >&2
+    exit 1
+    ;;
+esac

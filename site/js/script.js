@@ -256,21 +256,50 @@
     document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
   });
 
-  // Section collapse/expand toggles (Мероприятия / Услуги / Пакеты услуг)
+  // Section collapse/expand toggles (Мероприятия / Услуги / Пакеты услуг).
+  // У секции класс is-open: свёрнутая секция компактная (стили в css/style.css).
+  const sectionToggles = {};
   function setupSectionToggle(btnId, wrapId){
     const btn = document.getElementById(btnId);
     const wrap = document.getElementById(wrapId);
     if(!btn || !wrap) return;
-    btn.addEventListener('click', () => {
-      const isOpen = wrap.classList.toggle('open');
+    const section = wrap.closest('section');
+    const setOpen = (isOpen) => {
+      wrap.classList.toggle('open', isOpen);
+      section.classList.toggle('is-open', isOpen);
       btn.classList.toggle('open', isOpen);
       btn.setAttribute('aria-expanded', isOpen);
       btn.childNodes[0].textContent = isOpen ? 'Скрыть ' : 'Показать ';
-    });
+    };
+    btn.addEventListener('click', () => setOpen(!wrap.classList.contains('open')));
+    sectionToggles[section.id] = setOpen;
   }
   setupSectionToggle('eventsToggleBtn', 'eventsList');
   setupSectionToggle('servicesToggleBtn', 'servicesList');
   setupSectionToggle('packagesToggleBtn', 'packagesList');
+
+  // Шапка: «Услуги» раскрывает раздел, «Оставить заявку» ведёт к форме и ставит фокус в первое поле.
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('[data-open-section]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const section = document.getElementById(link.dataset.openSection);
+      if(!section) return;
+      e.preventDefault();
+      if(sectionToggles[section.id]) sectionToggles[section.id](true);
+      section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+  document.querySelectorAll('[data-focus-target]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const field = document.getElementById(link.dataset.focusTarget);
+      const target = document.querySelector(link.getAttribute('href'));
+      if(!field || !target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      // Фокус сразу, в том же нажатии: иначе iPhone не откроет клавиатуру.
+      field.focus({ preventScroll: true });
+    });
+  });
 
   // Event-type picker
   const PICKER_INFO = {
@@ -430,7 +459,6 @@
 
   // Touch/tap ripple effect
   const rippleLayer = document.getElementById('rippleLayer');
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!reduceMotion){
     document.addEventListener('pointerdown', (e) => {
       const r = document.createElement('span');

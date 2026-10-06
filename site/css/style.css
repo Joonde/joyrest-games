@@ -12,6 +12,12 @@
     /* Логотип (currentColor в SVG) и его подложка в рамке: контраст ≥ 3 (server/src/site.test.ts). */
     --logo-color: #221E1B;
     --logo-bg: #FBF6F1;
+    /* Кнопки шапки (как на платформе): основная — пыльная роза с тёмным текстом,
+       вторичная — контур. Контраст проверяет server/src/site.test.ts. */
+    --btn-primary-bg: #C49E96;
+    --btn-primary-text: #221E1B;
+    --btn-outline: #9A7444;
+    --btn-outline-text: #322D28;
   }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html{ scroll-behavior: smooth; }
@@ -51,7 +57,10 @@
     letter-spacing: 0;
   }
   a{ color: inherit; text-decoration: none; }
-  .wrap{ max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  .wrap{ --wrap-pad: 32px; max-width: 1080px; margin: 0 auto; padding: 0 var(--wrap-pad); }
+  /* Полоса с фоном во всю ширину колонки: выходит ровно на поля страницы, не дальше
+     (иначе на телефоне страница прокручивается вбок). */
+  .band{ margin-left: calc(-1 * var(--wrap-pad)); margin-right: calc(-1 * var(--wrap-pad)); padding-left: var(--wrap-pad); padding-right: var(--wrap-pad); }
 
   /* Reveal animation — content is always visible; only position animates, so a JS/observer failure never hides content */
   .reveal{
@@ -94,16 +103,43 @@
   /* Фирменный логотип: полный (1000×775), на узких экранах — монограмма. */
   .logo-tile{
     display: flex; align-items: center; justify-content: center;
-    height: 56px; padding: 4px 8px; border-radius: 12px;
+    height: 48px; padding: 4px 8px; border-radius: 12px;
     background: var(--logo-bg); color: var(--logo-color);
+    transition: height .25s ease;
   }
+  /* При прокрутке шапка ниже, логотип меньше. */
+  header.scrolled .logo-tile{ height: 38px; }
   .logo-svg{ display: block; height: 100%; }
   .logo-svg svg{ display: block; height: 100%; width: auto; }
   .logo-svg--monogram{ display: none; height: 70%; }
   @media (max-width: 400px){
     .logo-svg--full{ display: none; }
     .logo-svg--monogram{ display: block; }
-    .logo-tile{ height: 48px; }
+    .logo-tile{ height: 44px; padding: 4px 6px; }
+    header.scrolled .logo-tile{ height: 36px; }
+  }
+
+  /* Кнопки шапки: «Оставить заявку» (основная) и «Услуги» (вторичная). Высота ≥ 44px. */
+  .header-actions{ display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .nav-links + .header-actions{ margin-left: 0; }
+  .hbtn{
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; padding: 0 18px; border-radius: 999px;
+    font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 600; line-height: 1;
+    white-space: nowrap; transition: transform .25s ease, background .25s ease, border-color .25s ease;
+  }
+  .hbtn:focus-visible{ outline: 3px solid var(--btn-outline); outline-offset: 2px; }
+  .hbtn--primary{ background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+  .hbtn--primary:hover{ transform: translateY(-2px); }
+  .hbtn--secondary{ border: 1.5px solid var(--btn-outline); color: var(--btn-outline-text); background: transparent; }
+  .hbtn--secondary:hover{ transform: translateY(-2px); }
+  @media (max-width: 760px){
+    .nav{ gap: 8px; }
+    .hbtn{ padding: 0 14px; }
+  }
+  /* Узкие телефоны: «Услуги» — только в меню ☰ (не помещается без переносов). */
+  @media (max-width: 389px){
+    .hbtn--secondary{ display: none; }
   }
   .logo-frame{
     display: inline-flex;
@@ -224,7 +260,8 @@
     from{ transform: translate(0,0) scale(1); }
     to{ transform: translate(-30px, 30px) scale(1.12); }
   }
-  .hero > *{ position: relative; z-index: 1; }
+  /* Пятна — фон, не ячейки сетки (иначе на телефоне они дают ~450px пустоты над заголовком). */
+  .hero > *:not(.blob){ position: relative; z-index: 1; }
   .hero h1{
     font-size: clamp(42px, 5.6vw, 70px);
     line-height: 1.03;
@@ -295,9 +332,14 @@
   .collapsible-wrap{
     max-height: 0;
     overflow: hidden;
-    transition: max-height .7s cubic-bezier(0.22,1,0.36,1);
+    visibility: hidden;
+    transition: max-height .7s cubic-bezier(0.22,1,0.36,1), visibility 0s linear .7s;
   }
-  .collapsible-wrap.open{ max-height: 2400px; }
+  .collapsible-wrap.open{ max-height: 2400px; visibility: visible; transition: max-height .7s cubic-bezier(0.22,1,0.36,1); }
+  /* Свёрнутая секция компактная: заголовок с кнопкой и описание, без линии и больших отступов. */
+  section.is-collapsible:not(.is-open){ padding-top: 48px; padding-bottom: 48px; }
+  section.is-collapsible:not(.is-open) .section-head{ margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .formats-block{ margin-top: 56px; }
   @media (max-width: 480px){
     .section-toggle-btn{ font-size: 12px; padding: 7px 13px; }
   }
@@ -675,7 +717,7 @@
     padding: 26px 0; border-bottom: 1px solid var(--line);
     transition: padding-left .3s ease, background .3s ease;
   }
-  .service-row:first-child{ border-top: 1px solid var(--line); }
+  /* Над первым пунктом уже есть линия заголовка секции — вторая не нужна. */
   .service-row:hover{ padding-left: 14px; background: linear-gradient(90deg, var(--bg-alt), transparent); }
   .service-row h3{ font-size: 19px; font-weight: 500; }
   .service-row p{ color: var(--ink-soft); font-size: 15px; margin: 0; max-width: 60ch; }
@@ -725,7 +767,7 @@
 
   /* Tablet (iPad portrait and similar) */
   @media (max-width: 1024px){
-    .wrap{ padding: 0 24px; }
+    .wrap{ --wrap-pad: 24px; }
     .nav{ padding: 14px 24px; }
     .hero{ padding: 72px 0 64px; gap: 32px; }
     section{ padding: 64px 0; }
@@ -741,7 +783,7 @@
   @media (max-width: 760px){
     .nav-links, .desktop-cta{ display: none; }
     .burger{ display: flex; }
-    .hero{ grid-template-columns: 1fr; padding: 44px 0 48px; }
+    .hero{ grid-template-columns: 1fr; padding: 40px 0 32px; }
     .blob1{ width: 220px; height: 220px; top: -80px; right: -40px; }
     .blob2{ width: 160px; height: 160px; right: 120px; }
     .hero p{ max-width: none; }
@@ -750,8 +792,12 @@
     .hero-side .stat{ padding: 16px; border-bottom: none; background: var(--bg-alt); border-radius: 14px; }
     .stat-num{ font-size: 26px; }
     .stat-label{ font-size: 12.5px; line-height: 1.4; }
-    section{ padding: 52px 0; }
-    .section-head{ flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 32px; }
+    /* Между секциями на телефоне не больше 64px (32 + 32), у свёрнутых — 48px. */
+    section{ padding: 32px 0; }
+    section.is-collapsible:not(.is-open){ padding-top: 24px; padding-bottom: 24px; }
+    .formats-block{ margin-top: 32px; }
+    .section-head{ flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 24px; padding-bottom: 16px; }
+    .section-head h2{ flex-wrap: nowrap !important; }
     .section-head h2{ font-size: 28px; }
     .event-list{ grid-template-columns: 1fr; gap: 14px; }
     .event{ padding: 24px 20px; }
@@ -769,7 +815,7 @@
 
   /* Small phones (iPhone SE / mini) */
   @media (max-width: 380px){
-    .wrap{ padding: 0 18px; }
+    .wrap{ --wrap-pad: 18px; }
     .nav{ padding-left: max(18px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); }
     .hero h1{ font-size: 34px; }
     .steps{ grid-template-columns: 1fr; }
@@ -784,6 +830,8 @@
     .reveal{ opacity: 1; transform: none; transition: none; }
     .format-tile-inner{ transition: none; }
     .collapsible-wrap, .toggle-arrow{ transition: none; }
+    .logo-tile, .hbtn{ transition: none; }
+    .hbtn:hover{ transform: none; }
   }
 
   /* Coverage map */
@@ -941,6 +989,8 @@
     :root{
       --logo-color: #FBF6F1;
       --logo-bg: #211E1A;
+      --btn-outline: #E3C68C;
+      --btn-outline-text: #F3ECE3;
       --bg: #211E1A;
       --bg-alt: #2A2621;
       --ink: #F3ECE3;
@@ -970,4 +1020,11 @@
   button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
   @media (prefers-color-scheme: dark){
     .form-error, .ask-panel p.form-error{ color: #E3AA9C; }
+  }
+
+  /* Планшеты и узкие ноутбуки: ссылки разделов (правило в конце файла, чтобы перекрыть базовые) не помещаются рядом с кнопками — в меню ☰. */
+  @media (max-width: 1100px){
+    .nav-links{ display: none; }
+    .burger{ display: flex; }
+    .nav-links + .header-actions{ margin-left: auto; }
   }

@@ -164,6 +164,29 @@ describe("исходники сайта (site/)", () => {
     expect(html).toContain("напишите о пожеланиях в комментарии к заявке");
   });
 
+  it("шапка: «Оставить заявку» ведёт к форме с фокусом, «Услуги» раскрывает раздел", () => {
+    expect(html).toMatch(/<a href="#contact" class="hbtn hbtn--primary" data-focus-target="name">Оставить заявку<\/a>/);
+    expect(html).toMatch(/<a href="#services" class="hbtn hbtn--secondary" data-open-section="services">Услуги<\/a>/);
+    expect(html).toContain('<input type="text" id="name"');
+    expect(js).toContain("[data-focus-target]");
+    expect(js).toContain("[data-open-section]");
+    // Кнопки для пальца — не ниже 44px.
+    expect(css).toMatch(/\.hbtn\{[^}]*min-height: 44px/);
+  });
+
+  it("полосы с фоном не шире страницы, пятна первого экрана — не ячейки сетки", () => {
+    expect(html).not.toMatch(/margin: 0 -32px/);
+    expect(css).toMatch(/\.band\{ margin-left: calc\(-1 \* var\(--wrap-pad\)\)/);
+    expect(css).toContain(".hero > *:not(.blob){ position: relative;");
+  });
+
+  it("свёрнутые разделы компактные, на телефоне между секциями не больше 64px", () => {
+    expect(css).toMatch(/section\.is-collapsible:not\(\.is-open\) \.section-head\{ margin-bottom: 0; padding-bottom: 0; border-bottom: none; \}/);
+    const phone = css.slice(css.indexOf("@media (max-width: 760px){\n    .nav-links"));
+    expect(phone).toMatch(/section\{ padding: 32px 0; \}/);
+    expect(html.match(/class="[^"]*is-collapsible[^"]*"/g)).toHaveLength(3);
+  });
+
   it("в политике домен joy-rest.ru", () => {
     expect(html).toContain("joy-rest.ru");
     expect(html).not.toMatch(/[^-.\w]joyrest\.ru/);
@@ -195,7 +218,12 @@ describe("логотип сайта", () => {
     };
     for (const part of [css, dark]) {
       expect(contrastRatio(value(part, "logo-color"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(3);
+      // Контур вторичной кнопки шапки — с фоном шапки ≥ 3, её текст ≥ 4.5.
+      expect(contrastRatio(value(part, "btn-outline"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(value(part, "btn-outline-text"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(4.5);
     }
+    // Основная кнопка: тёмный текст на пыльной розе.
+    expect(contrastRatio(value(css, "btn-primary-text"), value(css, "btn-primary-bg"))).toBeGreaterThanOrEqual(4.5);
     expect(value(dark, "logo-color")).not.toBe(value(css, "logo-color"));
   });
 

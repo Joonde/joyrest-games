@@ -75,14 +75,19 @@
       <a href="#reviews">Отзывы</a>
       <a href="#contact">Контакты</a>
     </nav>
-    <a href="#contact" class="nav-cta desktop-cta">Обсудить мероприятие</a>
+    <!-- Действия шапки: «Оставить заявку» ведёт к форме и ставит фокус в первое поле,
+         «Услуги» раскрывает раздел (на узких экранах — только в меню ☰). js/script.js -->
+    <div class="header-actions">
+      <a href="#contact" class="hbtn hbtn--primary" data-focus-target="name">Оставить заявку</a>
+      <a href="#services" class="hbtn hbtn--secondary" data-open-section="services">Услуги</a>
+    </div>
     <button class="burger" id="burgerBtn" aria-label="Открыть меню" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
   </div>
   <div class="mobile-panel" id="mobilePanel">
     <a href="#events">Мероприятия</a>
-    <a href="#services">Услуги</a>
+    <a href="#services" data-open-section="services">Услуги</a>
     <a href="#services">Форматы</a>
       <a href="#calculator">Калькулятор</a>
       <a href="#packages">Пакеты</a>
@@ -138,7 +143,7 @@
     </div>
   </section>
 
-  <section class="events" id="events" style="margin: 0 -32px; padding-left: 32px; padding-right: 32px;">
+  <section class="events band is-collapsible" id="events">
     <div class="section-head reveal">
       <div>
         <h2 style="display:flex; align-items:center; gap:14px;">
@@ -177,7 +182,7 @@
     </div>
   </section>
 
-  <section id="services">
+  <section class="is-collapsible" id="services">
     <div class="section-head reveal">
       <div>
         <h2 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
@@ -208,7 +213,7 @@
     </div>
     </div>
 
-    <div style="margin-top:56px;">
+    <div class="formats-block">
       <h3 style="font-size:24px; font-weight:600; margin-bottom:6px;">Форматы программ</h3>
       <p style="font-size:14px; color:var(--ink-soft); margin:0 0 20px;">Самые популярные форматы — остальные скрыты под кнопкой ниже.</p>
       <button type="button" class="filter-reset" id="filterResetBtn">← Показать все форматы, сбросить выбор повода</button>
@@ -459,7 +464,7 @@
     </div>
   </section>
 
-  <section id="packages">
+  <section class="is-collapsible" id="packages">
     <div class="section-head reveal">
       <div>
         <h2 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
@@ -592,7 +597,7 @@
     </div>
   </section>
 
-  <section id="coverage" style="margin: 0 -32px; padding-left: 32px; padding-right: 32px; background: var(--bg-alt);">
+  <section class="band" id="coverage" style="background: var(--bg-alt);">
     <div class="section-head reveal">
       <h2>География работы</h2>
       <p>Москва — база, но выезжаем и в другие города по договорённости.</p>
@@ -662,7 +667,7 @@
     </div>
   </section>
 
-  <section class="process" id="process" style="margin: 0 -32px; padding-left: 32px; padding-right: 32px;">
+  <section class="process band" id="process">
     <div class="section-head reveal">
       <h2>Как это работает</h2>
       <p>Четыре шага от заявки до праздника.</p>

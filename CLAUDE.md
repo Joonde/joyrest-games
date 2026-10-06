@@ -55,9 +55,9 @@
 Firebase удаляются, Firebase-код удаляется отдельным PR.
 
 Архитектура сервера:
-- Docker Compose (`deploy/compose.yml`), проект `joyrest`: `caddy` (HTTPS для games.joy-rest.ru,
-  заглушка «скоро» для joy-rest.ru, www → joy-rest.ru) → `app-prod` (Node.js 22 + TypeScript,
-  Fastify: сайт, `/health`, дальше `/api` и `/ws`) → `postgres` (PostgreSQL 17, одна на
+- Docker Compose (`deploy/compose.yml`), проект `joyrest`: `caddy` (HTTPS для games.joy-rest.ru
+  и сайта агентства joy-rest.ru, www → joy-rest.ru) → `app-prod` (Node.js 22 + TypeScript,
+  Fastify: платформа, сайт агентства по Host, `/health`, `/api/lead`, дальше `/api` и `/ws`) → `postgres` (PostgreSQL 17, одна на
   основное и тестовое окружение, разные базы). У всех контейнеров `mem_limit`.
 - Наружу публикует порты только `caddy` (80, 443, 443/udp). Docker обходит ufw, поэтому
   других `ports:` в compose быть не должно (проверяет CI). База — во внутренней сети.
@@ -116,6 +116,47 @@ Firebase удаляются, Firebase-код удаляется отдельны
 офлайн-очередь; 6 — бэкапы (restic → Beget S3, пароль restic и ключи S3 владелец хранит у себя)
 и мониторинг (Telegram, UptimeRobot); 7 — нагрузка (не запускается при активной игре);
 9 — переключение; 10 — удаление Firebase.
+
+### Сайт агентства (joy-rest.ru)
+
+- Исходники — `site/` (обычные HTML, CSS, JS без сборщика), материалы — `docs/site-extras/`
+  (на сайт не выкладываются). `npm run build:site` (`scripts/build-site.ts`) собирает
+  `build/site`: отпечаток содержимого в именах файлов `css/`, `js/`, `img/` и ссылки на них;
+  шрифты — файлы платформы из `public/fonts/` (Google Fonts не подключаем); логотипы из
+  `public/brand/` встраиваются в элементы `data-brand-svg="<имя>"` (без метаданных, id
+  уникальны, цвет — `--logo-color`, контраст с `--logo-bg` ≥ 3 в обеих темах сайта);
+  иконки — `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png` (180×180) из `favicon.svg`.
+- Сайт в том же образе (`/app/site`), что и платформа, поэтому выкладка, откат и уведомления
+  общие: `main` → joy-rest.ru (`app-prod`), ветки `claude/*` → test.joy-rest.ru (`app-test`).
+  Приложение выбирает сайт по заголовку Host (`SITE_HOSTS`, `server/src/site.ts`): у сайта
+  и платформы разные пространства адресов, пересечений нет.
+- Кэш: `css/`, `js/`, `img/`, `fonts/` — год (`immutable`), `index.html` и `robots.txt` —
+  `no-cache`. Сжатие — Caddy (`encode zstd gzip`).
+- Поисковики: `SITE_INDEXING` в `/srv/joyrest/settings.env`, переключает
+  `sudo joyrest site-indexing on|off`; по умолчанию `off` — `robots.txt` Disallow и
+  `X-Robots-Tag: noindex, nofollow` на всех ответах сайта. test.joy-rest.ru закрыт всегда.
+  Открывает владелец сам, когда решены юридические вопросы (политика, ФИО, ИНН).
+- Заявки: формы шлют `POST /api/lead` (тот же домен, без CORS; только с адресов сайта)
+  — типы `question`, `review`, `lead` (`server/src/lead.ts`). Тело ≤ 8 КБ, проверка полей и
+  длины, управляющие символы вырезаются (кроме переводов строк), согласие обязательно,
+  скрытое поле-ловушка `website` (бот получает 200, в Telegram ничего не уходит), лимит
+  5 заявок за 10 минут на IP и 30 в час на всё приложение (при превышении — 429 и одно
+  предупреждение в Telegram). Сообщение в Telegram — простой текст, без `parse_mode`.
+  Нет бота — 503 с понятным текстом, сайт работает. Сайт показывает «спасибо» только при
+  ответе 200, иначе текст ошибки и ссылку на t.me/JoyRest.
+- IP посетителя: Caddy перезаписывает `X-Forwarded-For` (`header_up X-Forwarded-For
+  {remote_host}`), приложение верит ему только от адресов частных сетей Docker
+  (`trustProxy`, `PRIVATE_NETWORKS` в `server/src/app.ts`). Других путей к приложению нет:
+  портов наружу у него нет.
+- В журнал из заявок пишем только тип, итог и код ответа — без имён, телефонов и текста.
+
+**Правило: токены и ключи — только на сервере.** Токен бота заявок
+(`LEAD_TELEGRAM_TOKEN`, `LEAD_TELEGRAM_CHAT_ID`) хранится только в `/srv/joyrest/secrets.env`,
+задаётся командой `sudo joyrest lead-bot` (скрытый ввод, проверка, перезапуск приложения).
+Ни в коде сайта, ни в репозитории, ни в образе, ни в GitHub Secrets его нет; браузер
+никогда не обращается к api.telegram.org. Тест `server/src/secrets.test.ts` ищет строки,
+похожие на токен Telegram (`\d{8,10}:AA[\w-]{30,}`), в корне репозитория, `site/`, `src/`,
+`server/`, `deploy/`, `docs/`, `scripts/`, `public/`, `.github/` и падает, если нашёл.
 
 ## 3. Роли и экраны
 
@@ -492,7 +533,8 @@ QR-код — только компонент `QrCode` (`src/brand/qrSvg.ts`): �
 - Правила безопасности Firestore лежат в `firestore.rules` и покрыты тестами.
   После изменения правил напиши владельцу пошагово, как вставить их в консоль Firebase.
 - Секреты в репозиторий не кладём. Конфигурация веб-приложения Firebase не секретна;
-  ключи сервисного аккаунта запрещены.
+  ключи сервисного аккаунта запрещены. Токены ботов и API — только на сервере
+  (`/srv/joyrest/secrets.env`, раздел «Сайт агентства»).
 - Интерфейс: сначала мобильная версия для гостя, крупные кнопки, видимый фокус,
   уважение к настройке «уменьшить движение».
 - Тексты интерфейса простые и конкретные: кнопка называет действие («Начать игру»,

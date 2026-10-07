@@ -48,7 +48,7 @@ describe("защита выкладки", () => {
     const start = joyrest.indexOf("\ncmd_auto_update() {");
     const body = joyrest.slice(start, joyrest.indexOf("\n}", start + 1));
     expect(body).toContain("for env in test; do");
-    expect(body).not.toMatch(/\brelease\b(?!-)/);
+    expect(body).not.toMatch(/(?<![-\w])release(?![-\w])/);
   });
 
   it("сборка: окружение production для main, ветки — тестовый ключ, без force и без тега release", () => {

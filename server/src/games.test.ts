@@ -181,7 +181,9 @@ describe.skipIf(!url)("игры и картинки на PostgreSQL", () => {
     expect((await put("/api/media/annaGame1/img2/full", boris, webp(1000))).statusCode).toBe(403);
     expect((await put("/api/media/annaGame1/img2/full", anna, jpeg(2000), "image/jpeg")).statusCode).toBe(200);
     expect((await call("GET", "/api/media/annaGame1/img2/full", anna)).headers["content-type"]).toBe("image/jpeg");
-    expect((await call("GET", "/api/media/annaGame1/img2/full", boris)).statusCode).toBe(403);
+    // Картинку по id открывает любой вошедший (экран зала, гости); без входа — нет.
+    expect((await call("GET", "/api/media/annaGame1/img2/full", boris)).statusCode).toBe(200);
+    expect((await call("GET", "/api/media/annaGame1/img2/full", "")).statusCode).toBe(401);
   });
 
   it("лимит места на ведущего и запас свободного места на диске", async () => {

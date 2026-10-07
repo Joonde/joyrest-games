@@ -15,7 +15,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
 import type { AgeRating, Game, GameScope, MediaVariant, PlayMode } from "../../src/data/types";
-import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
+import { actorOf, apiGuard, identityOf, sessionUser, type SessionRow } from "./auth";
 
 /** Лимиты места (CLAUDE.md, «Медиа»). */
 export interface MediaLimits {
@@ -356,15 +356,15 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
     });
 
     api.get<MediaParams>("/api/media/:game/:media/:variant", async (request, reply) => {
-      const user = await requireHost(request, reply);
-      if (!user) return reply;
+      // Картинку по id открывает любой вошедший — ведущий, экран зала, телефон гостя
+      // (permissions.canViewMedia): id есть только в игре и снимке сессии, его не угадать.
+      const who = await identityOf(sql, request, reply);
+      if (!permissions.canViewMedia(who?.uid ?? null)) return fail(reply, 401, "unauthenticated");
       if (!mediaDir) return fail(reply, 501, "unimplemented");
       const { media, variant } = request.params;
       if (!MEDIA_ID.test(media) || !VARIANTS.has(variant as MediaVariant)) return fail(reply, 400, "invalid-argument");
       const game = await findGame(request.params.game);
       if (!game) return fail(reply, 404, "not-found");
-      // Пока картинки открывают ведущие (студия, репетиция); экран зала и гости — с PR 4.1.
-      if (!permissions.canReadGame(actorOf(user), ref(game))) return fail(reply, 403, "permission-denied");
       const rows = await sql<MediaRow[]>`
         select sha256, mime from media where game_id = ${game.id} and media_id = ${media} and variant = ${variant}`;
       const row = rows[0];

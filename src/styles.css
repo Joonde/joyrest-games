@@ -2837,6 +2837,142 @@ kbd {
   }
 }
 
+/* Слайды экрана зала (SlideView): крупно, в стиле темы, размеры в единицах контейнера. */
+.slide {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 8cqh 8cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3cqh;
+  text-align: center;
+}
+
+.slide__emblem {
+  width: 30cqh;
+  height: auto;
+  color: var(--color-logo);
+}
+
+.slide__eyebrow {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 4cqh;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.slide__title {
+  margin: 0;
+  max-width: 90cqw;
+  font-family: var(--font-display);
+  font-size: 13cqh;
+  font-weight: 700;
+  line-height: 1.05;
+  text-wrap: balance;
+  background: var(--gradient-code);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-shine="on"] .slide__title {
+  background-size: 250% 100%;
+  animation: scene-shine 5s ease-in-out infinite;
+}
+
+.slide__text {
+  margin: 0;
+  max-width: 80cqw;
+  font-size: 4.6cqh;
+  line-height: 1.35;
+  white-space: pre-line;
+  color: var(--color-text);
+}
+
+.slide__rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.2cqh;
+  text-align: left;
+  font-size: 4.6cqh;
+  max-width: 80cqw;
+}
+
+.slide__rules li {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+}
+
+.slide__num {
+  flex: none;
+  width: 7cqh;
+  height: 7cqh;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.slide__timer {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24cqh;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-highlight);
+}
+
+.slide__channel {
+  display: flex;
+  align-items: center;
+  gap: 4cqw;
+}
+
+.slide__qr {
+  width: 26cqh;
+  max-width: none;
+}
+
+.slide__mark {
+  position: absolute;
+  right: 4cqw;
+  bottom: 4cqh;
+  width: 8cqh;
+  color: var(--color-logo);
+  opacity: 0.8;
+}
+
+.slide__title,
+.slide__text,
+.slide__rules,
+.slide__timer,
+.slide__emblem {
+  animation: slide-in 0.8s ease both;
+}
+
+.slide__text {
+  animation-delay: 0.15s;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(3cqh);
+  }
+}
+
 /* Предпросмотр темы при запуске: заставка с кодом игры на живом фоне. */
 .theme-preview__content {
   height: 100%;

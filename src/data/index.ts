@@ -23,7 +23,7 @@ export {
 } from "./active";
 
 export { answerId } from "./answers";
-export { CUE_SOUNDS, DEFAULT_MIX } from "./cues";
+export { CUE_SOUNDS, DEFAULT_MIX, SLIDE_LIMITS } from "./cues";
 export {
   useAuth,
   useGuestSignIn,

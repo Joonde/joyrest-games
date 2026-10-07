@@ -36,6 +36,14 @@ describe("изменение пульта", () => {
     expect(checkChange({ state: { mix: "loud" } })).toBeNull();
   });
 
+  it("слайд: известный вид, текст обрезается, пункты без пустых", () => {
+    const slide = checkChange({ state: { slide: { id: "s1", kind: "rules", title: "Правила\nигры", text: "x".repeat(500), lines: ["Один", " ", "Два"], endsAt: null } } })?.state.slide;
+    expect(slide).toMatchObject({ id: "s1", kind: "rules", title: "Правила игры", lines: ["Один", "Два"], endsAt: null });
+    expect(slide?.text.length).toBe(400);
+    expect(checkChange({ state: { slide: null } })?.state.slide).toBeNull();
+    expect(checkChange({ state: { slide: { id: "s1", kind: "video", title: "" } } })).toBeNull();
+  });
+
   it("время старта шага ставит сервер, null убирает запись таблицы", () => {
     const state = normalizeState({ phase: "playing", step: 2, stage: "ready" });
     const change = checkChange({ state: { stage: "question", startedAt: "server", timeLimit: 20 }, leaderboard: { gone: null, p1: { name: "Аня", kind: "player", score: 5 } } });

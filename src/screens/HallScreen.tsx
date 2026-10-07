@@ -7,6 +7,7 @@ import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } 
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
+import { SlideView } from "../components/live/SlideView";
 import { useHallMusic } from "../components/music/useHallMusic";
 import { playSound, setMuted, setSoundSet, stopAllSounds, unlockSound, useMuted } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
@@ -144,9 +145,17 @@ function Screen({ session }: { session: Session }) {
       <Scene themeId={session.themeId} />
       <ScreenControls />
       {musicBlocked && <p className="screen-tap">Коснитесь экрана, чтобы включить музыку</p>}
-      {phase === "lobby" && <Lobby session={session} />}
-      {phase === "playing" && <Playing session={session} />}
-      {phase === "finished" && <Final session={session} />}
+      {session.state.slide ? (
+        <main className="quiz-stage">
+          <SlideView slide={session.state.slide} />
+        </main>
+      ) : (
+        <>
+          {phase === "lobby" && <Lobby session={session} />}
+          {phase === "playing" && <Playing session={session} />}
+          {phase === "finished" && <Final session={session} />}
+        </>
+      )}
     </div>
   );
 }

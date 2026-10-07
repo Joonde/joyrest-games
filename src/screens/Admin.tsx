@@ -138,11 +138,11 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                     <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
                   </span>
                   {staffRepo && host.role !== "admin" && (
-                    <span className="small">
-                      {levelTitle(host.level) ?? "Квалификация не задана"}
-                      {host.experienceSince ? ` · стаж ${experienceLabel(host.experienceSince, Date.now())}` : ""}
-                      {` · ${pointsLabel(host.points ?? 0)}`}
-                    </span>
+                    <ul className="meta" aria-label={`Квалификация и баллы: ${host.name}`}>
+                      <li>{levelTitle(host.level) ?? "Без квалификации"}</li>
+                      {host.experienceSince ? <li>Стаж: {experienceLabel(host.experienceSince, Date.now())}</li> : null}
+                      <li>{pointsLabel(host.points ?? 0)}</li>
+                    </ul>
                   )}
                 </div>
                 {permissions.canSetHostActive(profile, host) && (

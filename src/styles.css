@@ -225,6 +225,8 @@ a {
   top: calc(100% + 8px);
   z-index: 10;
   min-width: 220px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 40px));
   margin: 0;
   padding: 8px;
   list-style: none;
@@ -240,6 +242,10 @@ a {
 .menu .btn {
   width: 100%;
   justify-content: flex-start;
+  /* Длинный пункт переносится по левому краю, как остальные, а не по центру. */
+  padding: 8px 16px;
+  text-align: left;
+  text-wrap: pretty;
 }
 
 /* На широком экране действия стоят в ряд, меню не нужно. */
@@ -434,6 +440,10 @@ a {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.people__text .meta {
+  margin-top: 8px;
 }
 
 .people__name {

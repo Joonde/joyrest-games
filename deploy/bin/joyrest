@@ -1051,24 +1051,23 @@ registry_digest() {
 # GitHub production) или вручную: sudo joyrest deploy <коммит>.
 cmd_auto_update() {
   need_root auto-update
-  local env tag remote deployed sha
-  for env in test; do
-    tag=test-release
-    remote=$(registry_digest "$tag" 2>/dev/null) || continue
-    [[ "$remote" =~ ^sha256:[0-9a-f]{64}$ ]] || continue
+  local env=test tag="test-release" remote deployed sha
+  {
+    remote=$(registry_digest "$tag" 2>/dev/null) || return 0
+    [[ "$remote" =~ ^sha256:[0-9a-f]{64}$ ]] || return 0
     deployed=$(release_value "$env" APP_IMAGE)
-    [ "${deployed##*@}" = "$remote" ] && continue
-    [ "$env" = test ] && [ ! -e "$ROOT_DIR/test-current" ] && [ "$(release_value prod APP_IMAGE)" = "$APP_REPO@$remote" ] && continue
-    docker pull -q "$APP_REPO@$remote" >/dev/null 2>&1 || continue
+    [ "${deployed##*@}" = "$remote" ] && return 0
+    [ "$env" = test ] && [ ! -e "$ROOT_DIR/test-current" ] && [ "$(release_value prod APP_IMAGE)" = "$APP_REPO@$remote" ] && return 0
+    docker pull -q "$APP_REPO@$remote" >/dev/null 2>&1 || return 0
     sha=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$APP_REPO@$remote" | sed -n 's/^APP_VERSION=//p')
-    [[ "$sha" =~ $SHA_RE ]] || continue
-    [ "$(release_value "$env" APP_VERSION)" = "$sha" ] && continue
+    [[ "$sha" =~ $SHA_RE ]] || return 0
+    [ "$(release_value "$env" APP_VERSION)" = "$sha" ] && return 0
     # Сломанный релиз не пытаемся выложить каждые 2 минуты.
-    [ "$(cat "$DEPLOY_DIR/failed-$env" 2>/dev/null)" = "$sha" ] && continue
+    [ "$(cat "$DEPLOY_DIR/failed-$env" 2>/dev/null)" = "$sha" ] && return 0
     docker tag "$APP_REPO@$remote" "$APP_REPO:sha-$sha"
     log "[$env] сервер сам забирает релиз $sha (тег $tag)"
     ( deploy_env "$env" "$sha" ) || true
-  done
+  }
 }
 
 # Ключи выкладки из GitHub Actions. prod — основной (секрет DEPLOY_SSH_KEY только в окружении

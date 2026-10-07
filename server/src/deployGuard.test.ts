@@ -47,7 +47,7 @@ describe("защита выкладки", () => {
     const joyrest = read("deploy/bin/joyrest");
     const start = joyrest.indexOf("\ncmd_auto_update() {");
     const body = joyrest.slice(start, joyrest.indexOf("\n}", start + 1));
-    expect(body).toContain("for env in test; do");
+    expect(body).toContain('local env=test tag="test-release"');
     expect(body).not.toMatch(/(?<![-\w])release(?![-\w])/);
   });
 

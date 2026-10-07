@@ -139,8 +139,8 @@ joyrest status && systemctl list-timers joyrest-update.timer --no-pager
 ```
 
 В `joyrest status` — сервисы `app-prod` и `app-test` (healthy) и строка «Выкладка prod: … ok».
-Таймер `joyrest-update` включён, но пока `DEPLOY_ENABLED` не задана, GitHub не ставит тег
-`release`, и таймеру нечего забирать.
+Таймер `joyrest-update` включён (только для test), но пока `DEPLOY_ENABLED` не задана, GitHub не
+ставит тег `test-release`, и таймеру нечего забирать.
 
 **8.2. Бот Telegram для сообщений о выкладке:**
 1. Telegram → **@BotFather** → `/newbot` → название `JoyRest Монитор` → имя на `_bot`
@@ -156,11 +156,30 @@ New repository secret): `TELEGRAM_BOT_TOKEN` (токен), `TELEGRAM_CHAT_ID` (�
 
 **8.4. Включить выкладку — последним:** вкладка **Variables** → New repository variable:
 `DEPLOY_ENABLED` = `true`. Пока её нет, GitHub только собирает образы: не выкладывает по SSH
-и не ставит теги `release` / `test-release`. Выключить выкладку — удалить переменную или
+и не ставит тег `test-release`. Выключить выкладку — удалить переменную или
 поставить `false`.
 
 **Проверка:** любой новый коммит в `main` → через 3–5 минут в Telegram
 «✅ Выложено на games.joy-rest.ru … (по SSH)», `joyrest status` показывает ту же версию.
+
+**8.5. Защита выкладки (аудит 7 октября 2026).** Ключ основной выкладки — только у `main`,
+у веток — свой ключ, который выкладывает только на test. Делается после слияния PR с этой защитой,
+когда нет игры.
+1. GitHub → репозиторий → **Settings → Environments → New environment**: имя `production` →
+   **Configure environment**.
+2. «Deployment branches and tags» → **Selected branches and tags → Add deployment branch or tag
+   rule** → `main` → **Add rule**.
+3. Termius: `sudo joyrest deploy-key prod` — покажет длинную строку один раз. Скопируйте её.
+4. Там же, в окружении `production`, **Environment secrets → Add environment secret**: имя
+   `DEPLOY_SSH_KEY`, значение — скопированная строка.
+5. Termius: `sudo joyrest deploy-key test` — ещё одна строка. **Settings → Secrets and variables →
+   Actions → Secrets → New repository secret**: имя `DEPLOY_SSH_KEY_TEST`, значение — она.
+6. Там же, в секретах репозитория, старый `DEPLOY_SSH_KEY` → **Remove** (он уже не работает).
+7. Проверка: коммит в ветку `claude/*` → в Telegram «✅ Выложено на test…»; коммит в `main` →
+   «✅ Выложено на games.joy-rest.ru … (по SSH)».
+
+**8.6. Свои роли базы для приложений.** Тестовая версия перестаёт видеть основную базу. Один раз,
+когда нет игры: Termius → `sudo joyrest db-roles` → «✅ Готово…». Приложения перезапустятся на ~10 с.
 
 ### 9. Запрет входа root и паролей
 

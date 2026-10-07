@@ -3,7 +3,7 @@
 # Подробно — RUNBOOK.md. Команды, меняющие сервер, — через sudo.
 #
 # Выкладка (deploy) одна для всех путей: SSH из GitHub Actions (через привратник и очередь),
-# сервер сам забирает релиз (auto-update по тегу release в GHCR), вручную из Termius.
+# сервер сам забирает тестовый релиз (auto-update по тегу test-release в GHCR), вручную из Termius.
 # Шаги: блокировка → проверка активной игры → скачивание образа по коммиту → дамп базы →
 # миграции → переключение → проверка /health → при ошибке откат на прошлую версию.
 set -euo pipefail
@@ -31,6 +31,8 @@ KEEP_DUMPS=5
 # Игра считается идущей, если в сессии была активность за последние 30 минут: забытая
 # незавершённая сессия выкладку не блокирует.
 ACTIVE_MINUTES=30
+# Идущая игра без нажатий пульта (перерыв) считается активной столько часов.
+PLAYING_HOURS=3
 HEALTH_TIMEOUT="${JOYREST_HEALTH_TIMEOUT:-120}"
 # Настройки без секретов (SITE_ENABLED, SITE_INDEXING). Секреты — только secrets.env.
 # Сайт и индексацию включает только владелец командами site / site-indexing: ни выкладка,
@@ -84,6 +86,11 @@ usage() {
   joyrest admin-password [test]
                               пароль владельца агентства для входа в студию (вводится скрыто,
                               хранится только хэш); test — для test.games.joy-rest.ru
+  joyrest deploy-key test|prod
+                              новый ключ выкладки: test — для веток (только test), prod — для
+                              main (окружение GitHub production); показывается один раз
+  joyrest db-roles [force]    приложения ходят в базу своими ролями: тестовая версия не видит
+                              основную базу (один раз; приложения перезапустятся на ~10 с)
   joyrest data [server|firebase] [force]
                               где основная версия games.joy-rest.ru хранит данные: server —
                               свой сервер, firebase — откат на Firebase; без аргумента — текущее
@@ -215,8 +222,13 @@ active_games() {
     t) ;;
     *) return 1 ;;
   esac
-  count=$(psql_prod "select count(*) from sessions
-    where phase in ('lobby', 'playing') and updated_at > now() - interval '$ACTIVE_MINUTES minutes'" 2>/dev/null) \
+  # Активность — действие пульта за ACTIVE_MINUTES минут; у идущей игры — и долгий перерыв
+  # (слайд «перерыв», тосты, танцы) до PLAYING_HOURS часов, и ответы или сигналы телефонов.
+  count=$(psql_prod "select count(*) from sessions s
+    where (s.phase in ('lobby', 'playing') and s.updated_at > now() - interval '$ACTIVE_MINUTES minutes')
+       or (s.phase = 'playing' and s.updated_at > now() - interval '$PLAYING_HOURS hours')
+       or (s.phase = 'playing' and exists (select 1 from participants p where p.session_id = s.id
+             and greatest(p.joined_at, coalesce(p.seen_at, p.joined_at)) > now() - interval '$ACTIVE_MINUTES minutes'))" 2>/dev/null) \
     || return 1
   [[ "$count" =~ ^[0-9]+$ ]] || return 1
   echo "$count"
@@ -240,6 +252,87 @@ ensure_test_db() {
     psql_prod "create database joyrest_test owner joyrest" >/dev/null || return 1
     log "Создана база joyrest_test"
   fi
+  db_role_grants
+}
+
+# ------------------------------------------------------------------ роли базы
+# Приложения ходят в базу не суперпользователем joyrest, а своими ролями (`sudo joyrest db-roles`):
+# joyrest_app_prod — только joyrest_prod, joyrest_app_test — только joyrest_test, обе без права
+# менять схему. Тестовая версия (код любой ветки claude/*) так не прочитает основную базу.
+# Миграции, дампы и восстановление по-прежнему делает joyrest.
+DB_ROLE_PROD=joyrest_app_prod
+DB_ROLE_TEST=joyrest_app_test
+
+# psql_stdin <база> — запрос из stdin: пароли не попадают в аргументы процессов.
+psql_stdin() {
+  dc exec -T postgres psql -v ON_ERROR_STOP=1 -q -U joyrest -d "$1" >/dev/null
+}
+
+# Права ролей приложений; повторять можно сколько угодно. Ролей ещё нет — ничего не делает.
+# Вызывается при каждой выкладке и после восстановления: новая база снова открыта для PUBLIC.
+db_role_grants() {
+  local db role exists
+  exists=$(psql_in postgres "select count(*) from pg_roles where rolname in ('$DB_ROLE_PROD', '$DB_ROLE_TEST')" 2>/dev/null) || return 0
+  [ "$exists" = 2 ] || return 0
+  for db in joyrest_prod joyrest_test; do
+    role=$([ "$db" = joyrest_prod ] && echo "$DB_ROLE_PROD" || echo "$DB_ROLE_TEST")
+    [ "$(psql_in postgres "select count(*) from pg_database where datname = '$db'")" = 1 ] || continue
+    psql_stdin postgres <<SQL || return 1
+revoke connect, temporary on database $db from public;
+grant connect on database $db to $role;
+SQL
+    psql_stdin "$db" <<SQL || return 1
+revoke create on schema public from public;
+grant usage on schema public to $role;
+grant select, insert, update, delete on all tables in schema public to $role;
+grant usage, select, update on all sequences in schema public to $role;
+alter default privileges for role joyrest in schema public grant select, insert, update, delete on tables to $role;
+alter default privileges for role joyrest in schema public grant usage, select, update on sequences to $role;
+SQL
+  done
+}
+
+# sudo joyrest db-roles [force] — завести роли приложений и переключить приложения на них.
+# Повторный запуск оставляет пароли и заново выдаёт права. Приложения пересоздаются (~10 с).
+cmd_db_roles() {
+  need_root db-roles
+  local force=${1:-} prod_pass test_pass out
+  [ -z "$force" ] || [ "$force" = force ] || die "Аргумент — только force."
+  [ -t 0 ] || die "Запустите в Termius: sudo joyrest db-roles"
+  ensure_no_game "$force" "db-roles"
+  wait_postgres || die "База не отвечает."
+  ensure_test_db || die "Не удалось подготовить базу joyrest_test."
+
+  prod_pass=$(env_value "$ROOT_DIR/secrets.env" PROD_DB_PASSWORD)
+  test_pass=$(env_value "$ROOT_DIR/secrets.env" TEST_DB_PASSWORD)
+  [ -n "$prod_pass" ] || prod_pass=$(openssl rand -hex 24)
+  [ -n "$test_pass" ] || test_pass=$(openssl rand -hex 24)
+  psql_stdin postgres <<SQL || die "Не удалось создать роли в базе."
+do \$\$ begin
+  if not exists (select from pg_roles where rolname = '$DB_ROLE_PROD') then create role $DB_ROLE_PROD login; end if;
+  if not exists (select from pg_roles where rolname = '$DB_ROLE_TEST') then create role $DB_ROLE_TEST login; end if;
+end \$\$;
+alter role $DB_ROLE_PROD with login nosuperuser nocreatedb nocreaterole noreplication password '$prod_pass';
+alter role $DB_ROLE_TEST with login nosuperuser nocreatedb nocreaterole noreplication password '$test_pass';
+SQL
+  db_role_grants || die "Не удалось выдать права ролям."
+
+  # Проверка до переключения: тестовая роль не входит в основную базу, основная — читает свою.
+  out=$(psql_in postgres "select has_database_privilege('$DB_ROLE_TEST', 'joyrest_prod', 'CONNECT')") || die "Не удалось проверить права."
+  [ "$out" = f ] || die "Проверка не прошла: тестовая роль может войти в основную базу. Приложения не переключены."
+  out=$(psql_prod "select has_table_privilege('$DB_ROLE_PROD', 'users', 'SELECT, INSERT, UPDATE, DELETE')") || die "Не удалось проверить права."
+  [ "$out" = t ] || die "Проверка не прошла: основная роль не может работать с таблицами. Приложения не переключены."
+
+  set_env_value "$ROOT_DIR/secrets.env" PROD_DB_USER "$DB_ROLE_PROD" || die "Не удалось записать secrets.env."
+  set_env_value "$ROOT_DIR/secrets.env" PROD_DB_PASSWORD "$prod_pass" || die "Не удалось записать secrets.env."
+  set_env_value "$ROOT_DIR/secrets.env" TEST_DB_USER "$DB_ROLE_TEST" || die "Не удалось записать secrets.env."
+  set_env_value "$ROOT_DIR/secrets.env" TEST_DB_PASSWORD "$test_pass" || die "Не удалось записать secrets.env."
+  prod_pass=""
+  test_pass=""
+  echo "Перезапускаю приложения на новых ролях (несколько секунд)…"
+  recreate_apps app-prod app-test
+  log "[db-roles] приложения ходят в базу своими ролями"
+  echo "✅ Готово: основная версия — роль $DB_ROLE_PROD, тестовая — $DB_ROLE_TEST (только своя база)."
 }
 
 # Папки выкладки (на сервере после PR 1 их ещё нет).
@@ -952,12 +1045,15 @@ registry_digest() {
   echo "$headers" | tr -d '\r' | sed -n 's/^[Dd]ocker-[Cc]ontent-[Dd]igest: *//p'
 }
 
-# Запасной путь: каждые 2 минуты (таймер systemd) сверяем теги release / test-release.
+# Запасной путь: каждые 2 минуты (таймер systemd) сверяем тег test-release — только тестовая версия.
+# Основная по тегу не выкладывается (аудит 7 октября 2026): тег в GHCR может поставить сборка любой
+# ветки, а основной релиз ставит команды и службы от root. Основная — по SSH из main (окружение
+# GitHub production) или вручную: sudo joyrest deploy <коммит>.
 cmd_auto_update() {
   need_root auto-update
   local env tag remote deployed sha
-  for env in prod test; do
-    tag=$([ "$env" = prod ] && echo release || echo test-release)
+  for env in test; do
+    tag=test-release
     remote=$(registry_digest "$tag" 2>/dev/null) || continue
     [[ "$remote" =~ ^sha256:[0-9a-f]{64}$ ]] || continue
     deployed=$(release_value "$env" APP_IMAGE)
@@ -973,6 +1069,42 @@ cmd_auto_update() {
     log "[$env] сервер сам забирает релиз $sha (тег $tag)"
     ( deploy_env "$env" "$sha" ) || true
   done
+}
+
+# Ключи выкладки из GitHub Actions. prod — основной (секрет DEPLOY_SSH_KEY только в окружении
+# GitHub production, пускает только main); test — ключ веток claude/* (секрет репозитория
+# DEPLOY_SSH_KEY_TEST), привратник пускает его только на ping, status и deploy-test.
+# Повторный запуск заменяет прежний ключ того же вида. Закрытый ключ показывается один раз
+# (hex одной строкой, как ждёт сборка) и на сервере не остаётся.
+cmd_deploy_key() {
+  need_root deploy-key
+  local kind=${1:-} keys=/home/deploy/.ssh/authorized_keys tmp hex comment gate secret where
+  case "$kind" in
+    prod) comment=github-actions-deploy; gate=/usr/local/bin/joyrest-gate; secret=DEPLOY_SSH_KEY
+      where="окружение production → Environment secrets" ;;
+    test) comment=github-actions-test; gate="/usr/local/bin/joyrest-gate test"; secret=DEPLOY_SSH_KEY_TEST
+      where="Secrets and variables → Actions → Secrets (секрет репозитория)" ;;
+    *) die "Какой ключ: sudo joyrest deploy-key test (ветки) или sudo joyrest deploy-key prod (main)." ;;
+  esac
+  [ -t 0 ] || die "Запустите в Termius: sudo joyrest deploy-key $kind"
+  install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+  tmp=$(umask 077 && mktemp -d) || die "Не удалось создать временную папку."
+  ssh-keygen -q -t ed25519 -N "" -C "$comment" -f "$tmp/key" || { rm -rf "$tmp"; die "Не удалось создать ключ."; }
+  {
+    if [ -f "$keys" ]; then grep -v " $comment\$" "$keys" || true; fi
+    echo "restrict,command=\"$gate\" $(cat "$tmp/key.pub")"
+  } > "$keys.new"
+  chown deploy:deploy "$keys.new" && chmod 600 "$keys.new" && mv -f "$keys.new" "$keys"
+  hex=$(xxd -p "$tmp/key" | tr -d '\n')
+  shred -u "$tmp/key" "$tmp/key.pub" 2>/dev/null || rm -f "$tmp/key" "$tmp/key.pub"
+  rmdir "$tmp"
+  log "[deploy-key] новый ключ выкладки ($kind)"
+  echo "Скопируйте строку ниже целиком в секрет $secret"
+  echo "(GitHub → Settings → $where). Больше она не покажется; прежний ключ $kind уже не работает."
+  echo
+  echo "$hex"
+  echo
+  hex=""
 }
 
 # Бот для заявок с сайта: токен вводится скрыто и хранится только в secrets.env.
@@ -1337,6 +1469,7 @@ cmd_restore() {
     psql_in postgres "drop database if exists joyrest_test with (force)" >/dev/null 2>&1
   fi
   psql_in postgres "alter database joyrest_restore_tmp rename to $db" >/dev/null || die "Не удалось подставить базу."
+  db_role_grants || echo "⚠️  Права ролей приложений не выданы — запустите: sudo joyrest db-roles"
   log "[restore] $db восстановлена из копии $snap"
 
   # Копия может быть старше схемы текущего кода: догоняем миграциями.
@@ -1511,6 +1644,8 @@ case "${1:-}" in
   restore-media) shift; cmd_restore_media "$@" ;;
   notify-bot)    cmd_notify_bot ;;
   admin-password) shift; cmd_admin_password "$@" ;;
+  db-roles)      shift; cmd_db_roles "$@" ;;
+  deploy-key)    shift; cmd_deploy_key "$@" ;;
   data)          shift; cmd_data "$@" ;;
   *)             usage ;;
 esac

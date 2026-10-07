@@ -9,12 +9,9 @@ name: Сборка
 on:
   push:
     branches: [main, "claude/**"]
+  # Повторить сборку и выкладку вручную. Выложить основную версию во время игры (force) можно
+  # только из Termius: sudo joyrest deploy <коммит> force.
   workflow_dispatch:
-    inputs:
-      force:
-        description: "Выложить на основной адрес, даже если идёт игра"
-        type: boolean
-        default: false
 
 concurrency:
   group: build-${{ github.ref }}
@@ -160,6 +157,9 @@ jobs:
       (github.ref == 'refs/heads/main' || !contains(github.event.head_commit.message, '[no-test]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Окружение production (Settings → Environments) пускает только main: ключ основной выкладки
+    # DEPLOY_SSH_KEY лежит только там. Ветки берут DEPLOY_SSH_KEY_TEST (привратник: только test).
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}
     permissions:
       contents: read
       packages: write
@@ -168,17 +168,15 @@ jobs:
       cancel-in-progress: false
     env:
       SHA: ${{ github.sha }}
-      # force уходит на сервер только при ручном запуске (Run workflow + галочка) и только
-      # для основной версии. При push, повторах и блокировке «идёт игра» его нет.
-      FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && 'force' || '' }}
       SERVER: 217.114.13.92
     steps:
       - name: Куда выкладываем
         id: target
         run: |
           if [ "$GITHUB_REF" = refs/heads/main ]; then
-            { echo "env=prod"; echo "host=games.joy-rest.ru"; echo "tag=release"
-              echo "command=deploy $SHA${FORCE:+ force}"; } >> "$GITHUB_OUTPUT"
+            # Основная версия — только по SSH: по тегу в GHCR сервер её не забирает.
+            { echo "env=prod"; echo "host=games.joy-rest.ru"; echo "tag="
+              echo "command=deploy $SHA"; } >> "$GITHUB_OUTPUT"
           else
             { echo "env=test"; echo "host=test.games.joy-rest.ru"; echo "tag=test-release"
               echo "command=deploy-test $SHA"; } >> "$GITHUB_OUTPUT"
@@ -195,17 +193,17 @@ jobs:
       # Тег ставится только здесь и только при включённом переключателе (условие задачи выше,
       # повторено на шаге): без него таймер на сервере ничего нового не увидит.
       - name: Тег ${{ steps.target.outputs.tag }} в GHCR
-        if: needs.switch.outputs.enabled == 'true'
+        if: needs.switch.outputs.enabled == 'true' && steps.target.outputs.tag != ''
         run: docker buildx imagetools create --tag "$IMAGE:${{ steps.target.outputs.tag }}" "$IMAGE:sha-$SHA"
 
       - name: SSH-ключ выкладки
         id: key
         env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_KEY: ${{ github.ref == 'refs/heads/main' && secrets.DEPLOY_SSH_KEY || secrets.DEPLOY_SSH_KEY_TEST }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
-            echo "::warning::Секретов DEPLOY_SSH_KEY / DEPLOY_KNOWN_HOSTS нет — ждём, пока сервер заберёт релиз сам"
+            echo "::warning::Нет ключа выкладки (main — DEPLOY_SSH_KEY в окружении production, ветки — DEPLOY_SSH_KEY_TEST) или DEPLOY_KNOWN_HOSTS"
             echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           install -d -m 700 ~/.ssh
@@ -236,7 +234,7 @@ jobs:
             echo "Попытка $attempt по SSH не удалась"
             sleep $((attempt * 10))
           done
-          echo "::warning::SSH недоступен — сервер заберёт релиз сам по тегу ${{ steps.target.outputs.tag }}"
+          echo "::warning::SSH недоступен${{ steps.target.outputs.tag != '' && format(' — сервер заберёт релиз сам по тегу {0}', steps.target.outputs.tag) || ' — основную версию выложите из Termius: sudo joyrest deploy <коммит>' }}"
           exit 1
 
       # Итог проверяем по HTTPS одинаково для обоих путей: /health должен показать новую версию.

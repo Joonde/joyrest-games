@@ -18,6 +18,7 @@ import type {
   ResultsRepository,
   SessionsRepository,
   UsersRepository,
+  VenuesRepository,
 } from "./contracts";
 import { answersRepository } from "./answers";
 import { authService as firebaseAuthService } from "./auth";
@@ -41,6 +42,7 @@ import { serverTracksRepository } from "./server/tracks";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
+import { serverVenuesRepository } from "./server/venues";
 import { sessionsRepository } from "./sessions";
 import { usersRepository } from "./users";
 
@@ -67,3 +69,5 @@ export const tracksRepo: TracksRepository | null = server ? serverTracksReposito
 export const teamRepo: TeamRepository | null = server ? serverTeamRepository : null;
 /** Экран зала сообщает пульту, что он на связи и звук разрешён, — только свой сервер. */
 export const screenRepo: ScreenStatusRepository | null = server ? serverScreenStatusRepository : null;
+/** База площадок, анкеты и предложения клиентам — только свой сервер. */
+export const venuesRepo: VenuesRepository | null = server ? serverVenuesRepository : null;

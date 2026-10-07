@@ -48,6 +48,8 @@ const app = buildApp({
   dataBackend: parseDataBackend(process.env.DATA_BACKEND),
   sql,
   mediaDir,
+  // Анкеты площадок и заявки клиентов без входа — только явным VENUE_FORMS=on (sudo joyrest venues on).
+  venues: { formsOpen: isOn(process.env.VENUE_FORMS) },
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

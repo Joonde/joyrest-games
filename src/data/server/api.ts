@@ -85,6 +85,12 @@ export async function putAudio<T = unknown>(path: string, file: Blob, durationMs
   return (await response.json().catch(() => null)) as T;
 }
 
+/** Файл как есть (фото или PDF анкеты площадки) с дополнительными заголовками. Ответ — JSON. */
+export async function putFile<T = unknown>(path: string, file: Blob, contentType: string, headers: Record<string, string> = {}): Promise<T> {
+  const response = await send(path, { method: "PUT", headers: { "Content-Type": contentType, "X-JoyRest": "1", ...headers }, body: file });
+  return (await response.json().catch(() => null)) as T;
+}
+
 /** Картинка по адресу; нет такой — null. Кэш браузера (ETag, immutable) работает как обычно. */
 export async function getImage(path: string): Promise<Blob | null> {
   try {

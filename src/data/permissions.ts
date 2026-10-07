@@ -8,7 +8,7 @@ import { ADMIN_UID } from "./config";
 import type { Answer, Game, GameScope, Participant, Session, SessionState, UserProfile } from "./types";
 
 /** Кто действует: профиль ведущего или null (гость, не вошёл). */
-export type Actor = Pick<UserProfile, "uid" | "role" | "active"> | null;
+export type Actor = (Pick<UserProfile, "uid" | "role" | "active"> & { venueAccess?: boolean }) | null;
 
 /** Владелец агентства (UID зашит в config.ts и firestore.rules) или активный admin. */
 export function isAdmin(actor: Actor): boolean {
@@ -131,6 +131,23 @@ export function canReviewTracks(actor: Actor): boolean {
 /** «Команда JoyRest»: карточки видят и правят свою все активные ведущие. Только свой сервер. */
 export function canViewTeam(actor: Actor): boolean {
   return isActiveHost(actor);
+}
+
+/**
+ * База площадок и заявки клиентов (CLAUDE.md, «База площадок»; только свой сервер): владелец и
+ * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.
+ */
+export function canManageVenues(actor: Actor): boolean {
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true);
+}
+
+export function canShowVenueQr(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
+/** Открыть или закрыть ведущему базу площадок — admin; владельцу и себе менять незачем. */
+export function canGrantVenueAccess(actor: Actor, target: Pick<UserProfile, "uid">): boolean {
+  return canSetHostActive(actor, target);
 }
 
 /** Отключённый ведущий не создаёт сессии. */

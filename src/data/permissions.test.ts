@@ -245,3 +245,22 @@ describe("ответы", () => {
     expect(p.canReadAnswer(null, session, mine, null)).toBe(false);
   });
 });
+
+describe("база площадок (только свой сервер)", () => {
+  it("база и заявки — владелец и ведущие с доступом; QR-коды — любой активный ведущий", () => {
+    expect(p.canManageVenues(owner)).toBe(true);
+    expect(p.canManageVenues(host)).toBe(false);
+    expect(p.canManageVenues(host && { ...host, venueAccess: true })).toBe(true);
+    expect(p.canManageVenues(off && { ...off, venueAccess: true })).toBe(false);
+    expect(p.canManageVenues(guest)).toBe(false);
+    expect(p.canShowVenueQr(host)).toBe(true);
+    expect(p.canShowVenueQr(off)).toBe(false);
+    expect(p.canShowVenueQr(guest)).toBe(false);
+  });
+
+  it("доступ выдаёт только admin; владельцу и себе — не нужно", () => {
+    expect(p.canGrantVenueAccess(owner, { uid: "host-1" })).toBe(true);
+    expect(p.canGrantVenueAccess(host && { ...host, venueAccess: true }, { uid: "host-2" })).toBe(false);
+    expect(p.canGrantVenueAccess(owner, { uid: ADMIN_UID })).toBe(false);
+  });
+});

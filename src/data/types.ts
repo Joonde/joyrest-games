@@ -3,6 +3,7 @@
  * меняется только реализация в src/data/, а эти типы остаются.
  * Время везде — миллисекунды с эпохи по часам сервера.
  */
+import type { OfferData, RequestData, RequestStatus, VenueData, VenueFileKind, VenueStatus } from "../core/venues";
 
 export type Role = "admin" | "host";
 
@@ -33,6 +34,8 @@ export interface UserProfile {
   /** Свой сервер: квалификация (ставит владелец) и дата «опыт с» для стажа (мс). */
   level?: HostLevel | null;
   experienceSince?: number | null;
+  /** Свой сервер: владелец открыл ведущему базу площадок и заявки клиентов. */
+  venueAccess?: boolean;
 }
 
 /** Ведущий в списке администратора. */
@@ -378,4 +381,66 @@ export interface ScreenReport {
 export interface ScreenStatus extends ScreenReport {
   /** Когда экран сообщал о себе в последний раз (мс, часы сервера). */
   seenAt: number;
+}
+
+// ------------------------------------------------------------------ база площадок (свой сервер)
+
+export type { OfferData, RequestData, RequestStatus, VenueData, VenueFileKind, VenueStatus };
+
+export interface VenueFileInfo {
+  sha: string;
+  kind: VenueFileKind;
+  mime: string;
+  size: number;
+  name: string;
+}
+
+/** Площадка в базе: анкета и наше служебное (статус, оценка, заметки, кто привёл). */
+export interface VenueRecord {
+  id: string;
+  data: VenueData;
+  status: VenueStatus;
+  rating: number | null;
+  notes: string;
+  source: "form" | "manual";
+  hostId: string | null;
+  hostName: string | null;
+  files: VenueFileInfo[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Заявка клиента с номером. */
+export interface VenueRequestRecord {
+  id: string;
+  number: number;
+  data: RequestData;
+  status: RequestStatus;
+  notes: string;
+  hostId: string | null;
+  hostName: string | null;
+  /** Сколько предложений уже отправлено по заявке. */
+  offers: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface OfferSummary {
+  id: string;
+  title: string;
+  venues: string[];
+  createdAt: number;
+}
+
+/** Предложение клиенту, как его видит клиент по ссылке. */
+export interface PublicOffer extends OfferData {
+  id: string;
+  createdAt: number;
+}
+
+/** Файл анкеты: фото (сжатое на устройстве) или PDF меню как есть. */
+export interface VenueUpload {
+  kind: VenueFileKind;
+  blob: Blob;
+  name: string;
 }

@@ -17,6 +17,7 @@ import { registerProposals } from "./proposals";
 import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks } from "./tracks";
+import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
 export interface AppOptions {
@@ -52,6 +53,11 @@ export interface AppOptions {
   games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
   live?: Omit<LiveOptions, "sql" | "isSite">;
+  /**
+   * База площадок: анкеты без входа открыты только при VENUE_FORMS=on (`sudo joyrest venues on`).
+   * Уведомления — бот заявок сайта (`lead.telegram`).
+   */
+  venues?: Omit<VenuesOptions, "sql" | "isSite" | "mediaDir" | "telegram" | "label" | "send">;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
 }
@@ -107,6 +113,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerStaff(app, { sql: options.sql, isSite });
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerVenues(app, {
+      formsOpen: false,
+      ...options.venues,
+      sql: options.sql,
+      isSite,
+      mediaDir: options.mediaDir ?? null,
+      telegram: options.lead?.telegram ?? null,
+      label: options.lead?.label,
+      send: options.lead?.send,
+    });
   }
 
   const publicDir = options.publicDir;

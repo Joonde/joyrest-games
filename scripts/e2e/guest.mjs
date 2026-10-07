@@ -1,0 +1,315 @@
+// Проверка глазами гостя (CLAUDE.md, раздел 9): настоящий браузер (Chromium, Playwright) проходит
+// игру на test.games.joy-rest.ru — вход гостей со смайликом, пульт, экран зала, ответ, финал,
+// итоги, режим команд. Проверяет, что имена со смайликом видны везде, что нет ошибок на странице,
+// горизонтальной прокрутки на телефоне и слишком мелких кнопок. Снимки экранов — в Telegram
+// (бот выкладки), итог — аннотацией в Actions. Запуск — workflow «Проверка гостем».
+//
+// Файл .mjs и вне сборки: Playwright ставится только в этом workflow, в зависимостях его нет.
+import { mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { chromium } from "playwright";
+
+const BASE = (process.env.E2E_BASE ?? "https://test.games.joy-rest.ru").replace(/\/$/, "");
+const EMAIL = process.env.LOAD_HOST_EMAIL ?? "";
+const PASSWORD = process.env.LOAD_HOST_PASSWORD ?? "";
+const SHOTS = process.env.E2E_SHOTS ?? "e2e-shots";
+const WAIT = 20_000;
+
+const report = [];
+const problems = [];
+const shots = [];
+const say = (line) => {
+  report.push(line);
+  console.log(line);
+};
+const ok = (text) => say(`✅ ${text}`);
+const bad = (text) => {
+  problems.push(text);
+  say(`❌ ${text}`);
+};
+
+function finish(code) {
+  if (process.env.GITHUB_ACTIONS === "true") {
+    const text = report.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+    console.log(`::${code === 0 ? "notice" : "error"} title=Проверка гостем::${text}`);
+  }
+  process.exit(code);
+}
+
+if (!/^https:\/\/test\./.test(BASE)) {
+  say(`Отказ: только тестовый адрес (сейчас ${BASE}).`);
+  finish(2);
+}
+if (!EMAIL || !PASSWORD) {
+  say("Нужны LOAD_HOST_EMAIL и LOAD_HOST_PASSWORD.");
+  finish(2);
+}
+
+// ---------- API: вход ведущего и сессия ----------
+
+async function api(method, path, cookie, body) {
+  const res = await fetch(BASE + path, {
+    method,
+    headers: { "Content-Type": "application/json", "X-JoyRest": "1", Origin: BASE, Cookie: cookie },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${data?.error ?? ""}`);
+  return { res, data };
+}
+
+const question = (id, text, options, correct) => ({
+  id,
+  kind: "choice",
+  text,
+  options,
+  correct,
+  answers: [],
+  timeLimit: 30,
+  points: 100,
+  imageId: null,
+});
+const CONTENT = {
+  questions: [
+    question("e1", "Какого цвета снег?", ["Белый", "Зелёный", "Синий", "Красный"], 0),
+    question("e2", "Сколько месяцев в году?", ["10", "12", "14"], 1),
+  ],
+};
+
+async function login() {
+  const { res } = await api("POST", "/api/auth/login", "", { email: EMAIL, password: PASSWORD });
+  for (const line of res.headers.getSetCookie()) {
+    const [pair] = line.split(";");
+    if (pair.startsWith("__Host-jr_s=")) return pair.slice("__Host-jr_s=".length);
+  }
+  throw new Error("вход ведущего: нет cookie");
+}
+
+async function createSession(token, playMode) {
+  const id = `e2e${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const { data } = await api("POST", "/api/sessions", `__Host-jr_s=${token}`, {
+    id,
+    gameTitle: `Проверка гостем (${playMode === "teams" ? "команды" : "каждый сам"})`,
+    mechanic: "quiz",
+    gameSnapshot: { title: "Проверка гостем", mechanic: "quiz", themeId: "joyrest", content: CONTENT },
+    themeId: "joyrest",
+    playMode,
+    screenMode: "laptop",
+  });
+  return { id, code: data.code };
+}
+
+// ---------- Браузер ----------
+
+const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: "ru-RU" };
+const TV = { viewport: { width: 1280, height: 720 }, locale: "ru-RU" };
+
+function watch(page, who) {
+  page.on("pageerror", (error) => bad(`${who}: ошибка на странице — ${String(error.message).slice(0, 160)}`));
+  page.on("console", (msg) => {
+    if (msg.type() === "error" && !/favicon|ERR_ABORTED|net::/.test(msg.text())) bad(`${who}: ошибка в консоли — ${msg.text().slice(0, 160)}`);
+  });
+}
+
+async function shot(page, name, caption) {
+  const path = join(SHOTS, `${String(shots.length + 1).padStart(2, "0")}-${name}.png`);
+  await page.screenshot({ path, fullPage: false });
+  shots.push({ path, caption });
+}
+
+/** Телефон: нет прокрутки вбок и нет кнопок меньше 44 px. */
+async function layoutCheck(page, who) {
+  const result = await page.evaluate(() => {
+    const doc = document.documentElement;
+    const overflow = doc.scrollWidth - doc.clientWidth;
+    const small = [...document.querySelectorAll("button, a.btn, input:not([type=radio]):not([type=hidden])")]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.height < 44 && getComputedStyle(el).visibility !== "hidden";
+      })
+      .map((el) => (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 30));
+    return { overflow, small };
+  });
+  if (result.overflow > 1) bad(`${who}: страница шире экрана телефона на ${result.overflow} px`);
+  if (result.small.length > 0) bad(`${who}: мелкие кнопки (< 44 px): ${[...new Set(result.small)].join(", ")}`);
+}
+
+async function expectText(page, locator, text, what) {
+  try {
+    await locator.filter({ hasText: text }).first().waitFor({ timeout: WAIT });
+    ok(`${what}: «${text}»`);
+    return true;
+  } catch {
+    const seen = (await locator.allInnerTexts().catch(() => [])).join(" | ").slice(0, 200);
+    bad(`${what}: нет «${text}» (видно: ${seen || "ничего"})`);
+    return false;
+  }
+}
+
+async function guestJoin(browser, code, { name, emoji, teamName, teamEmoji, joinTeam }, who) {
+  const context = await browser.newContext(PHONE);
+  const page = await context.newPage();
+  watch(page, who);
+  await page.goto(`${BASE}/play/${code}`);
+  await page.getByRole("heading", { name: "Как вас зовут?" }).waitFor({ timeout: WAIT });
+  if (await page.getByText("выключите VPN").count()) ok(`${who}: просьба выключить VPN на входе`);
+  else bad(`${who}: нет просьбы выключить VPN на входе`);
+  await page.getByLabel("Имя", { exact: true }).fill(name);
+  if (joinTeam) {
+    await page.getByRole("button", { name: "Обновить список команд" }).click();
+    await page.getByLabel(joinTeam).check({ timeout: WAIT });
+  } else if (teamName) {
+    await page.getByLabel("Название команды").fill(teamName);
+  }
+  const pick = teamName ? teamEmoji : emoji;
+  if (pick !== undefined) {
+    await page.getByRole("button", pick === null ? { name: "Без", exact: true } : { name: `Смайлик ${pick}` }).click();
+    const expected = pick === null ? (teamName ?? name) : `${pick} ${teamName ?? name}`;
+    const preview = await page.locator(".emoji-picker__preview").innerText();
+    if (preview.includes(expected)) ok(`${who}: предпросмотр «${preview.trim()}»`);
+    else bad(`${who}: предпросмотр «${preview.trim()}», ждали «${expected}»`);
+  }
+  await layoutCheck(page, `${who} (вход)`);
+  await shot(page, `${who}-вход`, `${who}: вход`);
+  await page.getByRole("button", { name: "Играть" }).click();
+  await page.locator(".play-head__name").waitFor({ timeout: WAIT });
+  await layoutCheck(page, `${who} (в игре)`);
+  return { context, page };
+}
+
+async function clickButton(page, name) {
+  await page.getByRole("button", { name, exact: true }).first().click({ timeout: WAIT });
+}
+
+async function soloGame(browser, token) {
+  say("— Каждый сам за себя —");
+  const { id, code } = await createSession(token, "solo");
+  const hostContext = await browser.newContext(PHONE);
+  await hostContext.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
+  const host = await hostContext.newPage();
+  watch(host, "Пульт");
+  await host.goto(`${BASE}/host/${code}`);
+  await host.getByRole("button", { name: "Начать игру" }).waitFor({ timeout: WAIT });
+  await layoutCheck(host, "Пульт");
+
+  const screenContext = await browser.newContext(TV);
+  const screen = await screenContext.newPage();
+  watch(screen, "Экран зала");
+  await screen.goto(`${BASE}/screen/${code}`);
+  await screen.getByText("Присоединяйтесь к игре").waitFor({ timeout: WAIT });
+  if (await screen.getByText("выключите VPN").count()) ok("Экран зала: просьба выключить VPN у QR");
+  else bad("Экран зала: нет просьбы выключить VPN");
+
+  const anna = await guestJoin(browser, code, { name: "Аня", emoji: "🦊" }, "Гость Аня");
+  await expectText(anna.page, anna.page.locator(".play-head__name"), "🦊 Аня", "Телефон Ани, шапка");
+  const boris = await guestJoin(browser, code, { name: "Борис", emoji: null }, "Гость Борис");
+  await expectText(boris.page, boris.page.locator(".play-head__name"), "Борис", "Телефон Бориса, шапка");
+
+  await expectText(screen, screen.locator(".chip"), "🦊 Аня", "Экран зала, список гостей");
+  await expectText(host, host.locator("main"), "🦊 Аня", "Пульт, игроки");
+  await shot(screen, "экран-лобби", "Экран зала: лобби");
+  await shot(host, "пульт-лобби", "Пульт: лобби");
+
+  await clickButton(host, "Начать игру");
+  await clickButton(host, "Показать вопрос");
+  await anna.page.locator(".quiz-phone__option").first().click({ timeout: WAIT });
+  await shot(anna.page, "аня-ответ", "Телефон Ани: ответила");
+  await shot(screen, "экран-вопрос", "Экран зала: вопрос");
+  await clickButton(host, "Показать ответ");
+  await clickButton(host, "Таблица");
+  await expectText(screen, screen.locator(".board-view__name"), "🦊 Аня", "Экран зала, таблица");
+  await shot(screen, "экран-таблица", "Экран зала: таблица");
+  await clickButton(host, "Следующий вопрос");
+  await clickButton(host, "Показать вопрос");
+  await anna.page.locator(".quiz-phone__option").nth(1).click({ timeout: WAIT });
+  await clickButton(host, "Показать ответ");
+  await clickButton(host, "Таблица");
+  await clickButton(host, "Завершить игру");
+  await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
+  await expectText(screen, screen.locator(".final__winner"), "🦊 Аня", "Экран зала, победитель");
+  await shot(screen, "экран-финал", "Экран зала: финал");
+  const winnerVisible = await screen
+    .locator(".final__winner .name-emoji")
+    .first()
+    .evaluate((el) => getComputedStyle(el).color !== "rgba(0, 0, 0, 0)")
+    .catch(() => false);
+  if (winnerVisible) ok("Экран зала: смайлик победителя не прозрачный");
+  else bad("Экран зала: смайлик победителя прозрачный или его нет");
+  await shot(anna.page, "аня-финал", "Телефон Ани: финал");
+
+  await host.getByRole("link", { name: "Открыть итоги" }).click({ timeout: WAIT });
+  await expectText(host, host.locator("main"), "🦊 Аня", "Итоги игры");
+  await layoutCheck(host, "Итоги");
+  await shot(host, "итоги", "Итоги игры на телефоне");
+  if (await host.getByRole("link", { name: "В студию" }).count()) ok("Итоги/пульт: есть путь в студию");
+
+  await Promise.all([hostContext.close(), screenContext.close(), anna.context.close(), boris.context.close()]);
+  return id;
+}
+
+async function teamsGame(browser, token) {
+  say("— Команды —");
+  const { code } = await createSession(token, "teams");
+  const hostContext = await browser.newContext(PHONE);
+  await hostContext.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
+  const host = await hostContext.newPage();
+  watch(host, "Пульт (команды)");
+  await host.goto(`${BASE}/host/${code}`);
+  await host.getByRole("button", { name: "Начать игру" }).waitFor({ timeout: WAIT });
+  const screenContext = await browser.newContext(TV);
+  const screen = await screenContext.newPage();
+  watch(screen, "Экран зала (команды)");
+  await screen.goto(`${BASE}/screen/${code}`);
+
+  const captain = await guestJoin(browser, code, { name: "Капитан", teamName: "Утки", teamEmoji: "🐯" }, "Капитан");
+  await expectText(captain.page, captain.page.locator(".play-head__who"), "🐯 Утки", "Телефон капитана, команда");
+  const member = await guestJoin(browser, code, { name: "Игрок", joinTeam: "🐯 Утки" }, "Игрок команды");
+  await expectText(member.page, member.page.locator(".play-head__who"), "🐯 Утки", "Телефон игрока команды, команда");
+  await expectText(screen, screen.locator(".chip"), "🐯 Утки", "Экран зала, команды");
+  await expectText(host, host.locator("main"), "🐯 Утки", "Пульт, команды");
+  await shot(captain.page, "капитан", "Телефон капитана");
+  await shot(screen, "экран-команды", "Экран зала: команды");
+  await clickButton(host, "Начать игру");
+  await clickButton(host, "Завершить игру").catch(() => undefined);
+  await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: 5000 }).catch(() => undefined);
+  await Promise.all([hostContext.close(), screenContext.close(), captain.context.close(), member.context.close()]);
+}
+
+async function sendShots() {
+  const token = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
+  const chat = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
+  if (!token || !chat || shots.length === 0) return;
+  for (let i = 0; i < shots.length; i += 10) {
+    const part = shots.slice(i, i + 10);
+    const form = new FormData();
+    form.set("chat_id", chat);
+    form.set(
+      "media",
+      JSON.stringify(
+        part.map((s, k) => ({
+          type: "photo",
+          media: `attach://p${k}`,
+          caption: k === 0 && i === 0 ? `🧪 Проверка гостем: ${problems.length === 0 ? "всё в порядке" : `замечаний ${problems.length}`}\n${s.caption}` : s.caption,
+        })),
+      ),
+    );
+    part.forEach((s, k) => form.set(`p${k}`, new Blob([readFileSync(s.path)], { type: "image/png" }), `p${k}.png`));
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, { method: "POST", body: form });
+    if (!res.ok) say(`Снимки в Telegram не ушли: ${res.status}`);
+  }
+}
+
+mkdirSync(SHOTS, { recursive: true });
+const browser = await chromium.launch();
+try {
+  const token = await login();
+  await soloGame(browser, token);
+  await teamsGame(browser, token);
+} catch (error) {
+  bad(`Проверка остановилась: ${String(error?.message ?? error).split("\n")[0].slice(0, 200)}`);
+} finally {
+  await browser.close();
+}
+say(problems.length === 0 ? "\nИтог: замечаний нет" : `\nИтог: замечаний ${problems.length}`);
+await sendShots().catch((error) => say(`Снимки в Telegram не ушли: ${error.message}`));
+finish(problems.length === 0 ? 0 : 1);

@@ -7,6 +7,11 @@
 # операции bash над уже проверенной строкой (без eval, read, разбиения на слова и шаблонов).
 # Выкладывает не привратник: он кладёт номер коммита в очередь, её забирает служба root
 # (joyrest-deploy.path → joyrest process-queue), которая проверяет формат ещё раз.
+#
+# Два ключа (аудит 7 октября 2026): основной (`command="…/joyrest-gate"`) лежит только в окружении
+# GitHub production (выкладка из main) и может всё ниже; тестовый (`command="…/joyrest-gate test"`,
+# `sudo joyrest deploy-key-test`) — у веток claude/*, ему можно только ping, status и deploy-test.
+# force с ключей не принимается вовсе: выложить во время игры можно только из Termius.
 set -euo pipefail
 export LC_ALL=C
 
@@ -17,7 +22,12 @@ RELEASE=/srv/joyrest/current/release.env
 deny() { echo "Команда не разрешена" >&2; exit 1; }   # присланную строку не повторяем
 
 command="${SSH_ORIGINAL_COMMAND-}"
-[[ ${#command} -le 60 && $command =~ ^(ping|status|deploy\ [0-9a-f]{40}(\ force)?|deploy-test\ [0-9a-f]{40})$ ]] || deny
+mode="${1:-full}"
+case "$mode" in
+  full) [[ ${#command} -le 60 && $command =~ ^(ping|status|deploy\ [0-9a-f]{40}|deploy-test\ [0-9a-f]{40})$ ]] || deny ;;
+  test) [[ ${#command} -le 60 && $command =~ ^(ping|status|deploy-test\ [0-9a-f]{40})$ ]] || deny ;;
+  *) deny ;;
+esac
 
 case "${command%% *}" in
   ping)
@@ -30,7 +40,7 @@ case "${command%% *}" in
     ;;
   deploy | deploy-test)
     if [ "${command%% *}" = deploy ]; then env="prod"; else env="test"; fi
-    request=${command#* }                       # «<коммит>» или «<коммит> force»
+    request=${command#* }                       # «<коммит>»
     tmp=$(mktemp "$QUEUE_DIR/.request.XXXXXX")
     printf '%s\n' "$request" > "$tmp"
     chmod 660 "$tmp"

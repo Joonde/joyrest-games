@@ -29,7 +29,8 @@ services:
       - /srv/joyrest/caddy/etc:/etc/caddy:ro
       - /srv/joyrest/caddy/data:/data
       - /srv/joyrest/caddy/config:/config
-    networks: [web]
+    # Caddy — в обеих сетях приложений; приложения друг друга не видят.
+    networks: [web, web-test]
     mem_limit: 128m
     logging: *logging
 
@@ -62,7 +63,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: [db]
+    networks: [db, db-test]
     mem_limit: 512m
     logging: *logging
 
@@ -70,7 +71,8 @@ services:
     image: ${APP_IMAGE}
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_prod
+      # Своя роль без суперправ, когда владелец выполнил `sudo joyrest db-roles`; до этого — joyrest.
+      DATABASE_URL: postgres://${PROD_DB_USER:-joyrest}:${PROD_DB_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/joyrest_prod
       PUBLIC_DIR: /app/public
       NODE_OPTIONS: --max-old-space-size=256
       # Слой данных в браузере: Firebase, пока владелец не переключит основную версию на свой
@@ -107,7 +109,8 @@ services:
     image: ${APP_TEST_IMAGE}
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://joyrest:${POSTGRES_PASSWORD}@postgres:5432/joyrest_test
+      # Своя роль: входит только в joyrest_test (`sudo joyrest db-roles`); до этого — joyrest.
+      DATABASE_URL: postgres://${TEST_DB_USER:-joyrest}:${TEST_DB_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/joyrest_test
       PUBLIC_DIR: /app/public
       NODE_OPTIONS: --max-old-space-size=160
       # Тестовое окружение — всегда на своём сервере (проверка переезда), своя папка картинок.
@@ -131,11 +134,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    networks: [web, db]
+    # Своя сеть до Caddy и до базы: код ветки не достучится до основной версии напрямую
+    # (и не подделает ей адрес посетителя).
+    networks: [web-test, db-test]
     mem_limit: 256m
     logging: *logging
 
 networks:
   web: {}
+  web-test: {}
   db:
+    internal: true
+  db-test:
     internal: true

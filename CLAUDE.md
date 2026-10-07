@@ -61,6 +61,13 @@ Firebase удаляются, Firebase-код удаляется отдельны
   основное и тестовое окружение, разные базы). У всех контейнеров `mem_limit`.
 - Наружу публикует порты только `caddy` (80, 443, 443/udp). Docker обходит ufw, поэтому
   других `ports:` в compose быть не должно (проверяет CI). База — во внутренней сети.
+- Основная и тестовая версии разделены: сети `web`/`db` — Caddy, app-prod, postgres; `web-test`/`db-test`
+  — Caddy, app-test, postgres (app-test до app-prod не достучится). Приложения ходят в базу своими
+  ролями без суперправ — `joyrest_app_prod` только в `joyrest_prod`, `joyrest_app_test` только в
+  `joyrest_test` (`sudo joyrest db-roles`, один раз из Termius; пароли — `PROD_DB_*`/`TEST_DB_*` в
+  `secrets.env`; до этого — прежний `joyrest`). Права повторяются при каждой выкладке и после
+  восстановления (`db_role_grants`). Миграции, дампы и восстановление — по-прежнему `joyrest`.
+  Проверяет `server/src/dbRoles.test.ts`.
 - Код сервера — `server/`, собирается esbuild в один файл (`npm run build:server`).
   Сервер переиспользует `src/data/permissions.ts` и типы `src/data/types.ts`.
 - Всё собирается в GitHub Actions (`.github/workflows/build.yml`): тесты → образ
@@ -73,7 +80,7 @@ Firebase удаляются, Firebase-код удаляется отдельны
   Управление — команда `joyrest` (`deploy/bin/joyrest`), инструкции владельцу — `RUNBOOK.md`.
 - Пользователи сервера: владелец (sudo, вход по ключу из Termius), `deploy` — без sudo и
   консоли, ключ GitHub Actions привязан к привратнику `deploy/bin/joyrest-gate`: он пропускает
-  только `ping`, `status`, `deploy <40 hex> [force]`, `deploy-test <40 hex>` и кладёт запрос
+  только `ping`, `status`, `deploy <40 hex>`, `deploy-test <40 hex>` (тестовый ключ — без `deploy`) и кладёт запрос
   в очередь `/srv/joyrest/deploy/queue/`; выкладывает служба root (`deploy/systemd/`).
 - Выкладка (`joyrest deploy`, `.github/workflows/build.yml`, задача `deploy`): main →
   games.joy-rest.ru, ветки `claude/*` → test.games.joy-rest.ru (`app-test`, база
@@ -85,18 +92,25 @@ Firebase удаляются, Firebase-код удаляется отдельны
   обычно; на `main` пометка не действует). Ставьте `[no-test]`, если test для проверки не нужен
   (например, команды `joyrest` и службы — они ставятся только из основного релиза). Решает
   сообщение последнего коммита в push.
-  Два пути: SSH из Actions и запасной — тег `release`/`test-release` в GHCR, который сервер
-  проверяет каждые 2 минуты (`joyrest-update.timer`, токен только `read:packages`). Итог
+  Основная версия — только по SSH из `main`: задача `deploy` идёт в окружении GitHub `production`
+  (правило «только main»), ключ `DEPLOY_SSH_KEY` лежит только там. Ветки — своим ключом
+  `DEPLOY_SSH_KEY_TEST` (`sudo joyrest deploy-key test|prod` — новый ключ, показывается один раз), привратник пускает его только на `ping`,
+  `status`, `deploy-test` (`joyrest-gate test`). `force` с ключей не принимается — только из Termius.
+  Запасной путь — тег `test-release` в GHCR, который сервер проверяет каждые 2 минуты
+  (`joyrest-update.timer`, токен только `read:packages`) — только для test; тег `release` больше не
+  ставится и не читается (его могла поставить любая ветка). Проверяет `server/src/deployGuard.test.ts`. Итог
   Actions проверяет по HTTPS `/health` и пишет в Telegram. Включается переменной
   репозитория `DEPLOY_ENABLED=true`: задача «Переключатель выкладки» (`switch`) сравнивает
   её без учёта регистра, `\r\n`, пробелов по краям и невидимых символов (вставка с телефона)
   и при выключенной выкладке показывает в логе, что видит. Секреты Telegram и SSH тоже
   очищаются от пробелов и `\r\n`; причина неудачной отправки в Telegram пишется в лог.
 - Блокировка выкладки во время игры: основная версия не выкладывается, если есть сессия с
-  `phase in ('lobby', 'playing')` и `updated_at` за последние 30 минут. Если проверить не
+  `phase in ('lobby', 'playing')` и `updated_at` за последние 30 минут, идущая игра (`playing`) с
+  действием пульта за 3 часа (`PLAYING_HOURS` — перерыв на свадьбе) или с телефонами, которые
+  входили или подавали сигнал за 30 минут. Если проверить не
   удалось (база не отвечает) — тоже считается, что игра идёт: статус `blocked`, таймер
-  повторит. `force` — только вручную (Termius или Run workflow с галочкой); CI сам `force`
-  не отправляет никогда, теги `release`/`test-release` ставит только при `DEPLOY_ENABLED`.
+  повторит. `force` — только вручную из Termius (`sudo joyrest deploy <коммит> force`); CI
+  `force` не отправляет, тег `test-release` ставит только при `DEPLOY_ENABLED`.
 - **Миграции только обратно совместимы (expand/contract).** Они выполняются до переключения
   версии, а откат возвращает прошлый код, но не схему: новая схема обязана работать со
   старым кодом. Можно: новые таблицы, колонки с `DEFAULT` или без `NOT NULL`, индексы.

@@ -1,0 +1,51 @@
+# Сценарная проверка живой игры (CLAUDE.md, раздел 9): 35 гостей, каждый механизм ×3 в разном
+# порядке, сверка очков, синхронность экрана и телефонов, отказы лишних действий, утечки.
+# Только вручную (Run workflow) или коммитом с [scenario] в ветке claude/* (~6 минут).
+name: Сценарий 35 гостей
+
+on:
+  workflow_dispatch:
+    inputs:
+      guests:
+        description: "Сколько гостей (6–60)"
+        default: "35"
+  push:
+    branches: ["claude/**"]
+
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scenario:
+    name: Сценарий на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[scenario]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Test пересобирается после каждого push в claude/*: ждём, пока выложится этот коммит.
+      - name: Ждём выкладку на test
+        if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[no-test]')
+        run: |
+          for i in $(seq 1 48); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Вечер на 35 гостей
+        run: npx tsx scripts/scenario.ts
+        env:
+          LOAD_BASE: https://test.games.joy-rest.ru
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+          GUESTS: ${{ inputs.guests || '35' }}

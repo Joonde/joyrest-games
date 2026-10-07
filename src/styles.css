@@ -535,6 +535,8 @@ a {
 .points-history li {
   display: grid;
   gap: 2px;
+}
+
 /* ---------- Смайлик к имени (вход гостя) ---------- */
 
 .emoji-picker {

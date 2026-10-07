@@ -9,9 +9,10 @@ import {
   type QuizQuestion,
 } from "./content";
 import { IMPORT_EXAMPLE, parseImport } from "./importText";
+import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
-import { back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
+import { actionLabel, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
 import { groupOpenAnswers, isCorrect, parseResult, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
@@ -262,7 +263,7 @@ describe("ход игры на пульте", () => {
   const ans = (step: number, pid: string, value: unknown) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: 5 });
   const people = [player("a", "Аня"), player("b", "Боря"), player("c", "Аня", 2)];
 
-  it("показать вопрос → ответ → таблица → следующий → завершить", () => {
+  it("показать вопрос → ответ → таблица → следующий → награждение → завершить", () => {
     let s = base;
     expect(primaryAction(s, content)).toBe("show");
     s = applyChange(s, showQuestion(s, content), 1);
@@ -286,7 +287,31 @@ describe("ход игры на пульте", () => {
     expect(s.leaderboard.b).toMatchObject({ score: 50, last: 50 });
     expect(s.leaderboard.a).toMatchObject({ score: 100, last: 0 });
     s = applyChange(s, showBoard(), 8);
+    const board = s;
+    // Аня и Аня 2 — по 100 (общее 1 место), Боря — 50 (3 место); второго места нет.
+    expect(primaryAction(s, content)).toBe("podium");
+    expect(actionLabel(s, "podium")).toBe("Награждение");
+    s = applyChange(s, startPodium(s), 9);
+    expect(s.state.stage).toBe("podium");
+    expect(primaryAction(s, content)).toBe("podiumNext");
+    expect(actionLabel(s, "podiumNext")).toBe("Показать 3 место");
+    s = applyChange(s, podiumNext(s), 10);
+    expect(actionLabel(s, "podiumNext")).toBe("Показать 1 место");
+    s = applyChange(s, podiumNext(s), 11);
     expect(primaryAction(s, content)).toBe("finish");
+    // «Назад» закрывает места по одному, с заставки — обратно к таблице и итогам шага.
+    s = applyChange(s, back(s)?.change ?? {}, 12);
+    s = applyChange(s, back(s)?.change ?? {}, 13);
+    expect(s.state.stage).toBe("podium");
+    s = applyChange(s, back(s)?.change ?? {}, 14);
+    expect(s.state.stage).toBe("board");
+    expect(s.state.result).toEqual(board.state.result);
+    expect(primaryAction(s, content)).toBe("podium");
+  });
+
+  it("без очков у всех награждения нет — сразу «Завершить игру»", () => {
+    const last = { ...base, state: { ...base.state, step: 1, stage: "board" as const, revealed: true } };
+    expect(primaryAction(last, content)).toBe("finish");
   });
 
   it("«Назад» снимает очки шага, повторный показ ответа считает заново", () => {

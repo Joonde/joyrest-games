@@ -103,7 +103,8 @@ export type SessionPhase = "lobby" | "playing" | "finished";
  * Этап шага: ready — ведущий ещё не показал вопрос; question — вопрос открыт и идёт
  * таймер, принимаются ответы; reveal — показан правильный ответ; board — таблица.
  */
-export type StepStage = "ready" | "question" | "reveal" | "board";
+/** Этап шага; "podium" — награждение после последнего шага (общий для всех механик). */
+export type StepStage = "ready" | "question" | "reveal" | "board" | "podium";
 
 export interface SessionState {
   phase: SessionPhase;

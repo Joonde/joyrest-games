@@ -7,7 +7,7 @@ import type { HostControlsProps } from "../types";
 import { correctSet, KIND_TITLES, roundAt, roundTitle, type QuizContent } from "./content";
 import { PodiumHostList } from "../../components/live/Podium";
 import { podiumNext, startPodium } from "../../core/podium";
-import { actionLabel, back, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted, type QuizAction } from "./flow";
+import { actionLabel, back, extraAction, nextQuestion, primaryAction, replayTrack, reveal, showBoard, showQuestion, showTotal, toggleAccepted, type QuizAction } from "./flow";
 import { groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 
@@ -127,6 +127,11 @@ export function QuizHostControls({ session, content, answers, participants, cont
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
           {actionLabel(session, content, action)}
         </button>
+        {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && (
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayTrack(session))}>
+            ♪ Повторить фрагмент
+          </button>
+        )}
         {extra && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => perform(extra)}>
             Показать таблицу

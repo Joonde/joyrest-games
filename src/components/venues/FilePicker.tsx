@@ -2,7 +2,7 @@
  * Фото зала и меню для анкеты площадки: фото сжимаются прямо на телефоне (до ~350 КБ), PDF меню —
  * как есть, до 1,9 МБ. Файлы копятся здесь и уходят на сервер вместе с анкетой.
  */
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { MENU_PDF_MAX_BYTES, VENUE_FILES, type VenueFileKind } from "../../core/venues";
 import type { VenueUpload } from "../../data";
 import { ImageError, shrinkImage } from "../media/compressImage";
@@ -43,6 +43,9 @@ export function FilePicker({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const left = max - files.length;
+  // Пока фото сжимаются, список могли поменять (убрали файл) — дописываем к свежему.
+  const latest = useRef(files);
+  latest.current = files;
 
   async function add(list: FileList | null) {
     if (!list || list.length === 0) return;
@@ -59,7 +62,7 @@ export function FilePicker({
       }
     }
     if (list.length > picked.length) setError(`Можно не больше ${max}. Лишние файлы не добавлены.`);
-    onChange([...files, ...added]);
+    onChange([...latest.current, ...added]);
     setBusy(false);
   }
 

@@ -55,6 +55,8 @@ export function acceptsAnswers(state: SessionState, serverNow: number): boolean 
 export function applyChange(session: Session, change: SessionChange, now: number): Session {
   const { startedAt, ...rest } = change.state ?? {};
   const state: SessionState = { ...session.state, ...rest };
+  // Как на сервере: игра пошла дальше — таблица «посмотреть сейчас» уходит с экрана.
+  if (!("peek" in rest) && (rest.step !== undefined || rest.stage !== undefined || rest.phase !== undefined)) state.peek = null;
   if (startedAt !== undefined) state.startedAt = startedAt === "server" ? now : startedAt;
   const board = { ...session.leaderboard };
   for (const [pid, entry] of Object.entries(change.leaderboard ?? {})) {

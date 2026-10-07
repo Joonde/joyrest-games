@@ -193,7 +193,7 @@ export interface CheckedChange {
 }
 
 /** После «Завершить игру» пульт управляет только музыкой, звуками и слайдами. */
-const AFTER_FINISH = new Set(["cue", "music", "mix", "slide"]);
+const AFTER_FINISH = new Set(["cue", "music", "mix", "slide", "peek"]);
 
 export function allowedAfterFinish(change: CheckedChange): boolean {
   return (
@@ -256,6 +256,9 @@ export function checkChange(value: unknown): CheckedChange | null {
   if ("peek" in raw) {
     if (raw.peek !== null && parsePeek(raw.peek) === null) return null;
     state.peek = parsePeek(raw.peek);
+  } else if (raw.step !== undefined || raw.stage !== undefined || raw.phase !== undefined) {
+    // Игра пошла дальше (вопрос, ответ, награждение) — таблица «посмотреть сейчас» уходит с экрана.
+    state.peek = null;
   }
 
   const leaderboard: CheckedChange["leaderboard"] = {};
@@ -429,7 +432,7 @@ async function saveResult(db: Sql | TransactionSql, row: SessionRow, participant
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
               ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null}, now())
       on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board,
-        started_at = excluded.started_at, finished_at = excluded.finished_at, saved_at = now()`;
+        started_at = excluded.started_at, finished_at = coalesce(results.finished_at, excluded.finished_at), saved_at = now()`;
   } else {
     await sql`
       insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at)
@@ -448,6 +451,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const hub = new Hub();
   const codeMissesByDevice = new WindowLimiter(20, 10 * 60_000);
   const codeMissesByIp = new WindowLimiter(200, 10 * 60_000);
+  // «Вы уже играли?»: не больше 5 попыток с телефона и 60 на игру за 10 минут.
+  const claimsByDevice = new WindowLimiter(5, 10 * 60_000);
+  const claimsBySession = new WindowLimiter(60, 10 * 60_000);
   /** Последнее сообщение экрана зала по каждой сессии (см. `/screen`). */
   const screens = new Map<string, ScreenStatus>();
 
@@ -669,7 +675,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!hosted) return reply;
       const count = isRecord(request.body) ? request.body.participantsCount : 0;
       const participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
-      await change(hosted.row.id, () => ({ state: { phase: "finished" }, leaderboard: {} }));
+      await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }));
       // Итоги — по таблице на сервере, а не по присланной.
       const row = await loadSession(hosted.row.id);
       if (row) {
@@ -866,18 +872,38 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const session = await loadSession(id);
       if (!session || normalizeState(session.state).phase === "finished") return fail(reply, 404, "not-found");
       if (!ID.test(pid) || pid === who.uid) return fail(reply, 400, "invalid-argument");
-      // У этого телефона уже есть свой игрок в этой игре — путаницы не допускаем.
-      if (await loadParticipant(id, who.uid)) return fail(reply, 409, "already-exists");
-      const target = await loadParticipant(id, pid);
-      if (!target || target.kind !== "player") return fail(reply, 404, "not-found");
-      if (isOnline(participantOf(target), now())) return fail(reply, 409, "failed-precondition");
+      const at = now();
+      if (!claimsByDevice.take(who.uid, at) || !claimsBySession.take(id, at)) return fail(reply, 429, "resource-exhausted");
+      // Устройство игрока общее для всех игр, поэтому забрать его можно, только если оно больше
+      // нигде не играет (не перехватить чужого игрока в другой идущей игре), а этот телефон сам
+      // не играет в другой идущей игре (иначе он потеряет там своё место).
+      const busy = await sql<{ id: string }[]>`
+        select p.id from participants p join sessions s on s.id = p.session_id
+        where p.id in (${pid}, ${who.uid}) and p.kind = 'player' and s.id <> ${id}
+          and s.phase in ('lobby', 'playing') and s.updated_at > now() - interval '6 hours'
+        limit 1`;
+      if (busy.length > 0) return fail(reply, 409, "failed-precondition");
       const token = randomBytes(32).toString("base64url");
-      const moved = await sql`update devices set token_hash = ${tokenHash(token)}, last_seen_at = now() where id = ${pid} returning id`;
-      if (moved.length === 0) return fail(reply, 404, "not-found");
-      const [row] = await sql<ParticipantRow[]>`
-        update participants set seen_at = ${new Date(now())} where session_id = ${id} and id = ${pid}
-        returning ${sql(PARTICIPANT_COLUMNS)}`;
-      publishParticipant(id, row ?? null);
+      const outcome = await sql.begin(async (tx) => {
+        // У этого телефона уже есть свой игрок в этой игре — путаницы не допускаем.
+        const mine = await tx`select 1 from participants where session_id = ${id} and id = ${who.uid}`;
+        if (mine.length > 0) return "already-exists" as const;
+        const [target] = await tx<ParticipantRow[]>`
+          select ${tx(PARTICIPANT_COLUMNS)} from participants where session_id = ${id} and id = ${pid} for update`;
+        if (!target || target.kind !== "player") return "not-found" as const;
+        // Два телефона одновременно: второй увидит свежий seen_at первого и получит отказ.
+        if (isOnline(participantOf(target), now())) return "failed-precondition" as const;
+        const moved = await tx`update devices set token_hash = ${tokenHash(token)}, last_seen_at = now() where id = ${pid} returning id`;
+        if (moved.length === 0) return "not-found" as const;
+        const [row] = await tx<ParticipantRow[]>`
+          update participants set seen_at = ${new Date(now())} where session_id = ${id} and id = ${pid}
+          returning ${tx(PARTICIPANT_COLUMNS)}`;
+        return row ?? null;
+      });
+      if (outcome === "already-exists") return fail(reply, 409, "already-exists");
+      if (outcome === "not-found") return fail(reply, 404, "not-found");
+      if (outcome === "failed-precondition") return fail(reply, 409, "failed-precondition");
+      publishParticipant(id, outcome);
       reply.header("Set-Cookie", deviceCookie(token));
       request.log.info({ live: "claim" }, "live");
       return { ok: true, uid: pid };

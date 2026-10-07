@@ -270,6 +270,8 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
     expect(body.title).toBe("Свадьба · 19 июня 2027 · 80 гостей");
     expect(body.items[0]).toMatchObject({ name: "Белая веранда", where: "СЗАО · м. Строгино" });
     expect(body.items[0].ok).toContain("танцпол");
+    expect(text).not.toContain("venue-form-001");
+    expect(text).not.toContain("manual-venue-01");
     const photo = body.items[0].photos[0] as string;
     expect((await get(`/api/offers/${offerId}/photos/${photo}`)).statusCode).toBe(200);
     expect((await get(`/api/offers/${offerId}/photos/${"0".repeat(64)}`)).statusCode).toBe(404);

@@ -9,7 +9,14 @@
  * каждый раз выдаётся новый временный пароль). Удалить ведущего нельзя — в конце он отключается.
  * Только тестовый адрес. Код выхода 1 — если хоть одна проверка не прошла.
  */
-import { DEFAULTS, type QuizContent } from "../src/mechanics/quiz/content";
+import { DEFAULTS, parseContent, type QuizContent } from "../src/mechanics/quiz/content";
+import { DEMO_MELODY, DEMO_QUIZ } from "../src/mechanics/quiz/demo";
+import { validateContent } from "../src/mechanics/quiz/validate";
+import { DEMO_LOTTO } from "../src/mechanics/lotto/demo";
+import { parseLotto } from "../src/mechanics/lotto/content";
+import { validateLotto } from "../src/mechanics/lotto/validate";
+import { cardFor, isWin, nextSong, parseLottoResult, playedUpTo, playSong, revealSong } from "../src/mechanics/lotto/logic";
+import type { Answer, Participant, Session } from "../src/data/types";
 
 const BASE = (process.env.LOAD_BASE ?? "https://test.games.joy-rest.ru").replace(/\/$/, "");
 const ADMIN_EMAIL = (process.env.TEST_ADMIN_EMAIL ?? "").trim();
@@ -443,6 +450,87 @@ async function main() {
   check(await login(back, HOST_EMAIL, ownPassword), "включённый снова ведущий входит своим паролем");
   const stillThere = await back.call<{ title: string }>("GET", `/api/games/${gameId}`);
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
+
+  // ------------------------------------------------ шаблоны библиотеки
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», музыкальное лото —");
+  const templates = [
+    { mechanic: "quiz", ...DEMO_QUIZ },
+    { mechanic: "quiz", ...DEMO_MELODY },
+    { mechanic: "lotto", ...DEMO_LOTTO },
+  ];
+  const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
+  const templateIds: Record<string, string> = {};
+  for (const t of templates) {
+    // Как кнопка «Добавить в библиотеку» у владельца: шаблон появляется, если его ещё нет.
+    let id = library.find((g) => g.title === t.title)?.id;
+    if (!id) {
+      id = uid();
+      const created = await admin.status("POST", "/api/games", {
+        id, scope: "agency", ownerId: adminUid, title: t.title, mechanic: t.mechanic, themeId: "joyrest", ageRating: "0+", playMode: "solo", content: t.content,
+      });
+      check(created === 200, `шаблон «${t.title}» добавлен в библиотеку`);
+    }
+    templateIds[t.title] = id;
+    const saved = await back.call<{ title: string; mechanic: string; content: unknown }>("GET", `/api/games/${id}`);
+    const errors = saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : validateContent(parseContent(saved.content));
+    check(saved.title === t.title && errors.length === 0, `шаблон «${t.title}» виден ведущему и готов к запуску`, errors.map((e) => e.message).join("; "));
+    const copy = uid();
+    check(
+      (await back.status("POST", `/api/games/${copy}/copy`, { sourceId: id, mediaIds: [], game: { scope: "personal", ownerId: hostUid, title: `${t.title} (копия)`, mechanic: t.mechanic, themeId: "joyrest", ageRating: "0+", playMode: "solo", content: saved.content } })) === 200,
+      `шаблон «${t.title}» копируется в «Мои игры»`,
+    );
+    await back.status("DELETE", `/api/games/${copy}`);
+  }
+
+  // Лото целиком: гость получает карточку, песни идут по очереди, гость кричит «Лото!» на первой
+  // собранной линии, ведущий показывает название — гостю очки, игра завершается с итогами.
+  {
+    const lotto = parseLotto(DEMO_LOTTO.content);
+    const sid = uid();
+    const created = await back.call<{ code: string }>("POST", "/api/sessions", {
+      id: sid, gameId: templateIds[DEMO_LOTTO.title] ?? null, gameTitle: DEMO_LOTTO.title, playMode: "solo", screenMode: "laptop", themeId: "joyrest", mechanic: "lotto",
+      gameSnapshot: { title: DEMO_LOTTO.title, content: DEMO_LOTTO.content },
+    });
+    const guest = new Device("гость лото");
+    const me = await guest.call<{ uid: string }>("POST", "/api/auth/device");
+    const found = await guest.call<Session>("GET", `/api/sessions/by-code/${created.code}`);
+    check(found.id === sid && found.mechanic === "lotto", "гость нашёл лото по коду");
+    await guest.call("POST", `/api/sessions/${sid}/participants/${me.uid}/join`, { name: "🎵 Лотошник", teamId: null });
+    const get = () => back.call<Session>("GET", `/api/sessions/${sid}`);
+    const act = async (change: object) => {
+      const cur = await get();
+      return back.status("POST", `/api/sessions/${sid}/apply`, { ...change, expect: { phase: cur.state.phase, step: cur.state.step, stage: cur.state.stage } });
+    };
+    check((await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } })) === 200, "лото началось");
+    check((await act(playSong(await get()))) === 200, "первая песня звучит");
+    const card = cardFor(lotto, me.uid);
+    check(card.length === lotto.size * lotto.size, `у гостя карточка ${lotto.size}×${lotto.size}`);
+    let won = false;
+    for (let guard = 0; guard < lotto.songs.length && !won; guard++) {
+      const cur = await get();
+      const step = cur.state.step;
+      const played = playedUpTo(lotto, step);
+      const marks = card.filter((c) => played.has(c));
+      if (isWin(card, new Set(marks), lotto.size, lotto.rule)) {
+        const r = await guest.call<{ result: string }>("POST", `/api/sessions/${sid}/answers`, { step, pid: me.uid, value: { marks } });
+        check(r.result !== "rejected", "заявка «Лото!» принята", r.result);
+        won = true;
+      }
+      const answers = await back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/${step}`);
+      const participants = await back.call<Participant[]>("GET", `/api/sessions/${sid}/participants`);
+      if ((await act(revealSong(cur, lotto, answers, participants))) !== 200) {
+        check(false, `название песни ${step + 1} показано`);
+        break;
+      }
+      if (!won && step < lotto.songs.length - 1) await act(nextSong(await get()));
+    }
+    const after = await get();
+    check(won && parseLottoResult(after.state.result).winners.includes(me.uid), "гость собрал линию и стал победителем");
+    check((after.leaderboard[me.uid]?.score ?? 0) > 0, "победителю начислены очки", String(after.leaderboard[me.uid]?.score));
+    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "лото завершено");
+    const result = await guest.call<{ board: Array<{ name: string; score: number }> }>("GET", `/api/results/${sid}`);
+    check(result.board[0]?.name === "🎵 Лотошник", "итоги лото сохранены со смайликом");
+  }
 
   // ------------------------------------------------ уборка за собой
   await back.status("DELETE", `/api/tracks/${trackId}`);

@@ -106,7 +106,14 @@ function contentType(file: VenueUpload): string {
 }
 
 function fileHeaders(file: VenueUpload): Record<string, string> {
-  return file.name ? { "X-File-Name": encodeURIComponent(file.name.slice(0, 120)) } : {};
+  if (!file.name) return {};
+  // По символам, а не по половинкам смайлика; одиночные половинки убираем — иначе
+  // encodeURIComponent бросает ошибку и файл не уходит.
+  const name = Array.from(file.name)
+    .filter((ch) => !/^[\uD800-\uDFFF]$/.test(ch))
+    .slice(0, 120)
+    .join("");
+  return name ? { "X-File-Name": encodeURIComponent(name) } : {};
 }
 
 const enc = encodeURIComponent;
@@ -133,6 +140,8 @@ export const serverVenuesRepository: VenuesRepository = {
       ),
     );
     const token = asText(answer.uploadToken);
+    // Анкета уже была сохранена давно — файлы сервер больше не принимает.
+    if (token === "") return { failedFiles: input.files.length };
     let failed = 0;
     onProgress?.(0, input.files.length);
     for (const [index, file] of input.files.entries()) {

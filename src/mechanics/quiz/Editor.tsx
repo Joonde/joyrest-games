@@ -10,6 +10,7 @@ import type { EditorProps, ValidationError } from "../types";
 import {
   changeKind,
   correctSet,
+  DEFAULT_TRACK_LENGTH,
   settingsOf,
   toggleCorrect,
   duplicateQuestion,
@@ -26,6 +27,7 @@ import {
   type QuizSettings,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
+import { TrackPicker } from "../../components/music/TrackPicker";
 import { QuizPreview } from "./Preview";
 import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
@@ -569,6 +571,13 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
           </button>
         </fieldset>
       )}
+
+      <TrackPicker
+        trackId={q.trackId ?? null}
+        start={q.trackStart ?? 0}
+        length={q.trackLength ?? DEFAULT_TRACK_LENGTH}
+        onChange={(patch) => onChange(patch)}
+      />
 
       <div className="q-numbers">
         <label className="field">

@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
 import { formatDate } from "../../core/format";
-import { questionsLabel } from "../../core/results";
 import { permissions, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
-import { countQuestions, mechanicTitle, validateGame } from "../../mechanics/registry";
+import { mechanicTitle, stepsLabel, validateGame } from "../../mechanics/registry";
 import { getTheme } from "../../themes/registry";
 
 interface Props {
@@ -59,7 +58,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
       <ul className="meta" aria-label="Об игре">
         <li>{mechanicTitle(game.mechanic)}</li>
         <li>{getTheme(game.themeId).title}</li>
-        <li>{questionsLabel(countQuestions(game.mechanic, game.content))}</li>
+        <li>{stepsLabel(game.mechanic, game.content)}</li>
         {game.ageRating !== "0+" && <li>{game.ageRating}</li>}
         {date !== null && <li>{formatDate(date)}</li>}
         {!ready && <li className="meta__warn">Не готова к запуску</li>}

@@ -382,6 +382,7 @@ export function playSound(name: SoundName): void {
 
 /** «Стоп»: заглушить все эффекты, что звучат сейчас (музыку — нет); следующие играют как обычно. */
 export function stopAllSounds(): void {
+  stopFragment();
   if (!ctx || !effectsBus) return;
   const old = effectsBus;
   effectsBus = null;
@@ -418,6 +419,8 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
   if (!soundReady()) return false;
   const el = musicElement();
   if (!el) return false;
+  // Ведущий включил музыку — фрагмент «Угадай мелодию» замолкает, музыка уже не «ждёт» его.
+  silenceFragment();
   if (el.src !== url) el.src = url;
   if (fromStart) el.currentTime = 0;
   try {
@@ -429,11 +432,90 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
 }
 
 export function pauseMusic(): void {
+  // Ведущий поставил музыку на паузу во время фрагмента — после фрагмента она не включится сама.
+  resumeAfterFragment = false;
   player?.pause();
 }
 
 export function stopMusic(): void {
+  resumeAfterFragment = false;
   if (!player) return;
   player.pause();
   player.currentTime = 0;
+}
+
+// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото) ----------
+
+let fragmentEl: HTMLAudioElement | null = null;
+let fragmentTimer = 0;
+/** Фоновая музыка играла до фрагмента — после него продолжится. */
+let resumeAfterFragment = false;
+
+function fragmentElement(): HTMLAudioElement | null {
+  if (!ctx) return null;
+  if (!fragmentEl) {
+    fragmentEl = new Audio();
+    fragmentEl.preload = "auto";
+    const bus = musicOut();
+    if (!bus) return null;
+    ctx.createMediaElementSource(fragmentEl).connect(bus);
+  }
+  return fragmentEl;
+}
+
+/**
+ * Сыграть кусок трека: с `startSec` в течение `lengthSec` (0 — до конца). Фоновая музыка на это
+ * время встаёт на паузу. false — браузер не дал включить звук (нужно коснуться экрана).
+ */
+export async function playFragment(url: string, startSec: number, lengthSec: number): Promise<boolean> {
+  if (!soundReady()) return false;
+  const el = fragmentElement();
+  if (!el) return false;
+  window.clearTimeout(fragmentTimer);
+  if (player && !player.paused) {
+    resumeAfterFragment = true;
+    player.pause();
+  }
+  if (el.src !== url) el.src = url;
+  try {
+    // Перемотка до загрузки описания файла не срабатывает (фрагмент играл бы с начала).
+    if (el.readyState < 1) await metadataOf(el);
+    el.currentTime = Math.max(0, startSec);
+    await el.play();
+  } catch {
+    return false;
+  }
+  if (lengthSec > 0) fragmentTimer = window.setTimeout(() => stopFragment(), lengthSec * 1000);
+  el.onended = () => stopFragment();
+  return true;
+}
+
+function metadataOf(el: HTMLAudioElement): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      el.removeEventListener("loadedmetadata", done);
+      el.removeEventListener("error", done);
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(done, 5000);
+    el.addEventListener("loadedmetadata", done);
+    el.addEventListener("error", done);
+  });
+}
+
+/** Заглушить фрагмент, не возвращая фоновую музыку. */
+function silenceFragment(): void {
+  window.clearTimeout(fragmentTimer);
+  resumeAfterFragment = false;
+  fragmentEl?.pause();
+}
+
+export function stopFragment(): void {
+  window.clearTimeout(fragmentTimer);
+  fragmentEl?.pause();
+  if (resumeAfterFragment) {
+    resumeAfterFragment = false;
+    void player?.play().catch(() => undefined);
+  }
 }

@@ -118,7 +118,8 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
 
   async function upload(files: VenueUpload[]) {
     const repo = venuesRepo;
-    if (!repo || files.length === 0) return;
+    // Пока идёт загрузка, новые файлы не добавить (кнопки скрыты): иначе первые ушли бы дважды.
+    if (!repo || files.length === 0 || uploading.length > 0) return;
     setUploading(files);
     await run(async () => {
       for (const file of files) await repo.uploadFile(venue.id, file);
@@ -255,7 +256,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
           </p>
         )}
         {photos.length < VENUE_FILES.photo && (
-          <FilePicker kind="photo" label="Добавить фото" max={VENUE_FILES.photo - photos.length} files={uploading.filter((f) => f.kind === "photo")} onChange={(files) => void upload(files)} />
+          <FilePicker kind="photo" label="Добавить фото" max={uploading.length > 0 ? uploading.filter((f) => f.kind === "photo").length : VENUE_FILES.photo - photos.length} files={uploading.filter((f) => f.kind === "photo")} onChange={(files) => void upload(files)} />
         )}
       </section>
 
@@ -282,7 +283,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
         )}
         {v.menuKinds.length > 0 && <p className="muted small">{v.menuKinds.join(", ")}</p>}
         {menus.length < VENUE_FILES.menu && (
-          <FilePicker kind="menu" label="Добавить меню" max={VENUE_FILES.menu - menus.length} files={uploading.filter((f) => f.kind === "menu")} onChange={(files) => void upload(files)} />
+          <FilePicker kind="menu" label="Добавить меню" max={uploading.length > 0 ? uploading.filter((f) => f.kind === "menu").length : VENUE_FILES.menu - menus.length} files={uploading.filter((f) => f.kind === "menu")} onChange={(files) => void upload(files)} />
         )}
       </section>
 

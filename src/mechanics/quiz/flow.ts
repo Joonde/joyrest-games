@@ -114,7 +114,16 @@ export function showQuestion(session: Session, content: QuizContent): SessionCha
 export function toggleAccepted(session: Session, key: string): SessionChange {
   const result = parseResult(session.state.result);
   const accepted = result.accepted.includes(key) ? result.accepted.filter((k) => k !== key) : [...result.accepted, key];
-  return { state: { result: { ...result, accepted, ...carry(session) } } };
+  // Счётчик «Повторить фрагмент» сохраняем: иначе экран сыграет музыку ещё раз.
+  const replay = asRecord(session.state.result).replay;
+  return { state: { result: { ...result, accepted, ...carry(session), ...(typeof replay === "number" ? { replay } : {}) } } };
+}
+
+/** «Повторить фрагмент»: экран зала сыграет музыку вопроса ещё раз. */
+export function replayTrack(session: Session): SessionChange {
+  const result = asRecord(session.state.result);
+  const replay = typeof result.replay === "number" ? result.replay : 0;
+  return { state: { result: { ...result, replay: replay + 1 } } };
 }
 
 /**

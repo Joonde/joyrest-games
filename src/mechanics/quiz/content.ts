@@ -21,6 +21,13 @@ export interface QuizQuestion {
   /** Очки за верный ответ (на скорость — максимум за самый быстрый). */
   points: number;
   imageId: string | null;
+  /**
+   * Музыка к вопросу («Угадай мелодию»): трек из музыки ведущего или общей, с какой секунды и
+   * сколько секунд играть на экране зала. Нет — вопрос без музыки.
+   */
+  trackId?: string | null;
+  trackStart?: number;
+  trackLength?: number;
   /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
   round: string | null;
 }
@@ -118,7 +125,13 @@ export const LIMITS = {
   minPoints: 1,
   maxPoints: 1000,
   round: 60,
+  trackStart: 3600,
+  minTrackLength: 3,
+  maxTrackLength: 120,
 } as const;
+
+/** Фрагмент по умолчанию — 15 секунд с начала. */
+export const DEFAULT_TRACK_LENGTH = 15;
 
 export const DEFAULTS: Record<QuestionKind, { timeLimit: number; points: number }> = {
   choice: { timeLimit: 30, points: 100 },
@@ -154,6 +167,9 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     answers: kind === "open" ? [""] : [],
     ...DEFAULTS[kind],
     imageId: null,
+    trackId: null,
+    trackStart: 0,
+    trackLength: DEFAULT_TRACK_LENGTH,
     round: null,
   };
 }
@@ -248,6 +264,9 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     timeLimit: int(data.timeLimit, DEFAULTS[kind].timeLimit, LIMITS.minTime, LIMITS.maxTime),
     points: int(data.points, DEFAULTS[kind].points, LIMITS.minPoints, LIMITS.maxPoints),
     imageId: typeof data.imageId === "string" && data.imageId.length > 0 ? data.imageId : null,
+    trackId: typeof data.trackId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(data.trackId) ? data.trackId : null,
+    trackStart: int(data.trackStart, 0, 0, LIMITS.trackStart),
+    trackLength: int(data.trackLength, DEFAULT_TRACK_LENGTH, LIMITS.minTrackLength, LIMITS.maxTrackLength),
     round: parseRound(data.round),
   };
 }
@@ -271,4 +290,9 @@ export function parseContent(raw: unknown): QuizContent {
 
 export function mediaIds(content: QuizContent): string[] {
   return [...new Set(content.questions.flatMap((q) => (q.imageId ? [q.imageId] : [])))];
+}
+
+/** Треки игры (чтобы экран зала скачал их заранее). */
+export function trackIds(content: QuizContent): string[] {
+  return [...new Set(content.questions.flatMap((q) => (q.trackId ? [q.trackId] : [])))];
 }

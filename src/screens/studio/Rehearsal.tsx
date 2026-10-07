@@ -4,6 +4,7 @@ import { applyChange, startState } from "../../core/session";
 import { gamesRepo, permissions, useLoad, type Game, type Session, type UserProfile } from "../../data";
 import { Podium } from "../../components/live/Podium";
 import { Scene } from "../../components/live/Scene";
+import { useSoundUnlock } from "../../components/live/sound";
 import { BoardView } from "../../components/live/BoardView";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -65,6 +66,8 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
   const mechanic = getMechanic(game.mechanic);
   const content = useMemo(() => (mechanic ? mechanic.parse(game.content) : null), [mechanic, game.content]);
   const [session, setSession] = useState(() => initialSession(game, hostId));
+  // Звуки и фрагменты «Угадай мелодию» на репетиции — после первого касания, как на экране зала.
+  useSoundUnlock();
   const control: SessionControl = useMemo(
     () => ({
       apply: async (change) => setSession((s) => applyChange(s, change, Date.now())),

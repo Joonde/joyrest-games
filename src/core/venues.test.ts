@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  withoutContacts,
   CRITERIA,
   emptyRequest,
   emptyVenue,
@@ -174,5 +175,13 @@ describe("предложение клиенту", () => {
     for (const secret of ["000-00-01", "x@example.ru", "Ольга", "Секретная"]) expect(text).not.toContain(secret);
     expect(item.where).toBe("ЦАО · м. Курская");
     expect(item.no).toEqual(["танцпол"]);
+  });
+});
+
+describe("предложение клиенту без контактов", () => {
+  it("из «о площадке» убираются телефоны, почта, ссылки и @ники, числа остаются", () => {
+    expect(withoutContacts("Зал на 80 гостей, звоните 8 (999) 123-45-67 или пишите banket@mail.ru")).toBe("Зал на 80 гостей, звоните или пишите");
+    expect(withoutContacts("Сайт: https://veranda.ru/menu, инстаграм @veranda_msk, также банкет.рф")).not.toMatch(/veranda|банкет\.рф/);
+    expect(withoutContacts("Залы на 50 и 120 гостей, 2 этажа, работаем с 2015 года.")).toBe("Залы на 50 и 120 гостей, 2 этажа, работаем с 2015 года.");
   });
 });

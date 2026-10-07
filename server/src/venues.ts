@@ -326,7 +326,8 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     }
 
     /** Добавляет файл к анкете, если для этого вида ещё есть место (атомарно). */
-    async function attach(id: string, kind: VenueFileKind, file: VenueFile): Promise<"ok" | "full" | "missing"> {
+    /** `byQuota` — файл с формы: не больше, чем площадка заявила в анкете (проверка в той же записи). */
+    async function attach(id: string, kind: VenueFileKind, file: VenueFile, byQuota = false): Promise<"ok" | "full" | "missing"> {
       const rows = await sql<{ files: unknown }[]>`select files from venues where id = ${id}`;
       const row = rows[0];
       if (!row) return "missing";
@@ -335,6 +336,8 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         update venues set files = files || ${sql.json(JSON.parse(JSON.stringify([file])))}::jsonb, updated_at = now()
         where id = ${id}
           and (select count(*) from jsonb_array_elements(files) e where e->>'kind' = ${kind}) < ${VENUE_FILES[kind]}
+          and (not ${byQuota} or (select count(*) from jsonb_array_elements(files) e where e->>'kind' = ${kind})
+               < coalesce((upload_quota->>${kind})::int, 0))
         returning id`;
       return updated.length > 0 ? "ok" : "full";
     }
@@ -359,10 +362,13 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       const quota = { photo: photoFiles, menu: menuFiles };
       const until = new Date(now() + UPLOAD_TTL_MS);
       // Повтор после обрыва связи: та же анкета, новый токен для файлов (пока не вышел срок).
-      const [existing] = await sql<{ created_at: Date }[]>`select created_at from venues where id = ${id}`;
+      // Только анкета с формы: внесённую владельцем вручную площадку так не открыть для чужих файлов.
+      const [existing] = await sql<{ created_at: Date; source: string }[]>`select created_at, source from venues where id = ${id}`;
       if (existing) {
-        if (now() - existing.created_at.getTime() > UPLOAD_TTL_MS) return fail(reply, 409, "already-exists");
-        await sql`update venues set upload_hash = ${hashToken(token)}, upload_until = ${until}, upload_quota = ${sql.json(quota)} where id = ${id}`;
+        if (existing.source !== "form") return fail(reply, 409, "already-exists");
+        // Анкета давно сохранена — ответ «принято», файлы уже не принимаем (браузер так и скажет).
+        if (now() - existing.created_at.getTime() > UPLOAD_TTL_MS) return { ok: true, uploadToken: null };
+        await sql`update venues set upload_hash = ${hashToken(token)}, upload_until = ${until}, upload_quota = ${sql.json(quota)} where id = ${id} and source = 'form'`;
         log(request, "venue-form", "repeat");
         return { ok: true, uploadToken: token };
       }
@@ -415,7 +421,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         }
         const bytes = request.body as Buffer;
         const sha = await storeFile(bytes);
-        const result = await attach(id, kind, { sha, kind, mime: checked.mime, size: bytes.length, name: fileName(request.headers["x-file-name"]) });
+        const result = await attach(id, kind, { sha, kind, mime: checked.mime, size: bytes.length, name: fileName(request.headers["x-file-name"]) }, true);
         log(request, "venue-file", result);
         if (result === "missing") return fail(reply, 404, "not-found");
         if (result === "full") return fail(reply, 409, "already-exists");
@@ -444,13 +450,14 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         return fail(reply, 429, "resource-exhausted");
       }
       const host = await hostName(typeof body.from === "string" ? body.from : null);
-      const rows = await sql<{ number: number }[]>`
+      const rows = await sql<{ number: number; inserted: boolean }[]>`
         insert into venue_requests (id, data, status, host_id, consent_at)
         values (${id}, ${sql.json(JSON.parse(JSON.stringify(data)))}, 'new', ${host?.id ?? null}, now())
         on conflict (id) do update set id = excluded.id
-        returning number`;
+        returning number, (xmax = 0) as inserted`;
       const number = rows[0]?.number ?? 0;
-      notify(request, requestNotice(number, data, host?.name ?? null, `${origin(request)}/venues/r/${id}`, options.label));
+      // Два одновременных повтора: сообщение в Telegram — только от того, кто записал заявку.
+      if (rows[0]?.inserted) notify(request, requestNotice(number, data, host?.name ?? null, `${origin(request)}/venues/r/${id}`, options.label));
       log(request, "request-form", "ok");
       return { ok: true, number };
     });
@@ -462,7 +469,16 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       const [row] = await sql<{ data: unknown; created_at: Date }[]>`select data, created_at from venue_offers where id = ${id}`;
       if (!row) return fail(reply, 404, "not-found");
       reply.header("X-Robots-Tag", "noindex, nofollow");
-      return { id, ...(isRecord(row.data) ? row.data : {}), createdAt: row.created_at.getTime() };
+      // id площадок клиенту не нужен (и не должен уходить наружу): только содержимое пунктов.
+      const data = isRecord(row.data) ? row.data : {};
+      const items = Array.isArray(data.items)
+        ? data.items.map((item) => {
+            if (!isRecord(item)) return item;
+            const { venueId: _venueId, ...rest } = item;
+            return rest;
+          })
+        : [];
+      return { id, ...data, items, createdAt: row.created_at.getTime() };
     });
 
     api.get<{ Params: { id: string; sha: string } }>("/api/offers/:id/photos/:sha", async (request, reply) => {
@@ -627,14 +643,15 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       const [current] = await sql<{ id: string }[]>`select id from venue_requests where id = ${id}`;
       if (!current) return fail(reply, 404, "not-found");
       if (body.status !== undefined && !isRequestStatus(body.status)) return fail(reply, 400, "invalid-argument");
-      if (body.status !== undefined) await sql`update venue_requests set status = ${String(body.status)}, updated_at = now() where id = ${id}`;
-      if (body.notes !== undefined) await sql`update venue_requests set notes = ${cleanText(body.notes, TEXT_LIMITS.notes, true)}, updated_at = now() where id = ${id}`;
-      // Владелец уточнил запрос по телефону (гости, бюджет, пожелания).
-      if (body.data !== undefined) {
-        const data = parseRequest(body.data);
-        if (requestMissing(data).length > 0) return fail(reply, 400, "invalid-argument", { missing: requestMissing(data) });
-        await sql`update venue_requests set data = ${sql.json(JSON.parse(JSON.stringify(data)))}, updated_at = now() where id = ${id}`;
-      }
+      // Сначала проверяем всё, потом пишем: неверные данные не оставляют правку записанной наполовину.
+      const data = body.data !== undefined ? parseRequest(body.data) : null;
+      if (data && requestMissing(data).length > 0) return fail(reply, 400, "invalid-argument", { missing: requestMissing(data) });
+      await sql.begin(async (tx) => {
+        if (body.status !== undefined) await tx`update venue_requests set status = ${String(body.status)}, updated_at = now() where id = ${id}`;
+        if (body.notes !== undefined) await tx`update venue_requests set notes = ${cleanText(body.notes, TEXT_LIMITS.notes, true)}, updated_at = now() where id = ${id}`;
+        // Владелец уточнил запрос по телефону (гости, бюджет, пожелания).
+        if (data) await tx`update venue_requests set data = ${tx.json(JSON.parse(JSON.stringify(data)))}, updated_at = now() where id = ${id}`;
+      });
       const [row] = await sql<RequestRow[]>`${requestSelect()} where r.id = ${id}`;
       log(request, "request-edit", "ok");
       return row ? requestOut(row) : fail(reply, 404, "not-found");

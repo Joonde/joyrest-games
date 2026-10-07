@@ -57,7 +57,8 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
         await sql`insert into answers (session_id, step, pid, uid, value) values (${id}, ${step}, ${uid}, ${uid}, ${sql.json(0)})`;
       }
     }
-    expect((await post(`/api/sessions/${id}/phase`, anna, { phase: "playing" })).statusCode).toBe(200);
+    // Как кнопка «Начать игру» на пульте: /apply из лобби (время начала ставит сервер).
+    expect((await post(`/api/sessions/${id}/apply`, anna, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);
     clock += minutes * MINUTE;
     expect((await post(`/api/sessions/${id}/finish`, anna, { participantsCount: 999 })).statusCode).toBe(200);
   }

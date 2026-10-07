@@ -574,3 +574,12 @@ sudo joyrest restore latest prod
   Частые причины: истёк или удалён ключ S3 в панели Beget, закончились деньги на балансе Beget.
 
 Мониторинг (UptimeRobot) появится в этом файле вместе со второй частью этапа 6.
+
+### Проверки «Сценарий 35 гостей и студия»
+
+Запуск: GitHub → Actions → «Сценарий 35 гостей и студия» → Run workflow. Итог — в аннотации запуска.
+Для шага «Студия и владелец» один раз:
+1. Termius: `sudo joyrest admin-password test` — почта и пароль владельца **для test** (можно новый,
+   основной адрес он не трогает). Сохраните его в «Паролях».
+2. GitHub → Settings → Secrets and variables → Actions → New repository secret:
+   `TEST_ADMIN_EMAIL` — та почта, `TEST_ADMIN_PASSWORD` — тот пароль.

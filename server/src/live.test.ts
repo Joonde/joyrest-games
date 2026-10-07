@@ -252,8 +252,13 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     for (let i = 0; i < 3; i++) expect((await call("POST", "/api/sessions/exp1/apply", host, { addScore: { p1: 10 } })).statusCode).toBe(200);
     expect((await call("POST", "/api/sessions/exp1/apply", host, { rename: { p1: "Анна" } })).statusCode).toBe(200);
     // Запоздавшее «добавить участника» не обнуляет очки.
-    await call("POST", "/api/sessions/exp1/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 0 } } });
+    await call("POST", "/api/sessions/exp1/leaderboard", host, { entries: { p1: { name: "Анна", kind: "player", score: 0 } } });
     expect((await call("GET", "/api/sessions/exp1", host)).json().leaderboard.p1).toMatchObject({ name: "Анна", score: 30 });
+    // Смена капитана команды доходит до таблицы, очки команды остаются.
+    await call("POST", "/api/sessions/exp1/leaderboard", host, { entries: { t1: { name: "Утки", kind: "team", score: 0, colorIndex: 0, captainUid: "u1" } } });
+    await call("POST", "/api/sessions/exp1/apply", host, { addScore: { t1: 50 } });
+    await call("POST", "/api/sessions/exp1/leaderboard", host, { entries: { t1: { name: "Утки", kind: "team", score: 0, colorIndex: 0, captainUid: "u2" } } });
+    expect((await call("GET", "/api/sessions/exp1", host)).json().leaderboard.t1).toMatchObject({ captainUid: "u2", score: 50, colorIndex: 0 });
     expect((await call("POST", "/api/sessions/exp1/apply", host, { addScore: { p1: 1e9 } })).statusCode).toBe(400);
     await call("POST", "/api/sessions/exp1/finish", host, { participantsCount: 1 });
     expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { step: 3 } })).statusCode).toBe(409);

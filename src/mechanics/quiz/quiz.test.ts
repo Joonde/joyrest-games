@@ -429,6 +429,18 @@ describe("раунды квиза", () => {
     expect(s.state).toMatchObject({ step: 1, stage: "board" });
     expect(boardView(s)).toBe("total");
     expect(s.leaderboard.a).toMatchObject({ score: 100, roundBase: 0 });
+    // То же — если ведущий уже открыл первый вопрос раунда и показал ответ.
+    {
+      let t = applyChange(s, nextQuestion(s, content), 10);
+      t = applyChange(t, showQuestion(t, content), 11);
+      t = applyChange(t, reveal(t, content, [], people), 12);
+      t = applyChange(t, back(t)!.change, 13);
+      t = applyChange(t, back(t)!.change, 14);
+      t = applyChange(t, back(t)!.change, 15);
+      expect(t.state).toMatchObject({ step: 1, stage: "board" });
+      expect(boardView(t)).toBe("total");
+      expect(t.leaderboard.a).toMatchObject({ score: 100, roundBase: 0 });
+    }
     // Дальше назад — к итогам раунда, к ответу и снятию очков: очки раунда не уходят в минус.
     s = applyChange(s, back(s)!.change, 7);
     expect(boardView(s)).toBe("round");

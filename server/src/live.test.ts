@@ -19,6 +19,15 @@ describe("изменение пульта", () => {
     expect(checkChange({ leaderboard: { "../x": null } })).toBeNull();
   });
 
+  it("звук по кнопке ведущего: только известные звуки и короткий id", () => {
+    expect(checkChange({ state: { cue: { id: "abc123", sound: "gong" } } })?.state.cue).toEqual({ id: "abc123", sound: "gong" });
+    expect(checkChange({ state: { cue: null } })?.state.cue).toBeNull();
+    expect(checkChange({ state: { cue: { id: "abc", sound: "siren" } } })).toBeNull();
+    expect(checkChange({ state: { cue: { id: "../x", sound: "gong" } } })).toBeNull();
+    expect(normalizeState({ cue: { id: "a", sound: "stop" }, phase: "playing" }).cue).toEqual({ id: "a", sound: "stop" });
+    expect(normalizeState({ cue: "gong" }).cue).toBeNull();
+  });
+
   it("время старта шага ставит сервер, null убирает запись таблицы", () => {
     const state = normalizeState({ phase: "playing", step: 2, stage: "ready" });
     const change = checkChange({ state: { stage: "question", startedAt: "server", timeLimit: 20 }, leaderboard: { gone: null, p1: { name: "Аня", kind: "player", score: 5 } } });

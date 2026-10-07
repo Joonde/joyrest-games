@@ -3,6 +3,7 @@
  * (снимок + изменения: состояние шага целиком и изменённые записи таблицы лидеров).
  */
 import type { SessionsRepository } from "../contracts";
+import { parseCue } from "../cues";
 import { errorCodeOf } from "../retry";
 import type { Leaderboard, LeaderboardEntry, Session, SessionPhase, SessionState, StepStage } from "../types";
 import { api, asRecord, asText, newId } from "./api";
@@ -35,6 +36,7 @@ export function parseState(value: unknown): SessionState {
     timeLimit: typeof s.timeLimit === "number" ? s.timeLimit : null,
     answered: num(s.answered),
     result: s.result ?? null,
+    cue: parseCue(s.cue),
   };
 }
 

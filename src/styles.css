@@ -2354,6 +2354,26 @@ kbd {
   font-size: 0.8em;
 }
 
+/* Кнопки звуков на пульте: две колонки на телефоне, три — на широком экране. */
+.sound-pad {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sound-pad .btn {
+  width: 100%;
+  padding-inline: 8px;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+@media (min-width: 720px) {
+  .sound-pad {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Пьедестал (экран зала, финал, репетиция): размеры в единицах контейнера. */
 .quiz-stage > .podium {
   padding-top: max(8cqh, var(--safe-top));

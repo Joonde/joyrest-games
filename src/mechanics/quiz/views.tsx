@@ -48,6 +48,8 @@ function useSoundOnChange(value: string, sound: Parameters<typeof playSound>[0],
 }
 
 const isReveal = (v: string) => v.endsWith(":reveal");
+const isZero = (v: string) => v === "0";
+const isSet = (v: string) => v !== "";
 const isTick = (v: string) => {
   const n = Number(v);
   return n > 0 && n <= 5;
@@ -66,6 +68,10 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
 
   useSoundOnChange(`${step}:${stage}`, "correct", isReveal);
   useSoundOnChange(String(left ?? ""), "tick", isTick);
+  useSoundOnChange(String(left ?? ""), "timeUp", isZero);
+  // Заставка нового раунда — со свистом перехода.
+  const roundIntro = stage === "ready" && startsRound(content, step) ? `intro:${step}` : "";
+  useSoundOnChange(roundIntro, "whoosh", isSet);
 
   // Экран зала заранее качает картинку текущего и следующего вопроса.
   useEffect(() => {

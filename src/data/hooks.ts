@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authService, sessionsRepo, usersRepo } from "./active";
 import type { AuthUser } from "./contracts";
-import { Cancelled, withRetry } from "./retry";
+import { Cancelled, errorCodeOf, withRetry } from "./retry";
 import type { Session, UserProfile } from "./types";
 
 /** Счётчик попыток: смена значения перезапускает загрузку в эффекте. */
@@ -173,7 +173,8 @@ export function useSessionByCode(
   return [state, retry];
 }
 
-export type LoadState<T> = { status: "loading" } | { status: "error" } | { status: "ready"; data: T };
+/** `notYet` — раздел ещё переезжает на свой сервер (ошибка `unimplemented`), а не сбой сети. */
+export type LoadState<T> = { status: "loading" } | { status: "error"; notYet: boolean } | { status: "ready"; data: T };
 
 /**
  * Загрузка данных для экрана: состояние, «Повторить» и замена данных после правки
@@ -196,7 +197,7 @@ export function useLoad<T>(
         if (!cancelled) setState({ status: "ready", data });
       })
       .catch((error: unknown) => {
-        if (!cancelled && !(error instanceof Cancelled)) setState({ status: "error" });
+        if (!cancelled && !(error instanceof Cancelled)) setState({ status: "error", notYet: errorCodeOf(error) === "unimplemented" });
       });
     return () => {
       cancelled = true;

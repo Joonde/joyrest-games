@@ -6,7 +6,7 @@ import { resultsRepo, sessionsRepo, useLoad, type GameResult, type UserProfile }
 import { ActionMenu } from "../../components/Menu";
 import { ResultsTable } from "../../components/Results";
 import { ListSkeleton } from "../../components/Skeleton";
-import { LoadFailedInline } from "../../components/Status";
+import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
 import { resultsUrl } from "../../components/links";
 import { SESSION_RETENTION_DAYS } from "../../core/retention";
 
@@ -36,7 +36,9 @@ export function History({ profile, onToast }: Props) {
 
   return (
     <>
-      {active.status === "error" && <LoadFailedInline onRetry={retryActive} text="Не удалось загрузить идущие сессии." />}
+      {active.status === "error" && (
+        <LoadFailedInline onRetry={retryActive} text={active.notYet ? NOT_YET_TEXT : "Не удалось загрузить идущие сессии."} />
+      )}
       {active.status === "ready" && active.data.length > 0 && (
         <section className="card">
           <h2>Сейчас идут</h2>
@@ -67,7 +69,7 @@ export function History({ profile, onToast }: Props) {
       </section>
 
       {results.status === "loading" && <ListSkeleton />}
-      {results.status === "error" && <LoadFailedInline onRetry={retryResults} />}
+      {results.status === "error" && <LoadFailedInline onRetry={retryResults} text={results.notYet ? NOT_YET_TEXT : undefined} />}
       {results.status === "ready" && results.data.length === 0 && (
         <p className="muted empty">Прошедших игр пока нет.</p>
       )}

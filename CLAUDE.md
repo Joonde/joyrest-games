@@ -218,6 +218,15 @@ Firebase удаляются, Firebase-код удаляется отдельны
     предупреждение в `joyrest status` и Telegram.
   - Кэш: `GET /api/media/:game/:id/:variant` — `private, max-age=31536000, immutable`, `ETag` = sha
     (картинку по id не перезаписать).
+  - **PR 3.2 (`server/src/games.ts`, `src/data/server/games.ts`, `media.ts`):** `GET /api/games?scope=agency`,
+    `?scope=personal&owner=`, `GET|PATCH|DELETE /api/games/:id`, `POST /api/games` (id создаёт браузер,
+    повтор — та же игра), `POST /api/games/:id/copy` (копия ссылается на те же файлы),
+    `PUT /api/media/:game/:id/:variant` — файл как есть (`image/webp`|`image/jpeg`, без multipart),
+    размеры в `X-Width`/`X-Height`, вес: full ≤ 400 КБ, small ≤ 150 КБ, hd ≤ 900 КБ; та же картинка
+    повторно — успех, другая под тем же id — 409. Лимит места — 413, мало места на диске — 507
+    (`resource-exhausted`). `DELETE /api/media/:game/:id` убирает ссылки, файл — ночная уборка (PR 4.2).
+    Картинки пока открывают только ведущие (`canReadGame`); экран зала и гости — с PR 4.1. Варианта `hd`
+    конструктор пока не делает (этап «Медиа и слайды»), таблица и сервер его уже принимают.
   - Резервные копии: `media/prod` — в ночной restic (тег `media`, только новые файлы);
     `restore` восстанавливает базу и картинки одной ночи. `media/test` не копируется.
   - Место (диск 30 ГБ): система, Docker и релизы ~9 ГБ, база < 0,5 ГБ, под медиа ~15 ГБ

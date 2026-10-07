@@ -44,6 +44,7 @@ const app = buildApp({
   // (CLAUDE.md, «Платформа на своём сервере»).
   dataBackend: parseDataBackend(process.env.DATA_BACKEND),
   sql,
+  mediaDir: env("MEDIA_DIR") ? resolve(env("MEDIA_DIR") ?? "") : null,
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

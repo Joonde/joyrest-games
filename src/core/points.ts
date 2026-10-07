@@ -7,6 +7,8 @@
 export const MIN_PHONES = 10;
 /** Сколько минут должна идти игра (от «Начать игру» до «Завершить игру»). */
 export const MIN_MINUTES = 40;
+/** Телефон — настоящий игрок, если он (или его команда) ответил хотя бы на столько вопросов. */
+export const MIN_ANSWERED_STEPS = 3;
 
 /** 0 — игра не засчитана; иначе 1 балл до 20 телефонов и +0,5 за каждые полные следующие 5. */
 export function gamePoints(phones: number, minutes: number): number {

@@ -5,7 +5,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { gamePoints, isValidManualPoints } from "../../src/core/points";
+import { gamePoints, isValidManualPoints, MIN_ANSWERED_STEPS } from "../../src/core/points";
 import * as permissions from "../../src/data/permissions";
 import { actorOf, apiGuard, levelOf, sessionUser, type SessionRow } from "./auth";
 
@@ -21,15 +21,23 @@ const HISTORY_LIMIT = 200;
 
 /**
  * Баллы за завершённую игру: не меньше 40 минут от «Начать игру» и больше 10 телефонов
- * (участники-игроки по данным сервера). Одна запись на сессию — повтор ничего не добавит.
+ * (участники-игроки по данным сервера, ответившие хотя бы на 3 вопроса). Одна запись на сессию — повтор ничего не добавит.
  * Возвращает начисленные баллы (0 — игра не засчитана).
  */
 export async function awardGamePoints(sql: Sql, sessionId: string, now: number): Promise<number> {
   const [session] = await sql<{ host_id: string; game_title: string; started_at: Date | null }[]>`
     select host_id, game_title, started_at from sessions where id = ${sessionId}`;
   if (!session?.started_at) return 0;
+  // Телефон считается, если он сам (или его команда — отвечает капитан) ответил на MIN_ANSWERED_STEPS
+  // вопросов: пустые подключения скриптом баллы не дают.
   const [row] = await sql<{ count: number }[]>`
-    select count(*)::int as count from participants where session_id = ${sessionId} and kind = 'player'`;
+    with active as (
+      select pid from answers where session_id = ${sessionId}
+      group by pid having count(distinct step) >= ${MIN_ANSWERED_STEPS}
+    )
+    select count(*)::int as count from participants p
+    where p.session_id = ${sessionId} and p.kind = 'player'
+      and (p.id in (select pid from active) or p.team_id in (select pid from active))`;
   const phones = row?.count ?? 0;
   const minutes = Math.floor((now - session.started_at.getTime()) / 60_000);
   const points = gamePoints(phones, minutes);

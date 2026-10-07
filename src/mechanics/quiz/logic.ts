@@ -1,6 +1,6 @@
 import type { Answer } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
-import type { QuizContent, QuizQuestion } from "./content";
+import { correctSet, type QuizContent, type QuizQuestion } from "./content";
 import { normalizeAnswer } from "./normalize";
 
 /** Шаг квиза — один вопрос. Показ, ответ и таблица — этапы шага (state.stage). */
@@ -50,7 +50,7 @@ export function isCorrect(question: QuizQuestion, value: unknown, accepted: stri
     const key = normalizeAnswer(value);
     return key.length > 0 && (question.answers.some((a) => normalizeAnswer(a) === key) || accepted.includes(key));
   }
-  return typeof value === "number" && value === question.correct;
+  return typeof value === "number" && correctSet(question).includes(value);
 }
 
 /** Время ответа по часам сервера; без отметки — как ответ в последнюю секунду. */

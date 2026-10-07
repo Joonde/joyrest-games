@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { formatSessionCode } from "../../core/code";
-import { formatDate } from "../../core/format";
+import { formatClock, formatDate, formatDuration } from "../../core/format";
 import { formatResultsText, participantsLabel } from "../../core/results";
 import { resultsRepo, sessionsRepo, useLoad, type GameResult, type UserProfile } from "../../data";
 import { ActionMenu } from "../../components/Menu";
@@ -108,6 +108,8 @@ function ResultCard({ result, onCopy }: { result: GameResult; onCopy: (text: str
       </div>
       <ul className="meta" aria-label="Об игре">
         {result.playedAt !== null && <li>{formatDate(result.playedAt)}</li>}
+        {result.startedAt ? <li>в {formatClock(result.startedAt)}</li> : null}
+        {result.startedAt && result.finishedAt && result.finishedAt > result.startedAt ? <li>{formatDuration(result.finishedAt - result.startedAt)}</li> : null}
         <li>{participantsLabel(result.participantsCount)}</li>
         {result.playMode === "teams" && <li>команды</li>}
       </ul>

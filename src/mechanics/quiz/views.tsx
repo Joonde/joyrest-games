@@ -9,7 +9,7 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { KIND_TITLES, LIMITS, roundAt, roundTitle, type QuizContent, type QuizQuestion } from "./content";
+import { correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { boardView, startsRound } from "./flow";
 import { isCorrect, parseResult } from "./logic";
 
@@ -28,7 +28,11 @@ function currentQuestion(session: Session, content: QuizContent): QuizQuestion |
 }
 
 export function correctText(q: QuizQuestion): string {
-  return q.kind === "open" ? q.answers.filter((a) => a.trim()).join(" / ") : (q.options[q.correct] ?? "");
+  if (q.kind === "open") return q.answers.filter((a) => a.trim()).join(" / ");
+  return correctSet(q)
+    .map((i) => q.options[i] ?? "")
+    .filter(Boolean)
+    .join(" / ");
 }
 
 /** Секунды до конца ответа по часам сервера; тикает, только пока вопрос открыт. */
@@ -181,9 +185,9 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
           )}
         </div>
       ) : (
-        <ol className="quiz-screen__options" data-count={q.options.length}>
+        <ol className="quiz-screen__options" data-count={q.options.length} data-len={optionsSize(q.options)}>
           {q.options.map((option, i) => {
-            const mark = revealed ? (i === q.correct ? " is-correct" : " is-dimmed") : "";
+            const mark = revealed ? (correctSet(q).includes(i) ? " is-correct" : " is-dimmed") : "";
             const count = result.counts[i] ?? 0;
             return (
               <li key={i} className={`quiz-screen__option${mark}`}>
@@ -202,6 +206,12 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
       )}
     </div>
   );
+}
+
+/** Крупность вариантов на экране зала: короткие — крупно, длинные — мельче, но без пустых карточек. */
+function optionsSize(options: string[]): "s" | "m" | "l" {
+  const longest = Math.max(0, ...options.map((o) => o.length));
+  return longest <= 18 ? "s" : longest <= 42 ? "m" : "l";
 }
 
 /** Ответ гостя, запомненный телефоном: номер варианта или текст. */
@@ -342,14 +352,13 @@ export function QuizPlayerView({
         Вопрос {step + 1} из {total} · {KIND_TITLES[q.kind]}
       </p>
       {noScreen ? (
-        <>
-          <h2 className="quiz-phone__question">{q.text || "Текст вопроса"}</h2>
-          {q.imageId && (
-            <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={q.imageId} variant="small" alt="" />
-          )}
-        </>
+        <h2 className="quiz-phone__question">{q.text || "Текст вопроса"}</h2>
       ) : (
         <p className="muted">Вопрос на экране зала</p>
+      )}
+      {/* Картинка: без экрана — всегда, с экраном — если ведущий включил «Картинки на телефонах». */}
+      {q.imageId && (noScreen || settingsOf(content).phoneImages) && (
+        <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={q.imageId} variant="small" alt="" />
       )}
 
       {q.kind === "open" ? (

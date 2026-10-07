@@ -16,12 +16,14 @@ import { cleanName, NAME_MAX_LENGTH } from "../../src/core/names";
 import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/session";
 import { compactBoard } from "../../src/core/results";
 import { retentionCutoff } from "../../src/core/retention";
-import { parseCue, parseMix, parseMusic, parseScreenReport, parseSlide, SCREEN_STALE_MS } from "../../src/data/cues";
+import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
 import type { ChangeExpect, Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
 import { WindowLimiter } from "./lead";
-import { actorOf, apiGuard, identityOf, type Identity } from "./auth";
+import { randomBytes } from "node:crypto";
+import { isOnline } from "../../src/core/presence";
+import { actorOf, apiGuard, deviceCookie, identityOf, tokenHash, type Identity } from "./auth";
 
 export interface LiveOptions {
   sql: Sql;
@@ -93,9 +95,11 @@ interface SessionRow {
   leaderboard: unknown;
   version: number;
   created_at: Date | null;
+  /** «Начать игру» (миграция 0005). */
+  started_at?: Date | null;
 }
 
-const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at"];
+const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at"];
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
@@ -133,6 +137,8 @@ export function normalizeState(value: unknown): SessionState {
     music: parseMusic(s.music),
     mix: parseMix(s.mix),
     slide: parseSlide(s.slide),
+    teams: parseTeams(s.teams),
+    peek: parsePeek(s.peek),
   };
 }
 
@@ -242,6 +248,14 @@ export function checkChange(value: unknown): CheckedChange | null {
   if ("slide" in raw) {
     if (raw.slide !== null && parseSlide(raw.slide) === null) return null;
     state.slide = parseSlide(raw.slide);
+  }
+  if ("teams" in raw) {
+    if (raw.teams !== null && parseTeams(raw.teams) === null) return null;
+    state.teams = parseTeams(raw.teams);
+  }
+  if ("peek" in raw) {
+    if (raw.peek !== null && parsePeek(raw.peek) === null) return null;
+    state.peek = parsePeek(raw.peek);
   }
 
   const leaderboard: CheckedChange["leaderboard"] = {};
@@ -377,6 +391,8 @@ interface ResultRow {
   played_at: Date | null;
   participants_count: number;
   board: unknown;
+  started_at?: Date | null;
+  finished_at?: Date | null;
 }
 
 function resultOf(row: ResultRow) {
@@ -391,6 +407,8 @@ function resultOf(row: ResultRow) {
     playedAt: row.played_at ? row.played_at.getTime() : null,
     participantsCount: row.participants_count,
     board: Array.isArray(row.board) ? row.board : [],
+    startedAt: row.started_at ? row.started_at.getTime() : null,
+    finishedAt: row.finished_at ? row.finished_at.getTime() : null,
   };
 }
 
@@ -407,15 +425,16 @@ async function saveResult(db: Sql | TransactionSql, row: SessionRow, participant
   const title = row.game_title.slice(0, 80);
   if (replace) {
     await sql`
-      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board)
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at)
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
-              ${row.created_at}, ${participantsCount}, ${board})
-      on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board, saved_at = now()`;
+              ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null}, now())
+      on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board,
+        started_at = excluded.started_at, finished_at = excluded.finished_at, saved_at = now()`;
   } else {
     await sql`
-      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board)
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at)
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
-              ${row.created_at}, ${participantsCount}, ${board})
+              ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null})
       on conflict (id) do nothing`;
   }
 }
@@ -817,6 +836,51 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!row) return fail(reply, 404, "not-found");
       publishParticipant(id, row);
       return { ok: true };
+    });
+
+    // ---------------------------------------------------------------- вернуться за своего игрока
+
+    // Кто из игроков сейчас не на связи: новый телефон может войти за себя прежнего (сел телефон,
+    // открыл ссылку в другом браузере). Только имена — как на экране зала.
+    api.get<{ Params: { id: string } }>("/api/sessions/:id/offline", async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      const session = await loadSession(request.params.id);
+      if (!session || normalizeState(session.state).phase === "finished") return fail(reply, 404, "not-found");
+      const rows = await sql<ParticipantRow[]>`select ${sql(PARTICIPANT_COLUMNS)} from participants where session_id = ${session.id}`;
+      const teams = new Map(rows.filter((r) => r.kind === "team").map((r) => [r.id, r.name]));
+      const at = now();
+      return rows
+        .filter((r) => r.kind === "player" && r.id !== who.uid && !isOnline(participantOf(r), at))
+        .map((r) => ({ pid: r.id, name: r.name, team: r.team_id ? (teams.get(r.team_id) ?? null) : null }))
+        .slice(0, 200);
+    });
+
+    // Войти за отключившегося игрока: этому телефону выдаётся устройство того игрока (очки, ответы,
+    // капитанство — всё его), прежний телефон теряет доступ. Только за того, кто сейчас не на связи.
+    api.post<{ Params: { id: string; pid: string } }>("/api/sessions/:id/participants/:pid/claim", { bodyLimit: 1024 }, async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      if (who.user) return fail(reply, 403, "permission-denied");
+      const { id, pid } = request.params;
+      const session = await loadSession(id);
+      if (!session || normalizeState(session.state).phase === "finished") return fail(reply, 404, "not-found");
+      if (!ID.test(pid) || pid === who.uid) return fail(reply, 400, "invalid-argument");
+      // У этого телефона уже есть свой игрок в этой игре — путаницы не допускаем.
+      if (await loadParticipant(id, who.uid)) return fail(reply, 409, "already-exists");
+      const target = await loadParticipant(id, pid);
+      if (!target || target.kind !== "player") return fail(reply, 404, "not-found");
+      if (isOnline(participantOf(target), now())) return fail(reply, 409, "failed-precondition");
+      const token = randomBytes(32).toString("base64url");
+      const moved = await sql`update devices set token_hash = ${tokenHash(token)}, last_seen_at = now() where id = ${pid} returning id`;
+      if (moved.length === 0) return fail(reply, 404, "not-found");
+      const [row] = await sql<ParticipantRow[]>`
+        update participants set seen_at = ${new Date(now())} where session_id = ${id} and id = ${pid}
+        returning ${sql(PARTICIPANT_COLUMNS)}`;
+      publishParticipant(id, row ?? null);
+      reply.header("Set-Cookie", deviceCookie(token));
+      request.log.info({ live: "claim" }, "live");
+      return { ok: true, uid: pid };
     });
 
     // ---------------------------------------------------------------- экран зала → пульт

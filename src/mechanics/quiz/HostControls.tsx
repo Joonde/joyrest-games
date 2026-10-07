@@ -4,10 +4,10 @@ import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { KIND_TITLES, roundAt, roundTitle, type QuizContent } from "./content";
+import { correctSet, KIND_TITLES, roundAt, roundTitle, type QuizContent } from "./content";
 import { PodiumHostList } from "../../components/live/Podium";
 import { podiumNext, startPodium } from "../../core/podium";
-import { actionLabel, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
+import { actionLabel, back, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted, type QuizAction } from "./flow";
 import { groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 
@@ -41,7 +41,13 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const own = answers.filter((a) => a.step === step);
   const answeredIds = new Set(own.map((a) => a.pid));
   // Кто должен ответить: все в таблице и те, кого пульт ещё не успел в неё внести.
-  const expected = new Map(Object.entries(session.leaderboard).map(([id, e]) => [id, e.name]));
+  // Участники, добавленные ведущим вручную (без телефона), не отвечают — их не ждём.
+  const known = new Set(participants.map((p) => p.id));
+  const expected = new Map(
+    Object.entries(session.leaderboard)
+      .filter(([id]) => rehearsal || known.has(id))
+      .map(([id, e]) => [id, e.name]),
+  );
   for (const p of scoringParticipants(participants, session.playMode)) if (!expected.has(p.id)) expected.set(p.id, p.name);
   const missing = [...expected.entries()].filter(([id]) => !answeredIds.has(id)).map(([, name]) => name);
   const action = primaryAction(session, content);
@@ -94,7 +100,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
     return reveal(latest.current, content, all, participants);
   }
 
-  function onPrimary() {
+  function perform(action: QuizAction) {
     if (action === "show") void run(showQuestion(session, content));
     if (action === "reveal") void run(revealChange);
     if (action === "board") void run(showBoard(session, content));
@@ -105,6 +111,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
     if (action === "finish") control.requestFinish();
   }
 
+  const onPrimary = () => perform(action);
+  const extra = extraAction(session, content);
   const backPlan = back(session);
   const groups = q.kind === "open" ? groupOpenAnswers(q, own, result.accepted) : [];
 
@@ -119,6 +127,11 @@ export function QuizHostControls({ session, content, answers, participants, cont
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
           {actionLabel(session, content, action)}
         </button>
+        {extra && (
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => perform(extra)}>
+            Показать таблицу
+          </button>
+        )}
         <button
           type="button"
           className="btn btn--secondary btn--block"
@@ -220,7 +233,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       {stage === "reveal" && q.kind !== "open" && (
         <ul className="host-quiz__dist">
           {q.options.map((o, i) => (
-            <li key={i} className={i === q.correct ? "is-correct" : undefined}>
+            <li key={i} className={correctSet(q).includes(i) ? "is-correct" : undefined}>
               {LETTERS[i]}. {o} — <strong>{result.counts[i] ?? 0}</strong>
             </li>
           ))}

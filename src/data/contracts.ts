@@ -5,6 +5,7 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type {
+  OfflinePlayer,
   OfferSummary,
   PublicOffer,
   RequestData,
@@ -154,6 +155,10 @@ export interface ParticipantsRepository {
   setCaptain(sessionId: string, teamId: string, uid: string): Promise<void>;
   /** Телефон капитана: «я на связи» (раз в 30 секунд). */
   touch(sessionId: string, uid: string): Promise<void>;
+  /** Только свой сервер: игроки не на связи — новый телефон может войти за себя прежнего. */
+  listOffline?(sessionId: string): Promise<OfflinePlayer[]>;
+  /** Только свой сервер: войти за отключившегося игрока (этот телефон станет им). */
+  claim?(sessionId: string, pid: string): Promise<void>;
   /** Только для пульта ведущего. */
   watch(sessionId: string, onChange: (participants: Participant[]) => void, onError: (error: Error) => void): Unsubscribe;
 }

@@ -5,6 +5,9 @@ import { snapshotContent } from "../core/games";
 import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core/leaderboard";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { startState } from "../core/session";
+import { isOnline } from "../core/presence";
+import { startPodium, hasPodium } from "../core/podium";
+import { presentationDone, teamOrder, teamsReveal } from "../core/teams";
 import {
   answersRepo,
   errorCodeOf,
@@ -19,6 +22,7 @@ import {
   type Participant,
   type Session,
   type SessionChange,
+  type TeamsReveal,
 } from "../data";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { HostGate } from "../components/HostGate";
@@ -36,6 +40,7 @@ import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
 import { joinHost, playUrl, playUrlHint } from "../components/links";
 import { Icon, type IconName } from "../components/Icon";
+import { NameText } from "../components/NameText";
 import { getMechanic } from "../mechanics/registry";
 import type { SessionControl } from "../mechanics/types";
 import { teamColorVar, useTheme } from "../themes/registry";
@@ -92,6 +97,7 @@ function Console({ session }: { session: Session }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [confirmAward, setConfirmAward] = useState(false);
   const [toast, showToast] = useToast();
   const [params, setParams] = useSearchParams();
   const [picking, setPickingState] = useState(params.get("pick") === "1");
@@ -140,6 +146,28 @@ function Console({ session }: { session: Session }) {
     return () => window.clearInterval(timer);
   }, [session.id, session.playMode, session.state.phase]);
 
+  // Названия команд скрыты: экран зала показывает «Команда 1 ★★★» — звёздочки по числу телефонов.
+  const reveal = teamsReveal(session.state);
+  const sizesKey = JSON.stringify(
+    Object.fromEntries(
+      participants
+        .filter((p) => p.kind === "team")
+        .map((t) => [t.id, participants.filter((p) => p.kind === "player" && p.teamId === t.id).length]),
+    ),
+  );
+  useEffect(() => {
+    if (!reveal.hidden || session.state.phase !== "lobby") return;
+    if (JSON.stringify(reveal.sizes ?? {}) === sizesKey) return;
+    const timer = window.setTimeout(() => {
+      const current = teamsReveal(latest.current.state);
+      if (!current.hidden) return;
+      void sessionsRepo
+        .apply(session.id, { state: { teams: { ...current, sizes: JSON.parse(sizesKey) as Record<string, number> } }, expect: { phase: "lobby" } })
+        .catch(() => undefined);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [sizesKey, reveal.hidden, reveal.sizes, session.id, session.state.phase]);
+
   // Счётчик «Ответили: N» для экрана зала — не чаще раза в 2 секунды.
   const ownCount = answers.filter((a) => a.step === session.state.step).length;
   const lastCountWrite = useRef(0);
@@ -171,7 +199,9 @@ function Console({ session }: { session: Session }) {
     setError(null);
     try {
       // Только из лобби: отставший второй пульт не вернёт идущую игру к первому вопросу.
-      await sessionsRepo.apply(session.id, { state: { ...startState(), startedAt: null }, expect: { phase: "lobby" } });
+      // Начало игры открывает названия команд, даже если их не представили.
+      const teams = session.state.teams ? { teams: null } : {};
+      await sessionsRepo.apply(session.id, { state: { ...startState(), startedAt: null, ...teams }, expect: { phase: "lobby" } });
     } catch (e) {
       if (errorCodeOf(e) !== "failed-precondition") setError("Не удалось начать игру. Проверьте интернет.");
     } finally {
@@ -193,6 +223,22 @@ function Console({ session }: { session: Session }) {
     }
   }
 
+  /** Досрочное награждение: пьедестал по текущему счёту с любого этапа игры. */
+  async function award() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { step, stage } = latest.current.state;
+      await sessionsRepo.apply(session.id, { ...startPodium(latest.current), state: { ...startPodium(latest.current).state, peek: null }, expect: { phase: "playing", step, stage } });
+      setConfirmAward(false);
+    } catch (e) {
+      if (errorCodeOf(e) !== "failed-precondition") setError("Не получилось. Проверьте интернет.");
+      else setConfirmAward(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(link);
@@ -203,6 +249,10 @@ function Console({ session }: { session: Session }) {
   }
 
   const { phase } = session.state;
+  // Игра завершилась (с этого пульта или с другого) — показываем итоги и «В студию».
+  useEffect(() => {
+    if (phase === "finished") setTab("game");
+  }, [phase]);
   const HostControls = mechanic?.HostControls;
   const withScreen = session.screenMode !== "none";
   const menu: MenuAction[] = [{ label: "В студию", to: "/studio" }];
@@ -229,6 +279,15 @@ function Console({ session }: { session: Session }) {
         <RolePicker code={session.code} onPult={() => setPicking(false)} />
       )}
 
+      {session.state.peek && (
+        <div className="pult-banner" role="status">
+          <span className="line-clamp">На экране {session.state.peek === "round" ? "счёт раунда" : "таблица"}</span>
+          <button type="button" className="btn btn--secondary" onClick={() => void apply({ state: { peek: null } }).catch(() => undefined)}>
+            Убрать
+          </button>
+        </div>
+      )}
+
       {slide && (
         <div className="pult-banner" role="status">
           <span className="line-clamp">На экране слайд{slide.title ? ` «${slide.title}»` : ""}</span>
@@ -244,6 +303,7 @@ function Console({ session }: { session: Session }) {
             {phase === "lobby" && (
               <>
                 <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
+                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} />}
                 <LobbyNames session={session} onMore={() => setTab("people")} />
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
                   Начать игру
@@ -263,6 +323,12 @@ function Console({ session }: { session: Session }) {
                   />
                 </Suspense>
               </section>
+            )}
+            {phase === "playing" && withScreen && <PeekCard session={session} onApply={apply} />}
+            {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
+              <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => setConfirmAward(true)}>
+                Наградить сейчас
+              </button>
             )}
             {phase === "playing" && (
               <>
@@ -327,8 +393,111 @@ function Console({ session }: { session: Session }) {
       >
         <p>Гости увидят финал и итоговую таблицу. Продолжить эту игру после завершения нельзя.</p>
       </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmAward}
+        title="Наградить сейчас?"
+        confirmLabel="Перейти к награждению"
+        busy={busy}
+        error={error}
+        onConfirm={() => void award()}
+        onCancel={() => setConfirmAward(false)}
+      >
+        <p>
+          Оставшиеся вопросы пропускаются, экран перейдёт к пьедесталу по текущему счёту.
+          {session.state.stage === "question" ? " Ответы на открытый сейчас вопрос не засчитаются." : ""} «Назад» на пульте вернёт к таблице.
+        </p>
+      </ConfirmDialog>
       <Toast text={toast} />
     </main>
+  );
+}
+
+/**
+ * Команды в лобби: «Скрыть названия команд» (экран показывает «Команда 1 ★★★») и «Представить
+ * команды» — по одной, крупно, в порядке подключения; в конце — все вместе.
+ */
+function TeamsCard({ session, onApply }: { session: Session; onApply: (change: SessionChange) => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false);
+  const reveal = teamsReveal(session.state);
+  const ordered = teamOrder(session.leaderboard);
+  const presenting = reveal.shown !== null;
+  const done = presentationDone(session.state, ordered.length);
+
+  async function set(teams: TeamsReveal | null) {
+    setBusy(true);
+    try {
+      await onApply({ state: { teams }, expect: { phase: "lobby" } });
+    } catch {
+      // Связь вернётся — ведущий нажмёт ещё раз.
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (presenting) {
+    const shown = reveal.shown ?? 0;
+    const current = ordered[shown];
+    return (
+      <section className="card teams-card" aria-live="polite">
+        <p className="eyebrow">Представление команд</p>
+        <p className="teams-card__now">
+          {current ? (
+            <>
+              На экране: команда {current.number} из {ordered.length} — <NameText name={current.entry.name} />
+            </>
+          ) : (
+            "На экране все команды"
+          )}
+        </p>
+        <div className="actions">
+          {!done && (
+            <button type="button" className="btn btn--block" disabled={busy} onClick={() => void set({ ...reveal, shown: shown + 1 })}>
+              {shown + 1 >= ordered.length ? "Показать все команды" : "Следующая команда"}
+            </button>
+          )}
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy || shown === 0} onClick={() => void set({ ...reveal, shown: Math.max(0, shown - 1) })}>
+            Назад
+          </button>
+          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void set({ hidden: false, shown: null })}>
+            Закончить представление
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="card teams-card">
+      <label className="choice teams-card__hide">
+        <input type="checkbox" checked={reveal.hidden} disabled={busy} onChange={(e) => void set({ hidden: e.target.checked, shown: null })} />
+        <span className="choice__text">
+          <span className="choice__title">Скрыть названия команд</span>
+          <span className="choice__hint">Пока все подключаются, экран показывает «Команда 1 ★★★». Названия откроются на представлении.</span>
+        </span>
+      </label>
+      <button type="button" className="btn btn--secondary btn--block" disabled={busy || ordered.length === 0} onClick={() => void set({ ...reveal, shown: 0 })}>
+        Представить команды
+      </button>
+    </section>
+  );
+}
+
+/** Таблица поверх игры по кнопке: общий счёт или счёт текущего раунда. */
+function PeekCard({ session, onApply }: { session: Session; onApply: (change: SessionChange) => Promise<unknown> }) {
+  const peek = session.state.peek ?? null;
+  const hasRounds = Object.values(session.leaderboard).some((e) => (e.roundBase ?? 0) > 0);
+  const toggle = (view: "total" | "round") => void onApply({ state: { peek: peek === view ? null : view } }).catch(() => undefined);
+  return (
+    <div className="row peek-card" role="group" aria-label="Таблица на экран">
+      <button type="button" className={peek === "total" ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={peek === "total"} onClick={() => toggle("total")}>
+        {peek === "total" ? "Убрать таблицу" : "Таблица на экран"}
+      </button>
+      {hasRounds && (
+        <button type="button" className={peek === "round" ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={peek === "round"} onClick={() => toggle("round")}>
+          {peek === "round" ? "Убрать счёт раунда" : "Счёт раунда"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -430,7 +599,22 @@ function JoinCard({ session, link, compact, onCopy }: { session: Session; link: 
   );
 }
 
-type Edit = { kind: "rename"; pid: string; name: string } | { kind: "remove"; pid: string; name: string; team: boolean };
+function PresenceDot({ state }: { state: "on" | "off" | "manual" }) {
+  if (state === "manual") return <span className="presence presence--manual" title="Без телефона" aria-label="без телефона" />;
+  return <span className={`presence presence--${state}`} title={state === "on" ? "На связи" : "Не на связи"} aria-label={state === "on" ? "на связи" : "не на связи"} />;
+}
+
+type Edit =
+  | { kind: "rename"; pid: string; name: string }
+  | { kind: "remove"; pid: string; name: string; team: boolean }
+  | { kind: "points"; pid: string; name: string }
+  | { kind: "add" };
+
+/** id участника, которого ведущий добавил вручную (гость без телефона). */
+function manualId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(9));
+  return "m" + Array.from(bytes, (b) => (b % 36).toString(36)).join("");
+}
 
 /** Игроки или команды: очки ±, переименовать, убрать, назначить капитана. */
 function PeopleCard({
@@ -446,6 +630,8 @@ function PeopleCard({
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const [nameInput, setNameInput] = useState("");
+  const [pointsInput, setPointsInput] = useState("");
+  const now = Date.now() + clock.offset();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const board = rankedLeaderboard(session.leaderboard);
@@ -471,24 +657,44 @@ function PeopleCard({
     }
   }
 
-  async function confirmEdit() {
+  async function confirmEdit(sign: 1 | -1 = 1) {
     if (!edit) return;
     setBusy(true);
     setError(null);
     try {
-      if (edit.kind === "rename") {
+      if (edit.kind === "rename" || edit.kind === "add") {
         const name = cleanName(nameInput);
         if (!isValidName(name)) {
           setError("Введите имя.");
           setBusy(false);
           return;
         }
-        const entry = session.leaderboard[edit.pid];
-        await participantsRepo.rename(session.id, edit.pid, name);
-        if (entry) await sessionsRepo.apply(session.id, { rename: { [edit.pid]: name } });
-        onToast("Имя изменено");
+        if (edit.kind === "add") {
+          // Гость без телефона: только в таблице, очки ставит ведущий.
+          const used = Object.values(session.leaderboard).map((e) => e.colorIndex ?? -1);
+          const entry: LeaderboardEntry = teams
+            ? { name, kind: "team", score: 0, colorIndex: Math.max(-1, ...used) + 1 }
+            : { name, kind: "player", score: 0 };
+          await sessionsRepo.apply(session.id, { leaderboard: { [manualId()]: entry } });
+          onToast(teams ? "Команда добавлена" : "Игрок добавлен");
+        } else {
+          const entry = session.leaderboard[edit.pid];
+          // Участник, добавленный вручную, есть только в таблице.
+          if (participants.some((p) => p.id === edit.pid)) await participantsRepo.rename(session.id, edit.pid, name);
+          if (entry) await sessionsRepo.apply(session.id, { rename: { [edit.pid]: name } });
+          onToast("Имя изменено");
+        }
+      } else if (edit.kind === "points") {
+        const amount = Number.parseInt(pointsInput.replace(/\s/g, ""), 10);
+        if (!Number.isFinite(amount) || amount <= 0 || amount > 100_000) {
+          setError("Введите число от 1 до 100 000.");
+          setBusy(false);
+          return;
+        }
+        await sessionsRepo.apply(session.id, { addScore: { [edit.pid]: sign * amount } });
+        onToast(`${sign > 0 ? "+" : "−"}${amount} — ${edit.name}`);
       } else {
-        await participantsRepo.remove(session.id, edit.pid);
+        if (participants.some((p) => p.id === edit.pid)) await participantsRepo.remove(session.id, edit.pid);
         if (session.leaderboard[edit.pid]) await sessionsRepo.apply(session.id, { leaderboard: { [edit.pid]: null } });
         onToast(edit.team ? "Команда убрана" : "Игрок убран");
       }
@@ -500,12 +706,37 @@ function PeopleCard({
     }
   }
 
+  /** На связи ли телефон игрока или хотя бы один телефон команды. */
+  function presence(pid: string): "on" | "off" | "manual" {
+    if (teams) {
+      const phones = participants.filter((p) => p.kind === "player" && p.teamId === pid);
+      if (!participants.some((p) => p.id === pid)) return "manual";
+      return phones.some((p) => isOnline(p, now)) ? "on" : "off";
+    }
+    const phone = participants.find((p) => p.id === pid);
+    if (!phone) return "manual";
+    return isOnline(phone, now) ? "on" : "off";
+  }
+
   return (
     <section className="card">
       <h2>
         {teams ? "Команды" : "Игроки"}: {board.length}
       </h2>
       {teams && <p className="muted">Подключено телефонов: {phones}</p>}
+      {!finished && (
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          onClick={() => {
+            setNameInput("");
+            setError(null);
+            setEdit({ kind: "add" });
+          }}
+        >
+          {teams ? "+ Добавить команду" : "+ Добавить игрока"}
+        </button>
+      )}
       {board.length === 0 ? (
         <p className="muted">Пока никого. Попросите гостей отсканировать QR-код.</p>
       ) : (
@@ -513,6 +744,14 @@ function PeopleCard({
           {board.map((entry) => {
             const members = participants.filter((p) => p.kind === "player" && p.teamId === entry.id);
             const actions: MenuAction[] = [
+              {
+                label: "Очки: добавить или снять",
+                onClick: () => {
+                  setPointsInput("");
+                  setError(null);
+                  setEdit({ kind: "points", pid: entry.id, name: entry.name });
+                },
+              },
               {
                 label: "Переименовать",
                 onClick: () => {
@@ -534,10 +773,11 @@ function PeopleCard({
                 <div className="people-list__head">
                   <span className="people-list__place">{entry.place}</span>
                   <span className="people-list__name">
+                    <PresenceDot state={presence(entry.id)} />
                     {entry.kind === "team" && (
                       <span className="team-dot" style={{ "--team-color": teamColorVar(entry.colorIndex) } as CSSProperties} aria-hidden />
                     )}
-                    {entry.name}
+                    <NameText name={entry.name} />
                   </span>
                   <strong className="people-list__score">{entry.score}</strong>
                 </div>
@@ -569,6 +809,7 @@ function PeopleCard({
                       return (
                         <li key={m.id}>
                           <span>
+                            <PresenceDot state={isOnline(m, now) ? "on" : "off"} />
                             {m.name}
                             {captain && <span className="muted"> · капитан</span>}
                           </span>
@@ -590,22 +831,48 @@ function PeopleCard({
 
       <ConfirmDialog
         open={edit !== null}
-        title={edit?.kind === "rename" ? "Новое имя" : edit?.team ? "Убрать команду?" : "Убрать игрока?"}
-        confirmLabel={edit?.kind === "rename" ? "Сохранить имя" : "Убрать"}
+        title={
+          edit?.kind === "rename"
+            ? "Новое имя"
+            : edit?.kind === "add"
+              ? teams
+                ? "Новая команда"
+                : "Новый игрок"
+              : edit?.kind === "points"
+                ? `Очки: ${edit.name}`
+                : edit?.kind === "remove" && edit.team
+                  ? "Убрать команду?"
+                  : "Убрать игрока?"
+        }
+        confirmLabel={edit?.kind === "rename" ? "Сохранить имя" : edit?.kind === "add" ? "Добавить" : edit?.kind === "points" ? "Добавить очки" : "Убрать"}
+        cancelLabel={edit?.kind === "points" ? "Закрыть" : "Отмена"}
         busy={busy}
         error={error}
-        onConfirm={() => void confirmEdit()}
+        onConfirm={() => void confirmEdit(1)}
         onCancel={() => setEdit(null)}
       >
-        {edit?.kind === "rename" ? (
-          <label className="field">
-            Имя
-            <input maxLength={NAME_MAX_LENGTH} value={nameInput} autoComplete="off" onChange={(e) => setNameInput(e.target.value)} />
-          </label>
+        {edit?.kind === "rename" || edit?.kind === "add" ? (
+          <>
+            <label className="field">
+              {teams && edit.kind === "add" ? "Название команды" : "Имя"}
+              <input maxLength={NAME_MAX_LENGTH} value={nameInput} autoComplete="off" onChange={(e) => setNameInput(e.target.value)} />
+            </label>
+            {edit.kind === "add" && <p className="muted small">Без телефона: участник есть в таблице, очки ставите вы.</p>}
+          </>
+        ) : edit?.kind === "points" ? (
+          <>
+            <label className="field">
+              Сколько очков
+              <input inputMode="numeric" pattern="[0-9]*" value={pointsInput} autoComplete="off" onChange={(e) => setPointsInput(e.target.value.replace(/\D/g, ""))} />
+            </label>
+            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void confirmEdit(-1)}>
+              Снять очки
+            </button>
+          </>
         ) : (
           <p>
             «{edit?.name}» пропадёт из таблицы вместе с очками.{" "}
-            {edit?.team ? "Телефоны команды смогут войти заново в другую команду." : "Гость сможет войти заново."}
+            {edit?.kind === "remove" && edit.team ? "Телефоны команды смогут войти заново в другую команду." : "Гость сможет войти заново."}
           </p>
         )}
       </ConfirmDialog>

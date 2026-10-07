@@ -16,6 +16,7 @@ import {
   useGuestSignIn,
   useSessionByCode,
   withRetry,
+  type OfflinePlayer,
   type Participant,
   type Session,
 } from "../data";
@@ -140,6 +141,42 @@ function JoinForm({
   const [teamName, setTeamName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState<OfflinePlayer[]>([]);
+  const [claiming, setClaiming] = useState<OfflinePlayer | null>(null);
+
+  // Кто сейчас не на связи: гость с новым телефоном выбирает себя и продолжает с теми же очками.
+  useEffect(() => {
+    let cancelled = false;
+    participantsRepo.listOffline?.(session.id)
+      .then((list) => !cancelled && setOffline(list))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [session.id]);
+
+  async function claim(player: OfflinePlayer) {
+    if (!participantsRepo.claim) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await participantsRepo.claim(session.id, player.pid);
+      rememberName(player.name);
+      // Телефон стал этим игроком: начинаем с чистого листа уже под его именем.
+      window.location.reload();
+    } catch (problem) {
+      const code = errorCodeOf(problem);
+      setError(
+        code === "failed-precondition"
+          ? "Этот игрок снова на связи — войти за него нельзя."
+          : code === "already-exists"
+            ? "С этого телефона уже играет другой игрок."
+            : "Не получилось. Проверьте интернет и попробуйте снова.",
+      );
+      setClaiming(null);
+      setBusy(false);
+    }
+  }
 
   const loadTeams = useCallback(() => {
     if (!teamsMode) return;
@@ -188,6 +225,31 @@ function JoinForm({
   return (
     <main className="page page--center">
       <Logo kind="full" className="logo--form" />
+      {offline.length > 0 && (
+        <section className="card" aria-labelledby="rejoin-title">
+          <h2 id="rejoin-title">Вы уже играли?</h2>
+          <p className="muted small">Сел телефон или открыли игру в другом браузере — выберите себя и продолжайте с теми же очками.</p>
+          <ul className="list rejoin-list">
+            {offline.map((p) => (
+              <li key={p.pid}>
+                <span className="stack--none">
+                  <span>{p.name}</span>
+                  {p.team && <span className="muted small">команда {p.team}</span>}
+                </span>
+                {claiming?.pid === p.pid ? (
+                  <button type="button" className="btn" disabled={busy} onClick={() => void claim(p)}>
+                    {busy ? "Входим…" : "Да, это я"}
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => setClaiming(p)}>
+                    Это я
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <form className="card" onSubmit={onSubmit}>
         <p className="eyebrow">Игра {formatSessionCode(session.code)}</p>
         <h1>Как вас зовут?</h1>
@@ -245,7 +307,7 @@ function JoinForm({
 }
 
 const ANSWER_KEY = "joyrest.answer";
-/** Как часто телефон капитана сообщает «я на связи». */
+/** Как часто телефон гостя сообщает «я на связи». */
 const HEARTBEAT_MS = 30_000;
 
 /**
@@ -371,7 +433,8 @@ function InGame({
 
   // Капитан раз в 30 секунд сообщает «я на связи»; пропадёт — капитаном станет следующий.
   useEffect(() => {
-    if (role !== "captain" || phase === "finished") return;
+    // Все телефоны сообщают «я на связи»: пульт видит, кто отвалился, а за отключившегося можно войти.
+    if (phase === "finished") return;
     const touch = () => {
       if (document.visibilityState === "visible") void participantsRepo.touch(session.id, uid).catch(() => undefined);
     };
@@ -382,7 +445,7 @@ function InGame({
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", touch);
     };
-  }, [role, phase, session.id, uid]);
+  }, [phase, session.id, uid]);
 
   async function answer(value: unknown) {
     const step = session.state.step;

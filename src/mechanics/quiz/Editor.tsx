@@ -9,6 +9,9 @@ import { mediaRepo } from "../../data";
 import type { EditorProps, ValidationError } from "../types";
 import {
   changeKind,
+  correctSet,
+  settingsOf,
+  toggleCorrect,
   duplicateQuestion,
   KIND_HINTS,
   KIND_TITLES,
@@ -20,6 +23,7 @@ import {
   type QuestionKind,
   type QuizContent,
   type QuizQuestion,
+  type QuizSettings,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
 import { QuizPreview } from "./Preview";
@@ -168,6 +172,8 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
           </div>
         )}
       </section>
+
+      {editable && <SettingsCard settings={settingsOf(content)} onChange={(settings) => onChange({ ...content, settings })} />}
 
       {questions.length > 0 && (
         <ol className="q-list" aria-label="Вопросы игры" onDragLeave={(e) => e.currentTarget === e.target && setDropIndex(null)}>
@@ -327,6 +333,53 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   );
 }
 
+const BOARD_MODES: Array<{ id: QuizSettings["board"]; title: string; hint: string }> = [
+  { id: "each", title: "После каждого вопроса", hint: "Ответ → таблица → следующий вопрос." },
+  { id: "rounds", title: "В конце раунда", hint: "Таблица — только после последнего вопроса раунда (без раундов — в конце игры)." },
+  { id: "manual", title: "По кнопке", hint: "После ответа — сразу следующий вопрос; таблицу ведущий показывает, когда захочет." },
+];
+
+/** Как проводить квиз: заставка вопроса, когда таблица, картинки на телефонах. */
+function SettingsCard({ settings, onChange }: { settings: QuizSettings; onChange: (settings: QuizSettings) => void }) {
+  return (
+    <details className="card quiz-settings">
+      <summary>
+        <h2>Как проводить</h2>
+        <span className="muted small">
+          {settings.intro ? "с заставкой вопроса" : "без заставки"} · {BOARD_MODES.find((b) => b.id === settings.board)?.title.toLowerCase()}
+          {settings.phoneImages ? " · картинки на телефонах" : ""}
+        </span>
+      </summary>
+      <label className="choice">
+        <input type="checkbox" checked={settings.intro} onChange={(e) => onChange({ ...settings, intro: e.target.checked })} />
+        <span className="choice__text">
+          <span className="choice__title">Заставка «Вопрос 2 из 8»</span>
+          <span className="choice__hint">Без неё «Следующий вопрос» сразу открывает вопрос и таймер. Заставка раунда остаётся.</span>
+        </span>
+      </label>
+      <fieldset>
+        <legend>Таблица</legend>
+        {BOARD_MODES.map((mode) => (
+          <label key={mode.id} className="choice">
+            <input type="radio" name="quiz-board" checked={settings.board === mode.id} onChange={() => onChange({ ...settings, board: mode.id })} />
+            <span className="choice__text">
+              <span className="choice__title">{mode.title}</span>
+              <span className="choice__hint">{mode.hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <label className="choice">
+        <input type="checkbox" checked={settings.phoneImages} onChange={(e) => onChange({ ...settings, phoneImages: e.target.checked })} />
+        <span className="choice__text">
+          <span className="choice__title">Картинки вопросов на телефонах гостей</span>
+          <span className="choice__hint">Уменьшенная картинка над вариантами. В режиме «без экрана» показывается всегда.</span>
+        </span>
+      </label>
+    </details>
+  );
+}
+
 function Arrow({ up = false }: { up?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={up ? undefined : { transform: "rotate(180deg)" }}>
@@ -367,8 +420,11 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
   function removeOption(i: number) {
     onChange((cur) => {
       const options = cur.options.filter((_, j) => j !== i);
-      const correct = cur.correct === i ? -1 : cur.correct > i ? cur.correct - 1 : cur.correct;
-      return { ...cur, options, correct };
+      // Верные варианты после удалённого сдвигаются на один вверх.
+      const shifted = correctSet(cur)
+        .filter((c) => c !== i)
+        .map((c) => (c > i ? c - 1 : c));
+      return { ...cur, options, correct: shifted[0] ?? -1, alsoCorrect: shifted.slice(1) };
     });
   }
 
@@ -481,16 +537,15 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       ) : (
         <fieldset aria-describedby={[describedBy("options"), describedBy("correct")].filter(Boolean).join(" ") || undefined}>
           <legend>Варианты ответа</legend>
-          <p className="muted small">Отметьте кружком правильный вариант. От 2 до 6 вариантов.</p>
+          <p className="muted small">Отметьте галочкой правильный вариант — можно несколько, тогда засчитается любой. От 2 до 6 вариантов.</p>
           {q.options.map((option, i) => (
-            <div key={i} className={q.correct === i ? "q-row q-row--correct" : "q-row"}>
+            <div key={i} className={correctSet(q).includes(i) ? "q-row q-row--correct" : "q-row"}>
               <input
-                type="radio"
-                className="radio"
-                name={`correct-${q.id}`}
-                checked={q.correct === i}
+                type="checkbox"
+                className="check"
+                checked={correctSet(q).includes(i)}
                 aria-label={`Вариант ${LETTERS[i]} — правильный`}
-                onChange={() => onChange({ correct: i })}
+                onChange={() => onChange((cur) => toggleCorrect(cur, i))}
               />
               <input
                 className="q-row__input"
@@ -585,9 +640,9 @@ function QuestionReadOnly({ gameId, question: q }: { gameId: string; question: Q
       ) : (
         <ul className="import-item__options">
           {q.options.map((o, i) => (
-            <li key={i} className={i === q.correct ? "is-correct" : undefined}>
+            <li key={i} className={correctSet(q).includes(i) ? "is-correct" : undefined}>
               {LETTERS[i]}. {o}
-              {i === q.correct && <span className="visually-hidden"> (верный)</span>}
+              {correctSet(q).includes(i) && <span className="visually-hidden"> (верный)</span>}
             </li>
           ))}
         </ul>

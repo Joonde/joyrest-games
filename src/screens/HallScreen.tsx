@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
+import { roundLeaderboard } from "../core/rounds";
+import { teamNameVisible, teamOrder, teamsReveal } from "../core/teams";
 import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } from "../data";
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
@@ -22,6 +24,7 @@ import {
 } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
+import { NameText } from "../components/NameText";
 import { VPN_HINT } from "../core/texts";
 import { QrCode } from "../components/QrCode";
 import { ScreenSkeleton } from "../components/Skeleton";
@@ -188,36 +191,100 @@ function Screen({ session }: { session: Session }) {
 }
 
 function Lobby({ session }: { session: Session }) {
-  const board = sortedLeaderboard(session.leaderboard);
   const teams = session.playMode === "teams";
+  const reveal = teamsReveal(session.state);
+  if (teams && reveal.shown !== null) return <TeamsPresentation session={session} />;
+  const board = sortedLeaderboard(session.leaderboard);
+  const ordered = teams ? teamOrder(session.leaderboard) : [];
   return (
-    <main className="screen">
-      <div className="screen__brand">
-        <Logo kind="emblem" className="logo--splash" />
+    <main className="screen screen--lobby">
+      <div className="screen__qr">
+        <QrCode value={playUrl(session.code)} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />
       </div>
       <div className="screen__join">
+        <Logo kind="full" className="logo--lobby" />
         <h1 className="screen-title">Присоединяйтесь к игре</h1>
-        <p className="screen-text">Отсканируйте QR-код или откройте {joinHint()} и введите код</p>
-        <div className="screen__code">
-          <div className="big-code">{formatSessionCode(session.code)}</div>
-          <QrCode value={playUrl(session.code)} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />
-        </div>
+        <p className="screen-text">Наведите камеру на QR-код или откройте {joinHint()} и введите код</p>
+        <div className="big-code">{formatSessionCode(session.code)}</div>
         <p className="screen-note">{VPN_HINT}</p>
         <p className="screen-text">
           {teams ? "Команд" : "Игроков"}: {board.length}
         </p>
         <div className="chips" aria-live="polite">
-          {board.map((e) => (
-            <span
-              key={e.id}
-              className={e.kind === "team" ? "chip chip--team" : "chip"}
-              style={e.kind === "team" ? teamStyle(e.colorIndex) : undefined}
-            >
-              {e.name}
-            </span>
-          ))}
+          {teams
+            ? ordered.map((team) => {
+                const hidden = !teamNameVisible(session.state, team.number);
+                const phones = reveal.sizes?.[team.id] ?? 0;
+                return (
+                  <span key={team.id} className="chip chip--team" style={teamStyle(team.entry.colorIndex)}>
+                    {hidden ? (
+                      <>
+                        Команда {team.number}
+                        {phones > 0 && <span className="chip__stars" aria-label={`телефонов: ${phones}`}> {"★".repeat(Math.min(phones, 8))}</span>}
+                      </>
+                    ) : (
+                      <NameText name={team.entry.name} />
+                    )}
+                  </span>
+                );
+              })
+            : board.map((e) => (
+                <span key={e.id} className="chip">
+                  <NameText name={e.name} />
+                </span>
+              ))}
         </div>
       </div>
+    </main>
+  );
+}
+
+/** «Представить команды»: по одной, крупно, в порядке подключения; в конце — все вместе. */
+function TeamsPresentation({ session }: { session: Session }) {
+  const ordered = teamOrder(session.leaderboard);
+  const shown = teamsReveal(session.state).shown ?? 0;
+  const current = ordered[shown];
+  const sound = current ? `team:${shown}` : "all";
+  const last = useRef(sound);
+  useEffect(() => {
+    if (last.current === sound) return;
+    last.current = sound;
+    playSound(current ? "whoosh" : "fanfare");
+  }, [sound, current]);
+
+  if (!current) {
+    return (
+      <main className="screen-center teams-intro">
+        <p className="eyebrow teams-intro__eyebrow">Сегодня играют</p>
+        <ol className="teams-intro__all">
+          {ordered.map((team) => (
+            <li key={team.id} className="chip chip--team teams-intro__chip" style={teamStyle(team.entry.colorIndex)}>
+              <span className="teams-intro__num">{team.number}</span> <NameText name={team.entry.name} />
+            </li>
+          ))}
+        </ol>
+      </main>
+    );
+  }
+  return (
+    <main className="screen-center teams-intro" key={current.id}>
+      <p className="eyebrow teams-intro__eyebrow">
+        Команда {current.number} из {ordered.length}
+      </p>
+      <div className="teams-intro__card" style={teamStyle(current.entry.colorIndex)}>
+        <span className="teams-intro__name">
+          <NameText name={current.entry.name} />
+        </span>
+      </div>
+      {shown > 0 && (
+        <ol className="teams-intro__before">
+          {ordered.slice(0, shown).map((team) => (
+            <li key={team.id} className="chip chip--team" style={teamStyle(team.entry.colorIndex)}>
+              <NameText name={team.entry.name} />
+            </li>
+          ))}
+        </ol>
+      )}
     </main>
   );
 }
@@ -229,10 +296,23 @@ function Playing({ session }: { session: Session }) {
     [mechanic, session.gameSnapshot],
   );
   const ScreenView = mechanic?.ScreenView;
+  const { stage } = session.state;
+  const peek = session.state.peek ?? null;
+  // QR для опоздавших — между вопросами (на заставке и таблице), чтобы не закрывать варианты.
+  const joinBadge = !peek && (stage === "ready" || stage === "board");
   return (
     <main className="quiz-stage">
       <Logo kind="monogram" className="logo--corner" title="" />
-      {session.state.stage === "podium" ? (
+      {peek ? (
+        <div className="quiz-screen quiz-screen--board">
+          <BoardView
+            leaderboard={peek === "round" ? roundLeaderboard(session.leaderboard) : session.leaderboard}
+            title={peek === "round" ? "Счёт текущего раунда" : "Таблица сейчас"}
+            showLast={false}
+            showMoves={peek === "total"}
+          />
+        </div>
+      ) : stage === "podium" ? (
         <Podium session={session} />
       ) : ScreenView && content !== null ? (
         <ScreenView session={session} content={content} />
@@ -241,9 +321,20 @@ function Playing({ session }: { session: Session }) {
           <h1 className="screen-title">Игра идёт</h1>
         </div>
       )}
-      <p className="stage-code">
-        Вход: {joinHint()} · код {formatSessionCode(session.code)}
-      </p>
+      {joinBadge ? (
+        <div className="join-badge">
+          <QrCode value={playUrl(session.code)} label={`QR-код для входа: ${formatSessionCode(session.code)}`} />
+          <p>
+            Опоздали? {joinHint()}
+            <br />
+            код <strong>{formatSessionCode(session.code)}</strong>
+          </p>
+        </div>
+      ) : (
+        <p className="stage-code">
+          Вход: {joinHint()} · код {formatSessionCode(session.code)}
+        </p>
+      )}
     </main>
   );
 }

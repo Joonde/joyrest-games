@@ -1,6 +1,6 @@
 // Звуки по кнопке ведущего (CLAUDE.md, раздел 7, «Звуки»): пульт пишет в state.cue, экран зала
 // играет звук, когда меняется id. Чистые функции: их используют и браузер, и сервер.
-import type { CueSound, MixState, MusicState, ScreenReport, SlideKind, SlideState, SoundCue } from "./types";
+import type { CueSound, MixState, MusicState, PeekView, ScreenReport, SlideKind, SlideState, SoundCue, TeamsReveal } from "./types";
 
 export const CUE_SOUNDS: readonly CueSound[] = ["gong", "drumroll", "fanfare", "applause", "wrong", "stop"];
 
@@ -73,3 +73,26 @@ export function parseScreenReport(value: unknown): ScreenReport | null {
 /** Экран зала сообщает о себе раз в 20 с; молчит дольше минуты — пульт считает, что его нет. */
 export const SCREEN_REPORT_MS = 20_000;
 export const SCREEN_STALE_MS = 60_000;
+
+const TEAM_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Скрытые названия и представление команд; непонятное — null (всё открыто). */
+export function parseTeams(value: unknown): TeamsReveal | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  const shown = typeof v.shown === "number" && Number.isInteger(v.shown) && v.shown >= 0 && v.shown <= 200 ? v.shown : null;
+  const reveal: TeamsReveal = { hidden: v.hidden === true, shown };
+  if (typeof v.sizes === "object" && v.sizes !== null && !Array.isArray(v.sizes)) {
+    const sizes: Record<string, number> = {};
+    for (const [id, n] of Object.entries(v.sizes as Record<string, unknown>).slice(0, 200)) {
+      if (TEAM_ID.test(id) && typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 100) sizes[id] = n;
+    }
+    reveal.sizes = sizes;
+  }
+  return reveal;
+}
+
+/** Таблица поверх игры; непонятное — null (таблицы поверх нет). */
+export function parsePeek(value: unknown): PeekView | null {
+  return value === "total" || value === "round" ? value : null;
+}

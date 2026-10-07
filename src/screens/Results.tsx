@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { formatDate } from "../core/format";
+import { formatClock, formatDate, formatDuration } from "../core/format";
 import { participantsLabel } from "../core/results";
 import { resultsRepo, useAuth, useLoad, type GameResult } from "../data";
 import { Logo } from "../components/Logo";
@@ -26,8 +26,12 @@ function ResultsView({ result }: { result: GameResult }) {
   useTheme(result.themeId);
   // Ведущий возвращается в студию, гость — на главную (оттуда можно войти в новую игру).
   const host = auth.status === "signedIn" && auth.profile !== null;
+  const started = result.startedAt ?? null;
+  const finished = result.finishedAt ?? null;
   const meta = [
     result.playedAt !== null ? formatDate(result.playedAt) : "",
+    started !== null ? `начало в ${formatClock(started)}` : "",
+    started !== null && finished !== null && finished > started ? `шла ${formatDuration(finished - started)}` : "",
     participantsLabel(result.participantsCount),
   ].filter(Boolean);
 

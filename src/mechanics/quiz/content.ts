@@ -12,6 +12,8 @@ export interface QuizQuestion {
   options: string[];
   /** Номер правильного варианта; -1 — ещё не выбран. */
   correct: number;
+  /** Ещё верные варианты (кроме `correct`): засчитывается любой из отмеченных. */
+  alsoCorrect?: number[];
   /** Верные ответы на открытый вопрос: подходит любой. */
   answers: string[];
   /** Время на ответ, секунды. */
@@ -23,8 +25,44 @@ export interface QuizQuestion {
   round: string | null;
 }
 
+/** Как ведущий проводит квиз (настройки игры в конструкторе). */
+export interface QuizSettings {
+  /** Заставка «Вопрос 2 из 8» перед вопросом; false — «Следующий вопрос» сразу открывает вопрос. */
+  intro: boolean;
+  /**
+   * Таблица после ответа: `each` — после каждого вопроса, `rounds` — только в конце раунда
+   * (без раундов — только в конце игры), `manual` — по кнопке ведущего.
+   */
+  board: "each" | "rounds" | "manual";
+  /** Картинка вопроса на телефонах гостей и при экране зала (без экрана — всегда). */
+  phoneImages: boolean;
+}
+
+export const DEFAULT_SETTINGS: QuizSettings = { intro: true, board: "each", phoneImages: false };
+
 export interface QuizContent {
   questions: QuizQuestion[];
+  /** Нет — настройки по умолчанию (игры, созданные до настроек). */
+  settings?: QuizSettings;
+}
+
+export function settingsOf(content: QuizContent): QuizSettings {
+  return content.settings ?? DEFAULT_SETTINGS;
+}
+
+/** Все верные варианты вопроса с вариантами (по возрастанию). */
+export function correctSet(q: Pick<QuizQuestion, "correct" | "alsoCorrect" | "options">): number[] {
+  const all = new Set<number>([q.correct, ...(q.alsoCorrect ?? [])]);
+  return [...all].filter((i) => i >= 0 && i < q.options.length).sort((a, b) => a - b);
+}
+
+/** Отметить или снять верный вариант: первый отмеченный — `correct`, остальные — `alsoCorrect`. */
+export function toggleCorrect(q: QuizQuestion, index: number): QuizQuestion {
+  const set = new Set(correctSet(q));
+  if (set.has(index)) set.delete(index);
+  else set.add(index);
+  const sorted = [...set].sort((a, b) => a - b);
+  return { ...q, correct: sorted[0] ?? -1, alsoCorrect: sorted.slice(1) };
 }
 
 /** Раунд квиза: вопросы с from по to включительно. */
@@ -95,7 +133,7 @@ export const KIND_TITLES: Record<QuestionKind, string> = {
 };
 
 export const KIND_HINTS: Record<QuestionKind, string> = {
-  choice: "От 2 до 6 вариантов, один верный.",
+  choice: "От 2 до 6 вариантов, верных — один или несколько.",
   open: "Гости пишут ответ сами. Регистр, ё/е, пробелы и знаки препинания не важны.",
   speed: "Варианты ответа; чем быстрее верный ответ, тем больше очков.",
 };
@@ -112,6 +150,7 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     text: "",
     options: kind === "open" ? [] : ["", ""],
     correct: kind === "open" ? -1 : 0,
+    alsoCorrect: [],
     answers: kind === "open" ? [""] : [],
     ...DEFAULTS[kind],
     imageId: null,
@@ -120,7 +159,7 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
 }
 
 export function createContent(): QuizContent {
-  return { questions: [] };
+  return { questions: [], settings: { ...DEFAULT_SETTINGS } };
 }
 
 /** Смена типа вопроса сохраняет всё, что можно сохранить. */
@@ -145,7 +184,7 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
 /** Копия вопроса с новым id; картинка общая (тот же imageId). */
 export function duplicateQuestion(question: QuizQuestion): QuizQuestion {
   // Копия продолжает раунд, а не начинает новый с тем же названием.
-  return { ...question, id: newQuestionId(), options: [...question.options], answers: [...question.answers], round: null };
+  return { ...question, id: newQuestionId(), options: [...question.options], alsoCorrect: [...(question.alsoCorrect ?? [])], answers: [...question.answers], round: null };
 }
 
 export function moveItem<T>(list: T[], from: number, to: number): T[] {
@@ -195,12 +234,16 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
   seen.add(id);
   const options = strings(data.options, LIMITS.maxOptions, LIMITS.option);
   const correct = typeof data.correct === "number" && Number.isInteger(data.correct) ? data.correct : -1;
+  const alsoCorrect = Array.isArray(data.alsoCorrect)
+    ? [...new Set(data.alsoCorrect.filter((i): i is number => Number.isInteger(i) && i >= 0 && i < options.length && i !== correct))].sort((a, b) => a - b)
+    : [];
   return {
     id,
     kind,
     text: text(data.text, LIMITS.text),
     options,
     correct: correct >= 0 && correct < options.length ? correct : -1,
+    alsoCorrect: kind === "open" ? [] : alsoCorrect,
     answers: strings(data.answers, LIMITS.answers, LIMITS.answer),
     timeLimit: int(data.timeLimit, DEFAULTS[kind].timeLimit, LIMITS.minTime, LIMITS.maxTime),
     points: int(data.points, DEFAULTS[kind].points, LIMITS.minPoints, LIMITS.maxPoints),
@@ -209,12 +252,21 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
   };
 }
 
+export function parseSettings(raw: unknown): QuizSettings {
+  const data = record(raw);
+  return {
+    intro: data.intro !== false,
+    board: data.board === "rounds" || data.board === "manual" ? data.board : "each",
+    phoneImages: data.phoneImages === true,
+  };
+}
+
 /** Содержимое из базы → квиз. Ничего не бросает: мусор заменяется значениями по умолчанию. */
 export function parseContent(raw: unknown): QuizContent {
   const data = record(raw);
   const list = Array.isArray(data.questions) ? data.questions.slice(0, LIMITS.questions) : [];
   const seen = new Set<string>();
-  return { questions: list.map((q, i) => parseQuestion(q, i, seen)) };
+  return { questions: list.map((q, i) => parseQuestion(q, i, seen)), settings: parseSettings(data.settings) };
 }
 
 export function mediaIds(content: QuizContent): string[] {

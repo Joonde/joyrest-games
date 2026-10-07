@@ -395,8 +395,8 @@ async function main() {
   const requestData = { name: "Тестовый Клиент", phone: "+7 900 000-00-98", eventType: "Свадьба", guests: 70, format: "banquet", budget: 6000, wishes: { dance: 2, round: 1 } };
   const sentRequest = await guestPhone.call<{ number: number }>("POST", "/api/venue-forms/request", { id: requestId, from: hostUid, data: requestData, consent: true, ack: true });
   check(sentRequest.number > 0, "заявка клиента получила номер", String(sentRequest.number));
-  const again = await guestPhone.call<{ number: number }>("POST", "/api/venue-forms/request", { id: requestId, data: requestData, consent: true, ack: true });
-  check(again.number === sentRequest.number, "повтор после обрыва — тот же номер");
+  const requestAgain = await guestPhone.call<{ number: number }>("POST", "/api/venue-forms/request", { id: requestId, data: requestData, consent: true, ack: true });
+  check(requestAgain.number === sentRequest.number, "повтор после обрыва — тот же номер");
   check((await guestPhone.status("GET", "/api/venues")) === 401, "гость не видит базу");
   check((await host.status("GET", "/api/venues")) === 403, "ведущий без доступа не видит базу");
   check((await host.status("GET", "/api/venue-requests")) === 403, "ведущий без доступа не видит заявки");

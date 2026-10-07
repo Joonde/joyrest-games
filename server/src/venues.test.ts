@@ -45,7 +45,7 @@ const REQUEST = {
   guests: 80,
   format: "banquet",
   budget: 6500,
-  wishes: { dance: 2, round: 1, panorama: 1 },
+  wishes: { dance: 2, round: 1, panorama: 1 } as Record<string, 1 | 2>,
   comment: "Хотим светлый зал",
 };
 

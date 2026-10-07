@@ -25,6 +25,7 @@ export function newCue(sound: CueSound): SoundCue {
  */
 export function SoundPad({ onCue }: { onCue: (cue: SoundCue) => Promise<void> }) {
   const [error, setError] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   return (
     <section className="card" aria-labelledby="sound-pad-title">
       <h2 id="sound-pad-title">Звуки на экране зала</h2>
@@ -36,7 +37,10 @@ export function SoundPad({ onCue }: { onCue: (cue: SoundCue) => Promise<void> })
             className={item.sound === "stop" ? "btn btn--quiet" : "btn btn--secondary"}
             onClick={() => {
               setError(false);
-              onCue(newCue(item.sound)).catch(() => setError(true));
+              setSent(null);
+              onCue(newCue(item.sound))
+                .then(() => setSent(item.label))
+                .catch(() => setError(true));
             }}
           >
             {item.label}
@@ -48,7 +52,15 @@ export function SoundPad({ onCue }: { onCue: (cue: SoundCue) => Promise<void> })
           Звук не отправился. Проверьте интернет.
         </p>
       )}
-      <p className="muted small">Звук играет только на экране зала, если там включён звук.</p>
+      {sent && !error && (
+        <p className="success small" role="status">
+          На экран зала: {sent}
+        </p>
+      )}
+      <p className="muted small">
+        Звук играет только на экране зала. Не слышно — коснитесь экрана зала один раз: браузер включает звук только после
+        касания.
+      </p>
     </section>
   );
 }

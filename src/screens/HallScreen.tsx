@@ -3,13 +3,12 @@ import { useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
-import { pointsLabel } from "../core/results";
 import { clock, useGuestSignIn, useSessionByCode, type Session } from "../data";
 import { BoardView } from "../components/live/BoardView";
+import { Podium } from "../components/live/Podium";
 import { playSound, setMuted, unlockSound, useMuted } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
-import { NameText } from "../components/NameText";
 import { VPN_HINT } from "../core/texts";
 import { QrCode } from "../components/QrCode";
 import { ScreenSkeleton } from "../components/Skeleton";
@@ -177,7 +176,9 @@ function Playing({ session }: { session: Session }) {
   return (
     <main className="quiz-stage">
       <Logo kind="monogram" className="logo--corner" title="" />
-      {ScreenView && content !== null ? (
+      {session.state.stage === "podium" ? (
+        <Podium session={session} />
+      ) : ScreenView && content !== null ? (
         <ScreenView session={session} content={content} />
       ) : (
         <div className="screen-center">
@@ -191,11 +192,13 @@ function Playing({ session }: { session: Session }) {
   );
 }
 
-/** Финал: победитель крупно (при равных очках — все с первым местом), под ним таблица. */
+/** Финал: пьедестал (всё открыто), под ним таблица. */
 function Final({ session }: { session: Session }) {
   const ranked = rankedLeaderboard(session.leaderboard);
   const winners = ranked.filter((e) => e.place === 1 && e.score > 0);
-  const played = useRef(false);
+  // После награждения фанфары уже прозвучали на первом месте.
+  const afterPodium = session.state.stage === "podium";
+  const played = useRef(afterPodium);
 
   useEffect(() => {
     // Фанфары — один раз, когда финал наступил при открытом экране.
@@ -214,22 +217,9 @@ function Final({ session }: { session: Session }) {
       <Logo kind="monogram" className="logo--corner" title="" />
       <div className="final">
         <p className="final__eyebrow">{winners.length > 1 ? "Победители" : winners.length === 1 ? "Победитель" : "Игра завершена"}</p>
-        {winners.length > 0 && (
-          <div className="final__winners">
-            {winners.map((w) => (
-              <p
-                key={w.id}
-                className={w.kind === "team" ? "final__winner final__winner--team" : "final__winner"}
-                style={w.kind === "team" ? teamStyle(w.colorIndex) : undefined}
-              >
-                <NameText name={w.name} />
-              </p>
-            ))}
-            <p className="final__score">{pointsLabel(winners[0]?.score ?? 0)}</p>
-          </div>
-        )}
+        {winners.length > 0 && <Podium session={session} final />}
         <div className="final__board">
-          <BoardView leaderboard={session.leaderboard} title="Итоговая таблица" showLast={false} />
+          <BoardView leaderboard={session.leaderboard} title="Итоговая таблица" showLast={false} limit={ranked.length > 3 ? 7 : 3} />
         </div>
       </div>
     </main>

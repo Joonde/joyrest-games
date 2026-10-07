@@ -5,7 +5,9 @@ import { useServerNow } from "../../components/live/useServerNow";
 import type { SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { KIND_TITLES, type QuizContent } from "./content";
-import { ACTION_LABELS, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
+import { PodiumHostList } from "../../components/live/Podium";
+import { podiumNext, startPodium } from "../../core/podium";
+import { actionLabel, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
 import { groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 
@@ -53,11 +55,49 @@ export function QuizHostControls({ session, content, answers, participants, cont
     if (action === "reveal") void run(reveal(session, content, own, participants));
     if (action === "board") void run(showBoard());
     if (action === "next") void run(nextQuestion(session));
+    if (action === "podium") void run(startPodium(session));
+    if (action === "podiumNext") void run(podiumNext(session));
     if (action === "finish") control.requestFinish();
   }
 
   const backPlan = back(session);
   const groups = q.kind === "open" ? groupOpenAnswers(q, own, result.accepted) : [];
+
+  const buttons = (
+    <>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="actions">
+        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
+          {actionLabel(session, action)}
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={busy || backPlan === null}
+          onClick={() => backPlan && void run(backPlan.change, backPlan.clearAnswers)}
+        >
+          Назад
+        </button>
+      </div>
+    </>
+  );
+
+  if (stage === "podium") {
+    return (
+      <div className="stack host-quiz">
+        <div className="stack stack--tight">
+          <p className="eyebrow">Награждение</p>
+          <p className="muted small">Открывайте места по одному: экран покажет их с третьего по первое.</p>
+        </div>
+        <PodiumHostList session={session} />
+        {buttons}
+      </div>
+    );
+  }
 
   return (
     <div className="stack host-quiz">
@@ -146,24 +186,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </p>
       )}
 
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="actions">
-        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
-          {ACTION_LABELS[action]}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary btn--block"
-          disabled={busy || backPlan === null}
-          onClick={() => backPlan && void run(backPlan.change, backPlan.clearAnswers)}
-        >
-          Назад
-        </button>
-      </div>
+      {buttons}
     </div>
   );
 }

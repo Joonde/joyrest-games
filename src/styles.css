@@ -2330,6 +2330,282 @@ kbd {
   font-size: 0.8em;
 }
 
+/* Пьедестал (экран зала, финал, репетиция): размеры в единицах контейнера. */
+.quiz-stage > .podium {
+  padding-top: max(8cqh, var(--safe-top));
+}
+
+.podium {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 6cqh 6cqw 9cqh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3cqh;
+  overflow: hidden;
+  text-align: center;
+}
+
+.podium__eyebrow {
+  color: var(--color-text-muted);
+  font-size: 4cqh;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.podium__stage {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 2cqw;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.podium__slot {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2cqh;
+  height: 100%;
+}
+
+.podium__names {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqh;
+  min-height: 0;
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.podium__names--hidden {
+  font-family: var(--font-display);
+  font-size: 10cqh;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.podium__slot.is-open .podium__names {
+  animation: podium-in 0.7s ease both;
+}
+
+.podium__name {
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-size: 6cqh;
+  font-weight: 700;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+}
+
+.podium__slot--1 .podium__name {
+  font-size: 8cqh;
+  background: var(--gradient-code);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.podium__name--team,
+.podium__slot--1 .podium__name--team {
+  padding: 0.6cqh 2cqw;
+  border-radius: 999px;
+  font-size: 5cqh;
+  background: var(--team-color);
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--color-team-text);
+}
+
+.podium__more,
+.podium__score {
+  font-size: 3cqh;
+  color: var(--color-text-muted);
+}
+
+.podium__step {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2cqh;
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-surface);
+}
+
+.podium__slot--1 .podium__step {
+  height: 30cqh;
+  border-color: var(--color-highlight);
+}
+
+.podium__slot--2 .podium__step {
+  height: 21cqh;
+}
+
+.podium__slot--3 .podium__step {
+  height: 14cqh;
+}
+
+.podium__slot.is-empty .podium__step {
+  opacity: 0.4;
+}
+
+.podium__num {
+  font-family: var(--font-display);
+  font-size: 9cqh;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--gradient-code);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.podium__confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.podium__confetti span {
+  position: absolute;
+  top: -4cqh;
+  left: var(--x);
+  width: 1.2cqh;
+  height: 2.4cqh;
+  border-radius: 2px;
+  opacity: 0;
+  animation: podium-fall 3.6s ease-in var(--delay) 1 forwards;
+}
+
+@keyframes podium-in {
+  from {
+    opacity: 0;
+    transform: translateY(4cqh) scale(0.9);
+  }
+}
+
+@keyframes podium-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 110cqh) rotate(var(--spin));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .podium__confetti {
+    display: none;
+  }
+}
+
+/* Финал: пьедестал меньше, без появления, под ним таблица. */
+.podium--final .podium__slot.is-open .podium__names {
+  animation: none;
+}
+
+.final > .podium--final {
+  height: 40cqh;
+  flex: none;
+  padding: 0 6cqw;
+}
+
+.podium--final .podium__name {
+  font-size: 4cqh;
+}
+
+.podium--final .podium__slot--1 .podium__name {
+  font-size: 5.5cqh;
+}
+
+.podium--final .podium__name--team {
+  font-size: 3.5cqh;
+}
+
+.podium--final .podium__score,
+.podium--final .podium__more {
+  font-size: 2.4cqh;
+}
+
+.podium--final .podium__num {
+  font-size: 5cqh;
+}
+
+.podium--final .podium__slot--1 .podium__step {
+  height: 12cqh;
+}
+
+.podium--final .podium__slot--2 .podium__step {
+  height: 8cqh;
+}
+
+.podium--final .podium__slot--3 .podium__step {
+  height: 5cqh;
+}
+
+/* Пьедестал на пульте и телефоне. */
+.podium-list,
+.podium-phone {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.podium-list__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.podium-list__item.is-open {
+  border-color: var(--color-highlight);
+}
+
+.podium-list__place {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.podium-list__names {
+  overflow-wrap: anywhere;
+}
+
+.podium-list__mark {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.podium-phone {
+  margin-top: 16px;
+  text-align: left;
+}
+
 /* ---------- Игра: телефон гостя ---------- */
 
 .page--play {

@@ -2,6 +2,7 @@ import { Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { applyChange, startState } from "../../core/session";
 import { gamesRepo, permissions, useLoad, type Game, type Session, type UserProfile } from "../../data";
+import { Podium } from "../../components/live/Podium";
 import { BoardView } from "../../components/live/BoardView";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -89,6 +90,8 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
               <div className="quiz-screen quiz-screen--board">
                 <BoardView leaderboard={session.leaderboard} title="Игра завершена" />
               </div>
+            ) : session.state.stage === "podium" ? (
+              <Podium session={session} />
             ) : (
               <ScreenView session={session} content={content} />
             )}

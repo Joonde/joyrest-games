@@ -16,6 +16,7 @@ import {
   type Participant,
   type Session,
 } from "../data";
+import { PodiumPhone } from "../components/live/Podium";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { EmojiPicker } from "../components/EmojiPicker";
 import { Logo } from "../components/Logo";
@@ -415,7 +416,13 @@ function InGame({
         </div>
       )}
 
-      {phase === "playing" && PlayerView && content !== null && (
+      {phase === "playing" && session.state.stage === "podium" && (
+        <div className="card">
+          <PodiumPhone session={session} pid={pid} />
+        </div>
+      )}
+
+      {phase === "playing" && session.state.stage !== "podium" && PlayerView && content !== null && (
         <div className="card">
           <PlayerView
             session={session}

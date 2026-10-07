@@ -82,7 +82,7 @@ const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mech
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
-const STAGES = new Set<StepStage>(["ready", "question", "reveal", "board"]);
+const STAGES = new Set<StepStage>(["ready", "question", "reveal", "board", "podium"]);
 const SMALL_BODY = 16 * 1024;
 const SNAPSHOT_BODY = 1024 * 1024;
 /** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */

@@ -25,7 +25,7 @@ async function sessionsCol() {
 const CODE_QUERY_LIMIT = 5;
 
 function parseStage(value: unknown, revealed: boolean): StepStage {
-  if (value === "ready" || value === "question" || value === "reveal" || value === "board") return value;
+  if (value === "ready" || value === "question" || value === "reveal" || value === "board" || value === "podium") return value;
   return revealed ? "reveal" : "ready";
 }
 

@@ -248,18 +248,28 @@ async function soloGame(browser, token) {
   await anna.page.locator(".quiz-phone__option").nth(1).click({ timeout: WAIT });
   await clickButton(host, "Показать ответ");
   await clickButton(host, "Таблица");
-  step("пульт: завершить игру", host);
-  await clickButton(host, "Завершить игру");
-  await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
-  await expectText(screen, screen.locator(".final__winner"), "🦊 Аня", "Экран зала, победитель");
-  await shot(screen, "экран-финал", "Экран зала: финал");
+  step("пульт: награждение", host);
+  await clickButton(host, "Награждение");
+  await expectText(screen, screen.locator(".podium__eyebrow"), "Награждение", "Экран зала, заставка награждения");
+  await expectText(anna.page, anna.page.locator(".quiz-phone"), "Награждение", "Телефон Ани, награждение");
+  await layoutCheck(host, "Пульт: награждение");
+  await clickButton(host, "Показать 1 место");
+  await expectText(screen, screen.locator(".podium__slot--1 .podium__name"), "🦊 Аня", "Экран зала, 1 место на пьедестале");
+  await expectText(anna.page, anna.page.locator(".quiz-phone__place"), "1", "Телефон Ани, своё место");
   const winnerVisible = await screen
-    .locator(".final__winner .name-emoji")
+    .locator(".podium__slot--1 .name-emoji")
     .first()
     .evaluate((el) => getComputedStyle(el).color !== "rgba(0, 0, 0, 0)")
     .catch(() => false);
   if (winnerVisible) ok("Экран зала: смайлик победителя не прозрачный");
   else bad("Экран зала: смайлик победителя прозрачный или его нет");
+  await shot(screen, "экран-пьедестал", "Экран зала: пьедестал");
+  await layoutCheck(anna.page, "Телефон Ани: награждение");
+  step("пульт: завершить игру", host);
+  await clickButton(host, "Завершить игру");
+  await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
+  await expectText(screen, screen.locator(".podium--final .podium__name"), "🦊 Аня", "Экран зала, финал: пьедестал");
+  await shot(screen, "экран-финал", "Экран зала: финал");
   await shot(anna.page, "аня-финал", "Телефон Ани: финал");
 
   step("итоги", host);

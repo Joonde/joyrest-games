@@ -2,11 +2,12 @@
 // следующий вопрос, и «Назад» на шаг. Чистые функции: пульт отправляет результат в базу,
 // «Репетиция» и симулятор применяют его в памяти.
 import { leaderboardAdditions } from "../../core/leaderboard";
+import { hasPodium, podiumBack, podiumDone, podiumLabel } from "../../core/podium";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { QuizContent } from "./content";
 import { emptyResult, parseResult, resultOf, score, steps } from "./logic";
 
-export type QuizAction = "show" | "reveal" | "board" | "next" | "finish";
+export type QuizAction = "show" | "reveal" | "board" | "next" | "podium" | "podiumNext" | "finish";
 
 /** Какое действие главное на этом этапе (одна главная кнопка пульта). */
 export function primaryAction(session: Session, content: QuizContent): QuizAction {
@@ -14,7 +15,10 @@ export function primaryAction(session: Session, content: QuizContent): QuizActio
   if (stage === "ready") return "show";
   if (stage === "question") return "reveal";
   if (stage === "reveal") return "board";
-  return step >= content.questions.length - 1 ? "finish" : "next";
+  if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
+  if (step < content.questions.length - 1) return "next";
+  // После таблицы последнего вопроса — награждение, если есть кого награждать.
+  return hasPodium(session.leaderboard) ? "podium" : "finish";
 }
 
 export const ACTION_LABELS: Record<QuizAction, string> = {
@@ -22,8 +26,15 @@ export const ACTION_LABELS: Record<QuizAction, string> = {
   reveal: "Показать ответ",
   board: "Таблица",
   next: "Следующий вопрос",
+  podium: "Награждение",
+  podiumNext: "Показать место",
   finish: "Завершить игру",
 };
+
+/** Подпись главной кнопки: на пьедестале — какое место откроется («Показать 3 место»). */
+export function actionLabel(session: Session, action: QuizAction): string {
+  return action === "podiumNext" ? podiumLabel(session) : ACTION_LABELS[action];
+}
 
 /** Открыть вопрос: время старта ставит сервер, с ним считается скорость. */
 export function showQuestion(session: Session, content: QuizContent): SessionChange {
@@ -107,6 +118,7 @@ export interface BackPlan {
 /** «Назад» на один этап. null — назад некуда (первый вопрос ещё не показан). */
 export function back(session: Session): BackPlan | null {
   const { stage, step } = session.state;
+  if (stage === "podium") return { change: podiumBack(session) };
   if (stage === "board") return { change: { state: { stage: "reveal", revealed: true } } };
   if (stage === "reveal") {
     // Снимаем очки этого шага: при повторном показе ответа они посчитаются заново.

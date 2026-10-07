@@ -225,6 +225,8 @@ a {
   top: calc(100% + 8px);
   z-index: 10;
   min-width: 220px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 40px));
   margin: 0;
   padding: 8px;
   list-style: none;
@@ -240,6 +242,10 @@ a {
 .menu .btn {
   width: 100%;
   justify-content: flex-start;
+  /* Длинный пункт переносится по левому краю, как остальные, а не по центру. */
+  padding: 8px 16px;
+  text-align: left;
+  text-wrap: pretty;
 }
 
 /* На широком экране действия стоят в ряд, меню не нужно. */
@@ -436,6 +442,10 @@ a {
   min-width: 0;
 }
 
+.people__text .meta {
+  margin-top: 8px;
+}
+
 .people__name {
   font-weight: 600;
 }
@@ -535,6 +545,58 @@ a {
 .points-history li {
   display: grid;
   gap: 2px;
+}
+
+/* ---------- Смайлик к имени (вход гостя) ---------- */
+
+/* Смайлик внутри надписи с градиентом: свой цвет, иначе прозрачен. */
+.name-emoji {
+  color: var(--color-text);
+  -webkit-text-fill-color: currentColor;
+  background: none;
+}
+
+.emoji-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.emoji-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 8px;
+}
+
+.emoji-picker__item {
+  min-height: 52px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.emoji-picker__item[aria-pressed="true"] {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.emoji-picker__item--none {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.emoji-picker__preview {
+  margin: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.emoji-picker__item:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 /* ---------- Диалог подтверждения ---------- */
@@ -1107,6 +1169,16 @@ legend {
 .screen-text {
   font-size: clamp(18px, 1.8vw, 30px);
   color: var(--color-text-muted);
+}
+
+/* Просьба к гостям у QR-кода (выключить VPN): заметно, но не громче кода. */
+.screen-note {
+  margin: 0;
+  padding: 8px 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: var(--radius-md);
+  font-size: clamp(16px, 1.5vw, 26px);
+  color: var(--color-text);
 }
 
 .screen-center {

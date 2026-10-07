@@ -1,0 +1,53 @@
+# Проверка глазами гостя (CLAUDE.md, раздел 9): настоящий браузер проходит игру на
+# test.games.joy-rest.ru — вход со смайликом, пульт, экран зала, ответ, финал, итоги, команды.
+# Только вручную (Run workflow) или коммитом с [e2e] в ветке claude/* (~4 минуты).
+# Итог — аннотацией; в Telegram ничего не шлём.
+name: Проверка гостем
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Гость на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[e2e]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Playwright — только здесь, в отдельной папке: в зависимостях проекта его нет.
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/guest.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      # Test пересобирается после каждого push в claude/*: ждём, пока выложится этот коммит.
+      - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 40); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Гость играет
+        working-directory: /tmp/e2e
+        run: node guest.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          E2E_SHOTS: /tmp/e2e/shots
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}

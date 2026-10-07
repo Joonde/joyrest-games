@@ -8,12 +8,14 @@ interface Props {
   confirmLabel: string;
   busy?: boolean;
   error?: string | null;
+  /** Вторая кнопка: «Отмена» по умолчанию, «Закрыть» — у окон для просмотра. */
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 /** Подтверждение необратимого действия. Системный <dialog>: фокус и Esc работают сами. */
-export function ConfirmDialog({ open, title, children, confirmLabel, busy, error, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ open, title, children, confirmLabel, busy, error, cancelLabel = "Отмена", onConfirm, onCancel }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -47,7 +49,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, busy, error
             {busy ? "Подождите…" : confirmLabel}
           </button>
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={onCancel}>
-            Отмена
+            {cancelLabel}
           </button>
         </div>
       </div>

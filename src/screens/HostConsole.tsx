@@ -23,6 +23,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { HostGate } from "../components/HostGate";
 import { ActionMenu, type MenuAction } from "../components/Menu";
 import { QrCode } from "../components/QrCode";
+import { VPN_HINT } from "../core/texts";
 import { ConsoleSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
@@ -281,6 +282,7 @@ function JoinCard({ session, link, compact, onCopy }: { session: Session; link: 
       <div className={compact ? "big-code big-code--small" : "big-code"}>{formatSessionCode(session.code)}</div>
       {qrOpen && <QrCode value={link} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />}
       {qrOpen && <p className="link-hint muted">{playUrlHint(session.code)}</p>}
+      {qrOpen && <p className="muted small">{VPN_HINT}</p>}
       <div className="actions">
         {!compact && session.screenMode !== "none" && (
           <Link className="btn btn--block" to={`/screen/${session.code}`} target="_blank">

@@ -39,12 +39,15 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       }
       let url = urls.current.get(trackId);
       if (!url) {
-        const blob = tracksRepo ? await tracksRepo.file(trackId).catch(() => null) : null;
-        if (cancelled) return;
-        if (!blob) {
-          retryTimer = window.setTimeout(() => setAttempt((a) => a + 1), 5000);
+        // null — трека нет (удалён): не повторяем; ошибка сети — повтор через 5 с.
+        let blob: Blob | null = null;
+        try {
+          blob = tracksRepo ? await tracksRepo.file(trackId) : null;
+        } catch {
+          if (!cancelled) retryTimer = window.setTimeout(() => setAttempt((a) => a + 1), 5000);
           return;
         }
+        if (cancelled || !blob) return;
         url = URL.createObjectURL(blob);
         urls.current.set(trackId, url);
         // Слабому телевизору хватит двух треков в памяти: текущего и предыдущего.

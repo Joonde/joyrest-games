@@ -56,6 +56,7 @@ test.games.joy-rest.ru {
 # Кэш и поисковики (robots.txt, X-Robots-Tag; `sudo joyrest site-indexing on|off`) — в приложении.
 joy-rest.ru {
 	import security
+	import body_limits
 	encode zstd gzip
 	reverse_proxy app-prod:8080 {
 		header_up X-Forwarded-For {remote_host}
@@ -66,6 +67,7 @@ joy-rest.ru {
 # Поисковикам не показываем никогда.
 test.joy-rest.ru {
 	import security
+	import body_limits
 	# Вход владельца — файл auth/test-site-owner.caddy («логин хэш»), его пишет
 	# `sudo joyrest site-password`; пароль нигде не хранится, только bcrypt-хэш.
 	# Первая строка — запирающая учётная запись: пароль случайный и никому не известен,

@@ -64,6 +64,15 @@ export function actionLabel(session: Session, content: QuizContent, action: Quiz
   return ACTION_LABELS[action];
 }
 
+/**
+ * Старт прошлого раунда (`prevRoundBase`) едет в `result` через все этапы первого вопроса раунда,
+ * чтобы «Назад» с любого этапа вернул общий счёт прошлого раунда.
+ */
+function carry(session: Session): { prevRoundBase?: unknown } {
+  const prev = asRecord(session.state.result).prevRoundBase;
+  return prev === undefined ? {} : { prevRoundBase: prev };
+}
+
 /** Открыть вопрос: время старта ставит сервер, с ним считается скорость. */
 export function showQuestion(session: Session, content: QuizContent): SessionChange {
   const q = content.questions[session.state.step];
@@ -74,7 +83,7 @@ export function showQuestion(session: Session, content: QuizContent): SessionCha
       timeLimit: q?.timeLimit ?? null,
       revealed: false,
       answered: 0,
-      result: emptyResult(),
+      result: { ...emptyResult(), ...carry(session) },
     },
   };
 }
@@ -83,7 +92,7 @@ export function showQuestion(session: Session, content: QuizContent): SessionCha
 export function toggleAccepted(session: Session, key: string): SessionChange {
   const result = parseResult(session.state.result);
   const accepted = result.accepted.includes(key) ? result.accepted.filter((k) => k !== key) : [...result.accepted, key];
-  return { state: { result: { ...result, accepted } } };
+  return { state: { result: { ...result, accepted, ...carry(session) } } };
 }
 
 /**
@@ -121,7 +130,7 @@ export function reveal(
   }
   const accepted = parseResult(session.state.result).accepted;
   return {
-    state: { stage: "reveal", revealed: true, answered: own.length, result: resultOf(step.question, own, accepted) },
+    state: { stage: "reveal", revealed: true, answered: own.length, result: { ...resultOf(step.question, own, accepted), ...carry(session) } },
     leaderboard,
   };
 }
@@ -182,12 +191,12 @@ export function back(session: Session): BackPlan | null {
     }
     const result = parseResult(session.state.result);
     return {
-      change: { state: { stage: "question", revealed: false, result: { ...emptyResult(), accepted: result.accepted } }, leaderboard },
+      change: { state: { stage: "question", revealed: false, result: { ...emptyResult(), accepted: result.accepted, ...carry(session) } }, leaderboard },
     };
   }
   if (stage === "question") {
     return {
-      change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: null } },
+      change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: Object.keys(carry(session)).length > 0 ? carry(session) : null } },
       clearAnswers: step,
     };
   }

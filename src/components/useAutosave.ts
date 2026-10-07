@@ -24,7 +24,7 @@ function isOnline(): boolean {
  * После отказа сервера пачка повторяется с самыми свежими значениями полей.
  *
  * Свой сервер: пачки уходят по одной (следующая — после ответа на предыдущую), иначе сервер мог
- * бы записать старую пачку поверх новой. При закрытии вкладки — сразу (запрос с `keepalive`).
+ * бы записать старую пачку поверх новой.
  */
 export function useAutosave<Patch extends object>(
   save: (patch: Patch) => Promise<void>,
@@ -51,8 +51,10 @@ export function useAutosave<Patch extends object>(
     }
     const patch = pending.current;
     if (!patch) return;
-    // По одной: следующая пачка уйдёт, когда ответят на эту (кроме закрытия вкладки).
-    if (dataBackend() === "server" && inFlight.current > 0 && force !== true) return;
+    // По одной: следующая пачка уйдёт, как только ответят на эту (и при сворачивании вкладки —
+    // иначе старая пачка могла бы лечь поверх новой).
+    void force;
+    if (dataBackend() === "server" && inFlight.current > 0) return;
     pending.current = null;
     inFlight.current += 1;
     oldestSent.current ??= Date.now();

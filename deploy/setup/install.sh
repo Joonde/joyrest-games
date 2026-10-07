@@ -244,7 +244,10 @@ if [ ! -s /home/deploy/.ssh/authorized_keys ] || [ "${ROTATE_DEPLOY_KEY:-0}" = 1
   tmp=$(mktemp -d)
   ssh-keygen -q -t ed25519 -N "" -C "github-actions-deploy" -f "$tmp/key"
   # restrict: без консоли и пробросов; запускается только привратник выкладки.
-  echo "restrict,command=\"/usr/local/bin/joyrest-gate\" $(cat "$tmp/key.pub")" > /home/deploy/.ssh/authorized_keys
+  # Тестовый ключ веток (joyrest deploy-key test) при замене основного сохраняется.
+  { grep ' github-actions-test$' /home/deploy/.ssh/authorized_keys 2>/dev/null || true
+    echo "restrict,command=\"/usr/local/bin/joyrest-gate\" $(cat "$tmp/key.pub")"; } > /home/deploy/.ssh/authorized_keys.new
+  mv -f /home/deploy/.ssh/authorized_keys.new /home/deploy/.ssh/authorized_keys
   DEPLOY_KEY_HEX=$(xxd -p "$tmp/key" | tr -d '\n')
   shred -u "$tmp/key" "$tmp/key.pub" 2>/dev/null || rm -f "$tmp/key" "$tmp/key.pub"
   rmdir "$tmp"

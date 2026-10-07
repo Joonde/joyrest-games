@@ -484,9 +484,12 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (checked === "conflict") return "conflict" as const;
         if (!checked) return null;
         const next = applyChange(state, board, checked, now());
+        const starting = state.phase !== "playing" && next.state.phase === "playing";
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(next.state as never)}, leaderboard = ${tx.json(next.leaderboard as never)},
-            version = version + 1, updated_at = now()
+            version = version + 1, updated_at = now(),
+            -- «Начать игру» (любым путём: /apply или /phase) — начало игры для баллов ведущего.
+            started_at = case when ${starting} then coalesce(started_at, ${new Date(now())}) else started_at end
           where id = ${sessionId} returning version::int as version`;
         // Подписчикам — изменённые записи таблицы целиком (с прибавкой и новым именем).
         const changed: Record<string, LeaderboardEntry | null> = { ...checked.leaderboard };
@@ -620,10 +623,22 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const entries = isRecord(request.body) ? request.body.entries : null;
       const checked = checkChange({ leaderboard: entries });
       if (!checked || Object.values(checked.leaderboard).some((e) => e === null)) return fail(reply, 400, "invalid-argument");
-      // Только новые участники: уже записанные (с очками) не перезаписываются запоздавшим запросом.
+      // Новые участники — целиком. У записанных меняются только имя и капитан (смена капитана,
+      // переименование), очки и остальное не трогаются: запоздавший запрос их не затрёт.
       if (Object.keys(checked.leaderboard).length > 0) {
         await change(hosted.row.id, (_state, board) => {
-          const fresh = Object.fromEntries(Object.entries(checked.leaderboard).filter(([pid]) => !board[pid]));
+          const fresh: Record<string, LeaderboardEntry> = {};
+          for (const [pid, entry] of Object.entries(checked.leaderboard)) {
+            if (!entry) continue;
+            const current = board[pid];
+            if (!current) {
+              fresh[pid] = entry;
+              continue;
+            }
+            const next: LeaderboardEntry = { ...current, name: entry.name };
+            if (entry.captainUid !== undefined) next.captainUid = entry.captainUid;
+            if (next.name !== current.name || next.captainUid !== current.captainUid) fresh[pid] = next;
+          }
           return Object.keys(fresh).length > 0 ? { state: {}, leaderboard: fresh } : null;
         });
       }

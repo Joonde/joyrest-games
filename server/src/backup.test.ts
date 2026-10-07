@@ -94,6 +94,8 @@ describe("резервные копии", () => {
     expect(restore).toContain("joyrest_prod_before_restore");
     // Копия может быть старше схемы: миграции текущей версии после восстановления.
     expect(restore).toContain('run_migrations "$target" "$image"');
+    // Права ролей приложений не из дампа (на новом сервере ролей ещё нет), их выдаёт db_role_grants.
+    expect(bashFunction("restore_into")).toContain("--no-acl");
   });
 
   it("картинки, музыка и аватарки (media/prod) — в ночной копии; восстановление только добавляет файлы", () => {

@@ -140,7 +140,10 @@ export const serverSessionsRepository: SessionsRepository = {
     };
     const onEvent = (event: { type?: string; session?: unknown; version?: unknown; state?: unknown; leaderboard?: unknown }) => {
       if (event.type === "snapshot") {
-        current = parseSession(event.session);
+        const next = parseSession(event.session);
+        // Снимок, запрошенный раньше последнего изменения, не откатывает состояние назад.
+        if (next && current && next.id === current.id && next.version < current.version) return;
+        current = next;
         emit();
       } else if (event.type === "patch" && current) {
         const previous = current.version;

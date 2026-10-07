@@ -223,12 +223,10 @@ active_games() {
     *) return 1 ;;
   esac
   # Активность — действие пульта за ACTIVE_MINUTES минут; у идущей игры — и долгий перерыв
-  # (слайд «перерыв», тосты, танцы) до PLAYING_HOURS часов, и ответы или сигналы телефонов.
+  # (слайд «перерыв», тосты, танцы) до PLAYING_HOURS часов. Брошенная игра дольше не держит выкладку.
   count=$(psql_prod "select count(*) from sessions s
     where (s.phase in ('lobby', 'playing') and s.updated_at > now() - interval '$ACTIVE_MINUTES minutes')
-       or (s.phase = 'playing' and s.updated_at > now() - interval '$PLAYING_HOURS hours')
-       or (s.phase = 'playing' and exists (select 1 from participants p where p.session_id = s.id
-             and greatest(p.joined_at, coalesce(p.seen_at, p.joined_at)) > now() - interval '$ACTIVE_MINUTES minutes'))" 2>/dev/null) \
+       or (s.phase = 'playing' and s.updated_at > now() - interval '$PLAYING_HOURS hours')" 2>/dev/null) \
     || return 1
   [[ "$count" =~ ^[0-9]+$ ]] || return 1
   echo "$count"
@@ -320,9 +318,12 @@ SQL
   # Проверка до переключения: тестовая роль не входит в основную базу, основная — читает свою.
   out=$(psql_in postgres "select has_database_privilege('$DB_ROLE_TEST', 'joyrest_prod', 'CONNECT')") || die "Не удалось проверить права."
   [ "$out" = f ] || die "Проверка не прошла: тестовая роль может войти в основную базу. Приложения не переключены."
-  out=$(psql_prod "select has_table_privilege('$DB_ROLE_PROD', 'users', 'SELECT, INSERT, UPDATE, DELETE')") || die "Не удалось проверить права."
+  out=$(psql_prod "select has_table_privilege('$DB_ROLE_PROD', 'users', 'SELECT') and has_table_privilege('$DB_ROLE_PROD', 'users', 'INSERT')
+    and has_table_privilege('$DB_ROLE_PROD', 'users', 'UPDATE') and has_table_privilege('$DB_ROLE_PROD', 'users', 'DELETE')") || die "Не удалось проверить права."
   [ "$out" = t ] || die "Проверка не прошла: основная роль не может работать с таблицами. Приложения не переключены."
 
+  # Не поднялись на новых ролях — возвращаем прежний secrets.env и приложения.
+  cp -p "$ROOT_DIR/secrets.env" "$ROOT_DIR/secrets.env.before-db-roles" || die "Не удалось сохранить secrets.env."
   set_env_value "$ROOT_DIR/secrets.env" PROD_DB_USER "$DB_ROLE_PROD" || die "Не удалось записать secrets.env."
   set_env_value "$ROOT_DIR/secrets.env" PROD_DB_PASSWORD "$prod_pass" || die "Не удалось записать secrets.env."
   set_env_value "$ROOT_DIR/secrets.env" TEST_DB_USER "$DB_ROLE_TEST" || die "Не удалось записать secrets.env."
@@ -330,7 +331,12 @@ SQL
   prod_pass=""
   test_pass=""
   echo "Перезапускаю приложения на новых ролях (несколько секунд)…"
-  recreate_apps app-prod app-test
+  if ! ( recreate_apps app-prod app-test ); then
+    mv -f "$ROOT_DIR/secrets.env.before-db-roles" "$ROOT_DIR/secrets.env"
+    dc up -d --no-deps app-prod app-test >/dev/null 2>&1 || true
+    die "Приложения не поднялись на новых ролях — вернул как было. Пришлите: joyrest logs app-prod 100"
+  fi
+  rm -f "$ROOT_DIR/secrets.env.before-db-roles"
   log "[db-roles] приложения ходят в базу своими ролями"
   echo "✅ Готово: основная версия — роль $DB_ROLE_PROD, тестовая — $DB_ROLE_TEST (только своя база)."
 }
@@ -764,7 +770,8 @@ restore_into() {
   local db=$1 file=$2
   psql_in postgres "drop database if exists $db with (force)" >/dev/null 2>&1 || return 1
   psql_in postgres "create database $db owner joyrest" >/dev/null || return 1
-  dc exec -T postgres pg_restore -U joyrest --no-owner --exit-on-error -d "$db" < "$file"
+  # --no-acl: права ролей приложений выдаёт db_role_grants; на новом сервере этих ролей ещё нет.
+  dc exec -T postgres pg_restore -U joyrest --no-owner --no-acl --exit-on-error -d "$db" < "$file"
 }
 
 # Проверка восстановления: последняя копия из S3 → временная база → таблицы на месте → удалить.
@@ -1516,6 +1523,8 @@ cmd_restore_media() {
     install -D -m 644 -o 1000 -g 1000 "$src/$file" "$dst/$file"
     added=$((added + 1))
   done < <(cd "$src" && find . -type f ! -name '*.tmp' -print0)
+  # Папки, созданные при восстановлении (audio/, profile/), — приложению (uid 1000), иначе оно не запишет.
+  chown -R 1000:1000 "$dst"
   log "[restore] картинки и музыка из копии $snap → media/$target: добавлено файлов $added"
   echo "✅ Картинки и музыка из копии $snap: добавлено файлов — $added (существующие не тронуты)."
 }

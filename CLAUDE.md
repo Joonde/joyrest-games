@@ -145,8 +145,9 @@ Firebase удаляются, Firebase-код удаляется отдельны
   `sudo joyrest data server` (этап 9; отказ, если в основной базе нет владельца с паролем —
   сначала `sudo joyrest admin-password`; во время игры — только с `force`), откат —
   `sudo joyrest data firebase`. Выкладка, CI и привратник `DATA_BACKEND` не трогают
-  (`server/src/platform.test.ts`). Netlify перенаправляет на games.joy-rest.ru отдельным PR
-  после проверки владельцем.
+  (`server/src/platform.test.ts`). Основная версия переключена на свой сервер 7 октября 2026.
+  Netlify (`netlify.toml`) перенаправляет любой адрес на games.joy-rest.ru с тем же путём (302;
+  301 — с удалением Firebase).
   Сервер вставляет в `index.html` метку `<meta name="joyrest-data" content="server|firebase">`
   (`withDataBackend`, `server/src/app.ts`); свой сервер — только точное `server`, иначе Firebase.
   `src/data/index.ts` по метке берёт реализацию; сборка Netlify метки не имеет — Firebase.

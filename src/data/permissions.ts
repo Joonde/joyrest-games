@@ -41,6 +41,14 @@ export function canResetHostPassword(actor: Actor, target: Pick<UserProfile, "ui
   return canSetHostActive(actor, target);
 }
 
+/**
+ * Перенос из Firebase (PR 5, /admin/import) — только владелец агентства и только на своём
+ * сервере (в firestore.rules правила нет): он пишет игры и историю всех ведущих.
+ */
+export function canImportFromFirebase(actor: Actor): boolean {
+  return actor?.uid === ADMIN_UID;
+}
+
 type GameRef = Pick<Game, "scope" | "ownerId">;
 
 export function canReadGame(actor: Actor, game: GameRef): boolean {

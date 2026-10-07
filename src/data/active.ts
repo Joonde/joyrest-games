@@ -19,6 +19,7 @@ import { authService as firebaseAuthService } from "./auth";
 import { dataBackend } from "./backend";
 import { clockService as firestoreClock } from "./clock";
 import { gamesRepository } from "./games";
+import { firebaseImport as importer, type FirebaseImport } from "./importer";
 import { mediaRepository } from "./media";
 import { participantsRepository } from "./participants";
 import { resultsRepository } from "./results";
@@ -45,3 +46,6 @@ export const participantsRepo: ParticipantsRepository = server ? serverParticipa
 export const answersRepo: AnswersRepository = server ? serverAnswersRepository : answersRepository;
 export const resultsRepo: ResultsRepository = server ? serverResultsRepository : resultsRepository;
 export const clock: ClockService = server ? serverClock : firestoreClock;
+
+/** Перенос из Firebase (/admin/import) — только на своём сервере. */
+export const firebaseImport: FirebaseImport | null = server ? importer : null;

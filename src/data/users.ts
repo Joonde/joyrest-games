@@ -10,7 +10,7 @@ function isRole(value: unknown): value is Role {
   return value === "admin" || value === "host";
 }
 
-function toHost(uid: string, data: DocumentData, fallbackEmail = ""): HostAccount {
+export function toHost(uid: string, data: DocumentData, fallbackEmail = ""): HostAccount {
   return {
     uid,
     role: isRole(data.role) ? data.role : "host",

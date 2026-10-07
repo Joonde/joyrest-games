@@ -58,6 +58,13 @@ describe("ведущие", () => {
     expect(p.canResetHostPassword(offAdmin, { uid: "host-1" })).toBe(false);
     expect(p.canResetHostPassword(guest, { uid: "host-1" })).toBe(false);
   });
+
+  it("перенос из Firebase — только владелец агентства", () => {
+    expect(p.canImportFromFirebase(owner)).toBe(true);
+    expect(p.canImportFromFirebase(admin2)).toBe(false);
+    expect(p.canImportFromFirebase(host)).toBe(false);
+    expect(p.canImportFromFirebase(guest)).toBe(false);
+  });
 });
 
 describe("игры", () => {

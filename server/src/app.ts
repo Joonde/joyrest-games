@@ -11,6 +11,7 @@ import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import type { Sql } from "postgres";
 import { registerAuth, type AuthOptions } from "./auth";
 import { registerGames, type GamesOptions } from "./games";
+import { registerImport, type ImportOptions } from "./import";
 import { registerLead, type LeadOptions } from "./lead";
 import { registerLive, type LiveOptions } from "./live";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
@@ -48,6 +49,8 @@ export interface AppOptions {
   games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
   live?: Omit<LiveOptions, "sql" | "isSite">;
+  /** Перенос из Firebase — настройки для тестов (свободное место). */
+  import?: Omit<ImportOptions, "sql" | "isSite" | "mediaDir">;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
 }
@@ -99,6 +102,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerAuth(app, { ...options.auth, sql: options.sql, isSite });
     registerGames(app, { ...options.games, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerLive(app, { ...options.live, sql: options.sql, isSite });
+    registerImport(app, { ...options.import, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
   }
 
   const publicDir = options.publicDir;

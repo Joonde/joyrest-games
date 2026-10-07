@@ -91,7 +91,10 @@ export function profileOf(row: UserRow): ServerProfile {
 }
 
 function accountOf(row: UserRow): HostAccount {
-  return { uid: row.id, role: role(row.role), name: row.name, active: row.active, email: row.email, createdAt: row.created_at ? row.created_at.getTime() : null };
+  const account: HostAccount = { uid: row.id, role: role(row.role), name: row.name, active: row.active, email: row.email, createdAt: row.created_at ? row.created_at.getTime() : null };
+  // Перенесён из Firebase и ещё не получил пароль (PR 5): войти не может.
+  if (row.password_hash === null) account.noPassword = true;
+  return account;
 }
 
 export function actorOf(row: UserRow): permissions.Actor {

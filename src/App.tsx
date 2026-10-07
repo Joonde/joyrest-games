@@ -17,6 +17,7 @@ const ChangePassword = lazy(() =>
 );
 const Results = lazy(() => import("./screens/Results").then((m) => ({ default: m.Results })));
 const Admin = lazy(() => import("./screens/Admin").then((m) => ({ default: m.Admin })));
+const AdminImport = lazy(() => import("./screens/AdminImport").then((m) => ({ default: m.AdminImport })));
 const HostConsole = lazy(() => import("./screens/HostConsole").then((m) => ({ default: m.HostConsole })));
 const HallScreen = lazy(() => import("./screens/HallScreen").then((m) => ({ default: m.HallScreen })));
 const Brand = lazy(() => import("./screens/Brand").then((m) => ({ default: m.Brand })));
@@ -36,6 +37,7 @@ export function App() {
           <Route path="/studio/rehearsal/:gameId" element={<Rehearsal />} />
           <Route path="/studio/password" element={<ChangePassword />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/import" element={<AdminImport />} />
           <Route path="/host/:code" element={<HostConsole />} />
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />

@@ -15,7 +15,7 @@ function parseBoard(value: unknown): ResultRow[] {
   });
 }
 
-function toResult(snap: DocumentSnapshot): GameResult | null {
+export function toResult(snap: DocumentSnapshot): GameResult | null {
   const data = snap.data();
   if (!data) return null;
   return {

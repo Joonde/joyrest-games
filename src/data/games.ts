@@ -28,7 +28,7 @@ function parseAgeRating(value: unknown): AgeRating {
   return value === "12+" || value === "18+" ? value : "0+";
 }
 
-function toGame(snap: DocumentSnapshot): Game | null {
+export function toGame(snap: DocumentSnapshot): Game | null {
   const data = snap.data();
   if (!data) return null;
   return {

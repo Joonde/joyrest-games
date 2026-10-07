@@ -3,6 +3,7 @@ import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { retentionCutoff, SESSION_RETENTION_DAYS } from "../core/retention";
 import {
   authService,
+  firebaseImport,
   permissions,
   sessionsRepo,
   useLoad,
@@ -100,6 +101,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
         title="Ведущие"
         actions={[
           { label: "В студию", to: "/studio" },
+          ...(firebaseImport && permissions.canImportFromFirebase(profile) ? [{ label: "Перенос из Firebase", to: "/admin/import" }] : []),
           { label: "Выйти", onClick: () => void authService.signOut() },
         ]}
       />
@@ -130,6 +132,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                   <span className="small">
                     {host.role === "admin" ? "Администратор" : "Ведущий"} ·{" "}
                     <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
+                    {host.noPassword && " · пароль не выдан"}
                   </span>
                 </div>
                 {permissions.canSetHostActive(profile, host) && (

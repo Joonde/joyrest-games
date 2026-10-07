@@ -23,6 +23,8 @@ export interface UserProfile {
 /** Ведущий в списке администратора. */
 export interface HostAccount extends UserProfile {
   createdAt: number | null;
+  /** Свой сервер: перенесён из Firebase, пароль ещё не выдан — войти не может. */
+  noPassword?: boolean;
 }
 
 /** Новый ведущий и его временный пароль: показывается администратору один раз. */

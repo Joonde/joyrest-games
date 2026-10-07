@@ -7,7 +7,12 @@ import { errorCodeOf } from "./retry";
 export function describeAuthError(error: unknown): string {
   // Не догрузился чанк Firebase: браузер бросает TypeError без кода.
   if (error instanceof TypeError) return "Нет связи с интернетом. Проверьте сеть и попробуйте снова.";
-  switch (errorCodeOf(error)) {
+  const code = errorCodeOf(error);
+  // Ключ Firebase или список доменов не пускают с этого адреса (перенос на новом сервере).
+  if (code === "auth/unauthorized-domain" || code.startsWith("auth/requests-from-referer")) {
+    return "Firebase не пускает вход с этого адреса. Добавьте адрес сайта в консоли Firebase: Authentication → Settings → Authorized domains.";
+  }
+  switch (code) {
     case "auth/invalid-credential":
     case "auth/wrong-password":
     case "auth/user-not-found":
@@ -21,8 +26,12 @@ export function describeAuthError(error: unknown): string {
     case "auth/requires-recent-login":
       return "Выйдите и войдите снова, затем повторите.";
     case "auth/too-many-requests":
-    case "resource-exhausted":
       return "Слишком много попыток. Подождите минуту и попробуйте снова.";
+    case "resource-exhausted":
+      // Свой сервер: 429 — частые попытки, 413/507 — место для картинок.
+      return error instanceof Error && "status" in error && (error.status === 413 || error.status === 507)
+        ? "На сервере не хватает места для картинок. Напишите администратору."
+        : "Слишком много попыток. Подождите минуту и попробуйте снова.";
     case "auth/network-request-failed":
     case "unavailable":
       return "Нет связи с интернетом. Проверьте сеть и попробуйте снова.";

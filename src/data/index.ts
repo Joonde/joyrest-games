@@ -31,5 +31,8 @@ export {
   type SessionLoadState,
 } from "./hooks";
 export { preloadData } from "./firebase";
+export { firebaseImport } from "./active";
+export type { FirebaseImport, ImportCount, ImportProgress, ImportReport, ImportStage, MediaIdsOf } from "./importer";
+export { NotOwnerError } from "./importer";
 export { connection } from "./connection";
 export { Cancelled, isPermanentError, retryDelay, withRetry } from "./retry";

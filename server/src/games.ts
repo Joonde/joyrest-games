@@ -133,14 +133,62 @@ export function imageMime(bytes: Buffer): "image/webp" | "image/jpeg" | null {
   return null;
 }
 
-function dimension(value: unknown): number | null {
+export function dimension(value: unknown): number | null {
   const n = typeof value === "string" ? Number(value) : NaN;
   return Number.isInteger(n) && n >= 1 && n <= 10_000 ? n : null;
 }
 
-async function diskFree(dir: string): Promise<number> {
+export async function diskFree(dir: string): Promise<number> {
   const stats = await statfs(dir);
   return stats.bavail * stats.bsize;
+}
+
+export interface MediaStore {
+  sql: Sql;
+  mediaDir: string;
+  freeBytes: (dir: string) => Promise<number>;
+  minFreeBytes: number;
+}
+
+export interface MediaFile {
+  gameId: string;
+  mediaId: string;
+  variant: string;
+  bytes: Buffer;
+  mime: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Сохраняет картинку: файл MEDIA_DIR/<sha256> и строку media. Повтор той же картинки — успех,
+ * другая под тем же id — "conflict" (картинку по id не перезаписать). `fits` — лимит места
+ * ведущего (перенос из Firebase его не проверяет).
+ */
+export async function storeMedia(
+  store: MediaStore,
+  file: MediaFile,
+  fits?: (size: number) => Promise<boolean>,
+): Promise<"ok" | "conflict" | "quota" | "disk-full"> {
+  const { sql, mediaDir } = store;
+  const sha = createHash("sha256").update(file.bytes).digest("hex");
+  const existing = await sql<MediaRow[]>`
+    select sha256, mime from media where game_id = ${file.gameId} and media_id = ${file.mediaId} and variant = ${file.variant}`;
+  if (existing[0]) return existing[0].sha256 === sha ? "ok" : "conflict";
+  if ((await store.freeBytes(mediaDir)) < store.minFreeBytes) return "disk-full";
+  if (fits && !(await fits(file.bytes.length))) return "quota";
+  const path = join(mediaDir, sha);
+  if (!existsSync(path)) {
+    // Сначала во временный файл, потом переименование: читатель не увидит половину файла.
+    const temp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
+    await writeFile(temp, file.bytes, { mode: 0o600 });
+    await rename(temp, path);
+  }
+  await sql`
+    insert into media (game_id, media_id, variant, sha256, mime, width, height, size)
+    values (${file.gameId}, ${file.mediaId}, ${file.variant}, ${sha}, ${file.mime}, ${file.width}, ${file.height}, ${file.bytes.length})
+    on conflict (game_id, media_id, variant) do nothing`;
+  return "ok";
 }
 
 export function registerGames(app: FastifyInstance, options: GamesOptions): void {
@@ -327,31 +375,21 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       if (!mime || !width || !height) return fail(reply, 400, "invalid-argument");
       if (bytes.length > (VARIANT_MAX_BYTES[variant] ?? 0)) return fail(reply, 413, "resource-exhausted");
 
-      const sha = createHash("sha256").update(bytes).digest("hex");
-      const existing = await sql<MediaRow[]>`
-        select sha256, mime from media where game_id = ${game.id} and media_id = ${media} and variant = ${variant}`;
-      // Картинку по id не перезаписать: повтор той же — успех, другая — ошибка.
-      if (existing[0]) return existing[0].sha256 === sha ? { ok: true } : fail(reply, 409, "already-exists");
-
-      if ((await freeBytes(mediaDir)) < limits.minFreeBytes) {
+      const stored = await storeMedia(
+        { sql, mediaDir, freeBytes, minFreeBytes: limits.minFreeBytes },
+        { gameId: game.id, mediaId: media, variant, bytes, mime, width, height },
+        async (size) => {
+          const [{ used }] = await sql<{ used: string }[]>`
+            select coalesce(sum(m.size), 0)::text as used from media m join games g on g.id = m.game_id where g.owner_id = ${game.owner_id}`;
+          return Number(used) + size <= limits.perHostBytes;
+        },
+      );
+      if (stored === "conflict") return fail(reply, 409, "already-exists");
+      if (stored === "quota") return fail(reply, 413, "resource-exhausted");
+      if (stored === "disk-full") {
         request.log.warn("media: мало места на диске, загрузка отклонена");
         return fail(reply, 507, "resource-exhausted");
       }
-      const [{ used }] = await sql<{ used: string }[]>`
-        select coalesce(sum(m.size), 0)::text as used from media m join games g on g.id = m.game_id where g.owner_id = ${game.owner_id}`;
-      if (Number(used) + bytes.length > limits.perHostBytes) return fail(reply, 413, "resource-exhausted");
-
-      const path = join(mediaDir, sha);
-      if (!existsSync(path)) {
-        // Сначала во временный файл, потом переименование: читатель не увидит половину файла.
-        const temp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
-        await writeFile(temp, bytes, { mode: 0o600 });
-        await rename(temp, path);
-      }
-      await sql`
-        insert into media (game_id, media_id, variant, sha256, mime, width, height, size)
-        values (${game.id}, ${media}, ${variant}, ${sha}, ${mime}, ${width}, ${height}, ${bytes.length})
-        on conflict (game_id, media_id, variant) do nothing`;
       return { ok: true };
     });
 

@@ -72,6 +72,22 @@ export const loadSecondaryAuth = once(async (): Promise<{ auth: Auth; sdk: AuthS
   return { auth, sdk };
 });
 
+/**
+ * Отдельный экземпляр для переноса из Firebase на свой сервер (/admin/import, PR 5): вход и
+ * кэш только в памяти — после закрытия вкладки в браузере не остаётся ни входа, ни данных.
+ */
+export const loadImportFirebase = once(async () => {
+  const [{ initializeApp }, authSdk, sdk] = await Promise.all([import("firebase/app"), import("./sdk/auth"), import("./sdk/firestore")]);
+  const app = initializeApp(useEmulators ? { ...firebaseConfig, projectId: "demo-joyrest" } : firebaseConfig, "import");
+  const auth = authSdk.initializeAuth(app, { persistence: authSdk.inMemoryPersistence });
+  const db = sdk.initializeFirestore(app, { experimentalAutoDetectLongPolling: true, localCache: sdk.memoryLocalCache() });
+  if (useEmulators) {
+    authSdk.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    sdk.connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  }
+  return { auth, authSdk, db, sdk };
+});
+
 /** Начинает качать SDK заранее, параллельно с кодом экрана. */
 export function preloadData(): void {
   // Свой сервер: Firebase не нужен (CLAUDE.md, «Платформа на своём сервере»).

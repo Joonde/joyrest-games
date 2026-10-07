@@ -49,7 +49,7 @@ export interface AuthOptions {
   limits?: Partial<AuthLimits>;
 }
 
-interface UserRow {
+export interface UserRow {
   id: string;
   email: string;
   name: string;
@@ -60,7 +60,7 @@ interface UserRow {
   created_at: Date | null;
 }
 
-interface SessionRow extends UserRow {
+export interface SessionRow extends UserRow {
   token_hash: string;
   expires_at: Date;
 }
@@ -87,7 +87,7 @@ function accountOf(row: UserRow): HostAccount {
   return { uid: row.id, role: role(row.role), name: row.name, active: row.active, email: row.email, createdAt: row.created_at ? row.created_at.getTime() : null };
 }
 
-function actorOf(row: UserRow): permissions.Actor {
+export function actorOf(row: UserRow): permissions.Actor {
   return { uid: row.id, role: role(row.role), active: row.active };
 }
 
@@ -148,6 +148,43 @@ function sameOrigin(request: FastifyRequest): boolean {
   }
 }
 
+/**
+ * Общая защита API платформы: ответы без кэша, на адресах сайта агентства — 404, изменения —
+ * только с `X-JoyRest: 1` и Origin своего адреса.
+ */
+export function apiGuard(isSite?: (request: FastifyRequest) => boolean) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    reply.header("Cache-Control", "no-store");
+    if (isSite?.(request)) return reply.code(404).send({ error: "not-found" });
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      if (request.headers["x-joyrest"] !== "1" || !sameOrigin(request)) {
+        return reply.code(403).send({ error: "permission-denied" });
+      }
+    }
+  };
+}
+
+/** Вошедший ведущий по cookie; сеанс продлевается раз в сутки. Нет входа — null. */
+export async function sessionUser(sql: Sql, request: FastifyRequest, reply: FastifyReply, now: () => number = Date.now): Promise<SessionRow | null> {
+  const token = readCookie(request.headers.cookie, SESSION_COOKIE);
+  if (!token) return null;
+  const rows = await sql<SessionRow[]>`
+    select s.token_hash, s.expires_at, u.id, u.email, u.name, u.role, u.active, u.password_hash,
+           u.must_change_password, u.created_at
+    from auth_sessions s join users u on u.id = s.user_id
+    where s.token_hash = ${tokenHash(token)} and s.expires_at > ${new Date(now())}`;
+  const row = rows[0];
+  if (!row) {
+    reply.header("Set-Cookie", CLEAR_COOKIE);
+    return null;
+  }
+  if (row.expires_at.getTime() - now() < SESSION_MS - REFRESH_AFTER_MS) {
+    await sql`update auth_sessions set expires_at = ${new Date(now() + SESSION_MS)} where token_hash = ${row.token_hash}`;
+    reply.header("Set-Cookie", sessionCookie(token, SESSION_MS));
+  }
+  return row;
+}
+
 const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at"];
 
 export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
@@ -159,15 +196,7 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
   const perUser = new WindowLimiter(limits.perAccount, limits.windowMs);
 
   app.register(async (api) => {
-    api.addHook("onRequest", async (request, reply) => {
-      reply.header("Cache-Control", "no-store");
-      if (options.isSite?.(request)) return reply.code(404).send({ error: "not-found" });
-      if (request.method !== "GET" && request.method !== "HEAD") {
-        if (request.headers["x-joyrest"] !== "1" || !sameOrigin(request)) {
-          return reply.code(403).send({ error: "permission-denied" });
-        }
-      }
-    });
+    api.addHook("onRequest", apiGuard(options.isSite));
 
     function fail(reply: FastifyReply, status: number, code: string, request: FastifyRequest, action: string) {
       request.log.info({ auth: action, result: code, status }, "auth");
@@ -181,26 +210,7 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
       reply.header("Set-Cookie", sessionCookie(token, SESSION_MS));
     }
 
-    /** Вошедший ведущий по cookie; сеанс продлевается раз в сутки. Нет входа — null. */
-    async function currentUser(request: FastifyRequest, reply: FastifyReply): Promise<SessionRow | null> {
-      const token = readCookie(request.headers.cookie, SESSION_COOKIE);
-      if (!token) return null;
-      const rows = await sql<SessionRow[]>`
-        select s.token_hash, s.expires_at, u.id, u.email, u.name, u.role, u.active, u.password_hash,
-               u.must_change_password, u.created_at
-        from auth_sessions s join users u on u.id = s.user_id
-        where s.token_hash = ${tokenHash(token)} and s.expires_at > ${new Date(now())}`;
-      const row = rows[0];
-      if (!row) {
-        reply.header("Set-Cookie", CLEAR_COOKIE);
-        return null;
-      }
-      if (row.expires_at.getTime() - now() < SESSION_MS - REFRESH_AFTER_MS) {
-        await sql`update auth_sessions set expires_at = ${new Date(now() + SESSION_MS)} where token_hash = ${row.token_hash}`;
-        reply.header("Set-Cookie", sessionCookie(token, SESSION_MS));
-      }
-      return row;
-    }
+    const currentUser = (request: FastifyRequest, reply: FastifyReply) => sessionUser(sql, request, reply, now);
 
     /** Вошедший администратор; иначе ответ 401/403 уже отправлен и вернётся null. */
     async function requireAdmin(request: FastifyRequest, reply: FastifyReply, action: string): Promise<SessionRow | null> {

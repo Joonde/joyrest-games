@@ -10,6 +10,7 @@ import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import type { Sql } from "postgres";
 import { registerAuth, type AuthOptions } from "./auth";
+import { registerGames, type GamesOptions } from "./games";
 import { registerLead, type LeadOptions } from "./lead";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -40,6 +41,10 @@ export interface AppOptions {
    */
   sql?: Sql | null;
   auth?: Omit<AuthOptions, "sql" | "isSite">;
+  /** Папка картинок игр (MEDIA_DIR, в контейнере /app/media); null — картинки недоступны. */
+  mediaDir?: string | null;
+  /** Игры и картинки — настройки для тестов (лимиты, свободное место). */
+  games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
 }
@@ -86,7 +91,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerLead(app, { ...options.lead, hosts: options.site.hosts }, { constraints: { host: hostPattern(options.site.hosts) } });
   }
   // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.
-  if (options.sql) registerAuth(app, { ...options.auth, sql: options.sql, isSite: site ? site.isSite : undefined });
+  if (options.sql) {
+    const isSite = site ? site.isSite : undefined;
+    registerAuth(app, { ...options.auth, sql: options.sql, isSite });
+    registerGames(app, { ...options.games, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+  }
 
   const publicDir = options.publicDir;
   if (publicDir && existsSync(join(publicDir, "index.html"))) {

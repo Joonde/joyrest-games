@@ -88,6 +88,9 @@ export function LoadFailed({
 }
 
 /** Ошибка загрузки внутри экрана (вкладки), без смены всего экрана. */
+/** Текст для раздела, который ещё переезжает на свой сервер (useLoad: `notYet`). */
+export const NOT_YET_TEXT = "Этот раздел ещё переезжает на новый сервер и скоро заработает.";
+
 export function LoadFailedInline({ onRetry, text = "Не удалось загрузить. Проверьте интернет." }: { onRetry: () => void; text?: string }) {
   return (
     <section className="card">

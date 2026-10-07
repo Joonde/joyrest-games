@@ -23,11 +23,11 @@ import { mediaRepository } from "./media";
 import { participantsRepository } from "./participants";
 import { resultsRepository } from "./results";
 import { serverAuthService } from "./server/auth";
+import { serverGamesRepository } from "./server/games";
+import { serverMediaRepository } from "./server/media";
 import {
   answersNotYet,
   clockNotYet,
-  gamesNotYet,
-  mediaNotYet,
   participantsNotYet,
   resultsNotYet,
   sessionsNotYet,
@@ -40,8 +40,8 @@ const server = dataBackend() === "server";
 
 export const authService: AuthService = server ? serverAuthService : firebaseAuthService;
 export const usersRepo: UsersRepository = server ? serverUsersRepository : usersRepository;
-export const gamesRepo: GamesRepository = server ? gamesNotYet : gamesRepository;
-export const mediaRepo: MediaRepository = server ? mediaNotYet : mediaRepository;
+export const gamesRepo: GamesRepository = server ? serverGamesRepository : gamesRepository;
+export const mediaRepo: MediaRepository = server ? serverMediaRepository : mediaRepository;
 export const sessionsRepo: SessionsRepository = server ? sessionsNotYet : sessionsRepository;
 export const participantsRepo: ParticipantsRepository = server ? participantsNotYet : participantsRepository;
 export const answersRepo: AnswersRepository = server ? answersNotYet : answersRepository;

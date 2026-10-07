@@ -1,14 +1,11 @@
 /**
- * То, что ещё не перенесено на свой сервер: игры и картинки — PR 3.2, сессии, гости и ответы —
- * PR 4.1, история — PR 4.2. До тех пор на тестовом адресе эти экраны показывают ошибку
- * `unimplemented` (настоящая ошибка, без бесконечных повторов). Основная версия на Firebase
+ * То, что ещё не перенесено на свой сервер: сессии, гости и ответы — PR 4.1, история — PR 4.2.
+ * До тех пор на тестовом адресе эти экраны показывают ошибку `unimplemented` (настоящая ошибка, без бесконечных повторов). Основная версия на Firebase
  * и эти заглушки не использует.
  */
 import type {
   AnswersRepository,
   ClockService,
-  GamesRepository,
-  MediaRepository,
   ParticipantsRepository,
   ResultsRepository,
   SessionsRepository,
@@ -20,24 +17,6 @@ function watchNotYet(onError: (error: Error) => void): Unsubscribe {
   const timer = setTimeout(() => onError(new ApiError("unimplemented", 501)), 0);
   return () => clearTimeout(timer);
 }
-
-export const gamesNotYet: GamesRepository = {
-  listAgency: notYet,
-  listPersonal: notYet,
-  get: notYet,
-  create: notYet,
-  copy: notYet,
-  update: notYet,
-  remove: notYet,
-};
-
-export const mediaNotYet: MediaRepository = {
-  upload() {
-    throw new ApiError("unimplemented", 501);
-  },
-  load: notYet,
-  remove: notYet,
-};
 
 export const sessionsNotYet: SessionsRepository = {
   create: notYet,

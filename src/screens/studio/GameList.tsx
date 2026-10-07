@@ -4,7 +4,7 @@ import { copyOfGame } from "../../core/games";
 import { gamesRepo, permissions, useLoad, type Game, type GameScope, type UserProfile } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
-import { LoadFailedInline } from "../../components/Status";
+import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
 import { demoGames, gameMediaIds } from "../../mechanics/registry";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 import { GameCard } from "./GameCard";
@@ -125,7 +125,7 @@ export function GameList({ scope, profile, onToast }: Props) {
         </section>
       ))}
       {state.status === "loading" && <ListSkeleton />}
-      {state.status === "error" && <LoadFailedInline onRetry={retry} />}
+      {state.status === "error" && <LoadFailedInline onRetry={retry} text={state.notYet ? NOT_YET_TEXT : undefined} />}
       {state.status === "ready" && state.data.length === 0 && <p className="muted empty">{intro.empty}</p>}
       {state.status === "ready" && state.data.length > 0 && (
         <ul className="cards" aria-label={intro.title}>

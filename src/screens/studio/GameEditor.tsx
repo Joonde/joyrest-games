@@ -1,7 +1,6 @@
 import { Suspense, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
-import { questionsLabel } from "../../core/results";
 import {
   gamesRepo,
   permissions,
@@ -18,7 +17,7 @@ import { LoadFailed, Message, Pending } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
 import { TopBar } from "../../components/TopBar";
 import { useAutosave, type SaveStatus } from "../../components/useAutosave";
-import { countQuestions, gameMediaIds, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
+import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
 import { THEME_HINTS, themesForRating } from "../../themes/registry";
 
 const AGE_HINTS: Record<AgeRating, string> = {
@@ -79,7 +78,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
   const errors = useMemo(() => validateGame(game.mechanic, game.content), [game.mechanic, game.content]);
-  const questions = countQuestions(game.mechanic, game.content);
+  const stepsText = stepsLabel(game.mechanic, game.content);
 
   function edit(patch: GamePatch) {
     setGame((g) => ({ ...g, ...patch }));
@@ -143,7 +142,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         )}
         <ul className="meta" aria-label="Об игре">
           <li>{mechanicTitle(game.mechanic)}</li>
-          <li>{questionsLabel(questions)}</li>
+          <li>{stepsText}</li>
           <li>{game.scope === "agency" ? "Библиотека JoyRest" : "Мои игры"}</li>
         </ul>
         {launchBlocked && (

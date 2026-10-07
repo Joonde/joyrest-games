@@ -1,5 +1,8 @@
+import { lotto } from "./lotto";
+import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
-import { DEMO_QUIZ } from "./quiz/demo";
+import { DEMO_MELODY, DEMO_QUIZ } from "./quiz/demo";
+import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
 
 /**
@@ -11,14 +14,15 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
 }
 
 const HINTS: Record<string, string> = {
-  quiz: "Варианты ответа, открытый ответ, на скорость, картинки.",
+  quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
+  lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
 };
 
 /** Механики, которые можно выбрать при создании игры. */
@@ -59,6 +63,30 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
 }
 
 /** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
-export const demoGames: Array<{ mechanic: string; title: string; content: unknown }> = [
-  { mechanic: quiz.id, title: DEMO_QUIZ.title, content: DEMO_QUIZ.content },
+export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown }> = [
+  { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
+  {
+    mechanic: quiz.id,
+    title: DEMO_MELODY.title,
+    hint: "8 вопросов в трёх раундах: на экране звучит фрагмент, гости выбирают песню. Треки добавьте в копии игры или включайте со своего плеера.",
+    content: DEMO_MELODY.content,
+  },
+  {
+    mechanic: lotto.id,
+    title: DEMO_LOTTO.title,
+    hint: "28 песен, карточки 4×4, побеждает первая линия. Треки добавьте в копии игры или включайте со своего плеера.",
+    content: DEMO_LOTTO.content,
+  },
 ];
+
+/** «8 вопросов» или «28 песен» — смотря какая игра. */
+export function stepsLabel(mechanicId: string, content: unknown): string {
+  const n = countQuestions(mechanicId, content);
+  if (mechanicId === lotto.id) {
+    const d10 = n % 10;
+    const d100 = n % 100;
+    const word = d10 === 1 && d100 !== 11 ? "песня" : d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14) ? "песни" : "песен";
+    return `${n} ${word}`;
+  }
+  return questionsLabel(n);
+}

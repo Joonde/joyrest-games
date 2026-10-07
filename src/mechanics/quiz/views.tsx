@@ -3,6 +3,7 @@ import { BoardView } from "../../components/live/BoardView";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { MediaImage, preloadMedia } from "../../components/media/MediaImage";
+import { preloadTrack, useFragment } from "../../components/music/useFragment";
 import { placeOf } from "../../core/leaderboard";
 import { bestInRound, moveLabel, roundLeaderboard, roundScore } from "../../core/rounds";
 import { pointsLabel } from "../../core/results";
@@ -77,10 +78,17 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
   const roundIntro = stage === "ready" && startsRound(content, step) ? `intro:${step}` : "";
   useSoundOnChange(roundIntro, "whoosh", isSet);
 
-  // Экран зала заранее качает картинку текущего и следующего вопроса.
+  // Экран зала заранее качает картинку и музыку текущего и следующего вопроса.
   useEffect(() => {
     preloadMedia(session.gameId, [q?.imageId ?? null, next?.imageId ?? null], "full");
-  }, [session.gameId, q?.imageId, next?.imageId]);
+    preloadTrack(q?.trackId);
+    preloadTrack(next?.trackId);
+  }, [session.gameId, q?.imageId, next?.imageId, q?.trackId, next?.trackId]);
+
+  // «Угадай мелодию»: фрагмент — при показе вопроса и по кнопке «Повторить»; на ответе — ещё раз.
+  const replay = typeof (session.state.result as { replay?: unknown } | null)?.replay === "number" ? (session.state.result as { replay: number }).replay : 0;
+  const fragmentKey = !q?.trackId ? null : stage === "question" ? `q:${step}:${session.state.startedAt ?? 0}:${replay}` : stage === "reveal" ? `r:${step}:${replay}` : null;
+  useFragment(q?.trackId ?? null, q?.trackStart ?? 0, stage === "reveal" ? Math.max(20, q?.trackLength ?? 0) : (q?.trackLength ?? 15), fragmentKey);
 
   if (!q) return <div className="quiz-screen quiz-screen--empty">Вопросов нет</div>;
   const total = content.questions.length;
@@ -169,7 +177,14 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
           </span>
         )}
       </div>
-      <h2 className="quiz-screen__question">{q.text || "Текст вопроса"}</h2>
+      <h2 className="quiz-screen__question">
+        {q.trackId && (
+          <span className="quiz-screen__note" aria-hidden="true">
+            ♪{" "}
+          </span>
+        )}
+        {q.text || "Текст вопроса"}
+      </h2>
       {q.imageId && (
         <MediaImage className="quiz-screen__image" gameId={session.gameId} mediaId={q.imageId} variant="full" alt="" />
       )}

@@ -5212,3 +5212,151 @@ ul.chips {
 .topbar__more {
   flex: none;
 }
+
+/* ---------- Музыкальное лото ---------- */
+
+.lotto-screen {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "top" "now" "history";
+}
+
+.lotto-screen__now {
+  grid-area: now;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  text-align: center;
+  min-height: 0;
+}
+
+.lotto-screen__title {
+  font-family: var(--font-display);
+  font-size: 10cqh;
+  line-height: 1.05;
+}
+
+.lotto-screen__artist {
+  font-size: 5cqh;
+  color: var(--color-text-muted);
+}
+
+.lotto-screen__winners {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.6cqh 2cqw;
+  font-size: 4.4cqh;
+  font-weight: 600;
+}
+
+.lotto-screen__winners li {
+  padding: 1cqh 2cqw;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.lotto-screen__winners .name-emoji {
+  color: inherit;
+}
+
+.lotto-screen__history {
+  grid-area: history;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1cqh 2.4cqw;
+  font-size: 2.6cqh;
+}
+
+.lotto-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.2cqw;
+  height: 22cqh;
+}
+
+.lotto-eq > span {
+  width: 3cqw;
+  height: 100%;
+  border-radius: 1cqh;
+  background: var(--gradient-secondary);
+  transform-origin: bottom;
+  animation: lotto-eq 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes lotto-eq {
+  from {
+    transform: scaleY(0.15);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-eq > span {
+    animation: none;
+    transform: scaleY(0.6);
+  }
+}
+
+.lotto-card {
+  display: grid;
+  gap: 6px;
+}
+
+.lotto-card__cell {
+  min-height: 64px;
+  aspect-ratio: 1;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.15;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.lotto-card__cell.is-marked {
+  background: var(--color-primary);
+  border-color: var(--color-highlight);
+  color: var(--color-primary-text);
+}
+
+.lotto-card__title {
+  font-weight: 600;
+}
+
+.lotto-card__artist {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.lotto-phone__claim {
+  font-family: var(--font-display);
+  font-size: 26px;
+}
+
+.lotto-winners {
+  margin: 0;
+  padding-left: 24px;
+}

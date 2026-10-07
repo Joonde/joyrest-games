@@ -382,6 +382,7 @@ export function playSound(name: SoundName): void {
 
 /** «Стоп»: заглушить все эффекты, что звучат сейчас (музыку — нет); следующие играют как обычно. */
 export function stopAllSounds(): void {
+  stopFragment();
   if (!ctx || !effectsBus) return;
   const old = effectsBus;
   effectsBus = null;
@@ -436,4 +437,57 @@ export function stopMusic(): void {
   if (!player) return;
   player.pause();
   player.currentTime = 0;
+}
+
+// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото) ----------
+
+let fragmentEl: HTMLAudioElement | null = null;
+let fragmentTimer = 0;
+/** Фоновая музыка играла до фрагмента — после него продолжится. */
+let resumeAfterFragment = false;
+
+function fragmentElement(): HTMLAudioElement | null {
+  if (!ctx) return null;
+  if (!fragmentEl) {
+    fragmentEl = new Audio();
+    fragmentEl.preload = "auto";
+    const bus = musicOut();
+    if (!bus) return null;
+    ctx.createMediaElementSource(fragmentEl).connect(bus);
+  }
+  return fragmentEl;
+}
+
+/**
+ * Сыграть кусок трека: с `startSec` в течение `lengthSec` (0 — до конца). Фоновая музыка на это
+ * время встаёт на паузу. false — браузер не дал включить звук (нужно коснуться экрана).
+ */
+export async function playFragment(url: string, startSec: number, lengthSec: number): Promise<boolean> {
+  if (!soundReady()) return false;
+  const el = fragmentElement();
+  if (!el) return false;
+  window.clearTimeout(fragmentTimer);
+  if (player && !player.paused) {
+    resumeAfterFragment = true;
+    player.pause();
+  }
+  if (el.src !== url) el.src = url;
+  try {
+    el.currentTime = Math.max(0, startSec);
+    await el.play();
+  } catch {
+    return false;
+  }
+  if (lengthSec > 0) fragmentTimer = window.setTimeout(() => stopFragment(), lengthSec * 1000);
+  el.onended = () => stopFragment();
+  return true;
+}
+
+export function stopFragment(): void {
+  window.clearTimeout(fragmentTimer);
+  fragmentEl?.pause();
+  if (resumeAfterFragment) {
+    resumeAfterFragment = false;
+    void player?.play().catch(() => undefined);
+  }
 }

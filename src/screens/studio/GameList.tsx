@@ -113,7 +113,7 @@ export function GameList({ scope, profile, onToast }: Props) {
       };
       const id = await gamesRepo.create(draft);
       update((games) => [{ ...draft, id, createdAt: Date.now(), updatedAt: Date.now() }, ...games]);
-      onToast("Демо-квиз добавлен в библиотеку");
+      onToast("Игра добавлена в библиотеку");
     } catch {
       onToast("Не удалось добавить. Проверьте интернет.");
     } finally {
@@ -143,7 +143,7 @@ export function GameList({ scope, profile, onToast }: Props) {
         <section key={demo.title} className="card">
           <p className="eyebrow">Готовая игра</p>
           <h3 className="game-card__title">{demo.title}</h3>
-          <p className="muted">8 вопросов всех типов: варианты, открытый ответ, на скорость. Видна всем ведущим.</p>
+          <p className="muted">{demo.hint} Видна всем ведущим.</p>
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" disabled={addingDemo} onClick={() => void addDemo(demo)}>
               {addingDemo ? "Добавляем…" : "Добавить в библиотеку"}

@@ -81,6 +81,20 @@ export function canCopyToPersonal(actor: Actor, game: GameRef): boolean {
   return canReadGame(actor, game) && canCreateGame(actor, "personal", actor?.uid ?? "");
 }
 
+/**
+ * Предложить игру в общую библиотеку — только свой сервер (в firestore.rules этого нет):
+ * активный ведущий, только свою личную игру. Владельцу агентства предлагать незачем — он
+ * сам делает «Копию в библиотеку JoyRest».
+ */
+export function canProposeGame(actor: Actor, game: GameRef): boolean {
+  return isActiveHost(actor) && !isAdmin(actor) && game.scope === "personal" && game.ownerId === actor?.uid;
+}
+
+/** Принять или отклонить предложение — тот, кто правит библиотеку (admin). */
+export function canReviewProposals(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
 /** Отключённый ведущий не создаёт сессии. */
 export function canCreateSession(actor: Actor): boolean {
   return isActiveHost(actor);

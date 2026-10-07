@@ -241,6 +241,9 @@ function Console({ session }: { session: Session }) {
               <Link className="btn btn--block" to={`/results/${session.id}`}>
                 Открыть итоги
               </Link>
+              <Link className="btn btn--secondary btn--block" to="/studio">
+                В студию
+              </Link>
             </div>
           </>
         )}

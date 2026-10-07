@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { formatDate } from "../../core/format";
 import { questionsLabel } from "../../core/results";
-import { permissions, type Game, type GameScope, type UserProfile } from "../../data";
+import { permissions, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
 import { countQuestions, mechanicTitle, validateGame } from "../../mechanics/registry";
 import { getTheme } from "../../themes/registry";
@@ -11,10 +11,20 @@ interface Props {
   profile: UserProfile;
   onDuplicate: (target: GameScope) => void;
   onDelete: () => void;
+  /** Последнее предложение этой игры в библиотеку (только свой сервер). */
+  proposal?: LibraryProposal | null;
+  /** Есть — можно предложить игру в библиотеку. */
+  onPropose?: () => void;
 }
 
+const PROPOSAL_LABEL: Record<LibraryProposal["status"], string> = {
+  pending: "На проверке у JoyRest",
+  accepted: "В библиотеке JoyRest",
+  rejected: "Не принята в библиотеку",
+};
+
 /** Карточка игры: название, механика, тема, число вопросов, дата и действия. */
-export function GameCard({ game, profile, onDuplicate, onDelete }: Props) {
+export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPropose }: Props) {
   const editable = permissions.canEditGame(profile, game);
   const date = game.updatedAt ?? game.createdAt;
   const ready = validateGame(game.mechanic, game.content).length === 0;
@@ -33,6 +43,9 @@ export function GameCard({ game, profile, onDuplicate, onDelete }: Props) {
   if (game.scope === "personal" && permissions.canCreateGame(profile, "agency", profile.uid)) {
     menu.push({ label: "Копия в библиотеку JoyRest", onClick: () => onDuplicate("agency") });
   }
+  if (onPropose && permissions.canProposeGame(profile, game) && proposal?.status !== "pending") {
+    menu.push({ label: proposal?.status === "accepted" ? "Предложить обновление в библиотеку" : "Предложить в библиотеку", onClick: onPropose });
+  }
   if (permissions.canDeleteGame(profile, game)) menu.push({ label: "Удалить", onClick: onDelete });
 
   return (
@@ -50,7 +63,9 @@ export function GameCard({ game, profile, onDuplicate, onDelete }: Props) {
         {game.ageRating !== "0+" && <li>{game.ageRating}</li>}
         {date !== null && <li>{formatDate(date)}</li>}
         {!ready && <li className="meta__warn">Не готова к запуску</li>}
+        {proposal && <li className={proposal.status === "rejected" ? "meta__warn" : undefined}>{PROPOSAL_LABEL[proposal.status]}</li>}
       </ul>
+      {proposal?.status === "rejected" && proposal.reason && <p className="muted small">Причина: {proposal.reason}</p>}
       <div className="actions">
         <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
           Запустить

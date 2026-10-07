@@ -495,6 +495,31 @@ a {
   user-select: all;
 }
 
+/* ---------- Предложения ведущих в библиотеку ---------- */
+
+.proposals {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+
+.proposals__item {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.proposals__item p {
+  margin: 0;
+}
+
+.proposals__title {
+  font-weight: 600;
+}
+
 /* ---------- Диалог подтверждения ---------- */
 
 .dialog {

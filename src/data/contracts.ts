@@ -10,6 +10,7 @@ import type {
   CreatedHost,
   Game,
   GamePatch,
+  LibraryProposal,
   GameResult,
   HostAccount,
   LeaderboardEntry,
@@ -158,6 +159,21 @@ export interface ClockService {
   offset(): number;
   /** Измеряет смещение один раз за загрузку страницы (одна запись и одно чтение). */
   sync(): Promise<number>;
+}
+
+/**
+ * Предложения в библиотеку (CLAUDE.md, раздел 3). Есть только на своём сервере; у Firebase —
+ * null, кнопки не показываются.
+ */
+export interface ProposalsRepository {
+  /** Ведущий предлагает свою личную игру; пока предложение ждёт — возвращается оно же. */
+  propose(gameId: string): Promise<LibraryProposal>;
+  /** Свои предложения, новые сверху. */
+  listMine(): Promise<LibraryProposal[]>;
+  /** Только admin: ждут решения, старые сверху. */
+  listPending(): Promise<LibraryProposal[]>;
+  accept(proposalId: string): Promise<LibraryProposal>;
+  reject(proposalId: string, reason: string): Promise<LibraryProposal>;
 }
 
 export interface ResultsRepository {

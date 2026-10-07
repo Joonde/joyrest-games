@@ -5,7 +5,7 @@
 import type { SessionsRepository } from "../contracts";
 import { errorCodeOf } from "../retry";
 import type { Leaderboard, LeaderboardEntry, Session, SessionPhase, SessionState, StepStage } from "../types";
-import { api, asRecord, asText, newId, notYet } from "./api";
+import { api, asRecord, asText, newId } from "./api";
 import { openStream } from "./stream";
 
 type Versioned = Session & { version: number };
@@ -183,6 +183,9 @@ export const serverSessionsRepository: SessionsRepository = {
     await api("POST", `${base(session.id)}/finish`, { participantsCount });
   },
 
-  // Автоочистка старых сессий — PR 4.2.
-  removeExpired: notYet,
+  // Автоочистка при входе admin: сервер не удалит сессии свежее 30 дней, даже если попросить.
+  async removeExpired(cutoff) {
+    const data = asRecord(await api("POST", "/api/sessions/cleanup", { cutoff }));
+    return { deleted: typeof data.deleted === "number" ? data.deleted : 0, more: data.more === true };
+  },
 };

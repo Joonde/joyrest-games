@@ -10,10 +10,11 @@
  * ответ — ключ (сессия, шаг, участник).
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import { generateSessionCode } from "../../src/core/code";
 import { NAME_MAX_LENGTH } from "../../src/core/names";
 import { compactBoard } from "../../src/core/results";
+import { retentionCutoff } from "../../src/core/retention";
 import * as permissions from "../../src/data/permissions";
 import type { Leaderboard, LeaderboardEntry, Participant, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { actorOf, apiGuard, identityOf, type Identity } from "./auth";
@@ -83,6 +84,8 @@ const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
 const STAGES = new Set<StepStage>(["ready", "question", "reveal", "board"]);
 const SMALL_BODY = 16 * 1024;
 const SNAPSHOT_BODY = 1024 * 1024;
+/** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */
+export const CLEANUP_LIMIT = 100;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -297,6 +300,27 @@ function validName(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.length <= NAME_MAX_LENGTH;
 }
 
+/** Итоги сессии для истории — по таблице лидеров на сервере. `replace` — завершение (обновить). */
+async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean): Promise<void> {
+  // В транзакции и вне её запросы пишутся одинаково.
+  const sql = db as Sql;
+  const board = sql.json(compactBoard(normalizeBoard(row.leaderboard)) as never);
+  const title = row.game_title.slice(0, 80);
+  if (replace) {
+    await sql`
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board)
+      values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
+              ${row.created_at}, ${participantsCount}, ${board})
+      on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board, saved_at = now()`;
+  } else {
+    await sql`
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board)
+      values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
+              ${row.created_at}, ${participantsCount}, ${board})
+      on conflict (id) do nothing`;
+  }
+}
+
 // ------------------------------------------------------------------ маршруты
 
 export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
@@ -479,15 +503,37 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       await change(hosted.row.id, () => ({ state: { phase: "finished" }, leaderboard: {} }));
       // Итоги — по таблице на сервере, а не по присланной.
       const row = await loadSession(hosted.row.id);
-      if (row) {
-        const board = compactBoard(normalizeBoard(row.leaderboard));
-        await sql`
-          insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board)
-          values (${row.id}, ${row.host_id}, ${row.code}, ${row.game_title.slice(0, 80)}, ${row.mechanic}, ${row.theme_id},
-                  ${row.play_mode}, ${row.created_at}, ${participantsCount}, ${sql.json(board as never)})
-          on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board, saved_at = now()`;
-      }
+      if (row) await saveResult(sql, row, participantsCount, true);
       return { ok: true };
+    });
+
+    // Автоочистка: при входе admin в /admin удаляются сессии старше 30 дней вместе с участниками
+    // и ответами. Незавершённую игру с участниками сначала сохраняем в историю.
+    api.post<{ Body: unknown }>("/api/sessions/cleanup", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      if (!permissions.canCleanupSessions(actor(who))) return fail(reply, 403, "permission-denied");
+      const asked = isRecord(request.body) && typeof request.body.cutoff === "number" ? request.body.cutoff : 0;
+      // Не свежее срока хранения, даже если браузер попросил иначе.
+      const cutoff = new Date(Math.min(asked, retentionCutoff(now())));
+      const rows = await sql<SessionRow[]>`
+        select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
+        where created_at < ${cutoff} order by created_at limit ${CLEANUP_LIMIT + 1}`;
+      const batch = rows.slice(0, CLEANUP_LIMIT);
+      for (const row of batch) {
+        await sql.begin(async (tx) => {
+          if (Object.keys(normalizeBoard(row.leaderboard)).length > 0) {
+            const [{ count }] = await tx<{ count: number }[]>`
+              select count(*)::int as count from participants where session_id = ${row.id} and kind = 'player'`;
+            await saveResult(tx, row, count, false);
+          }
+          await tx`delete from answers where session_id = ${row.id}`;
+          await tx`delete from participants where session_id = ${row.id}`;
+          await tx`delete from sessions where id = ${row.id}`;
+        });
+      }
+      request.log.info({ cleanup: batch.length }, "sessions cleanup");
+      return { deleted: batch.length, more: rows.length > CLEANUP_LIMIT };
     });
 
     // ---------------------------------------------------------------- участники

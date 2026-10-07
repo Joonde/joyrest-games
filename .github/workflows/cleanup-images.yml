@@ -1,0 +1,33 @@
+# Уборка старых образов в GHCR: каждая выкладка добавляет образ, старые копятся и занимают
+# место. Оставляем 12 последних версий (откат на прошлую — всегда есть) и теги main,
+# test-release; служебные части без тега удаляются вместе со своими образами.
+name: Уборка старых образов
+
+on:
+  schedule:
+    - cron: "41 2 * * *"   # каждую ночь, 05:41 по Москве
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cleanup-images
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Уборка
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: Joonde
+          package: joyrest-app
+          keep-n-tagged: 12
+          exclude-tags: main,test-release,release
+          delete-untagged: true
+          delete-partial-images: true

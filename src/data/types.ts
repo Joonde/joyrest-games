@@ -125,6 +125,22 @@ export interface SessionState {
   music?: MusicState | null;
   /** Микшер: громкость музыки и эффектов (0–100), «без звука». */
   mix?: MixState | null;
+  /** Слайд поверх экрана зала (заставка, правила, перерыв…); null — слайда нет. */
+  slide?: SlideState | null;
+}
+
+export type SlideKind = "intro" | "rules" | "round" | "break" | "award" | "thanks" | "custom";
+
+export interface SlideState {
+  /** Новый id — новый показ (звук заставки играет один раз). */
+  id: string;
+  kind: SlideKind;
+  title: string;
+  text: string;
+  /** Пункты (правила). */
+  lines: string[];
+  /** Конец перерыва по часам сервера; null — без обратного отсчёта. */
+  endsAt: number | null;
 }
 
 export interface MusicState {

@@ -12,7 +12,7 @@ import { emptyRequest, emptyVenue, type VenueData } from "../../src/core/venues"
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
-import { newOfferId, requestNotice, venueFileMime, venueNotice } from "./venues";
+import { newOfferId, requestNotice, venueFileMime, venueFormsOpen, venueNotice } from "./venues";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
@@ -79,7 +79,15 @@ describe("база площадок: без базы", () => {
     expect(compose).toContain("VENUE_FORMS: ${VENUE_FORMS:-off}");
     expect(compose).toContain('VENUE_FORMS: "on"');
     expect(compose.match(/^\s+VENUE_FORMS:/gm)?.length).toBe(2);
-    expect(read("server/src/main.ts")).toContain("formsOpen: isOn(process.env.VENUE_FORMS)");
+    expect(read("server/src/main.ts")).toContain("formsOpen: venueFormsOpen(process.env.VENUE_FORMS, siteHosts)");
+    // Основная версия (адрес сайта joy-rest.ru): только точное «on».
+    for (const value of [undefined, "", "off", "true", "1", "yes", "onn"]) expect(venueFormsOpen(value, ["joy-rest.ru"]), String(value)).toBe(false);
+    expect(venueFormsOpen("on", ["joy-rest.ru"])).toBe(true);
+    expect(venueFormsOpen(" ON\r\n", ["joy-rest.ru"])).toBe(true);
+    expect(venueFormsOpen(undefined, [])).toBe(false);
+    // Тестовое окружение без настройки — открыто; явное «off» закрывает и его.
+    expect(venueFormsOpen(undefined, ["test.joy-rest.ru"])).toBe(true);
+    expect(venueFormsOpen("off", ["test.joy-rest.ru"])).toBe(false);
     expect(read("deploy/bin/joyrest")).toMatch(/cmd_venues\(\) \{[\s\S]*need_root venues[\s\S]*ensure_no_game/);
     for (const workflow of ["build.yml", "e2e.yml", "load.yml", "scenario.yml"]) {
       expect(read(`.github/workflows/${workflow}`)).not.toContain("VENUE_FORMS");

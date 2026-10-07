@@ -117,6 +117,13 @@ function content(title: string, n: number): QuizContent {
   };
 }
 
+/** JSON с ключами по алфавиту: PostgreSQL (jsonb) хранит ключи в своём порядке, значения те же. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : v,
+  );
+}
+
 async function login(device: Device, email: string, password: string): Promise<boolean> {
   return (await device.status("POST", "/api/auth/login", { email, password })) === 200;
 }
@@ -242,7 +249,7 @@ async function main() {
     check((await host.status("PATCH", `/api/games/${gameId}`, { content: last, title: `Проверка: правка ${i}` })) === 200, `правка ${i} сохранена`);
   }
   const saved = await host.call<{ title: string; content: QuizContent }>("GET", `/api/games/${gameId}`);
-  check(saved.title === "Проверка: правка 12" && JSON.stringify(saved.content) === JSON.stringify(last), "после 12 правок сохранена последняя, текст без искажений");
+  check(saved.title === "Проверка: правка 12" && canonical(saved.content) === canonical(last), "после 12 правок сохранена последняя, текст без искажений");
   // Большая игра на русском (≈200 КБ) сохраняется целиком.
   const big = content("Большая игра", 60);
   check((await host.status("PATCH", `/api/games/${gameId}`, { content: big })) === 200, "большая игра (60 вопросов) сохраняется");

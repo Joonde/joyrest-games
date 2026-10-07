@@ -223,6 +223,18 @@ export function requestNotice(number: number, r: RequestData, hostName: string |
   return [label, `📝 Заявка №${number}: ${what}`, hostName ? `Привёл: ${hostName}` : "", `Открыть: ${link}`].filter(Boolean).join("\n");
 }
 
+/**
+ * Открыты ли анкеты без входа. Только явное `on` (`sudo joyrest venues on`) — или тестовое
+ * окружение без настройки: его адреса сайта только test.* (compose берётся из основного релиза,
+ * поэтому до слияния у app-test переменной может не быть). Основная версия без `on` — закрыта.
+ */
+export function venueFormsOpen(value: string | undefined, siteHosts: string[]): boolean {
+  const setting = value?.trim().toLowerCase();
+  if (setting === "on") return true;
+  if (setting) return false;
+  return siteHosts.length > 0 && siteHosts.every((host) => host.startsWith("test."));
+}
+
 export function registerVenues(app: FastifyInstance, options: VenuesOptions): void {
   const { sql } = options;
   const limits = { ...DEFAULT_VENUE_LIMITS, ...options.limits };

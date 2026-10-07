@@ -9,6 +9,9 @@ import { placeOf } from "../core/leaderboard";
 import { pointsLabel } from "../core/results";
 import {
   answersRepo,
+  clock,
+  dataBackend,
+  errorCodeOf,
   participantsRepo,
   useGuestSignIn,
   useSessionByCode,
@@ -171,7 +174,7 @@ function JoinForm({
     try {
       let joinTeamId: string | null = null;
       if (teamsMode) {
-        joinTeamId = teamId === "new" ? await participantsRepo.createTeam(session.id, uid, cleanTeam) : teamId;
+        joinTeamId = teamId === "new" ? await createOrFindTeam(session.id, uid, cleanTeam) : teamId;
       }
       await participantsRepo.joinAsPlayer(session.id, uid, cleanPlayer, joinTeamId);
       rememberName(cleanPlayer);
@@ -245,19 +248,47 @@ const ANSWER_KEY = "joyrest.answer";
 /** Как часто телефон капитана сообщает «я на связи». */
 const HEARTBEAT_MS = 30_000;
 
-/** Ответ на шаг запоминается на телефоне: после перезагрузки гость видит, что ответил. */
-function rememberedAnswer(sessionId: string, step: number): { value: unknown } | null {
+/**
+ * Своя команда: создать, а если сервер ответил «уже есть» (повтор после обрыва связи или вторая
+ * попытка) — найти команду, где этот телефон капитан.
+ */
+async function createOrFindTeam(sessionId: string, uid: string, name: string): Promise<string> {
   try {
-    const raw = localStorage.getItem(`${ANSWER_KEY}.${sessionId}.${step}`);
+    return await participantsRepo.createTeam(sessionId, uid, name);
+  } catch (error) {
+    if (errorCodeOf(error) !== "already-exists") throw error;
+    const own = (await participantsRepo.listTeams(sessionId)).find((t) => t.captainUid === uid);
+    if (!own) throw error;
+    return own.id;
+  }
+}
+
+/**
+ * Попытка ответа: шаг и время показа вопроса. «Назад» с вопроса и новый показ дают новую попытку —
+ * телефон снова даёт ответить (старый ответ сервер уже удалил).
+ */
+function answerSlot(state: Session["state"]): string {
+  return `${state.step}.${state.startedAt ?? 0}`;
+}
+
+/** Ответ на шаг запоминается на телефоне: после перезагрузки гость видит, что ответил. */
+function rememberedAnswer(sessionId: string, slot: string): { value: unknown } | null {
+  try {
+    const raw = localStorage.getItem(`${ANSWER_KEY}.${sessionId}.${slot}`);
     return raw === null ? null : { value: JSON.parse(raw) as unknown };
   } catch {
     return null;
   }
 }
 
-function rememberAnswer(sessionId: string, step: number, value: unknown): void {
+function rememberAnswer(sessionId: string, slot: string, value: unknown): void {
   try {
-    localStorage.setItem(`${ANSWER_KEY}.${sessionId}.${step}`, JSON.stringify(value));
+    // Ответы прошлых игр больше не нужны.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(`${ANSWER_KEY}.`) && !key.startsWith(`${ANSWER_KEY}.${sessionId}.`)) localStorage.removeItem(key);
+    }
+    localStorage.setItem(`${ANSWER_KEY}.${sessionId}.${slot}`, JSON.stringify(value));
   } catch {
     // Приватный режим: ответ узнаем у сервера.
   }
@@ -266,30 +297,31 @@ function rememberAnswer(sessionId: string, step: number, value: unknown): void {
 /** Ответ на текущий шаг: с телефона, а если его нет — с сервера (после перезагрузки, у участника команды). */
 function useMyAnswer(session: Session, pid: string, ask: boolean) {
   const { step } = session.state;
-  const [answer, setAnswer] = useState<{ step: number; value: { value: unknown } | null } | null>(null);
+  const slot = answerSlot(session.state);
+  const [answer, setAnswer] = useState<{ slot: string; value: { value: unknown } | null } | null>(null);
 
   useEffect(() => {
-    const local = rememberedAnswer(session.id, step);
+    const local = rememberedAnswer(session.id, slot);
     if (local) {
-      setAnswer({ step, value: local });
+      setAnswer({ slot, value: local });
       return;
     }
     setAnswer(null);
     if (!ask) {
-      setAnswer({ step, value: null });
+      setAnswer({ slot, value: null });
       return;
     }
     let cancelled = false;
     withRetry(() => answersRepo.getOwn(session.id, step, pid), () => cancelled)
-      .then((found) => !cancelled && setAnswer({ step, value: found ? { value: found.value } : null }))
-      .catch(() => !cancelled && setAnswer({ step, value: null }));
+      .then((found) => !cancelled && setAnswer({ slot, value: found ? { value: found.value } : null }))
+      .catch(() => !cancelled && setAnswer({ slot, value: null }));
     return () => {
       cancelled = true;
     };
-  }, [session.id, step, pid, ask]);
+  }, [session.id, step, slot, pid, ask]);
 
-  const current = answer?.step === step ? answer.value : undefined;
-  return [current, (value: unknown) => setAnswer({ step, value: { value } })] as const;
+  const current = answer?.slot === slot ? answer.value : undefined;
+  return [current, (value: unknown) => setAnswer({ slot, value: { value } })] as const;
 }
 
 function InGame({
@@ -307,6 +339,10 @@ function InGame({
 }) {
   const teams = session.playMode === "teams";
   const pid = teams ? (me.teamId ?? me.id) : me.id;
+  // Свой сервер: часы телефона сверяем один раз (бесплатно) — иначе спешащие часы закрывают ответ раньше.
+  useEffect(() => {
+    if (dataBackend() === "server") void clock.sync().catch(() => 0);
+  }, []);
   const entry = session.leaderboard[pid];
   // Капитана телефоны узнают из таблицы лидеров (её пульт держит в актуальном виде).
   const captainUid = teams ? (entry?.captainUid ?? team?.captainUid ?? "") : uid;
@@ -350,9 +386,10 @@ function InGame({
 
   async function answer(value: unknown) {
     const step = session.state.step;
+    const slot = answerSlot(session.state);
     setSending(true);
     setError(null);
-    rememberAnswer(session.id, step, value);
+    rememberAnswer(session.id, slot, value);
     setMyAnswer(value);
     try {
       const result = await answersRepo.submit(session.id, step, pid, uid, value);
@@ -360,10 +397,10 @@ function InGame({
         // Ответ уже есть (повторное нажатие) или время вышло: узнаём, что записано на сервере.
         const saved = await answersRepo.getOwn(session.id, step, pid).catch(() => null);
         if (saved) {
-          rememberAnswer(session.id, step, saved.value);
+          rememberAnswer(session.id, slot, saved.value);
           setMyAnswer(saved.value);
         } else {
-          forgetAnswer(session.id, step);
+          forgetAnswer(session.id, slot);
           setError("Ответ не принят: время вышло.");
         }
       }
@@ -447,9 +484,9 @@ function InGame({
   );
 }
 
-function forgetAnswer(sessionId: string, step: number): void {
+function forgetAnswer(sessionId: string, slot: string): void {
   try {
-    localStorage.removeItem(`${ANSWER_KEY}.${sessionId}.${step}`);
+    localStorage.removeItem(`${ANSWER_KEY}.${sessionId}.${slot}`);
   } catch {
     // Нечего забывать.
   }

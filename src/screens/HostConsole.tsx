@@ -7,6 +7,7 @@ import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { startState } from "../core/session";
 import {
   answersRepo,
+  errorCodeOf,
   clock,
   participantsRepo,
   permissions,
@@ -148,7 +149,8 @@ function Console({ session }: { session: Session }) {
     const timer = window.setTimeout(() => {
       lastCountWrite.current = Date.now();
       if (latest.current.state.stage === "question") {
-        void sessionsRepo.apply(session.id, { state: { answered: ownCount } }).catch(() => undefined);
+        const { step } = latest.current.state;
+        void sessionsRepo.apply(session.id, { state: { answered: ownCount }, expect: { step, stage: "question" } }).catch(() => undefined);
       }
     }, wait);
     return () => window.clearTimeout(timer);
@@ -158,6 +160,7 @@ function Console({ session }: { session: Session }) {
     () => ({
       apply: (change: SessionChange) => sessionsRepo.apply(session.id, change),
       clearAnswers: (step: number) => answersRepo.clearStep(session.id, step),
+      freshAnswers: (step: number) => answersRepo.list(session.id, step),
       requestFinish: () => setConfirmFinish(true),
     }),
     [session.id],
@@ -167,9 +170,10 @@ function Console({ session }: { session: Session }) {
     setBusy(true);
     setError(null);
     try {
-      await sessionsRepo.apply(session.id, { state: { ...startState(), startedAt: null } });
-    } catch {
-      setError("Не удалось начать игру. Проверьте интернет.");
+      // Только из лобби: отставший второй пульт не вернёт идущую игру к первому вопросу.
+      await sessionsRepo.apply(session.id, { state: { ...startState(), startedAt: null }, expect: { phase: "lobby" } });
+    } catch (e) {
+      if (errorCodeOf(e) !== "failed-precondition") setError("Не удалось начать игру. Проверьте интернет.");
     } finally {
       setBusy(false);
     }
@@ -449,9 +453,10 @@ function PeopleCard({
   const finished = session.state.phase === "finished";
 
   const adjust = useCallback(
-    (pid: string, entry: LeaderboardEntry, delta: number) => {
+    (pid: string, _entry: LeaderboardEntry, delta: number) => {
+      // Прибавка на сервере: три быстрых «+10» — это +30, а не +10.
       void sessionsRepo
-        .apply(session.id, { leaderboard: { [pid]: { ...entry, score: entry.score + delta } } })
+        .apply(session.id, { addScore: { [pid]: delta } })
         .catch(() => onToast("Не удалось изменить очки. Проверьте интернет."));
     },
     [session.id, onToast],
@@ -480,7 +485,7 @@ function PeopleCard({
         }
         const entry = session.leaderboard[edit.pid];
         await participantsRepo.rename(session.id, edit.pid, name);
-        if (entry) await sessionsRepo.apply(session.id, { leaderboard: { [edit.pid]: { ...entry, name } } });
+        if (entry) await sessionsRepo.apply(session.id, { rename: { [edit.pid]: name } });
         onToast("Имя изменено");
       } else {
         await participantsRepo.remove(session.id, edit.pid);

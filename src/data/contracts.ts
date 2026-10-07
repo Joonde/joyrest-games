@@ -159,6 +159,8 @@ export interface AnswersRepository {
   getOwn(sessionId: string, step: number, pid: string): Promise<Answer | null>;
   /** Только пульт: убрать ответы шага («Назад» с открытого вопроса). */
   clearStep(sessionId: string, step: number): Promise<void>;
+  /** Только пульт: свежий список ответов шага с сервера (перед подсчётом очков). */
+  list(sessionId: string, step: number): Promise<Answer[]>;
 }
 
 /** Часы сервера: синхронный таймер на экране зала, пульте и телефонах. */

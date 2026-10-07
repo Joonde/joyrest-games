@@ -141,8 +141,12 @@ export function showTotal(session: Session): SessionChange {
 /** Следующий вопрос: сначала «готовы?», вопрос показывает ведущий. С новым раундом — счёт раунда с нуля. */
 export function nextQuestion(session: Session, content: QuizContent): SessionChange {
   const step = session.state.step + 1;
+  const newRound = startsRound(content, step);
+  // Старт счёта раунда запоминаем: «Назад» с заставки раунда вернёт его и общий счёт.
+  const prevRoundBase: Record<string, number> = {};
+  if (newRound) for (const [pid, entry] of Object.entries(session.leaderboard)) prevRoundBase[pid] = entry.roundBase ?? 0;
   return {
-    ...(startsRound(content, step) ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
+    ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
     state: {
       step,
       stage: "ready",
@@ -150,7 +154,7 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: null,
+      result: newRound ? { prevRoundBase } : null,
     },
   };
 }
@@ -188,6 +192,16 @@ export function back(session: Session): BackPlan | null {
     };
   }
   if (step === 0) return null;
+  const prevRoundBase = asRecord(asRecord(session.state.result).prevRoundBase);
+  if (Object.keys(prevRoundBase).length > 0) {
+    // С заставки нового раунда — на «Общий счёт» прошлого, со счётом раунда как был.
+    const leaderboard: Record<string, LeaderboardEntry> = {};
+    for (const [pid, entry] of Object.entries(session.leaderboard)) {
+      const base = prevRoundBase[pid];
+      if (typeof base === "number" && base !== (entry.roundBase ?? 0)) leaderboard[pid] = { ...entry, roundBase: base };
+    }
+    return { change: { state: { step: step - 1, stage: "board", revealed: true, answered: 0, result: { board: "total" } }, leaderboard } };
+  }
   // С «готовы?» — на таблицу предыдущего вопроса.
   return { change: { state: { step: step - 1, stage: "board", revealed: true, answered: 0, result: null } } };
 }

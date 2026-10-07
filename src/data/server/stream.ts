@@ -2,7 +2,8 @@
  * Подписка на изменения своего сервера: поток событий (EventSource, `GET /api/stream/...`) —
  * снимок при подключении, дальше только изменения. Обрыв связи EventSource переживает сам и
  * после переподключения получает свежий снимок, поэтому гость сам возвращается в игру.
- * Поток не открылся дважды (или браузер его не умеет) — опрос раз в 2 секунды.
+ * Поток не открылся дважды (или браузер его не умеет) — опрос раз в 2 секунды, и раз в ~40 секунд
+ * снова пробуем поток: короткий сбой Wi‑Fi не оставляет телефон на опросе до конца игры.
  * Настоящая ошибка (нет доступа, не найдено) — onError, без повторов.
  */
 import { reportFromCache } from "../connection";
@@ -19,6 +20,8 @@ export interface StreamOptions<E> {
 }
 
 const POLL_MS = 2000;
+/** В режиме опроса — каждый такой по счёту опрос заменяем попыткой открыть поток. */
+const RETRY_STREAM_EVERY = 20;
 /** Сколько ждать снимок после подключения: дольше — поток где-то застрял (прокси, буфер). */
 const SNAPSHOT_TIMEOUT_MS = 8000;
 
@@ -31,6 +34,7 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
   let source: EventSource | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let failures = 0;
+  let polls = 0;
 
   function stopTimer() {
     if (timer !== null) clearTimeout(timer);
@@ -54,7 +58,15 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
         reportFromCache(true);
       })
       .finally(() => {
-        if (!stopped) timer = setTimeout(poll, POLL_MS);
+        if (stopped) return;
+        polls += 1;
+        if (polls % RETRY_STREAM_EVERY === 0 && typeof EventSource !== "undefined") {
+          // Ещё один сбой потока — и снова опрос.
+          failures = 1;
+          timer = setTimeout(connect, POLL_MS);
+        } else {
+          timer = setTimeout(poll, POLL_MS);
+        }
       });
   }
 

@@ -67,6 +67,8 @@ export interface SessionControl {
   apply(change: SessionChange): Promise<void>;
   /** Убрать ответы шага («Назад» с открытого вопроса). */
   clearAnswers(step: number): Promise<void>;
+  /** Свежие ответы шага с сервера: перед подсчётом очков, чтобы не потерять пришедшие в последнюю секунду. */
+  freshAnswers(step: number): Promise<Answer[]>;
   /** Спросить подтверждение и завершить игру. */
   requestFinish(): void;
 }

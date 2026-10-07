@@ -1,4 +1,30 @@
-import type { Session, SessionChange, SessionState } from "../data/types";
+import type { ChangeExpect, Leaderboard, Session, SessionChange, SessionState } from "../data/types";
+
+/** Ручная правка очков за раз: от −100 000 до 100 000. */
+export const MAX_SCORE_DELTA = 100_000;
+
+/** Игра там, где её видел пульт? Без ожидания — да. */
+export function meetsExpect(state: SessionState, expect: ChangeExpect | undefined): boolean {
+  if (!expect) return true;
+  if (expect.phase !== undefined && state.phase !== expect.phase) return false;
+  if (expect.step !== undefined && state.step !== expect.step) return false;
+  if (expect.stage !== undefined && state.stage !== expect.stage) return false;
+  return true;
+}
+
+/** Прибавка очков и переименование — только у тех, кто уже в таблице. */
+export function adjustBoard(board: Leaderboard, addScore?: Record<string, number>, rename?: Record<string, string>): Leaderboard {
+  const next = { ...board };
+  for (const [pid, delta] of Object.entries(addScore ?? {})) {
+    const entry = next[pid];
+    if (entry && Number.isFinite(delta)) next[pid] = { ...entry, score: entry.score + delta };
+  }
+  for (const [pid, name] of Object.entries(rename ?? {})) {
+    const entry = next[pid];
+    if (entry && name) next[pid] = { ...entry, name };
+  }
+  return next;
+}
 
 /** Состояние в начале игры: первый шаг, вопрос ещё не показан. */
 export function startState(): SessionState {
@@ -30,10 +56,10 @@ export function applyChange(session: Session, change: SessionChange, now: number
   const { startedAt, ...rest } = change.state ?? {};
   const state: SessionState = { ...session.state, ...rest };
   if (startedAt !== undefined) state.startedAt = startedAt === "server" ? now : startedAt;
-  const leaderboard = { ...session.leaderboard };
+  const board = { ...session.leaderboard };
   for (const [pid, entry] of Object.entries(change.leaderboard ?? {})) {
-    if (entry === null) delete leaderboard[pid];
-    else leaderboard[pid] = entry;
+    if (entry === null) delete board[pid];
+    else board[pid] = entry;
   }
-  return { ...session, state, leaderboard };
+  return { ...session, state, leaderboard: adjustBoard(board, change.addScore, change.rename) };
 }

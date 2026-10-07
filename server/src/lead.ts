@@ -217,6 +217,12 @@ export class WindowLimiter {
     private readonly windowMs: number,
   ) {}
 
+  /** Можно ли ещё (без учёта события). */
+  allowed(key: string, now: number): boolean {
+    const from = now - this.windowMs;
+    return (this.hits.get(key) ?? []).filter((t) => t > from).length < this.limit;
+  }
+
   /** true — событие учтено; false — лимит исчерпан (событие не учитывается). */
   take(key: string, now: number): boolean {
     const from = now - this.windowMs;
@@ -237,7 +243,13 @@ export class WindowLimiter {
     for (const [key, times] of this.hits) {
       if (!times.some((t) => t > from)) this.hits.delete(key);
     }
-    if (this.hits.size > 5000) this.hits.clear();
+    // Всё ещё много живых ключей — выбрасываем самые старые, а не всё сразу (иначе обнулились бы
+    // и счётчики того, кто сейчас перебирает).
+    let extra = this.hits.size - 4000;
+    for (const key of this.hits.keys()) {
+      if (extra-- <= 0) break;
+      this.hits.delete(key);
+    }
   }
 }
 

@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
-import { applyChange, checkChange, Hub, normalizeState } from "./live";
+import { applyChange, checkChange, Hub, normalizeState, sseFrame } from "./live";
 import { migrate } from "./migrate";
 
 describe("изменение пульта", () => {
@@ -51,6 +51,12 @@ describe("изменение пульта", () => {
     const next = applyChange(state, { gone: { name: "Боря", kind: "player", score: 1 } }, change!, 1_000_000);
     expect(next.state).toMatchObject({ phase: "playing", step: 2, stage: "question", startedAt: 1_000_000, timeLimit: 20 });
     expect(next.leaderboard).toEqual({ p1: { name: "Аня", kind: "player", score: 5 } });
+  });
+
+  it("событие для потока сериализуется один раз", () => {
+    const event = { type: "patch", version: 2 };
+    expect(sseFrame(event)).toBe('data: {"type":"patch","version":2}\n\n');
+    expect(sseFrame(event)).toBe(sseFrame(event));
   });
 
   it("рассылка только подписчикам своего канала, отписка работает", () => {
@@ -235,6 +241,23 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/results?host=${hostUid}`, host)).json().map((r: { id: string }) => r.id)).toContain("fin1");
     expect((await call("GET", `/api/results?host=${hostUid}`, guest.cookie)).statusCode).toBe(403);
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
+  });
+
+  it("пульт: устаревшее изменение — 409; прибавка очков складывается; после финиша — только музыка и слайды", async () => {
+    await newSession("exp1");
+    expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);
+    // Второй «Начать игру» с отставшего пульта не возвращает игру к началу.
+    expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { step: 0 }, expect: { phase: "lobby" } })).statusCode).toBe(409);
+    await call("POST", "/api/sessions/exp1/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 0 } } });
+    for (let i = 0; i < 3; i++) expect((await call("POST", "/api/sessions/exp1/apply", host, { addScore: { p1: 10 } })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/exp1/apply", host, { rename: { p1: "Анна" } })).statusCode).toBe(200);
+    // Запоздавшее «добавить участника» не обнуляет очки.
+    await call("POST", "/api/sessions/exp1/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 0 } } });
+    expect((await call("GET", "/api/sessions/exp1", host)).json().leaderboard.p1).toMatchObject({ name: "Анна", score: 30 });
+    expect((await call("POST", "/api/sessions/exp1/apply", host, { addScore: { p1: 1e9 } })).statusCode).toBe(400);
+    await call("POST", "/api/sessions/exp1/finish", host, { participantsCount: 1 });
+    expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { step: 3 } })).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { cue: { id: "c1", sound: "gong" } } })).statusCode).toBe(200);
   });
 
   it("экран зала сообщает пульту о себе; видит только ведущий; молчит минуту — нет экрана", async () => {

@@ -206,6 +206,21 @@ export interface SessionChange {
   state?: Partial<Omit<SessionState, "startedAt">> & { startedAt?: "server" | null };
   /** Запись участника целиком; null — убрать из таблицы. */
   leaderboard?: Record<string, LeaderboardEntry | null>;
+  /**
+   * Изменение — только если игра всё ещё там, где её видел пульт (иначе отказ `failed-precondition`):
+   * отставший второй пульт или двойное касание не перескочат шаг и не перезапустят таймер.
+   */
+  expect?: ChangeExpect;
+  /** Прибавить очки (±) к уже записанным — не затирает чужие одновременные правки. */
+  addScore?: Record<string, number>;
+  /** Новое имя в таблице, остальное в записи не трогается. */
+  rename?: Record<string, string>;
+}
+
+export interface ChangeExpect {
+  phase?: SessionPhase;
+  step?: number;
+  stage?: StepStage;
 }
 
 export type ParticipantKind = "player" | "team";

@@ -1,11 +1,11 @@
 // Проверка глазами гостя (CLAUDE.md, раздел 9): настоящий браузер (Chromium, Playwright) проходит
 // игру на test.games.joy-rest.ru — вход гостей со смайликом, пульт, экран зала, ответ, финал,
 // итоги, режим команд. Проверяет, что имена со смайликом видны везде, что нет ошибок на странице,
-// горизонтальной прокрутки на телефоне и слишком мелких кнопок. Снимки экранов — в Telegram
-// (бот выкладки), итог — аннотацией в Actions. Запуск — workflow «Проверка гостем».
+// горизонтальной прокрутки на телефоне и слишком мелких кнопок. Итог — аннотацией в Actions
+// (в Telegram ничего не шлём — владелец попросил). Запуск — workflow «Проверка гостем».
 //
 // Файл .mjs и вне сборки: Playwright ставится только в этом workflow, в зависимостях его нет.
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
 
@@ -301,30 +301,6 @@ async function teamsGame(browser, token) {
   await Promise.all([hostContext.close(), screenContext.close(), captain.context.close(), member.context.close()]);
 }
 
-async function sendShots() {
-  const token = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
-  const chat = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
-  if (!token || !chat || shots.length === 0) return;
-  for (let i = 0; i < shots.length; i += 10) {
-    const part = shots.slice(i, i + 10);
-    const form = new FormData();
-    form.set("chat_id", chat);
-    form.set(
-      "media",
-      JSON.stringify(
-        part.map((s, k) => ({
-          type: "photo",
-          media: `attach://p${k}`,
-          caption: k === 0 && i === 0 ? `🧪 Проверка гостем: ${problems.length === 0 ? "всё в порядке" : `замечаний ${problems.length}`}\n${s.caption}` : s.caption,
-        })),
-      ),
-    );
-    part.forEach((s, k) => form.set(`p${k}`, new Blob([readFileSync(s.path)], { type: "image/png" }), `p${k}.png`));
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, { method: "POST", body: form });
-    if (!res.ok) say(`Снимки в Telegram не ушли: ${res.status}`);
-  }
-}
-
 mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch();
 try {
@@ -343,5 +319,4 @@ try {
   await browser.close();
 }
 say(problems.length === 0 ? "\nИтог: замечаний нет" : `\nИтог: замечаний ${problems.length}`);
-await sendShots().catch((error) => say(`Снимки в Telegram не ушли: ${error.message}`));
 finish(problems.length === 0 ? 0 : 1);

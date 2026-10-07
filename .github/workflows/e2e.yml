@@ -1,7 +1,7 @@
 # Проверка глазами гостя (CLAUDE.md, раздел 9): настоящий браузер проходит игру на
 # test.games.joy-rest.ru — вход со смайликом, пульт, экран зала, ответ, финал, итоги, команды.
 # Только вручную (Run workflow) или коммитом с [e2e] в ветке claude/* (~4 минуты).
-# Снимки экранов — в Telegram (бот выкладки), итог — аннотацией.
+# Итог — аннотацией; в Telegram ничего не шлём.
 name: Проверка гостем
 
 on:
@@ -51,5 +51,3 @@ jobs:
           E2E_SHOTS: /tmp/e2e/shots
           LOAD_HOST_EMAIL: load@joy-rest.ru
           LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

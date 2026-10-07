@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
+import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { snapshotContent } from "../core/games";
 import { placeOf } from "../core/leaderboard";
@@ -15,6 +16,7 @@ import {
   type Session,
 } from "../data";
 import { useWakeLock } from "../components/live/useWakeLock";
+import { EmojiPicker } from "../components/EmojiPicker";
 import { Logo } from "../components/Logo";
 import { getMechanic } from "../mechanics/registry";
 import type { PhoneRole } from "../mechanics/types";
@@ -123,7 +125,11 @@ function JoinForm({
   onJoined: () => Promise<void>;
 }) {
   const teamsMode = session.playMode === "teams";
-  const [name, setName] = useState(initialName);
+  // Смайлик к имени: прежний (повторный вход) или случайный — в зале разнообразно.
+  const remembered = splitEmoji(initialName);
+  const [name, setName] = useState(remembered.name);
+  const [emoji, setEmoji] = useState<string | null>(() => remembered.emoji ?? randomEmoji());
+  const [teamEmoji, setTeamEmoji] = useState<string | null>(() => randomEmoji());
   const [teams, setTeams] = useState<Participant[]>([]);
   const [teamId, setTeamId] = useState<string>("new");
   const [teamName, setTeamName] = useState("");
@@ -145,13 +151,15 @@ function JoinForm({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    const cleanPlayer = cleanName(name);
-    if (!isValidName(cleanPlayer)) {
+    const plainPlayer = cleanName(name);
+    const cleanPlayer = withEmoji(emoji, plainPlayer);
+    if (!isValidName(plainPlayer)) {
       setError("Напишите своё имя.");
       return;
     }
-    const cleanTeam = cleanName(teamName);
-    if (teamsMode && teamId === "new" && !isValidName(cleanTeam)) {
+    const plainTeam = cleanName(teamName);
+    const cleanTeam = withEmoji(teamEmoji, plainTeam);
+    if (teamsMode && teamId === "new" && !isValidName(plainTeam)) {
       setError("Придумайте название команды.");
       return;
     }
@@ -186,6 +194,7 @@ function JoinForm({
             onChange={(e) => setName(e.target.value)}
           />
         </label>
+        <EmojiPicker label="Смайлик к имени" value={emoji} onChange={setEmoji} />
 
         {teamsMode && (
           <fieldset>
@@ -206,6 +215,7 @@ function JoinForm({
                 <input maxLength={NAME_MAX_LENGTH} value={teamName} onChange={(e) => setTeamName(e.target.value)} />
               </label>
             )}
+            {teamId === "new" && <EmojiPicker label="Смайлик команды" value={teamEmoji} onChange={setTeamEmoji} />}
             <button type="button" className="btn btn--secondary" onClick={loadTeams}>
               Обновить список команд
             </button>

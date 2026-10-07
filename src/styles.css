@@ -535,6 +535,37 @@ a {
 .points-history li {
   display: grid;
   gap: 2px;
+/* ---------- Смайлик к имени (вход гостя) ---------- */
+
+.emoji-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.emoji-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 8px;
+}
+
+.emoji-picker__item {
+  min-height: 52px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.emoji-picker__item[aria-pressed="true"] {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.emoji-picker__item:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 /* ---------- Диалог подтверждения ---------- */

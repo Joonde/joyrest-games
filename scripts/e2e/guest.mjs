@@ -16,6 +16,13 @@ const SHOTS = process.env.E2E_SHOTS ?? "e2e-shots";
 const WAIT = 20_000;
 
 const report = [];
+/** Что сейчас делаем и на какой странице: в сообщении об остановке и на снимке. */
+let currentStep = "начало";
+let currentPage = null;
+const step = (name, page) => {
+  currentStep = name;
+  if (page) currentPage = page;
+};
 const problems = [];
 const shots = [];
 const say = (line) => {
@@ -78,11 +85,19 @@ const CONTENT = {
 
 async function login() {
   const { res } = await api("POST", "/api/auth/login", "", { email: EMAIL, password: PASSWORD });
+  let token = "";
   for (const line of res.headers.getSetCookie()) {
     const [pair] = line.split(";");
-    if (pair.startsWith("__Host-jr_s=")) return pair.slice("__Host-jr_s=".length);
+    if (pair.startsWith("__Host-jr_s=")) token = pair.slice("__Host-jr_s=".length);
   }
-  throw new Error("вход ведущего: нет cookie");
+  if (!token) throw new Error("вход ведущего: нет cookie");
+  // Временный пароль: студия и пульт сначала просят задать свой. Задаём тот же — секрет не меняется.
+  const me = await api("GET", "/api/auth/me", `__Host-jr_s=${token}`);
+  if (me.data?.profile?.mustChangePassword) {
+    await api("POST", "/api/auth/password", `__Host-jr_s=${token}`, { currentPassword: PASSWORD, newPassword: PASSWORD });
+    say("Ведущий проверки: временный пароль заменён тем же (студия больше не просит сменить)");
+  }
+  return token;
 }
 
 async function createSession(token, playMode) {
@@ -150,6 +165,7 @@ async function guestJoin(browser, code, { name, emoji, teamName, teamEmoji, join
   const context = await browser.newContext(PHONE);
   const page = await context.newPage();
   watch(page, who);
+  step(`${who}: вход`, page);
   await page.goto(`${BASE}/play/${code}`);
   await page.getByRole("heading", { name: "Как вас зовут?" }).waitFor({ timeout: WAIT });
   if (await page.getByText("выключите VPN").count()) ok(`${who}: просьба выключить VPN на входе`);
@@ -188,6 +204,7 @@ async function soloGame(browser, token) {
   await hostContext.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
   const host = await hostContext.newPage();
   watch(host, "Пульт");
+  step("пульт открывается", host);
   await host.goto(`${BASE}/host/${code}`);
   await host.getByRole("button", { name: "Начать игру" }).waitFor({ timeout: WAIT });
   await layoutCheck(host, "Пульт");
@@ -195,6 +212,7 @@ async function soloGame(browser, token) {
   const screenContext = await browser.newContext(TV);
   const screen = await screenContext.newPage();
   watch(screen, "Экран зала");
+  step("экран зала открывается", screen);
   await screen.goto(`${BASE}/screen/${code}`);
   await screen.getByText("Присоединяйтесь к игре").waitFor({ timeout: WAIT });
   if (await screen.getByText("выключите VPN").count()) ok("Экран зала: просьба выключить VPN у QR");
@@ -210,11 +228,14 @@ async function soloGame(browser, token) {
   await shot(screen, "экран-лобби", "Экран зала: лобби");
   await shot(host, "пульт-лобби", "Пульт: лобби");
 
+  step("пульт: начать игру и показать вопрос", host);
   await clickButton(host, "Начать игру");
   await clickButton(host, "Показать вопрос");
+  step("Аня отвечает", anna.page);
   await anna.page.locator(".quiz-phone__option").first().click({ timeout: WAIT });
   await shot(anna.page, "аня-ответ", "Телефон Ани: ответила");
   await shot(screen, "экран-вопрос", "Экран зала: вопрос");
+  step("пульт: показать ответ и таблицу", host);
   await clickButton(host, "Показать ответ");
   await clickButton(host, "Таблица");
   await expectText(screen, screen.locator(".board-view__name"), "🦊 Аня", "Экран зала, таблица");
@@ -224,6 +245,7 @@ async function soloGame(browser, token) {
   await anna.page.locator(".quiz-phone__option").nth(1).click({ timeout: WAIT });
   await clickButton(host, "Показать ответ");
   await clickButton(host, "Таблица");
+  step("пульт: завершить игру", host);
   await clickButton(host, "Завершить игру");
   await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
   await expectText(screen, screen.locator(".final__winner"), "🦊 Аня", "Экран зала, победитель");
@@ -237,6 +259,7 @@ async function soloGame(browser, token) {
   else bad("Экран зала: смайлик победителя прозрачный или его нет");
   await shot(anna.page, "аня-финал", "Телефон Ани: финал");
 
+  step("итоги", host);
   await host.getByRole("link", { name: "Открыть итоги" }).click({ timeout: WAIT });
   await expectText(host, host.locator("main"), "🦊 Аня", "Итоги игры");
   await layoutCheck(host, "Итоги");
@@ -306,7 +329,13 @@ try {
   await soloGame(browser, token);
   await teamsGame(browser, token);
 } catch (error) {
-  bad(`Проверка остановилась: ${String(error?.message ?? error).split("\n")[0].slice(0, 200)}`);
+  bad(`Проверка остановилась на шаге «${currentStep}»: ${String(error?.message ?? error).split("\n")[0].slice(0, 160)}`);
+  if (currentPage) {
+    say(`Адрес: ${currentPage.url().replace(BASE, "")}`);
+    const text = await currentPage.locator("body").innerText().catch(() => "");
+    say(`На странице: ${text.replace(/\s+/g, " ").slice(0, 300)}`);
+    await shot(currentPage, "остановка", `Остановка: ${currentStep}`).catch(() => undefined);
+  }
 } finally {
   await browser.close();
 }

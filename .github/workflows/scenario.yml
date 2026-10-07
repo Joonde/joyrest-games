@@ -1,7 +1,7 @@
 # Сценарная проверка живой игры (CLAUDE.md, раздел 9): 35 гостей, каждый механизм ×3 в разном
 # порядке, сверка очков, синхронность экрана и телефонов, отказы лишних действий, утечки.
 # Только вручную (Run workflow) или коммитом с [scenario] в ветке claude/* (~6 минут).
-name: Сценарий 35 гостей
+name: Сценарий 35 гостей и студия
 
 on:
   workflow_dispatch:
@@ -49,3 +49,17 @@ jobs:
           LOAD_HOST_EMAIL: load@joy-rest.ru
           LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
           GUESTS: ${{ inputs.guests || '35' }}
+      # Студия и кабинет владельца: ведущие, пароли, квалификация, баллы, профиль, игры и
+      # автосохранение, картинки, копии, предложения, музыка, история, отключение ведущего.
+      - name: Студия и владелец
+        if: always()
+        env:
+          LOAD_BASE: https://test.games.joy-rest.ru
+          TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
+          TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$TEST_ADMIN_EMAIL" ] || [ -z "$TEST_ADMIN_PASSWORD" ]; then
+            echo "::warning::Нет секретов TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD — проверка владельца пропущена (RUNBOOK, «Проверки»)."
+            exit 0
+          fi
+          npx tsx scripts/studio.ts

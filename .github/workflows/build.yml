@@ -55,7 +55,11 @@ jobs:
       - name: Сборка платформы, сервера и сайта агентства
         run: npm run build && npm run build:server && npm run build:site
       - name: Проверка скриптов сервера (shellcheck)
-        run: shellcheck --severity=warning deploy/bin/* deploy/setup/*.sh
+        # Замечания — аннотациями (видно в итогах сборки с телефона, без чтения лога).
+        run: |
+          set -o pipefail
+          shellcheck --severity=warning -f gcc deploy/bin/* deploy/setup/*.sh \
+            | sed -E 's/^([^:]+):([0-9]+):[0-9]+: (.*)$/::error file=\1,line=\2::\3/'
       - name: Проверка docker-compose
         run: |
           printf 'APP_IMAGE=%s:ci\nAPP_TEST_IMAGE=%s:ci\n' "$IMAGE" "$IMAGE" > /tmp/runtime.env

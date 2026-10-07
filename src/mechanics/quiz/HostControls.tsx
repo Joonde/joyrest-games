@@ -127,7 +127,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
           {actionLabel(session, content, action)}
         </button>
-        {q.trackId && (stage === "question" || stage === "reveal") && (
+        {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayTrack(session))}>
             ♪ Повторить фрагмент
           </button>

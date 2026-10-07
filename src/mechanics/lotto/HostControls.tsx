@@ -104,7 +104,7 @@ export function LottoHostControls({ session, content, answers, participants, con
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
           {action === "podiumNext" ? podiumLabel(session) : LABELS[action]}
         </button>
-        {song?.trackId && stage === "question" && (
+        {song?.trackId && session.screenMode !== "none" && stage === "question" && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replaySong(session))}>
             ♪ Повторить песню
           </button>

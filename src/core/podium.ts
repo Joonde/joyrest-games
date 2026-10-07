@@ -2,7 +2,7 @@
 // ведущий открывает 3-е, 2-е и 1-е место по одному. Этап `stage: "podium"` общий для всех
 // механик; сколько мест открыто — `state.result.podium` (остальное в `result` не трогаем,
 // чтобы «Назад» вернул таблицу и ответ шага как были).
-import type { Leaderboard, LeaderboardEntry, Session, SessionChange, SessionState } from "../data/types";
+import type { Leaderboard, LeaderboardEntry, Session, SessionChange, SessionState, StepStage } from "../data/types";
 import { rankedLeaderboard } from "./leaderboard";
 
 export type PodiumPlaceNumber = 1 | 2 | 3;
@@ -66,8 +66,35 @@ export function nextPlace(session: Pick<Session, "leaderboard" | "state">): Podi
 }
 
 function withPodium(result: unknown, shown: number | null): Record<string, unknown> {
-  const { podium: _omit, ...rest } = asRecord(result);
-  return shown === null ? rest : { ...rest, podium: shown };
+  const { podium: _omit, podiumFrom: _from, ...rest } = asRecord(result);
+  const from = asRecord(result).podiumFrom;
+  if (shown === null) return rest;
+  return from === undefined ? { ...rest, podium: shown } : { ...rest, podium: shown, podiumFrom: from };
+}
+
+/** Откуда ведущий ушёл на досрочное награждение («Назад» с заставки вернёт туда же). */
+function podiumFrom(state: Pick<SessionState, "result">): { stage: StepStage; revealed: boolean } | null {
+  const from = asRecord(asRecord(state.result).podiumFrom);
+  const stage = from.stage;
+  if (stage !== "ready" && stage !== "reveal" && stage !== "board") return null;
+  return { stage, revealed: from.revealed === true };
+}
+
+/** Досрочное награждение можно начать, когда на экране нет открытого вопроса. */
+export function canAwardNow(state: Pick<SessionState, "phase" | "stage">): boolean {
+  return state.phase === "playing" && (state.stage === "ready" || state.stage === "reveal" || state.stage === "board");
+}
+
+/** «Наградить сейчас»: пьедестал по текущему счёту; «Назад» с заставки вернёт на тот же этап. */
+export function awardNow(session: Session): SessionChange {
+  const { stage, revealed } = session.state;
+  return {
+    state: {
+      stage: "podium",
+      revealed: true,
+      result: { ...withPodium(session.state.result, 0), podiumFrom: { stage, revealed } },
+    },
+  };
 }
 
 /** «Награждение»: заставка, места ещё закрыты. */
@@ -86,6 +113,8 @@ export function podiumNext(session: Session): SessionChange {
 export function podiumBack(session: Session): SessionChange {
   const shown = podiumShown(session.state);
   if (shown > 0) return { state: { result: withPodium(session.state.result, shown - 1) } };
+  const from = podiumFrom(session.state);
+  if (from) return { state: { stage: from.stage, revealed: from.revealed, result: withPodium(session.state.result, null) } };
   return { state: { stage: "board", revealed: true, result: withPodium(session.state.result, null) } };
 }
 

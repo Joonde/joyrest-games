@@ -622,11 +622,12 @@ export function matchVenue(v: VenueData, r: RequestData): Match | null {
 
   if (r.guests) {
     const capacity = capacityFor(v, r.format);
+    // Минимум гостей площадки — и когда вместимость не указана.
+    if (v.minGuests && r.guests < v.minGuests) return null;
     if (capacity === null) {
       marks.push({ kind: "capacity", label: "вместимость не указана", clientLabel: "вместимость", fit: null, must: true });
     } else {
       if (capacity < r.guests) return null;
-      if (v.minGuests && r.guests < v.minGuests) return null;
       marks.push({ kind: "capacity", label: `вмещает ${capacity}`, clientLabel: `до ${capacity} гостей`, fit: true, must: true });
     }
   }
@@ -750,6 +751,23 @@ export interface OfferData {
   items: OfferItem[];
 }
 
+/**
+ * Текст «о площадке» для клиента — без телефонов, почты, ссылок и @ников: клиент общается с
+ * площадкой только через JoyRest.
+ */
+export function withoutContacts(text: string): string {
+  return text
+    .replace(/(?:https?:\/\/|www\.)\S+/giu, "")
+    .replace(/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, "")
+    .replace(/(?<![\p{L}\p{N}])@[\p{L}\p{N}_.]{3,}/gu, "")
+    .replace(/(?<![\p{L}\p{N}@.])[\p{L}\p{N}-]+\.(?:ru|рф|com|net|org|me|su|moscow|online|site|рус)(?![\p{L}\p{N}])(?:\/\S*)?/giu, "")
+    // Телефон — от 7 цифр подряд с пробелами, скобками и дефисами («8 (999) 123-45-67»).
+    .replace(/\+?\d[\d\s().\u2010-\u2015-]{5,}\d/gu, (m) => (m.replace(/\D/g, "").length >= 7 && !/\d\s*,\s*\d/.test(m) ? "" : m))
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ +([,.;:!?])/g, "$1")
+    .trim();
+}
+
 const SKIP_FEATURES = new Set(["Гардероб", "Кондиционер", "Зона для курения", "Пандус или лифт"]);
 
 export function offerItem(venueId: string, v: VenueData, match: Match | null, photos: string[]): OfferItem {
@@ -771,7 +789,7 @@ export function offerItem(venueId: string, v: VenueData, match: Match | null, ph
     price,
     cuisine: v.cuisine,
     features,
-    about: v.about,
+    about: withoutContacts(v.about),
     ok,
     ask,
     no,

@@ -46,7 +46,8 @@ export function leaderboardAdditions(
   playMode: PlayMode,
 ): Record<string, LeaderboardEntry> {
   const additions: Record<string, LeaderboardEntry> = {};
-  let nextColor = Object.values(leaderboard).filter((e) => e.kind === "team").length;
+  // Следующий цвет — после самого большого выданного (команду могли убрать или добавить вручную).
+  let nextColor = Math.max(-1, ...Object.values(leaderboard).map((e) => (e.kind === "team" ? (e.colorIndex ?? -1) : -1))) + 1;
   const names = new Map(Object.entries(leaderboard).map(([id, e]) => [id, e.name]));
   const others = (id: string) => [...names.entries()].filter(([other]) => other !== id).map(([, n]) => n);
   // Первыми имя получают те, кто вошёл раньше.

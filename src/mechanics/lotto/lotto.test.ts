@@ -159,4 +159,26 @@ describe("ход лото на пульте", () => {
     s = applyChange(s, nextSong(s), 4);
     expect(parseLottoResult(s.state.result).winners).toEqual(["b"]);
   });
+
+  it("«Назад» через следующую песню снимает и очки, и победу прошлой", () => {
+    let s = base;
+    s = applyChange(s, playSong(s), 1);
+    for (let k = 0; k < 8; k++) {
+      s = applyChange(s, revealSong(s, c, [], []), 2);
+      s = applyChange(s, nextSong(s), 3);
+    }
+    s = applyChange(s, revealSong(s, c, [claim(8, "a", 4)], []), 4);
+    expect(s.leaderboard.a?.score).toBe(300);
+    // Ведущий ушёл бы дальше, если бы была песня; имитируем «следующую» и возврат.
+    const next = applyChange(s, { state: { step: 9, stage: "question", revealed: false, result: { winners: ["a"], last: [], rejected: [], replay: 0 } } }, 5);
+    const back1 = lottoBack(next);
+    if (!back1) throw new Error("нет шага назад");
+    const atReveal = applyChange(next, back1.change, 6);
+    expect(parseLottoResult(atReveal.state.result).last).toEqual(["a"]);
+    const back2 = lottoBack(atReveal);
+    if (!back2) throw new Error("нет шага назад");
+    const undone = applyChange(atReveal, back2.change, 7);
+    expect(undone.leaderboard.a?.score).toBe(0);
+    expect(parseLottoResult(undone.state.result).winners).toEqual([]);
+  });
 });

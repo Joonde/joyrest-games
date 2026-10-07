@@ -232,8 +232,13 @@ export function lottoBack(session: Session): LottoBack | null {
       return { change: { state: { stage: "ready", startedAt: null, revealed: false, answered: 0, result: carryWinners(session) } }, clearAnswers: step };
     }
     // Песня ещё не дозвучала — на название прошлой песни (её победители остаются).
+    // Победители прошлой песни — у кого в таблице её очки (`last`): «Назад» с её названия снимет
+    // и очки, и победу, иначе победитель остался бы в списке без очков.
     const winners = parseLottoResult(session.state.result).winners;
-    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, answered: 0, result: { winners, last: [], rejected: [], replay: 0 } } }, clearAnswers: step };
+    const last = Object.entries(session.leaderboard)
+      .filter(([pid, e]) => (e.last ?? 0) > 0 && winners.includes(pid))
+      .map(([pid]) => pid);
+    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, answered: 0, result: { winners, last, rejected: [], replay: 0 } } }, clearAnswers: step };
   }
   // «ready» бывает только перед первой песней.
   return null;

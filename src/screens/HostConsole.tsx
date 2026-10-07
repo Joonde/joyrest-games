@@ -6,7 +6,7 @@ import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { startState } from "../core/session";
 import { isOnline } from "../core/presence";
-import { startPodium, hasPodium } from "../core/podium";
+import { awardNow, canAwardNow, hasPodium } from "../core/podium";
 import { presentationDone, teamOrder, teamsReveal } from "../core/teams";
 import {
   answersRepo,
@@ -148,16 +148,17 @@ function Console({ session }: { session: Session }) {
 
   // Названия команд скрыты: экран зала показывает «Команда 1 ★★★» — звёздочки по числу телефонов.
   const reveal = teamsReveal(session.state);
-  const sizesKey = JSON.stringify(
+  const sizesKey = sizesString(
     Object.fromEntries(
       participants
         .filter((p) => p.kind === "team")
-        .map((t) => [t.id, participants.filter((p) => p.kind === "player" && p.teamId === t.id).length]),
+        .map((t) => [t.id, Math.min(100, participants.filter((p) => p.kind === "player" && p.teamId === t.id).length)]),
     ),
   );
   useEffect(() => {
     if (!reveal.hidden || session.state.phase !== "lobby") return;
-    if (JSON.stringify(reveal.sizes ?? {}) === sizesKey) return;
+    // Сравнение без учёта порядка ключей: база (jsonb) возвращает их в своём порядке.
+    if (sizesString(reveal.sizes ?? {}) === sizesKey) return;
     const timer = window.setTimeout(() => {
       const current = teamsReveal(latest.current.state);
       if (!current.hidden) return;
@@ -229,7 +230,7 @@ function Console({ session }: { session: Session }) {
     setError(null);
     try {
       const { step, stage } = latest.current.state;
-      await sessionsRepo.apply(session.id, { ...startPodium(latest.current), state: { ...startPodium(latest.current).state, peek: null }, expect: { phase: "playing", step, stage } });
+      await sessionsRepo.apply(session.id, { ...awardNow(latest.current), expect: { phase: "playing", step, stage } });
       setConfirmAward(false);
     } catch (e) {
       if (errorCodeOf(e) !== "failed-precondition") setError("Не получилось. Проверьте интернет.");
@@ -326,9 +327,12 @@ function Console({ session }: { session: Session }) {
             )}
             {phase === "playing" && withScreen && <PeekCard session={session} onApply={apply} />}
             {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
-              <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => setConfirmAward(true)}>
-                Наградить сейчас
-              </button>
+              <>
+                <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
+                  Наградить сейчас
+                </button>
+                {!canAwardNow(session.state) && <p className="muted small">Наградить можно после того, как покажете ответ.</p>}
+              </>
             )}
             {phase === "playing" && (
               <>
@@ -878,4 +882,9 @@ function PeopleCard({
       </ConfirmDialog>
     </section>
   );
+}
+
+/** Число телефонов по командам — строкой с ключами по порядку (jsonb меняет порядок ключей). */
+function sizesString(sizes: Record<string, number>): string {
+  return JSON.stringify(Object.fromEntries(Object.entries(sizes).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
 }

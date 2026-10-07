@@ -2,6 +2,7 @@
  * Выбор трека из своей музыки и общей библиотеки (вкладка «Музыка» студии) для вопроса «Угадай
  * мелодию» или песни лото: с какой секунды и сколько играть на экране зала.
  */
+import { ClampedNumber } from "../ClampedNumber";
 import { useEffect, useState } from "react";
 import { tracksRepo, type Track } from "../../data";
 
@@ -85,28 +86,12 @@ export function TrackPicker({
         <div className="q-numbers">
           <label className="field">
             С какой секунды
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={3600}
-              value={start}
-              disabled={disabled}
-              onChange={(e) => onChange({ trackStart: Math.max(0, Math.min(3600, Number.parseInt(e.target.value, 10) || 0)) })}
-            />
+            <ClampedNumber value={start} min={0} max={3600} fallback={0} disabled={disabled} onChange={(v) => onChange({ trackStart: v })} />
           </label>
           {showLength && (
           <label className="field">
             Сколько секунд играть
-            <input
-              type="number"
-              inputMode="numeric"
-              min={3}
-              max={120}
-              value={length}
-              disabled={disabled}
-              onChange={(e) => onChange({ trackLength: Math.max(3, Math.min(120, Number.parseInt(e.target.value, 10) || 15)) })}
-            />
+            <ClampedNumber value={length} min={3} max={120} fallback={15} disabled={disabled} onChange={(v) => onChange({ trackLength: v })} />
           </label>
           )}
         </div>

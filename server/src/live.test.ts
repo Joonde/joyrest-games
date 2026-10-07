@@ -11,7 +11,7 @@ import { migrate } from "./migrate";
 describe("изменение пульта", () => {
   it("лишние поля состояния отбрасываются, неверные — отказ", () => {
     expect(checkChange({ state: { stage: "question", startedAt: "server", hack: 1 }, leaderboard: { p1: { name: "Аня", kind: "player", score: 10 }, p2: null } })).toEqual({
-      state: { stage: "question", startedAt: "server" },
+      state: { stage: "question", startedAt: "server", peek: null },
       leaderboard: { p1: { name: "Аня", kind: "player", score: 10 }, p2: null },
     });
     expect(checkChange({ state: { phase: "deleted" } })).toBeNull();
@@ -301,6 +301,18 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     await call("POST", `/api/sessions/rej1/participants/${boris.uid}/join`, boris.cookie, { name: "Боря", teamId: null });
     clock += 80_000;
     expect((await call("POST", `/api/sessions/rej1/participants/${anna.uid}/claim`, boris.cookie)).statusCode).toBe(409);
+  });
+
+  it("вернуться за игрока нельзя, если его телефон играет в другой идущей игре", async () => {
+    await newSession("rej2");
+    await newSession("rej3");
+    const vera = await device();
+    expect((await call("POST", `/api/sessions/rej2/participants/${vera.uid}/join`, vera.cookie, { name: "Вера", teamId: null })).statusCode).toBe(200);
+    expect((await call("POST", `/api/sessions/rej3/participants/${vera.uid}/join`, vera.cookie, { name: "Вера", teamId: null })).statusCode).toBe(200);
+    clock += 80_000;
+    const thief = await device();
+    expect((await call("POST", `/api/sessions/rej2/participants/${vera.uid}/claim`, thief.cookie)).statusCode).toBe(409);
+    expect((await call("POST", "/api/auth/device", vera.cookie)).json().uid).toBe(vera.uid);
   });
 
   it("часы сервера", async () => {

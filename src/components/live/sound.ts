@@ -419,6 +419,8 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
   if (!soundReady()) return false;
   const el = musicElement();
   if (!el) return false;
+  // Ведущий включил музыку — фрагмент «Угадай мелодию» замолкает, музыка уже не «ждёт» его.
+  silenceFragment();
   if (el.src !== url) el.src = url;
   if (fromStart) el.currentTime = 0;
   try {
@@ -430,10 +432,13 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
 }
 
 export function pauseMusic(): void {
+  // Ведущий поставил музыку на паузу во время фрагмента — после фрагмента она не включится сама.
+  resumeAfterFragment = false;
   player?.pause();
 }
 
 export function stopMusic(): void {
+  resumeAfterFragment = false;
   if (!player) return;
   player.pause();
   player.currentTime = 0;
@@ -473,6 +478,8 @@ export async function playFragment(url: string, startSec: number, lengthSec: num
   }
   if (el.src !== url) el.src = url;
   try {
+    // Перемотка до загрузки описания файла не срабатывает (фрагмент играл бы с начала).
+    if (el.readyState < 1) await metadataOf(el);
     el.currentTime = Math.max(0, startSec);
     await el.play();
   } catch {
@@ -481,6 +488,27 @@ export async function playFragment(url: string, startSec: number, lengthSec: num
   if (lengthSec > 0) fragmentTimer = window.setTimeout(() => stopFragment(), lengthSec * 1000);
   el.onended = () => stopFragment();
   return true;
+}
+
+function metadataOf(el: HTMLAudioElement): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      el.removeEventListener("loadedmetadata", done);
+      el.removeEventListener("error", done);
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(done, 5000);
+    el.addEventListener("loadedmetadata", done);
+    el.addEventListener("error", done);
+  });
+}
+
+/** Заглушить фрагмент, не возвращая фоновую музыку. */
+function silenceFragment(): void {
+  window.clearTimeout(fragmentTimer);
+  resumeAfterFragment = false;
+  fragmentEl?.pause();
 }
 
 export function stopFragment(): void {

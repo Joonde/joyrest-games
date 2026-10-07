@@ -12,6 +12,8 @@ import {
   revealedPlaces,
   revealOrder,
   startPodium,
+  awardNow,
+  canAwardNow,
 } from "./podium";
 import { applyChange, startState } from "./session";
 
@@ -79,5 +81,20 @@ describe("пьедестал", () => {
     expect(podiumShown({ result: { podium: "2" } })).toBe(0);
     expect(podiumShown({ result: null })).toBe(0);
     expect(podiumShown({ result: { podium: -1 } })).toBe(0);
+  });
+
+  it("досрочное награждение: «Назад» с заставки возвращает туда, откуда ушли", () => {
+    const base = session({ a: p("Аня", 10), b: p("Боря", 5) });
+    const ready = { ...base, state: { ...base.state, phase: "playing" as const, stage: "ready" as const, revealed: false } };
+    expect(canAwardNow(ready.state)).toBe(true);
+    expect(canAwardNow({ ...ready.state, stage: "question" })).toBe(false);
+    let s = applyChange(ready, awardNow(ready), 1);
+    expect(s.state.stage).toBe("podium");
+    s = applyChange(s, podiumNext(s), 2);
+    s = applyChange(s, podiumBack(s), 3);
+    s = applyChange(s, podiumBack(s), 4);
+    expect(s.state.stage).toBe("ready");
+    expect(s.state.revealed).toBe(false);
+    expect(s.state.result).toEqual({ counts: [1, 2], correct: 1 });
   });
 });

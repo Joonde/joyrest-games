@@ -3,6 +3,7 @@ import { TrackPicker } from "../../components/music/TrackPicker";
 import type { EditorProps } from "../types";
 import { cardCells, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, type LottoContent, type LottoSong, type WinRule } from "./content";
 import { validateLotto } from "./validate";
+import { ClampedNumber } from "../../components/ClampedNumber";
 
 const SIZES: Array<LottoContent["size"]> = [3, 4, 5];
 const RULES: WinRule[] = ["line", "twoLines", "full"];
@@ -62,14 +63,13 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
         <div className="q-numbers">
           <label className="field">
             Песня звучит, секунд
-            <input
-              type="number"
-              inputMode="numeric"
+            <ClampedNumber
+              value={content.fragment}
               min={LOTTO_LIMITS.minFragment}
               max={LOTTO_LIMITS.maxFragment}
-              value={content.fragment}
+              fallback={30}
               disabled={!editable}
-              onChange={(e) => set({ fragment: Math.min(LOTTO_LIMITS.maxFragment, Math.max(LOTTO_LIMITS.minFragment, Number.parseInt(e.target.value, 10) || 30)) })}
+              onChange={(v) => set({ fragment: v })}
             />
           </label>
         </div>
@@ -79,16 +79,16 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
             {[0, 1, 2].map((i) => (
               <label key={i} className="field">
                 {i + 1}-й
-                <input
-                  type="number"
-                  inputMode="numeric"
+                <ClampedNumber
+                  value={content.prizes[i] ?? 0}
                   min={0}
                   max={LOTTO_LIMITS.maxPrize}
-                  value={content.prizes[i] ?? 0}
-                  onChange={(e) => {
+                  fallback={0}
+                  disabled={!editable}
+                  onChange={(v) => {
                     const prizes = [...content.prizes];
                     while (prizes.length <= i) prizes.push(0);
-                    prizes[i] = Math.min(LOTTO_LIMITS.maxPrize, Math.max(0, Number.parseInt(e.target.value, 10) || 0));
+                    prizes[i] = v;
                     set({ prizes });
                   }}
                 />

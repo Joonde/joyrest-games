@@ -464,7 +464,7 @@ function InGame({
           setMyAnswer(saved.value);
         } else {
           forgetAnswer(session.id, slot);
-          setError("Ответ не принят: время вышло.");
+          setError(session.state.timeLimit === null ? "Не успели: ведущий уже показал ответ." : "Ответ не принят: время вышло.");
         }
       }
     } catch {

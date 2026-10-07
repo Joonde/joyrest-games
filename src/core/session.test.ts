@@ -49,6 +49,12 @@ describe("applyChange (репетиция)", () => {
     expect(next.leaderboard).toEqual({ b: { name: "Боря", kind: "player", score: 1 } });
     expect(session.leaderboard.a).toBeDefined();
   });
+
+  it("игра пошла дальше — таблица «посмотреть сейчас» уходит с экрана", () => {
+    const peeking = { ...session, state: { ...session.state, peek: "total" as const } };
+    expect(applyChange(peeking, { state: { stage: "reveal" } }, 1).state.peek).toBeNull();
+    expect(applyChange(peeking, { state: { answered: 3 } }, 1).state.peek).toBe("total");
+  });
 });
 
 describe("ожидание пульта и правки таблицы", () => {

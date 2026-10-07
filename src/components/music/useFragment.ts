@@ -2,23 +2,32 @@ import { useEffect, useRef } from "react";
 import { tracksRepo } from "../../data";
 import { playFragment, stopFragment } from "../live/sound";
 
-const cache = new Map<string, string>();
+const cache = new Map<string, Promise<string | null>>();
 
-async function trackUrl(trackId: string): Promise<string | null> {
+/** Адрес трека в памяти; одна загрузка на трек, даже если его просят сразу несколько мест. */
+function trackUrl(trackId: string): Promise<string | null> {
   const known = cache.get(trackId);
   if (known) return known;
-  const blob = tracksRepo ? await tracksRepo.file(trackId).catch(() => null) : null;
-  if (!blob) return null;
-  const url = URL.createObjectURL(blob);
-  cache.set(trackId, url);
+  const loading = (async () => {
+    const blob = tracksRepo ? await tracksRepo.file(trackId).catch(() => null) : null;
+    if (!blob) {
+      // Не получилось — в следующий раз попробуем снова.
+      cache.delete(trackId);
+      return null;
+    }
+    return URL.createObjectURL(blob);
+  })();
+  cache.set(trackId, loading);
   // Слабому телевизору хватит нескольких треков в памяти.
   for (const [id, old] of cache) {
     if (cache.size <= 4) break;
     if (id === trackId) continue;
-    URL.revokeObjectURL(old);
     cache.delete(id);
+    void old.then((url) => {
+      if (url) URL.revokeObjectURL(url);
+    });
   }
-  return url;
+  return loading;
 }
 
 /** Заранее скачать трек следующего шага: вопрос откроется без паузы. */
@@ -47,5 +56,6 @@ export function useFragment(trackId: string | null, startSec: number, lengthSec:
       cancelled = true;
     };
   }, [trackId, startSec, lengthSec, playKey]);
-  useEffect(() => () => stopFragment(), []);
+  // При уходе с экрана вопроса (таблица или слайд поверх) фрагмент доигрывает свой кусок: он сам
+  // замолкает по времени, а заново его включит только новый `playKey`.
 }

@@ -1,10 +1,11 @@
 import { useEffect, type CSSProperties } from "react";
+import { conceptThemes } from "./concepts";
 import { joyrest, joyrestDay } from "./joyrest";
 import type { AgeRating, Theme } from "./types";
 
 export const DEFAULT_THEME_ID = joyrest.id;
 
-export const themes: Theme[] = [joyrest, joyrestDay];
+export const themes: Theme[] = [joyrest, joyrestDay, ...conceptThemes];
 
 /** Темы для игры с возрастным ограничением: 18+ не предлагаются в детских и обычных играх. */
 export function themesForRating(rating: AgeRating): Theme[] {
@@ -39,6 +40,9 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
   for (const [name, value] of Object.entries(themeVars(theme))) root.style.setProperty(name, value);
   root.style.colorScheme = theme.tokens.scheme;
   root.dataset.theme = theme.id;
+  // Блеск надписей — по атрибуту, чтобы стили знали о нём без JS в каждом компоненте.
+  if (theme.effects?.shine) root.dataset.shine = "on";
+  else delete root.dataset.shine;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.tokens.colors.bg);
 }
 
@@ -62,6 +66,11 @@ export function themeStyle(themeId: string): CSSProperties {
 export const THEME_HINTS: Record<string, string> = {
   joyrest: "Тёмное, для вечера и затемнённого зала.",
   "joyrest-day": "Светлое, для дневных мероприятий и яркого света.",
+  newyear: "Ночное небо, снег, гирлянда и колокольчики.",
+  gatsby: "Чёрное с золотом, ар-деко, джазовые звуки.",
+  hollywood: "Красная дорожка, прожекторы и вспышки камер.",
+  disco: "Разноцветные огни, зеркальный шар, звуки диско.",
+  wedding: "Светлая, нежное свечение и лепестки.",
 };
 
 /** Включает тему на время показа экрана, потом возвращает базовую. */

@@ -6,8 +6,9 @@ import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
 import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } from "../data";
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
+import { Scene } from "../components/live/Scene";
 import { useHallMusic } from "../components/music/useHallMusic";
-import { playSound, setMuted, stopAllSounds, unlockSound, useMuted } from "../components/live/sound";
+import { playSound, setMuted, setSoundSet, stopAllSounds, unlockSound, useMuted } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
 import { VPN_HINT } from "../core/texts";
@@ -16,7 +17,7 @@ import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { joinHint, playUrl } from "../components/links";
 import { getMechanic } from "../mechanics/registry";
-import { teamColorVar, useTheme } from "../themes/registry";
+import { getTheme, teamColorVar, useTheme } from "../themes/registry";
 
 export function HallScreen() {
   const { code = "" } = useParams();
@@ -116,6 +117,7 @@ function useCueSound(cue: SoundCue | null | undefined): void {
 
 function Screen({ session }: { session: Session }) {
   useTheme(session.themeId);
+  useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
   const musicBlocked = useHallMusic(session.state.music, session.state.mix);
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.
@@ -139,6 +141,7 @@ function Screen({ session }: { session: Session }) {
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
+      <Scene themeId={session.themeId} />
       <ScreenControls />
       {musicBlocked && <p className="screen-tap">Коснитесь экрана, чтобы включить музыку</p>}
       {phase === "lobby" && <Lobby session={session} />}

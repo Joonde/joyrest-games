@@ -3,7 +3,8 @@ import { Sheet } from "../../components/Sheet";
 import { Tabs } from "../../components/Tabs";
 import type { Participant, ScreenMode, Session } from "../../data/types";
 import { startState } from "../../core/session";
-import { themeStyle } from "../../themes/registry";
+import { getTheme, themeStyle } from "../../themes/registry";
+import { Scene } from "../../components/live/Scene";
 import type { QuizContent } from "./content";
 import { QuizPlayerView, QuizScreenView } from "./views";
 
@@ -74,7 +75,8 @@ export function QuizPreview({ gameId, themeId, content, index, onIndex }: Props)
       <Tabs items={VIEWS} value={view} onChange={setView} label="Что показать" idPrefix="preview" />
       <div role="tabpanel" id={`preview-panel-${view}`} aria-labelledby={`preview-tab-${view}`} className="stack">
         {view === "screen" ? (
-          <div className="preview-screen" style={themeStyle(themeId)}>
+          <div className="preview-screen" style={themeStyle(themeId)} data-shine={getTheme(themeId).effects?.shine ? "on" : undefined}>
+            <Scene themeId={themeId} />
             <QuizScreenView key={question?.id} session={session} content={content} />
           </div>
         ) : (

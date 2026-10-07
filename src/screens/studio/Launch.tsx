@@ -16,7 +16,8 @@ import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
 import { getMechanic, validateGame } from "../../mechanics/registry";
-import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
+import { getTheme, THEME_HINTS, themesForRating, themeStyle } from "../../themes/registry";
+import { Scene } from "../../components/live/Scene";
 
 const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
   { id: "laptop", title: "Ноутбук + экран", hint: "Экран зала на ноутбуке, управление с ноутбука или телефона." },
@@ -159,6 +160,19 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
             </label>
           ))}
         </fieldset>
+        <div
+          className="preview-screen"
+          style={themeStyle(themeId)}
+          data-shine={getTheme(themeId).effects?.shine ? "on" : undefined}
+          aria-label={`Так выглядит экран зала: ${getTheme(themeId).title}`}
+          role="img"
+        >
+          <Scene themeId={themeId} />
+          <div className="theme-preview__content">
+            <p className="eyebrow">Код игры</p>
+            <div className="big-code">482 913</div>
+          </div>
+        </div>
         {error && (
           <p className="error" role="alert">
             {error}

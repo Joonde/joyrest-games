@@ -1815,6 +1815,7 @@ kbd {
 }
 
 .preview-screen {
+  position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   container-type: size;
@@ -2559,6 +2560,301 @@ kbd {
   margin: 0;
   white-space: pre-line;
   overflow-wrap: anywhere;
+}
+
+/* ---------- Живой фон тем-концепций (Scene.tsx): только transform и opacity ---------- */
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+
+.hall > .scene {
+  position: fixed;
+}
+
+.hall > main,
+.preview-screen > :not(.scene) {
+  position: relative;
+  z-index: 1;
+}
+
+.scene__layer {
+  position: absolute;
+  inset: 0;
+}
+
+.scene__layer span {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  will-change: transform;
+}
+
+/* Снег: мягкие точки падают и чуть сносятся ветром. */
+.scene__flakes span {
+  width: calc(1.1cqh * var(--size));
+  height: calc(1.1cqh * var(--size));
+  border-radius: 50%;
+  background: var(--scene-particle);
+  opacity: calc(0.35 + var(--size) * 0.4);
+  transform: translate3d(0, -5cqh, 0);
+  animation: scene-fall var(--dur) linear var(--delay) infinite;
+}
+
+/* Лепестки: розовые овалы падают и кружатся. */
+.scene__petals span {
+  width: calc(3.4cqh * var(--size));
+  height: calc(2cqh * var(--size));
+  border-radius: 80% 0 80% 0;
+  background: var(--scene-particle);
+  opacity: 0.7;
+  transform: translate3d(0, -5cqh, 0);
+  animation: scene-fall-spin calc(var(--dur) * 1.3) linear var(--delay) infinite;
+}
+
+@keyframes scene-fall {
+  from {
+    transform: translate3d(0, -5cqh, 0);
+  }
+  to {
+    transform: translate3d(var(--drift), 105cqh, 0);
+  }
+}
+
+@keyframes scene-fall-spin {
+  from {
+    transform: translate3d(0, -5cqh, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--drift), 105cqh, 0) rotate(540deg);
+  }
+}
+
+/* Голливуд: три луча прожекторов качаются из-за нижнего края, изредка — вспышки камер. */
+.scene__beams span {
+  top: auto;
+  bottom: -10cqh;
+  width: 22cqw;
+  height: 130cqh;
+  margin-left: -11cqw;
+  background: linear-gradient(to top, var(--scene-glow), transparent);
+  clip-path: polygon(45% 100%, 55% 100%, 100% 0, 0 0);
+  transform-origin: 50% 100%;
+  animation: scene-sway calc(var(--dur) * 0.8) ease-in-out var(--delay) infinite alternate;
+}
+
+.scene__beams span:nth-child(1) {
+  left: 20%;
+}
+
+.scene__beams span:nth-child(2) {
+  left: 50%;
+}
+
+.scene__beams span:nth-child(3) {
+  left: 80%;
+}
+
+@keyframes scene-sway {
+  from {
+    transform: rotate(-18deg);
+  }
+  to {
+    transform: rotate(18deg);
+  }
+}
+
+.scene__flashes span {
+  top: calc(var(--size) * 40cqh);
+  width: 14cqh;
+  height: 14cqh;
+  margin: -7cqh 0 0 -7cqh;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--scene-particle), transparent 65%);
+  opacity: 0;
+  animation: scene-flash calc(var(--dur) * 0.7) linear var(--delay) infinite;
+}
+
+@keyframes scene-flash {
+  0%,
+  92%,
+  100% {
+    opacity: 0;
+  }
+  94% {
+    opacity: 0.9;
+  }
+}
+
+/* Диско: цветные пятна света плавают по залу, сверху вращается зеркальный шар. */
+.scene__lights span {
+  top: calc(var(--size) * 60cqh);
+  width: 34cqh;
+  height: 34cqh;
+  margin: -17cqh 0 0 -17cqh;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--hue), transparent 65%);
+  opacity: 0.32;
+  animation: scene-roam var(--dur) ease-in-out var(--delay) infinite alternate;
+}
+
+@keyframes scene-roam {
+  from {
+    transform: translate3d(-12cqw, -6cqh, 0) scale(0.8);
+  }
+  to {
+    transform: translate3d(12cqw, 10cqh, 0) scale(1.15);
+  }
+}
+
+.scene__ball {
+  position: absolute;
+  top: 1cqh;
+  left: 50%;
+  width: 14cqh;
+  height: 14cqh;
+  margin-left: -7cqh;
+  border-radius: 50%;
+  background:
+    repeating-linear-gradient(0deg, var(--color-bg) 0 1px, transparent 1px 1.4cqh),
+    repeating-linear-gradient(90deg, var(--color-bg) 0 1px, transparent 1px 1.4cqh),
+    radial-gradient(circle at 35% 35%, var(--scene-particle), var(--color-text-muted) 55%, var(--color-surface-alt) 100%);
+  opacity: 0.85;
+  animation: scene-spin 6s linear infinite;
+}
+
+@keyframes scene-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Гэтсби: золотые веера ар-деко в нижних углах и медленный блик по залу. */
+.scene__fan {
+  position: absolute;
+  bottom: -36cqh;
+  width: 72cqh;
+  height: 72cqh;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 270deg, var(--scene-glow) 0deg 2deg, transparent 2deg 12deg);
+  -webkit-mask: radial-gradient(circle, transparent 18%, #000 19%, #000 69%, transparent 70%);
+  mask: radial-gradient(circle, transparent 18%, #000 19%, #000 69%, transparent 70%);
+}
+
+.scene__fan--left {
+  left: -36cqh;
+}
+
+.scene__fan--right {
+  right: -36cqh;
+}
+
+.scene__sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40cqw;
+  width: 30cqw;
+  background: linear-gradient(100deg, transparent, var(--scene-glow), transparent);
+  opacity: 0.35;
+  animation: scene-sweep 9s ease-in-out infinite;
+}
+
+@keyframes scene-sweep {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(170cqw);
+  }
+}
+
+/* Гирлянда: лампочки цветов команд мигают по очереди. */
+.scene__garland {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6cqh;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  border-top: 0.4cqh solid var(--scene-glow);
+}
+
+.scene__garland span {
+  width: 2cqh;
+  height: 3cqh;
+  margin-top: 0.8cqh;
+  border-radius: 50% 50% 45% 45%;
+  background: var(--hue);
+  opacity: 0.6;
+  animation: scene-blink 1.8s steps(1, end) var(--delay) infinite;
+}
+
+.scene__garland span:nth-child(even) {
+  margin-top: 2.2cqh;
+}
+
+@keyframes scene-blink {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Блеск крупных надписей: блик бежит по градиенту темы. */
+[data-shine="on"] .big-code,
+[data-shine="on"] .podium__num,
+[data-shine="on"] .final__winner:not(.final__winner--team),
+[data-shine="on"] .podium__slot--1 .podium__name:not(.podium__name--team) {
+  background-size: 250% 100%;
+  animation: scene-shine 5s ease-in-out infinite;
+}
+
+@keyframes scene-shine {
+  0%,
+  20% {
+    background-position: 100% 0;
+  }
+  80%,
+  100% {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene__layer,
+  .scene__sweep {
+    display: none;
+  }
+}
+
+/* Предпросмотр темы при запуске: заставка с кодом игры на живом фоне. */
+.theme-preview__content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  text-align: center;
+}
+
+.theme-preview__content .eyebrow {
+  font-size: 5cqh;
+  color: var(--color-text-muted);
+}
+
+.theme-preview__content .big-code {
+  font-size: 22cqh;
 }
 
 /* Кнопки звуков на пульте: две колонки на телефоне, три — на широком экране. */

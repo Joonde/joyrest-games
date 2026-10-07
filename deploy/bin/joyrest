@@ -84,6 +84,9 @@ usage() {
   joyrest admin-password [test]
                               пароль владельца агентства для входа в студию (вводится скрыто,
                               хранится только хэш); test — для test.games.joy-rest.ru
+  joyrest data [server|firebase] [force]
+                              где основная версия games.joy-rest.ru хранит данные: server —
+                              свой сервер, firebase — откат на Firebase; без аргумента — текущее
 
 Резервные копии (каждую ночь в 04:40, restic → Beget S3):
   joyrest backup-setup        подключить хранилище S3: ключи (скрыто), пароль копий, первая копия
@@ -800,6 +803,7 @@ cmd_status() {
     "индексация $(env_value "$SETTINGS_FILE" SITE_INDEXING | grep . || echo off)," \
     "бот заявок $(grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest lead-bot)')," \
     "пароль test.joy-rest.ru $([ -s "$SITE_AUTH_DIR/test-site-owner.caddy" ] && echo задан || echo 'НЕ задан (sudo joyrest site-password)')"
+  echo "Данные games.joy-rest.ru: $(data_backend) (sudo joyrest data server|firebase)"
   echo "Резервная копия: $(backup_summary)," \
     "служебный бот $(grep -q '^NOTIFY_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest notify-bot)')"
   echo
@@ -1384,6 +1388,47 @@ cmd_admin_password() {
   echo "✅ Готово: https://$(host_of "$target")/studio — почта $email и ваш пароль."
 }
 
+# Слой данных основной версии (этап 9, CLAUDE.md «Переключатель»): DATA_BACKEND в settings.env.
+# server — свой сервер (только если в основной базе есть владелец с паролем), firebase — откат.
+# Меняет только владелец этой командой; выкладка и CI DATA_BACKEND не трогают.
+data_backend() {
+  local value
+  value=$(env_value "$SETTINGS_FILE" DATA_BACKEND)
+  [ "$value" = server ] && echo server || echo firebase
+}
+
+cmd_data() {
+  local value=${1:-} force=${2:-} current owners
+  current=$(data_backend)
+  if [ -z "$value" ]; then
+    echo "Данные games.joy-rest.ru: $current (server — свой сервер, firebase — Firebase)"
+    return 0
+  fi
+  need_root data
+  case "$value" in server|firebase) ;; *) die "Значение — server или firebase: sudo joyrest data server" ;; esac
+  [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
+  if [ "$value" = "$current" ]; then
+    echo "Уже $value — ничего не меняю."
+    return 0
+  fi
+  if [ "$value" = server ]; then
+    owners=$(psql_prod "select count(*) from users where role = 'admin' and active and password_hash is not null" 2>/dev/null) \
+      || die "Не удалось проверить основную базу. Ничего не изменено."
+    [ "${owners:-0}" -gt 0 ] 2>/dev/null \
+      || die "В основной базе нет владельца с паролем — сначала: sudo joyrest admin-password. Ничего не изменено."
+  fi
+  ensure_no_game "$force" "data $value"
+  set_env_value "$SETTINGS_FILE" DATA_BACKEND "$value" || die "Не удалось записать $SETTINGS_FILE."
+  log "Данные games.joy-rest.ru: $current → $value"
+  recreate_apps app-prod
+  if [ "$value" = server ]; then
+    echo "✅ games.joy-rest.ru работает на своём сервере. Вход — почта и пароль из admin-password."
+    echo "Вернуть Firebase: sudo joyrest data firebase"
+  else
+    echo "✅ games.joy-rest.ru снова на Firebase. Данные своего сервера сохранены в базе."
+  fi
+}
+
 cmd_version() {
   echo "основная: $(release_value prod APP_VERSION)"
   echo "тестовая: $(release_value test APP_VERSION)"
@@ -1413,5 +1458,6 @@ case "${1:-}" in
   restore-settings) cmd_restore_settings ;;
   notify-bot)    cmd_notify_bot ;;
   admin-password) shift; cmd_admin_password "$@" ;;
+  data)          shift; cmd_data "$@" ;;
   *)             usage ;;
 esac

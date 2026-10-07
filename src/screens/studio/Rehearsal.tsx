@@ -69,6 +69,7 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
     () => ({
       apply: async (change) => setSession((s) => applyChange(s, change, Date.now())),
       clearAnswers: async () => undefined,
+      freshAnswers: async () => [],
       requestFinish: () => setSession((s) => ({ ...s, state: { ...s.state, phase: "finished" } })),
     }),
     [],

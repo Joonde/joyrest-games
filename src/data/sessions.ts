@@ -266,6 +266,13 @@ export const sessionsRepository: SessionsRepository = {
     for (const [pid, entry] of Object.entries(change.leaderboard ?? {})) {
       patch[`leaderboard.${pid}`] = entry === null ? sdk.deleteField() : entry;
     }
+    // Firebase-версия проверку `expect` не делает (одна запись без транзакции); прибавка — атомарная.
+    for (const [pid, delta] of Object.entries(change.addScore ?? {})) {
+      patch[`leaderboard.${pid}.score`] = sdk.increment(delta);
+    }
+    for (const [pid, name] of Object.entries(change.rename ?? {})) {
+      patch[`leaderboard.${pid}.name`] = name;
+    }
     if (Object.keys(patch).length === 0) return;
     await sdk.updateDoc(sdk.doc(col, sessionId), patch);
   },

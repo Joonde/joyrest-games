@@ -24,6 +24,7 @@ export {
 } from "./active";
 
 export { answerId } from "./answers";
+export { dataBackend } from "./backend";
 export { CUE_SOUNDS, DEFAULT_MIX, SCREEN_REPORT_MS, SCREEN_STALE_MS, SLIDE_LIMITS } from "./cues";
 export {
   useAuth,
@@ -38,4 +39,4 @@ export {
 } from "./hooks";
 export { preloadData } from "./firebase";
 export { connection } from "./connection";
-export { Cancelled, isPermanentError, retryDelay, withRetry } from "./retry";
+export { Cancelled, errorCodeOf, isPermanentError, retryDelay, withRetry } from "./retry";

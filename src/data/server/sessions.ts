@@ -143,10 +143,20 @@ export const serverSessionsRepository: SessionsRepository = {
         current = parseSession(event.session);
         emit();
       } else if (event.type === "patch" && current) {
+        const previous = current.version;
         // Старое изменение (уже вошло в снимок) пропускаем.
         if (num(event.version) <= current.version) return;
         current = applyPatch(current, event);
         emit();
+        // Пропущено изменение (версия перескочила) — в таблице могло не хватать записей: берём снимок.
+        if (num(event.version) > previous + 1) void refresh();
+      }
+    };
+    const refresh = async () => {
+      try {
+        onEvent({ type: "snapshot", session: await api("GET", base(sessionId)) });
+      } catch {
+        // Следующее изменение или переподключение принесут свежий снимок.
       }
     };
     return openStream({

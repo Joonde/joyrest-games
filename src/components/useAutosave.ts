@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { dataBackend } from "../data";
 
 /**
  * saved — всё подтверждено сервером; saving — запись в пути; offline — связи нет, правки
@@ -21,10 +22,13 @@ function isOnline(): boolean {
  * предыдущую: слой данных сразу кладёт запись в очередь на устройстве (локальный кэш
  * Firestore), поэтому при плохом интернете и даже после закрытия вкладки ничего не теряется.
  * После отказа сервера пачка повторяется с самыми свежими значениями полей.
+ *
+ * Свой сервер: пачки уходят по одной (следующая — после ответа на предыдущую), иначе сервер мог
+ * бы записать старую пачку поверх новой. При закрытии вкладки — сразу (запрос с `keepalive`).
  */
 export function useAutosave<Patch extends object>(
   save: (patch: Patch) => Promise<void>,
-): { status: SaveStatus; change: (patch: Patch) => void; flush: () => void } {
+): { status: SaveStatus; change: (patch: Patch) => void; flush: (force?: unknown) => void } {
   const [, rerender] = useState(0);
   const pending = useRef<Patch | null>(null);
   /** Самые свежие значения всех полей, которые меняли: для повтора после ошибки. */
@@ -40,13 +44,15 @@ export function useAutosave<Patch extends object>(
 
   const update = useCallback(() => rerender((n) => n + 1), []);
 
-  const flush = useCallback(() => {
+  const flush = useCallback((force?: unknown) => {
     if (timer.current !== null) {
       window.clearTimeout(timer.current);
       timer.current = null;
     }
     const patch = pending.current;
     if (!patch) return;
+    // По одной: следующая пачка уйдёт, когда ответят на эту (кроме закрытия вкладки).
+    if (dataBackend() === "server" && inFlight.current > 0 && force !== true) return;
     pending.current = null;
     inFlight.current += 1;
     oldestSent.current ??= Date.now();
@@ -72,6 +78,8 @@ export function useAutosave<Patch extends object>(
           setSlow(false);
         }
         update();
+        // Пока ждали ответа, накопились правки — отправляем их сразу.
+        if (pending.current && timer.current === null && !failed.current) flush();
       });
   }, [update]);
 
@@ -97,23 +105,24 @@ export function useAutosave<Patch extends object>(
   useEffect(() => {
     // Телефон сворачивает вкладку без предупреждения: отправляем сразу.
     const onHide = () => {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") flush(true);
     };
+    const onPageHide = () => flush(true);
     const onOnline = () => {
       setOnline(true);
       flush();
     };
     const onOffline = () => setOnline(false);
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", flush);
+    window.addEventListener("pagehide", onPageHide);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
-      flush();
+      flush(true);
     };
   }, [flush]);
 

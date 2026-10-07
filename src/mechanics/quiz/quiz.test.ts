@@ -415,6 +415,28 @@ describe("раунды квиза", () => {
     expect(s.leaderboard.b).toMatchObject({ score: 100, move: 1 });
   });
 
+  it("«Назад» с заставки нового раунда возвращает общий счёт и старт прошлого раунда", () => {
+    const people = [player("a", "Аня"), player("b", "Боря")];
+    const ans = (step: number, pid: string) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: 0, submittedAt: 5 });
+    let s: Session = { ...base, leaderboard: {}, state: { ...base.state, step: 1 } };
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [ans(1, "a")], people), 2);
+    s = applyChange(s, showBoard(s, content), 3);
+    s = applyChange(s, showTotal(s), 4);
+    s = applyChange(s, nextQuestion(s, content), 5);
+    expect(s.leaderboard.a).toMatchObject({ roundBase: 100 });
+    s = applyChange(s, back(s)!.change, 6);
+    expect(s.state).toMatchObject({ step: 1, stage: "board" });
+    expect(boardView(s)).toBe("total");
+    expect(s.leaderboard.a).toMatchObject({ score: 100, roundBase: 0 });
+    // Дальше назад — к итогам раунда, к ответу и снятию очков: очки раунда не уходят в минус.
+    s = applyChange(s, back(s)!.change, 7);
+    expect(boardView(s)).toBe("round");
+    s = applyChange(s, back(s)!.change, 8);
+    s = applyChange(s, back(s)!.change, 9);
+    expect(s.leaderboard.a).toMatchObject({ score: 0, roundBase: 0 });
+  });
+
   it("стрелки: обогнавший поднимается, обойдённый опускается", () => {
     const people = [player("a", "Аня"), player("b", "Боря")];
     let s: Session = {

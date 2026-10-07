@@ -12,13 +12,15 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql, TransactionSql } from "postgres";
 import { generateSessionCode } from "../../src/core/code";
-import { NAME_MAX_LENGTH } from "../../src/core/names";
+import { cleanName, NAME_MAX_LENGTH } from "../../src/core/names";
+import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/session";
 import { compactBoard } from "../../src/core/results";
 import { retentionCutoff } from "../../src/core/retention";
 import { parseCue, parseMix, parseMusic, parseScreenReport, parseSlide, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
-import type { Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
+import type { ChangeExpect, Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
+import { WindowLimiter } from "./lead";
 import { actorOf, apiGuard, identityOf, type Identity } from "./auth";
 
 export interface LiveOptions {
@@ -33,6 +35,20 @@ export interface LiveOptions {
 // ------------------------------------------------------------------ рассылка
 
 type Listener = (event: object) => void;
+
+/** Событие сериализуется один раз на всех подписчиков (500 гостей — одна строка, а не 500). */
+const frames = new WeakMap<object, string>();
+export function sseFrame(event: object): string {
+  let frame = frames.get(event);
+  if (frame === undefined) {
+    frame = `data: ${JSON.stringify(event)}\n\n`;
+    frames.set(event, frame);
+  }
+  return frame;
+}
+
+/** Медленный телефон, у которого накопилось больше этого, отключается — переподключится со свежим снимком. */
+export const STREAM_BACKLOG_BYTES = 512 * 1024;
 
 /** Подписчики по каналам: session:<id>, participants:<id>, answers:<id>. Один процесс app. */
 export class Hub {
@@ -85,6 +101,8 @@ const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
 const STAGES = new Set<StepStage>(["ready", "question", "reveal", "board", "podium"]);
 const SMALL_BODY = 16 * 1024;
+/** Команд в одной сессии. */
+const MAX_TEAMS = 100;
 /** Сколько сессий с экраном зала помним (старые вытесняются). */
 const SCREENS_MAX = 5000;
 const SNAPSHOT_BODY = 1024 * 1024;
@@ -163,6 +181,21 @@ function sessionOf(row: SessionRow) {
 export interface CheckedChange {
   state: Partial<Omit<SessionState, "startedAt">> & { startedAt?: "server" | null };
   leaderboard: Record<string, LeaderboardEntry | null>;
+  expect?: ChangeExpect;
+  addScore?: Record<string, number>;
+  rename?: Record<string, string>;
+}
+
+/** После «Завершить игру» пульт управляет только музыкой, звуками и слайдами. */
+const AFTER_FINISH = new Set(["cue", "music", "mix", "slide"]);
+
+export function allowedAfterFinish(change: CheckedChange): boolean {
+  return (
+    Object.keys(change.state).every((key) => AFTER_FINISH.has(key)) &&
+    Object.keys(change.leaderboard).length === 0 &&
+    Object.keys(change.addScore ?? {}).length === 0 &&
+    Object.keys(change.rename ?? {}).length === 0
+  );
 }
 
 /** Проверяет изменение пульта; неверное — null. Лишние поля состояния отбрасываются. */
@@ -223,7 +256,46 @@ export function checkChange(value: unknown): CheckedChange | null {
       leaderboard[pid] = parsed;
     }
   }
-  return { state, leaderboard };
+
+  const checked: CheckedChange = { state, leaderboard };
+  if (value.expect !== undefined) {
+    if (!isRecord(value.expect)) return null;
+    const { phase, step, stage } = value.expect;
+    const expect: ChangeExpect = {};
+    if (phase !== undefined) {
+      if (!PHASES.has(phase as SessionPhase)) return null;
+      expect.phase = phase as SessionPhase;
+    }
+    if (step !== undefined) {
+      if (!Number.isInteger(step) || (step as number) < 0) return null;
+      expect.step = step as number;
+    }
+    if (stage !== undefined) {
+      if (!STAGES.has(stage as StepStage)) return null;
+      expect.stage = stage as StepStage;
+    }
+    checked.expect = expect;
+  }
+  if (value.addScore !== undefined) {
+    if (!isRecord(value.addScore)) return null;
+    const addScore: Record<string, number> = {};
+    for (const [pid, delta] of Object.entries(value.addScore)) {
+      if (!ID.test(pid) || typeof delta !== "number" || !Number.isFinite(delta) || Math.abs(delta) > MAX_SCORE_DELTA) return null;
+      addScore[pid] = delta;
+    }
+    checked.addScore = addScore;
+  }
+  if (value.rename !== undefined) {
+    if (!isRecord(value.rename)) return null;
+    const rename: Record<string, string> = {};
+    for (const [pid, name] of Object.entries(value.rename)) {
+      const clean = typeof name === "string" ? cleanName(name).slice(0, NAME_MAX_LENGTH) : "";
+      if (!ID.test(pid) || !clean) return null;
+      rename[pid] = clean;
+    }
+    checked.rename = rename;
+  }
+  return checked;
 }
 
 /** Новое состояние и таблица после изменения; время старта шага — по часам сервера. */
@@ -236,7 +308,7 @@ export function applyChange(state: SessionState, board: Leaderboard, change: Che
     if (entry === null) delete leaderboard[pid];
     else leaderboard[pid] = entry;
   }
-  return { state: next, leaderboard };
+  return { state: next, leaderboard: adjustBoard(leaderboard, change.addScore, change.rename) };
 }
 
 /** Начало игры: шаг 0, как у Firebase-версии (sessions.setPhase). */
@@ -355,6 +427,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const now = options.now ?? Date.now;
   const keepAliveMs = options.keepAliveMs ?? 25_000;
   const hub = new Hub();
+  const codeMissesByDevice = new WindowLimiter(20, 10 * 60_000);
+  const codeMissesByIp = new WindowLimiter(200, 10 * 60_000);
   /** Последнее сообщение экрана зала по каждой сессии (см. `/screen`). */
   const screens = new Map<string, ScreenStatus>();
 
@@ -396,7 +470,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     }
 
     /** Одно изменение сессии под блокировкой строки; рассылка — после записи. */
-    async function change(sessionId: string, update: (state: SessionState, board: Leaderboard) => CheckedChange | null): Promise<boolean> {
+    async function change(
+      sessionId: string,
+      update: (state: SessionState, board: Leaderboard) => CheckedChange | null | "conflict",
+    ): Promise<"ok" | "missing" | "conflict"> {
       const event = await sql.begin(async (tx) => {
         const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${sessionId} for update`;
         const row = rows[0];
@@ -404,17 +481,24 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const state = normalizeState(row.state);
         const board = normalizeBoard(row.leaderboard);
         const checked = update(state, board);
+        if (checked === "conflict") return "conflict" as const;
         if (!checked) return null;
         const next = applyChange(state, board, checked, now());
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(next.state as never)}, leaderboard = ${tx.json(next.leaderboard as never)},
             version = version + 1, updated_at = now()
           where id = ${sessionId} returning version::int as version`;
-        return { type: "patch", version: updated?.version ?? row.version + 1, state: next.state, leaderboard: checked.leaderboard };
+        // Подписчикам — изменённые записи таблицы целиком (с прибавкой и новым именем).
+        const changed: Record<string, LeaderboardEntry | null> = { ...checked.leaderboard };
+        for (const pid of [...Object.keys(checked.addScore ?? {}), ...Object.keys(checked.rename ?? {})]) {
+          changed[pid] = next.leaderboard[pid] ?? null;
+        }
+        return { type: "patch", version: updated?.version ?? row.version + 1, state: next.state, leaderboard: changed };
       });
-      if (!event) return false;
+      if (event === "conflict") return "conflict";
+      if (!event) return "missing";
       hub.publish(`session:${sessionId}`, event);
-      return true;
+      return "ok";
     }
 
     // ---------------------------------------------------------------- часы
@@ -468,11 +552,19 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
           where code = ${code} and host_id = ${host} order by (phase <> 'finished') desc, created_at desc limit 1`;
         return rows[0] ? sessionOf(rows[0]) : fail(reply, 404, "not-found");
       }
-      // Гости и экран зала: по коду — только незавершённая сессия.
+      // Гости и экран зала: по коду — только незавершённая сессия. Перебор кодов ограничен числом
+      // промахов: 20 за 10 минут на устройство, 200 на адрес (весь зал за одним Wi‑Fi не промахивается).
+      const at = now();
+      if (!codeMissesByDevice.allowed(who.uid, at) || !codeMissesByIp.allowed(request.ip, at)) {
+        return fail(reply, 429, "resource-exhausted");
+      }
       const rows = await sql<SessionRow[]>`
         select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
         where code = ${code} and phase in ('lobby', 'playing') order by created_at desc limit 1`;
-      return rows[0] ? sessionOf(rows[0]) : fail(reply, 404, "not-found");
+      if (rows[0]) return sessionOf(rows[0]);
+      codeMissesByDevice.take(who.uid, at);
+      codeMissesByIp.take(request.ip, at);
+      return fail(reply, 404, "not-found");
     });
 
     api.get<{ Querystring: { host?: string } }>("/api/sessions", async (request, reply) => {
@@ -501,7 +593,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!hosted) return reply;
       const checked = checkChange(request.body);
       if (!checked) return fail(reply, 400, "invalid-argument");
-      await change(hosted.row.id, () => checked);
+      const result = await change(hosted.row.id, (state) =>
+        !meetsExpect(state, checked.expect) || (state.phase === "finished" && !allowedAfterFinish(checked)) ? "conflict" : checked,
+      );
+      // Игра ушла вперёд (второй пульт, двойное касание) — пульт получит свежее состояние и не повторит.
+      if (result === "conflict") return fail(reply, 409, "failed-precondition");
       return { ok: true };
     });
 
@@ -524,7 +620,13 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const entries = isRecord(request.body) ? request.body.entries : null;
       const checked = checkChange({ leaderboard: entries });
       if (!checked || Object.values(checked.leaderboard).some((e) => e === null)) return fail(reply, 400, "invalid-argument");
-      if (Object.keys(checked.leaderboard).length > 0) await change(hosted.row.id, () => checked);
+      // Только новые участники: уже записанные (с очками) не перезаписываются запоздавшим запросом.
+      if (Object.keys(checked.leaderboard).length > 0) {
+        await change(hosted.row.id, (_state, board) => {
+          const fresh = Object.fromEntries(Object.entries(checked.leaderboard).filter(([pid]) => !board[pid]));
+          return Object.keys(fresh).length > 0 ? { state: {}, leaderboard: fresh } : null;
+        });
+      }
       return { ok: true };
     });
 
@@ -645,6 +747,12 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const teamId = typeof body.id === "string" && ID.test(body.id) ? body.id : null;
       if (session.play_mode !== "teams" || normalizeState(session.state).phase === "finished") return fail(reply, 403, "permission-denied");
       if (!teamId || !validName(body.name)) return fail(reply, 400, "invalid-argument");
+      // Одно устройство — одна команда; в сессии — не больше MAX_TEAMS команд (спам на большом экране).
+      const [counts] = await sql<{ mine: number; total: number }[]>`
+        select count(*) filter (where captain_uid = ${who.uid} and id <> ${teamId})::int as mine, count(*)::int as total
+        from participants where session_id = ${session.id} and kind = 'team'`;
+      if ((counts?.mine ?? 0) > 0) return fail(reply, 409, "already-exists");
+      if ((counts?.total ?? 0) >= MAX_TEAMS) return fail(reply, 429, "resource-exhausted");
       const rows = await sql<ParticipantRow[]>`
         insert into participants (session_id, id, name, kind, team_id, captain_uid)
         values (${session.id}, ${teamId}, ${body.name}, 'team', null, ${who.uid})
@@ -816,7 +924,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      * Поток событий: подписка раньше снимка (ничего не теряется), снимок, дальше изменения.
      * «Я жив» — комментарий раз в keepAliveMs: прокси и мобильные сети не рвут тихое соединение.
      */
-    async function stream(request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+    async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
       reply.hijack();
       const res = reply.raw;
       res.writeHead(200, {
@@ -825,7 +933,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         "X-Accel-Buffering": "no",
         Connection: "keep-alive",
       });
-      const send = (event: object) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+      const send = (event: object) => {
+        if (res.destroyed) return;
+        if (res.writableLength > STREAM_BACKLOG_BYTES) {
+          res.destroy();
+          return;
+        }
+        res.write(sseFrame(event));
+      };
       let ready = false;
       const queued: object[] = [];
       const unsubscribe = hub.subscribe(channel, (event) => {
@@ -833,12 +948,19 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (ready) send(event);
         else queued.push(event);
       });
-      const ping = setInterval(() => res.write(": ping\n\n"), keepAliveMs);
+      const ping = setInterval(() => {
+        if (!res.destroyed) res.write(": ping\n\n");
+      }, keepAliveMs);
       const close = () => {
         clearInterval(ping);
         unsubscribe();
       };
-      request.raw.on("close", close);
+      // Закрытие ответа надёжнее закрытия запроса; телефон мог уйти, пока мы проверяли вход.
+      res.on("close", close);
+      if (res.destroyed) {
+        close();
+        return;
+      }
       try {
         send(await snapshot());
         ready = true;

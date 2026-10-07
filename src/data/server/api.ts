@@ -50,12 +50,17 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   return response;
 }
 
+/** Запрос с `keepalive` переживает закрытие вкладки, но браузер пропускает так не больше 64 КБ. */
+const KEEPALIVE_MAX = 60_000;
+
 export async function api<T = unknown>(method: Method, path: string, body?: unknown): Promise<T> {
+  const json = method === "GET" ? undefined : JSON.stringify(body ?? {});
   const response = await send(path, {
     method,
     cache: "no-store",
     headers: method === "GET" ? { Accept: "application/json" } : { "Content-Type": "application/json", "X-JoyRest": "1" },
-    body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
+    body: json,
+    keepalive: json !== undefined && json.length < KEEPALIVE_MAX,
   });
   return (await response.json().catch(() => null)) as T;
 }

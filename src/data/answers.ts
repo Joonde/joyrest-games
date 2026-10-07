@@ -69,6 +69,12 @@ export const answersRepository: AnswersRepository = {
     }
   },
 
+  async list(sessionId, step) {
+    const { db, sdk } = await loadFirestore();
+    const snap = await sdk.getDocs(sdk.query(sdk.collection(db, "sessions", sessionId, "answers"), sdk.where("step", "==", step)));
+    return snap.docs.map(toAnswer).filter((a): a is Answer => a !== null);
+  },
+
   watch(sessionId, step, onChange, onError) {
     return lazySubscribe(async () => {
       const { db, sdk } = await loadFirestore();

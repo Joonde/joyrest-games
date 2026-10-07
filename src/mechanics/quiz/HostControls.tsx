@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { scoringParticipants } from "../../core/leaderboard";
 import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
-import type { SessionChange } from "../../data/types";
+import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { KIND_TITLES, roundAt, roundTitle, type QuizContent } from "./content";
 import { PodiumHostList } from "../../components/live/Podium";
@@ -20,6 +20,15 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showMissing, setShowMissing] = useState(false);
+  // Последняя сессия, которую видит пульт: кнопка ждёт, пока своё изменение не придёт обратно.
+  const latest = useRef<Session>(session);
+  const waiters = useRef<Array<() => void>>([]);
+  useEffect(() => {
+    latest.current = session;
+    const done = waiters.current;
+    waiters.current = [];
+    done.forEach((w) => w());
+  }, [session]);
   const { stage, step } = session.state;
   const now = useServerNow(250, stage === "question");
   const q = content.questions[step];
@@ -37,23 +46,57 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const missing = [...expected.entries()].filter(([id]) => !answeredIds.has(id)).map(([, name]) => name);
   const action = primaryAction(session, content);
 
-  async function run(change: SessionChange, afterClear?: number) {
+  /** Новое состояние пришло (или прошло 3 с) — кнопку можно нажимать снова. */
+  function nextSession(): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = window.setTimeout(resolve, 3000);
+      waiters.current.push(() => {
+        window.clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  async function run(make: SessionChange | (() => Promise<SessionChange>), afterClear?: number) {
+    if (busy) return;
     setBusy(true);
     setError(null);
+    // Изменение — только если игра всё ещё там, где её видит этот пульт (второй пульт, двойное касание).
+    const { phase, step: atStep, stage: atStage } = session.state;
     try {
-      await control.apply(change);
+      const change = typeof make === "function" ? await make() : make;
+      const arrived = rehearsal ? Promise.resolve() : nextSession();
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
       // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
       if (afterClear !== undefined) await control.clearAnswers(afterClear);
-    } catch {
-      setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
+      await arrived;
+    } catch (e) {
+      // Игра уже ушла вперёд — пульт сейчас покажет, где она; ничего не делаем.
+      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) {
+        setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
+      }
     } finally {
       setBusy(false);
     }
   }
 
+  /** Очки — по свежему списку ответов с сервера: ответ последней секунды мог ещё не дойти до пульта. */
+  async function revealChange(): Promise<SessionChange> {
+    let all: Answer[] = own;
+    try {
+      const fresh = await control.freshAnswers(step);
+      const byId = new Map(own.map((a) => [a.id, a]));
+      for (const a of fresh) if (a.step === step) byId.set(a.id, a);
+      all = [...byId.values()];
+    } catch {
+      // Нет связи — считаем по тому, что уже пришло.
+    }
+    return reveal(latest.current, content, all, participants);
+  }
+
   function onPrimary() {
     if (action === "show") void run(showQuestion(session, content));
-    if (action === "reveal") void run(reveal(session, content, own, participants));
+    if (action === "reveal") void run(revealChange);
     if (action === "board") void run(showBoard(session, content));
     if (action === "total") void run(showTotal(session));
     if (action === "next") void run(nextQuestion(session, content));

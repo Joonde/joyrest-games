@@ -13,6 +13,7 @@ export {
   getDocFromServer,
   getCountFromServer,
   getDocs,
+  increment,
   initializeFirestore,
   limit,
   memoryLocalCache,

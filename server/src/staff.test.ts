@@ -46,13 +46,16 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
   const login = async (email: string, password: string) => cookieOf(await post("/api/auth/login", "", { email, password }));
 
   /** Игра ведущей Анны: phones телефонов, minutes минут от «Начать игру» до «Завершить». */
-  async function playGame(id: string, phones: number, minutes: number) {
+  async function playGame(id: string, phones: number, minutes: number, answered = 3) {
     expect((await post("/api/sessions", anna, { id, gameTitle: "Квиз", mechanic: "quiz", playMode: "solo" })).statusCode).toBe(200);
     for (let i = 0; i < phones; i++) {
       const device = await post("/api/auth/device", "", {});
       const cookie = cookieOf(device);
       const uid = device.json().uid as string;
       expect((await post(`/api/sessions/${id}/participants/${uid}/join`, cookie, { name: `Гость ${i}` })).statusCode).toBe(200);
+      for (let step = 0; step < answered; step++) {
+        await sql`insert into answers (session_id, step, pid, uid, value) values (${id}, ${step}, ${uid}, ${uid}, ${sql.json(0)})`;
+      }
     }
     expect((await post(`/api/sessions/${id}/phase`, anna, { phase: "playing" })).statusCode).toBe(200);
     clock += minutes * MINUTE;
@@ -96,6 +99,8 @@ describe.skipIf(!url)("квалификация, стаж и баллы на Pos
     await playGame("short", 12, 30);
     await playGame("small", 10, 60);
     await playGame("ok", 11, 45);
+    // Телефоны подключились, но ответили меньше чем на 3 вопроса — не засчитываются.
+    await playGame("idle", 30, 60, 2);
     // Повторное «Завершить» ничего не добавляет.
     await post("/api/sessions/ok/finish", anna, {});
     const rows = await sql<{ session_id: string; points: string }[]>`select session_id, points::text as points from host_points where host_id = ${annaId}`;

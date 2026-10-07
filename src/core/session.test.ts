@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "../data/types";
-import { acceptsAnswers, answerDeadline, applyChange, secondsLeft, startState } from "./session";
+import { acceptsAnswers, adjustBoard, answerDeadline, applyChange, meetsExpect, secondsLeft, startState } from "./session";
 
 const session: Session = {
   id: "s",
@@ -48,5 +48,23 @@ describe("applyChange (репетиция)", () => {
     expect(next.state.startedAt).toBe(777);
     expect(next.leaderboard).toEqual({ b: { name: "Боря", kind: "player", score: 1 } });
     expect(session.leaderboard.a).toBeDefined();
+  });
+});
+
+describe("ожидание пульта и правки таблицы", () => {
+  it("изменение — только если игра там, где её видел пульт", () => {
+    const state = { ...startState(), step: 2, stage: "question" as const };
+    expect(meetsExpect(state, undefined)).toBe(true);
+    expect(meetsExpect(state, { phase: "playing", step: 2, stage: "question" })).toBe(true);
+    expect(meetsExpect(state, { step: 1 })).toBe(false);
+    expect(meetsExpect(state, { stage: "ready" })).toBe(false);
+    expect(meetsExpect(state, { phase: "lobby" })).toBe(false);
+  });
+
+  it("прибавка очков и новое имя — только у тех, кто в таблице", () => {
+    const board = { a: { name: "Аня", kind: "player" as const, score: 10, last: 5 } };
+    expect(adjustBoard(board, { a: 10, x: 5 }, { a: "Анна", y: "Боря" })).toEqual({ a: { name: "Анна", kind: "player", score: 20, last: 5 } });
+    const twice = adjustBoard(adjustBoard(board, { a: 10 }), { a: 10 });
+    expect(twice.a?.score).toBe(30);
   });
 });

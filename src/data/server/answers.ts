@@ -47,6 +47,10 @@ export const serverAnswersRepository: AnswersRepository = {
     await api("DELETE", `${base(sessionId)}/${step}`);
   },
 
+  async list(sessionId, step) {
+    return parseList(await api("GET", `${base(sessionId)}/${step}`));
+  },
+
   watch(sessionId, step, onChange, onError) {
     const all = new Map<string, Answer>();
     const emit = () => onChange([...all.values()]);

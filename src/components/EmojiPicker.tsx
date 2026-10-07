@@ -1,7 +1,24 @@
-import { EMOJIS } from "../core/emoji";
+import { EMOJIS, withEmoji } from "../core/emoji";
 
-/** Выбор смайлика к имени: сетка крупных кнопок и «без смайлика». */
-export function EmojiPicker({ value, onChange, label }: { value: string | null; onChange: (emoji: string | null) => void; label: string }) {
+/**
+ * Выбор смайлика к имени: сетка крупных кнопок, последняя — «без смайлика», и строка
+ * «Так вас увидят: 🦊 Аня» — сразу видно, что выбрано.
+ */
+export function EmojiPicker({
+  value,
+  onChange,
+  label,
+  preview,
+  previewLabel,
+}: {
+  value: string | null;
+  onChange: (emoji: string | null) => void;
+  label: string;
+  /** Имя без смайлика: для строки предпросмотра. */
+  preview: string;
+  previewLabel: string;
+}) {
+  const shown = withEmoji(value, preview.trim() || "…");
   return (
     <fieldset className="emoji-picker">
       <legend>{label}</legend>
@@ -18,10 +35,18 @@ export function EmojiPicker({ value, onChange, label }: { value: string | null; 
             {emoji}
           </button>
         ))}
+        <button
+          type="button"
+          className="emoji-picker__item emoji-picker__item--none"
+          aria-pressed={value === null}
+          onClick={() => onChange(null)}
+        >
+          Без
+        </button>
       </div>
-      <button type="button" className="btn btn--quiet" aria-pressed={value === null} onClick={() => onChange(null)}>
-        {value === null ? "Без смайлика ✓" : "Без смайлика"}
-      </button>
+      <p className="emoji-picker__preview" aria-live="polite">
+        {previewLabel}: <strong>{shown}</strong>
+      </p>
     </fieldset>
   );
 }

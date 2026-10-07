@@ -549,6 +549,13 @@ a {
 
 /* ---------- Смайлик к имени (вход гостя) ---------- */
 
+/* Смайлик внутри надписи с градиентом: свой цвет, иначе прозрачен. */
+.name-emoji {
+  color: var(--color-text);
+  -webkit-text-fill-color: currentColor;
+  background: none;
+}
+
 .emoji-picker {
   display: grid;
   gap: 8px;
@@ -573,6 +580,18 @@ a {
 .emoji-picker__item[aria-pressed="true"] {
   border-color: var(--color-highlight);
   box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.emoji-picker__item--none {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.emoji-picker__preview {
+  margin: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
 }
 
 .emoji-picker__item:focus-visible {
@@ -1150,6 +1169,16 @@ legend {
 .screen-text {
   font-size: clamp(18px, 1.8vw, 30px);
   color: var(--color-text-muted);
+}
+
+/* Просьба к гостям у QR-кода (выключить VPN): заметно, но не громче кода. */
+.screen-note {
+  margin: 0;
+  padding: 8px 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: var(--radius-md);
+  font-size: clamp(16px, 1.5vw, 26px);
+  color: var(--color-text);
 }
 
 .screen-center {

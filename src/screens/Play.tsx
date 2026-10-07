@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
+import { VPN_HINT } from "../core/texts";
 import { snapshotContent } from "../core/games";
 import { placeOf } from "../core/leaderboard";
 import { pointsLabel } from "../core/results";
@@ -152,7 +153,8 @@ function JoinForm({
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const plainPlayer = cleanName(name);
-    const cleanPlayer = withEmoji(emoji, plainPlayer);
+    // В режиме команд смайлик — у команды, имя игрока без него.
+    const cleanPlayer = teamsMode ? plainPlayer : withEmoji(emoji, plainPlayer);
     if (!isValidName(plainPlayer)) {
       setError("Напишите своё имя.");
       return;
@@ -185,6 +187,7 @@ function JoinForm({
       <form className="card" onSubmit={onSubmit}>
         <p className="eyebrow">Игра {formatSessionCode(session.code)}</p>
         <h1>Как вас зовут?</h1>
+        <p className="muted small">{VPN_HINT}</p>
         <label className="field">
           Имя
           <input
@@ -194,7 +197,7 @@ function JoinForm({
             onChange={(e) => setName(e.target.value)}
           />
         </label>
-        <EmojiPicker label="Смайлик к имени" value={emoji} onChange={setEmoji} />
+        {!teamsMode && <EmojiPicker label="Смайлик к имени" value={emoji} onChange={setEmoji} preview={name} previewLabel="Так вас увидят" />}
 
         {teamsMode && (
           <fieldset>
@@ -215,7 +218,9 @@ function JoinForm({
                 <input maxLength={NAME_MAX_LENGTH} value={teamName} onChange={(e) => setTeamName(e.target.value)} />
               </label>
             )}
-            {teamId === "new" && <EmojiPicker label="Смайлик команды" value={teamEmoji} onChange={setTeamEmoji} />}
+            {teamId === "new" && (
+              <EmojiPicker label="Смайлик команды" value={teamEmoji} onChange={setTeamEmoji} preview={teamName} previewLabel="Так увидят команду" />
+            )}
             <button type="button" className="btn btn--secondary" onClick={loadTeams}>
               Обновить список команд
             </button>

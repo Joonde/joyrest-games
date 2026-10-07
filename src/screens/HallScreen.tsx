@@ -9,6 +9,8 @@ import { BoardView } from "../components/live/BoardView";
 import { playSound, setMuted, unlockSound, useMuted } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
+import { NameText } from "../components/NameText";
+import { VPN_HINT } from "../core/texts";
 import { QrCode } from "../components/QrCode";
 import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
@@ -145,6 +147,7 @@ function Lobby({ session }: { session: Session }) {
           <div className="big-code">{formatSessionCode(session.code)}</div>
           <QrCode value={playUrl(session.code)} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />
         </div>
+        <p className="screen-note">{VPN_HINT}</p>
         <p className="screen-text">
           {teams ? "Команд" : "Игроков"}: {board.length}
         </p>
@@ -219,7 +222,7 @@ function Final({ session }: { session: Session }) {
                 className={w.kind === "team" ? "final__winner final__winner--team" : "final__winner"}
                 style={w.kind === "team" ? teamStyle(w.colorIndex) : undefined}
               >
-                {w.name}
+                <NameText name={w.name} />
               </p>
             ))}
             <p className="final__score">{pointsLabel(winners[0]?.score ?? 0)}</p>

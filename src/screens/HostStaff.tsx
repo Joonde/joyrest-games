@@ -150,6 +150,7 @@ export function PointsDialog({
       open={host !== null}
       title={`Баллы: ${host?.name ?? ""}`}
       confirmLabel="Начислить"
+      cancelLabel="Закрыть"
       busy={busy}
       error={error}
       onConfirm={() => void add()}

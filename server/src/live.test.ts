@@ -278,6 +278,31 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: null });
   });
 
+  it("вернуться за своего игрока: только за того, кто не на связи; прежний телефон теряет доступ", async () => {
+    await newSession("rej1");
+    const anna = await device();
+    expect((await call("POST", `/api/sessions/rej1/participants/${anna.uid}/join`, anna.cookie, { name: "🦊 Аня", teamId: null })).statusCode).toBe(200);
+    expect((await call("POST", `/api/sessions/rej1/participants/${anna.uid}/touch`, anna.cookie)).statusCode).toBe(200);
+    const phone = await device();
+    // Аня на связи — за неё войти нельзя, в списке её нет.
+    expect((await call("GET", "/api/sessions/rej1/offline", phone.cookie)).json()).toEqual([]);
+    expect((await call("POST", `/api/sessions/rej1/participants/${anna.uid}/claim`, phone.cookie)).statusCode).toBe(409);
+    clock += 80_000;
+    expect((await call("GET", "/api/sessions/rej1/offline", phone.cookie)).json()).toEqual([{ pid: anna.uid, name: "🦊 Аня", team: null }]);
+    expect((await call("POST", `/api/sessions/rej1/participants/${anna.uid}/claim`, host)).statusCode).toBe(403);
+    const claimed = await call("POST", `/api/sessions/rej1/participants/${anna.uid}/claim`, phone.cookie);
+    expect(claimed.statusCode, claimed.body).toBe(200);
+    const newCookie = cookieOf(claimed);
+    expect((await call("POST", "/api/auth/device", newCookie)).json()).toMatchObject({ uid: anna.uid, anonymous: true });
+    // Старый телефон Ани больше не она.
+    expect((await call("POST", "/api/auth/device", anna.cookie)).json().uid).not.toBe(anna.uid);
+    // Телефон, у которого уже есть свой игрок, за другого не входит.
+    const boris = await device();
+    await call("POST", `/api/sessions/rej1/participants/${boris.uid}/join`, boris.cookie, { name: "Боря", teamId: null });
+    clock += 80_000;
+    expect((await call("POST", `/api/sessions/rej1/participants/${anna.uid}/claim`, boris.cookie)).statusCode).toBe(409);
+  });
+
   it("часы сервера", async () => {
     expect((await call("GET", "/api/time", "")).json()).toEqual({ now: clock });
   });

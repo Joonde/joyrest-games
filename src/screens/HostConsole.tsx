@@ -27,6 +27,7 @@ import { VPN_HINT } from "../core/texts";
 import { ConsoleSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
+import { SoundPad } from "../components/live/SoundPad";
 import { TopBar } from "../components/TopBar";
 import { playUrl, playUrlHint } from "../components/links";
 import { getMechanic } from "../mechanics/registry";
@@ -208,6 +209,10 @@ function Console({ session }: { session: Session }) {
             />
           </Suspense>
         </section>
+      )}
+
+      {phase !== "finished" && session.screenMode !== "none" && (
+        <SoundPad onCue={(cue) => sessionsRepo.apply(session.id, { state: { cue } })} />
       )}
 
       {phase !== "finished" && (

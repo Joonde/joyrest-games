@@ -4,6 +4,7 @@ import { compactBoard } from "../core/results";
 import type { SessionsRepository } from "./contracts";
 import { asNumber, asRecord, asString, toMillis } from "./convert";
 import { reportFromCache } from "./connection";
+import { parseCue } from "./cues";
 import { lazySubscribe, loadFirestore, type FirestoreSdk } from "./firebase";
 import type {
   Leaderboard,
@@ -83,6 +84,7 @@ function toSession(snap: DocumentSnapshot, timestamps: "estimate" | "none" = "no
       timeLimit: typeof state.timeLimit === "number" ? state.timeLimit : null,
       answered: asNumber(state.answered),
       result: state.result ?? null,
+      cue: parseCue(state.cue),
     },
     leaderboard: parseLeaderboard(data.leaderboard),
     createdAt: toMillis(data.createdAt),

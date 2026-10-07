@@ -15,6 +15,7 @@ import { generateSessionCode } from "../../src/core/code";
 import { NAME_MAX_LENGTH } from "../../src/core/names";
 import { compactBoard } from "../../src/core/results";
 import { retentionCutoff } from "../../src/core/retention";
+import { parseCue } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
 import type { Leaderboard, LeaderboardEntry, Participant, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
@@ -108,6 +109,7 @@ export function normalizeState(value: unknown): SessionState {
     timeLimit: typeof s.timeLimit === "number" ? s.timeLimit : null,
     answered: num(s.answered),
     result: s.result ?? null,
+    cue: parseCue(s.cue),
   };
 }
 
@@ -187,6 +189,10 @@ export function checkChange(value: unknown): CheckedChange | null {
   }
   if (raw.answered !== undefined) state.answered = num(raw.answered);
   if ("result" in raw) state.result = raw.result ?? null;
+  if ("cue" in raw) {
+    if (raw.cue !== null && parseCue(raw.cue) === null) return null;
+    state.cue = parseCue(raw.cue);
+  }
 
   const leaderboard: CheckedChange["leaderboard"] = {};
   const board = value.leaderboard === undefined ? {} : value.leaderboard;

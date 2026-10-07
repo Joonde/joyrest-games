@@ -72,13 +72,19 @@ export function Podium({ session, final = false }: { session: Pick<Session, "lea
   const places = podiumPlaces(session.leaderboard);
   const shown = final ? new Set(revealOrder(session.leaderboard)) : revealedPlaces(session);
   const firstShown = shown.has(1);
-  const previous = useRef(firstShown);
+  const count = shown.size;
+  const previous = useRef(count);
 
   useEffect(() => {
-    // Фанфары — когда открыли первое место, не при перезагрузке экрана.
-    if (!final && firstShown && !previous.current) playSound("fanfare");
-    previous.current = firstShown;
-  }, [final, firstShown]);
+    // Звук — когда открыли новое место, не при перезагрузке экрана: первое — фанфары, остальные — аплодисменты.
+    if (!final && count > previous.current) {
+      if (firstShown) {
+        playSound("fanfare");
+        window.setTimeout(() => playSound("applause"), 1200);
+      } else playSound("applause");
+    }
+    previous.current = count;
+  }, [final, count, firstShown]);
 
   return (
     <div className={final ? "podium podium--final" : "podium"}>

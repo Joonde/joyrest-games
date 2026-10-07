@@ -119,6 +119,16 @@ export interface SessionState {
   answered: number;
   /** Итоги шага для экрана и телефонов (распределение ответов и т. п.): формат знает механика. */
   result: unknown;
+  /** Звук по кнопке ведущего: экран зала играет его, когда меняется id. */
+  cue?: SoundCue | null;
+}
+
+/** Звуки кнопок пульта; "stop" — заглушить всё, что звучит. */
+export type CueSound = "gong" | "drumroll" | "fanfare" | "applause" | "wrong" | "stop";
+
+export interface SoundCue {
+  id: string;
+  sound: CueSound;
 }
 
 /**

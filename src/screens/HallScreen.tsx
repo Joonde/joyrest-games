@@ -3,10 +3,10 @@ import { useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
-import { clock, useGuestSignIn, useSessionByCode, type Session } from "../data";
+import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } from "../data";
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
-import { playSound, setMuted, unlockSound, useMuted } from "../components/live/sound";
+import { playSound, setMuted, stopAllSounds, unlockSound, useMuted } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
 import { VPN_HINT } from "../core/texts";
@@ -100,8 +100,22 @@ function ScreenControls() {
   );
 }
 
+/** Звук по кнопке ведущего: играет, когда пришёл новый id (не при открытии экрана). */
+function useCueSound(cue: SoundCue | null | undefined): void {
+  const last = useRef(cue?.id ?? null);
+  useEffect(() => {
+    const id = cue?.id ?? null;
+    if (id === last.current) return;
+    last.current = id;
+    if (!cue) return;
+    if (cue.sound === "stop") stopAllSounds();
+    else playSound(cue.sound);
+  }, [cue]);
+}
+
 function Screen({ session }: { session: Session }) {
   useTheme(session.themeId);
+  useCueSound(session.state.cue);
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.
   useEffect(() => {
     void clock.sync();

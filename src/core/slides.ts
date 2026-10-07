@@ -47,7 +47,7 @@ export const SLIDE_TEMPLATES: SlideTemplate[] = [
   },
   {
     kind: "award",
-    label: "Награждение",
+    label: "Слайд награждения",
     fields: { title: "Заголовок", text: "Подпись" },
     defaults: { title: "Награждение", text: "Встречаем победителей!", lines: [] },
   },

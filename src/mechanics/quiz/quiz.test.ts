@@ -495,7 +495,7 @@ describe("демо-квиз", () => {
 
 describe("настройки проведения на пульте", () => {
   const q = (round: string | null = null) => ({ ...choice({ points: 100 }), round });
-  const session = (content: { questions: QuizQuestion[] }, state: Partial<SessionState>): Session => ({
+  const session = (_content: { questions: QuizQuestion[] }, state: Partial<SessionState>): Session => ({
     id: "s",
     code: "123456",
     hostId: "h",

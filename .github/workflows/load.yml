@@ -1,0 +1,47 @@
+# Нагрузочная проверка (этап 7, CLAUDE.md, раздел 9): виртуальные гости проходят демо-квиз
+# на test.games.joy-rest.ru. Только вручную (Run workflow) или коммитом с [load] в ветке
+# claude/* — минуты Actions на неё тратятся, только когда её просят (~5 минут за прогон).
+# Ведущий для нагрузки — load@joy-rest.ru на тестовом адресе, пароль — секрет LOAD_HOST_PASSWORD.
+name: Нагрузка
+
+on:
+  workflow_dispatch:
+    inputs:
+      guests:
+        description: "Сколько гостей (до 1000)"
+        default: "500"
+      teams:
+        description: "Режим команд (по 10 телефонов)"
+        type: boolean
+        default: false
+  push:
+    branches: ["claude/**"]
+
+concurrency:
+  group: load
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    name: Нагрузка на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[load]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Гости играют
+        run: npx tsx scripts/load.ts
+        env:
+          LOAD_BASE: https://test.games.joy-rest.ru
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+          GUESTS: ${{ inputs.guests || '500' }}
+          TEAMS: ${{ inputs.teams && '1' || '0' }}

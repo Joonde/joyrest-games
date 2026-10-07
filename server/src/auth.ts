@@ -195,6 +195,41 @@ export function apiGuard(isSite?: (request: FastifyRequest) => boolean) {
   };
 }
 
+/** Тело больше этого принимается только от вошедшего ведущего: проверка до чтения тела. */
+export const LARGE_BODY_BYTES = 64 * 1024;
+/** Больших загрузок одновременно на всё приложение (каждая — до 15 МБ в памяти). */
+export const MAX_PARALLEL_UPLOADS = 3;
+let uploadsInFlight = 0;
+
+/**
+ * Хук onRequest для модулей с загрузкой файлов (картинки, музыка, аватарки). Вход ведущего
+ * проверяется до чтения тела — иначе запросы без входа клали бы до 15 МБ в память и могли уронить
+ * приложение посреди игры. Одновременно — не больше трёх больших загрузок, остальным 503
+ * (`unavailable`, браузер повторит).
+ */
+export function uploadGuard(sql: Sql) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (request.method === "GET" || request.method === "HEAD") return;
+    const header = request.headers["content-length"];
+    const length = header === undefined ? (request.headers["transfer-encoding"] ? Infinity : 0) : Number(header);
+    if (Number.isFinite(length) && length <= LARGE_BODY_BYTES) return;
+    const user = await sessionUser(sql, request, reply);
+    if (!user) return reply.code(401).send({ error: "unauthenticated" });
+    if (!permissions.isActiveHost(actorOf(user))) return reply.code(403).send({ error: "permission-denied" });
+    if (uploadsInFlight >= MAX_PARALLEL_UPLOADS) {
+      request.log.warn("upload: слишком много загрузок одновременно");
+      return reply.code(503).header("Retry-After", "2").send({ error: "unavailable" });
+    }
+    uploadsInFlight += 1;
+    let released = false;
+    reply.raw.once("close", () => {
+      if (released) return;
+      released = true;
+      uploadsInFlight -= 1;
+    });
+  };
+}
+
 /** Вошедший ведущий по cookie; сеанс продлевается раз в сутки. Нет входа — null. */
 export async function sessionUser(sql: Sql, request: FastifyRequest, reply: FastifyReply, now: () => number = Date.now): Promise<SessionRow | null> {
   const token = readCookie(request.headers.cookie, SESSION_COOKIE);

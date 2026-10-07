@@ -14,7 +14,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
 import type { Track, TrackCategory, TrackLicense, TrackShareStatus } from "../../src/data/types";
-import { actorOf, apiGuard, identityOf, newUserId, sessionUser, type SessionRow } from "./auth";
+import { actorOf, apiGuard, identityOf, newUserId, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { cleanReason } from "./proposals";
 
 export interface TracksOptions {
@@ -127,6 +127,8 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
+    // Большие тела (файлы) — только от вошедшего ведущего и не больше трёх сразу.
+    api.addHook("onRequest", uploadGuard(sql));
     // Файл приходит «как есть», без multipart. Тип проверяем по первым байтам.
     api.addContentTypeParser(
       ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/ogg", "application/octet-stream"],
@@ -216,7 +218,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       return updated ? trackOf(updated) : fail(reply, 404, "not-found");
     });
 
-    api.delete<{ Params: { id: string } }>("/api/tracks/:id", async (request, reply) => {
+    api.delete<{ Params: { id: string } }>("/api/tracks/:id", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       const track = await findTrack(request.params.id);
@@ -291,7 +293,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
     });
 
     // Ведущий предлагает свой трек в общую. Повтор, пока ждёт, — то же.
-    api.post<{ Params: { id: string } }>("/api/tracks/:id/share", async (request, reply) => {
+    api.post<{ Params: { id: string } }>("/api/tracks/:id/share", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       const track = await findTrack(request.params.id);
@@ -304,7 +306,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       return updated ? trackOf(updated) : fail(reply, 404, "not-found");
     });
 
-    api.post<{ Params: { id: string } }>("/api/tracks/:id/accept", async (request, reply) => {
+    api.post<{ Params: { id: string } }>("/api/tracks/:id/accept", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       if (!permissions.canReviewTracks(actorOf(user))) return fail(reply, 403, "permission-denied");

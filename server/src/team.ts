@@ -12,7 +12,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
 import type { TeamMember } from "../../src/data/types";
-import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
+import { actorOf, apiGuard, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { imageMime } from "./games";
 
 export interface TeamOptions {
@@ -71,6 +71,8 @@ export function registerTeam(app: FastifyInstance, options: TeamOptions): void {
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
+    // Большие тела (файлы) — только от вошедшего ведущего и не больше трёх сразу.
+    api.addHook("onRequest", uploadGuard(sql));
     api.addContentTypeParser(["image/webp", "image/jpeg"], { parseAs: "buffer", bodyLimit: 700 * 1024 }, (_request, body, done) => done(null, body));
 
     function fail(reply: FastifyReply, status: number, code: string) {
@@ -136,7 +138,7 @@ export function registerTeam(app: FastifyInstance, options: TeamOptions): void {
       return { ok: true, sha };
     });
 
-    api.delete<{ Params: { kind: string } }>("/api/team/me/:kind", async (request, reply) => {
+    api.delete<{ Params: { kind: string } }>("/api/team/me/:kind", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       const kind = request.params.kind;

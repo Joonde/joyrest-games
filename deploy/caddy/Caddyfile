@@ -13,11 +13,25 @@
 	}
 }
 
+# Потолок тела запроса до приложения: треки — до 15 МБ, всё остальное — до 1 МБ (берём с запасом).
+# Приложение ещё и проверяет вход ведущего до чтения больших тел (server/src/auth.ts, uploadGuard).
+(body_limits) {
+	@track_file path_regexp ^/api/tracks/[^/]+/file$
+	request_body @track_file {
+		max_size 16MB
+	}
+	@other_body not path_regexp ^/api/tracks/[^/]+/file$
+	request_body @other_body {
+		max_size 2MB
+	}
+}
+
 # Адрес посетителя для приложения (лимиты по IP) — только тот, что видит Caddy: присланный
 # клиентом X-Forwarded-For перезаписывается, а не дописывается. Приложение верит этому
 # заголовку только от адресов внутренней сети Docker (server/src/app.ts, trustProxy).
 games.joy-rest.ru {
 	import security
+	import body_limits
 	encode zstd gzip
 	reverse_proxy app-prod:8080 {
 		header_up X-Forwarded-For {remote_host}
@@ -27,6 +41,7 @@ games.joy-rest.ru {
 # Тестовое окружение: проверки веток до выкладки на основной адрес. Поисковикам не показываем.
 test.games.joy-rest.ru {
 	import security
+	import body_limits
 	header X-Robots-Tag "noindex, nofollow"
 	encode zstd gzip
 	reverse_proxy app-test:8080 {

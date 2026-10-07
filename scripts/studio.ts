@@ -394,7 +394,7 @@ async function main() {
   check(sentVenue.uploadToken.length > 16, "анкета площадки принята без входа");
   const photoUp = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/photo`, webp(41), { "Content-Type": "image/webp", "X-Upload-Token": sentVenue.uploadToken });
   check(photoUp.ok, "фото площадки загружено по токену анкеты", String(photoUp.status));
-  const badToken = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/menu`, webp(42), { "Content-Type": "image/webp", "X-Upload-Token": "чужой-токен-1234567890" });
+  const badToken = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/menu`, webp(42), { "Content-Type": "image/webp", "X-Upload-Token": "wrong-token-1234567890" });
   check(badToken.status === 403, "без своего токена файл не загрузить", String(badToken.status));
   const menuUp = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/menu`, webp(43), { "Content-Type": "image/webp", "X-Upload-Token": sentVenue.uploadToken });
   check(menuUp.ok, "меню загружено", String(menuUp.status));

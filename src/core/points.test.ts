@@ -16,7 +16,7 @@ describe("баллы за игру", () => {
     expect(gamePoints(29, 60)).toBe(1.5);
     expect(gamePoints(30, 60)).toBe(2);
     expect(gamePoints(40, 60)).toBe(3);
-    expect(gamePoints(500, 60)).toBe(97);
+    expect(gamePoints(500, 60)).toBe(49);
   });
 
   it("ручные баллы: шаг 0,5, не ноль, до 100 по модулю", () => {

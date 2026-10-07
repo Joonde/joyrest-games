@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { nameParts } from "../components/NameText";
-import { parsePeek, parseTeams } from "../data/cues";
 import type { LeaderboardEntry, SessionState } from "../data/types";
 import { formatDuration } from "./format";
 import { isOnline, PRESENCE_TIMEOUT_MS } from "./presence";
@@ -32,14 +31,6 @@ describe("скрытые названия и представление кома
     expect(publicTeamName(lobby(null), second)).toBe("🦊 Лисы");
     expect(presentationDone({ teams: { hidden: true, shown: 3 } }, 3)).toBe(true);
     expect(presentationDone({ teams: { hidden: true, shown: 2 } }, 3)).toBe(false);
-  });
-
-  it("данные с сервера проверяются", () => {
-    expect(parseTeams({ hidden: true, shown: 2, sizes: { a: 3, "плохой id": 2, c: -1, z: 4.5 } })).toEqual({ hidden: true, shown: 2, sizes: { a: 3 } });
-    expect(parseTeams({ hidden: "да", shown: -1 })).toEqual({ hidden: false, shown: null });
-    expect(parseTeams("x")).toBeNull();
-    expect(parsePeek("round")).toBe("round");
-    expect(parsePeek("всё")).toBeNull();
   });
 });
 

@@ -3,11 +3,34 @@
 // «Репетиция» и симулятор применяют его в памяти.
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone, podiumLabel } from "../../core/podium";
+import { placeMoves, startRoundEntries } from "../../core/rounds";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
-import type { QuizContent } from "./content";
+import { roundAt, type QuizContent } from "./content";
 import { emptyResult, parseResult, resultOf, score, steps } from "./logic";
 
-export type QuizAction = "show" | "reveal" | "board" | "next" | "podium" | "podiumNext" | "finish";
+export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish";
+
+/** Какое табло на экране после шага: обычное, итоги раунда или общий счёт после раунда. */
+export type BoardView = "plain" | "round" | "total";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+export function boardView(session: Pick<Session, "state">): BoardView {
+  const view = asRecord(session.state.result).board;
+  return view === "round" || view === "total" ? view : "plain";
+}
+
+/** Шаг закрывает раунд (раунды есть, это его последний вопрос). */
+export function endsRound(content: QuizContent, step: number): boolean {
+  return roundAt(content, step)?.to === step;
+}
+
+/** С этого шага начинается раунд (кроме первого раунда игры). */
+export function startsRound(content: QuizContent, step: number): boolean {
+  return step > 0 && roundAt(content, step)?.from === step;
+}
 
 /** Какое действие главное на этом этапе (одна главная кнопка пульта). */
 export function primaryAction(session: Session, content: QuizContent): QuizAction {
@@ -16,6 +39,7 @@ export function primaryAction(session: Session, content: QuizContent): QuizActio
   if (stage === "question") return "reveal";
   if (stage === "reveal") return "board";
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
+  if (boardView(session) === "round") return "total";
   if (step < content.questions.length - 1) return "next";
   // После таблицы последнего вопроса — награждение, если есть кого награждать.
   return hasPodium(session.leaderboard) ? "podium" : "finish";
@@ -25,15 +49,19 @@ export const ACTION_LABELS: Record<QuizAction, string> = {
   show: "Показать вопрос",
   reveal: "Показать ответ",
   board: "Таблица",
+  total: "Общий счёт",
   next: "Следующий вопрос",
   podium: "Награждение",
   podiumNext: "Показать место",
   finish: "Завершить игру",
 };
 
-/** Подпись главной кнопки: на пьедестале — какое место откроется («Показать 3 место»). */
-export function actionLabel(session: Session, action: QuizAction): string {
-  return action === "podiumNext" ? podiumLabel(session) : ACTION_LABELS[action];
+/** Подпись главной кнопки: на пьедестале — какое место откроется, в конце раунда — «Итоги раунда». */
+export function actionLabel(session: Session, content: QuizContent, action: QuizAction): string {
+  if (action === "podiumNext") return podiumLabel(session);
+  if (action === "board" && endsRound(content, session.state.step)) return "Итоги раунда";
+  if (action === "show" && startsRound(content, session.state.step)) return "Начать раунд";
+  return ACTION_LABELS[action];
 }
 
 /** Открыть вопрос: время старта ставит сервер, с ним считается скорость. */
@@ -77,11 +105,19 @@ export function reveal(
     ...leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
   const deltas = new Map(score(step, own, { state: session.state }).map((d) => [d.pid, d.delta]));
+  const after: Record<string, LeaderboardEntry> = {};
+  for (const [pid, entry] of Object.entries(board)) {
+    const delta = deltas.get(pid) ?? 0;
+    after[pid] = { ...entry, score: entry.score + delta, last: delta };
+  }
+  // Стрелки «↑2»: на сколько мест сдвинулся участник после этого ответа.
+  const moves = placeMoves(board, after);
   const leaderboard: Record<string, LeaderboardEntry> = {};
   for (const [pid, entry] of Object.entries(board)) {
     const delta = deltas.get(pid) ?? 0;
-    if (delta === 0 && (entry.last ?? 0) === 0 && session.leaderboard[pid]) continue;
-    leaderboard[pid] = { ...entry, score: entry.score + delta, last: delta };
+    const move = moves.get(pid) ?? 0;
+    if (delta === 0 && (entry.last ?? 0) === 0 && (entry.move ?? 0) === move && session.leaderboard[pid]) continue;
+    leaderboard[pid] = { ...(after[pid] as LeaderboardEntry), move };
   }
   const accepted = parseResult(session.state.result).accepted;
   return {
@@ -90,15 +126,25 @@ export function reveal(
   };
 }
 
-export function showBoard(): SessionChange {
-  return { state: { stage: "board", revealed: true } };
+/** Таблица после шага; в конце раунда — сначала итоги раунда, потом общий счёт. */
+export function showBoard(session: Session, content: QuizContent): SessionChange {
+  const { board: _view, ...rest } = asRecord(session.state.result);
+  const result = endsRound(content, session.state.step) ? { ...rest, board: "round" } : rest;
+  return { state: { stage: "board", revealed: true, result } };
 }
 
-/** Следующий вопрос: сначала «готовы?», вопрос показывает ведущий. */
-export function nextQuestion(session: Session): SessionChange {
+/** После итогов раунда — общий счёт. */
+export function showTotal(session: Session): SessionChange {
+  return { state: { result: { ...asRecord(session.state.result), board: "total" } } };
+}
+
+/** Следующий вопрос: сначала «готовы?», вопрос показывает ведущий. С новым раундом — счёт раунда с нуля. */
+export function nextQuestion(session: Session, content: QuizContent): SessionChange {
+  const step = session.state.step + 1;
   return {
+    ...(startsRound(content, step) ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
     state: {
-      step: session.state.step + 1,
+      step,
       stage: "ready",
       startedAt: null,
       timeLimit: null,
@@ -119,12 +165,16 @@ export interface BackPlan {
 export function back(session: Session): BackPlan | null {
   const { stage, step } = session.state;
   if (stage === "podium") return { change: podiumBack(session) };
-  if (stage === "board") return { change: { state: { stage: "reveal", revealed: true } } };
+  if (stage === "board") {
+    const { board: view, ...rest } = asRecord(session.state.result);
+    if (view === "total") return { change: { state: { result: { ...rest, board: "round" } } } };
+    return { change: { state: { stage: "reveal", revealed: true, result: rest } } };
+  }
   if (stage === "reveal") {
     // Снимаем очки этого шага: при повторном показе ответа они посчитаются заново.
     const leaderboard: Record<string, LeaderboardEntry> = {};
     for (const [pid, entry] of Object.entries(session.leaderboard)) {
-      if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0 };
+      if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0, move: 0 };
     }
     const result = parseResult(session.state.result);
     return {

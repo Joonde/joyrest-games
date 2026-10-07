@@ -1,7 +1,7 @@
 import { DEFAULTS, type QuestionKind, type QuizContent, type QuizQuestion } from "./content";
 
 function q(id: string, kind: QuestionKind, text: string, rest: Partial<QuizQuestion>): QuizQuestion {
-  return { id, kind, text, options: [], correct: -1, answers: [], ...DEFAULTS[kind], imageId: null, ...rest };
+  return { id, kind, text, options: [], correct: -1, answers: [], ...DEFAULTS[kind], imageId: null, round: null, ...rest };
 }
 
 /** Демо-квиз для «Библиотеки JoyRest»: 8 вопросов всех типов на новогоднюю тему. */

@@ -333,9 +333,9 @@ async function main() {
     await until(() => session?.state.stage === "question", 5000);
     const open = session as unknown as Session;
     await apply(reveal(open, DEMO_QUIZ.content, answers, participants), "пульт: ход игры");
-    await apply(showBoard(), "пульт: ход игры");
+    await apply(showBoard(open, DEMO_QUIZ.content), "пульт: ход игры");
     answersStop();
-    if (step < DEMO_QUIZ.content.questions.length - 1) await apply(nextQuestion({ ...open, state: { ...open.state, step } }), "пульт: ход игры");
+    if (step < DEMO_QUIZ.content.questions.length - 1) await apply(nextQuestion({ ...open, state: { ...open.state, step } }, DEMO_QUIZ.content), "пульт: ход игры");
     process.stdout.write(`  вопрос ${step + 1}: ответов ${answers.length} из ${scoring} за ${((Date.now() - t0) / 1000).toFixed(1)} с\n`);
   }
 

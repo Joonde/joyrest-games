@@ -14,6 +14,7 @@ export {
   mediaRepo,
   participantsRepo,
   proposalsRepo,
+  staffRepo,
   resultsRepo,
   sessionsRepo,
   usersRepo,

@@ -520,6 +520,23 @@ a {
   font-weight: 600;
 }
 
+/* ---------- Баллы ведущего ---------- */
+
+.points-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.points-history li {
+  display: grid;
+  gap: 2px;
+}
+
 /* ---------- Диалог подтверждения ---------- */
 
 .dialog {

@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
+import { experienceLabel, levelTitle } from "../core/levels";
+import { pointsLabel } from "../core/points";
 import { retentionCutoff, SESSION_RETENTION_DAYS } from "../core/retention";
 import {
   authService,
   permissions,
   sessionsRepo,
+  staffRepo,
   useLoad,
   usersRepo,
   type CleanupReport,
@@ -19,6 +22,7 @@ import { ListSkeleton, StudioSkeleton } from "../components/Skeleton";
 import { LoadFailedInline } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
 import { TopBar } from "../components/TopBar";
+import { LevelDialog, PointsDialog } from "./HostStaff";
 
 export function Admin() {
   return (
@@ -55,6 +59,8 @@ function AdminContent({ profile }: { profile: UserProfile }) {
   const [created, setCreated] = useState<IssuedPassword | null>(null);
   const [toDisable, setToDisable] = useState<HostAccount | null>(null);
   const [toReset, setToReset] = useState<HostAccount | null>(null);
+  const [toLevel, setToLevel] = useState<HostAccount | null>(null);
+  const [toPoints, setToPoints] = useState<HostAccount | null>(null);
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, showToast] = useToast();
@@ -131,6 +137,13 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                     {host.role === "admin" ? "Администратор" : "Ведущий"} ·{" "}
                     <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
                   </span>
+                  {staffRepo && host.role !== "admin" && (
+                    <span className="small">
+                      {levelTitle(host.level) ?? "Квалификация не задана"}
+                      {host.experienceSince ? ` · стаж ${experienceLabel(host.experienceSince, Date.now())}` : ""}
+                      {` · ${pointsLabel(host.points ?? 0)}`}
+                    </span>
+                  )}
                 </div>
                 {permissions.canSetHostActive(profile, host) && (
                   <div className="people__actions">
@@ -149,18 +162,28 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                     >
                       {host.active ? "Отключить" : "Включить"}
                     </button>
-                    {resetPassword && permissions.canResetHostPassword(profile, host) && (
+                    {(resetPassword || staffRepo) && (
                       <ActionMenu
                         icon="dots"
                         label={`Действия: ${host.name}`}
                         actions={[
-                          {
-                            label: "Новый временный пароль",
-                            onClick: () => {
-                              setDialogError(null);
-                              setToReset(host);
-                            },
-                          },
+                          ...(staffRepo
+                            ? [
+                                { label: "Квалификация и стаж", onClick: () => setToLevel(host) },
+                                { label: "Баллы", onClick: () => setToPoints(host) },
+                              ]
+                            : []),
+                          ...(resetPassword && permissions.canResetHostPassword(profile, host)
+                            ? [
+                                {
+                                  label: "Новый временный пароль",
+                                  onClick: () => {
+                                    setDialogError(null);
+                                    setToReset(host);
+                                  },
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     )}
@@ -173,6 +196,20 @@ function AdminContent({ profile }: { profile: UserProfile }) {
       </section>
 
       <CleanupNote state={cleanup} />
+
+      <LevelDialog
+        host={toLevel}
+        onClose={() => setToLevel(null)}
+        onSaved={(saved, level, experienceSince) => {
+          update((list) => list.map((h) => (h.uid === saved.uid ? { ...h, level, experienceSince } : h)));
+          showToast(`${saved.name}: квалификация сохранена`);
+        }}
+      />
+      <PointsDialog
+        host={toPoints}
+        onClose={() => setToPoints(null)}
+        onChanged={(changed, total) => update((list) => list.map((h) => (h.uid === changed.uid ? { ...h, points: total } : h)))}
+      />
 
       <ConfirmDialog
         open={toDisable !== null}

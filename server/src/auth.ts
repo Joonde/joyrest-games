@@ -16,7 +16,7 @@ import type { Sql } from "postgres";
 import { cleanName, isValidName } from "../../src/core/names";
 import { generateTempPassword, isStrongEnough } from "../../src/core/password";
 import * as permissions from "../../src/data/permissions";
-import type { HostAccount, Role, UserProfile } from "../../src/data/types";
+import type { HostAccount, HostLevel, Role, UserProfile } from "../../src/data/types";
 import { WindowLimiter } from "./lead";
 import { hashPassword, verifyPassword } from "./password";
 
@@ -65,6 +65,9 @@ export interface UserRow {
   password_hash: string | null;
   must_change_password: boolean;
   created_at: Date | null;
+  /** Квалификация и «опыт с» (миграция 0005). */
+  level?: string | null;
+  experience_since?: Date | null;
 }
 
 export interface SessionRow extends UserRow {
@@ -79,6 +82,16 @@ function role(value: string): Role {
   return value === "admin" ? "admin" : "host";
 }
 
+export function levelOf(value: unknown): HostLevel | null {
+  return value === "intern" || value === "novice" || value === "host" || value === "top" ? value : null;
+}
+
+/** «Опыт с»: заданная дата или дата добавления ведущего. */
+function experienceOf(row: UserRow): number | null {
+  const since = row.experience_since ?? row.created_at;
+  return since ? since.getTime() : null;
+}
+
 export function profileOf(row: UserRow): ServerProfile {
   return {
     uid: row.id,
@@ -87,11 +100,22 @@ export function profileOf(row: UserRow): ServerProfile {
     active: row.active,
     email: row.email,
     mustChangePassword: row.must_change_password,
+    level: levelOf(row.level),
+    experienceSince: experienceOf(row),
   };
 }
 
 function accountOf(row: UserRow): HostAccount {
-  return { uid: row.id, role: role(row.role), name: row.name, active: row.active, email: row.email, createdAt: row.created_at ? row.created_at.getTime() : null };
+  return {
+    uid: row.id,
+    role: role(row.role),
+    name: row.name,
+    active: row.active,
+    email: row.email,
+    createdAt: row.created_at ? row.created_at.getTime() : null,
+    level: levelOf(row.level),
+    experienceSince: experienceOf(row),
+  };
 }
 
 export function actorOf(row: UserRow): permissions.Actor {
@@ -177,7 +201,7 @@ export async function sessionUser(sql: Sql, request: FastifyRequest, reply: Fast
   if (!token) return null;
   const rows = await sql<SessionRow[]>`
     select s.token_hash, s.expires_at, u.id, u.email, u.name, u.role, u.active, u.password_hash,
-           u.must_change_password, u.created_at
+           u.must_change_password, u.created_at, u.level, u.experience_since
     from auth_sessions s join users u on u.id = s.user_id
     where s.token_hash = ${tokenHash(token)} and s.expires_at > ${new Date(now())}`;
   const row = rows[0];
@@ -220,7 +244,7 @@ export async function identityOf(sql: Sql, request: FastifyRequest, reply: Fasti
   return device ? { uid: device, user: null } : null;
 }
 
-const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at"];
+const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at", "level", "experience_since"];
 
 export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
   const { sql } = options;
@@ -344,9 +368,12 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
 
     api.get("/api/users", async (request, reply) => {
       if (!(await requireAdmin(request, reply, "users"))) return reply;
-      const rows = await sql<UserRow[]>`select ${sql(USER_COLUMNS)} from users`;
+      const rows = await sql<Array<UserRow & { points: string }>>`
+        select ${sql(USER_COLUMNS.map((c) => `u.${c}`))},
+               coalesce((select sum(p.points) from host_points p where p.host_id = u.id), 0)::text as points
+        from users u`;
       return rows
-        .map(accountOf)
+        .map((row) => ({ ...accountOf(row), points: Number(row.points) }))
         .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, "ru"));
     });
 

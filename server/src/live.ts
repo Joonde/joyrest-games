@@ -17,6 +17,7 @@ import { compactBoard } from "../../src/core/results";
 import { retentionCutoff } from "../../src/core/retention";
 import * as permissions from "../../src/data/permissions";
 import type { Leaderboard, LeaderboardEntry, Participant, SessionPhase, SessionState, StepStage } from "../../src/data/types";
+import { awardGamePoints } from "./staff";
 import { actorOf, apiGuard, identityOf, type Identity } from "./auth";
 
 export interface LiveOptions {
@@ -482,6 +483,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const phase = isRecord(request.body) ? request.body.phase : null;
       if (!PHASES.has(phase as SessionPhase)) return fail(reply, 400, "invalid-argument");
       await change(hosted.row.id, () => ({ state: phase === "playing" ? PLAYING_RESET : { phase: phase as SessionPhase }, leaderboard: {} }));
+      // «Начать игру» — отсюда считаются 40 минут для баллов ведущего (первый раз).
+      if (phase === "playing") {
+        await sql`update sessions set started_at = coalesce(started_at, ${new Date(now())}) where id = ${hosted.row.id}`;
+      }
       return { ok: true };
     });
 
@@ -503,7 +508,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       await change(hosted.row.id, () => ({ state: { phase: "finished" }, leaderboard: {} }));
       // Итоги — по таблице на сервере, а не по присланной.
       const row = await loadSession(hosted.row.id);
-      if (row) await saveResult(sql, row, participantsCount, true);
+      if (row) {
+        await saveResult(sql, row, participantsCount, true);
+        await awardGamePoints(sql, row.id, now());
+      }
       return { ok: true };
     });
 

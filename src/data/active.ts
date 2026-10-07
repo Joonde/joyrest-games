@@ -11,6 +11,7 @@ import type {
   MediaRepository,
   ParticipantsRepository,
   ProposalsRepository,
+  StaffRepository,
   ResultsRepository,
   SessionsRepository,
   UsersRepository,
@@ -30,6 +31,7 @@ import { serverAnswersRepository } from "./server/answers";
 import { serverClock } from "./server/clock";
 import { serverParticipantsRepository } from "./server/participants";
 import { serverProposalsRepository } from "./server/proposals";
+import { serverStaffRepository } from "./server/staff";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
@@ -50,3 +52,6 @@ export const clock: ClockService = server ? serverClock : firestoreClock;
 
 /** Предложения в библиотеку — только на своём сервере. */
 export const proposalsRepo: ProposalsRepository | null = server ? serverProposalsRepository : null;
+
+/** Квалификация, стаж и баллы ведущих — только на своём сервере. */
+export const staffRepo: StaffRepository | null = server ? serverStaffRepository : null;

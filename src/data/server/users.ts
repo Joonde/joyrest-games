@@ -7,9 +7,11 @@ import { loadServerProfile, parseProfile } from "./auth";
 function parseHost(value: unknown): HostAccount | null {
   const profile = parseProfile(value);
   if (!profile) return null;
-  const createdAt = asRecord(value).createdAt;
-  const { mustChangePassword: _mustChange, ...account } = profile;
-  return { ...account, createdAt: typeof createdAt === "number" ? createdAt : null };
+  const data = asRecord(value);
+  const { mustChangePassword: _mustChange, ...rest } = profile;
+  const account: HostAccount = { ...rest, createdAt: typeof data.createdAt === "number" ? data.createdAt : null };
+  if (typeof data.points === "number") account.points = data.points;
+  return account;
 }
 
 function parseCreated(value: unknown): CreatedHost {

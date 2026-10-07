@@ -122,7 +122,10 @@ const TV = { viewport: { width: 1280, height: 720 }, locale: "ru-RU" };
 function watch(page, who) {
   page.on("pageerror", (error) => bad(`${who}: ошибка на странице — ${String(error.message).slice(0, 160)}`));
   page.on("console", (msg) => {
-    if (msg.type() === "error" && !/favicon|ERR_ABORTED|net::/.test(msg.text())) bad(`${who}: ошибка в консоли — ${msg.text().slice(0, 160)}`);
+    // 404 — обычный ответ «ещё нет» (гость ещё не вошёл, ответа на шаг нет): браузер пишет его в консоль сам.
+    if (msg.type() === "error" && !/favicon|ERR_ABORTED|net::|status of 404/.test(msg.text())) {
+      bad(`${who}: ошибка в консоли — ${msg.text().slice(0, 160)}`);
+    }
   });
 }
 

@@ -35,6 +35,7 @@ jobs:
           npx playwright install --with-deps chromium
       # Test пересобирается после каждого push в claude/*: ждём, пока выложится этот коммит.
       - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
         run: |
           for i in $(seq 1 40); do
             v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)

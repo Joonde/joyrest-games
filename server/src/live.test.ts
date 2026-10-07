@@ -237,6 +237,19 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
   });
 
+  it("экран зала сообщает пульту о себе; видит только ведущий; молчит минуту — нет экрана", async () => {
+    await newSession("scr1");
+    const screen = await device();
+    expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: null });
+    expect((await call("POST", "/api/sessions/scr1/screen", screen.cookie, { soundReady: "yes" })).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/scr1/screen", "", { soundReady: true, muted: false, musicBlocked: false })).statusCode).toBe(401);
+    expect((await call("POST", "/api/sessions/scr1/screen", screen.cookie, { soundReady: true, muted: false, musicBlocked: false })).statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: { soundReady: true, muted: false, musicBlocked: false, seenAt: clock } });
+    expect((await call("GET", "/api/sessions/scr1/screen", screen.cookie)).statusCode).toBe(403);
+    clock += 61_000;
+    expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: null });
+  });
+
   it("часы сервера", async () => {
     expect((await call("GET", "/api/time", "")).json()).toEqual({ now: clock });
   });

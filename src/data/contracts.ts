@@ -10,24 +10,26 @@ import type {
   CreatedHost,
   Game,
   GamePatch,
-  HostLevel,
-  LibraryProposal,
-  TeamMember,
-  Track,
-  TrackCategory,
-  TrackInput,
-  PointsEntry,
   GameResult,
   HostAccount,
+  HostLevel,
   LeaderboardEntry,
+  LibraryProposal,
   MediaUpload,
   MediaVariant,
   NewGame,
   NewSessionOptions,
   Participant,
+  PointsEntry,
+  ScreenReport,
+  ScreenStatus,
   Session,
   SessionChange,
   SessionPhase,
+  TeamMember,
+  Track,
+  TrackCategory,
+  TrackInput,
   Unsubscribe,
   UserProfile,
 } from "./types";
@@ -171,6 +173,16 @@ export interface ClockService {
  * Предложения в библиотеку (CLAUDE.md, раздел 3). Есть только на своём сервере; у Firebase —
  * null, кнопки не показываются.
  */
+/**
+ * Экран зала ↔ пульт: «на связи, звук разрешён» — только свой сервер. У Firebase — null, пульт
+ * строку про экран не показывает.
+ */
+export interface ScreenStatusRepository {
+  report(sessionId: string, report: ScreenReport): Promise<void>;
+  /** Только ведущий сессии; null — экран давно не сообщал о себе. */
+  get(sessionId: string): Promise<ScreenStatus | null>;
+}
+
 /** «Команда JoyRest»: карточки ведущих — только свой сервер (CLAUDE.md, раздел 3). */
 export interface TeamRepository {
   list(): Promise<TeamMember[]>;

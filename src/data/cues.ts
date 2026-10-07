@@ -1,6 +1,6 @@
 // Звуки по кнопке ведущего (CLAUDE.md, раздел 7, «Звуки»): пульт пишет в state.cue, экран зала
 // играет звук, когда меняется id. Чистые функции: их используют и браузер, и сервер.
-import type { CueSound, MixState, MusicState, SlideKind, SlideState, SoundCue } from "./types";
+import type { CueSound, MixState, MusicState, ScreenReport, SlideKind, SlideState, SoundCue } from "./types";
 
 export const CUE_SOUNDS: readonly CueSound[] = ["gong", "drumroll", "fanfare", "applause", "wrong", "stop"];
 
@@ -61,3 +61,15 @@ export function parseSlide(value: unknown): SlideState | null {
     endsAt: typeof v.endsAt === "number" && Number.isFinite(v.endsAt) ? v.endsAt : null,
   };
 }
+
+/** Сообщение экрана зала о себе; всё непонятное — null. */
+export function parseScreenReport(value: unknown): ScreenReport | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const { soundReady, muted, musicBlocked } = value as Record<string, unknown>;
+  if (typeof soundReady !== "boolean" || typeof muted !== "boolean" || typeof musicBlocked !== "boolean") return null;
+  return { soundReady, muted, musicBlocked };
+}
+
+/** Экран зала сообщает о себе раз в 20 с; молчит дольше минуты — пульт считает, что его нет. */
+export const SCREEN_REPORT_MS = 20_000;
+export const SCREEN_STALE_MS = 60_000;

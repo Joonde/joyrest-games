@@ -349,3 +349,18 @@ export interface TeamMember {
   /** С какого дня в JoyRest (дата добавления). */
   since: number | null;
 }
+
+/** Что экран зала сообщает пульту о себе (не в базе, только в памяти сервера). */
+export interface ScreenReport {
+  /** Браузер разрешил звук (было касание). */
+  soundReady: boolean;
+  /** Звук выключен кнопкой на самом экране. */
+  muted: boolean;
+  /** Музыка не включилась — нужно коснуться экрана. */
+  musicBlocked: boolean;
+}
+
+export interface ScreenStatus extends ScreenReport {
+  /** Когда экран сообщал о себе в последний раз (мс, часы сервера). */
+  seenAt: number;
+}

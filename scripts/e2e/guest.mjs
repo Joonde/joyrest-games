@@ -254,6 +254,8 @@ async function soloGame(browser, token) {
   await shot(anna.page, "аня-ответ", "Телефон Ани: ответила");
   await shot(screen, "экран-вопрос", "Экран зала: вопрос");
   step("пульт: показать ответ и итоги раунда", host);
+  // Как живой ведущий: ответ показываем, когда пульт увидел ответ Ани.
+  await expectText(host, host.locator("main"), "Ответили: 1", "Пульт: ответ Ани дошёл");
   await clickButton(host, "Показать ответ");
   await clickButton(host, "Итоги раунда");
   await expectText(screen, screen.locator(".board-view__title"), "Итоги: Раунд 1", "Экран зала, итоги раунда");
@@ -269,6 +271,7 @@ async function soloGame(browser, token) {
   await expectText(anna.page, anna.page.locator(".quiz-phone"), "Раунд 2: Финал", "Телефон Ани, раунд");
   await clickButton(host, "Начать раунд");
   await anna.page.locator(".quiz-phone__option").nth(1).click({ timeout: WAIT });
+  await expectText(host, host.locator("main"), "Ответили: 1", "Пульт: ответ Ани во втором раунде дошёл");
   await clickButton(host, "Показать ответ");
   await clickButton(host, "Итоги раунда");
   await clickButton(host, "Общий счёт");

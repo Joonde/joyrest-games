@@ -13,9 +13,12 @@ export function setSoundSet(name: SoundSetName): void {
 
 export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp";
 
-const MUTE_KEY = "joyrest.soundOff";
+/** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
+const OLD_MUTE_KEY = "joyrest.soundOff";
 const listeners = new Set<(muted: boolean) => void>();
-let muted = readMuted();
+/** «Выключить звук» на самом экране: только до перезагрузки страницы. */
+let muted = false;
+forgetOldMute();
 let ctx: AudioContext | null = null;
 /** Общий выход: «Включить звук / звук включён» на самом экране. */
 let master: GainNode | null = null;
@@ -30,13 +33,17 @@ const mix = { music: 0.7, effects: 1, muted: false };
 let duck = 1;
 let duckTimer = 0;
 
-function readMuted(): boolean {
+let duckUntil = 0;
+
+function forgetOldMute(): void {
   try {
-    return localStorage.getItem(MUTE_KEY) === "1";
+    localStorage.removeItem(OLD_MUTE_KEY);
   } catch {
-    return false;
+    // Приватный режим — нечего чистить.
   }
 }
+
+type AudioSessionNavigator = Navigator & { audioSession?: { type: string } };
 
 /** Браузер разрешает звук только после касания: вызываем из обработчика нажатия. */
 const readyListeners = new Set<(ready: boolean) => void>();
@@ -48,15 +55,46 @@ function notifyReady(): void {
 
 export function unlockSound(): void {
   try {
+    // iPhone и iPad: без этого Web Audio молчит при включённом переключателе «Бесшумно».
+    const nav = navigator as AudioSessionNavigator;
+    if (nav.audioSession && nav.audioSession.type !== "playback") nav.audioSession.type = "playback";
+  } catch {
+    // Старый Safari — подсказка на экране просит выключить беззвучный режим.
+  }
+  try {
     if (!ctx) {
       ctx = new AudioContext();
       ctx.addEventListener("statechange", notifyReady);
     }
-    if (ctx.state === "suspended") void ctx.resume().then(notifyReady, notifyReady);
+    // "interrupted" — iOS после блокировки экрана, звонка или Пункта управления.
+    if (ctx.state !== "running") void ctx.resume().then(notifyReady, notifyReady);
     notifyReady();
   } catch {
     ctx = null;
   }
+}
+
+/**
+ * Разрешение звука от любого касания, клика или клавиши — столько раз, сколько нужно: браузер
+ * разрешает звук на отпускание пальца (не на нажатие), а iOS снова приостанавливает его после
+ * блокировки экрана. Пока звук не идёт, слушаем; когда вкладка снова видна — пробуем продолжить.
+ */
+export function useSoundUnlock(): void {
+  const ready = useSoundReady();
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && ctx && ctx.state !== "running") void ctx.resume().then(notifyReady, notifyReady);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+  useEffect(() => {
+    if (ready) return;
+    const unlock = () => unlockSound();
+    const events = ["pointerup", "touchend", "click", "keydown"] as const;
+    events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, unlock));
+  }, [ready]);
 }
 
 /** Включён ли звук браузером (было касание экрана). Пока нет — экран зала просит коснуться. */
@@ -79,11 +117,6 @@ export function soundReady(): boolean {
 export function setMuted(value: boolean): void {
   muted = value;
   if (ctx && master) master.gain.setTargetAtTime(value ? 0 : 0.9, ctx.currentTime, 0.05);
-  try {
-    localStorage.setItem(MUTE_KEY, value ? "1" : "0");
-  } catch {
-    // Приватный режим: настройка действует до перезагрузки.
-  }
   if (!value) unlockSound();
   listeners.forEach((l) => l(value));
 }
@@ -156,13 +189,17 @@ export function setMix(next: { music: number; effects: number; muted: boolean })
 
 /** Музыка тише на время эффекта и потом плавно возвращается. */
 function duckMusic(seconds: number): void {
+  // Короткий эффект после длинного не возвращает музыку раньше конца длинного.
+  const until = Math.max(duckUntil, Date.now() + seconds * 1000);
+  duckUntil = until;
   duck = 0.3;
   applyLevels();
   window.clearTimeout(duckTimer);
   duckTimer = window.setTimeout(() => {
     duck = 1;
+    duckUntil = 0;
     applyLevels();
-  }, seconds * 1000);
+  }, until - Date.now());
 }
 
 function tone(freq: number, start: number, duration: number, volume = 0.18, type: OscillatorType = "sine"): void {
@@ -350,7 +387,9 @@ export function stopAllSounds(): void {
   effectsBus = null;
   old.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
   window.setTimeout(() => old.disconnect(), 400);
+  window.clearTimeout(duckTimer);
   duck = 1;
+  duckUntil = 0;
   applyLevels();
 }
 

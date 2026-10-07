@@ -15,9 +15,9 @@ import { generateSessionCode } from "../../src/core/code";
 import { NAME_MAX_LENGTH } from "../../src/core/names";
 import { compactBoard } from "../../src/core/results";
 import { retentionCutoff } from "../../src/core/retention";
-import { parseCue, parseMix, parseMusic, parseSlide } from "../../src/data/cues";
+import { parseCue, parseMix, parseMusic, parseScreenReport, parseSlide, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
-import type { Leaderboard, LeaderboardEntry, Participant, SessionPhase, SessionState, StepStage } from "../../src/data/types";
+import type { Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
 import { actorOf, apiGuard, identityOf, type Identity } from "./auth";
 
@@ -85,6 +85,8 @@ const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
 const STAGES = new Set<StepStage>(["ready", "question", "reveal", "board", "podium"]);
 const SMALL_BODY = 16 * 1024;
+/** Сколько сессий с экраном зала помним (старые вытесняются). */
+const SCREENS_MAX = 5000;
 const SNAPSHOT_BODY = 1024 * 1024;
 /** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */
 export const CLEANUP_LIMIT = 100;
@@ -353,6 +355,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const now = options.now ?? Date.now;
   const keepAliveMs = options.keepAliveMs ?? 25_000;
   const hub = new Hub();
+  /** Последнее сообщение экрана зала по каждой сессии (см. `/screen`). */
+  const screens = new Map<string, ScreenStatus>();
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -690,6 +694,34 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!row) return fail(reply, 404, "not-found");
       publishParticipant(id, row);
       return { ok: true };
+    });
+
+    // ---------------------------------------------------------------- экран зала → пульт
+
+    // Экран зала (любое вошедшее устройство с кодом) раз в 20 с сообщает о себе: на связи, звук
+    // разрешён, не выключен. Только в памяти: после перезапуска экран сообщит снова.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/screen", { bodyLimit: 1024 }, async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      const report = parseScreenReport(request.body);
+      if (!report) return fail(reply, 400, "invalid-argument");
+      const row = await loadSession(request.params.id);
+      if (!row || normalizeState(row.state).phase === "finished") return fail(reply, 404, "not-found");
+      const at = now();
+      if (screens.size >= SCREENS_MAX) {
+        for (const [key, value] of screens) if (at - value.seenAt > SCREEN_STALE_MS) screens.delete(key);
+        if (screens.size >= SCREENS_MAX) screens.delete(screens.keys().next().value ?? "");
+      }
+      screens.set(row.id, { ...report, seenAt: at });
+      return { ok: true };
+    });
+
+    api.get<{ Params: { id: string } }>("/api/sessions/:id/screen", async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      reply.header("cache-control", "no-store");
+      const screen = screens.get(hosted.row.id);
+      return { screen: screen && now() - screen.seenAt <= SCREEN_STALE_MS ? screen : null };
     });
 
     api.delete<{ Params: { id: string; pid: string } }>("/api/sessions/:id/participants/:pid", async (request, reply) => {

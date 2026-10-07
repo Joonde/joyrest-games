@@ -9,7 +9,17 @@ import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
 import { SlideView } from "../components/live/SlideView";
 import { useHallMusic } from "../components/music/useHallMusic";
-import { playSound, setMuted, setSoundSet, stopAllSounds, unlockSound, useMuted, useSoundReady } from "../components/live/sound";
+import { useScreenReport } from "../components/live/screenStatus";
+import {
+  playSound,
+  setMuted,
+  setSoundSet,
+  stopAllSounds,
+  unlockSound,
+  useMuted,
+  useSoundReady,
+  useSoundUnlock,
+} from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
 import { VPN_HINT } from "../core/texts";
@@ -63,9 +73,15 @@ function useIdle(): boolean {
   return idle;
 }
 
+/** iPhone и iPad (iPadOS выдаёт себя за Mac, но с касаниями): подсказка про беззвучный режим. */
+const IS_APPLE_TOUCH =
+  typeof navigator !== "undefined" &&
+  (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
 /** Полноэкранный режим, звук: кнопки в углу экрана зала. */
 function ScreenControls() {
   const muted = useMuted();
+  const ready = useSoundReady();
   const [full, setFull] = useState(() => document.fullscreenElement !== null);
   const canFullscreen = typeof document.documentElement.requestFullscreen === "function";
 
@@ -86,13 +102,14 @@ function ScreenControls() {
       <button
         type="button"
         className="btn btn--secondary"
-        aria-pressed={!muted}
         onClick={() => {
-          unlockSound();
-          setMuted(!muted);
+          if (muted) setMuted(false);
+          else if (!ready) unlockSound();
+          else setMuted(true);
         }}
       >
-        {muted ? "Включить звук" : "Звук включён"}
+        {/* Подпись — что сделает кнопка, а не что сейчас: «Звук включён» путало ведущих. */}
+        {muted || !ready ? "Включить звук" : "Выключить звук"}
       </button>
       {canFullscreen && (
         <button type="button" className="btn btn--secondary" onClick={toggleFullscreen}>
@@ -131,25 +148,29 @@ function Screen({ session }: { session: Session }) {
   useWakeLock(true);
   const idle = useIdle();
 
-  // Браузер разрешит звук после первого касания экрана или нажатия клавиши.
-  useEffect(() => {
-    const unlock = () => unlockSound();
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
+  // Браузер разрешит звук после касания экрана или нажатия клавиши — в любой момент, сколько угодно раз.
+  useSoundUnlock();
+  // Видел ли этот экран игру: финальные фанфары — только при переходе к финалу, не при открытии.
+  const sawGame = useRef(phase === "playing");
+  if (phase === "playing") sawGame.current = true;
+  // Пульт видит, что экран на связи и звук разрешён.
+  useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
       <Scene themeId={session.themeId} />
       <ScreenControls />
-      {!muted && (!soundReady || musicBlocked) && (
-        <p className="screen-tap" role="status">
-          {musicBlocked ? "Коснитесь экрана, чтобы включить музыку" : "Коснитесь экрана, чтобы включить звук"}
-        </p>
+      {muted ? (
+        <button type="button" className="screen-tap" onClick={() => setMuted(false)}>
+          🔇 Звук выключен на этом экране — включить
+        </button>
+      ) : (
+        (!soundReady || musicBlocked) && (
+          <button type="button" className="screen-tap" onClick={unlockSound}>
+            {musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}
+            {IS_APPLE_TOUCH && <span className="screen-tap__hint">Нет звука — выключите беззвучный режим</span>}
+          </button>
+        )
       )}
       {session.state.slide ? (
         <main className="quiz-stage">
@@ -159,7 +180,7 @@ function Screen({ session }: { session: Session }) {
         <>
           {phase === "lobby" && <Lobby session={session} />}
           {phase === "playing" && <Playing session={session} />}
-          {phase === "finished" && <Final session={session} />}
+          {phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
         </>
       )}
     </div>
@@ -228,12 +249,12 @@ function Playing({ session }: { session: Session }) {
 }
 
 /** Финал: пьедестал (всё открыто), под ним таблица. */
-function Final({ session }: { session: Session }) {
+function Final({ session, sawGame }: { session: Session; sawGame: boolean }) {
   const ranked = rankedLeaderboard(session.leaderboard);
   const winners = ranked.filter((e) => e.place === 1 && e.score > 0);
-  // После награждения фанфары уже прозвучали на первом месте.
+  // После награждения фанфары уже прозвучали на первом месте; открытый после игры экран молчит.
   const afterPodium = session.state.stage === "podium";
-  const played = useRef(afterPodium);
+  const played = useRef(afterPodium || !sawGame);
 
   useEffect(() => {
     // Фанфары — один раз, когда финал наступил при открытом экране.
@@ -254,7 +275,7 @@ function Final({ session }: { session: Session }) {
         <p className="final__eyebrow">{winners.length > 1 ? "Победители" : winners.length === 1 ? "Победитель" : "Игра завершена"}</p>
         {winners.length > 0 && <Podium session={session} final />}
         <div className="final__board">
-          <BoardView leaderboard={session.leaderboard} title="Итоговая таблица" showLast={false} limit={ranked.length > 3 ? 7 : 3} />
+          <BoardView leaderboard={session.leaderboard} title="Итоговая таблица" showLast={false} limit={winners.length > 0 ? Math.min(ranked.length, 4) : 7} />
         </div>
       </div>
     </main>

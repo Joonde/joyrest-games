@@ -11,6 +11,8 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
   const urls = useRef(new Map<string, string>());
   const started = useRef<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  /** Файл не скачался — пробуем снова через 5 с (номер попытки перезапускает загрузку). */
+  const [attempt, setAttempt] = useState(0);
   const level = mix ?? DEFAULT_MIX;
 
   useEffect(() => {
@@ -23,6 +25,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer = 0;
     async function run() {
       if (!trackId || !rev) {
         stopMusic();
@@ -37,9 +40,20 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       let url = urls.current.get(trackId);
       if (!url) {
         const blob = tracksRepo ? await tracksRepo.file(trackId).catch(() => null) : null;
-        if (cancelled || !blob) return;
+        if (cancelled) return;
+        if (!blob) {
+          retryTimer = window.setTimeout(() => setAttempt((a) => a + 1), 5000);
+          return;
+        }
         url = URL.createObjectURL(blob);
         urls.current.set(trackId, url);
+        // Слабому телевизору хватит двух треков в памяти: текущего и предыдущего.
+        for (const [id, old] of urls.current) {
+          if (urls.current.size <= 2) break;
+          if (id === trackId) continue;
+          URL.revokeObjectURL(old);
+          urls.current.delete(id);
+        }
       }
       const fromStart = started.current !== key;
       const ok = await playMusic(url, fromStart);
@@ -50,8 +64,9 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
     void run();
     return () => {
       cancelled = true;
+      window.clearTimeout(retryTimer);
     };
-  }, [trackId, rev, playing]);
+  }, [trackId, rev, playing, attempt]);
 
   // Касание экрана разрешает звук — пробуем включить ещё раз.
   useEffect(() => {
@@ -70,12 +85,10 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
         });
       }, 200);
     };
-    window.addEventListener("pointerdown", retry);
-    window.addEventListener("keydown", retry);
-    return () => {
-      window.removeEventListener("pointerdown", retry);
-      window.removeEventListener("keydown", retry);
-    };
+    // Браузер разрешает звук на отпускание пальца или клик, не на нажатие.
+    const events = ["pointerup", "click", "keydown"] as const;
+    events.forEach((e) => window.addEventListener(e, retry));
+    return () => events.forEach((e) => window.removeEventListener(e, retry));
   }, [blocked, trackId, rev, playing]);
 
   useEffect(() => {

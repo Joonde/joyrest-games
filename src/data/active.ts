@@ -11,6 +11,7 @@ import type {
   MediaRepository,
   ParticipantsRepository,
   ProposalsRepository,
+  ScreenStatusRepository,
   TeamRepository,
   TracksRepository,
   StaffRepository,
@@ -34,6 +35,7 @@ import { serverClock } from "./server/clock";
 import { serverParticipantsRepository } from "./server/participants";
 import { serverProposalsRepository } from "./server/proposals";
 import { serverStaffRepository } from "./server/staff";
+import { serverScreenStatusRepository } from "./server/screen";
 import { serverTeamRepository } from "./server/team";
 import { serverTracksRepository } from "./server/tracks";
 import { serverResultsRepository } from "./server/results";
@@ -63,3 +65,5 @@ export const staffRepo: StaffRepository | null = server ? serverStaffRepository 
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
 /** «Команда JoyRest» — только свой сервер. */
 export const teamRepo: TeamRepository | null = server ? serverTeamRepository : null;
+/** Экран зала сообщает пульту, что он на связи и звук разрешён, — только свой сервер. */
+export const screenRepo: ScreenStatusRepository | null = server ? serverScreenStatusRepository : null;

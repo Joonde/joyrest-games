@@ -27,7 +27,9 @@ import { VPN_HINT } from "../core/texts";
 import { ConsoleSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
+import { screenStatusLabel, useScreenStatus } from "../components/live/screenStatus";
 import { SoundPad } from "../components/live/SoundPad";
+import { useWakeLock } from "../components/live/useWakeLock";
 import { SlidesPanel } from "../components/live/SlidesPanel";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
@@ -204,6 +206,10 @@ function Console({ session }: { session: Session }) {
   const tabs = PULT_TABS.filter((t) => withScreen || !t.screenOnly);
   const apply = (change: SessionChange) => sessionsRepo.apply(session.id, change);
   const slide = session.state.slide ?? null;
+  const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
+  // Телефон ведущего не гаснет, пока идёт вечер.
+  useWakeLock(phase !== "finished");
+  const screenLabel = screen === undefined ? null : screenStatusLabel(screen);
 
   return (
     <main className="page page--pult">
@@ -212,6 +218,7 @@ function Console({ session }: { session: Session }) {
         <span className="pult-status__code">{formatSessionCode(session.code)}</span>
         <span>{session.playMode === "teams" ? `телефонов: ${phones}` : `игроков: ${phones}`}</span>
         <span>{phase === "lobby" ? "ждём гостей" : phase === "playing" ? "идёт игра" : "завершена"}</span>
+        {screenLabel && <span className={screenLabel.ok ? "pult-status__screen is-ok" : "pult-status__screen"}>{screenLabel.text}</span>}
       </p>
 
       {picking && withScreen && phase !== "finished" && (

@@ -8,7 +8,7 @@ import { parseAdminInput, setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { newUserId, readCookie, SESSION_COOKIE } from "./auth";
 import { migrate } from "./migrate";
-import { hashPassword, verifyPassword } from "./password";
+import { hashPassword, SCRYPT_PARALLEL, scryptSlots, Slots, verifyPassword } from "./password";
 
 describe("пароли", () => {
   it("хэш проверяется, чужой пароль и испорченный хэш — нет", async () => {
@@ -20,6 +20,42 @@ describe("пароли", () => {
     expect(await verifyPassword("x", null)).toBe(false);
     expect(await verifyPassword("x", "scrypt$15$8$1$AA$BB")).toBe(false);
     expect(await hashPassword("пароль-ведущего")).not.toBe(hash);
+  });
+});
+
+describe("очередь проверок пароля", () => {
+  it("не больше N задач одновременно, остальные ждут по порядку; ошибка освобождает место", async () => {
+    const slots = new Slots(2);
+    let running = 0;
+    let most = 0;
+    const finished: number[] = [];
+    const task = (i: number) =>
+      slots.run(async () => {
+        running += 1;
+        most = Math.max(most, running);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        running -= 1;
+        if (i === 1) throw new Error("сбой");
+        finished.push(i);
+        return i;
+      });
+    const results = await Promise.allSettled([0, 1, 2, 3, 4, 5].map(task));
+    expect(most).toBe(2);
+    expect(slots.peak).toBe(2);
+    expect(results[1]?.status).toBe("rejected");
+    expect(finished).toEqual([0, 2, 3, 4, 5]);
+    expect(slots.queued).toBe(0);
+    expect(await slots.run(async () => "дальше работает")).toBe("дальше работает");
+  });
+
+  it(`scrypt: одновременно не больше ${SCRYPT_PARALLEL} хэшей, даже если весь зал входит разом`, async () => {
+    expect(SCRYPT_PARALLEL).toBe(2);
+    scryptSlots.peak = 0;
+    const hashes = await Promise.all(Array.from({ length: 6 }, (_, i) => hashPassword(`пароль-${i}-длинный`)));
+    const checks = await Promise.all(hashes.map((hash, i) => verifyPassword(`пароль-${i}-длинный`, hash)));
+    expect(checks).toEqual([true, true, true, true, true, true]);
+    expect(scryptSlots.peak).toBe(SCRYPT_PARALLEL);
+    expect(scryptSlots.queued).toBe(0);
   });
 });
 

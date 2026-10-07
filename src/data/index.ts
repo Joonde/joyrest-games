@@ -13,6 +13,7 @@ export {
   gamesRepo,
   mediaRepo,
   participantsRepo,
+  proposalsRepo,
   resultsRepo,
   sessionsRepo,
   usersRepo,

@@ -10,6 +10,7 @@ import type {
   GamesRepository,
   MediaRepository,
   ParticipantsRepository,
+  ProposalsRepository,
   ResultsRepository,
   SessionsRepository,
   UsersRepository,
@@ -28,6 +29,7 @@ import { serverMediaRepository } from "./server/media";
 import { serverAnswersRepository } from "./server/answers";
 import { serverClock } from "./server/clock";
 import { serverParticipantsRepository } from "./server/participants";
+import { serverProposalsRepository } from "./server/proposals";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
@@ -45,3 +47,6 @@ export const participantsRepo: ParticipantsRepository = server ? serverParticipa
 export const answersRepo: AnswersRepository = server ? serverAnswersRepository : answersRepository;
 export const resultsRepo: ResultsRepository = server ? serverResultsRepository : resultsRepository;
 export const clock: ClockService = server ? serverClock : firestoreClock;
+
+/** Предложения в библиотеку — только на своём сервере. */
+export const proposalsRepo: ProposalsRepository | null = server ? serverProposalsRepository : null;

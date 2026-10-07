@@ -60,6 +60,26 @@ describe("ведущие", () => {
   });
 });
 
+describe("предложения в библиотеку", () => {
+  it("ведущий предлагает только свою личную игру", () => {
+    expect(p.canProposeGame(host, myGame)).toBe(true);
+    expect(p.canProposeGame(other, myGame)).toBe(false);
+    expect(p.canProposeGame(host, { scope: "agency", ownerId: "host-1" })).toBe(false);
+    expect(p.canProposeGame(off, { scope: "personal", ownerId: "off" })).toBe(false);
+    expect(p.canProposeGame(guest, myGame)).toBe(false);
+    // Владелец кладёт в библиотеку сам.
+    expect(p.canProposeGame(owner, { scope: "personal", ownerId: ADMIN_UID })).toBe(false);
+  });
+
+  it("принимает и отклоняет только admin", () => {
+    expect(p.canReviewProposals(owner)).toBe(true);
+    expect(p.canReviewProposals(admin2)).toBe(true);
+    expect(p.canReviewProposals(offAdmin)).toBe(false);
+    expect(p.canReviewProposals(host)).toBe(false);
+    expect(p.canReviewProposals(guest)).toBe(false);
+  });
+});
+
 describe("игры", () => {
   it("общую библиотеку видят все активные ведущие", () => {
     expect(p.canReadGame(host, agencyGame)).toBe(true);

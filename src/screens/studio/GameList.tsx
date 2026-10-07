@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { copyOfGame } from "../../core/games";
-import { gamesRepo, permissions, useLoad, type Game, type GameScope, type UserProfile } from "../../data";
+import { gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
 import { demoGames, gameMediaIds } from "../../mechanics/registry";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 import { GameCard } from "./GameCard";
+import { ProposalsBlock } from "./Proposals";
+
+const NO_PROPOSALS: LibraryProposal[] = [];
 
 interface Props {
   scope: GameScope;
@@ -38,6 +41,26 @@ export function GameList({ scope, profile, onToast }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const intro = INTRO[scope];
   const canCreate = permissions.canCreateGame(profile, scope, profile.uid);
+
+  // Предложения в библиотеку: ведущему — статусы своих игр, владельцу — блок на вкладке библиотеки.
+  const proposing = proposalsRepo !== null && scope === "personal" && !permissions.canReviewProposals(profile);
+  const [mine, , updateMine] = useLoad(
+    () => (proposing && proposalsRepo ? proposalsRepo.listMine() : Promise.resolve(NO_PROPOSALS)),
+    [proposing, profile.uid],
+  );
+  const latest = new Map<string, LibraryProposal>();
+  if (mine.status === "ready") for (const p of mine.data) if (!latest.has(p.gameId)) latest.set(p.gameId, p);
+
+  async function propose(game: Game) {
+    if (!proposalsRepo) return;
+    try {
+      const proposal = await proposalsRepo.propose(game.id);
+      updateMine((list) => [proposal, ...list.filter((p) => p.id !== proposal.id)]);
+      onToast("Игра отправлена владельцу JoyRest на проверку");
+    } catch {
+      onToast("Не удалось отправить. Проверьте интернет.");
+    }
+  }
 
   async function duplicate(game: Game, target: GameScope) {
     try {
@@ -112,6 +135,10 @@ export function GameList({ scope, profile, onToast }: Props) {
         )}
       </section>
 
+      {scope === "agency" && proposalsRepo && permissions.canReviewProposals(profile) && (
+        <ProposalsBlock onAccepted={retry} onToast={onToast} />
+      )}
+
       {missingDemos.map((demo) => (
         <section key={demo.title} className="card">
           <p className="eyebrow">Готовая игра</p>
@@ -139,6 +166,8 @@ export function GameList({ scope, profile, onToast }: Props) {
                   setDeleteError(null);
                   setToDelete(game);
                 }}
+                proposal={latest.get(game.id) ?? null}
+                onPropose={proposing ? () => void propose(game) : undefined}
               />
             </li>
           ))}

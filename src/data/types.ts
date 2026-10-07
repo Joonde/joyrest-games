@@ -216,3 +216,23 @@ export interface CleanupReport {
 }
 
 export type Unsubscribe = () => void;
+
+/** Предложение ведущего в общую библиотеку (только свой сервер). */
+export type ProposalStatus = "pending" | "accepted" | "rejected";
+
+export interface LibraryProposal {
+  id: string;
+  /** Личная игра ведущего. */
+  gameId: string;
+  hostId: string;
+  hostName: string;
+  /** Название на момент предложения. */
+  title: string;
+  status: ProposalStatus;
+  /** Причина отказа (может не быть). */
+  reason: string | null;
+  /** Игра библиотеки после принятия. */
+  libraryGameId: string | null;
+  createdAt: number;
+  decidedAt: number | null;
+}

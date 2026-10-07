@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, permissions, type AuthUser, type UserProfile } from "../../data";
+import { authService, permissions, tracksRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -8,16 +8,20 @@ import { Toast, useToast } from "../../components/Toast";
 import { TopBar, type TopBarAction } from "../../components/TopBar";
 import { GameList } from "./GameList";
 import { History } from "./History";
+import { MusicTab } from "./MusicTab";
 
-type TabId = "agency" | "mine" | "history";
+type TabId = "agency" | "mine" | "music" | "history";
 
 const TABS: Array<TabItem<TabId>> = [
   { id: "agency", label: "Библиотека JoyRest" },
   { id: "mine", label: "Мои игры" },
+  // Музыка — только на своём сервере.
+  ...(tracksRepo ? [{ id: "music" as const, label: "Музыка" }] : []),
   { id: "history", label: "История игр" },
 ];
 
 function parseTab(value: string | null): TabId {
+  if (value === "music" && tracksRepo) return "music";
   return value === "agency" || value === "history" ? value : "mine";
 }
 
@@ -67,6 +71,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       <div className="stack" role="tabpanel" id={`studio-panel-${tab}`} aria-labelledby={`studio-tab-${tab}`}>
         {tab === "agency" && <GameList key="agency" scope="agency" profile={profile} onToast={showToast} />}
         {tab === "mine" && <GameList key="mine" scope="personal" profile={profile} onToast={showToast} />}
+        {tab === "music" && <MusicTab profile={profile} onToast={showToast} />}
         {tab === "history" && <History profile={profile} onToast={showToast} />}
       </div>
 

@@ -4,7 +4,7 @@ import { compactBoard } from "../core/results";
 import type { SessionsRepository } from "./contracts";
 import { asNumber, asRecord, asString, toMillis } from "./convert";
 import { reportFromCache } from "./connection";
-import { parseCue } from "./cues";
+import { parseCue, parseMix, parseMusic } from "./cues";
 import { lazySubscribe, loadFirestore, type FirestoreSdk } from "./firebase";
 import type {
   Leaderboard,
@@ -85,6 +85,8 @@ function toSession(snap: DocumentSnapshot, timestamps: "estimate" | "none" = "no
       answered: asNumber(state.answered),
       result: state.result ?? null,
       cue: parseCue(state.cue),
+      music: parseMusic(state.music),
+      mix: parseMix(state.mix),
     },
     leaderboard: parseLeaderboard(data.leaderboard),
     createdAt: toMillis(data.createdAt),

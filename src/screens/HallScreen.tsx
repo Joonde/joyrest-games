@@ -6,6 +6,7 @@ import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
 import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } from "../data";
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
+import { useHallMusic } from "../components/music/useHallMusic";
 import { playSound, setMuted, stopAllSounds, unlockSound, useMuted } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
@@ -116,6 +117,7 @@ function useCueSound(cue: SoundCue | null | undefined): void {
 function Screen({ session }: { session: Session }) {
   useTheme(session.themeId);
   useCueSound(session.state.cue);
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix);
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.
   useEffect(() => {
     void clock.sync();
@@ -138,6 +140,7 @@ function Screen({ session }: { session: Session }) {
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
       <ScreenControls />
+      {musicBlocked && <p className="screen-tap">Коснитесь экрана, чтобы включить музыку</p>}
       {phase === "lobby" && <Lobby session={session} />}
       {phase === "playing" && <Playing session={session} />}
       {phase === "finished" && <Final session={session} />}

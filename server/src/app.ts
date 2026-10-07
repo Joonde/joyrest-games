@@ -15,6 +15,7 @@ import { registerLead, type LeadOptions } from "./lead";
 import { registerLive, type LiveOptions } from "./live";
 import { registerProposals } from "./proposals";
 import { registerStaff } from "./staff";
+import { registerTracks } from "./tracks";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
 export interface AppOptions {
@@ -103,6 +104,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerLive(app, { ...options.live, sql: options.sql, isSite });
     registerProposals(app, { sql: options.sql, isSite });
     registerStaff(app, { sql: options.sql, isSite });
+    registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
   }
 
   const publicDir = options.publicDir;

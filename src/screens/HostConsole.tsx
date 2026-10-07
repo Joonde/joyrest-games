@@ -28,6 +28,7 @@ import { ConsoleSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
 import { SoundPad } from "../components/live/SoundPad";
+import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
 import { playUrl, playUrlHint } from "../components/links";
 import { getMechanic } from "../mechanics/registry";
@@ -211,8 +212,12 @@ function Console({ session }: { session: Session }) {
         </section>
       )}
 
-      {phase !== "finished" && session.screenMode !== "none" && (
+      {session.screenMode !== "none" && (
         <SoundPad onCue={(cue) => sessionsRepo.apply(session.id, { state: { cue } })} />
+      )}
+
+      {session.screenMode !== "none" && (
+        <MusicPanel session={session} onApply={(change) => sessionsRepo.apply(session.id, change)} />
       )}
 
       {phase !== "finished" && (

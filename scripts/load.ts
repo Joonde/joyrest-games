@@ -27,13 +27,20 @@ const DELIVERY_P95_LIMIT_MS = 2000;
 const ANSWERED_THROTTLE_MS = 2000;
 const QUESTIONS = DEMO_QUIZ.content.questions;
 
-if (!/^https:\/\/test\./.test(BASE) && process.env.LOAD_ALLOW_ANY !== "1") {
-  console.error(`Отказ: нагрузка только на тестовый адрес (сейчас ${BASE}).`);
-  process.exit(2);
+// ---------- Отчёт ----------
+
+/** Все строки отчёта: в лог и, в GitHub Actions, отдельной аннотацией (её видно без логов). */
+const report: string[] = [];
+function say(line: string): void {
+  report.push(line);
+  console.log(line);
 }
-if (!EMAIL || !PASSWORD) {
-  console.error("Нужны LOAD_HOST_EMAIL и LOAD_HOST_PASSWORD — ведущий на тестовом адресе (RUNBOOK, «Нагрузка»).");
-  process.exit(2);
+function finish(code: number): never {
+  if (process.env.GITHUB_ACTIONS === "true") {
+    const text = report.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+    console.log(`::${code === 0 ? "notice" : "error"} title=Нагрузка::${text}`);
+  }
+  process.exit(code);
 }
 
 // ---------- Замеры ----------
@@ -227,12 +234,20 @@ async function startGuest(sessionId: string, index: number, teamIds: string[]): 
 // ---------- Пульт ----------
 
 async function main() {
+  if (!/^https:\/\/test\./.test(BASE) && process.env.LOAD_ALLOW_ANY !== "1") {
+    say(`Отказ: нагрузка только на тестовый адрес (сейчас ${BASE}).`);
+    finish(2);
+  }
+  if (!EMAIL || !PASSWORD) {
+    say("Нужны LOAD_HOST_EMAIL и LOAD_HOST_PASSWORD — ведущий на тестовом адресе (RUNBOOK, «Нагрузка»).");
+    finish(2);
+  }
   const started = Date.now();
   const playMode: PlayMode = TEAMS ? "teams" : "solo";
-  console.log(`Нагрузка на ${BASE}: ${GUESTS} гостей, ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов`);
+  say(`Нагрузка на ${BASE}: ${GUESTS} гостей, ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов`);
 
   const health = await fetch(`${BASE}/health`).then((r) => r.json() as Promise<{ version?: string }>);
-  console.log(`Версия на сервере: ${String(health.version ?? "?").slice(0, 7)}`);
+  say(`Версия на сервере: ${String(health.version ?? "?").slice(0, 7)}`);
 
   const host = new Device();
   await host.call("POST", "/api/auth/login", { email: EMAIL, password: PASSWORD });
@@ -246,7 +261,7 @@ async function main() {
     playMode,
     screenMode: "laptop",
   });
-  console.log(`Сессия ${created.code}`);
+  say(`Сессия ${created.code}`);
 
   let session: Versioned | null = null;
   const stopSession = follow(host, sessionId, (s) => (session = s));
@@ -272,7 +287,7 @@ async function main() {
   const current = () => session as unknown as Versioned;
 
   // Гости входят пачками по 25 — как на мероприятии.
-  console.log("Гости входят…");
+  say("Гости входят…");
   const joinStart = Date.now();
   const teamIds: string[] = [];
   const stops: Array<() => void> = [];
@@ -282,7 +297,7 @@ async function main() {
       if (r.status === "fulfilled") stops.push(r.value);
       else {
         fail("гость не вошёл");
-        if ((errors["гость не вошёл"] ?? 0) <= 3) console.log(`  ${String(r.reason).slice(0, 120)}`);
+        if ((errors["гость не вошёл"] ?? 0) <= 3) say(`  ${String(r.reason).slice(0, 120)}`);
       }
     }
   }
@@ -301,7 +316,7 @@ async function main() {
     await wait(300);
   }
   const names = Object.values(current().leaderboard).map((e) => e.name);
-  console.log(`Вошли за ${joinSeconds.toFixed(1)} с. В таблице ${names.length}, уникальных имён ${new Set(names).size}`);
+  say(`Вошли за ${joinSeconds.toFixed(1)} с. В таблице ${names.length}, уникальных имён ${new Set(names).size}`);
 
   await host.call("POST", `/api/sessions/${sessionId}/phase`, { phase: "playing" });
   await until(() => current().state.phase === "playing", 5000);
@@ -331,7 +346,7 @@ async function main() {
     stopAnswers();
     if (step < QUESTIONS.length - 1) await apply(nextQuestion(current()));
     const got = answeredBy.get(step)?.size ?? 0;
-    console.log(`  вопрос ${step + 1}: пульт видит ${answers.length}, сервер принял ${got} из ${expected} за ${((Date.now() - t0) / 1000).toFixed(1)} с`);
+    say(`  вопрос ${step + 1}: пульт видит ${answers.length}, сервер принял ${got} из ${expected} за ${((Date.now() - t0) / 1000).toFixed(1)} с`);
     if (answers.length < got) fail("пульт не увидел ответ");
   }
 
@@ -345,23 +360,23 @@ async function main() {
   // ---------- Итог ----------
   const answersExpected = expected * QUESTIONS.length;
   const answersGot = [...answeredBy.values()].reduce((n, s) => n + s.size, 0);
-  console.log(`\nИтог (${Math.round((Date.now() - started) / 1000)} с):`);
+  say(`\nИтог (${Math.round((Date.now() - started) / 1000)} с):`);
   for (const [what, list] of Object.entries(timings)) {
-    console.log(`  ${what.padEnd(28)} медиана ${String(pct(list, 50)).padStart(5)} мс, 95% ${String(pct(list, 95)).padStart(5)} мс, макс ${String(Math.max(...list)).padStart(5)} мс (${list.length})`);
+    say(`  ${what.padEnd(28)} медиана ${String(pct(list, 50)).padStart(5)} мс, 95% ${String(pct(list, 95)).padStart(5)} мс, макс ${String(Math.max(...list)).padStart(5)} мс (${list.length})`);
   }
-  console.log(`  ответов принято               ${answersGot} из ${answersExpected}`);
-  console.log(`  переподключений потоков       ${reconnects}`);
+  say(`  ответов принято               ${answersGot} из ${answersExpected}`);
+  say(`  переподключений потоков       ${reconnects}`);
   const errorTotal = Object.values(errors).reduce((a, b) => a + b, 0);
-  console.log(`  ошибок                        ${errorTotal}`);
-  for (const [what, n] of Object.entries(errors)) console.log(`    ${what}: ${n}`);
+  say(`  ошибок                        ${errorTotal}`);
+  for (const [what, n] of Object.entries(errors)) say(`    ${what}: ${n}`);
 
   const delivery95 = pct(timings["вопрос дошёл до телефона"] ?? [], 95);
   const ok = errorTotal === 0 && answersGot === answersExpected && delivery95 <= DELIVERY_P95_LIMIT_MS;
-  console.log(ok ? "\n✅ Проверка пройдена" : `\n❌ Проверка не пройдена (порог доставки 95% — ${DELIVERY_P95_LIMIT_MS} мс)`);
-  process.exit(ok ? 0 : 1);
+  say(ok ? "\n✅ Проверка пройдена" : `\n❌ Проверка не пройдена (порог доставки 95% — ${DELIVERY_P95_LIMIT_MS} мс)`);
+  finish(ok ? 0 : 1);
 }
 
 main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
+  say(`Остановлено с ошибкой: ${error instanceof Error ? error.message : String(error)}`);
+  finish(1);
 });

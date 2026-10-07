@@ -33,6 +33,7 @@ export function parseProfile(value: unknown): UserProfile | null {
   const level = data.level;
   if (level === "intern" || level === "novice" || level === "host" || level === "top") profile.level = level;
   if (typeof data.experienceSince === "number") profile.experienceSince = data.experienceSince;
+  if (data.venueAccess === true) profile.venueAccess = true;
   return profile;
 }
 

@@ -23,8 +23,8 @@ fail() { printf '\n❌ %s\n' "$1" >&2; exit 1; }
 
 # ---------------------------------------------------------------- вопросы
 step "Данные для настройки"
-read -r -p "Почта администратора [student.maik@gmail.com]: " ADMIN_EMAIL
-ADMIN_EMAIL="${ADMIN_EMAIL:-student.maik@gmail.com}"
+read -r -p "Почта администратора [joyrest@mail.ru]: " ADMIN_EMAIL
+ADMIN_EMAIL="${ADMIN_EMAIL:-joyrest@mail.ru}"
 read -r -p "Имя вашего пользователя на сервере [joy]: " OWNER_USER
 OWNER_USER="${OWNER_USER:-joy}"
 echo "$OWNER_USER" | grep -qE '^[a-z][a-z0-9_-]{1,30}$' || fail "Имя пользователя: латиница, цифры, - и _."

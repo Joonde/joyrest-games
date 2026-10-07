@@ -21,6 +21,7 @@ export {
   resultsRepo,
   sessionsRepo,
   usersRepo,
+  venuesRepo,
 } from "./active";
 
 export { answerId } from "./answers";

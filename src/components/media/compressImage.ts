@@ -162,3 +162,22 @@ export async function cropImage(
     if (!(source instanceof HTMLImageElement)) source.close();
   }
 }
+
+/**
+ * Одна картинка без обрезки (фото зала и страницы меню в анкете площадки): до `maxSide` по
+ * длинной стороне, WebP (на iPhone — JPEG), качество подбирается до цели.
+ */
+export async function shrinkImage(file: File, limits: { maxSide: number; targetBytes: number; maxBytes: number }): Promise<Blob> {
+  if (!file.type.startsWith("image/")) throw new ImageError("Это не картинка. Выберите фото.");
+  let source: Source;
+  try {
+    source = await decode(file);
+  } catch {
+    throw new ImageError("Не получилось открыть фото. Попробуйте JPEG или PNG.");
+  }
+  try {
+    return (await encode(source, limits)).blob;
+  } finally {
+    if (!(source instanceof HTMLImageElement)) source.close();
+  }
+}

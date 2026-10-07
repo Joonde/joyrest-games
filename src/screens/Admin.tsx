@@ -10,6 +10,7 @@ import {
   staffRepo,
   useLoad,
   usersRepo,
+  venuesRepo,
   type CleanupReport,
   type CreatedHost,
   type HostAccount,
@@ -81,6 +82,20 @@ function AdminContent({ profile }: { profile: UserProfile }) {
     }
   }
 
+  async function setVenueAccess(host: HostAccount, access: boolean) {
+    if (!venuesRepo) return;
+    setBusyUid(host.uid);
+    try {
+      await venuesRepo.setAccess(host.uid, access);
+      update((list) => list.map((h) => (h.uid === host.uid ? { ...h, venueAccess: access } : h)));
+      showToast(access ? `${host.name}: база площадок открыта` : `${host.name}: база площадок закрыта`);
+    } catch {
+      showToast("Не удалось изменить доступ. Проверьте интернет.");
+    } finally {
+      setBusyUid(null);
+    }
+  }
+
   // Есть только на своём сервере: у Firebase без Cloud Functions сбросить пароль нельзя.
   const resetPassword = usersRepo.resetHostPassword?.bind(usersRepo);
 
@@ -106,6 +121,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
         title="Ведущие"
         actions={[
           { label: "В студию", to: "/studio" },
+          ...(venuesRepo ? [{ label: "База площадок", to: "/venues" }] : []),
           { label: "Выйти", onClick: () => void authService.signOut() },
         ]}
       />
@@ -142,6 +158,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                       <li>{levelTitle(host.level) ?? "Без квалификации"}</li>
                       {host.experienceSince ? <li>Стаж: {experienceLabel(host.experienceSince, Date.now())}</li> : null}
                       <li>{pointsLabel(host.points ?? 0)}</li>
+                      {venuesRepo && host.venueAccess && <li>База площадок</li>}
                     </ul>
                   )}
                 </div>
@@ -162,7 +179,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                     >
                       {host.active ? "Отключить" : "Включить"}
                     </button>
-                    {(resetPassword || staffRepo) && (
+                    {(resetPassword || staffRepo || venuesRepo) && (
                       <ActionMenu
                         icon="dots"
                         label={`Действия: ${host.name}`}
@@ -171,6 +188,14 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                             ? [
                                 { label: "Квалификация и стаж", onClick: () => setToLevel(host) },
                                 { label: "Баллы", onClick: () => setToPoints(host) },
+                              ]
+                            : []),
+                          ...(venuesRepo && permissions.canGrantVenueAccess(profile, host)
+                            ? [
+                                {
+                                  label: host.venueAccess ? "Закрыть базу площадок" : "Открыть базу площадок",
+                                  onClick: () => void setVenueAccess(host, !host.venueAccess),
+                                },
                               ]
                             : []),
                           ...(resetPassword && permissions.canResetHostPassword(profile, host)

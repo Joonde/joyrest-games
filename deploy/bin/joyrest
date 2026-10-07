@@ -83,6 +83,9 @@ usage() {
   force — применить, даже если идёт игра (приложение перезапустится на несколько секунд)
 
 Платформа на своём сервере:
+  joyrest venues [on|off] [force]
+                              анкеты площадок и заявки клиентов по QR-кодам ведущих: on —
+                              принимаются, off — закрыты (по умолчанию); без аргумента — текущее
   joyrest admin-password [test]
                               пароль владельца агентства для входа в студию (вводится скрыто,
                               хранится только хэш); test — для test.games.joy-rest.ru
@@ -1187,6 +1190,31 @@ cmd_site() {
   fi
 }
 
+# Анкеты площадок и заявки клиентов по QR-коду (База площадок). По умолчанию выключены: до ИП
+# принимать заявки нельзя. Кабинет владельца и ссылки на предложения работают всегда.
+cmd_venues() {
+  local value=${1:-} force=${2:-} current
+  current=$(env_value "$SETTINGS_FILE" VENUE_FORMS)
+  if [ -z "$value" ]; then
+    echo "Анкеты площадок и заявки клиентов на games.joy-rest.ru: ${current:-off} (on — принимаются, off — закрыты)"
+    return 0
+  fi
+  need_root venues
+  case "$value" in on|off) ;; *) die "Значение — on или off: sudo joyrest venues on" ;; esac
+  [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
+  ensure_no_game "$force" "venues $value"
+  set_env_value "$SETTINGS_FILE" VENUE_FORMS "$value" || die "Не удалось записать $SETTINGS_FILE."
+  log "Анкеты площадок: ${current:-off} → $value"
+  recreate_apps app-prod
+  if [ "$value" = on ]; then
+    echo "✅ Анкеты открыты: площадки и клиенты могут заполнять их по QR-кодам ведущих."
+    grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null \
+      || echo "⚠️  Бот заявок не настроен — уведомлений в Telegram не будет: sudo joyrest lead-bot"
+  else
+    echo "✅ Анкеты закрыты: по QR-кодам откроется «Анкета пока закрыта». База и предложения работают."
+  fi
+}
+
 # Логин и пароль для test.joy-rest.ru. Пароль вводится скрыто, хэшируется в контейнере caddy
 # (через stdin, не аргументом), на сервере остаётся только bcrypt-хэш.
 cmd_site_password() {
@@ -1643,6 +1671,7 @@ case "${1:-}" in
   site-password) cmd_site_password ;;
   lead-bot)      shift; cmd_lead_bot "$@" ;;
   site-indexing) shift; cmd_site_indexing "$@" ;;
+  venues)        shift; cmd_venues "$@" ;;
   backup)        cmd_backup ;;
   backup-setup)  cmd_backup_setup ;;
   backup-nightly) cmd_backup_nightly ;;

@@ -5,6 +5,15 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type {
+  OfferSummary,
+  PublicOffer,
+  RequestData,
+  RequestStatus,
+  VenueData,
+  VenueRecord,
+  VenueRequestRecord,
+  VenueStatus,
+  VenueUpload,
   Answer,
   CleanupReport,
   CreatedHost,
@@ -241,4 +250,48 @@ export interface ResultsRepository {
   get(resultId: string): Promise<GameResult | null>;
   /** История ведущего, новые сверху. */
   listByHost(hostId: string): Promise<GameResult[]>;
+}
+
+/**
+ * База площадок (CLAUDE.md, «База площадок») — только свой сервер. Анкеты площадки и клиента
+ * открываются без входа (если владелец их включил), кабинет — владельцу и ведущим с доступом,
+ * предложение клиенту — по ссылке без входа.
+ */
+export interface VenuesRepository {
+  /** Принимаются ли анкеты без входа (`sudo joyrest venues on`). */
+  formsOpen(): Promise<boolean>;
+  /**
+   * Анкета площадки и её файлы. id создаёт браузер: повтор после обрыва — та же анкета.
+   * Возвращает, сколько файлов не загрузилось (анкета при этом уже у нас).
+   */
+  submitVenue(
+    input: { id: string; from: string | null; data: VenueData; files: VenueUpload[]; website: string },
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<{ failedFiles: number }>;
+  /** Заявка клиента; ответ — её номер. */
+  submitRequest(input: { id: string; from: string | null; data: RequestData; website: string }): Promise<number>;
+
+  list(): Promise<VenueRecord[]>;
+  get(id: string): Promise<VenueRecord>;
+  /** Владелец заводит площадку сам: нужно только название. */
+  create(data: VenueData): Promise<VenueRecord>;
+  update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string }): Promise<VenueRecord>;
+  remove(id: string): Promise<void>;
+  uploadFile(id: string, file: VenueUpload): Promise<void>;
+  removeFile(id: string, sha: string): Promise<void>;
+  fileUrl(id: string, sha: string): string;
+
+  listRequests(): Promise<VenueRequestRecord[]>;
+  getRequest(id: string): Promise<VenueRequestRecord>;
+  updateRequest(id: string, patch: { status?: RequestStatus; notes?: string; data?: RequestData }): Promise<VenueRequestRecord>;
+  removeRequest(id: string): Promise<void>;
+
+  /** Предложение клиенту: сервер собирает снимок без адресов и контактов. */
+  createOffer(input: { requestId: string | null; venueIds: string[]; comment: string }): Promise<PublicOffer>;
+  listOffers(requestId: string): Promise<OfferSummary[]>;
+  getOffer(id: string): Promise<PublicOffer>;
+  offerPhotoUrl(offerId: string, sha: string): string;
+
+  /** admin: открыть или закрыть ведущему базу площадок. */
+  setAccess(uid: string, access: boolean): Promise<void>;
 }

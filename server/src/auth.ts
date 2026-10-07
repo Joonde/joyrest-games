@@ -68,6 +68,8 @@ export interface UserRow {
   /** Квалификация и «опыт с» (миграция 0005). */
   level?: string | null;
   experience_since?: Date | null;
+  /** Доступ к базе площадок (миграция 0008). */
+  venue_access?: boolean | null;
 }
 
 export interface SessionRow extends UserRow {
@@ -102,6 +104,7 @@ export function profileOf(row: UserRow): ServerProfile {
     mustChangePassword: row.must_change_password,
     level: levelOf(row.level),
     experienceSince: experienceOf(row),
+    venueAccess: row.venue_access === true,
   };
 }
 
@@ -115,11 +118,12 @@ function accountOf(row: UserRow): HostAccount {
     createdAt: row.created_at ? row.created_at.getTime() : null,
     level: levelOf(row.level),
     experienceSince: experienceOf(row),
+    venueAccess: row.venue_access === true,
   };
 }
 
 export function actorOf(row: UserRow): permissions.Actor {
-  return { uid: row.id, role: role(row.role), active: row.active };
+  return { uid: row.id, role: role(row.role), active: row.active, venueAccess: row.venue_access === true };
 }
 
 export function tokenHash(token: string): string {
@@ -216,18 +220,27 @@ export function uploadGuard(sql: Sql) {
     const user = await sessionUser(sql, request, reply);
     if (!user) return reply.code(401).send({ error: "unauthenticated" });
     if (!permissions.isActiveHost(actorOf(user))) return reply.code(403).send({ error: "permission-denied" });
-    if (uploadsInFlight >= MAX_PARALLEL_UPLOADS) {
-      request.log.warn("upload: слишком много загрузок одновременно");
-      return reply.code(503).header("Retry-After", "2").send({ error: "unavailable" });
-    }
-    uploadsInFlight += 1;
-    let released = false;
-    reply.raw.once("close", () => {
-      if (released) return;
-      released = true;
-      uploadsInFlight -= 1;
-    });
+    if (!takeUploadSlot(request, reply)) return reply.code(503).header("Retry-After", "2").send({ error: "unavailable" });
   };
+}
+
+/**
+ * Место для большой загрузки (общий счётчик всего приложения): false — уже идут три, ответьте 503.
+ * Место освобождается, когда ответ закрыт. Анкеты площадок без входа берут его так же.
+ */
+export function takeUploadSlot(request: FastifyRequest, reply: FastifyReply): boolean {
+  if (uploadsInFlight >= MAX_PARALLEL_UPLOADS) {
+    request.log.warn("upload: слишком много загрузок одновременно");
+    return false;
+  }
+  uploadsInFlight += 1;
+  let released = false;
+  reply.raw.once("close", () => {
+    if (released) return;
+    released = true;
+    uploadsInFlight -= 1;
+  });
+  return true;
 }
 
 /** Вошедший ведущий по cookie; сеанс продлевается раз в сутки. Нет входа — null. */
@@ -236,7 +249,7 @@ export async function sessionUser(sql: Sql, request: FastifyRequest, reply: Fast
   if (!token) return null;
   const rows = await sql<SessionRow[]>`
     select s.token_hash, s.expires_at, u.id, u.email, u.name, u.role, u.active, u.password_hash,
-           u.must_change_password, u.created_at, u.level, u.experience_since
+           u.must_change_password, u.created_at, u.level, u.experience_since, u.venue_access
     from auth_sessions s join users u on u.id = s.user_id
     where s.token_hash = ${tokenHash(token)} and s.expires_at > ${new Date(now())}`;
   const row = rows[0];
@@ -279,7 +292,7 @@ export async function identityOf(sql: Sql, request: FastifyRequest, reply: Fasti
   return device ? { uid: device, user: null } : null;
 }
 
-const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at", "level", "experience_since"];
+const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at", "level", "experience_since", "venue_access"];
 
 export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
   const { sql } = options;

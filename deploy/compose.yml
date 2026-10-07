@@ -89,6 +89,9 @@ services:
       SITE_INDEXING: ${SITE_INDEXING:-off}
       LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
+      # Анкеты площадок и заявки клиентов без входа (База площадок). По умолчанию ВЫКЛЮЧЕНЫ:
+      # включает только владелец — sudo joyrest venues on (settings.env).
+      VENUE_FORMS: ${VENUE_FORMS:-off}
     volumes:
       - /srv/joyrest/media/prod:/app/media
     depends_on:
@@ -124,6 +127,8 @@ services:
       LEAD_LABEL: "🧪 ТЕСТ (test.joy-rest.ru)"
       LEAD_TELEGRAM_TOKEN: ${LEAD_TELEGRAM_TOKEN:-}
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
+      # Анкеты площадок на test открыты всегда (проверка).
+      VENUE_FORMS: "on"
     volumes:
       - /srv/joyrest/media/test:/app/media
     depends_on:

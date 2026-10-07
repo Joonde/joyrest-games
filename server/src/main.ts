@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { buildApp, parseDataBackend } from "./app";
 import { scheduleCleanup } from "./cleanup";
 import { isOn } from "./site";
+import { venueFormsOpen } from "./venues";
 
 const port = Number(process.env.PORT ?? 8080);
 const databaseUrl = process.env.DATABASE_URL;
@@ -48,6 +49,8 @@ const app = buildApp({
   dataBackend: parseDataBackend(process.env.DATA_BACKEND),
   sql,
   mediaDir,
+  // Анкеты площадок и заявки клиентов без входа — только явным VENUE_FORMS=on (sudo joyrest venues on).
+  venues: { formsOpen: venueFormsOpen(process.env.VENUE_FORMS, siteHosts) },
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

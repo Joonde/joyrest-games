@@ -22,6 +22,14 @@ const Admin = lazy(() => import("./screens/Admin").then((m) => ({ default: m.Adm
 const HostConsole = lazy(() => import("./screens/HostConsole").then((m) => ({ default: m.HostConsole })));
 const HallScreen = lazy(() => import("./screens/HallScreen").then((m) => ({ default: m.HallScreen })));
 const Brand = lazy(() => import("./screens/Brand").then((m) => ({ default: m.Brand })));
+const VenueForm = lazy(() => import("./screens/venues/VenueForm").then((m) => ({ default: m.VenueForm })));
+const RequestForm = lazy(() => import("./screens/venues/RequestForm").then((m) => ({ default: m.RequestForm })));
+const OfferPage = lazy(() => import("./screens/venues/OfferPage").then((m) => ({ default: m.OfferPage })));
+const VenuesHome = lazy(() => import("./screens/venues/VenuesHome").then((m) => ({ default: m.VenuesHome })));
+const VenueDetail = lazy(() => import("./screens/venues/VenueDetail").then((m) => ({ default: m.VenueDetail })));
+const NewVenue = lazy(() => import("./screens/venues/VenueDetail").then((m) => ({ default: m.NewVenue })));
+const RequestDetail = lazy(() => import("./screens/venues/RequestDetail").then((m) => ({ default: m.RequestDetail })));
+const VenueQrPage = lazy(() => import("./screens/venues/VenueQrPage").then((m) => ({ default: m.VenueQrPage })));
 const Play = lazy(() => import("./screens/Play").then((m) => ({ default: m.Play })));
 
 export function App() {
@@ -39,7 +47,15 @@ export function App() {
           <Route path="/studio/password" element={<ChangePassword />} />
           <Route path="/studio/team" element={<Team />} />
           <Route path="/studio/profile" element={<Profile />} />
+          <Route path="/studio/qr" element={<VenueQrPage />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/venues" element={<VenuesHome />} />
+          <Route path="/venues/new" element={<NewVenue />} />
+          <Route path="/venues/v/:venueId" element={<VenueDetail />} />
+          <Route path="/venues/r/:requestId" element={<RequestDetail />} />
+          <Route path="/v" element={<VenueForm />} />
+          <Route path="/r" element={<RequestForm />} />
+          <Route path="/o/:offerId" element={<OfferPage />} />
           <Route path="/host/:code" element={<HostConsole />} />
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />

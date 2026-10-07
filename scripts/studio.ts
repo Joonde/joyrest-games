@@ -117,6 +117,13 @@ function content(title: string, n: number): QuizContent {
   };
 }
 
+/** JSON с ключами по алфавиту: PostgreSQL (jsonb) хранит ключи в своём порядке, значения те же. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : v,
+  );
+}
+
 async function login(device: Device, email: string, password: string): Promise<boolean> {
   return (await device.status("POST", "/api/auth/login", { email, password })) === 200;
 }
@@ -242,7 +249,7 @@ async function main() {
     check((await host.status("PATCH", `/api/games/${gameId}`, { content: last, title: `Проверка: правка ${i}` })) === 200, `правка ${i} сохранена`);
   }
   const saved = await host.call<{ title: string; content: QuizContent }>("GET", `/api/games/${gameId}`);
-  check(saved.title === "Проверка: правка 12" && JSON.stringify(saved.content) === JSON.stringify(last), "после 12 правок сохранена последняя, текст без искажений");
+  check(saved.title === "Проверка: правка 12" && canonical(saved.content) === canonical(last), "после 12 правок сохранена последняя, текст без искажений");
   // Большая игра на русском (≈200 КБ) сохраняется целиком.
   const big = content("Большая игра", 60);
   check((await host.status("PATCH", `/api/games/${gameId}`, { content: big })) === 200, "большая игра (60 вопросов) сохраняется");
@@ -359,6 +366,71 @@ async function main() {
   const cleanup = await admin.call<{ deleted: number }>("POST", "/api/sessions/cleanup", { cutoff: Date.now() });
   check(typeof cleanup.deleted === "number", "автоочистка владельца работает");
   check((await host.status("GET", `/api/results/${sessionId}`)) === 200, "автоочистка не тронула свежую игру");
+
+  // ------------------------------------------------ база площадок
+  say("\n— База площадок —");
+  const guestPhone = new Device("площадка");
+  const formsStatus = await guestPhone.call<{ open: boolean }>("GET", "/api/venue-forms/status");
+  check(formsStatus.open === true, "анкеты на test открыты");
+  const venueId = uid();
+  const venueData = {
+    name: "Проверка: Белая веранда",
+    type: "Ресторан",
+    address: "ул. Проверочная, 1",
+    person: "Тестовый Администратор",
+    phone: "+7 900 000-00-99",
+    seated: 90,
+    standing: 140,
+    dance: true,
+    layouts: ["Круглые столы"],
+    features: ["Панорамные окна"],
+    perGuest: 5000,
+    district: "ЦАО",
+    metro: "Проверочная",
+  };
+  const missingVenue = await guestPhone.raw("POST", "/api/venue-forms/venue", { id: venueId, data: { name: "x" }, consent: true });
+  check(missingVenue.status === 400, "анкета без обязательных полей не принимается", String(missingVenue.status));
+  const sentVenue = await guestPhone.call<{ uploadToken: string }>("POST", "/api/venue-forms/venue", { id: venueId, from: hostUid, data: venueData, consent: true, photoFiles: 1, menuFiles: 1 });
+  check(sentVenue.uploadToken.length > 16, "анкета площадки принята без входа");
+  const photoUp = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/photo`, webp(41), { "Content-Type": "image/webp", "X-Upload-Token": sentVenue.uploadToken });
+  check(photoUp.ok, "фото площадки загружено по токену анкеты", String(photoUp.status));
+  const badToken = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/menu`, webp(42), { "Content-Type": "image/webp", "X-Upload-Token": "wrong-token-1234567890" });
+  check(badToken.status === 403, "без своего токена файл не загрузить", String(badToken.status));
+  const menuUp = await guestPhone.raw("PUT", `/api/venue-forms/venue/${venueId}/files/menu`, webp(43), { "Content-Type": "image/webp", "X-Upload-Token": sentVenue.uploadToken });
+  check(menuUp.ok, "меню загружено", String(menuUp.status));
+  const requestId = uid();
+  const requestData = { name: "Тестовый Клиент", phone: "+7 900 000-00-98", eventType: "Свадьба", guests: 70, format: "banquet", budget: 6000, wishes: { dance: 2, round: 1 } };
+  const sentRequest = await guestPhone.call<{ number: number }>("POST", "/api/venue-forms/request", { id: requestId, from: hostUid, data: requestData, consent: true, ack: true });
+  check(sentRequest.number > 0, "заявка клиента получила номер", String(sentRequest.number));
+  const requestAgain = await guestPhone.call<{ number: number }>("POST", "/api/venue-forms/request", { id: requestId, data: requestData, consent: true, ack: true });
+  check(requestAgain.number === sentRequest.number, "повтор после обрыва — тот же номер");
+  check((await guestPhone.status("GET", "/api/venues")) === 401, "гость не видит базу");
+  check((await host.status("GET", "/api/venues")) === 403, "ведущий без доступа не видит базу");
+  check((await host.status("GET", "/api/venue-requests")) === 403, "ведущий без доступа не видит заявки");
+  const baseList = await admin.call<Array<{ id: string; status: string; hostName: string | null; files: Array<{ kind: string }>; data: { phone: string } }>>("GET", "/api/venues");
+  const inBase = baseList.find((v) => v.id === venueId);
+  check(inBase?.status === "new" && inBase.files.length === 2, "площадка в базе со статусом «Новая», фото и меню на месте");
+  check(inBase?.hostName === "Проверка Студии", "видно, какой ведущий привёл площадку", String(inBase?.hostName));
+  check((await admin.status("PATCH", `/api/venues/${venueId}`, { status: "checked", rating: 4, notes: "Проверочная заметка" })) === 200, "владелец меняет статус, оценку и заметки");
+  const reread = await admin.call<{ status: string; rating: number; notes: string }>("GET", `/api/venues/${venueId}`);
+  check(reread.status === "checked" && reread.rating === 4 && reread.notes === "Проверочная заметка", "статус, оценка и заметки сохранились");
+  const reqList = await admin.call<Array<{ id: string; number: number; status: string }>>("GET", "/api/venue-requests");
+  check(reqList.some((r) => r.id === requestId && r.number === sentRequest.number && r.status === "new"), "заявка во вкладке заявок с номером и статусом «Новая»");
+  check((await admin.status("POST", `/api/users/${hostUid}/venue-access`, { access: true })) === 200, "владелец открыл ведущему базу");
+  check((await host.status("GET", "/api/venues")) === 200, "ведущий с доступом видит базу");
+  const offer = await host.call<{ id: string; items: Array<{ name: string; ok: string[] }> }>("POST", "/api/venue-offers", { requestId, venueIds: [venueId], comment: "Проверка" });
+  check(offer.items[0]?.name === venueData.name && (offer.items[0]?.ok ?? []).includes("танцпол"), "предложение собрано из базы, совпадения посчитаны");
+  const publicOffer = await new Device("клиент").raw("GET", `/api/offers/${offer.id}`);
+  const publicText = await publicOffer.text();
+  check(publicOffer.ok, "клиент открывает предложение без входа");
+  check(!/000-00-9|Проверочная, 1|Тестовый|Проверочная заметка/.test(publicText), "в предложении нет телефонов, адреса, имён и наших заметок");
+  const afterOffer = await admin.call<{ status: string; offers: number }>("GET", `/api/venue-requests/${requestId}`);
+  check(afterOffer.status === "sent" && afterOffer.offers === 1, "заявка стала «Предложение отправлено»");
+  await admin.status("POST", `/api/users/${hostUid}/venue-access`, { access: false });
+  check((await host.status("GET", "/api/venues")) === 403, "доступ закрыт обратно");
+  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "площадка удалена");
+  check((await new Device("клиент 2").status("GET", `/api/offers/${offer.id}`)) === 200, "отправленная ссылка открывается и после удаления площадки");
+  check((await admin.status("DELETE", `/api/venue-requests/${requestId}`)) === 200, "заявка удалена");
 
   // ------------------------------------------------ отключение ведущего
   say("\n— Отключение ведущего —");

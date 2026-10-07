@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { linesFromText, slideTemplate, SLIDE_TEMPLATES } from "../../core/slides";
+import { Icon, type IconName } from "../Icon";
 import { clock, SLIDE_LIMITS, type Session, type SessionChange, type SlideKind, type SlideState } from "../../data";
 
 const DRAFT_KEY = "joyrest.slides";
+
+const SLIDE_ICONS: Record<SlideKind, IconName> = {
+  intro: "intro",
+  rules: "rules",
+  round: "round",
+  break: "break",
+  award: "award",
+  thanks: "thanks",
+  custom: "custom",
+};
 
 interface Draft {
   title: string;
@@ -83,8 +94,7 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
   }
 
   return (
-    <section className="card" aria-labelledby="slides-title">
-      <h2 id="slides-title">Слайды на экране зала</h2>
+    <div className="stack">
       {current && (
         <div className="now-playing" aria-live="polite">
           <p className="eyebrow">Сейчас на экране</p>
@@ -96,10 +106,11 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
           </div>
         </div>
       )}
-      <div className="chips-row" role="group" aria-label="Шаблон">
+      <div className="tiles tiles--small" role="group" aria-label="Шаблон слайда">
         {SLIDE_TEMPLATES.map((t) => (
-          <button key={t.kind} type="button" className="btn btn--quiet chip-btn" aria-pressed={kind === t.kind} onClick={() => setKind(t.kind)}>
-            {t.label}
+          <button key={t.kind} type="button" className="tile" aria-pressed={kind === t.kind} onClick={() => setKind(t.kind)}>
+            <Icon name={SLIDE_ICONS[t.kind]} className="tile__icon" />
+            <span className="tile__label">{t.label}</span>
           </button>
         ))}
       </div>
@@ -138,7 +149,7 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
           Слайд не отправился. Проверьте интернет.
         </p>
       )}
-      <p className="muted small">Слайд закрывает экран игры, пока вы его не уберёте. Тексты запоминаются на этом телефоне.</p>
-    </section>
+      <p className="muted small">Слайд закрывает игру на экране, пока вы его не уберёте. Тексты запоминаются на этом телефоне.</p>
+    </div>
   );
 }

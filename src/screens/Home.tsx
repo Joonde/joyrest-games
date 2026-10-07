@@ -14,6 +14,9 @@ export function Home() {
       <Link className="btn btn--secondary btn--block" to="/studio">
         Я ведущий
       </Link>
+      <Link className="btn btn--quiet btn--block" to="/s">
+        Это экран зала: ввести код
+      </Link>
     </main>
   );
 }

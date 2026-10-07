@@ -1,13 +1,14 @@
 import { useState } from "react";
 import type { CueSound, SoundCue } from "../../data";
+import { Icon, type IconName } from "../Icon";
 
-const PAD: Array<{ sound: CueSound; label: string }> = [
-  { sound: "gong", label: "Гонг" },
-  { sound: "drumroll", label: "Барабанная дробь" },
-  { sound: "fanfare", label: "Фанфары" },
-  { sound: "applause", label: "Аплодисменты" },
-  { sound: "wrong", label: "Ошибка" },
-  { sound: "stop", label: "Стоп" },
+const PAD: Array<{ sound: CueSound; label: string; icon: IconName }> = [
+  { sound: "gong", label: "Гонг", icon: "gong" },
+  { sound: "drumroll", label: "Дробь", icon: "drum" },
+  { sound: "fanfare", label: "Фанфары", icon: "fanfare" },
+  { sound: "applause", label: "Аплодисменты", icon: "applause" },
+  { sound: "wrong", label: "Ошибка", icon: "wrong" },
+  { sound: "stop", label: "Стоп", icon: "stop" },
 ];
 
 function cueId(): string {
@@ -20,30 +21,32 @@ export function newCue(sound: CueSound): SoundCue {
 }
 
 /**
- * Кнопки звуков на пульте (CLAUDE.md, раздел 7, «Звуки»): нажали — звук играет на экране зала,
- * на телефонах гостей — никогда.
+ * Звуки на пульте (CLAUDE.md, раздел 7, «Звуки»): квадратные плитки с картинкой. Нажали — плитка
+ * вспыхивает, звук играет на экране зала (на телефонах гостей — никогда).
  */
 export function SoundPad({ onCue }: { onCue: (cue: SoundCue) => Promise<void> }) {
+  const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  const [sent, setSent] = useState<string | null>(null);
+
+  function press(sound: CueSound) {
+    setError(false);
+    setFlash(sound);
+    window.setTimeout(() => setFlash((f) => (f === sound ? null : f)), 600);
+    onCue(newCue(sound)).catch(() => setError(true));
+  }
+
   return (
-    <section className="card" aria-labelledby="sound-pad-title">
-      <h2 id="sound-pad-title">Звуки на экране зала</h2>
-      <div className="sound-pad">
+    <div className="stack">
+      <div className="tiles" role="group" aria-label="Звуки на экране зала">
         {PAD.map((item) => (
           <button
             key={item.sound}
             type="button"
-            className={item.sound === "stop" ? "btn btn--quiet" : "btn btn--secondary"}
-            onClick={() => {
-              setError(false);
-              setSent(null);
-              onCue(newCue(item.sound))
-                .then(() => setSent(item.label))
-                .catch(() => setError(true));
-            }}
+            className={flash === item.sound ? "tile is-flash" : "tile"}
+            onClick={() => press(item.sound)}
           >
-            {item.label}
+            <Icon name={item.icon} className="tile__icon" />
+            <span className="tile__label">{item.label}</span>
           </button>
         ))}
       </div>
@@ -52,15 +55,7 @@ export function SoundPad({ onCue }: { onCue: (cue: SoundCue) => Promise<void> })
           Звук не отправился. Проверьте интернет.
         </p>
       )}
-      {sent && !error && (
-        <p className="success small" role="status">
-          На экран зала: {sent}
-        </p>
-      )}
-      <p className="muted small">
-        Звук играет только на экране зала. Не слышно — коснитесь экрана зала один раз: браузер включает звук только после
-        касания.
-      </p>
-    </section>
+      <p className="muted small">Звук играет на экране зала. Нет звука — коснитесь экрана зала один раз.</p>
+    </div>
   );
 }

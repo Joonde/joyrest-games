@@ -14,7 +14,7 @@ export interface SlideTemplate {
 export const SLIDE_TEMPLATES: SlideTemplate[] = [
   {
     kind: "intro",
-    label: "Заставка вечера",
+    label: "Заставка",
     fields: { title: "Название вечера", text: "Подзаголовок" },
     defaults: { title: "Добро пожаловать!", text: "Сегодня играем вместе с JoyRest", lines: [] },
   },
@@ -47,7 +47,7 @@ export const SLIDE_TEMPLATES: SlideTemplate[] = [
   },
   {
     kind: "award",
-    label: "Слайд награждения",
+    label: "Награждение",
     fields: { title: "Заголовок", text: "Подпись" },
     defaults: { title: "Награждение", text: "Встречаем победителей!", lines: [] },
   },

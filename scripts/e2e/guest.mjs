@@ -232,6 +232,8 @@ async function soloGame(browser, token) {
   await shot(host, "пульт-лобби", "Пульт: лобби");
 
   step("пульт: слайд «Правила» на экране", host);
+  await clickButton(host, "Слайды");
+  await layoutCheck(host, "Пульт: слайды");
   await clickButton(host, "Правила");
   await clickButton(host, "Показать на экране");
   await expectText(screen, screen.locator(".slide__title"), "Правила игры", "Экран зала, слайд правил");
@@ -239,6 +241,10 @@ async function soloGame(browser, token) {
   await clickButton(host, "Убрать слайд — вернуть игру");
   await screen.locator(".slide").waitFor({ state: "detached", timeout: WAIT });
   ok("Экран зала: слайд убран, игра снова на экране");
+  await clickButton(host, "Звуки");
+  await layoutCheck(host, "Пульт: звуки");
+  await clickButton(host, "Гонг");
+  await clickButton(host, "Игра");
 
   step("пульт: начать игру и показать вопрос", host);
   await clickButton(host, "Начать игру");
@@ -324,7 +330,7 @@ async function teamsGame(browser, token) {
   await shot(captain.page, "капитан", "Телефон капитана");
   await shot(screen, "экран-команды", "Экран зала: команды");
   await clickButton(host, "Начать игру");
-  await clickButton(host, "Завершить игру").catch(() => undefined);
+  await clickButton(host, "Завершить игру досрочно").catch(() => undefined);
   await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: 5000 }).catch(() => undefined);
   await Promise.all([hostContext.close(), screenContext.close(), captain.context.close(), member.context.close()]);
 }

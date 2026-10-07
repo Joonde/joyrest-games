@@ -54,8 +54,7 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
   const next = music ? nextInCategory(tracks, music.trackId) : null;
 
   return (
-    <section className="card" aria-labelledby="music-panel-title">
-      <h2 id="music-panel-title">Музыка на экране зала</h2>
+    <div className="stack">
 
       {music && (
         <div className="now-playing" aria-live="polite">
@@ -151,7 +150,7 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
           Команда не дошла. Проверьте интернет.
         </p>
       )}
-      <p className="muted small">Музыка играет только на экране зала. Под гонг и аплодисменты она сама становится тише.</p>
-    </section>
+      <p className="muted small">Музыка играет на экране зала и сама притихает под гонг и аплодисменты.</p>
+    </div>
   );
 }

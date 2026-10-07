@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 import postgres from "postgres";
 import { buildApp, parseDataBackend } from "./app";
+import { scheduleCleanup } from "./cleanup";
 import { isOn } from "./site";
 
 const port = Number(process.env.PORT ?? 8080);
@@ -19,6 +20,8 @@ const siteDirRaw = env("SITE_DIR");
 const siteDir = siteDirRaw ? resolve(siteDirRaw) : null;
 const leadToken = env("LEAD_TELEGRAM_TOKEN");
 const leadChat = env("LEAD_TELEGRAM_CHAT_ID");
+
+const mediaDir = env("MEDIA_DIR") ? resolve(env("MEDIA_DIR") ?? "") : null;
 
 const app = buildApp({
   version: process.env.APP_VERSION ?? "dev",
@@ -44,7 +47,7 @@ const app = buildApp({
   // (CLAUDE.md, «Платформа на своём сервере»).
   dataBackend: parseDataBackend(process.env.DATA_BACKEND),
   sql,
-  mediaDir: env("MEDIA_DIR") ? resolve(env("MEDIA_DIR") ?? "") : null,
+  mediaDir,
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;
@@ -56,7 +59,11 @@ if (siteDir && siteHosts.length > 0 && isOn(process.env.SITE_ENABLED) && !(leadT
   app.log.warn("Заявки с сайта выключены: нет LEAD_TELEGRAM_TOKEN или LEAD_TELEGRAM_CHAT_ID (sudo joyrest lead-bot)");
 }
 
+// Ночная уборка: картинки без ссылок, недописанные файлы, старые устройства гостей.
+const stopCleanup = sql ? scheduleCleanup(sql, mediaDir, app.log) : () => undefined;
+
 async function shutdown(): Promise<void> {
+  stopCleanup();
   await app.close();
   await sql?.end({ timeout: 5 });
   process.exit(0);

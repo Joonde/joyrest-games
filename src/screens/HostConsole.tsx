@@ -233,6 +233,7 @@ function Console({ session }: { session: Session }) {
             {phase === "lobby" && (
               <>
                 <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
+                <LobbyNames session={session} onMore={() => setTab("people")} />
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
                   Начать игру
                 </button>
@@ -317,6 +318,31 @@ function Console({ session }: { session: Session }) {
       </ConfirmDialog>
       <Toast text={toast} />
     </main>
+  );
+}
+
+const LOBBY_NAMES = 12;
+
+/** Кто уже подключился — коротко, на главной вкладке пульта; все и правки — во вкладке «Гости». */
+function LobbyNames({ session, onMore }: { session: Session; onMore: () => void }) {
+  const board = rankedLeaderboard(session.leaderboard);
+  if (board.length === 0) return <p className="muted small">Гости появятся здесь, как только отсканируют код.</p>;
+  const rest = board.length - LOBBY_NAMES;
+  return (
+    <ul className="chips" aria-label={session.playMode === "teams" ? "Команды" : "Игроки"}>
+      {board.slice(0, LOBBY_NAMES).map((entry) => (
+        <li key={entry.id} className={entry.kind === "team" ? "chip chip--team" : "chip"} style={entry.colorIndex !== undefined ? ({ "--team-color": teamColorVar(entry.colorIndex) } as CSSProperties) : undefined}>
+          {entry.name}
+        </li>
+      ))}
+      {rest > 0 && (
+        <li>
+          <button type="button" className="chip chip--more" onClick={onMore}>
+            и ещё {rest}
+          </button>
+        </li>
+      )}
+    </ul>
   );
 }
 

@@ -4041,3 +4041,19 @@ kbd {
     align-items: start;
   }
 }
+
+.chips > li {
+  list-style: none;
+}
+
+ul.chips {
+  margin: 0;
+  padding: 0;
+}
+
+.chip--more {
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  min-height: 44px;
+}

@@ -141,7 +141,12 @@ Firebase удаляются, Firebase-код удаляется отдельны
 
 - **Переключатель.** Образ один на оба окружения, поэтому реализация слоя данных выбирается
   при запуске: `DATA_BACKEND` в compose. app-test — всегда `server`, app-prod —
-  `${DATA_BACKEND:-firebase}` из `settings.env` (переключает владелец в PR 9, откат — обратно).
+  `${DATA_BACKEND:-firebase}` из `settings.env`. Переключает только владелец:
+  `sudo joyrest data server` (этап 9; отказ, если в основной базе нет владельца с паролем —
+  сначала `sudo joyrest admin-password`; во время игры — только с `force`), откат —
+  `sudo joyrest data firebase`. Выкладка, CI и привратник `DATA_BACKEND` не трогают
+  (`server/src/platform.test.ts`). Netlify перенаправляет на games.joy-rest.ru отдельным PR
+  после проверки владельцем.
   Сервер вставляет в `index.html` метку `<meta name="joyrest-data" content="server|firebase">`
   (`withDataBackend`, `server/src/app.ts`); свой сервер — только точное `server`, иначе Firebase.
   `src/data/index.ts` по метке берёт реализацию; сборка Netlify метки не имеет — Firebase.

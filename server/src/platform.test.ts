@@ -32,11 +32,25 @@ describe("переключатель слоя данных", () => {
     expect(service("app-test")).toMatch(/^ {6}DATA_BACKEND: server$/m);
   });
 
-  it("ни выкладка, ни CI не переключают основную версию (это делает владелец, PR 9)", () => {
-    expect(joyrest).not.toContain("DATA_BACKEND");
-    for (const file of ["build.yml", "mirror-images.yml", "ports.yml"]) {
+  it("ни выкладка, ни CI не переключают основную версию (это делает владелец, этап 9)", () => {
+    for (const file of ["build.yml", "mirror-images.yml", "ports.yml", "load.yml"]) {
       expect(read(`.github/workflows/${file}`), file).not.toContain("DATA_BACKEND");
     }
+    expect(read("deploy/bin/joyrest-gate")).not.toMatch(/DATA_BACKEND|\bdata\b/);
+    // joyrest пишет DATA_BACKEND только в команде data и только значением владельца.
+    const writes = [...joyrest.matchAll(/set_env_value[^\n]*DATA_BACKEND[^\n]*/g)].map((m) => m[0]);
+    expect(writes).toEqual(['set_env_value "$SETTINGS_FILE" DATA_BACKEND "$value" || die "Не удалось записать $SETTINGS_FILE."']);
+    const command = bashFunction("cmd_data");
+    expect(command).toMatch(/case "\$value" in server\|firebase\)/);
+    expect(command).toContain("need_root data");
+    expect(command).toContain('ensure_no_game "$force" "data $value"');
+    expect(joyrest).not.toMatch(/DATA_BACKEND=server|DATA_BACKEND server\b/);
+  });
+
+  it("на свой сервер — только если в основной базе есть владелец с паролем", () => {
+    const command = bashFunction("cmd_data");
+    expect(command).toContain("password_hash is not null");
+    expect(command.indexOf("password_hash is not null")).toBeLessThan(command.indexOf("set_env_value"));
   });
 });
 

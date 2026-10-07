@@ -7,10 +7,15 @@ import { StudioSkeleton } from "../../components/Skeleton";
 import { TopBar } from "../../components/TopBar";
 
 export function ChangePassword() {
-  return <HostGate skeleton={<StudioSkeleton />}>{() => <PasswordForm />}</HostGate>;
+  return (
+    <HostGate skeleton={<StudioSkeleton />}>
+      {(_user, profile) => <PasswordForm mustChange={profile.mustChangePassword === true} />}
+    </HostGate>
+  );
 }
 
-function PasswordForm() {
+/** `mustChange` — вошёл по временному паролю: в студию только после смены. */
+function PasswordForm({ mustChange }: { mustChange: boolean }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [repeat, setRepeat] = useState("");
@@ -42,7 +47,14 @@ function PasswordForm() {
 
   return (
     <main className="page">
-      <TopBar title="Пароль" actions={[{ label: "В студию", to: "/studio" }]} />
+      <TopBar
+        title="Пароль"
+        actions={
+          mustChange && !done
+            ? [{ label: "Выйти", onClick: () => void authService.signOut() }]
+            : [{ label: "В студию", to: "/studio" }]
+        }
+      />
       {done ? (
         <section className="card">
           <h2>Пароль изменён</h2>
@@ -55,10 +67,14 @@ function PasswordForm() {
         </section>
       ) : (
         <form className="card" onSubmit={onSubmit}>
-          <h2>Сменить пароль</h2>
-          <p className="muted">Если вам выдали временный пароль, замените его на свой.</p>
+          <h2>{mustChange ? "Задайте свой пароль" : "Сменить пароль"}</h2>
+          <p className="muted">
+            {mustChange
+              ? "Вы вошли по временному паролю. Придумайте свой — после этого откроется студия."
+              : "Если вам выдали временный пароль, замените его на свой."}
+          </p>
           <label className="field">
-            Текущий пароль
+            {mustChange ? "Временный пароль" : "Текущий пароль"}
             <input
               type="password"
               autoComplete="current-password"

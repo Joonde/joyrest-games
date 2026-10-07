@@ -13,6 +13,7 @@ import {
   type UserProfile,
 } from "../data";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ActionMenu } from "../components/Menu";
 import { HostGate } from "../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../components/Skeleton";
 import { LoadFailedInline } from "../components/Status";
@@ -51,8 +52,9 @@ function useSessionCleanup(): CleanupState {
 function AdminContent({ profile }: { profile: UserProfile }) {
   const [hosts, retry, update] = useLoad(() => usersRepo.listHosts(), []);
   const cleanup = useSessionCleanup();
-  const [created, setCreated] = useState<CreatedHost | null>(null);
+  const [created, setCreated] = useState<IssuedPassword | null>(null);
   const [toDisable, setToDisable] = useState<HostAccount | null>(null);
+  const [toReset, setToReset] = useState<HostAccount | null>(null);
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, showToast] = useToast();
@@ -73,6 +75,25 @@ function AdminContent({ profile }: { profile: UserProfile }) {
     }
   }
 
+  // Есть только на своём сервере: у Firebase без Cloud Functions сбросить пароль нельзя.
+  const resetPassword = usersRepo.resetHostPassword?.bind(usersRepo);
+
+  async function reset(host: HostAccount) {
+    if (!resetPassword) return;
+    setBusyUid(host.uid);
+    setDialogError(null);
+    try {
+      const result = await resetPassword(host.uid);
+      setToReset(null);
+      setCreated({ ...result, kind: "reset" });
+      window.scrollTo({ top: 0 });
+    } catch (e) {
+      setDialogError(authService.describeError(e));
+    } finally {
+      setBusyUid(null);
+    }
+  }
+
   return (
     <main className="page">
       <TopBar
@@ -88,7 +109,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
       ) : (
         <AddHostForm
           onCreated={(result) => {
-            setCreated(result);
+            setCreated({ ...result, kind: "created" });
             update((list) => [result.account, ...list]);
           }}
         />
@@ -112,21 +133,38 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                   </span>
                 </div>
                 {permissions.canSetHostActive(profile, host) && (
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
-                    disabled={busyUid === host.uid}
-                    onClick={() => {
-                      if (host.active) {
-                        setDialogError(null);
-                        setToDisable(host);
-                      } else {
-                        void setActive(host, true);
-                      }
-                    }}
-                  >
-                    {host.active ? "Отключить" : "Включить"}
-                  </button>
+                  <div className="people__actions">
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      disabled={busyUid === host.uid}
+                      onClick={() => {
+                        if (host.active) {
+                          setDialogError(null);
+                          setToDisable(host);
+                        } else {
+                          void setActive(host, true);
+                        }
+                      }}
+                    >
+                      {host.active ? "Отключить" : "Включить"}
+                    </button>
+                    {resetPassword && permissions.canResetHostPassword(profile, host) && (
+                      <ActionMenu
+                        icon="dots"
+                        label={`Действия: ${host.name}`}
+                        actions={[
+                          {
+                            label: "Новый временный пароль",
+                            onClick: () => {
+                              setDialogError(null);
+                              setToReset(host);
+                            },
+                          },
+                        ]}
+                      />
+                    )}
+                  </div>
                 )}
               </li>
             ))}
@@ -147,6 +185,21 @@ function AdminContent({ profile }: { profile: UserProfile }) {
       >
         <p>
           {toDisable?.name} больше не сможет войти в студию и запускать игры. Включить доступ можно в любой момент.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={toReset !== null}
+        title="Новый временный пароль?"
+        confirmLabel="Выдать пароль"
+        busy={busyUid !== null}
+        error={dialogError}
+        onConfirm={() => toReset && void reset(toReset)}
+        onCancel={() => setToReset(null)}
+      >
+        <p>
+          {toReset?.name} выйдет на всех устройствах, старый пароль перестанет действовать. Новый пароль покажем один
+          раз — при входе ведущий заменит его на свой.
         </p>
       </ConfirmDialog>
 
@@ -219,22 +272,25 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
   );
 }
 
+/** Новый ведущий или новый временный пароль существующему. */
+type IssuedPassword = CreatedHost & { kind: "created" | "reset" };
+
 /** Временный пароль показывается один раз: он нигде не хранится. */
 function CreatedCard({
   created,
   onDone,
   onToast,
 }: {
-  created: CreatedHost;
+  created: IssuedPassword;
   onDone: () => void;
   onToast: (text: string) => void;
 }) {
-  const { account, temporaryPassword } = created;
+  const { account, temporaryPassword, kind } = created;
   const loginText = [
     `Вход для ведущего JoyRest Games: ${window.location.origin}/studio`,
     `Почта: ${account.email}`,
     `Временный пароль: ${temporaryPassword}`,
-    "После входа смените пароль в меню студии.",
+    "После входа задайте свой пароль в меню студии.",
   ].join("\n");
 
   async function copy() {
@@ -248,7 +304,7 @@ function CreatedCard({
 
   return (
     <section className="card" aria-live="polite">
-      <h2>Добавлен ведущий: {account.name}</h2>
+      <h2>{kind === "reset" ? `Новый пароль: ${account.name}` : `Добавлен ведущий: ${account.name}`}</h2>
       <p>Передайте ведущему данные для входа. Пароль показывается только сейчас, после входа его можно сменить.</p>
       <dl className="credentials">
         <dt>Почта</dt>

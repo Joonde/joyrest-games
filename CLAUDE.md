@@ -151,12 +151,33 @@ Firebase удаляются, Firebase-код удаляется отдельны
   его не переключили, миграции только добавляющие.
 - **Экраны и механики не меняются:** `src/data/server/` — вторая реализация интерфейсов
   `contracts.ts`. Исключения — `/admin`: «Новый временный пароль» и перенос из Firebase.
-- **Вход ведущих:** argon2id (`hash-wasm`, без нативных модулей), cookie `__Host-jr_s`
-  (httpOnly, Secure, SameSite=Lax), в базе — sha256 от неё, срок 30 дней. 10 попыток за 15 минут
-  на IP + почту. Пароль владельца — `sudo joyrest admin-password [test]` (скрытый ввод, ≥ 12
+- **Вход ведущих (PR 3.1):** пароль — scrypt из встроенного `node:crypto` (N = 2^15, r = 8, p = 1,
+  соль 16 байт; формат `scrypt$15$8$1$<соль>$<хэш>`, `server/src/password.ts`) — без сторонних пакетов
+  и нативных модулей. Cookie `__Host-jr_s` (httpOnly, Secure, SameSite=Lax, 30 дней, продлевается
+  не чаще раза в сутки), в базе `auth_sessions` — sha256 от неё. Попытки входа: 10 за 15 минут на
+  IP + почту и 30 на IP (429). Неизвестная почта проверяется так же долго, ошибка одна —
+  `auth/invalid-credential`. Отключение ведущего, новый временный пароль и смена пароля закрывают
+  его другие сеансы. Владелец агентства на своём сервере — аккаунт с id `ADMIN_UID` (тот же, что в
+  Firebase, — для переноса); пароль — `sudo joyrest admin-password [test]` (скрытый ввод, ≥ 12
   символов; почта и пароль — строками через stdin в `server/admin-password.js`). Ведущим пароль
-  выдаёт admin в `/admin` («Новый временный пароль», показывается один раз, при входе — смена);
+  выдаёт admin в `/admin` («Новый временный пароль» в меню «⋯», показывается один раз;
+  `users.must_change_password` → `HostGate` ведёт на `/studio/password`, пока ведущий не задаст свой);
   так же после переноса из Firebase (пароли Firebase не переносятся) — для любого числа ведущих.
+  Право — `permissions.canResetHostPassword` (только свой сервер, в `firestore.rules` его нет).
+- **API входа (`server/src/auth.ts`):** `GET /api/auth/me`, `POST /api/auth/login|logout|password`,
+  `GET|POST /api/users`, `POST /api/users/:id/active|password`. Ответы `no-store`, тело ≤ 4 КБ.
+  Изменения — только с заголовком `X-JoyRest: 1` и `Origin` своего адреса (иначе 403); на адресах
+  сайта агентства API нет (404). Ошибки — `{ "error": "<код>" }` с кодами как у Firebase
+  (`auth/invalid-credential`, `auth/user-disabled`, `auth/too-many-requests`,
+  `auth/email-already-in-use`, `auth/weak-password`, `auth/wrong-password`, `unauthenticated`,
+  `permission-denied`, `not-found`, `invalid-argument`): тексты (`src/data/authErrors.ts`) и повторы
+  (`retry.ts`) общие для обеих реализаций. В журнал — только действие и итог, без почты и паролей.
+- **Выбор реализации в браузере:** `src/data/backend.ts` читает метку, `src/data/active.ts` выбирает
+  экземпляры, `index.ts` и `hooks.ts` берут их только оттуда. На своём сервере Firebase SDK не
+  скачивается (`preloadData` ничего не делает). `src/data/server/`: `api.ts` (fetch, `ApiError` с
+  кодом; сбой сети и 5xx — `unavailable`, повторяется), `auth.ts`, `users.ts`; ещё не перенесённое
+  (игры, картинки, сессии, гости, ответы, история) до своих PR отвечает `unimplemented`
+  (`unavailable.ts`) — на test эти экраны показывают ошибку, а не крутят загрузку.
 - **Гости и экран зала:** токен устройства в cookie `__Host-jr_d` (180 дней), `uid` устройства —
   его `AuthUser.uid`. Мягкий лимит выдачи по IP (весь зал за одним Wi‑Fi): до 600 новых в час —
   сразу, дальше задержка 1–3 с, потолок 3000 в час.
@@ -166,7 +187,9 @@ Firebase удаляются, Firebase-код удаляется отдельны
   `Origin` и заголовок `X-JoyRest`. Права — функции `src/data/permissions.ts`, время ответа и
   `startedAt` ставит сервер (`canSubmitAnswer` по его часам). Все записи повторяемы: id создаёт
   клиент, ответ — ключ `step_pid`, запись таблицы — целиком.
-- **Схема PostgreSQL:** `users`, `auth_sessions`, `devices`, `games` (`content jsonb`), `media`,
+- **Схема PostgreSQL:** `users` (`id`, `email` — уникальна без регистра, `name`, `role`, `active`,
+  `password_hash`, `must_change_password`; миграция `0001_accounts.sql`), `auth_sessions`
+  (`token_hash`, `user_id`, `expires_at`), `devices`, `games` (`content jsonb`), `media`,
   `sessions` (`state jsonb`, `phase` — вычисляемая из `state->>'phase'`, `leaderboard jsonb`,
   `version`, `updated_at` при каждом действии пульта; уникальный `code` среди `lobby`/`playing`),
   `participants`, `answers` (ключ `session_id, step, pid`), `results`. id из Firebase сохраняются.

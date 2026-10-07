@@ -32,6 +32,15 @@ export function canSetHostActive(actor: Actor, target: Pick<UserProfile, "uid">)
   return isAdmin(actor) && target.uid !== ADMIN_UID && target.uid !== actor?.uid;
 }
 
+/**
+ * «Новый временный пароль» ведущему — только на своём сервере (у Firebase без Cloud Functions
+ * этого нет, поэтому в firestore.rules правила нет). Те же ограничения, что у отключения:
+ * свой пароль меняют в студии, пароль владельца — `sudo joyrest admin-password`.
+ */
+export function canResetHostPassword(actor: Actor, target: Pick<UserProfile, "uid">): boolean {
+  return canSetHostActive(actor, target);
+}
+
 type GameRef = Pick<Game, "scope" | "ownerId">;
 
 export function canReadGame(actor: Actor, game: GameRef): boolean {

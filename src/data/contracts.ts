@@ -56,6 +56,11 @@ export interface UsersRepository {
   createHost(email: string, name: string): Promise<CreatedHost>;
   /** Только admin: отключение (active = false) блокирует вход и создание сессий. */
   setHostActive(uid: string, active: boolean): Promise<void>;
+  /**
+   * Только admin, только свой сервер: новый временный пароль ведущему (показывается один раз,
+   * при входе ведущий задаёт свой). У Firebase без Cloud Functions этого нет — метода нет.
+   */
+  resetHostPassword?(uid: string): Promise<CreatedHost>;
 }
 
 export interface GamesRepository {

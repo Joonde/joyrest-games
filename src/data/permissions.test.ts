@@ -47,6 +47,17 @@ describe("ведущие", () => {
     expect(p.canSetHostActive(admin2, { uid: "admin-2" })).toBe(false);
     expect(p.canSetHostActive(host, { uid: "host-2" })).toBe(false);
   });
+
+  it("новый временный пароль — admin ведущему, но не себе и не владельцу", () => {
+    expect(p.canResetHostPassword(owner, { uid: "host-1" })).toBe(true);
+    expect(p.canResetHostPassword(admin2, { uid: "host-1" })).toBe(true);
+    expect(p.canResetHostPassword(owner, { uid: ADMIN_UID })).toBe(false);
+    expect(p.canResetHostPassword(admin2, { uid: ADMIN_UID })).toBe(false);
+    expect(p.canResetHostPassword(admin2, { uid: "admin-2" })).toBe(false);
+    expect(p.canResetHostPassword(host, { uid: "host-2" })).toBe(false);
+    expect(p.canResetHostPassword(offAdmin, { uid: "host-1" })).toBe(false);
+    expect(p.canResetHostPassword(guest, { uid: "host-1" })).toBe(false);
+  });
 });
 
 describe("игры", () => {

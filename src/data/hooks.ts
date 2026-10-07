@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { authService } from "./auth";
+import { authService, sessionsRepo, usersRepo } from "./active";
 import type { AuthUser } from "./contracts";
 import { Cancelled, withRetry } from "./retry";
-import { sessionsRepository } from "./sessions";
 import type { Session, UserProfile } from "./types";
-import { usersRepository } from "./users";
 
 /** Счётчик попыток: смена значения перезапускает загрузку в эффекте. */
 function useAttempt(): [number, () => void] {
@@ -35,7 +33,7 @@ export function useAuth(): [AuthState, () => void] {
         }
         setState({ status: "loading" });
         // Медленная сеть — не повод сказать «нет доступа»: профиль грузится, пока не придёт.
-        withRetry(() => usersRepository.loadProfile(user), () => cancelled)
+        withRetry(() => usersRepo.loadProfile(user), () => cancelled)
           .catch(() => null)
           .then((profile) => {
             if (!cancelled) setState({ status: "signedIn", user, profile });
@@ -110,12 +108,12 @@ function rememberSession(code: string, sessionId: string): void {
 }
 
 async function findSession(code: string, hostId: string | undefined): Promise<Session | null> {
-  if (hostId) return sessionsRepository.findHostSessionByCode(code, hostId);
-  const active = await sessionsRepository.findByCode(code);
+  if (hostId) return sessionsRepo.findHostSessionByCode(code, hostId);
+  const active = await sessionsRepo.findByCode(code);
   if (active) return active;
   const knownId = knownSessions().find(([c]) => c === code)?.[1];
   if (!knownId) return null;
-  const known = await sessionsRepository.get(knownId);
+  const known = await sessionsRepo.get(knownId);
   return known?.code === code ? known : null;
 }
 
@@ -153,7 +151,7 @@ export function useSessionByCode(
         }
         rememberSession(code, found.id);
         setState({ status: "ready", session: found });
-        unsubscribe = sessionsRepository.watch(
+        unsubscribe = sessionsRepo.watch(
           found.id,
           (session) => setState(session ? { status: "ready", session } : { status: "notFound" }),
           // Обрыв сети подписка переживает сама; ошибка здесь — только отказ в доступе.

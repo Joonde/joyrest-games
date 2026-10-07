@@ -8,6 +8,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
+import type { Sql } from "postgres";
+import { registerAuth, type AuthOptions } from "./auth";
 import { registerLead, type LeadOptions } from "./lead";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -32,6 +34,12 @@ export interface AppOptions {
    * переезда). Сервер сообщает её меткой в index.html; по умолчанию — Firebase.
    */
   dataBackend?: DataBackend;
+  /**
+   * База для API платформы (вход и ведущие — PR 3.1); null — API нет (тесты без базы).
+   * `auth` — настройки для тестов (часы, лимиты).
+   */
+  sql?: Sql | null;
+  auth?: Omit<AuthOptions, "sql" | "isSite">;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
 }
@@ -77,6 +85,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
   if (options.site?.enabled && options.lead) {
     registerLead(app, { ...options.lead, hosts: options.site.hosts }, { constraints: { host: hostPattern(options.site.hosts) } });
   }
+  // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.
+  if (options.sql) registerAuth(app, { ...options.auth, sql: options.sql, isSite: site ? site.isSite : undefined });
 
   const publicDir = options.publicDir;
   if (publicDir && existsSync(join(publicDir, "index.html"))) {

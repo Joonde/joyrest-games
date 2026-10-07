@@ -5,7 +5,7 @@ export const TEMP_PASSWORD_LENGTH = 10;
 
 /** Временный пароль ведущего. `random` — источник случайных байт (по умолчанию crypto). */
 export function generateTempPassword(
-  random: (bytes: Uint8Array) => Uint8Array = (bytes) => crypto.getRandomValues(bytes),
+  random: (bytes: Uint8Array<ArrayBuffer>) => Uint8Array = (bytes) => crypto.getRandomValues(bytes),
 ): string {
   let result = "";
   // Отбрасываем байты за пределами кратного длине алфавита — без перекоса распределения.

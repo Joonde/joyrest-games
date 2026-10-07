@@ -924,7 +924,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
      * Поток событий: подписка раньше снимка (ничего не теряется), снимок, дальше изменения.
      * «Я жив» — комментарий раз в keepAliveMs: прокси и мобильные сети не рвут тихое соединение.
      */
-    async function stream(request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+    async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
       reply.hijack();
       const res = reply.raw;
       res.writeHead(200, {

@@ -319,3 +319,17 @@ export interface LibraryProposal {
   createdAt: number;
   decidedAt: number | null;
 }
+
+/** Карточка ведущего в «Команде JoyRest» — без почты, квалификации и баллов. */
+export interface TeamMember {
+  uid: string;
+  name: string;
+  bio: string;
+  /** Отпечаток аватарки (адрес картинки меняется вместе с ним); null — нет. */
+  avatar: string | null;
+  cover: string | null;
+  /** Владелец агентства. */
+  owner: boolean;
+  /** С какого дня в JoyRest (дата добавления). */
+  since: number | null;
+}

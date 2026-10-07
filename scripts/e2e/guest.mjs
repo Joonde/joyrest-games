@@ -320,12 +320,33 @@ async function teamsGame(browser, token) {
   await Promise.all([hostContext.close(), screenContext.close(), captain.context.close(), member.context.close()]);
 }
 
+/** Страницы ведущего: музыка, профиль и команда — без ошибок и прокрутки вбок на телефоне. */
+async function studioPages(browser, token) {
+  say("— Студия ведущего —");
+  const context = await browser.newContext(PHONE);
+  await context.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
+  const page = await context.newPage();
+  watch(page, "Студия");
+  for (const [path, text, what] of [
+    ["/studio?tab=music", "Загрузить трек", "Студия: музыка"],
+    ["/studio/profile", "О себе", "Мой профиль"],
+    ["/studio/team", "Ведущие JoyRest", "Команда JoyRest"],
+  ]) {
+    step(`${what} открывается`, page);
+    await page.goto(`${BASE}${path}`);
+    await expectText(page, page.locator("main"), text, what);
+    await layoutCheck(page, what);
+  }
+  await context.close();
+}
+
 mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch();
 try {
   const token = await login();
   await soloGame(browser, token);
   await teamsGame(browser, token);
+  await studioPages(browser, token);
 } catch (error) {
   bad(`Проверка остановилась на шаге «${currentStep}»: ${String(error?.message ?? error).split("\n")[0].slice(0, 160)}`);
   if (currentPage) {

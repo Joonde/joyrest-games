@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, permissions, tracksRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, permissions, teamRepo, tracksRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -37,6 +37,12 @@ export function Studio() {
 export function studioActions(profile: UserProfile): TopBarAction[] {
   return [
     ...(permissions.canManageHosts(profile) ? [{ label: "Ведущие", to: "/admin" }] : []),
+    ...(teamRepo
+      ? [
+          { label: "Команда JoyRest", to: "/studio/team" },
+          { label: "Мой профиль", to: "/studio/profile" },
+        ]
+      : []),
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },
   ];

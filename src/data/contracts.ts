@@ -12,6 +12,7 @@ import type {
   GamePatch,
   HostLevel,
   LibraryProposal,
+  TeamMember,
   Track,
   TrackCategory,
   TrackInput,
@@ -170,6 +171,16 @@ export interface ClockService {
  * Предложения в библиотеку (CLAUDE.md, раздел 3). Есть только на своём сервере; у Firebase —
  * null, кнопки не показываются.
  */
+/** «Команда JoyRest»: карточки ведущих — только свой сервер (CLAUDE.md, раздел 3). */
+export interface TeamRepository {
+  list(): Promise<TeamMember[]>;
+  setBio(bio: string): Promise<void>;
+  upload(kind: "avatar" | "cover", image: Blob, width: number, height: number): Promise<void>;
+  remove(kind: "avatar" | "cover"): Promise<void>;
+  /** Адрес картинки карточки (с отпечатком — кэш браузера на год). */
+  imageUrl(uid: string, kind: "avatar" | "cover", sha: string): string;
+}
+
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */
 export interface TracksRepository {
   /** Свои треки и общая библиотека (только загруженные). */

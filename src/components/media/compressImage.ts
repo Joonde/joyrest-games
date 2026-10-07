@@ -107,3 +107,58 @@ export async function compressImage(file: File): Promise<MediaUpload> {
     if (!(source instanceof HTMLImageElement)) source.close();
   }
 }
+
+/**
+ * Аватарка и обложка ведущего: обрезка по центру под нужные пропорции (1:1 — аватарка, 3:1 —
+ * обложка), WebP (на iPhone — JPEG) и подбор качества до цели.
+ */
+export async function cropImage(
+  file: File,
+  options: { aspect: number; width: number; targetBytes: number; maxBytes: number },
+): Promise<{ blob: Blob; width: number; height: number }> {
+  if (!file.type.startsWith("image/")) throw new ImageError("Это не картинка. Выберите фото.");
+  let source: Source;
+  try {
+    source = await decode(file);
+  } catch {
+    throw new ImageError("Не получилось открыть картинку. Попробуйте JPEG или PNG.");
+  }
+  try {
+    const { width: w, height: h } = sourceSize(source);
+    // Самый большой прямоугольник нужных пропорций по центру.
+    const cropW = Math.min(w, h * options.aspect);
+    const cropH = cropW / options.aspect;
+    const sx = (w - cropW) / 2;
+    const sy = (h - cropH) / 2;
+    const type = await encodeType();
+    let outW = Math.max(1, Math.round(Math.min(options.width, cropW)));
+    let best: Blob | null = null;
+    let bestSize = { width: outW, height: Math.round(outW / options.aspect) };
+    for (let round = 0; round < 3; round++) {
+      const outH = Math.max(1, Math.round(outW / options.aspect));
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new ImageError("Браузер не смог обработать картинку.");
+      ctx.fillStyle = "#FBF6F1";
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(source, sx, sy, cropW, cropH, 0, 0, outW, outH);
+      for (const quality of QUALITY_STEPS) {
+        const blob = await toBlob(canvas, type, quality);
+        if (!blob) continue;
+        if (!best || blob.size < best.size) {
+          best = blob;
+          bestSize = { width: outW, height: outH };
+        }
+        if (blob.size <= options.targetBytes) return { blob, width: outW, height: outH };
+      }
+      outW = Math.round(outW * 0.8);
+    }
+    if (!best || best.size > options.maxBytes) throw new ImageError("Картинка слишком сложная — выберите другую.");
+    return { blob: best, ...bestSize };
+  } finally {
+    if (!(source instanceof HTMLImageElement)) source.close();
+  }
+}

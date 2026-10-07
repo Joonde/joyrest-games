@@ -2492,6 +2492,75 @@ kbd {
   padding: 0;
 }
 
+/* Команда JoyRest: карточки ведущих. */
+.team-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+}
+
+.team-card {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.team-card__cover {
+  aspect-ratio: 3 / 1;
+  background: var(--gradient-secondary);
+}
+
+.team-card__cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 24px 24px;
+}
+
+.team-card__avatar {
+  width: 96px;
+  height: 96px;
+  margin-top: -48px;
+  border-radius: 50%;
+  border: 4px solid var(--color-surface);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.team-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-card__name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.team-card__bio {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 /* Кнопки звуков на пульте: две колонки на телефоне, три — на широком экране. */
 .sound-pad {
   display: grid;

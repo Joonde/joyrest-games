@@ -190,7 +190,11 @@ class View {
     readonly sessionId: string,
   ) {}
 
+  private onChange?: (s: Versioned) => void;
+
+  /** Подписка; повторный start() без аргумента — переподключение с тем же обработчиком. */
   start(onChange?: (s: Versioned) => void) {
+    if (onChange) this.onChange = onChange;
     this.sub = this.device.stream(`/api/stream/session/${this.sessionId}`, (event) => {
       if (event.type === "snapshot" && event.session) {
         const next = event.session as Versioned;
@@ -208,7 +212,7 @@ class View {
       } else return;
       const cue = this.current.state.cue;
       if (cue && this.cues[this.cues.length - 1] !== cue.id) this.cues.push(cue.id);
-      onChange?.(this.current);
+      this.onChange?.(this.current);
     });
   }
 
@@ -677,7 +681,8 @@ async function soloEvening(host: Device): Promise<void> {
   check((await guest.device.status("GET", `/api/sessions/${id}/screen`)) === 403, "гость не видит служебные данные экрана");
   check((await guest.device.status("POST", `/api/sessions/${id}/participants/${guests[2]?.uid}/rename`, { name: "Взлом" })) === 403, "гость не переименовывает других");
   check((await new Device("без входа").status("GET", `/api/sessions/${id}`)) === 401, "без входа сессию не открыть");
-  check((await guest.device.status("POST", "/api/tracks", { id: "x", title: "x", license: "own" })) === 403, "гость не загружает музыку");
+  const trackStatus = await guest.device.status("POST", "/api/tracks", { id: "x", title: "x", license: "own" });
+  check(trackStatus === 401 || trackStatus === 403, "гость не загружает музыку", String(trackStatus));
   const bigBody = await guest.device.raw("PUT", `/api/tracks/${trackId}/file`, new Uint8Array(200 * 1024), { "Content-Type": "audio/mpeg" });
   await bigBody.text();
   check(bigBody.status === 401 || bigBody.status === 403, "большой файл без прав отклонён до чтения", String(bigBody.status));

@@ -117,6 +117,26 @@ function content(title: string, n: number): QuizContent {
   };
 }
 
+/** JSON с ключами по алфавиту на всех уровнях: сравнение без учёта порядка ключей. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : v,
+  );
+}
+
+/** Где первое расхождение — для отчёта. */
+function firstDiff(a: unknown, b: unknown, path = ""): string {
+  if (canonical(a) === canonical(b)) return "";
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const keys = new Set([...Object.keys(a as object), ...Object.keys(b as object)]);
+    for (const k of keys) {
+      const d = firstDiff((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${path}/${k}`);
+      if (d) return d;
+    }
+  }
+  return `${path}: ${JSON.stringify(a)?.slice(0, 80)} ≠ ${JSON.stringify(b)?.slice(0, 80)}`;
+}
+
 async function login(device: Device, email: string, password: string): Promise<boolean> {
   return (await device.status("POST", "/api/auth/login", { email, password })) === 200;
 }
@@ -242,7 +262,9 @@ async function main() {
     check((await host.status("PATCH", `/api/games/${gameId}`, { content: last, title: `Проверка: правка ${i}` })) === 200, `правка ${i} сохранена`);
   }
   const saved = await host.call<{ title: string; content: QuizContent }>("GET", `/api/games/${gameId}`);
-  check(saved.title === "Проверка: правка 12" && JSON.stringify(saved.content) === JSON.stringify(last), "после 12 правок сохранена последняя, текст без искажений");
+  // База хранит JSON в jsonb — порядок ключей другой; сравниваем по смыслу.
+  check(saved.title === "Проверка: правка 12", "после 12 правок сохранено последнее название", saved.title);
+  check(canonical(saved.content) === canonical(last), "после 12 правок сохранено последнее содержимое, текст без искажений", firstDiff(saved.content, last));
   // Большая игра на русском (≈200 КБ) сохраняется целиком.
   const big = content("Большая игра", 60);
   check((await host.status("PATCH", `/api/games/${gameId}`, { content: big })) === 200, "большая игра (60 вопросов) сохраняется");

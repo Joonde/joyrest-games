@@ -1,4 +1,7 @@
-# Хостинг Netlify: автопубликация из GitHub, у каждой ветки своя тестовая ссылка.
+# Старый адрес joyrest-games.netlify.app (этап 9 переезда): платформа живёт на своём сервере
+# games.joy-rest.ru, поэтому любой адрес Netlify ведёт туда же с тем же путём — старые ссылки
+# и QR (/play/…, /results/…, /studio) продолжают работать. 302, а не 301: браузеры не запоминают
+# перенаправление навсегда (301 — вместе с удалением Firebase, этап 10).
 [build]
   command = "npm run build"
   publish = "dist"
@@ -6,21 +9,8 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# SPA: любой адрес (/studio, /host/…, /play/…, /screen/…, /j) отдаёт index.html.
-# Существующие файлы (скрипты, стили, иконка) Netlify отдаёт раньше этого правила.
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
-
-# Шрифты и собранные чанки не меняются под тем же именем: телефон гостя
-# кэширует их надолго и при повторном входе не качает заново.
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/fonts/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+  to = "https://games.joy-rest.ru/:splat"
+  status = 302
+  force = true

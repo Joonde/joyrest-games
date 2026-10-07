@@ -22,7 +22,7 @@ export function parseProfile(value: unknown): UserProfile | null {
   const data = asRecord(value);
   const uid = asText(data.uid);
   if (!uid) return null;
-  return {
+  const profile: UserProfile = {
     uid,
     role: parseRole(data.role),
     name: asText(data.name),
@@ -30,6 +30,10 @@ export function parseProfile(value: unknown): UserProfile | null {
     email: asText(data.email),
     mustChangePassword: data.mustChangePassword === true,
   };
+  const level = data.level;
+  if (level === "intern" || level === "novice" || level === "host" || level === "top") profile.level = level;
+  if (typeof data.experienceSince === "number") profile.experienceSince = data.experienceSince;
+  return profile;
 }
 
 function parseMe(value: unknown): Me {

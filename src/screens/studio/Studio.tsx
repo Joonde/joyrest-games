@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { experienceLabel, levelTitle } from "../../core/levels";
 import { authService, permissions, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -48,6 +49,12 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       <p className="muted small line-clamp">
         {profile.name} · {user.email}
       </p>
+      {profile.role !== "admin" && (profile.level || profile.experienceSince) && (
+        <p className="small line-clamp">
+          {levelTitle(profile.level) ?? "Квалификация пока не задана"}
+          {profile.experienceSince ? ` · стаж ${experienceLabel(profile.experienceSince, Date.now())}` : ""}
+        </p>
+      )}
 
       <Tabs
         items={TABS}

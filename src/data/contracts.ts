@@ -10,7 +10,9 @@ import type {
   CreatedHost,
   Game,
   GamePatch,
+  HostLevel,
   LibraryProposal,
+  PointsEntry,
   GameResult,
   HostAccount,
   LeaderboardEntry,
@@ -174,6 +176,18 @@ export interface ProposalsRepository {
   listPending(): Promise<LibraryProposal[]>;
   accept(proposalId: string): Promise<LibraryProposal>;
   reject(proposalId: string, reason: string): Promise<LibraryProposal>;
+}
+
+/**
+ * Квалификация, стаж и баллы ведущих (только admin, только свой сервер; у Firebase — null).
+ * Сумма баллов приходит в listHosts (HostAccount.points).
+ */
+export interface StaffRepository {
+  /** experienceSince — «ГГГГ-ММ-ДД» или null (с даты добавления). */
+  setLevel(uid: string, level: HostLevel | null, experienceSince: string | null): Promise<void>;
+  listPoints(uid: string): Promise<{ total: number; items: PointsEntry[] }>;
+  /** Шаг 0,5, от −100 до 100, комментарий обязателен. */
+  addPoints(uid: string, points: number, reason: string): Promise<void>;
 }
 
 export interface ResultsRepository {

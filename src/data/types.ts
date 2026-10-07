@@ -6,6 +6,18 @@
 
 export type Role = "admin" | "host";
 
+/** Квалификация ведущего (ставит владелец): Стажёр, Новичок, Ведущий, Топ-ведущий. */
+export type HostLevel = "intern" | "novice" | "host" | "top";
+
+/** Запись о баллах ведущего: за игру (начисляет сервер) или вручную владельцем. */
+export interface PointsEntry {
+  id: string;
+  points: number;
+  kind: "game" | "manual";
+  reason: string;
+  createdAt: number;
+}
+
 export interface UserProfile {
   uid: string;
   role: Role;
@@ -18,11 +30,16 @@ export interface UserProfile {
    * Есть только на своём сервере; у Firebase смена пароля добровольная.
    */
   mustChangePassword?: boolean;
+  /** Свой сервер: квалификация (ставит владелец) и дата «опыт с» для стажа (мс). */
+  level?: HostLevel | null;
+  experienceSince?: number | null;
 }
 
 /** Ведущий в списке администратора. */
 export interface HostAccount extends UserProfile {
   createdAt: number | null;
+  /** Свой сервер, только admin: сумма баллов ведущего. */
+  points?: number;
 }
 
 /** Новый ведущий и его временный пароль: показывается администратору один раз. */

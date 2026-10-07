@@ -93,6 +93,14 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     expect((await get("/api/tracks", boris)).json().mine).toEqual([]);
   });
 
+  it("большой файл без входа отклоняется до чтения тела", async () => {
+    const big = Buffer.alloc(200 * 1024, 1);
+    expect((await upload("t1", "", big)).statusCode).toBe(401);
+    expect((await upload("t1", "__Host-jr_s=fake", big)).statusCode).toBe(401);
+    // Маленькие запросы без входа доходят до обработчика (там тот же ответ).
+    expect((await post("/api/tracks/t1/share", "")).statusCode).toBe(401);
+  });
+
   it("в общую — через проверку владельца; файл открывает экран зала", async () => {
     expect((await post("/api/tracks/t1/share", boris)).statusCode).toBe(403);
     expect((await post("/api/tracks/t1/share", anna)).json().shareStatus).toBe("pending");

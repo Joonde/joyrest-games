@@ -96,6 +96,16 @@ describe("резервные копии", () => {
     expect(restore).toContain('run_migrations "$target" "$image"');
   });
 
+  it("картинки, музыка и аватарки (media/prod) — в ночной копии; восстановление только добавляет файлы", () => {
+    const once = bashFunction("backup_once");
+    expect(once).toMatch(/restic_run backup [^\n]*--tag media [^\n]*"\$ROOT_DIR\/media\/prod"/);
+    const restore = bashFunction("cmd_restore_media");
+    expect(restore).toContain("--tag media");
+    expect(restore).toContain('[ -e "$dst/$file" ] && continue');
+    expect(restore).not.toMatch(/rm -rf "\$dst|rsync[^\n]*--delete/);
+    expect(joyrest).toMatch(/^  restore-media\) shift; cmd_restore_media "\$@" ;;$/m);
+  });
+
   it("пароль копий подтверждается последними 4 символами до создания хранилища", () => {
     const setup = bashFunction("cmd_backup_setup");
     const confirm = setup.indexOf('"${password: -4}"');

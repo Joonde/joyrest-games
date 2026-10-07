@@ -97,6 +97,8 @@ usage() {
   joyrest restore <копия|latest> prod [force]
                               восстановить основную базу (спросит подтверждение; force — даже
                               если идёт игра); прежняя база остаётся joyrest_prod_before_restore
+  joyrest restore-media <копия|latest> test|prod
+                              картинки, музыку и аватарки из копии (только добавляет файлы)
   joyrest restore-settings    settings.env и пароль test.joy-rest.ru из последней копии
   joyrest notify-bot          служебный бот: сообщения о неудачных копиях и итог недели
 TEXT
@@ -283,8 +285,17 @@ install_system() {
   install -d -m 755 "$ROOT_DIR/caddy/etc"
   if ! cmp -s "$dir/caddy/Caddyfile" "$ROOT_DIR/caddy/etc/Caddyfile"; then
     install -m 644 "$dir/caddy/Caddyfile" "$ROOT_DIR/caddy/etc/Caddyfile.new"
-    mv -f "$ROOT_DIR/caddy/etc/Caddyfile.new" "$ROOT_DIR/caddy/etc/Caddyfile"
-    changed=0
+    # Ошибка в новом Caddyfile не должна уронить сайт: проверяем им же работающим Caddy и при
+    # ошибке оставляем прежний (Caddy не запущен — первая установка, проверять нечем).
+    if dc exec -T caddy caddy version >/dev/null 2>&1 \
+      && ! dc exec -T caddy caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile.new >/dev/null 2>&1; then
+      rm -f "$ROOT_DIR/caddy/etc/Caddyfile.new"
+      log "Caddy: новый Caddyfile с ошибкой — оставлен прежний"
+      notify "⚠️ Новый Caddyfile из релиза с ошибкой — Caddy работает на прежнем. Нужна правка в репозитории."
+    else
+      mv -f "$ROOT_DIR/caddy/etc/Caddyfile.new" "$ROOT_DIR/caddy/etc/Caddyfile"
+      changed=0
+    fi
   fi
   rm -rf "$ROOT_DIR/caddy/etc/soon.new"
   cp -r "$dir/caddy/soon" "$ROOT_DIR/caddy/etc/soon.new"
@@ -635,6 +646,13 @@ backup_once() {
   done
   if [ ${#paths[@]} -gt 0 ] && ! out=$(restic_run backup --host "$BACKUP_HOST" --tag config "${paths[@]}" 2>&1); then
     BACKUP_REASON="база сохранена, настройки — нет: $(short_reason "$out")"
+    return 1
+  fi
+  # Картинки, музыка и аватарки (media/prod вместе с audio/ и profile/). Имена файлов — sha256,
+  # файлы не меняются, поэтому restic каждую ночь отправляет только новые.
+  if [ -d "$ROOT_DIR/media/prod" ] \
+    && ! out=$(restic_run backup --host "$BACKUP_HOST" --tag media --exclude '*.tmp' "$ROOT_DIR/media/prod" 2>&1); then
+    BACKUP_REASON="база сохранена, картинки и музыка — нет: $(short_reason "$out")"
     return 1
   fi
   state_set last-ok "$(date +%s) $size"
@@ -1334,6 +1352,40 @@ cmd_restore() {
   dc up -d --no-deps "$(service_of "$target")" >/dev/null
   wait_healthy "$target" "$version" || die "$(service_of "$target") не ответил после восстановления: joyrest logs $(service_of "$target") 100"
   echo "✅ База $db восстановлена из копии $snap, приложение работает."
+  echo "Картинки и музыку той же ночи: sudo joyrest restore-media <копия с тегом media> $target"
+}
+
+# Картинки, музыка и аватарки из копии (тег media). Файлы только добавляются: имена — sha256,
+# существующие не перезаписываются, поэтому это безопасно и во время игры. Лишние уберёт ночная уборка.
+cmd_restore_media() {
+  need_root restore-media
+  local snap=${1:-} target=${2:-} tmp out src dst file added=0
+  [[ "$snap" =~ ^(latest|[0-9a-f]{8,64})$ ]] \
+    || die "Укажите копию: sudo joyrest restore-media latest prod (список копий — sudo joyrest backups)"
+  case "$target" in
+    test|prod) ;;
+    *) die "Куда восстановить: test или prod." ;;
+  esac
+  backup_configured || die "Хранилище не настроено: sudo joyrest backup-setup"
+  ensure_dirs
+  tmp=$(umask 077 && mktemp -d "$BACKUP_DIR/media-restore.XXXXXX") || die "Не удалось создать временную папку."
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmp'" EXIT
+  echo "Скачиваю картинки и музыку из копии $snap…"
+  out=$(restic_run restore "$snap" --host "$BACKUP_HOST" --tag media --target "$tmp" 2>&1) \
+    || die "Копия не скачалась: $(short_reason "$out")"
+  src="$tmp$ROOT_DIR/media/prod"
+  [ -d "$src" ] || die "В копии $snap нет картинок и музыки."
+  dst="$ROOT_DIR/media/$target"
+  install -d -m 700 -o 1000 -g 1000 "$dst"
+  while IFS= read -r -d '' file; do
+    file=${file#./}
+    [ -e "$dst/$file" ] && continue
+    install -D -m 644 -o 1000 -g 1000 "$src/$file" "$dst/$file"
+    added=$((added + 1))
+  done < <(cd "$src" && find . -type f ! -name '*.tmp' -print0)
+  log "[restore] картинки и музыка из копии $snap → media/$target: добавлено файлов $added"
+  echo "✅ Картинки и музыка из копии $snap: добавлено файлов — $added (существующие не тронуты)."
 }
 
 # Настройки (settings.env, пароль test.joy-rest.ru) из последней копии — после переустановки сервера.
@@ -1456,6 +1508,7 @@ case "${1:-}" in
   backups)       cmd_backups ;;
   restore)       shift; cmd_restore "$@" ;;
   restore-settings) cmd_restore_settings ;;
+  restore-media) shift; cmd_restore_media "$@" ;;
   notify-bot)    cmd_notify_bot ;;
   admin-password) shift; cmd_admin_password "$@" ;;
   data)          shift; cmd_data "$@" ;;

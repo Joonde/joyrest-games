@@ -15,7 +15,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
 import type { AgeRating, Game, GameScope, MediaVariant, PlayMode } from "../../src/data/types";
-import { actorOf, apiGuard, identityOf, sessionUser, type SessionRow } from "./auth";
+import { actorOf, apiGuard, identityOf, sessionUser, type SessionRow, uploadGuard } from "./auth";
 
 /** Лимиты места (CLAUDE.md, «Медиа»). */
 export interface MediaLimits {
@@ -150,6 +150,8 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
+    // Большие тела (файлы) — только от вошедшего ведущего и не больше трёх сразу.
+    api.addHook("onRequest", uploadGuard(sql));
     // Картинки приходят «как есть» (сжатые на устройстве), без multipart.
     api.addContentTypeParser(["image/webp", "image/jpeg"], { parseAs: "buffer", bodyLimit: 1024 * 1024 }, (_request, body, done) => done(null, body));
 
@@ -199,7 +201,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       return rows.map(gameOf);
     });
 
-    api.get<{ Params: { id: string } }>("/api/games/:id", async (request, reply) => {
+    api.get<{ Params: { id: string } }>("/api/games/:id", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       const game = await findGame(request.params.id);
@@ -382,7 +384,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       return reply.type(row.mime).send(file);
     });
 
-    api.delete<{ Params: { game: string; media: string } }>("/api/media/:game/:media", async (request, reply) => {
+    api.delete<{ Params: { game: string; media: string } }>("/api/media/:game/:media", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       const game = await findGame(request.params.game);

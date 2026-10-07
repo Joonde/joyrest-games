@@ -8,6 +8,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { TopBar, type TopBarAction } from "../../components/TopBar";
 import { GameList } from "./GameList";
 import { History } from "./History";
+import { ActiveGames } from "./ActiveGames";
 import { MusicTab } from "./MusicTab";
 
 type TabId = "agency" | "mine" | "music" | "history";
@@ -65,6 +66,8 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
           {profile.experienceSince ? ` · стаж ${experienceLabel(profile.experienceSince, Date.now())}` : ""}
         </p>
       )}
+
+      <ActiveGames hostId={profile.uid} />
 
       <Tabs
         items={TABS}

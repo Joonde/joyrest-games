@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core/leaderboard";
@@ -31,7 +31,8 @@ import { SoundPad } from "../components/live/SoundPad";
 import { SlidesPanel } from "../components/live/SlidesPanel";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
-import { playUrl, playUrlHint } from "../components/links";
+import { joinHost, playUrl, playUrlHint } from "../components/links";
+import { Icon, type IconName } from "../components/Icon";
 import { getMechanic } from "../mechanics/registry";
 import type { SessionControl } from "../mechanics/types";
 import { teamColorVar, useTheme } from "../themes/registry";
@@ -89,6 +90,13 @@ function Console({ session }: { session: Session }) {
   const [error, setError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [toast, showToast] = useToast();
+  const [params, setParams] = useSearchParams();
+  const [picking, setPickingState] = useState(params.get("pick") === "1");
+  const [tab, setTab] = useState<PultTab>("game");
+  const setPicking = (value: boolean) => {
+    setPickingState(value);
+    if (!value && params.has("pick")) setParams({}, { replace: true });
+  };
   const link = playUrl(session.code);
   const phones = participants.filter((p) => p.kind === "player").length;
   const mechanic = getMechanic(session.mechanic);
@@ -190,87 +198,112 @@ function Console({ session }: { session: Session }) {
 
   const { phase } = session.state;
   const HostControls = mechanic?.HostControls;
+  const withScreen = session.screenMode !== "none";
   const menu: MenuAction[] = [{ label: "В студию", to: "/studio" }];
-  if (session.screenMode !== "none") menu.unshift({ label: "Экран зала", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
+  if (withScreen) menu.unshift({ label: "Открыть экран зала здесь", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
+  const tabs = PULT_TABS.filter((t) => withScreen || !t.screenOnly);
+  const apply = (change: SessionChange) => sessionsRepo.apply(session.id, change);
+  const slide = session.state.slide ?? null;
 
   return (
-    <main className="page">
+    <main className="page page--pult">
       <TopBar title="Пульт" actions={menu} />
-      {session.gameTitle && <p className="muted small line-clamp">{session.gameTitle}</p>}
+      <p className="pult-status" aria-live="polite">
+        <span className="pult-status__code">{formatSessionCode(session.code)}</span>
+        <span>{session.playMode === "teams" ? `телефонов: ${phones}` : `игроков: ${phones}`}</span>
+        <span>{phase === "lobby" ? "ждём гостей" : phase === "playing" ? "идёт игра" : "завершена"}</span>
+      </p>
 
-      {phase === "playing" && HostControls && content !== null && (
-        <section className="card">
-          <Suspense fallback={null}>
-            <HostControls
-              session={session}
-              content={content}
-              answers={answers}
-              participants={participants}
-              control={control}
-              rehearsal={false}
-            />
-          </Suspense>
-        </section>
+      {picking && withScreen && phase !== "finished" && (
+        <RolePicker code={session.code} onPult={() => setPicking(false)} />
       )}
 
-      {session.screenMode !== "none" && (
-        <SoundPad onCue={(cue) => sessionsRepo.apply(session.id, { state: { cue } })} />
+      {slide && (
+        <div className="pult-banner" role="status">
+          <span className="line-clamp">На экране слайд{slide.title ? ` «${slide.title}»` : ""}</span>
+          <button type="button" className="btn btn--secondary" onClick={() => void apply({ state: { slide: null } }).catch(() => undefined)}>
+            Убрать
+          </button>
+        </div>
       )}
 
-      {session.screenMode !== "none" && (
-        <SlidesPanel session={session} onApply={(change) => sessionsRepo.apply(session.id, change)} />
-      )}
-
-      {session.screenMode !== "none" && (
-        <MusicPanel session={session} onApply={(change) => sessionsRepo.apply(session.id, change)} />
-      )}
-
-      {phase !== "finished" && (
-        <JoinCard session={session} link={link} compact={phase === "playing"} onCopy={() => void copyLink()} />
-      )}
-
-      <section className="card">
-        {phase === "lobby" && (
+      <div className="pult-panel" role="tabpanel" id={`pult-panel-${tab}`} aria-labelledby={`pult-tab-${tab}`}>
+        {tab === "game" && (
           <>
-            <h2>Управление</h2>
-            <p className="muted">Когда гости подключатся, начните игру. Опоздавшие смогут войти и во время игры.</p>
-            <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
-              Начать игру
-            </button>
+            {phase === "lobby" && (
+              <>
+                <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
+                <LobbyNames session={session} onMore={() => setTab("people")} />
+                <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
+                  Начать игру
+                </button>
+              </>
+            )}
+            {phase === "playing" && HostControls && content !== null && (
+              <section className="card">
+                <Suspense fallback={null}>
+                  <HostControls
+                    session={session}
+                    content={content}
+                    answers={answers}
+                    participants={participants}
+                    control={control}
+                    rehearsal={false}
+                  />
+                </Suspense>
+              </section>
+            )}
+            {phase === "playing" && (
+              <>
+                <JoinCard session={session} link={link} compact onCopy={() => void copyLink()} />
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
+                  Завершить игру досрочно
+                </button>
+              </>
+            )}
+            {phase === "finished" && (
+              <section className="card">
+                <h2>Игра завершена</h2>
+                <p>Итоги сохранены в «Истории игр».</p>
+                <div className="actions">
+                  <Link className="btn btn--block" to={`/results/${session.id}`}>
+                    Открыть итоги
+                  </Link>
+                  <Link className="btn btn--secondary btn--block" to="/studio">
+                    В студию
+                  </Link>
+                </div>
+              </section>
+            )}
           </>
         )}
-        {phase === "playing" && (
-          <>
-            <p className="muted small">Игру можно завершить в любой момент — итоги сохранятся.</p>
-            <div className="actions">
-              <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
-                Завершить игру
-              </button>
-            </div>
-          </>
-        )}
-        {phase === "finished" && (
-          <>
-            <h2>Игра завершена</h2>
-            <p>Итоги сохранены в «Истории игр».</p>
-            <div className="actions">
-              <Link className="btn btn--block" to={`/results/${session.id}`}>
-                Открыть итоги
-              </Link>
-              <Link className="btn btn--secondary btn--block" to="/studio">
-                В студию
-              </Link>
-            </div>
-          </>
-        )}
+        {tab === "sounds" && <SoundPad onCue={(cue) => apply({ state: { cue } })} />}
+        {tab === "music" && <MusicPanel session={session} onApply={apply} />}
+        {tab === "slides" && <SlidesPanel session={session} onApply={apply} />}
+        {tab === "people" && <PeopleCard session={session} participants={participants} phones={phones} onToast={showToast} />}
         {(error ?? dataError) && (
           <p className="error" role="alert">
             {error ?? dataError}
           </p>
         )}
-      </section>
+      </div>
 
-      <PeopleCard session={session} participants={participants} phones={phones} onToast={showToast} />
+      <nav className="pult-tabs" aria-label="Разделы пульта">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            id={`pult-tab-${t.id}`}
+            className="pult-tabs__btn"
+            aria-current={tab === t.id ? "page" : undefined}
+            aria-controls={`pult-panel-${t.id}`}
+            onClick={() => setTab(t.id)}
+          >
+            <Icon name={t.icon} className="pult-tabs__icon" />
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </nav>
 
       <ConfirmDialog
         open={confirmFinish}
@@ -285,6 +318,68 @@ function Console({ session }: { session: Session }) {
       </ConfirmDialog>
       <Toast text={toast} />
     </main>
+  );
+}
+
+const LOBBY_NAMES = 12;
+
+/** Кто уже подключился — коротко, на главной вкладке пульта; все и правки — во вкладке «Гости». */
+function LobbyNames({ session, onMore }: { session: Session; onMore: () => void }) {
+  const board = rankedLeaderboard(session.leaderboard);
+  if (board.length === 0) return <p className="muted small">Гости появятся здесь, как только отсканируют код.</p>;
+  const rest = board.length - LOBBY_NAMES;
+  return (
+    <ul className="chips" aria-label={session.playMode === "teams" ? "Команды" : "Игроки"}>
+      {board.slice(0, LOBBY_NAMES).map((entry) => (
+        <li key={entry.id} className={entry.kind === "team" ? "chip chip--team" : "chip"} style={entry.colorIndex !== undefined ? ({ "--team-color": teamColorVar(entry.colorIndex) } as CSSProperties) : undefined}>
+          {entry.name}
+        </li>
+      ))}
+      {rest > 0 && (
+        <li>
+          <button type="button" className="chip chip--more" onClick={onMore}>
+            и ещё {rest}
+          </button>
+        </li>
+      )}
+    </ul>
+  );
+}
+
+type PultTab = "game" | "sounds" | "music" | "slides" | "people";
+
+const PULT_TABS: Array<{ id: PultTab; label: string; icon: IconName; screenOnly?: boolean }> = [
+  { id: "game", label: "Игра", icon: "game" },
+  { id: "sounds", label: "Звуки", icon: "sound", screenOnly: true },
+  { id: "music", label: "Музыка", icon: "music", screenOnly: true },
+  { id: "slides", label: "Слайды", icon: "slides", screenOnly: true },
+  { id: "people", label: "Гости", icon: "people" },
+];
+
+/**
+ * Что это устройство: пульт или экран зала (после «Создать сессию»). Второе устройство — вход в
+ * студию → «Идёт игра» → нужная роль, или games.joy-rest.ru/s и код.
+ */
+function RolePicker({ code, onPult }: { code: string; onPult: () => void }) {
+  const navigate = useNavigate();
+  return (
+    <section className="card role-picker" aria-labelledby="role-title">
+      <h2 id="role-title">Это устройство —</h2>
+      <div className="tiles tiles--two">
+        <button type="button" className="tile tile--big" onClick={onPult}>
+          <Icon name="remote" className="tile__icon" />
+          <span className="tile__label">Пульт</span>
+        </button>
+        <button type="button" className="tile tile--big" onClick={() => navigate(`/screen/${code}`)}>
+          <Icon name="screen" className="tile__icon" />
+          <span className="tile__label">Экран зала</span>
+        </button>
+      </div>
+      <p className="muted small">
+        Второе устройство: войдите в студию — сверху будет «Идёт игра» с кнопками «Пульт» и «Экран зала». Без входа —
+        откройте {joinHost()}/s и введите код {formatSessionCode(code)}.
+      </p>
+    </section>
   );
 }
 

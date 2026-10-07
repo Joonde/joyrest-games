@@ -20,8 +20,7 @@ import { getTheme, THEME_HINTS, themesForRating, themeStyle } from "../../themes
 import { Scene } from "../../components/live/Scene";
 
 const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
-  { id: "laptop", title: "Ноутбук + экран", hint: "Экран зала на ноутбуке, управление с ноутбука или телефона." },
-  { id: "remote", title: "Телефон-пульт + отдельный экран", hint: "Экран зала открыт на любом устройстве." },
+  { id: "laptop", title: "С экраном зала", hint: "Ноутбук, планшет или телевизор показывают вопросы, телефон — пульт." },
   { id: "none", title: "Без экрана", hint: "Вопросы на телефонах гостей, вы читаете вслух." },
 ];
 
@@ -109,7 +108,8 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
         playMode,
         screenMode,
       });
-      navigate(`/host/${code}`);
+      // С экраном зала — сразу выбор: это устройство пульт или экран.
+      navigate(screenMode === "none" ? `/host/${code}` : `/host/${code}?pick=1`);
     } catch {
       setError("Не удалось создать сессию. Проверьте интернет и попробуйте снова.");
       setBusy(false);

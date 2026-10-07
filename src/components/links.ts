@@ -17,3 +17,8 @@ export function playUrlHint(code: string): string {
 export function resultsUrl(resultId: string): string {
   return `${window.location.origin}/results/${resultId}`;
 }
+
+/** Адрес сайта без протокола: «games.joy-rest.ru». */
+export function joinHost(): string {
+  return window.location.host;
+}

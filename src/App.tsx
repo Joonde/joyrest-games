@@ -44,6 +44,7 @@ export function App() {
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />
           <Route path="/j" element={<JoinByCode />} />
+          <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />
           <Route path="/brand" element={<Brand />} />
           <Route path="*" element={<NotFound />} />

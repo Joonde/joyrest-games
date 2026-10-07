@@ -416,7 +416,7 @@ async function main() {
   const publicOffer = await new Device("клиент").raw("GET", `/api/offers/${offer.id}`);
   const publicText = await publicOffer.text();
   check(publicOffer.ok, "клиент открывает предложение без входа");
-  check(!/900|Проверочная, 1|Тестовый|Проверочная заметка/.test(publicText), "в предложении нет телефонов, адреса, имён и наших заметок");
+  check(!/000-00-9|Проверочная, 1|Тестовый|Проверочная заметка/.test(publicText), "в предложении нет телефонов, адреса, имён и наших заметок");
   const afterOffer = await admin.call<{ status: string; offers: number }>("GET", `/api/venue-requests/${requestId}`);
   check(afterOffer.status === "sent" && afterOffer.offers === 1, "заявка стала «Предложение отправлено»");
   await admin.status("POST", `/api/users/${hostUid}/venue-access`, { access: false });

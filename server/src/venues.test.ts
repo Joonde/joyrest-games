@@ -57,7 +57,7 @@ describe("база площадок: без базы", () => {
     expect(venueText).toContain("Привёл: Иван");
     const requestText = requestNotice(12, { ...emptyRequest(), ...REQUEST, format: "banquet" }, null, "https://games.test/venues/r/x");
     expect(requestText).toContain("Заявка №12: свадьба, 80 гостей, 19 июня 2027");
-    for (const secret of ["Ольга", "900", "Секретная", "banket@", "Анна", "999"]) {
+    for (const secret of ["Ольга", "123-45-67", "Секретная", "banket@", "Анна", "888-77-66"]) {
       expect(venueText + requestText).not.toContain(secret);
     }
   });
@@ -78,7 +78,7 @@ describe("база площадок: без базы", () => {
     const compose = read("deploy/compose.yml");
     expect(compose).toContain("VENUE_FORMS: ${VENUE_FORMS:-off}");
     expect(compose).toContain('VENUE_FORMS: "on"');
-    expect(compose.match(/VENUE_FORMS:/g)?.length).toBe(2);
+    expect(compose.match(/^\s+VENUE_FORMS:/gm)?.length).toBe(2);
     expect(read("server/src/main.ts")).toContain("formsOpen: isOn(process.env.VENUE_FORMS)");
     expect(read("deploy/bin/joyrest")).toMatch(/cmd_venues\(\) \{[\s\S]*need_root venues[\s\S]*ensure_no_game/);
     for (const workflow of ["build.yml", "e2e.yml", "load.yml", "scenario.yml"]) {
@@ -162,7 +162,7 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
     const token = ok.json().uploadToken as string;
     expect(sent.join("\n")).toContain("«Белая веранда»");
     expect(sent.join("\n")).toContain("Привёл: Анна");
-    expect(sent.join("\n")).not.toContain("900");
+    expect(sent.join("\n")).not.toContain("123-45-67");
 
     const path = "/api/venue-forms/venue/venue-form-001/files";
     expect((await putFile(`${path}/photo`, webp(1), "image/webp", { "x-upload-token": "неверный-токен-123456" })).statusCode).toBe(403);
@@ -199,7 +199,7 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
     const number = res.json().number as number;
     expect(number).toBeGreaterThan(0);
     expect(sent.join("\n")).toContain(`Заявка №${number}: свадьба, 80 гостей`);
-    expect(sent.join("\n")).not.toMatch(/Анна Клиентова|999/);
+    expect(sent.join("\n")).not.toMatch(/Анна Клиентова|888-77-66/);
     const again = await post("/api/venue-forms/request", { id: "request-0001", data: REQUEST, consent: true, ack: true });
     expect(again.json().number).toBe(number);
   });
@@ -257,7 +257,7 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
     const offer = await get(`/api/offers/${offerId}`);
     expect(offer.statusCode).toBe(200);
     const text = offer.body;
-    for (const secret of ["Секретная", "900", "Ольга", "banket@", "Олег", "Анна Клиентова", "999"]) expect(text).not.toContain(secret);
+    for (const secret of ["Секретная", "123-45-67", "Ольга", "banket@", "Олег", "Анна Клиентова", "888-77-66"]) expect(text).not.toContain(secret);
     const body = offer.json();
     expect(body.title).toBe("Свадьба · 19 июня 2027 · 80 гостей");
     expect(body.items[0]).toMatchObject({ name: "Белая веранда", where: "СЗАО · м. Строгино" });

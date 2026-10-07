@@ -171,7 +171,7 @@ describe("предложение клиенту", () => {
     const match = matchVenue(v, request({ wishes: { dance: 1 } }));
     const item = offerItem("v1", v, match, ["a".repeat(64)]);
     const text = JSON.stringify(item) + offerText({ title: "Свадьба", comment: "", items: [item] }, "https://games.joy-rest.ru/o/x");
-    for (const secret of ["900", "x@example.ru", "Ольга", "Секретная"]) expect(text).not.toContain(secret);
+    for (const secret of ["000-00-01", "x@example.ru", "Ольга", "Секретная"]) expect(text).not.toContain(secret);
     expect(item.where).toBe("ЦАО · м. Курская");
     expect(item.no).toEqual(["танцпол"]);
   });

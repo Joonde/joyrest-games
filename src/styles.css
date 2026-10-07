@@ -888,6 +888,40 @@ a {
   transform: scale(1);
 }
 
+/* Галочка в карточке выбора: квадрат того же цвета, что кольцо радиокнопки. */
+.choice input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 1px 0 0;
+  border-radius: 6px;
+  border: 2px solid var(--color-control);
+  background: transparent;
+  cursor: pointer;
+}
+
+.choice input[type="checkbox"]::before {
+  content: "";
+  width: 12px;
+  height: 7px;
+  border-left: 3px solid var(--color-control-checked);
+  border-bottom: 3px solid var(--color-control-checked);
+  transform: translateY(-2px) rotate(-45deg) scale(0);
+  transition: transform 0.12s ease;
+}
+
+.choice input[type="checkbox"]:checked {
+  border-color: var(--color-control-checked);
+}
+
+.choice input[type="checkbox"]:checked::before {
+  transform: translateY(-2px) rotate(-45deg) scale(1);
+}
+
 .choice:has(input:focus-visible) {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
@@ -2352,6 +2386,110 @@ kbd {
   display: flex;
   justify-content: center;
   font-size: 0.8em;
+}
+
+/* Музыка: строка трека — кнопка прослушивания, название и плашки, меню «⋯». */
+.tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.track {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.track__play.btn {
+  width: var(--control-height);
+  padding: 0;
+  font-size: 18px;
+}
+
+.track__text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.track.is-current .track__title {
+  color: var(--color-highlight);
+}
+
+/* Экран зала: браузер не дал включить музыку без касания. */
+.screen-tap {
+  position: fixed;
+  left: 50%;
+  bottom: max(6cqh, var(--safe-bottom));
+  z-index: 30;
+  transform: translateX(-50%);
+  padding: 1.2cqh 3cqw;
+  border-radius: 999px;
+  border: 0.3cqh solid var(--color-highlight);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 2.6cqh;
+  white-space: nowrap;
+}
+
+/* Пульт: фильтр треков — тихие кнопки, выбранная с обводкой. */
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn.chip-btn {
+  min-height: 44px;
+  padding: 4px 16px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.btn.chip-btn[aria-pressed="true"] {
+  border-color: var(--color-highlight);
+  color: var(--color-text);
+}
+
+.now-playing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: var(--radius-md);
+}
+
+.now-playing__title {
+  font-weight: 600;
+}
+
+.mixer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mixer input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--color-primary);
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 /* Кнопки звуков на пульте: две колонки на телефоне, три — на широком экране. */

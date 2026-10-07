@@ -121,6 +121,57 @@ export interface SessionState {
   result: unknown;
   /** Звук по кнопке ведущего: экран зала играет его, когда меняется id. */
   cue?: SoundCue | null;
+  /** Фоновая музыка на экране зала: какой трек и играет ли. */
+  music?: MusicState | null;
+  /** Микшер: громкость музыки и эффектов (0–100), «без звука». */
+  mix?: MixState | null;
+}
+
+export interface MusicState {
+  trackId: string;
+  playing: boolean;
+  /** Меняется при каждом новом запуске трека (с начала); пауза и продолжение его не меняют. */
+  rev: string;
+}
+
+export interface MixState {
+  music: number;
+  effects: number;
+  muted: boolean;
+}
+
+// ---------- Музыка (только свой сервер, CLAUDE.md, раздел 7) ----------
+
+export type TrackCategory = "lobby" | "background" | "contest" | "board" | "break" | "award" | "holiday";
+export type TrackLicense = "pixabay" | "bought" | "own" | "other";
+export type TrackShareStatus = "none" | "pending" | "accepted" | "rejected";
+
+export interface Track {
+  id: string;
+  ownerId: string;
+  /** Имя владельца — в списке проверки у admin. */
+  ownerName: string;
+  scope: "personal" | "agency";
+  title: string;
+  category: TrackCategory;
+  license: TrackLicense;
+  licenseNote: string;
+  /** Файл загружен — трек можно слушать и ставить. */
+  ready: boolean;
+  size: number;
+  durationMs: number | null;
+  shareStatus: TrackShareStatus;
+  shareReason: string | null;
+  createdAt: number;
+}
+
+export interface TrackInput {
+  id: string;
+  scope: "personal" | "agency";
+  title: string;
+  category: TrackCategory;
+  license: TrackLicense;
+  licenseNote: string;
 }
 
 /** Звуки кнопок пульта; "stop" — заглушить всё, что звучит. */

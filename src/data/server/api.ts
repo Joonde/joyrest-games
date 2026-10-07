@@ -74,6 +74,15 @@ export async function putImage(path: string, image: Blob, width: number, height:
   });
 }
 
+/** Файл музыки как есть (тип сервер определит сам) и длительность в мс. Ответ — JSON. */
+export async function putAudio<T = unknown>(path: string, file: Blob, durationMs: number | null): Promise<T> {
+  const type = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/ogg"].includes(file.type) ? file.type : "application/octet-stream";
+  const headers: Record<string, string> = { "Content-Type": type, "X-JoyRest": "1" };
+  if (durationMs && durationMs > 0) headers["X-Duration"] = String(Math.round(durationMs));
+  const response = await send(path, { method: "PUT", headers, body: file });
+  return (await response.json().catch(() => null)) as T;
+}
+
 /** Картинка по адресу; нет такой — null. Кэш браузера (ETag, immutable) работает как обычно. */
 export async function getImage(path: string): Promise<Blob | null> {
   try {

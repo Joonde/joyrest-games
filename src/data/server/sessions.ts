@@ -3,7 +3,7 @@
  * (снимок + изменения: состояние шага целиком и изменённые записи таблицы лидеров).
  */
 import type { SessionsRepository } from "../contracts";
-import { parseCue } from "../cues";
+import { parseCue, parseMix, parseMusic } from "../cues";
 import { errorCodeOf } from "../retry";
 import type { Leaderboard, LeaderboardEntry, Session, SessionPhase, SessionState, StepStage } from "../types";
 import { api, asRecord, asText, newId } from "./api";
@@ -37,6 +37,8 @@ export function parseState(value: unknown): SessionState {
     answered: num(s.answered),
     result: s.result ?? null,
     cue: parseCue(s.cue),
+    music: parseMusic(s.music),
+    mix: parseMix(s.mix),
   };
 }
 

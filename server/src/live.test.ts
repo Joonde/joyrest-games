@@ -28,6 +28,14 @@ describe("изменение пульта", () => {
     expect(normalizeState({ cue: "gong" }).cue).toBeNull();
   });
 
+  it("музыка и микшер: трек по id, громкость 0–100", () => {
+    expect(checkChange({ state: { music: { trackId: "t1", playing: true, rev: "r1" } } })?.state.music).toEqual({ trackId: "t1", playing: true, rev: "r1" });
+    expect(checkChange({ state: { music: null } })?.state.music).toBeNull();
+    expect(checkChange({ state: { music: { trackId: "../x", playing: true, rev: "r" } } })).toBeNull();
+    expect(checkChange({ state: { mix: { music: 250, effects: -5, muted: true } } })?.state.mix).toEqual({ music: 100, effects: 0, muted: true });
+    expect(checkChange({ state: { mix: "loud" } })).toBeNull();
+  });
+
   it("время старта шага ставит сервер, null убирает запись таблицы", () => {
     const state = normalizeState({ phase: "playing", step: 2, stage: "ready" });
     const change = checkChange({ state: { stage: "question", startedAt: "server", timeLimit: 20 }, leaderboard: { gone: null, p1: { name: "Аня", kind: "player", score: 5 } } });

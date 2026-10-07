@@ -15,7 +15,7 @@ import { generateSessionCode } from "../../src/core/code";
 import { NAME_MAX_LENGTH } from "../../src/core/names";
 import { compactBoard } from "../../src/core/results";
 import { retentionCutoff } from "../../src/core/retention";
-import { parseCue } from "../../src/data/cues";
+import { parseCue, parseMix, parseMusic } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
 import type { Leaderboard, LeaderboardEntry, Participant, SessionPhase, SessionState, StepStage } from "../../src/data/types";
 import { awardGamePoints } from "./staff";
@@ -110,6 +110,8 @@ export function normalizeState(value: unknown): SessionState {
     answered: num(s.answered),
     result: s.result ?? null,
     cue: parseCue(s.cue),
+    music: parseMusic(s.music),
+    mix: parseMix(s.mix),
   };
 }
 
@@ -192,6 +194,14 @@ export function checkChange(value: unknown): CheckedChange | null {
   if ("cue" in raw) {
     if (raw.cue !== null && parseCue(raw.cue) === null) return null;
     state.cue = parseCue(raw.cue);
+  }
+  if ("music" in raw) {
+    if (raw.music !== null && parseMusic(raw.music) === null) return null;
+    state.music = parseMusic(raw.music);
+  }
+  if ("mix" in raw) {
+    if (raw.mix !== null && parseMix(raw.mix) === null) return null;
+    state.mix = parseMix(raw.mix);
   }
 
   const leaderboard: CheckedChange["leaderboard"] = {};

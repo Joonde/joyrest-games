@@ -11,6 +11,7 @@ import type {
   MediaRepository,
   ParticipantsRepository,
   ProposalsRepository,
+  TracksRepository,
   StaffRepository,
   ResultsRepository,
   SessionsRepository,
@@ -32,6 +33,7 @@ import { serverClock } from "./server/clock";
 import { serverParticipantsRepository } from "./server/participants";
 import { serverProposalsRepository } from "./server/proposals";
 import { serverStaffRepository } from "./server/staff";
+import { serverTracksRepository } from "./server/tracks";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
@@ -55,3 +57,5 @@ export const proposalsRepo: ProposalsRepository | null = server ? serverProposal
 
 /** Квалификация, стаж и баллы ведущих — только на своём сервере. */
 export const staffRepo: StaffRepository | null = server ? serverStaffRepository : null;
+/** Музыка — только свой сервер. */
+export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;

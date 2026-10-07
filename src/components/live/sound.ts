@@ -9,9 +9,18 @@ const MUTE_KEY = "joyrest.soundOff";
 const listeners = new Set<(muted: boolean) => void>();
 let muted = readMuted();
 let ctx: AudioContext | null = null;
-/** Общая громкость: через неё идут все звуки, «Стоп» глушит всё сразу. */
+/** Общий выход: «Включить звук / звук включён» на самом экране. */
 let master: GainNode | null = null;
+/** Эффекты (гонг, аплодисменты…): «Стоп» на пульте заменяет эту шину — всё, что звучит, глохнет. */
+let effectsBus: GainNode | null = null;
+/** Фоновая музыка: громкость с микшера пульта, приглушается под эффекты. */
+let musicBus: GainNode | null = null;
 let noise: AudioBuffer | null = null;
+/** Микшер пульта (0–1) и «без звука». */
+const mix = { music: 0.7, effects: 1, muted: false };
+/** Приглушение музыки под эффект: 1 — как есть. */
+let duck = 1;
+let duckTimer = 0;
 
 function readMuted(): boolean {
   try {
@@ -37,6 +46,7 @@ export function soundReady(): boolean {
 
 export function setMuted(value: boolean): void {
   muted = value;
+  if (ctx && master) master.gain.setTargetAtTime(value ? 0 : 0.9, ctx.currentTime, 0.05);
   try {
     localStorage.setItem(MUTE_KEY, value ? "1" : "0");
   } catch {
@@ -57,14 +67,70 @@ export function useMuted(): boolean {
   return value;
 }
 
-function out(): AudioNode | null {
+function masterNode(): GainNode | null {
   if (!ctx) return null;
   if (!master) {
     master = ctx.createGain();
-    master.gain.value = 0.9;
+    master.gain.value = muted ? 0 : 0.9;
     master.connect(ctx.destination);
   }
   return master;
+}
+
+function effectsLevel(): number {
+  return mix.muted ? 0 : mix.effects;
+}
+
+function musicLevel(): number {
+  return mix.muted ? 0 : mix.music * duck;
+}
+
+/** Выход эффектов. */
+function out(): AudioNode | null {
+  const main = masterNode();
+  if (!ctx || !main) return null;
+  if (!effectsBus) {
+    effectsBus = ctx.createGain();
+    effectsBus.gain.value = effectsLevel();
+    effectsBus.connect(main);
+  }
+  return effectsBus;
+}
+
+function musicOut(): GainNode | null {
+  const main = masterNode();
+  if (!ctx || !main) return null;
+  if (!musicBus) {
+    musicBus = ctx.createGain();
+    musicBus.gain.value = musicLevel();
+    musicBus.connect(main);
+  }
+  return musicBus;
+}
+
+function applyLevels(): void {
+  if (!ctx) return;
+  effectsBus?.gain.setTargetAtTime(effectsLevel(), ctx.currentTime, 0.05);
+  musicBus?.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.25);
+}
+
+/** Микшер с пульта: громкость музыки и эффектов 0–100, «без звука». */
+export function setMix(next: { music: number; effects: number; muted: boolean }): void {
+  mix.music = Math.min(1, Math.max(0, next.music / 100));
+  mix.effects = Math.min(1, Math.max(0, next.effects / 100));
+  mix.muted = next.muted;
+  applyLevels();
+}
+
+/** Музыка тише на время эффекта и потом плавно возвращается. */
+function duckMusic(seconds: number): void {
+  duck = 0.3;
+  applyLevels();
+  window.clearTimeout(duckTimer);
+  duckTimer = window.setTimeout(() => {
+    duck = 1;
+    applyLevels();
+  }, seconds * 1000);
 }
 
 function tone(freq: number, start: number, duration: number, volume = 0.18, type: OscillatorType = "sine"): void {
@@ -156,8 +222,12 @@ function applause(): void {
   }
 }
 
+const DUCK_SECONDS: Partial<Record<SoundName, number>> = { gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
+
 export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
+  const duckFor = DUCK_SECONDS[name];
+  if (duckFor) duckMusic(duckFor);
   if (name === "tick") tone(880, 0, 0.12, 0.12, "triangle");
   if (name === "correct") {
     tone(660, 0, 0.25);
@@ -182,11 +252,58 @@ export function playSound(name: SoundName): void {
   }
 }
 
-/** «Стоп»: заглушить всё, что звучит сейчас; следующие звуки играют как обычно. */
+/** «Стоп»: заглушить все эффекты, что звучат сейчас (музыку — нет); следующие играют как обычно. */
 export function stopAllSounds(): void {
-  if (!ctx || !master) return;
-  const old = master;
-  master = null;
+  if (!ctx || !effectsBus) return;
+  const old = effectsBus;
+  effectsBus = null;
   old.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
   window.setTimeout(() => old.disconnect(), 400);
+  duck = 1;
+  applyLevels();
+}
+
+// ---------- Фоновая музыка (файлы ведущих, CLAUDE.md, раздел 7, «Музыка») ----------
+
+let player: HTMLAudioElement | null = null;
+let playerSource: MediaElementAudioSourceNode | null = null;
+
+function musicElement(): HTMLAudioElement | null {
+  if (!ctx) return null;
+  if (!player) {
+    player = new Audio();
+    player.loop = true;
+    player.preload = "auto";
+    const bus = musicOut();
+    if (!bus) return null;
+    // Через Web Audio — чтобы работали микшер и приглушение (у iPhone громкость <audio> не меняется).
+    playerSource = ctx.createMediaElementSource(player);
+    playerSource.connect(bus);
+  }
+  return player;
+}
+
+/** Включить трек: с начала (новый запуск) или продолжить. false — браузер не дал (нет касания экрана). */
+export async function playMusic(url: string, fromStart: boolean): Promise<boolean> {
+  if (!soundReady()) return false;
+  const el = musicElement();
+  if (!el) return false;
+  if (el.src !== url) el.src = url;
+  if (fromStart) el.currentTime = 0;
+  try {
+    await el.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function pauseMusic(): void {
+  player?.pause();
+}
+
+export function stopMusic(): void {
+  if (!player) return;
+  player.pause();
+  player.currentTime = 0;
 }

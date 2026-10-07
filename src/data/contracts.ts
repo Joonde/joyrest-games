@@ -12,6 +12,9 @@ import type {
   GamePatch,
   HostLevel,
   LibraryProposal,
+  Track,
+  TrackCategory,
+  TrackInput,
   PointsEntry,
   GameResult,
   HostAccount,
@@ -167,6 +170,24 @@ export interface ClockService {
  * Предложения в библиотеку (CLAUDE.md, раздел 3). Есть только на своём сервере; у Firebase —
  * null, кнопки не показываются.
  */
+/** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */
+export interface TracksRepository {
+  /** Свои треки и общая библиотека (только загруженные). */
+  list(): Promise<{ mine: Track[]; library: Track[] }>;
+  /** Предложенные в общую, ждут проверки (admin). */
+  listPending(): Promise<Track[]>;
+  /** Описание трека; файл — следующим шагом (`upload`). id создаёт браузер. */
+  create(input: TrackInput): Promise<Track>;
+  upload(id: string, file: Blob, durationMs: number | null): Promise<Track>;
+  update(id: string, patch: { title?: string; category?: TrackCategory }): Promise<Track>;
+  remove(id: string): Promise<void>;
+  share(id: string): Promise<Track>;
+  accept(id: string): Promise<Track>;
+  reject(id: string, reason: string): Promise<Track>;
+  /** Файл трека (экран зала, прослушивание); нет — null. */
+  file(id: string): Promise<Blob | null>;
+}
+
 export interface ProposalsRepository {
   /** Ведущий предлагает свою личную игру; пока предложение ждёт — возвращается оно же. */
   propose(gameId: string): Promise<LibraryProposal>;

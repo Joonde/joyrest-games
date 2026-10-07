@@ -95,6 +95,39 @@ export function canReviewProposals(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
+/** Трек музыки: личный — у владельца, общий (agency) — правит admin. Только свой сервер. */
+export interface TrackRef {
+  scope: "personal" | "agency";
+  ownerId: string;
+}
+
+/** Загружать музыку себе может любой активный ведущий; в общую библиотеку сразу — только admin. */
+export function canUploadTrack(actor: Actor, scope: TrackRef["scope"]): boolean {
+  return scope === "agency" ? isAdmin(actor) : isActiveHost(actor);
+}
+
+/** Слушать и ставить на экран: свои треки и всю общую библиотеку; admin — любые (проверка). */
+export function canUseTrack(actor: Actor, track: TrackRef): boolean {
+  if (!isActiveHost(actor)) return false;
+  return track.scope === "agency" || track.ownerId === actor?.uid || isAdmin(actor);
+}
+
+/** Переименовать, удалить: личный — владелец, общий — admin. */
+export function canEditTrack(actor: Actor, track: TrackRef): boolean {
+  if (!isActiveHost(actor)) return false;
+  return track.scope === "agency" ? isAdmin(actor) : track.ownerId === actor?.uid;
+}
+
+/** Предложить трек в общую — ведущий, свой личный (admin загружает в общую сам). */
+export function canShareTrack(actor: Actor, track: TrackRef): boolean {
+  return isActiveHost(actor) && !isAdmin(actor) && track.scope === "personal" && track.ownerId === actor?.uid;
+}
+
+/** Принять или отклонить трек — admin. */
+export function canReviewTracks(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
 /** Отключённый ведущий не создаёт сессии. */
 export function canCreateSession(actor: Actor): boolean {
   return isActiveHost(actor);

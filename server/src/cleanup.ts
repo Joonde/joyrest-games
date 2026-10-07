@@ -3,6 +3,7 @@
  * - файлы картинок без ссылок в таблице media старше 7 дней (удалили картинку или игру;
  *   свежие не трогаем — их может как раз записывать загрузка);
  * - недописанные временные файлы картинок старше суток;
+ * - то же для музыки (MEDIA_DIR/audio, ссылки — таблица tracks);
  * - устройства гостей старше 180 дней (их cookie уже истекла).
  * Сессии старше 30 дней убирает admin при входе в /admin (`POST /api/sessions/cleanup`).
  */
@@ -18,8 +19,21 @@ const TEMP = /^[0-9a-f]{64}\.[0-9a-f]+\.tmp$/;
 
 /** Удаляет файлы картинок без ссылок; возвращает число удалённых. */
 export async function cleanupMedia(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
-  const names = await readdir(dir);
   const referenced = new Set((await sql<{ sha256: string }[]>`select distinct sha256 from media`).map((r) => r.sha256));
+  return removeOrphans(dir, referenced, now);
+}
+
+/** Удаляет файлы музыки без ссылок в tracks (папка audio может ещё не существовать). */
+export async function cleanupAudio(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const audio = join(dir, "audio");
+  const info = await stat(audio).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  const rows = await sql<{ sha256: string }[]>`select distinct sha256 from tracks where sha256 is not null`;
+  return removeOrphans(audio, new Set(rows.map((r) => r.sha256)), now);
+}
+
+async function removeOrphans(dir: string, referenced: Set<string>, now: number): Promise<number> {
+  const names = await readdir(dir);
   let removed = 0;
   for (const name of names) {
     const isFile = FILE.test(name);
@@ -51,7 +65,7 @@ interface Log {
 export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, intervalMs = DAY_MS): () => void {
   const run = async () => {
     try {
-      const files = mediaDir ? await cleanupMedia(sql, mediaDir) : 0;
+      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       log.info({ files, devices }, "cleanup");
     } catch (error) {

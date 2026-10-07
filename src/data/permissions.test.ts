@@ -80,6 +80,38 @@ describe("предложения в библиотеку", () => {
   });
 });
 
+describe("музыка", () => {
+  const mine = { scope: "personal" as const, ownerId: "host-1" };
+  const lib = { scope: "agency" as const, ownerId: ADMIN_UID };
+  it("загружают себе активные ведущие, в общую сразу — только admin", () => {
+    expect(p.canUploadTrack(host, "personal")).toBe(true);
+    expect(p.canUploadTrack(off, "personal")).toBe(false);
+    expect(p.canUploadTrack(guest, "personal")).toBe(false);
+    expect(p.canUploadTrack(host, "agency")).toBe(false);
+    expect(p.canUploadTrack(owner, "agency")).toBe(true);
+  });
+
+  it("слушать: свои и общие; чужие личные — только admin", () => {
+    expect(p.canUseTrack(host, mine)).toBe(true);
+    expect(p.canUseTrack(other, lib)).toBe(true);
+    expect(p.canUseTrack(other, mine)).toBe(false);
+    expect(p.canUseTrack(owner, mine)).toBe(true);
+    expect(p.canUseTrack(guest, lib)).toBe(false);
+  });
+
+  it("править: личный — владелец, общий — admin; предлагать — ведущий свой личный", () => {
+    expect(p.canEditTrack(host, mine)).toBe(true);
+    expect(p.canEditTrack(other, mine)).toBe(false);
+    expect(p.canEditTrack(host, lib)).toBe(false);
+    expect(p.canEditTrack(owner, lib)).toBe(true);
+    expect(p.canShareTrack(host, mine)).toBe(true);
+    expect(p.canShareTrack(other, mine)).toBe(false);
+    expect(p.canShareTrack(owner, { scope: "personal", ownerId: ADMIN_UID })).toBe(false);
+    expect(p.canReviewTracks(owner)).toBe(true);
+    expect(p.canReviewTracks(host)).toBe(false);
+  });
+});
+
 describe("игры", () => {
   it("общую библиотеку видят все активные ведущие", () => {
     expect(p.canReadGame(host, agencyGame)).toBe(true);

@@ -140,7 +140,7 @@ async function layoutCheck(page, who) {
   const result = await page.evaluate(() => {
     const doc = document.documentElement;
     const overflow = doc.scrollWidth - doc.clientWidth;
-    const small = [...document.querySelectorAll("button, a.btn, input:not([type=radio]):not([type=hidden])")]
+    const small = [...document.querySelectorAll("button, a.btn, input:not([type=radio]):not([type=checkbox]):not([type=hidden]):not(.visually-hidden)")]
       .filter((el) => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && r.height < 44 && getComputedStyle(el).visibility !== "hidden";

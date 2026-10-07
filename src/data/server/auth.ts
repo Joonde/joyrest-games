@@ -1,7 +1,7 @@
 /**
  * Вход ведущих на своём сервере: `/api/auth/me`, `login`, `logout`, `password`.
  * Профиль приходит вместе со входом — отдельного запроса за ним нет.
- * Гости и экран зала (анонимный вход по токену устройства) — PR 4.1, пока недоступны.
+ * Гости и экран зала входят анонимно — по устройству (`/api/auth/device`, cookie `__Host-jr_d`).
  */
 import type { AuthService, AuthUser } from "../contracts";
 import { describeAuthError } from "../authErrors";
@@ -87,8 +87,12 @@ export const serverAuthService: AuthService = {
     emit(last.user);
   },
 
+  // Гость или экран зала: устройство в cookie (180 дней), вошедший ведущий остаётся собой.
   async ensureSignedIn() {
-    throw new ApiError("unimplemented", 501);
+    const data = asRecord(await api("POST", "/api/auth/device"));
+    const uid = asText(data.uid);
+    if (!uid) throw new ApiError("unavailable", 0);
+    return { uid, anonymous: data.anonymous !== false, email: asText(data.email) || null };
   },
 
   async signOut() {

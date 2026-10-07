@@ -12,6 +12,7 @@ import type { Sql } from "postgres";
 import { registerAuth, type AuthOptions } from "./auth";
 import { registerGames, type GamesOptions } from "./games";
 import { registerLead, type LeadOptions } from "./lead";
+import { registerLive, type LiveOptions } from "./live";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
 export interface AppOptions {
@@ -45,6 +46,8 @@ export interface AppOptions {
   mediaDir?: string | null;
   /** Игры и картинки — настройки для тестов (лимиты, свободное место). */
   games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
+  /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
+  live?: Omit<LiveOptions, "sql" | "isSite">;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
 }
@@ -95,6 +98,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const isSite = site ? site.isSite : undefined;
     registerAuth(app, { ...options.auth, sql: options.sql, isSite });
     registerGames(app, { ...options.games, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerLive(app, { ...options.live, sql: options.sql, isSite });
   }
 
   const publicDir = options.publicDir;

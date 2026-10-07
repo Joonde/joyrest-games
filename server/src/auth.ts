@@ -36,9 +36,16 @@ export interface AuthLimits {
   /** Попыток входа с одного адреса за окно (перебор разных почт). */
   perIp: number;
   windowMs: number;
+  /** Новых устройств гостей в час с одного адреса без задержки. */
+  devicesFast: number;
+  /** Потолок новых устройств в час с одного адреса. */
+  devicesMax: number;
+  /** Задержка сверх devicesFast, мс (в тестах — 0). */
+  deviceDelayMs?: () => number;
 }
 
-export const DEFAULT_AUTH_LIMITS: AuthLimits = { perAccount: 10, perIp: 30, windowMs: 15 * 60_000 };
+export const DEFAULT_AUTH_LIMITS: AuthLimits = { perAccount: 10, perIp: 30, windowMs: 15 * 60_000, devicesFast: 600, devicesMax: 3000 };
+const HOUR_MS = 60 * 60_000;
 
 export interface AuthOptions {
   sql: Sql;
@@ -185,6 +192,34 @@ export async function sessionUser(sql: Sql, request: FastifyRequest, reply: Fast
   return row;
 }
 
+export const DEVICE_COOKIE = "__Host-jr_d";
+const DEVICE_MS = 180 * DAY_MS;
+
+function deviceCookie(token: string): string {
+  return `${DEVICE_COOKIE}=${token}; Path=/; Max-Age=${Math.floor(DEVICE_MS / 1000)}; HttpOnly; Secure; SameSite=Lax`;
+}
+
+/** Телефон гостя или экран зала по cookie устройства; нет — null. */
+export async function deviceOf(sql: Sql, request: FastifyRequest): Promise<string | null> {
+  const token = readCookie(request.headers.cookie, DEVICE_COOKIE);
+  if (!token) return null;
+  const rows = await sql<{ id: string }[]>`select id from devices where token_hash = ${tokenHash(token)}`;
+  return rows[0]?.id ?? null;
+}
+
+/** Кто обращается: вошедший ведущий (user) или устройство гостя (user = null). Никто — null. */
+export interface Identity {
+  uid: string;
+  user: SessionRow | null;
+}
+
+export async function identityOf(sql: Sql, request: FastifyRequest, reply: FastifyReply): Promise<Identity | null> {
+  const user = await sessionUser(sql, request, reply);
+  if (user) return { uid: user.id, user };
+  const device = await deviceOf(sql, request);
+  return device ? { uid: device, user: null } : null;
+}
+
 const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at"];
 
 export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
@@ -194,6 +229,10 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
   const perAccount = new WindowLimiter(limits.perAccount, limits.windowMs);
   const perIp = new WindowLimiter(limits.perIp, limits.windowMs);
   const perUser = new WindowLimiter(limits.perAccount, limits.windowMs);
+  // Устройства гостей: весь зал часто за одним Wi‑Fi (один адрес). До 600 в час — сразу,
+  // дальше с задержкой 1–3 с, больше 3000 в час — отказ.
+  const devicesFast = new WindowLimiter(limits.devicesFast, HOUR_MS);
+  const devicesMax = new WindowLimiter(limits.devicesMax, HOUR_MS);
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -237,6 +276,23 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
       const user = await currentUser(request, reply);
       if (!user) return { user: null, profile: null };
       return { user: { uid: user.id, email: user.email, anonymous: false }, profile: profileOf(user) };
+    });
+
+    // Анонимный вход гостя или экрана зала: уже вошедший (ведущий или устройство) остаётся собой.
+    api.post("/api/auth/device", routeOptions, async (request, reply) => {
+      const known = await identityOf(sql, request, reply);
+      if (known) return { uid: known.uid, anonymous: known.user === null, email: known.user?.email ?? null };
+      const time = now();
+      if (!devicesMax.take(request.ip, time)) return fail(reply, 429, "resource-exhausted", request, "device");
+      if (!devicesFast.take(request.ip, time)) {
+        const delay = limits.deviceDelayMs ? limits.deviceDelayMs() : 1000 + Math.random() * 2000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      const token = randomBytes(32).toString("base64url");
+      const id = newUserId();
+      await sql`insert into devices (id, token_hash) values (${id}, ${tokenHash(token)})`;
+      reply.header("Set-Cookie", deviceCookie(token));
+      return { uid: id, anonymous: true, email: null };
     });
 
     api.post("/api/auth/login", routeOptions, async (request, reply) => {

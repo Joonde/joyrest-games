@@ -2363,6 +2363,7 @@ kbd {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 2cqw;
+  border-bottom: 2px solid var(--color-border);
 }
 
 .podium__slot {
@@ -2516,7 +2517,11 @@ kbd {
   }
 }
 
-/* Финал: пьедестал меньше, под ним таблица. */
+/* Финал: пьедестал меньше, без появления, под ним таблица. */
+.podium--final .podium__slot.is-open .podium__names {
+  animation: none;
+}
+
 .final > .podium--final {
   height: 40cqh;
   flex: none;

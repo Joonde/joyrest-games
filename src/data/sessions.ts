@@ -53,6 +53,8 @@ function parseLeaderboard(value: unknown): Leaderboard {
     if (typeof entry.colorIndex === "number") board[id].colorIndex = entry.colorIndex;
     if (typeof entry.last === "number") board[id].last = entry.last;
     if (typeof entry.captainUid === "string") board[id].captainUid = entry.captainUid;
+    if (typeof entry.roundBase === "number") board[id].roundBase = entry.roundBase;
+    if (typeof entry.move === "number") board[id].move = entry.move;
   }
   return board;
 }

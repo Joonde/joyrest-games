@@ -1,8 +1,9 @@
-import { LIMITS, newQuestion, type QuizQuestion } from "./content";
+import { LIMITS, newQuestion, parseRound, type QuizQuestion } from "./content";
 import { validateQuestion } from "./validate";
 
 /** Пример формата: показывается прямо в окне импорта. */
-export const IMPORT_EXAMPLE = `Какой город называют Северной столицей?
+export const IMPORT_EXAMPLE = `# Раунд: География
+Какой город называют Северной столицей?
 - Москва
 * Санкт-Петербург
 - Казань
@@ -31,7 +32,12 @@ interface Draft {
   text: string;
   options: Array<{ text: string; correct: boolean }>;
   answers: string[];
+  /** Перед вопросом была строка «# Раунд: …» — с него начинается раунд. */
+  round: string | null;
 }
+
+/** «# Раунд: Кино», «# Кино» → «Кино». */
+const ROUND_LINE = /^#+\s*(?:раунд(?:\s*\d+)?\s*[:.—-]?\s*)?/i;
 
 /** Строка варианта: «- текст», «* текст» (верный), «-* текст» или «- текст *» (тоже верный). */
 function parseOption(line: string): { text: string; correct: boolean } | null {
@@ -71,6 +77,7 @@ function toQuestion(draft: Draft): ImportedQuestion {
     };
   }
   question.text = draft.text.slice(0, LIMITS.text);
+  question.round = draft.round;
   if (draft.text.length > LIMITS.text) problems.push(`Вопрос длиннее ${LIMITS.text} символов — обрезан.`);
 
   for (const error of validateQuestion(question)) {
@@ -83,17 +90,25 @@ function toQuestion(draft: Draft): ImportedQuestion {
 
 /**
  * Разбор вопросов, вставленных списком: каждый вопрос с новой строки, варианты — с «-»,
- * верный помечен «*», открытый ответ — «= ответ1 | ответ2». Пустые строки не важны.
+ * верный помечен «*», открытый ответ — «= ответ1 | ответ2», раунд — «# Раунд: Кино» перед
+ * первым вопросом раунда. Пустые строки не важны.
  */
 export function parseImport(input: string): ImportResult {
   const drafts: Draft[] = [];
   const skipped: number[] = [];
   let current: Draft | null = null;
+  let round: string | null = null;
 
   input.split(/\r?\n/).forEach((raw, index) => {
     const line = raw.trim();
     const lineNo = index + 1;
     if (!line) return;
+
+    if (line.startsWith("#")) {
+      // Название раунда: «# Раунд 2: Кино». Без названия — «Раунд N».
+      round = parseRound(line.replace(ROUND_LINE, "")) ?? `Раунд ${drafts.filter((d) => d.round !== null).length + 1}`;
+      return;
+    }
 
     if (line.startsWith("=")) {
       if (!current) return skipped.push(lineNo);
@@ -113,7 +128,8 @@ export function parseImport(input: string): ImportResult {
       return;
     }
 
-    current = { line: lineNo, text: line.replace(NUMBERING, "").trim(), options: [], answers: [] };
+    current = { line: lineNo, text: line.replace(NUMBERING, "").trim(), options: [], answers: [], round };
+    round = null;
     drafts.push(current);
   });
 

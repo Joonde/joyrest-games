@@ -342,9 +342,9 @@ async function main() {
     }
     await until(() => current().state.stage === "question", 5000);
     await apply(reveal(current(), DEMO_QUIZ.content, answers, participants));
-    await apply(showBoard());
+    await apply(showBoard(current(), DEMO_QUIZ.content));
     stopAnswers();
-    if (step < QUESTIONS.length - 1) await apply(nextQuestion(current()));
+    if (step < QUESTIONS.length - 1) await apply(nextQuestion(current(), DEMO_QUIZ.content));
     const got = answeredBy.get(step)?.size ?? 0;
     say(`  вопрос ${step + 1}: пульт видит ${answers.length}, сервер принял ${got} из ${expected} за ${((Date.now() - t0) / 1000).toFixed(1)} с`);
     if (answers.length < got) fail("пульт не увидел ответ");

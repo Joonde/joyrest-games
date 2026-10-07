@@ -4,14 +4,24 @@ import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { MediaImage, preloadMedia } from "../../components/media/MediaImage";
 import { placeOf } from "../../core/leaderboard";
+import { bestInRound, moveLabel, roundLeaderboard, roundScore } from "../../core/rounds";
 import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { KIND_TITLES, LIMITS, type QuizContent, type QuizQuestion } from "./content";
+import { KIND_TITLES, LIMITS, roundAt, roundTitle, type QuizContent, type QuizQuestion } from "./content";
+import { boardView, startsRound } from "./flow";
 import { isCorrect, parseResult } from "./logic";
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const d10 = n % 10;
+  const d100 = n % 100;
+  if (d10 === 1 && d100 !== 11) return one;
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return few;
+  return many;
+}
 
 function currentQuestion(session: Session, content: QuizContent): QuizQuestion | undefined {
   return content.questions[session.state.step];
@@ -65,10 +75,46 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
   if (!q) return <div className="quiz-screen quiz-screen--empty">Вопросов нет</div>;
   const total = content.questions.length;
 
+  const round = roundAt(content, step);
+
   if (stage === "board") {
+    const view = boardView(session);
+    if (view === "round" && round) {
+      return (
+        <div className="quiz-screen quiz-screen--board">
+          <BoardView
+            leaderboard={roundLeaderboard(session.leaderboard)}
+            title={`Итоги: ${roundTitle(round)}`}
+            showLast={false}
+            stars={bestInRound(session.leaderboard)}
+          />
+        </div>
+      );
+    }
     return (
       <div className="quiz-screen quiz-screen--board">
-        <BoardView leaderboard={session.leaderboard} title={`Таблица после ${step + 1}-го вопроса из ${total}`} />
+        <BoardView
+          leaderboard={session.leaderboard}
+          title={view === "total" && round ? `Общий счёт после раунда ${round.number}` : `Таблица после ${step + 1}-го вопроса из ${total}`}
+          showLast={view !== "total"}
+          showMoves
+          stars={view === "total" ? bestInRound(session.leaderboard) : undefined}
+        />
+      </div>
+    );
+  }
+
+  if (stage === "ready" && round && (startsRound(content, step) || step === 0)) {
+    // Заставка раунда: «Раунд 2» крупно, название, сколько вопросов.
+    const count = round.to - round.from + 1;
+    const named = roundTitle(round) !== `Раунд ${round.number}`;
+    return (
+      <div className="quiz-screen quiz-screen--intro">
+        {named && <span className="quiz-screen__badge">Раунд {round.number}</span>}
+        <h2 className="quiz-screen__intro">{named ? round.title : `Раунд ${round.number}`}</h2>
+        <p className="quiz-screen__hint">
+          {count} {plural(count, "вопрос", "вопроса", "вопросов")} · первый — {KIND_TITLES[q.kind].toLowerCase()}
+        </p>
       </div>
     );
   }
@@ -195,9 +241,12 @@ export function QuizPlayerView({
     </p>
   );
 
+  const round = roundAt(content, step);
+
   if (stage === "ready") {
     return (
       <div className="quiz-phone quiz-phone--center">
+        {round && <p className="eyebrow">{roundTitle(round)}</p>}
         <p className="eyebrow">
           Вопрос {step + 1} из {total}
         </p>
@@ -209,14 +258,29 @@ export function QuizPlayerView({
   }
 
   if (stage === "board") {
+    const view = boardView(session);
+    if (view === "round" && round && me) {
+      const roundPlace = placeOf(roundLeaderboard(session.leaderboard), pid);
+      return (
+        <div className="quiz-phone quiz-phone--center">
+          <p className="eyebrow">Итоги: {roundTitle(round)}</p>
+          {roundPlace && <p className="quiz-phone__place">{roundPlace.place}</p>}
+          <p className="quiz-phone__score">
+            место в раунде · {pointsLabel(roundScore(me))} за раунд
+          </p>
+          {bestInRound(session.leaderboard).has(pid) && <p className="success">★ Лучший в раунде!</p>}
+        </div>
+      );
+    }
     return (
       <div className="quiz-phone quiz-phone--center">
-        <p className="eyebrow">Таблица после {step + 1}-го вопроса</p>
+        <p className="eyebrow">{view === "total" && round ? `Общий счёт после раунда ${round.number}` : `Таблица после ${step + 1}-го вопроса`}</p>
         {me && place ? (
           <>
             <p className="quiz-phone__place">{place.place}</p>
             <p className="quiz-phone__score">
               место из {place.total} · {pointsLabel(me.score)}
+              {moveLabel(me.move) && ` · ${moveLabel(me.move)}`}
             </p>
           </>
         ) : (

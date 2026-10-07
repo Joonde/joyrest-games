@@ -15,6 +15,8 @@ import {
   LIMITS,
   moveItem,
   newQuestion,
+  quizRounds,
+  roundTitle,
   type QuestionKind,
   type QuizContent,
   type QuizQuestion,
@@ -43,6 +45,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   latest.current = content;
   const errors = useMemo(() => validateContent(content), [content]);
   const questions = content.questions;
+  const rounds = useMemo(() => quizRounds({ questions }), [questions]);
   const room = LIMITS.questions - questions.length;
 
   function setQuestions(next: QuizQuestion[]) {
@@ -220,6 +223,9 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                   >
                     <span className="q-card__number">{index + 1}</span>
                     <span className="q-card__titles">
+                      {rounds.find((r) => r.from === index) && (
+                        <span className="q-card__round">{roundTitle(rounds.find((r) => r.from === index) as (typeof rounds)[number])}</span>
+                      )}
                       <span className="q-card__text">{q.text.trim() || "Без текста"}</span>
                       <span className="q-card__meta muted small">
                         {KIND_TITLES[q.kind]} · {q.timeLimit} с · {q.points} очк.
@@ -542,6 +548,19 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </label>
       </div>
       {q.kind === "speed" && <p className="muted small">Самый быстрый верный ответ получает максимум, остальные — меньше.</p>}
+
+      <label className="field">
+        Начать с этого вопроса раунд
+        <input
+          maxLength={LIMITS.round}
+          placeholder="Название раунда, например «Кино»"
+          value={q.round ?? ""}
+          onChange={(e) => onChange({ round: e.target.value === "" ? null : e.target.value })}
+        />
+      </label>
+      <p className="muted small">
+        Пусто — вопрос продолжает прежний раунд. После последнего вопроса раунда экран покажет итоги раунда и общий счёт.
+      </p>
     </div>
   );
 }

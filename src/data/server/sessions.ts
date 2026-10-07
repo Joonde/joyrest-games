@@ -44,6 +44,8 @@ function parseEntry(value: unknown): LeaderboardEntry {
   if (typeof e.colorIndex === "number") entry.colorIndex = e.colorIndex;
   if (typeof e.last === "number") entry.last = e.last;
   if (typeof e.captainUid === "string") entry.captainUid = e.captainUid;
+  if (typeof e.roundBase === "number") entry.roundBase = e.roundBase;
+  if (typeof e.move === "number") entry.move = e.move;
   return entry;
 }
 

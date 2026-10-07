@@ -6,13 +6,15 @@ import {
   moveItem,
   newQuestion,
   parseContent,
+  quizRounds,
+  roundTitle,
   type QuizQuestion,
 } from "./content";
 import { IMPORT_EXAMPLE, parseImport } from "./importText";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
-import { actionLabel, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
+import { actionLabel, back, boardView, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
 import { groupOpenAnswers, isCorrect, parseResult, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
@@ -41,7 +43,13 @@ describe("parseContent", () => {
       timeLimit: 300,
       points: 1,
       imageId: null,
+      round: null,
     });
+  });
+
+  it("название раунда — одна строка до 60 символов, пустое — раунда нет", () => {
+    const { questions } = parseContent({ questions: [{ round: "  Кино\n и музыка " }, { round: "   " }, { round: 5 }, { round: "я".repeat(80) }] });
+    expect(questions.map((q) => q.round?.length ?? null)).toEqual(["Кино и музыка".length, null, null, 60]);
   });
 
   it("одинаковые id вопросов становятся разными", () => {
@@ -143,7 +151,8 @@ describe("parseImport", () => {
       options: ["Москва", "Санкт-Петербург", "Казань"],
       correct: 1,
     });
-    expect(questions[1]?.question).toMatchObject({ kind: "open", answers: ["30", "тридцать"] });
+    expect(questions[0]?.question.round).toBe("География");
+    expect(questions[1]?.question).toMatchObject({ kind: "open", answers: ["30", "тридцать"], round: null });
     expect(questions.flatMap((q) => q.problems)).toEqual([]);
   });
 
@@ -277,26 +286,26 @@ describe("ход игры на пульте", () => {
     expect(s.leaderboard.b?.last ?? 0).toBe(0);
     // Опоздавший гость с тем же именем внесён в таблицу с номером.
     expect(s.leaderboard.c).toMatchObject({ name: "Аня 2", score: 100 });
-    s = applyChange(s, showBoard(), 3);
+    s = applyChange(s, showBoard(s, content), 3);
     expect(primaryAction(s, content)).toBe("next");
-    s = applyChange(s, nextQuestion(s), 4);
+    s = applyChange(s, nextQuestion(s, content), 4);
     expect(s.state).toMatchObject({ step: 1, stage: "ready", startedAt: null });
     s = applyChange(s, showQuestion(s, content), 5);
     s = applyChange(s, toggleAccepted(s, normalizeAnswer("ДА!")), 6);
     s = applyChange(s, reveal(s, content, [ans(1, "b", "да")], people), 7);
     expect(s.leaderboard.b).toMatchObject({ score: 50, last: 50 });
     expect(s.leaderboard.a).toMatchObject({ score: 100, last: 0 });
-    s = applyChange(s, showBoard(), 8);
+    s = applyChange(s, showBoard(s, content), 8);
     const board = s;
     // Аня и Аня 2 — по 100 (общее 1 место), Боря — 50 (3 место); второго места нет.
     expect(primaryAction(s, content)).toBe("podium");
-    expect(actionLabel(s, "podium")).toBe("Награждение");
+    expect(actionLabel(s, content, "podium")).toBe("Награждение");
     s = applyChange(s, startPodium(s), 9);
     expect(s.state.stage).toBe("podium");
     expect(primaryAction(s, content)).toBe("podiumNext");
-    expect(actionLabel(s, "podiumNext")).toBe("Показать 3 место");
+    expect(actionLabel(s, content, "podiumNext")).toBe("Показать 3 место");
     s = applyChange(s, podiumNext(s), 10);
-    expect(actionLabel(s, "podiumNext")).toBe("Показать 1 место");
+    expect(actionLabel(s, content, "podiumNext")).toBe("Показать 1 место");
     s = applyChange(s, podiumNext(s), 11);
     expect(primaryAction(s, content)).toBe("finish");
     // «Назад» закрывает места по одному, с заставки — обратно к таблице и итогам шага.
@@ -340,6 +349,82 @@ describe("ход игры на пульте", () => {
       { key: "да", text: "Да", count: 2, status: "correct" },
       { key: "lf", text: "lf", count: 1, status: "accepted" },
     ]);
+  });
+});
+
+describe("раунды квиза", () => {
+  const q = (round: string | null = null) => choice({ round });
+  const content = { questions: [q(), q(), q("Кино"), q(), q("Музыка")] };
+  const player = (id: string, name: string) => ({ id, name, kind: "player" as const, teamId: null, captainUid: id, joinedAt: 1 });
+  const base: Session = {
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "quiz",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: startState(),
+    leaderboard: {},
+    createdAt: 0,
+  };
+
+  it("до первого названного раунда — безымянный первый; без названий раундов нет", () => {
+    expect(quizRounds(content)).toEqual([
+      { number: 1, title: "", from: 0, to: 1 },
+      { number: 2, title: "Кино", from: 2, to: 3 },
+      { number: 3, title: "Музыка", from: 4, to: 4 },
+    ]);
+    expect(quizRounds({ questions: [q(), q()] })).toEqual([]);
+    expect(roundTitle({ number: 1, title: "", from: 0, to: 1 })).toBe("Раунд 1");
+    expect(roundTitle({ number: 2, title: "Раунд 2", from: 0, to: 1 })).toBe("Раунд 2");
+    expect(roundTitle({ number: 2, title: "Кино", from: 2, to: 3 })).toBe("Раунд 2: Кино");
+  });
+
+  it("копия вопроса не начинает новый раунд", () => {
+    expect(duplicateQuestion(q("Кино")).round).toBeNull();
+  });
+
+  it("конец раунда: итоги раунда → общий счёт → следующий раунд со счётом раунда с нуля", () => {
+    const people = [player("a", "Аня"), player("b", "Боря")];
+    const ans = (step: number, pid: string) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: 0, submittedAt: 5 });
+    let s: Session = { ...base, leaderboard: {}, state: { ...base.state, step: 1 } };
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [ans(1, "a")], people), 2);
+    expect(actionLabel(s, content, "board")).toBe("Итоги раунда");
+    s = applyChange(s, showBoard(s, content), 3);
+    expect(boardView(s)).toBe("round");
+    expect(primaryAction(s, content)).toBe("total");
+    s = applyChange(s, showTotal(s), 4);
+    expect(boardView(s)).toBe("total");
+    expect(primaryAction(s, content)).toBe("next");
+    // «Назад» с общего счёта — к итогам раунда, оттуда — к ответу.
+    expect(back(s)?.change.state?.result).toMatchObject({ board: "round" });
+    s = applyChange(s, nextQuestion(s, content), 5);
+    expect(s.leaderboard.a).toMatchObject({ score: 100, roundBase: 100 });
+    expect(actionLabel(s, content, "show")).toBe("Начать раунд");
+    // В середине раунда — обычная таблица.
+    s = applyChange(s, showQuestion(s, content), 6);
+    s = applyChange(s, reveal(s, content, [ans(2, "b")], people), 7);
+    s = applyChange(s, showBoard(s, content), 8);
+    expect(boardView(s)).toBe("plain");
+    // Боря догнал Аню: общее первое место, поднялся на одно.
+    expect(s.leaderboard.b).toMatchObject({ score: 100, move: 1 });
+  });
+
+  it("стрелки: обогнавший поднимается, обойдённый опускается", () => {
+    const people = [player("a", "Аня"), player("b", "Боря")];
+    let s: Session = {
+      ...base,
+      leaderboard: { a: { name: "Аня", kind: "player", score: 100 }, b: { name: "Боря", kind: "player", score: 50 } },
+    };
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [{ id: "0_b", step: 0, pid: "b", uid: "b", value: 0, submittedAt: 5 }], people), 2);
+    expect(s.leaderboard.b?.move).toBe(1);
+    expect(s.leaderboard.a?.move).toBe(-1);
   });
 });
 

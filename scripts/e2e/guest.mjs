@@ -79,7 +79,7 @@ const question = (id, text, options, correct) => ({
 const CONTENT = {
   questions: [
     question("e1", "Какого цвета снег?", ["Белый", "Зелёный", "Синий", "Красный"], 0),
-    question("e2", "Сколько месяцев в году?", ["10", "12", "14"], 1),
+    { ...question("e2", "Сколько месяцев в году?", ["10", "12", "14"], 1), round: "Финал" },
   ],
 };
 
@@ -238,16 +238,25 @@ async function soloGame(browser, token) {
   await anna.page.locator(".quiz-phone__option").first().click({ timeout: WAIT });
   await shot(anna.page, "аня-ответ", "Телефон Ани: ответила");
   await shot(screen, "экран-вопрос", "Экран зала: вопрос");
-  step("пульт: показать ответ и таблицу", host);
+  step("пульт: показать ответ и итоги раунда", host);
   await clickButton(host, "Показать ответ");
-  await clickButton(host, "Таблица");
-  await expectText(screen, screen.locator(".board-view__name"), "🦊 Аня", "Экран зала, таблица");
-  await shot(screen, "экран-таблица", "Экран зала: таблица");
+  await clickButton(host, "Итоги раунда");
+  await expectText(screen, screen.locator(".board-view__title"), "Итоги: Раунд 1", "Экран зала, итоги раунда");
+  await expectText(screen, screen.locator(".board-view__name"), "🦊 Аня", "Экран зала, таблица раунда");
+  await expectText(screen, screen.locator(".board-view__star"), "★", "Экран зала, лучший в раунде");
+  await expectText(anna.page, anna.page.locator(".quiz-phone"), "Лучший в раунде", "Телефон Ани, лучший в раунде");
+  await clickButton(host, "Общий счёт");
+  await expectText(screen, screen.locator(".board-view__title"), "Общий счёт после раунда 1", "Экран зала, общий счёт");
+  await shot(screen, "экран-таблица", "Экран зала: общий счёт");
+  step("пульт: второй раунд", host);
   await clickButton(host, "Следующий вопрос");
-  await clickButton(host, "Показать вопрос");
+  await expectText(screen, screen.locator(".quiz-screen__intro"), "Финал", "Экран зала, заставка раунда");
+  await expectText(anna.page, anna.page.locator(".quiz-phone"), "Раунд 2: Финал", "Телефон Ани, раунд");
+  await clickButton(host, "Начать раунд");
   await anna.page.locator(".quiz-phone__option").nth(1).click({ timeout: WAIT });
   await clickButton(host, "Показать ответ");
-  await clickButton(host, "Таблица");
+  await clickButton(host, "Итоги раунда");
+  await clickButton(host, "Общий счёт");
   step("пульт: награждение", host);
   await clickButton(host, "Награждение");
   await expectText(screen, screen.locator(".podium__eyebrow"), "Награждение", "Экран зала, заставка награждения");

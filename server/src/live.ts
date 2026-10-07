@@ -117,6 +117,9 @@ export function parseEntry(value: unknown): LeaderboardEntry | null {
   if (typeof value.colorIndex === "number") entry.colorIndex = value.colorIndex;
   if (typeof value.last === "number") entry.last = value.last;
   if (typeof value.captainUid === "string" && ID.test(value.captainUid)) entry.captainUid = value.captainUid;
+  // Раунды и стрелки (CLAUDE.md, раздел 6, «Раунды и табло»).
+  if (typeof value.roundBase === "number" && Number.isFinite(value.roundBase)) entry.roundBase = value.roundBase;
+  if (typeof value.move === "number" && Number.isInteger(value.move)) entry.move = value.move;
   return entry;
 }
 

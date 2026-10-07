@@ -4,10 +4,10 @@ import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
 import type { SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { KIND_TITLES, type QuizContent } from "./content";
+import { KIND_TITLES, roundAt, roundTitle, type QuizContent } from "./content";
 import { PodiumHostList } from "../../components/live/Podium";
 import { podiumNext, startPodium } from "../../core/podium";
-import { actionLabel, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, toggleAccepted } from "./flow";
+import { actionLabel, back, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
 import { groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 
@@ -26,6 +26,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
   if (!q) return <p className="muted">В игре нет вопросов.</p>;
 
   const total = content.questions.length;
+  const round = roundAt(content, step);
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
   const result = parseResult(session.state.result);
   const own = answers.filter((a) => a.step === step);
@@ -53,8 +54,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
   function onPrimary() {
     if (action === "show") void run(showQuestion(session, content));
     if (action === "reveal") void run(reveal(session, content, own, participants));
-    if (action === "board") void run(showBoard());
-    if (action === "next") void run(nextQuestion(session));
+    if (action === "board") void run(showBoard(session, content));
+    if (action === "total") void run(showTotal(session));
+    if (action === "next") void run(nextQuestion(session, content));
     if (action === "podium") void run(startPodium(session));
     if (action === "podiumNext") void run(podiumNext(session));
     if (action === "finish") control.requestFinish();
@@ -72,7 +74,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       )}
       <div className="actions">
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
-          {actionLabel(session, action)}
+          {actionLabel(session, content, action)}
         </button>
         <button
           type="button"
@@ -102,6 +104,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
   return (
     <div className="stack host-quiz">
       <div className="stack stack--tight">
+        {round && <p className="eyebrow">{roundTitle(round)}</p>}
         <p className="eyebrow">
           Вопрос {step + 1} из {total} · {KIND_TITLES[q.kind]} · {q.points} очк.
         </p>

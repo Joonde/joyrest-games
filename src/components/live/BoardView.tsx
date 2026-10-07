@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 import { rankedLeaderboard } from "../../core/leaderboard";
+import { moveLabel } from "../../core/rounds";
+import { NameText } from "../NameText";
 import type { Leaderboard } from "../../data";
 import { teamColorVar } from "../../themes/registry";
 
@@ -10,13 +12,17 @@ interface Props {
   /** Показывать прибавку за последний вопрос. */
   showLast?: boolean;
   title?: string;
+  /** Стрелки «↑2» — на сколько мест сдвинулся после последнего ответа. */
+  showMoves?: boolean;
+  /** Лучшие в раунде — со звёздочкой. */
+  stars?: Set<string>;
 }
 
 /**
  * Таблица лидеров для экрана зала: места с учётом равных очков, цвета команд,
  * «+100» за последний вопрос. Размеры — в единицах контейнера, как у вопроса.
  */
-export function BoardView({ leaderboard, limit = 10, showLast = true, title = "Таблица" }: Props) {
+export function BoardView({ leaderboard, limit = 10, showLast = true, title = "Таблица", showMoves = false, stars }: Props) {
   const ranked = rankedLeaderboard(leaderboard);
   const rows = ranked.slice(0, limit);
   return (
@@ -33,7 +39,18 @@ export function BoardView({ leaderboard, limit = 10, showLast = true, title = "�
               style={e.kind === "team" ? ({ "--team-color": teamColorVar(e.colorIndex) } as CSSProperties) : undefined}
             >
               <span className="board-view__place">{e.place}</span>
-              <span className="board-view__name">{e.name}</span>
+              <span className="board-view__name">
+                <NameText name={e.name} />
+                {stars?.has(e.id) && (
+                  <span className="board-view__star" title="Лучший в раунде">
+                    {" "}
+                    ★
+                  </span>
+                )}
+              </span>
+              {showMoves && moveLabel(e.move) && (
+                <span className={(e.move ?? 0) > 0 ? "board-view__move is-up" : "board-view__move is-down"}>{moveLabel(e.move)}</span>
+              )}
               {showLast && (e.last ?? 0) > 0 && <span className="board-view__last">+{e.last}</span>}
               <span className="board-view__score">{e.score}</span>
             </li>

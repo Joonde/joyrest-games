@@ -19,10 +19,52 @@ export interface QuizQuestion {
   /** Очки за верный ответ (на скорость — максимум за самый быстрый). */
   points: number;
   imageId: string | null;
+  /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
+  round: string | null;
 }
 
 export interface QuizContent {
   questions: QuizQuestion[];
+}
+
+/** Раунд квиза: вопросы с from по to включительно. */
+export interface QuizRound {
+  /** Номер раунда с 1. */
+  number: number;
+  /** Название; пусто — у первого раунда, если ведущий его не назвал. */
+  title: string;
+  from: number;
+  to: number;
+}
+
+/**
+ * Раунды квиза. Нет ни одного названия раунда — раундов нет (пустой список, игра как раньше).
+ * Вопросы до первого названного раунда — безымянный первый раунд.
+ */
+export function quizRounds(content: QuizContent): QuizRound[] {
+  const starts: Array<{ from: number; title: string }> = [];
+  content.questions.forEach((q, i) => {
+    if (q.round !== null) starts.push({ from: i, title: q.round });
+  });
+  if (starts.length === 0) return [];
+  if (starts[0]?.from !== 0) starts.unshift({ from: 0, title: "" });
+  return starts.map((start, i) => ({
+    number: i + 1,
+    title: start.title,
+    from: start.from,
+    to: (starts[i + 1]?.from ?? content.questions.length) - 1,
+  }));
+}
+
+/** Раунд, в котором этот шаг; null — раундов нет. */
+export function roundAt(content: QuizContent, step: number): QuizRound | null {
+  return quizRounds(content).find((r) => step >= r.from && step <= r.to) ?? null;
+}
+
+/** «Раунд 2: Кино» или «Раунд 1». */
+export function roundTitle(round: QuizRound): string {
+  const plain = !round.title || /^раунд\s*\d*$/i.test(round.title);
+  return plain ? `Раунд ${round.number}` : `Раунд ${round.number}: ${round.title}`;
 }
 
 export const LIMITS = {
@@ -37,6 +79,7 @@ export const LIMITS = {
   maxTime: 300,
   minPoints: 1,
   maxPoints: 1000,
+  round: 60,
 } as const;
 
 export const DEFAULTS: Record<QuestionKind, { timeLimit: number; points: number }> = {
@@ -72,6 +115,7 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     answers: kind === "open" ? [""] : [],
     ...DEFAULTS[kind],
     imageId: null,
+    round: null,
   };
 }
 
@@ -100,7 +144,8 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
 
 /** Копия вопроса с новым id; картинка общая (тот же imageId). */
 export function duplicateQuestion(question: QuizQuestion): QuizQuestion {
-  return { ...question, id: newQuestionId(), options: [...question.options], answers: [...question.answers] };
+  // Копия продолжает раунд, а не начинает новый с тем же названием.
+  return { ...question, id: newQuestionId(), options: [...question.options], answers: [...question.answers], round: null };
 }
 
 export function moveItem<T>(list: T[], from: number, to: number): T[] {
@@ -130,6 +175,13 @@ function strings(value: unknown, maxItems: number, maxLength: number): string[] 
   return Array.isArray(value) ? value.slice(0, maxItems).map((v) => text(v, maxLength)) : [];
 }
 
+/** Название раунда: одна строка без управляющих символов; пусто — раунд не начинается. */
+export function parseRound(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const title = value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, LIMITS.round);
+  return title.length > 0 ? title : null;
+}
+
 function parseKind(value: unknown): QuestionKind {
   return value === "open" || value === "speed" ? value : "choice";
 }
@@ -153,6 +205,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     timeLimit: int(data.timeLimit, DEFAULTS[kind].timeLimit, LIMITS.minTime, LIMITS.maxTime),
     points: int(data.points, DEFAULTS[kind].points, LIMITS.minPoints, LIMITS.maxPoints),
     imageId: typeof data.imageId === "string" && data.imageId.length > 0 ? data.imageId : null,
+    round: parseRound(data.round),
   };
 }
 

@@ -28,6 +28,8 @@ function parseResult(value: unknown): GameResult | null {
     playedAt: typeof d.playedAt === "number" ? d.playedAt : null,
     participantsCount: typeof d.participantsCount === "number" ? d.participantsCount : 0,
     board: parseBoard(d.board),
+    startedAt: typeof d.startedAt === "number" ? d.startedAt : null,
+    finishedAt: typeof d.finishedAt === "number" ? d.finishedAt : null,
   };
 }
 

@@ -66,6 +66,19 @@ export const serverParticipantsRepository: ParticipantsRepository = {
     await api("POST", `${one(sessionId, uid)}/touch`);
   },
 
+  async listOffline(sessionId) {
+    const data = await api("GET", `/api/sessions/${encodeURIComponent(sessionId)}/offline`);
+    return (Array.isArray(data) ? data : []).flatMap((item) => {
+      const d = asRecord(item);
+      const pid = asText(d.pid);
+      return pid ? [{ pid, name: asText(d.name), team: typeof d.team === "string" ? d.team : null }] : [];
+    });
+  },
+
+  async claim(sessionId, pid) {
+    await api("POST", `${one(sessionId, pid)}/claim`);
+  },
+
   watch(sessionId, onChange, onError) {
     const all = new Map<string, Participant>();
     const emit = () => onChange([...all.values()]);

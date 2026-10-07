@@ -8,6 +8,11 @@ export const IMPORT_EXAMPLE = `# Раунд: География
 * Санкт-Петербург
 - Казань
 
+Какие из этих городов на Волге?
+* Казань
+* Самара
+- Пермь
+
 Сколько свечей на торте у юбиляра?
 = 30 | тридцать`;
 
@@ -68,12 +73,13 @@ function toQuestion(draft: Draft): ImportedQuestion {
       problems.push(`Больше ${LIMITS.maxOptions} вариантов — лишние не добавлены.`);
     }
     const marked = options.flatMap((o, i) => (o.correct ? [i] : []));
-    if (marked.length > 1) problems.push("Отмечено несколько верных вариантов — оставлен первый.");
     if (!hasOptions) problems.push("Нет ни вариантов («-»), ни ответа («=»).");
     question = {
       ...newQuestion("choice"),
       options: options.length > 0 ? options.map((o) => o.text.slice(0, LIMITS.option)) : ["", ""],
       correct: hasOptions ? (marked[0] ?? -1) : 0,
+      // Несколько «*» — несколько верных вариантов: засчитывается любой.
+      alsoCorrect: marked.slice(1),
     };
   }
   question.text = draft.text.slice(0, LIMITS.text);

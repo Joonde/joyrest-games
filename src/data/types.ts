@@ -130,6 +130,21 @@ export interface SessionState {
   mix?: MixState | null;
   /** Слайд поверх экрана зала (заставка, правила, перерыв…); null — слайда нет. */
   slide?: SlideState | null;
+  /** Команды: скрыть названия до представления и само представление по одной. */
+  teams?: TeamsReveal | null;
+  /** Таблица поверх игры по кнопке ведущего: общий счёт или счёт текущего раунда. */
+  peek?: PeekView | null;
+}
+
+export type PeekView = "total" | "round";
+
+export interface TeamsReveal {
+  /** Названия команд скрыты: на экране и у других — «Команда 1» и звёздочки телефонов. */
+  hidden: boolean;
+  /** Представление команд: сколько уже показано (0 — первая); null — представления нет. */
+  shown: number | null;
+  /** Сколько телефонов в каждой команде (пишет пульт, пока названия скрыты). */
+  sizes?: Record<string, number>;
 }
 
 export type SlideKind = "intro" | "rules" | "round" | "break" | "award" | "thanks" | "custom";
@@ -323,6 +338,9 @@ export interface GameResult {
   participantsCount: number;
   /** По убыванию очков. */
   board: ResultRow[];
+  /** Свой сервер: «Начать игру» и «Завершить игру» (сколько шла игра). */
+  startedAt?: number | null;
+  finishedAt?: number | null;
 }
 
 /** Итог автоочистки старых сессий. */
@@ -443,4 +461,12 @@ export interface VenueUpload {
   kind: VenueFileKind;
   blob: Blob;
   name: string;
+}
+
+/** Игрок не на связи: за него можно войти с другого телефона. */
+export interface OfflinePlayer {
+  pid: string;
+  name: string;
+  /** Название команды (режим команд). */
+  team: string | null;
 }

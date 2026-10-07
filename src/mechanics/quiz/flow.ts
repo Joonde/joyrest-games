@@ -5,7 +5,7 @@ import { leaderboardAdditions } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone, podiumLabel } from "../../core/podium";
 import { placeMoves, startRoundEntries } from "../../core/rounds";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
-import { roundAt, type QuizContent } from "./content";
+import { quizRounds, roundAt, settingsOf, type QuizContent } from "./content";
 import { emptyResult, parseResult, resultOf, score, steps } from "./logic";
 
 export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish";
@@ -32,17 +32,39 @@ export function startsRound(content: QuizContent, step: number): boolean {
   return step > 0 && roundAt(content, step)?.from === step;
 }
 
+/**
+ * Нужна ли таблица после ответа (настройка игры «Таблица»): после каждого вопроса, только в
+ * конце раунда (без раундов — в конце игры) или только по кнопке ведущего.
+ */
+export function boardAfterReveal(content: QuizContent, step: number): boolean {
+  const mode = settingsOf(content).board;
+  if (mode === "each") return true;
+  if (mode === "manual") return false;
+  if (quizRounds(content).length === 0) return step === content.questions.length - 1;
+  return endsRound(content, step);
+}
+
+/** Действие после ответа без таблицы: следующий вопрос, награждение или конец. */
+function afterStep(session: Session, content: QuizContent): QuizAction {
+  if (session.state.step < content.questions.length - 1) return "next";
+  return hasPodium(session.leaderboard) ? "podium" : "finish";
+}
+
 /** Какое действие главное на этом этапе (одна главная кнопка пульта). */
 export function primaryAction(session: Session, content: QuizContent): QuizAction {
   const { stage, step } = session.state;
   if (stage === "ready") return "show";
   if (stage === "question") return "reveal";
-  if (stage === "reveal") return "board";
+  if (stage === "reveal") return boardAfterReveal(content, step) ? "board" : afterStep(session, content);
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
   if (boardView(session) === "round") return "total";
-  if (step < content.questions.length - 1) return "next";
   // После таблицы последнего вопроса — награждение, если есть кого награждать.
-  return hasPodium(session.leaderboard) ? "podium" : "finish";
+  return afterStep(session, content);
+}
+
+/** Дополнительная кнопка пульта: таблица по желанию, когда главная кнопка её пропускает. */
+export function extraAction(session: Session, content: QuizContent): QuizAction | null {
+  return session.state.stage === "reveal" && primaryAction(session, content) !== "board" ? "board" : null;
 }
 
 export const ACTION_LABELS: Record<QuizAction, string> = {
@@ -154,17 +176,22 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
   // Старт счёта раунда запоминаем: «Назад» с заставки раунда вернёт его и общий счёт.
   const prevRoundBase: Record<string, number> = {};
   if (newRound) for (const [pid, entry] of Object.entries(session.leaderboard)) prevRoundBase[pid] = entry.roundBase ?? 0;
+  // Без заставки «Вопрос N из M» вопрос открывается сразу; заставка нового раунда остаётся.
+  const q = content.questions[step];
+  const direct = !settingsOf(content).intro && !newRound && q !== undefined;
   return {
     ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
-    state: {
-      step,
-      stage: "ready",
-      startedAt: null,
-      timeLimit: null,
-      revealed: false,
-      answered: 0,
-      result: newRound ? { prevRoundBase } : null,
-    },
+    state: direct
+      ? { step, stage: "question", startedAt: "server", timeLimit: q.timeLimit, revealed: false, answered: 0, result: emptyResult() }
+      : {
+          step,
+          stage: "ready",
+          startedAt: null,
+          timeLimit: null,
+          revealed: false,
+          answered: 0,
+          result: newRound ? { prevRoundBase } : null,
+        },
   };
 }
 

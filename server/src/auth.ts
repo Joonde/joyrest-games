@@ -267,7 +267,7 @@ export async function sessionUser(sql: Sql, request: FastifyRequest, reply: Fast
 export const DEVICE_COOKIE = "__Host-jr_d";
 const DEVICE_MS = 180 * DAY_MS;
 
-function deviceCookie(token: string): string {
+export function deviceCookie(token: string): string {
   return `${DEVICE_COOKIE}=${token}; Path=/; Max-Age=${Math.floor(DEVICE_MS / 1000)}; HttpOnly; Secure; SameSite=Lax`;
 }
 

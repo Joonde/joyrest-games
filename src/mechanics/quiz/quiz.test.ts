@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   changeKind,
+  correctSet,
+  DEFAULT_SETTINGS,
   duplicateQuestion,
+  toggleCorrect,
   mediaIds,
   moveItem,
   newQuestion,
@@ -14,7 +17,7 @@ import { IMPORT_EXAMPLE, parseImport } from "./importText";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
-import { actionLabel, back, boardView, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
+import { actionLabel, back, boardAfterReveal, boardView, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
 import { groupOpenAnswers, isCorrect, parseResult, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
@@ -25,9 +28,10 @@ function choice(patch: Partial<QuizQuestion> = {}): QuizQuestion {
 
 describe("parseContent", () => {
   it("мусор из базы превращается в пустой квиз", () => {
-    expect(parseContent(null)).toEqual({ questions: [] });
-    expect(parseContent("x")).toEqual({ questions: [] });
-    expect(parseContent({ questions: "x" })).toEqual({ questions: [] });
+    const empty = { questions: [], settings: DEFAULT_SETTINGS };
+    expect(parseContent(null)).toEqual(empty);
+    expect(parseContent("x")).toEqual(empty);
+    expect(parseContent({ questions: "x" })).toEqual(empty);
   });
 
   it("битые поля вопроса заменяются значениями по умолчанию", () => {
@@ -59,7 +63,24 @@ describe("parseContent", () => {
 
   it("сохранённый квиз читается без изменений", () => {
     const content = { questions: [choice({ imageId: "img1" }), { ...newQuestion("open"), text: "Ответ?", answers: ["ёлка"] }] };
-    expect(parseContent(JSON.parse(JSON.stringify(content)))).toEqual(content);
+    expect(parseContent(JSON.parse(JSON.stringify(content)))).toEqual({ ...content, settings: DEFAULT_SETTINGS });
+  });
+
+  it("настройки проведения: по умолчанию заставка, таблица после каждого вопроса, без картинок на телефонах", () => {
+    expect(parseContent({ settings: { intro: false, board: "manual", phoneImages: true } }).settings).toEqual({ intro: false, board: "manual", phoneImages: true });
+    expect(parseContent({ settings: { intro: "нет", board: "иногда" } }).settings).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("несколько верных вариантов: любой засчитывается, мусор отбрасывается", () => {
+    const { questions } = parseContent({ questions: [{ options: ["а", "б", "в"], correct: 0, alsoCorrect: [2, 2, 9, 0, "x"] }] });
+    const q = questions[0] as QuizQuestion;
+    expect(correctSet(q)).toEqual([0, 2]);
+    expect(isCorrect(q, 2)).toBe(true);
+    expect(isCorrect(q, 1)).toBe(false);
+    const unmarked = toggleCorrect(toggleCorrect(q, 0), 2);
+    expect(unmarked.correct).toBe(-1);
+    expect(validateQuestion(unmarked).some((e) => e.path.endsWith("/correct"))).toBe(true);
+    expect(correctSet(toggleCorrect(q, 1))).toEqual([0, 1, 2]);
   });
 });
 
@@ -144,7 +165,7 @@ describe("parseImport", () => {
   it("пример из интерфейса распознаётся без замечаний", () => {
     const { questions, skipped } = parseImport(IMPORT_EXAMPLE);
     expect(skipped).toEqual([]);
-    expect(questions).toHaveLength(2);
+    expect(questions).toHaveLength(3);
     expect(questions[0]?.question).toMatchObject({
       kind: "choice",
       text: "Какой город называют Северной столицей?",
@@ -152,7 +173,8 @@ describe("parseImport", () => {
       correct: 1,
     });
     expect(questions[0]?.question.round).toBe("География");
-    expect(questions[1]?.question).toMatchObject({ kind: "open", answers: ["30", "тридцать"], round: null });
+    expect(questions[1]?.question).toMatchObject({ kind: "choice", correct: 0, alsoCorrect: [1] });
+    expect(questions[2]?.question).toMatchObject({ kind: "open", answers: ["30", "тридцать"], round: null });
     expect(questions.flatMap((q) => q.problems)).toEqual([]);
   });
 
@@ -468,5 +490,49 @@ describe("демо-квиз", () => {
     expect(DEMO_QUIZ.content.questions).toHaveLength(8);
     expect(new Set(DEMO_QUIZ.content.questions.map((q) => q.kind))).toEqual(new Set(["choice", "open", "speed"]));
     expect(validateContent(DEMO_QUIZ.content)).toEqual([]);
+  });
+});
+
+describe("настройки проведения на пульте", () => {
+  const q = (round: string | null = null) => ({ ...choice({ points: 100 }), round });
+  const session = (content: { questions: QuizQuestion[] }, state: Partial<SessionState>): Session => ({
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "quiz",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: { ...startState(), ...state },
+    leaderboard: { a: { name: "Аня", kind: "player", score: 10 } },
+    createdAt: 0,
+  });
+
+  it("таблица по кнопке: после ответа — сразу следующий вопрос, таблица — дополнительной кнопкой", () => {
+    const content = { questions: [q(), q()], settings: { ...DEFAULT_SETTINGS, board: "manual" as const } };
+    const s = session(content, { stage: "reveal", step: 0 });
+    expect(primaryAction(s, content)).toBe("next");
+    expect(extraAction(s, content)).toBe("board");
+    const last = session(content, { stage: "reveal", step: 1 });
+    expect(primaryAction(last, content)).toBe("podium");
+  });
+
+  it("таблица в конце раунда: в середине раунда — дальше, в конце — итоги раунда", () => {
+    const content = { questions: [q("Кино"), q(), q("Музыка")], settings: { ...DEFAULT_SETTINGS, board: "rounds" as const } };
+    expect(primaryAction(session(content, { stage: "reveal", step: 0 }), content)).toBe("next");
+    expect(primaryAction(session(content, { stage: "reveal", step: 1 }), content)).toBe("board");
+    expect(boardAfterReveal({ questions: [q(), q()], settings: { ...DEFAULT_SETTINGS, board: "rounds" } }, 1)).toBe(true);
+    expect(boardAfterReveal({ questions: [q(), q()], settings: { ...DEFAULT_SETTINGS, board: "rounds" } }, 0)).toBe(false);
+  });
+
+  it("без заставки: «Следующий вопрос» сразу открывает вопрос; заставка нового раунда остаётся", () => {
+    const content = { questions: [q(), q(), q("Музыка")], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    const direct = nextQuestion(session(content, { stage: "board", step: 0 }), content);
+    expect(direct.state).toMatchObject({ step: 1, stage: "question", startedAt: "server" });
+    const round = nextQuestion(session(content, { stage: "board", step: 1 }), content);
+    expect(round.state).toMatchObject({ step: 2, stage: "ready" });
   });
 });

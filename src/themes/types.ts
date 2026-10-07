@@ -49,6 +49,24 @@ export interface ThemeTokens {
   background: string;
 }
 
+/** Живой фон экрана зала (только CSS: transform и opacity, при «уменьшить движение» — без него). */
+export type SceneEffect = "none" | "snow" | "deco" | "spotlights" | "disco" | "petals";
+
+/** Набор синтезированных звуков экрана зала (`src/components/live/sound.ts`). */
+export type SoundSet = "classic" | "bells" | "jazz" | "disco" | "soft";
+
+export interface ThemeEffects {
+  scene: SceneEffect;
+  /** Мигающая гирлянда по верхнему краю. */
+  garland?: boolean;
+  /** Блеск крупных надписей (код игры, заставки, пьедестал) — бегущий блик по градиенту `code`. */
+  shine?: boolean;
+  soundSet: SoundSet;
+  /** Цвет частиц фона (снежинки, лепестки) и полупрозрачный цвет света (лучи, блики, веера). */
+  particle: string;
+  glow: string;
+}
+
 export interface Theme {
   id: string;
   title: string;
@@ -56,4 +74,6 @@ export interface Theme {
   tokens: ThemeTokens;
   sounds: Record<string, string>;
   ageRating: AgeRating;
+  /** Эффекты темы-концепции; у фирменных тем нет. */
+  effects?: ThemeEffects;
 }

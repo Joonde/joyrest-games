@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 // Звуки экрана зала синтезируются на месте (Web Audio): никаких файлов и загрузок.
 // Звук играет только на экране зала, никогда на телефонах гостей (CLAUDE.md, раздел 7).
 
+/** Набор звуков темы (`ThemeEffects.soundSet`): меняет тиканье, верный ответ и фанфары. */
+export type SoundSetName = "classic" | "bells" | "jazz" | "disco" | "soft";
+let soundSet: SoundSetName = "classic";
+
+export function setSoundSet(name: SoundSetName): void {
+  soundSet = name;
+}
+
 export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp";
 
 const MUTE_KEY = "joyrest.soundOff";
@@ -189,6 +197,72 @@ function burst(
   src.stop(t + duration + 0.05);
 }
 
+/** Колокольчик: чистый тон и звонкий обертон с долгим хвостом. */
+function bell(freq: number, start: number, volume = 0.12, duration = 1.6): void {
+  tone(freq, start, duration, volume, "sine");
+  tone(freq * 2.76, start, duration * 0.5, volume * 0.35, "sine");
+  tone(freq * 5.4, start, duration * 0.25, volume * 0.15, "sine");
+}
+
+function tick(): void {
+  if (soundSet === "bells") return bell(1760, 0, 0.06, 0.4);
+  if (soundSet === "jazz") return burst(0, 0.05, 0.25, { type: "bandpass", freq: 2400, q: 6 });
+  if (soundSet === "disco") return burst(0, 0.06, 0.18, { type: "highpass", freq: 7000 });
+  if (soundSet === "soft") return tone(1046, 0, 0.18, 0.06, "sine");
+  tone(880, 0, 0.12, 0.12, "triangle");
+}
+
+function correct(): void {
+  if (soundSet === "bells") {
+    bell(1318, 0);
+    bell(1976, 0.14);
+    return;
+  }
+  if (soundSet === "jazz") {
+    // Мажорный септаккорд, мягко, как вибрафон.
+    [523, 659, 784, 988].forEach((f) => tone(f, 0, 0.9, 0.06, "triangle"));
+    return;
+  }
+  if (soundSet === "disco") {
+    [784, 988, 1175, 1568].forEach((f, i) => tone(f, i * 0.06, 0.18, 0.09, "square"));
+    return;
+  }
+  if (soundSet === "soft") {
+    tone(784, 0, 0.6, 0.08);
+    tone(1175, 0.16, 0.8, 0.07);
+    return;
+  }
+  tone(660, 0, 0.25);
+  tone(990, 0.14, 0.45);
+}
+
+function fanfare(): void {
+  if (soundSet === "bells") {
+    [1046, 1318, 1568, 2093].forEach((f, i) => bell(f, i * 0.18, 0.1));
+    bell(2093, 0.8, 0.12, 2.4);
+    return;
+  }
+  if (soundSet === "jazz") {
+    [392, 494, 587, 740].forEach((f, i) => tone(f, i * 0.12, 0.5, 0.09, "triangle"));
+    [523, 659, 784, 988].forEach((f) => tone(f, 0.6, 1.6, 0.07, "triangle"));
+    return;
+  }
+  if (soundSet === "disco") {
+    [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.2, 0.09, "square"));
+    [523, 659, 784].forEach((f) => tone(f, 0.75, 1, 0.07, "sawtooth"));
+    burst(0.75, 1.2, 0.12, { type: "highpass", freq: 6000 });
+    return;
+  }
+  if (soundSet === "soft") {
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.22, 0.9, 0.07, "sine"));
+    bell(1568, 0.9, 0.08, 2.2);
+    return;
+  }
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.16, 0.35, 0.16, "triangle"));
+  tone(1047, 0.7, 1.1, 0.14, "triangle");
+  tone(784, 0.7, 1.1, 0.1, "triangle");
+}
+
 function gong(): void {
   // Неровные обертоны и долгое затухание — как у настоящего гонга.
   [
@@ -228,16 +302,9 @@ export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
   const duckFor = DUCK_SECONDS[name];
   if (duckFor) duckMusic(duckFor);
-  if (name === "tick") tone(880, 0, 0.12, 0.12, "triangle");
-  if (name === "correct") {
-    tone(660, 0, 0.25);
-    tone(990, 0.14, 0.45);
-  }
-  if (name === "fanfare") {
-    [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.16, 0.35, 0.16, "triangle"));
-    tone(1047, 0.7, 1.1, 0.14, "triangle");
-    tone(784, 0.7, 1.1, 0.1, "triangle");
-  }
+  if (name === "tick") tick();
+  if (name === "correct") correct();
+  if (name === "fanfare") fanfare();
   if (name === "gong") gong();
   if (name === "drumroll") drumroll();
   if (name === "applause") applause();

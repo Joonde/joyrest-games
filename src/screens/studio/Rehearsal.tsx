@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { applyChange, startState } from "../../core/session";
 import { gamesRepo, permissions, useLoad, type Game, type Session, type UserProfile } from "../../data";
 import { Podium } from "../../components/live/Podium";
+import { Scene } from "../../components/live/Scene";
 import { BoardView } from "../../components/live/BoardView";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -86,6 +87,7 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
         <section className="rehearsal__screen" aria-label="Экран зала">
           <p className="eyebrow">Экран зала</p>
           <div className="preview-screen" style={themeStyle(game.themeId)}>
+            <Scene themeId={game.themeId} />
             {finished ? (
               <div className="quiz-screen quiz-screen--board">
                 <BoardView leaderboard={session.leaderboard} title="Игра завершена" />

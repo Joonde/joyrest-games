@@ -128,6 +128,11 @@ export function canReviewTracks(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
+/** «Команда JoyRest»: карточки видят и правят свою все активные ведущие. Только свой сервер. */
+export function canViewTeam(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
 /** Отключённый ведущий не создаёт сессии. */
 export function canCreateSession(actor: Actor): boolean {
   return isActiveHost(actor);

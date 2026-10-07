@@ -11,6 +11,7 @@ import type {
   MediaRepository,
   ParticipantsRepository,
   ProposalsRepository,
+  TeamRepository,
   TracksRepository,
   StaffRepository,
   ResultsRepository,
@@ -33,6 +34,7 @@ import { serverClock } from "./server/clock";
 import { serverParticipantsRepository } from "./server/participants";
 import { serverProposalsRepository } from "./server/proposals";
 import { serverStaffRepository } from "./server/staff";
+import { serverTeamRepository } from "./server/team";
 import { serverTracksRepository } from "./server/tracks";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
@@ -59,3 +61,5 @@ export const proposalsRepo: ProposalsRepository | null = server ? serverProposal
 export const staffRepo: StaffRepository | null = server ? serverStaffRepository : null;
 /** Музыка — только свой сервер. */
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
+/** «Команда JoyRest» — только свой сервер. */
+export const teamRepo: TeamRepository | null = server ? serverTeamRepository : null;

@@ -16,6 +16,7 @@ export {
   proposalsRepo,
   staffRepo,
   tracksRepo,
+  teamRepo,
   resultsRepo,
   sessionsRepo,
   usersRepo,

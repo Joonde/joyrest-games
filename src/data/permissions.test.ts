@@ -80,6 +80,15 @@ describe("предложения в библиотеку", () => {
   });
 });
 
+describe("команда", () => {
+  it("карточки видят активные ведущие и владелец", () => {
+    expect(p.canViewTeam(host)).toBe(true);
+    expect(p.canViewTeam(owner)).toBe(true);
+    expect(p.canViewTeam(off)).toBe(false);
+    expect(p.canViewTeam(guest)).toBe(false);
+  });
+});
+
 describe("музыка", () => {
   const mine = { scope: "personal" as const, ownerId: "host-1" };
   const lib = { scope: "agency" as const, ownerId: ADMIN_UID };

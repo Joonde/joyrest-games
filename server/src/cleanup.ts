@@ -3,7 +3,8 @@
  * - файлы картинок без ссылок в таблице media старше 7 дней (удалили картинку или игру;
  *   свежие не трогаем — их может как раз записывать загрузка);
  * - недописанные временные файлы картинок старше суток;
- * - то же для музыки (MEDIA_DIR/audio, ссылки — таблица tracks);
+ * - то же для музыки (MEDIA_DIR/audio, ссылки — таблица tracks) и карточек ведущих
+ *   (MEDIA_DIR/profile, ссылки — users.avatar_sha и cover_sha);
  * - устройства гостей старше 180 дней (их cookie уже истекла).
  * Сессии старше 30 дней убирает admin при входе в /admin (`POST /api/sessions/cleanup`).
  */
@@ -30,6 +31,17 @@ export async function cleanupAudio(sql: Sql, dir: string, now: number = Date.now
   if (!info?.isDirectory()) return 0;
   const rows = await sql<{ sha256: string }[]>`select distinct sha256 from tracks where sha256 is not null`;
   return removeOrphans(audio, new Set(rows.map((r) => r.sha256)), now);
+}
+
+/** Удаляет аватарки и обложки, которые ведущие заменили или убрали. */
+export async function cleanupProfiles(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const profile = join(dir, "profile");
+  const info = await stat(profile).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  const rows = await sql<{ sha256: string }[]>`
+    select avatar_sha as sha256 from users where avatar_sha is not null
+    union select cover_sha from users where cover_sha is not null`;
+  return removeOrphans(profile, new Set(rows.map((r) => r.sha256)), now);
 }
 
 async function removeOrphans(dir: string, referenced: Set<string>, now: number): Promise<number> {
@@ -65,7 +77,7 @@ interface Log {
 export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, intervalMs = DAY_MS): () => void {
   const run = async () => {
     try {
-      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) : 0;
+      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       log.info({ files, devices }, "cleanup");
     } catch (error) {

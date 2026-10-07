@@ -10,7 +10,7 @@
  * ответ — ключ (сессия, шаг, участник).
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 import { generateSessionCode } from "../../src/core/code";
 import { NAME_MAX_LENGTH } from "../../src/core/names";
 import { compactBoard } from "../../src/core/results";
@@ -301,7 +301,9 @@ function validName(value: unknown): value is string {
 }
 
 /** Итоги сессии для истории — по таблице лидеров на сервере. `replace` — завершение (обновить). */
-async function saveResult(sql: Sql, row: SessionRow, participantsCount: number, replace: boolean): Promise<void> {
+async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean): Promise<void> {
+  // В транзакции и вне её запросы пишутся одинаково.
+  const sql = db as Sql;
   const board = sql.json(compactBoard(normalizeBoard(row.leaderboard)) as never);
   const title = row.game_title.slice(0, 80);
   if (replace) {

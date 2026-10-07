@@ -1,6 +1,7 @@
 import type { FirebaseApp } from "firebase/app";
 import type { Auth } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
+import { dataBackend } from "./backend";
 import { firebaseConfig } from "./config";
 import type { Unsubscribe } from "./types";
 
@@ -73,6 +74,8 @@ export const loadSecondaryAuth = once(async (): Promise<{ auth: Auth; sdk: AuthS
 
 /** Начинает качать SDK заранее, параллельно с кодом экрана. */
 export function preloadData(): void {
+  // Свой сервер: Firebase не нужен (CLAUDE.md, «Платформа на своём сервере»).
+  if (dataBackend() === "server") return;
   void loadAuth().catch(() => undefined);
   void loadFirestore().catch(() => undefined);
 }

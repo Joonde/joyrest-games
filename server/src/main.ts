@@ -43,6 +43,7 @@ const app = buildApp({
   // Слой данных в браузере: app-test — свой сервер, app-prod — Firebase до переключения
   // (CLAUDE.md, «Платформа на своём сервере»).
   dataBackend: parseDataBackend(process.env.DATA_BACKEND),
+  sql,
   checkDatabase: async () => {
     if (!sql) return false;
     await sql`select 1`;

@@ -420,7 +420,7 @@ a {
   gap: 8px;
 }
 
-.people li {
+.people > li {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -444,11 +444,26 @@ a {
   color: var(--color-text-muted);
 }
 
+/* Включить/отключить и меню «⋯» (новый временный пароль) — в один ряд. */
+.people__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.people__actions > .btn {
+  flex: 1;
+}
+
 @media (min-width: 720px) {
-  .people li {
+  .people > li {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .people__actions > .btn {
+    flex: none;
   }
 }
 

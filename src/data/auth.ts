@@ -1,46 +1,10 @@
 import type { User } from "firebase/auth";
 import type { AuthService, AuthUser } from "./contracts";
+import { describeAuthError } from "./authErrors";
 import { lazySubscribe, loadAuth } from "./firebase";
 
 function toAuthUser(user: User | null): AuthUser | null {
   return user ? { uid: user.uid, anonymous: user.isAnonymous, email: user.email } : null;
-}
-
-export function errorCode(error: unknown): string {
-  return typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
-}
-
-function describeError(error: unknown): string {
-  // Не догрузился чанк Firebase: браузер бросает TypeError без кода.
-  if (error instanceof TypeError) return "Нет связи с интернетом. Проверьте сеть и попробуйте снова.";
-  switch (errorCode(error)) {
-    case "auth/invalid-credential":
-    case "auth/wrong-password":
-    case "auth/user-not-found":
-      return "Неверная почта или пароль.";
-    case "auth/invalid-email":
-      return "Проверьте адрес почты.";
-    case "auth/email-already-in-use":
-      return "Эта почта уже зарегистрирована. Если ведущий отключён — включите его в списке.";
-    case "auth/weak-password":
-      return "Пароль слишком простой: нужно не меньше 8 символов.";
-    case "auth/requires-recent-login":
-      return "Выйдите и войдите снова, затем повторите.";
-    case "auth/too-many-requests":
-      return "Слишком много попыток. Подождите минуту и попробуйте снова.";
-    case "auth/network-request-failed":
-    case "unavailable":
-      return "Нет связи с интернетом. Проверьте сеть и попробуйте снова.";
-    case "auth/user-disabled":
-      return "Аккаунт отключён. Обратитесь к администратору.";
-    case "auth/operation-not-allowed":
-    case "auth/admin-restricted-operation":
-      return "Этот способ входа выключен в консоли Firebase.";
-    case "permission-denied":
-      return "Недостаточно прав для этого действия.";
-    default:
-      return "Не получилось. Попробуйте ещё раз.";
-  }
 }
 
 export const authService: AuthService = {
@@ -80,5 +44,5 @@ export const authService: AuthService = {
     await sdk.updatePassword(user, newPassword);
   },
 
-  describeError,
+  describeError: describeAuthError,
 };

@@ -1,8 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { authService, permissions, useAuth, type AuthUser, type UserProfile } from "../data";
 import { Logo } from "./Logo";
 import { LoadFailed, Message, Pending } from "./Status";
+
+const PASSWORD_PATH = "/studio/password";
 
 interface Props {
   requireAdmin?: boolean;
@@ -14,6 +16,7 @@ interface Props {
 /** Пускает дальше только вошедшего активного ведущего (или admin). */
 export function HostGate({ requireAdmin = false, skeleton, children }: Props) {
   const [auth, retry] = useAuth();
+  const location = useLocation();
 
   if (auth.status === "loading") return <Pending skeleton={skeleton} label="Проверяем вход" />;
   if (auth.status === "error") return <LoadFailed onRetry={retry} />;
@@ -37,6 +40,8 @@ export function HostGate({ requireAdmin = false, skeleton, children }: Props) {
       </Message>
     );
   }
+  // Временный пароль от администратора: сначала свой пароль, потом студия (только свой сервер).
+  if (profile.mustChangePassword && location.pathname !== PASSWORD_PATH) return <Navigate to={PASSWORD_PATH} replace />;
   if (requireAdmin && !permissions.canManageHosts(profile)) {
     return (
       <Message title="Только для администратора">

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { getTheme } from "../../themes/registry";
 
 /** Псевдослучайное число 0–1 по номеру: одинаковая картинка при каждом показе. */
@@ -7,15 +7,17 @@ function rnd(i: number, salt: number): number {
   return x - Math.floor(x);
 }
 
-const COUNTS = { snow: 42, petals: 22, disco: 7, spotlights: 3, flashes: 5, bulbs: 18 } as const;
+type Vars = Record<string, string>;
 
-function particles(count: number, salt: number, extra?: (i: number) => CSSProperties) {
+/** Частицы с одинаковым набором переменных: место, размер, скорость, задержка, снос. */
+function particles(count: number, salt: number, extra?: (i: number) => Vars): ReactNode {
   return Array.from({ length: count }, (_, i) => (
     <span
       key={i}
       style={
         {
           "--x": `${rnd(i, salt) * 100}%`,
+          "--y": `${rnd(i, salt + 5) * 100}%`,
           "--size": `${0.4 + rnd(i, salt + 1) * 0.9}`,
           "--dur": `${8 + rnd(i, salt + 2) * 10}s`,
           "--delay": `${-rnd(i, salt + 3) * 18}s`,
@@ -27,9 +29,20 @@ function particles(count: number, salt: number, extra?: (i: number) => CSSProper
   ));
 }
 
+const hue = (i: number): Vars => ({ "--hue": `var(--team-${(i % 5) + 1})` });
+
+/** Мерцающие звёздочки по краям экрана (середину оставляем тексту). */
+function stars(count: number, salt: number, area: "top" | "edges" = "edges"): ReactNode {
+  return (
+    <div className={`scene__layer scene__stars scene__stars--${area}`}>
+      {particles(count, salt, (i) => ({ "--x": `${rnd(i, salt) < 0.5 ? rnd(i, salt + 7) * 22 : 78 + rnd(i, salt + 7) * 22}%` }))}
+    </div>
+  );
+}
+
 /**
- * Живой фон темы-концепции на экране зала и в предпросмотре (CLAUDE.md, раздел 8): снег, лепестки,
- * прожекторы, огни диско, ар-деко, гирлянда. Только CSS (transform и opacity), ничего не
+ * Живой фон темы-концепции на экране зала и в предпросмотре (CLAUDE.md, раздел 8). Украшения живут
+ * у краёв и под текстом, середину экрана не закрывают. Только CSS (transform и opacity), ничего не
  * перехватывает; при «уменьшить движение» анимаций нет. Телефонам гостей фон не нужен.
  */
 export function Scene({ themeId }: { themeId: string }) {
@@ -42,33 +55,63 @@ export function Scene({ themeId }: { themeId: string }) {
       aria-hidden="true"
       style={{ "--scene-particle": effects.particle, "--scene-glow": effects.glow } as CSSProperties}
     >
-      {scene === "snow" && <div className="scene__layer scene__flakes">{particles(COUNTS.snow, 1)}</div>}
-      {scene === "petals" && <div className="scene__layer scene__petals">{particles(COUNTS.petals, 2)}</div>}
+      {scene === "snow" && (
+        <>
+          <div className="scene__aurora" />
+          {stars(14, 11, "top")}
+          <div className="scene__layer scene__flakes scene__flakes--far">{particles(36, 1)}</div>
+          <div className="scene__layer scene__flakes scene__flakes--near">{particles(16, 2)}</div>
+          <div className="scene__drift" />
+        </>
+      )}
+
+      {scene === "petals" && (
+        <>
+          <div className="scene__rays" />
+          <div className="scene__layer scene__bokeh">{particles(10, 3)}</div>
+          <div className="scene__layer scene__petals">{particles(26, 4)}</div>
+          {stars(10, 12)}
+        </>
+      )}
+
       {scene === "spotlights" && (
         <>
-          <div className="scene__layer scene__beams">{particles(COUNTS.spotlights, 3)}</div>
-          <div className="scene__layer scene__flashes">{particles(COUNTS.flashes, 4)}</div>
+          <div className="scene__layer scene__beams">{particles(4, 5)}</div>
+          <div className="scene__carpet" />
+          <div className="scene__layer scene__flashes">{particles(9, 6)}</div>
+          {stars(12, 13)}
         </>
       )}
+
       {scene === "disco" && (
         <>
-          <div className="scene__layer scene__lights">
-            {particles(COUNTS.disco, 5, (i) => ({ "--hue": `var(--team-${(i % 5) + 1})` }) as CSSProperties)}
+          <div className="scene__layer scene__lasers">{particles(4, 7, hue)}</div>
+          <div className="scene__layer scene__lights">{particles(7, 8, hue)}</div>
+          <div className="scene__layer scene__spots">{particles(18, 9, hue)}</div>
+          <div className="scene__floor" />
+          <div className="scene__ball">
+            <span className="scene__string" />
+            <span className="scene__globe" />
           </div>
-          <div className="scene__ball" />
+          {stars(10, 14, "top")}
         </>
       )}
+
       {scene === "deco" && (
         <>
+          <div className="scene__frame" />
           <div className="scene__fan scene__fan--left" />
           <div className="scene__fan scene__fan--right" />
+          <div className="scene__layer scene__rise">{particles(24, 10)}</div>
           <div className="scene__sweep" />
+          {stars(12, 15)}
         </>
       )}
+
       {garland && (
         <div className="scene__garland">
-          {Array.from({ length: COUNTS.bulbs }, (_, i) => (
-            <span key={i} style={{ "--hue": `var(--team-${(i % 5) + 1})`, "--delay": `${(i % 3) * 0.6}s` } as CSSProperties} />
+          {Array.from({ length: 22 }, (_, i) => (
+            <span key={i} style={{ ...hue(i), "--delay": `${(i % 3) * 0.6}s` } as CSSProperties} />
           ))}
         </div>
       )}

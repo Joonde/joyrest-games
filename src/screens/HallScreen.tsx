@@ -9,7 +9,7 @@ import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
 import { SlideView } from "../components/live/SlideView";
 import { useHallMusic } from "../components/music/useHallMusic";
-import { playSound, setMuted, setSoundSet, stopAllSounds, unlockSound, useMuted } from "../components/live/sound";
+import { playSound, setMuted, setSoundSet, stopAllSounds, unlockSound, useMuted, useSoundReady } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { Logo } from "../components/Logo";
 import { VPN_HINT } from "../core/texts";
@@ -121,6 +121,8 @@ function Screen({ session }: { session: Session }) {
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
   const musicBlocked = useHallMusic(session.state.music, session.state.mix);
+  const soundReady = useSoundReady();
+  const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.
   useEffect(() => {
     void clock.sync();
@@ -144,7 +146,11 @@ function Screen({ session }: { session: Session }) {
     <div className={idle ? "hall is-idle" : "hall"}>
       <Scene themeId={session.themeId} />
       <ScreenControls />
-      {musicBlocked && <p className="screen-tap">Коснитесь экрана, чтобы включить музыку</p>}
+      {!muted && (!soundReady || musicBlocked) && (
+        <p className="screen-tap" role="status">
+          {musicBlocked ? "Коснитесь экрана, чтобы включить музыку" : "Коснитесь экрана, чтобы включить звук"}
+        </p>
+      )}
       {session.state.slide ? (
         <main className="quiz-stage">
           <SlideView slide={session.state.slide} />

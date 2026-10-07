@@ -1,7 +1,7 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { formatDate } from "../core/format";
 import { participantsLabel } from "../core/results";
-import { resultsRepo, useLoad, type GameResult } from "../data";
+import { resultsRepo, useAuth, useLoad, type GameResult } from "../data";
 import { Logo } from "../components/Logo";
 import { ResultsTable, ShareResults } from "../components/Results";
 import { PlaySkeleton } from "../components/Skeleton";
@@ -22,7 +22,10 @@ export function Results() {
 
 function ResultsView({ result }: { result: GameResult }) {
   const [toast, showToast] = useToast();
+  const [auth] = useAuth();
   useTheme(result.themeId);
+  // Ведущий возвращается в студию, гость — на главную (оттуда можно войти в новую игру).
+  const host = auth.status === "signedIn" && auth.profile !== null;
   const meta = [
     result.playedAt !== null ? formatDate(result.playedAt) : "",
     participantsLabel(result.participantsCount),
@@ -41,6 +44,11 @@ function ResultsView({ result }: { result: GameResult }) {
         <ResultsTable result={result} />
       </section>
       <ShareResults result={result} onToast={showToast} primary />
+      <div className="actions">
+        <Link className="btn btn--quiet btn--block" to={host ? "/studio" : "/"}>
+          {host ? "В студию" : "На главную"}
+        </Link>
+      </div>
       <Toast text={toast} />
     </main>
   );

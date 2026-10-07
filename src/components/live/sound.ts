@@ -39,13 +39,37 @@ function readMuted(): boolean {
 }
 
 /** Браузер разрешает звук только после касания: вызываем из обработчика нажатия. */
+const readyListeners = new Set<(ready: boolean) => void>();
+
+function notifyReady(): void {
+  const ready = soundReady();
+  readyListeners.forEach((l) => l(ready));
+}
+
 export function unlockSound(): void {
   try {
-    ctx ??= new AudioContext();
-    if (ctx.state === "suspended") void ctx.resume();
+    if (!ctx) {
+      ctx = new AudioContext();
+      ctx.addEventListener("statechange", notifyReady);
+    }
+    if (ctx.state === "suspended") void ctx.resume().then(notifyReady, notifyReady);
+    notifyReady();
   } catch {
     ctx = null;
   }
+}
+
+/** Включён ли звук браузером (было касание экрана). Пока нет — экран зала просит коснуться. */
+export function useSoundReady(): boolean {
+  const [ready, setReady] = useState(soundReady);
+  useEffect(() => {
+    readyListeners.add(setReady);
+    setReady(soundReady());
+    return () => {
+      readyListeners.delete(setReady);
+    };
+  }, []);
+  return ready;
 }
 
 export function soundReady(): boolean {

@@ -11287,7 +11287,7 @@ button.dance-card:active {
 .td-editor__adult { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .td-chip[aria-selected="true"] { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }
 
-/* «Не моя история»: письмо на кремовой бумаге, золотая рамка, сургучная печать с монограммой */
+/* «Давайте знакомиться»: письмо на кремовой бумаге, золотая рамка, сургучная печать с монограммой */
 .st-screen { width: 100%; height: 100%; padding: 2cqh 3cqw; box-sizing: border-box; display: grid; font-size: 3cqh; }
 .st-screen__main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6cqh; min-height: 0; text-align: center; }
 .st-title { margin: 0; font-family: var(--font-display); font-size: 7cqh; line-height: 1.05; text-wrap: balance; }
@@ -11357,7 +11357,7 @@ button.dance-card:active {
   .st-letter, .st-letter.is-open .st-seal, .st-reveal, .st-env__item { animation: none !important; }
 }
 
-/* «Не моя история» — раздел «Сочиняем историю»: бумажки, предложение, рулетка, звёзды */
+/* «Давайте знакомиться» — раздел «Сочиняем историю»: бумажки, предложение, рулетка, звёзды */
 .sw-paper {
   position: relative;
   width: min(80cqw, 130cqh);
@@ -11466,3 +11466,10 @@ button.dance-card:active {
 .se-phone-option.is-real { border-color: var(--color-success); box-shadow: 0 0 0 2px var(--color-success); }
 .se-phone-option.is-fake { opacity: 0.6; }
 .se-phone-option:disabled { cursor: default; }
+
+/* Конструктор «Давайте знакомиться» */
+.st-editor__sections { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-editor__section { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: 12px; }
+.st-editor__name { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; }
+.st-editor__tools { display: flex; gap: 4px; }
+.st-editor__tools .btn { min-width: 52px; }

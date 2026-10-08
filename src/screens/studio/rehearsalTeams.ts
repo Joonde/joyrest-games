@@ -1,7 +1,7 @@
 import type { Participant, PlayMode } from "../../data";
 
 /** Сколько тестовых участников нужно на репетиции: игры по очереди команд без них не начать. */
-const NEED: Record<string, number> = { checkers: 2, dance: 3, quest: 3, millionaire: 3, survival: 3, dragon: 3, mafia: 8, truth: 3 };
+const NEED: Record<string, number> = { checkers: 2, dance: 3, quest: 3, millionaire: 3, survival: 3, dragon: 3, mafia: 8, truth: 3, story: 5 };
 
 const TEAMS = ["🦊 Лисы", "🐻 Медведи", "🦉 Совы"];
 const PLAYERS = ["🦊 Аня", "🐻 Боря", "🦉 Вика", "🐯 Гоша", "🐼 Даша", "🐸 Егор", "🦁 Жанна", "🐙 Зоя"];

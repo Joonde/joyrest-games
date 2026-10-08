@@ -11178,28 +11178,12 @@ button.dance-card:active {
 .td-face--truth .td-face__frame { background: radial-gradient(circle at 50% 35%, var(--td-wine1), var(--td-wine2) 80%); }
 .td-face--dare .td-face__frame { background: radial-gradient(circle at 50% 35%, var(--td-gold1), var(--td-gold2) 85%); }
 .td-face--dare { color: #221e1b; --td-hole: #e3c68c; }
-.td-medal {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  width: 22cqi;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #3a2a24, #140e0c 70%);
-  box-shadow: 0 0 0 0.7cqi #e3c68c, 0 0 0 1.6cqi #1d1714, 0 0 0 2cqi rgb(227 198 140 / 0.6);
-  transform: translateX(-50%);
-}
-.td-medal .logo { width: 78%; }
-.td-medal--top { top: 1.6cqi; }
-.td-medal--bottom { bottom: 1.6cqi; transform: translateX(-50%) rotate(180deg); }
 .td-face__corner { position: absolute; z-index: 2; width: 8cqi; color: #e3c68c; }
 .td-face--dare .td-face__corner { color: #6a2034; }
 .td-face__corner--tl { top: calc(var(--td-band) + 3cqi); left: calc(var(--td-band) + 3cqi); }
 .td-face__corner--br { bottom: calc(var(--td-band) + 3cqi); right: calc(var(--td-band) + 3cqi); transform: rotate(180deg); }
 .td-face__corner-icon { display: block; width: 100%; height: auto; }
-.td-face__head { position: absolute; z-index: 2; left: 0; right: 0; top: calc(var(--td-band) + 21cqi); display: grid; justify-items: center; }
+.td-face__head { position: absolute; z-index: 2; left: 0; right: 0; top: calc(var(--td-band) + 9cqi); display: grid; justify-items: center; }
 .td-face__kind { font-family: var(--font-display); font-weight: 700; font-size: 10cqi; letter-spacing: 0.14em; text-transform: uppercase; line-height: 1; }
 .td-face__kind::after { content: ""; display: block; width: 40cqi; height: 0.5cqi; margin: 2.4cqi auto 0; background: linear-gradient(90deg, transparent, #e3c68c, transparent); }
 .td-face--dare .td-face__kind::after { background: linear-gradient(90deg, transparent, #6a2034, transparent); }
@@ -11208,8 +11192,8 @@ button.dance-card:active {
   z-index: 2;
   left: calc(var(--td-band) + 6cqi);
   right: calc(var(--td-band) + 6cqi);
-  top: calc(var(--td-band) + 38cqi);
-  bottom: calc(var(--td-band) + 26cqi);
+  top: calc(var(--td-band) + 24cqi);
+  bottom: calc(var(--td-band) + 14cqi);
   margin: 0;
   display: grid;
   place-items: center;
@@ -11221,12 +11205,12 @@ button.dance-card:active {
   text-wrap: balance;
   overflow: hidden;
 }
-.td-face__from { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(var(--td-band) + 19cqi); text-align: center; font-size: 4.4cqi; opacity: 0.85; }
+.td-face__from { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(var(--td-band) + 9cqi); text-align: center; font-size: 4.4cqi; opacity: 0.85; }
 .td-stamp {
   position: absolute;
   z-index: 6;
   left: 50%;
-  top: 64%;
+  top: 79%;
   padding: 1.6cqi 4cqi;
   border: 1cqi solid currentColor;
   border-radius: 3cqi;
@@ -11295,34 +11279,10 @@ button.dance-card:active {
   .td-back__sheen { display: none; }
 }
 
-/* Эмблема на лице карты — варианты: разрыв рамки, водяной знак, картуш */
-.td-tab {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  width: 36cqi;
-  display: grid;
-  place-items: center;
-  background: #1d1714;
-  border: 0.6cqi solid #e3c68c;
-  transform: translateX(-50%);
-}
-.td-tab::before { content: ""; position: absolute; left: -0.6cqi; right: -0.6cqi; height: calc(var(--td-band) + 0.6cqi); background: #1d1714; }
-.td-tab--top { top: calc(var(--td-band) - 0.6cqi); height: 16cqi; border-top: 0; border-radius: 0 0 6cqi 6cqi; }
-.td-tab--top::before { bottom: 100%; }
-.td-tab--top .logo { position: relative; width: 31cqi; margin-top: -8cqi; }
-.td-tab--bottom { bottom: calc(var(--td-band) - 0.6cqi); width: 16cqi; height: 7cqi; border-bottom: 0; border-radius: 4cqi 4cqi 0 0; }
-.td-tab--bottom::before { top: 100%; }
-.td-tab__star { position: relative; color: #e3c68c; font-size: 5cqi; line-height: 1; }
+/* Эмблема на лице карты — водяной знак (решение владельца) */
 .td-watermark { position: absolute; z-index: 1; left: 50%; top: 56%; width: 64cqi; transform: translate(-50%, -50%); opacity: 0.16; pointer-events: none; }
-.td-face--o-gap .td-watermark { opacity: 0.09; }
-.td-face--o-watermark .td-face__head { top: calc(var(--td-band) + 9cqi); }
-.td-face--o-watermark .td-face__text { top: calc(var(--td-band) + 24cqi); bottom: calc(var(--td-band) + 14cqi); }
-.td-face--o-gap .td-face__head { top: calc(var(--td-band) + 21cqi); }
-.td-face--o-gap .td-face__text { top: calc(var(--td-band) + 36cqi); bottom: calc(var(--td-band) + 16cqi); }
-.td-face--o-cartouche .td-face__head { top: calc(var(--td-band) + 21cqi); }
-.td-face--o-cartouche .td-face__text { top: calc(var(--td-band) + 36cqi); bottom: calc(var(--td-band) + 14cqi); }
-.td-face--o-gap .td-face__from, .td-face--o-watermark .td-face__from, .td-face--o-cartouche .td-face__from { bottom: calc(var(--td-band) + 9cqi); }
-.td-cartouche { position: absolute; z-index: 4; left: 50%; top: 0.6cqi; width: 60cqi; height: 24cqi; transform: translateX(-50%); display: grid; place-items: center; }
-.td-cartouche__shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 1cqi 2cqi rgb(0 0 0 / 0.4)); }
-.td-cartouche__emblem { position: relative; width: 27cqi; }
+.td-editor__list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.td-editor__card { display: grid; gap: 4px; }
+.td-editor__row { display: flex; justify-content: space-between; align-items: center; }
+.td-editor__adult { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.td-chip[aria-selected="true"] { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }

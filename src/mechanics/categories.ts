@@ -18,7 +18,7 @@ export const CATEGORIES: Category[] = [
   { id: "music", title: "Музыкальные", icon: "🎵", hint: "«Угадай мелодию», музыкальное лото" },
   { id: "tv", title: "Телешоу", icon: "📺", hint: "«Своя игра», «Миллионер», «Гонка на выживание»" },
   { id: "adventure", title: "Приключения и настолки", icon: "🎲", hint: "Настолка, шашки, «Бой с драконом»" },
-  { id: "cards", title: "Карточные игры", icon: "🃏", hint: "«Мафия» и другие игры с тайными картами" },
+  { id: "cards", title: "Карточные игры", icon: "🃏", hint: "«Мафия», «Правда или действие» и другие игры с картами" },
   { id: "active", title: "Танцы и активные", icon: "💃", hint: "Танцевальный батл, караоке" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
 ];
@@ -34,6 +34,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   dragon: "adventure",
   dance: "active",
   mafia: "cards",
+  truth: "cards",
 };
 
 /** Квиз про музыку: в названии мелодия, песни, музыка (шаблон «Угадай мелодию» — ещё без треков). */

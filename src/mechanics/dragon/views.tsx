@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
+import { DragonArt, dragonKind, type DragonKind, type DragonMood } from "./DragonArt";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { pointsLabel } from "../../core/results";
@@ -91,21 +92,32 @@ export function HeroRow({ session, content, result, size = "screen" }: { session
   );
 }
 
-function DragonBar({ name, hp, max, hit }: { name: string; hp: number; max: number; hit: string }) {
+function DragonBar({ name, hp, max, kind, mood, pulse }: { name: string; hp: number; max: number; kind: DragonKind; mood: DragonMood; pulse: string }) {
   const share = max > 0 ? Math.max(0, Math.min(1, hp / max)) : 0;
   return (
     <div className="dr-dragon">
-      <span key={hit} className={`dr-dragon__icon${hp === 0 ? " is-down" : " is-hit"}`} aria-hidden="true">
-        🐉
-      </span>
-      <div className="dr-dragon__bar" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={hp} aria-label={`${name}: здоровье ${hp} из ${max}`}>
-        <span className="dr-dragon__fill" style={{ width: `${share * 100}%` }} />
-        <span className="dr-dragon__hp">
-          {name} · {hp.toLocaleString("ru-RU")} / {max.toLocaleString("ru-RU")}
-        </span>
+      <DragonArt kind={kind} mood={hp === 0 ? "down" : mood} pulse={pulse} />
+      <div className="dr-dragon__side">
+        <p className="dr-dragon__name">{name}</p>
+        <div className="dr-dragon__bar" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={hp} aria-label={`${name}: здоровье ${hp} из ${max}`}>
+          <span className="dr-dragon__fill" style={{ width: `${share * 100}%` }} />
+          <span className="dr-dragon__hp">
+            {hp.toLocaleString("ru-RU")} / {max.toLocaleString("ru-RU")}
+          </span>
+        </div>
       </div>
     </div>
   );
+}
+
+/** Что делает дракон после «Удар!»: ранен (урон), бьёт сам (кто-то потерял жизнь), то и другое. */
+function moodOf(r: ReturnType<typeof parseDragonResult>): DragonMood {
+  if (r.phase === "defeat") return "attack";
+  if (r.phase !== "reveal" && r.phase !== "victory") return "idle";
+  const hits = Object.values(r.last);
+  const hurt = hits.some((h) => h.damage > 0);
+  const attack = hits.some((h) => h.lost > 0 || h.saved === "shield" || h.saved === "dodge");
+  return hurt && attack ? "hurtAttack" : hurt ? "hurt" : attack ? "attack" : "idle";
 }
 
 export function DragonScreenView({ session, content }: ViewProps<DragonContent>) {
@@ -119,10 +131,20 @@ export function DragonScreenView({ session, content }: ViewProps<DragonContent>)
   useEffect(() => {
     const key = `${step}:${r.phase}`;
     if (prev.current !== key) {
-      if (r.phase === "victory") playSound("fanfare");
-      else if (r.phase === "defeat") playSound("wrong");
-      else if (r.phase === "reveal") playSound(Object.values(r.last).some((h) => h.damage > 0) ? "correct" : "wrong");
-      else if (r.phase === "intro") playSound("gong");
+      const mood = moodOf(r);
+      if (r.phase === "victory") {
+        // Предсмертный рык, потом фанфары.
+        playSound("roar");
+        window.setTimeout(() => playSound("fanfare"), 1300);
+      } else if (r.phase === "defeat") {
+        playSound("flame");
+        window.setTimeout(() => playSound("roar"), 700);
+      } else if (r.phase === "reveal") {
+        // Ранен — рычит от боли; бьёт в ответ — пламя.
+        if (mood === "hurt" || mood === "hurtAttack") playSound("roar");
+        if (mood === "attack" || mood === "hurtAttack") window.setTimeout(() => playSound("flame"), mood === "hurtAttack" ? 900 : 0);
+        if (mood === "idle") playSound("wrong");
+      } else if (r.phase === "intro") playSound(r.task === 0 ? "roar" : "gong");
     }
     prev.current = key;
   }, [step, r.phase, r.last]);
@@ -136,6 +158,11 @@ export function DragonScreenView({ session, content }: ViewProps<DragonContent>)
       {r.order.length === 0 || r.phase === "heroes" ? (
         <section className="dr-screen__main">
           <span className="quiz-screen__badge">Бой с драконом</span>
+          {content.battles[0] && (
+            <div className="dr-screen__preview">
+              <DragonArt kind={dragonKind(content.battles[0].name, 0)} mood="idle" pulse="preview" />
+            </div>
+          )}
           <h2 className="dr-title">{r.phase === "heroes" ? "Капитаны выбирают героев" : "Скоро в бой!"}</h2>
           <p className="dr-note">У каждого героя своя сила. Капитан раскладывает {STAT_POINTS} очков по свойствам: Сила, Ум, Ловкость, Удача, Харизма.</p>
           {r.phase === "heroes" && session.state.answered > 0 && <p className="dr-note">Выбрали: {session.state.answered} из {r.order.length}</p>}
@@ -146,7 +173,7 @@ export function DragonScreenView({ session, content }: ViewProps<DragonContent>)
         </section>
       ) : (
         <section className="dr-screen__main">
-          {battle && <DragonBar name={battle.name} hp={r.hp} max={battle.hp} hit={`${step}:${r.hp}`} />}
+          {battle && <DragonBar name={battle.name} hp={r.hp} max={battle.hp} kind={dragonKind(battle.name, r.battle)} mood={moodOf(r)} pulse={`${step}:${r.phase}`} />}
           {r.phase === "intro" && task ? (
             <>
               <span className="quiz-screen__badge">

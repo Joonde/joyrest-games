@@ -11,7 +11,7 @@ export function setSoundSet(name: SoundSetName): void {
   soundSet = name;
 }
 
-export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp";
+export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -357,7 +357,69 @@ function applause(): void {
   }
 }
 
-const DUCK_SECONDS: Partial<Record<SoundName, number>> = { gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
+/**
+ * Рык дракона: низкие «пилы» с хрипом (быстрая модуляция громкости), высота сначала растёт, потом падает,
+ * сверху — шумное дыхание; всё через перегруз и низкочастотный фильтр, чтобы звучало утробно.
+ */
+function roar(): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const t = ctx.currentTime;
+  const length = 1.6;
+  const shaper = ctx.createWaveShaper();
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1;
+    curve[i] = Math.tanh(x * 4);
+  }
+  shaper.curve = curve;
+  const low = ctx.createBiquadFilter();
+  low.type = "lowpass";
+  low.frequency.setValueAtTime(500, t);
+  low.frequency.linearRampToValueAtTime(1400, t + 0.4);
+  low.frequency.exponentialRampToValueAtTime(300, t + length);
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, t);
+  master.gain.linearRampToValueAtTime(0.32, t + 0.12);
+  master.gain.setValueAtTime(0.32, t + 0.7);
+  master.gain.exponentialRampToValueAtTime(0.0001, t + length);
+  // Хрип: громкость дрожит 28 раз в секунду.
+  const growl = ctx.createGain();
+  growl.gain.value = 0.6;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 28;
+  const depth = ctx.createGain();
+  depth.gain.value = 0.4;
+  lfo.connect(depth).connect(growl.gain);
+  growl.connect(shaper).connect(low).connect(master).connect(dest);
+  for (const [base, detune] of [
+    [62, 0],
+    [93, 7],
+    [124, -9],
+  ] as const) {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.detune.value = detune;
+    osc.frequency.setValueAtTime(base * 0.8, t);
+    osc.frequency.linearRampToValueAtTime(base * 1.25, t + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(base * 0.6, t + length);
+    osc.connect(growl);
+    osc.start(t);
+    osc.stop(t + length + 0.05);
+  }
+  lfo.start(t);
+  lfo.stop(t + length + 0.05);
+  burst(0, length, 0.18, { type: "bandpass", freq: 700, q: 0.8, toFreq: 250 }, 0.15);
+}
+
+/** Струя пламени: шумный «вжух» с гулом, от высокого к низкому. */
+function flame(): void {
+  burst(0, 1.3, 0.34, { type: "bandpass", freq: 2200, q: 0.7, toFreq: 380 }, 0.08);
+  burst(0, 1.1, 0.3, { type: "lowpass", freq: 260 }, 0.05);
+  tone(55, 0, 1, 0.12, "sawtooth");
+}
+
+const DUCK_SECONDS: Partial<Record<SoundName, number>> = { roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
 
 export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
@@ -373,6 +435,8 @@ export function playSound(name: SoundName): void {
     tone(110, 0, 0.7, 0.14, "sawtooth");
     tone(116, 0, 0.7, 0.14, "sawtooth");
   }
+  if (name === "roar") roar();
+  if (name === "flame") flame();
   if (name === "whoosh") burst(0, 0.7, 0.3, { type: "bandpass", freq: 300, q: 2, toFreq: 4000 }, 0.25);
   if (name === "timeUp") {
     tone(784, 0, 0.3, 0.16, "triangle");

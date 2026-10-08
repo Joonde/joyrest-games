@@ -9,13 +9,13 @@ import { secondsLeft } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import type { CheckersContent } from "./content";
-import { checkersBack, checkersPrimary, colorOfPid, currentQuestion, endGame, isRight, moveChange, nextQuestion, parseCheckersResult, pathChange, revealQuestion, setMover, showQuestion, skipMove, toMove } from "./logic";
+import { checkersBack, checkersPrimary, colorOfPid, currentQuestion, endGame, isRight, markTask, moveChange, nextTurn, parseCheckersResult, pathChange, revealTask, skipMove, startGame, toTask } from "./logic";
 import { CheckersBoard, MovePicker } from "./views";
 
 /**
- * Пульт «Шашек»: вопрос → «Показать ответ» (ход получает верно и быстрее ответившая команда) →
- * «Ход команды» → капитан ходит с телефона, пульт сам проверяет ход по правилам и ставит на доску →
- * «Следующий вопрос». «Пропустить ход», «Назад», «Завершить партию».
+ * Пульт «Шашек»: «Начать партию» → ходы по очереди (капитан ходит с телефона, пульт проверяет ход и ставит
+ * на доску; без телефона — ведущий ходит на пульте) → съели шашку — «Вопрос команде» потерявшим →
+ * «Показать ответ» (+20 за верный) → «Ход: …». «Пропустить ход», «Назад», «Завершить партию».
  */
 export function CheckersHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<CheckersContent>) {
   const [busy, setBusy] = useState(false);
@@ -32,8 +32,8 @@ export function CheckersHostControls({ session, content, answers, participants, 
   const { stage, step } = session.state;
   const r = parseCheckersResult(session.state.result);
   const q = currentQuestion(content, r);
-  const now = useServerNow(250, stage === "question" && r.mode === "question");
-  const left = stage === "question" && r.mode === "question" ? secondsLeft(session.state, now) : null;
+  const now = useServerNow(250, stage === "question" && r.mode === "task");
+  const left = stage === "question" && r.mode === "task" ? secondsLeft(session.state, now) : null;
 
   // Пришёл ход капитана — проверяем по правилам и ставим на доску (любой открытый пульт; `expect` мирит).
   const moveKey = stage === "question" && r.mode === "move" ? answers.filter((a) => a.step === step && a.pid === r.mover).map((a) => a.id).join(",") : "";
@@ -96,11 +96,12 @@ export function CheckersHostControls({ session, content, answers, participants, 
   async function revealNow(): Promise<SessionChange> {
     let all = answers;
     try {
-      all = await control.freshAnswers(step);
+      const fresh = await control.freshAnswers(step);
+      if (fresh.length > 0) all = fresh;
     } catch {
       // по тому, что пришло
     }
-    return revealQuestion(latest.current, content, all, participants);
+    return revealTask(latest.current, content, all);
   }
 
   const action = checkersPrimary(session, content);
@@ -108,13 +109,15 @@ export function CheckersHostControls({ session, content, answers, participants, 
   const backPlan = checkersBack(session);
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
   const own = answers.filter((a) => a.step === step);
+  const next = r.mode === "task" ? r.victim : r.mover === r.white ? r.black : r.white;
+  const victimAnswer = r.mode === "task" ? own.find((a) => a.pid === r.victim) : undefined;
 
   const labels: Record<typeof action, string> = {
-    show: "Показать вопрос",
-    reveal: "Показать ответ",
-    toMove: `Ход: ${name(r.mover)}`,
+    start: "Начать партию",
     waitMove: "Ждём ход капитана…",
-    next: "Следующий вопрос",
+    task: `Вопрос команде: ${name(r.mover === r.white ? r.black : r.white)}`,
+    taskReveal: "Показать ответ",
+    turn: `Ход: ${name(next)}`,
     end: "Завершить партию",
     podium: "Награждение",
     podiumNext: "Открыть следующее место",
@@ -122,10 +125,10 @@ export function CheckersHostControls({ session, content, answers, participants, 
   };
 
   function perform() {
-    if (action === "show") void run(showQuestion(session, content, participants));
-    if (action === "reveal") void run(revealNow);
-    if (action === "toMove") void run(toMove(session));
-    if (action === "next") void run(nextQuestion(session));
+    if (action === "start") void run(startGame(session, participants));
+    if (action === "task") void run(toTask(session, content));
+    if (action === "taskReveal") void run(revealNow);
+    if (action === "turn") void run(nextTurn(session));
     if (action === "end") void run(endGame(session));
     if (action === "podium") void run(awardNow(session));
     if (action === "podiumNext") void run(podiumNext(session));
@@ -134,14 +137,12 @@ export function CheckersHostControls({ session, content, answers, participants, 
 
   return (
     <div className="stack host-quiz">
-      <p className="eyebrow">
-        Шашки · вопрос {Math.min(r.q + 1, content.questions.length)} из {content.questions.length}
-      </p>
+      <p className="eyebrow">Шашки · ходы по очереди · вопросов осталось {Math.max(0, content.questions.length - r.q)}</p>
       <div className="row checkers-host__sides">
-        <span>
+        <span className={r.mover === r.white && r.mode === "move" ? "is-turn" : undefined}>
           ⚪ <NameText name={name(r.white)} />: {session.leaderboard[r.white ?? ""]?.score ?? 0}
         </span>
-        <span>
+        <span className={r.mover === r.black && r.mode === "move" ? "is-turn" : undefined}>
           ⚫ <NameText name={name(r.black)} />: {session.leaderboard[r.black ?? ""]?.score ?? 0}
         </span>
       </div>
@@ -149,58 +150,43 @@ export function CheckersHostControls({ session, content, answers, participants, 
         <PodiumHostList session={session} />
       ) : (
         <>
-          {q && r.mode === "question" && (
+          {r.mode === "task" && q && (
             <div className="stack stack--tight">
+              <p className="muted small">
+                Отвечает <NameText name={name(r.victim)} /> — потеряли шашку. Верно — +20.
+              </p>
               <p className="host-quiz__question">{q.text}</p>
               <p className="muted small">
                 Верный ответ: <strong className="host-quiz__answer">{q.kind === "choice" ? q.options[q.correct] : q.answers.join(" / ")}</strong>
               </p>
-            </div>
-          )}
-          {stage === "question" && r.mode === "question" && (
-            <div className="host-quiz__live" aria-live="polite">
-              <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
-                {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
-              </span>
-              <span>
-                Ответили: <strong>{own.filter((a) => a.pid === r.white || a.pid === r.black).length}</strong> из 2
-              </span>
-            </div>
-          )}
-          {stage === "reveal" && r.mode === "question" && q && (
-            <ul className="buzz-queue buzz-queue--plain">
-              {[r.white, r.black].map((p) => {
-                const a = own.find((x) => x.pid === p);
-                return (
-                  <li key={p ?? "none"} className={p === r.mover ? "is-now" : undefined}>
-                    <span className="buzz-queue__name">
-                      <NameText name={name(p)} />
+              {stage === "question" && (
+                <>
+                  <div className="host-quiz__live" aria-live="polite">
+                    <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
+                      {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
                     </span>
-                    <span className="buzz-queue__state">{!a ? "нет ответа" : isRight(q, a.value) ? (p === r.mover ? "верно, быстрее — ход" : "верно") : "неверно"}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {stage === "reveal" && r.mode === "question" && (
-            <div className="stack stack--tight">
-              <p className="muted small">Кто ходит — можно выбрать самому (ответили вслух или без телефона):</p>
-              <div className="row checkers-host__movers">
-                {[r.white, r.black].map((p, i) =>
-                  p ? (
-                    <button key={p} type="button" className="btn btn--secondary" aria-pressed={r.mover === p} disabled={busy} onClick={() => void run(setMover(session, r.mover === p ? null : p))}>
-                      {i === 0 ? "⚪" : "⚫"} {r.mover === p ? "Ходит " : "Ход: "}
-                      <NameText name={name(p)} />
+                    <span>
+                      Ответ с телефона: <strong>{victimAnswer ? (isRight(q, victimAnswer.value) ? "верно" : "неверно") : "ещё нет"}</strong>
+                    </span>
+                  </div>
+                  <p className="muted small">Ответили вслух или это задание — засчитайте сами:</p>
+                  <div className="row checkers-host__movers">
+                    <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === true} disabled={busy} onClick={() => void run(markTask(session, r.taskOk === true ? null : true))}>
+                      Верно
                     </button>
-                  ) : null,
-                )}
-              </div>
+                    <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === false} disabled={busy} onClick={() => void run(markTask(session, r.taskOk === false ? null : false))}>
+                      Неверно
+                    </button>
+                  </div>
+                </>
+              )}
+              {stage === "reveal" && <p className="host-quiz__answer">{r.taskOk ? `Верно! +${r.taskPoints}` : "Не справились"}</p>}
             </div>
           )}
           {r.mode === "move" && stage === "question" && moverColor ? (
             <>
               <p className="muted">
-                Ходит <NameText name={name(r.mover)} />: капитан выбирает ход на телефоне, доска обновится сама. Нет телефона или репетиция — сходите за команду здесь.
+                Ходит <NameText name={name(r.mover)} /> ({moverColor === "w" ? "белые" : "чёрные"}): капитан выбирает ход на телефоне, доска обновится сама. Нет телефона или репетиция — сходите за команду здесь.
               </p>
               <MovePicker
                 board={r.board}
@@ -215,7 +201,10 @@ export function CheckersHostControls({ session, content, answers, participants, 
               />
             </>
           ) : (
-            r.mode !== "question" && <CheckersBoard board={r.board} last={r.last} size="phone" />
+            r.mover && r.mode !== "task" && <CheckersBoard board={r.board} last={r.last} size="phone" />
+          )}
+          {r.mode === "move" && stage === "reveal" && (
+            <p className="muted small">{r.points > 0 ? `Съели! +${r.points}. ${action === "task" ? "Теперь вопрос команде, которая потеряла шашку." : "Вопросы кончились — просто ход сопернику."}` : r.last ? "Ход сделан." : "Ход пропущен."}</p>
           )}
         </>
       )}
@@ -228,12 +217,12 @@ export function CheckersHostControls({ session, content, answers, participants, 
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || action === "waitMove"} onClick={perform}>
           {labels[action]}
         </button>
-        {r.mode === "move" && stage === "question" && (
+        {r.mode === "move" && stage === "question" && r.mover && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(skipMove(session))}>
             Пропустить ход
           </button>
         )}
-        {stage !== "podium" && r.mode !== "over" && action !== "end" && content.questions.length > 0 && (
+        {stage !== "podium" && r.mode !== "over" && r.mover && (
           <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() =>
               confirm({
                 title: "Завершить партию досрочно?",

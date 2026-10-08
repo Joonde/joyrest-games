@@ -1,39 +1,37 @@
 import type { PreviewDriver } from "../preview";
 import type { CheckersContent } from "./content";
-import { checkersPrimary, colorOfPid, currentQuestion, endGame, moveChange, nextQuestion, parseCheckersResult, revealQuestion, showQuestion, toMove } from "./logic";
-import { legalMoves } from "./rules";
+import { checkersPrimary, colorOfPid, currentQuestion, moveChange, nextTurn, parseCheckersResult, revealTask, startGame, toTask } from "./logic";
+import { capturePoints, legalMoves } from "./rules";
 
 export const checkersPreview: PreviewDriver<CheckersContent> = ({ session, content, participants, answers, n }) => {
   const r = parseCheckersResult(session.state.result);
   switch (checkersPrimary(session, content)) {
-    case "show":
-      return { label: "Пульт: «Показать вопрос»", change: showQuestion(session, content, participants) };
-    case "reveal": {
-      const q = currentQuestion(content, r);
-      if (q && answers.length === 0 && r.white && r.black) {
-        const right = q.kind === "choice" ? q.correct : (q.answers[0] ?? "");
-        const wrong = q.kind === "choice" ? (q.correct + 1) % Math.max(2, q.options.length) : "—";
-        // По очереди быстрее отвечают то белые, то чёрные.
-        const first = n % 2 === 0 ? r.white : r.black;
-        const second = first === r.white ? r.black : r.white;
-        return { label: "Обе стороны ответили", answers: [{ pid: first, value: right }, { pid: second, value: n % 3 === 0 ? right : wrong }] };
-      }
-      return { label: "Пульт: «Показать ответ» — ход быстрому", change: revealQuestion(session, content, answers, participants) };
-    }
-    case "toMove":
-      return { label: "Ход на доске: капитан выбирает шашку", change: toMove(session) };
+    case "start":
+      return { label: "Пульт: «Начать партию» — первыми ходят белые", change: startGame(session, participants) };
     case "waitMove": {
       const color = colorOfPid(r, r.mover);
       if (!r.mover || !color) return null;
-      const move = legalMoves(r.board, color).at(0);
+      // Тестовые команды берут шашку, если можно, — так видно задания.
+      const moves = legalMoves(r.board, color);
+      const move = moves.find((m) => capturePoints(r.board, m) > 0) ?? moves.at(n % Math.max(1, moves.length)) ?? moves.at(0);
       if (!move) return null;
       if (answers.length === 0) return { label: "Капитан сделал ход на телефоне", answers: [{ pid: r.mover, value: { path: move.path } }] };
-      return { label: "Шашка на доске", change: moveChange(session, answers) };
+      return { label: move.captured.length > 0 ? "Съели шашку!" : "Шашка на доске", change: moveChange(session, answers) };
     }
-    case "next":
-      return { label: "Пульт: «Следующий вопрос»", change: nextQuestion(session) };
-    case "end":
-      return { label: "Пульт: «Завершить партию»", change: endGame(session) };
+    case "task": {
+      return { label: "Пульт: «Вопрос команде» — той, что потеряла шашку", change: toTask(session, content) };
+    }
+    case "taskReveal": {
+      const q = currentQuestion(content, r);
+      if (q && r.victim && answers.length === 0) {
+        const right = q.kind === "choice" ? q.correct : (q.answers[0] ?? "");
+        const wrong = q.kind === "choice" ? (q.correct + 1) % Math.max(2, q.options.length) : "—";
+        return { label: "Капитан ответил", answers: [{ pid: r.victim, value: n % 3 === 0 ? wrong : right }] };
+      }
+      return { label: "Пульт: «Показать ответ»", change: revealTask(session, content, answers) };
+    }
+    case "turn":
+      return { label: "Пульт: «Ход» — очередь соперника", change: nextTurn(session) };
     default:
       return null;
   }

@@ -1,8 +1,9 @@
-// Ход «Шашек» на пульте — чистые функции.
+// Ход «Шашек» на пульте — чистые функции (решение владельца 8 октября 2026).
 //
-// Вопрос (`ready` → `question` с таймером → `reveal`: кто ходит) → шаг хода (`question` без таймера:
-// капитан команды-победителя делает ход на телефоне, пульт проверяет его по правилам и записывает,
-// `reveal` — ход на доске, очки) → следующий вопрос. Белые — первая подключившаяся команда, чёрные — вторая.
+// Обычная партия: белые и чёрные ходят по очереди (белые — первая подключившаяся команда, чёрные — вторая).
+// Ход: капитан выбирает его на телефоне (или ведущий на пульте), пульт проверяет по правилам. Съели шашку —
+// команда, которая её потеряла, получает вопрос из игры: ответила верно — +20 очков. Очки: 10 за шашку,
+// 30 за дамку, 50 за победу на доске; вопросы кончились — дальше просто партия.
 import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboard";
 import { matchesAnswer } from "../quiz/normalize";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
@@ -11,26 +12,33 @@ import type { ScoreDelta, Step } from "../types";
 import type { CheckersContent, CheckersQuestion } from "./content";
 import { applyMove, capturePoints, findMove, initialBoard, isLost, opponent, parseBoardString, POINTS, type Color } from "./rules";
 
-export type CheckersMode = "question" | "move" | "over";
+export type CheckersMode = "move" | "task" | "over";
 
 export interface CheckersResult {
   board: string;
   white: string | null;
   black: string | null;
-  /** Номер вопроса. */
+  /** Следующий вопрос для задания. */
   q: number;
   mode: CheckersMode;
-  /** Кто ходит (ответил верно и быстрее). */
+  /** Чей ход (null — партия ещё не началась). */
   mover: string | null;
   last: { path: number[]; captured: number[] } | null;
   /** Очки за последний ход (для «Назад»). */
   points: number;
   /** Доска до последнего хода (для «Назад»). */
   prev: string | null;
+  /** Задание: кто отвечает (потерял шашку), какой вопрос, засчитал ли ведущий сам, сколько начислено. */
+  victim: string | null;
+  task: number | null;
+  taskOk: boolean | null;
+  taskPoints: number;
   /** Партия выиграна на доске. */
   winner: string | null;
   /** «Завершить партию»: откуда — «Назад» вернёт туда же. */
-  overFrom: { mode: "question" | "move"; stage: "ready" | "question" | "reveal" } | null;
+  overFrom: { mode: "move" | "task"; stage: "ready" | "question" | "reveal" } | null;
+  /** Итог прошлого этапа — «Назад» с начала хода или задания (до трёх шагов назад). */
+  undo: Record<string, unknown> | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -41,37 +49,50 @@ const cells = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is number => N
 export function parseCheckersResult(raw: unknown): CheckersResult {
   const d = rec(raw);
   const last = rec(d.last);
+  const nat = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null);
   return {
     board: parseBoardString(d.board),
     white: pid(d.white),
     black: pid(d.black),
-    q: typeof d.q === "number" && Number.isInteger(d.q) && d.q >= 0 ? d.q : 0,
-    mode: d.mode === "move" || d.mode === "over" ? d.mode : "question",
+    q: nat(d.q) ?? 0,
+    mode: d.mode === "task" || d.mode === "over" ? d.mode : "move",
     mover: pid(d.mover),
     last: Array.isArray(last.path) ? { path: cells(last.path), captured: cells(last.captured) } : null,
     points: typeof d.points === "number" && Number.isFinite(d.points) ? d.points : 0,
     prev: typeof d.prev === "string" ? parseBoardString(d.prev) : null,
+    victim: pid(d.victim),
+    task: nat(d.task),
+    taskOk: typeof d.taskOk === "boolean" ? d.taskOk : null,
+    taskPoints: typeof d.taskPoints === "number" && Number.isFinite(d.taskPoints) ? d.taskPoints : 0,
     winner: pid(d.winner),
     overFrom: parseOverFrom(d.overFrom),
+    undo: typeof d.undo === "object" && d.undo !== null && !Array.isArray(d.undo) ? (d.undo as Record<string, unknown>) : null,
   };
 }
 
 function parseOverFrom(v: unknown): CheckersResult["overFrom"] {
   const d = rec(v);
-  const mode = d.mode === "move" ? "move" : d.mode === "question" ? "question" : null;
+  const mode = d.mode === "task" ? "task" : d.mode === "move" ? "move" : null;
   const stage = d.stage === "ready" || d.stage === "question" || d.stage === "reveal" ? d.stage : null;
   return mode && stage ? { mode, stage } : null;
 }
 
 const write = (r: CheckersResult): Record<string, unknown> => ({ ...r });
 
+/** Снимок для «Назад»: не глубже трёх шагов, чтобы итог шага не рос всю партию. */
+function snapshot(r: CheckersResult, depth = 3): Record<string, unknown> {
+  const inner = depth > 1 && r.undo ? snapshot(parseCheckersResult(r.undo), depth - 1) : null;
+  return { ...r, undo: inner };
+}
+
 export function colorOfPid(result: CheckersResult, p: string | null): Color | null {
   if (!p) return null;
   return p === result.white ? "w" : p === result.black ? "b" : null;
 }
 
+/** Вопрос текущего задания (команде, что потеряла шашку). */
 export function currentQuestion(content: CheckersContent, result: CheckersResult): CheckersQuestion | undefined {
-  return content.questions[result.q];
+  return result.task !== null ? content.questions[result.task] : undefined;
 }
 
 export function isRight(q: CheckersQuestion, value: unknown): boolean {
@@ -102,64 +123,37 @@ function board(session: Session, participants: Participant[]): Record<string, Le
   return leaderboardAdditions(session.leaderboard, participants, session.playMode);
 }
 
-export type CheckersAction = "show" | "reveal" | "toMove" | "waitMove" | "next" | "end" | "podium" | "podiumNext" | "finish";
+export type CheckersAction = "start" | "waitMove" | "task" | "taskReveal" | "turn" | "end" | "podium" | "podiumNext" | "finish";
 
 export function checkersPrimary(session: Session, content: CheckersContent): CheckersAction {
   const { stage } = session.state;
   const r = parseCheckersResult(session.state.result);
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
   if (r.mode === "over") return hasPodium(session.leaderboard) ? "podium" : "finish";
-  const more = r.q + 1 < content.questions.length;
-  if (stage === "ready") return content.questions[r.q] ? "show" : "end";
-  if (stage === "question") return r.mode === "move" ? "waitMove" : "reveal";
-  // reveal
-  if (r.mode === "question" && r.mover) return "toMove";
-  return more ? "next" : "end";
+  if (!r.mover || stage === "ready") return "start";
+  if (r.mode === "task") return stage === "question" ? "taskReveal" : "turn";
+  if (stage === "question") return "waitMove";
+  // Ход показан: съели шашку и вопросы ещё есть — задание потерявшим.
+  if ((r.last?.captured.length ?? 0) > 0 && content.questions[r.q]) return "task";
+  return "turn";
 }
 
-export function showQuestion(session: Session, content: CheckersContent, participants: Participant[]): SessionChange {
+/** «Начать партию»: стороны, доска, ходят белые. */
+export function startGame(session: Session, participants: Participant[]): SessionChange {
   const r = parseCheckersResult(session.state.result);
   const s = sides(session, participants, r);
   return {
     state: {
+      step: session.state.step + 1,
       stage: "question",
       startedAt: "server",
-      timeLimit: content.timeLimit,
+      timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...r, ...s, board: r.board || initialBoard(), mode: "question", mover: null }),
+      result: write({ ...r, ...s, board: initialBoard(), mode: "move", mover: s.white, last: null, points: 0, prev: null, victim: null, task: null, taskOk: null, taskPoints: 0, winner: null, overFrom: null, undo: null }),
     },
     leaderboard: board(session, participants),
   };
-}
-
-/** Кто ходит: верный ответ белых или чёрных, раньше по часам сервера. */
-export function moverOf(content: CheckersContent, result: CheckersResult, answers: Answer[], step: number): string | null {
-  const q = currentQuestion(content, result);
-  if (!q) return null;
-  const right = answers
-    .filter((a) => a.step === step && (a.pid === result.white || a.pid === result.black) && isRight(q, a.value))
-    .sort((a, b) => (a.submittedAt ?? Number.MAX_SAFE_INTEGER) - (b.submittedAt ?? Number.MAX_SAFE_INTEGER));
-  return right[0]?.pid ?? null;
-}
-
-export function revealQuestion(session: Session, content: CheckersContent, answers: Answer[], participants: Participant[]): SessionChange {
-  const r = parseCheckersResult(session.state.result);
-  const mover = moverOf(content, r, answers, session.state.step);
-  const color = colorOfPid(r, mover);
-  // Ходить некуда (все шашки заперты) — по правилам это поражение: победа сопернику.
-  if (color && isLost(r.board, color)) {
-    const winner = color === "w" ? r.black : r.white;
-    const change: SessionChange = { state: { stage: "reveal", revealed: true, result: write({ ...r, mover, mode: "over", winner, points: POINTS.win }) }, leaderboard: board(session, participants) };
-    if (winner) change.addScore = { [winner]: POINTS.win };
-    return change;
-  }
-  return { state: { stage: "reveal", revealed: true, result: write({ ...r, mover }) }, leaderboard: board(session, participants) };
-}
-
-export function toMove(session: Session): SessionChange {
-  const r = parseCheckersResult(session.state.result);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "move", last: null, points: 0, prev: null }) } };
 }
 
 /** Ход капитана (ответ `{ path }`) → доска, очки; null — хода нет или он не по правилам. */
@@ -200,37 +194,69 @@ export function pathChange(session: Session, path: number[]): SessionChange | nu
   return change;
 }
 
-/** Ведущий сам решает, кто ходит (капитан ответил вслух или ответа с телефона нет). */
-export function setMover(session: Session, mover: string | null): SessionChange {
-  const r = parseCheckersResult(session.state.result);
-  if (session.state.stage !== "reveal" || r.mode !== "question" || (mover !== null && mover !== r.white && mover !== r.black)) return {};
-  return { state: { result: write({ ...r, mover }) } };
-}
-
 export function cellsOfValue(value: unknown): number[] | null {
   const path = rec(value).path;
   if (!Array.isArray(path) || path.length < 2 || path.length > 20) return null;
   return path.every((x) => Number.isInteger(x) && x >= 0 && x < 64) ? (path as number[]) : null;
 }
 
-/** Ведущий пропускает ход (капитан не успевает) — доска без изменений. */
+/** Ведущий пропускает ход (капитан не успевает) — доска без изменений, ход переходит сопернику. */
 export function skipMove(session: Session): SessionChange {
   const r = parseCheckersResult(session.state.result);
   return { state: { stage: "reveal", revealed: true, result: write({ ...r, last: null, points: 0, prev: null }) } };
 }
 
-export function nextQuestion(session: Session): SessionChange {
+/** Задание команде, которая потеряла шашку: вопрос из игры с таймером. */
+export function toTask(session: Session, content: CheckersContent): SessionChange {
   const r = parseCheckersResult(session.state.result);
+  const color = colorOfPid(r, r.mover);
+  if (!color || !content.questions[r.q]) return {};
+  const victim = color === "w" ? r.black : r.white;
   return {
-    state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, q: r.q + 1, mode: "question", mover: null, last: null, points: 0, prev: null }) },
+    state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: content.timeLimit, revealed: false, answered: 0, result: write({ ...r, mode: "task", victim, task: r.q, q: r.q + 1, taskOk: null, taskPoints: 0, undo: snapshot(r) }) },
   };
 }
 
-/** Вопросы кончились — партия окончена, побеждает больший счёт (дальше — общий пьедестал). */
+/** Ведущий сам засчитывает ответ (сказали вслух или задание): true / false, null — по телефону. */
+export function markTask(session: Session, ok: boolean | null): SessionChange {
+  const r = parseCheckersResult(session.state.result);
+  if (r.mode !== "task" || session.state.stage !== "question") return {};
+  return { state: { result: write({ ...r, taskOk: ok }) } };
+}
+
+export function taskRight(content: CheckersContent, r: CheckersResult, answers: Answer[], step: number): boolean {
+  if (r.taskOk !== null) return r.taskOk;
+  const q = r.task !== null ? content.questions[r.task] : undefined;
+  const a = answers.find((x) => x.step === step && x.pid === r.victim);
+  return Boolean(q && a && isRight(q, a.value));
+}
+
+/** «Показать ответ»: верно — +20 команде, что потеряла шашку. */
+export function revealTask(session: Session, content: CheckersContent, answers: Answer[]): SessionChange {
+  const r = parseCheckersResult(session.state.result);
+  if (r.mode !== "task" || !r.victim) return {};
+  const ok = taskRight(content, r, answers, session.state.step);
+  const taskPoints = ok ? POINTS.task : 0;
+  const change: SessionChange = { state: { stage: "reveal", revealed: true, result: write({ ...r, taskOk: ok, taskPoints }) } };
+  if (taskPoints > 0) change.addScore = { [r.victim]: taskPoints };
+  return change;
+}
+
+/** Ход сопернику (после хода или задания). */
+export function nextTurn(session: Session): SessionChange {
+  const r = parseCheckersResult(session.state.result);
+  // После задания ходит тот, кто его выполнял (соперник того, кто съел); после хода — соперник ходившего.
+  const after = r.mode === "task" ? r.victim : r.mover === r.white ? r.black : r.white;
+  return {
+    state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "move", mover: after, last: null, points: 0, prev: null, victim: null, task: null, taskOk: null, taskPoints: 0, undo: snapshot(r) }) },
+  };
+}
+
+/** Партия окончена досрочно — побеждает больший счёт (дальше — общий пьедестал). */
 export function endGame(session: Session): SessionChange {
   const r = parseCheckersResult(session.state.result);
   const stage = session.state.stage === "ready" || session.state.stage === "question" || session.state.stage === "reveal" ? session.state.stage : "reveal";
-  const from = r.mode === "move" ? "move" : "question";
+  const from = r.mode === "task" ? "task" : "move";
   return { state: { result: write({ ...r, mode: "over", winner: null, overFrom: { mode: from, stage } }) } };
 }
 
@@ -245,31 +271,27 @@ export function checkersBack(session: Session): CheckersBack | null {
   if (stage === "podium") return { change: podiumBack(session) };
   // «Завершить партию» — назад туда, откуда завершили.
   if (r.mode === "over" && !r.winner && r.overFrom) return { change: { state: { stage: r.overFrom.stage, result: write({ ...r, mode: r.overFrom.mode, overFrom: null }) } } };
-  // Победа «нет ходов» на ответе — назад к ответу без победы.
-  if (r.mode === "over" && r.winner && !r.last && stage === "reveal") {
-    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "question", winner: null, mover: null, points: 0 }) } };
-    if (r.points > 0) change.addScore = { [r.winner]: -r.points };
+  // Показанный ход (и победа им) — отменить: доска как была, очки сняты, капитан ходит заново.
+  if ((r.mode === "move" || r.mode === "over") && stage === "reveal") {
+    const change: SessionChange = {
+      state: { stage: "question", revealed: false, startedAt: "server", result: write({ ...r, board: r.prev ?? r.board, prev: null, last: null, points: 0, mode: "move", winner: null }) },
+    };
+    if (r.points > 0 && r.mover) change.addScore = { [r.mover]: -r.points };
+    return { change, clear: [step] };
+  }
+  // Показанный ответ на задание — к вопросу, очки сняты.
+  if (r.mode === "task" && stage === "reveal") {
+    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, taskPoints: 0 }) } };
+    if (r.taskPoints > 0 && r.victim) change.addScore = { [r.victim]: -r.taskPoints };
     return { change };
   }
-  if (r.mode === "move" || r.mode === "over") {
-    if (stage === "reveal") {
-      // Отменить ход: доска как была, очки сняты, капитан ходит заново.
-      // Новое время шага: телефон капитана забывает прошлый ход и снова показывает доску.
-      const change: SessionChange = {
-        state: { stage: "question", revealed: false, startedAt: "server", result: write({ ...r, board: r.prev ?? r.board, prev: null, last: null, points: 0, mode: "move", winner: null }) },
-      };
-      if (r.points > 0 && r.mover) change.addScore = { [r.mover]: -r.points };
-      return { change, clear: [step] };
-    }
-    // Ход ещё не сделан — к ответу на вопрос.
-    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, result: write({ ...r, mode: "question" }) } }, clear: [step] };
+  // Начало хода или задания — к прошлому показу.
+  if (stage === "question" && r.undo) {
+    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, answered: 0, result: r.undo } }, clear: [step] };
   }
-  // Ответ, открытый «Назад» с хода: время вопроса не вернуть — вопрос не открываем бессрочно, а возвращаем
-  // к заставке (ответы убираются, ведущий задаст вопрос заново с полным таймером).
-  if (stage === "reveal" && session.state.startedAt === null) {
+  // Первый ход партии — к началу.
+  if (stage === "question" && r.mode === "move") {
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mover: null }) } }, clear: [step] };
   }
-  if (stage === "reveal") return { change: { state: { stage: "question", revealed: false, result: write({ ...r, mover: null }) } } };
-  if (stage === "question") return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0 } }, clear: [step] };
   return null;
 }

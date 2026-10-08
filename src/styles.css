@@ -9311,3 +9311,29 @@ button.dance-card:active {
   width: 100%;
   accent-color: var(--color-primary);
 }
+
+/* Шашки: чей ход — подсвечен на пульте; взятие — вспышка подписи на экране зала. */
+.checkers-host__sides .is-turn {
+  color: var(--color-highlight);
+  font-weight: 700;
+}
+
+.checkers-screen__banner.is-take {
+  animation: checkers-take 0.9s ease;
+}
+
+.checkers-screen__verdict {
+  font-weight: 700;
+}
+
+@keyframes checkers-take {
+  0% { transform: scale(0.7); opacity: 0; }
+  50% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkers-screen__banner.is-take {
+    animation: none;
+  }
+}

@@ -175,8 +175,8 @@ export function count(board: string, color: Color): { men: number; kings: number
   return { men, kings };
 }
 
-/** Очки за ход: 10 за шашку, 30 за дамку (решение владельца). */
-export const POINTS = { man: 10, king: 30, win: 50 } as const;
+/** Очки: 10 за шашку, 30 за дамку, 50 за победу, 20 за верный ответ на задание (решения владельца). */
+export const POINTS = { man: 10, king: 30, win: 50, task: 20 } as const;
 
 export function capturePoints(board: string, move: Move): number {
   return move.captured.reduce((sum, c) => sum + (isKing(board[c]) ? POINTS.king : POINTS.man), 0);

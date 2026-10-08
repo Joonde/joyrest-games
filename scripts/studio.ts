@@ -36,7 +36,7 @@ import { parseQuest } from "../src/mechanics/quest/content";
 import { validateQuest } from "../src/mechanics/quest/validate";
 import { parseCheckers } from "../src/mechanics/checkers/content";
 import { validateCheckers } from "../src/mechanics/checkers/validate";
-import { moveChange, parseCheckersResult, revealQuestion, showQuestion as showCheckersQuestion, toMove } from "../src/mechanics/checkers/logic";
+import { moveChange, nextTurn as checkersNextTurn, parseCheckersResult, startGame as startCheckers } from "../src/mechanics/checkers/logic";
 import { parseBoard } from "../src/mechanics/board/content";
 import { validateBoard } from "../src/mechanics/board/validate";
 import { boardBuzzSync, boardReveal, boardWrong, openCell, parseBoardResult, startCatQuestion, toBoard } from "../src/mechanics/board/logic";
@@ -655,7 +655,7 @@ async function main() {
     check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Своя игра» завершена");
   }
 
-  // «Шашки»: две «команды» (гостя), вопрос — верно и быстрее отвечает белый, ход белых по правилам.
+  // «Шашки»: две «команды» (гостя), ходы по очереди — белые, потом чёрные; ход проверяет пульт.
   {
     const game = parseCheckers(DEMO_CHECKERS.content);
     const sid = uid();
@@ -677,25 +677,21 @@ async function main() {
     };
     const people = () => back.call<Participant[]>("GET", `/api/sessions/${sid}/participants`);
     await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } });
-    check((await act(showCheckersQuestion(await get(), game, await people()))) === 200, "шашки: вопрос показан");
+    check((await act(startCheckers(await get(), await people()))) === 200, "шашки: партия начата");
     const sides = parseCheckersResult((await get()).state.result);
     check(sides.white === uw && sides.black === ub, "белые — первые подключившиеся, чёрные — вторые");
-    const q = game.questions[0];
-    const right = q?.kind === "choice" ? q.correct : (q?.answers[0] ?? "");
-    await w.call("POST", `/api/sessions/${sid}/answers`, { step: 0, pid: uw, value: right });
-    await wait(30);
-    await b.call("POST", `/api/sessions/${sid}/answers`, { step: 0, pid: ub, value: right });
-    await act(revealQuestion(await get(), game, await back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/0`), await people()));
-    check(parseCheckersResult((await get()).state.result).mover === uw, "ход получил ответивший верно и быстрее");
-    await act(toMove(await get()));
+    check(sides.mover === uw, "первыми ходят белые");
     const step = (await get()).state.step;
-    // Неправильный ход сервер примет как ответ, но пульт его не поставит.
+    // Ход чёрных не в свою очередь пульт не примет.
+    await b.call("POST", `/api/sessions/${sid}/answers`, { step, pid: ub, value: { path: [17, 24] } });
     await w.call("POST", `/api/sessions/${sid}/answers`, { step, pid: uw, value: { path: [40, 33] } });
     const moved = moveChange(await get(), await back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/${step}`));
     check(moved !== null, "ход белых по правилам принят пультом");
     if (moved) await act(moved);
     const after = parseCheckersResult((await get()).state.result);
-    check(after.board[40] === "." && after.board[33] === "w", "шашка переставлена на доске");
+    check(after.board[40] === "." && after.board[33] === "w" && after.board[24] === ".", "шашка белых переставлена, чёрные не сходили вне очереди");
+    await act(checkersNextTurn(await get()));
+    check(parseCheckersResult((await get()).state.result).mover === ub, "ход перешёл к чёрным");
     check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "шашки завершены");
   }
 

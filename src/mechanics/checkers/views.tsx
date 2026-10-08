@@ -10,8 +10,8 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import type { CheckersContent, CheckersQuestion } from "./content";
-import { colorOfPid, currentQuestion, isRight, parseCheckersResult, type CheckersResult } from "./logic";
-import { colorOf, completeMove, count, isDark, isKing, legalMoves, nextTargets, type Color } from "./rules";
+import { colorOfPid, currentQuestion, parseCheckersResult, type CheckersResult } from "./logic";
+import { colorOf, completeMove, count, isDark, isKing, legalMoves, nextTargets, POINTS, type Color } from "./rules";
 
 /** Ответ: номер варианта, текст или ход `{ path }`. */
 export type CheckersAnswerValue = number | string | { path: number[] };
@@ -109,41 +109,47 @@ export function CheckersScreenView({ session, content }: ViewProps<CheckersConte
   const r = parseCheckersResult(session.state.result);
   const { stage, step } = session.state;
   const q = currentQuestion(content, r);
-  const now = useServerNow(250, stage === "question" && r.mode === "question");
-  const left = stage === "question" && r.mode === "question" ? secondsLeft(session.state, now) : null;
-  const moverName = r.mover ? (session.leaderboard[r.mover]?.name ?? "") : "";
-  useSoundOnChange(stage === "reveal" && r.mode === "move" && (r.last?.captured.length ?? 0) > 0 ? `${step}:take` : "", "correct");
-  useSoundOnChange(stage === "reveal" && r.mode === "question" && r.mover ? `${step}:turn` : "", "gong");
-  const winnerName = r.winner ? (session.leaderboard[r.winner]?.name ?? "") : "";
+  const now = useServerNow(250, stage === "question" && r.mode === "task");
+  const left = stage === "question" && r.mode === "task" ? secondsLeft(session.state, now) : null;
+  const nameOf = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? "") : "");
+  const side = (p: string | null) => (p === r.white ? "белые" : "чёрные");
+  useSoundOnChange(stage === "reveal" && r.mode !== "task" && (r.last?.captured.length ?? 0) > 0 ? `${step}:take` : "", "correct");
+  useSoundOnChange(stage === "question" && r.mode === "task" ? `${step}:task` : "", "gong");
+  useSoundOnChange(stage === "reveal" && r.mode === "task" ? `${step}:${r.taskOk ? "ok" : "no"}` : "", r.taskOk ? "correct" : "wrong");
 
   let banner: ReactNode = null;
   if (r.mode === "over") {
-    banner = winnerName ? (
+    banner = r.winner ? (
       <>
-        Победа! <NameText name={winnerName} />
+        Победа! <NameText name={nameOf(r.winner)} />
       </>
     ) : (
       "Партия окончена — побеждает больший счёт"
     );
-  } else if (stage === "ready") banner = `Вопрос ${r.q + 1} из ${content.questions.length}`;
+  } else if (!r.mover || stage === "ready") banner = "Партия начинается: первыми ходят белые";
   else if (r.mode === "move" && stage === "question")
     banner = (
       <>
-        Ходит <NameText name={moverName} />
+        Ходят {side(r.mover)}: <NameText name={nameOf(r.mover)} />
       </>
     );
   else if (r.mode === "move" && stage === "reveal")
-    banner = r.points > 0 ? `+${r.points} очков за взятие` : r.last ? "Ход сделан" : "Ход пропущен";
-  else if (stage === "reveal")
-    banner = r.mover ? (
+    banner = r.points > 0 ? (
       <>
-        Ход получает <NameText name={moverName} />
+        Съели! +{r.points} — <NameText name={nameOf(r.mover)} />
       </>
+    ) : r.last ? (
+      "Ход сделан"
     ) : (
-      "Никто не ответил верно — хода нет"
+      "Ход пропущен"
+    );
+  else if (r.mode === "task")
+    banner = (
+      <>
+        Задание: <NameText name={nameOf(r.victim)} />
+      </>
     );
 
-  const showQ = q && r.mode === "question" && (stage === "question" || stage === "reveal");
   return (
     <div className="checkers-screen">
       {r.mode === "over" && <Confetti burst={`checkers:${step}`} />}
@@ -153,14 +159,14 @@ export function CheckersScreenView({ session, content }: ViewProps<CheckersConte
       <div className="checkers-screen__side">
         <Side session={session} result={r} color="b" />
         {banner && (
-          <p className="checkers-screen__banner" role="status">
+          <p className={r.mode === "move" && stage === "reveal" && r.points > 0 ? "checkers-screen__banner is-take" : "checkers-screen__banner"} role="status">
             {banner}
           </p>
         )}
-        {showQ && q && (
+        {r.mode === "task" && q && (
           <div className="checkers-screen__question">
             <div className="row checkers-screen__qtop">
-              <span className="quiz-screen__badge">Вопрос {r.q + 1}</span>
+              <span className="quiz-screen__badge">Потеряли шашку — отвечайте</span>
               {left !== null && <span className="checkers-screen__timer">{left === 0 ? "Время!" : `${left} с`}</span>}
             </div>
             <h2>{q.text}</h2>
@@ -174,9 +180,14 @@ export function CheckersScreenView({ session, content }: ViewProps<CheckersConte
                 ))}
               </ol>
             )}
-            {stage === "reveal" && q.kind === "open" && (
-              <p>
-                Ответ: <strong>{answerText(q)}</strong>
+            {stage === "reveal" && (
+              <p className="checkers-screen__verdict">
+                {q.kind === "open" && (
+                  <>
+                    Ответ: <strong>{answerText(q)}</strong>.{" "}
+                  </>
+                )}
+                {r.taskOk ? `Верно! +${r.taskPoints}` : "Не справились"}
               </p>
             )}
           </div>
@@ -260,14 +271,15 @@ export function CheckersPlayerView({ session, content, pid, role, myAnswer, send
   const mine = colorOfPid(r, pid);
   const me = session.leaderboard[pid];
   const noScreen = session.screenMode === "none";
-  const sideName = mine === "w" ? "Белые" : mine === "b" ? "Чёрные" : "Зритель";
+  const sideName = mine === "w" ? "Белые" : mine === "b" ? "Чёрные" : "Болельщик";
+  const nameOf = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? "") : "");
   const head = (
     <p className="eyebrow">
       Шашки · {sideName}
       {me ? ` · ${pointsLabel(me.score)}` : ""}
     </p>
   );
-  const smallBoard = (noScreen || stage === "reveal") && <CheckersBoard board={r.board} flip={mine === "b"} last={r.last} size="phone" />;
+  const smallBoard = <CheckersBoard board={r.board} flip={mine === "b"} last={r.last} size="phone" />;
 
   if (r.mode === "over") {
     return (
@@ -275,6 +287,16 @@ export function CheckersPlayerView({ session, content, pid, role, myAnswer, send
         {head}
         <h2>{r.winner === pid ? "Победа на доске!" : r.winner ? "Партия окончена" : "Партия окончена — считаем очки"}</h2>
         {smallBoard}
+      </div>
+    );
+  }
+
+  if (!r.mover || stage === "ready") {
+    return (
+      <div className="quiz-phone quiz-phone--center">
+        {head}
+        <h2>Сейчас начнётся партия</h2>
+        <p className="muted">Ходите по очереди. Потеряли шашку — получите вопрос: ответите верно — +{POINTS.task} очков.</p>
       </div>
     );
   }
@@ -288,83 +310,75 @@ export function CheckersPlayerView({ session, content, pid, role, myAnswer, send
         </div>
       );
     }
-    const moverName = r.mover ? (session.leaderboard[r.mover]?.name ?? "") : "";
     return (
       <div className="quiz-phone quiz-phone--center">
         {head}
         <div className="buzz__plate" role="status">
-          <strong>{r.mover === pid ? (role === "member" ? "Ходит ваш капитан" : "Ход отправлен") : <>Ходит <NameText name={moverName} /></>}</strong>
-          <span>Смотрите на доску</span>
+          <strong>{r.mover === pid ? (role === "member" ? "Ходит ваш капитан" : "Ход отправлен") : <>Ходит <NameText name={nameOf(r.mover)} /></>}</strong>
+          <span>{mine ? "Подсказывайте капитану и следите за доской" : "Смотрите на доску"}</span>
         </div>
-        {noScreen && <CheckersBoard board={r.board} flip={mine === "b"} size="phone" />}
+        {(noScreen || r.mover === pid) && smallBoard}
       </div>
     );
   }
 
-  if (!q || stage === "ready") {
-    return (
-      <div className="quiz-phone quiz-phone--center">
-        {head}
-        <h2>Сейчас будет вопрос</h2>
-        <p className="muted">Ответите верно и быстрее соперника — ваш ход на доске.</p>
-        {smallBoard}
-      </div>
-    );
-  }
-
-  if (stage === "question" && !mine) {
-    return (
-      <div className="quiz-phone quiz-phone--center">
-        {head}
-        <h2 className="quiz-phone__question">{q.text}</h2>
-        <div className="buzz__plate" role="status">
-          <strong>Играют две команды — вы болельщик</strong>
-          <span>Смотрите на доску и подсказывайте!</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (stage === "question") {
-    const answered = myAnswer !== null && myAnswer !== undefined;
-    return (
-      <div className="quiz-phone">
-        {head}
-        <h2 className="quiz-phone__question">{q.text}</h2>
-        {noScreen && q.imageId && <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={q.imageId} variant="small" alt="" />}
-        {role === "member" ? (
-          <p className="muted">Отвечает капитан — подскажите ему.</p>
-        ) : answered ? (
-          <div className="buzz__plate buzz__plate--glow" role="status">
-            <strong>Ответ принят</strong>
-            <span>Кто ответит верно и быстрее — получит ход</span>
+  if (r.mode === "task" && q) {
+    const mineTask = r.victim === pid;
+    if (stage === "question") {
+      if (!mineTask) {
+        return (
+          <div className="quiz-phone quiz-phone--center">
+            {head}
+            <h2 className="quiz-phone__question">{q.text}</h2>
+            <div className="buzz__plate" role="status">
+              <strong>
+                Отвечает <NameText name={nameOf(r.victim)} />
+              </strong>
+              <span>Они потеряли шашку — ответят верно, получат очки</span>
+            </div>
           </div>
-        ) : open ? (
-          <QuestionForm q={q} sending={sending} onAnswer={(v) => onAnswer(v)} />
-        ) : (
-          <p className="muted">Время вышло.</p>
-        )}
+        );
+      }
+      const answered = myAnswer !== null && myAnswer !== undefined;
+      return (
+        <div className="quiz-phone">
+          {head}
+          <p className="eyebrow">Вы потеряли шашку — ответьте и заработайте +{POINTS.task}</p>
+          <h2 className="quiz-phone__question">{q.text}</h2>
+          {noScreen && q.imageId && <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={q.imageId} variant="small" alt="" />}
+          {role === "member" ? (
+            <p className="muted">Отвечает капитан — подскажите ему.</p>
+          ) : answered ? (
+            <div className="buzz__plate buzz__plate--glow" role="status">
+              <strong>Ответ принят</strong>
+              <span>Ждём, что скажет ведущий</span>
+            </div>
+          ) : open ? (
+            <QuestionForm q={q} sending={sending} onAnswer={(v) => onAnswer(v)} />
+          ) : (
+            <p className="muted">Время вышло.</p>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="quiz-phone quiz-phone--center">
+        {head}
+        <p>
+          Ответ: <strong>{answerText(q)}</strong>
+        </p>
+        <div className={mineTask && r.taskOk ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
+          <strong>{mineTask ? (r.taskOk ? `Верно! +${r.taskPoints}` : "Не получилось") : r.taskOk ? "Соперник ответил верно" : "Соперник не справился"}</strong>
+        </div>
       </div>
     );
   }
 
-  // reveal вопроса или хода
-  const right = myAnswer ? isRight(q, myAnswer.value) : false;
+  // Ход показан
   return (
     <div className="quiz-phone quiz-phone--center">
       {head}
-      {r.mode === "question" ? (
-        <>
-          <p>
-            Ответ: <strong>{answerText(q)}</strong>
-          </p>
-          <div className={r.mover === pid ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-            <strong>{r.mover === pid ? "Ваш ход! Сейчас откроется доска" : r.mover ? "Ход у соперника" : right ? "Верно, но соперник был быстрее" : "Хода нет"}</strong>
-          </div>
-        </>
-      ) : (
-        <p>{r.points > 0 ? `+${r.points} очков ${r.mover === pid ? "вам" : "сопернику"}` : "Ход сделан"}</p>
-      )}
+      <p>{r.points > 0 ? `Съели шашку: +${r.points} ${r.mover === pid ? "вам" : "сопернику"}` : r.last ? "Ход сделан" : "Ход пропущен"}</p>
       {smallBoard}
     </div>
   );

@@ -17,6 +17,8 @@ import { mafia } from "./mafia";
 import { truth } from "./truth";
 import { DEMO_TRUTH, DEMO_TRUTH_ADULT } from "./truth/demo";
 import { story } from "./story";
+import { bunker } from "./bunker";
+import { createBunker } from "./bunker/content";
 import { createStory } from "./story/content";
 import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
@@ -34,7 +36,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(mafia), register(truth), register(story)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(mafia), register(truth), register(story), register(bunker)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -49,6 +51,7 @@ const HINTS: Record<string, string> = {
   dragon: "Капитаны выбирают героя и свойства, команды бьют дракона: вопросы, задания, кубик; жизни, гибель, несколько боёв.",
   survival: "До 30 раундов из вопросов и заданий, каждый 5-й — войнушка со ставками, аукцион билета освобождения.",
   millionaire: "12 вопросов с вариантами, у каждой команды своя лестница на экране, несгораемые ступени и 6 подсказок.",
+  bunker: "Катастрофа: мест в бункере — на половину игроков. Тайные карты персонажей на телефонах, особые условия, голосование, финал с угрозами.",
   story: "Игра на знакомство: пять разделов — чья история, сочиняем историю со словами с бумажек, что было дальше, две правды и ложь, кто это сказал. Гости пишут о себе на телефонах, угадывают друг друга.",
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
@@ -137,6 +140,8 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: truth.id, title: "Правда или действие", hint: "40 карточек для любой компании: 20 вопросов и 20 заданий, 3 круга, задания от гостей.", content: DEMO_TRUTH, playMode: "solo" },
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },
   { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
+  { mechanic: bunker.id, title: "Бункер", hint: "Классика: 5 раундов, 6 карт персонажа и особое условие, 2 угрозы в финале. 4–16 игроков.", content: createBunker(), playMode: "solo", ageRating: "12+" },
+  { mechanic: bunker.id, title: "Бункер: Возрождение", hint: "Для 8+ игроков: среди спасшихся нужна пара, чтобы продолжить род, и 3 угрозы в финале.", content: { ...createBunker(), rebirth: true, threats: 3 }, playMode: "solo", ageRating: "12+" },
   { mechanic: story.id, title: "Давайте знакомиться", hint: "5 разделов на знакомство: истории гостей, смешные предложения со словами с бумажек, «что было дальше», две правды и ложь, 8 вопросов «кто это сказал».", content: createStory(), playMode: "teams" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];

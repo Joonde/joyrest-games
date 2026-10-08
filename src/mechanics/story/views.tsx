@@ -12,11 +12,12 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { STORY_LIMITS, type StoryContent } from "./content";
-import { guessOf, parseStoryResult, sameText, storyOf, type StoryResult } from "./logic";
+import { guessOf, kindOf, parseStoryResult, personName, sameText, storyOf, type StoryResult } from "./logic";
+import { WordsPhone, WordsScreen } from "./WordsViews";
 
-export type StoryAnswerValue = { story: string } | { guess: string };
+export type StoryAnswerValue = { story: string } | { guess: string } | { word: number } | { stars: number };
 
-const nameOf = (session: Session, pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? "Игрок") : "");
+const nameOf = personName;
 
 /** Письмо с историей: номер, текст, сургучная печать с эмблемой (при открытии автора — сломана). */
 export function Letter({ text, label, open = false, size = "screen" }: { text: string; label: string; open?: boolean; size?: "screen" | "phone" }) {
@@ -87,12 +88,13 @@ export function StoryScreenView({ session, content }: ViewProps<StoryContent>) {
     prev.current = key;
   }, [step, stage]);
   const players = Object.keys(session.leaderboard).length;
+  if (kindOf(content, r.part) === "words") return <WordsScreen session={session} w={r.words} part={r.part} />;
 
   if (stage === "ready" || r.mode === "write") {
     return (
       <div className="st-screen">
         <section className="st-screen__main">
-          <span className="quiz-screen__badge">Не моя история</span>
+          <span className="quiz-screen__badge">{content.sections.length > 1 ? `Раздел ${r.part + 1} · Чья история?` : "Не моя история"}</span>
           <Envelopes count={session.state.answered} />
           <h2 className="st-title">{stage === "ready" ? "Скоро пишем истории" : "Пишем истории…"}</h2>
           <p className="st-prompt">{content.prompt}</p>
@@ -149,8 +151,13 @@ function saveMine(key: string, text: string): void {
   }
 }
 
-export function StoryPlayerView({ session, content, pid, myAnswer, sending, onAnswer }: PlayerViewProps<StoryContent, StoryAnswerValue>) {
+export function StoryPlayerView({ session, content, participant, pid, role, myAnswer: teamAnswer, sending: teamSending, onAnswer: teamSend, personal }: PlayerViewProps<StoryContent, StoryAnswerValue>) {
   const r = parseStoryResult(session.state.result);
+  const teams = session.playMode === "teams";
+  // В командах истории, догадки и звёзды — свои у каждого телефона, бумажку выбирает капитан.
+  const myAnswer = teams ? personal?.value : teamAnswer;
+  const sending = teams ? (personal?.sending ?? false) : teamSending;
+  const onAnswer = (v: StoryAnswerValue) => (teams ? personal?.send(v) : teamSend(v));
   const { stage } = session.state;
   const key = `${MINE}.${session.id}.${pid}`;
   const [mine, setMine] = useState(() => loadMine(key));
@@ -169,10 +176,32 @@ export function StoryPlayerView({ session, content, pid, myAnswer, sending, onAn
 
   const head = (
     <p className="eyebrow">
-      Не моя история{r.mode === "guess" ? ` · ${r.current + 1} из ${r.stories.length}` : ""}
+      Не моя история{r.mode === "guess" && kindOf(content, r.part) === "author" ? ` · ${r.current + 1} из ${r.stories.length}` : ""}
       {me ? ` · ${pointsLabel(me.score)}` : ""}
     </p>
   );
+
+  if (kindOf(content, r.part) === "words") {
+    return (
+      <div className="quiz-phone st-phone">
+        {head}
+        <WordsPhone
+          session={session}
+          w={r.words}
+          pid={pid}
+          phoneId={participant.id}
+          isCaptain={role !== "member"}
+          myAnswer={teamAnswer}
+          sending={teamSending}
+          onPick={(word) => teamSend({ word })}
+          myStars={myAnswer}
+          starsSending={sending}
+          onStars={(stars) => onAnswer({ stars })}
+          teamOf={(phone) => (phone === participant.id ? (participant.teamId ?? phone) : phone)}
+        />
+      </div>
+    );
+  }
 
   if (stage === "ready") {
     return (
@@ -237,7 +266,7 @@ export function StoryPlayerView({ session, content, pid, myAnswer, sending, onAn
   const story = r.stories[r.current];
   const isMine = Boolean(story && mine && sameText(mine, story.text));
   const vote = myAnswer ? guessOf(myAnswer.value) : null;
-  const others = Object.keys(session.leaderboard).filter((p) => p !== pid);
+  const others = (teams ? (r.people ?? []) : Object.keys(session.leaderboard)).filter((p) => p !== participant.id);
 
   if (stage === "reveal" && r.reveal) {
     const right = r.reveal.right.includes(pid);

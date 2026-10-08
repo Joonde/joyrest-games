@@ -10,7 +10,8 @@ import { leaderboardAdditions } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
-import { cleanText, STORY_LIMITS, type StoryContent } from "./content";
+import { cleanText, STORY_LIMITS, type SectionKind, type StoryContent } from "./content";
+import { hasMoreSentences, parseWords, wordsBack, wordsIntro, type WordsState } from "./words";
 
 export type StoryMode = "write" | "guess";
 
@@ -30,6 +31,14 @@ export interface StoryReveal {
 }
 
 export interface StoryResult {
+  /** Какой раздел идёт (номер в `content.sections`). */
+  part: number;
+  /** Раздел «Сочиняем историю». */
+  words: WordsState | null;
+  /** Гости с телефонами (в командах — люди, а не команды): за них голосуют, на них крутится рулетка. */
+  people: string[];
+  /** Имена гостей с телефонами (в командах их нет в таблице). */
+  names: Record<string, string>;
   mode: StoryMode;
   /** Шаг записи: его ответы — истории. */
   writeStep: number | null;
@@ -63,6 +72,10 @@ function parseReveal(v: unknown): StoryReveal | null {
 export function parseStoryResult(raw: unknown): StoryResult {
   const d = rec(raw);
   return {
+    part: typeof d.part === "number" && d.part >= 0 ? Math.floor(d.part) : 0,
+    words: parseWords(d.words),
+    people: ids(d.people),
+    names: Object.fromEntries(Object.entries(rec(d.names)).filter(([k, v]) => ID.test(k) && typeof v === "string").map(([k, v]) => [k, cleanText(v, 60)])),
     mode: d.mode === "guess" ? "guess" : "write",
     writeStep: typeof d.writeStep === "number" ? d.writeStep : null,
     hidden: ids(d.hidden),
@@ -116,24 +129,87 @@ export function authorOf(text: string, written: Array<{ pid: string; text: strin
   return written.find((w) => sameText(w.text, text))?.pid ?? null;
 }
 
-export type StoryAction = "write" | "start" | "reveal" | "next" | "podium" | "podiumNext" | "finish";
+export type StoryAction = "write" | "start" | "reveal" | "next" | "wordsSentence" | "wordsShow" | "wordsSpin" | "wordsRate" | "wordsRated" | "nextPart" | "podium" | "podiumNext" | "finish";
 
-export function storyPrimary(session: Session): StoryAction {
+export function kindOf(content: StoryContent, part: number): SectionKind {
+  return content.sections[part] ?? "author";
+}
+
+/** Что после раздела: следующий раздел или награждение. */
+function afterPart(session: Session, content: StoryContent, r: StoryResult): StoryAction {
+  if (r.part + 1 < content.sections.length) return "nextPart";
+  return hasPodium(session.leaderboard) ? "podium" : "finish";
+}
+
+export function storyPrimary(session: Session, content: StoryContent): StoryAction {
   const { stage } = session.state;
   const r = parseStoryResult(session.state.result);
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
+  const kind = kindOf(content, r.part);
+  if (kind === "words") {
+    const w = r.words;
+    if (!w || w.mode === "intro") return hasMoreSentences(content, w ?? wordsIntro()) ? "wordsSentence" : afterPart(session, content, r);
+    if (w.mode === "pick") return "wordsShow";
+    if (w.mode === "shown") return "wordsSpin";
+    if (w.mode === "spin") return "wordsRate";
+    if (w.mode === "rate") return "wordsRated";
+    return hasMoreSentences(content, w) ? "wordsSentence" : afterPart(session, content, r);
+  }
   if (stage === "ready") return "write";
   if (r.mode === "write") return "start";
   if (stage === "question") return "reveal";
   if (r.current + 1 < r.stories.length) return "next";
-  return hasPodium(session.leaderboard) ? "podium" : "finish";
+  return afterPart(session, content, r);
+}
+
+/** Следующий раздел: заставка раздела (`ready`). */
+export function nextPart(session: Session): SessionChange {
+  const r = parseStoryResult(session.state.result);
+  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: { ...emptyFlat(), people: r.people, names: r.names, part: r.part + 1, prevPart: { ...r, prevPart: null } } } };
+}
+
+/** Гости с телефонами и их имена: в одиночной игре — игроки таблицы, в командах — телефоны команд. */
+export function peopleOf(session: Session, participants: Participant[]): { people: string[]; names: Record<string, string> } {
+  if (session.playMode !== "teams") {
+    const people = [...new Set([...Object.keys(session.leaderboard), ...participants.filter((p) => p.kind === "player").map((p) => p.id)])];
+    const names: Record<string, string> = {};
+    for (const p of participants) if (p.kind === "player") names[p.id] = p.name;
+    return { people, names };
+  }
+  const phones = participants.filter((p) => p.kind === "player" && p.teamId).sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0));
+  return { people: phones.map((p) => p.id), names: Object.fromEntries(phones.map((p) => [p.id, p.name])) };
+}
+
+/** Команда телефона (в одиночной игре — сам игрок). */
+export function teamOfPhone(participants: Participant[]): (pid: string) => string {
+  const map = new Map(participants.filter((p) => p.teamId).map((p) => [p.id, p.teamId as string]));
+  return (pid) => map.get(pid) ?? pid;
+}
+
+/** Имя гостя: из таблицы или из имён телефонов. */
+export function personName(session: Session, pid: string | null): string {
+  if (!pid) return "";
+  const names = rec(rec(session.state.result).names);
+  return session.leaderboard[pid]?.name ?? (typeof names[pid] === "string" ? (names[pid] as string) : "Гость");
+}
+
+function emptyFlat(): Omit<StoryResult, "part"> {
+  return { people: [], names: {}, words: null, mode: "write", writeStep: null, hidden: [], stories: [], current: 0, reveal: null, changeable: false, history: [] };
+}
+
+/** Состояние раздела «Сочиняем историю» → изменение сессии. */
+export function withWords(session: Session, words: WordsState, change: SessionChange = {}): SessionChange {
+  const r = parseStoryResult(session.state.result);
+  return { ...change, state: { ...(change.state ?? {}), result: { ...r, words } } };
 }
 
 /** «Пишем истории»: телефоны пишут, ответ можно менять до начала угадывания. */
 export function startWriting(session: Session, participants: Participant[]): SessionChange {
+  const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
+  const who = peopleOf({ ...session, leaderboard: { ...session.leaderboard, ...additions } }, participants);
   return {
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
-    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { mode: "write", writeStep: session.state.step, hidden: [], stories: [], current: 0, reveal: null, changeable: true, history: [] } },
+    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...emptyFlat(), ...who, part: parseStoryResult(session.state.result).part, mode: "write", writeStep: session.state.step, changeable: true } },
   };
 }
 
@@ -164,7 +240,7 @@ export function startGuessing(session: Session, content: StoryContent, answers: 
       timeLimit: content.guessSeconds,
       revealed: false,
       answered: 0,
-      result: { ...r, mode: "guess", changeable: false, stories: played.map((s, i) => ({ id: `s${i + 1}`, text: s.text })), current: 0, reveal: null, history: [] },
+      result: { ...r, ...peopleOf(session, participants), mode: "guess", changeable: false, stories: played.map((s, i) => ({ id: `s${i + 1}`, text: s.text })), current: 0, reveal: null, history: [] },
     },
   };
 }
@@ -184,15 +260,19 @@ export function tallyGuesses(answers: Answer[], step: number, author: string | n
 }
 
 /** «Открыть автора»: очки угадавшим, а если никто не угадал — автору. */
-export function revealAuthor(session: Session, content: StoryContent, answers: Answer[], written: Array<{ pid: string; text: string }>): SessionChange {
+export function revealAuthor(session: Session, content: StoryContent, answers: Answer[], written: Array<{ pid: string; text: string }>, teamOf: (pid: string) => string = (p) => p): SessionChange {
   const r = parseStoryResult(session.state.result);
   const story = r.stories[r.current];
   if (!story) return {};
   const author = authorOf(story.text, written);
   const { counts, right } = tallyGuesses(answers, session.state.step, author);
   const deltas: Record<string, number> = {};
-  for (const p of right) if (session.leaderboard[p]) deltas[p] = content.guessPoints;
-  if (right.length === 0 && author && session.leaderboard[author] && content.authorBonus > 0) deltas[author] = content.authorBonus;
+  for (const p of right) {
+    const to = teamOf(p);
+    if (session.leaderboard[to]) deltas[to] = (deltas[to] ?? 0) + content.guessPoints;
+  }
+  const authorTo = author ? teamOf(author) : null;
+  if (right.length === 0 && authorTo && session.leaderboard[authorTo] && content.authorBonus > 0) deltas[authorTo] = (deltas[authorTo] ?? 0) + content.authorBonus;
   const add = Object.fromEntries(Object.entries(deltas).filter(([, d]) => d !== 0));
   return {
     state: { stage: "reveal", revealed: true, result: { ...r, reveal: { author, counts, right, deltas } } },
@@ -224,12 +304,21 @@ export interface StoryBack {
 const minus = (d: Record<string, number>) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, -v]));
 
 /** «Назад» на один этап; null — некуда. */
-export function storyBack(session: Session): StoryBack | null {
+export function storyBack(session: Session, content: StoryContent): StoryBack | null {
   const { stage, step } = session.state;
   const r = parseStoryResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
-  if (stage === "ready") return null;
-  if (r.mode === "write") return { change: { state: { stage: "ready", startedAt: null, result: null } }, clearAnswers: step };
+  const prevPart = rec(rec(session.state.result).prevPart);
+  const toPrevPart = (): StoryBack | null => ("part" in prevPart ? { change: { state: { step: step - 1, stage: "reveal", revealed: true, result: prevPart } } } : null);
+  if (kindOf(content, r.part) === "words") {
+    if (r.words?.undo) {
+      const b = wordsBack(session, r.words);
+      return b ? { change: { ...b.change, state: { ...(b.change.state ?? {}), result: { ...r, words: b.words } } }, ...(b.clearAnswers !== undefined ? { clearAnswers: b.clearAnswers } : {}) } : null;
+    }
+    return toPrevPart();
+  }
+  if (stage === "ready") return toPrevPart();
+  if (r.mode === "write") return { change: { state: { stage: "ready", startedAt: null, result: r.part > 0 ? { ...emptyFlat(), part: r.part, prevPart } : null } }, clearAnswers: step };
   if (stage === "reveal" && r.reveal) {
     const add = minus(r.reveal.deltas);
     // Голоса остаются, таймер — заново: кто не успел, проголосует.

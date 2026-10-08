@@ -5,8 +5,9 @@ import { awardNow, podiumNext } from "../../core/podium";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import type { StoryContent } from "./content";
-import { authorOf, nextStory, parseStoryResult, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, toggleHidden, writtenStories } from "./logic";
+import { fillTemplate, SECTION_TITLES, type StoryContent } from "./content";
+import { authorOf, kindOf, nextPart, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, teamOfPhone, toggleHidden, withWords, writtenStories } from "./logic";
+import { finishRating, newSentence, showSentence, spinWheel, startRating, tallyStars, wordOf, wordsIntro } from "./words";
 
 /**
  * Пульт «Не моей истории»: «Пишем истории» → ведущий видит истории (может убрать неподходящие) →
@@ -26,7 +27,10 @@ export function StoryHostControls({ session, content, answers, participants, con
   }, [session]);
   const { stage, step } = session.state;
   const r = parseStoryResult(session.state.result);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Игрок") : "—");
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? personName(session, p)) : "—");
+  const kind = kindOf(content, r.part);
+  const teamOf = teamOfPhone(participants);
+  const w = r.words;
   const noPlayers = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
 
   // Истории шага записи: на записи — из текущих ответов, потом — один раз с сервера.
@@ -88,15 +92,58 @@ export function StoryHostControls({ session, content, answers, participants, con
     }
   }
 
-  const action = storyPrimary(session);
-  const back = storyBack(session);
+  const action = storyPrimary(session, content);
+  const back = storyBack(session, content);
+  const fresh = async () => {
+    const list = await control.freshAnswers(step).catch(() => [] as Answer[]);
+    return list.length > 0 ? list : answers;
+  };
+  const order = scoringParticipants(participants, session.playMode).sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0)).map((p) => p.id);
+  const own = answers.filter((a) => a.step === step);
+  const excludedFromRating = (phone: string) => phone === w?.performer || (session.playMode === "teams" && w?.scoreTo !== null && teamOf(phone) === w?.scoreTo);
 
   return (
     <div className="stack host-quiz">
-      <p className="eyebrow">Не моя история{r.mode === "guess" ? ` · история ${r.current + 1} из ${r.stories.length}` : ""}</p>
+      <p className="eyebrow">
+        Не моя история · раздел {r.part + 1} из {content.sections.length}: {SECTION_TITLES[kind]}
+        {kind === "author" && r.mode === "guess" ? ` · ${r.current + 1} из ${r.stories.length}` : ""}
+      </p>
 
       {stage === "podium" ? (
         <PodiumHostList session={session} />
+      ) : kind === "words" ? (
+        !w || w.mode === "intro" ? (
+          <p className="muted">Каждый участник получит бумажку на свой пропуск в истории и выберет слово. Потом рулетка выберет, кто покажет историю, а зал поставит звёзды.</p>
+        ) : (
+          <div className="card stack stack--tight">
+            <p className="host-quiz__question">
+              {fillTemplate(w.template, w.mode === "pick" ? w.papers.map((p) => `[${p.label}]`) : w.filled).map((part) => part.text).join("")}
+            </p>
+            {w.mode === "pick" && (
+              <ul className="st-host__list">
+                {w.papers.map((p) => {
+                  const a = p.pid ? own.find((x) => x.pid === p.pid) : undefined;
+                  const i = a ? wordOf(a.value) : null;
+                  return (
+                    <li key={p.slot}>
+                      <span className="small">
+                        [{p.label}] · {p.pid ? <NameText name={name(p.pid)} /> : "случай"}
+                      </span>
+                      <span>{i !== null ? `✓ ${p.words[i]}` : p.words.join(" · ")}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {(w.mode === "spin" || w.mode === "rate" || w.mode === "rated") && (
+              <p>
+                Показывает: <strong><NameText name={name(w.performer)} /></strong>
+              </p>
+            )}
+            {w.mode === "rate" && <p className="small">Оценили: {tallyStars(answers, step, excludedFromRating).votes}</p>}
+            {w.mode === "rated" && <p className="success">{w.avg !== null ? `★ ${w.avg} · +${w.points}` : "Оценок нет"}</p>}
+          </div>
+        )
       ) : stage === "ready" ? (
         <p className="muted">Гости тайно пишут на телефоне случай из жизни. Потом истории по одной показываются на экране без имён, все угадывают автора.</p>
       ) : r.mode === "write" ? (
@@ -171,7 +218,7 @@ export function StoryHostControls({ session, content, answers, participants, con
             type="button"
             className="btn btn--block host-quiz__primary"
             disabled={busy}
-            onClick={() => void run(async () => revealAuthor(latest.current, content, await control.freshAnswers(step).then((l) => (l.length ? l : answers)).catch(() => answers), all))}
+            onClick={() => void run(async () => revealAuthor(latest.current, content, await control.freshAnswers(step).then((l) => (l.length ? l : answers)).catch(() => answers), all, teamOf))}
           >
             Открыть автора
           </button>
@@ -179,6 +226,57 @@ export function StoryHostControls({ session, content, answers, participants, con
         {action === "next" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextStory(session, content))}>
             Следующая история
+          </button>
+        )}
+        {action === "wordsSentence" && (
+          <>
+            <button
+              type="button"
+              className="btn btn--block host-quiz__primary"
+              disabled={busy}
+              onClick={() =>
+                void run(() => {
+                  const cur = latest.current;
+                  const rr = parseStoryResult(cur.state.result);
+                  const made = newSentence(cur, content, rr.words ?? wordsIntro(), order);
+                  const change = withWords(cur, made.words, made.change);
+                  const who = peopleOf(cur, participants);
+                  return Promise.resolve({ ...change, state: { ...change.state, result: { ...(change.state?.result as object), ...who } } });
+                })
+              }
+            >
+              {w && w.mode !== "intro" ? "Следующая история" : "Новая история: раздать бумажки"}
+            </button>
+            {w && w.mode === "rated" && content.sections.length > r.part + 1 && (
+              <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(nextPart(session))}>
+                Следующий раздел
+              </button>
+            )}
+          </>
+        )}
+        {action === "wordsShow" && w && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => { const m = showSentence(latest.current, w, await fresh()); return withWords(latest.current, m.words, m.change); })}>
+            Показать историю
+          </button>
+        )}
+        {(action === "wordsSpin" || action === "wordsRate") && w && (
+          <button type="button" className={`btn btn--block ${action === "wordsSpin" ? "host-quiz__primary" : "btn--secondary"}`} disabled={busy} onClick={() => void run(withWords(session, spinWheel(session, w, r.people.length ? r.people : peopleOf(session, participants).people, teamOf).words))}>
+            {action === "wordsSpin" ? "Крутить рулетку" : "Крутить ещё раз"}
+          </button>
+        )}
+        {action === "wordsRate" && w && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => { const m = startRating(session, content, w); void run(withWords(session, m.words, m.change)); }}>
+            Оценить показ
+          </button>
+        )}
+        {action === "wordsRated" && w && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => { const m = finishRating(latest.current, content, w, await fresh(), excludedFromRating); return withWords(latest.current, m.words, m.change); })}>
+            Итог
+          </button>
+        )}
+        {action === "nextPart" && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextPart(session))}>
+            Следующий раздел: {SECTION_TITLES[kindOf(content, r.part + 1)]}
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
@@ -191,7 +289,7 @@ export function StoryHostControls({ session, content, answers, participants, con
             Завершить игру
           </button>
         )}
-        {stage === "reveal" && action === "next" && (
+        {stage === "reveal" && (action === "next" || action === "nextPart" || (action === "wordsSentence" && w?.mode === "rated")) && (
           <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(awardNow(session))}>
             Закончить и наградить
           </button>

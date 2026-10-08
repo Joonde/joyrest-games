@@ -7856,3 +7856,449 @@ button.dance-card:active {
     height: auto;
   }
 }
+
+/* ---------- «Кто хочет стать миллионером» ---------- */
+.mil-screen {
+  width: 100%;
+  height: 100%;
+  padding: 4cqh 3cqw 3cqh;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 3cqw;
+  font-size: 3.2cqh;
+}
+
+.mil-screen__main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 2.4cqh;
+  min-width: 0;
+  text-align: center;
+}
+
+.mil-screen__title {
+  font-size: 7.5cqh;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.mil-screen__who {
+  font-size: 4.2cqh;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mil-screen__note {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.mil-screen__note--big {
+  font-size: 4cqh;
+  color: var(--color-text);
+}
+
+.mil-screen__bars {
+  min-width: 0;
+  min-height: 0;
+  height: 92cqh;
+}
+
+.mil-bars {
+  display: grid;
+  gap: 1.2cqw;
+  height: 100%;
+}
+
+.mil-bar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 0.8cqh;
+  min-width: 0;
+  text-align: center;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.mil-bar.is-turn {
+  opacity: 1;
+}
+
+.mil-bar__points {
+  font-weight: 700;
+  font-size: 2.6cqh;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mil-bar__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0.6cqh;
+  display: grid;
+  grid-template-rows: repeat(12, minmax(0, 1fr));
+  gap: 0.5cqh;
+  border-radius: 1.2cqh;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.mil-bar.is-turn .mil-bar__steps {
+  border-color: var(--team);
+  box-shadow: 0 0 2cqh color-mix(in srgb, var(--team) 55%, transparent);
+}
+
+.mil-step {
+  border-radius: 0.6cqh;
+  background: var(--color-surface-alt);
+  transition: background-color 0.5s ease, transform 0.5s ease;
+}
+
+.mil-step.is-safe {
+  outline: 2px solid var(--color-highlight);
+  outline-offset: -2px;
+}
+
+.mil-step.is-on {
+  background: var(--team);
+}
+
+.mil-step.is-next {
+  animation: mil-next 1.4s ease-in-out infinite;
+}
+
+@keyframes mil-next {
+  50% {
+    background: color-mix(in srgb, var(--team) 40%, var(--color-surface-alt));
+  }
+}
+
+.mil-bar.is-top .mil-bar__steps {
+  border-color: var(--color-highlight);
+}
+
+.mil-bar__name {
+  font-weight: 600;
+  font-size: 2.4cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mil-lifelines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4cqh 0.4cqw;
+}
+
+.mil-lifeline {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.4cqh;
+  height: 3.4cqh;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-highlight);
+  font-size: 1.8cqh;
+  line-height: 1;
+}
+
+.mil-lifeline.is-used {
+  opacity: 0.35;
+  border-color: var(--color-border);
+}
+
+/* Использованная подсказка — перечёркнута крестиком. */
+.mil-lifeline.is-used::before,
+.mil-lifeline.is-used::after {
+  content: "";
+  position: absolute;
+  inset: 45% -8%;
+  height: 2px;
+  background: var(--color-danger);
+  transform: rotate(45deg);
+}
+
+.mil-lifeline.is-used::after {
+  transform: rotate(-45deg);
+}
+
+.mil-lifelines--phone .mil-lifeline {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
+.mil-question__text {
+  font-size: 4.4cqh;
+  font-weight: 600;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.mil-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.6cqh 1.6cqw;
+}
+
+.mil-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.2cqw;
+  min-height: 8cqh;
+  padding: 1cqh 1.6cqw;
+  border-radius: 999px;
+  border: 2px solid var(--color-highlight);
+  background: var(--color-surface);
+  text-align: left;
+  overflow: hidden;
+  transition: background-color 0.4s ease, opacity 0.4s ease;
+}
+
+.mil-option__letter {
+  flex: none;
+  color: var(--color-highlight);
+  font-weight: 700;
+}
+
+.mil-option__text {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.mil-option__pct {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mil-option__pct::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--pct);
+  background: color-mix(in srgb, var(--color-highlight) 22%, transparent);
+  z-index: -1;
+}
+
+.mil-option.is-gone {
+  opacity: 0.25;
+}
+
+.mil-option.is-picked {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.mil-option.is-right {
+  border-color: var(--color-success);
+  border-width: 0.6cqh;
+}
+
+.mil-option.is-right .mil-option__letter {
+  color: var(--color-success);
+}
+
+.mil-option.is-right::after {
+  content: "✓";
+  margin-left: auto;
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.mil-option.is-wrong {
+  border-color: var(--color-danger);
+  border-width: 0.6cqh;
+}
+
+.mil-option.is-wrong .mil-option__letter {
+  color: var(--color-danger);
+}
+
+.mil-option.is-wrong::after {
+  content: "✕";
+  margin-left: auto;
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.mil-question--phone .mil-option.is-right,
+.mil-question--phone .mil-option.is-wrong {
+  border-width: 3px;
+}
+
+.mil-outcome {
+  font-size: 5cqh;
+  font-weight: 700;
+  margin: 0;
+}
+
+.mil-call {
+  font-size: 4cqh;
+  font-weight: 600;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mil-flash {
+  margin: 0 auto;
+  padding: 0.5cqh 2cqw;
+  border-radius: 999px;
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  font-weight: 700;
+  animation: mil-flash 0.8s ease-out;
+}
+
+@keyframes mil-flash {
+  from {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Телефон */
+.mil-question--phone .mil-question__text,
+.quiz-phone .mil-question__text {
+  font-size: 20px;
+}
+
+.mil-question--phone .mil-options {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.mil-question--phone .mil-option {
+  min-height: 52px;
+  padding: 8px 16px;
+  gap: 12px;
+  font-size: 17px;
+}
+
+.mil-phone-options {
+  display: grid;
+  gap: 8px;
+}
+
+.mil-phone-option {
+  justify-content: flex-start;
+  gap: 12px;
+  text-align: left;
+  white-space: normal;
+}
+
+.mil-phone-lifelines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mil-phone-lifeline {
+  min-width: 0;
+  padding-inline: 8px;
+  white-space: normal;
+}
+
+.mil-phone-lifeline.is-used {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.mil-call--phone {
+  font-size: 18px;
+}
+
+.mil-phone-bars {
+  height: 260px;
+  font-size: 12px;
+  container-type: size;
+}
+
+/* Пульт */
+.mil-host-options {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.mil-host-options .is-gone {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.mil-host-options .is-correct {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.mil-host-pick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mil-host-pick .btn[aria-pressed="true"] {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.mil-host-lifeline.is-used {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.mil-host-lifeline .tile__icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.mil-ladder-editor {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.mil-ladder-editor__n {
+  width: 2em;
+  font-weight: 700;
+}
+
+.mil-editor-option {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.mil-editor-option > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mil-editor-option__right {
+  flex: none;
+  padding: 8px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mil-step.is-next,
+  .mil-flash {
+    animation: none;
+  }
+}

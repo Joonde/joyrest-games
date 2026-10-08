@@ -20,6 +20,9 @@ import type { Answer, Participant, Session } from "../src/data/types";
 import { DEMO_BOARD } from "../src/mechanics/board/demo";
 import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "../src/mechanics/quest/demo";
+import { DEMO_MILLIONAIRE } from "../src/mechanics/millionaire/demo";
+import { parseMillionaire } from "../src/mechanics/millionaire/content";
+import { validateMillionaire } from "../src/mechanics/millionaire/validate";
 import { DEMO_DANCE } from "../src/mechanics/dance/demo";
 import { parseDance } from "../src/mechanics/dance/content";
 import { validateDance } from "../src/mechanics/dance/validate";
@@ -483,7 +486,7 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка —");
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер» —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
@@ -493,6 +496,7 @@ async function main() {
     { mechanic: "dance", ...DEMO_DANCE },
     { mechanic: "quest", ...DEMO_QUEST },
     { mechanic: "quest", ...DEMO_QUEST_ADULT },
+    { mechanic: "millionaire", title: "Кто хочет стать миллионером", content: DEMO_MILLIONAIRE },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -515,6 +519,8 @@ async function main() {
             ? validateCheckers(parseCheckers(saved.content))
             : saved.mechanic === "quest"
               ? validateQuest(parseQuest(saved.content))
+              : saved.mechanic === "millionaire"
+                ? validateMillionaire(parseMillionaire(saved.content))
               : saved.mechanic === "dance"
                 ? validateDance(parseDance(saved.content))
                 : validateContent(parseContent(saved.content));

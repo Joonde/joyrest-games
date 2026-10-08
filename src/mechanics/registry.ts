@@ -3,6 +3,7 @@ import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
 import { DEMO_CHECKERS } from "./checkers/demo";
 import { dance } from "./dance";
+import { DEMO_DANCE } from "./dance/demo";
 import { quest } from "./quest";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
 import { lotto } from "./lotto";
@@ -74,7 +75,7 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
 }
 
 /** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
-export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams" }> = [
+export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
   {
     mechanic: quiz.id,
@@ -93,6 +94,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     title: DEMO_BOARD.title,
     hint: "4 категории по 5 вопросов, два «Кота в мешке». Клетки с треками и картинками добавьте в копии игры.",
     content: DEMO_BOARD.content,
+    themeId: "studio",
   },
   {
     mechanic: checkers.id,
@@ -101,8 +103,16 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     playMode: "teams",
     content: DEMO_CHECKERS.content,
   },
-  { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams" },
-  { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams" },
+  {
+    mechanic: dance.id,
+    title: DEMO_DANCE.title,
+    hint: "9 карточек: танцы, караоке и батлы. Музыку включаете сами или добавляете ссылки на ролики в копии игры.",
+    content: DEMO_DANCE.content,
+    playMode: "teams",
+    themeId: "dancefloor",
+  },
+  { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
+  { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
 ];
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */

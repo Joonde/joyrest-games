@@ -106,7 +106,7 @@ export function GameList({ scope, profile, onToast }: Props) {
         ownerId: profile.uid,
         title: demo.title,
         mechanic: demo.mechanic,
-        themeId: DEFAULT_THEME_ID,
+        themeId: demo.themeId ?? DEFAULT_THEME_ID,
         ageRating: demo.ageRating ?? ("0+" as const),
         playMode: demo.playMode ?? ("solo" as const),
         content: demo.content,

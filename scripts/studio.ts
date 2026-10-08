@@ -20,6 +20,9 @@ import type { Answer, Participant, Session } from "../src/data/types";
 import { DEMO_BOARD } from "../src/mechanics/board/demo";
 import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "../src/mechanics/quest/demo";
+import { DEMO_DANCE } from "../src/mechanics/dance/demo";
+import { parseDance } from "../src/mechanics/dance/content";
+import { validateDance } from "../src/mechanics/dance/validate";
 import { parseQuest } from "../src/mechanics/quest/content";
 import { validateQuest } from "../src/mechanics/quest/validate";
 import { parseCheckers } from "../src/mechanics/checkers/content";
@@ -480,13 +483,14 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», музыкальное лото, «Своя игра» —");
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
     { mechanic: "lotto", ...DEMO_LOTTO },
     { mechanic: "board", ...DEMO_BOARD },
     { mechanic: "checkers", ...DEMO_CHECKERS },
+    { mechanic: "dance", ...DEMO_DANCE },
     { mechanic: "quest", ...DEMO_QUEST },
     { mechanic: "quest", ...DEMO_QUEST_ADULT },
   ];
@@ -511,7 +515,9 @@ async function main() {
             ? validateCheckers(parseCheckers(saved.content))
             : saved.mechanic === "quest"
               ? validateQuest(parseQuest(saved.content))
-              : validateContent(parseContent(saved.content));
+              : saved.mechanic === "dance"
+                ? validateDance(parseDance(saved.content))
+                : validateContent(parseContent(saved.content));
     check(saved.title === t.title && errors.length === 0, `шаблон «${t.title}» виден ведущему и готов к запуску`, errors.map((e) => e.message).join("; "));
     const copy = uid();
     check(

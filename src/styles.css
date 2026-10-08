@@ -3063,24 +3063,124 @@ kbd {
   }
 }
 
-.scene__sweep {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -40cqw;
-  width: 30cqw;
-  background: linear-gradient(100deg, transparent, var(--scene-glow), transparent);
-  opacity: 0.35;
-  animation: scene-sweep 9s ease-in-out infinite;
+/* Верхние веера ар-деко поменьше — по углам, середина свободна для текста. */
+.scene__fan--top-left,
+.scene__fan--top-right {
+  bottom: auto;
+  top: -22cqh;
+  width: 44cqh;
+  height: 44cqh;
+  opacity: 0.7;
 }
 
-@keyframes scene-sweep {
-  from {
-    transform: translateX(0);
-  }
+.scene__fan--top-left {
+  left: -22cqh;
+}
+
+.scene__fan--top-right {
+  right: -22cqh;
+}
+
+/* Лето: солнце в правом верхнем углу с медленно вращающимися лучами, волны внизу. */
+.scene__sun {
+  position: absolute;
+  top: -30cqh;
+  right: -20cqh;
+  width: 80cqh;
+  height: 80cqh;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--scene-particle) 0 12%, transparent 13%), repeating-conic-gradient(var(--scene-glow) 0deg 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%);
+  mask: radial-gradient(circle, #000 30%, transparent 70%);
+  opacity: 0.8;
+  animation: scene-spin 60s linear infinite;
+}
+
+@keyframes scene-spin {
   to {
-    transform: translateX(170cqw);
+    transform: rotate(360deg);
   }
+}
+
+.scene__waves {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10cqh;
+  background: radial-gradient(60% 100% at 50% 100%, var(--scene-glow), transparent 70%);
+  opacity: 0.8;
+}
+
+/* Осень: падающие листья разных цветов. */
+.scene__leaves span {
+  width: calc(3cqh * var(--size));
+  height: calc(3cqh * var(--size));
+  border-radius: 0 70% 0 70%;
+  background: var(--leaf, var(--scene-particle));
+  opacity: 0.7;
+  transform: translate3d(0, -5cqh, 0);
+  animation: scene-fall-spin calc(var(--dur) * 1.4) linear var(--delay) infinite;
+}
+
+/* Шахматный клуб: клетчатые углы, гаснущие к середине. */
+.scene__checker {
+  position: absolute;
+  width: 42cqh;
+  height: 42cqh;
+  background: repeating-conic-gradient(var(--scene-glow) 0 25%, transparent 0 50%) 0 0 / 7cqh 7cqh;
+  opacity: 0.9;
+}
+
+.scene__checker--bl {
+  left: 0;
+  bottom: 0;
+  -webkit-mask: radial-gradient(circle at 0 100%, #000 20%, transparent 70%);
+  mask: radial-gradient(circle at 0 100%, #000 20%, transparent 70%);
+}
+
+.scene__checker--tr {
+  right: 0;
+  top: 0;
+  -webkit-mask: radial-gradient(circle at 100% 0, #000 20%, transparent 70%);
+  mask: radial-gradient(circle at 100% 0, #000 20%, transparent 70%);
+}
+
+/* Приключение: пунктирные тропинки по краям и компас в углу. */
+.scene__trail {
+  position: absolute;
+  width: 40cqh;
+  height: 60cqh;
+  border: 0.5cqh dashed var(--scene-glow);
+  border-radius: 50%;
+  opacity: 0.9;
+}
+
+.scene__trail--left {
+  left: -18cqh;
+  bottom: -10cqh;
+  transform: rotate(-20deg);
+}
+
+.scene__trail--right {
+  right: -16cqh;
+  top: 10cqh;
+  transform: rotate(25deg);
+}
+
+.scene__compass {
+  position: absolute;
+  top: 3cqh;
+  right: 3cqw;
+  width: 14cqh;
+  height: 14cqh;
+  border-radius: 50%;
+  border: 0.4cqh solid var(--scene-glow);
+  background: conic-gradient(from -10deg, var(--scene-particle) 0 20deg, transparent 20deg 160deg, var(--scene-glow) 160deg 200deg, transparent 200deg);
+  -webkit-mask: radial-gradient(circle, #000 60%, transparent 62%);
+  mask: radial-gradient(circle, #000 60%, transparent 62%);
+  opacity: 0.8;
+  animation: scene-sway 8s ease-in-out infinite alternate;
 }
 
 /* Гирлянда: лампочки цветов команд на проводе, мигают по очереди и светятся. */
@@ -3143,10 +3243,13 @@ kbd {
 
 @media (prefers-reduced-motion: reduce) {
   .scene__layer,
-  .scene__sweep,
   .scene__aurora,
   .scene__rays {
     display: none;
+  }
+  .scene__sun,
+  .scene__compass {
+    animation: none;
   }
 }
 

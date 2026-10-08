@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import { embedUrl, newCard, parseDance } from "./content";
+import { DEMO_DANCE } from "./demo";
+import { validateDance } from "./validate";
 import { danceBack, dancePrimary, resolveTie, nextTurn, parseDanceResult, pickCard, pickFromAnswers, showResult, startPick, startVote, turnPid } from "./logic";
 
 const content = parseDance({
@@ -65,5 +67,12 @@ describe("Танцевальный батл", () => {
     expect(embedUrl("http://youtu.be/dQw4w9WgXcQ")).toBeNull();
     expect(embedUrl("javascript:alert(1)")).toBeNull();
     expect(embedUrl("https://example.com/v.mp4")).toBeNull();
+  });
+});
+
+describe("шаблон батла", () => {
+  it("готов к запуску", () => {
+    expect(DEMO_DANCE.content.cards).toHaveLength(9);
+    expect(validateDance(DEMO_DANCE.content)).toEqual([]);
   });
 });

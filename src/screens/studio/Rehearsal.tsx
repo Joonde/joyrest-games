@@ -1,8 +1,10 @@
 import { Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { applyChange, startState } from "../../core/session";
+import { roundLeaderboard } from "../../core/rounds";
 import { gamesRepo, permissions, useLoad, type Game, type Session, type UserProfile } from "../../data";
 import { Podium } from "../../components/live/Podium";
+import { PeekCard } from "../../components/live/PeekCard";
 import { Scene } from "../../components/live/Scene";
 import { useSoundUnlock } from "../../components/live/sound";
 import { BoardView } from "../../components/live/BoardView";
@@ -100,6 +102,16 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
               <div className="quiz-screen quiz-screen--board">
                 <BoardView leaderboard={session.leaderboard} title="Игра завершена" />
               </div>
+            ) : session.state.peek ? (
+              // «Таблица очков на экран» — как на настоящем экране зала (HallScreen).
+              <div className="quiz-screen quiz-screen--board">
+                <BoardView
+                  leaderboard={session.state.peek === "round" ? roundLeaderboard(session.leaderboard) : session.leaderboard}
+                  title={session.state.peek === "round" ? "Счёт текущего раунда" : "Таблица сейчас"}
+                  showLast={false}
+                  showMoves={session.state.peek === "total"}
+                />
+              </div>
             ) : session.state.stage === "podium" ? (
               <Podium session={session} />
             ) : (
@@ -125,6 +137,7 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
             </>
           ) : (
             <Suspense fallback={null}>
+              {!mechanic.ownPeek && session.state.phase === "playing" && <PeekCard session={session} onApply={control.apply} />}
               <HostControls session={session} content={content} answers={[]} participants={demo} control={control} rehearsal />
             </Suspense>
           )}

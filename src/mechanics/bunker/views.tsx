@@ -491,7 +491,9 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
         <div className="bk-phone__targets">
           {list.map((p) => (
             <button key={p} type="button" className={`bk-target${mine.vote === p ? " is-picked" : ""}`} disabled={sending || mine.vote !== undefined} onClick={() => send({ vote: p })}>
-              <Who session={session} r={r} pid={p} />
+              <span className="bk-target__name">
+                <Who session={session} r={r} pid={p} />
+              </span>
               <small>{(["profession", "health", "baggage"] as Cat[]).map((c) => (r.shown[p]?.[c] ? cardText(r.shown[p]?.[c]) : null)).filter(Boolean).join(" · ") || "карты закрыты"}</small>
             </button>
           ))}

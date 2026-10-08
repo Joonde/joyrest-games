@@ -11763,3 +11763,4 @@ button.dance-card:active {
 @media (prefers-reduced-motion: reduce) {
   .bk-screen__log { animation: none; }
 }
+.bk-target__name { font-weight: 600; }

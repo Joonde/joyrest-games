@@ -5367,3 +5367,53 @@ ul.chips {
   margin: 0;
   padding-left: 24px;
 }
+
+/* Поиск с подсказками (SearchField): до пяти вариантов под полем, поверх остального. */
+.search-field {
+  position: relative;
+}
+
+.search-field__list {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-highlight);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.search-field__option {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.search-field__option:hover,
+.search-field__option.is-active {
+  background: color-mix(in srgb, var(--color-highlight) 16%, transparent);
+}
+
+/* Анкета заведения на проверке. */
+.venue-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.venue-form-card__title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-text);
+}

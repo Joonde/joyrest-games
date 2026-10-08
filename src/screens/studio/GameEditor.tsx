@@ -235,6 +235,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreviewOpen(true)}>
             Предпросмотр игры
           </button>
+          <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
+            Как проводить эту игру
+          </Link>
           <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={game.playMode} themeId={game.themeId} />
         </section>
       )}

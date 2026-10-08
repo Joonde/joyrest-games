@@ -53,6 +53,7 @@ export function Studio() {
 /** Общие пункты шапки студии и её подэкранов. */
 export function studioActions(profile: UserProfile): TopBarAction[] {
   return [
+    { label: "Как проводить игры", to: "/studio/guide" },
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.

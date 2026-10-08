@@ -8638,3 +8638,27 @@ button.dance-card:active {
     transition: none;
   }
 }
+
+.sv-lane__who {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  min-width: 0;
+}
+
+.sv-lane__ticket {
+  flex: none;
+}
+
+/* Полоски «Миллионера» на телефоне (режим без экрана): обычные размеры текста. */
+.mil-phone-bars .mil-bar__points {
+  font-size: 12px;
+}
+
+.mil-phone-bars .mil-bar__name {
+  font-size: 12px;
+}
+
+.mil-phone-bars .mil-bars {
+  gap: 6px;
+}

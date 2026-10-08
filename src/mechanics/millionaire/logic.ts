@@ -263,6 +263,18 @@ export interface LifelineCheck {
   reason?: string;
 }
 
+/** Можно ли взять подсказку — без учёта ответа команды (телефон капитана видит то же, что пульт). */
+export function lifelineState(session: Session, content: MillionaireContent, id: LifelineId): LifelineCheck {
+  const r = parseMillionaireResult(session.state.result);
+  if (!content.lifelines.includes(id)) return { ok: false, reason: "В этой игре такой подсказки нет" };
+  if (session.state.stage !== "question" || r.mode !== "question" || !r.turn) return { ok: false, reason: "Только пока открыт вопрос" };
+  if ((r.used[r.turn] ?? []).includes(id)) return { ok: false, reason: "Уже использована" };
+  if (r.hostPick !== null) return { ok: false, reason: "Ответ уже выбран" };
+  if (id === "fifty" && wrongLeft(content, r).length < 2) return { ok: false, reason: "Неверных вариантов осталось меньше двух" };
+  if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
+  return { ok: true };
+}
+
 /** Можно ли взять подсказку сейчас. */
 export function canUseLifeline(session: Session, content: MillionaireContent, answers: Answer[], id: LifelineId): LifelineCheck {
   const r = parseMillionaireResult(session.state.result);
@@ -323,6 +335,8 @@ export function audienceVotes(session: Session, answers: Answer[], participants:
     if (a.step !== session.state.step || (a.submittedAt ?? 0) < since || a.pid === r.turn) continue;
     const who = byId.get(a.pid);
     if (who && (who.teamId === r.turn || who.id === r.turn)) continue;
+    // В командах голосует каждый телефон своим игроком; голос «за команду» не считается (иначе капитан — дважды).
+    if (session.playMode === "teams" && (!who || who.kind !== "player")) continue;
     const vote = opt(rec(a.value).vote);
     if (vote === null || r.removed.includes(vote)) continue;
     counts[vote] = (counts[vote] ?? 0) + 1;

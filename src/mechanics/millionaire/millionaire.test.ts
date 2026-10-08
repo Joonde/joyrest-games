@@ -201,11 +201,12 @@ describe("Кто хочет стать миллионером: подсказк�
     expect(s.state.timeLimit).toBe(content.audienceSeconds);
     expect(millionairePrimary(s)).toBe("audienceDone");
     const votes = [ans(s, "uA", "uA", { vote: 0 }), ans(s, "pA2", "pA2", { vote: 0 }), ans(s, "uB", "uB", { vote: 1 }), ans(s, "pC2", "pC2", { vote: 1 }), ans(s, "B", "uB", { vote: 2 })];
-    expect(audienceVotes(s, votes, everyone)).toEqual([0, 2, 1, 0]);
+    // Голос «за команду B» не считается: капитан B уже голосует своим телефоном.
+    expect(audienceVotes(s, votes, everyone)).toEqual([0, 2, 0, 0]);
     s = apply(s, finishAudience(s, votes, everyone));
     const r = parseMillionaireResult(s.state.result);
     expect(r.mode).toBe("question");
-    expect(r.audience).toEqual([0, 67, 33, 0]);
+    expect(r.audience).toEqual([0, 100, 0, 0]);
     expect(s.state.timeLimit).toBeNull();
     expect(millionairePrimary(s)).toBe("reveal");
   });

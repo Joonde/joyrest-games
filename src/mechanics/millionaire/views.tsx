@@ -12,7 +12,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { LETTERS, LEVELS, LIFELINES, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
-import { levelToPlay, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
+import { levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
 
 export type MillionaireAnswerValue = { choice: number } | { vote: number };
 
@@ -29,6 +29,13 @@ const nameOf = (session: Session, pid: string | null) => (pid ? (session.leaderb
 function clockLeft(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Коротко для полоски: «1 млн», «500 тыс.», «3 000». */
+export function shortPoints(n: number): string {
+  if (n >= 1_000_000) return `${Number((n / 1_000_000).toFixed(1)).toLocaleString("ru-RU")} млн`;
+  if (n >= 10_000) return `${Math.round(n / 1000).toLocaleString("ru-RU")} тыс.`;
+  return n.toLocaleString("ru-RU");
 }
 
 /** Значки подсказок команды: использованные перечёркнуты и погашены. */
@@ -48,7 +55,7 @@ export function LifelineRow({ content, used, size = "screen" }: { content: Milli
 }
 
 /** Полоски команд: 12 делений, несгораемые отмечены, у той, чей ход, — подсветка. */
-export function LadderBars({ session, content, result }: { session: Session; content: MillionaireContent; result: MillionaireResult }) {
+export function LadderBars({ session, content, result, compact = false }: { session: Session; content: MillionaireContent; result: MillionaireResult; compact?: boolean }) {
   return (
     <div className="mil-bars" style={{ gridTemplateColumns: `repeat(${Math.max(1, result.order.length)}, minmax(0, 1fr))` }}>
       {result.order.map((pid) => {
@@ -56,7 +63,7 @@ export function LadderBars({ session, content, result }: { session: Session; con
         const active = pid === result.turn && result.mode !== "over";
         return (
           <div key={pid} className={`mil-bar${active ? " is-turn" : ""}${level >= LEVELS ? " is-top" : ""}`} style={{ ["--team" as string]: colorOf(session, result, pid) }}>
-            <span className="mil-bar__points">{pointsLabel(pointsAt(content, level))}</span>
+            <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
             <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${LEVELS}`}>
               {Array.from({ length: LEVELS }, (_, i) => LEVELS - i).map((n) => (
                 <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`} />
@@ -66,7 +73,7 @@ export function LadderBars({ session, content, result }: { session: Session; con
               {level >= LEVELS ? "👑 " : ""}
               <NameText name={nameOf(session, pid)} />
             </span>
-            <LifelineRow content={content} used={result.used[pid] ?? []} />
+            {!compact && <LifelineRow content={content} used={result.used[pid] ?? []} />}
           </div>
         );
       })}
@@ -302,14 +309,16 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
             <div className="mil-phone-lifelines">
               {LIFELINES.filter((l) => content.lifelines.includes(l.id)).map((l) => {
                 const gone = used.includes(l.id);
+                const check = lifelineState(session, content, l.id);
                 return (
                   <button
                     key={l.id}
                     type="button"
                     className={gone ? "btn btn--quiet mil-phone-lifeline is-used" : "btn btn--secondary mil-phone-lifeline"}
-                    disabled={gone || (personal?.sending ?? false)}
+                    disabled={!check.ok || (personal?.sending ?? false)}
+                    title={check.reason}
                     onClick={() => personal?.send({ lifeline: l.id })}
-                    aria-label={`${l.title}${gone ? " — использована" : ""}`}
+                    aria-label={`${l.title}${gone ? " — использована" : !check.ok ? ` — ${check.reason ?? "нельзя"}` : ""}`}
                   >
                     <span aria-hidden="true">{l.icon}</span> {l.short}
                   </button>
@@ -325,7 +334,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
       )}
       {session.screenMode === "none" && (
         <div className="mil-phone-bars">
-          <LadderBars session={session} content={content} result={r} />
+          <LadderBars session={session} content={content} result={r} compact />
         </div>
       )}
     </div>

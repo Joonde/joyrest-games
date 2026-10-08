@@ -58,6 +58,7 @@ export function MillionaireHostControls({ session, content, answers, participant
   // Капитан попросил подсказку с телефона — включаем (любой открытый пульт; отпечаток итогов шага мирит).
   const asked = requestedLifeline(session, answers, participants);
   const askKey = asked ? `${step}:${asked}` : "";
+  const askedBlocked = asked ? canUseLifeline(session, content, answers, asked) : null;
   useEffect(() => {
     if (!askKey || busy || !asked) return;
     const s = latest.current;
@@ -207,6 +208,11 @@ export function MillionaireHostControls({ session, content, answers, participant
                 </div>
               )}
             </div>
+          )}
+          {asked && askedBlocked && !askedBlocked.ok && askedBlocked.reason !== "Уже использована" && (
+            <p className="error small" role="status">
+              Капитан просит «{lifelineTitle(asked)}» — нельзя: {askedBlocked.reason?.toLowerCase()}.
+            </p>
           )}
           {stage === "question" && r.mode === "question" && content.lifelines.length > 0 && (
             <section className="stack stack--tight">

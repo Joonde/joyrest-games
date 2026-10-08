@@ -45,9 +45,11 @@ export function RaceLanes({ session, result, size = "screen" }: { session: Sessi
         const tickets = result.tickets[p] ?? 0;
         return (
           <li key={p} className={`sv-lane${p === result.winner ? " is-winner" : ""}`} style={{ ["--team" as string]: colorOf(session, result, p), ["--share" as string]: String(share) }}>
-            <span className="sv-lane__name">
-              <NameText name={nameOf(session, p)} />
-              {tickets > 0 ? <span className="sv-lane__ticket" aria-label={`Билетов: ${tickets}`}> {"🎟".repeat(tickets)}</span> : null}
+            <span className="sv-lane__who">
+              <span className="sv-lane__name">
+                <NameText name={nameOf(session, p)} />
+              </span>
+              {tickets > 0 ? <span className="sv-lane__ticket" aria-label={`Билетов: ${tickets}`}>{"🎟".repeat(tickets)}</span> : null}
             </span>
             <span className="sv-lane__track">
               <span className="sv-lane__runner" />
@@ -231,6 +233,8 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
   const tickets = r.tickets[pid] ?? 0;
   const canAct = role !== "member" && open && !myAnswer && r.order.includes(pid);
   const [text, setText] = useState("");
+  // Новый раунд — пустое поле (иначе одно касание отправит прошлый ответ).
+  useEffect(() => setText(""), [session.state.step]);
   const head = (
     <p className="eyebrow">
       Гонка · раунд {Math.min(roundNumber(r), content.rounds.length)}/{content.rounds.length}

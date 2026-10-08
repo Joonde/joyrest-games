@@ -8302,3 +8302,132 @@ button.dance-card:active {
     animation: none;
   }
 }
+
+/* ---------- База площадок: поиск и фильтры одной карточкой ---------- */
+.venues-filters {
+  display: grid;
+  gap: 0;
+  padding: 16px;
+}
+
+.venues-filters > * + * {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.filter-group {
+  display: grid;
+  gap: 12px;
+}
+
+.filter-group__label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 720px) {
+  .status-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.status-opt,
+.column-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.status-opt[aria-pressed="true"],
+.column-opt[aria-pressed="true"] {
+  border-color: var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 12%, var(--color-surface-alt));
+}
+
+.status-opt:focus-visible,
+.column-opt:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.status-opt__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--dot, transparent);
+  border: 2px solid var(--dot, var(--color-text-muted));
+}
+
+.status-opt__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-opt__count {
+  flex: none;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.column-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 720px) {
+  .column-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.column-opt__check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--color-control);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.column-opt[aria-pressed="true"] .column-opt__check {
+  border-color: var(--color-control-checked);
+  background: var(--color-control-checked);
+  color: var(--color-primary-text);
+}

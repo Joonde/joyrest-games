@@ -8,6 +8,11 @@ import { brand } from "../../themes/brand";
 
 const TONES: Record<StatusTone, string> = { rose: brand.coral, gold: brand.gold, green: brand.sage, gray: brand.taupe };
 
+/** Цвет статуса (пастель) — для точек фильтра. */
+export function statusColor(tone: StatusTone): string {
+  return TONES[tone];
+}
+
 /** Цветной статус: пастельная заливка, тёмный текст (как у цветов команд). */
 export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
   return (

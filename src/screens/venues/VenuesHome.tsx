@@ -2,7 +2,7 @@
  * Кабинет «База площадок» (`/venues`): вкладки «Площадки», «Заявки клиентов», «QR-коды».
  * Владелец и ведущие, которым он открыл доступ (`permissions.canManageVenues`).
  */
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   findDuplicates,
@@ -25,7 +25,7 @@ import { Tabs } from "../../components/Tabs";
 import { SearchField } from "../../components/SearchField";
 import { matchesSearch } from "../../core/search";
 import { TopBar } from "../../components/TopBar";
-import { StatusPill } from "../../components/venues/Fields";
+import { StatusPill, statusColor } from "../../components/venues/Fields";
 import { VenueQr } from "../../components/venues/VenueQr";
 import { studioActions } from "../studio/Studio";
 
@@ -120,22 +120,20 @@ function StatusFilter<Id extends string>({
   onChange: (value: Id | "all") => void;
 }) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const item = (id: Id | "all", label: string, count: number, color: string | null) => (
+    <button key={id} type="button" className="status-opt" aria-pressed={value === id} onClick={() => onChange(value === id && id !== "all" ? "all" : id)}>
+      <span className="status-opt__dot" style={color ? ({ "--dot": color } as CSSProperties) : undefined} aria-hidden="true" />
+      <span className="status-opt__label">{label}</span>
+      <span className="status-opt__count">{count}</span>
+    </button>
+  );
   return (
-    <div className="status-filter" role="group" aria-label="Показать по статусу">
-      <button type="button" className="pick-chip" aria-pressed={value === "all"} onClick={() => onChange("all")}>
-        Все · {total}
-      </button>
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          className="pick-chip status-filter__item"
-          aria-pressed={value === o.id}
-          onClick={() => onChange(value === o.id ? "all" : o.id)}
-        >
-          <StatusPill tone={o.tone} label={o.label} /> {counts[o.id] ?? 0}
-        </button>
-      ))}
+    <div className="filter-group">
+      <p className="filter-group__label">Статус</p>
+      <div className="status-grid" role="group" aria-label="Показать по статусу">
+        {item("all", "Все", total, null)}
+        {options.map((o) => item(o.id, o.label, counts[o.id] ?? 0, statusColor(o.tone)))}
+      </div>
     </div>
   );
 }
@@ -328,24 +326,31 @@ function VenuesTab({ mode, owner }: { mode: "base" | "forms"; owner: boolean }) 
 
   return (
     <>
-      <div className="venues-toolbar">
-        <div className="venues-search">
-          <SearchField label="Поиск" value={query} placeholder="название, метро, район, телефон" candidates={suggestions} onChange={(value) => setParam("q", value)} />
-        </div>
-        <SortSelect options={VENUE_SORTS} value={sort} onChange={setSort} />
-      </div>
-      {mode === "base" && <StatusFilter options={VENUE_STATUSES} counts={counts} value={status} onChange={setStatus} />}
       {mode === "forms" && (
         <p className="muted">Анкеты, которые заведения заполнили по QR-коду. Проверьте и примите в базу или отметьте «Не подходит».</p>
       )}
-      <div className="column-groups" role="group" aria-label="Показать колонки">
-        <span className="muted small">Колонки:</span>
-        {GROUPS.map((g) => (
-          <button key={g.id} type="button" className="pick-chip pick-chip--small" aria-pressed={shown.has(g.id)} onClick={() => toggleGroup(g.id)}>
-            {g.label}
-          </button>
-        ))}
-      </div>
+      <section className="card venues-filters" aria-label="Поиск и фильтры">
+        <div className="venues-toolbar">
+          <div className="venues-search">
+            <SearchField label="Поиск" value={query} placeholder="название, метро, район, телефон" candidates={suggestions} onChange={(value) => setParam("q", value)} />
+          </div>
+          <SortSelect options={VENUE_SORTS} value={sort} onChange={setSort} />
+        </div>
+        {mode === "base" && <StatusFilter options={VENUE_STATUSES} counts={counts} value={status} onChange={setStatus} />}
+        {mode === "base" && (
+          <div className="filter-group">
+            <p className="filter-group__label">Колонки таблицы</p>
+            <div className="column-grid" role="group" aria-label="Показать колонки">
+              {GROUPS.map((g) => (
+                <button key={g.id} type="button" className="column-opt" aria-pressed={shown.has(g.id)} onClick={() => toggleGroup(g.id)}>
+                  <span className="column-opt__check" aria-hidden="true">{shown.has(g.id) ? "✓" : ""}</span>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
       {mode === "forms" ? (
         venues.length === 0 ? (
           <section className="card card--center">
@@ -386,9 +391,9 @@ function VenuesTab({ mode, owner }: { mode: "base" | "forms"; owner: boolean }) 
         )
       ) : (
       <>
-      <div className="actions actions--row">
-        <Link className="btn btn--secondary" to="/venues/new">
-          Добавить площадку вручную
+      <div className="actions">
+        <Link className="btn btn--secondary btn--block" to="/venues/new">
+          + Добавить площадку вручную
         </Link>
       </div>
       {venues.length === 0 ? (
@@ -488,6 +493,7 @@ function RequestsTab() {
 
   return (
     <>
+      <section className="card venues-filters" aria-label="Поиск и фильтры">
       <div className="venues-toolbar">
         <div className="venues-search">
           <SearchField
@@ -506,6 +512,7 @@ function RequestsTab() {
         <SortSelect options={REQUEST_SORTS} value={sort} onChange={setSort} />
       </div>
       <StatusFilter options={REQUEST_STATUSES} counts={counts} value={status} onChange={setStatus} />
+      </section>
       {requests.length === 0 ? (
         <section className="card card--center">
           <h2>Заявок пока нет</h2>

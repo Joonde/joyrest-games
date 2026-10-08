@@ -487,7 +487,11 @@ export function playSound(name: SoundName): void {
   if (name === "fanfare") fanfare();
   if (name === "gong") gong();
   if (name === "drumroll") drumroll();
-  if (name === "applause") applause();
+  // Аплодисменты — запись (Pixabay), пока она не скачалась — синтезированные.
+  if (name === "applause") {
+    if (SAMPLES.applause) playSampleOr("applause", applause);
+    else applause();
+  }
   if (name === "wrong") {
     tone(110, 0, 0.7, 0.14, "sawtooth");
     tone(116, 0, 0.7, 0.14, "sawtooth");
@@ -510,13 +514,28 @@ export function playSound(name: SoundName): void {
 // ---------- Звуки-файлы (public/sounds, в имени — версия: кэш на год) ----------
 
 /**
- * Встроенные звуки-файлы платформы. Только с чистыми правами (свои, купленные, Pixabay Content
- * License) — сейчас таких нет, и вместо каждого играет синтезированный звук (`fallback`). Новая
- * версия файла — новое имя (кэш на год).
+ * Встроенные звуки и музыка-файлы платформы. Только с чистыми правами (свои, купленные, Pixabay
+ * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
+ * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause";
 
-export const SAMPLES: Partial<Record<SampleName, string>> = {};
+export const SAMPLES: Partial<Record<SampleName, string>> = {
+  dragonAttack: "/sounds/dragon-attack-2.mp3",
+  /** Аплодисменты: пьедестал, слайд «Спасибо», кнопка пульта. */
+  applause: "/sounds/applause-1.mp3",
+  /** Перерыв: два трека по кругу с наплывом. */
+  breakA: "/sounds/break-golden-hour-1.mp3",
+  breakB: "/sounds/break-event-1.mp3",
+  /** «Представить команды». */
+  teamsIntro: "/sounds/teams-intro-1.mp3",
+};
+
+/** Встроенная музыка момента: перерыв, представление команд. */
+export const BUILTIN_MUSIC = {
+  break: [SAMPLES.breakA, SAMPLES.breakB].filter((u): u is string => Boolean(u)),
+  teams: [SAMPLES.teamsIntro].filter((u): u is string => Boolean(u)),
+} as const;
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
@@ -572,6 +591,26 @@ export function playSample(name: SampleName, fallback?: SoundName, volume = 1): 
   });
 }
 
+/** Звук-файл без шума: нет файла — синтезированная замена (без повторного приглушения музыки). */
+function playSampleOr(name: SampleName, fallback: () => void): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const audio = ctx;
+  void loadSample(name).then((buffer) => {
+    if (!buffer) {
+      fallback();
+      return;
+    }
+    const target = out();
+    if (!target) return;
+    duckMusic(buffer.duration + 0.3);
+    const src = audio.createBufferSource();
+    src.buffer = buffer;
+    src.connect(target);
+    src.start();
+  });
+}
+
 /** «Стоп»: заглушить все эффекты, что звучат сейчас (музыку — нет); следующие играют как обычно. */
 export function stopAllSounds(): void {
   stopFragment();
@@ -613,6 +652,8 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
   if (!el) return false;
   // Ведущий включил музыку — фрагмент «Угадай мелодию» замолкает, музыка уже не «ждёт» его.
   silenceFragment();
+  // Музыка ведущего главнее встроенной (перерыв, представление команд).
+  if (builtinKey) stopBuiltinMusic(1.5);
   if (el.src !== url) el.src = url;
   if (fromStart) el.currentTime = 0;
   try {
@@ -634,6 +675,122 @@ export function stopMusic(): void {
   if (!player) return;
   player.pause();
   player.currentTime = 0;
+}
+
+// ---------- Встроенная музыка платформы (перерыв, представление команд) ----------
+// Треки с чистыми правами из public/sounds (SAMPLES). Два плеера по очереди: плавное начало,
+// следующий трек вступает за несколько секунд до конца прежнего (наплыв), по кругу. Музыка
+// ведущего главнее: пока она играет, встроенная молчит.
+
+interface Deck {
+  el: HTMLAudioElement;
+  gain: GainNode;
+}
+
+const decks: Deck[] = [];
+let builtinKey: string | null = null;
+let builtinList: string[] = [];
+let builtinIndex = 0;
+let builtinDeck = 0;
+let builtinTimer = 0;
+/** Секунды наплыва между треками и плавного начала и конца. */
+const CROSSFADE = 4;
+const FADE_IN = 2.5;
+const FADE_OUT = 2.5;
+
+function deck(i: number): Deck | null {
+  if (!ctx) return null;
+  const have = decks[i];
+  if (have) return have;
+  const bus = musicOut();
+  if (!bus) return null;
+  const el = new Audio();
+  el.preload = "auto";
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  ctx.createMediaElementSource(el).connect(gain).connect(bus);
+  const made = { el, gain };
+  decks[i] = made;
+  return made;
+}
+
+function rampDeck(d: Deck, to: number, seconds: number): void {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  d.gain.gain.cancelScheduledValues(t);
+  d.gain.gain.setValueAtTime(d.gain.gain.value, t);
+  d.gain.gain.linearRampToValueAtTime(to, t + Math.max(0.05, seconds));
+}
+
+/** Запустить трек списка на свободном плеере и запланировать наплыв следующего. */
+async function startBuiltinTrack(fade: number): Promise<boolean> {
+  const url = builtinList[builtinIndex % builtinList.length];
+  const d = deck(builtinDeck);
+  if (!url || !d) return false;
+  d.el.src = url;
+  d.el.currentTime = 0;
+  d.el.loop = builtinList.length === 1;
+  try {
+    await d.el.play();
+  } catch {
+    return false;
+  }
+  rampDeck(d, 1, fade);
+  window.clearTimeout(builtinTimer);
+  if (builtinList.length > 1) {
+    const key = builtinKey;
+    const plan = () => {
+      const left = (d.el.duration || 0) - d.el.currentTime;
+      if (builtinKey !== key) return;
+      if (Number.isFinite(left) && left > 0 && left <= CROSSFADE + 0.3) {
+        // Наплыв: этот трек затихает, следующий на другом плеере вступает.
+        rampDeck(d, 0, CROSSFADE);
+        const old = d.el;
+        window.setTimeout(() => old.pause(), CROSSFADE * 1000 + 300);
+        builtinIndex = (builtinIndex + 1) % builtinList.length;
+        builtinDeck = 1 - builtinDeck;
+        void startBuiltinTrack(CROSSFADE);
+        return;
+      }
+      builtinTimer = window.setTimeout(plan, 500);
+    };
+    builtinTimer = window.setTimeout(plan, 500);
+  }
+  return true;
+}
+
+/**
+ * Включить встроенную музыку (список адресов, по кругу с наплывом). Тот же `key` — уже играет, ничего
+ * не делаем. false — браузер не дал звук (нужно касание экрана).
+ */
+export async function playBuiltinMusic(key: string, urls: string[]): Promise<boolean> {
+  if (!soundReady() || urls.length === 0) return false;
+  if (builtinKey === key && decks.some((d) => !d.el.paused)) return true;
+  stopBuiltinMusic(1);
+  // Музыка ведущего на паузе, пока звучит встроенная.
+  player?.pause();
+  builtinKey = key;
+  builtinList = urls;
+  builtinIndex = 0;
+  const free = decks.findIndex((d) => d.el.paused);
+  builtinDeck = free >= 0 ? free : decks.length < 2 ? decks.length : 0;
+  const ok = await startBuiltinTrack(FADE_IN);
+  if (!ok) builtinKey = null;
+  return ok;
+}
+
+/** Плавно выключить встроенную музыку. */
+export function stopBuiltinMusic(fade = FADE_OUT): void {
+  builtinKey = null;
+  window.clearTimeout(builtinTimer);
+  for (const d of decks) {
+    if (d.el.paused) continue;
+    rampDeck(d, 0, fade);
+    const el = d.el;
+    window.setTimeout(() => {
+      if (builtinKey === null || d.gain.gain.value < 0.01) el.pause();
+    }, fade * 1000 + 200);
+  }
 }
 
 // ---------- Фрагмент трека («Угадай мелодию», музыкальное лото, гонка, «Своя игра») ----------

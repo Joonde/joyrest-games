@@ -10,11 +10,12 @@ import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
 import { SlideView } from "../components/live/SlideView";
-import { useHallMusic } from "../components/music/useHallMusic";
+import { useHallMusic, type BuiltinMusic } from "../components/music/useHallMusic";
 import { useScreenReport } from "../components/live/screenStatus";
 import {
   playSound,
-  SAMPLES,
+  BUILTIN_MUSIC,
+  preloadSamples,
   setMuted,
   setSoundSet,
   stopAllSounds,
@@ -137,13 +138,22 @@ function useCueSound(cue: SoundCue | null | undefined): void {
   }, [cue]);
 }
 
+/** Встроенная музыка: слайд «Перерыв» — два трека по кругу с наплывом; «Представить команды» — заставка. */
+function builtinMusicOf(session: Session): BuiltinMusic | null {
+  const slide = session.state.slide;
+  if (slide?.kind === "break") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
+  if (session.state.phase === "lobby" && session.state.teams?.shown != null) return { key: "teams", urls: [...BUILTIN_MUSIC.teams] };
+  return null;
+}
+
 function Screen({ session }: { session: Session }) {
   useTheme(session.themeId);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
-  // «Кто хочет стать миллионером»: пока ждём гостей, на экране зала звучит заставка (если ведущий не включил свою музыку).
-  const theme = session.state.phase === "lobby" && session.mechanic === "millionaire" ? (SAMPLES.millionaireLobby ?? null) : null;
-  const musicBlocked = useHallMusic(session.state.music, session.state.mix, theme);
+  // Аплодисменты — файл: качаем заранее, чтобы на пьедестале звучали сразу.
+  useEffect(() => preloadSamples(["applause"]), []);
+  // Встроенная музыка момента (если ведущий не включил свою): перерыв и представление команд.
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session));
   const soundReady = useSoundReady();
   const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.

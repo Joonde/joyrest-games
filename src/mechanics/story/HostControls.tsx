@@ -274,8 +274,6 @@ export function StoryHostControls({ session, content, answers, participants, con
             {w.mode === "rated" && <p className="success">{w.avg !== null ? `★ ${w.avg} · +${w.points}` : "Оценок нет"}</p>}
           </div>
         )
-      ) : stage === "ready" ? (
-        <p className="muted">Гости тайно пишут на телефоне случай из жизни. Потом истории по одной показываются на экране без имён, все угадывают автора.</p>
       ) : r.mode === "write" ? (
         <section className="stack stack--tight">
           <p>

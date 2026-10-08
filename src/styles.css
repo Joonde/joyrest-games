@@ -7691,13 +7691,33 @@ button.dance-card:active {
   width: 16cqh;
   height: 16cqh;
   border-radius: 2.5cqh;
-  background: #fbf6f1;
+  background: linear-gradient(145deg, #fffaf3, #e9dfd2);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   padding: 2cqh;
   gap: 1cqh;
-  box-shadow: 0 1cqh 3cqh rgba(0, 0, 0, 0.4);
-  animation: quest-roll 0.7s ease-out;
+  box-shadow: 0 1.2cqh 3cqh rgba(0, 0, 0, 0.45), inset 0 -0.6cqh 0 rgba(0, 0, 0, 0.12);
+}
+
+.quest-die.is-rolling {
+  animation: quest-tumble 0.9s cubic-bezier(0.3, 0.6, 0.4, 1);
+}
+
+.quest-die.is-landed {
+  animation: quest-land 0.4s ease-out;
+}
+
+@keyframes quest-tumble {
+  0% { transform: translate(-8cqh, -10cqh) rotate(-260deg) scale(0.5); }
+  35% { transform: translate(2cqh, 1cqh) rotate(-90deg) scale(1.05); }
+  60% { transform: translate(-1cqh, -3cqh) rotate(30deg) scale(0.95); }
+  80% { transform: translate(0.5cqh, 0) rotate(-8deg) scale(1.02); }
+  100% { transform: none; }
+}
+
+@keyframes quest-land {
+  0% { transform: scale(1.15); }
+  100% { transform: none; }
 }
 
 .quest-die__dot {
@@ -9335,5 +9355,248 @@ button.dance-card:active {
 @media (prefers-reduced-motion: reduce) {
   .checkers-screen__banner.is-take {
     animation: none;
+  }
+}
+
+
+/* ---------- «Активная настолка»: карта приключений (QuestMap) ---------- */
+.quest-map {
+  --qm-ground: #2c3a2c;
+  --qm-ground-2: #1f2a22;
+  --qm-hill: rgba(120, 150, 100, 0.18);
+  --qm-lake: rgba(110, 170, 200, 0.28);
+  --qm-road: #8a6d4b;
+  --qm-road-edge: #5a4530;
+  --qm-stone: #d9cbb4;
+  --qm-stone-edge: #6e5c46;
+  --qm-trunk: #6b4f3a;
+  --qm-pine: #4f7a55;
+  --qm-leaf: #6d9a5f;
+  --qm-bush: #5f8a58;
+  --qm-rock: #7d7468;
+  --qm-rock-light: #a39a8d;
+  --qm-flower-a: #e3aa9c;
+  --qm-flower-b: #e3c68c;
+  --qm-glow: #ffd98a;
+  width: 100%;
+  height: 100%;
+  border-radius: 2cqh;
+  background: radial-gradient(ellipse at 30% 20%, var(--qm-ground), var(--qm-ground-2));
+  box-shadow: inset 0 0 4cqh rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.quest-map svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.quest-map--phone {
+  height: auto;
+  aspect-ratio: 1.3;
+  border-radius: 12px;
+}
+
+.qm-hill {
+  fill: var(--qm-hill);
+}
+
+.qm-lake {
+  fill: var(--qm-lake);
+}
+
+.qm-decor {
+  opacity: 0.85;
+}
+
+.qm-road {
+  fill: none;
+  stroke: var(--qm-road-edge);
+  stroke-width: 30;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+
+.qm-road-dash {
+  fill: none;
+  stroke: var(--qm-road);
+  stroke-width: 22;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2 10;
+  opacity: 0.9;
+}
+
+.qm-cell__stone {
+  fill: var(--qm-stone-edge);
+}
+
+.qm-cell__face {
+  fill: var(--qm-stone);
+}
+
+.qm-cell--task .qm-cell__face { fill: #e9d29a; }
+.qm-cell--question .qm-cell__face { fill: #b9d0e6; }
+.qm-cell--dance .qm-cell__face { fill: #efb8c6; }
+.qm-cell--karaoke .qm-cell__face { fill: #cbb8ea; }
+.qm-cell--bonus .qm-cell__face { fill: #a9d7a0; }
+.qm-cell--trap .qm-cell__face { fill: #d99a86; }
+.qm-cell--skip .qm-cell__face { fill: #b9b2a8; }
+
+.qm-cell__emoji {
+  font-size: 26px;
+}
+
+.qm-cell__move {
+  font: 700 15px Jost, sans-serif;
+  fill: #221e1b;
+}
+
+.qm-cell__n {
+  font: 600 13px Jost, sans-serif;
+  fill: #fbf6f1;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 3px;
+}
+
+.qm-cell__ring {
+  fill: none;
+  stroke: var(--qm-glow);
+  stroke-width: 5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: qm-ring 1.4s ease-in-out infinite;
+}
+
+.qm-start__stone {
+  fill: #e9d29a;
+  stroke: var(--qm-stone-edge);
+  stroke-width: 6;
+}
+
+.qm-pole {
+  fill: #5a4530;
+}
+
+.qm-flag {
+  fill: #e3aa9c;
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: qm-flag 1.8s ease-in-out infinite;
+}
+
+.qm-flag--finish {
+  fill: #e3c68c;
+}
+
+.qm-label {
+  font: 700 15px Jost, sans-serif;
+  fill: #221e1b;
+  letter-spacing: 1px;
+}
+
+.qm-finish .qm-label {
+  fill: #fbf6f1;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 3px;
+}
+
+.qm-castle {
+  fill: #cdbb9a;
+  stroke: #6e5c46;
+  stroke-width: 3;
+}
+
+.qm-castle__door {
+  fill: #5a4530;
+}
+
+.qm-finish__glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: qm-glow 2.4s ease-in-out infinite;
+}
+
+.qm-token {
+  transition: transform 0.28s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.qm-token__hop {
+  animation: qm-hop 0.3s ease-out;
+}
+
+.qm-token__shadow {
+  fill: rgba(0, 0, 0, 0.35);
+}
+
+.qm-token__base,
+.qm-token__head {
+  stroke: #221e1b;
+  stroke-width: 2.5;
+}
+
+.qm-token__emoji {
+  font-size: 18px;
+}
+
+.qm-token.is-mover .qm-token__head {
+  stroke: #fffaf3;
+  stroke-width: 4;
+}
+
+.qm-burst circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: qm-burst 1.1s ease-out forwards;
+}
+
+.qm-burst--bonus circle {
+  fill: #ffe08a;
+}
+
+.qm-burst--trap circle {
+  fill: rgba(120, 100, 80, 0.8);
+}
+
+@keyframes qm-ring {
+  50% { transform: scale(1.12); opacity: 0.55; }
+}
+
+@keyframes qm-flag {
+  50% { transform: skewY(-8deg) scaleX(0.9); }
+}
+
+@keyframes qm-glow {
+  50% { transform: scale(1.12); opacity: 0.7; }
+}
+
+@keyframes qm-hop {
+  0% { transform: translateY(0); }
+  45% { transform: translateY(-16px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes qm-burst {
+  0% { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 1; }
+  100% { transform: rotate(var(--a)) translateX(60px) scale(0.3); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qm-cell__ring,
+  .qm-flag,
+  .qm-finish__glow,
+  .qm-token__hop,
+  .qm-burst circle,
+  .quest-die.is-rolling,
+  .quest-die.is-landed {
+    animation: none;
+  }
+
+  .qm-token {
+    transition: none;
   }
 }

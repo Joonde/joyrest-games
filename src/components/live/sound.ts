@@ -11,7 +11,7 @@ export function setSoundSet(name: SoundSetName): void {
   soundSet = name;
 }
 
-export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame";
+export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -419,7 +419,56 @@ function flame(): void {
   tone(55, 0, 1, 0.12, "sawtooth");
 }
 
-const DUCK_SECONDS: Partial<Record<SoundName, number>> = { roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
+/** Кубик: стук по столу — несколько ударов всё реже и тише. */
+function dice(): void {
+  const hits = [0, 0.09, 0.2, 0.33, 0.48, 0.62, 0.74];
+  hits.forEach((t, i) => {
+    const v = 0.32 * (1 - i / (hits.length + 1));
+    burst(t, 0.05, v, { type: "bandpass", freq: 2600 + (i % 3) * 500, q: 3 });
+    burst(t, 0.04, v * 0.6, { type: "lowpass", freq: 400 });
+  });
+}
+
+/** Шаг фишки: деревянный «тук». */
+function step(): void {
+  tone(520, 0, 0.09, 0.1, "triangle");
+  burst(0, 0.04, 0.12, { type: "bandpass", freq: 1500, q: 4 });
+}
+
+/** Бонус: взлёт и искры. */
+function bonus(): void {
+  [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.06, 0.35, 0.09, "triangle"));
+  burst(0, 0.8, 0.15, { type: "bandpass", freq: 500, q: 1.5, toFreq: 6000 }, 0.1);
+}
+
+/** Ловушка: падение вниз. */
+function trap(): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sawtooth";
+  const t = ctx.currentTime;
+  osc.frequency.setValueAtTime(600, t);
+  osc.frequency.exponentialRampToValueAtTime(70, t + 0.8);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(0.12, t + 0.03);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  const f = ctx.createBiquadFilter();
+  f.type = "lowpass";
+  f.frequency.value = 1800;
+  osc.connect(f).connect(gain).connect(dest);
+  osc.start(t);
+  osc.stop(t + 0.95);
+  burst(0.75, 0.3, 0.3, { type: "lowpass", freq: 180 });
+}
+
+/** Искры: короткие звонкие блёстки. */
+function sparkle(): void {
+  [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, i * 0.05 + Math.random() * 0.03, 0.25, 0.05, "sine"));
+}
+
+const DUCK_SECONDS: Partial<Record<SoundName, number>> = { dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
 
 export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
@@ -435,6 +484,11 @@ export function playSound(name: SoundName): void {
     tone(110, 0, 0.7, 0.14, "sawtooth");
     tone(116, 0, 0.7, 0.14, "sawtooth");
   }
+  if (name === "dice") dice();
+  if (name === "step") step();
+  if (name === "bonus") bonus();
+  if (name === "trap") trap();
+  if (name === "sparkle") sparkle();
   if (name === "roar") roar();
   if (name === "flame") flame();
   if (name === "whoosh") burst(0, 0.7, 0.3, { type: "bandpass", freq: 300, q: 2, toFreq: 4000 }, 0.25);

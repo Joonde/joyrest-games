@@ -11,81 +11,13 @@ import type { Session } from "../../data/types";
 import { embedUrl } from "../dance/content";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { QUEST_EMOJI, QUEST_TITLES, type QuestCell, type QuestContent } from "./content";
-import { cellAt, finishOf, parseQuestResult, type QuestResult } from "./logic";
+import { cellAt, parseQuestResult, type QuestResult } from "./logic";
+import { QuestDie, QuestMap } from "./QuestMap";
 
 export type QuestAnswerValue = { roll: true };
 
-const TEAM_COLORS = ["#E3AA9C", "#E3C68C", "#A3C2AA", "#D2A0AC", "#B3AADD", "#9FC3D6", "#E0B3A0", "#C9C08F"];
-
-/** Значок команды на фишке: её смайлик или первая буква. */
-function tokenOf(name: string): string {
-  const first = Array.from(name.trim())[0] ?? "?";
-  return /\p{Extended_Pictographic}/u.test(first) ? first : first.toUpperCase();
-}
-
-function colorOf(session: Session, r: QuestResult, pid: string): string {
-  const entry = session.leaderboard[pid];
-  const index = entry?.colorIndex ?? Math.max(0, r.order.indexOf(pid));
-  return TEAM_COLORS[index % TEAM_COLORS.length] ?? "#E3C68C";
-}
-
-/** Поле змейкой снизу вверх: «Старт», клетки 1..N, «Финиш». */
-export function QuestBoard({ session, content, result, size = "screen" }: { session: Session; content: QuestContent; result: QuestResult; size?: "screen" | "phone" }) {
-  const total = finishOf(content) + 1;
-  const cols = total > 72 ? 12 : total > 50 ? 10 : 8;
-  const rows = Math.ceil(total / cols);
-  const tokens = new Map<number, string[]>();
-  for (const p of result.order) {
-    const at = result.pos[p] ?? 0;
-    tokens.set(at, [...(tokens.get(at) ?? []), p]);
-  }
-  return (
-    <div className={`quest-board quest-board--${size}`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }} aria-label="Игровое поле">
-      {Array.from({ length: total }, (_, i) => {
-        const row = Math.floor(i / cols);
-        const inRow = i % cols;
-        const col = row % 2 === 0 ? inRow : cols - 1 - inRow;
-        const cell = cellAt(content, i);
-        const start = i === 0;
-        const finish = i === total - 1;
-        const here = tokens.get(i) ?? [];
-        const current = result.mode !== "roll" && result.at === i && result.mover;
-        return (
-          <div
-            key={i}
-            className={`quest-cell quest-cell--${start ? "start" : finish ? "finish" : (cell?.kind ?? "empty")}${current ? " is-current" : ""}`}
-            style={{ gridRow: rows - row, gridColumn: col + 1 }}
-          >
-            <span className="quest-cell__n">{start ? "Старт" : finish ? "Финиш" : i}</span>
-            {cell && QUEST_EMOJI[cell.kind] && <span className="quest-cell__emoji" aria-hidden="true">{QUEST_EMOJI[cell.kind]}</span>}
-            {cell?.kind === "bonus" && <span className="quest-cell__move">+{cell.move}</span>}
-            {cell?.kind === "trap" && <span className="quest-cell__move">{cell.move}</span>}
-            {here.length > 0 && (
-              <span className="quest-cell__tokens">
-                {here.map((p) => (
-                  <span key={p} className={`quest-token${p === result.mover ? " is-mover" : ""}`} style={{ background: colorOf(session, result, p) }} title={session.leaderboard[p]?.name}>
-                    {tokenOf(session.leaderboard[p]?.name ?? "?")}
-                  </span>
-                ))}
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function Die({ value, rolling }: { value: number | null; rolling: string }) {
-  const dots: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-  return (
-    <div key={rolling} className="quest-die" aria-label={value ? `Выпало ${value}` : "Кубик"}>
-      {Array.from({ length: 9 }, (_, i) => (
-        <span key={i} className={value && dots[value]?.includes(i) ? "quest-die__dot is-on" : "quest-die__dot"} />
-      ))}
-    </div>
-  );
-}
+/** Поле — карта приключений (`QuestMap.tsx`). */
+export const QuestBoard = QuestMap;
 
 function TaskCard({ cell, result, session, showAnswer = false, showVideo = false }: { cell: QuestCell | null; result: QuestResult; session: Session; showAnswer?: boolean; showVideo?: boolean }) {
   if (!cell) return null;
@@ -131,7 +63,7 @@ export function QuestScreenView({ session, content }: ViewProps<QuestContent>) {
   useEffect(() => {
     const key = `${step}:${r.mode}:${r.outcome}`;
     if (prev.current !== key) {
-      if (r.mode === "cell" || r.mode === "done") playSound(r.outcome === "ok" ? "correct" : r.outcome === "fail" ? "wrong" : "drumroll");
+      if (r.mode === "done" || (r.mode === "cell" && r.outcome)) playSound(r.outcome === "ok" ? "correct" : "wrong");
       if (r.mode === "finish") playSound("fanfare");
     }
     prev.current = key;
@@ -163,7 +95,7 @@ export function QuestScreenView({ session, content }: ViewProps<QuestContent>) {
             <p className="quest-screen__who">
               {r.mode === "roll" ? "Бросает" : "Ходит"} <NameText name={mover} />
             </p>
-            <Die value={r.roll} rolling={`${step}:${r.roll ?? 0}`} />
+            <QuestDie value={r.roll} rolling={`${step}:${r.roll ?? 0}`} sounds />
             {r.mode !== "roll" && r.moved !== 0 && (
               <p className="quest-screen__note">
                 Клетка {r.hit}: {r.moved > 0 ? `бонус! Вперёд на ${r.moved}` : `ловушка! Назад на ${-r.moved}`} → клетка {r.at}

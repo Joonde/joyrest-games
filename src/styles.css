@@ -10760,3 +10760,32 @@ button.dance-card:active {
   .mf-card__inner { transition: none; }
   .mf-art__blink { opacity: 0; }
 }
+
+/* «Мафия»: живые детали персонажей (второй рисунок) */
+.mf-art__body { animation: mf-body 4s ease-in-out infinite; }
+.mf-art__rain path { animation: mf-rain 0.9s linear infinite; }
+.mf-art__lamp { animation: mf-lamp 3.5s ease-in-out infinite; }
+.mf-art__eyeglow { animation: mf-eye 3.2s ease-in-out infinite; }
+.mf-art__rose { transform-origin: 132px 196px; animation: mf-sway 3s ease-in-out infinite; }
+.mf-art__ring { transform-box: fill-box; transform-origin: center; animation: mf-ring 3.4s ease-out infinite; }
+.mf-art__ring--late { animation-delay: -1.7s; }
+.mf-art__candle .mf-art__flame { transform-origin: 0 0; }
+.mf-art__qmark text { animation: mf-float 3s ease-in-out infinite; }
+.mf-art__qmark text:last-child { animation-delay: -1.5s; }
+.mf-art__look { animation: mf-look 5s ease-in-out infinite; }
+.mf-art__badge-shine { animation: mf-glint 2.8s ease-in-out infinite; }
+.mf-art__cross-float path { transform-box: fill-box; transform-origin: center; animation: mf-cross 3.6s ease-in-out infinite; }
+.mf-art__zzz text { animation: mf-zzz 2.4s ease-out infinite; opacity: 0; }
+.mf-art__cap { transform-origin: 112px 80px; animation: mf-sway 4s ease-in-out infinite; }
+.mf-art__pompom { transform-origin: 112px 80px; animation: mf-sway 4s ease-in-out infinite; }
+.mf-art__glass { animation: mf-ember 1.2s ease-in-out infinite; }
+
+@keyframes mf-body { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes mf-rain { from { transform: translateY(-30px); } to { transform: translateY(140px); } }
+@keyframes mf-lamp { 0%, 100% { opacity: 0.35; } 45% { opacity: 0.5; } 48% { opacity: 0.15; } 52% { opacity: 0.45; } }
+@keyframes mf-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes mf-ring { from { transform: translate(0, 0) scale(0.6); opacity: 0.9; } to { transform: translate(-8px, -34px) scale(1.8); opacity: 0; } }
+@keyframes mf-float { 0%, 100% { transform: translateY(0); opacity: 0.4; } 50% { transform: translateY(-6px); opacity: 0.9; } }
+@keyframes mf-look { 0%, 40%, 100% { transform: translateX(0); } 50%, 70% { transform: translateX(2.5px); } 80% { transform: translateX(-2px); } }
+@keyframes mf-cross { 0% { transform: translateY(10px) scale(0.6); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translateY(-30px) scale(1); opacity: 0; } }
+@keyframes mf-zzz { 0% { transform: translate(0, 6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(8px, -14px); opacity: 0; } }

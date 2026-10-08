@@ -12,6 +12,8 @@ import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
 import { getMechanic, validateGame } from "../../mechanics/registry";
 import type { SessionControl } from "../../mechanics/types";
+import type { Participant } from "../../data";
+import { rehearsalParticipants } from "./rehearsalTeams";
 import { themeStyle } from "../../themes/registry";
 
 export function Rehearsal() {
@@ -66,6 +68,8 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
   const mechanic = getMechanic(game.mechanic);
   const content = useMemo(() => (mechanic ? mechanic.parse(game.content) : null), [mechanic, game.content]);
   const [session, setSession] = useState(() => initialSession(game, hostId));
+  // Игры по очереди команд без участников не начать — на репетиции за них играют тестовые команды.
+  const demo: Participant[] = useMemo(() => rehearsalParticipants(game.mechanic, game.playMode), [game.mechanic, game.playMode]);
   // Звуки и фрагменты «Угадай мелодию» на репетиции — после первого касания, как на экране зала.
   useSoundUnlock();
   const control: SessionControl = useMemo(
@@ -121,7 +125,7 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
             </>
           ) : (
             <Suspense fallback={null}>
-              <HostControls session={session} content={content} answers={[]} participants={[]} control={control} rehearsal />
+              <HostControls session={session} content={content} answers={[]} participants={demo} control={control} rehearsal />
             </Suspense>
           )}
         </section>

@@ -6,6 +6,7 @@ import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
+import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
 import { heroOf, statTitle, type DragonContent } from "./content";
 import { battleOf, closeHeroes, dragonBack, dragonPrimary, maxLives, nextBattle, nextTask, parseDragonResult, revealTask, showTask, startDragon, taskOf, toggleMark } from "./logic";
@@ -30,6 +31,7 @@ export function DragonHostControls({ session, content, answers, participants, co
   }, [session]);
   const { stage, step } = session.state;
   const r = parseDragonResult(session.state.result);
+  const noTeams = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
   const battle = battleOf(content, r);
   const task = taskOf(content, r);
 
@@ -149,9 +151,12 @@ export function DragonHostControls({ session, content, answers, participants, co
       )}
       <div className="actions">
         {action === "start" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startDragon(session, participants))}>
-            Выбор героев
-          </button>
+          <>
+            {noTeams && <p className="muted small">Ждём, пока подключатся команды.</p>}
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run(startDragon(session, participants))}>
+              Выбор героев
+            </button>
+          </>
         )}
         {action === "heroesDone" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => closeHeroes(latest.current, content, list, participants)))}>

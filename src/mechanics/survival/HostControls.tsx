@@ -6,6 +6,7 @@ import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
+import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
 import { KIND_TITLES, LETTERS, warIndex, type SurvivalContent } from "./content";
 import {
@@ -48,6 +49,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
   }, [session]);
   const { stage, step } = session.state;
   const r = parseSurvivalResult(session.state.result);
+  const noTeams = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
   const round = roundOf(content, r);
   const war = isWarRound(content, r);
 
@@ -195,9 +197,12 @@ export function SurvivalHostControls({ session, content, answers, participants, 
       )}
       <div className="actions">
         {action === "start" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startSurvival(session, participants))}>
-            Начать гонку
-          </button>
+          <>
+            {noTeams && <p className="muted small">Ждём, пока подключатся команды.</p>}
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run(startSurvival(session, participants))}>
+              Начать гонку
+            </button>
+          </>
         )}
         {action === "auction" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(openAuction(session, content))}>

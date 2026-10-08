@@ -138,11 +138,13 @@ function useCueSound(cue: SoundCue | null | undefined): void {
   }, [cue]);
 }
 
-/** Встроенная музыка: слайд «Перерыв» — два трека по кругу с наплывом; «Представить команды» — заставка. */
+/** Встроенная музыка: лобби (QR, ждём гостей), «Представить команды», слайд «Перерыв» — два трека по кругу с наплывом. */
 function builtinMusicOf(session: Session): BuiltinMusic | null {
   const slide = session.state.slide;
   if (slide?.kind === "break") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
   if (session.state.phase === "lobby" && session.state.teams?.shown != null) return { key: "teams", urls: [...BUILTIN_MUSIC.teams] };
+  // Лобби: на экране QR-код, ждём гостей.
+  if (session.state.phase === "lobby" && !slide) return { key: "lobby", urls: [...BUILTIN_MUSIC.lobby] };
   return null;
 }
 

@@ -518,7 +518,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -527,6 +527,8 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   /** Перерыв: два трека по кругу с наплывом. */
   breakA: "/sounds/break-golden-hour-1.mp3",
   breakB: "/sounds/break-event-1.mp3",
+  /** Лобби: на экране QR, ждём гостей. */
+  lobby: "/sounds/lobby-1.mp3",
   /** «Представить команды». */
   teamsIntro: "/sounds/teams-intro-1.mp3",
 };
@@ -535,6 +537,7 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
 export const BUILTIN_MUSIC = {
   break: [SAMPLES.breakA, SAMPLES.breakB].filter((u): u is string => Boolean(u)),
   teams: [SAMPLES.teamsIntro].filter((u): u is string => Boolean(u)),
+  lobby: [SAMPLES.lobby].filter((u): u is string => Boolean(u)),
 } as const;
 
 

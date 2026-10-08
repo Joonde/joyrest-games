@@ -19,6 +19,9 @@ import { cardFor, isWin, nextSong, parseLottoResult, playedUpTo, playSong, revea
 import type { Answer, Participant, Session } from "../src/data/types";
 import { DEMO_BOARD } from "../src/mechanics/board/demo";
 import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
+import { DEMO_QUEST, DEMO_QUEST_ADULT } from "../src/mechanics/quest/demo";
+import { parseQuest } from "../src/mechanics/quest/content";
+import { validateQuest } from "../src/mechanics/quest/validate";
 import { parseCheckers } from "../src/mechanics/checkers/content";
 import { validateCheckers } from "../src/mechanics/checkers/validate";
 import { moveChange, parseCheckersResult, revealQuestion, showQuestion as showCheckersQuestion, toMove } from "../src/mechanics/checkers/logic";
@@ -484,6 +487,8 @@ async function main() {
     { mechanic: "lotto", ...DEMO_LOTTO },
     { mechanic: "board", ...DEMO_BOARD },
     { mechanic: "checkers", ...DEMO_CHECKERS },
+    { mechanic: "quest", ...DEMO_QUEST },
+    { mechanic: "quest", ...DEMO_QUEST_ADULT },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -504,7 +509,9 @@ async function main() {
           ? validateBoard(parseBoard(saved.content))
           : saved.mechanic === "checkers"
             ? validateCheckers(parseCheckers(saved.content))
-            : validateContent(parseContent(saved.content));
+            : saved.mechanic === "quest"
+              ? validateQuest(parseQuest(saved.content))
+              : validateContent(parseContent(saved.content));
     check(saved.title === t.title && errors.length === 0, `шаблон «${t.title}» виден ведущему и готов к запуску`, errors.map((e) => e.message).join("; "));
     const copy = uid();
     check(

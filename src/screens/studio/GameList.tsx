@@ -107,8 +107,8 @@ export function GameList({ scope, profile, onToast }: Props) {
         title: demo.title,
         mechanic: demo.mechanic,
         themeId: DEFAULT_THEME_ID,
-        ageRating: "0+" as const,
-        playMode: "solo" as const,
+        ageRating: demo.ageRating ?? ("0+" as const),
+        playMode: demo.playMode ?? ("solo" as const),
         content: demo.content,
       };
       const id = await gamesRepo.create(draft);

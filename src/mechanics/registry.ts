@@ -3,6 +3,8 @@ import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
 import { DEMO_CHECKERS } from "./checkers/demo";
 import { dance } from "./dance";
+import { quest } from "./quest";
+import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
 import { lotto } from "./lotto";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
@@ -19,7 +21,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -28,6 +30,7 @@ export function getMechanic(id: string | null): AnyMechanic | undefined {
 const HINTS: Record<string, string> = {
   quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
   lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
+  quest: "Поле 40–100 клеток на экране, кубик на телефоне капитана, в клетках — задания, вопросы, танцы, бонусы и ловушки.",
   dance: "Команды по очереди выбирают батл, танец или караоке; оценивают другие команды. Видео — ссылка или файл на экране зала.",
   checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
@@ -71,7 +74,7 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
 }
 
 /** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
-export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown }> = [
+export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams" }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
   {
     mechanic: quiz.id,
@@ -95,8 +98,11 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     mechanic: checkers.id,
     title: DEMO_CHECKERS.title,
     hint: "30 вопросов на общие знания, две команды: белые и чёрные.",
+    playMode: "teams",
     content: DEMO_CHECKERS.content,
   },
+  { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams" },
+  { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams" },
 ];
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */

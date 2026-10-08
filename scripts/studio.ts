@@ -657,7 +657,6 @@ async function main() {
 
   // «Шашки»: две «команды» (гостя), ходы по очереди — белые, потом чёрные; ход проверяет пульт.
   {
-    const game = parseCheckers(DEMO_CHECKERS.content);
     const sid = uid();
     await back.call<{ code: string }>("POST", "/api/sessions", {
       id: sid, gameId: templateIds[DEMO_CHECKERS.title] ?? null, gameTitle: DEMO_CHECKERS.title, playMode: "solo", screenMode: "laptop", themeId: "joyrest", mechanic: "checkers",

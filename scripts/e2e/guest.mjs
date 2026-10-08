@@ -240,7 +240,7 @@ async function soloGame(browser, token) {
   await layoutCheck(host, "Пульт: слайды");
   await clickButton(host, "Правила");
   await clickButton(host, "Показать на экране");
-  await expectText(screen, screen.locator(".slide__title"), "Правила игры", "Экран зала, слайд правил");
+  await expectText(screen, screen.locator(".slide__title"), "Правила квиза", "Экран зала, слайд правил квиза");
   await shot(screen, "экран-слайд", "Экран зала: слайд «Правила»");
   await clickButton(host, "Убрать слайд — вернуть игру");
   await screen.locator(".slide").waitFor({ state: "detached", timeout: WAIT });

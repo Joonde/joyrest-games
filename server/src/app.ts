@@ -79,7 +79,7 @@ export function withDataBackend(html: string, backend: DataBackend): string {
 export const PRIVATE_NETWORKS = ["127.0.0.1/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"];
 
 // Файлы с хэшем в имени и шрифты под тем же именем не меняются (CLAUDE.md, раздел 8).
-const IMMUTABLE = /^\/(assets|fonts)\//;
+const IMMUTABLE = /^\/(assets|fonts|sounds)\//;
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({

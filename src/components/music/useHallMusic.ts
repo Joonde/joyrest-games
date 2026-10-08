@@ -7,7 +7,11 @@ import { pauseMusic, playMusic, setMix, stopMusic, unlockSound } from "../live/s
  * качается один раз, новый `rev` — трек с начала, `playing` — пауза и продолжение.
  * Возвращает true, если браузер не дал включить звук (нужно коснуться экрана).
  */
-export function useHallMusic(music: MusicState | null | undefined, mix: MixState | null | undefined): boolean {
+/**
+ * `theme` — встроенная музыка (адрес файла), когда ведущий свою не включил: например, заставка
+ * «Кто хочет стать миллионером» в лобби. Трек ведущего всегда главнее.
+ */
+export function useHallMusic(music: MusicState | null | undefined, mix: MixState | null | undefined, theme: string | null = null): boolean {
   const urls = useRef(new Map<string, string>());
   const started = useRef<string | null>(null);
   const [blocked, setBlocked] = useState(false);
@@ -28,6 +32,14 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
     let retryTimer = 0;
     async function run() {
       if (!trackId || !rev) {
+        if (theme) {
+          const key = `theme:${theme}`;
+          const ok = await playMusic(theme, started.current !== key);
+          if (cancelled) return;
+          if (ok) started.current = key;
+          setBlocked(!ok);
+          return;
+        }
         stopMusic();
         started.current = null;
         return;
@@ -69,7 +81,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       cancelled = true;
       window.clearTimeout(retryTimer);
     };
-  }, [trackId, rev, playing, attempt]);
+  }, [trackId, rev, playing, attempt, theme]);
 
   // Касание экрана разрешает звук — пробуем включить ещё раз.
   useEffect(() => {
@@ -78,11 +90,13 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       unlockSound();
       // Браузер включает звук не мгновенно — пробуем чуть позже.
       window.setTimeout(() => {
-        const url = trackId ? urls.current.get(trackId) : undefined;
-        if (!url || !playing) return;
-        void playMusic(url, started.current !== `${trackId}:${rev}`).then((ok) => {
+        const own = trackId && rev ? urls.current.get(trackId) : undefined;
+        const url = own ?? (!trackId && theme ? theme : undefined);
+        if (!url || (own && !playing)) return;
+        const key = own ? `${trackId}:${rev}` : `theme:${theme}`;
+        void playMusic(url, started.current !== key).then((ok) => {
           if (ok) {
-            started.current = `${trackId}:${rev}`;
+            started.current = key;
             setBlocked(false);
           }
         });
@@ -92,7 +106,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
     const events = ["pointerup", "click", "keydown"] as const;
     events.forEach((e) => window.addEventListener(e, retry));
     return () => events.forEach((e) => window.removeEventListener(e, retry));
-  }, [blocked, trackId, rev, playing]);
+  }, [blocked, trackId, rev, playing, theme]);
 
   useEffect(() => {
     const cache = urls.current;

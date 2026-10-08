@@ -444,6 +444,71 @@ export function playSound(name: SoundName): void {
   }
 }
 
+// ---------- Звуки-файлы (public/sounds, в имени — версия: кэш на год) ----------
+
+/** Встроенные звуки платформы. Новая версия файла — новое имя. */
+export const SAMPLES = {
+  dragonAttack: "/sounds/dragon-attack-1.mp3",
+  dragonHurt: "/sounds/dragon-hurt-1.mp3",
+  /** Заставка «Кто хочет стать миллионером» — музыка лобби на экране зала. */
+  millionaireLobby: "/sounds/millionaire-lobby-1.mp3",
+  /** Супер-игра: выбор сундука (для будущего блока «Супер-игра»). */
+  superChest: "/sounds/supergame-chest-1.mp3",
+} as const;
+
+export type SampleName = keyof typeof SAMPLES;
+
+const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
+
+function loadSample(name: SampleName): Promise<AudioBuffer | null> {
+  const cached = sampleBuffers.get(name);
+  if (cached) return cached;
+  const audio = ctx;
+  if (!audio) return Promise.resolve(null);
+  const job = fetch(SAMPLES[name])
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+    .then((data) => audio.decodeAudioData(data))
+    .catch(() => {
+      // Не скачался — в следующий раз попробуем снова.
+      sampleBuffers.delete(name);
+      return null;
+    });
+  sampleBuffers.set(name, job);
+  return job;
+}
+
+/** Скачать звуки заранее (экран зала при открытии игры), чтобы удар звучал сразу. */
+export function preloadSamples(names: SampleName[]): void {
+  if (!ctx) return;
+  names.forEach((n) => void loadSample(n));
+}
+
+/**
+ * Сыграть звук-файл через шину эффектов (громкость микшера, «Стоп», приглушение музыки).
+ * Файла ещё нет (или не скачался) — играет `fallback` (синтезированный), чтобы удар не был беззвучным.
+ */
+export function playSample(name: SampleName, fallback?: SoundName, volume = 1): void {
+  if (muted || !soundReady()) return;
+  const dest = out();
+  if (!ctx || !dest) return;
+  const audio = ctx;
+  void loadSample(name).then((buffer) => {
+    if (!buffer) {
+      if (fallback) playSound(fallback);
+      return;
+    }
+    const target = out();
+    if (!target) return;
+    duckMusic(buffer.duration + 0.3);
+    const src = audio.createBufferSource();
+    src.buffer = buffer;
+    const gain = audio.createGain();
+    gain.gain.value = volume;
+    src.connect(gain).connect(target);
+    src.start();
+  });
+}
+
 /** «Стоп»: заглушить все эффекты, что звучат сейчас (музыку — нет); следующие играют как обычно. */
 export function stopAllSounds(): void {
   stopFragment();

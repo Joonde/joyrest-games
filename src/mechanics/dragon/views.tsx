@@ -2,7 +2,7 @@
 // на телефоне капитана — выбор героя и свойств, ответы, кубик.
 import { useEffect, useRef, useState } from "react";
 import { Confetti } from "../../components/live/Confetti";
-import { playSound } from "../../components/live/sound";
+import { playSample, playSound, preloadSamples } from "../../components/live/sound";
 import { DragonArt, dragonKind, type DragonKind, type DragonMood } from "./DragonArt";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
@@ -128,23 +128,26 @@ export function DragonScreenView({ session, content }: ViewProps<DragonContent>)
   const now = useServerNow(250, stage === "question");
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
   const prev = useRef(`${step}:${r.phase}`);
+  useEffect(() => preloadSamples(["dragonAttack", "dragonHurt"]), [step]);
   useEffect(() => {
     const key = `${step}:${r.phase}`;
     if (prev.current !== key) {
       const mood = moodOf(r);
       if (r.phase === "victory") {
-        // Предсмертный рык, потом фанфары.
-        playSound("roar");
-        window.setTimeout(() => playSound("fanfare"), 1300);
+        // Предсмертный рёв, потом фанфары.
+        playSample("dragonHurt", "roar");
+        window.setTimeout(() => playSound("fanfare"), 1500);
       } else if (r.phase === "defeat") {
-        playSound("flame");
-        window.setTimeout(() => playSound("roar"), 700);
+        playSample("dragonAttack", "flame");
       } else if (r.phase === "reveal") {
-        // Ранен — рычит от боли; бьёт в ответ — пламя.
-        if (mood === "hurt" || mood === "hurtAttack") playSound("roar");
-        if (mood === "attack" || mood === "hurtAttack") window.setTimeout(() => playSound("flame"), mood === "hurtAttack" ? 900 : 0);
+        // Ранен — рёв от боли; бьёт в ответ — атака.
+        if (mood === "hurt" || mood === "hurtAttack") playSample("dragonHurt", "roar");
+        if (mood === "attack" || mood === "hurtAttack") window.setTimeout(() => playSample("dragonAttack", "flame"), mood === "hurtAttack" ? 1400 : 0);
         if (mood === "idle") playSound("wrong");
-      } else if (r.phase === "intro") playSound(r.task === 0 ? "roar" : "gong");
+      } else if (r.phase === "intro") {
+        if (r.task === 0) playSample("dragonAttack", "roar");
+        else playSound("gong");
+      }
     }
     prev.current = key;
   }, [step, r.phase, r.last]);

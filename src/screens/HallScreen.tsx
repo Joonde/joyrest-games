@@ -14,6 +14,7 @@ import { useHallMusic } from "../components/music/useHallMusic";
 import { useScreenReport } from "../components/live/screenStatus";
 import {
   playSound,
+  SAMPLES,
   setMuted,
   setSoundSet,
   stopAllSounds,
@@ -140,7 +141,9 @@ function Screen({ session }: { session: Session }) {
   useTheme(session.themeId);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
-  const musicBlocked = useHallMusic(session.state.music, session.state.mix);
+  // «Кто хочет стать миллионером»: пока ждём гостей, на экране зала звучит заставка (если ведущий не включил свою музыку).
+  const theme = session.state.phase === "lobby" && session.mechanic === "millionaire" ? SAMPLES.millionaireLobby : null;
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix, theme);
   const soundReady = useSoundReady();
   const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.

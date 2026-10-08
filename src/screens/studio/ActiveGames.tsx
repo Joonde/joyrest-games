@@ -115,7 +115,22 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
       }}
     >
       <div className="game-row__main">
-        <button type="button" className="game-row__text" disabled={!target} onClick={() => target && navigate(target)} aria-label={target ? `${title}, ${status}: открыть ${live ? "пульт" : "итоги"}` : `${title}, ${status}`}>
+        {/* Не <button>: у кнопки в части браузеров (Safari, старый Chrome) содержимое не сжимается по
+            ширине, и длинное название вылезает за строку. */}
+        <div
+          role="button"
+          tabIndex={target ? 0 : -1}
+          aria-disabled={!target}
+          className="game-row__text"
+          onClick={() => target && navigate(target)}
+          onKeyDown={(e) => {
+            if (target && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault();
+              navigate(target);
+            }
+          }}
+          aria-label={target ? `${title}, ${status}: открыть ${live ? "пульт" : "итоги"}` : `${title}, ${status}`}
+        >
           <span className="game-row__status">
             <span className="game-row__dot" aria-hidden="true" />
             {status}
@@ -129,7 +144,7 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
             {game.players > 0 ? `гостей: ${game.players} · ` : ""}
             {live ? ago(game.updatedAt) : `закончилась ${ago(game.updatedAt)}`}
           </span>
-        </button>
+        </div>
         {hasActions && (
           <button type="button" className="btn btn--quiet game-row__more" aria-expanded={open} aria-label={`Действия: ${title}`} onClick={() => setOpen((v) => !v)}>
             ⋯

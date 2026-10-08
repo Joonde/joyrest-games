@@ -7263,21 +7263,23 @@ button.dance-card:active {
   min-width: 0;
 }
 
-button.game-row__text {
-  border: 0;
-  background: none;
+.game-row__text {
   padding: 4px 0;
   margin: 0;
   color: inherit;
-  font: inherit;
   text-align: left;
   cursor: pointer;
   min-height: 52px;
+  border-radius: 8px;
 }
 
-button.game-row__text:disabled {
+.game-row__text[aria-disabled="true"] {
   cursor: default;
-  opacity: 1;
+}
+
+.game-row__text:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .game-row__more {

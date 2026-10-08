@@ -246,6 +246,11 @@ export function checkersBack(session: Session): CheckersBack | null {
     // Ход ещё не сделан — к ответу на вопрос.
     return { change: { state: { step: step - 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, result: write({ ...r, mode: "question" }) } }, clear: [step] };
   }
+  // Ответ, открытый «Назад» с хода: время вопроса не вернуть — вопрос не открываем бессрочно, а возвращаем
+  // к заставке (ответы убираются, ведущий задаст вопрос заново с полным таймером).
+  if (stage === "reveal" && session.state.startedAt === null) {
+    return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mover: null }) } }, clear: [step] };
+  }
   if (stage === "reveal") return { change: { state: { stage: "question", revealed: false, result: write({ ...r, mover: null }) } } };
   if (stage === "question") return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0 } }, clear: [step] };
   return null;

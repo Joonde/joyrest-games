@@ -243,6 +243,11 @@ export interface ChangeExpect {
   phase?: SessionPhase;
   step?: number;
   stage?: StepStage;
+  /**
+   * Отпечаток `state.result`, который видел пульт (`resultKey`). Действия, которые меняют очки без
+   * смены шага и этапа («Выполнено», «Неверно», переигровка ничьей), со второго пульта не повторятся.
+   */
+  result?: string;
 }
 
 export type ParticipantKind = "player" | "team";

@@ -1,3 +1,4 @@
+import { resultKey } from "../../core/session";
 import { useEffect, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
@@ -72,13 +73,15 @@ export function CheckersHostControls({ session, content, answers, participants, 
     setBusy(true);
     setError(null);
     const { phase, step: atStep, stage: atStage } = session.state;
+    const seen = resultKey(session.state.result);
     try {
       const change = typeof make === "function" ? await make() : make;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
       // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
       // секунду, получит отказ и «вспомнит» старый ответ.
       for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      // Отпечаток итогов шага: второй пульт не повторит «Выполнено» / «Неверно» по устаревшему виду.
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
       await arrived;
     } catch (e) {
       if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
@@ -161,7 +164,7 @@ export function CheckersHostControls({ session, content, answers, participants, 
             </div>
           )}
           {stage === "reveal" && r.mode === "question" && q && (
-            <ul className="buzz-queue">
+            <ul className="buzz-queue buzz-queue--plain">
               {[r.white, r.black].map((p) => {
                 const a = own.find((x) => x.pid === p);
                 return (

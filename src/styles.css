@@ -5880,6 +5880,18 @@ ul.chips {
   background: var(--color-surface-alt);
 }
 
+/* Списки без номера (ставки, кто ходит, итог батла): имя на всю ширину, длинное — многоточием. */
+.buzz-queue--plain li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.buzz-queue--plain .buzz-queue__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .buzz-queue li.is-now {
   border: 1.5px solid #e3aa9c;
 }
@@ -7328,10 +7340,23 @@ button.game-row__text:disabled {
 }
 
 .game-row__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
   font-weight: 600;
 }
 
+/* Длинное название обрезается, код игры виден всегда. */
+.game-row__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .game-row__code {
+  flex: none;
   font-family: "Cormorant Garamond", serif;
   font-weight: 700;
   font-size: 1.15em;

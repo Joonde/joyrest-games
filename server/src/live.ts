@@ -278,8 +278,12 @@ export function checkChange(value: unknown): CheckedChange | null {
   const checked: CheckedChange = { state, leaderboard };
   if (value.expect !== undefined) {
     if (!isRecord(value.expect)) return null;
-    const { phase, step, stage } = value.expect;
+    const { phase, step, stage, result } = value.expect;
     const expect: ChangeExpect = {};
+    if (result !== undefined) {
+      if (typeof result !== "string" || result.length > 40) return null;
+      expect.result = result;
+    }
     if (phase !== undefined) {
       if (!PHASES.has(phase as SessionPhase)) return null;
       expect.phase = phase as SessionPhase;

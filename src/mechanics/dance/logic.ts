@@ -250,7 +250,10 @@ export function danceBack(session: Session): DanceBack | null {
   if (r.mode === "vote") return { change: { state: { step: step - 1, stage: "reveal", startedAt: null, timeLimit: null, result: write({ ...r, mode: "perform", paused: false }) } }, clear: [step] };
   if (r.mode === "result") {
     const minus = Object.fromEntries(Object.entries(r.scores).map(([p, n]) => [p, -n]));
-    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "vote", scores: {}, tie: [] }) } };
+    // Итог прошлого выступления, открытый «Назад» с выбора: время голосования уже не вернуть — голосование
+    // остаётся закрытым (этап reveal), ведущий пересчитывает итог по уже поданным голосам.
+    const closed = session.state.startedAt === null;
+    const change: SessionChange = { state: { stage: closed ? "reveal" : "question", revealed: false, result: write({ ...r, mode: "vote", scores: {}, tie: [] }) } };
     if (Object.keys(minus).length > 0) change.addScore = minus;
     return { change };
   }

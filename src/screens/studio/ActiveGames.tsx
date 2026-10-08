@@ -121,8 +121,9 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
             {status}
             {!own && game.hostName ? ` · ${game.hostName}` : ""}
           </span>
-          <span className="game-row__title line-clamp">
-            {title} · <span className="game-row__code">{formatSessionCode(game.code)}</span>
+          <span className="game-row__title">
+            <span className="game-row__name">{title}</span>
+            <span className="game-row__code">{formatSessionCode(game.code)}</span>
           </span>
           <span className="muted small line-clamp">
             {game.players > 0 ? `гостей: ${game.players} · ` : ""}

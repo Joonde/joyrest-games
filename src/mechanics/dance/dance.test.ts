@@ -43,6 +43,9 @@ describe("Танцевальный батл", () => {
     expect(parseDanceResult(s.state.result).mode).toBe("result");
     s = apply(s, danceBack(s)?.change ?? {});
     expect(s.leaderboard.A?.score).toBe(0);
+    // Время голосования не вернуть: голосование закрыто, итог пересчитывается по поданным голосам.
+    expect(s.state.stage).toBe("reveal");
+    expect(dancePrimary(s, content)).toBe("result");
   });
 
   it("батл: голос за другую команду; ничья — победителя называет ведущий", () => {

@@ -3,9 +3,37 @@ import type { ChangeExpect, Leaderboard, Session, SessionChange, SessionState } 
 /** Ручная правка очков за раз: от −100 000 до 100 000. */
 export const MAX_SCORE_DELTA = 100_000;
 
+/** JSON с ключами по алфавиту: порядок ключей в базе (jsonb) и в браузере разный. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const rec = value as Record<string, unknown>;
+    return `{${Object.keys(rec)
+      .filter((k) => rec[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonical(rec[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+/** Короткий отпечаток итогов шага (`state.result`) для `expect.result`. */
+export function resultKey(result: unknown): string {
+  const text = canonical(result ?? null);
+  let a = 5381;
+  let b = 52711;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = (Math.imul(a, 33) ^ c) >>> 0;
+    b = (Math.imul(b, 31) + c) >>> 0;
+  }
+  return `${a.toString(36)}.${b.toString(36)}.${text.length.toString(36)}`;
+}
+
 /** Игра там, где её видел пульт? Без ожидания — да. */
 export function meetsExpect(state: SessionState, expect: ChangeExpect | undefined): boolean {
   if (!expect) return true;
+  if (expect.result !== undefined && resultKey(state.result) !== expect.result) return false;
   if (expect.phase !== undefined && state.phase !== expect.phase) return false;
   if (expect.step !== undefined && state.step !== expect.step) return false;
   if (expect.stage !== undefined && state.stage !== expect.stage) return false;

@@ -126,14 +126,14 @@ function num(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-export /** Ответ на текущем шаге можно поменять: так отмечает ведущий (`state.result.changeable`). */
+/** Ответ на текущем шаге можно поменять: так отмечает ведущий (`state.result.changeable`). */
 export function answersChangeable(state: unknown): boolean {
   if (!isRecord(state)) return false;
   const result = state.result;
   return isRecord(result) && result.changeable === true;
 }
 
-function normalizeState(value: unknown): SessionState {
+export function normalizeState(value: unknown): SessionState {
   const s = isRecord(value) ? value : {};
   const revealed = s.revealed === true;
   return {

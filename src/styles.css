@@ -9866,15 +9866,26 @@ button.dance-card:active {
 }
 
 .guide-btn {
+  /* Лёгкая подсветка без рамки и вертикальных отступов: строки не наезжают друг на друга. */
   display: inline;
-  padding: 1px 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 55%, transparent);
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
   font-weight: 600;
   white-space: normal;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+
+/* Короткие названия кнопок не рвём посередине. */
+.guide-btn--short {
+  white-space: nowrap;
+}
+
+.guide p,
+.guide li,
+.guide td {
+  line-height: 1.55;
 }
 
 .guide-list {

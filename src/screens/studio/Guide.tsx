@@ -21,7 +21,7 @@ function rich(text: string): ReactNode {
   const parts = text.split(/(«[^«»]+(?:«[^«»]*»[^«»]*)*»)/g);
   return parts.map((p, i) =>
     p.startsWith("«") && p.endsWith("»") ? (
-      <span key={i} className="guide-btn">
+      <span key={i} className={p.length <= 24 ? "guide-btn guide-btn--short" : "guide-btn"}>
         {p.slice(1, -1)}
       </span>
     ) : (

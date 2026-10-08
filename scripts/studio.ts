@@ -22,6 +22,9 @@ import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "../src/mechanics/quest/demo";
 import { DEMO_MILLIONAIRE } from "../src/mechanics/millionaire/demo";
 import { DEMO_SURVIVAL } from "../src/mechanics/survival/demo";
+import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "../src/mechanics/dragon/demo";
+import { parseDragon } from "../src/mechanics/dragon/content";
+import { validateDragon } from "../src/mechanics/dragon/validate";
 import { parseSurvival } from "../src/mechanics/survival/content";
 import { validateSurvival } from "../src/mechanics/survival/validate";
 import { parseMillionaire } from "../src/mechanics/millionaire/content";
@@ -489,7 +492,7 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер», «Гонка» —");
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер», «Гонка», «Дракон» —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
@@ -501,6 +504,8 @@ async function main() {
     { mechanic: "quest", ...DEMO_QUEST_ADULT },
     { mechanic: "millionaire", title: "Кто хочет стать миллионером", content: DEMO_MILLIONAIRE },
     { mechanic: "survival", title: "Гонка на выживание", content: DEMO_SURVIVAL },
+    { mechanic: "dragon", title: "Бой с драконом", content: DEMO_DRAGON },
+    { mechanic: "dragon", title: "Бой с драконом: для детей", content: DEMO_DRAGON_KIDS },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -527,6 +532,8 @@ async function main() {
                 ? validateMillionaire(parseMillionaire(saved.content))
               : saved.mechanic === "survival"
                 ? validateSurvival(parseSurvival(saved.content))
+              : saved.mechanic === "dragon"
+                ? validateDragon(parseDragon(saved.content))
               : saved.mechanic === "dance"
                 ? validateDance(parseDance(saved.content))
                 : validateContent(parseContent(saved.content));

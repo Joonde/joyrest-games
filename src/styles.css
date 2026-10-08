@@ -8431,3 +8431,210 @@ button.dance-card:active {
   background: var(--color-control-checked);
   color: var(--color-primary-text);
 }
+
+/* ---------- «Гонка на выживание» ---------- */
+.sv-screen {
+  width: 100%;
+  height: 100%;
+  padding: 4cqh 3cqw 3cqh;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 3cqw;
+  font-size: 3.2cqh;
+}
+
+.sv-screen__main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2.4cqh;
+  min-width: 0;
+  text-align: center;
+}
+
+.sv-screen__main > .sv-round {
+  align-self: stretch;
+}
+
+.sv-screen__side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2cqh;
+  min-width: 0;
+}
+
+.sv-title {
+  font-size: 7.5cqh;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sv-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  text-wrap: balance;
+}
+
+.sv-who {
+  margin: 0;
+  font-size: 4.4cqh;
+  font-weight: 700;
+}
+
+.sv-kind {
+  margin: 0;
+  color: var(--color-highlight);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sv-counter {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.sv-round {
+  display: grid;
+  gap: 2cqh;
+}
+
+.sv-round__text {
+  margin: 0;
+  font-size: 4.4cqh;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.sv-round__answer {
+  margin: 0;
+  font-size: 4cqh;
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.sv-round__note {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.sv-lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.4cqh;
+}
+
+.sv-lane {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 1cqw;
+}
+
+.sv-lane__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 2.8cqh;
+}
+
+.sv-lane__track {
+  position: relative;
+  height: 3.6cqh;
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  border-right: 0.5cqh dashed var(--color-highlight);
+  overflow: hidden;
+}
+
+.sv-lane__runner {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--share) * 100%);
+  min-width: 3.6cqh;
+  border-radius: 999px;
+  background: var(--team);
+  transition: width 0.8s ease;
+}
+
+.sv-lane__score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 2.6cqh;
+}
+
+.sv-lane.is-winner .sv-lane__track {
+  box-shadow: 0 0 2cqh color-mix(in srgb, var(--team) 60%, transparent);
+}
+
+.sv-lanes--phone {
+  font-size: 14px;
+}
+
+.sv-lanes--phone .sv-lane__name,
+.sv-lanes--phone .sv-lane__score {
+  font-size: 14px;
+}
+
+.sv-lanes--phone .sv-lane__track {
+  height: 14px;
+}
+
+.sv-lanes--phone .sv-lane__runner {
+  min-width: 14px;
+}
+
+.quiz-phone .sv-round__text,
+.sv-round--phone .sv-round__text {
+  font-size: 20px;
+}
+
+.sv-round--phone .mil-options {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.sv-round--phone .mil-option {
+  min-height: 52px;
+  padding: 8px 16px;
+  gap: 12px;
+  font-size: 17px;
+}
+
+.sv-round--phone .sv-round__answer {
+  font-size: 18px;
+}
+
+.sv-bet__quick {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sv-bet__quick .btn {
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.sv-marks {
+  display: grid;
+  gap: 8px;
+}
+
+.sv-strip--war {
+  border-color: var(--color-highlight);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-lane__runner {
+    transition: none;
+  }
+}

@@ -21,6 +21,9 @@ import { DEMO_BOARD } from "../src/mechanics/board/demo";
 import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "../src/mechanics/quest/demo";
 import { DEMO_MILLIONAIRE } from "../src/mechanics/millionaire/demo";
+import { DEMO_SURVIVAL } from "../src/mechanics/survival/demo";
+import { parseSurvival } from "../src/mechanics/survival/content";
+import { validateSurvival } from "../src/mechanics/survival/validate";
 import { parseMillionaire } from "../src/mechanics/millionaire/content";
 import { validateMillionaire } from "../src/mechanics/millionaire/validate";
 import { DEMO_DANCE } from "../src/mechanics/dance/demo";
@@ -486,7 +489,7 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер» —");
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер», «Гонка» —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
@@ -497,6 +500,7 @@ async function main() {
     { mechanic: "quest", ...DEMO_QUEST },
     { mechanic: "quest", ...DEMO_QUEST_ADULT },
     { mechanic: "millionaire", title: "Кто хочет стать миллионером", content: DEMO_MILLIONAIRE },
+    { mechanic: "survival", title: "Гонка на выживание", content: DEMO_SURVIVAL },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -521,6 +525,8 @@ async function main() {
               ? validateQuest(parseQuest(saved.content))
               : saved.mechanic === "millionaire"
                 ? validateMillionaire(parseMillionaire(saved.content))
+              : saved.mechanic === "survival"
+                ? validateSurvival(parseSurvival(saved.content))
               : saved.mechanic === "dance"
                 ? validateDance(parseDance(saved.content))
                 : validateContent(parseContent(saved.content));

@@ -6,6 +6,8 @@ import { dance } from "./dance";
 import { DEMO_DANCE } from "./dance/demo";
 import { quest } from "./quest";
 import { millionaire } from "./millionaire";
+import { survival } from "./survival";
+import { DEMO_SURVIVAL } from "./survival/demo";
 import { DEMO_MILLIONAIRE } from "./millionaire/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
 import { lotto } from "./lotto";
@@ -24,7 +26,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -36,6 +38,7 @@ const HINTS: Record<string, string> = {
   quest: "Поле 40–100 клеток на экране, кубик на телефоне капитана, в клетках — задания, вопросы, танцы, бонусы и ловушки.",
   dance: "Команды по очереди выбирают батл, танец или караоке; оценивают другие команды. Видео — ссылка или файл на экране зала.",
   checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
+  survival: "До 30 раундов из вопросов и заданий, каждый 5-й — войнушка со ставками, аукцион билета освобождения.",
   millionaire: "12 вопросов с вариантами, у каждой команды своя лестница на экране, несгораемые ступени и 6 подсказок.",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
 };
@@ -117,6 +120,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
   { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "36 вопросов на 12 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
+  { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания, 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
 ];
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */

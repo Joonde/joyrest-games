@@ -11,14 +11,15 @@ import {
   parseContent,
   quizRounds,
   roundTitle,
+  type QuizContent,
   type QuizQuestion,
 } from "./content";
 import { IMPORT_EXAMPLE, parseImport } from "./importText";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
-import { actionLabel, back, boardAfterReveal, boardView, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
-import { groupOpenAnswers, isCorrect, parseResult, score, steps } from "./logic";
+import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
+import { emptyResult, groupOpenAnswers, isCorrect, parseResult, resultOf, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
 
@@ -63,11 +64,14 @@ describe("parseContent", () => {
 
   it("сохранённый квиз читается без изменений", () => {
     const content = { questions: [choice({ imageId: "img1" }), { ...newQuestion("open"), text: "Ответ?", answers: ["ёлка"] }] };
-    expect(parseContent(JSON.parse(JSON.stringify(content)))).toEqual({ ...content, settings: DEFAULT_SETTINGS });
+    const once = parseContent(JSON.parse(JSON.stringify(content)));
+    // Всё, что было в игре, на месте; повторный разбор ничего не меняет.
+    expect(once).toMatchObject({ ...content, settings: DEFAULT_SETTINGS });
+    expect(parseContent(JSON.parse(JSON.stringify(once)))).toEqual(once);
   });
 
   it("настройки проведения: по умолчанию заставка, таблица после каждого вопроса, без картинок на телефонах", () => {
-    expect(parseContent({ settings: { intro: false, board: "manual", phoneImages: true } }).settings).toEqual({ intro: false, board: "manual", phoneImages: true });
+    expect(parseContent({ settings: { intro: false, board: "manual", phoneImages: true } }).settings).toEqual({ intro: false, board: "manual", phoneImages: true, raceTarget: 5 });
     expect(parseContent({ settings: { intro: "нет", board: "иногда" } }).settings).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -534,5 +538,88 @@ describe("настройки проведения на пульте", () => {
     expect(direct.state).toMatchObject({ step: 1, stage: "question", startedAt: "server" });
     const round = nextQuestion(session(content, { stage: "board", step: 1 }), content);
     expect(round.state).toMatchObject({ step: 2, stage: "ready" });
+  });
+});
+
+describe("гонка «кто первый» и несколько картинок", () => {
+  const base = (_questions: QuizQuestion[]): Session =>
+    ({
+      id: "s",
+      code: "1",
+      hostId: "h",
+      gameId: "g",
+      gameTitle: "К",
+      mechanic: "quiz",
+      gameSnapshot: null,
+      themeId: "joyrest",
+      playMode: "solo",
+      screenMode: "laptop",
+      state: { ...startState(), phase: "playing" },
+      leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
+      createdAt: 0,
+    }) as Session;
+  const buzzQ = (): QuizQuestion => ({ ...newQuestion("buzz"), id: "b1", answers: ["Queen"], points: 100, steps: 2 });
+  const press = (pid: string, at: number) => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value: { buzz: true }, submittedAt: at });
+
+  it("слово первому, «Неверно» — следующему, «Верно» — очки и деления; «Назад» снимает", () => {
+    const content: QuizContent = { questions: [buzzQ()], settings: { ...DEFAULT_SETTINGS, raceTarget: 3 } };
+    let s = base(content.questions);
+    s = applyChange(s, showQuestion(s, content), 1);
+    expect(s.state.timeLimit).toBeNull();
+    const answers = [press("b", 20), press("a", 10)];
+    const sync = buzzSync(s, answers);
+    if (!sync) throw new Error("нет записи");
+    s = applyChange(s, sync, 2);
+    expect(parseResult(s.state.result).buzz).toMatchObject({ current: "a", order: ["a", "b"] });
+    expect(buzzSync(s, answers)).toBeNull();
+    s = applyChange(s, buzzWrongAnswer(s), 3);
+    expect(parseResult(s.state.result).buzz).toMatchObject({ current: "b", out: ["a"] });
+    s = applyChange(s, buzzRightAnswer(s, content, answers, []), 4);
+    expect(s.state.stage).toBe("reveal");
+    expect(s.leaderboard.b).toMatchObject({ score: 100, race: 2, last: 100 });
+    expect(s.leaderboard.a?.score).toBe(0);
+    const plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    s = applyChange(s, plan.change, 5);
+    expect(s.state.stage).toBe("question");
+    expect(s.leaderboard.b).toMatchObject({ score: 0, race: 0 });
+    expect(parseResult(s.state.result).buzz).toMatchObject({ current: "b", winner: null, out: ["a"] });
+  });
+
+  it("никто не угадал — «Показать ответ» без очков", () => {
+    const content: QuizContent = { questions: [buzzQ()], settings: DEFAULT_SETTINGS };
+    let s = base(content.questions);
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [press("a", 5)], []), 2);
+    expect(s.leaderboard.a?.score).toBe(0);
+    expect(s.state.stage).toBe("reveal");
+  });
+
+  it("картинки: очки за каждую угаданную, опечатку можно засчитать по номеру картинки", () => {
+    const q: QuizQuestion = {
+      ...newQuestion("pictures"),
+      id: "p1",
+      points: 100,
+      pictures: [
+        { imageId: "i1", answers: ["Париж"] },
+        { imageId: "i2", answers: ["Рим", "Roma"] },
+        { imageId: "i3", answers: ["Лондон"] },
+        { imageId: "i4", answers: ["Барселона"] },
+      ],
+    };
+    const answers = [
+      { id: "0_a", step: 0, pid: "a", uid: "a", value: ["париж", "roma", "лондн", ""], submittedAt: 1 },
+      { id: "0_b", step: 0, pid: "b", uid: "b", value: ["Париж", "Рим", "Лондон", "Барселона"], submittedAt: 2 },
+    ];
+    const step = { id: q.id, answerable: true, question: q };
+    expect(score(step, answers, { state: { ...startState(), result: emptyResult() } })).toEqual([
+      { pid: "a", delta: 50 },
+      { pid: "b", delta: 100 },
+    ]);
+    // Ведущий засчитал «лондн» у третьей картинки.
+    expect(score(step, answers, { state: { ...startState(), result: { ...emptyResult(), accepted: ["2:лондн"] } } })[0]).toEqual({ pid: "a", delta: 75 });
+    expect(resultOf(q, answers, []).right).toEqual([2, 2, 1, 1]);
+    expect(validateQuestion({ ...q, pictures: [{ imageId: null, answers: [""] }] }).map((e) => e.path)).toContain("questions/p1/pictures");
+    expect(mediaIds({ questions: [q] })).toEqual(["i1", "i2", "i3", "i4"]);
   });
 });

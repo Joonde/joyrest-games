@@ -1,7 +1,19 @@
 // Формат содержимого квиза. Хранится в games/{id}.content и в снимке сессии.
 // Картинок здесь нет — только imageId (документ games/{id}/media/{imageId}).
+import { clipFields, parseClip, type Clip, type ClipJoin } from "../../core/clip";
 
-export type QuestionKind = "choice" | "open" | "speed";
+/**
+ * Форматы вопроса. Классика: варианты, открытый, на скорость. Гонка «Кто быстрее» (`buzz`): кнопка,
+ * слово первому нажавшему, ведущий решает «Верно» или «Неверно». Картинки (`pictures`): 2–4 фото, у
+ * каждого свой ответ.
+ */
+export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures";
+
+/** Картинка в вопросе «Несколько картинок»: верные ответы к ней. */
+export interface QuizPicture {
+  imageId: string | null;
+  answers: string[];
+}
 
 export interface QuizQuestion {
   /** Постоянный id вопроса: ключ в списке и в путях ошибок. */
@@ -28,8 +40,29 @@ export interface QuizQuestion {
   trackId?: string | null;
   trackStart?: number;
   trackLength?: number;
+  /** Звучание фрагмента и припев после верного ответа (`src/core/clip.ts`). */
+  fadeIn?: number;
+  fadeOut?: number;
+  chorusStart?: number | null;
+  chorusLength?: number;
+  join?: ClipJoin;
+  confetti?: boolean;
+  /** Гонка: сколько делений к финишу даёт верный ответ (1–3, 3 — «супер»). */
+  steps?: number;
+  /** Несколько картинок: 2–4, у каждой свои верные ответы. */
+  pictures?: QuizPicture[];
   /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
   round: string | null;
+}
+
+/** Музыкальный фрагмент вопроса (трек, угадывание, припев, звучание). */
+export function clipOf(q: QuizQuestion): Clip {
+  return parseClip(q);
+}
+
+/** Записать фрагмент в вопрос. */
+export function withClip(q: QuizQuestion, clip: Clip): QuizQuestion {
+  return { ...q, ...(clipFields(clip) as Partial<QuizQuestion>) };
 }
 
 /** Как ведущий проводит квиз (настройки игры в конструкторе). */
@@ -43,9 +76,11 @@ export interface QuizSettings {
   board: "each" | "rounds" | "manual";
   /** Картинка вопроса на телефонах гостей и при экране зала (без экрана — всегда). */
   phoneImages: boolean;
+  /** Гонка «Кто быстрее»: сколько делений до финиша. */
+  raceTarget: number;
 }
 
-export const DEFAULT_SETTINGS: QuizSettings = { intro: true, board: "each", phoneImages: false };
+export const DEFAULT_SETTINGS: QuizSettings = { intro: true, board: "each", phoneImages: false, raceTarget: 5 };
 
 export interface QuizContent {
   questions: QuizQuestion[];
@@ -128,6 +163,11 @@ export const LIMITS = {
   trackStart: 3600,
   minTrackLength: 3,
   maxTrackLength: 120,
+  minPictures: 2,
+  maxPictures: 4,
+  maxSteps: 3,
+  minRace: 1,
+  maxRace: 20,
 } as const;
 
 /** Фрагмент по умолчанию — 15 секунд с начала. */
@@ -137,19 +177,61 @@ export const DEFAULTS: Record<QuestionKind, { timeLimit: number; points: number 
   choice: { timeLimit: 30, points: 100 },
   open: { timeLimit: 45, points: 100 },
   speed: { timeLimit: 15, points: 200 },
+  buzz: { timeLimit: 60, points: 100 },
+  pictures: { timeLimit: 60, points: 100 },
 };
 
 export const KIND_TITLES: Record<QuestionKind, string> = {
   choice: "Выбор варианта",
   open: "Открытый ответ",
   speed: "На скорость",
+  buzz: "Гонка: кто первый",
+  pictures: "Несколько картинок",
 };
 
 export const KIND_HINTS: Record<QuestionKind, string> = {
   choice: "От 2 до 6 вариантов, верных — один или несколько.",
   open: "Гости пишут ответ сами. Регистр, ё/е, пробелы и знаки препинания не важны.",
   speed: "Варианты ответа; чем быстрее верный ответ, тем больше очков.",
+  buzz: "Красная кнопка: слово первому нажавшему, «Верно» — шаг к финишу и очки.",
+  pictures: "2–4 картинки, ответ к каждой; очки — за каждую угаданную.",
 };
+
+/** Блоки в «Добавить вопрос»: плитка — формат, у музыкальных сразу включается трек. */
+export interface QuestionFormat {
+  id: string;
+  block: "classic" | "music" | "pictures";
+  kind: QuestionKind;
+  title: string;
+  music?: boolean;
+}
+
+export const QUESTION_FORMATS: QuestionFormat[] = [
+  { id: "choice", block: "classic", kind: "choice", title: "Варианты" },
+  { id: "open", block: "classic", kind: "open", title: "Открытый ответ" },
+  { id: "speed", block: "classic", kind: "speed", title: "На скорость" },
+  { id: "music-choice", block: "music", kind: "choice", title: "Трек + варианты", music: true },
+  { id: "music-open", block: "music", kind: "open", title: "Трек + напишите", music: true },
+  { id: "buzz", block: "music", kind: "buzz", title: "Гонка: кто первый", music: true },
+  { id: "image", block: "pictures", kind: "choice", title: "Одна картинка" },
+  { id: "pictures", block: "pictures", kind: "pictures", title: "2–4 картинки" },
+];
+
+export const FORMAT_BLOCKS: Array<{ id: QuestionFormat["block"]; title: string }> = [
+  { id: "classic", title: "Классика" },
+  { id: "music", title: "Музыка" },
+  { id: "pictures", title: "Картинки" },
+];
+
+/** Вопросы с вариантами ответа (варианты на телефоне). */
+export function hasOptions(kind: QuestionKind): boolean {
+  return kind === "choice" || kind === "speed";
+}
+
+/** Вопросы, где гость пишет текст (открытый ответ). */
+export function hasAnswers(kind: QuestionKind): boolean {
+  return kind === "open" || kind === "buzz";
+}
 
 export function newQuestionId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -160,11 +242,13 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
   return {
     id: newQuestionId(),
     kind,
-    text: "",
-    options: kind === "open" ? [] : ["", ""],
-    correct: kind === "open" ? -1 : 0,
+    text: kind === "buzz" ? "Угадайте мелодию" : "",
+    options: hasOptions(kind) ? ["", ""] : [],
+    correct: hasOptions(kind) ? 0 : -1,
     alsoCorrect: [],
-    answers: kind === "open" ? [""] : [],
+    answers: hasAnswers(kind) ? [""] : [],
+    steps: 1,
+    pictures: kind === "pictures" ? [newPicture(), newPicture()] : [],
     ...DEFAULTS[kind],
     imageId: null,
     trackId: null,
@@ -172,6 +256,10 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     trackLength: DEFAULT_TRACK_LENGTH,
     round: null,
   };
+}
+
+export function newPicture(): QuizPicture {
+  return { imageId: null, answers: [""] };
 }
 
 export function createContent(): QuizContent {
@@ -182,14 +270,21 @@ export function createContent(): QuizContent {
 export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQuestion {
   if (question.kind === kind) return question;
   const next: QuizQuestion = { ...question, kind };
-  if (kind !== "open" && next.options.length < LIMITS.minOptions) {
+  if (hasOptions(kind) && next.options.length < LIMITS.minOptions) {
     next.options = [...next.options, "", ""].slice(0, Math.max(LIMITS.minOptions, next.options.length));
     if (next.correct < 0) next.correct = 0;
   }
-  if (kind === "open" && next.answers.length === 0) {
+  if (hasAnswers(kind) && next.answers.length === 0) {
     const fromOption = question.options[question.correct];
     next.answers = [fromOption ?? ""];
   }
+  if (kind === "pictures" && (next.pictures ?? []).length < LIMITS.minPictures) {
+    const have = next.pictures ?? [];
+    // Картинка вопроса становится первой из нескольких.
+    const first = have[0] ?? { imageId: question.imageId, answers: question.answers.length > 0 ? [...question.answers] : [""] };
+    next.pictures = [first, ...have.slice(1), newPicture()].slice(0, Math.max(LIMITS.minPictures, have.length));
+  }
+  if (kind === "buzz" && !next.text.trim()) next.text = "Угадайте мелодию";
   // Время и очки по умолчанию меняются, только если ведущий их не трогал.
   const before = DEFAULTS[question.kind];
   if (question.timeLimit === before.timeLimit) next.timeLimit = DEFAULTS[kind].timeLimit;
@@ -200,7 +295,15 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
 /** Копия вопроса с новым id; картинка общая (тот же imageId). */
 export function duplicateQuestion(question: QuizQuestion): QuizQuestion {
   // Копия продолжает раунд, а не начинает новый с тем же названием.
-  return { ...question, id: newQuestionId(), options: [...question.options], alsoCorrect: [...(question.alsoCorrect ?? [])], answers: [...question.answers], round: null };
+  return {
+    ...question,
+    id: newQuestionId(),
+    options: [...question.options],
+    alsoCorrect: [...(question.alsoCorrect ?? [])],
+    answers: [...question.answers],
+    pictures: (question.pictures ?? []).map((p) => ({ imageId: p.imageId, answers: [...p.answers] })),
+    round: null,
+  };
 }
 
 export function moveItem<T>(list: T[], from: number, to: number): T[] {
@@ -238,7 +341,18 @@ export function parseRound(value: unknown): string | null {
 }
 
 function parseKind(value: unknown): QuestionKind {
-  return value === "open" || value === "speed" ? value : "choice";
+  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" ? value : "choice";
+}
+
+function parsePictures(value: unknown): QuizPicture[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, LIMITS.maxPictures).map((raw) => {
+    const d = record(raw);
+    return {
+      imageId: typeof d.imageId === "string" && d.imageId.length > 0 ? d.imageId.slice(0, 64) : null,
+      answers: strings(d.answers, LIMITS.answers, LIMITS.answer),
+    };
+  });
 }
 
 function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQuestion {
@@ -264,9 +378,9 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     timeLimit: int(data.timeLimit, DEFAULTS[kind].timeLimit, LIMITS.minTime, LIMITS.maxTime),
     points: int(data.points, DEFAULTS[kind].points, LIMITS.minPoints, LIMITS.maxPoints),
     imageId: typeof data.imageId === "string" && data.imageId.length > 0 ? data.imageId : null,
-    trackId: typeof data.trackId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(data.trackId) ? data.trackId : null,
-    trackStart: int(data.trackStart, 0, 0, LIMITS.trackStart),
-    trackLength: int(data.trackLength, DEFAULT_TRACK_LENGTH, LIMITS.minTrackLength, LIMITS.maxTrackLength),
+    ...(clipFields(parseClip(data)) as Partial<QuizQuestion>),
+    steps: int(data.steps, 1, 1, LIMITS.maxSteps),
+    pictures: kind === "pictures" ? parsePictures(data.pictures) : [],
     round: parseRound(data.round),
   };
 }
@@ -277,6 +391,7 @@ export function parseSettings(raw: unknown): QuizSettings {
     intro: data.intro !== false,
     board: data.board === "rounds" || data.board === "manual" ? data.board : "each",
     phoneImages: data.phoneImages === true,
+    raceTarget: int(data.raceTarget, DEFAULT_SETTINGS.raceTarget, LIMITS.minRace, LIMITS.maxRace),
   };
 }
 
@@ -288,8 +403,13 @@ export function parseContent(raw: unknown): QuizContent {
   return { questions: list.map((q, i) => parseQuestion(q, i, seen)), settings: parseSettings(data.settings) };
 }
 
+/** Картинки вопроса: основная и картинки из «Несколько картинок». */
+export function questionImages(q: QuizQuestion): string[] {
+  return [q.imageId, ...(q.pictures ?? []).map((p) => p.imageId)].filter((id): id is string => Boolean(id));
+}
+
 export function mediaIds(content: QuizContent): string[] {
-  return [...new Set(content.questions.flatMap((q) => (q.imageId ? [q.imageId] : [])))];
+  return [...new Set(content.questions.flatMap(questionImages))];
 }
 
 /** Треки игры (чтобы экран зала скачал их заранее). */

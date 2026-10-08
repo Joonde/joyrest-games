@@ -4,10 +4,27 @@ import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { correctSet, KIND_TITLES, roundAt, roundTitle, type QuizContent } from "./content";
+import { correctSet, KIND_TITLES, roundAt, roundTitle, settingsOf, type QuizContent } from "./content";
+import { NameText } from "../../components/NameText";
 import { PodiumHostList } from "../../components/live/Podium";
 import { podiumNext, startPodium } from "../../core/podium";
-import { actionLabel, back, extraAction, nextQuestion, primaryAction, replayTrack, reveal, showBoard, showQuestion, showTotal, toggleAccepted, type QuizAction } from "./flow";
+import {
+  actionLabel,
+  back,
+  buzzRightAnswer,
+  buzzSync,
+  buzzWrongAnswer,
+  extraAction,
+  nextQuestion,
+  primaryAction,
+  replayTrack,
+  reveal,
+  showBoard,
+  showQuestion,
+  showTotal,
+  toggleAccepted,
+  type QuizAction,
+} from "./flow";
 import { groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 
@@ -32,6 +49,20 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const { stage, step } = session.state;
   const now = useServerNow(250, stage === "question");
   const q = content.questions[step];
+
+  // Гонка: пришло нажатие — слово первому, кто ещё не ошибся. Пишет любой открытый пульт;
+  // одинаковый расчёт и `expect` не дают двум пультам поспорить.
+  const syncKey = q?.kind === "buzz" && stage === "question" ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
+  const buzzCurrent = (session.state.result as { buzz?: { current?: unknown; order?: unknown[] } } | null)?.buzz;
+  useEffect(() => {
+    if (!syncKey || busy) return;
+    const change = buzzSync(latest.current, answers);
+    if (!change) return;
+    const { phase, step: atStep, stage: atStage } = latest.current.state;
+    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых нажатиях и смене слова
+  }, [syncKey, buzzCurrent?.current, buzzCurrent?.order?.length, busy]);
+
   if (!q) return <p className="muted">В игре нет вопросов.</p>;
 
   const total = content.questions.length;
@@ -113,8 +144,23 @@ export function QuizHostControls({ session, content, answers, participants, cont
 
   const onPrimary = () => perform(action);
   const extra = extraAction(session, content);
-  const backPlan = back(session);
+  const backPlan = back(session, content);
   const groups = q.kind === "open" ? groupOpenAnswers(q, own, result.accepted) : [];
+  const pictureGroups = q.kind === "pictures" ? (q.pictures ?? []).map((_, i) => groupOpenAnswers(q, own, result.accepted, i)) : [];
+  const buzz = result.buzz ?? null;
+  const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
+  const speaking = q.kind === "buzz" && stage === "question" && buzz?.current ? buzz.current : null;
+
+  /** «Верно» по свежим ответам: победитель получает очки и деления. */
+  async function rightChange(): Promise<SessionChange> {
+    let all: Answer[] = own;
+    try {
+      all = await control.freshAnswers(step);
+    } catch {
+      // Нет связи — по тому, что уже пришло.
+    }
+    return buzzRightAnswer(latest.current, content, all, participants);
+  }
 
   const buttons = (
     <>
@@ -123,9 +169,25 @@ export function QuizHostControls({ session, content, answers, participants, cont
           {error}
         </p>
       )}
+      {speaking && (
+        <div className="host-buzz" role="status" aria-live="assertive">
+          <span className="host-buzz__label">Отвечает</span>
+          <span className="host-buzz__name">
+            <NameText name={nameOf(speaking)} />
+          </span>
+          <div className="host-buzz__verdict">
+            <button type="button" className="btn" disabled={busy} onClick={() => void run(rightChange)}>
+              Верно
+            </button>
+            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(buzzWrongAnswer(session))}>
+              Неверно
+            </button>
+          </div>
+        </div>
+      )}
       <div className="actions">
-        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
-          {actionLabel(session, content, action)}
+        <button type="button" className={speaking ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"} disabled={busy} onClick={onPrimary}>
+          {q.kind === "buzz" && action === "reveal" ? "Никто не угадал — показать ответ" : actionLabel(session, content, action)}
         </button>
         {q.trackId && session.screenMode !== "none" && (stage === "question" || stage === "reveal") && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayTrack(session))}>
@@ -185,14 +247,14 @@ export function QuizHostControls({ session, content, answers, participants, cont
               "Репетиция: гостей нет"
             ) : (
               <>
-                Ответили: <strong>{own.length}</strong> из {expected.size}
+                {q.kind === "buzz" ? "Нажали" : "Ответили"}: <strong>{own.length}</strong> из {expected.size}
               </>
             )}
           </span>
         </div>
       )}
 
-      {stage === "question" && missing.length > 0 && !rehearsal && (
+      {stage === "question" && missing.length > 0 && !rehearsal && q.kind !== "buzz" && (
         <div className="stack stack--tight">
           <button type="button" className="btn btn--quiet host-quiz__toggle" aria-expanded={showMissing} onClick={() => setShowMissing((v) => !v)}>
             {showMissing ? "Скрыть, кто ещё не ответил" : `Ещё не ответили: ${missing.length}`}
@@ -200,7 +262,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
           {showMissing && <p className="muted small host-quiz__missing">{missing.join(", ")}</p>}
         </div>
       )}
-      {stage === "question" && missing.length === 0 && expected.size > 0 && <p className="success">Ответили все!</p>}
+      {stage === "question" && missing.length === 0 && expected.size > 0 && q.kind !== "buzz" && <p className="success">Ответили все!</p>}
 
       {q.kind === "open" && (stage === "question" || stage === "reveal") && groups.length > 0 && (
         <section className="stack stack--tight" aria-label="Ответы гостей">
@@ -235,7 +297,74 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </section>
       )}
 
-      {stage === "reveal" && q.kind !== "open" && (
+      {q.kind === "buzz" && buzz && buzz.order.length > 0 && (
+        <section className="stack stack--tight" aria-label="Очередь нажатий">
+          <h3 className="host-quiz__subtitle">Очередь нажатий</h3>
+          <p className="muted small">«Неверно» передаёт слово следующему; ошибившийся в этом вопросе больше не отвечает.</p>
+          <ol className="buzz-queue">
+            {buzz.order.map((pid, i) => {
+              const out = buzz.out.includes(pid);
+              const active = buzz.current === pid || buzz.winner === pid;
+              return (
+                <li key={pid} className={out ? "is-out" : active ? "is-now" : undefined}>
+                  <span className="buzz-queue__n">{i + 1}</span>
+                  <span className="buzz-queue__name">
+                    <NameText name={nameOf(pid)} />
+                  </span>
+                  <span className="buzz-queue__state">{buzz.winner === pid ? "верно" : buzz.current === pid ? "отвечает" : out ? "мимо ✕" : "ждёт"}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+      {q.kind === "buzz" && (
+        <p className="muted small">
+          Гонка до {settingsOf(content).raceTarget} · этот вопрос даёт {q.steps ?? 1} {(q.steps ?? 1) === 1 ? "деление" : "деления"}
+        </p>
+      )}
+
+      {q.kind === "pictures" && (stage === "question" || stage === "reveal") && pictureGroups.some((g) => g.length > 0) && (
+        <section className="stack stack--tight" aria-label="Ответы гостей по картинкам">
+          <h3 className="host-quiz__subtitle">Ответы по картинкам</h3>
+          {stage === "question" && <p className="muted small">Опечатка? «Засчитать» до показа ответа.</p>}
+          {pictureGroups.map((list, i) =>
+            list.length === 0 ? null : (
+              <div key={i} className="stack stack--tight">
+                <p className="small">
+                  <strong>{i + 1}.</strong> {(q.pictures?.[i]?.answers ?? []).find((a) => a.trim()) ?? "—"}
+                </p>
+                <ul className="open-answers">
+                  {list.map((g) => (
+                    <li key={g.key} className={`open-answers__item open-answers__item--${g.status}`}>
+                      <span className="open-answers__text">
+                        {g.text} <span className="muted">× {g.count}</span>
+                      </span>
+                      {g.status === "correct" ? (
+                        <span className="open-answers__mark">Верно</span>
+                      ) : stage === "question" ? (
+                        <button
+                          type="button"
+                          className={g.status === "accepted" ? "btn btn--secondary open-answers__btn" : "btn btn--quiet open-answers__btn"}
+                          aria-pressed={g.status === "accepted"}
+                          disabled={busy}
+                          onClick={() => void run(toggleAccepted(session, g.key))}
+                        >
+                          {g.status === "accepted" ? "Засчитано ✓" : "Засчитать"}
+                        </button>
+                      ) : (
+                        <span className="open-answers__mark">{g.status === "accepted" ? "Засчитано" : "Неверно"}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ),
+          )}
+        </section>
+      )}
+
+      {stage === "reveal" && q.kind !== "open" && q.kind !== "buzz" && q.kind !== "pictures" && (
         <ul className="host-quiz__dist">
           {q.options.map((o, i) => (
             <li key={i} className={correctSet(q).includes(i) ? "is-correct" : undefined}>

@@ -7,7 +7,7 @@ export function questionPath(questionId: string, field: QuestionField): string {
   return `questions/${questionId}/${field}`;
 }
 
-export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points";
+export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points" | "pictures";
 
 function duplicates(values: string[]): boolean {
   const seen = new Set<string>();
@@ -22,11 +22,16 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
   const errors: ValidationError[] = [];
   const add = (field: QuestionField, message: string) => errors.push({ path: questionPath(q.id, field), message });
 
-  if (!q.text.trim()) add("text", "Напишите текст вопроса.");
+  if (!q.text.trim() && q.kind !== "pictures") add("text", "Напишите текст вопроса.");
 
-  if (q.kind === "open") {
+  if (q.kind === "open" || q.kind === "buzz") {
     const filled = q.answers.filter((a) => normalizeAnswer(a).length > 0);
-    if (filled.length === 0) add("answers", "Добавьте хотя бы один верный ответ.");
+    if (filled.length === 0) add("answers", q.kind === "buzz" ? "Напишите правильный ответ — его увидит ведущий." : "Добавьте хотя бы один верный ответ.");
+  } else if (q.kind === "pictures") {
+    const pics = q.pictures ?? [];
+    if (pics.length < LIMITS.minPictures || pics.length > LIMITS.maxPictures) add("pictures", `Нужно от ${LIMITS.minPictures} до ${LIMITS.maxPictures} картинок.`);
+    if (pics.some((p) => !p.imageId)) add("pictures", "Добавьте картинку в каждое поле или удалите пустое.");
+    if (pics.some((p) => !p.answers.some((a) => normalizeAnswer(a).length > 0))) add("pictures", "Напишите верный ответ к каждой картинке.");
   } else {
     if (q.options.length < LIMITS.minOptions) add("options", `Нужно хотя бы ${LIMITS.minOptions} варианта ответа.`);
     if (q.options.length > LIMITS.maxOptions) add("options", `Не больше ${LIMITS.maxOptions} вариантов ответа.`);
@@ -35,7 +40,7 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
     if (q.correct < 0 || q.correct >= q.options.length) add("correct", "Отметьте правильный вариант.");
   }
 
-  if (!Number.isInteger(q.timeLimit) || q.timeLimit < LIMITS.minTime || q.timeLimit > LIMITS.maxTime) {
+  if (q.kind !== "buzz" && (!Number.isInteger(q.timeLimit) || q.timeLimit < LIMITS.minTime || q.timeLimit > LIMITS.maxTime)) {
     add("timeLimit", `Время — от ${LIMITS.minTime} до ${LIMITS.maxTime} секунд.`);
   }
   if (!Number.isInteger(q.points) || q.points < LIMITS.minPoints || q.points > LIMITS.maxPoints) {

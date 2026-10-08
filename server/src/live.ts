@@ -151,6 +151,7 @@ export function parseEntry(value: unknown): LeaderboardEntry | null {
   // Раунды и стрелки (CLAUDE.md, раздел 6, «Раунды и табло»).
   if (typeof value.roundBase === "number" && Number.isFinite(value.roundBase)) entry.roundBase = value.roundBase;
   if (typeof value.move === "number" && Number.isInteger(value.move)) entry.move = value.move;
+  if (typeof value.race === "number" && Number.isInteger(value.race) && value.race >= 0 && value.race <= 1000) entry.race = value.race;
   return entry;
 }
 

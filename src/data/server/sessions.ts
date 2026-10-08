@@ -53,6 +53,7 @@ function parseEntry(value: unknown): LeaderboardEntry {
   if (typeof e.captainUid === "string") entry.captainUid = e.captainUid;
   if (typeof e.roundBase === "number") entry.roundBase = e.roundBase;
   if (typeof e.move === "number") entry.move = e.move;
+  if (typeof e.race === "number") entry.race = e.race;
   return entry;
 }
 

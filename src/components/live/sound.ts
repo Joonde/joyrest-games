@@ -444,50 +444,62 @@ export function stopMusic(): void {
   player.currentTime = 0;
 }
 
-// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото) ----------
+// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото, гонка, «Своя игра») ----------
 
 let fragmentEl: HTMLAudioElement | null = null;
+let fragmentGain: GainNode | null = null;
 let fragmentTimer = 0;
 /** Фоновая музыка играла до фрагмента — после него продолжится. */
 let resumeAfterFragment = false;
+/** Сколько осталось звучать фрагменту (для паузы, пока отвечают): мс; конец — с затуханием. */
+let fragmentLeft = 0;
+let fragmentFadeOut = 0;
+let fragmentStartedAt = 0;
+let fragmentPaused = false;
+
+export interface FragmentOptions {
+  /** Плавное начало, секунд (0 — сразу громко). */
+  fadeIn?: number;
+  /** Затухание в конце, секунд (0 — обрыв). */
+  fadeOut?: number;
+}
 
 function fragmentElement(): HTMLAudioElement | null {
   if (!ctx) return null;
   if (!fragmentEl) {
-    fragmentEl = new Audio();
-    fragmentEl.preload = "auto";
     const bus = musicOut();
     if (!bus) return null;
-    ctx.createMediaElementSource(fragmentEl).connect(bus);
+    fragmentEl = new Audio();
+    fragmentEl.preload = "auto";
+    fragmentGain = ctx.createGain();
+    fragmentGain.connect(bus);
+    ctx.createMediaElementSource(fragmentEl).connect(fragmentGain);
   }
   return fragmentEl;
 }
 
-/**
- * Сыграть кусок трека: с `startSec` в течение `lengthSec` (0 — до конца). Фоновая музыка на это
- * время встаёт на паузу. false — браузер не дал включить звук (нужно коснуться экрана).
- */
-export async function playFragment(url: string, startSec: number, lengthSec: number): Promise<boolean> {
-  if (!soundReady()) return false;
-  const el = fragmentElement();
-  if (!el) return false;
+function rampFragment(to: number, seconds: number): void {
+  if (!ctx || !fragmentGain) return;
+  const g = fragmentGain.gain;
+  g.cancelScheduledValues(ctx.currentTime);
+  g.setValueAtTime(g.value, ctx.currentTime);
+  if (seconds <= 0) g.setValueAtTime(to, ctx.currentTime);
+  else g.linearRampToValueAtTime(to, ctx.currentTime + seconds);
+}
+
+function scheduleEnd(ms: number, fadeOut: number): void {
   window.clearTimeout(fragmentTimer);
-  if (player && !player.paused) {
-    resumeAfterFragment = true;
-    player.pause();
-  }
-  if (el.src !== url) el.src = url;
-  try {
-    // Перемотка до загрузки описания файла не срабатывает (фрагмент играл бы с начала).
-    if (el.readyState < 1) await metadataOf(el);
-    el.currentTime = Math.max(0, startSec);
-    await el.play();
-  } catch {
-    return false;
-  }
-  if (lengthSec > 0) fragmentTimer = window.setTimeout(() => stopFragment(), lengthSec * 1000);
-  el.onended = () => stopFragment();
-  return true;
+  fragmentLeft = ms;
+  fragmentFadeOut = fadeOut;
+  fragmentStartedAt = performance.now();
+  if (ms <= 0) return;
+  const fadeMs = Math.min(ms, fadeOut * 1000);
+  fragmentTimer = window.setTimeout(() => {
+    if (fadeMs > 0) {
+      rampFragment(0, fadeMs / 1000);
+      fragmentTimer = window.setTimeout(() => stopFragment(), fadeMs);
+    } else stopFragment();
+  }, ms - fadeMs);
 }
 
 function metadataOf(el: HTMLAudioElement): Promise<void> {
@@ -504,15 +516,83 @@ function metadataOf(el: HTMLAudioElement): Promise<void> {
   });
 }
 
+/**
+ * Сыграть кусок трека: с `startSec` в течение `lengthSec` (0 — до конца), с плавным началом и
+ * затуханием. Фоновая музыка на это время встаёт на паузу. false — браузер не дал включить звук.
+ */
+export async function playFragment(url: string, startSec: number, lengthSec: number, options: FragmentOptions = {}): Promise<boolean> {
+  if (!soundReady()) return false;
+  const el = fragmentElement();
+  if (!el) return false;
+  window.clearTimeout(fragmentTimer);
+  fragmentPaused = false;
+  if (player && !player.paused) {
+    resumeAfterFragment = true;
+    player.pause();
+  }
+  if (el.src !== url) el.src = url;
+  const fadeIn = options.fadeIn ?? 0;
+  rampFragment(fadeIn > 0 ? 0 : 1, 0);
+  try {
+    // Перемотка до загрузки описания файла не срабатывает (фрагмент играл бы с начала).
+    if (el.readyState < 1) await metadataOf(el);
+    el.currentTime = Math.max(0, startSec);
+    await el.play();
+  } catch {
+    return false;
+  }
+  if (fadeIn > 0) rampFragment(1, fadeIn);
+  scheduleEnd(lengthSec > 0 ? lengthSec * 1000 : 0, options.fadeOut ?? 0);
+  el.onended = () => stopFragment();
+  return true;
+}
+
+/**
+ * Припев после верного ответа: переход от фрагмента — сразу, склейкой (короткое затухание и
+ * плавный вход) или отбивкой (звук «верно», потом припев).
+ */
+export async function playChorus(url: string, startSec: number, lengthSec: number, join: "cut" | "cross" | "sting"): Promise<boolean> {
+  const playing = fragmentEl !== null && !fragmentEl.paused && !fragmentPaused;
+  if (join === "cross" && playing) {
+    rampFragment(0, 0.6);
+    await new Promise((r) => window.setTimeout(r, 600));
+  } else if (join === "sting") {
+    silenceFragment();
+    playSound("correct");
+    await new Promise((r) => window.setTimeout(r, 700));
+  }
+  return playFragment(url, startSec, lengthSec, { fadeIn: join === "cut" ? 0 : 1, fadeOut: 3 });
+}
+
+/** Пауза фрагмента, пока гость отвечает: остаток доиграет `resumeFragment`. */
+export function pauseFragment(): void {
+  if (!fragmentEl || fragmentEl.paused || fragmentPaused) return;
+  window.clearTimeout(fragmentTimer);
+  if (fragmentLeft > 0) fragmentLeft = Math.max(0, fragmentLeft - (performance.now() - fragmentStartedAt));
+  fragmentPaused = true;
+  fragmentEl.pause();
+}
+
+/** Продолжить фрагмент после паузы (ответ неверный — играем дальше). */
+export function resumeFragment(): void {
+  if (!fragmentEl || !fragmentPaused) return;
+  fragmentPaused = false;
+  rampFragment(1, 0.3);
+  void fragmentEl.play().catch(() => undefined);
+  if (fragmentLeft > 0) scheduleEnd(fragmentLeft, fragmentFadeOut);
+}
+
 /** Заглушить фрагмент, не возвращая фоновую музыку. */
 function silenceFragment(): void {
   window.clearTimeout(fragmentTimer);
   resumeAfterFragment = false;
+  fragmentPaused = false;
   fragmentEl?.pause();
 }
 
 export function stopFragment(): void {
   window.clearTimeout(fragmentTimer);
+  fragmentPaused = false;
   fragmentEl?.pause();
   if (resumeAfterFragment) {
     resumeAfterFragment = false;

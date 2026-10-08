@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { tracksRepo } from "../../data";
-import { playFragment, stopFragment } from "../live/sound";
+import { pauseFragment, playChorus, playFragment, resumeFragment, stopFragment, type FragmentOptions } from "../live/sound";
 
 const cache = new Map<string, Promise<string | null>>();
 
@@ -35,12 +35,27 @@ export function preloadTrack(trackId: string | null | undefined): void {
   if (trackId) void trackUrl(trackId);
 }
 
+/** Что играть: угадывание (с началом и затуханием) или припев после верного ответа. */
+export interface FragmentPlay {
+  trackId: string | null;
+  start: number;
+  length: number;
+  options?: FragmentOptions;
+  /** Припев: переход от угадывания. */
+  chorus?: "cut" | "cross" | "sting";
+}
+
 /**
  * Фрагмент трека на экране зала: играет, когда меняется `playKey` (вопрос открыт, ведущий нажал
- * «Повторить»), и не играет при открытии экрана посреди вопроса. `playKey = null` — тишина.
+ * «Повторить», верный ответ — припев), и не играет при открытии экрана посреди вопроса.
+ * `playKey = null` — тишина. `paused` — пауза, пока гость отвечает (кнопка «кто первый»).
  */
-export function useFragment(trackId: string | null, startSec: number, lengthSec: number, playKey: string | null): void {
+export function useFragment(trackId: string | null, startSec: number, lengthSec: number, playKey: string | null, extra?: { options?: FragmentOptions; chorus?: "cut" | "cross" | "sting"; paused?: boolean }): void {
   const last = useRef<string | null>(playKey);
+  const options = extra?.options;
+  const chorus = extra?.chorus;
+  const fadeIn = options?.fadeIn ?? 0;
+  const fadeOut = options?.fadeOut ?? 0;
   useEffect(() => {
     if (playKey === last.current) return;
     last.current = playKey;
@@ -50,12 +65,19 @@ export function useFragment(trackId: string | null, startSec: number, lengthSec:
     }
     let cancelled = false;
     void trackUrl(trackId).then((url) => {
-      if (!cancelled && url) void playFragment(url, startSec, lengthSec);
+      if (cancelled || !url) return;
+      if (chorus) void playChorus(url, startSec, lengthSec, chorus);
+      else void playFragment(url, startSec, lengthSec, { fadeIn, fadeOut });
     });
     return () => {
       cancelled = true;
     };
-  }, [trackId, startSec, lengthSec, playKey]);
+  }, [trackId, startSec, lengthSec, playKey, chorus, fadeIn, fadeOut]);
+  const paused = extra?.paused ?? false;
+  useEffect(() => {
+    if (paused) pauseFragment();
+    else resumeFragment();
+  }, [paused]);
   // При уходе с экрана вопроса (таблица или слайд поверх) фрагмент доигрывает свой кусок: он сам
   // замолкает по времени, а заново его включит только новый `playKey`.
 }

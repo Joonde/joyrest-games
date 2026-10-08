@@ -10,11 +10,11 @@ import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
 import { SlideView } from "../components/live/SlideView";
-import { useHallMusic, type BuiltinMusic } from "../components/music/useHallMusic";
+import { useHallMusic } from "../components/music/useHallMusic";
+import { builtinMusicOf } from "../components/music/builtinMusic";
 import { useScreenReport } from "../components/live/screenStatus";
 import {
   playSound,
-  BUILTIN_MUSIC,
   preloadSamples,
   setMuted,
   setSoundSet,
@@ -33,7 +33,6 @@ import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { joinHint, playUrl } from "../components/links";
 import { getMechanic } from "../mechanics/registry";
-import type { MusicMoment } from "../mechanics/types";
 import { getTheme, teamColorVar, useTheme } from "../themes/registry";
 
 export function HallScreen() {
@@ -137,18 +136,6 @@ function useCueSound(cue: SoundCue | null | undefined): void {
     if (cue.sound === "stop") stopAllSounds();
     else playSound(cue.sound);
   }, [cue]);
-}
-
-/** Встроенная музыка: лобби (QR, ждём гостей), «Представить команды», слайд «Перерыв» — два трека по кругу с наплывом. */
-function builtinMusicOf(session: Session, moment: MusicMoment | null): BuiltinMusic | null {
-  const slide = session.state.slide;
-  if (slide?.kind === "break") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
-  // Момент игры (заставка вопроса, выбор в суперигре): каждый новый шаг — трек с начала.
-  if (moment && !slide) return { key: `${moment}:${session.state.step}:${session.state.startedAt ?? 0}`, urls: [...BUILTIN_MUSIC[moment]] };
-  if (session.state.phase === "lobby" && session.state.teams?.shown != null) return { key: "teams", urls: [...BUILTIN_MUSIC.teams] };
-  // Лобби: на экране QR-код, ждём гостей.
-  if (session.state.phase === "lobby" && !slide) return { key: "lobby", urls: [...BUILTIN_MUSIC.lobby] };
-  return null;
 }
 
 function Screen({ session }: { session: Session }) {

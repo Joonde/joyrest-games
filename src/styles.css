@@ -11294,3 +11294,35 @@ button.dance-card:active {
   .td-back__spark, .td-back__medal, .td-back__ring, .td-back__sheen, .td-deck.is-choosing, .td-flip > .td-face, .td-stamp, .td-delta { animation: none !important; }
   .td-back__sheen { display: none; }
 }
+
+/* Эмблема на лице карты — варианты: разрыв рамки, водяной знак, картуш */
+.td-tab {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  width: 36cqi;
+  display: grid;
+  place-items: center;
+  background: #1d1714;
+  border: 0.6cqi solid #e3c68c;
+  transform: translateX(-50%);
+}
+.td-tab::before { content: ""; position: absolute; left: -0.6cqi; right: -0.6cqi; height: calc(var(--td-band) + 0.6cqi); background: #1d1714; }
+.td-tab--top { top: calc(var(--td-band) - 0.6cqi); height: 16cqi; border-top: 0; border-radius: 0 0 6cqi 6cqi; }
+.td-tab--top::before { bottom: 100%; }
+.td-tab--top .logo { position: relative; width: 31cqi; margin-top: -8cqi; }
+.td-tab--bottom { bottom: calc(var(--td-band) - 0.6cqi); width: 16cqi; height: 7cqi; border-bottom: 0; border-radius: 4cqi 4cqi 0 0; }
+.td-tab--bottom::before { top: 100%; }
+.td-tab__star { position: relative; color: #e3c68c; font-size: 5cqi; line-height: 1; }
+.td-watermark { position: absolute; z-index: 1; left: 50%; top: 56%; width: 64cqi; transform: translate(-50%, -50%); opacity: 0.16; pointer-events: none; }
+.td-face--o-gap .td-watermark { opacity: 0.09; }
+.td-face--o-watermark .td-face__head { top: calc(var(--td-band) + 9cqi); }
+.td-face--o-watermark .td-face__text { top: calc(var(--td-band) + 24cqi); bottom: calc(var(--td-band) + 14cqi); }
+.td-face--o-gap .td-face__head { top: calc(var(--td-band) + 21cqi); }
+.td-face--o-gap .td-face__text { top: calc(var(--td-band) + 36cqi); bottom: calc(var(--td-band) + 16cqi); }
+.td-face--o-cartouche .td-face__head { top: calc(var(--td-band) + 21cqi); }
+.td-face--o-cartouche .td-face__text { top: calc(var(--td-band) + 36cqi); bottom: calc(var(--td-band) + 14cqi); }
+.td-face--o-gap .td-face__from, .td-face--o-watermark .td-face__from, .td-face--o-cartouche .td-face__from { bottom: calc(var(--td-band) + 9cqi); }
+.td-cartouche { position: absolute; z-index: 4; left: 50%; top: 0.6cqi; width: 60cqi; height: 24cqi; transform: translateX(-50%); display: grid; place-items: center; }
+.td-cartouche__shape { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 1cqi 2cqi rgb(0 0 0 / 0.4)); }
+.td-cartouche__emblem { position: relative; width: 27cqi; }

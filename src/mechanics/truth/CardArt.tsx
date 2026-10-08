@@ -96,14 +96,48 @@ export function SplitBack({ size = "screen", onPick, disabled = false, chosen = 
   );
 }
 
-/** Лицевая сторона: кайма с монограммами, медальоны с эмблемой сверху и снизу, уголки, вид, текст. */
-export function CardFace({ kind, text, from, size = "screen", stamp = null }: { kind: TruthKind; text: string; from?: string | null; size?: "screen" | "phone"; stamp?: "done" | "refused" | null }) {
+export type Ornament = "medal" | "gap" | "watermark" | "cartouche";
+
+/** Эмблема в разрыве рамки: тёмный выступ каймы, рамка огибает его. */
+function Tab({ where }: { where: "top" | "bottom" }) {
   return (
-    <div className={`td-face td-face--${kind} td-face--${size}`}>
+    <span className={`td-tab td-tab--${where}`} aria-hidden="true">
+      {where === "top" ? <Logo kind="emblem" tone="gold" title="" /> : <span className="td-tab__star">✦</span>}
+    </span>
+  );
+}
+
+/** Картуш: узорная табличка с эмблемой в верхней кайме. */
+function Cartouche() {
+  return (
+    <span className="td-cartouche" aria-hidden="true">
+      <svg className="td-cartouche__shape" viewBox="0 0 240 90" preserveAspectRatio="none">
+        <path d="M30 6 H210 C214 20 226 28 236 28 V62 C226 62 214 70 210 84 H30 C26 70 14 62 4 62 V28 C14 28 26 20 30 6 Z" fill="#1d1714" stroke="#e3c68c" strokeWidth="3" />
+        <path d="M38 14 H202 C206 26 216 33 226 34 V56 C216 57 206 64 202 76 H38 C34 64 24 57 14 56 V34 C24 33 34 26 38 14 Z" fill="none" stroke="#e3c68c" strokeWidth="1.2" opacity="0.6" />
+                <circle cx="10" cy="45" r="3.5" fill="#e3c68c" />
+        <circle cx="230" cy="45" r="3.5" fill="#e3c68c" />
+      </svg>
+      <Logo kind="emblem" tone="gold" title="" className="td-cartouche__emblem" />
+    </span>
+  );
+}
+
+/** Лицевая сторона: кайма с монограммами, эмблема (вид — `ornament`), уголки, вид, текст. */
+export function CardFace({ kind, text, from, size = "screen", stamp = null, ornament = "gap" }: { kind: TruthKind; text: string; from?: string | null; size?: "screen" | "phone"; stamp?: "done" | "refused" | null; ornament?: Ornament }) {
+  return (
+    <div className={`td-face td-face--${kind} td-face--${size} td-face--o-${ornament}`}>
       <Band />
       <span className="td-face__frame" aria-hidden="true" />
-      <Medal where="top" />
-      <Medal where="bottom" />
+      {ornament === "medal" && <Medal where="top" />}
+      {ornament === "medal" && <Medal where="bottom" />}
+      {ornament === "gap" && <Tab where="top" />}
+      {ornament === "gap" && <Tab where="bottom" />}
+      {ornament === "cartouche" && <Cartouche />}
+      {(ornament === "watermark" || ornament === "gap") && (
+        <span className="td-watermark" aria-hidden="true">
+          <Logo kind="emblem" tone={kind === "truth" ? "gold" : "dark"} title="" />
+        </span>
+      )}
       <span className="td-face__corner td-face__corner--tl" aria-hidden="true">
         <KindMark kind={kind} className="td-face__corner-icon" />
       </span>

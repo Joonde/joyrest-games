@@ -112,7 +112,7 @@ export function SuperScreen(props: SuperScreenProps) {
   const introKey = stage === "ready" ? burst : "";
   const lastIntro = useRef(introKey);
   useEffect(() => {
-    if (introKey && lastIntro.current !== introKey) playSample("superChest", "fanfare", 0.9);
+    if (introKey && lastIntro.current !== introKey) playSample("superChest", "treasure", 0.9);
     lastIntro.current = introKey;
   }, [introKey]);
   const pickCount = Object.keys(picks).length;

@@ -11,7 +11,7 @@ export function setSoundSet(name: SoundSetName): void {
   soundSet = name;
 }
 
-export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle";
+export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle" | "treasure";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -463,12 +463,20 @@ function trap(): void {
   burst(0.75, 0.3, 0.3, { type: "lowpass", freq: 180 });
 }
 
+/** Сокровище (заставка суперигры): короткая дробь, удар и звенящий аккорд с блёстками. */
+function treasure(): void {
+  for (let t = 0; t < 1.1; t += 0.05) burst(t, 0.06, 0.04 + (t / 1.1) * 0.16, { type: "bandpass", freq: 1600, q: 0.8 });
+  burst(1.1, 0.4, 0.35, { type: "lowpass", freq: 150 }, 0.002);
+  [523, 659, 784, 1047].forEach((f) => tone(f, 1.1, 1.6, 0.07, "triangle"));
+  [1568, 2093, 2637, 3136, 2637, 3520].forEach((f, i) => tone(f, 1.25 + i * 0.09, 0.4, 0.04, "sine"));
+}
+
 /** Искры: короткие звонкие блёстки. */
 function sparkle(): void {
   [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, i * 0.05 + Math.random() * 0.03, 0.25, 0.05, "sine"));
 }
 
-const DUCK_SECONDS: Partial<Record<SoundName, number>> = { dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
+const DUCK_SECONDS: Partial<Record<SoundName, number>> = { treasure: 3, dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
 
 export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
@@ -489,6 +497,7 @@ export function playSound(name: SoundName): void {
   if (name === "bonus") bonus();
   if (name === "trap") trap();
   if (name === "sparkle") sparkle();
+  if (name === "treasure") treasure();
   if (name === "roar") roar();
   if (name === "flame") flame();
   if (name === "whoosh") burst(0, 0.7, 0.3, { type: "bandpass", freq: 300, q: 2, toFreq: 4000 }, 0.25);
@@ -500,17 +509,15 @@ export function playSound(name: SoundName): void {
 
 // ---------- Звуки-файлы (public/sounds, в имени — версия: кэш на год) ----------
 
-/** Встроенные звуки платформы. Новая версия файла — новое имя. */
-export const SAMPLES = {
-  dragonAttack: "/sounds/dragon-attack-1.mp3",
-  dragonHurt: "/sounds/dragon-hurt-1.mp3",
-  /** Заставка «Кто хочет стать миллионером» — музыка лобби на экране зала. */
-  millionaireLobby: "/sounds/millionaire-lobby-1.mp3",
-  /** Супер-игра: выбор сундука (для будущего блока «Супер-игра»). */
-  superChest: "/sounds/supergame-chest-1.mp3",
-} as const;
+/**
+ * Встроенные звуки-файлы платформы. Только с чистыми правами (свои, купленные, Pixabay Content
+ * License) — сейчас таких нет, и вместо каждого играет синтезированный звук (`fallback`). Новая
+ * версия файла — новое имя (кэш на год).
+ */
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest";
 
-export type SampleName = keyof typeof SAMPLES;
+export const SAMPLES: Partial<Record<SampleName, string>> = {};
+
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
 
@@ -519,7 +526,9 @@ function loadSample(name: SampleName): Promise<AudioBuffer | null> {
   if (cached) return cached;
   const audio = ctx;
   if (!audio) return Promise.resolve(null);
-  const job = fetch(SAMPLES[name])
+  const url = SAMPLES[name];
+  if (!url) return Promise.resolve(null);
+  const job = fetch(url)
     .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
     .then((data) => audio.decodeAudioData(data))
     .catch(() => {

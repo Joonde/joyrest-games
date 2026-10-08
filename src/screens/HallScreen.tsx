@@ -142,7 +142,7 @@ function Screen({ session }: { session: Session }) {
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
   // «Кто хочет стать миллионером»: пока ждём гостей, на экране зала звучит заставка (если ведущий не включил свою музыку).
-  const theme = session.state.phase === "lobby" && session.mechanic === "millionaire" ? SAMPLES.millionaireLobby : null;
+  const theme = session.state.phase === "lobby" && session.mechanic === "millionaire" ? (SAMPLES.millionaireLobby ?? null) : null;
   const musicBlocked = useHallMusic(session.state.music, session.state.mix, theme);
   const soundReady = useSoundReady();
   const muted = useMuted();

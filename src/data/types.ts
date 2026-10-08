@@ -496,4 +496,6 @@ export interface SessionSummary {
   createdAt: number;
   updatedAt: number;
   startedAt: number | null;
+  /** «Ждёт гостей» или «идёт», но 12 часов без действий — скорее всего, брошена. */
+  stale: boolean;
 }

@@ -12,6 +12,8 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { Sql } from "postgres";
+import { retentionCutoff } from "../../src/core/retention";
+import { expireSessions } from "./live";
 
 const DAY_MS = 24 * 60 * 60_000;
 export const MEDIA_ORPHAN_DAYS = 7;
@@ -94,7 +96,14 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
     try {
       const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
-      log.info({ files, devices }, "cleanup");
+      // Старые сессии (30 дней) — каждую ночь, не дожидаясь входа владельца; итоги остаются в истории.
+      let sessions = 0;
+      for (let round = 0; round < 20; round++) {
+        const report = await expireSessions(sql, new Date(retentionCutoff(Date.now())));
+        sessions += report.deleted;
+        if (!report.more) break;
+      }
+      log.info({ files, devices, sessions }, "cleanup");
     } catch (error) {
       // Таблиц ещё нет (миграции не прошли) или нет папки — попробуем завтра.
       log.warn({ reason: error instanceof Error ? error.name : "unknown" }, "cleanup failed");

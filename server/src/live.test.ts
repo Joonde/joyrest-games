@@ -188,6 +188,9 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect(overview.find((o) => o.id === "sess2")).toMatchObject({ phase: "playing", players: 1, hostName: expect.any(String) });
     expect(JSON.stringify(overview)).not.toContain("gameSnapshot");
     expect((await call("GET", "/api/sessions/overview", guest.cookie)).statusCode).toBe(403);
+    // Идущую игру из списка не убрать; гостю — нельзя.
+    expect((await call("POST", "/api/sessions/sess2/hide", host)).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/sess2/hide", guest.cookie)).statusCode).toBe(403);
 
     expect((await answer("b")).json()).toEqual({ result: "sent" });
     expect((await answer("c")).json()).toEqual({ result: "rejected" });

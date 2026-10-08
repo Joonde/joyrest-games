@@ -136,6 +136,10 @@ export interface SessionsRepository {
    * без снимка игры. Ведущему — свои, владельцу — все. Только свой сервер.
    */
   overview?(): Promise<SessionSummary[]>;
+  /** Завершить игру из «Игр сейчас» (ведущий — свою, владелец — любую). Только свой сервер. */
+  close?(sessionId: string, participantsCount: number): Promise<void>;
+  /** «Убрать из списка» завершённую или брошенную игру (итоги остаются). Только свой сервер. */
+  hide?(sessionId: string): Promise<void>;
   setPhase(sessionId: string, phase: SessionPhase): Promise<void>;
   upsertLeaderboard(sessionId: string, entries: Record<string, LeaderboardEntry>): Promise<void>;
   /** Только пульт: шаг игры и правки таблицы лидеров одной записью. */

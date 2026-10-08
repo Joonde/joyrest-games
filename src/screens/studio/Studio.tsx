@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, permissions, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -117,7 +117,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         </p>
       )}
 
-      {permissions.isAdmin(profile) ? (
+      {permissions.isAdmin(profile) && sessionsRepo.overview ? (
         <SwipePages
           storageKey="studio-page"
           pages={[

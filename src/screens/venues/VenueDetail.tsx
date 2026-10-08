@@ -5,7 +5,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { emptyVenue, findDuplicates, VENUE_FILES, VENUE_STATUSES, venueMissing, venueStatusInfo, type VenueData, type VenueStatus } from "../../core/venues";
-import { useLoad, venuesRepo, type VenueRecord, type VenueUpload } from "../../data";
+import { permissions, useLoad, venuesRepo, type VenueRecord, type VenueUpload } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -23,7 +23,7 @@ export function VenueDetail() {
       {(profile) => (
         <main className="page">
           <TopBar title="Площадка" actions={[{ label: "К базе площадок", to: "/venues" }, ...venueActions(profile)]} />
-          <VenueLoaded id={venueId} />
+          <VenueLoaded id={venueId} owner={permissions.isAdmin(profile)} />
         </main>
       )}
     </VenuesGate>
@@ -77,14 +77,14 @@ export function NewVenue() {
   );
 }
 
-function VenueLoaded({ id }: { id: string }) {
+function VenueLoaded({ id, owner }: { id: string; owner: boolean }) {
   const [state, retry, update] = useLoad(() => (venuesRepo ? venuesRepo.get(id) : Promise.reject(new Error("unavailable"))), [id]);
   const [others] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} text="Площадка не открылась: её удалили или нет связи." />;
   const twinId = others.status === "ready" ? findDuplicates(others.data.filter((v) => v.archivedAt === null || v.id === id)).get(id) : undefined;
   const twin = twinId && others.status === "ready" ? others.data.find((v) => v.id === twinId) : undefined;
-  return <VenueCard venue={state.data} onChange={(next) => update(() => next)} twin={twin ?? null} />;
+  return <VenueCard venue={state.data} owner={owner} onChange={(next) => update(() => next)} twin={twin ?? null} />;
 }
 
 /** Куда вернуться из карточки: анкета на проверке, архив или база. */
@@ -96,7 +96,7 @@ function listOf(venue: VenueRecord): { to: string; label: string } {
 
 const same = (a: VenueData, b: VenueData) => JSON.stringify(a) === JSON.stringify(b);
 
-function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (venue: VenueRecord) => void; twin: VenueRecord | null }) {
+function VenueCard({ venue, owner, onChange, twin }: { venue: VenueRecord; owner: boolean; onChange: (venue: VenueRecord) => void; twin: VenueRecord | null }) {
   const navigate = useNavigate();
   const [toast, showToast] = useToast();
   const [dialog, confirm] = useConfirm();
@@ -184,7 +184,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
       next === "checked"
         ? {
             title: "Принять площадку в базу?",
-            text: venue.hostName ? `Площадка перейдёт в «Площадки» со статусом «Проверено». Ведущему ${venue.hostName} начислятся баллы за то, что он её привёл.` : "Площадка перейдёт в «Площадки» со статусом «Проверено».",
+            text: venue.hostName && owner ? `Площадка перейдёт в «Площадки» со статусом «Проверено». Ведущему ${venue.hostName} начислятся баллы за то, что он её привёл.` : "Площадка перейдёт в «Площадки» со статусом «Проверено».",
             confirmLabel: "Принять в базу",
             run: () => act(() => repo.update(venue.id, { status: "checked" }), "Площадка в базе"),
           }
@@ -324,6 +324,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
         {v.about && <p>{v.about}</p>}
       </section>
 
+      {!archived && (
       <section className="card">
         <StatusPicker label="Статус" options={VENUE_STATUSES} value={venue.status} disabled={busy} onChange={setStatus} />
         <div className="stack stack--tight">
@@ -372,6 +373,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
           </div>
         )}
       </section>
+      )}
 
       <section className="card">
         <h3>Связь</h3>
@@ -394,7 +396,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
                 <a href={venuesRepo?.fileUrl(venue.id, f.sha)} target="_blank" rel="noreferrer">
                   <img src={venuesRepo?.fileUrl(venue.id, f.sha)} alt={`${v.name}, фото ${i + 1}`} loading="lazy" />
                 </a>
-                <button type="button" className="btn btn--quiet venue-photo__remove" disabled={busy} onClick={() => removeFile(f.sha, "фото")}>
+                <button type="button" className="btn btn--quiet venue-photo__remove" disabled={busy || archived} hidden={archived} onClick={() => removeFile(f.sha, "фото")}>
                   Убрать
                 </button>
               </figure>
@@ -406,7 +408,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
             Альбом: <ExternalLink href={v.album} />
           </p>
         )}
-        {photos.length < VENUE_FILES.photo && (
+        {photos.length < VENUE_FILES.photo && !archived && (
           <FilePicker kind="photo" label="Добавить фото" max={uploading.length > 0 ? uploading.filter((f) => f.kind === "photo").length : VENUE_FILES.photo - photos.length} files={uploading.filter((f) => f.kind === "photo")} onChange={(files) => void upload(files)} />
         )}
       </section>
@@ -420,7 +422,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
                 <a href={venuesRepo?.fileUrl(venue.id, f.sha)} target="_blank" rel="noreferrer" className="line-clamp">
                   {f.name || `Меню ${i + 1}`} {f.mime === "application/pdf" ? "(PDF)" : "(фото)"}
                 </a>
-                <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => removeFile(f.sha, "меню")}>
+                <button type="button" className="btn btn--quiet" disabled={busy || archived} hidden={archived} onClick={() => removeFile(f.sha, "меню")}>
                   Убрать
                 </button>
               </li>
@@ -433,7 +435,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
           </p>
         )}
         {v.menuKinds.length > 0 && <p className="muted small">{v.menuKinds.join(", ")}</p>}
-        {menus.length < VENUE_FILES.menu && (
+        {menus.length < VENUE_FILES.menu && !archived && (
           <FilePicker kind="menu" label="Добавить меню" max={uploading.length > 0 ? uploading.filter((f) => f.kind === "menu").length : VENUE_FILES.menu - menus.length} files={uploading.filter((f) => f.kind === "menu")} onChange={(files) => void upload(files)} />
         )}
       </section>
@@ -446,17 +448,19 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
         </p>
       )}
       <div className="actions">
-        <button
-          className="btn btn--secondary btn--block"
-          type="button"
-          onClick={() => {
-            setDraft(venue.data);
-            setError(null);
-            setEditing(true);
-          }}
-        >
-          Изменить анкету
-        </button>
+        {!archived && (
+          <button
+            className="btn btn--secondary btn--block"
+            type="button"
+            onClick={() => {
+              setDraft(venue.data);
+              setError(null);
+              setEditing(true);
+            }}
+          >
+            Изменить анкету
+          </button>
+        )}
         <Link className="btn btn--secondary btn--block" to={list.to}>
           {list.label}
         </Link>

@@ -147,7 +147,7 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
               <li>Пришла {new Date(request.createdAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</li>
               {request.hostName && <li>Привёл: {request.hostName}</li>}
             </ul>
-            {!editing && (
+            {!editing && !archived && (
               <button className="btn btn--secondary btn--block" type="button" onClick={() => setEditing(true)}>
                 Уточнить запрос
               </button>
@@ -161,6 +161,7 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
             />
           )}
 
+          {!archived && (
           <section className="card">
             <StatusPicker
               label="Статус заявки"
@@ -198,9 +199,10 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
               </p>
             )}
           </section>
+          )}
         </div>
 
-        <Matching request={request} onOfferCreated={() => onChange({ ...request, status: request.status === "new" ? "sent" : request.status, offers: request.offers + 1 })} />
+        {!archived && <Matching request={request} onOfferCreated={() => onChange({ ...request, status: request.status === "new" ? "sent" : request.status, offers: request.offers + 1 })} />}
       </div>
 
       <div className="actions">

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { formatSessionCode } from "../../core/code";
 import { mechanicTitle } from "../../mechanics/registry";
 import { sessionsRepo, useLoad, type SessionSummary } from "../../data";
@@ -24,6 +25,7 @@ async function loadOverview(hostId: string): Promise<SessionSummary[]> {
     createdAt: s.createdAt ?? 0,
     updatedAt: s.createdAt ?? 0,
     startedAt: null,
+    stale: false,
   }));
 }
 
@@ -31,16 +33,18 @@ async function loadOverview(hostId: string): Promise<SessionSummary[]> {
 function useOverview(hostId: string) {
   const [state, , update] = useLoad(() => loadOverview(hostId).catch(() => NONE), [hostId]);
   // Тихо обновляем без каркаса загрузки: список не мигает.
+  const reload = useCallback(() => {
+    void loadOverview(hostId)
+      .then((fresh) => update(() => fresh))
+      .catch(() => undefined);
+  }, [hostId, update]);
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void loadOverview(hostId)
-        .then((fresh) => update(() => fresh))
-        .catch(() => undefined);
+      if (document.visibilityState === "visible") reload();
     }, 20_000);
     return () => window.clearInterval(timer);
-  }, [hostId, update]);
-  return state;
+  }, [reload]);
+  return [state, reload] as const;
 }
 
 const PHASE_TITLES: Record<SessionSummary["phase"], string> = { lobby: "Ждёт гостей", playing: "Идёт игра", finished: "Завершена" };
@@ -54,43 +58,109 @@ function ago(ms: number): string {
   return new Date(ms).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
-/** Одна игра строкой: статус, название, код, гости, кнопки «Пульт» (своя) и «Экран зала». */
-export function GameRow({ game, own }: { game: SessionSummary; own: boolean }) {
+/**
+ * Одна игра строкой. Касание — пульт своей идущей игры (или итоги завершённой); «⋯» или свайп
+ * влево — действия: пульт, экран зала, «Завершить игру», «Убрать из списка» (с подтверждением).
+ */
+export function GameRow({ game, own, admin = false, onChanged }: { game: SessionSummary; own: boolean; admin?: boolean; onChanged?: () => void }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [dialog, confirm] = useConfirm();
+  const startX = useRef<number | null>(null);
   const live = game.phase !== "finished";
+  const canClose = live && (own || admin) && Boolean(sessionsRepo.close);
+  const canHide = (!live || game.stale) && (own || admin) && Boolean(sessionsRepo.hide);
+  const title = game.gameTitle || mechanicTitle(game.mechanic);
+  const target = live && own ? `/host/${game.code}` : !live ? `/results/${game.id}` : null;
+  const status = live && game.stale ? "Не завершена" : PHASE_TITLES[game.phase];
+
+  function closeGame() {
+    confirm({
+      title: `Завершить «${title}»?`,
+      text: "Игра закончится для всех гостей, итоги сохранятся в истории. Вернуть её будет нельзя.",
+      confirmLabel: "Завершить игру",
+      run: async () => {
+        await sessionsRepo.close?.(game.id, game.players);
+        setOpen(false);
+        onChanged?.();
+      },
+    });
+  }
+
+  function hideGame() {
+    confirm({
+      title: "Убрать игру из списка?",
+      text: live ? "Игра не завершена, но давно без действий. Она пропадёт из «Игр сейчас», итоги останутся в истории." : "Игра пропадёт из «Игр сейчас». Итоги останутся в «Истории игр».",
+      confirmLabel: "Убрать из списка",
+      run: async () => {
+        await sessionsRepo.hide?.(game.id);
+        onChanged?.();
+      },
+    });
+  }
+
+  const hasActions = canClose || canHide || (live && own);
   return (
-    <li className={`game-row game-row--${game.phase}`}>
-      <div className="game-row__text">
-        <span className="game-row__status">
-          <span className="game-row__dot" aria-hidden="true" />
-          {PHASE_TITLES[game.phase]}
-        </span>
-        <span className="game-row__title line-clamp">
-          {game.gameTitle || mechanicTitle(game.mechanic)} · <span className="game-row__code">{formatSessionCode(game.code)}</span>
-        </span>
-        <span className="muted small line-clamp">
-          {game.players > 0 ? `гостей: ${game.players} · ` : ""}
-          {live ? ago(game.updatedAt) : `закончилась ${ago(game.updatedAt)}`}
-        </span>
+    <li
+      className={`game-row game-row--${game.stale && live ? "stale" : game.phase}${open ? " is-open" : ""}`}
+      onTouchStart={(e) => (startX.current = e.touches[0]?.clientX ?? null)}
+      onTouchEnd={(e) => {
+        const from = startX.current;
+        const to = e.changedTouches[0]?.clientX ?? null;
+        startX.current = null;
+        if (from === null || to === null || !hasActions) return;
+        if (from - to > 60) setOpen(true);
+        if (to - from > 60) setOpen(false);
+      }}
+    >
+      <div className="game-row__main">
+        <button type="button" className="game-row__text" disabled={!target} onClick={() => target && navigate(target)} aria-label={target ? `${title}, ${status}: открыть ${live ? "пульт" : "итоги"}` : `${title}, ${status}`}>
+          <span className="game-row__status">
+            <span className="game-row__dot" aria-hidden="true" />
+            {status}
+            {!own && game.hostName ? ` · ${game.hostName}` : ""}
+          </span>
+          <span className="game-row__title line-clamp">
+            {title} · <span className="game-row__code">{formatSessionCode(game.code)}</span>
+          </span>
+          <span className="muted small line-clamp">
+            {game.players > 0 ? `гостей: ${game.players} · ` : ""}
+            {live ? ago(game.updatedAt) : `закончилась ${ago(game.updatedAt)}`}
+          </span>
+        </button>
+        {hasActions && (
+          <button type="button" className="btn btn--quiet game-row__more" aria-expanded={open} aria-label={`Действия: ${title}`} onClick={() => setOpen((v) => !v)}>
+            ⋯
+          </button>
+        )}
       </div>
-      <div className="game-row__actions">
-        {live && own && (
-          <Link className="tile tile--small" to={`/host/${game.code}`}>
-            <Icon name="remote" className="tile__icon" />
-            <span className="tile__label">Пульт</span>
-          </Link>
-        )}
-        {live && game.screenMode !== "none" && (
-          <Link className="tile tile--small" to={`/screen/${game.code}`}>
-            <Icon name="screen" className="tile__icon" />
-            <span className="tile__label">Экран</span>
-          </Link>
-        )}
-        {!live && (
-          <Link className="btn btn--quiet" to={`/results/${game.id}`}>
-            Итоги
-          </Link>
-        )}
-      </div>
+      {open && (
+        <div className="game-row__actions">
+          {live && own && (
+            <Link className="tile tile--small" to={`/host/${game.code}`}>
+              <Icon name="remote" className="tile__icon" />
+              <span className="tile__label">Пульт</span>
+            </Link>
+          )}
+          {live && own && game.screenMode !== "none" && (
+            <Link className="tile tile--small" to={`/screen/${game.code}`}>
+              <Icon name="screen" className="tile__icon" />
+              <span className="tile__label">Экран</span>
+            </Link>
+          )}
+          {canClose && (
+            <button type="button" className="btn btn--secondary" onClick={closeGame}>
+              Завершить игру
+            </button>
+          )}
+          {canHide && (
+            <button type="button" className="btn btn--quiet" onClick={hideGame}>
+              Убрать из списка
+            </button>
+          )}
+        </div>
+      )}
+      {dialog}
     </li>
   );
 }
@@ -100,7 +170,7 @@ export function GameRow({ game, own }: { game: SessionSummary; own: boolean }) {
  * две, остальные — по кнопке, чтобы до своих игр не надо было долго листать.
  */
 export function ActiveGames({ hostId }: { hostId: string }) {
-  const state = useOverview(hostId);
+  const [state, reload] = useOverview(hostId);
   const [all, setAll] = useState(false);
   const mine = useMemo(() => (state.status === "ready" ? state.data.filter((g) => g.hostId === hostId && g.phase !== "finished") : NONE), [state, hostId]);
   if (mine.length === 0) return null;
@@ -109,7 +179,7 @@ export function ActiveGames({ hostId }: { hostId: string }) {
     <section className="card active-games" aria-label="Ваши идущие игры">
       <ul className="game-rows">
         {shown.map((g) => (
-          <GameRow key={g.id} game={g} own />
+          <GameRow key={g.id} game={g} own onChanged={reload} />
         ))}
       </ul>
       {mine.length > 2 && (
@@ -126,7 +196,7 @@ export function ActiveGames({ hostId }: { hostId: string }) {
  * его текущие игры и две последние. «Все игры» — общий список: сначала идущие, потом ждущие гостей.
  */
 export function LiveOverview({ adminId }: { adminId: string }) {
-  const state = useOverview(adminId);
+  const [state, reload] = useOverview(adminId);
   const [view, setView] = useState<"hosts" | "all">("hosts");
   const [open, setOpen] = useState<string | null>(null);
   const games = state.status === "ready" ? state.data : NONE;
@@ -159,7 +229,7 @@ export function LiveOverview({ adminId }: { adminId: string }) {
         ) : (
           <ul className="game-rows card">
             {active.map((g) => (
-              <GameRow key={g.id} game={g} own={g.hostId === adminId} />
+              <GameRow key={g.id} game={g} own={g.hostId === adminId} admin onChanged={reload} />
             ))}
           </ul>
         )
@@ -185,7 +255,7 @@ export function LiveOverview({ adminId }: { adminId: string }) {
                 {expanded && (
                   <ul className="game-rows">
                     {h.games.map((g) => (
-                      <GameRow key={g.id} game={g} own={g.hostId === adminId} />
+                      <GameRow key={g.id} game={g} own={g.hostId === adminId} admin onChanged={reload} />
                     ))}
                   </ul>
                 )}

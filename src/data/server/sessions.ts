@@ -191,8 +191,16 @@ export const serverSessionsRepository: SessionsRepository = {
       const phase: SessionPhase = d.phase === "playing" || d.phase === "finished" ? d.phase : "lobby";
       const screenMode: ScreenMode = d.screenMode === "none" || d.screenMode === "remote" ? d.screenMode : "laptop";
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-      return [{ id, code, hostId: asText(d.hostId), hostName: asText(d.hostName), gameTitle: asText(d.gameTitle), mechanic: typeof d.mechanic === "string" ? d.mechanic : null, phase, screenMode, players: num(d.players), createdAt: num(d.createdAt), updatedAt: num(d.updatedAt), startedAt: typeof d.startedAt === "number" ? d.startedAt : null }];
+      return [{ id, code, hostId: asText(d.hostId), hostName: asText(d.hostName), gameTitle: asText(d.gameTitle), mechanic: typeof d.mechanic === "string" ? d.mechanic : null, phase, screenMode, players: num(d.players), createdAt: num(d.createdAt), updatedAt: num(d.updatedAt), startedAt: typeof d.startedAt === "number" ? d.startedAt : null, stale: d.stale === true }];
     });
+  },
+
+  async close(sessionId, participantsCount) {
+    await api("POST", `/api/sessions/${encodeURIComponent(sessionId)}/finish`, { participantsCount });
+  },
+
+  async hide(sessionId) {
+    await api("POST", `/api/sessions/${encodeURIComponent(sessionId)}/hide`, {});
   },
 
   async listByHost(hostId) {

@@ -294,6 +294,7 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
     expect((await get(`/api/offers/${offerId}`)).json().items).toHaveLength(2);
     expect((await get("/api/venues/manual-venue-01", owner)).json().archivedAt).toEqual(expect.any(Number));
     expect((await post("/api/venue-offers", { requestId: null, venueIds: ["manual-venue-01"] }, owner)).statusCode).toBe(404);
+    expect((await patch("/api/venues/manual-venue-01", { status: "worked" }, owner)).statusCode).toBe(409);
     expect((await post("/api/venues/manual-venue-01/restore", {}, owner)).json()).toMatchObject({ archivedAt: null, data: { name: "Лофт «Кирпич»" } });
     expect((await post("/api/venues/manual-venue-01/restore", {}, anna)).statusCode).toBe(403);
     expect((await app.inject({ method: "DELETE", url: "/api/venue-requests/request-0001", headers: headers(owner) })).statusCode).toBe(200);

@@ -309,6 +309,10 @@ function Console({ session }: { session: Session }) {
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
                   Начать игру
                 </button>
+                {/* Передумали или сессия создана по ошибке — закрыть, не начиная игру. */}
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
+                  Завершить сессию без игры
+                </button>
               </>
             )}
             {phase === "playing" && HostControls && content !== null && (
@@ -388,14 +392,18 @@ function Console({ session }: { session: Session }) {
 
       <ConfirmDialog
         open={confirmFinish}
-        title="Завершить игру?"
-        confirmLabel="Завершить игру"
+        title={session.state.phase === "lobby" ? "Завершить сессию?" : "Завершить игру?"}
+        confirmLabel={session.state.phase === "lobby" ? "Завершить сессию" : "Завершить игру"}
         busy={busy}
         error={error}
         onConfirm={() => void finish()}
         onCancel={() => setConfirmFinish(false)}
       >
-        <p>Гости увидят финал и итоговую таблицу. Продолжить эту игру после завершения нельзя.</p>
+        <p>
+          {session.state.phase === "lobby"
+            ? "Игра так и не начнётся: гости увидят, что она закончена, код перестанет работать. Вернуть сессию нельзя — для новой игры создайте новую."
+            : "Гости увидят финал и итоговую таблицу. Продолжить эту игру после завершения нельзя."}
+        </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmAward}

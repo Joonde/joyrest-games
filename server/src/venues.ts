@@ -553,9 +553,11 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       if (!user) return reply;
       const body = isRecord(request.body) ? request.body : {};
       const id = request.params.id;
-      const [current] = await sql<{ id: string; status: string; source: string; host_id: string | null; data: unknown }[]>`
-        select id, status, source, host_id, data from venues where id = ${id}`;
+      const [current] = await sql<{ id: string; status: string; source: string; host_id: string | null; data: unknown; archived_at: Date | null }[]>`
+        select id, status, source, host_id, data, archived_at from venues where id = ${id}`;
       if (!current) return fail(reply, 404, "not-found");
+      // Из архива — только «Вернуть»: менять убранную площадку нельзя.
+      if (current.archived_at) return fail(reply, 409, "failed-precondition");
       if (body.status !== undefined && !isVenueStatus(body.status)) return fail(reply, 400, "invalid-argument");
       const rating = body.rating === undefined ? undefined : body.rating === null ? null : Number(body.rating);
       if (rating !== undefined && rating !== null && !(Number.isInteger(rating) && rating >= 1 && rating <= 5)) return fail(reply, 400, "invalid-argument");
@@ -568,7 +570,8 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         const to = String(body.status);
         await sql`update venues set status = ${to}, updated_at = now() where id = ${id}`;
         // Ведущий привёл площадку по своему QR, её приняли в базу — баллы ему (один раз на площадку).
-        if (venueEarnsPoints({ source: current.source, hostId: current.host_id, from: current.status, to, actorId: user.id }) && current.host_id) {
+        // Баллы начисляет только владелец агентства (ведущие с доступом к базе — нет).
+        if (permissions.isAdmin(actorOf(user)) && venueEarnsPoints({ source: current.source, hostId: current.host_id, from: current.status, to, actorId: user.id }) && current.host_id) {
           const name = parseVenue(current.data).name.slice(0, 80) || "без названия";
           await sql`
             insert into host_points (id, host_id, points, kind, reason, created_by)
@@ -669,8 +672,9 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       if (!(await requireManager(request, reply))) return reply;
       const body = isRecord(request.body) ? request.body : {};
       const id = request.params.id;
-      const [current] = await sql<{ id: string }[]>`select id from venue_requests where id = ${id}`;
+      const [current] = await sql<{ id: string; archived_at: Date | null }[]>`select id, archived_at from venue_requests where id = ${id}`;
       if (!current) return fail(reply, 404, "not-found");
+      if (current.archived_at) return fail(reply, 409, "failed-precondition");
       if (body.status !== undefined && !isRequestStatus(body.status)) return fail(reply, 400, "invalid-argument");
       // Сначала проверяем всё, потом пишем: неверные данные не оставляют правку записанной наполовину.
       const data = body.data !== undefined ? parseRequest(body.data) : null;
@@ -712,7 +716,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       const requestId = typeof body.requestId === "string" && ID.test(body.requestId) ? body.requestId : null;
       const venueIds = Array.isArray(body.venueIds) ? [...new Set(body.venueIds.filter((v): v is string => typeof v === "string" && ID.test(v)))] : [];
       if (venueIds.length === 0 || venueIds.length > MAX_OFFER_VENUES) return fail(reply, 400, "invalid-argument");
-      const [req] = requestId ? await sql<{ id: string; data: unknown; status: string }[]>`select id, data, status from venue_requests where id = ${requestId}` : [];
+      const [req] = requestId ? await sql<{ id: string; data: unknown; status: string }[]>`select id, data, status from venue_requests where id = ${requestId} and archived_at is null` : [];
       if (requestId && !req) return fail(reply, 404, "not-found");
       const r = parseRequest(req?.data);
       const rows = await sql<{ id: string; data: unknown; files: unknown }[]>`select id, data, files from venues where id in ${sql(venueIds)} and archived_at is null`;

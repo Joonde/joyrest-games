@@ -23,10 +23,18 @@ interface Props<Id extends string> {
 export function Tabs<Id extends string>({ items, value, onChange, label, idPrefix, scroll = false }: Props<Id>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  // Выбранная вкладка видна в ленте: прокручиваем только саму ленту вбок, страницу не трогаем.
+  const index = items.findIndex((item) => item.id === value);
   useEffect(() => {
     if (!scroll) return;
-    refs.current[items.findIndex((item) => item.id === value)]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [scroll, value, items]);
+    const tab = refs.current[index];
+    const list = tab?.parentElement;
+    if (!tab || !list) return;
+    const left = tab.offsetLeft - list.offsetLeft;
+    if (left < list.scrollLeft || left + tab.offsetWidth > list.scrollLeft + list.clientWidth) {
+      list.scrollTo({ left: Math.max(0, left - 16), behavior: "auto" });
+    }
+  }, [scroll, index]);
 
   function onKeyDown(event: KeyboardEvent, index: number) {
     const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;

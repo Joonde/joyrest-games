@@ -57,14 +57,14 @@ export function SwipePages({ pages, storageKey }: { pages: Page[]; storageKey: s
     <div className="swipe">
       <div className="swipe__switch" role="tablist" aria-label="Экраны">
         {pages.map((p, i) => (
-          <button key={p.id} type="button" role="tab" aria-selected={i === index} className={i === index ? "swipe__tab is-on" : "swipe__tab"} onClick={() => go(i)}>
+          <button key={p.id} type="button" role="tab" id={`swipe-tab-${p.id}`} aria-controls={`swipe-page-${p.id}`} aria-selected={i === index} className={i === index ? "swipe__tab is-on" : "swipe__tab"} onClick={() => go(i)}>
             {p.label}
           </button>
         ))}
       </div>
       <div ref={box} className="swipe__pages" onScroll={onScroll}>
         {pages.map((p, i) => (
-          <section key={p.id} className="swipe__page" aria-label={p.label} aria-hidden={i !== index} inert={i !== index ? true : undefined}>
+          <section key={p.id} id={`swipe-page-${p.id}`} role="tabpanel" aria-labelledby={`swipe-tab-${p.id}`} className="swipe__page" aria-hidden={i !== index} inert={i !== index ? true : undefined}>
             {p.node}
           </section>
         ))}

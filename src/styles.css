@@ -7135,10 +7135,49 @@ button.dance-card:active {
 
 .game-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
   min-width: 0;
+}
+
+.game-row__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+button.game-row__text {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 52px;
+}
+
+button.game-row__text:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.game-row__more {
+  flex: none;
+  min-width: 52px;
+  font-size: 22px;
+}
+
+.game-row--stale .game-row__dot {
+  background: #e3aa9c;
+}
+
+.game-row__actions {
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .game-row + .game-row {
@@ -7193,7 +7232,6 @@ button.dance-card:active {
 .game-row__actions {
   display: flex;
   gap: 8px;
-  flex: none;
 }
 
 .tile.tile--small {
@@ -7231,7 +7269,7 @@ button.dance-card:active {
 }
 
 .swipe__tab {
-  min-height: 44px;
+  min-height: 52px;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -7267,6 +7305,18 @@ button.dance-card:active {
   scroll-snap-stop: always;
   padding-inline: 4px;
   box-sizing: border-box;
+}
+
+/* Невидимый экран не растягивает высоту видимого (пустая прокрутка под «Играми сейчас»). */
+.swipe__page[aria-hidden="true"] {
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+/* Меню «⋯» у нижних карточек не обрезается краем ленты. */
+.swipe__pages {
+  padding-bottom: 240px;
+  margin-bottom: -240px;
 }
 
 .host-rows {

@@ -80,6 +80,16 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const original = useRef<GamePatch>({ title: initial.title, content: game.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
   const edited = useRef(false);
   const [leaving, setLeaving] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
+  /** Дождаться, пока правки дойдут до сервера (до 6 с), — потом уходить. */
+  async function settled(): Promise<void> {
+    const end = Date.now() + 6000;
+    await new Promise((r) => setTimeout(r, 50));
+    while (statusRef.current !== "saved" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
+  }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
   const errors = useMemo(() => validateGame(game.mechanic, game.content), [game.mechanic, game.content]);
@@ -92,10 +102,12 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   }
 
   /** «← К играм»: без правок — сразу; с правками — спросить, сохранить их или вернуть как было. */
-  function goBack() {
-    if (!editable || !edited.current) return navigate(back);
+  function goBack(to: string = back) {
+    leaveTo.current = to;
+    if (!editable || !edited.current) return navigate(to);
     setLeaving(true);
   }
+  const leaveTo = useRef(back);
 
   function onTitle(value: string) {
     setTitleInput(value);
@@ -126,8 +138,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
 
   return (
     <main className="page">
-      <TopBar title={editable ? "Игра" : "Игра JoyRest"} actions={[{ label: "В студию", to: back }]} />
-      <button type="button" className="btn btn--quiet back-link" onClick={goBack}>
+      <TopBar title={editable ? "Игра" : "Игра JoyRest"} actions={[{ label: "В студию", onClick: () => goBack(back) }]} onHome={() => goBack("/studio")} />
+      <button type="button" className="btn btn--quiet back-link" onClick={() => goBack()}>
         ← К играм
       </button>
       {editable ? (
@@ -279,7 +291,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       )}
 
       <div className="actions">
-        <button type="button" className="btn btn--secondary btn--block" onClick={goBack}>
+        <button type="button" className="btn btn--secondary btn--block" onClick={() => goBack()}>
           ← К играм
         </button>
       </div>
@@ -288,9 +300,11 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         title="Сохранить изменения?"
         confirmLabel="Сохранить и выйти"
         cancelLabel="Остаться в игре"
+        busy={restoring}
         onConfirm={() => {
+          setRestoring(true);
           flush(true);
-          navigate(back);
+          void settled().then(() => navigate(leaveTo.current));
         }}
         onCancel={() => setLeaving(false)}
       >
@@ -298,15 +312,18 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         <button
           type="button"
           className="btn btn--quiet btn--block"
+          disabled={restoring}
           onClick={() => {
             const before = original.current;
+            setRestoring(true);
             setGame((g) => ({ ...g, ...before }));
             change(before);
             flush(true);
-            navigate(back);
+            // Уходим, только когда игра на сервере уже вернулась к прежнему виду.
+            void settled().then(() => navigate(leaveTo.current));
           }}
         >
-          Не сохранять — вернуть как было
+          {restoring ? "Возвращаем…" : "Не сохранять — вернуть как было"}
         </button>
       </ConfirmDialog>
       <Toast text={toast} />

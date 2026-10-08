@@ -94,8 +94,8 @@ export function VenuesHome() {
             ]}
           />
           <div id={`venues-panel-${tab}`} role="tabpanel" aria-labelledby={`venues-tab-${tab}`} className="stack">
-            {tab === "venues" && <VenuesTab mode="base" />}
-            {tab === "forms" && <VenuesTab mode="forms" />}
+            {tab === "venues" && <VenuesTab mode="base" owner={permissions.isAdmin(profile)} />}
+            {tab === "forms" && <VenuesTab mode="forms" owner={permissions.isAdmin(profile)} />}
             {tab === "requests" && <RequestsTab />}
             {tab === "archive" && <ArchiveTab />}
             {tab === "qr" && <VenueQr uid={uid} />}
@@ -249,7 +249,7 @@ function venueSearchParts(v: VenueRecord): string[] {
   return [d.name, d.type, d.district, d.metro, d.location, d.address, d.about, d.person, d.phone, d.email, d.messenger, d.site, ...d.cuisine, ...d.features, v.notes, v.hostName ?? ""];
 }
 
-function VenuesTab({ mode }: { mode: "base" | "forms" }) {
+function VenuesTab({ mode, owner }: { mode: "base" | "forms"; owner: boolean }) {
   const navigate = useNavigate();
   const [state, retry, update] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
   const [busy, setBusy] = useState<string | null>(null);
@@ -293,7 +293,7 @@ function VenuesTab({ mode }: { mode: "base" | "forms" }) {
       title: next === "checked" ? `Принять «${name}» в базу?` : `«${name}» не подходит?`,
       text:
         next === "checked"
-          ? `Площадка перейдёт в «Площадки» со статусом «Проверено».${v.hostName ? ` Ведущему ${v.hostName} начислятся баллы за то, что он её привёл.` : ""}`
+          ? `Площадка перейдёт в «Площадки» со статусом «Проверено».${v.hostName && owner ? ` Ведущему ${v.hostName} начислятся баллы за то, что он её привёл.` : ""}`
           : "Анкета уйдёт в «Площадки» со статусом «Не подходит» и не попадёт в подбор. Статус можно поменять в карточке.",
       confirmLabel: next === "checked" ? "Принять в базу" : "Не подходит",
       run: async () => {

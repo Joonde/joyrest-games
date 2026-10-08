@@ -97,8 +97,18 @@ export function useConfirm(): [ReactNode, (request: ConfirmRequest) => void] {
           try {
             await current.run();
             setRequest(null);
-          } catch {
-            setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
+          } catch (e) {
+            // Постоянная ошибка (нет доступа, уже удалено, уже изменено) — повтор не поможет.
+            const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+            setError(
+              code === "permission-denied"
+                ? "Нет доступа к этому действию."
+                : code === "not-found"
+                  ? "Этого уже нет — возможно, кто-то удалил раньше. Закройте окно и обновите страницу."
+                  : code === "failed-precondition"
+                    ? "Уже изменилось на другом устройстве. Закройте окно и обновите страницу."
+                    : "Не получилось. Проверьте интернет и нажмите ещё раз.",
+            );
           } finally {
             setBusy(false);
           }

@@ -16,13 +16,15 @@ interface Props {
    * касание не должно уводить с пульта.
    */
   leaveWarning?: string;
+  /** Своя обработка ухода по монограмме (например, конструктор спросит про несохранённые правки). */
+  onHome?: () => void;
 }
 
 /** Единая шапка пульта, студии и админки: монограмма, «JoyRest Games», название экрана и действия. */
 /** Сколько кнопок помещается в шапку на компьютере, не обрезая название экрана. */
 const INLINE_ACTIONS = 3;
 
-export function TopBar({ title, actions = [], leaveWarning }: Props) {
+export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
   const navigate = useNavigate();
   const [asking, setAsking] = useState(false);
   const overflow = actions.length > INLINE_ACTIONS + 1;
@@ -36,6 +38,11 @@ export function TopBar({ title, actions = [], leaveWarning }: Props) {
           className="topbar__home"
           aria-label="В студию"
           onClick={(event) => {
+            if (onHome) {
+              event.preventDefault();
+              onHome();
+              return;
+            }
             if (!leaveWarning) return;
             event.preventDefault();
             setAsking(true);

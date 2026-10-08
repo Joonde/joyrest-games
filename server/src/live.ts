@@ -422,6 +422,30 @@ function validName(value: unknown): value is string {
 }
 
 /** Итоги сессии для истории — по таблице лидеров на сервере. `replace` — завершение (обновить). */
+/**
+ * Сессии старше `cutoff` — с участниками и ответами (итоги сначала сохраняются в историю). Вызывают
+ * владелец при входе в «Управление» и ночная уборка сервера (`cleanup.ts`), по 100 за раз.
+ */
+export async function expireSessions(sql: Sql, cutoff: Date, limit = CLEANUP_LIMIT): Promise<{ deleted: number; more: boolean }> {
+  const rows = await sql<SessionRow[]>`
+    select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
+    where created_at < ${cutoff} order by created_at limit ${limit + 1}`;
+  const batch = rows.slice(0, limit);
+  for (const row of batch) {
+    await sql.begin(async (tx) => {
+      if (Object.keys(normalizeBoard(row.leaderboard)).length > 0) {
+        const [{ count }] = await tx<{ count: number }[]>`
+          select count(*)::int as count from participants where session_id = ${row.id} and kind = 'player'`;
+        await saveResult(tx, row, count, false);
+      }
+      await tx`delete from answers where session_id = ${row.id}`;
+      await tx`delete from participants where session_id = ${row.id}`;
+      await tx`delete from sessions where id = ${row.id}`;
+    });
+  }
+  return { deleted: batch.length, more: rows.length > limit };
+}
+
 async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean): Promise<void> {
   // В транзакции и вне её запросы пишутся одинаково.
   const sql = db as Sql;
@@ -489,6 +513,21 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         return null;
       }
       if (!permissions.canControlSession(who.uid, { hostId: row.host_id })) {
+        fail(reply, 403, "permission-denied");
+        return null;
+      }
+      return { who, row };
+    }
+
+    async function finishableSession(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): Promise<{ who: Identity; row: SessionRow } | null> {
+      const who = await requireIdentity(request, reply);
+      if (!who) return null;
+      const row = await loadSession(request.params.id);
+      if (!row) {
+        fail(reply, 404, "not-found");
+        return null;
+      }
+      if (!permissions.canControlSession(who.uid, { hostId: row.host_id }) && !permissions.isAdmin(actor(who))) {
         fail(reply, 403, "permission-denied");
         return null;
       }
@@ -615,14 +654,15 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who.user) return fail(reply, 403, "permission-denied");
       const all = permissions.isAdmin(actor(who));
       const rows = await sql<
-        { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null }[]
+        { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null; stale: boolean }[]
       >`
         select s.id, s.code, s.host_id, u.name as host_name, s.game_title, s.mechanic, s.phase, s.screen_mode, s.created_at, s.updated_at, s.started_at,
+               (s.phase in ('lobby', 'playing') and s.updated_at < now() - interval '12 hours') as stale,
                (select count(*)::int from participants p where p.session_id = s.id and p.kind = 'player') as players
         from (
           select *, row_number() over (partition by host_id, phase = 'finished' order by updated_at desc) as n
           from sessions
-          where (${all}::boolean or host_id = ${who.uid}) and created_at > now() - interval '30 days'
+          where (${all}::boolean or host_id = ${who.uid}) and created_at > now() - interval '30 days' and hidden_at is null
         ) s
         left join users u on u.id = s.host_id
         where s.phase in ('lobby', 'playing') or s.n <= 2
@@ -642,7 +682,24 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         createdAt: r.created_at.getTime(),
         updatedAt: r.updated_at.getTime(),
         startedAt: r.started_at ? r.started_at.getTime() : null,
+        stale: r.stale,
       }));
+    });
+
+    // «Убрать из списка»: завершённая или брошенная (12 часов без действий) игра пропадает из «Игр сейчас».
+    // Ведущий — свою, владелец — любую. Идущую сначала завершают.
+    api.post<{ Params: { id: string } }>("/api/sessions/:id/hide", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who?.user) return who ? fail(reply, 403, "permission-denied") : reply;
+      const row = await loadSession(request.params.id);
+      if (!row) return fail(reply, 404, "not-found");
+      if (!permissions.canDeleteSession(actor(who), { hostId: row.host_id })) return fail(reply, 403, "permission-denied");
+      const rows = await sql`
+        update sessions set hidden_at = now()
+        where id = ${row.id} and (phase = 'finished' or updated_at < now() - interval '12 hours')
+        returning id`;
+      if (rows.length === 0) return fail(reply, 409, "failed-precondition");
+      return { ok: true };
     });
 
     api.get<{ Params: { id: string }; Querystring: { since?: string } }>("/api/sessions/:id", async (request, reply) => {
@@ -710,7 +767,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     });
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/finish", { bodyLimit: SMALL_BODY }, async (request, reply) => {
-      const hosted = await hostedSession(request, reply);
+      // Завершить может ведущий игры, а владелец — любую (брошенную игру ведущего из «Игр сейчас»).
+      const hosted = await finishableSession(request, reply);
       if (!hosted) return reply;
       const count = isRecord(request.body) ? request.body.participantsCount : 0;
       const participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
@@ -733,24 +791,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const asked = isRecord(request.body) && typeof request.body.cutoff === "number" ? request.body.cutoff : 0;
       // Не свежее срока хранения, даже если браузер попросил иначе.
       const cutoff = new Date(Math.min(asked, retentionCutoff(now())));
-      const rows = await sql<SessionRow[]>`
-        select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
-        where created_at < ${cutoff} order by created_at limit ${CLEANUP_LIMIT + 1}`;
-      const batch = rows.slice(0, CLEANUP_LIMIT);
-      for (const row of batch) {
-        await sql.begin(async (tx) => {
-          if (Object.keys(normalizeBoard(row.leaderboard)).length > 0) {
-            const [{ count }] = await tx<{ count: number }[]>`
-              select count(*)::int as count from participants where session_id = ${row.id} and kind = 'player'`;
-            await saveResult(tx, row, count, false);
-          }
-          await tx`delete from answers where session_id = ${row.id}`;
-          await tx`delete from participants where session_id = ${row.id}`;
-          await tx`delete from sessions where id = ${row.id}`;
-        });
-      }
-      request.log.info({ cleanup: batch.length }, "sessions cleanup");
-      return { deleted: batch.length, more: rows.length > CLEANUP_LIMIT };
+      const report = await expireSessions(sql, cutoff);
+      request.log.info({ cleanup: report.deleted }, "sessions cleanup");
+      return report;
     });
 
     // ---------------------------------------------------------------- участники

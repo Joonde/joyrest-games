@@ -8264,9 +8264,31 @@ button.dance-card:active {
   text-decoration: line-through;
 }
 
+/* Подсказки на пульте: три в ряд, высота по содержимому — эмодзи и подпись в две строки не вылезают за плитку. */
+.tiles.mil-host-lifelines {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mil-host-lifelines .tile {
+  aspect-ratio: auto;
+  min-height: 88px;
+  justify-content: flex-start;
+  padding: 12px 6px;
+}
+
 .mil-host-lifeline .tile__icon {
+  width: auto;
+  max-width: none;
+  aspect-ratio: auto;
   font-size: 26px;
-  line-height: 1;
+  line-height: 1.1;
+}
+
+.mil-host-lifelines .tile__label {
+  font-size: 13px;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .mil-ladder-editor {

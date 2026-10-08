@@ -35,6 +35,8 @@ import { Toast, useToast } from "../components/Toast";
 import { screenStatusLabel, useScreenStatus } from "../components/live/screenStatus";
 import { SoundPad } from "../components/live/SoundPad";
 import { useWakeLock } from "../components/live/useWakeLock";
+import { useServerNow } from "../components/live/useServerNow";
+import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel } from "../components/live/SlidesPanel";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
@@ -265,6 +267,10 @@ function Console({ session }: { session: Session }) {
   // Телефон ведущего не гаснет, пока идёт вечер.
   useWakeLock(phase !== "finished");
   const screenLabel = screen === undefined ? null : screenStatusLabel(screen);
+  // Сколько идёт вечер: с первого гостя (сервер), пока он не записан — по самому раннему входу.
+  const firstJoin = participants.reduce<number | null>((min, p) => (typeof p.joinedAt === "number" && (min === null || p.joinedAt < min) ? p.joinedAt : min), null);
+  const eventStart = session.eventStartedAt ?? firstJoin;
+  const clockNow = useServerNow(20_000, phase !== "finished" && eventStart !== null);
 
   return (
     <main className="page page--pult">
@@ -273,6 +279,7 @@ function Console({ session }: { session: Session }) {
         <span className="pult-status__code">{formatSessionCode(session.code)}</span>
         <span>{session.playMode === "teams" ? `телефонов: ${phones}` : `игроков: ${phones}`}</span>
         <span>{phase === "lobby" ? "ждём гостей" : phase === "playing" ? "идёт игра" : "завершена"}</span>
+        {phase !== "finished" && eventStart !== null && <span title="Сколько идёт вечер (с первого гостя)">вечер {elapsedClock(clockNow - eventStart)}</span>}
         {screenLabel && <span className={screenLabel.ok ? "pult-status__screen is-ok" : "pult-status__screen"}>{screenLabel.text}</span>}
       </p>
 

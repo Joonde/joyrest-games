@@ -289,6 +289,8 @@ export interface Session {
   state: SessionState;
   leaderboard: Leaderboard;
   createdAt: number | null;
+  /** Свой сервер: начало вечера — первый гость или «Начать игру» (по часам сервера). */
+  eventStartedAt?: number | null;
 }
 
 export interface Participant {
@@ -352,6 +354,9 @@ export interface GameResult {
   /** Свой сервер: «Начать игру» и «Завершить игру» (сколько шла игра). */
   startedAt?: number | null;
   finishedAt?: number | null;
+  /** Свой сервер: перерывы вечера (слайд «Перерыв»): сколько длились и сколько их было. */
+  breaksMs?: number;
+  breaksCount?: number;
 }
 
 /** Итог автоочистки старых сессий. */

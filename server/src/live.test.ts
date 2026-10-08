@@ -252,6 +252,34 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
   });
 
+  it("время вечера: начало — первый гость, перерывы — слайд «Перерыв», в итогах — их длительность", async () => {
+    await newSession("ev1");
+    expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBeNull();
+    const guest = await device();
+    expect((await call("POST", `/api/sessions/ev1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" })).statusCode).toBe(200);
+    const started = (await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt as number;
+    expect(started).toBeGreaterThan(0);
+    // Повторный вход того же гостя начало не сдвигает.
+    await call("POST", `/api/sessions/ev1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" });
+    expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBe(started);
+
+    const slide = { id: "b1", kind: "break", title: "Перерыв", text: "", lines: [], endsAt: Date.now() + 10 * 60_000 };
+    expect((await call("POST", "/api/sessions/ev1/apply", host, { state: { slide } })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/ev1/apply", host, { state: { slide: null } })).statusCode).toBe(200);
+    const [row] = await sql<{ breaks: Array<{ id: string; start: number; end: number }> }[]>`select breaks from sessions where id = 'ev1'`;
+    expect(row?.breaks).toHaveLength(1);
+    expect(row?.breaks[0]?.end).toBeLessThan(Date.now() + 1000);
+    // Перерыв 15 минут (подменяем время, чтобы не ждать).
+    const t = Date.now();
+    await sql`update sessions set breaks = ${sql.json([{ id: "b1", start: t - 20 * 60_000, end: t - 5 * 60_000 }] as never)} where id = 'ev1'`;
+    await call("POST", "/api/sessions/ev1/leaderboard", host, { entries: { [guest.uid]: { name: "Аня", kind: "player", score: 10 } } });
+    expect((await call("POST", "/api/sessions/ev1/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    const result = (await call("GET", "/api/results/ev1", "")).json();
+    expect(result.breaksCount).toBe(1);
+    expect(result.breaksMs).toBe(15 * 60_000);
+    expect(result.startedAt).toBe(started);
+  });
+
   it("пульт: устаревшее изменение — 409; прибавка очков складывается; после финиша — только музыка и слайды", async () => {
     await newSession("exp1");
     expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } })).statusCode).toBe(200);

@@ -15,6 +15,7 @@ import { generateSessionCode } from "../../src/core/code";
 import { cleanName, NAME_MAX_LENGTH } from "../../src/core/names";
 import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/session";
 import { compactBoard } from "../../src/core/results";
+import { breakStats, parseBreaks, trackBreaks } from "../../src/core/eventTime";
 import { retentionCutoff } from "../../src/core/retention";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
@@ -97,9 +98,13 @@ interface SessionRow {
   created_at: Date | null;
   /** «Начать игру» (миграция 0005). */
   started_at?: Date | null;
+  /** Начало вечера: первый гость (миграция 0014). */
+  event_started_at?: Date | null;
+  /** Перерывы (`src/core/eventTime.ts`). */
+  breaks?: unknown;
 }
 
-const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at"];
+const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks"];
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
@@ -180,6 +185,8 @@ function sessionOf(row: SessionRow) {
     state: normalizeState(row.state),
     leaderboard: normalizeBoard(row.leaderboard),
     createdAt: row.created_at ? row.created_at.getTime() : null,
+    eventStartedAt: row.event_started_at ? row.event_started_at.getTime() : null,
+    breaks: parseBreaks(row.breaks),
     version: row.version,
   };
 }
@@ -401,6 +408,8 @@ interface ResultRow {
   board: unknown;
   started_at?: Date | null;
   finished_at?: Date | null;
+  breaks_ms?: string | number | null;
+  breaks_count?: number | null;
 }
 
 function resultOf(row: ResultRow) {
@@ -417,6 +426,8 @@ function resultOf(row: ResultRow) {
     board: Array.isArray(row.board) ? row.board : [],
     startedAt: row.started_at ? row.started_at.getTime() : null,
     finishedAt: row.finished_at ? row.finished_at.getTime() : null,
+    breaksMs: Number(row.breaks_ms ?? 0) || 0,
+    breaksCount: row.breaks_count ?? 0,
   };
 }
 
@@ -455,18 +466,22 @@ async function saveResult(db: Sql | TransactionSql, row: SessionRow, participant
   const sql = db as Sql;
   const board = sql.json(compactBoard(normalizeBoard(row.leaderboard)) as never);
   const title = row.game_title.slice(0, 80);
+  // Начало вечера — первый гость; без него — «Начать игру». Перерывы — до момента сохранения.
+  const started = row.event_started_at ?? row.started_at ?? null;
+  const pauses = breakStats(parseBreaks(row.breaks), Date.now());
   if (replace) {
     await sql`
-      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at)
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at, breaks_ms, breaks_count)
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
-              ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null}, now())
+              ${row.created_at}, ${participantsCount}, ${board}, ${started}, now(), ${pauses.ms}, ${pauses.count})
       on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board,
-        started_at = excluded.started_at, finished_at = coalesce(results.finished_at, excluded.finished_at), saved_at = now()`;
+        started_at = excluded.started_at, finished_at = coalesce(results.finished_at, excluded.finished_at),
+        breaks_ms = excluded.breaks_ms, breaks_count = excluded.breaks_count, saved_at = now()`;
   } else {
     await sql`
-      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at)
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, breaks_ms, breaks_count)
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
-              ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null})
+              ${row.created_at}, ${participantsCount}, ${board}, ${started}, ${pauses.ms}, ${pauses.count})
       on conflict (id) do nothing`;
   }
 }
@@ -561,13 +576,21 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const checked = update(state, board);
         if (checked === "conflict") return "conflict" as const;
         if (!checked) return null;
-        const next = applyChange(state, board, checked, now());
+        const at = now();
+        const next = applyChange(state, board, checked, at);
         const starting = state.phase !== "playing" && next.state.phase === "playing";
+        // Перерывы вечера — по слайду «Перерыв» на экране зала.
+        const before = parseBreaks(row.breaks);
+        const breaks = trackBreaks(before, state.slide ?? null, next.state.slide ?? null, at);
+        const breaksChanged = JSON.stringify(breaks) !== JSON.stringify(before);
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(next.state as never)}, leaderboard = ${tx.json(next.leaderboard as never)},
             version = version + 1, updated_at = now(), hidden_at = null,
             -- «Начать игру» (любым путём: /apply или /phase) — начало игры для баллов ведущего.
-            started_at = case when ${starting} then coalesce(started_at, ${new Date(now())}) else started_at end
+            started_at = case when ${starting} then coalesce(started_at, ${new Date(at)}) else started_at end,
+            -- Вечер без гостей с телефонами начинается с «Начать игру».
+            event_started_at = case when ${starting} then coalesce(event_started_at, ${new Date(at)}) else event_started_at end,
+            breaks = case when ${breaksChanged} then ${tx.json(breaks as never)} else breaks end
           where id = ${sessionId} returning version::int as version`;
         // Подписчикам — изменённые записи таблицы целиком (с прибавкой и новым именем).
         const changed: Record<string, LeaderboardEntry | null> = { ...checked.leaderboard };
@@ -886,6 +909,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         values (${id}, ${pid}, ${body.name}, 'player', ${teamId}, ${who.uid})
         on conflict (session_id, id) do update set name = excluded.name, team_id = excluded.team_id
         returning ${sql(PARTICIPANT_COLUMNS)}`;
+      // Первый гость — начало вечера (CLAUDE.md, «Время вечера»); дальше не перезаписывается.
+      if (!existing) await sql`update sessions set event_started_at = now() where id = ${id} and event_started_at is null`;
       publishParticipant(id, row ?? null);
       return { ok: true };
     });

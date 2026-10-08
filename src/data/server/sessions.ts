@@ -81,6 +81,7 @@ export function parseSession(value: unknown): Versioned | null {
     state: parseState(d.state),
     leaderboard: parseBoard(d.leaderboard),
     createdAt: typeof d.createdAt === "number" ? d.createdAt : null,
+    eventStartedAt: typeof d.eventStartedAt === "number" ? d.eventStartedAt : null,
     version: num(d.version),
   };
 }

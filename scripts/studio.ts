@@ -18,6 +18,10 @@ import { validateLotto } from "../src/mechanics/lotto/validate";
 import { cardFor, isWin, nextSong, parseLottoResult, playedUpTo, playSong, revealSong } from "../src/mechanics/lotto/logic";
 import type { Answer, Participant, Session } from "../src/data/types";
 import { DEMO_BOARD } from "../src/mechanics/board/demo";
+import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
+import { parseCheckers } from "../src/mechanics/checkers/content";
+import { validateCheckers } from "../src/mechanics/checkers/validate";
+import { moveChange, parseCheckersResult, revealQuestion, showQuestion as showCheckersQuestion, toMove } from "../src/mechanics/checkers/logic";
 import { parseBoard } from "../src/mechanics/board/content";
 import { validateBoard } from "../src/mechanics/board/validate";
 import { boardBuzzSync, boardReveal, boardWrong, openCell, parseBoardResult, startCatQuestion, toBoard } from "../src/mechanics/board/logic";
@@ -479,6 +483,7 @@ async function main() {
     { mechanic: "quiz", ...DEMO_MELODY },
     { mechanic: "lotto", ...DEMO_LOTTO },
     { mechanic: "board", ...DEMO_BOARD },
+    { mechanic: "checkers", ...DEMO_CHECKERS },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -495,7 +500,11 @@ async function main() {
     templateIds[t.title] = id;
     const saved = await back.call<{ title: string; mechanic: string; content: unknown }>("GET", `/api/games/${id}`);
     const errors =
-      saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : saved.mechanic === "board" ? validateBoard(parseBoard(saved.content)) : validateContent(parseContent(saved.content));
+      saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : saved.mechanic === "board"
+          ? validateBoard(parseBoard(saved.content))
+          : saved.mechanic === "checkers"
+            ? validateCheckers(parseCheckers(saved.content))
+            : validateContent(parseContent(saved.content));
     check(saved.title === t.title && errors.length === 0, `шаблон «${t.title}» виден ведущему и готов к запуску`, errors.map((e) => e.message).join("; "));
     const copy = uid();
     check(
@@ -612,6 +621,50 @@ async function main() {
       check((final.leaderboard[u2]?.score ?? 0) === first.points - 50, "вторая ставка сгорела", String(final.leaderboard[u2]?.score));
     }
     check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Своя игра» завершена");
+  }
+
+  // «Шашки»: две «команды» (гостя), вопрос — верно и быстрее отвечает белый, ход белых по правилам.
+  {
+    const game = parseCheckers(DEMO_CHECKERS.content);
+    const sid = uid();
+    await back.call<{ code: string }>("POST", "/api/sessions", {
+      id: sid, gameId: templateIds[DEMO_CHECKERS.title] ?? null, gameTitle: DEMO_CHECKERS.title, playMode: "solo", screenMode: "laptop", themeId: "joyrest", mechanic: "checkers",
+      gameSnapshot: { title: DEMO_CHECKERS.title, content: DEMO_CHECKERS.content },
+    });
+    const w = new Device("белые");
+    const b = new Device("чёрные");
+    const uw = (await w.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    const ub = (await b.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    await w.call("POST", `/api/sessions/${sid}/participants/${uw}/join`, { name: "⚪ Белые", teamId: null });
+    await wait(50);
+    await b.call("POST", `/api/sessions/${sid}/participants/${ub}/join`, { name: "⚫ Чёрные", teamId: null });
+    const get = () => back.call<Session>("GET", `/api/sessions/${sid}`);
+    const act = async (change: object) => {
+      const cur = await get();
+      return back.status("POST", `/api/sessions/${sid}/apply`, { ...change, expect: { phase: cur.state.phase, step: cur.state.step, stage: cur.state.stage } });
+    };
+    const people = () => back.call<Participant[]>("GET", `/api/sessions/${sid}/participants`);
+    await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } });
+    check((await act(showCheckersQuestion(await get(), game, await people()))) === 200, "шашки: вопрос показан");
+    const sides = parseCheckersResult((await get()).state.result);
+    check(sides.white === uw && sides.black === ub, "белые — первые подключившиеся, чёрные — вторые");
+    const q = game.questions[0];
+    const right = q?.kind === "choice" ? q.correct : (q?.answers[0] ?? "");
+    await w.call("POST", `/api/sessions/${sid}/answers`, { step: 0, pid: uw, value: right });
+    await wait(30);
+    await b.call("POST", `/api/sessions/${sid}/answers`, { step: 0, pid: ub, value: right });
+    await act(revealQuestion(await get(), game, await back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/0`), await people()));
+    check(parseCheckersResult((await get()).state.result).mover === uw, "ход получил ответивший верно и быстрее");
+    await act(toMove(await get()));
+    const step = (await get()).state.step;
+    // Неправильный ход сервер примет как ответ, но пульт его не поставит.
+    await w.call("POST", `/api/sessions/${sid}/answers`, { step, pid: uw, value: { path: [40, 33] } });
+    const moved = moveChange(await get(), await back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/${step}`));
+    check(moved !== null, "ход белых по правилам принят пультом");
+    if (moved) await act(moved);
+    const after = parseCheckersResult((await get()).state.result);
+    check(after.board[40] === "." && after.board[33] === "w", "шашка переставлена на доске");
+    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "шашки завершены");
   }
 
   // ------------------------------------------------ уборка за собой

@@ -1,5 +1,7 @@
 import { board } from "./board";
 import { DEMO_BOARD } from "./board/demo";
+import { checkers } from "./checkers";
+import { DEMO_CHECKERS } from "./checkers/demo";
 import { lotto } from "./lotto";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
@@ -16,7 +18,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -25,6 +27,7 @@ export function getMechanic(id: string | null): AnyMechanic | undefined {
 const HINTS: Record<string, string> = {
   quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
   lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
+  checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
 };
 
@@ -85,6 +88,12 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     title: DEMO_BOARD.title,
     hint: "4 категории по 5 вопросов, два «Кота в мешке». Клетки с треками и картинками добавьте в копии игры.",
     content: DEMO_BOARD.content,
+  },
+  {
+    mechanic: checkers.id,
+    title: DEMO_CHECKERS.title,
+    hint: "30 вопросов на общие знания, две команды: белые и чёрные.",
+    content: DEMO_CHECKERS.content,
   },
 ];
 

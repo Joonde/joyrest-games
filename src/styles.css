@@ -6641,3 +6641,257 @@ ul.chips {
   border-radius: 12px;
   object-fit: contain;
 }
+
+/* ---------- «Шашки» ---------- */
+
+.checkers {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 4px solid #8a6a3e;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.checkers--screen {
+  height: 100%;
+  max-width: 100%;
+  border-width: 1cqh;
+  border-radius: 2cqh;
+}
+
+.checkers--phone {
+  width: min(100%, 420px);
+  margin-inline: auto;
+}
+
+.checkers__cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.checkers__cell.is-light {
+  background: #f3dfae;
+}
+
+.checkers__cell.is-dark {
+  background: #8a5a3c;
+}
+
+button.checkers__cell {
+  cursor: pointer;
+}
+
+.checkers__cell.is-last {
+  box-shadow: inset 0 0 0 4px rgba(227, 198, 140, 0.9);
+}
+
+.checkers__cell.is-movable .checkers__piece {
+  box-shadow: 0 0 0 3px #e3c68c, 0 0 16px 4px rgba(227, 198, 140, 0.8);
+  animation: board-pulse 1.2s ease-in-out infinite;
+}
+
+.checkers__cell.is-selected {
+  box-shadow: inset 0 0 0 4px #e3aa9c;
+}
+
+.checkers__cell.is-target::after {
+  content: "";
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  background: rgba(163, 194, 170, 0.95);
+  box-shadow: 0 0 12px rgba(163, 194, 170, 0.9);
+}
+
+.checkers__piece {
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.1em;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.checkers--screen .checkers__piece {
+  font-size: 4.5cqh;
+}
+
+.checkers__piece--w {
+  background: radial-gradient(circle at 35% 30%, #fffaf2 0%, #f1e6d6 55%, #cdbfa9 100%);
+  color: #8a6a3e;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.checkers__piece--b {
+  background: radial-gradient(circle at 35% 30%, #5a504a 0%, #2a2522 60%, #141110 100%);
+  color: #e3c68c;
+  box-shadow: inset 0 0 0 2px #c9a15f, 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.checkers__piece.is-king {
+  box-shadow: inset 0 0 0 3px #e3c68c, 0 0 14px rgba(227, 198, 140, 0.8);
+}
+
+.checkers-screen {
+  width: 100%;
+  height: 100%;
+  padding: 3cqh 3cqw;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3cqw;
+  font-size: 3.4cqh;
+}
+
+.checkers-screen__board {
+  height: 94cqh;
+  aspect-ratio: 1;
+}
+
+.checkers-screen__side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2cqh;
+  min-width: 0;
+}
+
+.checkers-side {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "chip name score" "chip left left";
+  align-items: center;
+  column-gap: 1.5cqw;
+  padding: 2cqh 2cqw;
+  border-radius: 2cqh;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+}
+
+.checkers-side.is-moving {
+  border-color: #e3aa9c;
+  box-shadow: 0 0 0 0.6cqh rgba(227, 170, 156, 0.35), 0 0 6cqh rgba(227, 170, 156, 0.4);
+}
+
+.checkers-side__chip {
+  grid-area: chip;
+  width: 7cqh;
+  height: 7cqh;
+}
+
+.checkers-side__name {
+  grid-area: name;
+  font-weight: 600;
+  font-size: 4.4cqh;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkers-side__score {
+  grid-area: score;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 5cqh;
+}
+
+.checkers-side__left {
+  grid-area: left;
+  color: var(--color-text-muted);
+  font-size: 2.8cqh;
+}
+
+.checkers-screen__banner {
+  margin: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 4.6cqh;
+  text-wrap: balance;
+}
+
+.checkers-screen__question h2 {
+  font-size: 4.4cqh;
+  margin: 1cqh 0;
+  text-wrap: balance;
+}
+
+.checkers-screen__qtop {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.checkers-screen__timer {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 5cqh;
+}
+
+.checkers-screen__image {
+  max-height: 24cqh;
+  max-width: 100%;
+  border-radius: 1.5cqh;
+  object-fit: contain;
+}
+
+.checkers-screen__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1cqh;
+}
+
+.checkers-screen__options li {
+  padding: 1cqh 1.5cqw;
+  border-radius: 1.2cqh;
+  background: var(--color-surface);
+}
+
+.checkers-screen__options li span {
+  font-weight: 700;
+  margin-right: 0.6em;
+}
+
+.checkers-screen__options li.is-right {
+  background: #a3c2aa;
+  color: #221e1b;
+}
+
+.checkers-host__sides {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.checkers-editor__head {
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.checkers-editor__radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 52px;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkers__cell.is-movable .checkers__piece {
+    animation: none;
+  }
+}

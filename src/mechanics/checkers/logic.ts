@@ -167,12 +167,23 @@ export function moveChange(session: Session, answers: Answer[]): SessionChange |
   if (session.state.stage !== "question") return null;
   const r = parseCheckersResult(session.state.result);
   if (r.mode !== "move" || !r.mover) return null;
-  const color = colorOfPid(r, r.mover);
   // Ход, сделанный до «Назад» (до нового времени шага), не считается.
   const since = session.state.startedAt ?? 0;
   const answer = answers.find((a) => a.step === session.state.step && a.pid === r.mover && (a.submittedAt ?? 0) >= since);
   const path = cellsOfValue(answer?.value);
-  if (!color || !path) return null;
+  return path ? pathChange(session, path) : null;
+}
+
+/**
+ * Ход по клеткам (с телефона капитана или ведущий на пульте — капитан без телефона, репетиция):
+ * доска, очки; null — хода нет или он не по правилам.
+ */
+export function pathChange(session: Session, path: number[]): SessionChange | null {
+  if (session.state.stage !== "question") return null;
+  const r = parseCheckersResult(session.state.result);
+  if (r.mode !== "move" || !r.mover) return null;
+  const color = colorOfPid(r, r.mover);
+  if (!color) return null;
   const move = findMove(r.board, color, path);
   if (!move) return null;
   const next = applyMove(r.board, move);
@@ -187,6 +198,13 @@ export function moveChange(session: Session, answers: Answer[]): SessionChange |
   };
   if (points > 0) change.addScore = { [r.mover]: points };
   return change;
+}
+
+/** Ведущий сам решает, кто ходит (капитан ответил вслух или ответа с телефона нет). */
+export function setMover(session: Session, mover: string | null): SessionChange {
+  const r = parseCheckersResult(session.state.result);
+  if (session.state.stage !== "reveal" || r.mode !== "question" || (mover !== null && mover !== r.white && mover !== r.black)) return {};
+  return { state: { result: write({ ...r, mover }) } };
 }
 
 export function cellsOfValue(value: unknown): number[] | null {

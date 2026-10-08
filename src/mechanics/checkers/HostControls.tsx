@@ -9,8 +9,8 @@ import { secondsLeft } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import type { CheckersContent } from "./content";
-import { checkersBack, checkersPrimary, currentQuestion, endGame, isRight, moveChange, nextQuestion, parseCheckersResult, revealQuestion, showQuestion, skipMove, toMove } from "./logic";
-import { CheckersBoard } from "./views";
+import { checkersBack, checkersPrimary, colorOfPid, currentQuestion, endGame, isRight, moveChange, nextQuestion, parseCheckersResult, pathChange, revealQuestion, setMover, showQuestion, skipMove, toMove } from "./logic";
+import { CheckersBoard, MovePicker } from "./views";
 
 /**
  * Пульт «Шашек»: вопрос → «Показать ответ» (ход получает верно и быстрее ответившая команда) →
@@ -104,6 +104,7 @@ export function CheckersHostControls({ session, content, answers, participants, 
   }
 
   const action = checkersPrimary(session, content);
+  const moverColor = colorOfPid(r, r.mover);
   const backPlan = checkersBack(session);
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
   const own = answers.filter((a) => a.step === step);
@@ -181,11 +182,40 @@ export function CheckersHostControls({ session, content, answers, participants, 
               })}
             </ul>
           )}
-          {r.mode !== "question" && <CheckersBoard board={r.board} last={r.last} size="phone" />}
-          {r.mode === "move" && stage === "question" && (
-            <p className="muted">
-              Ходит <NameText name={name(r.mover)} />: капитан выбирает ход на телефоне, доска обновится сама.
-            </p>
+          {stage === "reveal" && r.mode === "question" && (
+            <div className="stack stack--tight">
+              <p className="muted small">Кто ходит — можно выбрать самому (ответили вслух или без телефона):</p>
+              <div className="row checkers-host__movers">
+                {[r.white, r.black].map((p, i) =>
+                  p ? (
+                    <button key={p} type="button" className="btn btn--secondary" aria-pressed={r.mover === p} disabled={busy} onClick={() => void run(setMover(session, r.mover === p ? null : p))}>
+                      {i === 0 ? "⚪" : "⚫"} {r.mover === p ? "Ходит " : "Ход: "}
+                      <NameText name={name(p)} />
+                    </button>
+                  ) : null,
+                )}
+              </div>
+            </div>
+          )}
+          {r.mode === "move" && stage === "question" && moverColor ? (
+            <>
+              <p className="muted">
+                Ходит <NameText name={name(r.mover)} />: капитан выбирает ход на телефоне, доска обновится сама. Нет телефона или репетиция — сходите за команду здесь.
+              </p>
+              <MovePicker
+                board={r.board}
+                color={moverColor}
+                sending={busy}
+                title={`Ход за команду: ${moverColor === "w" ? "белые" : "чёрные"}`}
+                onMove={(path) => {
+                  const change = pathChange(latest.current, path);
+                  if (change) void run(change);
+                  else setError("Такой ход не по правилам — выберите другой.");
+                }}
+              />
+            </>
+          ) : (
+            r.mode !== "question" && <CheckersBoard board={r.board} last={r.last} size="phone" />
           )}
         </>
       )}

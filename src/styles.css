@@ -9286,3 +9286,17 @@ button.dance-card:active {
     transition: none;
   }
 }
+
+.checkers-host__movers {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkers-host__movers .btn {
+  flex: 1 1 140px;
+}
+
+.checkers-host__movers .btn[aria-pressed="true"] {
+  border-color: var(--color-highlight);
+  background: var(--color-surface-alt);
+}

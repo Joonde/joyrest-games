@@ -6,7 +6,7 @@ import { DEMO_CHECKERS } from "./demo";
 import { validateCheckers } from "./validate";
 import { DEMO_BOARD } from "../board/demo";
 import { validateBoard } from "../board/validate";
-import { checkersBack, checkersPrimary, moveChange, nextQuestion, parseCheckersResult, revealQuestion, showQuestion, skipMove, toMove } from "./logic";
+import { checkersBack, checkersPrimary, moveChange, nextQuestion, parseCheckersResult, pathChange, revealQuestion, setMover, showQuestion, skipMove, toMove } from "./logic";
 
 const content = parseCheckers({
   timeLimit: 20,
@@ -30,6 +30,24 @@ const apply = (s: Session, c: SessionChange) => applyChange(s, c, (t += 1000));
 const ans = (pid: string, step: number, value: unknown, at = 1e12): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: at });
 
 describe("Шашки: ход игры", () => {
+  it("без ответов с телефонов ведущий сам выбирает, кто ходит, и двигает шашку на пульте", () => {
+    let s = session();
+    s = apply(s, showQuestion(s, content, teams));
+    s = apply(s, revealQuestion(s, content, [], teams));
+    expect(parseCheckersResult(s.state.result).mover).toBeNull();
+    expect(setMover(s, "X")).toEqual({});
+    s = apply(s, setMover(s, "W"));
+    expect(checkersPrimary(s, content)).toBe("toMove");
+    s = apply(s, toMove(s));
+    expect(pathChange(s, [40, 30])).toBeNull();
+    s = apply(s, pathChange(s, [40, 33]) ?? {});
+    const r = parseCheckersResult(s.state.result);
+    expect(r.board[40]).toBe(".");
+    expect(r.board[33]).toBe("w");
+    expect(s.state.stage).toBe("reveal");
+  });
+
+
   it("верный и быстрый ответ даёт ход, ход по правилам двигает шашку; чужой и неправильный — нет", () => {
     let s = session();
     expect(checkersPrimary(s, content)).toBe("show");

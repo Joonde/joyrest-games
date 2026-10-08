@@ -189,7 +189,7 @@ export function CheckersScreenView({ session, content }: ViewProps<CheckersConte
 
 // ---------------------------------------------------------------- телефон
 
-function MovePicker({ board, color, sending, onMove }: { board: string; color: Color; sending: boolean; onMove: (path: number[]) => void }) {
+export function MovePicker({ board, color, sending, onMove, title = "Ваш ход!" }: { board: string; color: Color; sending: boolean; onMove: (path: number[]) => void; title?: string }) {
   const [path, setPath] = useState<number[]>([]);
   const movable = useMemo(() => [...new Set(legalMoves(board, color).map((m) => m.path[0] as number))], [board, color]);
   const targets = path.length > 0 ? nextTargets(board, color, path) : [];
@@ -211,8 +211,8 @@ function MovePicker({ board, color, sending, onMove }: { board: string; color: C
   return (
     <div className="stack stack--tight checkers-picker">
       <div className="buzz__plate buzz__plate--glow" role="status">
-        <strong>Ваш ход!</strong>
-        <span>{path.length === 0 ? "Коснитесь своей шашки, которая светится" : targets.length > 0 ? "Теперь клетку, куда пойти" : "Отправляем…"}</span>
+        <strong>{title}</strong>
+        <span>{path.length === 0 ? "Коснитесь шашки, которая светится" : targets.length > 0 ? "Теперь клетку, куда пойти" : "Отправляем…"}</span>
       </div>
       <CheckersBoard board={board} flip={color === "b"} size="phone" selected={path} targets={targets} movable={path.length <= 1 ? movable : []} onCell={tap} />
       {path.length > 0 && (

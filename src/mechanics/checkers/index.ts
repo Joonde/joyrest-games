@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { checkersPreview } from "./preview";
 import { checkersMediaIds, createCheckers, parseCheckers, type CheckersContent } from "./content";
 import { CheckersHostControls } from "./HostControls";
 import { checkersSteps, score } from "./logic";
@@ -23,4 +24,5 @@ export const checkers: Mechanic<CheckersContent, CheckersAnswerValue> = {
   steps: checkersSteps,
   score,
   validate: validateCheckers,
+  preview: { driver: checkersPreview, teams: 2, limit: 50 },
 };

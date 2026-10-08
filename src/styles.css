@@ -9300,3 +9300,14 @@ button.dance-card:active {
   border-color: var(--color-highlight);
   background: var(--color-surface-alt);
 }
+
+/* Предпросмотр игры (GamePreview): что сейчас произошло и ползунок по моментам. */
+.game-preview__label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.game-preview__range {
+  width: 100%;
+  accent-color: var(--color-primary);
+}

@@ -1,4 +1,5 @@
 import { Suspense, useMemo, useRef, useState } from "react";
+import { GamePreview } from "./GamePreview";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
 import {
@@ -137,6 +138,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   }
 
   const launchBlocked = errors.length > 0;
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const canPreview = Boolean(mechanic?.preview) && !launchBlocked;
   const MechanicEditor = mechanic?.Editor;
 
   return (
@@ -224,6 +227,17 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           )}
         </div>
       </section>
+
+      {canPreview && mechanic && (
+        <section className="card stack stack--tight">
+          <h2>Как игра пойдёт</h2>
+          <p className="muted small">Игра проходит сама с тестовыми командами: листайте моменты и смотрите экран зала и телефоны.</p>
+          <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreviewOpen(true)}>
+            Предпросмотр игры
+          </button>
+          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={game.playMode} themeId={game.themeId} />
+        </section>
+      )}
 
       {MechanicEditor ? (
         <Suspense fallback={<section className="card" aria-busy="true"><span className="skeleton skeleton--choice" /></section>}>

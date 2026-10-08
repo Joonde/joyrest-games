@@ -7114,3 +7114,215 @@ button.dance-card:active {
 .dance-editor__tile-emoji {
   font-size: 28px;
 }
+
+/* ---------- Игры сейчас (студия) и листание экранов владельца ---------- */
+
+.active-games {
+  padding: 8px 16px;
+}
+
+.game-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-rows.card {
+  padding: 8px 16px;
+}
+
+.game-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  min-width: 0;
+}
+
+.game-row + .game-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.game-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.game-row__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.game-row__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.game-row--playing .game-row__dot {
+  background: #a3c2aa;
+  box-shadow: 0 0 0 3px rgba(163, 194, 170, 0.3);
+}
+
+.game-row--lobby .game-row__dot {
+  background: #e3c68c;
+}
+
+.game-row__title {
+  font-weight: 600;
+}
+
+.game-row__code {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 1.15em;
+}
+
+.game-row__actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.tile.tile--small {
+  aspect-ratio: auto;
+  width: 64px;
+  min-height: 56px;
+  padding: 6px 4px;
+  gap: 2px;
+}
+
+.tile--small .tile__icon {
+  width: 24px;
+  height: 24px;
+}
+
+.tile--small .tile__label {
+  font-size: 12px;
+}
+
+.swipe {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.swipe__switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.swipe__tab {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  font: 600 16px/1 "Jost", sans-serif;
+  cursor: pointer;
+}
+
+.swipe__tab.is-on {
+  background: var(--color-accent, #c49e96);
+  color: #221e1b;
+}
+
+.swipe__pages {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  align-items: flex-start;
+  /* Карточки с тенью у краёв не обрезаются. */
+  margin-inline: -4px;
+}
+
+.swipe__pages::-webkit-scrollbar {
+  display: none;
+}
+
+.swipe__page {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  padding-inline: 4px;
+  box-sizing: border-box;
+}
+
+.host-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.host-row {
+  padding: 4px 16px;
+}
+
+.host-row__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.host-row__name {
+  flex: 1;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.host-row__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.host-row__chips .chip {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.chip--playing {
+  background: #a3c2aa;
+  color: #221e1b;
+  border-color: transparent;
+}
+
+.chip--lobby {
+  background: #e3c68c;
+  color: #221e1b;
+  border-color: transparent;
+}

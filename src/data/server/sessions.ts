@@ -5,7 +5,7 @@
 import type { SessionsRepository } from "../contracts";
 import { parseCue, parseMix, parseMusic, parsePeek, parseSlide, parseTeams } from "../cues";
 import { errorCodeOf } from "../retry";
-import type { Leaderboard, LeaderboardEntry, Session, SessionPhase, SessionState, StepStage } from "../types";
+import type { Leaderboard, LeaderboardEntry, ScreenMode, Session, SessionPhase, SessionState, SessionSummary, StepStage } from "../types";
 import { api, asRecord, asText, newId } from "./api";
 import { openStream } from "./stream";
 
@@ -178,6 +178,20 @@ export const serverSessionsRepository: SessionsRepository = {
           emit();
         }
       },
+    });
+  },
+
+  async overview() {
+    const data = await api("GET", "/api/sessions/overview");
+    return (Array.isArray(data) ? data : []).flatMap((raw): SessionSummary[] => {
+      const d = asRecord(raw);
+      const id = asText(d.id);
+      const code = asText(d.code);
+      if (!id || !/^\d{6}$/.test(code)) return [];
+      const phase: SessionPhase = d.phase === "playing" || d.phase === "finished" ? d.phase : "lobby";
+      const screenMode: ScreenMode = d.screenMode === "none" || d.screenMode === "remote" ? d.screenMode : "laptop";
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+      return [{ id, code, hostId: asText(d.hostId), hostName: asText(d.hostName), gameTitle: asText(d.gameTitle), mechanic: typeof d.mechanic === "string" ? d.mechanic : null, phase, screenMode, players: num(d.players), createdAt: num(d.createdAt), updatedAt: num(d.updatedAt), startedAt: typeof d.startedAt === "number" ? d.startedAt : null }];
     });
   },
 

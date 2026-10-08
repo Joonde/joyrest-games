@@ -476,3 +476,20 @@ export interface OfflinePlayer {
   /** Название команды (режим команд). */
   team: string | null;
 }
+
+/** Строка «Игры сейчас» (лёгкая, без снимка игры). */
+export interface SessionSummary {
+  id: string;
+  code: string;
+  hostId: string;
+  hostName: string;
+  gameTitle: string;
+  mechanic: string | null;
+  phase: SessionPhase;
+  screenMode: ScreenMode;
+  /** Телефоны гостей. */
+  players: number;
+  createdAt: number;
+  updatedAt: number;
+  startedAt: number | null;
+}

@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
 import {
@@ -15,6 +15,7 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { TopBar } from "../../components/TopBar";
 import { useAutosave, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
@@ -74,15 +75,26 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const [copying, setCopying] = useState(false);
   const [toast, showToast] = useToast();
   const editable = permissions.canEditGame(profile, game);
-  const { status, change } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
+  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
+  // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
+  const original = useRef<GamePatch>({ title: initial.title, content: game.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
+  const edited = useRef(false);
+  const [leaving, setLeaving] = useState(false);
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
   const errors = useMemo(() => validateGame(game.mechanic, game.content), [game.mechanic, game.content]);
   const stepsText = stepsLabel(game.mechanic, game.content);
 
   function edit(patch: GamePatch) {
+    edited.current = true;
     setGame((g) => ({ ...g, ...patch }));
     change(patch);
+  }
+
+  /** «← К играм»: без правок — сразу; с правками — спросить, сохранить их или вернуть как было. */
+  function goBack() {
+    if (!editable || !edited.current) return navigate(back);
+    setLeaving(true);
   }
 
   function onTitle(value: string) {
@@ -115,6 +127,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   return (
     <main className="page">
       <TopBar title={editable ? "Игра" : "Игра JoyRest"} actions={[{ label: "В студию", to: back }]} />
+      <button type="button" className="btn btn--quiet back-link" onClick={goBack}>
+        ← К играм
+      </button>
       {editable ? (
         <p className={`save-status save-status--${status}`} role="status" aria-live="polite">
           <span className="save-status__dot" aria-hidden="true" />
@@ -263,6 +278,37 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         </section>
       )}
 
+      <div className="actions">
+        <button type="button" className="btn btn--secondary btn--block" onClick={goBack}>
+          ← К играм
+        </button>
+      </div>
+      <ConfirmDialog
+        open={leaving}
+        title="Сохранить изменения?"
+        confirmLabel="Сохранить и выйти"
+        cancelLabel="Остаться в игре"
+        onConfirm={() => {
+          flush(true);
+          navigate(back);
+        }}
+        onCancel={() => setLeaving(false)}
+      >
+        <p>Вы меняли эту игру. Сохранить изменения или вернуть игру такой, какой она была, когда вы её открыли?</p>
+        <button
+          type="button"
+          className="btn btn--quiet btn--block"
+          onClick={() => {
+            const before = original.current;
+            setGame((g) => ({ ...g, ...before }));
+            change(before);
+            flush(true);
+            navigate(back);
+          }}
+        >
+          Не сохранять — вернуть как было
+        </button>
+      </ConfirmDialog>
       <Toast text={toast} />
     </main>
   );

@@ -183,6 +183,12 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     const session = (await call("GET", "/api/sessions/sess2", guest.cookie)).json();
     expect(session.state).toMatchObject({ phase: "playing", step: 0, stage: "question", startedAt: clock, timeLimit: 20 });
 
+    // «Игры сейчас»: лёгкий список без снимка игры; гостю — нет.
+    const overview = (await call("GET", "/api/sessions/overview", host)).json() as Array<Record<string, unknown>>;
+    expect(overview.find((o) => o.id === "sess2")).toMatchObject({ phase: "playing", players: 1, hostName: expect.any(String) });
+    expect(JSON.stringify(overview)).not.toContain("gameSnapshot");
+    expect((await call("GET", "/api/sessions/overview", guest.cookie)).statusCode).toBe(403);
+
     expect((await answer("b")).json()).toEqual({ result: "sent" });
     expect((await answer("c")).json()).toEqual({ result: "rejected" });
     const list = (await call("GET", "/api/sessions/sess2/answers/0", host)).json();

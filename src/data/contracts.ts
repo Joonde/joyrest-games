@@ -5,6 +5,7 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type {
+  SessionSummary,
   OfflinePlayer,
   OfferSummary,
   PublicOffer,
@@ -128,6 +129,11 @@ export interface SessionsRepository {
   watch(sessionId: string, onChange: (session: Session | null) => void, onError: (error: Error) => void): Unsubscribe;
   /** Сессии ведущего, новые сверху. */
   listByHost(hostId: string): Promise<Session[]>;
+  /**
+   * «Игры сейчас»: идущие и ждущие гостей плюс две последние завершённые у каждого ведущего,
+   * без снимка игры. Ведущему — свои, владельцу — все. Только свой сервер.
+   */
+  overview?(): Promise<SessionSummary[]>;
   setPhase(sessionId: string, phase: SessionPhase): Promise<void>;
   upsertLeaderboard(sessionId: string, entries: Record<string, LeaderboardEntry>): Promise<void>;
   /** Только пульт: шаг игры и правки таблицы лидеров одной записью. */

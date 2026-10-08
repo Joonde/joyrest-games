@@ -8,7 +8,8 @@ import { Toast, useToast } from "../../components/Toast";
 import { TopBar, type TopBarAction } from "../../components/TopBar";
 import { GameList } from "./GameList";
 import { History } from "./History";
-import { ActiveGames } from "./ActiveGames";
+import { ActiveGames, LiveOverview } from "./ActiveGames";
+import { SwipePages } from "../../components/SwipePages";
 import { MusicTab } from "./MusicTab";
 
 type TabId = "agency" | "mine" | "music" | "history";
@@ -58,6 +59,27 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const tab = parseTab(params.get("tab"));
   const [toast, showToast] = useToast();
 
+  // Владелец листает два экрана: «Игры сейчас» (все ведущие) и саму студию.
+  const body = (
+    <div className="stack">
+      <ActiveGames hostId={profile.uid} />
+      <Tabs
+        items={TABS}
+        value={tab}
+        onChange={(next) => setParams(next === "mine" ? {} : { tab: next }, { replace: true })}
+        label="Разделы студии"
+        idPrefix="studio"
+        scroll
+      />
+      <div className="stack" role="tabpanel" id={`studio-panel-${tab}`} aria-labelledby={`studio-tab-${tab}`}>
+        {tab === "agency" && <GameList key="agency" scope="agency" profile={profile} onToast={showToast} />}
+        {tab === "mine" && <GameList key="mine" scope="personal" profile={profile} onToast={showToast} />}
+        {tab === "music" && <MusicTab profile={profile} onToast={showToast} />}
+        {tab === "history" && <History profile={profile} onToast={showToast} />}
+      </div>
+    </div>
+  );
+
   return (
     <main className="page">
       <TopBar title="Студия" actions={studioActions(profile)} />
@@ -71,22 +93,17 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         </p>
       )}
 
-      <ActiveGames hostId={profile.uid} />
-
-      <Tabs
-        items={TABS}
-        value={tab}
-        onChange={(next) => setParams(next === "mine" ? {} : { tab: next }, { replace: true })}
-        label="Разделы студии"
-        idPrefix="studio"
-      />
-
-      <div className="stack" role="tabpanel" id={`studio-panel-${tab}`} aria-labelledby={`studio-tab-${tab}`}>
-        {tab === "agency" && <GameList key="agency" scope="agency" profile={profile} onToast={showToast} />}
-        {tab === "mine" && <GameList key="mine" scope="personal" profile={profile} onToast={showToast} />}
-        {tab === "music" && <MusicTab profile={profile} onToast={showToast} />}
-        {tab === "history" && <History profile={profile} onToast={showToast} />}
-      </div>
+      {permissions.isAdmin(profile) ? (
+        <SwipePages
+          storageKey="studio-page"
+          pages={[
+            { id: "live", label: "Игры сейчас", node: <LiveOverview adminId={profile.uid} /> },
+            { id: "studio", label: "Студия", node: body },
+          ]}
+        />
+      ) : (
+        body
+      )}
 
       <Toast text={toast} />
     </main>

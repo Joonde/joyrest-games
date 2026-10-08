@@ -607,6 +607,44 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return rows.map(sessionOf);
     });
 
+    // «Игры сейчас»: идущие и ждущие гостей игры плюс две последние завершённые у каждого ведущего —
+    // ведущему свои, владельцу все. Без снимка игры и таблицы (лёгкий список для студии).
+    api.get("/api/sessions/overview", async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      if (!who.user) return fail(reply, 403, "permission-denied");
+      const all = permissions.isAdmin(actor(who));
+      const rows = await sql<
+        { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null }[]
+      >`
+        select s.id, s.code, s.host_id, u.name as host_name, s.game_title, s.mechanic, s.phase, s.screen_mode, s.created_at, s.updated_at, s.started_at,
+               (select count(*)::int from participants p where p.session_id = s.id and p.kind = 'player') as players
+        from (
+          select *, row_number() over (partition by host_id, phase = 'finished' order by updated_at desc) as n
+          from sessions
+          where (${all}::boolean or host_id = ${who.uid}) and created_at > now() - interval '30 days'
+        ) s
+        left join users u on u.id = s.host_id
+        where s.phase in ('lobby', 'playing') or s.n <= 2
+        order by s.updated_at desc
+        limit 300`;
+      reply.header("Cache-Control", "no-store");
+      return rows.map((r) => ({
+        id: r.id,
+        code: r.code,
+        hostId: r.host_id,
+        hostName: r.host_name ?? "",
+        gameTitle: r.game_title,
+        mechanic: r.mechanic,
+        phase: PHASES.has(r.phase as SessionPhase) ? r.phase : "lobby",
+        screenMode: r.screen_mode,
+        players: r.players,
+        createdAt: r.created_at.getTime(),
+        updatedAt: r.updated_at.getTime(),
+        startedAt: r.started_at ? r.started_at.getTime() : null,
+      }));
+    });
+
     api.get<{ Params: { id: string }; Querystring: { since?: string } }>("/api/sessions/:id", async (request, reply) => {
       const who = await requireIdentity(request, reply);
       if (!who) return reply;

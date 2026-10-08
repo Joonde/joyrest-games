@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
 import { authService, permissions, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
@@ -9,6 +9,7 @@ import { TopBar, type TopBarAction } from "../../components/TopBar";
 import { GameList } from "./GameList";
 import { History } from "./History";
 import { ActiveGames, LiveOverview } from "./ActiveGames";
+import { professionTitle } from "../../core/professions";
 import { SwipePages } from "../../components/SwipePages";
 import { MusicTab } from "./MusicTab";
 
@@ -58,6 +59,29 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const [params, setParams] = useSearchParams();
   const tab = parseTab(params.get("tab"));
   const [toast, showToast] = useToast();
+
+  if (!permissions.hostsGames(profile)) {
+    // Диджеи, музыканты, фокусники и другие профессии: игр нет, своя страница (пока простая).
+    return (
+      <main className="page">
+        <TopBar title="Моя страница" actions={studioActions(profile)} />
+        <section className="card stack">
+          <p className="eyebrow">{professionTitle(profile.profession)} · JoyRest</p>
+          <h2>Здравствуйте, {profile.name}!</h2>
+          <p className="muted">Здесь скоро появятся ваши мероприятия и задачи от агентства. Пока заполните свою карточку — её видит вся команда.</p>
+          <div className="actions">
+            <Link className="btn btn--block" to="/studio/profile">
+              Мой профиль
+            </Link>
+            <Link className="btn btn--secondary btn--block" to="/studio/team?tab=pros">
+              Команда JoyRest
+            </Link>
+          </div>
+        </section>
+        <Toast text={toast} />
+      </main>
+    );
+  }
 
   // Владелец листает два экрана: «Игры сейчас» (все ведущие) и саму студию.
   const body = (

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { experienceLabel, levelTitle } from "../core/levels";
 import { pointsLabel } from "../core/points";
+import { PROFESSIONS, professionOf, professionTitle, type Profession } from "../core/professions";
 import { retentionCutoff, SESSION_RETENTION_DAYS } from "../core/retention";
 import {
   authService,
@@ -62,6 +63,8 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, showToast] = useToast();
   const [dialog, confirm] = useConfirm();
+  const [group, setGroup] = useState<"hosts" | "pros">("hosts");
+  const [toProfession, setToProfession] = useState<{ host: HostAccount; value: Profession } | null>(null);
 
   async function setActive(host: HostAccount, active: boolean) {
     setBusyUid(host.uid);
@@ -119,6 +122,9 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
     });
   }
 
+  const allHosts = hosts.status === "ready" ? hosts.data : [];
+  const shownHosts = allHosts.filter((h) => (group === "hosts" ? h.role === "admin" || professionOf(h.profession) === "host" : h.role !== "admin" && professionOf(h.profession) !== "host"));
+
   // Есть только на своём сервере: у Firebase без Cloud Functions сбросить пароль нельзя.
   const resetPassword = usersRepo.resetHostPassword?.bind(usersRepo);
 
@@ -152,22 +158,40 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
       )}
 
       <section className="card">
-        <h2>Все ведущие{hosts.status === "ready" ? `: ${hosts.data.length}` : ""}</h2>
-        <p className="muted">Отключённый ведущий не может войти в студию и запускать игры. Его игры и история сохраняются.</p>
+        {usersRepo.setProfession && (
+          <div className="seg" role="group" aria-label="Кого показать">
+            <button type="button" className={group === "hosts" ? "seg__btn is-on" : "seg__btn"} aria-pressed={group === "hosts"} onClick={() => setGroup("hosts")}>
+              Ведущие
+            </button>
+            <button type="button" className={group === "pros" ? "seg__btn is-on" : "seg__btn"} aria-pressed={group === "pros"} onClick={() => setGroup("pros")}>
+              Другие профессии
+            </button>
+          </div>
+        )}
+        <h2>
+          {group === "hosts" ? "Все ведущие" : "Профессии JoyRest"}
+          {hosts.status === "ready" ? `: ${shownHosts.length}` : ""}
+        </h2>
+        <p className="muted">
+          {group === "hosts"
+            ? "Отключённый ведущий не может войти в студию и запускать игры. Его игры и история сохраняются."
+            : "Диджеи, музыканты, фокусники и другие: видят команду и свою страницу, игр у них нет. Профессию можно поменять в «⋯»."}
+        </p>
+        {hosts.status === "ready" && shownHosts.length === 0 && <p className="muted">{group === "hosts" ? "Ведущих пока нет." : "Пока никого: добавьте человека выше и выберите профессию."}</p>}
         {hosts.status === "loading" && <ListSkeleton count={2} bare />}
         {hosts.status === "error" && <LoadFailedInline onRetry={retry} />}
         {hosts.status === "ready" && (
           <ul className="people">
-            {hosts.data.map((host) => (
+            {shownHosts.map((host) => (
               <li key={host.uid} className={host.active ? undefined : "people__item--off"}>
                 <div className="people__text">
                   <span className="people__name line-clamp">{host.name}</span>
                   <span className="muted small line-clamp">{host.email || "почта не указана"}</span>
                   <span className="small">
-                    {host.role === "admin" ? "Администратор" : "Ведущий"} ·{" "}
+                    {host.role === "admin" ? "Администратор" : professionTitle(host.profession)} ·{" "}
                     <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
                   </span>
-                  {staffRepo && host.role !== "admin" && (
+                  {staffRepo && host.role !== "admin" && professionOf(host.profession) === "host" && (
                     <ul className="meta" aria-label={`Квалификация и баллы: ${host.name}`}>
                       <li>{levelTitle(host.level) ?? "Без квалификации"}</li>
                       {host.experienceSince ? <li>Стаж: {experienceLabel(host.experienceSince, Date.now())}</li> : null}
@@ -203,6 +227,9 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
                                 { label: "Квалификация и стаж", onClick: () => setToLevel(host) },
                                 { label: "Баллы", onClick: () => setToPoints(host) },
                               ]
+                            : []),
+                          ...(usersRepo.setProfession && permissions.canSetHostActive(profile, host)
+                            ? [{ label: "Профессия", onClick: () => setToProfession({ host, value: professionOf(host.profession) }) }]
                             : []),
                           ...(venuesRepo && permissions.canGrantVenueAccess(profile, host)
                             ? [
@@ -279,6 +306,38 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
         </p>
       </ConfirmDialog>
 
+      <ConfirmDialog
+        open={toProfession !== null}
+        title={`Профессия: ${toProfession?.host.name ?? ""}`}
+        confirmLabel="Сохранить профессию"
+        busy={busyUid !== null}
+        error={dialogError}
+        onCancel={() => setToProfession(null)}
+        onConfirm={() => {
+          const target = toProfession;
+          if (!target || !usersRepo.setProfession) return;
+          setBusyUid(target.host.uid);
+          setDialogError(null);
+          usersRepo
+            .setProfession(target.host.uid, target.value)
+            .then(() => {
+              update((list) => list.map((h) => (h.uid === target.host.uid ? { ...h, profession: target.value } : h)));
+              showToast(`${target.host.name}: ${professionTitle(target.value).toLowerCase()}`);
+              setToProfession(null);
+            })
+            .catch(() => setDialogError("Не получилось сохранить. Проверьте интернет."))
+            .finally(() => setBusyUid(null));
+        }}
+      >
+        <div className="row profession-chips">
+          {PROFESSIONS.map((p) => (
+            <button key={p.id} type="button" className="pick-chip" aria-pressed={toProfession?.value === p.id} onClick={() => setToProfession((cur) => (cur ? { ...cur, value: p.id } : cur))}>
+              {p.title}
+            </button>
+          ))}
+        </div>
+        <p className="muted small">Ведущий проводит игры. Другие профессии видят команду и свою страницу, игр у них нет — их игры и история сохраняются.</p>
+      </ConfirmDialog>
       {dialog}
       <Toast text={toast} />
     </>
@@ -288,6 +347,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
 function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [profession, setProfession] = useState<Profession>("host");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -295,15 +355,16 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
     event.preventDefault();
     const cleanedName = cleanName(name);
     if (!isValidName(cleanedName)) {
-      setError("Введите имя ведущего.");
+      setError("Введите имя.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const created = await usersRepo.createHost(email, cleanedName);
+      const created = await usersRepo.createHost(email, cleanedName, usersRepo.setProfession ? profession : undefined);
       setEmail("");
       setName("");
+      setProfession("host");
       onCreated(created);
     } catch (e) {
       setError(authService.describeError(e));
@@ -314,7 +375,7 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
 
   return (
     <form className="card" onSubmit={onSubmit}>
-      <h2>Добавить ведущего</h2>
+      <h2>Добавить в команду</h2>
       <label className="field">
         Почта
         <input
@@ -336,13 +397,26 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
           onChange={(e) => setName(e.target.value)}
         />
       </label>
+      {usersRepo.setProfession && (
+        <fieldset className="stack stack--tight">
+          <legend>Профессия</legend>
+          <div className="row profession-chips">
+            {PROFESSIONS.map((p) => (
+              <button key={p.id} type="button" className="pick-chip" aria-pressed={profession === p.id} onClick={() => setProfession(p.id)}>
+                {p.title}
+              </button>
+            ))}
+          </div>
+          {profession !== "host" && <p className="muted small">Не ведущий: увидит команду и свою страницу, игр у него не будет.</p>}
+        </fieldset>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
       <button className="btn btn--block" type="submit" disabled={busy}>
-        {busy ? "Создаём аккаунт…" : "Добавить ведущего"}
+        {busy ? "Создаём аккаунт…" : profession === "host" ? "Добавить ведущего" : `Добавить: ${professionTitle(profession).toLowerCase()}`}
       </button>
       <p className="muted small">Пароль создастся автоматически и покажется один раз.</p>
     </form>

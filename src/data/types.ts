@@ -36,6 +36,8 @@ export interface UserProfile {
   experienceSince?: number | null;
   /** Свой сервер: владелец открыл ведущему базу площадок и заявки клиентов. */
   venueAccess?: boolean;
+  /** Свой сервер: профессия в команде (`src/core/professions.ts`); нет — ведущий. */
+  profession?: string;
 }
 
 /** Ведущий в списке администратора. */
@@ -386,6 +388,8 @@ export interface TeamMember {
   owner: boolean;
   /** С какого дня в JoyRest (дата добавления). */
   since: number | null;
+  /** Профессия в команде; нет — ведущий. */
+  profession?: string;
 }
 
 /** Что экран зала сообщает пульту о себе (не в базе, только в памяти сервера). */

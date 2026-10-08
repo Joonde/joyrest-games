@@ -13,6 +13,7 @@ export function parseMember(value: unknown): TeamMember {
     cover: typeof d.cover === "string" && d.cover ? d.cover : null,
     owner: d.owner === true,
     since: typeof d.since === "number" ? d.since : null,
+    profession: typeof d.profession === "string" ? d.profession : "host",
   };
 }
 

@@ -7326,3 +7326,15 @@ button.dance-card:active {
   color: #221e1b;
   border-color: transparent;
 }
+
+.profession-chips {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.team-card__tag {
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  border-color: transparent;
+  font-weight: 600;
+}

@@ -264,3 +264,22 @@ describe("база площадок (только свой сервер)", () =>
     expect(p.canGrantVenueAccess(owner, { uid: ADMIN_UID })).toBe(false);
   });
 });
+
+describe("профессии команды", () => {
+  const dj: Actor = { uid: "dj-1", role: "host", active: true, profession: "dj" };
+  it("диджей входит, видит команду и QR, но игр, музыки и сессий у него нет", () => {
+    expect(p.isActiveHost(dj)).toBe(true);
+    expect(p.canViewTeam(dj)).toBe(true);
+    expect(p.canShowVenueQr(dj)).toBe(true);
+    expect(p.hostsGames(dj)).toBe(false);
+    expect(p.canCreateGame(dj, "personal", "dj-1")).toBe(false);
+    expect(p.canReadGame(dj, { scope: "agency", ownerId: ADMIN_UID })).toBe(false);
+    expect(p.canCreateSession(dj)).toBe(false);
+    expect(p.canUploadTrack(dj, "personal")).toBe(false);
+  });
+  it("ведущий без профессии (Firebase) и с профессией «ведущий» — проводит игры", () => {
+    expect(p.hostsGames(host)).toBe(true);
+    expect(p.hostsGames({ ...host, profession: "host" })).toBe(true);
+    expect(p.hostsGames({ ...host, active: false })).toBe(false);
+  });
+});

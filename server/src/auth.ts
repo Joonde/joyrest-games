@@ -14,6 +14,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { cleanName, isValidName } from "../../src/core/names";
+import { isProfession, professionOf } from "../../src/core/professions";
 import { generateTempPassword, isStrongEnough } from "../../src/core/password";
 import * as permissions from "../../src/data/permissions";
 import type { HostAccount, HostLevel, Role, UserProfile } from "../../src/data/types";
@@ -70,6 +71,8 @@ export interface UserRow {
   experience_since?: Date | null;
   /** Доступ к базе площадок (миграция 0008). */
   venue_access?: boolean | null;
+  /** Профессия в команде (миграция 0011): игры проводят только ведущие. */
+  profession?: string | null;
 }
 
 export interface SessionRow extends UserRow {
@@ -105,6 +108,7 @@ export function profileOf(row: UserRow): ServerProfile {
     level: levelOf(row.level),
     experienceSince: experienceOf(row),
     venueAccess: row.venue_access === true,
+    profession: professionOf(row.profession),
   };
 }
 
@@ -119,11 +123,12 @@ function accountOf(row: UserRow): HostAccount {
     level: levelOf(row.level),
     experienceSince: experienceOf(row),
     venueAccess: row.venue_access === true,
+    profession: professionOf(row.profession),
   };
 }
 
 export function actorOf(row: UserRow): permissions.Actor {
-  return { uid: row.id, role: role(row.role), active: row.active, venueAccess: row.venue_access === true };
+  return { uid: row.id, role: role(row.role), active: row.active, venueAccess: row.venue_access === true, profession: professionOf(row.profession) };
 }
 
 export function tokenHash(token: string): string {
@@ -249,7 +254,7 @@ export async function sessionUser(sql: Sql, request: FastifyRequest, reply: Fast
   if (!token) return null;
   const rows = await sql<SessionRow[]>`
     select s.token_hash, s.expires_at, u.id, u.email, u.name, u.role, u.active, u.password_hash,
-           u.must_change_password, u.created_at, u.level, u.experience_since, u.venue_access
+           u.must_change_password, u.created_at, u.level, u.experience_since, u.venue_access, u.profession
     from auth_sessions s join users u on u.id = s.user_id
     where s.token_hash = ${tokenHash(token)} and s.expires_at > ${new Date(now())}`;
   const row = rows[0];
@@ -292,7 +297,7 @@ export async function identityOf(sql: Sql, request: FastifyRequest, reply: Fasti
   return device ? { uid: device, user: null } : null;
 }
 
-const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at", "level", "experience_since", "venue_access"];
+const USER_COLUMNS = ["id", "email", "name", "role", "active", "password_hash", "must_change_password", "created_at", "level", "experience_since", "venue_access", "profession"];
 
 export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
   const { sql } = options;
@@ -429,14 +434,15 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
       if (!(await requireAdmin(request, reply, "create"))) return reply;
       const email = field(request.body, "email")?.trim().toLowerCase() ?? "";
       const name = cleanName(field(request.body, "name") ?? "");
+      const profession = professionOf(field(request.body, "profession"));
       if (!EMAIL_PATTERN.test(email)) return fail(reply, 400, "auth/invalid-email", request, "create");
       if (!isValidName(name)) return fail(reply, 400, "invalid-argument", request, "create");
       const temporaryPassword = generateTempPassword();
       const hash = await hashPassword(temporaryPassword);
       try {
         const rows = await sql<UserRow[]>`
-          insert into users (id, email, name, role, active, password_hash, must_change_password)
-          values (${newUserId()}, ${email}, ${name}, 'host', true, ${hash}, true)
+          insert into users (id, email, name, role, active, password_hash, must_change_password, profession)
+          values (${newUserId()}, ${email}, ${name}, 'host', true, ${hash}, true, ${profession})
           returning ${sql(USER_COLUMNS)}`;
         const row = rows[0];
         if (!row) throw new Error("insert");
@@ -464,6 +470,20 @@ export function registerAuth(app: FastifyInstance, options: AuthOptions): void {
         if (!active) await tx`delete from auth_sessions where user_id = ${target.id}`;
       });
       request.log.info({ auth: "active", result: "ok", status: 200 }, "auth");
+      return { ok: true };
+    });
+
+    // Профессия в команде — только владелец; себе и владельцу не меняется.
+    api.post<{ Params: { id: string } }>("/api/users/:id/profession", routeOptions, async (request, reply) => {
+      const admin = await requireAdmin(request, reply, "profession");
+      if (!admin) return reply;
+      const value = isRecord(request.body) ? request.body.profession : undefined;
+      if (!isProfession(value)) return fail(reply, 400, "invalid-argument", request, "profession");
+      const target = await findUser(request.params.id);
+      if (!target) return fail(reply, 404, "not-found", request, "profession");
+      if (!permissions.canSetHostActive(actorOf(admin), { uid: target.id })) return fail(reply, 403, "permission-denied", request, "profession");
+      await sql`update users set profession = ${value}, updated_at = now() where id = ${target.id}`;
+      request.log.info({ auth: "profession", result: "ok", status: 200 }, "auth");
       return { ok: true };
     });
 

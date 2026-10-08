@@ -88,7 +88,7 @@ export function registerProposals(app: FastifyInstance, options: ProposalsOption
         fail(reply, 401, "unauthenticated");
         return null;
       }
-      if (!permissions.isActiveHost(actorOf(user))) {
+      if (!permissions.hostsGames(actorOf(user))) {
         fail(reply, 403, "permission-denied");
         return null;
       }

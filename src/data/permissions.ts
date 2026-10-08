@@ -8,7 +8,7 @@ import { ADMIN_UID } from "./config";
 import type { Answer, Game, GameScope, Participant, Session, SessionState, UserProfile } from "./types";
 
 /** Кто действует: профиль ведущего или null (гость, не вошёл). */
-export type Actor = (Pick<UserProfile, "uid" | "role" | "active"> & { venueAccess?: boolean }) | null;
+export type Actor = (Pick<UserProfile, "uid" | "role" | "active"> & { venueAccess?: boolean; profession?: string | null }) | null;
 
 /** Владелец агентства (UID зашит в config.ts и firestore.rules) или активный admin. */
 export function isAdmin(actor: Actor): boolean {
@@ -20,6 +20,16 @@ export function isAdmin(actor: Actor): boolean {
 export function isActiveHost(actor: Actor): boolean {
   if (!actor) return false;
   return isAdmin(actor) || (actor.role === "host" && actor.active);
+}
+
+/**
+ * Проводит игры: активный ведущий (профессия «ведущий» или не указана — Firebase-версия её не знает)
+ * или admin. Диджеи, музыканты, фокусники и другие профессии команды входят в платформу, видят
+ * команду и свой профиль, но игр и сессий у них нет (только свой сервер).
+ */
+export function hostsGames(actor: Actor): boolean {
+  if (!isActiveHost(actor)) return false;
+  return isAdmin(actor) || !actor?.profession || actor.profession === "host";
 }
 
 /** Раздел /admin: список, добавление и отключение ведущих. */
@@ -44,14 +54,14 @@ export function canResetHostPassword(actor: Actor, target: Pick<UserProfile, "ui
 type GameRef = Pick<Game, "scope" | "ownerId">;
 
 export function canReadGame(actor: Actor, game: GameRef): boolean {
-  if (!isActiveHost(actor)) return false;
+  if (!hostsGames(actor)) return false;
   return game.scope === "agency" || game.ownerId === actor?.uid || isAdmin(actor);
 }
 
 /** Создать игру в нужной библиотеке: общую — только admin, личную — себе. */
 export function canCreateGame(actor: Actor, scope: GameScope, ownerId: string): boolean {
   if (scope === "agency") return isAdmin(actor);
-  return isActiveHost(actor) && ownerId === actor?.uid;
+  return hostsGames(actor) && ownerId === actor?.uid;
 }
 
 /** Общую библиотеку редактирует только admin, личную игру — только её владелец. */
@@ -87,7 +97,7 @@ export function canCopyToPersonal(actor: Actor, game: GameRef): boolean {
  * сам делает «Копию в библиотеку JoyRest».
  */
 export function canProposeGame(actor: Actor, game: GameRef): boolean {
-  return isActiveHost(actor) && !isAdmin(actor) && game.scope === "personal" && game.ownerId === actor?.uid;
+  return hostsGames(actor) && !isAdmin(actor) && game.scope === "personal" && game.ownerId === actor?.uid;
 }
 
 /** Принять или отклонить предложение — тот, кто правит библиотеку (admin). */
@@ -103,24 +113,24 @@ export interface TrackRef {
 
 /** Загружать музыку себе может любой активный ведущий; в общую библиотеку сразу — только admin. */
 export function canUploadTrack(actor: Actor, scope: TrackRef["scope"]): boolean {
-  return scope === "agency" ? isAdmin(actor) : isActiveHost(actor);
+  return scope === "agency" ? isAdmin(actor) : hostsGames(actor);
 }
 
 /** Слушать и ставить на экран: свои треки и всю общую библиотеку; admin — любые (проверка). */
 export function canUseTrack(actor: Actor, track: TrackRef): boolean {
-  if (!isActiveHost(actor)) return false;
+  if (!hostsGames(actor)) return false;
   return track.scope === "agency" || track.ownerId === actor?.uid || isAdmin(actor);
 }
 
 /** Переименовать, удалить: личный — владелец, общий — admin. */
 export function canEditTrack(actor: Actor, track: TrackRef): boolean {
-  if (!isActiveHost(actor)) return false;
+  if (!hostsGames(actor)) return false;
   return track.scope === "agency" ? isAdmin(actor) : track.ownerId === actor?.uid;
 }
 
 /** Предложить трек в общую — ведущий, свой личный (admin загружает в общую сам). */
 export function canShareTrack(actor: Actor, track: TrackRef): boolean {
-  return isActiveHost(actor) && !isAdmin(actor) && track.scope === "personal" && track.ownerId === actor?.uid;
+  return hostsGames(actor) && !isAdmin(actor) && track.scope === "personal" && track.ownerId === actor?.uid;
 }
 
 /** Принять или отклонить трек — admin. */
@@ -152,7 +162,7 @@ export function canGrantVenueAccess(actor: Actor, target: Pick<UserProfile, "uid
 
 /** Отключённый ведущий не создаёт сессии. */
 export function canCreateSession(actor: Actor): boolean {
-  return isActiveHost(actor);
+  return hostsGames(actor);
 }
 
 export function canLaunchGame(actor: Actor, game: GameRef): boolean {

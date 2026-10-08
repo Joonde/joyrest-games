@@ -89,4 +89,20 @@ describe.skipIf(!url)("команда JoyRest на PostgreSQL", () => {
     await post(`/api/users/${annaId}/active`, owner, { active: false });
     expect(((await get("/api/team", owner)).json() as Array<{ uid: string }>).some((m) => m.uid === annaId)).toBe(false);
   });
+
+  it("другие профессии: диджей входит и видит команду, игр и сессий у него нет; профессию меняет владелец", async () => {
+    const created = (await post("/api/users", owner, { email: "dj@example.com", name: "Диджей Макс", profession: "dj" })).json();
+    expect(created.account.profession).toBe("dj");
+    const dj = await login("dj@example.com", created.temporaryPassword);
+    expect(dj).not.toBe("");
+    expect((await get("/api/auth/me", dj)).json().profile.profession).toBe("dj");
+    const team = (await get("/api/team", dj)).json() as Array<{ uid: string; profession: string }>;
+    expect(team.find((m) => m.uid === created.account.uid)?.profession).toBe("dj");
+    expect((await get("/api/games?scope=agency", dj)).statusCode).toBe(403);
+    expect((await post("/api/sessions", dj, { id: "dj-session-1" })).statusCode).toBe(403);
+    expect((await post(`/api/users/${created.account.uid}/profession`, dj, { profession: "host" })).statusCode).toBe(403);
+    expect((await post(`/api/users/${created.account.uid}/profession`, owner, { profession: "космонавт" })).statusCode).toBe(400);
+    expect((await post(`/api/users/${created.account.uid}/profession`, owner, { profession: "host" })).statusCode).toBe(200);
+    expect((await get("/api/games?scope=agency", dj)).statusCode).toBe(200);
+  });
 });

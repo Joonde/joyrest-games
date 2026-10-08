@@ -73,7 +73,7 @@ export interface UsersRepository {
    * Только admin: создаёт аккаунт ведущего с временным паролем. Вход администратора
    * при этом не меняется.
    */
-  createHost(email: string, name: string): Promise<CreatedHost>;
+  createHost(email: string, name: string, profession?: string): Promise<CreatedHost>;
   /** Только admin: отключение (active = false) блокирует вход и создание сессий. */
   setHostActive(uid: string, active: boolean): Promise<void>;
   /**
@@ -81,6 +81,8 @@ export interface UsersRepository {
    * при входе ведущий задаёт свой). У Firebase без Cloud Functions этого нет — метода нет.
    */
   resetHostPassword?(uid: string): Promise<CreatedHost>;
+  /** Только admin, только свой сервер: профессия в команде (`src/core/professions.ts`). */
+  setProfession?(uid: string, profession: string): Promise<void>;
 }
 
 export interface GamesRepository {

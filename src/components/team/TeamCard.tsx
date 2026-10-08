@@ -1,4 +1,5 @@
 import { formatDate } from "../../core/format";
+import { professionOf, professionTitle } from "../../core/professions";
 import { teamRepo, type TeamMember } from "../../data";
 
 /** Первые буквы имени — вместо аватарки, пока её нет. */
@@ -31,7 +32,7 @@ export function TeamCard({ member }: { member: TeamMember }) {
         </div>
         <h3 className="team-card__name">{member.name || "Ведущий"}</h3>
         <ul className="meta" aria-label="О ведущем">
-          {member.owner && <li>Основатель JoyRest</li>}
+          {member.owner ? <li>Основатель JoyRest</li> : professionOf(member.profession) !== "host" && <li className="team-card__tag">{professionTitle(member.profession)}</li>}
           {member.since && <li>В JoyRest с {formatDate(member.since)}</li>}
         </ul>
         {member.bio ? <p className="team-card__bio">{member.bio}</p> : <p className="muted small">Пока ничего не рассказал о себе.</p>}

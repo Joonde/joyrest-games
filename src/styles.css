@@ -791,7 +791,8 @@ a {
   font-weight: 500;
 }
 
-.field input {
+.field input,
+.quiz-phone input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]) {
   min-height: var(--control-height);
   padding: 8px 16px;
   border-radius: var(--radius-md);
@@ -818,6 +819,7 @@ a {
 }
 
 .field input:focus-visible,
+.quiz-phone input:focus-visible,
 .field textarea:focus-visible {
   border-color: var(--color-highlight);
   outline-offset: 2px;
@@ -5480,7 +5482,9 @@ ul.chips {
   gap: 2px;
   text-align: center;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: auto;
   cursor: pointer;
 }
 
@@ -5492,6 +5496,11 @@ ul.chips {
 
 .lotto-card__title {
   font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .lotto-card__artist {
@@ -6483,6 +6492,30 @@ ul.chips {
   font-size: 6cqh;
   text-wrap: balance;
   margin: 0;
+}
+
+/* Вопрос без картинки — крупно и по центру экрана, а не строкой сверху. */
+.board-screen--question:not(.board-screen--image) .board-screen__question {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 8cqh;
+  line-height: 1.15;
+  padding: 0 4cqw;
+  animation: board-q-in 0.5s ease-out;
+}
+
+@keyframes board-q-in {
+  from { opacity: 0; transform: translateY(2cqh) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-screen--question:not(.board-screen--image) .board-screen__question {
+    animation: none;
+  }
 }
 
 .board-screen--image {
@@ -8547,7 +8580,7 @@ button.dance-card:active {
 
 .sv-round__text {
   margin: 0;
-  font-size: 4.4cqh;
+  font-size: 6cqh;
   font-weight: 600;
   text-wrap: balance;
 }
@@ -8585,26 +8618,76 @@ button.dance-card:active {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
-  font-size: 2.8cqh;
+  font-size: 3.2cqh;
 }
 
+/* Дорожка: асфальт с разметкой, клетчатый финиш, гонщик — смайлик команды на краю следа. */
 .sv-lane__track {
   position: relative;
-  height: 3.6cqh;
-  border-radius: 999px;
-  background: var(--color-surface-alt);
-  border-right: 0.5cqh dashed var(--color-highlight);
-  overflow: hidden;
+  height: 5cqh;
+  border-radius: 1cqh;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0 2cqh, transparent 2cqh 4cqh) center / 100% 0.35cqh no-repeat,
+    linear-gradient(180deg, #3b3632, #2b2724);
+  box-shadow: inset 0 0.3cqh 0 rgba(255, 255, 255, 0.06), inset 0 -0.3cqh 0 rgba(0, 0, 0, 0.35);
+}
+
+.sv-lane__track::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 1.6cqh;
+  border-radius: 0 1cqh 1cqh 0;
+  background: repeating-conic-gradient(#fbf6f1 0 25%, #221e1b 0 50%) 0 0 / 0.8cqh 0.8cqh;
 }
 
 .sv-lane__runner {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: calc(var(--share) * 100%);
-  min-width: 3.6cqh;
+  inset: 0.9cqh auto 0.9cqh 0;
+  width: calc(var(--share) * (100% - 5cqh));
   border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--team));
+  opacity: 0.85;
+  transition: width 1s cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+
+.sv-lane__car {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--share) * (100% - 5cqh));
+  width: 5cqh;
+  height: 5cqh;
+  margin-top: -2.5cqh;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
   background: var(--team);
-  transition: width 0.8s ease;
+  border: 0.35cqh solid #221e1b;
+  font-size: 2.8cqh;
+  line-height: 1;
+  box-shadow: 0 0.6cqh 1.2cqh rgba(0, 0, 0, 0.45);
+  transition: left 1s cubic-bezier(0.3, 0.7, 0.3, 1);
+  animation: sv-drive 0.5s ease-in-out infinite alternate;
+}
+
+.sv-lane.is-winner .sv-lane__car {
+  box-shadow: 0 0 2cqh var(--team);
+}
+
+@keyframes sv-drive {
+  from { transform: translateY(-0.2cqh) rotate(-3deg); }
+  to { transform: translateY(0.2cqh) rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-lane__car {
+    animation: none;
+    transition: none;
+  }
+
+  .sv-lane__runner {
+    transition: none;
+  }
 }
 
 .sv-lane__score {
@@ -8627,11 +8710,28 @@ button.dance-card:active {
 }
 
 .sv-lanes--phone .sv-lane__track {
-  height: 14px;
+  height: 22px;
+  border-radius: 6px;
+  background-size: 100% 2px, auto;
+}
+
+.sv-lanes--phone .sv-lane__track::after {
+  width: 8px;
+  background-size: 4px 4px;
 }
 
 .sv-lanes--phone .sv-lane__runner {
-  min-width: 14px;
+  inset: 5px auto 5px 0;
+  width: calc(var(--share) * (100% - 22px));
+}
+
+.sv-lanes--phone .sv-lane__car {
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  left: calc(var(--share) * (100% - 22px));
+  font-size: 12px;
+  border-width: 2px;
 }
 
 .quiz-phone .sv-round__text,
@@ -9598,5 +9698,89 @@ button.dance-card:active {
 
   .qm-token {
     transition: none;
+  }
+}
+
+/* Танцевальный батл без видео: сцена с прожектором и «эквалайзером». */
+.dance-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  text-align: center;
+  position: relative;
+}
+
+.dance-stage::before {
+  content: "";
+  position: absolute;
+  inset: -10% 20% 10%;
+  background: radial-gradient(ellipse at 50% 0%, var(--scene-glow, rgba(255, 220, 160, 0.35)), transparent 70%);
+  opacity: 0.6;
+  animation: dance-spot 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.dance-stage__emoji {
+  font-size: 16cqh;
+  line-height: 1;
+  animation: dance-bounce 0.6s ease-in-out infinite alternate;
+}
+
+.dance-stage__title {
+  margin: 0;
+  font-size: 9cqh;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.dance-stage__eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 1cqw;
+  height: 10cqh;
+}
+
+.dance-stage__eq span {
+  width: 2cqw;
+  height: 100%;
+  border-radius: 1cqh 1cqh 0 0;
+  background: linear-gradient(0deg, var(--color-highlight), var(--color-primary));
+  transform-origin: bottom;
+  animation: dance-eq 0.9s ease-in-out infinite alternate;
+}
+
+.dance-stage.is-paused .dance-stage__emoji,
+.dance-stage.is-paused .dance-stage__eq span,
+.dance-stage.is-paused::before {
+  animation-play-state: paused;
+}
+
+@keyframes dance-bounce {
+  from { transform: translateY(0) rotate(-6deg); }
+  to { transform: translateY(-2cqh) rotate(6deg); }
+}
+
+@keyframes dance-eq {
+  from { transform: scaleY(0.15); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes dance-spot {
+  50% { opacity: 0.9; transform: rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dance-stage__emoji,
+  .dance-stage__eq span,
+  .dance-stage::before {
+    animation: none;
+  }
+
+  .dance-stage__eq span {
+    transform: scaleY(0.6);
   }
 }

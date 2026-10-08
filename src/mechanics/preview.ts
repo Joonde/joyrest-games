@@ -87,7 +87,8 @@ export interface PreviewOptions<Content> {
 /** Прогон: сцены от начала игры до награждения и итогов. */
 export function runPreview<Content>({ mechanic, content, playMode, themeId, driver, teams, limit }: PreviewOptions<Content>): { scenes: PreviewScene[]; phones: PreviewPhone[] } {
   const { participants, phones } = previewParticipants(playMode, teams);
-  let clock = 1_800_000_000_000;
+  // Часы — сейчас: таймеры вопросов в предпросмотре идут как в игре.
+  let clock = Date.now();
   let session: Session = {
     id: "preview",
     code: "000000",
@@ -123,6 +124,11 @@ export function runPreview<Content>({ mechanic, content, playMode, themeId, driv
       if (at >= 0) answers.splice(at, 1, answer);
       else answers.push(answer);
     });
+    if (move.answers?.length && !move.change) {
+      // Счётчик «ответили» на экране — как его ведёт пульт.
+      const now = answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).length;
+      session = { ...session, state: { ...session.state, answered: now } };
+    }
     if (move.change) apply(move.change);
     if (!move.change && !(move.answers?.length)) break;
     push(move.label);

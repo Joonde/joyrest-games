@@ -33,6 +33,8 @@ export function GamePreview({ open, onClose, mechanic, content, playMode, themeI
   const [view, setView] = useState<View>("screen");
   const [index, setIndex] = useState(0);
   const [phoneAt, setPhoneAt] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- новое время на каждый новый момент
+  const shownAt = useMemo(() => Date.now(), [index]);
   const run = useMemo(() => {
     if (!open || !mechanic.preview) return null;
     const parsed = mechanic.parse(content);
@@ -45,10 +47,11 @@ export function GamePreview({ open, onClose, mechanic, content, playMode, themeI
   const scene = scenes[at];
   const phone = phones[Math.min(phoneAt, phones.length - 1)];
   if (!scene || !phone) return null;
-  const { session } = scene;
+  // Таймеры шага в предпросмотре идут «с этой секунды»: время шага переносим на момент показа.
+  const session = scene.session.state.startedAt ? { ...scene.session, state: { ...scene.session.state, startedAt: shownAt - 1500 } } : scene.session;
   const finished = session.state.phase === "finished";
   const podium = session.state.stage === "podium";
-  const mine = scene.answers.find((a) => a.step === session.state.step && a.pid === phone.pid && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0));
+  const mine = scene.answers.find((a) => a.step === scene.session.state.step && a.pid === phone.pid && (a.submittedAt ?? 0) >= (scene.session.state.startedAt ?? 0));
   const { ScreenView, PlayerView } = mechanic;
 
   return (

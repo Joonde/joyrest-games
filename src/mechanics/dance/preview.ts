@@ -22,7 +22,7 @@ export const dancePreview: PreviewDriver<DanceContent> = ({ session, content, pa
       const card = cardOf(content, r.card);
       if (answers.length === 0 && card) {
         if (card.kind === "battle") {
-          return { label: "Капитаны голосуют, кто победил", answers: teams.map((pid, i) => ({ pid, value: { team: teams.at((i + 1) % teams.length) ?? pid } })) };
+          return { label: "Капитаны голосуют, кто победил", answers: teams.map((pid, i) => ({ pid, value: { team: i === 1 ? (teams.at(0) ?? pid) : (teams.at(1) ?? pid) } })) };
         }
         const span = content.maxRate - content.minRate;
         return {

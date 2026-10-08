@@ -33,6 +33,12 @@ function warNote(content: SurvivalContent, r: SurvivalResult): string {
 }
 
 /** Дорожки: у лидера — до финишной черты, остальные — по доле от его очков. */
+/** Гонщик на дорожке: смайлик команды или первая буква. */
+function carOf(name: string): string {
+  const first = Array.from(name.trim())[0] ?? "?";
+  return /\p{Extended_Pictographic}/u.test(first) ? first : first.toUpperCase();
+}
+
 export function RaceLanes({ session, result, size = "screen" }: { session: Session; result: SurvivalResult; size?: "screen" | "phone" }) {
   const scores = result.order.map((p) => session.leaderboard[p]?.score ?? 0);
   const top = Math.max(1, ...scores);
@@ -53,6 +59,9 @@ export function RaceLanes({ session, result, size = "screen" }: { session: Sessi
             </span>
             <span className="sv-lane__track">
               <span className="sv-lane__runner" />
+              <span className="sv-lane__car" aria-hidden="true">
+                {carOf(nameOf(session, p))}
+              </span>
             </span>
             <span className="sv-lane__score">{pointsLabel(score)}</span>
           </li>

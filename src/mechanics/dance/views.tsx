@@ -190,9 +190,27 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
     return (
       <div className="dance-screen dance-screen--perform">
         {head}
-        {card.title && <h2 className="dance-screen__card-title">{card.title}</h2>}
-        <CardVideo card={card} paused={r.paused} replay={r.replay} />
-        {card.note && <p className="dance-screen__note">{card.note}</p>}
+        {card.video.source === "none" || (card.video.source === "link" && !card.video.url.trim()) ? (
+          // Без видео — сцена: крупное название, прожекторы и «эквалайзер» в такт.
+          <div className={r.paused ? "dance-stage is-paused" : "dance-stage"}>
+            <span className="dance-stage__emoji" aria-hidden="true">
+              {KIND_EMOJI[card.kind]}
+            </span>
+            {card.title && <h2 className="dance-stage__title">{card.title}</h2>}
+            {card.note && <p className="dance-screen__note">{card.note}</p>}
+            <div className="dance-stage__eq" aria-hidden="true">
+              {Array.from({ length: 14 }, (_, i) => (
+                <span key={i} style={{ animationDelay: `${(i * 137) % 900}ms` }} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {card.title && <h2 className="dance-screen__card-title">{card.title}</h2>}
+            <CardVideo card={card} paused={r.paused} replay={r.replay} />
+            {card.note && <p className="dance-screen__note">{card.note}</p>}
+          </>
+        )}
       </div>
     );
   }
@@ -219,7 +237,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
       {entries.length > 0 && <Confetti burst={`dance:${step}`} />}
       {head}
       {entries.length === 0 ? (
-        <h2 className="dance-screen__title">Голосов нет</h2>
+        <h2 className="dance-screen__title">{r.tie.length > 1 ? "Ничья! Победителя назовёт ведущий" : "Голосов нет"}</h2>
       ) : (
         entries.map(([p, n]) => (
           <div key={p} className="dance-screen__score">

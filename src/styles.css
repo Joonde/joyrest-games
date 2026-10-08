@@ -11286,3 +11286,73 @@ button.dance-card:active {
 .td-editor__row { display: flex; justify-content: space-between; align-items: center; }
 .td-editor__adult { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .td-chip[aria-selected="true"] { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }
+
+/* «Не моя история»: письмо на кремовой бумаге, золотая рамка, сургучная печать с монограммой */
+.st-screen { width: 100%; height: 100%; padding: 2cqh 3cqw; box-sizing: border-box; display: grid; font-size: 3cqh; }
+.st-screen__main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6cqh; min-height: 0; text-align: center; }
+.st-title { margin: 0; font-family: var(--font-display); font-size: 7cqh; line-height: 1.05; text-wrap: balance; }
+.st-prompt { margin: 0; max-width: 70cqw; font-family: var(--font-display); font-size: 4cqh; font-style: italic; color: var(--color-text-muted); text-wrap: balance; }
+.st-note { margin: 0; color: var(--color-text-muted); }
+
+.st-letter {
+  --st-paper: #fbf3e4;
+  --st-ink: #2e2420;
+  position: relative;
+  container-type: inline-size;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  width: min(72cqw, 120cqh);
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border-radius: 1.4% / 2.4%;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgb(255 255 255 / 0.7), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgb(201 161 95 / 0.18), transparent 60%),
+    var(--st-paper);
+  color: var(--st-ink);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.45);
+  animation: st-unfold 0.8s cubic-bezier(0.3, 1.2, 0.5, 1) both;
+}
+.st-letter--phone { width: 100%; aspect-ratio: auto; min-height: 220px; }
+.st-letter__frame { position: absolute; inset: 2.2cqi; border: 0.35cqi solid #c9a15f; border-radius: 1.2cqi; box-shadow: inset 0 0 0 0.8cqi transparent, inset 0 0 0 1cqi rgb(201 161 95 / 0.5); pointer-events: none; }
+.st-letter__label { position: absolute; top: 4.6cqi; left: 0; right: 0; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 3cqi; letter-spacing: 0.22em; text-transform: uppercase; color: #8a2a3e; }
+.st-letter__quote { position: absolute; top: 4cqi; left: 6cqi; font-family: var(--font-display); font-size: 14cqi; line-height: 1; color: rgb(201 161 95 / 0.55); }
+.st-letter__text { margin: 0; padding: 10cqi 10cqi 14cqi; font-family: var(--font-display); font-weight: 600; font-size: 5.4cqi; line-height: 1.25; text-align: center; text-wrap: balance; }
+.st-letter--phone .st-letter__label { font-size: 12px; top: 22px; }
+.st-letter--phone .st-letter__quote { font-size: 64px; top: 12px; left: 18px; }
+.st-letter--phone .st-letter__text { padding: 52px 24px 72px; font-size: 20px; }
+.st-seal { position: absolute; bottom: 3.4cqi; left: 50%; width: 10cqi; aspect-ratio: 1; transform: translateX(-50%); display: grid; place-items: center; }
+.st-letter--phone .st-seal { width: 64px; bottom: 6px; transform: translate(-50%, 0); }
+.st-seal__wax { position: absolute; inset: 0; border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%; background: radial-gradient(circle at 35% 30%, #c4485e, #8a2a3e 55%, #5e1626); box-shadow: 0 0.6cqi 1.6cqi rgb(0 0 0 / 0.35), inset 0 0 0 0.8cqi rgb(0 0 0 / 0.12); }
+.st-seal__mark { position: relative; width: 62%; opacity: 0.9; }
+.st-letter.is-open .st-seal { animation: st-crack 0.7s ease both; }
+.st-letter.is-open .st-seal__wax { clip-path: polygon(0 0, 46% 0, 54% 48%, 40% 100%, 0 100%); }
+.st-letter.is-open .st-seal::after { content: ""; position: absolute; inset: 0; border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%; background: radial-gradient(circle at 65% 40%, #c4485e, #8a2a3e 55%, #5e1626); clip-path: polygon(54% 0, 100% 0, 100% 100%, 46% 100%, 60% 50%); transform: translate(8%, 6%) rotate(10deg); }
+
+.st-reveal { display: grid; justify-items: center; gap: 1cqh; animation: st-rise 0.6s ease both; }
+.st-author { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 7cqh; line-height: 1; }
+.st-votes { display: flex; flex-wrap: wrap; justify-content: center; gap: 1cqh 1cqw; margin: 0; padding: 0; list-style: none; font-size: 2.6cqh; }
+.st-votes li { padding: 0.6cqh 1.4cqw; border-radius: 99px; background: var(--color-surface); border: 1px solid var(--color-border); }
+.st-votes li.is-author { border-color: var(--color-highlight); box-shadow: 0 0 0 0.3cqh var(--color-highlight); }
+
+.st-env { position: relative; width: 60cqh; max-width: 100%; height: 22cqh; }
+.st-env__item { position: absolute; left: 50%; bottom: 0; width: 15cqh; transform: translateX(calc(-50% + var(--i) * 55%)) rotate(calc(var(--i) * 6deg)); animation: st-drop 3.2s ease-in-out infinite; }
+.st-env__item svg { width: 100%; height: auto; filter: drop-shadow(0 0.6cqh 1cqh rgb(0 0 0 / 0.35)); }
+
+.st-phone__input { min-height: 140px; }
+.st-phone__ideas summary { min-height: 52px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.st-phone__author { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 28px; text-align: center; }
+.st-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.st-host__list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.st-host__list li { display: grid; gap: 2px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--color-border); }
+.st-host__list li.is-hidden { opacity: 0.5; text-decoration: line-through; }
+
+@keyframes st-unfold { from { transform: perspective(900px) rotateX(70deg) translateY(4cqh); opacity: 0; } }
+@keyframes st-crack { 0% { transform: translateX(-50%) scale(1); } 40% { transform: translateX(-50%) scale(1.15); } }
+@keyframes st-rise { from { opacity: 0; transform: translateY(2cqh); } }
+@keyframes st-drop { 0%, 100% { translate: 0 0; } 50% { translate: 0 -1.2cqh; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-letter, .st-letter.is-open .st-seal, .st-reveal, .st-env__item { animation: none !important; }
+}

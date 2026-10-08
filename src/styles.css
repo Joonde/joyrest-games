@@ -10417,3 +10417,653 @@ button.dance-card:active {
   width: 32px;
   height: 32px;
 }
+
+/* ---------------------------------------------------------------- Разделы библиотеки (GameList) */
+.categories {
+  display: grid;
+  gap: 12px;
+}
+
+.category {
+  padding: 0;
+  overflow: hidden;
+}
+
+.category.is-open {
+  border-color: var(--color-highlight);
+}
+
+.category-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 72px;
+  padding: 16px 20px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:not(.category) > .category-row {
+  padding: 0;
+  min-height: 56px;
+}
+
+.category-row:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: -3px;
+}
+
+.category-row__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.category-row__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.category-row__title {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.category-row__hint {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.category-row__count {
+  min-width: 32px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--gradient-secondary);
+  color: var(--color-accent-text);
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-row__chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: rotate(45deg) translateY(-3px);
+  transition: transform 0.2s ease;
+}
+
+.category-row[aria-expanded="true"] .category-row__chevron {
+  transform: rotate(-135deg) translateY(-3px);
+}
+
+.category__games {
+  padding: 0 16px 16px;
+}
+
+.demo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.demo-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-row__chevron {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- «Мафия»: карты ролей (mechanics/mafia/RoleArt.tsx) */
+/* Цвета ролей — декоративные заливки; текст на картах всегда светлый на тёмном фоне карты. */
+.mf-role--mafia, .mf-art--mafia { --mf-bg1: #4a0f17; --mf-bg2: #12050a; --mf-glow: #ff3b4a; --mf-accent: #ff5a66; --mf-suit-top: #2a1c20; --mf-suit-bottom: #0a0708; }
+.mf-role--don, .mf-art--don { --mf-bg1: #2b2108; --mf-bg2: #070503; --mf-glow: #e3c68c; --mf-accent: #e9cf93; --mf-suit-top: #1c1818; --mf-suit-bottom: #050404; }
+.mf-role--commissar, .mf-art--commissar { --mf-bg1: #12285a; --mf-bg2: #050b1c; --mf-glow: #8cc7ff; --mf-accent: #e3c68c; --mf-suit-top: #6b5440; --mf-suit-bottom: #2a2018; }
+.mf-role--doctor, .mf-art--doctor { --mf-bg1: #0e4a4c; --mf-bg2: #041a1b; --mf-glow: #7df2c8; --mf-accent: #7df2c8; --mf-suit-top: #f2faf8; --mf-suit-bottom: #b9d6d2; }
+.mf-role--civilian, .mf-art--civilian { --mf-bg1: #4a3214; --mf-bg2: #150c04; --mf-glow: #ffcf7a; --mf-accent: #ffcf7a; --mf-suit-top: #7a5a3e; --mf-suit-bottom: #3b2a1c; }
+
+.mf-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.mf-art__halo { animation: mf-breathe 4s ease-in-out infinite; transform-origin: 100px 92px; }
+.mf-art__eye { animation: mf-eye 3.2s ease-in-out infinite; }
+.mf-art__blink { transform-origin: center; animation: mf-blink 5s steps(1, end) infinite; opacity: 0; }
+.mf-art__smoke path { stroke-dasharray: 60 120; animation: mf-smoke 3.6s linear infinite; opacity: 0.7; }
+.mf-art__smoke--late { animation-delay: -1.8s !important; }
+.mf-art__ember { animation: mf-ember 1.6s ease-in-out infinite; }
+.mf-art__sparkle { transform-origin: 2px -12px; animation: mf-sparkle 2.6s ease-in-out infinite; }
+.mf-art__beam { transform-origin: 132px 128px; animation: mf-beam 4.5s ease-in-out infinite; }
+.mf-art__glint { animation: mf-glint 3s ease-in-out infinite; }
+.mf-art__badge { animation: mf-badge 3.4s ease-in-out infinite; }
+.mf-art__ecg { stroke-dasharray: 220; stroke-dashoffset: 220; animation: mf-ecg 1.8s linear infinite; }
+.mf-art__heart { transform-origin: 100px 192px; animation: mf-heart 0.9s ease-in-out infinite; }
+.mf-art__flame { transform-origin: 0 6px; animation: mf-flame 0.5s ease-in-out infinite alternate; }
+.mf-art__window { animation: mf-window 6s steps(1, end) infinite; }
+.mf-art__window--late { animation-delay: -3s; }
+
+/* Карта: переворот, рамка ар-деко, бегущий блик */
+.mf-card {
+  display: block;
+  width: min(100%, 320px);
+  aspect-ratio: 2 / 3;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  perspective: 1200px;
+  cursor: pointer;
+  font: inherit;
+  color: #fbf6f1;
+}
+
+.mf-card:focus-visible { outline: 3px solid var(--color-highlight); outline-offset: 4px; border-radius: 20px; }
+
+.mf-card__inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+.mf-card.is-open .mf-card__inner { transform: rotateY(180deg); }
+
+.mf-card__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 20px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(227 198 140 / 0.35);
+}
+
+.mf-card__back {
+  justify-content: center;
+  gap: 8px;
+  background: radial-gradient(circle at 50% 40%, #3a2630 0%, #120b0e 70%);
+}
+
+.mf-card__pattern {
+  position: absolute;
+  inset: 12px;
+  border: 1.5px solid rgb(227 198 140 / 0.6);
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(45deg, rgb(227 198 140 / 0.08) 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(-45deg, rgb(227 198 140 / 0.08) 0 2px, transparent 2px 14px);
+}
+
+.mf-card__mono {
+  position: relative;
+  width: 78%;
+  filter: drop-shadow(0 0 14px rgb(227 198 140 / 0.45));
+  animation: mf-breathe 4s ease-in-out infinite;
+}
+
+.mf-card__mono .logo,
+.mf-card__mono svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Надписи в разрывах рамки: «Мафия» — сверху, город — снизу. */
+.mf-card__back-title,
+.mf-card__back-city {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 10px;
+  white-space: nowrap;
+  background: #160d11;
+  color: #e3c68c;
+  text-transform: uppercase;
+}
+
+.mf-card__back-title {
+  top: 12px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+}
+
+.mf-card__back-city {
+  top: calc(100% - 12px);
+  font-size: 12px;
+  letter-spacing: 0.3em;
+}
+
+.mf-card__front {
+  transform: rotateY(180deg);
+  padding: 18px 18px 20px;
+  gap: 4px;
+  background: radial-gradient(circle at 50% 30%, var(--mf-bg1) 0%, var(--mf-bg2) 75%);
+  text-align: center;
+}
+
+.mf-card__frame {
+  position: absolute;
+  inset: 8px;
+  border: 1.5px solid rgb(227 198 140 / 0.55);
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.mf-card__frame::before,
+.mf-card__frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 46px;
+  height: 10px;
+  margin-left: -23px;
+  border: 1.5px solid rgb(227 198 140 / 0.7);
+  border-radius: 6px;
+  background: var(--mf-bg2);
+}
+
+.mf-card__frame::before { top: -6px; }
+.mf-card__frame::after { bottom: -6px; }
+
+.mf-card__sheen {
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(115deg, transparent 40%, rgb(255 255 255 / 0.18) 48%, rgb(255 240 200 / 0.28) 50%, rgb(255 255 255 / 0.12) 52%, transparent 60%);
+  transform: translateX(-60%);
+  animation: mf-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.mf-card__seat,
+.mf-card__side {
+  position: absolute;
+  top: 18px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgb(0 0 0 / 0.45);
+  color: #fbf6f1;
+  z-index: 1;
+}
+
+.mf-card__seat { left: 18px; }
+.mf-card__side { right: 18px; color: #a3e0b8; }
+.mf-card__side.is-mafia { color: #ff9aa2; }
+
+.mf-card__front .mf-art {
+  width: 78%;
+  margin-top: 18px;
+  filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.5));
+}
+
+.mf-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+  color: #fbf6f1;
+  text-shadow: 0 0 18px var(--mf-glow);
+}
+
+.mf-card__power {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgb(251 246 241 / 0.88);
+  text-wrap: balance;
+}
+
+.mf-card__family {
+  margin: 4px 0 0;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.4);
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffb3b9;
+}
+
+@keyframes mf-breathe { 0%, 100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+@keyframes mf-eye { 0%, 70%, 100% { opacity: 1; } 75%, 80% { opacity: 0.2; } }
+@keyframes mf-blink { 0%, 92%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
+@keyframes mf-smoke { from { stroke-dashoffset: 0; transform: translateY(0); opacity: 0.75; } to { stroke-dashoffset: -180; transform: translateY(-14px); opacity: 0; } }
+@keyframes mf-ember { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes mf-sparkle { 0%, 60%, 100% { transform: scale(0) rotate(0deg); opacity: 0; } 75% { transform: scale(1.2) rotate(45deg); opacity: 1; } }
+@keyframes mf-beam { 0%, 100% { transform: rotate(-14deg); opacity: 0.25; } 50% { transform: rotate(10deg); opacity: 0.45; } }
+@keyframes mf-glint { 0%, 70%, 100% { opacity: 0; } 80% { opacity: 1; } }
+@keyframes mf-badge { 0%, 100% { transform: translate(68px, 196px) rotate(0deg); } 50% { transform: translate(68px, 196px) rotate(8deg); } }
+@keyframes mf-ecg { to { stroke-dashoffset: 0; } }
+@keyframes mf-heart { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.15); } }
+@keyframes mf-flame { from { transform: scaleY(0.85) scaleX(1.05); } to { transform: scaleY(1.12) scaleX(0.92); } }
+@keyframes mf-window { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }
+@keyframes mf-sheen { 0%, 55% { transform: translateX(-60%); } 85%, 100% { transform: translateX(60%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-art *, .mf-card__sheen, .mf-card__mono { animation: none !important; }
+  .mf-card__inner { transition: none; }
+  .mf-art__blink { opacity: 0; }
+}
+
+/* «Мафия»: живые детали персонажей (второй рисунок) */
+.mf-art__body { animation: mf-body 4s ease-in-out infinite; }
+.mf-art__rain path { animation: mf-rain 0.9s linear infinite; }
+.mf-art__lamp { animation: mf-lamp 3.5s ease-in-out infinite; }
+.mf-art__eyeglow { animation: mf-eye 3.2s ease-in-out infinite; }
+.mf-art__rose { transform-origin: 132px 196px; animation: mf-sway 3s ease-in-out infinite; }
+.mf-art__ring { transform-box: fill-box; transform-origin: center; animation: mf-ring 3.4s ease-out infinite; }
+.mf-art__ring--late { animation-delay: -1.7s; }
+.mf-art__candle .mf-art__flame { transform-origin: 0 0; }
+.mf-art__qmark text { animation: mf-float 3s ease-in-out infinite; }
+.mf-art__qmark text:last-child { animation-delay: -1.5s; }
+.mf-art__look { animation: mf-look 5s ease-in-out infinite; }
+.mf-art__badge-shine { animation: mf-glint 2.8s ease-in-out infinite; }
+.mf-art__cross-float path { transform-box: fill-box; transform-origin: center; animation: mf-cross 3.6s ease-in-out infinite; }
+.mf-art__zzz text { animation: mf-zzz 2.4s ease-out infinite; opacity: 0; }
+.mf-art__cap { transform-origin: 112px 80px; animation: mf-sway 4s ease-in-out infinite; }
+.mf-art__pompom { transform-origin: 112px 80px; animation: mf-sway 4s ease-in-out infinite; }
+.mf-art__glass { animation: mf-ember 1.2s ease-in-out infinite; }
+
+@keyframes mf-body { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes mf-rain { from { transform: translateY(-30px); } to { transform: translateY(140px); } }
+@keyframes mf-lamp { 0%, 100% { opacity: 0.35; } 45% { opacity: 0.5; } 48% { opacity: 0.15; } 52% { opacity: 0.45; } }
+@keyframes mf-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes mf-ring { from { transform: translate(0, 0) scale(0.6); opacity: 0.9; } to { transform: translate(-8px, -34px) scale(1.8); opacity: 0; } }
+@keyframes mf-float { 0%, 100% { transform: translateY(0); opacity: 0.4; } 50% { transform: translateY(-6px); opacity: 0.9; } }
+@keyframes mf-look { 0%, 40%, 100% { transform: translateX(0); } 50%, 70% { transform: translateX(2.5px); } 80% { transform: translateX(-2px); } }
+@keyframes mf-cross { 0% { transform: translateY(10px) scale(0.6); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translateY(-30px) scale(1); opacity: 0; } }
+@keyframes mf-zzz { 0% { transform: translate(0, 6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(8px, -14px); opacity: 0; } }
+
+/* «Мафия»: экран зала — свой нуарный город (ночь — синяя, день — тёплые сумерки), цвета фиксированные. */
+.mf-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 3cqh 3cqw;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 2cqh;
+  font-size: 3cqh;
+  color: #fbf6f1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 110%, #6b3a22 0%, #2a1a14 45%, #140d0b 100%);
+  transition: background 1.2s ease;
+}
+
+.mf-screen.is-night { background: radial-gradient(ellipse at 70% 0%, #26345e 0%, #0e1530 45%, #05070f 100%); }
+
+.mf-screen__main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  min-height: 0;
+  text-align: center;
+}
+
+.mf-screen__seats { position: relative; z-index: 1; }
+
+.mf-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 9cqh;
+  line-height: 1.05;
+  text-wrap: balance;
+  text-shadow: 0 0 3cqh rgb(227 198 140 / 0.45);
+}
+
+.mf-title--small { font-size: 6cqh; }
+.mf-note { margin: 0; color: #d9cfc6; font-size: 3.2cqh; max-width: 70cqw; }
+.mf-num { color: #e3c68c; font-variant-numeric: tabular-nums; }
+
+.mf-seats {
+  display: grid;
+  gap: 1.2cqh 1cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mf-seat {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "num name" "num role";
+  align-items: center;
+  column-gap: 0.8cqw;
+  padding: 1cqh 1cqw;
+  border-radius: 1.6cqh;
+  background: rgb(251 246 241 / 0.08);
+  border: 0.25cqh solid rgb(227 198 140 / 0.25);
+  font-size: 2.6cqh;
+  transition: transform 0.4s ease, border-color 0.4s ease, background 0.4s ease, opacity 0.4s ease;
+}
+
+.mf-seat__num {
+  grid-area: num;
+  display: grid;
+  place-items: center;
+  width: 4.4cqh;
+  height: 4.4cqh;
+  border-radius: 50%;
+  background: #e3c68c;
+  color: #221e1b;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mf-seat__name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mf-seat__role { grid-area: role; font-size: 2cqh; color: #c8bfb6; }
+.mf-seat__role.is-mafia { color: #ff8a92; }
+.mf-seat.is-dead { opacity: 0.45; border-style: dashed; }
+.mf-seat.is-dead .mf-seat__name { text-decoration: line-through; }
+.mf-seat.is-dead .mf-seat__num { background: #6b625b; color: #fbf6f1; }
+.mf-seat.is-nominee { border-color: #ff5a66; background: rgb(255 90 102 / 0.16); }
+.mf-seat.is-speaking { border-color: #e3c68c; background: rgb(227 198 140 / 0.22); transform: translateY(-0.6cqh); box-shadow: 0 0 3cqh rgb(227 198 140 / 0.45); }
+
+.mf-seats--phone { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 15px; }
+.mf-seats--phone .mf-seat { font-size: 15px; padding: 8px; border-radius: 12px; background: var(--color-surface-alt); border-color: var(--color-border); color: var(--color-text); }
+.mf-seats--phone .mf-seat__num { width: 28px; height: 28px; }
+.mf-seats--phone .mf-seat__role { font-size: 12px; color: var(--color-text-muted); }
+
+.mf-speaker {
+  display: grid;
+  justify-items: center;
+  gap: 0.6cqh;
+  padding: 2cqh 4cqw;
+  border-radius: 3cqh;
+  background: rgb(0 0 0 / 0.35);
+  border: 0.3cqh solid rgb(227 198 140 / 0.5);
+}
+
+.mf-speaker__label { font-size: 2.6cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #e3c68c; }
+.mf-speaker__name { font-size: 6cqh; font-family: var(--font-display); font-weight: 700; }
+.mf-speaker__time { font-size: 8cqh; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mf-speaker.is-ending .mf-speaker__time { color: #ff8a92; animation: mf-pulse 1s ease-in-out infinite; }
+
+.mf-news { display: grid; gap: 1cqh; padding: 2cqh 4cqw; border-radius: 3cqh; background: rgb(255 255 255 / 0.08); animation: mf-rise 0.8s ease both; }
+.mf-news.is-dark { background: rgb(74 15 23 / 0.6); border: 0.3cqh solid rgb(255 90 102 / 0.5); }
+.mf-news__line { margin: 0; font-size: 4cqh; }
+.mf-news__name { margin: 0; font-family: var(--font-display); font-size: 8cqh; font-weight: 700; }
+.mf-news__role { margin: 0; font-size: 3.4cqh; color: #e3c68c; letter-spacing: 0.15em; text-transform: uppercase; }
+
+.mf-nominees { display: flex; flex-wrap: wrap; justify-content: center; gap: 2cqh 2cqw; margin: 0; padding: 0; list-style: none; }
+.mf-nominees li { padding: 1.4cqh 2.4cqw; border-radius: 2cqh; background: rgb(255 90 102 / 0.18); border: 0.3cqh solid #ff5a66; font-size: 4.4cqh; font-weight: 600; }
+
+.mf-tally { display: grid; gap: 1.4cqh; width: min(100%, 80cqw); margin: 0; padding: 0; list-style: none; }
+.mf-tally__row { display: grid; grid-template-columns: minmax(0, 28%) minmax(0, 1fr) 3em; align-items: center; gap: 1.4cqw; font-size: 3.4cqh; text-align: left; }
+.mf-tally__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-tally__bar { height: 3.6cqh; border-radius: 99px; background: rgb(255 255 255 / 0.1); overflow: hidden; }
+.mf-tally__fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e3c68c, #a3c2aa); transform-origin: left; animation: mf-grow 1.2s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.mf-tally__row.is-out .mf-tally__fill { background: linear-gradient(90deg, #ff8a92, #c4364a); }
+.mf-tally__n { font-variant-numeric: tabular-nums; text-align: right; }
+
+.mf-reveal { display: grid; grid-template-columns: repeat(auto-fit, minmax(16cqw, 1fr)); gap: 1.4cqh 1.2cqw; width: 100%; margin: 0; padding: 0; list-style: none; }
+.mf-reveal__item {
+  display: grid;
+  justify-items: center;
+  gap: 0.4cqh;
+  padding: 1cqh;
+  border-radius: 2cqh;
+  background: radial-gradient(circle at 50% 30%, var(--mf-bg1), var(--mf-bg2));
+  border: 0.25cqh solid rgb(227 198 140 / 0.35);
+  animation: mf-rise 0.7s ease both;
+}
+.mf-reveal__item.is-winner { border-color: #e3c68c; box-shadow: 0 0 2.4cqh rgb(227 198 140 / 0.5); }
+.mf-reveal__item.is-dead { opacity: 0.6; }
+.mf-reveal__art { display: block; width: 15cqh; aspect-ratio: 1; }
+.mf-reveal__art svg { width: 100%; height: 100%; }
+.mf-reveal__name { font-size: 2.6cqh; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-reveal__role { font-size: 2.4cqh; color: #e3c68c; }
+
+/* Ночное небо и спящий город */
+.mf-sky { position: absolute; inset: 0; pointer-events: none; }
+.mf-sky__moon {
+  position: absolute;
+  top: 6%;
+  right: 7%;
+  width: 14cqh;
+  height: 14cqh;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fffaf0, #f3dfae 60%, #c9a15f);
+  box-shadow: 0 0 6cqh rgb(243 223 174 / 0.5);
+  animation: mf-moon 8s ease-in-out infinite;
+}
+.mf-sky__star { position: absolute; width: 0.5cqh; height: 0.5cqh; border-radius: 50%; background: #fffaf0; animation: mf-twinkle 3.6s ease-in-out infinite; }
+.mf-sky__city { position: absolute; left: 0; right: 0; bottom: 0; height: 28%; display: flex; align-items: flex-end; gap: 0.6cqw; opacity: 0.85; }
+.mf-sky__house { position: relative; flex: 1; background: #070a16; border-radius: 0.6cqh 0.6cqh 0 0; }
+.mf-sky__win { position: absolute; top: 18%; left: 35%; width: 30%; height: 12%; background: #ffd27a; opacity: 0; border-radius: 0.3cqh; }
+.mf-sky__win.is-on { animation: mf-window 7s ease-in-out infinite; }
+
+/* Веер карт рубашкой вверх */
+.mf-fan { position: relative; width: 60cqh; max-width: 100%; height: 30cqh; }
+.mf-fan__card { position: absolute; left: 50%; bottom: 0; width: 17cqh; transform-origin: 50% 160%; transform: translateX(calc(-50% + var(--i) * 30%)) rotate(calc(var(--i) * 9deg)); animation: mf-deal 0.8s cubic-bezier(0.3, 1.3, 0.5, 1) both; }
+.mf-card--still { cursor: default; }
+.mf-fan .mf-card__back-title { font-size: 1.6cqh; padding: 0 0.6cqh; top: 0.8cqh; }
+.mf-fan .mf-card__pattern { inset: 0.8cqh; }
+.mf-fan .mf-card__back-city { display: none; }
+.mf-phone__deck .mf-fan { width: 240px; height: 140px; }
+.mf-phone__deck .mf-fan__card { width: 76px; }
+.mf-phone__deck .mf-card__back-title { font-size: 8px; top: 6px; }
+
+/* Пульт */
+.mf-host__news { margin: 0; font-weight: 600; }
+.mf-host__tally, .mf-host__roles { margin: 0; padding-left: 1.2em; }
+.mf-host__roles .is-dead { color: var(--color-text-muted); text-decoration: line-through; }
+.mf-host__seats { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.mf-host__seat { display: grid; gap: 4px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); }
+.mf-host__seat.is-dead { opacity: 0.55; }
+.mf-host__seat.is-dead .mf-host__who { text-decoration: line-through; }
+.mf-host__seat.is-nominee { border-color: var(--color-danger); }
+.mf-host__seat.is-speaking { border-color: var(--color-highlight); box-shadow: 0 0 0 2px var(--color-highlight); }
+.mf-host__who { min-width: 0; font-weight: 600; }
+.mf-host__role { margin-left: 6px; }
+.mf-host__timer { font-variant-numeric: tabular-nums; }
+.mf-host__btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mf-host__btns .btn { min-height: 52px; padding-inline: 8px; }
+.mf-host__btns .btn[aria-pressed="true"] { color: var(--color-danger); }
+.mf-host__manual { display: grid; gap: 4px; }
+.mf-host__night p { margin: 0; }
+
+/* Телефон */
+.mf-phone__card { width: min(100%, 300px); margin: 0 auto; }
+.mf-phone__card--small { width: min(100%, 240px); padding-top: 12px; }
+.mf-phone__mine summary { min-height: 52px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.mf-phone__news { margin: 0; padding: 12px 16px; border-radius: 12px; background: var(--color-surface-alt); font-weight: 600; }
+.mf-phone__news.is-me { box-shadow: 0 0 0 2px var(--color-highlight); }
+.mf-phone__reveal { margin: 0; padding-left: 1.2em; }
+.mf-phone__deck { display: grid; place-items: center; }
+
+.mf-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mf-target {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mf-target:disabled { opacity: 0.45; cursor: default; }
+.mf-target.is-picked { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }
+.mf-target:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.mf-target__num { font-size: 13px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.mf-target__name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mf-target__tag { font-size: 12px; color: var(--color-text-muted); }
+.mf-target__badge {
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: #c4364a;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.35);
+  animation: mf-pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.mf-verdict { margin: 0; padding: 12px 16px; border-radius: 12px; font-size: 20px; font-weight: 700; text-align: center; }
+.mf-verdict.is-mafia { background: #4a0f17; color: #ffd9dc; }
+.mf-verdict.is-clean { background: #0e3a2a; color: #d6f5e6; }
+
+.mf-editor__scroll { overflow-x: auto; }
+.mf-editor__table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.mf-editor__table th, .mf-editor__table td { padding: 6px 10px; border-bottom: 1px solid var(--color-border); text-align: center; }
+
+@keyframes mf-pulse { 50% { opacity: 0.55; } }
+@keyframes mf-rise { from { opacity: 0; transform: translateY(2cqh); } }
+@keyframes mf-grow { from { transform: scaleX(0); } }
+@keyframes mf-pop { from { transform: scale(0.3); opacity: 0; } }
+@keyframes mf-moon { 50% { transform: translateY(-1cqh); box-shadow: 0 0 8cqh rgb(243 223 174 / 0.65); } }
+@keyframes mf-twinkle { 50% { opacity: 0.2; } }
+@keyframes mf-window { 0%, 40% { opacity: 0; } 50%, 85% { opacity: 0.9; } 100% { opacity: 0; } }
+@keyframes mf-deal { from { opacity: 0; transform: translateX(-50%) translateY(10cqh) rotate(0deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-sky *, .mf-fan__card, .mf-tally__fill, .mf-news, .mf-reveal__item, .mf-target__badge, .mf-speaker__time { animation: none !important; }
+  .mf-screen, .mf-seat { transition: none; }
+}

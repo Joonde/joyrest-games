@@ -1,10 +1,10 @@
 import type { Participant, PlayMode } from "../../data";
 
 /** Сколько тестовых участников нужно на репетиции: игры по очереди команд без них не начать. */
-const NEED: Record<string, number> = { checkers: 2, dance: 3, quest: 3, millionaire: 3, survival: 3, dragon: 3 };
+const NEED: Record<string, number> = { checkers: 2, dance: 3, quest: 3, millionaire: 3, survival: 3, dragon: 3, mafia: 8 };
 
 const TEAMS = ["🦊 Лисы", "🐻 Медведи", "🦉 Совы"];
-const PLAYERS = ["🦊 Аня", "🐻 Боря", "🦉 Вика"];
+const PLAYERS = ["🦊 Аня", "🐻 Боря", "🦉 Вика", "🐯 Гоша", "🐼 Даша", "🐸 Егор", "🦁 Жанна", "🐙 Зоя"];
 
 /** Тестовые команды (или игроки) репетиции — только в памяти, без телефонов. */
 export function rehearsalParticipants(mechanic: string, playMode: PlayMode): Participant[] {

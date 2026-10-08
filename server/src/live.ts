@@ -126,7 +126,14 @@ function num(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-export function normalizeState(value: unknown): SessionState {
+export /** Ответ на текущем шаге можно поменять: так отмечает ведущий (`state.result.changeable`). */
+export function answersChangeable(state: unknown): boolean {
+  if (!isRecord(state)) return false;
+  const result = state.result;
+  return isRecord(result) && result.changeable === true;
+}
+
+function normalizeState(value: unknown): SessionState {
   const s = isRecord(value) ? value : {};
   const revealed = s.revealed === true;
   return {
@@ -1099,11 +1106,20 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       // Отвечает сам игрок или капитан своей команды.
       const participant = await loadParticipant(session.id, pid);
       if (!participant || participant.captain_uid !== who.uid) return { result: "rejected" };
-      const [row] = await sql<AnswerRow[]>`
-        insert into answers (session_id, step, pid, uid, value, submitted_at)
-        values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${sql.json((body.value ?? null) as never)}, ${new Date(time)})
-        on conflict (session_id, step, pid) do nothing returning step, pid, uid, value, submitted_at`;
-      // Повторное нажатие ничего не меняет.
+      // Шаг, где ответ можно менять (ночь «Мафии»: семья договаривается) — ведущий отметил `result.changeable`.
+      const changeable = answersChangeable(session.state);
+      const [row] = changeable
+        ? await sql<AnswerRow[]>`
+            insert into answers (session_id, step, pid, uid, value, submitted_at)
+            values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${sql.json((body.value ?? null) as never)}, ${new Date(time)})
+            on conflict (session_id, step, pid) do update set value = excluded.value, submitted_at = excluded.submitted_at
+              where answers.uid = excluded.uid
+            returning step, pid, uid, value, submitted_at`
+        : await sql<AnswerRow[]>`
+            insert into answers (session_id, step, pid, uid, value, submitted_at)
+            values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${sql.json((body.value ?? null) as never)}, ${new Date(time)})
+            on conflict (session_id, step, pid) do nothing returning step, pid, uid, value, submitted_at`;
+      // Повторное нажатие ничего не меняет (кроме шагов, где ответ можно менять).
       if (!row) return { result: "rejected" };
       hub.publish(`answers:${session.id}`, { type: "answer", answer: answerOf(row) });
       return { result: "sent" };

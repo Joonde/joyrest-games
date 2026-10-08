@@ -210,6 +210,15 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
 
     expect((await call("DELETE", "/api/sessions/sess2/answers/0", host)).statusCode).toBe(200);
     expect((await call("GET", "/api/sessions/sess2/answers/0", host)).json()).toEqual([]);
+
+    // Шаг, где ответ можно менять (ночь «Мафии»): ведущий отмечает `result.changeable`, повтор перезаписывает.
+    expect((await call("POST", "/api/sessions/sess2/apply", host, { state: { step: 1, stage: "question", startedAt: "server", timeLimit: null, result: { changeable: true } } })).statusCode).toBe(200);
+    const night = (value: string) => call("POST", "/api/sessions/sess2/answers", guest.cookie, { step: 1, pid: guest.uid, value });
+    expect((await night("x")).json()).toEqual({ result: "sent" });
+    expect((await night("y")).json()).toEqual({ result: "sent" });
+    expect((await call("GET", `/api/sessions/sess2/answers/1/${guest.uid}`, guest.cookie)).json().value).toBe("y");
+    // Чужой телефон чужой ответ не перепишет.
+    expect((await call("POST", "/api/sessions/sess2/answers", stranger.cookie, { step: 1, pid: guest.uid, value: "z" })).json()).toEqual({ result: "rejected" });
   });
 
   it("команды: создать можно только в режиме команд; ответ отправляет капитан, участник видит ответ команды", async () => {

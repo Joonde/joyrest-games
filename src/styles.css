@@ -10530,3 +10530,233 @@ button.dance-card:active {
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------- «Мафия»: карты ролей (mechanics/mafia/RoleArt.tsx) */
+/* Цвета ролей — декоративные заливки; текст на картах всегда светлый на тёмном фоне карты. */
+.mf-role--mafia, .mf-art--mafia { --mf-bg1: #4a0f17; --mf-bg2: #12050a; --mf-glow: #ff3b4a; --mf-accent: #ff5a66; --mf-suit-top: #2a1c20; --mf-suit-bottom: #0a0708; }
+.mf-role--don, .mf-art--don { --mf-bg1: #2b2108; --mf-bg2: #070503; --mf-glow: #e3c68c; --mf-accent: #e9cf93; --mf-suit-top: #1c1818; --mf-suit-bottom: #050404; }
+.mf-role--commissar, .mf-art--commissar { --mf-bg1: #12285a; --mf-bg2: #050b1c; --mf-glow: #8cc7ff; --mf-accent: #e3c68c; --mf-suit-top: #6b5440; --mf-suit-bottom: #2a2018; }
+.mf-role--doctor, .mf-art--doctor { --mf-bg1: #0e4a4c; --mf-bg2: #041a1b; --mf-glow: #7df2c8; --mf-accent: #7df2c8; --mf-suit-top: #f2faf8; --mf-suit-bottom: #b9d6d2; }
+.mf-role--civilian, .mf-art--civilian { --mf-bg1: #4a3214; --mf-bg2: #150c04; --mf-glow: #ffcf7a; --mf-accent: #ffcf7a; --mf-suit-top: #7a5a3e; --mf-suit-bottom: #3b2a1c; }
+
+.mf-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.mf-art__halo { animation: mf-breathe 4s ease-in-out infinite; transform-origin: 100px 92px; }
+.mf-art__eye { animation: mf-eye 3.2s ease-in-out infinite; }
+.mf-art__blink { transform-origin: center; animation: mf-blink 5s steps(1, end) infinite; opacity: 0; }
+.mf-art__smoke path { stroke-dasharray: 60 120; animation: mf-smoke 3.6s linear infinite; opacity: 0.7; }
+.mf-art__smoke--late { animation-delay: -1.8s !important; }
+.mf-art__ember { animation: mf-ember 1.6s ease-in-out infinite; }
+.mf-art__sparkle { transform-origin: 2px -12px; animation: mf-sparkle 2.6s ease-in-out infinite; }
+.mf-art__beam { transform-origin: 132px 128px; animation: mf-beam 4.5s ease-in-out infinite; }
+.mf-art__glint { animation: mf-glint 3s ease-in-out infinite; }
+.mf-art__badge { animation: mf-badge 3.4s ease-in-out infinite; }
+.mf-art__ecg { stroke-dasharray: 220; stroke-dashoffset: 220; animation: mf-ecg 1.8s linear infinite; }
+.mf-art__heart { transform-origin: 100px 192px; animation: mf-heart 0.9s ease-in-out infinite; }
+.mf-art__flame { transform-origin: 0 6px; animation: mf-flame 0.5s ease-in-out infinite alternate; }
+.mf-art__window { animation: mf-window 6s steps(1, end) infinite; }
+.mf-art__window--late { animation-delay: -3s; }
+
+/* Карта: переворот, рамка ар-деко, бегущий блик */
+.mf-card {
+  display: block;
+  width: min(100%, 320px);
+  aspect-ratio: 2 / 3;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  perspective: 1200px;
+  cursor: pointer;
+  font: inherit;
+  color: #fbf6f1;
+}
+
+.mf-card:focus-visible { outline: 3px solid var(--color-highlight); outline-offset: 4px; border-radius: 20px; }
+
+.mf-card__inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+.mf-card.is-open .mf-card__inner { transform: rotateY(180deg); }
+
+.mf-card__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 20px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(227 198 140 / 0.35);
+}
+
+.mf-card__back {
+  justify-content: center;
+  gap: 8px;
+  background: radial-gradient(circle at 50% 40%, #3a2630 0%, #120b0e 70%);
+}
+
+.mf-card__pattern {
+  position: absolute;
+  inset: 12px;
+  border: 1.5px solid rgb(227 198 140 / 0.6);
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(45deg, rgb(227 198 140 / 0.08) 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(-45deg, rgb(227 198 140 / 0.08) 0 2px, transparent 2px 14px);
+}
+
+.mf-card__mono {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 700;
+  color: #e3c68c;
+  text-shadow: 0 0 24px rgb(227 198 140 / 0.5);
+  animation: mf-breathe 4s ease-in-out infinite;
+}
+
+.mf-card__back-title {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fbf6f1;
+}
+
+.mf-card__back-city {
+  position: relative;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #e3c68c;
+}
+
+.mf-card__front {
+  transform: rotateY(180deg);
+  padding: 18px 18px 20px;
+  gap: 4px;
+  background: radial-gradient(circle at 50% 30%, var(--mf-bg1) 0%, var(--mf-bg2) 75%);
+  text-align: center;
+}
+
+.mf-card__frame {
+  position: absolute;
+  inset: 8px;
+  border: 1.5px solid rgb(227 198 140 / 0.55);
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.mf-card__frame::before,
+.mf-card__frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 46px;
+  height: 10px;
+  margin-left: -23px;
+  border: 1.5px solid rgb(227 198 140 / 0.7);
+  border-radius: 6px;
+  background: var(--mf-bg2);
+}
+
+.mf-card__frame::before { top: -6px; }
+.mf-card__frame::after { bottom: -6px; }
+
+.mf-card__sheen {
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(115deg, transparent 40%, rgb(255 255 255 / 0.18) 48%, rgb(255 240 200 / 0.28) 50%, rgb(255 255 255 / 0.12) 52%, transparent 60%);
+  transform: translateX(-60%);
+  animation: mf-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.mf-card__seat,
+.mf-card__side {
+  position: absolute;
+  top: 18px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgb(0 0 0 / 0.45);
+  color: #fbf6f1;
+  z-index: 1;
+}
+
+.mf-card__seat { left: 18px; }
+.mf-card__side { right: 18px; color: #a3e0b8; }
+.mf-card__side.is-mafia { color: #ff9aa2; }
+
+.mf-card__front .mf-art {
+  width: 78%;
+  margin-top: 18px;
+  filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.5));
+}
+
+.mf-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+  color: #fbf6f1;
+  text-shadow: 0 0 18px var(--mf-glow);
+}
+
+.mf-card__power {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgb(251 246 241 / 0.88);
+  text-wrap: balance;
+}
+
+.mf-card__family {
+  margin: 4px 0 0;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.4);
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffb3b9;
+}
+
+@keyframes mf-breathe { 0%, 100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+@keyframes mf-eye { 0%, 70%, 100% { opacity: 1; } 75%, 80% { opacity: 0.2; } }
+@keyframes mf-blink { 0%, 92%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
+@keyframes mf-smoke { from { stroke-dashoffset: 0; transform: translateY(0); opacity: 0.75; } to { stroke-dashoffset: -180; transform: translateY(-14px); opacity: 0; } }
+@keyframes mf-ember { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes mf-sparkle { 0%, 60%, 100% { transform: scale(0) rotate(0deg); opacity: 0; } 75% { transform: scale(1.2) rotate(45deg); opacity: 1; } }
+@keyframes mf-beam { 0%, 100% { transform: rotate(-14deg); opacity: 0.25; } 50% { transform: rotate(10deg); opacity: 0.45; } }
+@keyframes mf-glint { 0%, 70%, 100% { opacity: 0; } 80% { opacity: 1; } }
+@keyframes mf-badge { 0%, 100% { transform: translate(68px, 196px) rotate(0deg); } 50% { transform: translate(68px, 196px) rotate(8deg); } }
+@keyframes mf-ecg { to { stroke-dashoffset: 0; } }
+@keyframes mf-heart { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.15); } }
+@keyframes mf-flame { from { transform: scaleY(0.85) scaleX(1.05); } to { transform: scaleY(1.12) scaleX(0.92); } }
+@keyframes mf-window { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }
+@keyframes mf-sheen { 0%, 55% { transform: translateX(-60%); } 85%, 100% { transform: translateX(60%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-art *, .mf-card__sheen, .mf-card__mono { animation: none !important; }
+  .mf-card__inner { transition: none; }
+  .mf-art__blink { opacity: 0; }
+}

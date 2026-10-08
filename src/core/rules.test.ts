@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SLIDE_LIMITS } from "../data/cues";
+// Как SLIDE_LIMITS в src/data/cues.ts (ядро не импортирует слой данных).
+const SLIDE_LIMITS = { title: 120, lines: 8, line: 140 };
 import { rulesFor } from "./rules";
 
 describe("правила для слайда", () => {

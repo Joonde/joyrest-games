@@ -263,12 +263,14 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     await call("POST", `/api/sessions/ev1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" });
     expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBe(started);
 
-    const slide = { id: "b1", kind: "break", title: "Перерыв", text: "", lines: [], endsAt: Date.now() + 10 * 60_000 };
+    const slide = { id: "b1", kind: "break", title: "Перерыв", text: "", lines: [], endsAt: clock + 10 * 60_000 };
     expect((await call("POST", "/api/sessions/ev1/apply", host, { state: { slide } })).statusCode).toBe(200);
     expect((await call("POST", "/api/sessions/ev1/apply", host, { state: { slide: null } })).statusCode).toBe(200);
     const [row] = await sql<{ breaks: Array<{ id: string; start: number; end: number }> }[]>`select breaks from sessions where id = 'ev1'`;
     expect(row?.breaks).toHaveLength(1);
-    expect(row?.breaks[0]?.end).toBeLessThan(Date.now() + 1000);
+    // Убрали раньше конца отсчёта — конец перерыва не позже отсчёта и не раньше начала.
+    expect(row?.breaks[0]?.end).toBeGreaterThanOrEqual(row?.breaks[0]?.start ?? Infinity);
+    expect(row?.breaks[0]?.end).toBeLessThan(slide.endsAt);
     // Перерыв 15 минут (подменяем время, чтобы не ждать).
     const t = Date.now();
     await sql`update sessions set breaks = ${sql.json([{ id: "b1", start: t - 20 * 60_000, end: t - 5 * 60_000 }] as never)} where id = 'ev1'`;

@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { millionairePreview } from "./preview";
 import { createMillionaire, parseMillionaire, type MillionaireContent } from "./content";
 import { MillionaireHostControls } from "./HostControls";
 import { millionaireSteps, score } from "./logic";
@@ -23,4 +24,5 @@ export const millionaire: Mechanic<MillionaireContent, MillionaireAnswerValue> =
   steps: millionaireSteps,
   score,
   validate: validateMillionaire,
+  preview: { driver: millionairePreview, teams: 3, limit: 45 },
 };

@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { questPreview } from "./preview";
 import { createQuest, parseQuest, type QuestContent } from "./content";
 import { QuestHostControls } from "./HostControls";
 import { questSteps, score } from "./logic";
@@ -23,4 +24,5 @@ export const quest: Mechanic<QuestContent, QuestAnswerValue> = {
   steps: questSteps,
   score,
   validate: validateQuest,
+  preview: { driver: questPreview, teams: 3, limit: 45 },
 };

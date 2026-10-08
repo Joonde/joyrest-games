@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { dragonPreview } from "./preview";
 import { createDragon, parseDragon, type DragonContent } from "./content";
 import { DragonHostControls } from "./HostControls";
 import { dragonSteps, score } from "./logic";
@@ -23,4 +24,5 @@ export const dragon: Mechanic<DragonContent, DragonAnswerValue> = {
   steps: dragonSteps,
   score,
   validate: validateDragon,
+  preview: { driver: dragonPreview, teams: 3, limit: 70 },
 };

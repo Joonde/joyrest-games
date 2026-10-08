@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { Answer, Participant, Session, SessionChange, SessionState } from "../data/types";
+import type { PreviewDriver } from "./preview";
 
 export interface Step {
   id: string;
@@ -118,6 +119,8 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   validate(content: Content): ValidationError[];
   /** Пульт механики сам показывает кнопку «Таблица на экран» (общая карточка пульта не нужна). */
   ownPeek?: boolean;
+  /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */
+  preview?: { driver: PreviewDriver<Content>; teams?: number; limit?: number };
 }
 
 /**

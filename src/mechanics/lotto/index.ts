@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { lottoPreview } from "./preview";
 import { createLotto, parseLotto, type LottoContent } from "./content";
 import { LottoHostControls } from "./HostControls";
 import { lottoSteps, score, type LottoStep } from "./logic";
@@ -23,4 +24,5 @@ export const lotto: Mechanic<LottoContent, { marks: string[] }, LottoStep> = {
   steps: lottoSteps,
   score,
   validate: validateLotto,
+  preview: { driver: lottoPreview, teams: 3, limit: 70 },
 };

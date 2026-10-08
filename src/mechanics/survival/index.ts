@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { survivalPreview } from "./preview";
 import { createSurvival, parseSurvival, type SurvivalContent } from "./content";
 import { SurvivalHostControls } from "./HostControls";
 import { score, survivalSteps } from "./logic";
@@ -23,4 +24,5 @@ export const survival: Mechanic<SurvivalContent, SurvivalAnswerValue> = {
   steps: survivalSteps,
   score,
   validate: validateSurvival,
+  preview: { driver: survivalPreview, teams: 3, limit: 90 },
 };

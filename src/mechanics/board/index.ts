@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { boardPreview } from "./preview";
 import { boardMediaIds, createBoard, parseBoard, type BoardContent } from "./content";
 import { BoardHostControls } from "./HostControls";
 import { boardSteps, score, type BoardStep } from "./logic";
@@ -24,4 +25,5 @@ export const board: Mechanic<BoardContent, BoardAnswerValue, BoardStep> = {
   score,
   validate: validateBoard,
   ownPeek: true,
+  preview: { driver: boardPreview, teams: 3, limit: 60 },
 };

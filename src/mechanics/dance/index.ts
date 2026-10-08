@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { dancePreview } from "./preview";
 import { createDance, parseDance, type DanceContent } from "./content";
 import { DanceHostControls } from "./HostControls";
 import { danceSteps, score } from "./logic";
@@ -23,4 +24,5 @@ export const dance: Mechanic<DanceContent, DanceAnswerValue> = {
   steps: danceSteps,
   score,
   validate: validateDance,
+  preview: { driver: dancePreview, teams: 3, limit: 50 },
 };

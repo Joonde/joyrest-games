@@ -2,9 +2,25 @@
 // имени, все голосуют, чья она. Угадал — очки; никто не угадал — очки автору.
 
 /** Разделы игры: «Чья история» — угадать автора; «Сочиняем историю» — слова с бумажек, рулетка, показ. */
-export type SectionKind = "author" | "words";
+export type SectionKind = "author" | "words" | "ending" | "lies" | "said";
 
-export const SECTION_TITLES: Record<SectionKind, string> = { author: "Чья история?", words: "Сочиняем историю" };
+export const SECTION_KINDS: SectionKind[] = ["author", "words", "ending", "lies", "said"];
+
+export const SECTION_TITLES: Record<SectionKind, string> = {
+  author: "Чья история?",
+  words: "Сочиняем историю",
+  ending: "Что было дальше?",
+  lies: "Две правды и ложь",
+  said: "Кто это сказал?",
+};
+
+export const SECTION_HINTS: Record<SectionKind, string> = {
+  author: "Каждый пишет случай из жизни, на экране — история без имени, все угадывают автора.",
+  words: "У каждого бумажка со словами для своего пропуска в истории; рулетка выбирает, кто её покажет, зал ставит звёзды.",
+  ending: "На экране начало чьей-то истории, все придумывают концовку; среди выдумок — настоящая. Найдите правду!",
+  lies: "Каждый пишет о себе три факта, один — выдумка. На экране три карточки, все ищут ложь.",
+  said: "На экране вопрос, все отвечают анонимно; ответы по одному на экране — угадайте, чей.",
+};
 
 export interface StoryContent {
   /** Разделы по порядку. */
@@ -19,6 +35,15 @@ export interface StoryContent {
   rateSeconds: number;
   /** Очки за звезду (среднее × очки). */
   starPoints: number;
+  /** «Что было дальше?»: сколько историй, секунд на концовку и на голос, очки за каждого обманутого. */
+  endingMax: number;
+  endingSeconds: number;
+  foolPoints: number;
+  /** «Две правды и ложь»: сколько игроков показать. */
+  liesMax: number;
+  /** «Кто это сказал?»: вопросы и сколько ответов показать на вопрос. */
+  saidQuestions: string[];
+  saidShown: number;
   /** Подсказка гостям: о чём писать. */
   prompt: string;
   /** Примеры под полем ввода (по одному в строке). */
@@ -56,6 +81,17 @@ export function fillTemplate(template: string, words: Array<string | null>): Arr
   return parts;
 }
 
+export const DEFAULT_SAID = [
+  "Самая странная вещь у меня в холодильнике",
+  "Моя суперсила, о которой никто не знает",
+  "Песня, которую я пою в душе",
+  "Если бы я не работал(а) здесь, я бы…",
+  "Самый бесполезный подарок, который мне дарили",
+  "Блюдо, которое я готовлю лучше всех",
+  "Чего я боюсь, хотя это смешно",
+  "Моё детское прозвище",
+];
+
 export const DEFAULT_TEMPLATES = [
   "Однажды [кто] отправился в [куда], чтобы [что сделать], но по дороге встретил [кого] и они [что сделали].",
   "На свадьбе [кто] решил [что сделать], схватил [предмет] и [как] побежал к [кому].",
@@ -79,12 +115,18 @@ export const DEFAULT_BANK: Record<string, string[]> = {
 
 export function createStory(): StoryContent {
   return {
-    sections: ["author", "words"],
+    sections: ["author", "words", "ending", "lies", "said"],
     templates: DEFAULT_TEMPLATES,
     bank: DEFAULT_BANK,
     paperWords: 5,
     rateSeconds: 20,
     starPoints: 20,
+    endingMax: 4,
+    endingSeconds: 60,
+    foolPoints: 50,
+    liesMax: 8,
+    saidQuestions: DEFAULT_SAID,
+    saidShown: 5,
     prompt: "Напишите случай из своей жизни, о котором здесь почти никто не знает",
     examples: ["В детстве я три года подряд ходил в кружок балета", "Я однажды опоздала на самолёт, потому что уснула в аэропорту", "Я пел в метро и заработал 300 рублей"],
     guessSeconds: 30,
@@ -110,7 +152,7 @@ export function parseStory(raw: unknown): StoryContent {
   const d = record(raw);
   const base = createStory();
   const examples = Array.isArray(d.examples) ? d.examples.map((e) => cleanText(e, STORY_LIMITS.example)).filter(Boolean).slice(0, STORY_LIMITS.examples) : base.examples;
-  const sections = (Array.isArray(d.sections) ? d.sections : base.sections).filter((x): x is SectionKind => x === "author" || x === "words").slice(0, 6);
+  const sections = [...new Set((Array.isArray(d.sections) ? d.sections : base.sections).filter((x): x is SectionKind => SECTION_KINDS.includes(x as SectionKind)))];
   const templates = Array.isArray(d.templates) ? d.templates.map((t) => cleanText(t, STORY_LIMITS.template)).filter((t) => slotsOf(t).length > 0).slice(0, STORY_LIMITS.templates) : base.templates;
   const bank: Record<string, string[]> = {};
   for (const [k, v] of Object.entries(record(d.bank ?? base.bank))) {
@@ -125,6 +167,12 @@ export function parseStory(raw: unknown): StoryContent {
     paperWords: int(d.paperWords, base.paperWords, 2, 8),
     rateSeconds: int(d.rateSeconds, base.rateSeconds, STORY_LIMITS.minSeconds, STORY_LIMITS.maxSeconds),
     starPoints: int(d.starPoints, base.starPoints, 0, 200),
+    endingMax: int(d.endingMax, base.endingMax, 1, 20),
+    endingSeconds: int(d.endingSeconds, base.endingSeconds, STORY_LIMITS.minSeconds, 180),
+    foolPoints: int(d.foolPoints, base.foolPoints, 0, STORY_LIMITS.maxPoints),
+    liesMax: int(d.liesMax, base.liesMax, 1, 30),
+    saidQuestions: Array.isArray(d.saidQuestions) ? d.saidQuestions.map((q) => cleanText(q, STORY_LIMITS.prompt)).filter(Boolean).slice(0, 20) : base.saidQuestions,
+    saidShown: int(d.saidShown, base.saidShown, 2, 15),
     prompt: cleanText(d.prompt, STORY_LIMITS.prompt) || base.prompt,
     examples,
     guessSeconds: int(d.guessSeconds, base.guessSeconds, STORY_LIMITS.minSeconds, STORY_LIMITS.maxSeconds),

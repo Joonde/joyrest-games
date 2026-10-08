@@ -2,15 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
-import { scoringParticipants } from "../../core/leaderboard";
+import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboard";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { fillTemplate, SECTION_TITLES, type StoryContent } from "./content";
-import { authorOf, kindOf, nextPart, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, teamOfPhone, toggleHidden, withWords, writtenStories } from "./logic";
+import { fillTemplate, SECTION_HINTS, SECTION_TITLES, type StoryContent } from "./content";
+import { authorOf, kindOf, nextPart, withEnding, withLies, nextStory, parseStoryResult, peopleOf, personName, revealAuthor, startGuessing, startWriting, storyBack, storyPrimary, teamOfPhone, toggleHidden, withWords, writtenStories } from "./logic";
+import { endingNext, endingReveal, endingStart, endingVote, endingWrite, fakeOf, writtenEndings } from "./ending";
+import { liesNext, liesReveal, liesStart, liesWrite, writtenFacts } from "./lies";
 import { finishRating, newSentence, showSentence, spinWheel, startRating, tallyStars, wordOf, wordsIntro } from "./words";
 
 /**
- * Пульт «Не моей истории»: «Пишем истории» → ведущий видит истории (может убрать неподходящие) →
+ * Пульт «Давайте знакомиться» (разделы по порядку). Раздел «Чья история?»: «Пишем истории» → ведущий видит истории (может убрать неподходящие) →
  * «Начать угадывание» → история на экране, гости голосуют → «Открыть автора» → «Следующая история» →
  * награждение.
  */
@@ -33,30 +35,65 @@ export function StoryHostControls({ session, content, answers, participants, con
   const w = r.words;
   const noPlayers = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
 
-  // Истории шага записи: на записи — из текущих ответов, потом — один раз с сервера.
+  // Ответы шага записи раздела: на записи — из текущих ответов, потом — один раз с сервера.
+  const writeStep = kind === "lies" ? (r.lies?.writeStep ?? null) : kind === "ending" ? (r.ending?.writeStep ?? null) : kind === "words" ? null : r.writeStep;
+  const writing = stage === "question" && (kind === "lies" ? r.lies?.phase === "write" : kind === "ending" ? r.ending?.phase === "write" : r.mode === "write");
   const [written, setWritten] = useState<Answer[]>([]);
-  const writing = r.mode === "write" && stage === "question";
   useEffect(() => {
-    if (r.writeStep === null) return;
+    if (writeStep === null) return;
     if (writing) {
-      setWritten(answers.filter((a) => a.step === r.writeStep));
+      setWritten(answers.filter((a) => a.step === writeStep));
       return;
     }
     let live = true;
     void control
-      .freshAnswers(r.writeStep)
+      .freshAnswers(writeStep)
       .then((list) => live && setWritten(list))
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [r.writeStep, writing, writing ? answers : null]);
-  // Репетиция: телефонов нет — истории тестовых игроков из примеров игры.
-  const sample: Answer[] = rehearsal && r.writeStep !== null ? Object.keys(session.leaderboard).flatMap((pid, i) => {
-    const text = content.examples[i % Math.max(1, content.examples.length)];
-    return text ? [{ id: `${r.writeStep}_${pid}`, step: r.writeStep as number, pid, uid: pid, value: { story: `${text} (${i + 1})` }, submittedAt: i }] : [];
-  }) : [];
+  }, [writeStep, writing, writing ? answers : null]);
+  // «Что было дальше?»: выдуманные концовки текущей истории.
+  const fakeStep = kind === "ending" ? (r.ending?.fakeStep ?? null) : null;
+  const faking = stage === "question" && r.ending?.phase === "fake";
+  const [fakes, setFakes] = useState<Answer[]>([]);
+  useEffect(() => {
+    if (fakeStep === null) return;
+    if (faking) {
+      setFakes(answers.filter((a) => a.step === fakeStep));
+      return;
+    }
+    let live = true;
+    void control
+      .freshAnswers(fakeStep)
+      .then((list) => live && setFakes(list))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [fakeStep, faking, faking ? answers : null]);
+  // Репетиция: телефонов нет — ответы тестовых игроков.
+  const testers = Object.keys(session.leaderboard);
+  const sample: Answer[] =
+    rehearsal && writeStep !== null
+      ? testers.map((pid, i) => ({
+          id: `${writeStep}_${pid}`,
+          step: writeStep,
+          pid,
+          uid: pid,
+          submittedAt: i,
+          value:
+            kind === "lies"
+              ? { facts: [`Я прыгал с парашютом (${i + 1})`, `Я знаю три языка (${i + 1})`, `Я ни разу не был на море (${i + 1})`], lie: i % 3 }
+              : kind === "ending"
+                ? { start: `Однажды в отпуске я потерял паспорт, и тут (${i + 1})`, end: "его принесла чайка" }
+                : { story: `${content.examples[i % Math.max(1, content.examples.length)] ?? "История"} (${i + 1})` },
+        }))
+      : [];
+  const sampleFakes: Answer[] = rehearsal && fakeStep !== null ? testers.map((pid, i) => ({ id: `${fakeStep}_${pid}`, step: fakeStep, pid, uid: pid, submittedAt: i, value: { fake: ["его нашёл таксист", "я улетел без него", "пришлось жить в аэропорту"][i % 3] } })) : [];
   const source = rehearsal && written.length === 0 ? sample : written;
+  const fakeSource = rehearsal && fakes.length === 0 ? sampleFakes : fakes;
   const all = writtenStories(source, { ...r, hidden: [] });
   const shown = all.filter((s) => !r.hidden.includes(s.id));
   const story = r.stories[r.current];
@@ -102,15 +139,108 @@ export function StoryHostControls({ session, content, answers, participants, con
   const own = answers.filter((a) => a.step === step);
   const excludedFromRating = (phone: string) => phone === w?.performer || (session.playMode === "teams" && w?.scoreTo !== null && teamOf(phone) === w?.scoreTo);
 
+  const facts = writtenFacts(source, writeStep ?? -1);
+  const endings = writtenEndings(source, writeStep ?? -1);
+  const l = r.lies;
+  const e = r.ending;
+  const lieItem = l?.items[l.current];
+  const lieOwn = lieItem ? facts.find((f) => f.pid === lieItem.pid) : undefined;
+  const endItem = e?.items[e.current];
+  const endOwn = endItem ? endings.find((x) => x.pid === endItem.pid) : undefined;
+  const voted = answers.filter((a) => a.step === step).length;
+
+  const LiesPanel = () =>
+    !l || l.phase === "write" ? (
+      <section className="stack stack--tight">
+        <p>
+          Прислали факты: <strong>{facts.length}</strong>. Покажем {Math.min(facts.length, content.liesMax)}.
+        </p>
+        {facts.length > 0 && (
+          <details className="quest-host__places">
+            <summary>Факты и где ложь (видите только вы)</summary>
+            <ul className="st-host__list">
+              {facts.map((f) => (
+                <li key={f.pid}>
+                  <span className="small">
+                    <NameText name={name(f.pid)} />
+                  </span>
+                  {f.facts.map((t, i) => (
+                    <span key={i}>{i === f.lie ? `✗ ${t}` : `✓ ${t}`}</span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
+    ) : (
+      <div className="card stack stack--tight">
+        <p>
+          <strong><NameText name={name(lieItem?.pid ?? null)} /></strong> · {l.current + 1} из {l.items.length}
+        </p>
+        <details>
+          <summary>Где ложь (видите только вы)</summary>
+          <p>{lieOwn ? lieOwn.facts[lieOwn.lie] : "не найдено"}</p>
+        </details>
+        {stage === "question" && <p className="small">Выбрали: {voted}</p>}
+        {l.reveal && <p className={l.reveal.right.length ? "success" : "muted"}>{l.reveal.right.length ? `Раскусили: ${l.reveal.right.map(name).join(", ")}` : "Никто не угадал — очки игроку"}</p>}
+      </div>
+    );
+
+  const EndingPanel = () =>
+    !e || e.phase === "write" ? (
+      <section className="stack stack--tight">
+        <p>
+          Историй: <strong>{endings.length}</strong>. Сыграем {Math.min(endings.length, content.endingMax)}.
+        </p>
+        {endings.length > 0 && (
+          <details className="quest-host__places">
+            <summary>Истории и концовки (видите только вы)</summary>
+            <ul className="st-host__list">
+              {endings.map((x) => (
+                <li key={x.pid}>
+                  <span className="small">
+                    <NameText name={name(x.pid)} />
+                  </span>
+                  <span>{x.start}…</span>
+                  <span className="success">{x.end}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
+    ) : (
+      <div className="card stack stack--tight">
+        <p>
+          История <strong><NameText name={name(endItem?.pid ?? null)} /></strong> · {e.current + 1} из {e.items.length}
+        </p>
+        <p className="host-quiz__question">«{endItem?.start}…»</p>
+        <details>
+          <summary>Настоящая концовка (видите только вы)</summary>
+          <p>{endOwn?.end ?? "не найдена"}</p>
+        </details>
+        {e.phase === "fake" && <p className="small">Придумали концовок: {fakeSource.filter((a) => a.step === e.fakeStep && fakeOf(a.value)).length}</p>}
+        {e.phase === "vote" && !e.reveal && <p className="small">Проголосовали: {voted}</p>}
+        {e.reveal && <p className={e.reveal.right.length ? "success" : "muted"}>{e.reveal.right.length ? `Угадали: ${e.reveal.right.map(name).join(", ")}` : "Никто не угадал — бонус автору"}</p>}
+      </div>
+    );
+
   return (
     <div className="stack host-quiz">
       <p className="eyebrow">
-        Не моя история · раздел {r.part + 1} из {content.sections.length}: {SECTION_TITLES[kind]}
+        Давайте знакомиться · раздел {r.part + 1} из {content.sections.length}: {SECTION_TITLES[kind]}
         {kind === "author" && r.mode === "guess" ? ` · ${r.current + 1} из ${r.stories.length}` : ""}
       </p>
 
       {stage === "podium" ? (
         <PodiumHostList session={session} />
+      ) : stage === "ready" ? (
+        <p className="muted">{SECTION_HINTS[kind]}</p>
+      ) : kind === "lies" ? (
+        LiesPanel()
+      ) : kind === "ending" ? (
+        EndingPanel()
       ) : kind === "words" ? (
         !w || w.mode === "intro" ? (
           <p className="muted">Каждый участник получит бумажку на свой пропуск в истории и выберет слово. Потом рулетка выберет, кто покажет историю, а зал поставит звёзды.</p>
@@ -199,7 +329,7 @@ export function StoryHostControls({ session, content, answers, participants, con
           <>
             {noPlayers && <p className="muted small">Ждём гостей.</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noPlayers} onClick={() => void run(startWriting(session, participants))}>
-              Пишем истории
+              {kind === "said" ? "Первый вопрос" : "Пишем истории"}
             </button>
           </>
         )}
@@ -274,6 +404,56 @@ export function StoryHostControls({ session, content, answers, participants, con
             Итог
           </button>
         )}
+        {action === "nextQuestion" && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startWriting(session, participants, r.q + 1))}>
+            Следующий вопрос
+          </button>
+        )}
+        {action === "liesWrite" && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noPlayers} onClick={() => { const m = liesWrite(session); void run({ ...withLies(session, m.lies, m.change), leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode) }); }}>
+            Пишем факты
+          </button>
+        )}
+        {action === "liesStart" && l && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || facts.length < 2} onClick={() => void run(async () => { const list = rehearsal ? source : await control.freshAnswers(l.writeStep).catch(() => source); const m = liesStart(latest.current, content, l, list.length ? list : source); return m ? withLies(latest.current, m.lies, m.change) : null; })}>
+            Показать игроков ({Math.min(facts.length, content.liesMax)})
+          </button>
+        )}
+        {action === "liesReveal" && l && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => { const m = liesReveal(latest.current, content, l, await fresh(), facts, teamOf); return withLies(latest.current, m.lies, m.change); })}>
+            Открыть ложь
+          </button>
+        )}
+        {action === "liesNext" && l && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => { const m = liesNext(session, content, l); void run(withLies(session, m.lies, m.change)); }}>
+            Следующий игрок
+          </button>
+        )}
+        {action === "endingWrite" && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noPlayers} onClick={() => { const m = endingWrite(session); void run({ ...withEnding(session, m.ending, m.change), leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode) }); }}>
+            Пишем истории
+          </button>
+        )}
+        {action === "endingStart" && e && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || endings.length < 1} onClick={() => void run(async () => { const list = rehearsal ? source : await control.freshAnswers(e.writeStep).catch(() => source); const m = endingStart(latest.current, content, e, list.length ? list : source); return m ? withEnding(latest.current, m.ending, m.change) : null; })}>
+            Начать ({Math.min(endings.length, content.endingMax)} ист.)
+          </button>
+        )}
+        {action === "endingVote" && e && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => { const list = rehearsal ? fakeSource : await fresh(); const m = endingVote(latest.current, content, e, list.length ? list : fakeSource, endings); return withEnding(latest.current, m.ending, m.change); })}>
+            Голосуем: где правда?
+          </button>
+        )}
+        {action === "endingReveal" && e && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => { const m = endingReveal(latest.current, content, e, await fresh(), fakeSource, endings, teamOf); return withEnding(latest.current, m.ending, m.change); })}>
+            Открыть правду
+          </button>
+        )}
+        {action === "endingNext" && e && (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => { const m = endingNext(session, content, e); void run(withEnding(session, m.ending, m.change)); }}>
+            Следующая история
+          </button>
+        )}
         {action === "nextPart" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextPart(session))}>
             Следующий раздел: {SECTION_TITLES[kindOf(content, r.part + 1)]}
@@ -289,7 +469,7 @@ export function StoryHostControls({ session, content, answers, participants, con
             Завершить игру
           </button>
         )}
-        {stage === "reveal" && (action === "next" || action === "nextPart" || (action === "wordsSentence" && w?.mode === "rated")) && (
+        {stage === "reveal" && (action === "next" || action === "nextPart" || action === "nextQuestion" || action === "liesNext" || action === "endingNext" || (action === "wordsSentence" && w?.mode === "rated")) && (
           <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(awardNow(session))}>
             Закончить и наградить
           </button>

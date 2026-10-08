@@ -5,7 +5,6 @@ import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { useServerNow } from "../../components/live/useServerNow";
-import { Logo } from "../../components/Logo";
 import { NameText } from "../../components/NameText";
 import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
@@ -14,28 +13,44 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { STORY_LIMITS, type StoryContent } from "./content";
 import { guessOf, kindOf, parseStoryResult, personName, sameText, storyOf, type StoryResult } from "./logic";
 import { WordsPhone, WordsScreen } from "./WordsViews";
+import { EndingPhone, EndingScreen, LiesPhone, LiesScreen } from "./SectionViews";
+import { Letter } from "./Letter";
+import { SECTION_HINTS, SECTION_TITLES } from "./content";
+import { rankedLeaderboard } from "../../core/leaderboard";
 
-export type StoryAnswerValue = { story: string } | { guess: string } | { word: number } | { stars: number };
+export { Letter };
 
-const nameOf = personName;
-
-/** Письмо с историей: номер, текст, сургучная печать с эмблемой (при открытии автора — сломана). */
-export function Letter({ text, label, open = false, size = "screen" }: { text: string; label: string; open?: boolean; size?: "screen" | "phone" }) {
+/** Заставка раздела: название, как играем, после первого раздела — пятёрка лидеров. */
+function SectionIntro({ session, content, part }: { session: Session; content: StoryContent; part: number }) {
+  const kind = kindOf(content, part);
+  const top = rankedLeaderboard(session.leaderboard).filter((e) => e.score > 0).slice(0, 5);
   return (
-    <div className={`st-letter st-letter--${size}${open ? " is-open" : ""}`}>
-      <span className="st-letter__frame" aria-hidden="true" />
-      <span className="st-letter__label">{label}</span>
-      <span className="st-letter__quote" aria-hidden="true">
-        «
-      </span>
-      <p className="st-letter__text">{text}</p>
-      <span className="st-seal" aria-hidden="true">
-        <span className="st-seal__wax" />
-        <Logo kind="monogram" tone="cream" title="" className="st-seal__mark" />
-      </span>
+    <div className="st-screen">
+      <section className="st-screen__main">
+        <span className="quiz-screen__badge">{content.sections.length > 1 ? `Раздел ${part + 1} из ${content.sections.length}` : "Давайте знакомиться"}</span>
+        <h2 className="st-title">{SECTION_TITLES[kind]}</h2>
+        <p className="st-prompt">{SECTION_HINTS[kind]}</p>
+        {part > 0 && top.length > 0 && (
+          <ol className="st-top">
+            {top.map((e) => (
+              <li key={e.id}>
+                <span className="st-top__place">{e.place}</span>
+                <span className="st-top__name">
+                  <NameText name={e.name} />
+                </span>
+                <strong>{e.score}</strong>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }
+
+export type StoryAnswerValue = { story: string } | { guess: string } | { word: number } | { stars: number } | { facts: string[]; lie: number } | { pick: number | string } | { start: string; end: string } | { fake: string };
+
+const nameOf = personName;
 
 function Envelopes({ count }: { count: number }) {
   const n = Math.min(9, Math.max(3, count));
@@ -88,17 +103,23 @@ export function StoryScreenView({ session, content }: ViewProps<StoryContent>) {
     prev.current = key;
   }, [step, stage]);
   const players = Object.keys(session.leaderboard).length;
-  if (kindOf(content, r.part) === "words") return <WordsScreen session={session} w={r.words} part={r.part} />;
+  const kind = kindOf(content, r.part);
+  if (stage === "ready") return <SectionIntro session={session} content={content} part={r.part} />;
+  if (kind === "words") return <WordsScreen session={session} w={r.words} part={r.part} />;
+  if (kind === "lies") return <LiesScreen session={session} l={r.lies} part={r.part} />;
+  if (kind === "ending") return <EndingScreen session={session} content={content} e={r.ending} part={r.part} />;
+  const said = kind === "said";
+  const prompt = said ? (content.saidQuestions[r.q] ?? content.prompt) : content.prompt;
 
-  if (stage === "ready" || r.mode === "write") {
+  if (r.mode === "write") {
     return (
       <div className="st-screen">
         <section className="st-screen__main">
-          <span className="quiz-screen__badge">{content.sections.length > 1 ? `Раздел ${r.part + 1} · Чья история?` : "Не моя история"}</span>
+          <span className="quiz-screen__badge">{said ? `Кто это сказал? · вопрос ${r.q + 1} из ${content.saidQuestions.length}` : `Раздел ${r.part + 1} · Чья история?`}</span>
           <Envelopes count={session.state.answered} />
-          <h2 className="st-title">{stage === "ready" ? "Скоро пишем истории" : "Пишем истории…"}</h2>
-          <p className="st-prompt">{content.prompt}</p>
-          {r.mode === "write" && stage === "question" && <p className="st-note">Историй: {session.state.answered}. Никому не говорите, что написали!</p>}
+          <h2 className="st-title">{said ? prompt : "Пишем истории…"}</h2>
+          {!said && <p className="st-prompt">{prompt}</p>}
+          <p className="st-note">{said ? "Ответьте на телефоне — анонимно" : "Никому не говорите, что написали!"} · {session.state.answered}</p>
         </section>
       </div>
     );
@@ -111,10 +132,11 @@ export function StoryScreenView({ session, content }: ViewProps<StoryContent>) {
       {stage === "reveal" && nobody && author && <Confetti burst={`st:${step}`} count={40} />}
       <section className="st-screen__main">
         <span className="quiz-screen__badge">
-          История {r.current + 1} из {r.stories.length}
+          {said ? `Ответ ${r.current + 1} из ${r.stories.length}` : `История ${r.current + 1} из ${r.stories.length}`}
           {left !== null ? ` · ${left} с` : ""}
         </span>
-        {story && <Letter text={story.text} label={stage === "reveal" ? "Это история" : "Чья это история?"} open={stage === "reveal"} />}
+        {said && <p className="st-prompt">{prompt}</p>}
+        {story && <Letter text={story.text} label={stage === "reveal" ? (said ? "Это ответ" : "Это история") : said ? "Чей это ответ?" : "Чья это история?"} open={stage === "reveal"} />}
         {stage === "question" ? (
           <p className="st-note">
             Голосуйте на телефоне · {Math.min(session.state.answered, players)} из {players}
@@ -159,7 +181,10 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
   const sending = teams ? (personal?.sending ?? false) : teamSending;
   const onAnswer = (v: StoryAnswerValue) => (teams ? personal?.send(v) : teamSend(v));
   const { stage } = session.state;
-  const key = `${MINE}.${session.id}.${pid}`;
+  const key = `${MINE}.${session.id}.${participant.id}`;
+  const kind = kindOf(content, r.part);
+  const said = kind === "said";
+  const prompt = said ? (content.saidQuestions[r.q] ?? content.prompt) : content.prompt;
   const [mine, setMine] = useState(() => loadMine(key));
   const sent = r.mode === "write" && myAnswer ? storyOf(myAnswer.value) : "";
   const [draft, setDraft] = useState("");
@@ -176,12 +201,36 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
 
   const head = (
     <p className="eyebrow">
-      Не моя история{r.mode === "guess" && kindOf(content, r.part) === "author" ? ` · ${r.current + 1} из ${r.stories.length}` : ""}
+      {SECTION_TITLES[kind]}
+      {r.mode === "guess" && (kind === "author" || kind === "said") && stage !== "ready" ? ` · ${r.current + 1} из ${r.stories.length}` : ""}
       {me ? ` · ${pointsLabel(me.score)}` : ""}
     </p>
   );
 
-  if (kindOf(content, r.part) === "words") {
+  if (stage === "ready") {
+    return (
+      <div className="quiz-phone quiz-phone--center">
+        {head}
+        <h2>{SECTION_TITLES[kind]}</h2>
+        <p className="muted">{SECTION_HINTS[kind]}</p>
+      </div>
+    );
+  }
+
+  if (kind === "lies" || kind === "ending") {
+    return (
+      <div className="quiz-phone st-phone">
+        {head}
+        {kind === "lies" ? (
+          <LiesPhone session={session} l={r.lies} me={participant.id} scoreKey={pid} myAnswer={myAnswer} sending={sending} onAnswer={(v) => onAnswer(v as StoryAnswerValue)} />
+        ) : (
+          <EndingPhone session={session} e={r.ending} me={participant.id} scoreKey={pid} myAnswer={myAnswer} sending={sending} onAnswer={(v) => onAnswer(v as StoryAnswerValue)} />
+        )}
+      </div>
+    );
+  }
+
+  if (kind === "words") {
     return (
       <div className="quiz-phone st-phone">
         {head}
@@ -203,16 +252,6 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
     );
   }
 
-  if (stage === "ready") {
-    return (
-      <div className="quiz-phone quiz-phone--center">
-        {head}
-        <h2>Скоро напишем истории</h2>
-        <p className="muted">Вспомните случай из жизни, о котором здесь почти никто не знает.</p>
-      </div>
-    );
-  }
-
   if (r.mode === "write") {
     const send = () => {
       const text = draft.trim();
@@ -225,7 +264,7 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
       return (
         <div className="quiz-phone st-phone">
           {head}
-          <Letter text={sent} label="Ваша история" size="phone" />
+          <Letter text={sent} label={said ? "Ваш ответ" : "Ваша история"} size="phone" />
           <p className="success">Отправлено ведущему. Никому не говорите, что написали! 🤫</p>
           {stage === "question" && (
             <button type="button" className="btn btn--secondary btn--block" onClick={() => { setDraft(sent); setEditing(true); }}>
@@ -238,18 +277,18 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
     return (
       <div className="quiz-phone st-phone">
         {head}
-        <h2>{content.prompt}</h2>
+        <h2>{prompt}</h2>
         <label className="field">
           <span className="visually-hidden">Ваша история</span>
-          <textarea className="input st-phone__input" rows={5} maxLength={STORY_LIMITS.story} value={draft} placeholder="Однажды я…" onChange={(e) => setDraft(e.target.value)} />
+          <textarea className="input st-phone__input" rows={5} maxLength={STORY_LIMITS.story} value={draft} placeholder={said ? "Ваш ответ…" : "Однажды я…"} onChange={(e) => setDraft(e.target.value)} />
         </label>
         <p className="muted small">
           {draft.length} / {STORY_LIMITS.story} · пишите от первого лица, без имён — гости будут угадывать автора
         </p>
-        <button type="button" className="btn btn--block" disabled={sending || draft.trim().length < 10 || stage !== "question"} onClick={send}>
-          Отправить историю
+        <button type="button" className="btn btn--block" disabled={sending || draft.trim().length < (said ? 2 : 10) || stage !== "question"} onClick={send}>
+          {said ? "Отправить ответ" : "Отправить историю"}
         </button>
-        {content.examples.length > 0 && (
+        {!said && content.examples.length > 0 && (
           <details className="st-phone__ideas">
             <summary>Примеры</summary>
             <ul>
@@ -269,11 +308,12 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
   const others = (teams ? (r.people ?? []) : Object.keys(session.leaderboard)).filter((p) => p !== participant.id);
 
   if (stage === "reveal" && r.reveal) {
-    const right = r.reveal.right.includes(pid);
+    const right = r.reveal.right.includes(participant.id);
     return (
       <div className="quiz-phone st-phone">
         {head}
-        {story && <Letter text={story.text} label="Это история" size="phone" open />}
+        {said && <p className="se-start se-start--phone">{prompt}</p>}
+        {story && <Letter text={story.text} label={said ? "Это ответ" : "Это история"} size="phone" open />}
         <p className="st-phone__author">
           <NameText name={r.reveal.author ? nameOf(session, r.reveal.author) : "автор ушёл"} />
         </p>
@@ -287,8 +327,9 @@ export function StoryPlayerView({ session, content, participant, pid, role, myAn
   return (
     <div className="quiz-phone st-phone">
       {head}
-      {story && <Letter text={story.text} label="Чья это история?" size="phone" />}
-      {isMine && <p className="buzz__plate"><strong>Это ваша история! 🤫</strong><span>Выберите кого угодно, чтобы не выдать себя, — ваш голос не считается.</span></p>}
+      {said && <p className="se-start se-start--phone">{prompt}</p>}
+      {story && <Letter text={story.text} label={said ? "Чей это ответ?" : "Чья это история?"} size="phone" />}
+      {isMine && <p className="buzz__plate"><strong>{said ? "Это ваш ответ! 🤫" : "Это ваша история! 🤫"}</strong><span>Выберите кого угодно, чтобы не выдать себя, — ваш голос не считается.</span></p>}
       {vote ? (
         <p className="success">Голос принят: {nameOf(session, vote)}</p>
       ) : open ? (

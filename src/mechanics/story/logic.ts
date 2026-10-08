@@ -11,6 +11,9 @@ import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
 import { cleanText, STORY_LIMITS, type SectionKind, type StoryContent } from "./content";
+import { sameText } from "./text";
+import { endingBack, endingPrimary, parseEnding, type EndingAction, type EndingState } from "./ending";
+import { liesBack, liesPrimary, parseLies, type LiesAction, type LiesState } from "./lies";
 import { hasMoreSentences, parseWords, wordsBack, wordsIntro, type WordsState } from "./words";
 
 export type StoryMode = "write" | "guess";
@@ -33,8 +36,14 @@ export interface StoryReveal {
 export interface StoryResult {
   /** Какой раздел идёт (номер в `content.sections`). */
   part: number;
+  /** «Кто это сказал?»: номер вопроса. */
+  q: number;
   /** Раздел «Сочиняем историю». */
   words: WordsState | null;
+  /** Раздел «Две правды и ложь». */
+  lies: LiesState | null;
+  /** Раздел «Что было дальше?». */
+  ending: EndingState | null;
   /** Гости с телефонами (в командах — люди, а не команды): за них голосуют, на них крутится рулетка. */
   people: string[];
   /** Имена гостей с телефонами (в командах их нет в таблице). */
@@ -73,7 +82,10 @@ export function parseStoryResult(raw: unknown): StoryResult {
   const d = rec(raw);
   return {
     part: typeof d.part === "number" && d.part >= 0 ? Math.floor(d.part) : 0,
+    q: typeof d.q === "number" && d.q >= 0 ? Math.floor(d.q) : 0,
     words: parseWords(d.words),
+    lies: parseLies(d.lies),
+    ending: parseEnding(d.ending),
     people: ids(d.people),
     names: Object.fromEntries(Object.entries(rec(d.names)).filter(([k, v]) => ID.test(k) && typeof v === "string").map(([k, v]) => [k, cleanText(v, 60)])),
     mode: d.mode === "guess" ? "guess" : "write",
@@ -107,11 +119,7 @@ export function guessOf(value: unknown): string | null {
   return typeof g === "string" && ID.test(g) ? g : null;
 }
 
-/** Сравнение текстов без регистра и пробелов: телефон узнаёт свою историю, пульт — автора. */
-export function sameText(a: string, b: string): boolean {
-  const n = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[^\p{L}\p{N}]+/gu, "");
-  return n(a) === n(b) && n(a).length > 0;
-}
+export { sameText };
 
 /** Истории шага записи (без убранных ведущим), по порядку прихода. */
 export function writtenStories(answers: Answer[], r: StoryResult): Array<{ id: string; pid: string; text: string }> {
@@ -129,7 +137,7 @@ export function authorOf(text: string, written: Array<{ pid: string; text: strin
   return written.find((w) => sameText(w.text, text))?.pid ?? null;
 }
 
-export type StoryAction = "write" | "start" | "reveal" | "next" | "wordsSentence" | "wordsShow" | "wordsSpin" | "wordsRate" | "wordsRated" | "nextPart" | "podium" | "podiumNext" | "finish";
+export type StoryAction = "write" | "start" | "reveal" | "next" | "nextQuestion" | LiesAction | EndingAction | "wordsSentence" | "wordsShow" | "wordsSpin" | "wordsRate" | "wordsRated" | "nextPart" | "podium" | "podiumNext" | "finish";
 
 export function kindOf(content: StoryContent, part: number): SectionKind {
   return content.sections[part] ?? "author";
@@ -155,10 +163,13 @@ export function storyPrimary(session: Session, content: StoryContent): StoryActi
     if (w.mode === "rate") return "wordsRated";
     return hasMoreSentences(content, w) ? "wordsSentence" : afterPart(session, content, r);
   }
+  if (kind === "lies") return liesPrimary(r.lies) ?? afterPart(session, content, r);
+  if (kind === "ending") return endingPrimary(content, r.ending) ?? afterPart(session, content, r);
   if (stage === "ready") return "write";
   if (r.mode === "write") return "start";
   if (stage === "question") return "reveal";
   if (r.current + 1 < r.stories.length) return "next";
+  if (kind === "said" && r.q + 1 < content.saidQuestions.length) return "nextQuestion";
   return afterPart(session, content, r);
 }
 
@@ -194,7 +205,21 @@ export function personName(session: Session, pid: string | null): string {
 }
 
 function emptyFlat(): Omit<StoryResult, "part"> {
-  return { people: [], names: {}, words: null, mode: "write", writeStep: null, hidden: [], stories: [], current: 0, reveal: null, changeable: false, history: [] };
+  return { q: 0, people: [], names: {}, words: null, lies: null, ending: null, mode: "write", writeStep: null, hidden: [], stories: [], current: 0, reveal: null, changeable: false, history: [] };
+}
+
+/** Состояние раздела «Две правды и ложь» → изменение сессии (на записи ответ можно менять). */
+export function withLies(session: Session, lies: LiesState | null, change: SessionChange = {}): SessionChange {
+  const r = parseStoryResult(session.state.result);
+  const prevPart = rec(session.state.result).prevPart ?? null;
+  return { ...change, state: { ...(change.state ?? {}), result: { ...r, lies, changeable: lies?.phase === "write", prevPart } } };
+}
+
+/** Состояние раздела «Что было дальше?» → изменение сессии (запись и концовки можно менять). */
+export function withEnding(session: Session, ending: EndingState | null, change: SessionChange = {}): SessionChange {
+  const r = parseStoryResult(session.state.result);
+  const prevPart = rec(session.state.result).prevPart ?? null;
+  return { ...change, state: { ...(change.state ?? {}), result: { ...r, ending, changeable: ending?.phase === "write" || (ending?.phase === "fake" && !ending.reveal), prevPart } } };
 }
 
 /** Состояние раздела «Сочиняем историю» → изменение сессии. */
@@ -204,12 +229,15 @@ export function withWords(session: Session, words: WordsState, change: SessionCh
 }
 
 /** «Пишем истории»: телефоны пишут, ответ можно менять до начала угадывания. */
-export function startWriting(session: Session, participants: Participant[]): SessionChange {
+export function startWriting(session: Session, participants: Participant[], q = 0): SessionChange {
   const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
   const who = peopleOf({ ...session, leaderboard: { ...session.leaderboard, ...additions } }, participants);
+  // Новый вопрос посреди раздела — новый шаг; с заставки раздела — тот же шаг.
+  const step = session.state.stage === "ready" ? session.state.step : session.state.step + 1;
+  const prevPart = rec(session.state.result).prevPart ?? null;
   return {
-    leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
-    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...emptyFlat(), ...who, part: parseStoryResult(session.state.result).part, mode: "write", writeStep: session.state.step, changeable: true } },
+    leaderboard: additions,
+    state: { step, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...emptyFlat(), ...who, part: parseStoryResult(session.state.result).part, q, mode: "write", writeStep: step, changeable: true, prevPart, ...(q > 0 ? { prevQ: { ...parseStoryResult(session.state.result) } } : {}) } },
   };
 }
 
@@ -230,7 +258,8 @@ export function startGuessing(session: Session, content: StoryContent, answers: 
     const j = Math.floor(random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j] as (typeof list)[number], shuffled[i] as (typeof list)[number]];
   }
-  const played = content.maxStories > 0 ? shuffled.slice(0, content.maxStories) : shuffled;
+  const max = kindOf(content, r.part) === "said" ? content.saidShown : content.maxStories;
+  const played = max > 0 ? shuffled.slice(0, max) : shuffled;
   return {
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
     state: {
@@ -310,6 +339,18 @@ export function storyBack(session: Session, content: StoryContent): StoryBack | 
   if (stage === "podium") return { change: podiumBack(session) };
   const prevPart = rec(rec(session.state.result).prevPart);
   const toPrevPart = (): StoryBack | null => ("part" in prevPart ? { change: { state: { step: step - 1, stage: "reveal", revealed: true, result: prevPart } } } : null);
+  if (kindOf(content, r.part) === "lies") {
+    if (!r.lies) return toPrevPart();
+    const b = liesBack(session, r.lies);
+    if (!b) return { change: withLies(session, null, { state: { stage: "ready", startedAt: null } }), clearAnswers: step };
+    return { change: withLies(session, b.lies, b.change), ...(b.clearAnswers !== undefined ? { clearAnswers: b.clearAnswers } : {}) };
+  }
+  if (kindOf(content, r.part) === "ending") {
+    if (!r.ending) return toPrevPart();
+    const b = endingBack(session, r.ending);
+    if (!b) return { change: withEnding(session, null, { state: { stage: "ready", startedAt: null } }), clearAnswers: step };
+    return { change: withEnding(session, b.ending, b.change), ...(b.clearAnswers !== undefined ? { clearAnswers: b.clearAnswers } : {}) };
+  }
   if (kindOf(content, r.part) === "words") {
     if (r.words?.undo) {
       const b = wordsBack(session, r.words);
@@ -318,7 +359,11 @@ export function storyBack(session: Session, content: StoryContent): StoryBack | 
     return toPrevPart();
   }
   if (stage === "ready") return toPrevPart();
-  if (r.mode === "write") return { change: { state: { stage: "ready", startedAt: null, result: r.part > 0 ? { ...emptyFlat(), part: r.part, prevPart } : null } }, clearAnswers: step };
+  if (r.mode === "write") {
+    const prevQ = rec(rec(session.state.result).prevQ);
+    if ("part" in prevQ) return { change: { state: { step: step - 1, stage: "reveal", revealed: true, timeLimit: null, result: { ...prevQ, prevPart: rec(session.state.result).prevPart ?? null } } }, clearAnswers: step };
+    return { change: { state: { stage: "ready", startedAt: null, result: r.part > 0 ? { ...emptyFlat(), part: r.part, prevPart } : null } }, clearAnswers: step };
+  }
   if (stage === "reveal" && r.reveal) {
     const add = minus(r.reveal.deltas);
     // Голоса остаются, таймер — заново: кто не успел, проголосует.

@@ -89,7 +89,7 @@ export function VenuesHome() {
               { id: "venues", label: "Площадки" },
               { id: "forms", label: "Анкеты заведений" },
               { id: "requests", label: "Заявки клиентов" },
-              { id: "archive", label: "Архив" },
+              ...(permissions.canArchiveVenues(profile) ? [{ id: "archive" as const, label: "Архив" }] : []),
               { id: "qr", label: "QR-коды" },
             ]}
           />
@@ -97,7 +97,7 @@ export function VenuesHome() {
             {tab === "venues" && <VenuesTab mode="base" owner={permissions.isAdmin(profile)} />}
             {tab === "forms" && <VenuesTab mode="forms" owner={permissions.isAdmin(profile)} />}
             {tab === "requests" && <RequestsTab />}
-            {tab === "archive" && <ArchiveTab />}
+            {tab === "archive" && permissions.canArchiveVenues(profile) && <ArchiveTab />}
             {tab === "qr" && <VenueQr uid={uid} />}
           </div>
         </main>

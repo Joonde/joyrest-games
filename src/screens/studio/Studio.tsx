@@ -78,7 +78,8 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
 
   const gamesOpen = permissions.canUseGames(profile);
   const musicOpen = permissions.canUseTracks(profile) && Boolean(tracksRepo);
-  if (!gamesOpen && !musicOpen) {
+  const overviewOpen = permissions.canSeeAllSessions(profile) && Boolean(sessionsRepo.overview);
+  if (!gamesOpen && !musicOpen && !overviewOpen) {
     // Диджеи, музыканты, фокусники и другие профессии: игр нет, своя страница (пока простая).
     return (
       <main className="page">
@@ -108,20 +109,20 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
       )}
-      <Tabs
+      {tabs.length > 0 && <Tabs
         items={tabs}
         value={tab}
         onChange={(next) => setParams(next === "mine" ? {} : { tab: next }, { replace: true })}
         label="Разделы студии"
         idPrefix="studio"
         scroll
-      />
-      <div className="stack" role="tabpanel" id={`studio-panel-${tab}`} aria-labelledby={`studio-tab-${tab}`}>
+      />}
+      {tabs.length > 0 && <div className="stack" role="tabpanel" id={`studio-panel-${tab}`} aria-labelledby={`studio-tab-${tab}`}>
         {tab === "agency" && <GameList key="agency" scope="agency" profile={profile} onToast={showToast} />}
         {tab === "mine" && <GameList key="mine" scope="personal" profile={profile} onToast={showToast} />}
         {tab === "music" && <MusicTab profile={profile} onToast={showToast} />}
         {tab === "history" && <History profile={profile} onToast={showToast} />}
-      </div>
+      </div>}
     </div>
   );
 
@@ -138,7 +139,9 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         </p>
       )}
 
-      {permissions.canSeeAllSessions(profile) && sessionsRepo.overview ? (
+      {overviewOpen && tabs.length === 0 ? (
+        <LiveOverview adminId={profile.uid} owner={permissions.isAdmin(profile)} />
+      ) : overviewOpen ? (
         <SwipePages
           storageKey="studio-page"
           pages={[

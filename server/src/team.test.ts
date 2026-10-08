@@ -166,6 +166,9 @@ describe.skipIf(!url)("команда JoyRest на PostgreSQL", () => {
     expect((await post("/api/sessions/lena-session-1/finish", kim.cookie, {})).statusCode).toBe(403);
     await sql`update sessions set updated_at = now() - interval '13 hours' where id = 'lena-session-1'`;
     expect((await post("/api/sessions/lena-session-1/finish", kim.cookie, {})).statusCode).toBe(200);
+    // Завершённую чужую игру помощник из списка не убирает (это решает ведущий или владелец).
+    expect((await post("/api/sessions/lena-session-1/hide", kim.cookie, {})).statusCode).toBe(409);
+    expect((await post("/api/sessions/lena-session-1/hide", lena.cookie, {})).statusCode).toBe(200);
 
     // Снять роль — снова только своё.
     expect((await access(kim.uid, owner, null)).statusCode).toBe(200);

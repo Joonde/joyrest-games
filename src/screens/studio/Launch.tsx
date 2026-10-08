@@ -41,6 +41,21 @@ function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfil
   if (state.status === "loading") return <Pending skeleton={<StudioSkeleton />} label="Готовим запуск" />;
   if (state.status === "error") return <LoadFailed onRetry={retry} />;
   const game = state.data;
+  if (game && permissions.canReadGame(profile, game) && !permissions.canCreateSession(profile)) {
+    return (
+      <Message title="Проводить игры могут только ведущие">
+        <p>Вы можете открыть игру и пройти репетицию без гостей.</p>
+        <div className="actions">
+          <Link className="btn btn--block" to={`/studio/rehearsal/${game.id}`}>
+            Репетиция без гостей
+          </Link>
+          <Link className="btn btn--secondary btn--block" to="/studio">
+            В студию
+          </Link>
+        </div>
+      </Message>
+    );
+  }
   if (!game || !permissions.canLaunchGame(profile, game)) {
     return (
       <Message title="Игра не найдена">

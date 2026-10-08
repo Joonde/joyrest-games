@@ -70,7 +70,7 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
   const live = game.phase !== "finished";
   // Помощник владельца (роль) завершает и убирает чужую игру, только если она брошена.
   const canClose = live && (own || admin || (helper && game.stale)) && Boolean(sessionsRepo.close);
-  const canHide = (!live || game.stale) && (own || admin || helper) && Boolean(sessionsRepo.hide);
+  const canHide = ((own || admin) ? !live || game.stale : helper && live && game.stale) && Boolean(sessionsRepo.hide);
   const title = game.gameTitle || mechanicTitle(game.mechanic);
   const target = live && own ? `/host/${game.code}` : !live ? `/results/${game.id}` : null;
   const status = live && game.stale ? "Не завершена" : PHASE_TITLES[game.phase];

@@ -40,7 +40,7 @@ function RehearsalLoader({ gameId, profile }: { gameId: string; profile: UserPro
       </Message>
     );
   }
-  return <RehearsalRun game={game} hostId={profile.uid} />;
+  return <RehearsalRun game={game} hostId={profile.uid} launchable={permissions.canLaunchGame(profile, game)} />;
 }
 
 /** Сессия в памяти: тот же пульт и тот же экран зала, но без гостей и без записи в базу. */
@@ -62,7 +62,7 @@ function initialSession(game: Game, hostId: string): Session {
   };
 }
 
-function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
+function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string; launchable: boolean }) {
   const mechanic = getMechanic(game.mechanic);
   const content = useMemo(() => (mechanic ? mechanic.parse(game.content) : null), [mechanic, game.content]);
   const [session, setSession] = useState(() => initialSession(game, hostId));
@@ -112,9 +112,11 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
                 <button type="button" className="btn btn--block" onClick={() => setSession(initialSession(game, hostId))}>
                   Начать заново
                 </button>
-                <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
-                  Запустить игру
-                </Link>
+                {launchable && (
+                  <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
+                    Запустить игру
+                  </Link>
+                )}
               </div>
             </>
           ) : (

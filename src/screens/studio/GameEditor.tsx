@@ -75,6 +75,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const [copying, setCopying] = useState(false);
   const [toast, showToast] = useToast();
   const editable = permissions.canEditGame(profile, game);
+  // Роли без профессии ведущего (создатель игр, тестировщик) игры не проводят — только репетиция.
+  const launchable = permissions.canLaunchGame(profile, game);
+  const copyable = permissions.canCopyToPersonal(profile, game);
   const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
   // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
   const original = useRef<GamePatch>({ title: initial.title, content: game.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
@@ -188,24 +191,30 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </button>
             ) : (
               <>
-                <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
-                  Запустить
-                </Link>
-                <Link className="btn btn--secondary btn--block" to={`/studio/rehearsal/${game.id}`}>
+                {launchable && (
+                  <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+                    Запустить
+                  </Link>
+                )}
+                <Link className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"} to={`/studio/rehearsal/${game.id}`}>
                   Репетиция без гостей
                 </Link>
               </>
             )
           ) : (
             <>
-              <button type="button" className="btn btn--block" disabled={copying} onClick={() => void copyToMine()}>
-                {copying ? "Копируем…" : "Скопировать в мои игры"}
-              </button>
+              {copyable && (
+                <button type="button" className="btn btn--block" disabled={copying} onClick={() => void copyToMine()}>
+                  {copying ? "Копируем…" : "Скопировать в мои игры"}
+                </button>
+              )}
               {!launchBlocked && (
                 <>
-                  <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
-                    Запустить как есть
-                  </Link>
+                  {launchable && (
+                    <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
+                      Запустить как есть
+                    </Link>
+                  )}
                   <Link className="btn btn--quiet btn--block" to={`/studio/rehearsal/${game.id}`}>
                     Репетиция без гостей
                   </Link>

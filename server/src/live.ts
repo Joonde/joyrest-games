@@ -519,7 +519,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return { who, row };
     }
 
-    async function finishableSession(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): Promise<{ who: Identity; row: SessionRow } | null> {
+    /** Кто может завершить: ведущий игры и владелец — любую; помощник владельца — только брошенную (`staleOnly`). */
+    async function finishableSession(
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply,
+    ): Promise<{ who: Identity; row: SessionRow; staleOnly: boolean } | null> {
       const who = await requireIdentity(request, reply);
       if (!who) return null;
       const row = await loadSession(request.params.id);
@@ -527,28 +531,27 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         fail(reply, 404, "not-found");
         return null;
       }
-      if (!permissions.canControlSession(who.uid, { hostId: row.host_id }) && !permissions.isAdmin(actor(who))) {
-        // Помощник владельца завершает чужую игру, только если она брошена (12 часов без действий).
-        const stale = permissions.canSeeAllSessions(actor(who))
-          ? await sql`select 1 from sessions where id = ${row.id} and phase in ('lobby', 'playing') and updated_at < now() - interval '12 hours'`
-          : [];
-        if (stale.length === 0) {
-          fail(reply, 403, "permission-denied");
-          return null;
-        }
-      }
-      return { who, row };
+      if (permissions.canControlSession(who.uid, { hostId: row.host_id }) || permissions.isAdmin(actor(who))) return { who, row, staleOnly: false };
+      if (permissions.canSeeAllSessions(actor(who))) return { who, row, staleOnly: true };
+      fail(reply, 403, "permission-denied");
+      return null;
     }
 
     /** Одно изменение сессии под блокировкой строки; рассылка — после записи. */
     async function change(
       sessionId: string,
       update: (state: SessionState, board: Leaderboard) => CheckedChange | null | "conflict",
+      opts: { staleOnly?: boolean } = {},
     ): Promise<"ok" | "missing" | "conflict"> {
       const event = await sql.begin(async (tx) => {
-        const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${sessionId} for update`;
+        const rows = await tx<(SessionRow & { stale: boolean })[]>`
+          select ${tx(SESSION_COLUMNS)}, version::int as version,
+                 (state->>'phase' in ('lobby', 'playing') and updated_at < now() - interval '12 hours') as stale
+          from sessions where id = ${sessionId} for update`;
         const row = rows[0];
         if (!row) return null;
+        // Брошенность проверяется под блокировкой строки: ведущий вернулся к игре — помощник её не завершит.
+        if (opts.staleOnly && !row.stale) return "conflict" as const;
         const state = normalizeState(row.state);
         const board = normalizeBoard(row.leaderboard);
         const checked = update(state, board);
@@ -699,10 +702,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who?.user) return who ? fail(reply, 403, "permission-denied") : reply;
       const row = await loadSession(request.params.id);
       if (!row) return fail(reply, 404, "not-found");
-      if (!permissions.canDeleteSession(actor(who), { hostId: row.host_id }) && !permissions.canSeeAllSessions(actor(who))) return fail(reply, 403, "permission-denied");
+      const full = permissions.canDeleteSession(actor(who), { hostId: row.host_id });
+      // Помощник владельца убирает чужую игру, только если она брошена (12 часов без действий и не завершена).
+      if (!full && !permissions.canSeeAllSessions(actor(who))) return fail(reply, 403, "permission-denied");
       const rows = await sql`
         update sessions set hidden_at = now()
-        where id = ${row.id} and (phase = 'finished' or updated_at < now() - interval '12 hours')
+        where id = ${row.id}
+          and (${full}::boolean and (phase = 'finished' or updated_at < now() - interval '12 hours')
+               or phase in ('lobby', 'playing') and updated_at < now() - interval '12 hours')
         returning id`;
       if (rows.length === 0) return fail(reply, 409, "failed-precondition");
       return { ok: true };
@@ -777,12 +784,19 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const hosted = await finishableSession(request, reply);
       if (!hosted) return reply;
       const count = isRecord(request.body) ? request.body.participantsCount : 0;
-      const participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
+      let participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
+      if (hosted.row.host_id !== hosted.who.uid) {
+        // Чужую игру завершают из «Игр сейчас» — число телефонов считает сервер.
+        const [n] = await sql<{ n: number }[]>`select count(*)::int as n from participants where session_id = ${hosted.row.id} and kind = 'player'`;
+        participantsCount = n?.n ?? 0;
+      }
       // Последнее действие пульта до завершения: брошенная игра, которую закрыли через сутки, не
       // «шла» сутки — баллы ведущему считаются до него.
       const [last] = await sql<{ updated_at: Date }[]>`select updated_at from sessions where id = ${hosted.row.id}`;
       const wasLobby = normalizeState(hosted.row.state).phase === "lobby";
-      await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }));
+      const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly });
+      if (done === "conflict") return fail(reply, 403, "permission-denied");
+      if (done === "missing") return fail(reply, 404, "not-found");
       // Итоги — по таблице на сервере, а не по присланной.
       const row = await loadSession(hosted.row.id);
       // Сессию закрыли в лобби, никто не играл — в «Историю игр» пустую строку не пишем.

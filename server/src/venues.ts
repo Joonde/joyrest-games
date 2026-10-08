@@ -602,7 +602,9 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     });
 
     api.post<{ Params: { id: string } }>("/api/venues/:id/restore", { bodyLimit: 1024 }, async (request, reply) => {
-      if (!(await requireManager(request, reply))) return reply;
+      const manager = await requireManager(request, reply);
+      if (!manager) return reply;
+      if (!permissions.canArchiveVenues(actorOf(manager))) return fail(reply, 403, "permission-denied");
       const rows = await sql`update venues set archived_at = null, updated_at = now() where id = ${request.params.id} returning id`;
       if (rows.length === 0) return fail(reply, 404, "not-found");
       const [row] = await sql<VenueRow[]>`${venueSelect()} where v.id = ${request.params.id}`;
@@ -638,7 +640,10 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     );
 
     api.delete<{ Params: { id: string; sha: string } }>("/api/venues/:id/files/:sha", { bodyLimit: 1024 }, async (request, reply) => {
-      if (!(await requireManager(request, reply))) return reply;
+      // Убрать фото или меню — как архив: владелец и ведущие с доступом к базе (модератор — нет).
+      const manager = await requireManager(request, reply);
+      if (!manager) return reply;
+      if (!permissions.canArchiveVenues(actorOf(manager))) return fail(reply, 403, "permission-denied");
       const { id, sha } = request.params;
       if (!SHA.test(sha)) return fail(reply, 404, "not-found");
       await sql`
@@ -710,7 +715,9 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     });
 
     api.post<{ Params: { id: string } }>("/api/venue-requests/:id/restore", { bodyLimit: 1024 }, async (request, reply) => {
-      if (!(await requireManager(request, reply))) return reply;
+      const manager = await requireManager(request, reply);
+      if (!manager) return reply;
+      if (!permissions.canArchiveVenues(actorOf(manager))) return fail(reply, 403, "permission-denied");
       const rows = await sql`update venue_requests set archived_at = null, updated_at = now() where id = ${request.params.id} returning id`;
       if (rows.length === 0) return fail(reply, 404, "not-found");
       const [row] = await sql<RequestRow[]>`${requestSelect()} where r.id = ${request.params.id}`;

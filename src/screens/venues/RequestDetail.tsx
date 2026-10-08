@@ -96,6 +96,7 @@ function RequestView({ request, canArchive, onChange }: { request: VenueRequestR
           <h2>Заявка в архиве</h2>
           <p className="muted">Убрана {new Date(request.archivedAt ?? 0).toLocaleDateString("ru-RU")}. Отправленные клиенту ссылки открываются.</p>
           <button
+            hidden={!canArchive}
             className="btn btn--block"
             type="button"
             disabled={busy}

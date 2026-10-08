@@ -276,6 +276,7 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
           <h2>Площадка в архиве</h2>
           <p className="muted">Убрана {new Date(venue.archivedAt ?? 0).toLocaleDateString("ru-RU")}. В подбор и предложения клиентам она не попадает.</p>
           <button
+            hidden={!canArchive}
             className="btn btn--block"
             type="button"
             disabled={busy}
@@ -396,7 +397,7 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
                 <a href={venuesRepo?.fileUrl(venue.id, f.sha)} target="_blank" rel="noreferrer">
                   <img src={venuesRepo?.fileUrl(venue.id, f.sha)} alt={`${v.name}, фото ${i + 1}`} loading="lazy" />
                 </a>
-                <button type="button" className="btn btn--quiet venue-photo__remove" disabled={busy || archived} hidden={archived} onClick={() => removeFile(f.sha, "фото")}>
+                <button type="button" className="btn btn--quiet venue-photo__remove" disabled={busy || archived} hidden={archived || !canArchive} onClick={() => removeFile(f.sha, "фото")}>
                   Убрать
                 </button>
               </figure>
@@ -422,7 +423,7 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
                 <a href={venuesRepo?.fileUrl(venue.id, f.sha)} target="_blank" rel="noreferrer" className="line-clamp">
                   {f.name || `Меню ${i + 1}`} {f.mime === "application/pdf" ? "(PDF)" : "(фото)"}
                 </a>
-                <button type="button" className="btn btn--quiet" disabled={busy || archived} hidden={archived} onClick={() => removeFile(f.sha, "меню")}>
+                <button type="button" className="btn btn--quiet" disabled={busy || archived} hidden={archived || !canArchive} onClick={() => removeFile(f.sha, "меню")}>
                   Убрать
                 </button>
               </li>

@@ -39,8 +39,12 @@ function say(line: string): void {
 }
 function finish(code: number): never {
   if (process.env.GITHUB_ACTIONS === "true") {
-    const text = report.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
-    console.log(`::${code === 0 ? "notice" : "error"} title=Нагрузка::${text}`);
+    const escape = (lines: string[]) => lines.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+    // Аннотация обрезается (~4 КБ): итог — отдельной, чтобы его было видно всегда.
+    const at = report.findIndex((l) => l.startsWith("\nИтог"));
+    const summary = at >= 0 ? report.slice(at) : report.slice(-25);
+    console.log(`::${code === 0 ? "notice" : "error"} title=Нагрузка — итог::${escape([report[0] ?? "", ...summary])}`);
+    console.log(`::notice title=Нагрузка — ход::${escape(report.slice(0, at >= 0 ? at : undefined))}`);
   }
   process.exit(code);
 }

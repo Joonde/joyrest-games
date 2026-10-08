@@ -10,6 +10,7 @@ export function validateQuest(content: QuestContent): ValidationError[] {
     if ((c.kind === "task" || c.kind === "question") && !c.text.trim()) errors.push({ path: `cells/${c.id}/text`, message: `${where}: напишите ${c.kind === "question" ? "вопрос" : "задание"}.` });
     if (c.kind === "question" && !c.answer.trim()) errors.push({ path: `cells/${c.id}/answer`, message: `${where}: укажите ответ для ведущего.` });
     if ((c.kind === "dance" || c.kind === "karaoke") && !c.text.trim() && !c.videoUrl && !c.trackId) errors.push({ path: `cells/${c.id}/text`, message: `${where}: напишите, что исполнить, или добавьте видео или трек.` });
+    if ((c.kind === "bonus" || c.kind === "trap") && c.move === 0) errors.push({ path: `cells/${c.id}/move`, message: `${where}: укажите, на сколько клеток сдвинуть.` });
     if (c.videoUrl && !embedUrl(c.videoUrl)) errors.push({ path: `cells/${c.id}/video`, message: `${where}: ссылка должна вести на ролик YouTube, VK Видео или Rutube.` });
   });
   return errors;

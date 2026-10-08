@@ -3,7 +3,7 @@ import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
-import { podiumNext, startPodium } from "../../core/podium";
+import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
@@ -38,10 +38,22 @@ export function CheckersHostControls({ session, content, answers, participants, 
   const moveKey = stage === "question" && r.mode === "move" ? answers.filter((a) => a.step === step && a.pid === r.mover).map((a) => a.id).join(",") : "";
   useEffect(() => {
     if (!moveKey || busy) return;
-    const change = moveChange(latest.current, answers);
-    if (!change) return;
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    const current = latest.current;
+    const { phase, step: atStep, stage: atStage, startedAt } = current.state;
+    const change = moveChange(current, answers);
+    if (change) {
+      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+      return;
+    }
+    // Пришёл ход не по правилам (телефон видел старую доску): убираем его и просим сходить заново.
+    const mover = parseCheckersResult(current.state.result).mover;
+    const stale = answers.some((a) => a.step === atStep && a.pid === mover && (a.submittedAt ?? 0) >= (startedAt ?? 0));
+    if (!stale) return;
+    setError("Капитан прислал ход не по правилам — попросили сходить заново.");
+    void control
+      .clearAnswers(atStep)
+      .then(() => control.apply({ state: { startedAt: "server" }, expect: { phase, step: atStep, stage: atStage } }))
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только когда пришёл ход
   }, [moveKey, busy]);
 
@@ -106,7 +118,7 @@ export function CheckersHostControls({ session, content, answers, participants, 
     if (action === "toMove") void run(toMove(session));
     if (action === "next") void run(nextQuestion(session));
     if (action === "end") void run(endGame(session));
-    if (action === "podium") void run(startPodium(session));
+    if (action === "podium") void run(awardNow(session));
     if (action === "podiumNext") void run(podiumNext(session));
     if (action === "finish") control.requestFinish();
   }

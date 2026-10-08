@@ -90,7 +90,7 @@ function CardVideo({ card, paused, replay }: { card: DanceCard; paused: boolean;
     const src = embedUrl(card.video.url);
     if (!src) return <p className="dance-screen__note">Ссылку на видео не открыть. Проверьте её в конструкторе: подходят YouTube, VK Видео и Rutube.</p>;
     // Пауза ролика по ссылке — кнопками самого плеера; «Сначала» перезагружает плеер.
-    return <iframe key={replay} className="dance-screen__video" src={paused ? "about:blank" : src} title={card.title || "Видео"} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen />;
+    return <iframe key={replay} className="dance-screen__video" src={src} title={card.title || "Видео"} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen />;
   }
   if (card.video.source === "file") {
     if (missing) {
@@ -109,10 +109,10 @@ function CardVideo({ card, paused, replay }: { card: DanceCard; paused: boolean;
               const file = e.target.files?.[0];
               e.target.value = "";
               if (!file) return;
-              void saveLocalVideo(card.id, file).then(() => {
-                setUrl(URL.createObjectURL(file));
-                setMissing(false);
-              });
+              // Видео играет сразу; сохранить на устройстве — для следующих запусков (места может не хватить).
+              setUrl(URL.createObjectURL(file));
+              setMissing(false);
+              void saveLocalVideo(card.id, file).catch(() => undefined);
             }}
           />
         </div>
@@ -130,7 +130,8 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
   const now = useServerNow(250, r.mode === "vote" && stage === "question");
   const left = r.mode === "vote" && stage === "question" ? secondsLeft(session.state, now) : null;
   const performing = r.mode === "perform";
-  const battleTrack = card && card.trackId && (card.kind === "battle" || card.video.source === "none") ? card : null;
+  // Трек играет, только если видео нет (иначе звучали бы оба сразу).
+  const battleTrack = card && card.trackId && card.video.source === "none" ? card : null;
   useFragment(
     battleTrack?.trackId ?? null,
     battleTrack?.trackStart ?? 0,
@@ -234,10 +235,13 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
 // ---------------------------------------------------------------- телефон
 
 function RateForm({ min, max, sending, onRate }: { min: number; max: number; sending: boolean; onRate: (n: number) => void }) {
-  const step = max - min >= 50 ? 10 : 1;
+  // Не больше 10 кнопок, шаг — «круглое» число от диапазона: 10–100 → 10, 20, …; 1–10 → 1, 2, ….
+  const raw = Math.max(1, (max - min) / 9);
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((k) => k * pow).find((x) => x >= raw) ?? raw;
   const values: number[] = [];
-  for (let v = min; v <= max && values.length < 20; v += step) values.push(v);
-  if (values[values.length - 1] !== max) values.push(max);
+  for (let v = min; v < max && values.length < 10; v += step) values.push(Math.round(v));
+  values.push(max);
   return (
     <div className="dance-rate" role="group" aria-label="Оценка">
       {values.map((v) => (

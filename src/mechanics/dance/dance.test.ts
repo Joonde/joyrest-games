@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import { embedUrl, newCard, parseDance } from "./content";
-import { danceBack, dancePrimary, nextTurn, parseDanceResult, pickCard, pickFromAnswers, showResult, startPick, startVote, turnPid } from "./logic";
+import { danceBack, dancePrimary, resolveTie, nextTurn, parseDanceResult, pickCard, pickFromAnswers, showResult, startPick, startVote, turnPid } from "./logic";
 
 const content = parseDance({
   cards: [
@@ -14,7 +14,7 @@ const teams: Participant[] = ["A", "B", "C"].map((id, i) => ({ id, name: `Ком
 const session = (): Session => ({ id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "", mechanic: "dance", gameSnapshot: null, themeId: "joyrest", playMode: "teams", screenMode: "laptop", state: startState(), leaderboard: {}, createdAt: 0 });
 let t = 0;
 const apply = (s: Session, c: SessionChange) => applyChange(s, c, (t += 1000));
-const ans = (pid: string, step: number, value: unknown): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: 1 });
+const ans = (pid: string, step: number, value: unknown): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: 1e12 });
 
 describe("Танцевальный батл", () => {
   it("очередь, выбор капитаном, оценки других команд — среднее; свой голос не считается", () => {
@@ -43,15 +43,18 @@ describe("Танцевальный батл", () => {
     expect(s.leaderboard.A?.score).toBe(0);
   });
 
-  it("батл: голос за другую команду, победителю очки, ничья — поровну", () => {
+  it("батл: голос за другую команду; ничья — победителя называет ведущий", () => {
     let s = session();
     s = apply(s, startPick(s, teams));
     s = apply(s, pickCard(s, content, "c2", teams));
     s = apply(s, startVote(s, content));
     s = apply(s, showResult(s, content, [ans("A", 1, { team: "B" }), ans("B", 1, { team: "A" }), ans("C", 1, { team: "C" })]));
-    expect(s.leaderboard.A?.score).toBe(50);
-    expect(s.leaderboard.B?.score).toBe(50);
-    expect(s.leaderboard.C?.score).toBe(0);
+    // Ничья A–B: очков пока нет, решает ведущий.
+    expect(parseDanceResult(s.state.result).tie).toEqual(["B", "A"]);
+    expect(s.leaderboard.A?.score).toBe(0);
+    s = apply(s, resolveTie(s, content, "A"));
+    expect(s.leaderboard.A?.score).toBe(100);
+    expect(resolveTie(s, content, "B")).toEqual({});
   });
 
   it("ссылки на видео: YouTube, VK, Rutube; остальное — нет", () => {

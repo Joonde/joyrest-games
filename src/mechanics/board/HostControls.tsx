@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
-import { podiumNext, startPodium } from "../../core/podium";
+import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
@@ -96,7 +96,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const total = allCells(content).length;
   const played = result.opened.length;
   const primary = boardPrimary(session, content);
-  const backPlan = boardBack(session);
+  const backPlan = boardBack(session, content);
 
   const peekButton = session.screenMode !== "none" && (
     <button
@@ -138,7 +138,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   }
 
   const endButton = (primary === "podium" || primary === "finish") && (
-    <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "podium" ? void run(startPodium(session)) : control.requestFinish())}>
+    <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "podium" ? void run(awardNow(session)) : control.requestFinish())}>
       {primary === "podium" ? "Все клетки сыграны — награждение" : "Завершить игру"}
     </button>
   );

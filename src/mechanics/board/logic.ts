@@ -20,6 +20,8 @@ interface PrevPlay {
   fines: Record<string, number>;
   picker: string | null;
   catStep: boolean;
+  /** Кто выбирал до розыгрыша этой клетки — «Назад» с ответа возвращает право выбора ему. */
+  pickerBefore: string | null;
 }
 
 export interface BoardResult {
@@ -39,6 +41,8 @@ export interface BoardResult {
   catStep: boolean;
   /** «Повторить фрагмент» трека клетки. */
   replay: number;
+  /** Кто выбирал клетку до её розыгрыша. */
+  pickerBefore: string | null;
   prev: PrevPlay | null;
 }
 
@@ -68,6 +72,7 @@ function parsePrev(value: unknown): PrevPlay | null {
     fines: numbers(d.fines),
     picker: typeof d.picker === "string" && ID.test(d.picker) ? d.picker : null,
     catStep: d.catStep === true,
+    pickerBefore: typeof d.pickerBefore === "string" && ID.test(d.pickerBefore) ? d.pickerBefore : null,
   };
 }
 
@@ -84,6 +89,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     fines: numbers(d.fines),
     catStep: d.catStep === true,
     replay: typeof d.replay === "number" ? d.replay : 0,
+    pickerBefore: typeof d.pickerBefore === "string" && ID.test(d.pickerBefore) ? d.pickerBefore : null,
     prev: parsePrev(d.prev),
   };
 }
@@ -157,7 +163,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   const result = parseBoardResult(session.state.result);
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0 };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker };
   return {
     state: {
       stage: "question",
@@ -251,7 +257,7 @@ export function boardReveal(session: Session, content: BoardContent, participant
 export function toBoard(session: Session): SessionChange {
   const result = parseBoardResult(session.state.result);
   if (!result.cell) return {};
-  const prev: PrevPlay = { cell: result.cell, buzz: result.buzz, bets: result.bets, fines: result.fines, picker: result.picker, catStep: result.catStep };
+  const prev: PrevPlay = { cell: result.cell, buzz: result.buzz, bets: result.bets, fines: result.fines, picker: result.picker, catStep: result.catStep, pickerBefore: result.pickerBefore };
   return {
     state: {
       step: session.state.step + 1,
@@ -277,16 +283,20 @@ export interface BoardBack {
 }
 
 /** «Назад» на один этап; null — назад некуда. */
-export function boardBack(session: Session): BoardBack | null {
+export function boardBack(session: Session, content: BoardContent): BoardBack | null {
   const { stage, step } = session.state;
   const result = parseBoardResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
   if (stage === "reveal") {
-    // Снимаем очки клетки; слово снова у того, кто отвечал, — ведущий решит ещё раз.
-    const leaderboard: Record<string, LeaderboardEntry> = {};
-    for (const [pid, entry] of Object.entries(session.leaderboard)) if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0 };
+    // Снимаем ровно очки этой клетки (по её итогу, а не по «last»: его перепишет следующая клетка);
+    // слово снова у того, кто отвечал, — ведущий решит ещё раз.
+    const found = findCell(content, result.cell);
+    const minus: Record<string, number> = {};
+    if (found) for (const d of playDeltas(found.cell, result)) if (d.delta !== 0) minus[d.pid] = -d.delta;
     const buzz = result.buzz.winner ? { ...result.buzz, current: result.buzz.winner, winner: null } : result.buzz;
-    return { change: { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.prev?.picker ?? null }) }, leaderboard } };
+    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore }) } };
+    if (Object.keys(minus).length > 0) change.addScore = minus;
+    return { change };
   }
   if (stage === "question") {
     // Клетка закрывается без розыгрыша: штрафы возвращаются, ответы и ставки убираются.
@@ -308,7 +318,7 @@ export function boardBack(session: Session): BoardBack | null {
         step: step - 1,
         stage: "reveal",
         revealed: true,
-        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, catStep: prev.catStep, prev: null }),
+        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null }),
       },
     },
   };

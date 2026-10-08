@@ -125,14 +125,15 @@ export function parseQuestList(text: string): QuestCell[] {
       const body = pts ? line.slice(0, pts.index).trim() : line;
       const points = pts ? Math.min(QUEST_LIMITS.maxPoints, Number(pts[1])) : undefined;
       const lower = body.toLowerCase();
-      const move = body.match(/^(?:бонус|ловушка)?\s*([+\-−])\s*(\d)\b/i);
+      // Бонус и ловушка — только отдельной строкой: «+3», «−2», «Бонус +3», «Ловушка: −2» (а не «- 3 причины…»).
+      const move = body.match(/^(?:(?:бонус|ловушка)\s*[:.]?\s*)?([+\-−])\s*(\d)\s*$/i);
       let cell: QuestCell;
       if (move) {
         const n = Math.min(QUEST_LIMITS.maxMove, Number(move[2]));
         const back = move[1] !== "+";
         cell = { ...newQuestCell(back ? "trap" : "bonus"), move: back ? -n : n, text: body.replace(move[0], "").trim() };
       } else if (/^пропуск/.test(lower)) cell = { ...newQuestCell("skip"), text: body.replace(/^пропуск(\s*хода)?[:.\s]*/i, "") };
-      else if (/^пуст/.test(lower)) cell = newQuestCell("empty");
+      else if (/^(пусто|пустая)(\s|$|[.!:])/.test(lower)) cell = newQuestCell("empty");
       else if (/^вопрос\s*[:.]/.test(lower)) {
         const [q, a] = body.replace(/^вопрос\s*[:.]\s*/i, "").split("=");
         cell = { ...newQuestCell("question"), text: (q ?? "").trim().slice(0, QUEST_LIMITS.text), answer: (a ?? "").trim().slice(0, QUEST_LIMITS.answer) };

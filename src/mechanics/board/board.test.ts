@@ -109,7 +109,7 @@ describe("Своя игра: ход", () => {
     s = apply(s, boardBuzzSync(s, [press("p1", 0, 5)]) ?? {});
     s = apply(s, boardReveal(s, c, participants, true));
     s = apply(s, toBoard(s));
-    const back = boardBack(s);
+    const back = boardBack(s, c);
     expect(back).not.toBeNull();
     s = apply(s, back?.change ?? {});
     expect(s.state.stage).toBe("reveal");
@@ -117,7 +117,7 @@ describe("Своя игра: ход", () => {
     expect(parseBoardResult(s.state.result).cell).toBe("a0");
 
     // С ответа — к вопросу: очки снимаются, слово снова у отвечавшего.
-    s = apply(s, boardBack(s)?.change ?? {});
+    s = apply(s, boardBack(s, c)?.change ?? {});
     expect(s.state.stage).toBe("question");
     expect(s.leaderboard.p1?.score).toBe(0);
     expect(parseBoardResult(s.state.result).buzz.current).toBe("p1");
@@ -125,7 +125,7 @@ describe("Своя игра: ход", () => {
     // Ошибка со штрафом, потом «Назад» с вопроса: штраф вернулся, клетка снова на поле.
     s = apply(s, boardWrong(s, c));
     expect(s.leaderboard.p1?.score).toBeLessThan(0);
-    const closed = boardBack(s);
+    const closed = boardBack(s, c);
     expect(closed?.clear).toEqual([0]);
     s = apply(s, closed?.change ?? {});
     expect(s.leaderboard.p1?.score).toBe(0);
@@ -161,8 +161,8 @@ describe("Своя игра: ход", () => {
     expect(s.leaderboard.p2?.score).toBe(-points);
 
     // «Назад» с вопроса кота убирает и ставки, и нажатия (два шага).
-    s = apply(s, boardBack(s)?.change ?? {});
-    expect(boardBack(s)?.clear).toEqual([0, 1]);
+    s = apply(s, boardBack(s, c)?.change ?? {});
+    expect(boardBack(s, c)?.clear).toEqual([0, 1]);
   });
 
   it("никто не ответил: очков нет; все клетки сыграны — награждение", () => {
@@ -180,5 +180,25 @@ describe("Своя игра: ход", () => {
     // Последняя клетка: дальше — награждение (у p3 очки есть).
     expect(boardPrimary(s, c)).toBe("podium");
     expect(playDeltas(findCell(c, "a0")?.cell ?? c.categories[0]!.cells[0]!, { buzz: { order: [], current: null, out: [], winner: null }, bets: {} })).toEqual([]);
+  });
+
+  it("«Назад» через две клетки не даёт начислить очки дважды; право выбора возвращается", () => {
+    const c = content();
+    let s = session();
+    const a = findCell(c, "a0")?.cell.points ?? 0;
+    s = apply(s, openCell(s, c, "a0"));
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, 1)]) ?? {});
+    s = apply(s, boardReveal(s, c, participants, true));
+    s = apply(s, toBoard(s));
+    s = apply(s, openCell(s, c, "a1"));
+    s = apply(s, boardBuzzSync(s, [press("p2", s.state.step, 1)]) ?? {});
+    s = apply(s, boardReveal(s, c, participants, true));
+    // Назад: ответ a1 → вопрос a1 → поле → ответ a0 → вопрос a0.
+    for (let i = 0; i < 4; i++) s = apply(s, boardBack(s, c)?.change ?? {});
+    expect(s.state.stage).toBe("question");
+    expect(s.leaderboard.p1?.score).toBe(0);
+    expect(s.leaderboard.p2?.score).toBe(0);
+    s = apply(s, boardReveal(s, c, participants, true));
+    expect(s.leaderboard.p1?.score).toBe(a);
   });
 });

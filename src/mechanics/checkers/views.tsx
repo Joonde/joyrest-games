@@ -312,6 +312,19 @@ export function CheckersPlayerView({ session, content, pid, role, myAnswer, send
     );
   }
 
+  if (stage === "question" && !mine) {
+    return (
+      <div className="quiz-phone quiz-phone--center">
+        {head}
+        <h2 className="quiz-phone__question">{q.text}</h2>
+        <div className="buzz__plate" role="status">
+          <strong>Играют две команды — вы болельщик</strong>
+          <span>Смотрите на доску и подсказывайте!</span>
+        </div>
+      </div>
+    );
+  }
+
   if (stage === "question") {
     const answered = myAnswer !== null && myAnswer !== undefined;
     return (

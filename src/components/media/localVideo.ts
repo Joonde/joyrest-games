@@ -24,7 +24,9 @@ async function run<T>(mode: IDBTransactionMode, body: (store: IDBObjectStore) =>
     return await new Promise<T>((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
       const req = body(tx.objectStore(STORE));
-      req.onsuccess = () => resolve(req.result);
+      // Готово — когда записано на диск (oncomplete), а не когда запрос принят: иначе нехватку места не заметить.
+      tx.oncomplete = () => resolve(req.result);
+      tx.onabort = () => reject(tx.error ?? new Error("idb"));
       req.onerror = () => reject(req.error ?? new Error("idb"));
     });
   } finally {

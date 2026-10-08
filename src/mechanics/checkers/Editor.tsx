@@ -74,10 +74,7 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
                 )}
               </fieldset>
             ) : (
-              <label className="field">
-                Верные ответы через «|»
-                <input value={q.answers.join(" | ")} disabled={!editable} placeholder="Париж | Paris" onChange={(e) => update(q.id, { answers: e.target.value.split("|").map((a) => a.trim()).slice(0, CHECKERS_LIMITS.answers) })} />
-              </label>
+              <AnswersField value={q.answers} disabled={!editable} onChange={(answers) => update(q.id, { answers })} />
             )}
             {errors
               .filter((er) => er.path.startsWith(`questions/${q.id}/`))
@@ -126,5 +123,24 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
         </section>
       )}
     </div>
+  );
+}
+
+/** Верные ответы одной строкой через «|»: текст как набран (с пробелами), разбор — без пустых. */
+function AnswersField({ value, disabled, onChange }: { value: string[]; disabled: boolean; onChange: (answers: string[]) => void }) {
+  const [text, setText] = useState(value.join(" | "));
+  return (
+    <label className="field">
+      Верные ответы через «|»
+      <input
+        value={text}
+        disabled={disabled}
+        placeholder="Париж | Paris"
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(e.target.value.split("|").map((a) => a.trim()).filter(Boolean).slice(0, CHECKERS_LIMITS.answers));
+        }}
+      />
+    </label>
   );
 }

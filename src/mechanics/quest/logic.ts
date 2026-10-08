@@ -34,6 +34,9 @@ export interface QuestResult {
   /** Откуда шла фишка (для анимации) и где встала. */
   from: number;
   at: number;
+  /** Клетка, куда привёл кубик (до бонуса или ловушки), и на сколько сдвинуло. */
+  hit: number;
+  moved: number;
   /** Выполнено / не выполнено / ещё не решено. */
   outcome: "ok" | "fail" | null;
   points: number;
@@ -65,6 +68,8 @@ export function parseQuestResult(raw: unknown): QuestResult {
     roll: typeof d.roll === "number" && d.roll >= 1 && d.roll <= 6 ? d.roll : null,
     from: nat(d.from),
     at: nat(d.at),
+    hit: nat(d.hit),
+    moved: typeof d.moved === "number" && Number.isInteger(d.moved) ? d.moved : 0,
     outcome: d.outcome === "ok" || d.outcome === "fail" ? d.outcome : null,
     points: typeof d.points === "number" ? d.points : 0,
     winner: pid(d.winner),
@@ -108,7 +113,14 @@ export function moverOf(r: QuestResult): string | null {
 
 function orderOf(session: Session, participants: Participant[], r: QuestResult): string[] {
   const joined = [...scoringParticipants(participants, session.playMode)].sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || a.id.localeCompare(b.id)).map((p) => p.id);
-  return [...new Set([...r.order, ...joined, ...Object.keys(session.leaderboard)])];
+  const known = new Set([...joined, ...Object.keys(session.leaderboard)]);
+  // Новые встают в конец очереди (на старт), убранные ведущим — выпадают.
+  return [...new Set([...r.order.filter((p) => known.has(p)), ...joined, ...Object.keys(session.leaderboard)])];
+}
+
+/** Сколько команд сможет играть (для кнопки «Начать игру»). */
+export function questTeams(session: Session, participants: Participant[]): number {
+  return orderOf(session, participants, parseQuestResult(session.state.result)).length;
 }
 
 export type QuestAction = "start" | "waitRoll" | "judge" | "next" | "podium" | "podiumNext" | "finish";
@@ -136,14 +148,15 @@ export function startQuest(session: Session, participants: Participant[]): Sessi
 }
 
 /** Клетка, на которую встали: бонус и ловушка сдвигают один раз (без цепочек). */
-function land(content: QuestContent, from: number, roll: number): { at: number; moved: number } {
+function land(content: QuestContent, from: number, roll: number): { at: number; hit: number; moved: number } {
   const finish = finishOf(content);
-  const at = Math.min(finish, from + roll);
-  const cell = cellAt(content, at);
+  const hit = Math.min(finish, from + roll);
+  const cell = cellAt(content, hit);
   if (cell && (cell.kind === "bonus" || cell.kind === "trap") && cell.move !== 0) {
-    return { at: Math.max(0, Math.min(finish, at + cell.move)), moved: cell.move };
+    const at = Math.max(0, Math.min(finish, hit + cell.move));
+    return { at, hit, moved: at - hit };
   }
-  return { at, moved: 0 };
+  return { at: hit, hit, moved: 0 };
 }
 
 /** Бросок пришёл (капитан команды, чья очередь) → фишка идёт, открывается клетка. */
@@ -151,7 +164,9 @@ export function rollChange(session: Session, content: QuestContent, answers: Ans
   if (session.state.stage !== "question") return null;
   const r = parseQuestResult(session.state.result);
   if (r.mode !== "roll" || !r.mover) return null;
-  const answer = answers.find((a) => a.step === session.state.step && a.pid === r.mover && rec(a.value).roll === true);
+  // Бросок до «Назад» (раньше нового времени шага) не считается.
+  const since = session.state.startedAt ?? 0;
+  const answer = answers.find((a) => a.step === session.state.step && a.pid === r.mover && rec(a.value).roll === true && (a.submittedAt ?? 0) >= since);
   if (!answer) return null;
   return applyRoll(session, content, dieOf(answer), participants);
 }
@@ -162,7 +177,7 @@ export function applyRoll(session: Session, content: QuestContent, roll: number,
   const mover = r.mover;
   if (!mover) return {};
   const from = r.pos[mover] ?? 0;
-  const { at } = land(content, from, roll);
+  const { at, hit, moved } = land(content, from, roll);
   const finish = finishOf(content);
   const cell = cellAt(content, at);
   const pos = { ...r.pos, [mover]: at };
@@ -170,7 +185,7 @@ export function applyRoll(session: Session, content: QuestContent, roll: number,
   // Пропуск хода — со следующего круга.
   const skip = cell?.kind === "skip" && !r.skip.includes(mover) ? [...r.skip, mover] : r.skip;
   const prev: Prev = { turn: r.turn, pos: r.pos, skip: r.skip, points: 0, mover };
-  const base: QuestResult = { ...r, pos, skip, roll, from, at, outcome: null, points: 0, prev };
+  const base: QuestResult = { ...r, pos, skip, roll, from, at, hit, moved, outcome: null, points: 0, prev };
   if (finished) {
     const change: SessionChange = {
       state: { stage: "reveal", revealed: true, result: write({ ...base, mode: "finish", winner: mover, points: content.finishPoints }) },
@@ -198,18 +213,24 @@ export function judge(session: Session, content: QuestContent, ok: boolean): Ses
 }
 
 /** Следующая команда (кто пропускает ход — пропускает его, метка снимается). */
-export function nextTurn(session: Session): SessionChange {
+export function nextTurn(session: Session, participants: Participant[] = []): SessionChange {
   const r = parseQuestResult(session.state.result);
-  let turn = r.turn + 1;
-  const skip = [...r.skip];
-  for (let guard = 0; guard < r.order.length; guard++) {
-    const who = r.order[turn % Math.max(1, r.order.length)];
-    if (!who || !skip.includes(who) || who === r.mover) break;
+  // Очередь обновляется при смене хода: опоздавшие встают на старт, убранные выпадают.
+  const order = orderOf(session, participants, r);
+  const pos: Record<string, number> = {};
+  for (const p of order) pos[p] = r.pos[p] ?? 0;
+  const at = r.mover ? order.indexOf(r.mover) : -1;
+  let turn = (at >= 0 ? at : r.turn) + 1;
+  const skip = r.skip.filter((p) => order.includes(p));
+  for (let guard = 0; guard < order.length; guard++) {
+    const who = order[turn % Math.max(1, order.length)];
+    if (!who || !skip.includes(who)) break;
     skip.splice(skip.indexOf(who), 1);
+    // Одна команда — пропуск просто снимается, ходит она же.
+    if (order.length === 1) break;
     turn += 1;
   }
-  // Свою метку «пропуск» команда получила на этом ходу — она сработает на её следующем ходу.
-  const next: QuestResult = { ...r, turn, skip, mode: "roll", mover: null, roll: null, outcome: null, points: 0 };
+  const next: QuestResult = { ...r, order, pos, turn, skip, mode: "roll", mover: null, roll: null, outcome: null, points: 0 };
   next.mover = moverOf(next);
   return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write(next) } };
 }
@@ -228,7 +249,7 @@ export function questBack(session: Session): QuestBack | null {
     // Отменить ход: фишка обратно, очки сняты, команда бросает заново.
     const p = r.prev;
     const change: SessionChange = {
-      state: { stage: "question", revealed: false, result: write({ ...r, turn: p.turn, pos: p.pos, skip: p.skip, mode: "roll", mover: p.mover, roll: null, outcome: null, points: 0, winner: null, prev: null }) },
+      state: { stage: "question", revealed: false, startedAt: "server", result: write({ ...r, turn: p.turn, pos: p.pos, skip: p.skip, mode: "roll", mover: p.mover, roll: null, outcome: null, points: 0, winner: null, prev: null }) },
     };
     const minus = r.mode === "finish" ? r.points : r.outcome === "ok" ? r.points : 0;
     if (minus > 0 && p.mover) change.addScore = { [p.mover]: -minus };

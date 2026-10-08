@@ -29,6 +29,8 @@ export interface DanceResult {
   mode: DanceMode;
   /** Очки последнего выступления (для «Назад»). */
   scores: Record<string, number>;
+  /** Ничья в батле: ведущий выбирает победителя. */
+  tie: string[];
   /** Ведущий: «Сначала» (видео или трек), «Пауза». */
   replay: number;
   paused: boolean;
@@ -56,6 +58,7 @@ export function parseDanceResult(raw: unknown): DanceResult {
     performer: pid(d.performer),
     mode: d.mode === "perform" || d.mode === "vote" || d.mode === "result" ? d.mode : "pick",
     scores: nums(d.scores),
+    tie: ids(d.tie),
     replay: typeof d.replay === "number" ? d.replay : 0,
     paused: d.paused === true,
     prev: typeof p.card === "string" ? { card: p.card, performer: pid(p.performer), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores) } : null,
@@ -83,8 +86,9 @@ export function turnPid(r: DanceResult): string | null {
 
 function orderOf(session: Session, participants: Participant[], r: DanceResult): string[] {
   const joined = [...scoringParticipants(participants, session.playMode)].sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || a.id.localeCompare(b.id)).map((p) => p.id);
-  // Новые команды встают в конец очереди, старые не сдвигаются.
-  return [...new Set([...r.order, ...joined, ...Object.keys(session.leaderboard)])];
+  const known = new Set([...joined, ...Object.keys(session.leaderboard)]);
+  // Новые команды встают в конец очереди, старые не сдвигаются; убранные ведущим — выпадают.
+  return [...new Set([...r.order.filter((p) => known.has(p)), ...joined, ...Object.keys(session.leaderboard)])];
 }
 
 export type DanceAction = "start" | "waitPick" | "vote" | "result" | "next" | "podium" | "podiumNext" | "finish";
@@ -116,9 +120,10 @@ export function pickCard(session: Session, content: DanceContent, cardId: string
   const r = parseDanceResult(session.state.result);
   const card = cardOf(content, cardId);
   if (!card || r.played.includes(cardId) || r.mode !== "pick") return {};
-  const order = orderOf(session, participants, r);
+  // Очередь меняется только при смене хода (иначе телефон и пульт разойдутся, чья очередь).
+  const order = r.order.length > 0 ? r.order : orderOf(session, participants, r);
   return {
-    state: { stage: "reveal", revealed: false, result: write({ ...r, order, card: cardId, performer: turnPid({ ...r, order }), mode: "perform", replay: 0, paused: false, scores: {} }) },
+    state: { stage: "reveal", revealed: false, result: write({ ...r, order, card: cardId, performer: turnPid({ ...r, order }), mode: "perform", replay: 0, paused: false, scores: {}, tie: [] }) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
@@ -128,8 +133,10 @@ export function pickFromAnswers(session: Session, content: DanceContent, answers
   if (session.state.stage !== "question") return null;
   const r = parseDanceResult(session.state.result);
   if (r.mode !== "pick") return null;
-  const who = turnPid({ ...r, order: orderOf(session, participants, r) });
-  const answer = answers.find((a) => a.step === session.state.step && a.pid === who);
+  const who = turnPid(r.order.length > 0 ? r : { ...r, order: orderOf(session, participants, r) });
+  // Выбор до «Назад» (раньше нового времени шага) не считается.
+  const since = session.state.startedAt ?? 0;
+  const answer = answers.find((a) => a.step === session.state.step && a.pid === who && (a.submittedAt ?? 0) >= since);
   const cardId = pid(rec(answer?.value).card);
   if (!cardId) return null;
   const change = pickCard(session, content, cardId, participants);
@@ -147,23 +154,38 @@ export function canVote(r: DanceResult, card: DanceCard | null, voter: string): 
   return card.kind === "battle" || voter !== r.performer;
 }
 
-/** Очки по голосам: танец и караоке — среднее оценок выступающей команде; батл — победителю (при ничьей — поровну). */
+/** Голоса батла: команда → число голосов. */
+export function battleVotes(r: DanceResult, answers: Answer[], step: number): Map<string, number> {
+  const votes = new Map<string, number>();
+  for (const a of answers) {
+    if (a.step !== step || !r.order.includes(a.pid)) continue;
+    const team = pid(rec(a.value).team);
+    if (!team || team === a.pid || !r.order.includes(team)) continue;
+    votes.set(team, (votes.get(team) ?? 0) + 1);
+  }
+  return votes;
+}
+
+/** Ничья в батле: лидеры с равным числом голосов (больше одного) — решает ведущий. */
+export function battleTie(content: DanceContent, r: DanceResult, answers: Answer[], step: number): string[] {
+  const card = cardOf(content, r.card);
+  if (!card || card.kind !== "battle") return [];
+  const votes = battleVotes(r, answers, step);
+  const max = Math.max(0, ...votes.values());
+  const top = [...votes.entries()].filter(([, n]) => n === max && max > 0).map(([t]) => t);
+  return top.length > 1 ? top : [];
+}
+
+/** Очки по голосам: танец и караоке — среднее оценок выступающей команде; батл — победителю (ничья — решает ведущий). */
 export function tally(content: DanceContent, r: DanceResult, answers: Answer[], step: number): Record<string, number> {
   const card = cardOf(content, r.card);
   if (!card) return {};
   const own = answers.filter((a) => a.step === step && canVote(r, card, a.pid));
   if (card.kind === "battle") {
-    const votes = new Map<string, number>();
-    for (const a of own) {
-      const team = pid(rec(a.value).team);
-      if (!team || team === a.pid || !r.order.includes(team)) continue;
-      votes.set(team, (votes.get(team) ?? 0) + 1);
-    }
+    const votes = battleVotes(r, own, step);
     const max = Math.max(0, ...votes.values());
-    if (max === 0) return {};
-    const winners = [...votes.entries()].filter(([, n]) => n === max).map(([t]) => t);
-    const each = Math.round(content.battlePoints / winners.length);
-    return Object.fromEntries(winners.map((t) => [t, each]));
+    const winners = [...votes.entries()].filter(([, n]) => n === max && max > 0).map(([t]) => t);
+    return winners.length === 1 && winners[0] ? { [winners[0]]: content.battlePoints } : {};
   }
   if (!r.performer) return {};
   const rates = own.map((a) => rec(a.value).rate).filter((x): x is number => typeof x === "number" && Number.isFinite(x)).map((x) => Math.min(content.maxRate, Math.max(content.minRate, Math.round(x))));
@@ -174,14 +196,23 @@ export function tally(content: DanceContent, r: DanceResult, answers: Answer[], 
 export function showResult(session: Session, content: DanceContent, answers: Answer[]): SessionChange {
   const r = parseDanceResult(session.state.result);
   const scores = tally(content, r, answers, session.state.step);
-  const change: SessionChange = { state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "result", scores }) } };
+  const tie = battleTie(content, r, answers, session.state.step);
+  const change: SessionChange = { state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "result", scores, tie }) } };
   if (Object.keys(scores).length > 0) change.addScore = scores;
   return change;
 }
 
-export function nextTurn(session: Session): SessionChange {
+/** Ничья в батле: ведущий называет победителя — ему очки батла. */
+export function resolveTie(session: Session, content: DanceContent, winner: string): SessionChange {
+  const r = parseDanceResult(session.state.result);
+  if (!r.tie.includes(winner) || Object.keys(r.scores).length > 0) return {};
+  return { state: { result: write({ ...r, scores: { [winner]: content.battlePoints }, tie: [] }) }, addScore: { [winner]: content.battlePoints } };
+}
+
+export function nextTurn(session: Session, participants: Participant[] = []): SessionChange {
   const r = parseDanceResult(session.state.result);
   if (!r.card) return {};
+  const order = orderOf(session, participants, r);
   return {
     state: {
       step: session.state.step + 1,
@@ -190,7 +221,7 @@ export function nextTurn(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...r, played: [...r.played, r.card], prev: { card: r.card, performer: r.performer, turn: r.turn, scores: r.scores }, card: null, performer: null, mode: "pick", scores: {}, turn: r.turn + 1, replay: 0, paused: false }),
+      result: write({ ...r, order, played: [...r.played, r.card], prev: { card: r.card, performer: r.performer, turn: r.turn, scores: r.scores }, card: null, performer: null, mode: "pick", scores: {}, tie: [], turn: r.turn + 1, replay: 0, paused: false }),
     },
   };
 }
@@ -210,11 +241,11 @@ export function danceBack(session: Session): DanceBack | null {
   const r = parseDanceResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
   if (stage === "ready") return null;
-  if (r.mode === "perform") return { change: { state: { stage: "question", result: write({ ...r, mode: "pick", card: null, performer: null }) } }, clear: [step] };
+  if (r.mode === "perform") return { change: { state: { stage: "question", startedAt: "server", result: write({ ...r, mode: "pick", card: null, performer: null }) } }, clear: [step] };
   if (r.mode === "vote") return { change: { state: { step: step - 1, stage: "reveal", startedAt: null, timeLimit: null, result: write({ ...r, mode: "perform", paused: false }) } }, clear: [step] };
   if (r.mode === "result") {
     const minus = Object.fromEntries(Object.entries(r.scores).map(([p, n]) => [p, -n]));
-    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "vote", scores: {} }) } };
+    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "vote", scores: {}, tie: [] }) } };
     if (Object.keys(minus).length > 0) change.addScore = minus;
     return { change };
   }

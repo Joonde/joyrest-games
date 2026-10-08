@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
-import { podiumNext, startPodium } from "../../core/podium";
+import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { KIND_EMOJI, KIND_TITLES, type DanceContent } from "./content";
-import { canVote, cardOf, control as videoControl, danceBack, dancePrimary, nextTurn, parseDanceResult, pickCard, pickFromAnswers, showResult, startPick, startVote, turnPid } from "./logic";
+import { canVote, cardOf, control as videoControl, danceBack, dancePrimary, nextTurn, parseDanceResult, pickCard, pickFromAnswers, resolveTie, showResult, startPick, startVote, turnPid } from "./logic";
 import { CardGrid } from "./views";
 
 /**
@@ -111,8 +111,8 @@ export function DanceHostControls({ session, content, answers, participants, con
     if (action === "start") void run(startPick(session, participants));
     if (action === "vote") void run(startVote(session, content));
     if (action === "result") void run(resultNow);
-    if (action === "next") void run(nextTurn(session));
-    if (action === "podium") void run(startPodium(session));
+    if (action === "next") void run(nextTurn(session, participants));
+    if (action === "podium") void run(awardNow(session));
     if (action === "podiumNext") void run(podiumNext(session));
     if (action === "finish") control.requestFinish();
   }
@@ -149,6 +149,16 @@ export function DanceHostControls({ session, content, answers, participants, con
               </span>
             </div>
           )}
+          {r.mode === "result" && r.tie.length > 0 && (
+            <div className="stack stack--tight">
+              <p className="notice small">Ничья по голосам — кто победил в батле?</p>
+              {r.tie.map((p) => (
+                <button key={p} type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(resolveTie(session, content, p))}>
+                  Победила: <NameText name={name(p)} />
+                </button>
+              ))}
+            </div>
+          )}
           {r.mode === "result" && (
             <ul className="buzz-queue">
               {Object.keys(r.scores).length === 0 ? (
@@ -178,9 +188,12 @@ export function DanceHostControls({ session, content, answers, participants, con
         </button>
         {r.mode === "perform" && card && session.screenMode !== "none" && (
           <div className="row dance-host__media">
-            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(videoControl(session, { paused: !r.paused }))}>
-              {r.paused ? "▶ Продолжить" : "⏸ Пауза"}
-            </button>
+            {/* Ролик по ссылке паузу с пульта не принимает (плеер чужой) — только «Сначала». */}
+            {card.video.source !== "link" && (
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(videoControl(session, { paused: !r.paused }))}>
+                {r.paused ? "▶ Продолжить" : "⏸ Пауза"}
+              </button>
+            )}
             <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(videoControl(session, { replay: true }))}>
               ⟲ Сначала
             </button>

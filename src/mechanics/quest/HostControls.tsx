@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
 import { NameText } from "../../components/NameText";
-import { podiumNext, startPodium } from "../../core/podium";
+import { awardNow, podiumNext } from "../../core/podium";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { QUEST_EMOJI, QUEST_TITLES, type QuestContent } from "./content";
-import { applyRoll, cellAt, judge, nextTurn, parseQuestResult, questBack, questPrimary, rollChange, startQuest } from "./logic";
+import { applyRoll, cellAt, judge, nextTurn, parseQuestResult, questBack, questPrimary, questTeams, rollChange, startQuest } from "./logic";
 
 /**
  * Пульт «Активной настолки»: «Начать игру» → капитан бросает кубик на телефоне (или «Бросить за
@@ -89,7 +89,7 @@ export function QuestHostControls({ session, content, answers, participants, con
         <>
           <p>
             {r.mode === "roll" ? "Бросает" : r.mode === "finish" ? "Финиш:" : "Ходит"} <strong><NameText name={name(r.mover)} /></strong>
-            {r.roll ? ` · выпало ${r.roll} · клетка ${r.at}` : ""}
+            {r.roll ? ` · выпало ${r.roll} · клетка ${r.hit || r.at}${r.moved ? ` → ${r.moved > 0 ? "бонус" : "ловушка"} → клетка ${r.at}` : ""}` : ""}
           </p>
           {cell && r.mode !== "finish" && (
             <div className="card stack stack--tight quest-host__cell">
@@ -125,9 +125,12 @@ export function QuestHostControls({ session, content, answers, participants, con
       )}
       <div className="actions">
         {action === "start" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startQuest(session, participants))}>
-            Начать игру
-          </button>
+          <>
+            {questTeams(session, participants) === 0 && <p className="muted small">Ждём, пока подключатся команды — без них ходить некому.</p>}
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || questTeams(session, participants) === 0} onClick={() => void run(startQuest(session, participants))}>
+              Начать игру
+            </button>
+          </>
         )}
         {action === "waitRoll" && (
           <>
@@ -148,12 +151,12 @@ export function QuestHostControls({ session, content, answers, participants, con
           </div>
         )}
         {action === "next" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTurn(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTurn(session, participants))}>
             Следующая команда
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? startPodium(session) : podiumNext(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}
           </button>
         )}
@@ -172,7 +175,7 @@ export function QuestHostControls({ session, content, answers, participants, con
                 title: "Закончить игру досрочно?",
                 text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
                 confirmLabel: "К награждению",
-                run: () => run(startPodium(session)),
+                run: () => run(awardNow(session)),
               })
             }
           >

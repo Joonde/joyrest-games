@@ -29,6 +29,8 @@ export interface CheckersResult {
   prev: string | null;
   /** Партия выиграна на доске. */
   winner: string | null;
+  /** «Завершить партию»: откуда — «Назад» вернёт туда же. */
+  overFrom: { mode: "question" | "move"; stage: "ready" | "question" | "reveal" } | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -50,7 +52,15 @@ export function parseCheckersResult(raw: unknown): CheckersResult {
     points: typeof d.points === "number" && Number.isFinite(d.points) ? d.points : 0,
     prev: typeof d.prev === "string" ? parseBoardString(d.prev) : null,
     winner: pid(d.winner),
+    overFrom: parseOverFrom(d.overFrom),
   };
+}
+
+function parseOverFrom(v: unknown): CheckersResult["overFrom"] {
+  const d = rec(v);
+  const mode = d.mode === "move" ? "move" : d.mode === "question" ? "question" : null;
+  const stage = d.stage === "ready" || d.stage === "question" || d.stage === "reveal" ? d.stage : null;
+  return mode && stage ? { mode, stage } : null;
 }
 
 const write = (r: CheckersResult): Record<string, unknown> => ({ ...r });
@@ -136,10 +146,15 @@ export function moverOf(content: CheckersContent, result: CheckersResult, answer
 export function revealQuestion(session: Session, content: CheckersContent, answers: Answer[], participants: Participant[]): SessionChange {
   const r = parseCheckersResult(session.state.result);
   const mover = moverOf(content, r, answers, session.state.step);
-  // Ходить нечем — ход пропадает (так не бывает до конца партии, но на всякий случай).
   const color = colorOfPid(r, mover);
-  const can = color ? !isLost(r.board, color) : false;
-  return { state: { stage: "reveal", revealed: true, result: write({ ...r, mover: can ? mover : null }) }, leaderboard: board(session, participants) };
+  // Ходить некуда (все шашки заперты) — по правилам это поражение: победа сопернику.
+  if (color && isLost(r.board, color)) {
+    const winner = color === "w" ? r.black : r.white;
+    const change: SessionChange = { state: { stage: "reveal", revealed: true, result: write({ ...r, mover, mode: "over", winner, points: POINTS.win }) }, leaderboard: board(session, participants) };
+    if (winner) change.addScore = { [winner]: POINTS.win };
+    return change;
+  }
+  return { state: { stage: "reveal", revealed: true, result: write({ ...r, mover }) }, leaderboard: board(session, participants) };
 }
 
 export function toMove(session: Session): SessionChange {
@@ -153,7 +168,9 @@ export function moveChange(session: Session, answers: Answer[]): SessionChange |
   const r = parseCheckersResult(session.state.result);
   if (r.mode !== "move" || !r.mover) return null;
   const color = colorOfPid(r, r.mover);
-  const answer = answers.find((a) => a.step === session.state.step && a.pid === r.mover);
+  // Ход, сделанный до «Назад» (до нового времени шага), не считается.
+  const since = session.state.startedAt ?? 0;
+  const answer = answers.find((a) => a.step === session.state.step && a.pid === r.mover && (a.submittedAt ?? 0) >= since);
   const path = cellsOfValue(answer?.value);
   if (!color || !path) return null;
   const move = findMove(r.board, color, path);
@@ -194,7 +211,9 @@ export function nextQuestion(session: Session): SessionChange {
 /** Вопросы кончились — партия окончена, побеждает больший счёт (дальше — общий пьедестал). */
 export function endGame(session: Session): SessionChange {
   const r = parseCheckersResult(session.state.result);
-  return { state: { result: write({ ...r, mode: "over" }) } };
+  const stage = session.state.stage === "ready" || session.state.stage === "question" || session.state.stage === "reveal" ? session.state.stage : "reveal";
+  const from = r.mode === "move" ? "move" : "question";
+  return { state: { result: write({ ...r, mode: "over", winner: null, overFrom: { mode: from, stage } }) } };
 }
 
 export interface CheckersBack {
@@ -206,12 +225,20 @@ export function checkersBack(session: Session): CheckersBack | null {
   const { stage, step } = session.state;
   const r = parseCheckersResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
-  if (r.mode === "over" && !r.winner) return { change: { state: { result: write({ ...r, mode: r.prev !== null || r.last ? "move" : "question" }) } } };
+  // «Завершить партию» — назад туда, откуда завершили.
+  if (r.mode === "over" && !r.winner && r.overFrom) return { change: { state: { stage: r.overFrom.stage, result: write({ ...r, mode: r.overFrom.mode, overFrom: null }) } } };
+  // Победа «нет ходов» на ответе — назад к ответу без победы.
+  if (r.mode === "over" && r.winner && !r.last && stage === "reveal") {
+    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "question", winner: null, mover: null, points: 0 }) } };
+    if (r.points > 0) change.addScore = { [r.winner]: -r.points };
+    return { change };
+  }
   if (r.mode === "move" || r.mode === "over") {
     if (stage === "reveal") {
       // Отменить ход: доска как была, очки сняты, капитан ходит заново.
+      // Новое время шага: телефон капитана забывает прошлый ход и снова показывает доску.
       const change: SessionChange = {
-        state: { stage: "question", revealed: false, result: write({ ...r, board: r.prev ?? r.board, prev: null, last: null, points: 0, mode: "move", winner: null }) },
+        state: { stage: "question", revealed: false, startedAt: "server", result: write({ ...r, board: r.prev ?? r.board, prev: null, last: null, points: 0, mode: "move", winner: null }) },
       };
       if (r.points > 0 && r.mover) change.addScore = { [r.mover]: -r.points };
       return { change, clear: [step] };

@@ -87,9 +87,10 @@ function Die({ value, rolling }: { value: number | null; rolling: string }) {
   );
 }
 
-function TaskCard({ cell, result, session, showAnswer = false }: { cell: QuestCell | null; result: QuestResult; session: Session; showAnswer?: boolean }) {
+function TaskCard({ cell, result, session, showAnswer = false, showVideo = false }: { cell: QuestCell | null; result: QuestResult; session: Session; showAnswer?: boolean; showVideo?: boolean }) {
   if (!cell) return null;
-  const video = (cell.kind === "dance" || cell.kind === "karaoke") && cell.videoUrl ? embedUrl(cell.videoUrl) : null;
+  // Видео со звуком — только на экране зала (на телефонах гостей звука нет).
+  const video = showVideo && (cell.kind === "dance" || cell.kind === "karaoke") && cell.videoUrl ? embedUrl(cell.videoUrl) : null;
   return (
     <div className={`quest-task quest-task--${cell.kind}`}>
       <span className="quest-task__kind">
@@ -163,7 +164,12 @@ export function QuestScreenView({ session, content }: ViewProps<QuestContent>) {
               {r.mode === "roll" ? "Бросает" : "Ходит"} <NameText name={mover} />
             </p>
             <Die value={r.roll} rolling={`${step}:${r.roll ?? 0}`} />
-            {r.mode !== "roll" && <TaskCard cell={cell} result={r} session={session} />}
+            {r.mode !== "roll" && r.moved !== 0 && (
+              <p className="quest-screen__note">
+                Клетка {r.hit}: {r.moved > 0 ? `бонус! Вперёд на ${r.moved}` : `ловушка! Назад на ${-r.moved}`} → клетка {r.at}
+              </p>
+            )}
+            {r.mode !== "roll" && <TaskCard cell={cell} result={r} session={session} showVideo />}
           </>
         )}
       </aside>
@@ -226,7 +232,10 @@ export function QuestPlayerView({ session, content, pid, role, myAnswer, sending
         <h2>{mine ? "Вы на финише!" : "Есть финиш!"}</h2>
       ) : (
         <>
-          <p>Выпало: {r.roll}</p>
+          <p>
+            Выпало: {r.roll}
+            {r.moved !== 0 ? ` · ${r.moved > 0 ? "бонус" : "ловушка"}: ${r.moved > 0 ? "+" : ""}${r.moved}` : ""}
+          </p>
           <div className={mine ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
             <strong>{mine ? "Ваше задание" : <>Задание для <NameText name={session.leaderboard[r.mover ?? ""]?.name ?? ""} /></>}</strong>
           </div>

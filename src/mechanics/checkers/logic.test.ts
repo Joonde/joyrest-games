@@ -27,7 +27,7 @@ function session(): Session {
 
 let t = 0;
 const apply = (s: Session, c: SessionChange) => applyChange(s, c, (t += 1000));
-const ans = (pid: string, step: number, value: unknown, at = 1): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: at });
+const ans = (pid: string, step: number, value: unknown, at = 1e12): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt: at });
 
 describe("Шашки: ход игры", () => {
   it("верный и быстрый ответ даёт ход, ход по правилам двигает шашку; чужой и неправильный — нет", () => {
@@ -40,7 +40,7 @@ describe("Шашки: ход игры", () => {
     expect(s.leaderboard.W?.name).toBe("Белые");
 
     // Чёрные ответили верно раньше белых.
-    s = apply(s, revealQuestion(s, content, [ans("W", 0, 1, 50), ans("B", 0, 1, 20)], teams));
+    s = apply(s, revealQuestion(s, content, [ans("W", 0, 1, 1e12 + 50), ans("B", 0, 1, 1e12 + 20)], teams));
     expect(parseCheckersResult(s.state.result).mover).toBe("B");
     expect(checkersPrimary(s, content)).toBe("toMove");
     s = apply(s, toMove(s));

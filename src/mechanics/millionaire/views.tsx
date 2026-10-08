@@ -3,6 +3,7 @@
 // под её полоской, использованная перечёркнута. Телефон: капитан выбирает вариант и просит подсказку,
 // остальные голосуют в «Помощи зала».
 import { useEffect, useRef } from "react";
+import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -112,6 +113,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   const team = nameOf(session, r.turn);
   const level = levelToPlay(r, r.turn);
   const left = r.mode === "audience" ? secondsLeft(session.state, now) : null;
+  useCountdownSounds(left);
 
   const prev = useRef(`${step}:${r.mode}:${r.outcome}:${r.flash}`);
   useEffect(() => {

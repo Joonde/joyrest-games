@@ -1,6 +1,7 @@
 // «Гонка на выживание»: на экране зала — дорожки команд (кто впереди по очкам), счётчик раундов, до
 // войнушки, билеты 🎟; вопрос или задание раунда, ставки и банк войнушки, аукцион билета.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -97,6 +98,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
   const round = roundOf(content, r);
   const now = useServerNow(250, stage === "question");
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
+  useCountdownSounds(left);
   const war = isWarRound(content, r);
   const prev = useRef(`${step}:${r.phase}`);
   useEffect(() => {
@@ -130,7 +132,19 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
     ) : (
       <>
         <span className="quiz-screen__badge">Раунд {roundNumber(r)} из {content.rounds.length}</span>
-        <h2 className="sv-title">{war ? `⚔️ Войнушка №${warIndex(content, roundNumber(r))}` : round ? KIND_TITLES[round.kind] : ""}</h2>
+        {war ? (
+          <h2 className="sv-title sv-war-title">
+            <span className="sv-war-title__sword sv-war-title__sword--l" aria-hidden="true">
+              🗡️
+            </span>
+            Войнушка №{warIndex(content, roundNumber(r))}
+            <span className="sv-war-title__sword sv-war-title__sword--r" aria-hidden="true">
+              🗡️
+            </span>
+          </h2>
+        ) : (
+          <h2 className="sv-title">{round ? KIND_TITLES[round.kind] : ""}</h2>
+        )}
         {war && <p className="sv-note">Приз — {pointsLabel(content.warPrize * warIndex(content, roundNumber(r)))}. Ставка — не меньше половины своих очков.</p>}
       </>
     );

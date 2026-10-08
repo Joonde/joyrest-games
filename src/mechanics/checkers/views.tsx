@@ -1,5 +1,6 @@
 // «Шашки»: доска на экране зала, вопрос, ход капитана на телефоне.
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -111,6 +112,7 @@ export function CheckersScreenView({ session, content }: ViewProps<CheckersConte
   const q = currentQuestion(content, r);
   const now = useServerNow(250, stage === "question" && r.mode === "task");
   const left = stage === "question" && r.mode === "task" ? secondsLeft(session.state, now) : null;
+  useCountdownSounds(left);
   const nameOf = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? "") : "");
   const side = (p: string | null) => (p === r.white ? "белые" : "чёрные");
   useSoundOnChange(stage === "reveal" && r.mode !== "task" && (r.last?.captured.length ?? 0) > 0 ? `${step}:take` : "", "correct");

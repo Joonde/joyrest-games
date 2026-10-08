@@ -9784,3 +9784,55 @@ button.dance-card:active {
     transform: scaleY(0.6);
   }
 }
+
+/* Гонка: войнушка — мечи скрещиваются, надпись вспыхивает красным. */
+.sv-war-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 2cqw;
+  color: #f2a08f;
+  text-shadow: 0 0 3cqh rgba(242, 120, 100, 0.55);
+  animation: sv-war-pulse 1.6s ease-in-out infinite;
+}
+
+.sv-war-title__sword {
+  display: inline-block;
+  font-size: 1.1em;
+}
+
+.sv-war-title__sword--l {
+  animation: sv-sword-l 1.6s ease-in-out infinite;
+}
+
+.sv-war-title__sword--r {
+  transform: scaleX(-1);
+  animation: sv-sword-r 1.6s ease-in-out infinite;
+}
+
+@keyframes sv-war-pulse {
+  50% { transform: scale(1.04); text-shadow: 0 0 5cqh rgba(242, 120, 100, 0.85); }
+}
+
+@keyframes sv-sword-l {
+  0%, 100% { transform: rotate(0); }
+  45% { transform: rotate(35deg) translateX(1cqw); }
+}
+
+@keyframes sv-sword-r {
+  0%, 100% { transform: scaleX(-1) rotate(0); }
+  45% { transform: scaleX(-1) rotate(35deg) translateX(1cqw); }
+}
+
+/* Бой с драконом: полоса здоровья в цвет дракона. */
+.dr-dragon--fire .dr-dragon__fill { background: linear-gradient(90deg, #ff7a1a, #c8553d); }
+.dr-dragon--ice .dr-dragon__fill { background: linear-gradient(90deg, #b8ecff, #5b8db8); }
+.dr-dragon--gold .dr-dragon__fill { background: linear-gradient(90deg, #b8f2a4, #a68a3e); }
+.dr-dragon--shadow .dr-dragon__fill { background: linear-gradient(90deg, #ff7ad9, #5d4a7a); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-war-title,
+  .sv-war-title__sword--l,
+  .sv-war-title__sword--r {
+    animation: none;
+  }
+}

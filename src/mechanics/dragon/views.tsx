@@ -1,6 +1,7 @@
 // «Бой с драконом»: на экране зала — дракон с полоской здоровья, задание и герои команд (жизни, урон);
 // на телефоне капитана — выбор героя и свойств, ответы, кубик.
 import { useEffect, useRef, useState } from "react";
+import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSample, playSound, preloadSamples } from "../../components/live/sound";
 import { DragonArt, dragonKind, type DragonKind, type DragonMood } from "./DragonArt";
@@ -95,7 +96,7 @@ export function HeroRow({ session, content, result, size = "screen" }: { session
 function DragonBar({ name, hp, max, kind, mood, pulse }: { name: string; hp: number; max: number; kind: DragonKind; mood: DragonMood; pulse: string }) {
   const share = max > 0 ? Math.max(0, Math.min(1, hp / max)) : 0;
   return (
-    <div className="dr-dragon">
+    <div className={`dr-dragon dr-dragon--${kind}`}>
       <DragonArt kind={kind} mood={hp === 0 ? "down" : mood} pulse={pulse} />
       <div className="dr-dragon__side">
         <p className="dr-dragon__name">{name}</p>
@@ -127,6 +128,7 @@ export function DragonScreenView({ session, content }: ViewProps<DragonContent>)
   const task = taskOf(content, r);
   const now = useServerNow(250, stage === "question");
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
+  useCountdownSounds(left);
   const prev = useRef(`${step}:${r.phase}`);
   useEffect(() => preloadSamples(["dragonAttack", "dragonHurt"]), [step]);
   useEffect(() => {

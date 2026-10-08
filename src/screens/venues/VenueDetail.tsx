@@ -536,6 +536,7 @@ function VenueFacts({ v }: { v: VenueData }) {
           <Row label="Веранда" value={v.terrace ? [num(v.terraceSeats, " мест"), v.terraceSeason].filter(Boolean).join(", ") || "есть" : "нет"} />
           <Row label="VIP-зал" value={v.vip ? num(v.vipSeats, " мест") || "есть" : "нет"} />
           <Row label="Танцпол" value={yesNo(v.dance)} />
+          <Row label="О залах" value={v.hallsNote && <span className="pre-line">{v.hallsNote}</span>} />
           <Row label="Мебель" value={v.furniture} />
           <Row label="Рассадка" value={v.layouts.join(", ")} />
         </dl>

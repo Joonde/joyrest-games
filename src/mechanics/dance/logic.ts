@@ -91,7 +91,7 @@ function orderOf(session: Session, participants: Participant[], r: DanceResult):
   return [...new Set([...r.order.filter((p) => known.has(p)), ...joined, ...Object.keys(session.leaderboard)])];
 }
 
-export type DanceAction = "start" | "waitPick" | "vote" | "result" | "next" | "podium" | "podiumNext" | "finish";
+export type DanceAction = "start" | "waitPick" | "vote" | "result" | "resolveTie" | "next" | "podium" | "podiumNext" | "finish";
 
 export function dancePrimary(session: Session, content: DanceContent): DanceAction {
   const { stage } = session.state;
@@ -101,6 +101,8 @@ export function dancePrimary(session: Session, content: DanceContent): DanceActi
   if (r.mode === "pick") return content.cards.every((c) => r.played.includes(c.id)) ? (hasPodium(session.leaderboard) ? "podium" : "finish") : "waitPick";
   if (r.mode === "perform") return "vote";
   if (r.mode === "vote") return "result";
+  // Ничья в батле — сначала ведущий называет победителя.
+  if (r.tie.length > 0 && Object.keys(r.scores).length === 0) return "resolveTie";
   const left = content.cards.filter((c) => !r.played.includes(c.id) && c.id !== r.card);
   if (left.length === 0) return hasPodium(session.leaderboard) ? "podium" : "finish";
   return "next";
@@ -213,6 +215,9 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
   const r = parseDanceResult(session.state.result);
   if (!r.card) return {};
   const order = orderOf(session, participants, r);
+  // Следующий — после выступавшей команды в новой очереди (если кого-то убрали, очередь не сбивается).
+  const at = r.performer ? order.indexOf(r.performer) : -1;
+  const turn = at >= 0 ? at + 1 : r.turn + 1;
   return {
     state: {
       step: session.state.step + 1,
@@ -221,7 +226,7 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...r, order, played: [...r.played, r.card], prev: { card: r.card, performer: r.performer, turn: r.turn, scores: r.scores }, card: null, performer: null, mode: "pick", scores: {}, tie: [], turn: r.turn + 1, replay: 0, paused: false }),
+      result: write({ ...r, order, played: [...r.played, r.card], prev: { card: r.card, performer: r.performer, turn: r.turn, scores: r.scores }, card: null, performer: null, mode: "pick", scores: {}, tie: [], turn, replay: 0, paused: false }),
     },
   };
 }

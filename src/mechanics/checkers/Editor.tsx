@@ -1,5 +1,5 @@
 // Конструктор «Шашек»: время на ответ и вопросы (варианты или открытый ответ), импорт списком.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import type { EditorProps } from "../types";
 import { CHECKERS_LIMITS, newCheckersQuestion, parseCheckersList, type CheckersContent, type CheckersQuestion } from "./content";
@@ -129,6 +129,12 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
 /** Верные ответы одной строкой через «|»: текст как набран (с пробелами), разбор — без пустых. */
 function AnswersField({ value, disabled, onChange }: { value: string[]; disabled: boolean; onChange: (answers: string[]) => void }) {
   const [text, setText] = useState(value.join(" | "));
+  // Ответы поменялись не отсюда (вставка списком, «вернуть как было») — показываем их.
+  const parsed = text.split("|").map((a) => a.trim()).filter(Boolean).join("|");
+  useEffect(() => {
+    if (parsed !== value.join("|")) setText(value.join(" | "));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при смене ответов снаружи
+  }, [value.join("|")]);
   return (
     <label className="field">
       Верные ответы через «|»

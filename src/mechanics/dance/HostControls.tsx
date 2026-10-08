@@ -42,7 +42,7 @@ export function DanceHostControls({ session, content, answers, participants, con
     const { phase, step: atStep, stage: atStage } = latest.current.state;
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом выборе
-  }, [pickKey, busy]);
+  }, [pickKey, busy, session.state.startedAt]);
 
   // Счётчик голосов для экрана (не чаще раза в 2 с).
   const votes = r.mode === "vote" ? own.filter((a) => canVote(r, card, a.pid)).length : -1;
@@ -74,8 +74,10 @@ export function DanceHostControls({ session, content, answers, participants, con
     try {
       const change = typeof make === "function" ? await make() : make;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
+      // секунду, получит отказ и «вспомнит» старый ответ.
       for (const s of clear ?? []) await control.clearAnswers(s);
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
       await arrived;
     } catch (e) {
       if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
@@ -102,6 +104,7 @@ export function DanceHostControls({ session, content, answers, participants, con
     waitPick: "Ждём выбор капитана…",
     vote: card?.kind === "battle" ? "Голосовать: кто победил" : "Оценивать выступление",
     result: "Показать итог",
+    resolveTie: "Ничья — выберите победителя выше",
     next: "Следующая команда",
     podium: "Все карточки сыграны — награждение",
     podiumNext: "Открыть следующее место",
@@ -183,7 +186,7 @@ export function DanceHostControls({ session, content, answers, participants, con
         </p>
       )}
       <div className="actions">
-        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || action === "waitPick"} onClick={perform}>
+        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || action === "waitPick" || action === "resolveTie"} onClick={perform}>
           {labels[action]}
         </button>
         {r.mode === "perform" && card && session.screenMode !== "none" && (

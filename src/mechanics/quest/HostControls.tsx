@@ -37,7 +37,7 @@ export function QuestHostControls({ session, content, answers, participants, con
     const { phase, step: atStep, stage: atStage } = latest.current.state;
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при броске
-  }, [rollKey, busy]);
+  }, [rollKey, busy, session.state.startedAt]);
 
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {
@@ -56,8 +56,10 @@ export function QuestHostControls({ session, content, answers, participants, con
     const { phase, step: atStep, stage: atStage } = session.state;
     try {
       const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
+      // секунду, получит отказ и «вспомнит» старый ответ.
       for (const s of clear ?? []) await control.clearAnswers(s);
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
       await arrived;
     } catch (e) {
       if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");

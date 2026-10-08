@@ -7275,7 +7275,12 @@ button.game-row__text:disabled {
 }
 
 .game-row--stale .game-row__dot {
-  background: #e3aa9c;
+  background: var(--color-danger);
+}
+
+/* Свайп по строке — её действия, а не листание экранов владельца. */
+.game-row {
+  touch-action: pan-y;
 }
 
 .game-row__actions {

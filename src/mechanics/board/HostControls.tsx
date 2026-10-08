@@ -73,8 +73,10 @@ export function BoardHostControls({ session, content, answers, participants, con
     try {
       const change = typeof make === "function" ? await make() : make;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
+      // секунду, получит отказ и «вспомнит» старый ответ.
       for (const s of clear ?? []) await control.clearAnswers(s);
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
       await arrived;
     } catch (e) {
       if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");

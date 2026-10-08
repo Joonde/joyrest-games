@@ -423,7 +423,7 @@ function validName(value: unknown): value is string {
 
 /** Итоги сессии для истории — по таблице лидеров на сервере. `replace` — завершение (обновить). */
 /**
- * Сессии старше `cutoff` — с участниками и ответами (итоги сначала сохраняются в историю). Вызывают
+ * Уборка: сессии старше `cutoff` — с участниками и ответами (итоги сначала сохраняются в историю). Вызывают
  * владелец при входе в «Управление» и ночная уборка сервера (`cleanup.ts`), по 100 за раз.
  */
 export async function expireSessions(sql: Sql, cutoff: Date, limit = CLEANUP_LIMIT): Promise<{ deleted: number; more: boolean }> {
@@ -552,7 +552,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const starting = state.phase !== "playing" && next.state.phase === "playing";
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(next.state as never)}, leaderboard = ${tx.json(next.leaderboard as never)},
-            version = version + 1, updated_at = now(),
+            version = version + 1, updated_at = now(), hidden_at = null,
             -- «Начать игру» (любым путём: /apply или /phase) — начало игры для баллов ведущего.
             started_at = case when ${starting} then coalesce(started_at, ${new Date(now())}) else started_at end
           where id = ${sessionId} returning version::int as version`;
@@ -772,12 +772,18 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!hosted) return reply;
       const count = isRecord(request.body) ? request.body.participantsCount : 0;
       const participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
+      // Последнее действие пульта до завершения: брошенная игра, которую закрыли через сутки, не
+      // «шла» сутки — баллы ведущему считаются до него.
+      const [last] = await sql<{ updated_at: Date }[]>`select updated_at from sessions where id = ${hosted.row.id}`;
+      const wasLobby = normalizeState(hosted.row.state).phase === "lobby";
       await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }));
       // Итоги — по таблице на сервере, а не по присланной.
       const row = await loadSession(hosted.row.id);
-      if (row) {
+      // Сессию закрыли в лобби, никто не играл — в «Историю игр» пустую строку не пишем.
+      if (row && !(wasLobby && Object.keys(normalizeBoard(row.leaderboard)).length === 0)) {
         await saveResult(sql, row, participantsCount, true);
-        await awardGamePoints(sql, row.id, now());
+        const end = Math.min(now(), (last?.updated_at.getTime() ?? now()) + 15 * 60_000);
+        await awardGamePoints(sql, row.id, end);
       }
       return { ok: true };
     });

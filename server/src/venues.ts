@@ -571,7 +571,9 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         await sql`update venues set status = ${to}, updated_at = now() where id = ${id}`;
         // Ведущий привёл площадку по своему QR, её приняли в базу — баллы ему (один раз на площадку).
         // Баллы начисляет только владелец агентства (ведущие с доступом к базе — нет).
-        if (permissions.isAdmin(actorOf(user)) && venueEarnsPoints({ source: current.source, hostId: current.host_id, from: current.status, to, actorId: user.id }) && current.host_id) {
+        // Если площадку раньше принял ведущий с доступом (баллов тогда не было), владелец начислит их,
+        // подтвердив статус ещё раз: повторно запись не появится (id venue-<площадка>).
+        if (permissions.isAdmin(actorOf(user)) && venueEarnsPoints({ source: current.source, hostId: current.host_id, from: "new", to, actorId: user.id }) && current.host_id) {
           const name = parseVenue(current.data).name.slice(0, 80) || "без названия";
           await sql`
             insert into host_points (id, host_id, points, kind, reason, created_by)
@@ -618,6 +620,8 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         const { id, kind } = request.params;
         if (!venuesDir) return fail(reply, 501, "unimplemented");
         if (!isKind(kind)) return fail(reply, 404, "not-found");
+        const [row] = await sql<{ archived_at: Date | null }[]>`select archived_at from venues where id = ${id}`;
+        if (row?.archived_at) return fail(reply, 409, "failed-precondition");
         const checked = checkFile(kind, request.body);
         if ("error" in checked) return fail(reply, checked.status, checked.error);
         if ((await freeBytes(options.mediaDir ?? venuesDir)) < limits.minFreeBytes) return fail(reply, 507, "resource-exhausted");
@@ -636,7 +640,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       if (!SHA.test(sha)) return fail(reply, 404, "not-found");
       await sql`
         update venues set files = coalesce((select jsonb_agg(f) from jsonb_array_elements(files) f where f->>'sha' <> ${sha}), '[]'::jsonb), updated_at = now()
-        where id = ${id}`;
+        where id = ${id} and archived_at is null`;
       return { ok: true };
     });
 

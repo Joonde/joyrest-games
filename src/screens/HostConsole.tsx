@@ -325,7 +325,7 @@ function Console({ session }: { session: Session }) {
                 </Suspense>
               </section>
             )}
-            {phase === "playing" && withScreen && <PeekCard session={session} onApply={apply} />}
+            {phase === "playing" && withScreen && !mechanic?.ownPeek && <PeekCard session={session} onApply={apply} />}
             {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>

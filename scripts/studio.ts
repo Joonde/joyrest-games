@@ -17,6 +17,10 @@ import { parseLotto } from "../src/mechanics/lotto/content";
 import { validateLotto } from "../src/mechanics/lotto/validate";
 import { cardFor, isWin, nextSong, parseLottoResult, playedUpTo, playSong, revealSong } from "../src/mechanics/lotto/logic";
 import type { Answer, Participant, Session } from "../src/data/types";
+import { DEMO_BOARD } from "../src/mechanics/board/demo";
+import { parseBoard } from "../src/mechanics/board/content";
+import { validateBoard } from "../src/mechanics/board/validate";
+import { boardBuzzSync, boardReveal, boardWrong, openCell, parseBoardResult, startCatQuestion, toBoard } from "../src/mechanics/board/logic";
 
 const BASE = (process.env.LOAD_BASE ?? "https://test.games.joy-rest.ru").replace(/\/$/, "");
 const ADMIN_EMAIL = (process.env.TEST_ADMIN_EMAIL ?? "").trim();
@@ -469,11 +473,12 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», музыкальное лото —");
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», музыкальное лото, «Своя игра» —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
     { mechanic: "lotto", ...DEMO_LOTTO },
+    { mechanic: "board", ...DEMO_BOARD },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -489,7 +494,8 @@ async function main() {
     }
     templateIds[t.title] = id;
     const saved = await back.call<{ title: string; mechanic: string; content: unknown }>("GET", `/api/games/${id}`);
-    const errors = saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : validateContent(parseContent(saved.content));
+    const errors =
+      saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : saved.mechanic === "board" ? validateBoard(parseBoard(saved.content)) : validateContent(parseContent(saved.content));
     check(saved.title === t.title && errors.length === 0, `шаблон «${t.title}» виден ведущему и готов к запуску`, errors.map((e) => e.message).join("; "));
     const copy = uid();
     check(
@@ -547,6 +553,65 @@ async function main() {
     check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "лото завершено");
     const result = await guest.call<{ board: Array<{ name: string; score: number }> }>("GET", `/api/results/${sid}`);
     check(result.board[0]?.name === "🎵 Лотошник", "итоги лото сохранены со смайликом");
+  }
+
+  // «Своя игра»: клетка → два нажатия → «Неверно» первому → «Верно» второму → клетка гаснет;
+  // «Кот в мешке»: ставки, нажатие, «Верно» — ставка победителю, второй ставивший теряет свою.
+  {
+    const game = parseBoard(DEMO_BOARD.content);
+    const sid = uid();
+    const created = await back.call<{ code: string }>("POST", "/api/sessions", {
+      id: sid, gameId: templateIds[DEMO_BOARD.title] ?? null, gameTitle: DEMO_BOARD.title, playMode: "solo", screenMode: "laptop", themeId: "joyrest", mechanic: "board",
+      gameSnapshot: { title: DEMO_BOARD.title, content: DEMO_BOARD.content },
+    });
+    const g1 = new Device("гость своей игры 1");
+    const g2 = new Device("гость своей игры 2");
+    const u1 = (await g1.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    const u2 = (await g2.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    await g1.call("POST", `/api/sessions/${sid}/participants/${u1}/join`, { name: "🦊 Первый", teamId: null });
+    await g2.call("POST", `/api/sessions/${sid}/participants/${u2}/join`, { name: "🐻 Второй", teamId: null });
+    check(Boolean(created.code), "«Своя игра» создана");
+    const get = () => back.call<Session>("GET", `/api/sessions/${sid}`);
+    const act = async (change: object) => {
+      const cur = await get();
+      return back.status("POST", `/api/sessions/${sid}/apply`, { ...change, expect: { phase: cur.state.phase, step: cur.state.step, stage: cur.state.stage } });
+    };
+    const people = () => back.call<Participant[]>("GET", `/api/sessions/${sid}/participants`);
+    const answersOf = async () => back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/${(await get()).state.step}`);
+    await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } });
+    const first = game.categories[0]?.cells[0];
+    const cat = game.categories[0]?.cells.find((c) => c.kind === "cat");
+    if (!first || !cat) check(false, "в шаблоне есть клетки и «Кот в мешке»");
+    else {
+      check((await act(openCell(await get(), game, first.id))) === 200, "ведущий открыл клетку");
+      let step = (await get()).state.step;
+      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { buzz: true } });
+      await wait(30);
+      await g2.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u2, value: { buzz: true } });
+      await act(boardBuzzSync(await get(), await answersOf()) ?? {});
+      check(parseBoardResult((await get()).state.result).buzz.current === u1, "слово у нажавшего первым");
+      await act(boardWrong(await get(), game));
+      check(parseBoardResult((await get()).state.result).buzz.current === u2, "«Неверно» — слово второму");
+      await act(boardReveal(await get(), game, await people(), true));
+      check(((await get()).leaderboard[u2]?.score ?? 0) === first.points, "верный ответ — стоимость клетки", String((await get()).leaderboard[u2]?.score));
+      await act(toBoard(await get()));
+      const afterCell = parseBoardResult((await get()).state.result);
+      check(afterCell.opened.includes(first.id) && afterCell.picker === u2, "клетка погасла, выбирает ответивший верно");
+
+      check((await act(openCell(await get(), game, cat.id))) === 200, "открыт «Кот в мешке» — ставки");
+      step = (await get()).state.step;
+      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { bet: cat.points } });
+      await g2.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u2, value: { bet: 50 } });
+      await act(startCatQuestion(await get(), game, await answersOf()));
+      step = (await get()).state.step;
+      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { buzz: true } });
+      await act(boardBuzzSync(await get(), await answersOf()) ?? {});
+      await act(boardReveal(await get(), game, await people(), true));
+      const final = await get();
+      check((final.leaderboard[u1]?.score ?? 0) === cat.points, "«Кот в мешке»: верно — ставка победителю", String(final.leaderboard[u1]?.score));
+      check((final.leaderboard[u2]?.score ?? 0) === first.points - 50, "вторая ставка сгорела", String(final.leaderboard[u2]?.score));
+    }
+    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Своя игра» завершена");
   }
 
   // ------------------------------------------------ уборка за собой

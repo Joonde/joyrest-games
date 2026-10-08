@@ -104,6 +104,8 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   steps(content: Content): S[];
   score(step: S, answers: Answer[], context: ScoreContext): ScoreDelta[];
   validate(content: Content): ValidationError[];
+  /** Пульт механики сам показывает кнопку «Таблица на экран» (общая карточка пульта не нужна). */
+  ownPeek?: boolean;
 }
 
 /**

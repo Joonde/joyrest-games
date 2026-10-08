@@ -6237,3 +6237,407 @@ ul.chips {
   padding: 16px 0 calc(16px + env(safe-area-inset-bottom));
   background: linear-gradient(to bottom, transparent, var(--color-bg) 24px);
 }
+
+/* ---------- «Своя игра» ---------- */
+
+.buzz__plate--glow {
+  background: #e3c68c;
+  border-color: #e3c68c;
+  color: #221e1b;
+  box-shadow: 0 0 0 4px rgba(227, 198, 140, 0.25), 0 0 32px rgba(227, 198, 140, 0.35);
+}
+
+.board-screen {
+  width: 100%;
+  height: 100%;
+  padding: 4cqh 4cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 3cqh;
+  font-size: 3.6cqh;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.board-screen__top {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  flex-wrap: wrap;
+}
+
+.board-screen__picker,
+.board-screen__points {
+  font-weight: 600;
+  font-size: 4.2cqh;
+}
+
+.board-screen__points {
+  margin-left: auto;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 6cqh;
+}
+
+/* Поле: строка = категория + клетки. Размеры от контейнера — как на телевизоре, так и в предпросмотре. */
+.board-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 1.2cqh;
+}
+
+.board-grid__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(var(--board-cols, 5), minmax(0, 1fr));
+  gap: 1.2cqh;
+  min-height: 0;
+}
+
+.board-grid__title,
+.board-grid__cell {
+  display: grid;
+  place-items: center;
+  border-radius: 1.6cqh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.board-grid__title {
+  justify-items: start;
+  padding: 0 2cqw;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  font-weight: 600;
+  font-size: 3.4cqh;
+}
+
+.board-grid__cell {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 6cqh;
+  color: #221e1b;
+  background: linear-gradient(160deg, #f3dfae 0%, #e3c68c 55%, #c9a15f 100%);
+  box-shadow: inset 0 -0.5cqh 0 rgba(34, 30, 27, 0.25);
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+/* Сыгранная клетка гаснет до конца поля. */
+.board-grid__cell.is-opened {
+  background: var(--color-surface);
+  box-shadow: none;
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.board-grid__cell.is-current {
+  outline: 0.6cqh solid #e3aa9c;
+  outline-offset: 0.3cqh;
+  animation: board-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes board-pulse {
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.board-grid--small {
+  font-size: 14px;
+  gap: 6px;
+  width: 100%;
+}
+
+.board-grid--small .board-grid__row {
+  gap: 6px;
+}
+
+.board-grid--small .board-grid__title {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.board-grid--small .board-grid__cell {
+  font-size: 16px;
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.board-screen--question .board-screen__question {
+  font-size: 6cqh;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.board-screen--image {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.board-screen__image {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 2cqh;
+  justify-self: center;
+}
+
+.board-screen__hint {
+  color: var(--color-text-muted);
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* «Отвечает: 🦊 Аня» — крупно, по центру, светится. */
+.board-screen__speaker {
+  align-self: center;
+  margin-top: auto;
+  padding: 2cqh 5cqw;
+  border-radius: 3cqh;
+  background: #e3aa9c;
+  color: #221e1b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5cqh;
+  box-shadow: 0 0 0 1cqh rgba(227, 170, 156, 0.3), 0 0 8cqh rgba(227, 170, 156, 0.55);
+  animation: board-pulse 1.4s ease-in-out infinite;
+}
+
+.board-screen__speaker strong {
+  font-size: 9cqh;
+  line-height: 1.1;
+}
+
+.board-screen__answer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqh;
+  padding: 3cqh 4cqw;
+  border-radius: 3cqh;
+  background: var(--color-surface);
+  border: 2px solid var(--color-highlight);
+}
+
+.board-screen__answer strong {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 8cqh;
+  line-height: 1.1;
+}
+
+.board-screen__answer-who {
+  font-size: 4.4cqh;
+  font-weight: 600;
+}
+
+.board-screen--cat {
+  align-items: center;
+  text-align: center;
+}
+
+.board-screen__cat-title {
+  font-size: 11cqh;
+  margin: 0;
+  background: var(--gradient-secondary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.board-screen__timer {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 8cqh;
+  margin: 0;
+}
+
+/* Кот в мешке: мешок покачивается, кот выглядывает и моргает. */
+.cat-bag {
+  height: 38cqh;
+  width: auto;
+  overflow: visible;
+}
+
+.cat-bag--small {
+  height: 140px;
+}
+
+.cat-bag__bag {
+  transform-origin: 100px 190px;
+  animation: cat-bag-wobble 2.4s ease-in-out infinite;
+}
+
+.cat-bag__cat {
+  transform-origin: 100px 120px;
+  animation: cat-peek 2.4s ease-in-out infinite;
+}
+
+.cat-bag__eyes {
+  transform-origin: 100px 88px;
+  animation: cat-blink 4s step-end infinite;
+}
+
+@keyframes cat-bag-wobble {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-5deg); }
+  40% { transform: rotate(4deg); }
+  60% { transform: rotate(-2deg); }
+}
+
+@keyframes cat-peek {
+  0%, 100% { transform: translateY(14px); }
+  35%, 65% { transform: translateY(0); }
+}
+
+@keyframes cat-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-bag__bag,
+  .cat-bag__cat,
+  .cat-bag__eyes,
+  .board-grid__cell.is-current,
+  .board-screen__speaker {
+    animation: none;
+  }
+}
+
+/* Ставка на телефоне. */
+.bet-form {
+  width: 100%;
+}
+
+.bet-form__quick {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Пульт «Своей игры»: заметная кнопка таблицы, поле клеток с метками для ведущего. */
+.board-host__peek {
+  min-height: 64px;
+  font-size: 19px;
+  box-shadow: 0 0 0 3px rgba(227, 198, 140, 0.35);
+}
+
+.board-host__peek.is-on {
+  background: #e3aa9c;
+  border-color: #e3aa9c;
+}
+
+.board-host__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.board-host__row {
+  display: grid;
+  grid-template-columns: minmax(72px, 1.4fr) repeat(var(--board-cols, 5), minmax(44px, 1fr));
+  gap: 6px;
+  align-items: stretch;
+}
+
+.board-host__title {
+  align-self: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.board-host__cell,
+.board-editor__cell {
+  min-height: 52px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-highlight);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: 600 17px/1 "Jost", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.board-host__cell small,
+.board-editor__cell small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.board-host__cell.is-cat,
+.board-editor__cell.is-cat {
+  border-color: #e3aa9c;
+}
+
+.board-host__cell.is-opened {
+  opacity: 0.35;
+  border-style: dashed;
+  cursor: default;
+}
+
+/* Конструктор поля. */
+.board-editor__size {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.board-editor__size .field {
+  flex: 1 1 140px;
+}
+
+.board-editor__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.board-editor__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.board-editor__title {
+  min-height: var(--control-height);
+}
+
+.board-editor__cells {
+  display: grid;
+  grid-template-columns: repeat(var(--board-cols, 5), minmax(0, 1fr));
+  gap: 6px;
+}
+
+.board-editor__cell.is-open {
+  background: var(--color-highlight);
+  color: #221e1b;
+}
+
+.board-editor__cell.is-open small {
+  color: #221e1b;
+}
+
+.board-editor__cell.has-error {
+  border-color: var(--color-danger);
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+.board-cell-form__head {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.board-cell-form__image {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 12px;
+  object-fit: contain;
+}

@@ -1,3 +1,5 @@
+import { board } from "./board";
+import { DEMO_BOARD } from "./board/demo";
 import { lotto } from "./lotto";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
@@ -14,7 +16,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -23,6 +25,7 @@ export function getMechanic(id: string | null): AnyMechanic | undefined {
 const HINTS: Record<string, string> = {
   quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
   lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
+  board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
 };
 
 /** Механики, которые можно выбрать при создании игры. */
@@ -76,6 +79,12 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     title: DEMO_LOTTO.title,
     hint: "28 песен, карточки 4×4, побеждает первая линия. Треки добавьте в копии игры или включайте со своего плеера.",
     content: DEMO_LOTTO.content,
+  },
+  {
+    mechanic: board.id,
+    title: DEMO_BOARD.title,
+    hint: "4 категории по 5 вопросов, два «Кота в мешке». Клетки с треками и картинками добавьте в копии игры.",
+    content: DEMO_BOARD.content,
   },
 ];
 

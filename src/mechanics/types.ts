@@ -72,6 +72,9 @@ export interface ScoreContext {
   state: SessionState;
 }
 
+/** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */
+export type MusicMoment = "questionIntro" | "superPick";
+
 /**
  * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.
  */
@@ -119,6 +122,8 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   validate(content: Content): ValidationError[];
   /** Пульт механики сам показывает кнопку «Таблица на экран» (общая карточка пульта не нужна). */
   ownPeek?: boolean;
+  /** Встроенная музыка момента на экране зала (заставка вопроса, выбор в суперигре); null — нет. */
+  music?: (session: Session, content: Content) => MusicMoment | null;
   /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */
   preview?: { driver: PreviewDriver<Content>; teams?: number; limit?: number };
 }

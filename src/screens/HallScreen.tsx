@@ -33,6 +33,7 @@ import { ScreenSkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
 import { joinHint, playUrl } from "../components/links";
 import { getMechanic } from "../mechanics/registry";
+import type { MusicMoment } from "../mechanics/types";
 import { getTheme, teamColorVar, useTheme } from "../themes/registry";
 
 export function HallScreen() {
@@ -139,9 +140,11 @@ function useCueSound(cue: SoundCue | null | undefined): void {
 }
 
 /** Встроенная музыка: лобби (QR, ждём гостей), «Представить команды», слайд «Перерыв» — два трека по кругу с наплывом. */
-function builtinMusicOf(session: Session): BuiltinMusic | null {
+function builtinMusicOf(session: Session, moment: MusicMoment | null): BuiltinMusic | null {
   const slide = session.state.slide;
   if (slide?.kind === "break") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
+  // Момент игры (заставка вопроса, выбор в суперигре): каждый новый шаг — трек с начала.
+  if (moment && !slide) return { key: `${moment}:${session.state.step}:${session.state.startedAt ?? 0}`, urls: [...BUILTIN_MUSIC[moment]] };
   if (session.state.phase === "lobby" && session.state.teams?.shown != null) return { key: "teams", urls: [...BUILTIN_MUSIC.teams] };
   // Лобби: на экране QR-код, ждём гостей.
   if (session.state.phase === "lobby" && !slide) return { key: "lobby", urls: [...BUILTIN_MUSIC.lobby] };
@@ -155,7 +158,10 @@ function Screen({ session }: { session: Session }) {
   // Аплодисменты — файл: качаем заранее, чтобы на пьедестале звучали сразу.
   useEffect(() => preloadSamples(["applause"]), []);
   // Встроенная музыка момента (если ведущий не включил свою): перерыв и представление команд.
-  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session));
+  const mechanic = getMechanic(session.mechanic);
+  const content = useMemo(() => (mechanic?.music ? mechanic.parse(snapshotContent(session.gameSnapshot)) : null), [mechanic, session.gameSnapshot]);
+  const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session, moment));
   const soundReady = useSoundReady();
   const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.

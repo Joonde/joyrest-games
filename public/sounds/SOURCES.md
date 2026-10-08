@@ -9,6 +9,8 @@
 | break-golden-hour-1.mp3 | перерыв (слайд «Перерыв»), по кругу с break-event-1 | vibemode — «Event — Golden Hour», id 581678 |
 | break-event-1.mp3 | перерыв | gr0za — «Event music», id 582640 |
 | teams-intro-1.mp3 | «Представить команды» | lnplusmusic — «Event music», id 611920 |
+| question-intro-1.mp3 | квиз: заставка «Вопрос N» и раунда, до показа вопроса | Pixabay, автор — уточнить |
+| super-pick-1.mp3 | суперигра: пока выбирают уровень и отвечают | Pixabay, автор — уточнить |
 | lobby-1.mp3 | лобби: на экране QR, ждём гостей | Pixabay, автор — уточнить |
 | dragon-attack-2.mp3 | «Бой с драконом»: атака дракона | Pixabay, автор — уточнить |
 | applause-1.mp3 | аплодисменты: пьедестал, слайд «Спасибо», кнопка пульта | Pixabay, автор — уточнить |

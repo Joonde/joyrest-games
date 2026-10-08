@@ -24,4 +24,12 @@ export const quiz: Mechanic<QuizContent, QuizAnswerValue, QuizStep> = {
   steps,
   score,
   validate: validateContent,
+  // Заставка «Вопрос N» и раунда — своя музыка; суперигра — музыка, пока выбирают уровень.
+  music: (session, content) => {
+    const q = content.questions[session.state.step];
+    if (!q || session.state.phase !== "playing") return null;
+    if (session.state.stage === "ready" && q.kind !== "super") return "questionIntro";
+    if (session.state.stage === "question" && q.kind === "super") return "superPick";
+    return null;
+  },
 };

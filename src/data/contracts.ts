@@ -225,6 +225,11 @@ export interface TracksRepository {
   reject(id: string, reason: string): Promise<Track>;
   /** Файл трека (экран зала, прослушивание); нет — null. */
   file(id: string): Promise<Blob | null>;
+  /**
+   * Адрес файла для `<audio src>`: прослушивание в студии начинается сразу по касанию (iPhone
+   * не даёт включить звук, если между касанием и play() было ожидание загрузки).
+   */
+  fileUrl(id: string): string;
 }
 
 export interface ProposalsRepository {

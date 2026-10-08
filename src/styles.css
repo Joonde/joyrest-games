@@ -28,6 +28,13 @@ body,
   min-height: 100%;
 }
 
+/* Цифры везде обычной высоты: у Cormorant по умолчанию «старинные» (100 читается как IOO). */
+*,
+*::before,
+*::after {
+  font-variant-numeric: lining-nums;
+}
+
 body {
   min-height: 100dvh;
   background: var(--background);
@@ -406,7 +413,7 @@ a {
 .results__score {
   flex: none;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .results li.results__more {
@@ -500,7 +507,7 @@ a {
   border: 1.5px dashed var(--color-highlight);
   font-size: 26px;
   letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   overflow-wrap: anywhere;
   user-select: all;
 }
@@ -2226,7 +2233,7 @@ kbd {
   min-width: 14cqw;
   text-align: right;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .quiz-screen__bar {
@@ -2310,7 +2317,7 @@ kbd {
   flex: none;
   font-size: 0.8em;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .board-view__move.is-down {
@@ -2326,7 +2333,7 @@ kbd {
   min-width: 3em;
   text-align: right;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Финал. */
@@ -3198,7 +3205,7 @@ kbd {
   font-size: 24cqh;
   font-weight: 700;
   line-height: 1;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   color: var(--color-highlight);
 }
 
@@ -4011,7 +4018,7 @@ kbd {
 
 .people-list__score {
   flex: none;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .people-list__tools {
@@ -4339,7 +4346,7 @@ ul.chips {
 .stepper output {
   min-width: 28px;
   text-align: center;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .stepper__btn {
@@ -4524,7 +4531,7 @@ ul.chips {
 
 .venue-table .num {
   text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .venue-table .sticky-col {
@@ -4592,7 +4599,7 @@ ul.chips {
 
 .request-card__phone {
   font-size: 20px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .kv {
@@ -4694,7 +4701,7 @@ ul.chips {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   font-weight: 600;
 }
 

@@ -67,4 +67,7 @@ export const serverTracksRepository: TracksRepository = {
   async file(id) {
     return getImage(`${path(id)}/file`);
   },
+  fileUrl(id) {
+    return `${path(id)}/file`;
+  },
 };

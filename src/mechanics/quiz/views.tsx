@@ -18,11 +18,13 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { clipOf, correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { boardView, startsRound } from "./flow";
 import { isCorrect, parseResult, picturesRight } from "./logic";
+import { SuperPhone, SuperScreen } from "../../components/live/SuperGame";
+import { parsePenalty, parseStyle, parseSuperAnswer } from "../../core/supergame";
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 /** Ответ гостя: номер варианта, текст, ответы к картинкам или нажатие кнопки «кто первый». */
-export type QuizAnswerValue = number | string | string[] | { buzz: true };
+export type QuizAnswerValue = number | string | string[] | { buzz: true } | { level: number; text: string };
 
 function plural(n: number, one: string, few: string, many: string): string {
   const d10 = n % 10;
@@ -38,6 +40,7 @@ function currentQuestion(session: Session, content: QuizContent): QuizQuestion |
 
 export function correctText(q: QuizQuestion): string {
   if (q.kind === "open" || q.kind === "buzz") return q.answers.filter((a) => a.trim()).join(" / ");
+  if (q.kind === "super") return (q.levels ?? []).map((l, i) => `${["Бронза", "Серебро", "Золото", "Бриллиант"][i]}: ${l.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
   if (q.kind === "pictures") return (q.pictures ?? []).map((p, i) => `${i + 1}. ${p.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
   return correctSet(q)
     .map((i) => q.options[i] ?? "")
@@ -142,6 +145,28 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
           stars={view === "total" ? bestInRound(session.leaderboard) : undefined}
         />
       </div>
+    );
+  }
+
+  if (q.kind === "super" && (stage === "ready" || stage === "question" || stage === "reveal")) {
+    const names: Record<string, string> = {};
+    for (const [pid, e] of Object.entries(session.leaderboard)) names[pid] = e.name;
+    return (
+      <SuperScreen
+        stage={stage}
+        gameId={session.gameId}
+        title={q.text}
+        levels={q.levels ?? []}
+        style={parseStyle(q.superStyle)}
+        penalty={parsePenalty(q.penalty)}
+        picks={parsed.picks ?? {}}
+        verdicts={parsed.verdicts ?? {}}
+        names={names}
+        left={left}
+        timeLimit={q.timeLimit}
+        burst={`${step}:${session.state.startedAt ?? 0}`}
+        counter={round ? roundTitle(round) : `Вопрос ${step + 1} из ${total}`}
+      />
     );
   }
 
@@ -388,6 +413,30 @@ export function QuizPlayerView({
   );
 
   const round = roundAt(content, step);
+
+  if (q.kind === "super" && stage !== "board" && stage !== "podium") {
+    const mine = parseSuperAnswer(myAnswer?.value);
+    const verdict = parseResult(session.state.result).verdicts?.[pid] ?? null;
+    return (
+      <SuperPhone
+        key={`${q.id}:${session.state.startedAt ?? 0}`}
+        stage={stage}
+        gameId={session.gameId}
+        levels={q.levels ?? []}
+        style={parseStyle(q.superStyle)}
+        penalty={parsePenalty(q.penalty)}
+        role={role}
+        mine={mine}
+        verdict={verdict}
+        canAnswer={canAnswer}
+        sending={sending}
+        open={open}
+        left={left}
+        showImages
+        onAnswer={(a) => onAnswer(a)}
+      />
+    );
+  }
 
   if (stage === "ready") {
     return (

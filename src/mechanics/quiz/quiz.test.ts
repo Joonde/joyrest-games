@@ -18,7 +18,8 @@ import { IMPORT_EXAMPLE, parseImport } from "./importText";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
-import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, toggleAccepted } from "./flow";
+import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync, toggleAccepted } from "./flow";
+import { acceptKey } from "../../core/supergame";
 import { emptyResult, groupOpenAnswers, isCorrect, parseResult, resultOf, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
@@ -621,5 +622,81 @@ describe("гонка «кто первый» и несколько картин�
     expect(resultOf(q, answers, []).right).toEqual([2, 2, 1, 1]);
     expect(validateQuestion({ ...q, pictures: [{ imageId: null, answers: [""] }] }).map((e) => e.path)).toContain("questions/p1/pictures");
     expect(mediaIds({ questions: [q] })).toEqual(["i1", "i2", "i3", "i4"]);
+  });
+});
+
+describe("суперигра в квизе", () => {
+  const superQ = (): QuizQuestion => ({
+    ...newQuestion("super"),
+    id: "s1",
+    levels: [
+      { points: 100, text: "Столица Франции?", answers: ["Париж"], imageId: null },
+      { points: 200, text: "Самая длинная река?", answers: ["Нил"], imageId: null },
+      { points: 300, text: "Автор «Мастера и Маргариты»?", answers: ["Булгаков"], imageId: "img3" },
+      { points: 500, text: "Год полёта Гагарина?", answers: ["1961"], imageId: null },
+    ],
+  });
+  const session = (): Session =>
+    ({
+      id: "s",
+      code: "1",
+      hostId: "h",
+      gameId: "g",
+      gameTitle: "К",
+      mechanic: "quiz",
+      gameSnapshot: null,
+      themeId: "joyrest",
+      playMode: "teams",
+      screenMode: "laptop",
+      state: { ...startState(), phase: "playing" },
+      leaderboard: {
+        a: { name: "Лисы", kind: "team", score: 400 },
+        b: { name: "Совы", kind: "team", score: 400 },
+        c: { name: "Тигры", kind: "team", score: 400 },
+      },
+      createdAt: 0,
+    }) as Session;
+  const pick = (pid: string, level: number, text: string, at = 10) => ({ id: `1_${pid}`, step: 1, pid, uid: pid, value: { level, text }, submittedAt: at });
+
+  it("заставка всегда, выбор уровней на экран, верно — плюс, ошибка — минус по правилу, «Назад» снимает", () => {
+    const content: QuizContent = { questions: [choice(), superQ()], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    let s = session();
+    expect(actionLabel(s, content, "next")).toBe("Суперигра");
+    s = applyChange(s, nextQuestion(s, content), 1);
+    expect(s.state.stage).toBe("ready");
+    expect(actionLabel(s, content, "show")).toBe("Открыть уровни");
+    s = applyChange(s, showQuestion(s, content), 2);
+    expect(s.state.timeLimit).toBe(90);
+    const answers = [pick("a", 2, "булгаков"), pick("b", 3, "1962"), pick("c", 2, "Булгакофф")];
+    const sync = superSync(s, content, answers);
+    if (!sync) throw new Error("нет записи");
+    s = applyChange(s, sync, 3);
+    expect(parseResult(s.state.result).picks).toEqual({ a: 2, b: 3, c: 2 });
+    expect(superSync(s, content, answers)).toBeNull();
+    // Ведущий засчитал опечатку Тигров.
+    s = applyChange(s, toggleAccepted(s, acceptKey(2, "Булгакофф")), 4);
+    expect(actionLabel(s, content, "reveal")).toBe("Показать ответы");
+    s = applyChange(s, reveal(s, content, answers, []), 5);
+    expect(s.leaderboard.a).toMatchObject({ score: 700, last: 300 });
+    expect(s.leaderboard.b).toMatchObject({ score: 150, last: -250 });
+    expect(s.leaderboard.c).toMatchObject({ score: 700, last: 300 });
+    expect(parseResult(s.state.result).verdicts?.b).toMatchObject({ level: 3, right: false, delta: -250 });
+    const plan = back(s, content);
+    if (!plan) throw new Error("нет шага назад");
+    s = applyChange(s, plan.change, 6);
+    expect(s.leaderboard.b?.score).toBe(400);
+    expect(s.leaderboard.a?.score).toBe(400);
+  });
+
+  it("проверка уровней и картинки уровней в игре", () => {
+    const q = superQ();
+    expect(validateQuestion(q)).toEqual([]);
+    const empty = newQuestion("super");
+    expect(validateQuestion(empty).map((e) => e.path)).toContain(`questions/${empty.id}/levels`);
+    expect(mediaIds({ questions: [q] })).toEqual(["img3"]);
+    const parsed = parseContent({ questions: [q] }).questions[0];
+    expect(parsed?.levels?.[2]?.answers).toEqual(["Булгаков"]);
+    expect(parsed?.penalty).toBe("halfTop");
+    expect(isCorrect(q, { level: 0, text: "париж" })).toBe(true);
   });
 });

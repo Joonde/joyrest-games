@@ -8,6 +8,7 @@ import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } fr
 import { quizRounds, roundAt, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, syncBuzz } from "../../core/buzz";
 import { emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
+import { superPicks } from "../../core/supergame";
 
 export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish";
 
@@ -82,6 +83,10 @@ export const ACTION_LABELS: Record<QuizAction, string> = {
 /** Подпись главной кнопки: на пьедестале — какое место откроется, в конце раунда — «Итоги раунда». */
 export function actionLabel(session: Session, content: QuizContent, action: QuizAction): string {
   if (action === "podiumNext") return podiumLabel(session);
+  const q = content.questions[session.state.step];
+  if (q?.kind === "super" && action === "show") return "Открыть уровни";
+  if (q?.kind === "super" && action === "reveal") return "Показать ответы";
+  if (action === "next" && content.questions[session.state.step + 1]?.kind === "super") return "Суперигра";
   if (action === "board" && endsRound(content, session.state.step)) return "Итоги раунда";
   if (action === "show" && startsRound(content, session.state.step)) return "Начать раунд";
   return ACTION_LABELS[action];
@@ -115,6 +120,18 @@ export function showQuestion(session: Session, content: QuizContent): SessionCha
       result: { ...startResult(q), ...carry(session) },
     },
   };
+}
+
+// ---------------------------------------------------------------- суперигра: выбор уровней
+
+/** Кто какой уровень выбрал — на экран (без текста ответов). null — записывать нечего. */
+export function superSync(session: Session, content: QuizContent, answers: Answer[]): SessionChange | null {
+  if (session.state.stage !== "question") return null;
+  if (content.questions[session.state.step]?.kind !== "super") return null;
+  const picks = superPicks(answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)));
+  const before = parseResult(session.state.result).picks ?? {};
+  const same = Object.keys(picks).length === Object.keys(before).length && Object.entries(picks).every(([pid, l]) => before[pid] === l);
+  return same ? null : { state: { result: { ...asRecord(session.state.result), picks } } };
 }
 
 // ---------------------------------------------------------------- гонка: кнопка
@@ -230,7 +247,8 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
   if (newRound) for (const [pid, entry] of Object.entries(session.leaderboard)) prevRoundBase[pid] = entry.roundBase ?? 0;
   // Без заставки «Вопрос N из M» вопрос открывается сразу; заставка нового раунда остаётся.
   const q = content.questions[step];
-  const direct = !settingsOf(content).intro && !newRound && q !== undefined;
+  // Суперигра всегда с заставкой: лучи, сундуки и музыка.
+  const direct = !settingsOf(content).intro && !newRound && q !== undefined && q.kind !== "super";
   return {
     ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
     state: direct

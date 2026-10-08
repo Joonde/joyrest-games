@@ -1,13 +1,14 @@
 // Формат содержимого квиза. Хранится в games/{id}.content и в снимке сессии.
 // Картинок здесь нет — только imageId (документ games/{id}/media/{imageId}).
 import { clipFields, parseClip, type Clip, type ClipJoin } from "../../core/clip";
+import { newLevels, parseLevels, parsePenalty, parseStyle, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
 /**
  * Форматы вопроса. Классика: варианты, открытый, на скорость. Гонка «Кто быстрее» (`buzz`): кнопка,
  * слово первому нажавшему, ведущий решает «Верно» или «Неверно». Картинки (`pictures`): 2–4 фото, у
  * каждого свой ответ.
  */
-export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures";
+export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures" | "super";
 
 /** Картинка в вопросе «Несколько картинок»: верные ответы к ней. */
 export interface QuizPicture {
@@ -51,6 +52,10 @@ export interface QuizQuestion {
   steps?: number;
   /** Несколько картинок: 2–4, у каждой свои верные ответы. */
   pictures?: QuizPicture[];
+  /** Суперигра (`super`): 4 уровня, оформление и правило ошибки (`src/core/supergame.ts`). */
+  levels?: SuperLevel[];
+  superStyle?: SuperStyle;
+  penalty?: SuperPenalty;
   /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
   round: string | null;
 }
@@ -179,6 +184,7 @@ export const DEFAULTS: Record<QuestionKind, { timeLimit: number; points: number 
   speed: { timeLimit: 15, points: 200 },
   buzz: { timeLimit: 60, points: 100 },
   pictures: { timeLimit: 60, points: 100 },
+  super: { timeLimit: 90, points: 100 },
 };
 
 export const KIND_TITLES: Record<QuestionKind, string> = {
@@ -187,6 +193,7 @@ export const KIND_TITLES: Record<QuestionKind, string> = {
   speed: "На скорость",
   buzz: "Гонка: кто первый",
   pictures: "Несколько картинок",
+  super: "Суперигра",
 };
 
 export const KIND_HINTS: Record<QuestionKind, string> = {
@@ -195,12 +202,13 @@ export const KIND_HINTS: Record<QuestionKind, string> = {
   speed: "Варианты ответа; чем быстрее верный ответ, тем больше очков.",
   buzz: "Красная кнопка: слово первому нажавшему, «Верно» — шаг к финишу и очки.",
   pictures: "2–4 картинки, ответ к каждой; очки — за каждую угаданную.",
+  super: "4 уровня: каждый выбирает уровень и отвечает. Верно — очки уровня, ошибка — по правилу.",
 };
 
 /** Блоки в «Добавить вопрос»: плитка — формат, у музыкальных сразу включается трек. */
 export interface QuestionFormat {
   id: string;
-  block: "classic" | "music" | "pictures";
+  block: "classic" | "music" | "pictures" | "super";
   kind: QuestionKind;
   title: string;
   music?: boolean;
@@ -215,12 +223,14 @@ export const QUESTION_FORMATS: QuestionFormat[] = [
   { id: "buzz", block: "music", kind: "buzz", title: "Гонка: кто первый", music: true },
   { id: "image", block: "pictures", kind: "choice", title: "Одна картинка" },
   { id: "pictures", block: "pictures", kind: "pictures", title: "2–4 картинки" },
+  { id: "super", block: "super", kind: "super", title: "Суперигра: 4 уровня" },
 ];
 
 export const FORMAT_BLOCKS: Array<{ id: QuestionFormat["block"]; title: string }> = [
   { id: "classic", title: "Классика" },
   { id: "music", title: "Музыка" },
   { id: "pictures", title: "Картинки" },
+  { id: "super", title: "В конце раунда" },
 ];
 
 /** Вопросы с вариантами ответа (варианты на телефоне). */
@@ -242,13 +252,14 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
   return {
     id: newQuestionId(),
     kind,
-    text: kind === "buzz" ? "Угадайте мелодию" : "",
+    text: kind === "buzz" ? "Угадайте мелодию" : kind === "super" ? "Суперигра" : "",
     options: hasOptions(kind) ? ["", ""] : [],
     correct: hasOptions(kind) ? 0 : -1,
     alsoCorrect: [],
     answers: hasAnswers(kind) ? [""] : [],
     steps: 1,
     pictures: kind === "pictures" ? [newPicture(), newPicture()] : [],
+    ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const } : {}),
     ...DEFAULTS[kind],
     imageId: null,
     trackId: null,
@@ -285,6 +296,12 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
     next.pictures = [first, ...have.slice(1), newPicture()].slice(0, Math.max(LIMITS.minPictures, have.length));
   }
   if (kind === "buzz" && !next.text.trim()) next.text = "Угадайте мелодию";
+  if (kind === "super") {
+    if (!next.levels) next.levels = newLevels();
+    next.superStyle = next.superStyle ?? "chests";
+    next.penalty = next.penalty ?? "halfTop";
+    if (!next.text.trim()) next.text = "Суперигра";
+  }
   // Время и очки по умолчанию меняются, только если ведущий их не трогал.
   const before = DEFAULTS[question.kind];
   if (question.timeLimit === before.timeLimit) next.timeLimit = DEFAULTS[kind].timeLimit;
@@ -302,6 +319,7 @@ export function duplicateQuestion(question: QuizQuestion): QuizQuestion {
     alsoCorrect: [...(question.alsoCorrect ?? [])],
     answers: [...question.answers],
     pictures: (question.pictures ?? []).map((p) => ({ imageId: p.imageId, answers: [...p.answers] })),
+    ...(question.levels ? { levels: question.levels.map((l) => ({ ...l, answers: [...l.answers] })) } : {}),
     round: null,
   };
 }
@@ -341,7 +359,7 @@ export function parseRound(value: unknown): string | null {
 }
 
 function parseKind(value: unknown): QuestionKind {
-  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" ? value : "choice";
+  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" || value === "super" ? value : "choice";
 }
 
 function parsePictures(value: unknown): QuizPicture[] {
@@ -381,6 +399,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     ...(clipFields(parseClip(data)) as Partial<QuizQuestion>),
     steps: int(data.steps, 1, 1, LIMITS.maxSteps),
     pictures: kind === "pictures" ? parsePictures(data.pictures) : [],
+    ...(kind === "super" ? { levels: parseLevels(data.levels), superStyle: parseStyle(data.superStyle), penalty: parsePenalty(data.penalty) } : {}),
     round: parseRound(data.round),
   };
 }
@@ -405,7 +424,7 @@ export function parseContent(raw: unknown): QuizContent {
 
 /** Картинки вопроса: основная и картинки из «Несколько картинок». */
 export function questionImages(q: QuizQuestion): string[] {
-  return [q.imageId, ...(q.pictures ?? []).map((p) => p.imageId)].filter((id): id is string => Boolean(id));
+  return [q.imageId, ...(q.pictures ?? []).map((p) => p.imageId), ...(q.levels ?? []).map((l) => l.imageId)].filter((id): id is string => Boolean(id));
 }
 
 export function mediaIds(content: QuizContent): string[] {

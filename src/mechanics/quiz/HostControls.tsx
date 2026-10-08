@@ -22,11 +22,14 @@ import {
   showBoard,
   showQuestion,
   showTotal,
+  superSync,
   toggleAccepted,
   type QuizAction,
 } from "./flow";
 import { groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
+import { SuperHostAnswers } from "../../components/live/SuperGame";
+import { parseSuperAnswer, superGroups } from "../../core/supergame";
 
 /**
  * Пульт квиза: одна главная кнопка на каждом этапе («Показать вопрос» → «Показать ответ» →
@@ -62,6 +65,17 @@ export function QuizHostControls({ session, content, answers, participants, cont
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых нажатиях и смене слова
   }, [syncKey, buzzCurrent?.current, buzzCurrent?.order?.length, busy]);
+
+  // Суперигра: кто какой уровень выбрал — на экран зала (без текста ответов).
+  const superKey = q?.kind === "super" && stage === "question" ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${parseSuperAnswer(a.value)?.level ?? "-"}`).sort().join(",") : "";
+  useEffect(() => {
+    if (!superKey || busy) return;
+    const change = superSync(latest.current, content, answers);
+    if (!change) return;
+    const { phase, step: atStep, stage: atStage } = latest.current.state;
+    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых выборах
+  }, [superKey, busy]);
 
   if (!q) return <p className="muted">В игре нет вопросов.</p>;
 
@@ -229,7 +243,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
       <div className="stack stack--tight">
         {round && <p className="eyebrow">{roundTitle(round)}</p>}
         <p className="eyebrow">
-          Вопрос {step + 1} из {total} · {KIND_TITLES[q.kind]} · {q.points} очк.
+          Вопрос {step + 1} из {total} · {KIND_TITLES[q.kind]}
+          {q.kind === "super" ? "" : ` · ${q.points} очк.`}
         </p>
         <p className="host-quiz__question">{q.text}</p>
         <p className="muted small">
@@ -295,6 +310,17 @@ export function QuizHostControls({ session, content, answers, participants, cont
             ))}
           </ul>
         </section>
+      )}
+
+      {q.kind === "super" && (stage === "question" || stage === "reveal") && (
+        <SuperHostAnswers
+          levels={q.levels ?? []}
+          groups={superGroups(q.levels ?? [], own, result.accepted)}
+          picksCount={(q.levels ?? []).map((_, i) => own.filter((a) => parseSuperAnswer(a.value)?.level === i).length)}
+          editable={stage === "question"}
+          busy={busy}
+          onToggle={(key) => void run(toggleAccepted(session, key))}
+        />
       )}
 
       {q.kind === "buzz" && buzz && buzz.order.length > 0 && (
@@ -364,7 +390,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </section>
       )}
 
-      {stage === "reveal" && q.kind !== "open" && q.kind !== "buzz" && q.kind !== "pictures" && (
+      {stage === "reveal" && q.kind !== "open" && q.kind !== "buzz" && q.kind !== "pictures" && q.kind !== "super" && (
         <ul className="host-quiz__dist">
           {q.options.map((o, i) => (
             <li key={i} className={correctSet(q).includes(i) ? "is-correct" : undefined}>

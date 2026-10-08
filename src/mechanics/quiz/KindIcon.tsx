@@ -21,6 +21,17 @@ export function KindIcon({ kind, music = false, picture = false }: { kind: Quest
       </svg>
     );
   }
+  if (kind === "super") {
+    // Сундук с ступенями-уровнями.
+    return (
+      <svg {...common}>
+        <path d="M5 14h22v12H5z" />
+        <path d="M5 14c0-5 4-8 11-8s11 3 11 8" />
+        <path d="M14 18h4v4h-4z" />
+        <path d="M5 20h9M18 20h9" />
+      </svg>
+    );
+  }
   if (kind === "buzz") {
     return (
       <svg {...common}>

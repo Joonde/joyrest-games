@@ -1,4 +1,5 @@
 import { EMPTY_BUZZ, parseBuzz, type BuzzState } from "../../core/buzz";
+import { parsePenalty, parsePicks, parseVerdicts, superRight, superVerdicts, parseSuperAnswer, type SuperVerdict } from "../../core/supergame";
 import type { Answer } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
 import { correctSet, type QuizContent, type QuizQuestion } from "./content";
@@ -30,6 +31,10 @@ export interface QuizResult {
   buzz?: BuzzState;
   /** Несколько картинок: сколько угадали каждую. */
   right?: number[];
+  /** Суперигра, пока идёт выбор: кто какой уровень выбрал (пишет пульт, без текста ответов). */
+  picks?: Record<string, number>;
+  /** Суперигра после «Показать ответы»: уровень, ответ, верно ли и прибавка каждого. */
+  verdicts?: Record<string, SuperVerdict>;
 }
 
 export function emptyResult(): QuizResult {
@@ -53,6 +58,8 @@ export function parseResult(raw: unknown): QuizResult {
   };
   if (r.buzz !== undefined) result.buzz = parseBuzz(r.buzz);
   if (Array.isArray(r.right)) result.right = nums(r.right);
+  if (r.picks !== undefined) result.picks = parsePicks(r.picks);
+  if (r.verdicts !== undefined) result.verdicts = parseVerdicts(r.verdicts);
   return result;
 }
 
@@ -78,6 +85,10 @@ export function isCorrect(question: QuizQuestion, value: unknown, accepted: stri
     return right.length > 0 && right.every(Boolean);
   }
   if (question.kind === "buzz") return false;
+  if (question.kind === "super") {
+    const answer = parseSuperAnswer(value);
+    return answer !== null && superRight(question.levels ?? [], answer, accepted);
+  }
   return typeof value === "number" && correctSet(question).includes(value);
 }
 
@@ -100,6 +111,13 @@ export function score(step: QuizStep, answers: Answer[], { state }: ScoreContext
   if (q.kind === "buzz") {
     const winner = (result.buzz ?? EMPTY_BUZZ).winner;
     return winner ? [{ pid: winner, delta: q.points }] : [];
+  }
+  // Суперигра: верно — очки выбранного уровня, ошибка — минус по правилу.
+  if (q.kind === "super") {
+    const verdicts = superVerdicts(q.levels ?? [], parsePenalty(q.penalty), answers, accepted);
+    return Object.entries(verdicts)
+      .filter(([, v]) => v.delta !== 0)
+      .map(([pid, v]) => ({ pid, delta: v.delta }));
   }
   // Картинки: доля очков за каждую угаданную.
   if (q.kind === "pictures") {
@@ -128,6 +146,11 @@ export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[],
   if (q.kind === "buzz") {
     const b = buzz ?? EMPTY_BUZZ;
     return { counts: [], correct: b.winner ? 1 : 0, total: b.order.length, accepted, buzz: b };
+  }
+  if (q.kind === "super") {
+    const verdicts = superVerdicts(q.levels ?? [], parsePenalty(q.penalty), answers, accepted);
+    const list = Object.values(verdicts);
+    return { counts: [], correct: list.filter((v) => v.right).length, total: list.length, accepted, verdicts };
   }
   if (q.kind === "pictures") {
     const per = answers.map((a) => picturesRight(q, a.value, accepted));

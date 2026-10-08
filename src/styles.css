@@ -10047,3 +10047,373 @@ button.dance-card:active {
   color: var(--color-text-muted);
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------- Суперигра (src/components/live/SuperGame.tsx) */
+/* Металлы уровней — декоративные заливки, текст на них всегда тёмный. */
+.super-level--bronze { --lvl: #d9a273; --lvl-deep: #9c6238; }
+.super-level--silver { --lvl: #d7dbe2; --lvl-deep: #8f97a3; }
+.super-level--gold { --lvl: #ecd08e; --lvl-deep: #b88a3d; }
+.super-level--diamond { --lvl: #b9e2f2; --lvl-deep: #6fa9c4; }
+
+.format-tile--super svg {
+  color: #e3c68c;
+}
+
+.quiz-phone__minus {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.super-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 5cqh 5cqw;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: "top" "head" "levels";
+  gap: 3cqh;
+  font-size: 4cqh;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.super-screen--intro {
+  grid-template-rows: none;
+  grid-template-areas: none;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  gap: 4cqh;
+}
+
+.super-screen__title {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 13cqh;
+  line-height: 1;
+  background: var(--gradient-code);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: super-shine 3.5s ease-in-out infinite;
+  text-wrap: balance;
+}
+
+.super-screen__head {
+  grid-area: head;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 6.5cqh;
+  text-align: center;
+}
+
+.super-rays {
+  position: absolute;
+  inset: -50%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, #f3dfae 22%, transparent) 0deg 8deg, transparent 8deg 20deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 55%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 55%);
+  animation: super-spin 30s linear infinite;
+  pointer-events: none;
+}
+
+.super-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.super-sparkles span {
+  position: absolute;
+  width: 1.4cqh;
+  height: 1.4cqh;
+  background: #fff6dc;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  opacity: 0;
+  animation: super-twinkle 2.4s ease-in-out infinite;
+}
+
+.super-levels {
+  grid-area: levels;
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2cqw;
+  min-height: 0;
+}
+
+.super-levels--intro {
+  grid-area: auto;
+  width: 100%;
+  max-width: 80cqw;
+}
+
+.super-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqh;
+  min-width: 0;
+  padding: 2.5cqh 1.5cqw;
+  border-radius: 2cqh;
+  border: 0.4cqh solid var(--lvl-deep);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--lvl) 30%, var(--color-surface)), var(--color-surface));
+  text-align: center;
+  overflow: hidden;
+}
+
+.super-levels--intro .super-level {
+  animation: super-rise 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.super-level.is-picked {
+  box-shadow: 0 0 3cqh color-mix(in srgb, var(--lvl) 55%, transparent);
+}
+
+.super-level__icon {
+  display: block;
+  width: 11cqh;
+  height: 11cqh;
+  flex: none;
+  filter: drop-shadow(0 0.6cqh 1cqh rgb(0 0 0 / 0.35));
+}
+
+.super-level.is-picked .super-level__icon {
+  animation: super-bounce 1.6s ease-in-out infinite;
+}
+
+.super-level__name {
+  padding: 0.2em 0.8em;
+  border-radius: 999px;
+  background: var(--lvl);
+  color: #221e1b;
+  font-weight: 600;
+  font-size: 3.4cqh;
+}
+
+.super-level__points {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 5.5cqh;
+}
+
+.super-level__fine {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 2.6cqh;
+  color: var(--color-text-muted);
+}
+
+.super-level__question {
+  display: grid;
+  gap: 0.8cqh;
+  font-size: 2.8cqh;
+  animation: super-rise 0.6s ease-out both;
+}
+
+.super-level__img {
+  width: 100%;
+  max-height: 16cqh;
+  object-fit: contain;
+  border-radius: 1cqh;
+}
+
+.super-level__answer {
+  color: var(--color-highlight);
+  font-size: 3.4cqh;
+}
+
+.super-level__who {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8cqh;
+  margin-top: auto;
+  min-width: 0;
+}
+
+.super-level__empty {
+  color: var(--color-text-muted);
+}
+
+.super-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4em;
+  max-width: 100%;
+  padding: 0.3em 0.7em;
+  border-radius: 999px;
+  background: var(--color-surface-alt);
+  border: 0.25cqh solid var(--color-border);
+  font-size: 2.6cqh;
+  font-weight: 600;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.super-chip.is-new {
+  animation: super-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.super-chip.is-right {
+  background: #a3c2aa;
+  border-color: #a3c2aa;
+  color: #221e1b;
+  animation: super-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.super-chip.is-wrong {
+  background: #e3aa9c;
+  border-color: #e3aa9c;
+  color: #221e1b;
+  animation: super-shake 0.5s ease-in-out 0.9s both;
+}
+
+.super-chip__delta {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Телефон */
+.super-phone__icon {
+  margin: 0;
+  line-height: 0;
+}
+
+.super-pick {
+  display: grid;
+  gap: 12px;
+}
+
+.super-pick__btn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon name" "icon points";
+  align-items: center;
+  column-gap: 16px;
+  min-height: 72px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--lvl-deep);
+  background: linear-gradient(120deg, var(--lvl), color-mix(in srgb, var(--lvl) 55%, #fbf6f1));
+  color: #221e1b;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.super-pick__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.super-pick__btn:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: 2px;
+}
+
+.super-pick__icon {
+  display: block;
+  grid-area: icon;
+  width: 44px;
+  height: 44px;
+}
+
+.super-phone__icon svg {
+  width: 72px;
+  height: 72px;
+}
+
+.super-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.super-pick__name {
+  grid-area: name;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.super-pick__points {
+  grid-area: points;
+  font-size: 15px;
+}
+
+/* Конструктор */
+.super-editor__level {
+  border-left: 4px solid var(--lvl-deep);
+  padding-left: 16px;
+}
+
+@keyframes super-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes super-shine {
+  0%, 100% { background-position: 100% 0; }
+  50% { background-position: 0 0; }
+}
+
+@keyframes super-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.1) rotate(45deg); }
+}
+
+@keyframes super-rise {
+  from { opacity: 0; transform: translateY(4cqh) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes super-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.8cqh); }
+}
+
+@keyframes super-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes super-shake {
+  0%, 100% { transform: none; }
+  20%, 60% { transform: translateX(-0.6cqh); }
+  40%, 80% { transform: translateX(0.6cqh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .super-rays,
+  .super-sparkles,
+  .super-screen__title,
+  .super-level,
+  .super-level__icon,
+  .super-level__question,
+  .super-chip {
+    animation: none !important;
+  }
+  .super-sparkles {
+    display: none;
+  }
+}
+
+.super-editor__legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.super-editor__icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+}

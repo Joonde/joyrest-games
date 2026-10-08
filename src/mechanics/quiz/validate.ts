@@ -1,13 +1,14 @@
 import type { ValidationError } from "../types";
 import { LIMITS, type QuizContent, type QuizQuestion } from "./content";
 import { normalizeAnswer } from "./normalize";
+import { levelProblems } from "../../core/supergame";
 
 /** Путь ошибки вопроса: конструктор показывает её у нужного поля. */
 export function questionPath(questionId: string, field: QuestionField): string {
   return `questions/${questionId}/${field}`;
 }
 
-export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points" | "pictures";
+export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points" | "pictures" | "levels";
 
 function duplicates(values: string[]): boolean {
   const seen = new Set<string>();
@@ -22,9 +23,11 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
   const errors: ValidationError[] = [];
   const add = (field: QuestionField, message: string) => errors.push({ path: questionPath(q.id, field), message });
 
-  if (!q.text.trim() && q.kind !== "pictures") add("text", "Напишите текст вопроса.");
+  if (!q.text.trim() && q.kind !== "pictures" && q.kind !== "super") add("text", "Напишите текст вопроса.");
 
-  if (q.kind === "open" || q.kind === "buzz") {
+  if (q.kind === "super") {
+    for (const problem of levelProblems(q.levels ?? [])) add("levels", problem);
+  } else if (q.kind === "open" || q.kind === "buzz") {
     const filled = q.answers.filter((a) => normalizeAnswer(a).length > 0);
     if (filled.length === 0) add("answers", q.kind === "buzz" ? "Напишите правильный ответ — его увидит ведущий." : "Добавьте хотя бы один верный ответ.");
   } else if (q.kind === "pictures") {
@@ -43,7 +46,7 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
   if (q.kind !== "buzz" && (!Number.isInteger(q.timeLimit) || q.timeLimit < LIMITS.minTime || q.timeLimit > LIMITS.maxTime)) {
     add("timeLimit", `Время — от ${LIMITS.minTime} до ${LIMITS.maxTime} секунд.`);
   }
-  if (!Number.isInteger(q.points) || q.points < LIMITS.minPoints || q.points > LIMITS.maxPoints) {
+  if (q.kind !== "super" && (!Number.isInteger(q.points) || q.points < LIMITS.minPoints || q.points > LIMITS.maxPoints)) {
     add("points", `Очки — от ${LIMITS.minPoints} до ${LIMITS.maxPoints}.`);
   }
   return errors;

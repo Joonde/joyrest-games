@@ -160,7 +160,7 @@ describe("Бой с драконом: «Назад» после поражени
     s = apply(s, showTask(s, c, teams));
     const first = revealTask(s, c, [], teams);
     const again = revealTask(s, c, [], teams);
-    expect(first?.state.result).toEqual(again?.state.result);
+    expect(first?.state?.result).toEqual(again?.state?.result);
     s = apply(s, first);
     const scored = s.leaderboard.A?.score ?? 0;
     expect(scored).toBeGreaterThan(0);

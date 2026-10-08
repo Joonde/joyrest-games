@@ -10621,30 +10621,43 @@ button.dance-card:active {
 
 .mf-card__mono {
   position: relative;
-  font-family: var(--font-display);
-  font-size: 64px;
-  font-weight: 700;
-  color: #e3c68c;
-  text-shadow: 0 0 24px rgb(227 198 140 / 0.5);
+  width: 78%;
+  filter: drop-shadow(0 0 14px rgb(227 198 140 / 0.45));
   animation: mf-breathe 4s ease-in-out infinite;
 }
 
-.mf-card__back-title {
-  position: relative;
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+.mf-card__mono .logo,
+.mf-card__mono svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Надписи в разрывах рамки: «Мафия» — сверху, город — снизу. */
+.mf-card__back-title,
+.mf-card__back-city {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 10px;
+  white-space: nowrap;
+  background: #160d11;
+  color: #e3c68c;
   text-transform: uppercase;
-  color: #fbf6f1;
+}
+
+.mf-card__back-title {
+  top: 12px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
 }
 
 .mf-card__back-city {
-  position: relative;
-  font-size: 14px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #e3c68c;
+  top: calc(100% - 12px);
+  font-size: 12px;
+  letter-spacing: 0.3em;
 }
 
 .mf-card__front {

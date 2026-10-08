@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { Logo } from "../../components/Logo";
 import { ROLES, type RoleId } from "./content";
 
 // Персонажи «Мафии» — свои рисунки (SVG) в стиле нуар: портрет по пояс, свет со спины, тени на лице и
@@ -357,8 +358,10 @@ function CardBack({ city }: { city: string }) {
   return (
     <div className="mf-card__face mf-card__back" aria-hidden="true">
       <div className="mf-card__pattern" />
-      <span className="mf-card__mono">J✦R</span>
       <span className="mf-card__back-title">Мафия</span>
+      <span className="mf-card__mono">
+        <Logo kind="full" tone="gold" title="" />
+      </span>
       <span className="mf-card__back-city">{city}</span>
     </div>
   );

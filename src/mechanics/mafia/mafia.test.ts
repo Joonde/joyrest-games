@@ -3,7 +3,13 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session } from "../../data/types";
 import { autoCounts, countsFor, createMafia, parseMafia, type RoleId } from "./content";
 import {
+  abortGame,
   canHeal,
+  healHistory,
+  isTie,
+  nightChoices,
+  paddedAll,
+  whispers,
   dealRoles,
   dealt,
   finishGame,
@@ -134,7 +140,43 @@ describe("мафия: ночь", () => {
   });
 });
 
+describe("мафия: ночные подсказки", () => {
+  it("мафия видит выбор семьи, Дон и Комиссар — свои проверки, Доктор — прошлое лечение", () => {
+    const { choices, donCheck } = nightChoices([ans(3, "a", { target: "e", check: "c" }), ans(3, "b", { target: "f" }), ans(3, "c", { target: "b" }), ans(3, "d", { target: "e" }), ans(3, "z", { target: "e" })], ids);
+    expect(choices.z).toBeUndefined();
+    const w = whispers(roles, ids, choices, donCheck, ["d"]);
+    expect(w.a?.family).toEqual({ a: "e", b: "f" });
+    expect(w.b?.family).toEqual({ a: "e", b: "f" });
+    expect(w.a?.check).toEqual({ target: "c", yes: true });
+    expect(w.c?.check).toEqual({ target: "b", yes: true });
+    expect(w.d).toEqual({ lastHeal: "d", selfHealed: true });
+    expect(w.e).toEqual({});
+    expect(w.c?.family).toBeUndefined();
+  });
+
+  it("ручной ввод за игроков без телефона, телефон важнее", () => {
+    const { choices, donCheck } = nightChoices([ans(3, "b", { target: "f" })], ids, { a: "e", "a#check": "c", b: "g" });
+    expect(choices).toMatchObject({ a: "e", b: "f" });
+    expect(donCheck.a).toBe("c");
+  });
+
+  it("история Доктора и одинаковая длина подсказок", () => {
+    expect(healHistory("d", [{ d: "e" }, { d: null }, { d: "d" }])).toEqual(["e", null, "d"]);
+    expect(healHistory(null, [{ d: "e" }])).toEqual([]);
+    const big = paddedAll({ x: { family: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`player-with-long-id-${i}`, `target-with-long-id-${i}`])) }, y: {} });
+    expect(JSON.stringify(big.x).length).toBe(JSON.stringify(big.y).length);
+    expect(JSON.stringify(big.x).length).toBeGreaterThan(PAD_TO);
+  });
+});
+
 describe("мафия: голосование", () => {
+  it("ничья — только если равных лидеров с голосами двое и больше", () => {
+    expect(isTie({ e: 2, f: 2, none: 0 }, ["e", "f"])).toBe(true);
+    expect(isTie({ e: 0, f: 0, none: 3 }, ["e", "f"])).toBe(false);
+    expect(isTie({ e: 2, f: 1, none: 3 }, ["e", "f"])).toBe(false);
+    expect(isTie(null, ["e", "f"])).toBe(false);
+  });
+
   it("больше голосов — уходит, ничья — никто, «никого» побеждает — никто; за себя не считается", () => {
     const a = (pid: string, vote: string) => ({ pid, value: { vote } });
     expect(tallyVotes([a("a", "e"), a("b", "e"), a("c", "f")], ["e", "f"], ids).out).toBe("e");
@@ -192,5 +234,25 @@ describe("мафия: ход партии на пульте", () => {
     expect(s.leaderboard.d?.score).toBe(150);
     expect(s.leaderboard.e?.score).toBe(100);
     expect(s.leaderboard.a?.score).toBe(0);
+  });
+
+  it("день без кандидатов — сразу ночь; «никого» не даёт переголосовать; досрочный конец можно отменить", () => {
+    const content = parseMafia({});
+    let s = session();
+    s = applyChange(s, startDeal(s, players), 1);
+    s = applyChange(s, dealt(s, {}, null), 2);
+    s = applyChange(s, startDay(s), 3);
+    expect(mafiaPrimary(s)).toBe("night");
+    s = applyChange(s, toggleNominee(s, "e"), 4);
+    s = applyChange(s, toggleNominee(s, "f"), 5);
+    s = applyChange(s, startVote(s, content, ["e", "f"]), 6);
+    s = applyChange(s, verdict(s, content, [ans(1, "a", { vote: "none" }), ans(1, "b", { vote: "none" })], roles), 7);
+    expect(mafiaPrimary(s)).toBe("night");
+    const over = applyChange(s, abortGame(s, roles), 8);
+    expect(parseMafiaResult(over.state.result)).toMatchObject({ mode: "over", winner: null });
+    expect(mafiaPrimary(over)).toBe("podium");
+    const back = mafiaBack(over);
+    expect(back).not.toBeNull();
+    expect(parseMafiaResult(applyChange(over, back!.change, 9).state.result).mode).toBe("verdict");
   });
 });

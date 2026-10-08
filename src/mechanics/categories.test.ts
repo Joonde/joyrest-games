@@ -16,7 +16,7 @@ describe("категории библиотеки", () => {
 
   it("шаблоны раскладываются по разделам, порядок разделов постоянный", () => {
     const groups = groupByCategory(demoGames);
-    expect(groups.map((g) => g.category.id)).toEqual(["quiz", "music", "tv", "adventure", "active"]);
+    expect(groups.map((g) => g.category.id)).toEqual(["quiz", "music", "tv", "adventure", "cards", "active"]);
     expect(groups.reduce((n, g) => n + g.games.length, 0)).toBe(demoGames.length);
     expect(groups.find((g) => g.category.id === "music")?.games.map((g) => g.mechanic).sort()).toEqual(["lotto", "quiz"]);
   });

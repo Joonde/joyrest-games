@@ -13,6 +13,8 @@ import { DEMO_SURVIVAL } from "./survival/demo";
 import { DEMO_MILLIONAIRE } from "./millionaire/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
 import { lotto } from "./lotto";
+import { mafia } from "./mafia";
+import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
 import { DEMO_MELODY, DEMO_QUIZ } from "./quiz/demo";
@@ -28,7 +30,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(mafia)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -43,6 +45,7 @@ const HINTS: Record<string, string> = {
   dragon: "Капитаны выбирают героя и свойства, команды бьют дракона: вопросы, задания, кубик; жизни, гибель, несколько боёв.",
   survival: "До 30 раундов из вопросов и заданий, каждый 5-й — войнушка со ставками, аукцион билета освобождения.",
   millionaire: "12 вопросов с вариантами, у каждой команды своя лестница на экране, несгораемые ступени и 6 подсказок.",
+  mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
 };
 
@@ -125,6 +128,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "36 вопросов на 12 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
   { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания, 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
   { mechanic: dragon.id, title: "Бой с драконом", hint: "2 боя по 8 заданий: вопросы, силовые задания, песни и кубик; 10 героев.", content: DEMO_DRAGON, playMode: "teams", themeId: "adventure" },
+  { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 

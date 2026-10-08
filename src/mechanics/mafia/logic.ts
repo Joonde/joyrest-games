@@ -224,9 +224,18 @@ export interface Whisper {
 /** Длина, до которой добиваются все карты и подсказки: по размеру шифра роль не угадать. */
 export const PAD_TO = 900;
 
-export function padded<T extends object>(data: T): T & { _: string } {
-  const plain = JSON.stringify(data);
-  return { ...data, _: ".".repeat(Math.max(0, PAD_TO - plain.length - 7)) };
+/** Добить данные точками до длины `to` (в JSON): все карты и подсказки одной длины. */
+export function padded<T extends object>(data: T, to: number = PAD_TO): T & { _: string } {
+  const plain = JSON.stringify({ ...data, _: "" });
+  return { ...data, _: ".".repeat(Math.max(0, to - plain.length)) };
+}
+
+/** Добить все записи до общей длины: не меньше PAD_TO и не меньше самой длинной (большая семья мафии). */
+export function paddedAll<T extends object>(items: Record<string, T>): Record<string, T & { _: string }> {
+  const longest = Math.max(PAD_TO, ...Object.values(items).map((d) => JSON.stringify({ ...d, _: "" }).length));
+  const out: Record<string, T & { _: string }> = {};
+  for (const [k, d] of Object.entries(items)) out[k] = padded(d, longest);
+  return out;
 }
 
 export function roleCard(pid: string, roles: Record<string, RoleId>, seats: string[], names: Record<string, string>): RoleCard {
@@ -350,6 +359,91 @@ export function tallyVotes(answers: Array<{ pid: string; value: unknown }>, nomi
   const tied = nominees.filter((n) => (counts[n] ?? 0) === max && max > 0);
   const out = tied.length === 1 && max > (counts.none ?? 0) ? (tied[0] ?? null) : null;
   return { counts, out, tied: out ? [] : tied };
+}
+
+/** Ничья между кандидатами (больше нуля голосов у двух и больше) — можно переголосовать. */
+export function isTie(tally: Record<string, number> | null, nominees: string[]): boolean {
+  if (!tally) return false;
+  const max = Math.max(0, ...nominees.map((n) => tally[n] ?? 0));
+  return max > 0 && nominees.filter((n) => (tally[n] ?? 0) === max).length > 1;
+}
+
+// ---------------------------------------------------------------- ночные выборы на пульте
+
+/** Ночные выборы живых: цель из ответа телефона или из ручного ввода ведущего (игроки без телефона). */
+export function nightChoices(answers: Array<{ pid: string; value: unknown }>, alive: string[], manual: Record<string, string> = {}): { choices: Record<string, string | null>; donCheck: Record<string, string | null> } {
+  const choices: Record<string, string | null> = {};
+  const donCheck: Record<string, string | null> = {};
+  for (const a of answers) {
+    if (!alive.includes(a.pid)) continue;
+    choices[a.pid] = targetOf(a.value);
+    donCheck[a.pid] = checkOf(a.value);
+  }
+  for (const [key, t] of Object.entries(manual)) {
+    const pid = key.endsWith("#check") ? key.slice(0, -6) : key;
+    if (!alive.includes(pid) || (choices[pid] !== undefined && !key.endsWith("#check"))) continue;
+    if (key.endsWith("#check")) donCheck[pid] ??= t;
+    else choices[pid] = t;
+  }
+  return { choices, donCheck };
+}
+
+/** Кого лечил Доктор в прошлые ночи (по порядку): нужен для правила «не две ночи подряд». */
+export function healHistory(doctor: string | null, pastNights: Array<Record<string, string | null>>): Array<string | null> {
+  return doctor ? pastNights.map((c) => c[doctor] ?? null) : [];
+}
+
+/** Подсказка каждому живому с телефоном: мафии — голоса семьи, Дону и Комиссару — проверка, Доктору — прошлое лечение. */
+export function whispers(roles: Record<string, RoleId>, alive: string[], choices: Record<string, string | null>, donChecks: Record<string, string | null>, history: Array<string | null>): Record<string, Whisper> {
+  const out: Record<string, Whisper> = {};
+  const familyChoice: Record<string, string | null> = {};
+  for (const p of alive) if (isMafia(roles[p])) familyChoice[p] = choices[p] ?? null;
+  for (const pid of alive) {
+    const role = roles[pid];
+    const w: Whisper = {};
+    if (isMafia(role)) w.family = familyChoice;
+    if (role === "don") {
+      const t = donChecks[pid];
+      w.check = t && alive.includes(t) && t !== pid ? { target: t, yes: roles[t] === "commissar" } : null;
+    }
+    if (role === "commissar") {
+      const t = choices[pid];
+      w.check = t && alive.includes(t) && t !== pid ? { target: t, yes: isMafia(roles[t]) } : null;
+    }
+    if (role === "doctor") {
+      w.lastHeal = history[history.length - 1] ?? null;
+      w.selfHealed = history.includes(pid);
+    }
+    out[pid] = w;
+  }
+  return out;
+}
+
+export function parseWhisper(raw: unknown): Whisper {
+  const d = record(raw);
+  const w: Whisper = {};
+  if (d.family !== undefined) {
+    const fam: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(record(d.family))) fam[k] = typeof v === "string" ? v : null;
+    w.family = fam;
+  }
+  const c = record(d.check);
+  if (typeof c.target === "string") w.check = { target: c.target, yes: c.yes === true };
+  if (typeof d.lastHeal === "string") w.lastHeal = d.lastHeal;
+  if (d.selfHealed === true) w.selfHealed = true;
+  return w;
+}
+
+export function parseRoleCard(raw: unknown): RoleCard | null {
+  const d = record(raw);
+  if (!isRole(d.role)) return null;
+  const family = Array.isArray(d.family)
+    ? d.family.flatMap((x) => {
+        const f = record(x);
+        return typeof f.pid === "string" && isRole(f.role) ? [{ pid: f.pid, name: typeof f.name === "string" ? f.name : "Игрок", role: f.role }] : [];
+      })
+    : [];
+  return { role: d.role, seat: typeof d.seat === "number" ? d.seat : 0, family };
 }
 
 // ---------------------------------------------------------------- переходы пульта
@@ -515,10 +609,18 @@ export function finishGame(session: Session, content: MafiaContent, roles: Recor
   return { leaderboard, state: { stage: "reveal", revealed: true, result: { ...r, changeable: false, mode: "over", winner, reveal, whisper: {}, speaker: null, speakEndsAt: null, undo: snapshot(session, r) } } };
 }
 
+/** «Закончить досрочно»: роли открываются, очков за победу никто не получает. */
+export function abortGame(session: Session, roles: Record<string, RoleId>): SessionChange {
+  const r = parseMafiaResult(session.state.result);
+  const reveal: Record<string, RoleId> = {};
+  for (const pid of r.seats) if (roles[pid]) reveal[pid] = roles[pid] as RoleId;
+  return { state: { stage: "reveal", revealed: true, result: { ...r, changeable: false, mode: "over", winner: null, reveal, whisper: {}, speaker: null, speakEndsAt: null, speakKind: null, undo: snapshot(session, r) } } };
+}
+
 /** «Назад» на шаг: прежний этап; ответы отменённого шага убрать. */
 export function mafiaBack(session: Session): { change: SessionChange; clearAnswers?: number } | null {
   const r = parseMafiaResult(session.state.result);
-  if (!r.undo || r.mode === "over") return null;
+  if (!r.undo || (r.mode === "over" && r.winner)) return null;
   const u = r.undo;
   const stage = u.stage === "question" || u.stage === "reveal" || u.stage === "ready" || u.stage === "board" ? u.stage : "reveal";
   const leftStep = session.state.step !== u.step ? session.state.step : undefined;
@@ -537,11 +639,11 @@ export function mafiaPrimary(session: Session): MafiaAction {
   if (session.state.result === null || session.state.result === undefined) return "deal";
   if (r.mode === "deal") return "dealt";
   if (r.mode === "roles") return "day";
-  if (r.mode === "day") return "vote";
+  if (r.mode === "day") return r.nominees.length > 0 ? "vote" : "night";
   if (r.mode === "vote") return "verdict";
   if (r.mode === "verdict") {
     if (r.winner) return "finish";
-    if (!r.out && r.tally && r.nominees.length > 1 && !r.revote) return "revote";
+    if (!r.out && !r.revote && isTie(r.tally, r.nominees)) return "revote";
     return "night";
   }
   if (r.mode === "night") return "morning";

@@ -10802,3 +10802,268 @@ button.dance-card:active {
 @keyframes mf-look { 0%, 40%, 100% { transform: translateX(0); } 50%, 70% { transform: translateX(2.5px); } 80% { transform: translateX(-2px); } }
 @keyframes mf-cross { 0% { transform: translateY(10px) scale(0.6); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translateY(-30px) scale(1); opacity: 0; } }
 @keyframes mf-zzz { 0% { transform: translate(0, 6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(8px, -14px); opacity: 0; } }
+
+/* «Мафия»: экран зала — свой нуарный город (ночь — синяя, день — тёплые сумерки), цвета фиксированные. */
+.mf-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 3cqh 3cqw;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 2cqh;
+  font-size: 3cqh;
+  color: #fbf6f1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 110%, #6b3a22 0%, #2a1a14 45%, #140d0b 100%);
+  transition: background 1.2s ease;
+}
+
+.mf-screen.is-night { background: radial-gradient(ellipse at 70% 0%, #26345e 0%, #0e1530 45%, #05070f 100%); }
+
+.mf-screen__main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqh;
+  min-height: 0;
+  text-align: center;
+}
+
+.mf-screen__seats { position: relative; z-index: 1; }
+
+.mf-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 9cqh;
+  line-height: 1.05;
+  text-wrap: balance;
+  text-shadow: 0 0 3cqh rgb(227 198 140 / 0.45);
+}
+
+.mf-title--small { font-size: 6cqh; }
+.mf-note { margin: 0; color: #d9cfc6; font-size: 3.2cqh; max-width: 70cqw; }
+.mf-num { color: #e3c68c; font-variant-numeric: tabular-nums; }
+
+.mf-seats {
+  display: grid;
+  gap: 1.2cqh 1cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mf-seat {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "num name" "num role";
+  align-items: center;
+  column-gap: 0.8cqw;
+  padding: 1cqh 1cqw;
+  border-radius: 1.6cqh;
+  background: rgb(251 246 241 / 0.08);
+  border: 0.25cqh solid rgb(227 198 140 / 0.25);
+  font-size: 2.6cqh;
+  transition: transform 0.4s ease, border-color 0.4s ease, background 0.4s ease, opacity 0.4s ease;
+}
+
+.mf-seat__num {
+  grid-area: num;
+  display: grid;
+  place-items: center;
+  width: 4.4cqh;
+  height: 4.4cqh;
+  border-radius: 50%;
+  background: #e3c68c;
+  color: #221e1b;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mf-seat__name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mf-seat__role { grid-area: role; font-size: 2cqh; color: #c8bfb6; }
+.mf-seat__role.is-mafia { color: #ff8a92; }
+.mf-seat.is-dead { opacity: 0.45; border-style: dashed; }
+.mf-seat.is-dead .mf-seat__name { text-decoration: line-through; }
+.mf-seat.is-dead .mf-seat__num { background: #6b625b; color: #fbf6f1; }
+.mf-seat.is-nominee { border-color: #ff5a66; background: rgb(255 90 102 / 0.16); }
+.mf-seat.is-speaking { border-color: #e3c68c; background: rgb(227 198 140 / 0.22); transform: translateY(-0.6cqh); box-shadow: 0 0 3cqh rgb(227 198 140 / 0.45); }
+
+.mf-seats--phone { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 15px; }
+.mf-seats--phone .mf-seat { font-size: 15px; padding: 8px; border-radius: 12px; background: var(--color-surface-alt); border-color: var(--color-border); color: var(--color-text); }
+.mf-seats--phone .mf-seat__num { width: 28px; height: 28px; }
+.mf-seats--phone .mf-seat__role { font-size: 12px; color: var(--color-text-muted); }
+
+.mf-speaker {
+  display: grid;
+  justify-items: center;
+  gap: 0.6cqh;
+  padding: 2cqh 4cqw;
+  border-radius: 3cqh;
+  background: rgb(0 0 0 / 0.35);
+  border: 0.3cqh solid rgb(227 198 140 / 0.5);
+}
+
+.mf-speaker__label { font-size: 2.6cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #e3c68c; }
+.mf-speaker__name { font-size: 6cqh; font-family: var(--font-display); font-weight: 700; }
+.mf-speaker__time { font-size: 8cqh; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mf-speaker.is-ending .mf-speaker__time { color: #ff8a92; animation: mf-pulse 1s ease-in-out infinite; }
+
+.mf-news { display: grid; gap: 1cqh; padding: 2cqh 4cqw; border-radius: 3cqh; background: rgb(255 255 255 / 0.08); animation: mf-rise 0.8s ease both; }
+.mf-news.is-dark { background: rgb(74 15 23 / 0.6); border: 0.3cqh solid rgb(255 90 102 / 0.5); }
+.mf-news__line { margin: 0; font-size: 4cqh; }
+.mf-news__name { margin: 0; font-family: var(--font-display); font-size: 8cqh; font-weight: 700; }
+.mf-news__role { margin: 0; font-size: 3.4cqh; color: #e3c68c; letter-spacing: 0.15em; text-transform: uppercase; }
+
+.mf-nominees { display: flex; flex-wrap: wrap; justify-content: center; gap: 2cqh 2cqw; margin: 0; padding: 0; list-style: none; }
+.mf-nominees li { padding: 1.4cqh 2.4cqw; border-radius: 2cqh; background: rgb(255 90 102 / 0.18); border: 0.3cqh solid #ff5a66; font-size: 4.4cqh; font-weight: 600; }
+
+.mf-tally { display: grid; gap: 1.4cqh; width: min(100%, 80cqw); margin: 0; padding: 0; list-style: none; }
+.mf-tally__row { display: grid; grid-template-columns: minmax(0, 28%) minmax(0, 1fr) 3em; align-items: center; gap: 1.4cqw; font-size: 3.4cqh; text-align: left; }
+.mf-tally__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-tally__bar { height: 3.6cqh; border-radius: 99px; background: rgb(255 255 255 / 0.1); overflow: hidden; }
+.mf-tally__fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e3c68c, #a3c2aa); transform-origin: left; animation: mf-grow 1.2s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.mf-tally__row.is-out .mf-tally__fill { background: linear-gradient(90deg, #ff8a92, #c4364a); }
+.mf-tally__n { font-variant-numeric: tabular-nums; text-align: right; }
+
+.mf-reveal { display: grid; grid-template-columns: repeat(auto-fit, minmax(16cqw, 1fr)); gap: 1.4cqh 1.2cqw; width: 100%; margin: 0; padding: 0; list-style: none; }
+.mf-reveal__item {
+  display: grid;
+  justify-items: center;
+  gap: 0.4cqh;
+  padding: 1cqh;
+  border-radius: 2cqh;
+  background: radial-gradient(circle at 50% 30%, var(--mf-bg1), var(--mf-bg2));
+  border: 0.25cqh solid rgb(227 198 140 / 0.35);
+  animation: mf-rise 0.7s ease both;
+}
+.mf-reveal__item.is-winner { border-color: #e3c68c; box-shadow: 0 0 2.4cqh rgb(227 198 140 / 0.5); }
+.mf-reveal__item.is-dead { opacity: 0.6; }
+.mf-reveal__art { display: block; width: 15cqh; aspect-ratio: 1; }
+.mf-reveal__art svg { width: 100%; height: 100%; }
+.mf-reveal__name { font-size: 2.6cqh; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-reveal__role { font-size: 2.4cqh; color: #e3c68c; }
+
+/* Ночное небо и спящий город */
+.mf-sky { position: absolute; inset: 0; pointer-events: none; }
+.mf-sky__moon {
+  position: absolute;
+  top: 6%;
+  right: 7%;
+  width: 14cqh;
+  height: 14cqh;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fffaf0, #f3dfae 60%, #c9a15f);
+  box-shadow: 0 0 6cqh rgb(243 223 174 / 0.5);
+  animation: mf-moon 8s ease-in-out infinite;
+}
+.mf-sky__star { position: absolute; width: 0.5cqh; height: 0.5cqh; border-radius: 50%; background: #fffaf0; animation: mf-twinkle 3.6s ease-in-out infinite; }
+.mf-sky__city { position: absolute; left: 0; right: 0; bottom: 0; height: 28%; display: flex; align-items: flex-end; gap: 0.6cqw; opacity: 0.85; }
+.mf-sky__house { position: relative; flex: 1; background: #070a16; border-radius: 0.6cqh 0.6cqh 0 0; }
+.mf-sky__win { position: absolute; top: 18%; left: 35%; width: 30%; height: 12%; background: #ffd27a; opacity: 0; border-radius: 0.3cqh; }
+.mf-sky__win.is-on { animation: mf-window 7s ease-in-out infinite; }
+
+/* Веер карт рубашкой вверх */
+.mf-fan { position: relative; width: 60cqh; max-width: 100%; height: 30cqh; }
+.mf-fan__card { position: absolute; left: 50%; bottom: 0; width: 17cqh; transform-origin: 50% 160%; transform: translateX(calc(-50% + var(--i) * 30%)) rotate(calc(var(--i) * 9deg)); animation: mf-deal 0.8s cubic-bezier(0.3, 1.3, 0.5, 1) both; }
+.mf-card--still { cursor: default; }
+.mf-fan .mf-card__back-title { font-size: 1.6cqh; padding: 0 0.6cqh; top: 0.8cqh; }
+.mf-fan .mf-card__pattern { inset: 0.8cqh; }
+.mf-fan .mf-card__back-city { display: none; }
+.mf-phone__deck .mf-fan { width: 240px; height: 140px; }
+.mf-phone__deck .mf-fan__card { width: 76px; }
+.mf-phone__deck .mf-card__back-title { font-size: 8px; top: 6px; }
+
+/* Пульт */
+.mf-host__news { margin: 0; font-weight: 600; }
+.mf-host__tally, .mf-host__roles { margin: 0; padding-left: 1.2em; }
+.mf-host__roles .is-dead { color: var(--color-text-muted); text-decoration: line-through; }
+.mf-host__seats { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.mf-host__seat { display: grid; gap: 4px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); }
+.mf-host__seat.is-dead { opacity: 0.55; }
+.mf-host__seat.is-dead .mf-host__who { text-decoration: line-through; }
+.mf-host__seat.is-nominee { border-color: var(--color-danger); }
+.mf-host__seat.is-speaking { border-color: var(--color-highlight); box-shadow: 0 0 0 2px var(--color-highlight); }
+.mf-host__who { min-width: 0; font-weight: 600; }
+.mf-host__role { margin-left: 6px; }
+.mf-host__timer { font-variant-numeric: tabular-nums; }
+.mf-host__btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mf-host__btns .btn { min-height: 52px; padding-inline: 8px; }
+.mf-host__btns .btn[aria-pressed="true"] { color: var(--color-danger); }
+.mf-host__manual { display: grid; gap: 4px; }
+.mf-host__night p { margin: 0; }
+
+/* Телефон */
+.mf-phone__card { width: min(100%, 300px); margin: 0 auto; }
+.mf-phone__card--small { width: min(100%, 240px); padding-top: 12px; }
+.mf-phone__mine summary { min-height: 52px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.mf-phone__news { margin: 0; padding: 12px 16px; border-radius: 12px; background: var(--color-surface-alt); font-weight: 600; }
+.mf-phone__news.is-me { box-shadow: 0 0 0 2px var(--color-highlight); }
+.mf-phone__reveal { margin: 0; padding-left: 1.2em; }
+.mf-phone__deck { display: grid; place-items: center; }
+
+.mf-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mf-target {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mf-target:disabled { opacity: 0.45; cursor: default; }
+.mf-target.is-picked { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }
+.mf-target:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.mf-target__num { font-size: 13px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.mf-target__name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mf-target__tag { font-size: 12px; color: var(--color-text-muted); }
+.mf-target__badge {
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: #c4364a;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.35);
+  animation: mf-pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.mf-verdict { margin: 0; padding: 12px 16px; border-radius: 12px; font-size: 20px; font-weight: 700; text-align: center; }
+.mf-verdict.is-mafia { background: #4a0f17; color: #ffd9dc; }
+.mf-verdict.is-clean { background: #0e3a2a; color: #d6f5e6; }
+
+.mf-editor__scroll { overflow-x: auto; }
+.mf-editor__table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.mf-editor__table th, .mf-editor__table td { padding: 6px 10px; border-bottom: 1px solid var(--color-border); text-align: center; }
+
+@keyframes mf-pulse { 50% { opacity: 0.55; } }
+@keyframes mf-rise { from { opacity: 0; transform: translateY(2cqh); } }
+@keyframes mf-grow { from { transform: scaleX(0); } }
+@keyframes mf-pop { from { transform: scale(0.3); opacity: 0; } }
+@keyframes mf-moon { 50% { transform: translateY(-1cqh); box-shadow: 0 0 8cqh rgb(243 223 174 / 0.65); } }
+@keyframes mf-twinkle { 50% { opacity: 0.2; } }
+@keyframes mf-window { 0%, 40% { opacity: 0; } 50%, 85% { opacity: 0.9; } 100% { opacity: 0; } }
+@keyframes mf-deal { from { opacity: 0; transform: translateX(-50%) translateY(10cqh) rotate(0deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-sky *, .mf-fan__card, .mf-tally__fill, .mf-news, .mf-reveal__item, .mf-target__badge, .mf-speaker__time { animation: none !important; }
+  .mf-screen, .mf-seat { transition: none; }
+}

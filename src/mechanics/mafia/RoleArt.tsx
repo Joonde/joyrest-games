@@ -354,7 +354,7 @@ export function RoleArt({ role }: { role: RoleId }) {
 }
 
 /** Рубашка карты: узор и монограмма JoyRest. */
-function CardBack({ city }: { city: string }) {
+export function CardBack({ city }: { city: string }) {
   return (
     <div className="mf-card__face mf-card__back" aria-hidden="true">
       <div className="mf-card__pattern" />

@@ -19,6 +19,7 @@ import { join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
+import { VENUE_POINTS, venueEarnsPoints } from "../../src/core/points";
 import {
   isRequestStatus,
   isVenueStatus,
@@ -103,6 +104,7 @@ interface VenueRow {
   host_id: string | null;
   host_name: string | null;
   files: unknown;
+  archived_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -116,6 +118,7 @@ interface RequestRow {
   host_id: string | null;
   host_name: string | null;
   offers: string | number;
+  archived_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -155,6 +158,7 @@ function venueOut(row: VenueRow) {
     hostId: row.host_id,
     hostName: row.host_name,
     files: filesOf(row.files),
+    archivedAt: row.archived_at ? row.archived_at.getTime() : null,
     createdAt: row.created_at.getTime(),
     updatedAt: row.updated_at.getTime(),
   };
@@ -170,6 +174,7 @@ function requestOut(row: RequestRow) {
     hostId: row.host_id,
     hostName: row.host_name,
     offers: Number(row.offers),
+    archivedAt: row.archived_at ? row.archived_at.getTime() : null,
     createdAt: row.created_at.getTime(),
     updatedAt: row.updated_at.getTime(),
   };
@@ -508,7 +513,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     // ---------------------------------------------------------------- кабинет
 
     const venueSelect = () => sql`
-      select v.id, v.data, v.status, v.rating, v.notes, v.source, v.host_id, u.name as host_name, v.files, v.created_at, v.updated_at
+      select v.id, v.data, v.status, v.rating, v.notes, v.source, v.host_id, u.name as host_name, v.files, v.archived_at, v.created_at, v.updated_at
       from venues v left join users u on u.id = v.host_id`;
 
     api.get("/api/venues", async (request, reply) => {
@@ -544,10 +549,12 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     });
 
     api.patch<{ Params: { id: string } }>("/api/venues/:id", { bodyLimit: FORM_BODY_LIMIT }, async (request, reply) => {
-      if (!(await requireManager(request, reply))) return reply;
+      const user = await requireManager(request, reply);
+      if (!user) return reply;
       const body = isRecord(request.body) ? request.body : {};
       const id = request.params.id;
-      const [current] = await sql<{ id: string }[]>`select id from venues where id = ${id}`;
+      const [current] = await sql<{ id: string; status: string; source: string; host_id: string | null; data: unknown }[]>`
+        select id, status, source, host_id, data from venues where id = ${id}`;
       if (!current) return fail(reply, 404, "not-found");
       if (body.status !== undefined && !isVenueStatus(body.status)) return fail(reply, 400, "invalid-argument");
       const rating = body.rating === undefined ? undefined : body.rating === null ? null : Number(body.rating);
@@ -557,7 +564,19 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
         if (!data.name) return fail(reply, 400, "invalid-argument", { missing: ["название"] });
         await sql`update venues set data = ${sql.json(JSON.parse(JSON.stringify(data)))}, updated_at = now() where id = ${id}`;
       }
-      if (body.status !== undefined) await sql`update venues set status = ${String(body.status)}, updated_at = now() where id = ${id}`;
+      if (body.status !== undefined) {
+        const to = String(body.status);
+        await sql`update venues set status = ${to}, updated_at = now() where id = ${id}`;
+        // Ведущий привёл площадку по своему QR, её приняли в базу — баллы ему (один раз на площадку).
+        if (venueEarnsPoints({ source: current.source, hostId: current.host_id, from: current.status, to, actorId: user.id }) && current.host_id) {
+          const name = parseVenue(current.data).name.slice(0, 80) || "без названия";
+          await sql`
+            insert into host_points (id, host_id, points, kind, reason, created_by)
+            values (${`venue-${id}`}, ${current.host_id}, ${VENUE_POINTS}, 'manual', ${`Привёл площадку «${name}»`}, ${user.id})
+            on conflict (id) do nothing`;
+          log(request, "venue-points", "ok");
+        }
+      }
       if (rating !== undefined) await sql`update venues set rating = ${rating}, updated_at = now() where id = ${id}`;
       if (body.notes !== undefined) await sql`update venues set notes = ${cleanText(body.notes, TEXT_LIMITS.notes, true)}, updated_at = now() where id = ${id}`;
       const [row] = await sql<VenueRow[]>`${venueSelect()} where v.id = ${id}`;
@@ -567,10 +586,20 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
 
     api.delete<{ Params: { id: string } }>("/api/venues/:id", { bodyLimit: 1024 }, async (request, reply) => {
       if (!(await requireManager(request, reply))) return reply;
-      // Файлы уберёт ночная уборка (если на них не ссылается отправленное предложение).
-      await sql`delete from venues where id = ${request.params.id}`;
-      log(request, "venue-delete", "ok");
+      // Не стираем, а убираем в архив: из архива владелец вернёт площадку («Вернуть из архива»).
+      const rows = await sql`update venues set archived_at = coalesce(archived_at, now()), updated_at = now() where id = ${request.params.id} returning id`;
+      if (rows.length === 0) return fail(reply, 404, "not-found");
+      log(request, "venue-archive", "ok");
       return { ok: true };
+    });
+
+    api.post<{ Params: { id: string } }>("/api/venues/:id/restore", { bodyLimit: 1024 }, async (request, reply) => {
+      if (!(await requireManager(request, reply))) return reply;
+      const rows = await sql`update venues set archived_at = null, updated_at = now() where id = ${request.params.id} returning id`;
+      if (rows.length === 0) return fail(reply, 404, "not-found");
+      const [row] = await sql<VenueRow[]>`${venueSelect()} where v.id = ${request.params.id}`;
+      log(request, "venue-restore", "ok");
+      return row ? venueOut(row) : fail(reply, 404, "not-found");
     });
 
     api.put<{ Params: { id: string; kind: string } }>(
@@ -619,7 +648,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     });
 
     const requestSelect = () => sql`
-      select r.id, r.number, r.data, r.status, r.notes, r.host_id, u.name as host_name, r.created_at, r.updated_at,
+      select r.id, r.number, r.data, r.status, r.notes, r.host_id, u.name as host_name, r.archived_at, r.created_at, r.updated_at,
              (select count(*) from venue_offers o where o.request_id = r.id) as offers
       from venue_requests r left join users u on u.id = r.host_id`;
 
@@ -659,10 +688,20 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
 
     api.delete<{ Params: { id: string } }>("/api/venue-requests/:id", { bodyLimit: 1024 }, async (request, reply) => {
       if (!(await requireManager(request, reply))) return reply;
-      // Отправленные ссылки продолжают открываться: предложение — отдельный снимок.
-      await sql`delete from venue_requests where id = ${request.params.id}`;
-      log(request, "request-delete", "ok");
+      // В архив, а не навсегда. Отправленные ссылки и так открываются: предложение — отдельный снимок.
+      const rows = await sql`update venue_requests set archived_at = coalesce(archived_at, now()), updated_at = now() where id = ${request.params.id} returning id`;
+      if (rows.length === 0) return fail(reply, 404, "not-found");
+      log(request, "request-archive", "ok");
       return { ok: true };
+    });
+
+    api.post<{ Params: { id: string } }>("/api/venue-requests/:id/restore", { bodyLimit: 1024 }, async (request, reply) => {
+      if (!(await requireManager(request, reply))) return reply;
+      const rows = await sql`update venue_requests set archived_at = null, updated_at = now() where id = ${request.params.id} returning id`;
+      if (rows.length === 0) return fail(reply, 404, "not-found");
+      const [row] = await sql<RequestRow[]>`${requestSelect()} where r.id = ${request.params.id}`;
+      log(request, "request-restore", "ok");
+      return row ? requestOut(row) : fail(reply, 404, "not-found");
     });
 
     // Предложение клиенту: сервер сам берёт площадки из базы и собирает снимок без контактов.
@@ -676,7 +715,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       const [req] = requestId ? await sql<{ id: string; data: unknown; status: string }[]>`select id, data, status from venue_requests where id = ${requestId}` : [];
       if (requestId && !req) return fail(reply, 404, "not-found");
       const r = parseRequest(req?.data);
-      const rows = await sql<{ id: string; data: unknown; files: unknown }[]>`select id, data, files from venues where id in ${sql(venueIds)}`;
+      const rows = await sql<{ id: string; data: unknown; files: unknown }[]>`select id, data, files from venues where id in ${sql(venueIds)} and archived_at is null`;
       const byId = new Map(rows.map((row) => [row.id, row]));
       const items = venueIds.flatMap((venueId) => {
         const row = byId.get(venueId);

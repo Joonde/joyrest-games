@@ -16,22 +16,13 @@ import {
   type HostAccount,
   type UserProfile,
 } from "../data";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog, useConfirm } from "../components/ConfirmDialog";
 import { ActionMenu } from "../components/Menu";
-import { HostGate } from "../components/HostGate";
-import { ListSkeleton, StudioSkeleton } from "../components/Skeleton";
+import { ListSkeleton } from "../components/Skeleton";
 import { LoadFailedInline } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
-import { TopBar } from "../components/TopBar";
 import { LevelDialog, PointsDialog } from "./HostStaff";
 
-export function Admin() {
-  return (
-    <HostGate requireAdmin skeleton={<StudioSkeleton />}>
-      {(_user, profile) => <AdminContent profile={profile} />}
-    </HostGate>
-  );
-}
 
 type CleanupState = { status: "running" } | { status: "done"; report: CleanupReport } | { status: "error" };
 
@@ -54,7 +45,12 @@ function useSessionCleanup(): CleanupState {
   return state;
 }
 
-function AdminContent({ profile }: { profile: UserProfile }) {
+/**
+ * «Управление ведущими» — вторая вкладка «Команды JoyRest», только у владельца (`/admin`,
+ * `/studio/team?tab=manage`): добавить, отключить, квалификация, баллы, доступ к базе площадок.
+ * Любое изменение — только после подтверждения.
+ */
+export function HostsManager({ profile }: { profile: UserProfile }) {
   const [hosts, retry, update] = useLoad(() => usersRepo.listHosts(), []);
   const cleanup = useSessionCleanup();
   const [created, setCreated] = useState<IssuedPassword | null>(null);
@@ -65,6 +61,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, showToast] = useToast();
+  const [dialog, confirm] = useConfirm();
 
   async function setActive(host: HostAccount, active: boolean) {
     setBusyUid(host.uid);
@@ -82,18 +79,44 @@ function AdminContent({ profile }: { profile: UserProfile }) {
     }
   }
 
-  async function setVenueAccess(host: HostAccount, access: boolean) {
-    if (!venuesRepo) return;
-    setBusyUid(host.uid);
-    try {
-      await venuesRepo.setAccess(host.uid, access);
-      update((list) => list.map((h) => (h.uid === host.uid ? { ...h, venueAccess: access } : h)));
-      showToast(access ? `${host.name}: база площадок открыта` : `${host.name}: база площадок закрыта`);
-    } catch {
-      showToast("Не удалось изменить доступ. Проверьте интернет.");
-    } finally {
-      setBusyUid(null);
-    }
+  function setVenueAccess(host: HostAccount, access: boolean) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm({
+      title: access ? `Открыть базу площадок для ${host.name}?` : `Закрыть базу площадок для ${host.name}?`,
+      text: access
+        ? "Ведущий увидит все площадки с контактами и заявки клиентов с телефонами и сможет собирать предложения."
+        : "Ведущий перестанет видеть площадки и заявки клиентов. Его QR-анкеты продолжат работать.",
+      confirmLabel: access ? "Открыть базу" : "Закрыть базу",
+      run: async () => {
+        setBusyUid(host.uid);
+        try {
+          await repo.setAccess(host.uid, access);
+          update((list) => list.map((h) => (h.uid === host.uid ? { ...h, venueAccess: access } : h)));
+          showToast(access ? `${host.name}: база площадок открыта` : `${host.name}: база площадок закрыта`);
+        } finally {
+          setBusyUid(null);
+        }
+      },
+    });
+  }
+
+  function askEnable(host: HostAccount) {
+    confirm({
+      title: `Включить доступ для ${host.name}?`,
+      text: "Ведущий снова сможет входить в студию и запускать игры.",
+      confirmLabel: "Включить доступ",
+      run: async () => {
+        setBusyUid(host.uid);
+        try {
+          await usersRepo.setHostActive(host.uid, true);
+          update((list) => list.map((h) => (h.uid === host.uid ? { ...h, active: true } : h)));
+          showToast(`${host.name}: доступ включён`);
+        } finally {
+          setBusyUid(null);
+        }
+      },
+    });
   }
 
   // Есть только на своём сервере: у Firebase без Cloud Functions сбросить пароль нельзя.
@@ -116,16 +139,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
   }
 
   return (
-    <main className="page">
-      <TopBar
-        title="Ведущие"
-        actions={[
-          { label: "В студию", to: "/studio" },
-          ...(venuesRepo ? [{ label: "База площадок", to: "/venues" }] : []),
-          { label: "Выйти", onClick: () => void authService.signOut() },
-        ]}
-      />
-
+    <>
       {created ? (
         <CreatedCard created={created} onDone={() => setCreated(null)} onToast={showToast} />
       ) : (
@@ -173,7 +187,7 @@ function AdminContent({ profile }: { profile: UserProfile }) {
                           setDialogError(null);
                           setToDisable(host);
                         } else {
-                          void setActive(host, true);
+                          askEnable(host);
                         }
                       }}
                     >
@@ -265,8 +279,9 @@ function AdminContent({ profile }: { profile: UserProfile }) {
         </p>
       </ConfirmDialog>
 
+      {dialog}
       <Toast text={toast} />
-    </main>
+    </>
   );
 }
 

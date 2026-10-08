@@ -426,6 +426,8 @@ export interface VenueRecord {
   hostId: string | null;
   hostName: string | null;
   files: VenueFileInfo[];
+  /** В архиве с этого времени (удалили), null — в базе. */
+  archivedAt: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -441,6 +443,8 @@ export interface VenueRequestRecord {
   hostName: string | null;
   /** Сколько предложений уже отправлено по заявке. */
   offers: number;
+  /** В архиве с этого времени, null — в работе. */
+  archivedAt: number | null;
   createdAt: number;
   updatedAt: number;
 }

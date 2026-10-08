@@ -286,7 +286,9 @@ export interface VenuesRepository {
   /** Владелец заводит площадку сам: нужно только название. */
   create(data: VenueData): Promise<VenueRecord>;
   update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string }): Promise<VenueRecord>;
+  /** «Удалить» — в архив (не навсегда); `restore` возвращает из архива. */
   remove(id: string): Promise<void>;
+  restore(id: string): Promise<VenueRecord>;
   uploadFile(id: string, file: VenueUpload): Promise<void>;
   removeFile(id: string, sha: string): Promise<void>;
   fileUrl(id: string, sha: string): string;
@@ -294,7 +296,9 @@ export interface VenuesRepository {
   listRequests(): Promise<VenueRequestRecord[]>;
   getRequest(id: string): Promise<VenueRequestRecord>;
   updateRequest(id: string, patch: { status?: RequestStatus; notes?: string; data?: RequestData }): Promise<VenueRequestRecord>;
+  /** В архив (не навсегда). */
   removeRequest(id: string): Promise<void>;
+  restoreRequest(id: string): Promise<VenueRequestRecord>;
 
   /** Предложение клиенту: сервер собирает снимок без адресов и контактов. */
   createOffer(input: { requestId: string | null; venueIds: string[]; comment: string }): Promise<PublicOffer>;

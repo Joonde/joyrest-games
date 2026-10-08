@@ -83,7 +83,7 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
 
   return (
     <main className="page page--wide">
-      <TopBar title="Репетиция" actions={[{ label: "К игре", to: `/studio/games/${game.id}` }]} />
+      <TopBar title="Репетиция" actions={[{ label: "К игре", to: `/studio/games/${game.id}` }]} leaveWarning="Репетиция закончится, её можно начать заново." />
       <p className="muted small">
         Прогон игры без гостей: ничего не сохраняется, никто не подключается. Так игра пойдёт на экране зала и на пульте.
       </p>

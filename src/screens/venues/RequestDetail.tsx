@@ -19,7 +19,7 @@ import {
   type RequestData,
 } from "../../core/venues";
 import { useLoad, venuesRepo, type OfferSummary, type PublicOffer, type VenueRecord, type VenueRequestRecord } from "../../data";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
@@ -55,30 +55,63 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dialog, confirm] = useConfirm();
   const r = request.data;
+  const archived = request.archivedAt !== null;
+  const list = archived ? { to: "/venues?tab=archive", label: "← К архиву" } : { to: "/venues?tab=requests", label: "← К заявкам" };
   const info = requestStatusInfo(request.status);
   const wishes = wishesText(r);
 
   useEffect(() => setNotes(request.notes), [request.notes]);
 
-  async function save(patch: Parameters<NonNullable<typeof venuesRepo>["updateRequest"]>[1], done: string) {
-    if (!venuesRepo) return;
-    setBusy(true);
-    setError(null);
-    try {
-      onChange(await venuesRepo.updateRequest(request.id, patch));
-      showToast(done);
-      setEditing(false);
-    } catch {
-      setError("Не получилось сохранить. Проверьте интернет и попробуйте ещё раз.");
-    } finally {
-      setBusy(false);
-    }
+  type Patch = Parameters<NonNullable<typeof venuesRepo>["updateRequest"]>[1];
+
+  /** Изменение — только после «Вы точно уверены?»; ошибка остаётся в окне. */
+  function save(patch: Patch, done: string, ask: { title: string; text: string; confirmLabel: string }) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm({
+      ...ask,
+      run: async () => {
+        setBusy(true);
+        setError(null);
+        try {
+          onChange(await repo.updateRequest(request.id, patch));
+          showToast(done);
+          setEditing(false);
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   return (
     <>
+      <Link className="btn btn--quiet back-link" to={list.to}>
+        {list.label}
+      </Link>
+      {archived && (
+        <section className="card notice-card">
+          <h2>Заявка в архиве</h2>
+          <p className="muted">Убрана {new Date(request.archivedAt ?? 0).toLocaleDateString("ru-RU")}. Отправленные клиенту ссылки открываются.</p>
+          <button
+            className="btn btn--block"
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              confirm({
+                title: `Вернуть заявку №${request.number} из архива?`,
+                text: "Она снова появится во вкладке «Заявки клиентов».",
+                confirmLabel: "Вернуть из архива",
+                run: async () => onChange(await venuesRepo!.restoreRequest(request.id)),
+              })
+            }
+          >
+            Вернуть из архива
+          </button>
+        </section>
+      )}
       <div className="request-layout">
         <div className="stack">
           <section className="card">
@@ -121,18 +154,43 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
             )}
           </section>
 
-          {editing && <RequestEditor initial={r} busy={busy} onCancel={() => setEditing(false)} onSave={(data) => void save({ data }, "Запрос обновлён — подбор пересчитан")} />}
+          {editing && (
+            <RequestEditor initial={r} busy={busy} onCancel={() => setEditing(false)} onSave={(data) =>
+                save({ data }, "Запрос обновлён — подбор пересчитан", { title: "Сохранить изменения?", text: "Запрос клиента обновится, подбор площадок пересчитается.", confirmLabel: "Сохранить изменения" })
+              }
+            />
+          )}
 
           <section className="card">
-            <StatusPicker label="Статус заявки" options={REQUEST_STATUSES} value={request.status} disabled={busy} onChange={(status) => void save({ status }, "Статус изменён")} />
+            <StatusPicker
+              label="Статус заявки"
+              options={REQUEST_STATUSES}
+              value={request.status}
+              disabled={busy}
+              onChange={(status) => {
+                if (status === request.status) return;
+                const label = requestStatusInfo(status).label;
+                save({ status }, "Статус изменён", { title: `Статус «${label}»?`, text: `Сейчас: «${info.label}». Поменять на «${label}»?`, confirmLabel: "Да, поменять статус" });
+              }}
+            />
             <label className="field">
               <span className="field__label">Наши заметки</span>
               <textarea value={notes} maxLength={2000} placeholder="Что обсудили по телефону" onChange={(e) => setNotes(e.target.value)} />
             </label>
             {notes !== request.notes && (
-              <button className="btn btn--secondary btn--block" type="button" disabled={busy} onClick={() => void save({ notes }, "Заметки сохранены")}>
-                Сохранить заметки
-              </button>
+              <div className="actions">
+                <button
+                  className="btn btn--secondary btn--block"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => save({ notes }, "Заметки сохранены", { title: "Сохранить заметки?", text: "Прежний текст заметок заменится новым.", confirmLabel: "Сохранить заметки" })}
+                >
+                  Сохранить заметки
+                </button>
+                <button className="btn btn--quiet btn--block" type="button" disabled={busy} onClick={() => setNotes(request.notes)}>
+                  Отменить правку заметок
+                </button>
+              </div>
             )}
             {error && (
               <p className="error" role="alert">
@@ -146,31 +204,31 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
       </div>
 
       <div className="actions">
-        <button className="btn btn--quiet btn--block" type="button" onClick={() => setConfirmDelete(true)}>
-          Удалить заявку
-        </button>
+        <Link className="btn btn--secondary btn--block" to={list.to}>
+          {list.label}
+        </Link>
+        {!archived && (
+          <button
+            className="btn btn--quiet btn--block"
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              confirm({
+                title: `Убрать заявку №${request.number} в архив?`,
+                text: "Она пропадёт из «Заявок клиентов», но не удалится: её можно вернуть во вкладке «Архив». Отправленные клиенту ссылки продолжат открываться.",
+                confirmLabel: "Убрать в архив",
+                run: async () => {
+                  await venuesRepo!.removeRequest(request.id);
+                  navigate(list.to, { replace: true });
+                },
+              })
+            }
+          >
+            Убрать в архив
+          </button>
+        )}
       </div>
-      <ConfirmDialog
-        open={confirmDelete}
-        title={`Удалить заявку №${request.number}?`}
-        confirmLabel="Удалить заявку"
-        busy={busy}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => {
-          if (!venuesRepo) return;
-          setBusy(true);
-          venuesRepo
-            .removeRequest(request.id)
-            .then(() => navigate("/venues?tab=requests", { replace: true }))
-            .catch(() => {
-              setBusy(false);
-              setConfirmDelete(false);
-              setError("Не получилось удалить. Проверьте интернет.");
-            });
-        }}
-      >
-        <p>Имя и телефон клиента удалятся. Отправленные ему ссылки продолжат открываться.</p>
-      </ConfirmDialog>
+      {dialog}
       <Toast text={toast} />
     </>
   );
@@ -224,11 +282,24 @@ function Matching({ request, onOfferCreated }: { request: VenueRequestRecord; on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<PublicOffer | null>(null);
-  const ranked = useMemo(() => (state.status === "ready" ? rankVenues(state.data, request.data) : []), [state, request.data]);
-  const total = state.status === "ready" ? state.data.filter((v) => v.status !== "rejected").length : 0;
+  const [dialog, confirm] = useConfirm();
+  // Площадки из архива в подбор не попадают.
+  const active = useMemo(() => (state.status === "ready" ? state.data.filter((v) => v.archivedAt === null) : []), [state]);
+  const ranked = useMemo(() => rankVenues(active, request.data), [active, request.data]);
+  const total = active.filter((v) => v.status !== "rejected").length;
 
   function toggle(id: string) {
     setPicked((list) => (list.includes(id) ? list.filter((x) => x !== id) : list.length >= MAX_PICK ? list : [...list, id]));
+  }
+
+  function askOffer() {
+    if (!venuesRepo || picked.length === 0) return;
+    confirm({
+      title: "Собрать предложение клиенту?",
+      text: `В подборку войдут ${picked.length} ${picked.length === 1 ? "площадка" : picked.length < 5 ? "площадки" : "площадок"} — без адресов и контактов. Будет ссылка, которую можно отправить клиенту.`,
+      confirmLabel: "Собрать предложение",
+      run: createOffer,
+    });
   }
 
   async function createOffer() {
@@ -341,7 +412,7 @@ function Matching({ request, onOfferCreated }: { request: VenueRequestRecord; on
             {error}
           </p>
         )}
-        <button className="btn btn--block" type="button" disabled={busy || picked.length === 0} onClick={() => void createOffer()}>
+        <button className="btn btn--block" type="button" disabled={busy || picked.length === 0} onClick={askOffer}>
           {busy ? "Собираем предложение…" : "Предложение клиенту"}
         </button>
         <p className="muted small">В предложение не попадут адреса, телефоны и наши заметки — клиент договаривается через вас.</p>
@@ -365,6 +436,7 @@ function Matching({ request, onOfferCreated }: { request: VenueRequestRecord; on
           </ul>
         </section>
       )}
+      {dialog}
     </section>
   );
 }

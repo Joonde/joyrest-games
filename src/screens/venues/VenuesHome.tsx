@@ -17,6 +17,7 @@ import {
   type VenueData,
 } from "../../core/venues";
 import { permissions, useLoad, venuesRepo, type UserProfile, type VenueRecord, type VenueRequestRecord } from "../../data";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline, Message } from "../../components/Status";
@@ -28,7 +29,7 @@ import { StatusPill } from "../../components/venues/Fields";
 import { VenueQr } from "../../components/venues/VenueQr";
 import { studioActions } from "../studio/Studio";
 
-type TabId = "venues" | "forms" | "requests" | "qr";
+type TabId = "venues" | "forms" | "requests" | "archive" | "qr";
 
 /** Ворота кабинета: вход, доступ к базе, свой сервер. */
 export function VenuesGate({ children }: { children: (profile: UserProfile, uid: string) => ReactNode }) {
@@ -70,7 +71,7 @@ export function venueActions(profile: UserProfile) {
 export function VenuesHome() {
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab");
-  const tab: TabId = raw === "requests" || raw === "qr" || raw === "forms" ? raw : "venues";
+  const tab: TabId = raw === "requests" || raw === "qr" || raw === "forms" || raw === "archive" ? raw : "venues";
   const setTab = (next: TabId) => setParams(next === "venues" ? {} : { tab: next }, { replace: true });
 
   return (
@@ -81,12 +82,14 @@ export function VenuesHome() {
           <Tabs
             idPrefix="venues"
             label="Разделы базы площадок"
+            scroll
             value={tab}
             onChange={setTab}
             items={[
               { id: "venues", label: "Площадки" },
               { id: "forms", label: "Анкеты заведений" },
               { id: "requests", label: "Заявки клиентов" },
+              { id: "archive", label: "Архив" },
               { id: "qr", label: "QR-коды" },
             ]}
           />
@@ -94,6 +97,7 @@ export function VenuesHome() {
             {tab === "venues" && <VenuesTab mode="base" />}
             {tab === "forms" && <VenuesTab mode="forms" />}
             {tab === "requests" && <RequestsTab />}
+            {tab === "archive" && <ArchiveTab />}
             {tab === "qr" && <VenueQr uid={uid} />}
           </div>
         </main>
@@ -236,8 +240,8 @@ const COLUMNS: Column[] = [
 ];
 
 /** Анкета с QR, которую ещё не проверили: она в «Анкетах заведений», в базе её пока нет. */
-function awaitsReview(v: VenueRecord): boolean {
-  return v.source === "form" && v.status === "new";
+export function awaitsReview(v: VenueRecord): boolean {
+  return v.source === "form" && v.status === "new" && v.archivedAt === null;
 }
 
 function venueSearchParts(v: VenueRecord): string[] {
@@ -256,8 +260,9 @@ function VenuesTab({ mode }: { mode: "base" | "forms" }) {
   const shown = new Set((params.get("cols") ?? "").split(",").filter(Boolean));
 
   const all = state.status === "ready" ? state.data : [];
-  const venues = useMemo(() => all.filter((v) => (mode === "forms" ? awaitsReview(v) : !awaitsReview(v))), [all, mode]);
-  const duplicates = useMemo(() => findDuplicates(all), [all]);
+  const venues = useMemo(() => all.filter((v) => v.archivedAt === null && (mode === "forms" ? awaitsReview(v) : !awaitsReview(v))), [all, mode]);
+  const duplicates = useMemo(() => findDuplicates(all.filter((v) => v.archivedAt === null)), [all]);
+  const [dialog, confirm] = useConfirm();
   const nameOfAll = useMemo(() => new Map(all.map((v) => [v.id, v.data.name])), [all]);
   const suggestions = useMemo(() => venues.flatMap((v) => [v.data.name, v.data.metro, v.data.district, v.data.type, v.data.location]), [venues]);
   const nameOf = nameOfAll;
@@ -279,18 +284,28 @@ function VenuesTab({ mode }: { mode: "base" | "forms" }) {
     });
   }, [venues, status, sort, query, mode]);
 
-  /** Модерация анкеты: в базу («Проверено») или «Не подходит». */
-  async function review(v: VenueRecord, next: "checked" | "rejected") {
-    if (!venuesRepo || busy) return;
-    setBusy(v.id);
-    try {
-      const saved = await venuesRepo.update(v.id, { status: next });
-      update((list) => list.map((x) => (x.id === v.id ? saved : x)));
-    } catch {
-      // Связь вернётся — ведущий нажмёт ещё раз; список не меняем.
-    } finally {
-      setBusy(null);
-    }
+  /** Модерация анкеты: в базу («Проверено») или «Не подходит» — только после подтверждения. */
+  function review(v: VenueRecord, next: "checked" | "rejected") {
+    const repo = venuesRepo;
+    if (!repo || busy) return;
+    const name = v.data.name || "Без названия";
+    confirm({
+      title: next === "checked" ? `Принять «${name}» в базу?` : `«${name}» не подходит?`,
+      text:
+        next === "checked"
+          ? `Площадка перейдёт в «Площадки» со статусом «Проверено».${v.hostName ? ` Ведущему ${v.hostName} начислятся баллы за то, что он её привёл.` : ""}`
+          : "Анкета уйдёт в «Площадки» со статусом «Не подходит» и не попадёт в подбор. Статус можно поменять в карточке.",
+      confirmLabel: next === "checked" ? "Принять в базу" : "Не подходит",
+      run: async () => {
+        setBusy(v.id);
+        try {
+          const saved = await repo.update(v.id, { status: next });
+          update((list) => list.map((x) => (x.id === v.id ? saved : x)));
+        } finally {
+          setBusy(null);
+        }
+      },
+    });
   }
 
   function setParam(name: string, value: string) {
@@ -427,6 +442,7 @@ function VenuesTab({ mode }: { mode: "base" | "forms" }) {
       <p className="muted small">Нажмите на строку, чтобы открыть карточку площадки. Таблица прокручивается вбок.</p>
       </>
       )}
+      {dialog}
     </>
   );
 }
@@ -446,7 +462,7 @@ function RequestsTab() {
   const [sort, setSort] = useParam("sort", REQUEST_SORTS.map((s) => s.id), "new");
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
-  const requests = state.status === "ready" ? state.data : [];
+  const requests = useMemo(() => (state.status === "ready" ? state.data.filter((r) => r.archivedAt === null) : []), [state]);
   const suggestions = useMemo(() => requests.flatMap((r) => [r.data.name, r.data.eventType, r.data.district, `№${r.number}`]), [requests]);
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -537,5 +553,110 @@ function RequestRow({ request: r }: { request: VenueRequestRecord }) {
         Открыть и подобрать площадки
       </Link>
     </li>
+  );
+}
+
+// ------------------------------------------------------------------ архив
+
+/**
+ * Архив: площадки, анкеты и заявки, которые «удалили». Не стираются навсегда — их можно открыть
+ * и вернуть (после подтверждения).
+ */
+function ArchiveTab() {
+  const [venues, retryVenues, updateVenues] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
+  const [requests, retryRequests, updateRequests] = useLoad(() => (venuesRepo ? venuesRepo.listRequests() : Promise.resolve([] as VenueRequestRecord[])), []);
+  const [dialog, confirm] = useConfirm();
+  if (venues.status === "loading" || requests.status === "loading") return <ListSkeleton />;
+  if (venues.status === "error") return <LoadFailedInline onRetry={retryVenues} />;
+  if (requests.status === "error") return <LoadFailedInline onRetry={retryRequests} />;
+  const byDate = <T extends { archivedAt: number | null }>(a: T, b: T) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0);
+  const archivedVenues = venues.data.filter((v) => v.archivedAt !== null).sort(byDate);
+  const archivedRequests = requests.data.filter((r) => r.archivedAt !== null).sort(byDate);
+
+  function restoreVenue(v: VenueRecord) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm({
+      title: `Вернуть «${v.data.name || "Без названия"}» из архива?`,
+      text: "Площадка снова появится в базе и в подборе.",
+      confirmLabel: "Вернуть из архива",
+      run: async () => {
+        const saved = await repo.restore(v.id);
+        updateVenues((list) => list.map((x) => (x.id === v.id ? saved : x)));
+      },
+    });
+  }
+
+  function restoreRequest(r: VenueRequestRecord) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm({
+      title: `Вернуть заявку №${r.number} из архива?`,
+      text: "Она снова появится во вкладке «Заявки клиентов».",
+      confirmLabel: "Вернуть из архива",
+      run: async () => {
+        const saved = await repo.restoreRequest(r.id);
+        updateRequests((list) => list.map((x) => (x.id === r.id ? saved : x)));
+      },
+    });
+  }
+
+  return (
+    <>
+      <p className="muted">Сюда попадает всё, что убрали кнопкой «Убрать в архив». Ничего не стирается: откройте или верните на место.</p>
+      <section className="stack">
+        <h2>Площадки и анкеты · {archivedVenues.length}</h2>
+        {archivedVenues.length === 0 ? (
+          <p className="muted empty">В архиве площадок нет.</p>
+        ) : (
+          <ul className="request-list">
+            {archivedVenues.map((v) => (
+              <li key={v.id} className="card venue-form-card">
+                <Link to={`/venues/v/${v.id}`} className="venue-form-card__title">
+                  {v.data.name || "Без названия"}
+                </Link>
+                <p className="muted small">
+                  {[v.data.type, v.data.metro ? `м. ${v.data.metro}` : v.data.district, venueStatusInfo(v.status).label, `в архиве с ${dateTime(v.archivedAt ?? 0)}`].filter(Boolean).join(" · ")}
+                </p>
+                <div className="actions actions--row">
+                  <button type="button" className="btn btn--secondary" onClick={() => restoreVenue(v)}>
+                    Вернуть из архива
+                  </button>
+                  <Link className="btn btn--quiet" to={`/venues/v/${v.id}`}>
+                    Открыть
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="stack">
+        <h2>Заявки клиентов · {archivedRequests.length}</h2>
+        {archivedRequests.length === 0 ? (
+          <p className="muted empty">В архиве заявок нет.</p>
+        ) : (
+          <ul className="request-list">
+            {archivedRequests.map((r) => (
+              <li key={r.id} className="card venue-form-card">
+                <Link to={`/venues/r/${r.id}`} className="venue-form-card__title">
+                  Заявка №{r.number} · {r.data.name}
+                </Link>
+                <p className="muted small">{[r.data.eventType, r.data.guests ? `${r.data.guests} гостей` : "", `в архиве с ${dateTime(r.archivedAt ?? 0)}`].filter(Boolean).join(" · ")}</p>
+                <div className="actions actions--row">
+                  <button type="button" className="btn btn--secondary" onClick={() => restoreRequest(r)}>
+                    Вернуть из архива
+                  </button>
+                  <Link className="btn btn--quiet" to={`/venues/r/${r.id}`}>
+                    Открыть
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {dialog}
+    </>
   );
 }

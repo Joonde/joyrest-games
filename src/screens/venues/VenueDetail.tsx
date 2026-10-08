@@ -4,9 +4,9 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { emptyVenue, findDuplicates, VENUE_FILES, VENUE_STATUSES, venueMissing, venueStatusInfo, type VenueData } from "../../core/venues";
+import { emptyVenue, findDuplicates, VENUE_FILES, VENUE_STATUSES, venueMissing, venueStatusInfo, type VenueData, type VenueStatus } from "../../core/venues";
 import { useLoad, venuesRepo, type VenueRecord, type VenueUpload } from "../../data";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
@@ -14,7 +14,7 @@ import { TopBar } from "../../components/TopBar";
 import { StatusPicker, StatusPill } from "../../components/venues/Fields";
 import { FilePicker } from "../../components/venues/FilePicker";
 import { VenueEditor } from "../../components/venues/VenueEditor";
-import { venueActions, VenuesGate } from "./VenuesHome";
+import { awaitsReview, venueActions, VenuesGate } from "./VenuesHome";
 
 export function VenueDetail() {
   const { venueId = "" } = useParams();
@@ -56,6 +56,9 @@ export function NewVenue() {
       {(profile) => (
         <main className="page">
           <TopBar title="Новая площадка" actions={[{ label: "К базе площадок", to: "/venues" }, ...venueActions(profile)]} />
+          <Link className="btn btn--quiet back-link" to="/venues">
+            ← К площадкам
+          </Link>
           <p className="muted">Заполните то, что знаете: обязательно только название. Фото и меню добавите в карточке после сохранения.</p>
           <VenueEditor value={data} onChange={setData} />
           {error && (
@@ -79,40 +82,59 @@ function VenueLoaded({ id }: { id: string }) {
   const [others] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} text="Площадка не открылась: её удалили или нет связи." />;
-  const twinId = others.status === "ready" ? findDuplicates(others.data).get(id) : undefined;
+  const twinId = others.status === "ready" ? findDuplicates(others.data.filter((v) => v.archivedAt === null || v.id === id)).get(id) : undefined;
   const twin = twinId && others.status === "ready" ? others.data.find((v) => v.id === twinId) : undefined;
   return <VenueCard venue={state.data} onChange={(next) => update(() => next)} twin={twin ?? null} />;
 }
 
+/** Куда вернуться из карточки: анкета на проверке, архив или база. */
+function listOf(venue: VenueRecord): { to: string; label: string } {
+  if (venue.archivedAt !== null) return { to: "/venues?tab=archive", label: "← К архиву" };
+  if (awaitsReview(venue)) return { to: "/venues?tab=forms", label: "← К анкетам заведений" };
+  return { to: "/venues", label: "← К площадкам" };
+}
+
+const same = (a: VenueData, b: VenueData) => JSON.stringify(a) === JSON.stringify(b);
+
 function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (venue: VenueRecord) => void; twin: VenueRecord | null }) {
   const navigate = useNavigate();
   const [toast, showToast] = useToast();
+  const [dialog, confirm] = useConfirm();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<VenueData>(venue.data);
   const [notes, setNotes] = useState(venue.notes);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [uploading, setUploading] = useState<VenueUpload[]>([]);
   const v = venue.data;
   const info = venueStatusInfo(venue.status);
   const photos = venue.files.filter((f) => f.kind === "photo");
   const menus = venue.files.filter((f) => f.kind === "menu");
+  const list = listOf(venue);
+  const archived = venue.archivedAt !== null;
+  const dirty = editing && !same(draft, venue.data);
 
   useEffect(() => setNotes(venue.notes), [venue.notes]);
 
-  async function run(action: () => Promise<VenueRecord | void>, done?: string) {
-    if (!venuesRepo) return;
+  /** Действие с базой; ошибка уходит наверх (окно подтверждения покажет «Не получилось»). */
+  async function act(action: () => Promise<VenueRecord | void>, done?: string) {
     setBusy(true);
     setError(null);
     try {
       const result = await action();
       if (result) onChange(result);
       if (done) showToast(done);
-    } catch {
-      setError("Не получилось сохранить. Проверьте интернет и попробуйте ещё раз.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Без подтверждения (оценка, загрузка файлов): ошибку показываем под карточкой. */
+  async function run(action: () => Promise<VenueRecord | void>, done?: string) {
+    try {
+      await act(action, done);
+    } catch {
+      setError("Не получилось сохранить. Проверьте интернет и попробуйте ещё раз.");
     }
   }
 
@@ -128,18 +150,100 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
     setUploading([]);
   }
 
-  function removeFile(sha: string, done: string) {
+  function removeFile(sha: string, what: string) {
     const repo = venuesRepo;
     if (!repo) return;
-    void run(async () => {
-      await repo.removeFile(venue.id, sha);
-      return repo.get(venue.id);
-    }, done);
+    confirm({
+      title: `Убрать ${what}?`,
+      text: "Файл пропадёт из анкеты. Вернуть его можно, только загрузив заново.",
+      confirmLabel: `Убрать ${what}`,
+      run: () =>
+        act(async () => {
+          await repo.removeFile(venue.id, sha);
+          return repo.get(venue.id);
+        }, "Файл убран"),
+    });
   }
+
+  function setStatus(status: VenueStatus) {
+    const repo = venuesRepo;
+    if (!repo || status === venue.status) return;
+    const label = venueStatusInfo(status).label;
+    confirm({
+      title: `Статус «${label}»?`,
+      text: `Сейчас: «${info.label}». Поменять на «${label}»?`,
+      confirmLabel: "Да, поменять статус",
+      run: () => act(() => repo.update(venue.id, { status }), "Статус изменён"),
+    });
+  }
+
+  function review(next: "checked" | "rejected") {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm(
+      next === "checked"
+        ? {
+            title: "Принять площадку в базу?",
+            text: venue.hostName ? `Площадка перейдёт в «Площадки» со статусом «Проверено». Ведущему ${venue.hostName} начислятся баллы за то, что он её привёл.` : "Площадка перейдёт в «Площадки» со статусом «Проверено».",
+            confirmLabel: "Принять в базу",
+            run: () => act(() => repo.update(venue.id, { status: "checked" }), "Площадка в базе"),
+          }
+        : {
+            title: "Площадка не подходит?",
+            text: "Анкета уйдёт в «Площадки» со статусом «Не подходит» и не попадёт в подбор. Статус можно поменять потом.",
+            confirmLabel: "Не подходит",
+            run: () => act(() => repo.update(venue.id, { status: "rejected" }), "Отмечено: не подходит"),
+          },
+    );
+  }
+
+  function saveEdits(thenLeave: boolean) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    if (!draft.name) return setError("Укажите название площадки.");
+    confirm({
+      title: "Сохранить изменения?",
+      text: "Анкета площадки обновится. Прежние значения не сохраняются.",
+      confirmLabel: "Сохранить изменения",
+      run: () =>
+        act(async () => {
+          const saved = await repo.update(venue.id, { data: draft });
+          setEditing(false);
+          if (thenLeave) navigate(list.to);
+          return saved;
+        }, "Анкета сохранена"),
+    });
+  }
+
+  /** Выйти из правки (к карточке или к списку): несохранённые правки — только после «да». */
+  function leaveEditing(to: string | null) {
+    const go = () => {
+      setEditing(false);
+      setDraft(venue.data);
+      if (to) navigate(to);
+    };
+    if (!dirty) return go();
+    confirm({
+      title: "Выйти без сохранения?",
+      text: "Изменения в анкете пропадут.",
+      confirmLabel: "Выйти без сохранения",
+      cancelLabel: "Остаться и дописать",
+      run: go,
+    });
+  }
+
+  const back = (
+    <Link className="btn btn--quiet back-link" to={list.to}>
+      {list.label}
+    </Link>
+  );
 
   if (editing) {
     return (
       <>
+        <button type="button" className="btn btn--quiet back-link" onClick={() => leaveEditing(list.to)}>
+          {list.label}
+        </button>
         <h2>Изменить анкету</h2>
         <VenueEditor value={draft} onChange={setDraft} />
         {error && (
@@ -147,31 +251,61 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
             {error}
           </p>
         )}
-        <div className="actions">
-          <button
-            className="btn btn--block"
-            type="button"
-            disabled={busy || !draft.name}
-            onClick={() =>
-              void run(async () => {
-                const saved = await venuesRepo?.update(venue.id, { data: draft });
-                setEditing(false);
-                return saved;
-              }, "Анкета сохранена")
-            }
-          >
-            {busy ? "Сохраняем…" : "Сохранить"}
+        <div className="actions sticky-actions">
+          <button className="btn btn--block" type="button" disabled={busy || !draft.name || !dirty} onClick={() => saveEdits(false)}>
+            {dirty ? "Сохранить изменения" : "Изменений нет"}
           </button>
-          <button className="btn btn--secondary btn--block" type="button" disabled={busy} onClick={() => setEditing(false)}>
-            Отмена
+          <button className="btn btn--secondary btn--block" type="button" disabled={busy || !draft.name || !dirty} onClick={() => saveEdits(true)}>
+            Сохранить и вернуться к списку
+          </button>
+          <button className="btn btn--quiet btn--block" type="button" disabled={busy} onClick={() => leaveEditing(null)}>
+            {dirty ? "Выйти без сохранения" : "Закрыть правку"}
           </button>
         </div>
+        {dialog}
+        <Toast text={toast} />
       </>
     );
   }
 
   return (
     <>
+      {back}
+      {archived && (
+        <section className="card notice-card">
+          <h2>Площадка в архиве</h2>
+          <p className="muted">Убрана {new Date(venue.archivedAt ?? 0).toLocaleDateString("ru-RU")}. В подбор и предложения клиентам она не попадает.</p>
+          <button
+            className="btn btn--block"
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              confirm({
+                title: "Вернуть площадку из архива?",
+                text: "Она снова появится в базе и в подборе.",
+                confirmLabel: "Вернуть из архива",
+                run: () => act(() => venuesRepo!.restore(venue.id), "Площадка возвращена"),
+              })
+            }
+          >
+            Вернуть из архива
+          </button>
+        </section>
+      )}
+      {awaitsReview(venue) && (
+        <section className="card notice-card">
+          <h2>Анкета ждёт проверки</h2>
+          <p className="muted">{venue.hostName ? `Привёл ведущий ${venue.hostName}. ` : ""}Проверьте анкету и решите, брать ли площадку в базу.</p>
+          <div className="actions">
+            <button className="btn btn--block" type="button" disabled={busy} onClick={() => review("checked")}>
+              Принять в базу
+            </button>
+            <button className="btn btn--secondary btn--block" type="button" disabled={busy} onClick={() => review("rejected")}>
+              Не подходит
+            </button>
+          </div>
+        </section>
+      )}
       <section className="card">
         <div className="row venue-card__head">
           <h2>{v.name || "Без названия"}</h2>
@@ -191,7 +325,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
       </section>
 
       <section className="card">
-        <StatusPicker label="Статус" options={VENUE_STATUSES} value={venue.status} disabled={busy} onChange={(status) => void run(() => venuesRepo!.update(venue.id, { status }), "Статус изменён")} />
+        <StatusPicker label="Статус" options={VENUE_STATUSES} value={venue.status} disabled={busy} onChange={setStatus} />
         <div className="stack stack--tight">
           <span className="field__label">Наша оценка</span>
           <div className="rating" role="radiogroup" aria-label="Наша оценка">
@@ -216,9 +350,26 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
           <textarea value={notes} maxLength={2000} placeholder="Опыт работы: «звукорежиссёр Олег хорошо помогает»" onChange={(e) => setNotes(e.target.value)} />
         </label>
         {notes !== venue.notes && (
-          <button className="btn btn--secondary btn--block" type="button" disabled={busy} onClick={() => void run(() => venuesRepo!.update(venue.id, { notes }), "Заметки сохранены")}>
-            Сохранить заметки
-          </button>
+          <div className="actions">
+            <button
+              className="btn btn--secondary btn--block"
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                confirm({
+                  title: "Сохранить заметки?",
+                  text: "Прежний текст заметок заменится новым.",
+                  confirmLabel: "Сохранить заметки",
+                  run: () => act(() => venuesRepo!.update(venue.id, { notes }), "Заметки сохранены"),
+                })
+              }
+            >
+              Сохранить заметки
+            </button>
+            <button className="btn btn--quiet btn--block" type="button" disabled={busy} onClick={() => setNotes(venue.notes)}>
+              Отменить правку заметок
+            </button>
+          </div>
         )}
       </section>
 
@@ -243,7 +394,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
                 <a href={venuesRepo?.fileUrl(venue.id, f.sha)} target="_blank" rel="noreferrer">
                   <img src={venuesRepo?.fileUrl(venue.id, f.sha)} alt={`${v.name}, фото ${i + 1}`} loading="lazy" />
                 </a>
-                <button type="button" className="btn btn--quiet venue-photo__remove" disabled={busy} onClick={() => removeFile(f.sha, "Фото убрано")}>
+                <button type="button" className="btn btn--quiet venue-photo__remove" disabled={busy} onClick={() => removeFile(f.sha, "фото")}>
                   Убрать
                 </button>
               </figure>
@@ -269,7 +420,7 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
                 <a href={venuesRepo?.fileUrl(venue.id, f.sha)} target="_blank" rel="noreferrer" className="line-clamp">
                   {f.name || `Меню ${i + 1}`} {f.mime === "application/pdf" ? "(PDF)" : "(фото)"}
                 </a>
-                <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => removeFile(f.sha, "Файл убран")}>
+                <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => removeFile(f.sha, "меню")}>
                   Убрать
                 </button>
               </li>
@@ -300,31 +451,37 @@ function VenueCard({ venue, onChange, twin }: { venue: VenueRecord; onChange: (v
           type="button"
           onClick={() => {
             setDraft(venue.data);
+            setError(null);
             setEditing(true);
           }}
         >
           Изменить анкету
         </button>
-        <button className="btn btn--quiet btn--block" type="button" onClick={() => setConfirmDelete(true)}>
-          Удалить площадку
-        </button>
+        <Link className="btn btn--secondary btn--block" to={list.to}>
+          {list.label}
+        </Link>
+        {!archived && (
+          <button
+            className="btn btn--quiet btn--block"
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              confirm({
+                title: "Убрать площадку в архив?",
+                text: "Она пропадёт из базы и подбора, но не удалится: её можно вернуть во вкладке «Архив». Уже отправленные клиентам подборки продолжат открываться.",
+                confirmLabel: "Убрать в архив",
+                run: async () => {
+                  await venuesRepo!.remove(venue.id);
+                  navigate(list.to, { replace: true });
+                },
+              })
+            }
+          >
+            Убрать в архив
+          </button>
+        )}
       </div>
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Удалить площадку?"
-        confirmLabel="Удалить площадку"
-        busy={busy}
-        error={error}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() =>
-          void run(async () => {
-            await venuesRepo!.remove(venue.id);
-            navigate("/venues", { replace: true });
-          })
-        }
-      >
-        <p>Анкета, фото и меню удалятся из базы. Уже отправленные клиентам подборки продолжат открываться.</p>
-      </ConfirmDialog>
+      {dialog}
       <Toast text={toast} />
     </>
   );

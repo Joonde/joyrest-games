@@ -268,7 +268,7 @@ function Console({ session }: { session: Session }) {
 
   return (
     <main className="page page--pult">
-      <TopBar title="Пульт" actions={menu} />
+      <TopBar title="Пульт" actions={menu} leaveWarning="Игра продолжится: гости играют дальше, пульт откроете снова из «Идёт игра» в студии." />
       <p className="pult-status" aria-live="polite">
         <span className="pult-status__code">{formatSessionCode(session.code)}</span>
         <span>{session.playMode === "teams" ? `телефонов: ${phones}` : `игроков: ${phones}`}</span>

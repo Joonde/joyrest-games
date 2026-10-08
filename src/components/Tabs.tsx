@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 
 export interface TabItem<Id extends string> {
   id: Id;
@@ -12,14 +12,21 @@ interface Props<Id extends string> {
   label: string;
   /** Префикс id: панель вкладки получает id `${idPrefix}-panel-${id}`. */
   idPrefix: string;
+  /** Много вкладок: на узком экране — лента с прокруткой вбок, выбранная всегда видна. */
+  scroll?: boolean;
 }
 
 /**
  * Вкладки: тихие кнопки, у выбранной — полоса фирменного градиента снизу.
  * Стрелки влево и вправо переключают вкладки, как в системных приложениях.
  */
-export function Tabs<Id extends string>({ items, value, onChange, label, idPrefix }: Props<Id>) {
+export function Tabs<Id extends string>({ items, value, onChange, label, idPrefix, scroll = false }: Props<Id>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    if (!scroll) return;
+    refs.current[items.findIndex((item) => item.id === value)]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [scroll, value, items]);
 
   function onKeyDown(event: KeyboardEvent, index: number) {
     const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
@@ -33,7 +40,7 @@ export function Tabs<Id extends string>({ items, value, onChange, label, idPrefi
   }
 
   return (
-    <div className="tabs" role="tablist" aria-label={label}>
+    <div className={scroll ? "tabs tabs--scroll" : "tabs"} role="tablist" aria-label={label}>
       {items.map((item, index) => {
         const selected = item.id === value;
         return (

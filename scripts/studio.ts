@@ -418,7 +418,14 @@ async function main() {
   const inBase = baseList.find((v) => v.id === venueId);
   check(inBase?.status === "new" && inBase.files.length === 2, "площадка в базе со статусом «Новая», фото и меню на месте");
   check(inBase?.hostName === "Проверка Студии", "видно, какой ведущий привёл площадку", String(inBase?.hostName));
+  const pointsBefore = (await admin.call<{ total: number }>("GET", `/api/users/${hostUid}/points`)).total;
   check((await admin.status("PATCH", `/api/venues/${venueId}`, { status: "checked", rating: 4, notes: "Проверочная заметка" })) === 200, "владелец меняет статус, оценку и заметки");
+  await admin.status("PATCH", `/api/venues/${venueId}`, { status: "worked" });
+  const pointsAfter = (await admin.call<{ total: number }>("GET", `/api/users/${hostUid}/points`)).total;
+  check(pointsAfter - pointsBefore === 10, "площадку приняли в базу — ведущему, который её привёл, +10 баллов (один раз)", `${pointsBefore} → ${pointsAfter}`);
+  // Проверочный ведущий не копит баллы от прогона к прогону.
+  await admin.status("POST", `/api/users/${hostUid}/points`, { id: uid(), points: -10, reason: "Проверка: снять баллы за проверочную площадку" });
+  await admin.status("PATCH", `/api/venues/${venueId}`, { status: "checked" });
   const reread = await admin.call<{ status: string; rating: number; notes: string }>("GET", `/api/venues/${venueId}`);
   check(reread.status === "checked" && reread.rating === 4 && reread.notes === "Проверочная заметка", "статус, оценка и заметки сохранились");
   const reqList = await admin.call<Array<{ id: string; number: number; status: string }>>("GET", "/api/venue-requests");
@@ -435,9 +442,19 @@ async function main() {
   check(afterOffer.status === "sent" && afterOffer.offers === 1, "заявка стала «Предложение отправлено»");
   await admin.status("POST", `/api/users/${hostUid}/venue-access`, { access: false });
   check((await host.status("GET", "/api/venues")) === 403, "доступ закрыт обратно");
-  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "площадка удалена");
+  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "площадка убрана в архив");
+  const archivedVenue = await admin.call<{ archivedAt: number | null; data: { name: string } }>("GET", `/api/venues/${venueId}`);
+  check(archivedVenue.archivedAt !== null && archivedVenue.data.name === venueData.name, "площадка в архиве, не стёрта");
+  check((await admin.raw("POST", "/api/venue-offers", { requestId: null, venueIds: [venueId] })).status === 404, "площадка из архива не попадает в новые предложения");
+  const restoredVenue = await admin.call<{ archivedAt: number | null }>("POST", `/api/venues/${venueId}/restore`, {});
+  check(restoredVenue.archivedAt === null, "площадку вернули из архива");
+  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "и снова убрали в архив");
   check((await new Device("клиент 2").status("GET", `/api/offers/${offer.id}`)) === 200, "отправленная ссылка открывается и после удаления площадки");
-  check((await admin.status("DELETE", `/api/venue-requests/${requestId}`)) === 200, "заявка удалена");
+  check((await admin.status("DELETE", `/api/venue-requests/${requestId}`)) === 200, "заявка убрана в архив");
+  const archivedRequest = await admin.call<{ archivedAt: number | null; number: number }>("GET", `/api/venue-requests/${requestId}`);
+  check(archivedRequest.archivedAt !== null && archivedRequest.number === sentRequest.number, "заявка в архиве с тем же номером");
+  check((await admin.call<{ archivedAt: number | null }>("POST", `/api/venue-requests/${requestId}/restore`, {})).archivedAt === null, "заявку вернули из архива");
+  await admin.status("DELETE", `/api/venue-requests/${requestId}`);
 
   // ------------------------------------------------ отключение ведущего
   say("\n— Отключение ведущего —");

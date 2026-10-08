@@ -182,6 +182,26 @@ a {
   min-width: 0;
 }
 
+/* Монограмма — «домой» (в студию): поле касания не меньше 44 px. */
+.topbar__home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -4px;
+  padding: 4px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.topbar__home:active {
+  opacity: 0.7;
+}
+
 .topbar__titles {
   display: flex;
   flex-direction: column;
@@ -275,6 +295,24 @@ a {
   grid-auto-flow: column;
   gap: 8px;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Лента вкладок: каждая по ширине своей подписи, прокрутка вбок без полосы. */
+.tabs--scroll {
+  grid-auto-columns: max-content;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scroll-padding-inline: 16px;
+}
+
+.tabs--scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs--scroll .btn.tab {
+  white-space: nowrap;
+  padding-inline: 12px;
 }
 
 .btn.tab {
@@ -6171,4 +6209,31 @@ ul.chips {
   border: 1.5px dashed var(--color-border);
   color: var(--color-text-muted);
   font-size: 14px;
+}
+
+/* ---------- Карточка площадки и заявки: выход к списку, архив, проверка ---------- */
+
+/* «← К площадкам» над карточкой: тихая кнопка слева, во всю высоту касания. */
+.back-link {
+  align-self: flex-start;
+  justify-content: flex-start;
+  padding-inline: 0;
+  text-decoration: none;
+}
+
+.notice-card {
+  border-color: var(--color-highlight);
+}
+
+.notice-card h2 {
+  font-size: 24px;
+}
+
+/* Кнопки правки анкеты всегда под рукой: прилипают к низу экрана, пока анкета прокручивается. */
+.sticky-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 16px 0 calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--color-bg) 24px);
 }

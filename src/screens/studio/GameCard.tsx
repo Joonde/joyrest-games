@@ -66,9 +66,17 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
       </ul>
       {proposal?.status === "rejected" && proposal.reason && <p className="muted small">Причина: {proposal.reason}</p>}
       <div className="actions">
-        <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
-          Запустить
-        </Link>
+        {permissions.canLaunchGame(profile, game) ? (
+          <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+            Запустить
+          </Link>
+        ) : (
+          ready && (
+            <Link className="btn btn--block" to={`/studio/rehearsal/${game.id}`}>
+              Репетиция без гостей
+            </Link>
+          )
+        )}
         <Link className="btn btn--secondary btn--block" to={`/studio/games/${game.id}`}>
           {editable ? "Открыть" : "Посмотреть"}
         </Link>

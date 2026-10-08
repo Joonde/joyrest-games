@@ -10,6 +10,7 @@ import { GameList } from "./GameList";
 import { History } from "./History";
 import { ActiveGames, LiveOverview } from "./ActiveGames";
 import { professionTitle } from "../../core/professions";
+import { accessRoleTitle } from "../../core/accessRoles";
 import { SwipePages } from "../../components/SwipePages";
 import { MusicTab } from "./MusicTab";
 
@@ -26,6 +27,19 @@ const TABS: Array<TabItem<TabId>> = [
 function parseTab(value: string | null): TabId {
   if (value === "music" && tracksRepo) return "music";
   return value === "agency" || value === "history" ? value : "mine";
+}
+
+/**
+ * Вкладки по правам: ведущий — все; роли без профессии ведущего — только своё (создатель игр —
+ * библиотека, свои игры и музыка; тестировщик — библиотека и музыка; музыкальный редактор — музыка).
+ */
+function tabsFor(profile: UserProfile): Array<TabItem<TabId>> {
+  return TABS.filter((t) => {
+    if (t.id === "music") return permissions.canUseTracks(profile);
+    if (t.id === "agency") return permissions.canUseGames(profile);
+    if (t.id === "mine") return permissions.canCreateGame(profile, "personal", profile.uid);
+    return permissions.hostsGames(profile);
+  });
 }
 
 export function Studio() {
@@ -57,10 +71,14 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
 
 function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile }) {
   const [params, setParams] = useSearchParams();
-  const tab = parseTab(params.get("tab"));
+  const tabs = tabsFor(profile);
+  const wanted = parseTab(params.get("tab"));
+  const tab: TabId = tabs.some((t) => t.id === wanted) ? wanted : (tabs[0]?.id ?? "mine");
   const [toast, showToast] = useToast();
 
-  if (!permissions.hostsGames(profile)) {
+  const gamesOpen = permissions.canUseGames(profile);
+  const musicOpen = permissions.canUseTracks(profile) && Boolean(tracksRepo);
+  if (!gamesOpen && !musicOpen) {
     // Диджеи, музыканты, фокусники и другие профессии: игр нет, своя страница (пока простая).
     return (
       <main className="page">
@@ -86,9 +104,12 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   // Владелец листает два экрана: «Игры сейчас» (все ведущие) и саму студию.
   const body = (
     <div className="stack">
-      <ActiveGames hostId={profile.uid} />
+      {permissions.hostsGames(profile) && <ActiveGames hostId={profile.uid} />}
+      {!permissions.hostsGames(profile) && (
+        <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
+      )}
       <Tabs
-        items={TABS}
+        items={tabs}
         value={tab}
         onChange={(next) => setParams(next === "mine" ? {} : { tab: next }, { replace: true })}
         label="Разделы студии"
@@ -117,11 +138,11 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         </p>
       )}
 
-      {permissions.isAdmin(profile) && sessionsRepo.overview ? (
+      {permissions.canSeeAllSessions(profile) && sessionsRepo.overview ? (
         <SwipePages
           storageKey="studio-page"
           pages={[
-            { id: "live", label: "Игры сейчас", node: <LiveOverview adminId={profile.uid} /> },
+            { id: "live", label: "Игры сейчас", node: <LiveOverview adminId={profile.uid} owner={permissions.isAdmin(profile)} /> },
             { id: "studio", label: "Студия", node: body },
           ]}
         />

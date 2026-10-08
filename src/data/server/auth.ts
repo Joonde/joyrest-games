@@ -35,6 +35,7 @@ export function parseProfile(value: unknown): UserProfile | null {
   if (typeof data.experienceSince === "number") profile.experienceSince = data.experienceSince;
   if (data.venueAccess === true) profile.venueAccess = true;
   // «Ведущий» — по умолчанию, в профиле не храним (так было до профессий).
+  if (typeof data.accessRole === "string" && /^[a-z]{2,20}$/.test(data.accessRole)) profile.accessRole = data.accessRole;
   if (typeof data.profession === "string" && data.profession !== "host" && /^[a-z]{2,20}$/.test(data.profession)) profile.profession = data.profession;
   return profile;
 }

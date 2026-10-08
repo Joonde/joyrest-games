@@ -38,6 +38,8 @@ export interface UserProfile {
   venueAccess?: boolean;
   /** Свой сервер: профессия в команде (`src/core/professions.ts`); нет — ведущий. */
   profession?: string;
+  /** Свой сервер: роль доступа помощника (`src/core/accessRoles.ts`); нет — без роли. */
+  accessRole?: string | null;
 }
 
 /** Ведущий в списке администратора. */

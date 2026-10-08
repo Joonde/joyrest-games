@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { experienceLabel, levelTitle } from "../core/levels";
 import { pointsLabel } from "../core/points";
+import { ACCESS_ROLES, accessRoleTitle, isAccessRole, type AccessRole } from "../core/accessRoles";
 import { PROFESSIONS, professionOf, professionTitle, type Profession } from "../core/professions";
 import { retentionCutoff, SESSION_RETENTION_DAYS } from "../core/retention";
 import {
@@ -65,6 +66,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
   const [dialog, confirm] = useConfirm();
   const [group, setGroup] = useState<"hosts" | "pros">("hosts");
   const [toProfession, setToProfession] = useState<{ host: HostAccount; value: Profession } | null>(null);
+  const [toRole, setToRole] = useState<{ host: HostAccount; value: AccessRole | null } | null>(null);
 
   async function setActive(host: HostAccount, active: boolean) {
     setBusyUid(host.uid);
@@ -191,6 +193,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
                     {host.role === "admin" ? "Администратор" : professionTitle(host.profession)} ·{" "}
                     <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
                   </span>
+                  {host.role !== "admin" && accessRoleTitle(host.accessRole) && <span className="small role-tag">Роль: {accessRoleTitle(host.accessRole)}</span>}
                   {staffRepo && host.role !== "admin" && professionOf(host.profession) === "host" && (
                     <ul className="meta" aria-label={`Квалификация и баллы: ${host.name}`}>
                       <li>{levelTitle(host.level) ?? "Без квалификации"}</li>
@@ -217,7 +220,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
                     >
                       {host.active ? "Отключить" : "Включить"}
                     </button>
-                    {(resetPassword || staffRepo || venuesRepo) && (
+                    {(resetPassword || staffRepo || venuesRepo || usersRepo.setAccessRole) && (
                       <ActionMenu
                         icon="dots"
                         label={`Действия: ${host.name}`}
@@ -230,6 +233,9 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
                             : []),
                           ...(usersRepo.setProfession && permissions.canSetHostActive(profile, host)
                             ? [{ label: "Профессия", onClick: () => setToProfession({ host, value: professionOf(host.profession) }) }]
+                            : []),
+                          ...(usersRepo.setAccessRole && permissions.canSetAccessRole(profile, host)
+                            ? [{ label: "Роль доступа", onClick: () => { setDialogError(null); setToRole({ host, value: isAccessRole(host.accessRole) ? host.accessRole : null }); } }]
                             : []),
                           ...(venuesRepo && permissions.canGrantVenueAccess(profile, host)
                             ? [
@@ -337,6 +343,46 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
           ))}
         </div>
         <p className="muted small">Ведущий проводит игры. Другие профессии видят команду и свою страницу, игр у них нет — их игры и история сохраняются.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={toRole !== null}
+        title={`Роль доступа: ${toRole?.host.name ?? ""}`}
+        confirmLabel={toRole?.value ? `Дать роль «${accessRoleTitle(toRole.value) ?? ""}»` : "Оставить без роли"}
+        busy={busyUid !== null}
+        error={dialogError}
+        onCancel={() => setToRole(null)}
+        onConfirm={() => {
+          const target = toRole;
+          if (!target || !usersRepo.setAccessRole) return;
+          setBusyUid(target.host.uid);
+          setDialogError(null);
+          usersRepo
+            .setAccessRole(target.host.uid, target.value)
+            .then(() => {
+              update((list) => list.map((h) => (h.uid === target.host.uid ? { ...h, accessRole: target.value } : h)));
+              showToast(target.value ? `${target.host.name}: роль «${accessRoleTitle(target.value) ?? ""}»` : `${target.host.name}: без роли`);
+              setToRole(null);
+            })
+            .catch(() => setDialogError("Не получилось сохранить роль. Проверьте интернет."))
+            .finally(() => setBusyUid(null));
+        }}
+      >
+        <p className="muted small">
+          Роль только добавляет доступ: ведущий остаётся ведущим со своими играми, музыкой и сессиями. Роль у человека одна.
+          Ваших прав (люди, роли, баллы, пароли, удаление) нет ни у одной роли.
+        </p>
+        <div className="stack" role="radiogroup" aria-label="Роль доступа">
+          {[{ id: null, title: "Без роли", can: "Только то, что даёт профессия.", cannot: "" }, ...ACCESS_ROLES].map((r) => (
+            <label key={r.id ?? "none"} className="choice">
+              <input type="radio" name="access-role" checked={(toRole?.value ?? null) === r.id} onChange={() => setToRole((cur) => (cur ? { ...cur, value: r.id } : cur))} />
+              <span className="choice__text">
+                <span className="choice__title">{r.title}</span>
+                <span className="choice__hint">{r.id ? `Может: ${r.can}` : r.can}</span>
+                {r.cannot && <span className="choice__hint">Не может: {r.cannot}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
       </ConfirmDialog>
       {dialog}
       <Toast text={toast} />

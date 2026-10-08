@@ -528,8 +528,14 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         return null;
       }
       if (!permissions.canControlSession(who.uid, { hostId: row.host_id }) && !permissions.isAdmin(actor(who))) {
-        fail(reply, 403, "permission-denied");
-        return null;
+        // Помощник владельца завершает чужую игру, только если она брошена (12 часов без действий).
+        const stale = permissions.canSeeAllSessions(actor(who))
+          ? await sql`select 1 from sessions where id = ${row.id} and phase in ('lobby', 'playing') and updated_at < now() - interval '12 hours'`
+          : [];
+        if (stale.length === 0) {
+          fail(reply, 403, "permission-denied");
+          return null;
+        }
       }
       return { who, row };
     }
@@ -652,7 +658,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const who = await requireIdentity(request, reply);
       if (!who) return reply;
       if (!who.user) return fail(reply, 403, "permission-denied");
-      const all = permissions.isAdmin(actor(who));
+      const all = permissions.canSeeAllSessions(actor(who));
       const rows = await sql<
         { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null; stale: boolean }[]
       >`
@@ -693,7 +699,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who?.user) return who ? fail(reply, 403, "permission-denied") : reply;
       const row = await loadSession(request.params.id);
       if (!row) return fail(reply, 404, "not-found");
-      if (!permissions.canDeleteSession(actor(who), { hostId: row.host_id })) return fail(reply, 403, "permission-denied");
+      if (!permissions.canDeleteSession(actor(who), { hostId: row.host_id }) && !permissions.canSeeAllSessions(actor(who))) return fail(reply, 403, "permission-denied");
       const rows = await sql`
         update sessions set hidden_at = now()
         where id = ${row.id} and (phase = 'finished' or updated_at < now() - interval '12 hours')

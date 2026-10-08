@@ -23,7 +23,7 @@ export function VenueDetail() {
       {(profile) => (
         <main className="page">
           <TopBar title="Площадка" actions={[{ label: "К базе площадок", to: "/venues" }, ...venueActions(profile)]} />
-          <VenueLoaded id={venueId} owner={permissions.isAdmin(profile)} />
+          <VenueLoaded id={venueId} owner={permissions.isAdmin(profile)} canArchive={permissions.canArchiveVenues(profile)} />
         </main>
       )}
     </VenuesGate>
@@ -77,14 +77,14 @@ export function NewVenue() {
   );
 }
 
-function VenueLoaded({ id, owner }: { id: string; owner: boolean }) {
+function VenueLoaded({ id, owner, canArchive }: { id: string; owner: boolean; canArchive: boolean }) {
   const [state, retry, update] = useLoad(() => (venuesRepo ? venuesRepo.get(id) : Promise.reject(new Error("unavailable"))), [id]);
   const [others] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} text="Площадка не открылась: её удалили или нет связи." />;
   const twinId = others.status === "ready" ? findDuplicates(others.data.filter((v) => v.archivedAt === null || v.id === id)).get(id) : undefined;
   const twin = twinId && others.status === "ready" ? others.data.find((v) => v.id === twinId) : undefined;
-  return <VenueCard venue={state.data} owner={owner} onChange={(next) => update(() => next)} twin={twin ?? null} />;
+  return <VenueCard venue={state.data} owner={owner} canArchive={canArchive} onChange={(next) => update(() => next)} twin={twin ?? null} />;
 }
 
 /** Куда вернуться из карточки: анкета на проверке, архив или база. */
@@ -96,7 +96,7 @@ function listOf(venue: VenueRecord): { to: string; label: string } {
 
 const same = (a: VenueData, b: VenueData) => JSON.stringify(a) === JSON.stringify(b);
 
-function VenueCard({ venue, owner, onChange, twin }: { venue: VenueRecord; owner: boolean; onChange: (venue: VenueRecord) => void; twin: VenueRecord | null }) {
+function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueRecord; owner: boolean; canArchive: boolean; onChange: (venue: VenueRecord) => void; twin: VenueRecord | null }) {
   const navigate = useNavigate();
   const [toast, showToast] = useToast();
   const [dialog, confirm] = useConfirm();
@@ -464,7 +464,7 @@ function VenueCard({ venue, owner, onChange, twin }: { venue: VenueRecord; owner
         <Link className="btn btn--secondary btn--block" to={list.to}>
           {list.label}
         </Link>
-        {!archived && (
+        {!archived && canArchive && (
           <button
             className="btn btn--quiet btn--block"
             type="button"

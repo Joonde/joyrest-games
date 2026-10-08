@@ -83,6 +83,8 @@ export interface UsersRepository {
   resetHostPassword?(uid: string): Promise<CreatedHost>;
   /** Только admin, только свой сервер: профессия в команде (`src/core/professions.ts`). */
   setProfession?(uid: string, profession: string): Promise<void>;
+  /** Только admin, только свой сервер: роль доступа помощника (`src/core/accessRoles.ts`) или null. */
+  setAccessRole?(uid: string, role: string | null): Promise<void>;
 }
 
 export interface GamesRepository {

@@ -18,7 +18,7 @@ import {
   type Mark,
   type RequestData,
 } from "../../core/venues";
-import { useLoad, venuesRepo, type OfferSummary, type PublicOffer, type VenueRecord, type VenueRequestRecord } from "../../data";
+import { permissions, useLoad, venuesRepo, type OfferSummary, type PublicOffer, type VenueRecord, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -34,21 +34,21 @@ export function RequestDetail() {
       {(profile) => (
         <main className="page page--wide">
           <TopBar title="Заявка клиента" actions={[{ label: "К заявкам", to: "/venues?tab=requests" }, ...venueActions(profile)]} />
-          <RequestLoaded id={requestId} />
+          <RequestLoaded id={requestId} canArchive={permissions.canArchiveVenues(profile)} />
         </main>
       )}
     </VenuesGate>
   );
 }
 
-function RequestLoaded({ id }: { id: string }) {
+function RequestLoaded({ id, canArchive }: { id: string; canArchive: boolean }) {
   const [state, retry, update] = useLoad(() => (venuesRepo ? venuesRepo.getRequest(id) : Promise.reject(new Error("unavailable"))), [id]);
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} text="Заявка не открылась: её удалили или нет связи." />;
-  return <RequestView request={state.data} onChange={(next) => update(() => next)} />;
+  return <RequestView request={state.data} canArchive={canArchive} onChange={(next) => update(() => next)} />;
 }
 
-function RequestView({ request, onChange }: { request: VenueRequestRecord; onChange: (r: VenueRequestRecord) => void }) {
+function RequestView({ request, canArchive, onChange }: { request: VenueRequestRecord; canArchive: boolean; onChange: (r: VenueRequestRecord) => void }) {
   const navigate = useNavigate();
   const [toast, showToast] = useToast();
   const [notes, setNotes] = useState(request.notes);
@@ -209,7 +209,7 @@ function RequestView({ request, onChange }: { request: VenueRequestRecord; onCha
         <Link className="btn btn--secondary btn--block" to={list.to}>
           {list.label}
         </Link>
-        {!archived && (
+        {!archived && canArchive && (
           <button
             className="btn btn--quiet btn--block"
             type="button"

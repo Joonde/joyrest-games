@@ -62,14 +62,15 @@ function ago(ms: number): string {
  * Одна игра строкой. Касание — пульт своей идущей игры (или итоги завершённой); «⋯» или свайп
  * влево — действия: пульт, экран зала, «Завершить игру», «Убрать из списка» (с подтверждением).
  */
-export function GameRow({ game, own, admin = false, onChanged }: { game: SessionSummary; own: boolean; admin?: boolean; onChanged?: () => void }) {
+export function GameRow({ game, own, admin = false, helper = false, onChanged }: { game: SessionSummary; own: boolean; admin?: boolean; helper?: boolean; onChanged?: () => void }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [dialog, confirm] = useConfirm();
   const startX = useRef<number | null>(null);
   const live = game.phase !== "finished";
-  const canClose = live && (own || admin) && Boolean(sessionsRepo.close);
-  const canHide = (!live || game.stale) && (own || admin) && Boolean(sessionsRepo.hide);
+  // Помощник владельца (роль) завершает и убирает чужую игру, только если она брошена.
+  const canClose = live && (own || admin || (helper && game.stale)) && Boolean(sessionsRepo.close);
+  const canHide = (!live || game.stale) && (own || admin || helper) && Boolean(sessionsRepo.hide);
   const title = game.gameTitle || mechanicTitle(game.mechanic);
   const target = live && own ? `/host/${game.code}` : !live ? `/results/${game.id}` : null;
   const status = live && game.stale ? "Не завершена" : PHASE_TITLES[game.phase];
@@ -195,7 +196,7 @@ export function ActiveGames({ hostId }: { hostId: string }) {
  * Владелец: «Игры сейчас» — все ведущие. «По ведущим»: имя, сколько игр идёт и ждёт гостей; касание —
  * его текущие игры и две последние. «Все игры» — общий список: сначала идущие, потом ждущие гостей.
  */
-export function LiveOverview({ adminId }: { adminId: string }) {
+export function LiveOverview({ adminId, owner = true }: { adminId: string; owner?: boolean }) {
   const [state, reload] = useOverview(adminId);
   const [view, setView] = useState<"hosts" | "all">("hosts");
   const [open, setOpen] = useState<string | null>(null);
@@ -229,7 +230,7 @@ export function LiveOverview({ adminId }: { adminId: string }) {
         ) : (
           <ul className="game-rows card">
             {active.map((g) => (
-              <GameRow key={g.id} game={g} own={g.hostId === adminId} admin onChanged={reload} />
+              <GameRow key={g.id} game={g} own={g.hostId === adminId} admin={owner} helper={!owner} onChanged={reload} />
             ))}
           </ul>
         )
@@ -255,7 +256,7 @@ export function LiveOverview({ adminId }: { adminId: string }) {
                 {expanded && (
                   <ul className="game-rows">
                     {h.games.map((g) => (
-                      <GameRow key={g.id} game={g} own={g.hostId === adminId} admin onChanged={reload} />
+                      <GameRow key={g.id} game={g} own={g.hostId === adminId} admin={owner} helper={!owner} onChanged={reload} />
                     ))}
                   </ul>
                 )}

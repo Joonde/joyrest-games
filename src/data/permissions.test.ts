@@ -283,3 +283,115 @@ describe("профессии команды", () => {
     expect(p.hostsGames({ ...host, active: false })).toBe(false);
   });
 });
+
+describe("роли доступа помощников", () => {
+  const dj = (accessRole: string | null, uid = "dj-1"): Actor => ({ uid, role: "host", active: true, profession: "dj", accessRole });
+  const hostWith = (accessRole: string | null): Actor => ({ uid: "host-1", role: "host", active: true, profession: "host", accessRole });
+  const track = (ownerId: string) => ({ scope: "personal" as const, ownerId });
+  const agencyTrack = { scope: "agency" as const, ownerId: ADMIN_UID };
+
+  it("роль только добавляет: ведущий с любой ролью сохраняет всё своё", () => {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", null]) {
+      const a = hostWith(role);
+      expect(p.canCreateGame(a, "personal", "host-1")).toBe(true);
+      expect(p.canEditGame(a, myGame)).toBe(true);
+      expect(p.canLaunchGame(a, agencyGame)).toBe(true);
+      expect(p.canCreateSession(a)).toBe(true);
+      expect(p.canUploadTrack(a, "personal")).toBe(true);
+      expect(p.canShareTrack(a, track("host-1"))).toBe(true);
+      expect(p.canProposeGame(a, myGame)).toBe(true);
+      expect(p.canShowVenueQr(a)).toBe(true);
+    }
+  });
+
+  it("ни одна роль не даёт прав владельца", () => {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "admin", "owner"]) {
+      for (const a of [dj(role), hostWith(role)]) {
+        expect(p.isAdmin(a)).toBe(false);
+        expect(p.canManageHosts(a)).toBe(false);
+        expect(p.canSetHostActive(a, other)).toBe(false);
+        expect(p.canResetHostPassword(a, other)).toBe(false);
+        expect(p.canSetAccessRole(a, other)).toBe(false);
+        expect(p.canGrantVenueAccess(a, other)).toBe(false);
+        expect(p.canCreateGame(a, "agency", ADMIN_UID)).toBe(false);
+        expect(p.canEditGame(a, agencyGame)).toBe(false);
+        expect(p.canDeleteGame(a, agencyGame)).toBe(false);
+        expect(p.canEditGame(a, { scope: "personal", ownerId: "host-2" })).toBe(false);
+        expect(p.canUploadTrack(a, "agency")).toBe(false);
+        expect(p.canEditTrack(a, agencyTrack)).toBe(false);
+        expect(p.canReviewProposals(a)).toBe(false);
+        expect(p.canReviewTracks(a)).toBe(false);
+        expect(p.canCleanupSessions(a)).toBe(false);
+        expect(p.canArchiveVenues(a)).toBe(false);
+      }
+    }
+  });
+
+  it("неизвестная роль и роль у отключённого ничего не дают", () => {
+    expect(p.canUseGames(dj("superuser"))).toBe(false);
+    const offCreator: Actor = { uid: "x", role: "host", active: false, profession: "dj", accessRole: "creator" };
+    expect(p.canUseGames(offCreator)).toBe(false);
+    expect(p.canCreateGame(offCreator, "personal", "x")).toBe(false);
+    const offAssistant: Actor = { uid: "x", role: "host", active: false, profession: "dj", accessRole: "assistant" };
+    expect(p.canSeeAllSessions(offAssistant)).toBe(false);
+  });
+
+  it("без роли другие профессии игр и музыки не видят", () => {
+    const a = dj(null);
+    expect(p.canUseGames(a)).toBe(false);
+    expect(p.canUseTracks(a)).toBe(false);
+    expect(p.canReadGame(a, agencyGame)).toBe(false);
+    expect(p.canManageVenues(a)).toBe(false);
+  });
+
+  it("создатель игр: свои игры и предложения, без сессий", () => {
+    const a = dj("creator");
+    const own = { scope: "personal" as const, ownerId: "dj-1" };
+    expect(p.canCreateGame(a, "personal", "dj-1")).toBe(true);
+    expect(p.canEditGame(a, own)).toBe(true);
+    expect(p.canProposeGame(a, own)).toBe(true);
+    expect(p.canCopyToPersonal(a, agencyGame)).toBe(true);
+    expect(p.canCreateSession(a)).toBe(false);
+    expect(p.canLaunchGame(a, own)).toBe(false);
+    expect(p.canUploadTrack(a, "personal")).toBe(false);
+    expect(p.canUseTrack(a, agencyTrack)).toBe(true);
+    expect(p.canSeeAllSessions(a)).toBe(false);
+  });
+
+  it("тестировщик: только смотрит библиотеку и музыку", () => {
+    const a = dj("tester");
+    expect(p.canReadGame(a, agencyGame)).toBe(true);
+    expect(p.canReadGame(a, myGame)).toBe(false);
+    expect(p.canCreateGame(a, "personal", "dj-1")).toBe(false);
+    expect(p.canCopyToPersonal(a, agencyGame)).toBe(false);
+    expect(p.canLaunchGame(a, agencyGame)).toBe(false);
+    expect(p.canUseTrack(a, agencyTrack)).toBe(true);
+    expect(p.canUploadTrack(a, "personal")).toBe(false);
+  });
+
+  it("музыкальный редактор: свои треки и предложения, без игр", () => {
+    const a = dj("music");
+    expect(p.canUploadTrack(a, "personal")).toBe(true);
+    expect(p.canEditTrack(a, track("dj-1"))).toBe(true);
+    expect(p.canShareTrack(a, track("dj-1"))).toBe(true);
+    expect(p.canEditTrack(a, track("host-1"))).toBe(false);
+    expect(p.canUseTrack(a, track("host-1"))).toBe(false);
+    expect(p.canUseGames(a)).toBe(false);
+  });
+
+  it("модератор площадок: ведёт базу, но не архивирует", () => {
+    const a = dj("venues");
+    expect(p.canManageVenues(a)).toBe(true);
+    expect(p.canArchiveVenues(a)).toBe(false);
+    expect(p.canUseGames(a)).toBe(false);
+  });
+
+  it("помощник владельца: видит все игры сейчас, без прав на людей и библиотеку", () => {
+    const a = dj("assistant");
+    expect(p.canSeeAllSessions(a)).toBe(true);
+    expect(p.canSeeAllSessions(host)).toBe(false);
+    expect(p.canSeeAllSessions(owner)).toBe(true);
+    expect(p.canUseGames(a)).toBe(false);
+    expect(p.canDeleteSession(a, { hostId: "host-2" })).toBe(false);
+  });
+});

@@ -590,7 +590,10 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     });
 
     api.delete<{ Params: { id: string } }>("/api/venues/:id", { bodyLimit: 1024 }, async (request, reply) => {
-      if (!(await requireManager(request, reply))) return reply;
+      const manager = await requireManager(request, reply);
+      if (!manager) return reply;
+      // Модератор площадок ведёт базу, но в архив не убирает.
+      if (!permissions.canArchiveVenues(actorOf(manager))) return fail(reply, 403, "permission-denied");
       // Не стираем, а убираем в архив: из архива владелец вернёт площадку («Вернуть из архива»).
       const rows = await sql`update venues set archived_at = coalesce(archived_at, now()), updated_at = now() where id = ${request.params.id} returning id`;
       if (rows.length === 0) return fail(reply, 404, "not-found");
@@ -695,7 +698,10 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
     });
 
     api.delete<{ Params: { id: string } }>("/api/venue-requests/:id", { bodyLimit: 1024 }, async (request, reply) => {
-      if (!(await requireManager(request, reply))) return reply;
+      const manager = await requireManager(request, reply);
+      if (!manager) return reply;
+      // Модератор площадок ведёт базу, но в архив не убирает.
+      if (!permissions.canArchiveVenues(actorOf(manager))) return fail(reply, 403, "permission-denied");
       // В архив, а не навсегда. Отправленные ссылки и так открываются: предложение — отдельный снимок.
       const rows = await sql`update venue_requests set archived_at = coalesce(archived_at, now()), updated_at = now() where id = ${request.params.id} returning id`;
       if (rows.length === 0) return fail(reply, 404, "not-found");

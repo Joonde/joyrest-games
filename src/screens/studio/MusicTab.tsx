@@ -138,13 +138,13 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
 
   return (
     <>
-      <UploadCard
+      {(permissions.canUploadTrack(profile, "personal") || permissions.canUploadTrack(profile, "agency")) && <UploadCard
         profile={profile}
         onUploaded={(track) => {
           update((d) => (track.scope === "agency" ? { ...d, library: [track, ...d.library] } : { ...d, mine: [track, ...d.mine] }));
           onToast("Трек загружен");
         }}
-      />
+      />}
       {preview.error && (
         <p className="error" role="alert">
           Не удалось включить трек. Проверьте интернет.

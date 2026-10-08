@@ -33,15 +33,6 @@ export function DragonHostControls({ session, content, answers, participants, co
   const battle = battleOf(content, r);
   const task = taskOf(content, r);
 
-  // Сколько капитанов выбрали героя — на экран зала (не чаще изменения числа).
-  const picked = r.phase === "heroes" ? new Set(answers.filter((a) => a.step === step).map((a) => a.pid)).size : 0;
-  useEffect(() => {
-    if (r.phase !== "heroes" || rehearsal || picked === session.state.answered) return;
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    void control.apply({ state: { answered: picked }, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом выборе
-  }, [picked, r.phase]);
-
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {
       const timer = window.setTimeout(resolve, 3000);
@@ -62,6 +53,9 @@ export function DragonHostControls({ session, content, answers, participants, co
       const change = typeof make === "function" ? await make() : make;
       if (!change) return;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
+      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
+      const cur = latest.current.state;
+      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
       for (const s of clear ?? []) await control.clearAnswers(s);
       await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
       await arrived;
@@ -73,8 +67,6 @@ export function DragonHostControls({ session, content, answers, participants, co
   }
 
   const fresh = <T,>(make: (list: typeof answers) => T) => () => control.freshAnswers(step).then((list) => make(list.length > 0 ? list : answers));
-  /** Кто не бросил кубик — бросает ведущий (случайно). */
-  const hostRolls = () => Object.fromEntries(r.order.map((p) => [p, ((crypto.getRandomValues(new Uint8Array(1))[0] ?? 0) % 6) + 1]));
   const action = dragonPrimary(session, content);
   const backPlan = dragonBack(session, participants);
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
@@ -113,7 +105,7 @@ export function DragonHostControls({ session, content, answers, participants, co
               </ol>
             )}
             {r.phase === "task" && task.kind !== "task" && <p className="small">Ответили: {[...answered].filter((p) => r.order.includes(p)).length} из {r.order.length - r.dead.length}</p>}
-            {r.phase === "task" && task.kind === "dice" && <p className="muted small">Кто не бросит — за того бросит пульт при «Удар!».</p>}
+            {r.phase === "task" && task.kind === "dice" && <p className="muted small">Кто не бросит — за того кубик бросится сам при «Удар!».</p>}
           </div>
         )
       )}
@@ -172,13 +164,13 @@ export function DragonHostControls({ session, content, answers, participants, co
           </button>
         )}
         {action === "reveal" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => revealTask(latest.current, content, list, participants, hostRolls())))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => revealTask(latest.current, content, list, participants)))}>
             Удар!
           </button>
         )}
         {action === "next" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTask(session, content, participants))}>
-            {battle && r.task + 1 >= battle.tasks.length ? "Итог боя" : "Следующее задание"}
+            {(battle && r.task + 1 >= battle.tasks.length) || r.order.every((p) => r.dead.includes(p)) ? "Итог боя" : "Следующее задание"}
           </button>
         )}
         {action === "nextBattle" && (

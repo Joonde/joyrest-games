@@ -146,6 +146,33 @@ describe("Бой с драконом: бой", () => {
     s = apply(s, revealTask(s, c, [ans(s, "A", { choice: 1 })], teams));
     s = apply(s, nextBattle(s, c, teams));
     expect(parseDragonResult(s.state.result).phase).toBe("over");
+    expect(dragonPrimary(s)).toBe("podium");
     expect(dragonPrimary(s, c)).toBe("podium");
+  });
+});
+
+describe("Бой с драконом: «Назад» после поражения и бросок за команду", () => {
+  it("с поражения — к удару, и ещё раз назад — удар отменён; бросок без телефона один и тот же", () => {
+    const c = content();
+    c.battles[0]!.hp = 100_000;
+    c.battles[0]!.tasks = [{ id: "d", kind: "dice", stat: "luck", text: "", options: ["", "", "", ""], correct: 0, power: 100, seconds: 0 }];
+    let { s } = heroes(c, { hero: "knight", stats: { luck: 1 } }, { hero: "knight", stats: { luck: 1 } });
+    s = apply(s, showTask(s, c, teams));
+    const first = revealTask(s, c, [], teams);
+    const again = revealTask(s, c, [], teams);
+    expect(first?.state.result).toEqual(again?.state.result);
+    s = apply(s, first);
+    const scored = s.leaderboard.A?.score ?? 0;
+    expect(scored).toBeGreaterThan(0);
+    s = apply(s, nextTask(s, c, teams));
+    expect(parseDragonResult(s.state.result).phase).toBe("defeat");
+    expect(s.leaderboard.A?.score).toBe(0);
+    s = apply(s, dragonBack(s, teams)?.change ?? null);
+    expect(parseDragonResult(s.state.result).phase).toBe("reveal");
+    expect(s.leaderboard.A?.score).toBe(scored);
+    s = apply(s, dragonBack(s, teams)?.change ?? null);
+    expect(parseDragonResult(s.state.result).phase).toBe("task");
+    expect(s.leaderboard.A?.score).toBe(0);
+    expect(parseDragonResult(s.state.result).hp).toBe(100_000);
   });
 });

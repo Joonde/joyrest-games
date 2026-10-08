@@ -78,6 +78,9 @@ export function DanceHostControls({ session, content, answers, participants, con
       const arrived = rehearsal ? Promise.resolve() : nextSession();
       // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
       // секунду, получит отказ и «вспомнит» старый ответ.
+      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
+      const cur = latest.current.state;
+      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
       for (const s of clear ?? []) await control.clearAnswers(s);
       // Отпечаток итогов шага: второй пульт не повторит «Выполнено» / «Неверно» по устаревшему виду.
       await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });

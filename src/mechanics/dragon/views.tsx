@@ -61,7 +61,7 @@ function TaskCard({ task, reveal, size = "screen" }: { task: DragonTask; reveal:
 export function HeroRow({ session, content, result, size = "screen" }: { session: Session; content: DragonContent; result: DragonResult; size?: "screen" | "phone" }) {
   const reveal = result.phase === "reveal" || result.phase === "victory";
   return (
-    <ul className={`dr-heroes dr-heroes--${size}`} style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(1, result.order.length), size === "phone" ? 2 : 6)}, minmax(0, 1fr))` }}>
+    <ul className={`dr-heroes dr-heroes--${size}`} style={{ gridTemplateColumns: `repeat(${size === "phone" ? Math.min(2, Math.max(1, result.order.length)) : result.order.length <= 6 ? Math.max(1, result.order.length) : Math.ceil(result.order.length / 2)}, minmax(0, 1fr))` }}>
       {result.order.map((p) => {
         const h = result.heroes[p];
         const hero = heroOf(h?.hero);

@@ -55,6 +55,8 @@ export interface DragonResult extends Snapshot {
   /** Начисленное на показе удара или итога боя (для «Назад»). */
   deltas: Record<string, number>;
   prev: Snapshot | null;
+  /** Итог боя «дракон победил»: удар последнего задания (для «Назад» дальше). */
+  stash: { deltas: Record<string, number>; prev: Snapshot | null } | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -105,6 +107,12 @@ export function parseDragonResult(raw: unknown): DragonResult {
     killer: typeof d.killer === "string" && ID.test(d.killer) ? d.killer : null,
     deltas: nums(d.deltas, true),
     prev: Object.keys(prev).length > 0 ? parseSnapshot(prev) : null,
+    stash: (() => {
+      const st = rec(d.stash);
+      if (Object.keys(st).length === 0) return null;
+      const sp = rec(st.prev);
+      return { deltas: nums(st.deltas, true), prev: Object.keys(sp).length > 0 ? parseSnapshot(sp) : null };
+    })(),
   };
 }
 
@@ -161,12 +169,12 @@ function snapshot(r: DragonResult): Snapshot {
 function battleStart(content: DragonContent, r: DragonResult, battle: number): DragonResult {
   const hp = content.battles[battle]?.hp ?? 1;
   const lives = Object.fromEntries(r.order.map((p) => [p, maxLives(content, r.heroes[p])]));
-  return { ...r, phase: "intro", battle, task: 0, hp, lives, dead: [], dmg: {}, wins: {}, hits: {}, shield: [], marks: [], last: {}, killer: null, deltas: {}, prev: null };
+  return { ...r, phase: "intro", battle, task: 0, hp, lives, dead: [], dmg: {}, wins: {}, hits: {}, shield: [], marks: [], last: {}, killer: null, deltas: {}, prev: null, stash: null };
 }
 
 export type DragonAction = "start" | "heroesDone" | "show" | "reveal" | "next" | "nextBattle" | "podium" | "podiumNext" | "finish";
 
-export function dragonPrimary(session: Session, content: DragonContent): DragonAction {
+export function dragonPrimary(session: Session, _content?: DragonContent): DragonAction {
   const { stage } = session.state;
   const r = parseDragonResult(session.state.result);
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
@@ -175,7 +183,7 @@ export function dragonPrimary(session: Session, content: DragonContent): DragonA
   if (r.phase === "over") return hasPodium(session.leaderboard) ? "podium" : "finish";
   if (r.phase === "intro") return "show";
   if (r.phase === "task") return "reveal";
-  if (r.phase === "victory" || r.phase === "defeat") return r.battle + 1 < content.battles.length ? "nextBattle" : "nextBattle";
+  if (r.phase === "victory" || r.phase === "defeat") return "nextBattle";
   return "next";
 }
 
@@ -245,7 +253,7 @@ export function damageOf(task: DragonTask, hero: TeamHero, ok: boolean, roll: nu
   if (hero.hero === "barbarian" && task.stat === "str") mult *= 2;
   if (hero.hero === "bard" && task.stat === "cha") mult *= 2;
   if (hero.hero === "elfess" && task.stat === "agi" && firstFast) mult *= 2;
-  return Math.max(0, Math.round(task.power * mult) + (hero.hero === "archer" ? 20 : 0));
+  return Math.max(0, Math.round(task.power * mult) + (hero.hero === "archer" && task.kind === "choice" ? 20 : 0));
 }
 
 /** «Удар!»: урон дракону, удары по командам, гибель, победа. */
@@ -254,8 +262,9 @@ export function revealTask(session: Session, content: DragonContent, answers: An
   const task = taskOf(content, r);
   if (!task) return null;
   const since = session.state.startedAt ?? 0;
-  const mine = answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= since && r.order.includes(a.pid)).sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0));
   const alive = r.order.filter((p) => !r.dead.includes(p));
+  // Ответы только живых команд (погибшая не может «опередить» эльфийку).
+  const mine = answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= since && alive.includes(a.pid)).sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0));
   const firstRight = task.kind === "choice" ? mine.find((a) => rec(a.value).choice === task.correct)?.pid : undefined;
   const lives = { ...r.lives };
   const dmg = { ...r.dmg };
@@ -274,7 +283,8 @@ export function revealTask(session: Session, content: DragonContent, answers: An
     if (task.kind === "choice") ok = rec(answer?.value).choice === task.correct;
     else if (task.kind === "task") ok = r.marks.includes(p);
     else {
-      const raw = answer && rec(answer.value).roll === true ? dieOf(answer) : (hostRolls[p] ?? null);
+      // Не бросили сами — бросок за команду тоже из времени показа (тот же при повторном «Ударе»).
+      const raw = answer && rec(answer.value).roll === true ? dieOf(answer) : (hostRolls[p] ?? dieOf({ id: `${session.state.step}_${p}_host`, submittedAt: session.state.startedAt ?? 0 }));
       roll = raw === null ? null : Math.min(6, raw + (hero.hero === "thief" ? 1 : 0));
       ok = roll !== null;
     }
@@ -333,7 +343,7 @@ export function nextTask(session: Session, content: DragonContent, participants:
   if (!battle || r.task + 1 >= battle.tasks.length || allDead) {
     const deltas = Object.fromEntries(r.order.filter((p) => !r.dead.includes(p) && (r.dmg[p] ?? 0) > 0).map((p) => [p, -(r.dmg[p] ?? 0)]));
     return {
-      state: { result: write({ ...r, phase: "defeat", deltas, prev: snapshot(r), dmg: Object.fromEntries(Object.keys(r.dmg).map((p) => [p, 0])) }) },
+      state: { result: write({ ...r, phase: "defeat", deltas, prev: snapshot(r), stash: { deltas: r.deltas, prev: r.prev }, dmg: Object.fromEntries(Object.keys(r.dmg).map((p) => [p, 0])) }) },
       ...applyDeltas(session, participants, deltas),
     };
   }
@@ -365,7 +375,7 @@ export function dragonBack(session: Session, participants: Participant[]): Drago
     return { change: { state: { stage: "question", revealed: false, result: write({ ...r, ...r.prev, phase: "task", last: {}, killer: null, deltas: {}, prev: null }) }, ...applyDeltas(session, participants, negate(r.deltas)) } };
   }
   if (r.phase === "defeat" && r.prev) {
-    return { change: { state: { result: write({ ...r, ...r.prev, phase: "reveal", deltas: {}, prev: null }) }, ...applyDeltas(session, participants, negate(r.deltas)) } };
+    return { change: { state: { result: write({ ...r, ...r.prev, phase: "reveal", deltas: r.stash?.deltas ?? {}, prev: r.stash?.prev ?? null, stash: null }) }, ...applyDeltas(session, participants, negate(r.deltas)) } };
   }
   if (r.phase === "task") {
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, phase: "intro", marks: [] }) } }, clear: [step] };

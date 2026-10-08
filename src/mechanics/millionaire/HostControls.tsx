@@ -92,6 +92,9 @@ export function MillionaireHostControls({ session, content, answers, participant
         return;
       }
       const arrived = rehearsal ? Promise.resolve() : nextSession();
+      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
+      const cur = latest.current.state;
+      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
       for (const s of clear ?? []) await control.clearAnswers(s);
       await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
       await arrived;

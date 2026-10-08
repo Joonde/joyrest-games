@@ -52,6 +52,18 @@ export interface PlayerViewProps<Content, AnswerValue> extends ViewProps<Content
   /** Ответ отправляется (нет связи — ждёт в очереди). */
   sending: boolean;
   onAnswer: (value: AnswerValue) => void;
+  /**
+   * Режим команд: свой ответ этого телефона (не за команду) на тот же шаг — один на шаг. Так капитан
+   * просит подсказку, а участники голосуют («Помощь зала» в «Миллионере»). В режиме solo — нет.
+   */
+  personal?: PersonalAnswer;
+}
+
+export interface PersonalAnswer {
+  /** Свой ответ на текущий шаг: null — нет, undefined — ещё выясняем. */
+  value: { value: unknown } | null | undefined;
+  sending: boolean;
+  send: (value: unknown) => void;
 }
 
 /** Что нужно для подсчёта очков, кроме самих ответов. */

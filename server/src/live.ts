@@ -461,14 +461,14 @@ export async function expireSessions(sql: Sql, cutoff: Date, limit = CLEANUP_LIM
   return { deleted: batch.length, more: rows.length > limit };
 }
 
-async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean): Promise<void> {
+async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean, until = Date.now()): Promise<void> {
   // В транзакции и вне её запросы пишутся одинаково.
   const sql = db as Sql;
   const board = sql.json(compactBoard(normalizeBoard(row.leaderboard)) as never);
   const title = row.game_title.slice(0, 80);
   // Начало вечера — первый гость; без него — «Начать игру». Перерывы — до момента сохранения.
   const started = row.event_started_at ?? row.started_at ?? null;
-  const pauses = breakStats(parseBreaks(row.breaks), Date.now());
+  const pauses = breakStats(parseBreaks(row.breaks), until);
   if (replace) {
     await sql`
       insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at, breaks_ms, breaks_count)
@@ -828,7 +828,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const row = await loadSession(hosted.row.id);
       // Сессию закрыли в лобби, никто не играл — в «Историю игр» пустую строку не пишем.
       if (row && !(wasLobby && Object.keys(normalizeBoard(row.leaderboard)).length === 0)) {
-        await saveResult(sql, row, participantsCount, true);
+        await saveResult(sql, row, participantsCount, true, now());
         const end = Math.min(now(), (last?.updated_at.getTime() ?? now()) + 15 * 60_000);
         await awardGamePoints(sql, row.id, end);
       }

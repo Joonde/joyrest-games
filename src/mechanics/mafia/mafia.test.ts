@@ -33,6 +33,7 @@ import {
   winnerOf,
 } from "./logic";
 import { newKey, seal, unseal } from "./seal";
+import { mafia } from "./index";
 
 const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const roles: Record<string, RoleId> = { a: "don", b: "mafia", c: "commissar", d: "doctor", e: "civilian", f: "civilian", g: "civilian", h: "civilian" };
@@ -137,6 +138,21 @@ describe("мафия: ночь", () => {
     expect(winnerOf(roles, ["c", "d", "e"])).toBe("city");
     expect(winnerOf(roles, ["a", "b", "e", "f"])).toBe("mafia");
     expect(winnerOf(roles, ["a", "e", "f"])).toBeNull();
+  });
+});
+
+describe("мафия: музыка ночи", () => {
+  it("играет на раздаче, знакомстве и ночью, днём — нет", () => {
+    let s = session();
+    expect(mafia.music?.(s, createMafia())).toBeNull();
+    s = applyChange(s, startDeal(s, players), 1);
+    expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
+    s = applyChange(s, dealt(s, {}, null), 2);
+    expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
+    s = applyChange(s, startDay(s), 3);
+    expect(mafia.music?.(s, createMafia())).toBeNull();
+    s = applyChange(s, startNight(s), 4);
+    expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
   });
 });
 

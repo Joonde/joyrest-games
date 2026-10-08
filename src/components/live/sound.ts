@@ -518,7 +518,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -531,6 +531,8 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   questionIntro: "/sounds/question-intro-1.mp3",
   /** Суперигра: пока капитаны выбирают уровень и отвечают. */
   superPick: "/sounds/super-pick-1.mp3",
+  /** «Мафия»: ночь (раздача ролей и ночные ходы) — своя музыка, создана кодом (`scripts/sounds/mafia-night.py`). */
+  mafiaNight: "/sounds/mafia-night-1.mp3",
   /** Лобби: на экране QR, ждём гостей. */
   lobby: "/sounds/lobby-1.mp3",
   /** «Представить команды». */
@@ -544,6 +546,8 @@ export const BUILTIN_MUSIC = {
   lobby: [SAMPLES.lobby].filter((u): u is string => Boolean(u)),
   questionIntro: [SAMPLES.questionIntro].filter((u): u is string => Boolean(u)),
   superPick: [SAMPLES.superPick].filter((u): u is string => Boolean(u)),
+  // Один трек дважды: следующий круг вступает наплывом, стык mp3 не слышен.
+  mafiaNight: [SAMPLES.mafiaNight, SAMPLES.mafiaNight].filter((u): u is string => Boolean(u)),
 } as const;
 
 

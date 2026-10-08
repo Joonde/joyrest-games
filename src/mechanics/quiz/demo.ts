@@ -47,7 +47,7 @@ export const DEMO_QUIZ: { title: string; content: QuizContent } = {
 export const DEMO_MELODY: { title: string; content: QuizContent } = {
   title: "Угадай мелодию: шаблон",
   content: {
-    settings: { intro: false, board: "rounds", phoneImages: false },
+    settings: { intro: false, board: "rounds", phoneImages: false, raceTarget: 5 },
     questions: [
       q("mel1", "speed", "♪ Что это за песня?", {
         options: ["Кино — Звезда по имени Солнце", "Кино — Группа крови", "ДДТ — Что такое осень", "Наутилус — Прогулки по воде"],

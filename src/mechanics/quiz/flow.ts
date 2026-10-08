@@ -5,8 +5,10 @@ import { leaderboardAdditions } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone, podiumLabel } from "../../core/podium";
 import { placeMoves, startRoundEntries } from "../../core/rounds";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
-import { quizRounds, roundAt, settingsOf, type QuizContent } from "./content";
-import { emptyResult, parseResult, resultOf, score, steps } from "./logic";
+import { quizRounds, roundAt, settingsOf, type QuizContent, type QuizQuestion } from "./content";
+import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, syncBuzz } from "../../core/buzz";
+import { emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
+import { superPicks } from "../../core/supergame";
 
 export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish";
 
@@ -81,6 +83,10 @@ export const ACTION_LABELS: Record<QuizAction, string> = {
 /** Подпись главной кнопки: на пьедестале — какое место откроется, в конце раунда — «Итоги раунда». */
 export function actionLabel(session: Session, content: QuizContent, action: QuizAction): string {
   if (action === "podiumNext") return podiumLabel(session);
+  const q = content.questions[session.state.step];
+  if (q?.kind === "super" && action === "show") return "Открыть уровни";
+  if (q?.kind === "super" && action === "reveal") return "Показать ответы";
+  if (action === "next" && content.questions[session.state.step + 1]?.kind === "super") return "Суперигра";
   if (action === "board" && endsRound(content, session.state.step)) return "Итоги раунда";
   if (action === "show" && startsRound(content, session.state.step)) return "Начать раунд";
   return ACTION_LABELS[action];
@@ -96,18 +102,61 @@ function carry(session: Session): { prevRoundBase?: unknown } {
 }
 
 /** Открыть вопрос: время старта ставит сервер, с ним считается скорость. */
+/** Время на ответ: у гонки его нет — шаг идёт, пока кто-то не угадает или ведущий не покажет ответ. */
+function limitOf(q: QuizQuestion | undefined): number | null {
+  if (!q) return null;
+  return q.kind === "buzz" ? null : q.timeLimit;
+}
+
 export function showQuestion(session: Session, content: QuizContent): SessionChange {
   const q = content.questions[session.state.step];
   return {
     state: {
       stage: "question",
       startedAt: "server",
-      timeLimit: q?.timeLimit ?? null,
+      timeLimit: limitOf(q),
       revealed: false,
       answered: 0,
-      result: { ...emptyResult(), ...carry(session) },
+      result: { ...startResult(q), ...carry(session) },
     },
   };
+}
+
+// ---------------------------------------------------------------- суперигра: выбор уровней
+
+/** Кто какой уровень выбрал — на экран (без текста ответов). null — записывать нечего. */
+export function superSync(session: Session, content: QuizContent, answers: Answer[]): SessionChange | null {
+  if (session.state.stage !== "question") return null;
+  if (content.questions[session.state.step]?.kind !== "super") return null;
+  const picks = superPicks(answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)));
+  const before = parseResult(session.state.result).picks ?? {};
+  const same = Object.keys(picks).length === Object.keys(before).length && Object.entries(picks).every(([pid, l]) => before[pid] === l);
+  return same ? null : { state: { result: { ...asRecord(session.state.result), picks } } };
+}
+
+// ---------------------------------------------------------------- гонка: кнопка
+
+/** Свежие нажатия → у кого слово. null — записывать нечего. */
+export function buzzSync(session: Session, answers: Answer[]): SessionChange | null {
+  if (session.state.stage !== "question") return null;
+  const result = parseResult(session.state.result);
+  if (!result.buzz) return null;
+  const next = syncBuzz(result.buzz, buzzOrder(answers, session.state.step));
+  return next ? { state: { result: { ...asRecord(session.state.result), buzz: next } } } : null;
+}
+
+/** «Неверно»: слово следующему нажавшему; ошибившийся до следующего вопроса не отвечает. */
+export function buzzWrongAnswer(session: Session): SessionChange {
+  const result = parseResult(session.state.result);
+  return { state: { result: { ...asRecord(session.state.result), buzz: buzzWrong(result.buzz ?? EMPTY_BUZZ) } } };
+}
+
+/** «Верно»: очки и деления к финишу отвечавшему, на экране — конфетти и припев. */
+export function buzzRightAnswer(session: Session, content: QuizContent, answers: Answer[], participants: Participant[]): SessionChange {
+  const result = parseResult(session.state.result);
+  const buzz = buzzRight(result.buzz ?? EMPTY_BUZZ);
+  const judged: Session = { ...session, state: { ...session.state, result: { ...asRecord(session.state.result), buzz } } };
+  return reveal(judged, content, answers, participants);
 }
 
 /** Засчитать или снять открытый ответ гостя (до показа ответа). */
@@ -159,9 +208,20 @@ export function reveal(
     if (delta === 0 && (entry.last ?? 0) === 0 && (entry.move ?? 0) === move && session.leaderboard[pid]) continue;
     leaderboard[pid] = { ...(after[pid] as LeaderboardEntry), move };
   }
-  const accepted = parseResult(session.state.result).accepted;
+  const before = parseResult(session.state.result);
+  // Гонка: победитель проходит деления к финишу (супер-трек — больше).
+  const winner = step.question.kind === "buzz" ? (before.buzz?.winner ?? null) : null;
+  if (winner) {
+    const entry = leaderboard[winner] ?? after[winner];
+    if (entry) leaderboard[winner] = { ...entry, race: (entry.race ?? 0) + (step.question.steps ?? 1) };
+  }
   return {
-    state: { stage: "reveal", revealed: true, answered: own.length, result: { ...resultOf(step.question, own, accepted), ...carry(session) } },
+    state: {
+      stage: "reveal",
+      revealed: true,
+      answered: own.length,
+      result: { ...resultOf(step.question, own, before.accepted, before.buzz), ...carry(session) },
+    },
     leaderboard,
   };
 }
@@ -187,11 +247,12 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
   if (newRound) for (const [pid, entry] of Object.entries(session.leaderboard)) prevRoundBase[pid] = entry.roundBase ?? 0;
   // Без заставки «Вопрос N из M» вопрос открывается сразу; заставка нового раунда остаётся.
   const q = content.questions[step];
-  const direct = !settingsOf(content).intro && !newRound && q !== undefined;
+  // Суперигра всегда с заставкой: лучи, сундуки и музыка.
+  const direct = !settingsOf(content).intro && !newRound && q !== undefined && q.kind !== "super";
   return {
     ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
     state: direct
-      ? { step, stage: "question", startedAt: "server", timeLimit: q.timeLimit, revealed: false, answered: 0, result: emptyResult() }
+      ? { step, stage: "question", startedAt: "server", timeLimit: limitOf(q), revealed: false, answered: 0, result: { ...startResult(q) } }
       : {
           step,
           stage: "ready",
@@ -211,7 +272,7 @@ export interface BackPlan {
 }
 
 /** «Назад» на один этап. null — назад некуда (первый вопрос ещё не показан). */
-export function back(session: Session): BackPlan | null {
+export function back(session: Session, content?: QuizContent): BackPlan | null {
   const { stage, step } = session.state;
   if (stage === "podium") return { change: podiumBack(session) };
   if (stage === "board") {
@@ -226,8 +287,20 @@ export function back(session: Session): BackPlan | null {
       if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0, move: 0 };
     }
     const result = parseResult(session.state.result);
+    // Гонка: снимаем и деления победителя; слово снова у него — ведущий решит ещё раз.
+    const q = content?.questions[step];
+    let buzz = result.buzz;
+    if (buzz?.winner) {
+      const winner = buzz.winner;
+      const entry = leaderboard[winner] ?? session.leaderboard[winner];
+      if (entry) leaderboard[winner] = { ...entry, race: Math.max(0, (entry.race ?? 0) - (q?.steps ?? 1)) };
+      buzz = { ...buzz, winner: null, current: winner };
+    }
     return {
-      change: { state: { stage: "question", revealed: false, result: { ...emptyResult(), accepted: result.accepted, ...carry(session) } }, leaderboard },
+      change: {
+        state: { stage: "question", revealed: false, result: { ...emptyResult(), accepted: result.accepted, ...(buzz ? { buzz } : {}), ...carry(session) } },
+        leaderboard,
+      },
     };
   }
   if (stage === "question") {

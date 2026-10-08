@@ -36,6 +36,10 @@ export interface UserProfile {
   experienceSince?: number | null;
   /** Свой сервер: владелец открыл ведущему базу площадок и заявки клиентов. */
   venueAccess?: boolean;
+  /** Свой сервер: профессия в команде (`src/core/professions.ts`); нет — ведущий. */
+  profession?: string;
+  /** Свой сервер: роль доступа помощника (`src/core/accessRoles.ts`); нет — без роли. */
+  accessRole?: string | null;
 }
 
 /** Ведущий в списке администратора. */
@@ -239,6 +243,11 @@ export interface ChangeExpect {
   phase?: SessionPhase;
   step?: number;
   stage?: StepStage;
+  /**
+   * Отпечаток `state.result`, который видел пульт (`resultKey`). Действия, которые меняют очки без
+   * смены шага и этапа («Выполнено», «Неверно», переигровка ничьей), со второго пульта не повторятся.
+   */
+  result?: string;
 }
 
 export type ParticipantKind = "player" | "team";
@@ -257,6 +266,8 @@ export interface LeaderboardEntry {
   roundBase?: number;
   /** На сколько мест поднялся после последнего показанного ответа (−1 — опустился). */
   move?: number;
+  /** Гонка «Кто быстрее»: сколько делений пройдено к финишу (угаданные треки, супер-трек — больше). */
+  race?: number;
 }
 
 /** Ключ — id участника (игрока или команды). */
@@ -278,6 +289,8 @@ export interface Session {
   state: SessionState;
   leaderboard: Leaderboard;
   createdAt: number | null;
+  /** Свой сервер: начало вечера — первый гость или «Начать игру» (по часам сервера). */
+  eventStartedAt?: number | null;
 }
 
 export interface Participant {
@@ -341,6 +354,9 @@ export interface GameResult {
   /** Свой сервер: «Начать игру» и «Завершить игру» (сколько шла игра). */
   startedAt?: number | null;
   finishedAt?: number | null;
+  /** Свой сервер: перерывы вечера (слайд «Перерыв»): сколько длились и сколько их было. */
+  breaksMs?: number;
+  breaksCount?: number;
 }
 
 /** Итог автоочистки старых сессий. */
@@ -384,6 +400,8 @@ export interface TeamMember {
   owner: boolean;
   /** С какого дня в JoyRest (дата добавления). */
   since: number | null;
+  /** Профессия в команде; нет — ведущий. */
+  profession?: string;
 }
 
 /** Что экран зала сообщает пульту о себе (не в базе, только в памяти сервера). */
@@ -424,6 +442,8 @@ export interface VenueRecord {
   hostId: string | null;
   hostName: string | null;
   files: VenueFileInfo[];
+  /** В архиве с этого времени (удалили), null — в базе. */
+  archivedAt: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -439,6 +459,8 @@ export interface VenueRequestRecord {
   hostName: string | null;
   /** Сколько предложений уже отправлено по заявке. */
   offers: number;
+  /** В архиве с этого времени, null — в работе. */
+  archivedAt: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -469,4 +491,23 @@ export interface OfflinePlayer {
   name: string;
   /** Название команды (режим команд). */
   team: string | null;
+}
+
+/** Строка «Игры сейчас» (лёгкая, без снимка игры). */
+export interface SessionSummary {
+  id: string;
+  code: string;
+  hostId: string;
+  hostName: string;
+  gameTitle: string;
+  mechanic: string | null;
+  phase: SessionPhase;
+  screenMode: ScreenMode;
+  /** Телефоны гостей. */
+  players: number;
+  createdAt: number;
+  updatedAt: number;
+  startedAt: number | null;
+  /** «Ждёт гостей» или «идёт», но 12 часов без действий — скорее всего, брошена. */
+  stale: boolean;
 }

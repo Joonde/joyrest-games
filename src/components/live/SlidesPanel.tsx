@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { linesFromText, slideTemplate, SLIDE_TEMPLATES } from "../../core/slides";
+import { rulesFor } from "../../core/rules";
 import { Icon, type IconName } from "../Icon";
 import { clock, SLIDE_LIMITS, type Session, type SessionChange, type SlideKind, type SlideState } from "../../data";
 
@@ -27,22 +28,32 @@ function slideId(): string {
   return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
 }
 
-function defaultDraft(kind: SlideKind): Draft {
+function defaultDraft(kind: SlideKind, session?: Pick<Session, "mechanic" | "playMode">): Draft {
   const d = slideTemplate(kind).defaults;
+  // Правила — свои у каждого формата игры и режима (каждый сам за себя или команды).
+  if (kind === "rules" && session) {
+    const rules = rulesFor(session.mechanic, session.playMode);
+    return { title: rules.title, text: "", lines: rules.lines.join("\n"), minutes: 10 };
+  }
   return { title: d.title, text: d.text, lines: d.lines.join("\n"), minutes: d.minutes ?? 10 };
 }
 
+/** Где на устройстве лежит текст шаблона: правила — отдельно для каждого формата игры. */
+function draftKey(kind: SlideKind, session: Pick<Session, "mechanic" | "playMode">): string {
+  return kind === "rules" ? `rules.${session.mechanic ?? "none"}.${session.playMode}` : kind;
+}
+
 /** Тексты слайдов ведущий готовит один раз: они запоминаются на этом устройстве. */
-function readDrafts(): Partial<Record<SlideKind, Draft>> {
+function readDrafts(): Partial<Record<string, Draft>> {
   try {
     const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "{}") as unknown;
-    return typeof raw === "object" && raw !== null ? (raw as Partial<Record<SlideKind, Draft>>) : {};
+    return typeof raw === "object" && raw !== null ? (raw as Partial<Record<string, Draft>>) : {};
   } catch {
     return {};
   }
 }
 
-function saveDrafts(drafts: Partial<Record<SlideKind, Draft>>): void {
+function saveDrafts(drafts: Partial<Record<string, Draft>>): void {
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
   } catch {
@@ -61,10 +72,11 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const template = slideTemplate(kind);
-  const draft = drafts[kind] ?? defaultDraft(kind);
+  const key = draftKey(kind, session);
+  const draft = drafts[key] ?? defaultDraft(kind, session);
 
   function edit(patch: Partial<Draft>) {
-    const next = { ...drafts, [kind]: { ...draft, ...patch } };
+    const next = { ...drafts, [key]: { ...draft, ...patch } };
     setDrafts(next);
     saveDrafts(next);
   }
@@ -140,8 +152,8 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
         <button type="button" className="btn btn--block" disabled={busy} onClick={show}>
           {current ? "Показать этот слайд вместо текущего" : "Показать на экране"}
         </button>
-        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => edit(defaultDraft(kind))}>
-          Вернуть текст шаблона
+        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => edit(defaultDraft(kind, session))}>
+          {kind === "rules" ? "Вернуть правила этой игры" : "Вернуть текст шаблона"}
         </button>
       </div>
       {error && (

@@ -11,7 +11,7 @@ export function setSoundSet(name: SoundSetName): void {
   soundSet = name;
 }
 
-export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp";
+export type SoundName = "tick" | "correct" | "fanfare" | "gong" | "drumroll" | "applause" | "wrong" | "whoosh" | "timeUp" | "roar" | "flame" | "dice" | "step" | "bonus" | "trap" | "sparkle" | "treasure";
 
 /** Раньше «без звука» запоминалось на устройстве — из-за этого экран молчал на следующих вечерах. */
 const OLD_MUTE_KEY = "joyrest.soundOff";
@@ -357,7 +357,126 @@ function applause(): void {
   }
 }
 
-const DUCK_SECONDS: Partial<Record<SoundName, number>> = { gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
+/**
+ * Рык дракона: низкие «пилы» с хрипом (быстрая модуляция громкости), высота сначала растёт, потом падает,
+ * сверху — шумное дыхание; всё через перегруз и низкочастотный фильтр, чтобы звучало утробно.
+ */
+function roar(): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const t = ctx.currentTime;
+  const length = 1.6;
+  const shaper = ctx.createWaveShaper();
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1;
+    curve[i] = Math.tanh(x * 4);
+  }
+  shaper.curve = curve;
+  const low = ctx.createBiquadFilter();
+  low.type = "lowpass";
+  low.frequency.setValueAtTime(500, t);
+  low.frequency.linearRampToValueAtTime(1400, t + 0.4);
+  low.frequency.exponentialRampToValueAtTime(300, t + length);
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, t);
+  master.gain.linearRampToValueAtTime(0.32, t + 0.12);
+  master.gain.setValueAtTime(0.32, t + 0.7);
+  master.gain.exponentialRampToValueAtTime(0.0001, t + length);
+  // Хрип: громкость дрожит 28 раз в секунду.
+  const growl = ctx.createGain();
+  growl.gain.value = 0.6;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 28;
+  const depth = ctx.createGain();
+  depth.gain.value = 0.4;
+  lfo.connect(depth).connect(growl.gain);
+  growl.connect(shaper).connect(low).connect(master).connect(dest);
+  for (const [base, detune] of [
+    [62, 0],
+    [93, 7],
+    [124, -9],
+  ] as const) {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.detune.value = detune;
+    osc.frequency.setValueAtTime(base * 0.8, t);
+    osc.frequency.linearRampToValueAtTime(base * 1.25, t + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(base * 0.6, t + length);
+    osc.connect(growl);
+    osc.start(t);
+    osc.stop(t + length + 0.05);
+  }
+  lfo.start(t);
+  lfo.stop(t + length + 0.05);
+  burst(0, length, 0.18, { type: "bandpass", freq: 700, q: 0.8, toFreq: 250 }, 0.15);
+}
+
+/** Струя пламени: шумный «вжух» с гулом, от высокого к низкому. */
+function flame(): void {
+  burst(0, 1.3, 0.34, { type: "bandpass", freq: 2200, q: 0.7, toFreq: 380 }, 0.08);
+  burst(0, 1.1, 0.3, { type: "lowpass", freq: 260 }, 0.05);
+  tone(55, 0, 1, 0.12, "sawtooth");
+}
+
+/** Кубик: стук по столу — несколько ударов всё реже и тише. */
+function dice(): void {
+  const hits = [0, 0.09, 0.2, 0.33, 0.48, 0.62, 0.74];
+  hits.forEach((t, i) => {
+    const v = 0.32 * (1 - i / (hits.length + 1));
+    burst(t, 0.05, v, { type: "bandpass", freq: 2600 + (i % 3) * 500, q: 3 });
+    burst(t, 0.04, v * 0.6, { type: "lowpass", freq: 400 });
+  });
+}
+
+/** Шаг фишки: деревянный «тук». */
+function step(): void {
+  tone(520, 0, 0.09, 0.1, "triangle");
+  burst(0, 0.04, 0.12, { type: "bandpass", freq: 1500, q: 4 });
+}
+
+/** Бонус: взлёт и искры. */
+function bonus(): void {
+  [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.06, 0.35, 0.09, "triangle"));
+  burst(0, 0.8, 0.15, { type: "bandpass", freq: 500, q: 1.5, toFreq: 6000 }, 0.1);
+}
+
+/** Ловушка: падение вниз. */
+function trap(): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sawtooth";
+  const t = ctx.currentTime;
+  osc.frequency.setValueAtTime(600, t);
+  osc.frequency.exponentialRampToValueAtTime(70, t + 0.8);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(0.12, t + 0.03);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+  const f = ctx.createBiquadFilter();
+  f.type = "lowpass";
+  f.frequency.value = 1800;
+  osc.connect(f).connect(gain).connect(dest);
+  osc.start(t);
+  osc.stop(t + 0.95);
+  burst(0.75, 0.3, 0.3, { type: "lowpass", freq: 180 });
+}
+
+/** Сокровище (заставка суперигры): короткая дробь, удар и звенящий аккорд с блёстками. */
+function treasure(): void {
+  for (let t = 0; t < 1.1; t += 0.05) burst(t, 0.06, 0.04 + (t / 1.1) * 0.16, { type: "bandpass", freq: 1600, q: 0.8 });
+  burst(1.1, 0.4, 0.35, { type: "lowpass", freq: 150 }, 0.002);
+  [523, 659, 784, 1047].forEach((f) => tone(f, 1.1, 1.6, 0.07, "triangle"));
+  [1568, 2093, 2637, 3136, 2637, 3520].forEach((f, i) => tone(f, 1.25 + i * 0.09, 0.4, 0.04, "sine"));
+}
+
+/** Искры: короткие звонкие блёстки. */
+function sparkle(): void {
+  [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, i * 0.05 + Math.random() * 0.03, 0.25, 0.05, "sine"));
+}
+
+const DUCK_SECONDS: Partial<Record<SoundName, number>> = { treasure: 3, dice: 0.9, bonus: 1, trap: 1.1, roar: 1.8, flame: 1.4, gong: 3, drumroll: 3.5, applause: 3.5, fanfare: 2.5, wrong: 1.2, whoosh: 1 };
 
 export function playSound(name: SoundName): void {
   if (muted || !soundReady()) return;
@@ -368,16 +487,137 @@ export function playSound(name: SoundName): void {
   if (name === "fanfare") fanfare();
   if (name === "gong") gong();
   if (name === "drumroll") drumroll();
-  if (name === "applause") applause();
+  // Аплодисменты — запись (Pixabay), пока она не скачалась — синтезированные.
+  if (name === "applause") {
+    if (SAMPLES.applause) playSampleOr("applause", applause);
+    else applause();
+  }
   if (name === "wrong") {
     tone(110, 0, 0.7, 0.14, "sawtooth");
     tone(116, 0, 0.7, 0.14, "sawtooth");
   }
+  if (name === "dice") dice();
+  if (name === "step") step();
+  if (name === "bonus") bonus();
+  if (name === "trap") trap();
+  if (name === "sparkle") sparkle();
+  if (name === "treasure") treasure();
+  if (name === "roar") roar();
+  if (name === "flame") flame();
   if (name === "whoosh") burst(0, 0.7, 0.3, { type: "bandpass", freq: 300, q: 2, toFreq: 4000 }, 0.25);
   if (name === "timeUp") {
     tone(784, 0, 0.3, 0.16, "triangle");
     tone(523, 0.25, 0.6, 0.16, "triangle");
   }
+}
+
+// ---------- Звуки-файлы (public/sounds, в имени — версия: кэш на год) ----------
+
+/**
+ * Встроенные звуки и музыка-файлы платформы. Только с чистыми правами (свои, купленные, Pixabay
+ * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
+ * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
+ */
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick";
+
+export const SAMPLES: Partial<Record<SampleName, string>> = {
+  dragonAttack: "/sounds/dragon-attack-2.mp3",
+  /** Аплодисменты: пьедестал, слайд «Спасибо», кнопка пульта. */
+  applause: "/sounds/applause-1.mp3",
+  /** Перерыв: два трека по кругу с наплывом. */
+  breakA: "/sounds/break-golden-hour-1.mp3",
+  breakB: "/sounds/break-event-1.mp3",
+  /** Заставка «Вопрос 2 из 8» (до показа вопроса). */
+  questionIntro: "/sounds/question-intro-1.mp3",
+  /** Суперигра: пока капитаны выбирают уровень и отвечают. */
+  superPick: "/sounds/super-pick-1.mp3",
+  /** Лобби: на экране QR, ждём гостей. */
+  lobby: "/sounds/lobby-1.mp3",
+  /** «Представить команды». */
+  teamsIntro: "/sounds/teams-intro-1.mp3",
+};
+
+/** Встроенная музыка момента: перерыв, представление команд. */
+export const BUILTIN_MUSIC = {
+  break: [SAMPLES.breakA, SAMPLES.breakB].filter((u): u is string => Boolean(u)),
+  teams: [SAMPLES.teamsIntro].filter((u): u is string => Boolean(u)),
+  lobby: [SAMPLES.lobby].filter((u): u is string => Boolean(u)),
+  questionIntro: [SAMPLES.questionIntro].filter((u): u is string => Boolean(u)),
+  superPick: [SAMPLES.superPick].filter((u): u is string => Boolean(u)),
+} as const;
+
+
+const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
+
+function loadSample(name: SampleName): Promise<AudioBuffer | null> {
+  const cached = sampleBuffers.get(name);
+  if (cached) return cached;
+  const audio = ctx;
+  if (!audio) return Promise.resolve(null);
+  const url = SAMPLES[name];
+  if (!url) return Promise.resolve(null);
+  const job = fetch(url)
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+    .then((data) => audio.decodeAudioData(data))
+    .catch(() => {
+      // Не скачался — в следующий раз попробуем снова.
+      sampleBuffers.delete(name);
+      return null;
+    });
+  sampleBuffers.set(name, job);
+  return job;
+}
+
+/** Скачать звуки заранее (экран зала при открытии игры), чтобы удар звучал сразу. */
+export function preloadSamples(names: SampleName[]): void {
+  if (!ctx) return;
+  names.forEach((n) => void loadSample(n));
+}
+
+/**
+ * Сыграть звук-файл через шину эффектов (громкость микшера, «Стоп», приглушение музыки).
+ * Файла ещё нет (или не скачался) — играет `fallback` (синтезированный), чтобы удар не был беззвучным.
+ */
+export function playSample(name: SampleName, fallback?: SoundName, volume = 1): void {
+  if (muted || !soundReady()) return;
+  const dest = out();
+  if (!ctx || !dest) return;
+  const audio = ctx;
+  void loadSample(name).then((buffer) => {
+    if (!buffer) {
+      if (fallback) playSound(fallback);
+      return;
+    }
+    const target = out();
+    if (!target) return;
+    duckMusic(buffer.duration + 0.3);
+    const src = audio.createBufferSource();
+    src.buffer = buffer;
+    const gain = audio.createGain();
+    gain.gain.value = volume;
+    src.connect(gain).connect(target);
+    src.start();
+  });
+}
+
+/** Звук-файл без шума: нет файла — синтезированная замена (без повторного приглушения музыки). */
+function playSampleOr(name: SampleName, fallback: () => void): void {
+  const dest = out();
+  if (!ctx || !dest) return;
+  const audio = ctx;
+  void loadSample(name).then((buffer) => {
+    if (!buffer) {
+      fallback();
+      return;
+    }
+    const target = out();
+    if (!target) return;
+    duckMusic(buffer.duration + 0.3);
+    const src = audio.createBufferSource();
+    src.buffer = buffer;
+    src.connect(target);
+    src.start();
+  });
 }
 
 /** «Стоп»: заглушить все эффекты, что звучат сейчас (музыку — нет); следующие играют как обычно. */
@@ -421,6 +661,8 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
   if (!el) return false;
   // Ведущий включил музыку — фрагмент «Угадай мелодию» замолкает, музыка уже не «ждёт» его.
   silenceFragment();
+  // Музыка ведущего главнее встроенной (перерыв, представление команд).
+  if (builtinKey) stopBuiltinMusic(1.5);
   if (el.src !== url) el.src = url;
   if (fromStart) el.currentTime = 0;
   try {
@@ -444,50 +686,178 @@ export function stopMusic(): void {
   player.currentTime = 0;
 }
 
-// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото) ----------
+// ---------- Встроенная музыка платформы (перерыв, представление команд) ----------
+// Треки с чистыми правами из public/sounds (SAMPLES). Два плеера по очереди: плавное начало,
+// следующий трек вступает за несколько секунд до конца прежнего (наплыв), по кругу. Музыка
+// ведущего главнее: пока она играет, встроенная молчит.
+
+interface Deck {
+  el: HTMLAudioElement;
+  gain: GainNode;
+}
+
+const decks: Deck[] = [];
+let builtinKey: string | null = null;
+let builtinList: string[] = [];
+let builtinIndex = 0;
+let builtinDeck = 0;
+let builtinTimer = 0;
+/** Секунды наплыва между треками и плавного начала и конца. */
+const CROSSFADE = 4;
+const FADE_IN = 2.5;
+const FADE_OUT = 1.5;
+
+function deck(i: number): Deck | null {
+  if (!ctx) return null;
+  const have = decks[i];
+  if (have) return have;
+  const bus = musicOut();
+  if (!bus) return null;
+  const el = new Audio();
+  el.preload = "auto";
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  ctx.createMediaElementSource(el).connect(gain).connect(bus);
+  const made = { el, gain };
+  decks[i] = made;
+  return made;
+}
+
+function rampDeck(d: Deck, to: number, seconds: number): void {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  d.gain.gain.cancelScheduledValues(t);
+  d.gain.gain.setValueAtTime(d.gain.gain.value, t);
+  d.gain.gain.linearRampToValueAtTime(to, t + Math.max(0.05, seconds));
+}
+
+/** Запустить трек списка на свободном плеере и запланировать наплыв следующего. */
+async function startBuiltinTrack(fade: number): Promise<boolean> {
+  const url = builtinList[builtinIndex % builtinList.length];
+  const d = deck(builtinDeck);
+  if (!url || !d) return false;
+  d.el.src = url;
+  d.el.currentTime = 0;
+  d.el.loop = builtinList.length === 1;
+  try {
+    await d.el.play();
+  } catch {
+    return false;
+  }
+  rampDeck(d, 1, fade);
+  window.clearTimeout(builtinTimer);
+  if (builtinList.length > 1) {
+    const key = builtinKey;
+    const plan = () => {
+      const left = (d.el.duration || 0) - d.el.currentTime;
+      if (builtinKey !== key) return;
+      if (Number.isFinite(left) && left > 0 && left <= CROSSFADE + 0.3) {
+        // Наплыв: этот трек затихает, следующий на другом плеере вступает.
+        rampDeck(d, 0, CROSSFADE);
+        const old = d.el;
+        window.setTimeout(() => old.pause(), CROSSFADE * 1000 + 300);
+        builtinIndex = (builtinIndex + 1) % builtinList.length;
+        builtinDeck = 1 - builtinDeck;
+        void startBuiltinTrack(CROSSFADE);
+        return;
+      }
+      builtinTimer = window.setTimeout(plan, 500);
+    };
+    builtinTimer = window.setTimeout(plan, 500);
+  }
+  return true;
+}
+
+/**
+ * Включить встроенную музыку (список адресов, по кругу с наплывом). Тот же `key` — уже играет, ничего
+ * не делаем. false — браузер не дал звук (нужно касание экрана).
+ */
+export async function playBuiltinMusic(key: string, urls: string[]): Promise<boolean> {
+  if (!soundReady() || urls.length === 0) return false;
+  if (builtinKey === key && decks.some((d) => !d.el.paused)) return true;
+  stopBuiltinMusic(1);
+  // Музыка ведущего на паузе, пока звучит встроенная.
+  player?.pause();
+  builtinKey = key;
+  builtinList = urls;
+  builtinIndex = 0;
+  const free = decks.findIndex((d) => d.el.paused);
+  builtinDeck = free >= 0 ? free : decks.length < 2 ? decks.length : 0;
+  const ok = await startBuiltinTrack(FADE_IN);
+  if (!ok) builtinKey = null;
+  return ok;
+}
+
+/** Плавно выключить встроенную музыку. */
+export function stopBuiltinMusic(fade = FADE_OUT): void {
+  builtinKey = null;
+  window.clearTimeout(builtinTimer);
+  for (const d of decks) {
+    if (d.el.paused) continue;
+    rampDeck(d, 0, fade);
+    const el = d.el;
+    window.setTimeout(() => {
+      if (builtinKey === null || d.gain.gain.value < 0.01) el.pause();
+    }, fade * 1000 + 200);
+  }
+}
+
+// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото, гонка, «Своя игра») ----------
 
 let fragmentEl: HTMLAudioElement | null = null;
+let fragmentGain: GainNode | null = null;
 let fragmentTimer = 0;
 /** Фоновая музыка играла до фрагмента — после него продолжится. */
 let resumeAfterFragment = false;
+/** Сколько осталось звучать фрагменту (для паузы, пока отвечают): мс; конец — с затуханием. */
+let fragmentLeft = 0;
+let fragmentFadeOut = 0;
+let fragmentStartedAt = 0;
+let fragmentPaused = false;
+
+export interface FragmentOptions {
+  /** Плавное начало, секунд (0 — сразу громко). */
+  fadeIn?: number;
+  /** Затухание в конце, секунд (0 — обрыв). */
+  fadeOut?: number;
+}
 
 function fragmentElement(): HTMLAudioElement | null {
   if (!ctx) return null;
   if (!fragmentEl) {
-    fragmentEl = new Audio();
-    fragmentEl.preload = "auto";
     const bus = musicOut();
     if (!bus) return null;
-    ctx.createMediaElementSource(fragmentEl).connect(bus);
+    fragmentEl = new Audio();
+    fragmentEl.preload = "auto";
+    fragmentGain = ctx.createGain();
+    fragmentGain.connect(bus);
+    ctx.createMediaElementSource(fragmentEl).connect(fragmentGain);
   }
   return fragmentEl;
 }
 
-/**
- * Сыграть кусок трека: с `startSec` в течение `lengthSec` (0 — до конца). Фоновая музыка на это
- * время встаёт на паузу. false — браузер не дал включить звук (нужно коснуться экрана).
- */
-export async function playFragment(url: string, startSec: number, lengthSec: number): Promise<boolean> {
-  if (!soundReady()) return false;
-  const el = fragmentElement();
-  if (!el) return false;
+function rampFragment(to: number, seconds: number): void {
+  if (!ctx || !fragmentGain) return;
+  const g = fragmentGain.gain;
+  g.cancelScheduledValues(ctx.currentTime);
+  g.setValueAtTime(g.value, ctx.currentTime);
+  if (seconds <= 0) g.setValueAtTime(to, ctx.currentTime);
+  else g.linearRampToValueAtTime(to, ctx.currentTime + seconds);
+}
+
+function scheduleEnd(ms: number, fadeOut: number): void {
   window.clearTimeout(fragmentTimer);
-  if (player && !player.paused) {
-    resumeAfterFragment = true;
-    player.pause();
-  }
-  if (el.src !== url) el.src = url;
-  try {
-    // Перемотка до загрузки описания файла не срабатывает (фрагмент играл бы с начала).
-    if (el.readyState < 1) await metadataOf(el);
-    el.currentTime = Math.max(0, startSec);
-    await el.play();
-  } catch {
-    return false;
-  }
-  if (lengthSec > 0) fragmentTimer = window.setTimeout(() => stopFragment(), lengthSec * 1000);
-  el.onended = () => stopFragment();
-  return true;
+  fragmentLeft = ms;
+  fragmentFadeOut = fadeOut;
+  fragmentStartedAt = performance.now();
+  if (ms <= 0) return;
+  const fadeMs = Math.min(ms, fadeOut * 1000);
+  fragmentTimer = window.setTimeout(() => {
+    if (fadeMs > 0) {
+      rampFragment(0, fadeMs / 1000);
+      fragmentTimer = window.setTimeout(() => stopFragment(), fadeMs);
+    } else stopFragment();
+  }, ms - fadeMs);
 }
 
 function metadataOf(el: HTMLAudioElement): Promise<void> {
@@ -504,15 +874,83 @@ function metadataOf(el: HTMLAudioElement): Promise<void> {
   });
 }
 
+/**
+ * Сыграть кусок трека: с `startSec` в течение `lengthSec` (0 — до конца), с плавным началом и
+ * затуханием. Фоновая музыка на это время встаёт на паузу. false — браузер не дал включить звук.
+ */
+export async function playFragment(url: string, startSec: number, lengthSec: number, options: FragmentOptions = {}): Promise<boolean> {
+  if (!soundReady()) return false;
+  const el = fragmentElement();
+  if (!el) return false;
+  window.clearTimeout(fragmentTimer);
+  fragmentPaused = false;
+  if (player && !player.paused) {
+    resumeAfterFragment = true;
+    player.pause();
+  }
+  if (el.src !== url) el.src = url;
+  const fadeIn = options.fadeIn ?? 0;
+  rampFragment(fadeIn > 0 ? 0 : 1, 0);
+  try {
+    // Перемотка до загрузки описания файла не срабатывает (фрагмент играл бы с начала).
+    if (el.readyState < 1) await metadataOf(el);
+    el.currentTime = Math.max(0, startSec);
+    await el.play();
+  } catch {
+    return false;
+  }
+  if (fadeIn > 0) rampFragment(1, fadeIn);
+  scheduleEnd(lengthSec > 0 ? lengthSec * 1000 : 0, options.fadeOut ?? 0);
+  el.onended = () => stopFragment();
+  return true;
+}
+
+/**
+ * Припев после верного ответа: переход от фрагмента — сразу, склейкой (короткое затухание и
+ * плавный вход) или отбивкой (звук «верно», потом припев).
+ */
+export async function playChorus(url: string, startSec: number, lengthSec: number, join: "cut" | "cross" | "sting"): Promise<boolean> {
+  const playing = fragmentEl !== null && !fragmentEl.paused && !fragmentPaused;
+  if (join === "cross" && playing) {
+    rampFragment(0, 0.6);
+    await new Promise((r) => window.setTimeout(r, 600));
+  } else if (join === "sting") {
+    silenceFragment();
+    playSound("correct");
+    await new Promise((r) => window.setTimeout(r, 700));
+  }
+  return playFragment(url, startSec, lengthSec, { fadeIn: join === "cut" ? 0 : 1, fadeOut: 3 });
+}
+
+/** Пауза фрагмента, пока гость отвечает: остаток доиграет `resumeFragment`. */
+export function pauseFragment(): void {
+  if (!fragmentEl || fragmentEl.paused || fragmentPaused) return;
+  window.clearTimeout(fragmentTimer);
+  if (fragmentLeft > 0) fragmentLeft = Math.max(0, fragmentLeft - (performance.now() - fragmentStartedAt));
+  fragmentPaused = true;
+  fragmentEl.pause();
+}
+
+/** Продолжить фрагмент после паузы (ответ неверный — играем дальше). */
+export function resumeFragment(): void {
+  if (!fragmentEl || !fragmentPaused) return;
+  fragmentPaused = false;
+  rampFragment(1, 0.3);
+  void fragmentEl.play().catch(() => undefined);
+  if (fragmentLeft > 0) scheduleEnd(fragmentLeft, fragmentFadeOut);
+}
+
 /** Заглушить фрагмент, не возвращая фоновую музыку. */
 function silenceFragment(): void {
   window.clearTimeout(fragmentTimer);
   resumeAfterFragment = false;
+  fragmentPaused = false;
   fragmentEl?.pause();
 }
 
 export function stopFragment(): void {
   window.clearTimeout(fragmentTimer);
+  fragmentPaused = false;
   fragmentEl?.pause();
   if (resumeAfterFragment) {
     resumeAfterFragment = false;

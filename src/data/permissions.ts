@@ -8,7 +8,12 @@ import { ADMIN_UID } from "./config";
 import type { Answer, Game, GameScope, Participant, Session, SessionState, UserProfile } from "./types";
 
 /** Кто действует: профиль ведущего или null (гость, не вошёл). */
-export type Actor = (Pick<UserProfile, "uid" | "role" | "active"> & { venueAccess?: boolean }) | null;
+export type Actor = (Pick<UserProfile, "uid" | "role" | "active"> & { venueAccess?: boolean; profession?: string | null; accessRole?: string | null }) | null;
+
+/** Роль доступа помощника (`src/core/accessRoles.ts`) у активного аккаунта. */
+function hasAccess(actor: Actor, role: string): boolean {
+  return isActiveHost(actor) && actor?.accessRole === role;
+}
 
 /** Владелец агентства (UID зашит в config.ts и firestore.rules) или активный admin. */
 export function isAdmin(actor: Actor): boolean {
@@ -20,6 +25,45 @@ export function isAdmin(actor: Actor): boolean {
 export function isActiveHost(actor: Actor): boolean {
   if (!actor) return false;
   return isAdmin(actor) || (actor.role === "host" && actor.active);
+}
+
+/**
+ * Проводит игры: активный ведущий (профессия «ведущий» или не указана — Firebase-версия её не знает)
+ * или admin. Диджеи, музыканты, фокусники и другие профессии команды входят в платформу, видят
+ * команду и свой профиль, но игр и сессий у них нет (только свой сервер).
+ */
+export function hostsGames(actor: Actor): boolean {
+  if (!isActiveHost(actor)) return false;
+  return isAdmin(actor) || !actor?.profession || actor.profession === "host";
+}
+
+/** Игры в студии: ведущие, создатели игр и тестировщики (тестировщик только смотрит и репетирует). */
+export function canUseGames(actor: Actor): boolean {
+  return hostsGames(actor) || hasAccess(actor, "creator") || hasAccess(actor, "tester");
+}
+
+/** Создавать и править свои игры: ведущие и создатели игр. */
+function writesGames(actor: Actor): boolean {
+  return hostsGames(actor) || hasAccess(actor, "creator");
+}
+
+/** Музыка в студии: ведущие, музыкальные редакторы; слушать — ещё создатели игр и тестировщики. */
+export function canUseTracks(actor: Actor): boolean {
+  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "tester");
+}
+
+function writesTracks(actor: Actor): boolean {
+  return hostsGames(actor) || hasAccess(actor, "music");
+}
+
+/** «Игры сейчас» всех ведущих и завершение чужой брошенной игры: владелец и помощник владельца. */
+export function canSeeAllSessions(actor: Actor): boolean {
+  return isAdmin(actor) || hasAccess(actor, "assistant");
+}
+
+/** Дать или снять роль — только владелец, не себе и не владельцу. */
+export function canSetAccessRole(actor: Actor, target: Pick<UserProfile, "uid">): boolean {
+  return canSetHostActive(actor, target);
 }
 
 /** Раздел /admin: список, добавление и отключение ведущих. */
@@ -44,14 +88,14 @@ export function canResetHostPassword(actor: Actor, target: Pick<UserProfile, "ui
 type GameRef = Pick<Game, "scope" | "ownerId">;
 
 export function canReadGame(actor: Actor, game: GameRef): boolean {
-  if (!isActiveHost(actor)) return false;
+  if (!canUseGames(actor)) return false;
   return game.scope === "agency" || game.ownerId === actor?.uid || isAdmin(actor);
 }
 
 /** Создать игру в нужной библиотеке: общую — только admin, личную — себе. */
 export function canCreateGame(actor: Actor, scope: GameScope, ownerId: string): boolean {
   if (scope === "agency") return isAdmin(actor);
-  return isActiveHost(actor) && ownerId === actor?.uid;
+  return writesGames(actor) && ownerId === actor?.uid;
 }
 
 /** Общую библиотеку редактирует только admin, личную игру — только её владелец. */
@@ -87,10 +131,10 @@ export function canCopyToPersonal(actor: Actor, game: GameRef): boolean {
  * сам делает «Копию в библиотеку JoyRest».
  */
 export function canProposeGame(actor: Actor, game: GameRef): boolean {
-  return isActiveHost(actor) && !isAdmin(actor) && game.scope === "personal" && game.ownerId === actor?.uid;
+  return writesGames(actor) && !isAdmin(actor) && game.scope === "personal" && game.ownerId === actor?.uid;
 }
 
-/** Принять или отклонить предложение — тот, кто правит библиотеку (admin). */
+/** Принять или отклонить предложение — тот, кто правит библиотеку (admin). Роли этого не дают. */
 export function canReviewProposals(actor: Actor): boolean {
   return isAdmin(actor);
 }
@@ -103,27 +147,27 @@ export interface TrackRef {
 
 /** Загружать музыку себе может любой активный ведущий; в общую библиотеку сразу — только admin. */
 export function canUploadTrack(actor: Actor, scope: TrackRef["scope"]): boolean {
-  return scope === "agency" ? isAdmin(actor) : isActiveHost(actor);
+  return scope === "agency" ? isAdmin(actor) : writesTracks(actor);
 }
 
 /** Слушать и ставить на экран: свои треки и всю общую библиотеку; admin — любые (проверка). */
 export function canUseTrack(actor: Actor, track: TrackRef): boolean {
-  if (!isActiveHost(actor)) return false;
+  if (!canUseTracks(actor)) return false;
   return track.scope === "agency" || track.ownerId === actor?.uid || isAdmin(actor);
 }
 
 /** Переименовать, удалить: личный — владелец, общий — admin. */
 export function canEditTrack(actor: Actor, track: TrackRef): boolean {
-  if (!isActiveHost(actor)) return false;
+  if (!writesTracks(actor)) return false;
   return track.scope === "agency" ? isAdmin(actor) : track.ownerId === actor?.uid;
 }
 
 /** Предложить трек в общую — ведущий, свой личный (admin загружает в общую сам). */
 export function canShareTrack(actor: Actor, track: TrackRef): boolean {
-  return isActiveHost(actor) && !isAdmin(actor) && track.scope === "personal" && track.ownerId === actor?.uid;
+  return writesTracks(actor) && !isAdmin(actor) && track.scope === "personal" && track.ownerId === actor?.uid;
 }
 
-/** Принять или отклонить трек — admin. */
+/** Принять или отклонить трек — admin. Роли этого не дают. */
 export function canReviewTracks(actor: Actor): boolean {
   return isAdmin(actor);
 }
@@ -138,6 +182,11 @@ export function canViewTeam(actor: Actor): boolean {
  * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.
  */
 export function canManageVenues(actor: Actor): boolean {
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true) || hasAccess(actor, "venues");
+}
+
+/** Убрать площадку или заявку в архив: владелец и ведущие с доступом к базе (модератор — нет). */
+export function canArchiveVenues(actor: Actor): boolean {
   return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true);
 }
 
@@ -152,7 +201,7 @@ export function canGrantVenueAccess(actor: Actor, target: Pick<UserProfile, "uid
 
 /** Отключённый ведущий не создаёт сессии. */
 export function canCreateSession(actor: Actor): boolean {
-  return isActiveHost(actor);
+  return hostsGames(actor);
 }
 
 export function canLaunchGame(actor: Actor, game: GameRef): boolean {

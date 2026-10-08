@@ -33,8 +33,16 @@ export const serverUsersRepository: UsersRepository = {
     return (Array.isArray(data) ? data : []).map(parseHost).filter((h): h is HostAccount => h !== null);
   },
 
-  async createHost(email, name) {
-    return parseCreated(await api("POST", "/api/users", { email: email.trim().toLowerCase(), name }));
+  async createHost(email, name, profession) {
+    return parseCreated(await api("POST", "/api/users", { email: email.trim().toLowerCase(), name, ...(profession ? { profession } : {}) }));
+  },
+
+  async setAccessRole(uid, role) {
+    await api("POST", `/api/users/${encodeURIComponent(uid)}/access`, { role });
+  },
+
+  async setProfession(uid, profession) {
+    await api("POST", `/api/users/${encodeURIComponent(uid)}/profession`, { profession });
   },
 
   async setHostActive(uid, active) {

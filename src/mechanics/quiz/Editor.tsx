@@ -9,9 +9,16 @@ import { mediaRepo } from "../../data";
 import type { EditorProps, ValidationError } from "../types";
 import {
   changeKind,
+  clipOf,
   correctSet,
-  DEFAULT_TRACK_LENGTH,
+  FORMAT_BLOCKS,
+  hasAnswers,
+  LIMITS as QUIZ_LIMITS,
+  newPicture,
+  QUESTION_FORMATS,
+  questionImages,
   settingsOf,
+  withClip,
   toggleCorrect,
   duplicateQuestion,
   KIND_HINTS,
@@ -27,16 +34,21 @@ import {
   type QuizSettings,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
-import { TrackPicker } from "../../components/music/TrackPicker";
+import { TrackTimeline } from "../../components/music/TrackTimeline";
+import { ClampedNumber } from "../../components/ClampedNumber";
+import { KindIcon } from "./KindIcon";
 import { QuizPreview } from "./Preview";
 import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
+import { LevelIcon } from "../../components/live/SuperGame";
+import { LEVEL_NAMES, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_LIMITS, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
-const KINDS: QuestionKind[] = ["choice", "open", "speed"];
+const KINDS: QuestionKind[] = ["choice", "open", "speed", "buzz", "pictures", "super"];
 
 /** Конструктор квиза: список вопросов, правка, порядок, импорт списком и предпросмотр. */
 export function QuizEditor({ gameId, themeId, content, onChange, editable }: EditorProps<QuizContent>) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [preview, setPreview] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [toDelete, setToDelete] = useState<QuizQuestion | null>(null);
@@ -65,7 +77,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   /** Убирает картинку из базы, если она загружена сейчас и больше ни в одном вопросе. */
   function releaseImage(mediaId: string | null, remaining: QuizQuestion[]) {
     if (!mediaId || !uploadedHere.current.has(mediaId)) return;
-    if (remaining.some((q) => q.imageId === mediaId)) return;
+    if (remaining.some((q) => questionImages(q).includes(mediaId))) return;
     uploadedHere.current.delete(mediaId);
     void mediaRepo.remove(gameId, mediaId).catch(() => undefined);
   }
@@ -74,10 +86,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     requestAnimationFrame(() => document.querySelector<HTMLElement>(selector)?.focus());
   }
 
-  function add() {
-    const q = newQuestion("choice");
+  function add(kind: QuestionKind = "choice") {
+    const q = newQuestion(kind);
     setQuestions([...questions, q]);
     setOpenId(q.id);
+    setAdding(false);
     focusLater(`#q-${q.id}-text`);
   }
 
@@ -93,7 +106,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   function remove(question: QuizQuestion) {
     const remaining = questions.filter((q) => q.id !== question.id);
     setQuestions(remaining);
-    releaseImage(question.imageId, remaining);
+    for (const id of questionImages(question)) releaseImage(id, remaining);
     setToDelete(null);
     showToast("Вопрос удалён");
   }
@@ -105,14 +118,16 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     if (id && focus) focusLater(`[data-move="${id}-${focus}"]`);
   }
 
-  async function pickImage(question: QuizQuestion, file: File) {
+  /** Картинка вопроса (`slot` не задан) или одна из нескольких картинок (номер поля). */
+  async function pickImage(question: QuizQuestion, file: File, slot?: Slot) {
     try {
       const image = await compressImage(file);
       const { mediaId, saved } = mediaRepo.upload(gameId, image);
       uploadedHere.current.add(mediaId);
       const current = latest.current;
-      const previous = current.questions.find((q) => q.id === question.id)?.imageId ?? null;
-      const next = current.questions.map((q) => (q.id === question.id ? { ...q, imageId: mediaId } : q));
+      const found = current.questions.find((q) => q.id === question.id);
+      const previous = found ? slotImage(found, slot) : null;
+      const next = current.questions.map((q) => (q.id === question.id ? withSlotImage(q, slot, mediaId) : q));
       onChange({ ...current, questions: next });
       releaseImage(previous, next);
       saved.catch(() => showToast("Картинка не сохранилась. Проверьте интернет и выберите её ещё раз."));
@@ -121,10 +136,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     }
   }
 
-  function removeImage(question: QuizQuestion) {
-    const next = questions.map((q) => (q.id === question.id ? { ...q, imageId: null } : q));
+  function removeImage(question: QuizQuestion, slot?: Slot) {
+    const before = slotImage(question, slot);
+    const next = questions.map((q) => (q.id === question.id ? withSlotImage(q, slot, null) : q));
     setQuestions(next);
-    releaseImage(question.imageId, next);
+    releaseImage(before, next);
   }
 
   // Перетаскивание мышью (на телефоне — кнопки вверх и вниз).
@@ -165,7 +181,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
         ))}
         {editable && (
           <div className="actions">
-            <button type="button" className="btn btn--block" disabled={room <= 0} onClick={add}>
+            <button type="button" className="btn btn--block" disabled={room <= 0} aria-expanded={adding} onClick={() => setAdding((v) => !v)}>
               Добавить вопрос
             </button>
             <button type="button" className="btn btn--secondary btn--block" disabled={room <= 0} onClick={() => setImportOpen(true)}>
@@ -175,7 +191,15 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
         )}
       </section>
 
-      {editable && <SettingsCard settings={settingsOf(content)} onChange={(settings) => onChange({ ...content, settings })} />}
+      {editable && adding && <AddQuestion onPick={add} onClose={() => setAdding(false)} />}
+
+      {editable && (
+        <SettingsCard
+          settings={settingsOf(content)}
+          hasRace={questions.some((q) => q.kind === "buzz")}
+          onChange={(settings) => onChange({ ...content, settings })}
+        />
+      )}
 
       {questions.length > 0 && (
         <ol className="q-list" aria-label="Вопросы игры" onDragLeave={(e) => e.currentTarget === e.target && setDropIndex(null)}>
@@ -281,8 +305,8 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                         question={q}
                         errors={own}
                         onChange={(patch) => updateQuestion(q.id, patch)}
-                        onPickImage={(file) => pickImage(q, file)}
-                        onRemoveImage={() => removeImage(q)}
+                        onPickImage={(file, slot) => pickImage(q, file, slot)}
+                        onRemoveImage={(slot) => removeImage(q, slot)}
                       />
                     ) : (
                       <QuestionReadOnly gameId={gameId} question={q} />
@@ -302,7 +326,15 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
 
       {editable && questions.length >= 3 && (
         <div className="actions">
-          <button type="button" className="btn btn--secondary btn--block" disabled={room <= 0} onClick={add}>
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            disabled={room <= 0}
+            onClick={() => {
+              setAdding(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
             Добавить вопрос
           </button>
         </div>
@@ -342,7 +374,7 @@ const BOARD_MODES: Array<{ id: QuizSettings["board"]; title: string; hint: strin
 ];
 
 /** Как проводить квиз: заставка вопроса, когда таблица, картинки на телефонах. */
-function SettingsCard({ settings, onChange }: { settings: QuizSettings; onChange: (settings: QuizSettings) => void }) {
+function SettingsCard({ settings, hasRace, onChange }: { settings: QuizSettings; hasRace: boolean; onChange: (settings: QuizSettings) => void }) {
   return (
     <details className="card quiz-settings">
       <summary>
@@ -378,6 +410,13 @@ function SettingsCard({ settings, onChange }: { settings: QuizSettings; onChange
           <span className="choice__hint">Уменьшенная картинка над вариантами. В режиме «без экрана» показывается всегда.</span>
         </span>
       </label>
+      {hasRace && (
+        <label className="field">
+          Гонка «Кто быстрее»: делений до финиша
+          <ClampedNumber value={settings.raceTarget} min={QUIZ_LIMITS.minRace} max={QUIZ_LIMITS.maxRace} fallback={5} onChange={(raceTarget) => onChange({ ...settings, raceTarget })} />
+          <span className="muted small">Кто первым угадает столько треков (супер-трек — 2–3 деления), тот выигрывает гонку.</span>
+        </label>
+      )}
     </details>
   );
 }
@@ -405,8 +444,23 @@ interface FormProps {
   question: QuizQuestion;
   errors: ValidationError[];
   onChange: (patch: Partial<QuizQuestion> | ((q: QuizQuestion) => QuizQuestion)) => void;
-  onPickImage: (file: File) => Promise<void>;
-  onRemoveImage: () => void;
+  onPickImage: (file: File, slot?: Slot) => Promise<void>;
+  onRemoveImage: (slot?: Slot) => void;
+}
+
+/** Где картинка: у вопроса (нет), в поле «Несколько картинок» (номер) или у уровня суперигры. */
+type Slot = number | { level: number };
+
+function slotImage(q: QuizQuestion, slot?: Slot): string | null {
+  if (slot === undefined) return q.imageId;
+  if (typeof slot === "number") return q.pictures?.[slot]?.imageId ?? null;
+  return q.levels?.[slot.level]?.imageId ?? null;
+}
+
+function withSlotImage(q: QuizQuestion, slot: Slot | undefined, imageId: string | null): QuizQuestion {
+  if (slot === undefined) return { ...q, imageId };
+  if (typeof slot === "number") return { ...q, pictures: (q.pictures ?? []).map((p, i) => (i === slot ? { ...p, imageId } : p)) };
+  return { ...q, levels: (q.levels ?? []).map((l, i) => (i === slot.level ? { ...l, imageId } : l)) };
 }
 
 function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRemoveImage }: FormProps) {
@@ -442,20 +496,27 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
   return (
     <div className="stack">
       <fieldset>
-        <legend>Тип вопроса</legend>
-        {KINDS.map((kind) => (
-          <label key={kind} className="choice">
-            <input type="radio" name={`kind-${q.id}`} checked={q.kind === kind} onChange={() => onChange((cur) => changeKind(cur, kind))} />
-            <span className="choice__text">
-              <span className="choice__title">{KIND_TITLES[kind]}</span>
-              <span className="choice__hint">{KIND_HINTS[kind]}</span>
-            </span>
-          </label>
-        ))}
+        <legend>Формат вопроса</legend>
+        <div className="format-tiles" role="radiogroup" aria-label="Формат вопроса">
+          {KINDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              role="radio"
+              aria-checked={q.kind === kind}
+              className={q.kind === kind ? "format-tile is-on" : "format-tile"}
+              onClick={() => onChange((cur) => changeKind(cur, kind))}
+            >
+              <KindIcon kind={kind} />
+              <span>{KIND_TITLES[kind]}</span>
+            </button>
+          ))}
+        </div>
+        <p className="muted small">{KIND_HINTS[q.kind]}</p>
       </fieldset>
 
       <label className="field">
-        Вопрос
+        {q.kind === "super" ? "Название на заставке" : "Вопрос"}
         <textarea
           id={`q-${q.id}-text`}
           rows={3}
@@ -468,6 +529,11 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         <FieldErrors errors={errors} field="text" questionId={q.id} />
       </label>
 
+      {q.kind === "super" ? (
+        <SuperEditor gameId={gameId} question={q} errors={errors} onChange={onChange} onPickImage={onPickImage} onRemoveImage={onRemoveImage} />
+      ) : q.kind === "pictures" ? (
+        <PicturesEditor gameId={gameId} question={q} errors={errors} onChange={onChange} onPickImage={onPickImage} onRemoveImage={onRemoveImage} />
+      ) : (
       <div className="field">
         <span>Картинка</span>
         {q.imageId ? (
@@ -477,7 +543,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
                 {processing ? "Сжимаем…" : "Заменить картинку"}
               </button>
-              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={onRemoveImage}>
+              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={() => onRemoveImage()}>
                 Убрать картинку
               </button>
             </div>
@@ -505,11 +571,16 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
           }}
         />
       </div>
+      )}
 
-      {q.kind === "open" ? (
+      {q.kind === "pictures" || q.kind === "super" ? null : hasAnswers(q.kind) ? (
         <fieldset aria-describedby={describedBy("answers")}>
-          <legend>Верные ответы</legend>
-          <p className="muted small">Засчитывается любой из них. Регистр, ё/е, пробелы и знаки препинания не важны.</p>
+          <legend>{q.kind === "buzz" ? "Правильный ответ — видит только ведущий" : "Верные ответы"}</legend>
+          <p className="muted small">
+            {q.kind === "buzz"
+              ? "Гость называет ответ вслух, ведущий сверяет и жмёт «Верно» или «Неверно»."
+              : "Засчитывается любой из них. Регистр, ё/е, пробелы и знаки препинания не важны."}
+          </p>
           {q.answers.map((answer, i) => (
             <div key={i} className="q-row">
               <input
@@ -572,14 +643,23 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </fieldset>
       )}
 
-      <TrackPicker
-        trackId={q.trackId ?? null}
-        start={q.trackStart ?? 0}
-        length={q.trackLength ?? DEFAULT_TRACK_LENGTH}
-        onChange={(patch) => onChange(patch)}
-      />
+      {q.kind !== "super" && <TrackTimeline clip={clipOf(q)} onChange={(clip) => onChange((cur) => withClip(cur, clip))} />}
+
+      {q.kind === "buzz" && (
+        <div className="field">
+          <span>За верный ответ — делений к финишу</span>
+          <div className="seg" role="group" aria-label="Делений к финишу">
+            {[1, 2, 3].map((n) => (
+              <button key={n} type="button" className={(q.steps ?? 1) === n ? "seg__btn is-on" : "seg__btn"} aria-pressed={(q.steps ?? 1) === n} onClick={() => onChange({ steps: n })}>
+                {n === 3 ? "3 · супер" : n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="q-numbers">
+        {q.kind !== "buzz" && (
         <label className="field">
           Время, секунд
           <input
@@ -595,8 +675,10 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
           />
           <FieldErrors errors={errors} field="timeLimit" questionId={q.id} />
         </label>
+        )}
+        {q.kind !== "super" && (
         <label className="field">
-          {q.kind === "speed" ? "Очки, максимум" : "Очки"}
+          {q.kind === "speed" ? "Очки, максимум" : q.kind === "pictures" ? "Очки за все картинки" : "Очки"}
           <input
             type="number"
             inputMode="numeric"
@@ -610,8 +692,10 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
           />
           <FieldErrors errors={errors} field="points" questionId={q.id} />
         </label>
+        )}
       </div>
       {q.kind === "speed" && <p className="muted small">Самый быстрый верный ответ получает максимум, остальные — меньше.</p>}
+      {q.kind === "pictures" && <p className="muted small">Очки делятся на картинки: угадал 3 из 4 — три четверти очков.</p>}
 
       <label className="field">
         Начать с этого вопроса раунд
@@ -644,7 +728,13 @@ function QuestionReadOnly({ gameId, question: q }: { gameId: string; question: Q
     <div className="stack stack--tight">
       <p>{q.text}</p>
       {q.imageId && <MediaImage className="q-image__img" gameId={gameId} mediaId={q.imageId} variant="full" alt="Картинка к вопросу" />}
-      {q.kind === "open" ? (
+      {q.kind === "pictures" ? (
+        <ol className="import-item__options">
+          {(q.pictures ?? []).map((p, i) => (
+            <li key={i}>{p.answers.join(" / ") || "—"}</li>
+          ))}
+        </ol>
+      ) : hasAnswers(q.kind) ? (
         <p className="muted">Верные ответы: {q.answers.join(" / ")}</p>
       ) : (
         <ul className="import-item__options">
@@ -656,6 +746,255 @@ function QuestionReadOnly({ gameId, question: q }: { gameId: string; question: Q
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** «Добавить вопрос»: плитки форматов по блокам — классика, музыка, картинки. */
+function AddQuestion({ onPick, onClose }: { onPick: (kind: QuestionKind) => void; onClose: () => void }) {
+  return (
+    <section className="card add-question" aria-label="Какой вопрос добавить">
+      <div className="add-question__head">
+        <h2>Добавить вопрос</h2>
+        <button type="button" className="btn btn--quiet" onClick={onClose}>
+          Закрыть
+        </button>
+      </div>
+      {FORMAT_BLOCKS.map((block) => (
+        <div key={block.id} className="stack stack--tight">
+          <h3 className="add-question__block">{block.title}</h3>
+          <div className="format-tiles">
+            {QUESTION_FORMATS.filter((f) => f.block === block.id).map((f) => (
+              <button key={f.id} type="button" className={`format-tile format-tile--${block.id}`} onClick={() => onPick(f.kind)}>
+                <KindIcon kind={f.kind} music={f.music} picture={f.id === "image"} />
+                <span>{f.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <p className="muted small">Суперигру ставьте последним вопросом раунда: её очки войдут в счёт этого раунда.</p>
+    </section>
+  );
+}
+
+/** Несколько картинок: 2–4 поля, в каждом картинка и верные ответы к ней. */
+function PicturesEditor({
+  gameId,
+  question: q,
+  errors,
+  onChange,
+  onPickImage,
+  onRemoveImage,
+}: {
+  gameId: string;
+  question: QuizQuestion;
+  errors: ValidationError[];
+  onChange: FormProps["onChange"];
+  onPickImage: FormProps["onPickImage"];
+  onRemoveImage: FormProps["onRemoveImage"];
+}) {
+  const [processing, setProcessing] = useState<number | null>(null);
+  const pics = q.pictures ?? [];
+  const setAnswers = (slot: number, answers: string[]) =>
+    onChange((cur) => ({ ...cur, pictures: (cur.pictures ?? []).map((p, i) => (i === slot ? { ...p, answers } : p)) }));
+  return (
+    <fieldset className="pictures-editor">
+      <legend>Картинки и ответы</legend>
+      <p className="muted small">От 2 до 4. Номер картинки гости увидят на экране и на телефоне.</p>
+      {pics.map((p, i) => (
+        <div key={i} className="pictures-editor__slot">
+          <span className="pictures-editor__num">{i + 1}</span>
+          <div className="stack stack--tight">
+            {p.imageId ? (
+              <MediaImage className="q-image__img" gameId={gameId} mediaId={p.imageId} variant="small" alt={`Картинка ${i + 1}`} />
+            ) : (
+              <span className="pictures-editor__empty">Нет картинки</span>
+            )}
+            <div className="actions actions--row">
+              <label className="btn btn--secondary">
+                {processing === i ? "Сжимаем…" : p.imageId ? "Заменить" : "Добавить картинку"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={processing !== null}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    setProcessing(i);
+                    void onPickImage(file, i).finally(() => setProcessing(null));
+                  }}
+                />
+              </label>
+              {p.imageId && (
+                <button type="button" className="btn btn--quiet" onClick={() => onRemoveImage(i)}>
+                  Убрать
+                </button>
+              )}
+            </div>
+            {p.answers.map((a, j) => (
+              <div key={j} className="q-row">
+                <input
+                  className="q-row__input"
+                  aria-label={`Верный ответ к картинке ${i + 1}`}
+                  placeholder="Верный ответ"
+                  maxLength={QUIZ_LIMITS.answer}
+                  value={a}
+                  onChange={(e) => setAnswers(i, p.answers.map((x, k) => (k === j ? e.target.value : x)))}
+                />
+                <RemoveButton label="Удалить вариант написания" disabled={p.answers.length <= 1} onClick={() => setAnswers(i, p.answers.filter((_, k) => k !== j))} />
+              </div>
+            ))}
+            <button type="button" className="btn btn--quiet" disabled={p.answers.length >= QUIZ_LIMITS.answers} onClick={() => setAnswers(i, [...p.answers, ""])}>
+              + вариант написания
+            </button>
+            {pics.length > QUIZ_LIMITS.minPictures && (
+              <button
+                type="button"
+                className="btn btn--quiet"
+                onClick={() => {
+                  if (p.imageId) onRemoveImage(i);
+                  onChange((cur) => ({ ...cur, pictures: (cur.pictures ?? []).filter((_, k) => k !== i) }));
+                }}
+              >
+                Удалить картинку {i + 1}
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+      <FieldErrors errors={errors} field="pictures" questionId={q.id} />
+      {pics.length < QUIZ_LIMITS.maxPictures && (
+        <button type="button" className="btn btn--secondary btn--block" onClick={() => onChange((cur) => ({ ...cur, pictures: [...(cur.pictures ?? []), newPicture()] }))}>
+          Добавить ещё картинку
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
+/** Суперигра: оформление, правило ошибки и четыре уровня — очки, вопрос, картинка, верные ответы. */
+function SuperEditor({
+  gameId,
+  question: q,
+  errors,
+  onChange,
+  onPickImage,
+  onRemoveImage,
+}: {
+  gameId: string;
+  question: QuizQuestion;
+  errors: ValidationError[];
+  onChange: FormProps["onChange"];
+  onPickImage: FormProps["onPickImage"];
+  onRemoveImage: FormProps["onRemoveImage"];
+}) {
+  const [processing, setProcessing] = useState<number | null>(null);
+  const levels = q.levels ?? newLevels();
+  const style = parseStyle(q.superStyle);
+  const penalty = parsePenalty(q.penalty);
+  const setLevel = (i: number, patch: Partial<SuperLevel>) =>
+    onChange((cur) => ({ ...cur, levels: (cur.levels ?? newLevels()).map((l, k) => (k === i ? { ...l, ...patch } : l)) }));
+  return (
+    <div className="stack super-editor">
+      <div className="field">
+        <span>Оформление</span>
+        <div className="seg" role="group" aria-label="Оформление уровней">
+          {(Object.keys(STYLE_TITLES) as SuperStyle[]).map((id) => (
+            <button key={id} type="button" className={style === id ? "seg__btn is-on" : "seg__btn"} aria-pressed={style === id} onClick={() => onChange({ superStyle: id })}>
+              {STYLE_TITLES[id]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <fieldset>
+        <legend>Если ответ неверный</legend>
+        <div className="stack stack--tight">
+          {(Object.keys(PENALTY_TITLES) as SuperPenalty[]).map((id) => (
+            <label key={id} className="choice">
+              <input type="radio" name={`penalty-${q.id}`} checked={penalty === id} onChange={() => onChange({ penalty: id })} />
+              <span className="choice__text">
+                <span className="choice__title">{PENALTY_TITLES[id]}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {levels.map((l, i) => (
+        <fieldset key={i} className={`super-editor__level super-level--${["bronze", "silver", "gold", "diamond"][i]}`}>
+          <legend className="super-editor__legend">
+            <span className="super-editor__icon">
+              <LevelIcon style={style} level={i} />
+            </span>
+            {LEVEL_NAMES[i]}
+          </legend>
+          <label className="field">
+            Очки за верный ответ
+            <input
+              type="number"
+              inputMode="numeric"
+              min={SUPER_LIMITS.minPoints}
+              max={SUPER_LIMITS.maxPoints}
+              step={50}
+              value={l.points || ""}
+              onChange={(e) => setLevel(i, { points: Number.parseInt(e.target.value, 10) || 0 })}
+            />
+            <span className="muted small">{penaltyFor(penalty, i, l.points) > 0 ? `Ошибка — минус ${penaltyFor(penalty, i, l.points)}` : "Ошибка без штрафа"}</span>
+          </label>
+          <label className="field">
+            Вопрос уровня
+            <textarea rows={2} maxLength={SUPER_LIMITS.text} value={l.text} onChange={(e) => setLevel(i, { text: e.target.value })} />
+          </label>
+          {l.imageId ? (
+            <div className="stack stack--tight">
+              <MediaImage className="q-image__img" gameId={gameId} mediaId={l.imageId} variant="small" alt={`Картинка уровня «${LEVEL_NAMES[i]}»`} />
+              <button type="button" className="btn btn--quiet" onClick={() => onRemoveImage({ level: i })}>
+                Убрать картинку
+              </button>
+            </div>
+          ) : (
+            <label className="btn btn--secondary">
+              {processing === i ? "Сжимаем…" : "Добавить картинку"}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={processing !== null}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  setProcessing(i);
+                  void onPickImage(file, { level: i }).finally(() => setProcessing(null));
+                }}
+              />
+            </label>
+          )}
+          {l.answers.map((a, j) => (
+            <div key={j} className="q-row">
+              <input
+                className="q-row__input"
+                aria-label={`Верный ответ, ${LEVEL_NAMES[i]}`}
+                placeholder="Верный ответ"
+                maxLength={SUPER_LIMITS.answer}
+                value={a}
+                onChange={(e) => setLevel(i, { answers: l.answers.map((x, k) => (k === j ? e.target.value : x)) })}
+              />
+              <RemoveButton label="Удалить вариант написания" disabled={l.answers.length <= 1} onClick={() => setLevel(i, { answers: l.answers.filter((_, k) => k !== j) })} />
+            </div>
+          ))}
+          <button type="button" className="btn btn--quiet" disabled={l.answers.length >= SUPER_LIMITS.answers} onClick={() => setLevel(i, { answers: [...l.answers, ""] })}>
+            + вариант написания
+          </button>
+        </fieldset>
+      ))}
+      <FieldErrors errors={errors} field="levels" questionId={q.id} />
+      <p className="muted small">
+        Капитаны выбирают уровень на телефоне, видят вопрос только своего уровня и пишут ответ. Экран зала показывает, кто какой уровень выбрал, а после «Показать ответы» —
+        верно или нет и сколько очков.
+      </p>
     </div>
   );
 }

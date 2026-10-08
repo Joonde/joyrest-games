@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { experienceLabel } from "./levels";
-import { gamePoints, isValidManualPoints, pointsLabel } from "./points";
+import { gamePoints, isValidManualPoints, pointsLabel, venueEarnsPoints } from "./points";
 
 describe("баллы за игру", () => {
   it("засчитывается: больше 10 телефонов и не меньше 40 минут", () => {
@@ -47,5 +47,20 @@ describe("стаж", () => {
     expect(experienceLabel(at("2025-10-07T12:00:00"), at("2026-10-07T12:00:00"))).toBe("1 год");
     expect(experienceLabel(at("2024-07-07T12:00:00"), at("2026-10-07T12:00:00"))).toBe("2 года 3 мес.");
     expect(experienceLabel(at("2020-10-07T12:00:00"), at("2026-10-07T12:00:00"))).toBe("6 лет");
+  });
+});
+
+describe("баллы за площадку", () => {
+  const base = { source: "form", hostId: "anna", from: "new", to: "checked", actorId: "owner" };
+  it("приняли анкету ведущего в базу — баллы", () => {
+    expect(venueEarnsPoints(base)).toBe(true);
+    expect(venueEarnsPoints({ ...base, to: "worked" })).toBe(true);
+  });
+  it("не начисляются: отклонили, уже была в базе, своя анкета, вручную, без ведущего", () => {
+    expect(venueEarnsPoints({ ...base, to: "rejected" })).toBe(false);
+    expect(venueEarnsPoints({ ...base, from: "checked", to: "worked" })).toBe(false);
+    expect(venueEarnsPoints({ ...base, actorId: "anna" })).toBe(false);
+    expect(venueEarnsPoints({ ...base, source: "manual" })).toBe(false);
+    expect(venueEarnsPoints({ ...base, hostId: null })).toBe(false);
   });
 });

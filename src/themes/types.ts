@@ -50,7 +50,7 @@ export interface ThemeTokens {
 }
 
 /** Живой фон экрана зала (только CSS: transform и opacity, при «уменьшить движение» — без него). */
-export type SceneEffect = "none" | "snow" | "deco" | "spotlights" | "disco" | "petals";
+export type SceneEffect = "none" | "snow" | "deco" | "spotlights" | "disco" | "petals" | "sun" | "leaves" | "checker" | "map";
 
 /** Набор синтезированных звуков экрана зала (`src/components/live/sound.ts`). */
 export type SoundSet = "classic" | "bells" | "jazz" | "disco" | "soft";

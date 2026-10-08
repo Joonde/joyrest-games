@@ -37,7 +37,9 @@ const bad = (text) => {
 
 function finish(code) {
   if (process.env.GITHUB_ACTIONS === "true") {
-    const text = report.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+    // Замечания — первыми: длинная аннотация обрезается в конце.
+    const head = problems.length > 0 ? [`Замечаний: ${problems.length}`, ...problems.map((p) => `❌ ${p}`), "", "— Подробно —"] : [];
+    const text = [...head, ...report].join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
     console.log(`::${code === 0 ? "notice" : "error"} title=Проверка гостем::${text}`);
   }
   process.exit(code);
@@ -118,6 +120,8 @@ async function createSession(token, playMode) {
 
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: "ru-RU" };
 const TV = { viewport: { width: 1280, height: 720 }, locale: "ru-RU" };
+const TABLET = { viewport: { width: 820, height: 1180 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: "ru-RU" };
+const DESKTOP = { viewport: { width: 1366, height: 900 }, locale: "ru-RU" };
 
 function watch(page, who) {
   page.on("pageerror", (error) => bad(`${who}: ошибка на странице — ${String(error.message).slice(0, 160)}`));
@@ -236,7 +240,7 @@ async function soloGame(browser, token) {
   await layoutCheck(host, "Пульт: слайды");
   await clickButton(host, "Правила");
   await clickButton(host, "Показать на экране");
-  await expectText(screen, screen.locator(".slide__title"), "Правила игры", "Экран зала, слайд правил");
+  await expectText(screen, screen.locator(".slide__title"), "Правила квиза", "Экран зала, слайд правил квиза");
   await shot(screen, "экран-слайд", "Экран зала: слайд «Правила»");
   await clickButton(host, "Убрать слайд — вернуть игру");
   await screen.locator(".slide").waitFor({ state: "detached", timeout: WAIT });
@@ -338,24 +342,86 @@ async function teamsGame(browser, token) {
   await Promise.all([hostContext.close(), screenContext.close(), captain.context.close(), member.context.close()]);
 }
 
-/** Страницы ведущего: музыка, профиль и команда — без ошибок и прокрутки вбок на телефоне. */
+/** Кнопки, поля и вкладки не наезжают друг на друга, текст кнопок не обрезан. */
+async function overlapCheck(page, who) {
+  const found = await page.evaluate(() => {
+    const visible = (el) => {
+      const r = el.getBoundingClientRect();
+      const st = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !el.closest("[inert], [hidden], .scene");
+    };
+    // Закреплённые панели (вкладки пульта внизу, шапка) лежат поверх прокручиваемого содержимого — это не наезд.
+    const pinned = (el) => {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        const pos = getComputedStyle(n).position;
+        if (pos === "fixed" || pos === "sticky") return true;
+      }
+      return false;
+    };
+    const controls = [...document.querySelectorAll("main button, main a.btn, main input:not([type=hidden]):not([type=radio]):not([type=checkbox]), main select, main textarea, main [role=tab], header button, header a")].filter(visible);
+    const label = (el) => (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().replace(/\s+/g, " ").slice(0, 24);
+    const overlaps = [];
+    for (let i = 0; i < controls.length; i++) {
+      const a = controls[i].getBoundingClientRect();
+      for (let j = i + 1; j < controls.length; j++) {
+        const x = controls[j];
+        if (controls[i].contains(x) || x.contains(controls[i])) continue;
+        if (pinned(controls[i]) !== pinned(x)) continue;
+        const b = x.getBoundingClientRect();
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 3 && h > 3) overlaps.push(`${label(controls[i])} × ${label(x)}`);
+      }
+    }
+    // Кнопка, у которой текст не влез (без многоточия по задумке).
+    const clipped = controls
+      .filter((el) => el.tagName === "BUTTON" || el.classList.contains("btn"))
+      .filter((el) => el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).textOverflow !== "ellipsis" && getComputedStyle(el).overflowX !== "auto")
+      .map((el) => {
+        const wide = [...el.querySelectorAll("*")].find((k) => k.getBoundingClientRect().right > el.getBoundingClientRect().right + 2);
+        return `${label(el)} (${el.scrollWidth}>${el.clientWidth}${wide ? `, ${wide.className || wide.tagName}` : ""})`;
+      });
+    return { overlaps: [...new Set(overlaps)].slice(0, 6), clipped: [...new Set(clipped)].slice(0, 6) };
+  });
+  if (found.overlaps.length > 0) bad(`${who}: кнопки наезжают: ${found.overlaps.join("; ")}`);
+  if (found.clipped.length > 0) bad(`${who}: текст кнопок не помещается: ${found.clipped.join(", ")}`);
+}
+
+/** Страницы ведущего на телефоне, планшете и компьютере: без ошибок, прокрутки вбок и наездов. */
 async function studioPages(browser, token) {
-  say("— Студия ведущего —");
-  const context = await browser.newContext(PHONE);
-  await context.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
-  const page = await context.newPage();
-  watch(page, "Студия");
-  for (const [path, text, what] of [
-    ["/studio?tab=music", "Загрузить трек", "Студия: музыка"],
-    ["/studio/profile", "О себе", "Мой профиль"],
-    ["/studio/team", "Ведущие JoyRest", "Команда JoyRest"],
+  say("— Студия ведущего: телефон, планшет, компьютер —");
+  const lobby = await createSession(token, "solo");
+  for (const [device, options] of [
+    ["Телефон", PHONE],
+    ["Планшет", TABLET],
+    ["Компьютер", DESKTOP],
   ]) {
-    step(`${what} открывается`, page);
-    await page.goto(`${BASE}${path}`);
-    await expectText(page, page.locator("main"), text, what);
-    await layoutCheck(page, what);
+    const context = await browser.newContext(options);
+    await context.addCookies([{ name: "__Host-jr_s", value: token, url: BASE, secure: true, httpOnly: true, sameSite: "Lax" }]);
+    const page = await context.newPage();
+    watch(page, `${device}, студия`);
+    for (const [path, text, what] of [
+      ["/studio", "Мои игры", "Студия"],
+      ["/studio?tab=agency", "Библиотека JoyRest", "Библиотека"],
+      ["/studio?tab=music", "Загрузить трек", "Студия: музыка"],
+      ["/studio?tab=history", "История игр", "История игр"],
+      ["/studio/profile", "О себе", "Мой профиль"],
+      ["/studio/team", "Ведущие JoyRest", "Команда JoyRest"],
+      ["/studio/team?tab=pros", "Профессии JoyRest", "Профессии JoyRest"],
+      ["/studio/qr", "QR", "QR-анкеты"],
+      [`/host/${lobby.code}`, "Начать игру", "Пульт в лобби"],
+    ]) {
+      step(`${device}: ${what} открывается`, page);
+      await page.goto(`${BASE}${path}`);
+      if (await expectText(page, page.locator("main"), text, `${device}: ${what}`)) {
+        await page.waitForTimeout(300);
+        await layoutCheck(page, `${device}: ${what}`);
+        await overlapCheck(page, `${device}: ${what}`);
+      }
+    }
+    await context.close();
   }
-  await context.close();
+  await api("POST", `/api/sessions/${lobby.id}/finish`, `__Host-jr_s=${token}`, { participantsCount: 0 }).catch(() => undefined);
 }
 
 mkdirSync(SHOTS, { recursive: true });

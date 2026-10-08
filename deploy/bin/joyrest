@@ -378,10 +378,15 @@ install_system() {
         reload=1
       fi
     done
-    if [ "$reload" = 1 ]; then
-      systemctl daemon-reload
-      systemctl enable --now joyrest-deploy.path joyrest-update.timer joyrest-backup.timer >/dev/null 2>&1
-    fi
+    [ "$reload" = 1 ] && systemctl daemon-reload
+    # Таймеры включаем при каждой выкладке, а не только при изменении файлов: выключенный ночной
+    # таймер копий (8 октября 2026) молча оставлял сервер без резервных копий.
+    local timer
+    for timer in joyrest-deploy.path joyrest-update.timer joyrest-backup.timer; do
+      if ! systemctl is-enabled --quiet "$timer" 2>/dev/null || ! systemctl is-active --quiet "$timer" 2>/dev/null; then
+        systemctl enable --now "$timer" >/dev/null 2>&1 || echo "Не удалось включить $timer — проверьте: systemctl status $timer" >&2
+      fi
+    done
   fi
 
   install -d -m 755 "$ROOT_DIR/caddy/etc"
@@ -925,6 +930,7 @@ cmd_status() {
     "бот заявок $(grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest lead-bot)')," \
     "пароль test.joy-rest.ru $([ -s "$SITE_AUTH_DIR/test-site-owner.caddy" ] && echo задан || echo 'НЕ задан (sudo joyrest site-password)')"
   echo "Данные games.joy-rest.ru: $(data_backend) (sudo joyrest data server|firebase)"
+  echo "Ночная копия: таймер $(systemctl is-active --quiet joyrest-backup.timer 2>/dev/null && echo включён || echo 'ВЫКЛЮЧЕН (sudo systemctl enable --now joyrest-backup.timer)')"
   echo "Резервная копия: $(backup_summary)," \
     "служебный бот $(grep -q '^NOTIFY_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null && echo настроен || echo 'НЕ настроен (sudo joyrest notify-bot)')"
   echo

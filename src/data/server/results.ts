@@ -30,6 +30,8 @@ function parseResult(value: unknown): GameResult | null {
     board: parseBoard(d.board),
     startedAt: typeof d.startedAt === "number" ? d.startedAt : null,
     finishedAt: typeof d.finishedAt === "number" ? d.finishedAt : null,
+    breaksMs: typeof d.breaksMs === "number" && d.breaksMs > 0 ? d.breaksMs : 0,
+    breaksCount: typeof d.breaksCount === "number" && d.breaksCount > 0 ? d.breaksCount : 0,
   };
 }
 

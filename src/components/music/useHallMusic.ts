@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_MIX, tracksRepo, type MixState, type MusicState } from "../../data";
-import { pauseMusic, playMusic, setMix, stopMusic, unlockSound } from "../live/sound";
+import { pauseMusic, playBuiltinMusic, playMusic, setMix, stopBuiltinMusic, stopMusic, unlockSound } from "../live/sound";
+
+/** Встроенная музыка момента (перерыв, представление команд): ключ и список треков по кругу. */
+export interface BuiltinMusic {
+  key: string;
+  urls: string[];
+}
 
 /**
  * Фоновая музыка на экране зала по командам пульта (CLAUDE.md, раздел 7, «Музыка»): файл трека
  * качается один раз, новый `rev` — трек с начала, `playing` — пауза и продолжение.
  * Возвращает true, если браузер не дал включить звук (нужно коснуться экрана).
  */
-export function useHallMusic(music: MusicState | null | undefined, mix: MixState | null | undefined): boolean {
+/**
+ * `builtin` — встроенная музыка момента (перерыв, представление команд) с плавным началом, наплывом
+ * между треками и плавным концом. Играет, пока музыка ведущего не играет; трек ведущего всегда главнее.
+ */
+export function useHallMusic(music: MusicState | null | undefined, mix: MixState | null | undefined, builtin: BuiltinMusic | null = null): boolean {
   const urls = useRef(new Map<string, string>());
   const started = useRef<string | null>(null);
   const [blocked, setBlocked] = useState(false);
@@ -23,11 +33,32 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
   const rev = music?.rev ?? null;
   const playing = music?.playing ?? false;
 
+  const builtinKey = builtin && builtin.urls.length > 0 ? builtin.key : null;
+  const builtinUrls = useRef<string[]>([]);
+  builtinUrls.current = builtin?.urls ?? [];
+  const hostPlaying = Boolean(trackId && rev && playing);
+
+  // Встроенная музыка: только пока своя музыка ведущего не играет.
+  useEffect(() => {
+    if (!builtinKey || hostPlaying) {
+      stopBuiltinMusic();
+      return;
+    }
+    let cancelled = false;
+    void playBuiltinMusic(builtinKey, builtinUrls.current).then((ok) => {
+      if (!cancelled) setBlocked(!ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [builtinKey, hostPlaying, attempt]);
+
   useEffect(() => {
     let cancelled = false;
     let retryTimer = 0;
     async function run() {
       if (!trackId || !rev) {
+        if (builtinKey) return;
         stopMusic();
         started.current = null;
         return;
@@ -69,7 +100,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       cancelled = true;
       window.clearTimeout(retryTimer);
     };
-  }, [trackId, rev, playing, attempt]);
+  }, [trackId, rev, playing, attempt, builtinKey]);
 
   // Касание экрана разрешает звук — пробуем включить ещё раз.
   useEffect(() => {
@@ -78,11 +109,16 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       unlockSound();
       // Браузер включает звук не мгновенно — пробуем чуть позже.
       window.setTimeout(() => {
-        const url = trackId ? urls.current.get(trackId) : undefined;
-        if (!url || !playing) return;
-        void playMusic(url, started.current !== `${trackId}:${rev}`).then((ok) => {
+        const own = trackId && rev && playing ? urls.current.get(trackId) : undefined;
+        if (!own && builtinKey) {
+          void playBuiltinMusic(builtinKey, builtinUrls.current).then((ok) => ok && setBlocked(false));
+          return;
+        }
+        if (!own) return;
+        const key = `${trackId}:${rev}`;
+        void playMusic(own, started.current !== key).then((ok) => {
           if (ok) {
-            started.current = `${trackId}:${rev}`;
+            started.current = key;
             setBlocked(false);
           }
         });
@@ -92,12 +128,13 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
     const events = ["pointerup", "click", "keydown"] as const;
     events.forEach((e) => window.addEventListener(e, retry));
     return () => events.forEach((e) => window.removeEventListener(e, retry));
-  }, [blocked, trackId, rev, playing]);
+  }, [blocked, trackId, rev, playing, builtinKey]);
 
   useEffect(() => {
     const cache = urls.current;
     return () => {
       stopMusic();
+      stopBuiltinMusic(0.3);
       cache.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);

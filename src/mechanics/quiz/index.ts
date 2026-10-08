@@ -4,13 +4,13 @@ import { createContent, mediaIds, parseContent, type QuizContent } from "./conte
 import { score, steps, type QuizStep } from "./logic";
 import { validateContent } from "./validate";
 import { QuizHostControls } from "./HostControls";
-import { QuizPlayerView, QuizScreenView } from "./views";
+import { QuizPlayerView, QuizScreenView, type QuizAnswerValue } from "./views";
 
 // Конструктор нужен только в студии: отдельный чанк, телефон гостя его не качает.
 const QuizEditor = lazy(() => import("./Editor").then((m) => ({ default: m.QuizEditor })));
 
-/** Квиз: выбор варианта, открытый ответ, на скорость; картинка в любом вопросе. */
-export const quiz: Mechanic<QuizContent, number | string, QuizStep> = {
+/** Квиз: варианты, открытый ответ, на скорость, музыка, гонка с кнопкой, несколько картинок. */
+export const quiz: Mechanic<QuizContent, QuizAnswerValue, QuizStep> = {
   id: "quiz",
   title: "Квиз",
   supports: { solo: true, teams: true, noScreen: true },
@@ -24,4 +24,12 @@ export const quiz: Mechanic<QuizContent, number | string, QuizStep> = {
   steps,
   score,
   validate: validateContent,
+  // Заставка «Вопрос N» и раунда — своя музыка; суперигра — музыка, пока выбирают уровень.
+  music: (session, content) => {
+    const q = content.questions[session.state.step];
+    if (!q || session.state.phase !== "playing") return null;
+    if (session.state.stage === "ready" && q.kind !== "super") return "questionIntro";
+    if (session.state.stage === "question" && q.kind === "super") return "superPick";
+    return null;
+  },
 };

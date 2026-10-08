@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { Answer, Participant, Session, SessionChange, SessionState } from "../data/types";
+import type { PreviewDriver } from "./preview";
 
 export interface Step {
   id: string;
@@ -52,12 +53,27 @@ export interface PlayerViewProps<Content, AnswerValue> extends ViewProps<Content
   /** Ответ отправляется (нет связи — ждёт в очереди). */
   sending: boolean;
   onAnswer: (value: AnswerValue) => void;
+  /**
+   * Режим команд: свой ответ этого телефона (не за команду) на тот же шаг — один на шаг. Так капитан
+   * просит подсказку, а участники голосуют («Помощь зала» в «Миллионере»). В режиме solo — нет.
+   */
+  personal?: PersonalAnswer;
+}
+
+export interface PersonalAnswer {
+  /** Свой ответ на текущий шаг: null — нет, undefined — ещё выясняем. */
+  value: { value: unknown } | null | undefined;
+  sending: boolean;
+  send: (value: unknown) => void;
 }
 
 /** Что нужно для подсчёта очков, кроме самих ответов. */
 export interface ScoreContext {
   state: SessionState;
 }
+
+/** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */
+export type MusicMoment = "questionIntro" | "superPick";
 
 /**
  * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.
@@ -104,6 +120,12 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   steps(content: Content): S[];
   score(step: S, answers: Answer[], context: ScoreContext): ScoreDelta[];
   validate(content: Content): ValidationError[];
+  /** Пульт механики сам показывает кнопку «Таблица на экран» (общая карточка пульта не нужна). */
+  ownPeek?: boolean;
+  /** Встроенная музыка момента на экране зала (заставка вопроса, выбор в суперигре); null — нет. */
+  music?: (session: Session, content: Content) => MusicMoment | null;
+  /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */
+  preview?: { driver: PreviewDriver<Content>; teams?: number; limit?: number };
 }
 
 /**

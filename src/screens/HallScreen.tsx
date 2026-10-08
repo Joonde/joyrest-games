@@ -11,9 +11,11 @@ import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
 import { SlideView } from "../components/live/SlideView";
 import { useHallMusic } from "../components/music/useHallMusic";
+import { builtinMusicOf } from "../components/music/builtinMusic";
 import { useScreenReport } from "../components/live/screenStatus";
 import {
   playSound,
+  preloadSamples,
   setMuted,
   setSoundSet,
   stopAllSounds,
@@ -140,7 +142,13 @@ function Screen({ session }: { session: Session }) {
   useTheme(session.themeId);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
-  const musicBlocked = useHallMusic(session.state.music, session.state.mix);
+  // Аплодисменты — файл: качаем заранее, чтобы на пьедестале звучали сразу.
+  useEffect(() => preloadSamples(["applause"]), []);
+  // Встроенная музыка момента (если ведущий не включил свою): перерыв и представление команд.
+  const mechanic = getMechanic(session.mechanic);
+  const content = useMemo(() => (mechanic?.music ? mechanic.parse(snapshotContent(session.gameSnapshot)) : null), [mechanic, session.gameSnapshot]);
+  const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
+  const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session, moment));
   const soundReady = useSoundReady();
   const muted = useMuted();
   // Таймер экрана идёт по часам сервера: смещение измеряем один раз.

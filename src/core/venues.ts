@@ -173,6 +173,8 @@ export interface VenueData {
   vip: boolean;
   vipSeats: number | null;
   dance: boolean;
+  /** Комментарий о залах: «большой — 80, малый — 25, веранда летом — 40». */
+  hallsNote: string;
   furniture: string;
   layouts: string[];
   features: string[];
@@ -215,6 +217,7 @@ export const TEXT_LIMITS = {
   metro: 60,
   site: 200,
   about: 500,
+  hallsNote: 500,
   person: 80,
   role: 60,
   phone: 40,
@@ -250,6 +253,7 @@ export function emptyVenue(): VenueData {
     vip: false,
     vipSeats: null,
     dance: false,
+    hallsNote: "",
     furniture: "",
     layouts: [],
     features: [],
@@ -356,6 +360,7 @@ export function parseVenue(raw: unknown): VenueData {
     vip,
     vipSeats: vip ? cleanNumber(d.vipSeats, 1000) : null,
     dance: d.dance === true,
+    hallsNote: t("hallsNote", true),
     furniture: pick(d.furniture, FURNITURE),
     layouts: pickMany(d.layouts, LAYOUTS),
     features: pickMany(d.features, FEATURES),

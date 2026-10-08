@@ -76,7 +76,8 @@ function withPodium(result: unknown, shown: number | null): Record<string, unkno
 function podiumFrom(state: Pick<SessionState, "result">): { stage: StepStage; revealed: boolean } | null {
   const from = asRecord(asRecord(state.result).podiumFrom);
   const stage = from.stage;
-  if (stage !== "ready" && stage !== "reveal" && stage !== "board") return null;
+  // «question» — досрочное награждение в механиках со своим ходом (настолка, шашки): назад — туда же.
+  if (stage !== "ready" && stage !== "reveal" && stage !== "board" && stage !== "question") return null;
   return { stage, revealed: from.revealed === true };
 }
 

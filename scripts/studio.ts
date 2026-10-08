@@ -17,6 +17,29 @@ import { parseLotto } from "../src/mechanics/lotto/content";
 import { validateLotto } from "../src/mechanics/lotto/validate";
 import { cardFor, isWin, nextSong, parseLottoResult, playedUpTo, playSong, revealSong } from "../src/mechanics/lotto/logic";
 import type { Answer, Participant, Session } from "../src/data/types";
+import { DEMO_BOARD } from "../src/mechanics/board/demo";
+import { DEMO_CHECKERS } from "../src/mechanics/checkers/demo";
+import { DEMO_QUEST, DEMO_QUEST_ADULT } from "../src/mechanics/quest/demo";
+import { DEMO_MILLIONAIRE } from "../src/mechanics/millionaire/demo";
+import { DEMO_SURVIVAL } from "../src/mechanics/survival/demo";
+import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "../src/mechanics/dragon/demo";
+import { parseDragon } from "../src/mechanics/dragon/content";
+import { validateDragon } from "../src/mechanics/dragon/validate";
+import { parseSurvival } from "../src/mechanics/survival/content";
+import { validateSurvival } from "../src/mechanics/survival/validate";
+import { parseMillionaire } from "../src/mechanics/millionaire/content";
+import { validateMillionaire } from "../src/mechanics/millionaire/validate";
+import { DEMO_DANCE } from "../src/mechanics/dance/demo";
+import { parseDance } from "../src/mechanics/dance/content";
+import { validateDance } from "../src/mechanics/dance/validate";
+import { parseQuest } from "../src/mechanics/quest/content";
+import { validateQuest } from "../src/mechanics/quest/validate";
+import { parseCheckers } from "../src/mechanics/checkers/content";
+import { validateCheckers } from "../src/mechanics/checkers/validate";
+import { moveChange, nextTurn as checkersNextTurn, parseCheckersResult, startGame as startCheckers } from "../src/mechanics/checkers/logic";
+import { parseBoard } from "../src/mechanics/board/content";
+import { validateBoard } from "../src/mechanics/board/validate";
+import { boardBuzzSync, boardReveal, boardWrong, openCell, parseBoardResult, startCatQuestion, toBoard } from "../src/mechanics/board/logic";
 
 const BASE = (process.env.LOAD_BASE ?? "https://test.games.joy-rest.ru").replace(/\/$/, "");
 const ADMIN_EMAIL = (process.env.TEST_ADMIN_EMAIL ?? "").trim();
@@ -418,7 +441,14 @@ async function main() {
   const inBase = baseList.find((v) => v.id === venueId);
   check(inBase?.status === "new" && inBase.files.length === 2, "площадка в базе со статусом «Новая», фото и меню на месте");
   check(inBase?.hostName === "Проверка Студии", "видно, какой ведущий привёл площадку", String(inBase?.hostName));
+  const pointsBefore = (await admin.call<{ total: number }>("GET", `/api/users/${hostUid}/points`)).total;
   check((await admin.status("PATCH", `/api/venues/${venueId}`, { status: "checked", rating: 4, notes: "Проверочная заметка" })) === 200, "владелец меняет статус, оценку и заметки");
+  await admin.status("PATCH", `/api/venues/${venueId}`, { status: "worked" });
+  const pointsAfter = (await admin.call<{ total: number }>("GET", `/api/users/${hostUid}/points`)).total;
+  check(pointsAfter - pointsBefore === 10, "площадку приняли в базу — ведущему, который её привёл, +10 баллов (один раз)", `${pointsBefore} → ${pointsAfter}`);
+  // Проверочный ведущий не копит баллы от прогона к прогону.
+  await admin.status("POST", `/api/users/${hostUid}/points`, { id: uid(), points: -10, reason: "Проверка: снять баллы за проверочную площадку" });
+  await admin.status("PATCH", `/api/venues/${venueId}`, { status: "checked" });
   const reread = await admin.call<{ status: string; rating: number; notes: string }>("GET", `/api/venues/${venueId}`);
   check(reread.status === "checked" && reread.rating === 4 && reread.notes === "Проверочная заметка", "статус, оценка и заметки сохранились");
   const reqList = await admin.call<Array<{ id: string; number: number; status: string }>>("GET", "/api/venue-requests");
@@ -435,9 +465,19 @@ async function main() {
   check(afterOffer.status === "sent" && afterOffer.offers === 1, "заявка стала «Предложение отправлено»");
   await admin.status("POST", `/api/users/${hostUid}/venue-access`, { access: false });
   check((await host.status("GET", "/api/venues")) === 403, "доступ закрыт обратно");
-  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "площадка удалена");
+  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "площадка убрана в архив");
+  const archivedVenue = await admin.call<{ archivedAt: number | null; data: { name: string } }>("GET", `/api/venues/${venueId}`);
+  check(archivedVenue.archivedAt !== null && archivedVenue.data.name === venueData.name, "площадка в архиве, не стёрта");
+  check((await admin.raw("POST", "/api/venue-offers", { requestId: null, venueIds: [venueId] })).status === 404, "площадка из архива не попадает в новые предложения");
+  const restoredVenue = await admin.call<{ archivedAt: number | null }>("POST", `/api/venues/${venueId}/restore`, {});
+  check(restoredVenue.archivedAt === null, "площадку вернули из архива");
+  check((await admin.status("DELETE", `/api/venues/${venueId}`)) === 200, "и снова убрали в архив");
   check((await new Device("клиент 2").status("GET", `/api/offers/${offer.id}`)) === 200, "отправленная ссылка открывается и после удаления площадки");
-  check((await admin.status("DELETE", `/api/venue-requests/${requestId}`)) === 200, "заявка удалена");
+  check((await admin.status("DELETE", `/api/venue-requests/${requestId}`)) === 200, "заявка убрана в архив");
+  const archivedRequest = await admin.call<{ archivedAt: number | null; number: number }>("GET", `/api/venue-requests/${requestId}`);
+  check(archivedRequest.archivedAt !== null && archivedRequest.number === sentRequest.number, "заявка в архиве с тем же номером");
+  check((await admin.call<{ archivedAt: number | null }>("POST", `/api/venue-requests/${requestId}/restore`, {})).archivedAt === null, "заявку вернули из архива");
+  await admin.status("DELETE", `/api/venue-requests/${requestId}`);
 
   // ------------------------------------------------ отключение ведущего
   say("\n— Отключение ведущего —");
@@ -452,11 +492,20 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», музыкальное лото —");
+  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер», «Гонка», «Дракон» —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
     { mechanic: "lotto", ...DEMO_LOTTO },
+    { mechanic: "board", ...DEMO_BOARD },
+    { mechanic: "checkers", ...DEMO_CHECKERS },
+    { mechanic: "dance", ...DEMO_DANCE },
+    { mechanic: "quest", ...DEMO_QUEST },
+    { mechanic: "quest", ...DEMO_QUEST_ADULT },
+    { mechanic: "millionaire", title: "Кто хочет стать миллионером", content: DEMO_MILLIONAIRE },
+    { mechanic: "survival", title: "Гонка на выживание", content: DEMO_SURVIVAL },
+    { mechanic: "dragon", title: "Бой с драконом", content: DEMO_DRAGON },
+    { mechanic: "dragon", title: "Бой с драконом: для детей", content: DEMO_DRAGON_KIDS },
   ];
   const library = await admin.call<Array<{ id: string; title: string }>>("GET", "/api/games?scope=agency");
   const templateIds: Record<string, string> = {};
@@ -472,7 +521,22 @@ async function main() {
     }
     templateIds[t.title] = id;
     const saved = await back.call<{ title: string; mechanic: string; content: unknown }>("GET", `/api/games/${id}`);
-    const errors = saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : validateContent(parseContent(saved.content));
+    const errors =
+      saved.mechanic === "lotto" ? validateLotto(parseLotto(saved.content)) : saved.mechanic === "board"
+          ? validateBoard(parseBoard(saved.content))
+          : saved.mechanic === "checkers"
+            ? validateCheckers(parseCheckers(saved.content))
+            : saved.mechanic === "quest"
+              ? validateQuest(parseQuest(saved.content))
+              : saved.mechanic === "millionaire"
+                ? validateMillionaire(parseMillionaire(saved.content))
+              : saved.mechanic === "survival"
+                ? validateSurvival(parseSurvival(saved.content))
+              : saved.mechanic === "dragon"
+                ? validateDragon(parseDragon(saved.content))
+              : saved.mechanic === "dance"
+                ? validateDance(parseDance(saved.content))
+                : validateContent(parseContent(saved.content));
     check(saved.title === t.title && errors.length === 0, `шаблон «${t.title}» виден ведущему и готов к запуску`, errors.map((e) => e.message).join("; "));
     const copy = uid();
     check(
@@ -530,6 +594,104 @@ async function main() {
     check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "лото завершено");
     const result = await guest.call<{ board: Array<{ name: string; score: number }> }>("GET", `/api/results/${sid}`);
     check(result.board[0]?.name === "🎵 Лотошник", "итоги лото сохранены со смайликом");
+  }
+
+  // «Своя игра»: клетка → два нажатия → «Неверно» первому → «Верно» второму → клетка гаснет;
+  // «Кот в мешке»: ставки, нажатие, «Верно» — ставка победителю, второй ставивший теряет свою.
+  {
+    const game = parseBoard(DEMO_BOARD.content);
+    const sid = uid();
+    const created = await back.call<{ code: string }>("POST", "/api/sessions", {
+      id: sid, gameId: templateIds[DEMO_BOARD.title] ?? null, gameTitle: DEMO_BOARD.title, playMode: "solo", screenMode: "laptop", themeId: "joyrest", mechanic: "board",
+      gameSnapshot: { title: DEMO_BOARD.title, content: DEMO_BOARD.content },
+    });
+    const g1 = new Device("гость своей игры 1");
+    const g2 = new Device("гость своей игры 2");
+    const u1 = (await g1.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    const u2 = (await g2.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    await g1.call("POST", `/api/sessions/${sid}/participants/${u1}/join`, { name: "🦊 Первый", teamId: null });
+    await g2.call("POST", `/api/sessions/${sid}/participants/${u2}/join`, { name: "🐻 Второй", teamId: null });
+    check(Boolean(created.code), "«Своя игра» создана");
+    const get = () => back.call<Session>("GET", `/api/sessions/${sid}`);
+    const act = async (change: object) => {
+      const cur = await get();
+      return back.status("POST", `/api/sessions/${sid}/apply`, { ...change, expect: { phase: cur.state.phase, step: cur.state.step, stage: cur.state.stage } });
+    };
+    const people = () => back.call<Participant[]>("GET", `/api/sessions/${sid}/participants`);
+    const answersOf = async () => back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/${(await get()).state.step}`);
+    await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } });
+    const first = game.categories[0]?.cells[0];
+    const cat = game.categories[0]?.cells.find((c) => c.kind === "cat");
+    if (!first || !cat) check(false, "в шаблоне есть клетки и «Кот в мешке»");
+    else {
+      check((await act(openCell(await get(), game, first.id))) === 200, "ведущий открыл клетку");
+      let step = (await get()).state.step;
+      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { buzz: true } });
+      await wait(30);
+      await g2.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u2, value: { buzz: true } });
+      await act(boardBuzzSync(await get(), await answersOf()) ?? {});
+      check(parseBoardResult((await get()).state.result).buzz.current === u1, "слово у нажавшего первым");
+      await act(boardWrong(await get(), game));
+      check(parseBoardResult((await get()).state.result).buzz.current === u2, "«Неверно» — слово второму");
+      await act(boardReveal(await get(), game, await people(), true));
+      check(((await get()).leaderboard[u2]?.score ?? 0) === first.points, "верный ответ — стоимость клетки", String((await get()).leaderboard[u2]?.score));
+      await act(toBoard(await get()));
+      const afterCell = parseBoardResult((await get()).state.result);
+      check(afterCell.opened.includes(first.id) && afterCell.picker === u2, "клетка погасла, выбирает ответивший верно");
+
+      check((await act(openCell(await get(), game, cat.id))) === 200, "открыт «Кот в мешке» — ставки");
+      step = (await get()).state.step;
+      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { bet: cat.points } });
+      await g2.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u2, value: { bet: 50 } });
+      await act(startCatQuestion(await get(), game, await answersOf()));
+      step = (await get()).state.step;
+      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { buzz: true } });
+      await act(boardBuzzSync(await get(), await answersOf()) ?? {});
+      await act(boardReveal(await get(), game, await people(), true));
+      const final = await get();
+      check((final.leaderboard[u1]?.score ?? 0) === cat.points, "«Кот в мешке»: верно — ставка победителю", String(final.leaderboard[u1]?.score));
+      check((final.leaderboard[u2]?.score ?? 0) === first.points - 50, "вторая ставка сгорела", String(final.leaderboard[u2]?.score));
+    }
+    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Своя игра» завершена");
+  }
+
+  // «Шашки»: две «команды» (гостя), ходы по очереди — белые, потом чёрные; ход проверяет пульт.
+  {
+    const sid = uid();
+    await back.call<{ code: string }>("POST", "/api/sessions", {
+      id: sid, gameId: templateIds[DEMO_CHECKERS.title] ?? null, gameTitle: DEMO_CHECKERS.title, playMode: "solo", screenMode: "laptop", themeId: "joyrest", mechanic: "checkers",
+      gameSnapshot: { title: DEMO_CHECKERS.title, content: DEMO_CHECKERS.content },
+    });
+    const w = new Device("белые");
+    const b = new Device("чёрные");
+    const uw = (await w.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    const ub = (await b.call<{ uid: string }>("POST", "/api/auth/device")).uid;
+    await w.call("POST", `/api/sessions/${sid}/participants/${uw}/join`, { name: "⚪ Белые", teamId: null });
+    await wait(50);
+    await b.call("POST", `/api/sessions/${sid}/participants/${ub}/join`, { name: "⚫ Чёрные", teamId: null });
+    const get = () => back.call<Session>("GET", `/api/sessions/${sid}`);
+    const act = async (change: object) => {
+      const cur = await get();
+      return back.status("POST", `/api/sessions/${sid}/apply`, { ...change, expect: { phase: cur.state.phase, step: cur.state.step, stage: cur.state.stage } });
+    };
+    const people = () => back.call<Participant[]>("GET", `/api/sessions/${sid}/participants`);
+    await act({ state: { phase: "playing", step: 0, stage: "ready", startedAt: null, revealed: false, timeLimit: null, answered: 0, result: null } });
+    check((await act(startCheckers(await get(), await people()))) === 200, "шашки: партия начата");
+    const sides = parseCheckersResult((await get()).state.result);
+    check(sides.white === uw && sides.black === ub, "белые — первые подключившиеся, чёрные — вторые");
+    check(sides.mover === uw, "первыми ходят белые");
+    const step = (await get()).state.step;
+    // Ход чёрных не в свою очередь пульт не примет.
+    await b.call("POST", `/api/sessions/${sid}/answers`, { step, pid: ub, value: { path: [17, 24] } });
+    await w.call("POST", `/api/sessions/${sid}/answers`, { step, pid: uw, value: { path: [40, 33] } });
+    const moved = moveChange(await get(), await back.call<Answer[]>("GET", `/api/sessions/${sid}/answers/${step}`));
+    check(moved !== null, "ход белых по правилам принят пультом");
+    if (moved) await act(moved);
+    const after = parseCheckersResult((await get()).state.result);
+    check(after.board[40] === "." && after.board[33] === "w" && after.board[24] === ".", "шашка белых переставлена, чёрные не сходили вне очереди");
+    await act(checkersNextTurn(await get()));
+    check(parseCheckersResult((await get()).state.result).mover === ub, "ход перешёл к чёрным");
+    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "шашки завершены");
   }
 
   // ------------------------------------------------ уборка за собой

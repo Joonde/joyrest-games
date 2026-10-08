@@ -235,6 +235,13 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
 
     const edited = await patch("/api/venues/venue-form-001", { status: "worked", rating: 5, notes: "Звукорежиссёр Олег помогает" }, owner);
     expect(edited.json()).toMatchObject({ status: "worked", rating: 5, notes: "Звукорежиссёр Олег помогает" });
+    // Анну привела площадку по своему QR — приняли в базу: +10 баллов, один раз.
+    const points = async () => (await sql<{ points: string }[]>`select points::text as points from host_points where host_id = ${annaId}`).map((r) => Number(r.points));
+    expect(await points()).toEqual([10]);
+    await patch("/api/venues/venue-form-001", { status: "checked" }, owner);
+    await patch("/api/venues/venue-form-001", { status: "new" }, owner);
+    await patch("/api/venues/venue-form-001", { status: "worked" }, owner);
+    expect(await points()).toEqual([10]);
     expect((await patch("/api/venues/venue-form-001", { status: "космос" }, owner)).statusCode).toBe(400);
     expect((await patch("/api/venues/venue-form-001", { rating: 9 }, owner)).statusCode).toBe(400);
 
@@ -282,9 +289,18 @@ describe.skipIf(!url)("база площадок на PostgreSQL", () => {
     const offers = (await get("/api/venue-offers?request=request-0001", owner)).json();
     expect(offers[0]).toMatchObject({ id: offerId, venues: ["Белая веранда", "Лофт «Кирпич»"] });
 
-    // Площадку удалили из базы — отправленная ссылка открывается как раньше.
-    await app.inject({ method: "DELETE", url: "/api/venues/manual-venue-01", headers: headers(owner) });
+    // Площадку убрали в архив — отправленная ссылка открывается как раньше, в новые подборки она не попадает.
+    expect((await app.inject({ method: "DELETE", url: "/api/venues/manual-venue-01", headers: headers(owner) })).statusCode).toBe(200);
     expect((await get(`/api/offers/${offerId}`)).json().items).toHaveLength(2);
+    expect((await get("/api/venues/manual-venue-01", owner)).json().archivedAt).toEqual(expect.any(Number));
+    expect((await post("/api/venue-offers", { requestId: null, venueIds: ["manual-venue-01"] }, owner)).statusCode).toBe(404);
+    expect((await patch("/api/venues/manual-venue-01", { status: "worked" }, owner)).statusCode).toBe(409);
+    expect((await post("/api/venues/manual-venue-01/restore", {}, owner)).json()).toMatchObject({ archivedAt: null, data: { name: "Лофт «Кирпич»" } });
+    expect((await post("/api/venues/manual-venue-01/restore", {}, anna)).statusCode).toBe(403);
+    expect((await app.inject({ method: "DELETE", url: "/api/venue-requests/request-0001", headers: headers(owner) })).statusCode).toBe(200);
+    expect((await get("/api/venue-requests/request-0001", owner)).json()).toMatchObject({ number: expect.any(Number), archivedAt: expect.any(Number) });
+    expect((await post("/api/venue-requests/request-0001/restore", {}, owner)).json()).toMatchObject({ archivedAt: null });
+    expect((await app.inject({ method: "DELETE", url: "/api/venues/never-was-0001", headers: headers(owner) })).statusCode).toBe(404);
     expect((await patch("/api/venue-requests/request-0001", { status: "agreed", notes: "Выбрали веранду" }, owner)).json()).toMatchObject({ status: "agreed" });
   });
 });

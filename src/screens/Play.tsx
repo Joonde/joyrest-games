@@ -329,8 +329,8 @@ async function createOrFindTeam(sessionId: string, uid: string, name: string): P
  * Попытка ответа: шаг и время показа вопроса. «Назад» с вопроса и новый показ дают новую попытку —
  * телефон снова даёт ответить (старый ответ сервер уже удалил).
  */
-function answerSlot(state: Session["state"]): string {
-  return `${state.step}.${state.startedAt ?? 0}`;
+function answerSlot(state: Session["state"], personal = false): string {
+  return `${state.step}.${state.startedAt ?? 0}${personal ? ".me" : ""}`;
 }
 
 /** Ответ на шаг запоминается на телефоне: после перезагрузки гость видит, что ответил. */
@@ -357,9 +357,9 @@ function rememberAnswer(sessionId: string, slot: string, value: unknown): void {
 }
 
 /** Ответ на текущий шаг: с телефона, а если его нет — с сервера (после перезагрузки, у участника команды). */
-function useMyAnswer(session: Session, pid: string, ask: boolean) {
+function useMyAnswer(session: Session, pid: string, ask: boolean, personal = false) {
   const { step } = session.state;
-  const slot = answerSlot(session.state);
+  const slot = answerSlot(session.state, personal);
   const [answer, setAnswer] = useState<{ slot: string; value: { value: unknown } | null } | null>(null);
 
   useEffect(() => {
@@ -422,6 +422,9 @@ function InGame({
     (session.state.step === firstStep.current && stage !== "ready") ||
     (role === "member" && (stage === "reveal" || stage === "board"));
   const [myAnswer, setMyAnswer] = useMyAnswer(session, pid, phase === "playing" && ask);
+  // Режим команд: свой ответ телефона (подсказка капитана, голос участника) — по своему игроку.
+  const [myPersonal, setMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && session.state.step === firstStep.current && stage !== "ready", true);
+  const [personalSending, setPersonalSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useWakeLock(phase !== "finished");
@@ -471,6 +474,32 @@ function InGame({
       setError("Не удалось отправить. Проверьте интернет.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function sendPersonal(value: unknown) {
+    const step = session.state.step;
+    const slot = answerSlot(session.state, true);
+    setPersonalSending(true);
+    setError(null);
+    rememberAnswer(session.id, slot, value);
+    setMyPersonal(value);
+    try {
+      const result = await answersRepo.submit(session.id, step, me.id, uid, value);
+      if (result === "rejected") {
+        const saved = await answersRepo.getOwn(session.id, step, me.id).catch(() => null);
+        if (saved) {
+          rememberAnswer(session.id, slot, saved.value);
+          setMyPersonal(saved.value);
+        } else {
+          forgetAnswer(session.id, slot);
+          setError("Не принято: вопрос уже закрыт.");
+        }
+      }
+    } catch {
+      setError("Не удалось отправить. Проверьте интернет.");
+    } finally {
+      setPersonalSending(false);
     }
   }
 
@@ -533,6 +562,7 @@ function InGame({
             myAnswer={myAnswer}
             sending={sending}
             onAnswer={(value) => void answer(value)}
+            personal={teams ? { value: myPersonal, sending: personalSending, send: (value) => void sendPersonal(value) } : undefined}
           />
           {error && (
             <p className="error" role="alert">

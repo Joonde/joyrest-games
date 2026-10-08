@@ -77,7 +77,7 @@ export function Scene({ themeId }: { themeId: string }) {
       {scene === "spotlights" && (
         <>
           <div className="scene__layer scene__beams">{particles(4, 5)}</div>
-          <div className="scene__carpet" />
+          {themeId !== "studio" && <div className="scene__carpet" />}
           <div className="scene__layer scene__flashes">{particles(9, 6)}</div>
           {stars(12, 13)}
         </>
@@ -102,9 +102,43 @@ export function Scene({ themeId }: { themeId: string }) {
           <div className="scene__frame" />
           <div className="scene__fan scene__fan--left" />
           <div className="scene__fan scene__fan--right" />
+          <div className="scene__fan scene__fan--top-left" />
+          <div className="scene__fan scene__fan--top-right" />
           <div className="scene__layer scene__rise">{particles(24, 10)}</div>
-          <div className="scene__sweep" />
           {stars(12, 15)}
+        </>
+      )}
+
+      {scene === "sun" && (
+        <>
+          <div className="scene__sun" />
+          <div className="scene__layer scene__bokeh">{particles(9, 16)}</div>
+          <div className="scene__waves" />
+          {stars(8, 17)}
+        </>
+      )}
+
+      {scene === "leaves" && (
+        <>
+          <div className="scene__layer scene__bokeh">{particles(7, 18)}</div>
+          <div className="scene__layer scene__leaves">{particles(22, 19, (i) => ({ "--leaf": ["#E8A25A", "#D9663F", "#F3C25E", "#B5793A"][i % 4] ?? "#E8A25A" }))}</div>
+        </>
+      )}
+
+      {scene === "checker" && (
+        <>
+          <div className="scene__checker scene__checker--bl" />
+          <div className="scene__checker scene__checker--tr" />
+          <div className="scene__layer scene__rise">{particles(14, 20)}</div>
+        </>
+      )}
+
+      {scene === "map" && (
+        <>
+          <div className="scene__trail scene__trail--left" />
+          <div className="scene__trail scene__trail--right" />
+          <div className="scene__compass" />
+          {stars(12, 21)}
         </>
       )}
 

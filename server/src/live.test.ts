@@ -183,6 +183,15 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     const session = (await call("GET", "/api/sessions/sess2", guest.cookie)).json();
     expect(session.state).toMatchObject({ phase: "playing", step: 0, stage: "question", startedAt: clock, timeLimit: 20 });
 
+    // «Игры сейчас»: лёгкий список без снимка игры; гостю — нет.
+    const overview = (await call("GET", "/api/sessions/overview", host)).json() as Array<Record<string, unknown>>;
+    expect(overview.find((o) => o.id === "sess2")).toMatchObject({ phase: "playing", players: 1, hostName: expect.any(String) });
+    expect(JSON.stringify(overview)).not.toContain("gameSnapshot");
+    expect((await call("GET", "/api/sessions/overview", guest.cookie)).statusCode).toBe(403);
+    // Идущую игру из списка не убрать; гостю — нельзя.
+    expect((await call("POST", "/api/sessions/sess2/hide", host)).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/sess2/hide", guest.cookie)).statusCode).toBe(403);
+
     expect((await answer("b")).json()).toEqual({ result: "sent" });
     expect((await answer("c")).json()).toEqual({ result: "rejected" });
     const list = (await call("GET", "/api/sessions/sess2/answers/0", host)).json();
@@ -241,6 +250,36 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/results?host=${hostUid}`, host)).json().map((r: { id: string }) => r.id)).toContain("fin1");
     expect((await call("GET", `/api/results?host=${hostUid}`, guest.cookie)).statusCode).toBe(403);
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
+  });
+
+  it("время вечера: начало — первый гость, перерывы — слайд «Перерыв», в итогах — их длительность", async () => {
+    await newSession("ev1");
+    expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBeNull();
+    const guest = await device();
+    expect((await call("POST", `/api/sessions/ev1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" })).statusCode).toBe(200);
+    const started = (await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt as number;
+    expect(started).toBeGreaterThan(0);
+    // Повторный вход того же гостя начало не сдвигает.
+    await call("POST", `/api/sessions/ev1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня" });
+    expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBe(started);
+
+    const slide = { id: "b1", kind: "break", title: "Перерыв", text: "", lines: [], endsAt: clock + 10 * 60_000 };
+    expect((await call("POST", "/api/sessions/ev1/apply", host, { state: { slide } })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/ev1/apply", host, { state: { slide: null } })).statusCode).toBe(200);
+    const [row] = await sql<{ breaks: Array<{ id: string; start: number; end: number }> }[]>`select breaks from sessions where id = 'ev1'`;
+    expect(row?.breaks).toHaveLength(1);
+    // Убрали раньше конца отсчёта — конец перерыва не позже отсчёта и не раньше начала.
+    expect(row?.breaks[0]?.end).toBeGreaterThanOrEqual(row?.breaks[0]?.start ?? Infinity);
+    expect(row?.breaks[0]?.end).toBeLessThan(slide.endsAt);
+    // Перерыв 15 минут (подменяем время, чтобы не ждать).
+    const t = Date.now();
+    await sql`update sessions set breaks = ${sql.json([{ id: "b1", start: t - 20 * 60_000, end: t - 5 * 60_000 }] as never)} where id = 'ev1'`;
+    await call("POST", "/api/sessions/ev1/leaderboard", host, { entries: { [guest.uid]: { name: "Аня", kind: "player", score: 10 } } });
+    expect((await call("POST", "/api/sessions/ev1/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    const result = (await call("GET", "/api/results/ev1", "")).json();
+    expect(result.breaksCount).toBe(1);
+    expect(result.breaksMs).toBe(15 * 60_000);
+    expect(result.startedAt).toBe(started);
   });
 
   it("пульт: устаревшее изменение — 409; прибавка очков складывается; после финиша — только музыка и слайды", async () => {

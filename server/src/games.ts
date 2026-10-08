@@ -166,7 +166,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         fail(reply, 401, "unauthenticated");
         return null;
       }
-      if (!permissions.isActiveHost(actorOf(user))) {
+      if (!permissions.canUseGames(actorOf(user))) {
         fail(reply, 403, "permission-denied");
         return null;
       }

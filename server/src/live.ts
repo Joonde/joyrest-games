@@ -15,6 +15,7 @@ import { generateSessionCode } from "../../src/core/code";
 import { cleanName, NAME_MAX_LENGTH } from "../../src/core/names";
 import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/session";
 import { compactBoard } from "../../src/core/results";
+import { breakStats, parseBreaks, trackBreaks } from "../../src/core/eventTime";
 import { retentionCutoff } from "../../src/core/retention";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
@@ -97,9 +98,13 @@ interface SessionRow {
   created_at: Date | null;
   /** «Начать игру» (миграция 0005). */
   started_at?: Date | null;
+  /** Начало вечера: первый гость (миграция 0014). */
+  event_started_at?: Date | null;
+  /** Перерывы (`src/core/eventTime.ts`). */
+  breaks?: unknown;
 }
 
-const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at"];
+const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks"];
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
@@ -151,6 +156,7 @@ export function parseEntry(value: unknown): LeaderboardEntry | null {
   // Раунды и стрелки (CLAUDE.md, раздел 6, «Раунды и табло»).
   if (typeof value.roundBase === "number" && Number.isFinite(value.roundBase)) entry.roundBase = value.roundBase;
   if (typeof value.move === "number" && Number.isInteger(value.move)) entry.move = value.move;
+  if (typeof value.race === "number" && Number.isInteger(value.race) && value.race >= 0 && value.race <= 1000) entry.race = value.race;
   return entry;
 }
 
@@ -179,6 +185,8 @@ function sessionOf(row: SessionRow) {
     state: normalizeState(row.state),
     leaderboard: normalizeBoard(row.leaderboard),
     createdAt: row.created_at ? row.created_at.getTime() : null,
+    eventStartedAt: row.event_started_at ? row.event_started_at.getTime() : null,
+    breaks: parseBreaks(row.breaks),
     version: row.version,
   };
 }
@@ -277,8 +285,12 @@ export function checkChange(value: unknown): CheckedChange | null {
   const checked: CheckedChange = { state, leaderboard };
   if (value.expect !== undefined) {
     if (!isRecord(value.expect)) return null;
-    const { phase, step, stage } = value.expect;
+    const { phase, step, stage, result } = value.expect;
     const expect: ChangeExpect = {};
+    if (result !== undefined) {
+      if (typeof result !== "string" || result.length > 40) return null;
+      expect.result = result;
+    }
     if (phase !== undefined) {
       if (!PHASES.has(phase as SessionPhase)) return null;
       expect.phase = phase as SessionPhase;
@@ -396,6 +408,8 @@ interface ResultRow {
   board: unknown;
   started_at?: Date | null;
   finished_at?: Date | null;
+  breaks_ms?: string | number | null;
+  breaks_count?: number | null;
 }
 
 function resultOf(row: ResultRow) {
@@ -412,6 +426,8 @@ function resultOf(row: ResultRow) {
     board: Array.isArray(row.board) ? row.board : [],
     startedAt: row.started_at ? row.started_at.getTime() : null,
     finishedAt: row.finished_at ? row.finished_at.getTime() : null,
+    breaksMs: Number(row.breaks_ms ?? 0) || 0,
+    breaksCount: row.breaks_count ?? 0,
   };
 }
 
@@ -421,23 +437,51 @@ function validName(value: unknown): value is string {
 }
 
 /** Итоги сессии для истории — по таблице лидеров на сервере. `replace` — завершение (обновить). */
-async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean): Promise<void> {
+/**
+ * Уборка: сессии старше `cutoff` — с участниками и ответами (итоги сначала сохраняются в историю). Вызывают
+ * владелец при входе в «Управление» и ночная уборка сервера (`cleanup.ts`), по 100 за раз.
+ */
+export async function expireSessions(sql: Sql, cutoff: Date, limit = CLEANUP_LIMIT): Promise<{ deleted: number; more: boolean }> {
+  const rows = await sql<SessionRow[]>`
+    select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
+    where created_at < ${cutoff} order by created_at limit ${limit + 1}`;
+  const batch = rows.slice(0, limit);
+  for (const row of batch) {
+    await sql.begin(async (tx) => {
+      if (Object.keys(normalizeBoard(row.leaderboard)).length > 0) {
+        const [{ count }] = await tx<{ count: number }[]>`
+          select count(*)::int as count from participants where session_id = ${row.id} and kind = 'player'`;
+        await saveResult(tx, row, count, false);
+      }
+      await tx`delete from answers where session_id = ${row.id}`;
+      await tx`delete from participants where session_id = ${row.id}`;
+      await tx`delete from sessions where id = ${row.id}`;
+    });
+  }
+  return { deleted: batch.length, more: rows.length > limit };
+}
+
+async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean, until = Date.now()): Promise<void> {
   // В транзакции и вне её запросы пишутся одинаково.
   const sql = db as Sql;
   const board = sql.json(compactBoard(normalizeBoard(row.leaderboard)) as never);
   const title = row.game_title.slice(0, 80);
+  // Начало вечера — первый гость; без него — «Начать игру». Перерывы — до момента сохранения.
+  const started = row.event_started_at ?? row.started_at ?? null;
+  const pauses = breakStats(parseBreaks(row.breaks), until);
   if (replace) {
     await sql`
-      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at)
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at, breaks_ms, breaks_count)
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
-              ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null}, now())
+              ${row.created_at}, ${participantsCount}, ${board}, ${started}, now(), ${pauses.ms}, ${pauses.count})
       on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board,
-        started_at = excluded.started_at, finished_at = coalesce(results.finished_at, excluded.finished_at), saved_at = now()`;
+        started_at = excluded.started_at, finished_at = coalesce(results.finished_at, excluded.finished_at),
+        breaks_ms = excluded.breaks_ms, breaks_count = excluded.breaks_count, saved_at = now()`;
   } else {
     await sql`
-      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at)
+      insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, breaks_ms, breaks_count)
       values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
-              ${row.created_at}, ${participantsCount}, ${board}, ${row.started_at ?? null})
+              ${row.created_at}, ${participantsCount}, ${board}, ${started}, ${pauses.ms}, ${pauses.count})
       on conflict (id) do nothing`;
   }
 }
@@ -494,27 +538,59 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return { who, row };
     }
 
+    /** Кто может завершить: ведущий игры и владелец — любую; помощник владельца — только брошенную (`staleOnly`). */
+    async function finishableSession(
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply,
+    ): Promise<{ who: Identity; row: SessionRow; staleOnly: boolean } | null> {
+      const who = await requireIdentity(request, reply);
+      if (!who) return null;
+      const row = await loadSession(request.params.id);
+      if (!row) {
+        fail(reply, 404, "not-found");
+        return null;
+      }
+      if (permissions.canControlSession(who.uid, { hostId: row.host_id }) || permissions.isAdmin(actor(who))) return { who, row, staleOnly: false };
+      if (permissions.canSeeAllSessions(actor(who))) return { who, row, staleOnly: true };
+      fail(reply, 403, "permission-denied");
+      return null;
+    }
+
     /** Одно изменение сессии под блокировкой строки; рассылка — после записи. */
     async function change(
       sessionId: string,
       update: (state: SessionState, board: Leaderboard) => CheckedChange | null | "conflict",
+      opts: { staleOnly?: boolean } = {},
     ): Promise<"ok" | "missing" | "conflict"> {
       const event = await sql.begin(async (tx) => {
-        const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${sessionId} for update`;
+        const rows = await tx<(SessionRow & { stale: boolean })[]>`
+          select ${tx(SESSION_COLUMNS)}, version::int as version,
+                 (state->>'phase' in ('lobby', 'playing') and updated_at < now() - interval '12 hours') as stale
+          from sessions where id = ${sessionId} for update`;
         const row = rows[0];
         if (!row) return null;
+        // Брошенность проверяется под блокировкой строки: ведущий вернулся к игре — помощник её не завершит.
+        if (opts.staleOnly && !row.stale) return "conflict" as const;
         const state = normalizeState(row.state);
         const board = normalizeBoard(row.leaderboard);
         const checked = update(state, board);
         if (checked === "conflict") return "conflict" as const;
         if (!checked) return null;
-        const next = applyChange(state, board, checked, now());
+        const at = now();
+        const next = applyChange(state, board, checked, at);
         const starting = state.phase !== "playing" && next.state.phase === "playing";
+        // Перерывы вечера — по слайду «Перерыв» на экране зала.
+        const before = parseBreaks(row.breaks);
+        const breaks = trackBreaks(before, state.slide ?? null, next.state.slide ?? null, at);
+        const breaksChanged = JSON.stringify(breaks) !== JSON.stringify(before);
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(next.state as never)}, leaderboard = ${tx.json(next.leaderboard as never)},
-            version = version + 1, updated_at = now(),
+            version = version + 1, updated_at = now(), hidden_at = null,
             -- «Начать игру» (любым путём: /apply или /phase) — начало игры для баллов ведущего.
-            started_at = case when ${starting} then coalesce(started_at, ${new Date(now())}) else started_at end
+            started_at = case when ${starting} then coalesce(started_at, ${new Date(at)}) else started_at end,
+            -- Вечер без гостей с телефонами начинается с «Начать игру».
+            event_started_at = case when ${starting} then coalesce(event_started_at, ${new Date(at)}) else event_started_at end,
+            breaks = case when ${breaksChanged} then ${tx.json(breaks as never)} else breaks end
           where id = ${sessionId} returning version::int as version`;
         // Подписчикам — изменённые записи таблицы целиком (с прибавкой и новым именем).
         const changed: Record<string, LeaderboardEntry | null> = { ...checked.leaderboard };
@@ -606,6 +682,66 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return rows.map(sessionOf);
     });
 
+    // «Игры сейчас»: идущие и ждущие гостей игры плюс две последние завершённые у каждого ведущего —
+    // ведущему свои, владельцу все. Без снимка игры и таблицы (лёгкий список для студии).
+    api.get("/api/sessions/overview", async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      if (!who.user) return fail(reply, 403, "permission-denied");
+      const all = permissions.canSeeAllSessions(actor(who));
+      const rows = await sql<
+        { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null; stale: boolean }[]
+      >`
+        select s.id, s.code, s.host_id, u.name as host_name, s.game_title, s.mechanic, s.phase, s.screen_mode, s.created_at, s.updated_at, s.started_at,
+               (s.phase in ('lobby', 'playing') and s.updated_at < now() - interval '12 hours') as stale,
+               (select count(*)::int from participants p where p.session_id = s.id and p.kind = 'player') as players
+        from (
+          select *, row_number() over (partition by host_id, phase = 'finished' order by updated_at desc) as n
+          from sessions
+          where (${all}::boolean or host_id = ${who.uid}) and created_at > now() - interval '30 days' and hidden_at is null
+        ) s
+        left join users u on u.id = s.host_id
+        where s.phase in ('lobby', 'playing') or s.n <= 2
+        order by s.updated_at desc
+        limit 300`;
+      reply.header("Cache-Control", "no-store");
+      return rows.map((r) => ({
+        id: r.id,
+        code: r.code,
+        hostId: r.host_id,
+        hostName: r.host_name ?? "",
+        gameTitle: r.game_title,
+        mechanic: r.mechanic,
+        phase: PHASES.has(r.phase as SessionPhase) ? r.phase : "lobby",
+        screenMode: r.screen_mode,
+        players: r.players,
+        createdAt: r.created_at.getTime(),
+        updatedAt: r.updated_at.getTime(),
+        startedAt: r.started_at ? r.started_at.getTime() : null,
+        stale: r.stale,
+      }));
+    });
+
+    // «Убрать из списка»: завершённая или брошенная (12 часов без действий) игра пропадает из «Игр сейчас».
+    // Ведущий — свою, владелец — любую. Идущую сначала завершают.
+    api.post<{ Params: { id: string } }>("/api/sessions/:id/hide", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who?.user) return who ? fail(reply, 403, "permission-denied") : reply;
+      const row = await loadSession(request.params.id);
+      if (!row) return fail(reply, 404, "not-found");
+      const full = permissions.canDeleteSession(actor(who), { hostId: row.host_id });
+      // Помощник владельца убирает чужую игру, только если она брошена (12 часов без действий и не завершена).
+      if (!full && !permissions.canSeeAllSessions(actor(who))) return fail(reply, 403, "permission-denied");
+      const rows = await sql`
+        update sessions set hidden_at = now()
+        where id = ${row.id}
+          and (${full}::boolean and (phase = 'finished' or updated_at < now() - interval '12 hours')
+               or phase in ('lobby', 'playing') and updated_at < now() - interval '12 hours')
+        returning id`;
+      if (rows.length === 0) return fail(reply, 409, "failed-precondition");
+      return { ok: true };
+    });
+
     api.get<{ Params: { id: string }; Querystring: { since?: string } }>("/api/sessions/:id", async (request, reply) => {
       const who = await requireIdentity(request, reply);
       if (!who) return reply;
@@ -671,16 +807,30 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
     });
 
     api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/finish", { bodyLimit: SMALL_BODY }, async (request, reply) => {
-      const hosted = await hostedSession(request, reply);
+      // Завершить может ведущий игры, а владелец — любую (брошенную игру ведущего из «Игр сейчас»).
+      const hosted = await finishableSession(request, reply);
       if (!hosted) return reply;
       const count = isRecord(request.body) ? request.body.participantsCount : 0;
-      const participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
-      await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }));
+      let participantsCount = Number.isInteger(count) && (count as number) >= 0 ? (count as number) : 0;
+      if (hosted.row.host_id !== hosted.who.uid) {
+        // Чужую игру завершают из «Игр сейчас» — число телефонов считает сервер.
+        const [n] = await sql<{ n: number }[]>`select count(*)::int as n from participants where session_id = ${hosted.row.id} and kind = 'player'`;
+        participantsCount = n?.n ?? 0;
+      }
+      // Последнее действие пульта до завершения: брошенная игра, которую закрыли через сутки, не
+      // «шла» сутки — баллы ведущему считаются до него.
+      const [last] = await sql<{ updated_at: Date }[]>`select updated_at from sessions where id = ${hosted.row.id}`;
+      const wasLobby = normalizeState(hosted.row.state).phase === "lobby";
+      const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly });
+      if (done === "conflict") return fail(reply, 403, "permission-denied");
+      if (done === "missing") return fail(reply, 404, "not-found");
       // Итоги — по таблице на сервере, а не по присланной.
       const row = await loadSession(hosted.row.id);
-      if (row) {
-        await saveResult(sql, row, participantsCount, true);
-        await awardGamePoints(sql, row.id, now());
+      // Сессию закрыли в лобби, никто не играл — в «Историю игр» пустую строку не пишем.
+      if (row && !(wasLobby && Object.keys(normalizeBoard(row.leaderboard)).length === 0)) {
+        await saveResult(sql, row, participantsCount, true, now());
+        const end = Math.min(now(), (last?.updated_at.getTime() ?? now()) + 15 * 60_000);
+        await awardGamePoints(sql, row.id, end);
       }
       return { ok: true };
     });
@@ -694,24 +844,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const asked = isRecord(request.body) && typeof request.body.cutoff === "number" ? request.body.cutoff : 0;
       // Не свежее срока хранения, даже если браузер попросил иначе.
       const cutoff = new Date(Math.min(asked, retentionCutoff(now())));
-      const rows = await sql<SessionRow[]>`
-        select ${sql(SESSION_COLUMNS)}, version::int as version from sessions
-        where created_at < ${cutoff} order by created_at limit ${CLEANUP_LIMIT + 1}`;
-      const batch = rows.slice(0, CLEANUP_LIMIT);
-      for (const row of batch) {
-        await sql.begin(async (tx) => {
-          if (Object.keys(normalizeBoard(row.leaderboard)).length > 0) {
-            const [{ count }] = await tx<{ count: number }[]>`
-              select count(*)::int as count from participants where session_id = ${row.id} and kind = 'player'`;
-            await saveResult(tx, row, count, false);
-          }
-          await tx`delete from answers where session_id = ${row.id}`;
-          await tx`delete from participants where session_id = ${row.id}`;
-          await tx`delete from sessions where id = ${row.id}`;
-        });
-      }
-      request.log.info({ cleanup: batch.length }, "sessions cleanup");
-      return { deleted: batch.length, more: rows.length > CLEANUP_LIMIT };
+      const report = await expireSessions(sql, cutoff);
+      request.log.info({ cleanup: report.deleted }, "sessions cleanup");
+      return report;
     });
 
     // ---------------------------------------------------------------- участники
@@ -774,6 +909,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         values (${id}, ${pid}, ${body.name}, 'player', ${teamId}, ${who.uid})
         on conflict (session_id, id) do update set name = excluded.name, team_id = excluded.team_id
         returning ${sql(PARTICIPANT_COLUMNS)}`;
+      // Первый гость — начало вечера (CLAUDE.md, «Время вечера»); дальше не перезаписывается.
+      if (!existing) await sql`update sessions set event_started_at = now() where id = ${id} and event_started_at is null`;
       publishParticipant(id, row ?? null);
       return { ok: true };
     });

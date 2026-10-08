@@ -17,6 +17,20 @@ export function gamePoints(phones: number, minutes: number): number {
   return 1 + 0.5 * Math.floor(Math.max(0, phones - 20) / 5);
 }
 
+/**
+ * Баллы ведущему за площадку, которую он привёл по своему QR-коду: начисляются один раз, когда
+ * анкету заведения принимают в базу («Проверено» или «Работали»). Не начисляются, если ведущий
+ * принял свою же анкету сам.
+ */
+export const VENUE_POINTS = 10;
+
+/** Начислить ли баллы за площадку при смене статуса. */
+export function venueEarnsPoints(input: { source: string; hostId: string | null; from: string; to: string; actorId: string }): boolean {
+  if (input.source !== "form" || !input.hostId || input.hostId === input.actorId) return false;
+  const accepted = (s: string) => s === "checked" || s === "worked";
+  return !accepted(input.from) && accepted(input.to);
+}
+
 /** Ручное начисление: шаг 0,5, не ноль, от −100 до 100. */
 export function isValidManualPoints(points: number): boolean {
   return Number.isFinite(points) && points !== 0 && Math.abs(points) <= 100 && Number.isInteger(points * 2);

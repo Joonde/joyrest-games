@@ -1,3 +1,17 @@
+import { board } from "./board";
+import { DEMO_BOARD } from "./board/demo";
+import { checkers } from "./checkers";
+import { DEMO_CHECKERS } from "./checkers/demo";
+import { dance } from "./dance";
+import { DEMO_DANCE } from "./dance/demo";
+import { quest } from "./quest";
+import { millionaire } from "./millionaire";
+import { survival } from "./survival";
+import { dragon } from "./dragon";
+import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "./dragon/demo";
+import { DEMO_SURVIVAL } from "./survival/demo";
+import { DEMO_MILLIONAIRE } from "./millionaire/demo";
+import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
 import { lotto } from "./lotto";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
@@ -14,7 +28,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -23,6 +37,13 @@ export function getMechanic(id: string | null): AnyMechanic | undefined {
 const HINTS: Record<string, string> = {
   quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
   lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
+  quest: "Поле 40–100 клеток на экране, кубик на телефоне капитана, в клетках — задания, вопросы, танцы, бонусы и ловушки.",
+  dance: "Команды по очереди выбирают батл, танец или караоке; оценивают другие команды. Видео — ссылка или файл на экране зала.",
+  checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
+  dragon: "Капитаны выбирают героя и свойства, команды бьют дракона: вопросы, задания, кубик; жизни, гибель, несколько боёв.",
+  survival: "До 30 раундов из вопросов и заданий, каждый 5-й — войнушка со ставками, аукцион билета освобождения.",
+  millionaire: "12 вопросов с вариантами, у каждой команды своя лестница на экране, несгораемые ступени и 6 подсказок.",
+  board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
 };
 
 /** Механики, которые можно выбрать при создании игры. */
@@ -63,7 +84,7 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
 }
 
 /** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
-export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown }> = [
+export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
   {
     mechanic: quiz.id,
@@ -77,6 +98,34 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     hint: "28 песен, карточки 4×4, побеждает первая линия. Треки добавьте в копии игры или включайте со своего плеера.",
     content: DEMO_LOTTO.content,
   },
+  {
+    mechanic: board.id,
+    title: DEMO_BOARD.title,
+    hint: "4 категории по 5 вопросов, два «Кота в мешке». Клетки с треками и картинками добавьте в копии игры.",
+    content: DEMO_BOARD.content,
+    themeId: "studio",
+  },
+  {
+    mechanic: checkers.id,
+    title: DEMO_CHECKERS.title,
+    hint: "30 вопросов на общие знания, две команды: белые и чёрные.",
+    playMode: "teams",
+    content: DEMO_CHECKERS.content,
+  },
+  {
+    mechanic: dance.id,
+    title: DEMO_DANCE.title,
+    hint: "9 карточек: танцы, караоке и батлы. Музыку включаете сами или добавляете ссылки на ролики в копии игры.",
+    content: DEMO_DANCE.content,
+    playMode: "teams",
+    themeId: "dancefloor",
+  },
+  { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
+  { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
+  { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "36 вопросов на 12 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
+  { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания, 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
+  { mechanic: dragon.id, title: "Бой с драконом", hint: "2 боя по 8 заданий: вопросы, силовые задания, песни и кубик; 10 героев.", content: DEMO_DRAGON, playMode: "teams", themeId: "adventure" },
+  { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */

@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 
 export interface TabItem<Id extends string> {
   id: Id;
@@ -12,14 +12,29 @@ interface Props<Id extends string> {
   label: string;
   /** Префикс id: панель вкладки получает id `${idPrefix}-panel-${id}`. */
   idPrefix: string;
+  /** Много вкладок: на узком экране — лента с прокруткой вбок, выбранная всегда видна. */
+  scroll?: boolean;
 }
 
 /**
  * Вкладки: тихие кнопки, у выбранной — полоса фирменного градиента снизу.
  * Стрелки влево и вправо переключают вкладки, как в системных приложениях.
  */
-export function Tabs<Id extends string>({ items, value, onChange, label, idPrefix }: Props<Id>) {
+export function Tabs<Id extends string>({ items, value, onChange, label, idPrefix, scroll = false }: Props<Id>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Выбранная вкладка видна в ленте: прокручиваем только саму ленту вбок, страницу не трогаем.
+  const index = items.findIndex((item) => item.id === value);
+  useEffect(() => {
+    if (!scroll) return;
+    const tab = refs.current[index];
+    const list = tab?.parentElement;
+    if (!tab || !list) return;
+    const left = tab.offsetLeft - list.offsetLeft;
+    if (left < list.scrollLeft || left + tab.offsetWidth > list.scrollLeft + list.clientWidth) {
+      list.scrollTo({ left: Math.max(0, left - 16), behavior: "auto" });
+    }
+  }, [scroll, index]);
 
   function onKeyDown(event: KeyboardEvent, index: number) {
     const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
@@ -33,7 +48,7 @@ export function Tabs<Id extends string>({ items, value, onChange, label, idPrefi
   }
 
   return (
-    <div className="tabs" role="tablist" aria-label={label}>
+    <div className={scroll ? "tabs tabs--scroll" : "tabs"} role="tablist" aria-label={label}>
       {items.map((item, index) => {
         const selected = item.id === value;
         return (

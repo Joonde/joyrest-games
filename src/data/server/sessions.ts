@@ -5,7 +5,7 @@
 import type { SessionsRepository } from "../contracts";
 import { parseCue, parseMix, parseMusic, parsePeek, parseSlide, parseTeams } from "../cues";
 import { errorCodeOf } from "../retry";
-import type { Leaderboard, LeaderboardEntry, Session, SessionPhase, SessionState, StepStage } from "../types";
+import type { Leaderboard, LeaderboardEntry, ScreenMode, Session, SessionPhase, SessionState, SessionSummary, StepStage } from "../types";
 import { api, asRecord, asText, newId } from "./api";
 import { openStream } from "./stream";
 
@@ -53,6 +53,7 @@ function parseEntry(value: unknown): LeaderboardEntry {
   if (typeof e.captainUid === "string") entry.captainUid = e.captainUid;
   if (typeof e.roundBase === "number") entry.roundBase = e.roundBase;
   if (typeof e.move === "number") entry.move = e.move;
+  if (typeof e.race === "number") entry.race = e.race;
   return entry;
 }
 
@@ -80,6 +81,7 @@ export function parseSession(value: unknown): Versioned | null {
     state: parseState(d.state),
     leaderboard: parseBoard(d.leaderboard),
     createdAt: typeof d.createdAt === "number" ? d.createdAt : null,
+    eventStartedAt: typeof d.eventStartedAt === "number" ? d.eventStartedAt : null,
     version: num(d.version),
   };
 }
@@ -178,6 +180,28 @@ export const serverSessionsRepository: SessionsRepository = {
         }
       },
     });
+  },
+
+  async overview() {
+    const data = await api("GET", "/api/sessions/overview");
+    return (Array.isArray(data) ? data : []).flatMap((raw): SessionSummary[] => {
+      const d = asRecord(raw);
+      const id = asText(d.id);
+      const code = asText(d.code);
+      if (!id || !/^\d{6}$/.test(code)) return [];
+      const phase: SessionPhase = d.phase === "playing" || d.phase === "finished" ? d.phase : "lobby";
+      const screenMode: ScreenMode = d.screenMode === "none" || d.screenMode === "remote" ? d.screenMode : "laptop";
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+      return [{ id, code, hostId: asText(d.hostId), hostName: asText(d.hostName), gameTitle: asText(d.gameTitle), mechanic: typeof d.mechanic === "string" ? d.mechanic : null, phase, screenMode, players: num(d.players), createdAt: num(d.createdAt), updatedAt: num(d.updatedAt), startedAt: typeof d.startedAt === "number" ? d.startedAt : null, stale: d.stale === true }];
+    });
+  },
+
+  async close(sessionId, participantsCount) {
+    await api("POST", `/api/sessions/${encodeURIComponent(sessionId)}/finish`, { participantsCount });
+  },
+
+  async hide(sessionId) {
+    await api("POST", `/api/sessions/${encodeURIComponent(sessionId)}/hide`, {});
   },
 
   async listByHost(hostId) {

@@ -1,8 +1,10 @@
 import { Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { applyChange, startState } from "../../core/session";
+import { roundLeaderboard } from "../../core/rounds";
 import { gamesRepo, permissions, useLoad, type Game, type Session, type UserProfile } from "../../data";
 import { Podium } from "../../components/live/Podium";
+import { PeekCard } from "../../components/live/PeekCard";
 import { Scene } from "../../components/live/Scene";
 import { useSoundUnlock } from "../../components/live/sound";
 import { BoardView } from "../../components/live/BoardView";
@@ -12,6 +14,8 @@ import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
 import { getMechanic, validateGame } from "../../mechanics/registry";
 import type { SessionControl } from "../../mechanics/types";
+import type { Participant } from "../../data";
+import { rehearsalParticipants } from "./rehearsalTeams";
 import { themeStyle } from "../../themes/registry";
 
 export function Rehearsal() {
@@ -40,7 +44,7 @@ function RehearsalLoader({ gameId, profile }: { gameId: string; profile: UserPro
       </Message>
     );
   }
-  return <RehearsalRun game={game} hostId={profile.uid} />;
+  return <RehearsalRun game={game} hostId={profile.uid} launchable={permissions.canLaunchGame(profile, game)} />;
 }
 
 /** Сессия в памяти: тот же пульт и тот же экран зала, но без гостей и без записи в базу. */
@@ -62,10 +66,12 @@ function initialSession(game: Game, hostId: string): Session {
   };
 }
 
-function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
+function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string; launchable: boolean }) {
   const mechanic = getMechanic(game.mechanic);
   const content = useMemo(() => (mechanic ? mechanic.parse(game.content) : null), [mechanic, game.content]);
   const [session, setSession] = useState(() => initialSession(game, hostId));
+  // Игры по очереди команд без участников не начать — на репетиции за них играют тестовые команды.
+  const demo: Participant[] = useMemo(() => rehearsalParticipants(game.mechanic, game.playMode), [game.mechanic, game.playMode]);
   // Звуки и фрагменты «Угадай мелодию» на репетиции — после первого касания, как на экране зала.
   useSoundUnlock();
   const control: SessionControl = useMemo(
@@ -83,7 +89,7 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
 
   return (
     <main className="page page--wide">
-      <TopBar title="Репетиция" actions={[{ label: "К игре", to: `/studio/games/${game.id}` }]} />
+      <TopBar title="Репетиция" actions={[{ label: "К игре", to: `/studio/games/${game.id}` }]} leaveWarning="Репетиция закончится, её можно начать заново." />
       <p className="muted small">
         Прогон игры без гостей: ничего не сохраняется, никто не подключается. Так игра пойдёт на экране зала и на пульте.
       </p>
@@ -95,6 +101,16 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
             {finished ? (
               <div className="quiz-screen quiz-screen--board">
                 <BoardView leaderboard={session.leaderboard} title="Игра завершена" />
+              </div>
+            ) : session.state.peek ? (
+              // «Таблица очков на экран» — как на настоящем экране зала (HallScreen).
+              <div className="quiz-screen quiz-screen--board">
+                <BoardView
+                  leaderboard={session.state.peek === "round" ? roundLeaderboard(session.leaderboard) : session.leaderboard}
+                  title={session.state.peek === "round" ? "Счёт текущего раунда" : "Таблица сейчас"}
+                  showLast={false}
+                  showMoves={session.state.peek === "total"}
+                />
               </div>
             ) : session.state.stage === "podium" ? (
               <Podium session={session} />
@@ -112,14 +128,17 @@ function RehearsalRun({ game, hostId }: { game: Game; hostId: string }) {
                 <button type="button" className="btn btn--block" onClick={() => setSession(initialSession(game, hostId))}>
                   Начать заново
                 </button>
-                <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
-                  Запустить игру
-                </Link>
+                {launchable && (
+                  <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
+                    Запустить игру
+                  </Link>
+                )}
               </div>
             </>
           ) : (
             <Suspense fallback={null}>
-              <HostControls session={session} content={content} answers={[]} participants={[]} control={control} rehearsal />
+              {!mechanic.ownPeek && session.state.phase === "playing" && <PeekCard session={session} onApply={control.apply} />}
+              <HostControls session={session} content={content} answers={[]} participants={demo} control={control} rehearsal />
             </Suspense>
           )}
         </section>

@@ -105,6 +105,11 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           На карточке {cardCells(content)} песен из списка, у каждого гостя — своя. Звучат по порядку списка. Трек можно выбрать из своей или общей
           музыки — тогда песня играет на экране зала; без трека ведущий включает её сам.
         </p>
+        {content.songs.length >= cardCells(content) && content.songs.length < cardCells(content) * 2 && (
+          <p className="notice small">
+            Чтобы карточки гостей заметно отличались, нужно хотя бы {cardCells(content) * 2} песен (сейчас {content.songs.length}). Иначе у всех почти одни и те же песни — победителей «Лото!» будет сразу много.
+          </p>
+        )}
         {general.map((e) => (
           <p key={e.message} className="error small">
             {e.message}

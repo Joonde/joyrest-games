@@ -146,7 +146,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         fail(reply, 401, "unauthenticated");
         return null;
       }
-      if (!permissions.isActiveHost(actorOf(user))) {
+      if (!permissions.canUseTracks(actorOf(user))) {
         fail(reply, 403, "permission-denied");
         return null;
       }

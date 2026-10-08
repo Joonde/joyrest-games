@@ -95,6 +95,15 @@ export function VenueEditor({ value: v, onChange, menuFiles }: Props) {
           </div>
         )}
         <Toggle label="Есть место для танцев" checked={v.dance} onChange={(x) => set("dance", x)} />
+        <TextField
+          label="Комментарий о залах"
+          hint="необязательно: сколько гостей в каждом зале, особенности"
+          multiline
+          placeholder="Большой зал — 80, малый — 25, веранда летом — 40"
+          value={v.hallsNote}
+          maxLength={TEXT_LIMITS.hallsNote}
+          onChange={(x) => set("hallsNote", x)}
+        />
       </Section>
 
       <Section title="4. Мебель и рассадка">

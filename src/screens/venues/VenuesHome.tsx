@@ -2,7 +2,7 @@
  * Кабинет «База площадок» (`/venues`): вкладки «Площадки», «Заявки клиентов», «QR-коды».
  * Владелец и ведущие, которым он открыл доступ (`permissions.canManageVenues`).
  */
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   findDuplicates,
@@ -17,16 +17,19 @@ import {
   type VenueData,
 } from "../../core/venues";
 import { permissions, useLoad, venuesRepo, type UserProfile, type VenueRecord, type VenueRequestRecord } from "../../data";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline, Message } from "../../components/Status";
 import { Tabs } from "../../components/Tabs";
+import { SearchField } from "../../components/SearchField";
+import { matchesSearch } from "../../core/search";
 import { TopBar } from "../../components/TopBar";
-import { StatusPill } from "../../components/venues/Fields";
+import { StatusPill, statusColor } from "../../components/venues/Fields";
 import { VenueQr } from "../../components/venues/VenueQr";
 import { studioActions } from "../studio/Studio";
 
-type TabId = "venues" | "requests" | "qr";
+type TabId = "venues" | "forms" | "requests" | "archive" | "qr";
 
 /** Ворота кабинета: вход, доступ к базе, свой сервер. */
 export function VenuesGate({ children }: { children: (profile: UserProfile, uid: string) => ReactNode }) {
@@ -67,7 +70,8 @@ export function venueActions(profile: UserProfile) {
 
 export function VenuesHome() {
   const [params, setParams] = useSearchParams();
-  const tab: TabId = params.get("tab") === "requests" ? "requests" : params.get("tab") === "qr" ? "qr" : "venues";
+  const raw = params.get("tab");
+  const tab: TabId = raw === "requests" || raw === "qr" || raw === "forms" || raw === "archive" ? raw : "venues";
   const setTab = (next: TabId) => setParams(next === "venues" ? {} : { tab: next }, { replace: true });
 
   return (
@@ -78,17 +82,22 @@ export function VenuesHome() {
           <Tabs
             idPrefix="venues"
             label="Разделы базы площадок"
+            scroll
             value={tab}
             onChange={setTab}
             items={[
               { id: "venues", label: "Площадки" },
+              { id: "forms", label: "Анкеты заведений" },
               { id: "requests", label: "Заявки клиентов" },
+              ...(permissions.canArchiveVenues(profile) ? [{ id: "archive" as const, label: "Архив" }] : []),
               { id: "qr", label: "QR-коды" },
             ]}
           />
           <div id={`venues-panel-${tab}`} role="tabpanel" aria-labelledby={`venues-tab-${tab}`} className="stack">
-            {tab === "venues" && <VenuesTab />}
+            {tab === "venues" && <VenuesTab mode="base" owner={permissions.isAdmin(profile)} />}
+            {tab === "forms" && <VenuesTab mode="forms" owner={permissions.isAdmin(profile)} />}
             {tab === "requests" && <RequestsTab />}
+            {tab === "archive" && permissions.canArchiveVenues(profile) && <ArchiveTab />}
             {tab === "qr" && <VenueQr uid={uid} />}
           </div>
         </main>
@@ -111,22 +120,20 @@ function StatusFilter<Id extends string>({
   onChange: (value: Id | "all") => void;
 }) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const item = (id: Id | "all", label: string, count: number, color: string | null) => (
+    <button key={id} type="button" className="status-opt" aria-pressed={value === id} onClick={() => onChange(value === id && id !== "all" ? "all" : id)}>
+      <span className="status-opt__dot" style={color ? ({ "--dot": color } as CSSProperties) : undefined} aria-hidden="true" />
+      <span className="status-opt__label">{label}</span>
+      <span className="status-opt__count">{count}</span>
+    </button>
+  );
   return (
-    <div className="status-filter" role="group" aria-label="Показать по статусу">
-      <button type="button" className="pick-chip" aria-pressed={value === "all"} onClick={() => onChange("all")}>
-        Все · {total}
-      </button>
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          className="pick-chip status-filter__item"
-          aria-pressed={value === o.id}
-          onClick={() => onChange(value === o.id ? "all" : o.id)}
-        >
-          <StatusPill tone={o.tone} label={o.label} /> {counts[o.id] ?? 0}
-        </button>
-      ))}
+    <div className="filter-group">
+      <p className="filter-group__label">Статус</p>
+      <div className="status-grid" role="group" aria-label="Показать по статусу">
+        {item("all", "Все", total, null)}
+        {options.map((o) => item(o.id, o.label, counts[o.id] ?? 0, statusColor(o.tone)))}
+      </div>
     </div>
   );
 }
@@ -230,18 +237,33 @@ const COLUMNS: Column[] = [
   { label: "Заметки", group: "ours", value: (v) => <span className="cell-wide">{t(v.notes)}</span> },
 ];
 
-function VenuesTab() {
+/** Анкета с QR, которую ещё не проверили: она в «Анкетах заведений», в базе её пока нет. */
+export function awaitsReview(v: VenueRecord): boolean {
+  return v.source === "form" && v.status === "new" && v.archivedAt === null;
+}
+
+function venueSearchParts(v: VenueRecord): string[] {
+  const d = v.data;
+  return [d.name, d.type, d.district, d.metro, d.location, d.address, d.about, d.person, d.phone, d.email, d.messenger, d.site, ...d.cuisine, ...d.features, v.notes, v.hostName ?? ""];
+}
+
+function VenuesTab({ mode, owner }: { mode: "base" | "forms"; owner: boolean }) {
   const navigate = useNavigate();
-  const [state, retry] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
+  const [state, retry, update] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
+  const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useParam("status", ["all", ...VENUE_STATUSES.map((s) => s.id)] as const, "all");
   const [sort, setSort] = useParam("sort", VENUE_SORTS.map((s) => s.id), "new");
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
   const shown = new Set((params.get("cols") ?? "").split(",").filter(Boolean));
 
-  const venues = state.status === "ready" ? state.data : [];
-  const duplicates = useMemo(() => findDuplicates(venues), [venues]);
-  const nameOf = useMemo(() => new Map(venues.map((v) => [v.id, v.data.name])), [venues]);
+  const all = state.status === "ready" ? state.data : [];
+  const venues = useMemo(() => all.filter((v) => v.archivedAt === null && (mode === "forms" ? awaitsReview(v) : !awaitsReview(v))), [all, mode]);
+  const duplicates = useMemo(() => findDuplicates(all.filter((v) => v.archivedAt === null)), [all]);
+  const [dialog, confirm] = useConfirm();
+  const nameOfAll = useMemo(() => new Map(all.map((v) => [v.id, v.data.name])), [all]);
+  const suggestions = useMemo(() => venues.flatMap((v) => [v.data.name, v.data.metro, v.data.district, v.data.type, v.data.location]), [venues]);
+  const nameOf = nameOfAll;
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const v of venues) c[v.status] = (c[v.status] ?? 0) + 1;
@@ -249,12 +271,7 @@ function VenuesTab() {
   }, [venues]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = venues.filter(
-      (v) =>
-        (status === "all" || v.status === status) &&
-        (!q || [v.data.name, v.data.metro, v.data.address, v.data.type, v.data.person, v.data.phone].join(" ").toLowerCase().includes(q)),
-    );
+    const filtered = venues.filter((v) => (mode === "forms" || status === "all" || v.status === status) && matchesSearch(venueSearchParts(v), query));
     const capacity = (v: VenueRecord) => Math.max(v.data.seated ?? 0, v.data.standing ?? 0);
     return [...filtered].sort((a, b) => {
       if (sort === "old") return a.createdAt - b.createdAt;
@@ -263,7 +280,31 @@ function VenuesTab() {
       if (sort === "status") return statusOrder(VENUE_STATUSES, a.status) - statusOrder(VENUE_STATUSES, b.status) || b.createdAt - a.createdAt;
       return b.createdAt - a.createdAt;
     });
-  }, [venues, status, sort, query]);
+  }, [venues, status, sort, query, mode]);
+
+  /** Модерация анкеты: в базу («Проверено») или «Не подходит» — только после подтверждения. */
+  function review(v: VenueRecord, next: "checked" | "rejected") {
+    const repo = venuesRepo;
+    if (!repo || busy) return;
+    const name = v.data.name || "Без названия";
+    confirm({
+      title: next === "checked" ? `Принять «${name}» в базу?` : `«${name}» не подходит?`,
+      text:
+        next === "checked"
+          ? `Площадка перейдёт в «Площадки» со статусом «Проверено».${v.hostName && owner ? ` Ведущему ${v.hostName} начислятся баллы за то, что он её привёл.` : ""}`
+          : "Анкета уйдёт в «Площадки» со статусом «Не подходит» и не попадёт в подбор. Статус можно поменять в карточке.",
+      confirmLabel: next === "checked" ? "Принять в базу" : "Не подходит",
+      run: async () => {
+        setBusy(v.id);
+        try {
+          const saved = await repo.update(v.id, { status: next });
+          update((list) => list.map((x) => (x.id === v.id ? saved : x)));
+        } finally {
+          setBusy(null);
+        }
+      },
+    });
+  }
 
   function setParam(name: string, value: string) {
     const copy = new URLSearchParams(params);
@@ -285,31 +326,80 @@ function VenuesTab() {
 
   return (
     <>
-      <div className="venues-toolbar">
-        <label className="field venues-search">
-          <span className="field__label">Поиск</span>
-          <input type="search" value={query} placeholder="название, метро, телефон" onChange={(e) => setParam("q", e.target.value)} />
-        </label>
-        <SortSelect options={VENUE_SORTS} value={sort} onChange={setSort} />
-      </div>
-      <StatusFilter options={VENUE_STATUSES} counts={counts} value={status} onChange={setStatus} />
-      <div className="column-groups" role="group" aria-label="Показать колонки">
-        <span className="muted small">Колонки:</span>
-        {GROUPS.map((g) => (
-          <button key={g.id} type="button" className="pick-chip pick-chip--small" aria-pressed={shown.has(g.id)} onClick={() => toggleGroup(g.id)}>
-            {g.label}
-          </button>
-        ))}
-      </div>
-      <div className="actions actions--row">
-        <Link className="btn btn--secondary" to="/venues/new">
-          Добавить площадку вручную
+      {mode === "forms" && (
+        <p className="muted">Анкеты, которые заведения заполнили по QR-коду. Проверьте и примите в базу или отметьте «Не подходит».</p>
+      )}
+      <section className="card venues-filters" aria-label="Поиск и фильтры">
+        <div className="venues-toolbar">
+          <div className="venues-search">
+            <SearchField label="Поиск" value={query} placeholder="название, метро, район, телефон" candidates={suggestions} onChange={(value) => setParam("q", value)} />
+          </div>
+          <SortSelect options={VENUE_SORTS} value={sort} onChange={setSort} />
+        </div>
+        {mode === "base" && <StatusFilter options={VENUE_STATUSES} counts={counts} value={status} onChange={setStatus} />}
+        {mode === "base" && (
+          <div className="filter-group">
+            <p className="filter-group__label">Колонки таблицы</p>
+            <div className="column-grid" role="group" aria-label="Показать колонки">
+              {GROUPS.map((g) => (
+                <button key={g.id} type="button" className="column-opt" aria-pressed={shown.has(g.id)} onClick={() => toggleGroup(g.id)}>
+                  <span className="column-opt__check" aria-hidden="true">{shown.has(g.id) ? "✓" : ""}</span>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+      {mode === "forms" ? (
+        venues.length === 0 ? (
+          <section className="card card--center">
+            <h2>Новых анкет нет</h2>
+            <p className="muted">Покажите администратору заведения QR-код «Для заведения» — анкета появится здесь на проверку.</p>
+          </section>
+        ) : rows.length === 0 ? (
+          <p className="muted empty">Ничего не нашлось. Сбросьте поиск.</p>
+        ) : (
+          <ul className="request-list">
+            {rows.map((v) => {
+              const twin = duplicates.get(v.id);
+              const capacity = [v.data.seated ? `${v.data.seated} сидя` : "", v.data.standing ? `${v.data.standing} фуршет` : ""].filter(Boolean).join(" · ");
+              return (
+                <li key={v.id} className="card venue-form-card">
+                  <Link to={`/venues/v/${v.id}`} className="venue-form-card__title">
+                    {v.data.name || "Без названия"}
+                  </Link>
+                  <p className="muted small">
+                    {[v.data.type, v.data.metro ? `м. ${v.data.metro}` : v.data.district, capacity, dateTime(v.createdAt), v.hostName ? `привёл: ${v.hostName}` : ""].filter(Boolean).join(" · ")}
+                  </p>
+                  {twin && <span className="dup-badge">похоже на «{nameOf.get(twin) ?? "…"}» — проверьте, не дубль ли</span>}
+                  <div className="actions actions--row">
+                    <button type="button" className="btn" disabled={busy === v.id} onClick={() => void review(v, "checked")}>
+                      Принять в базу
+                    </button>
+                    <button type="button" className="btn btn--secondary" disabled={busy === v.id} onClick={() => void review(v, "rejected")}>
+                      Не подходит
+                    </button>
+                    <Link className="btn btn--quiet" to={`/venues/v/${v.id}`}>
+                      Открыть анкету
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      ) : (
+      <>
+      <div className="actions">
+        <Link className="btn btn--secondary btn--block" to="/venues/new">
+          + Добавить площадку вручную
         </Link>
       </div>
       {venues.length === 0 ? (
         <section className="card card--center">
           <h2>Площадок пока нет</h2>
-          <p className="muted">Покажите администратору заведения QR-код «Для заведения» — анкета сразу появится здесь со статусом «Новая».</p>
+          <p className="muted">Анкеты заведений по QR-коду сначала попадают в «Анкеты заведений», после проверки — сюда. Площадку можно добавить и вручную.</p>
         </section>
       ) : rows.length === 0 ? (
         <p className="muted empty">Ничего не нашлось. Сбросьте поиск или фильтр.</p>
@@ -355,6 +445,9 @@ function VenuesTab() {
         </div>
       )}
       <p className="muted small">Нажмите на строку, чтобы открыть карточку площадки. Таблица прокручивается вбок.</p>
+      </>
+      )}
+      {dialog}
     </>
   );
 }
@@ -372,38 +465,61 @@ function RequestsTab() {
   const [state, retry] = useLoad(() => (venuesRepo ? venuesRepo.listRequests() : Promise.resolve([] as VenueRequestRecord[])), []);
   const [status, setStatus] = useParam("status", ["all", ...REQUEST_STATUSES.map((s) => s.id)] as const, "all");
   const [sort, setSort] = useParam("sort", REQUEST_SORTS.map((s) => s.id), "new");
-  const requests = state.status === "ready" ? state.data : [];
+  const [params, setParams] = useSearchParams();
+  const query = params.get("q") ?? "";
+  const requests = useMemo(() => (state.status === "ready" ? state.data.filter((r) => r.archivedAt === null) : []), [state]);
+  const suggestions = useMemo(() => requests.flatMap((r) => [r.data.name, r.data.eventType, r.data.district, `№${r.number}`]), [requests]);
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const r of requests) c[r.status] = (c[r.status] ?? 0) + 1;
     return c;
   }, [requests]);
   const rows = useMemo(() => {
-    const filtered = requests.filter((r) => status === "all" || r.status === status);
+    const filtered = requests.filter(
+      (r) =>
+        (status === "all" || r.status === status) &&
+        matchesSearch([`№${r.number}`, String(r.number), r.data.name, r.data.phone, r.data.eventType, r.data.district, r.data.comment, r.notes, r.hostName ?? ""], query),
+    );
     return [...filtered].sort((a, b) => {
       if (sort === "old") return a.createdAt - b.createdAt;
       if (sort === "status") return statusOrder(REQUEST_STATUSES, a.status) - statusOrder(REQUEST_STATUSES, b.status) || b.createdAt - a.createdAt;
       if (sort === "date") return (a.data.date || "9999").localeCompare(b.data.date || "9999") || b.createdAt - a.createdAt;
       return b.createdAt - a.createdAt;
     });
-  }, [requests, status, sort]);
+  }, [requests, status, sort, query]);
 
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
 
   return (
     <>
+      <section className="card venues-filters" aria-label="Поиск и фильтры">
       <div className="venues-toolbar">
+        <div className="venues-search">
+          <SearchField
+            label="Поиск"
+            value={query}
+            placeholder="номер, имя, телефон, событие"
+            candidates={suggestions}
+            onChange={(value) => {
+              const copy = new URLSearchParams(params);
+              if (value) copy.set("q", value);
+              else copy.delete("q");
+              setParams(copy, { replace: true });
+            }}
+          />
+        </div>
         <SortSelect options={REQUEST_SORTS} value={sort} onChange={setSort} />
       </div>
       <StatusFilter options={REQUEST_STATUSES} counts={counts} value={status} onChange={setStatus} />
+      </section>
       {requests.length === 0 ? (
         <section className="card card--center">
           <h2>Заявок пока нет</h2>
           <p className="muted">Дайте клиенту QR-код «Для клиента» — его заявка появится здесь с номером.</p>
         </section>
       ) : rows.length === 0 ? (
-        <p className="muted empty">Нет заявок с таким статусом.</p>
+        <p className="muted empty">Ничего не нашлось. Сбросьте поиск или фильтр.</p>
       ) : (
         <ul className="request-list">
           {rows.map((r) => (
@@ -444,5 +560,110 @@ function RequestRow({ request: r }: { request: VenueRequestRecord }) {
         Открыть и подобрать площадки
       </Link>
     </li>
+  );
+}
+
+// ------------------------------------------------------------------ архив
+
+/**
+ * Архив: площадки, анкеты и заявки, которые «удалили». Не стираются навсегда — их можно открыть
+ * и вернуть (после подтверждения).
+ */
+function ArchiveTab() {
+  const [venues, retryVenues, updateVenues] = useLoad(() => (venuesRepo ? venuesRepo.list() : Promise.resolve([] as VenueRecord[])), []);
+  const [requests, retryRequests, updateRequests] = useLoad(() => (venuesRepo ? venuesRepo.listRequests() : Promise.resolve([] as VenueRequestRecord[])), []);
+  const [dialog, confirm] = useConfirm();
+  if (venues.status === "loading" || requests.status === "loading") return <ListSkeleton />;
+  if (venues.status === "error") return <LoadFailedInline onRetry={retryVenues} />;
+  if (requests.status === "error") return <LoadFailedInline onRetry={retryRequests} />;
+  const byDate = <T extends { archivedAt: number | null }>(a: T, b: T) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0);
+  const archivedVenues = venues.data.filter((v) => v.archivedAt !== null).sort(byDate);
+  const archivedRequests = requests.data.filter((r) => r.archivedAt !== null).sort(byDate);
+
+  function restoreVenue(v: VenueRecord) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm({
+      title: `Вернуть «${v.data.name || "Без названия"}» из архива?`,
+      text: "Площадка снова появится в базе и в подборе.",
+      confirmLabel: "Вернуть из архива",
+      run: async () => {
+        const saved = await repo.restore(v.id);
+        updateVenues((list) => list.map((x) => (x.id === v.id ? saved : x)));
+      },
+    });
+  }
+
+  function restoreRequest(r: VenueRequestRecord) {
+    const repo = venuesRepo;
+    if (!repo) return;
+    confirm({
+      title: `Вернуть заявку №${r.number} из архива?`,
+      text: "Она снова появится во вкладке «Заявки клиентов».",
+      confirmLabel: "Вернуть из архива",
+      run: async () => {
+        const saved = await repo.restoreRequest(r.id);
+        updateRequests((list) => list.map((x) => (x.id === r.id ? saved : x)));
+      },
+    });
+  }
+
+  return (
+    <>
+      <p className="muted">Сюда попадает всё, что убрали кнопкой «Убрать в архив». Ничего не стирается: откройте или верните на место.</p>
+      <section className="stack">
+        <h2>Площадки и анкеты · {archivedVenues.length}</h2>
+        {archivedVenues.length === 0 ? (
+          <p className="muted empty">В архиве площадок нет.</p>
+        ) : (
+          <ul className="request-list">
+            {archivedVenues.map((v) => (
+              <li key={v.id} className="card venue-form-card">
+                <Link to={`/venues/v/${v.id}`} className="venue-form-card__title">
+                  {v.data.name || "Без названия"}
+                </Link>
+                <p className="muted small">
+                  {[v.data.type, v.data.metro ? `м. ${v.data.metro}` : v.data.district, venueStatusInfo(v.status).label, `в архиве с ${dateTime(v.archivedAt ?? 0)}`].filter(Boolean).join(" · ")}
+                </p>
+                <div className="actions actions--row">
+                  <button type="button" className="btn btn--secondary" onClick={() => restoreVenue(v)}>
+                    Вернуть из архива
+                  </button>
+                  <Link className="btn btn--quiet" to={`/venues/v/${v.id}`}>
+                    Открыть
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="stack">
+        <h2>Заявки клиентов · {archivedRequests.length}</h2>
+        {archivedRequests.length === 0 ? (
+          <p className="muted empty">В архиве заявок нет.</p>
+        ) : (
+          <ul className="request-list">
+            {archivedRequests.map((r) => (
+              <li key={r.id} className="card venue-form-card">
+                <Link to={`/venues/r/${r.id}`} className="venue-form-card__title">
+                  Заявка №{r.number} · {r.data.name}
+                </Link>
+                <p className="muted small">{[r.data.eventType, r.data.guests ? `${r.data.guests} гостей` : "", `в архиве с ${dateTime(r.archivedAt ?? 0)}`].filter(Boolean).join(" · ")}</p>
+                <div className="actions actions--row">
+                  <button type="button" className="btn btn--secondary" onClick={() => restoreRequest(r)}>
+                    Вернуть из архива
+                  </button>
+                  <Link className="btn btn--quiet" to={`/venues/r/${r.id}`}>
+                    Открыть
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {dialog}
+    </>
   );
 }

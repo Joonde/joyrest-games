@@ -5,6 +5,7 @@
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
 import type {
+  SessionSummary,
   OfflinePlayer,
   OfferSummary,
   PublicOffer,
@@ -72,7 +73,7 @@ export interface UsersRepository {
    * Только admin: создаёт аккаунт ведущего с временным паролем. Вход администратора
    * при этом не меняется.
    */
-  createHost(email: string, name: string): Promise<CreatedHost>;
+  createHost(email: string, name: string, profession?: string): Promise<CreatedHost>;
   /** Только admin: отключение (active = false) блокирует вход и создание сессий. */
   setHostActive(uid: string, active: boolean): Promise<void>;
   /**
@@ -80,6 +81,10 @@ export interface UsersRepository {
    * при входе ведущий задаёт свой). У Firebase без Cloud Functions этого нет — метода нет.
    */
   resetHostPassword?(uid: string): Promise<CreatedHost>;
+  /** Только admin, только свой сервер: профессия в команде (`src/core/professions.ts`). */
+  setProfession?(uid: string, profession: string): Promise<void>;
+  /** Только admin, только свой сервер: роль доступа помощника (`src/core/accessRoles.ts`) или null. */
+  setAccessRole?(uid: string, role: string | null): Promise<void>;
 }
 
 export interface GamesRepository {
@@ -128,6 +133,15 @@ export interface SessionsRepository {
   watch(sessionId: string, onChange: (session: Session | null) => void, onError: (error: Error) => void): Unsubscribe;
   /** Сессии ведущего, новые сверху. */
   listByHost(hostId: string): Promise<Session[]>;
+  /**
+   * «Игры сейчас»: идущие и ждущие гостей плюс две последние завершённые у каждого ведущего,
+   * без снимка игры. Ведущему — свои, владельцу — все. Только свой сервер.
+   */
+  overview?(): Promise<SessionSummary[]>;
+  /** Завершить игру из «Игр сейчас» (ведущий — свою, владелец — любую). Только свой сервер. */
+  close?(sessionId: string, participantsCount: number): Promise<void>;
+  /** «Убрать из списка» завершённую или брошенную игру (итоги остаются). Только свой сервер. */
+  hide?(sessionId: string): Promise<void>;
   setPhase(sessionId: string, phase: SessionPhase): Promise<void>;
   upsertLeaderboard(sessionId: string, entries: Record<string, LeaderboardEntry>): Promise<void>;
   /** Только пульт: шаг игры и правки таблицы лидеров одной записью. */
@@ -225,6 +239,11 @@ export interface TracksRepository {
   reject(id: string, reason: string): Promise<Track>;
   /** Файл трека (экран зала, прослушивание); нет — null. */
   file(id: string): Promise<Blob | null>;
+  /**
+   * Адрес файла для `<audio src>`: прослушивание в студии начинается сразу по касанию (iPhone
+   * не даёт включить звук, если между касанием и play() было ожидание загрузки).
+   */
+  fileUrl(id: string): string;
 }
 
 export interface ProposalsRepository {
@@ -281,7 +300,9 @@ export interface VenuesRepository {
   /** Владелец заводит площадку сам: нужно только название. */
   create(data: VenueData): Promise<VenueRecord>;
   update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string }): Promise<VenueRecord>;
+  /** «Удалить» — в архив (не навсегда); `restore` возвращает из архива. */
   remove(id: string): Promise<void>;
+  restore(id: string): Promise<VenueRecord>;
   uploadFile(id: string, file: VenueUpload): Promise<void>;
   removeFile(id: string, sha: string): Promise<void>;
   fileUrl(id: string, sha: string): string;
@@ -289,7 +310,9 @@ export interface VenuesRepository {
   listRequests(): Promise<VenueRequestRecord[]>;
   getRequest(id: string): Promise<VenueRequestRecord>;
   updateRequest(id: string, patch: { status?: RequestStatus; notes?: string; data?: RequestData }): Promise<VenueRequestRecord>;
+  /** В архив (не навсегда). */
   removeRequest(id: string): Promise<void>;
+  restoreRequest(id: string): Promise<VenueRequestRecord>;
 
   /** Предложение клиенту: сервер собирает снимок без адресов и контактов. */
   createOffer(input: { requestId: string | null; venueIds: string[]; comment: string }): Promise<PublicOffer>;

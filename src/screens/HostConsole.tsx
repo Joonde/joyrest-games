@@ -1,3 +1,4 @@
+import { PeekCard } from "../components/live/PeekCard";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
@@ -35,6 +36,8 @@ import { Toast, useToast } from "../components/Toast";
 import { screenStatusLabel, useScreenStatus } from "../components/live/screenStatus";
 import { SoundPad } from "../components/live/SoundPad";
 import { useWakeLock } from "../components/live/useWakeLock";
+import { useServerNow } from "../components/live/useServerNow";
+import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel } from "../components/live/SlidesPanel";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
@@ -265,14 +268,19 @@ function Console({ session }: { session: Session }) {
   // Телефон ведущего не гаснет, пока идёт вечер.
   useWakeLock(phase !== "finished");
   const screenLabel = screen === undefined ? null : screenStatusLabel(screen);
+  // Сколько идёт вечер: с первого гостя (сервер), пока он не записан — по самому раннему входу.
+  const firstJoin = participants.reduce<number | null>((min, p) => (typeof p.joinedAt === "number" && (min === null || p.joinedAt < min) ? p.joinedAt : min), null);
+  const eventStart = session.eventStartedAt ?? firstJoin;
+  const clockNow = useServerNow(20_000, phase !== "finished" && eventStart !== null);
 
   return (
     <main className="page page--pult">
-      <TopBar title="Пульт" actions={menu} />
+      <TopBar title="Пульт" actions={menu} leaveWarning="Игра продолжится: гости играют дальше, пульт откроете снова из «Идёт игра» в студии." />
       <p className="pult-status" aria-live="polite">
         <span className="pult-status__code">{formatSessionCode(session.code)}</span>
         <span>{session.playMode === "teams" ? `телефонов: ${phones}` : `игроков: ${phones}`}</span>
         <span>{phase === "lobby" ? "ждём гостей" : phase === "playing" ? "идёт игра" : "завершена"}</span>
+        {phase !== "finished" && eventStart !== null && <span title="Сколько идёт вечер (с первого гостя)">вечер {elapsedClock(clockNow - eventStart)}</span>}
         {screenLabel && <span className={screenLabel.ok ? "pult-status__screen is-ok" : "pult-status__screen"}>{screenLabel.text}</span>}
       </p>
 
@@ -309,6 +317,10 @@ function Console({ session }: { session: Session }) {
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
                   Начать игру
                 </button>
+                {/* Передумали или сессия создана по ошибке — закрыть, не начиная игру. */}
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
+                  Завершить сессию без игры
+                </button>
               </>
             )}
             {phase === "playing" && HostControls && content !== null && (
@@ -325,7 +337,7 @@ function Console({ session }: { session: Session }) {
                 </Suspense>
               </section>
             )}
-            {phase === "playing" && withScreen && <PeekCard session={session} onApply={apply} />}
+            {phase === "playing" && withScreen && !mechanic?.ownPeek && <PeekCard session={session} onApply={apply} />}
             {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
@@ -388,14 +400,18 @@ function Console({ session }: { session: Session }) {
 
       <ConfirmDialog
         open={confirmFinish}
-        title="Завершить игру?"
-        confirmLabel="Завершить игру"
+        title={session.state.phase === "lobby" ? "Завершить сессию?" : "Завершить игру?"}
+        confirmLabel={session.state.phase === "lobby" ? "Завершить сессию" : "Завершить игру"}
         busy={busy}
         error={error}
         onConfirm={() => void finish()}
         onCancel={() => setConfirmFinish(false)}
       >
-        <p>Гости увидят финал и итоговую таблицу. Продолжить эту игру после завершения нельзя.</p>
+        <p>
+          {session.state.phase === "lobby"
+            ? "Игра так и не начнётся: гости увидят, что она закончена, код перестанет работать. Вернуть сессию нельзя — для новой игры создайте новую."
+            : "Гости увидят финал и итоговую таблицу. Продолжить эту игру после завершения нельзя."}
+        </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={confirmAward}
@@ -483,25 +499,6 @@ function TeamsCard({ session, onApply }: { session: Session; onApply: (change: S
         Представить команды
       </button>
     </section>
-  );
-}
-
-/** Таблица поверх игры по кнопке: общий счёт или счёт текущего раунда. */
-function PeekCard({ session, onApply }: { session: Session; onApply: (change: SessionChange) => Promise<unknown> }) {
-  const peek = session.state.peek ?? null;
-  const hasRounds = Object.values(session.leaderboard).some((e) => (e.roundBase ?? 0) > 0);
-  const toggle = (view: "total" | "round") => void onApply({ state: { peek: peek === view ? null : view } }).catch(() => undefined);
-  return (
-    <div className="row peek-card" role="group" aria-label="Таблица на экран">
-      <button type="button" className={peek === "total" ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={peek === "total"} onClick={() => toggle("total")}>
-        {peek === "total" ? "Убрать таблицу" : "Таблица на экран"}
-      </button>
-      {hasRounds && (
-        <button type="button" className={peek === "round" ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={peek === "round"} onClick={() => toggle("round")}>
-          {peek === "round" ? "Убрать счёт раунда" : "Счёт раунда"}
-        </button>
-      )}
-    </div>
   );
 }
 

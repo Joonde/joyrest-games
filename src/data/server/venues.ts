@@ -29,6 +29,7 @@ export function parseVenueRecord(value: unknown): VenueRecord {
     hostId: typeof d.hostId === "string" ? d.hostId : null,
     hostName: typeof d.hostName === "string" ? d.hostName : null,
     files: parseFiles(d.files),
+    archivedAt: typeof d.archivedAt === "number" ? d.archivedAt : null,
     createdAt: num(d.createdAt),
     updatedAt: num(d.updatedAt),
   };
@@ -45,6 +46,7 @@ export function parseRequestRecord(value: unknown): VenueRequestRecord {
     hostId: typeof d.hostId === "string" ? d.hostId : null,
     hostName: typeof d.hostName === "string" ? d.hostName : null,
     offers: num(d.offers),
+    archivedAt: typeof d.archivedAt === "number" ? d.archivedAt : null,
     createdAt: num(d.createdAt),
     updatedAt: num(d.updatedAt),
   };
@@ -178,6 +180,9 @@ export const serverVenuesRepository: VenuesRepository = {
   async remove(id) {
     await api("DELETE", `/api/venues/${enc(id)}`);
   },
+  async restore(id) {
+    return parseVenueRecord(await api("POST", `/api/venues/${enc(id)}/restore`, {}));
+  },
   async uploadFile(id, file) {
     await retrying(() => putFile(`/api/venues/${enc(id)}/files/${file.kind}`, file.blob, contentType(file), fileHeaders(file)), 3);
   },
@@ -200,6 +205,10 @@ export const serverVenuesRepository: VenuesRepository = {
   },
   async removeRequest(id) {
     await api("DELETE", `/api/venue-requests/${enc(id)}`);
+  },
+
+  async restoreRequest(id) {
+    return parseRequestRecord(await api("POST", `/api/venue-requests/${enc(id)}/restore`, {}));
   },
 
   async createOffer(input) {

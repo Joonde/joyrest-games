@@ -37,8 +37,17 @@ describe("резервные копии", () => {
     expect(service).toMatch(/^Type=oneshot$/m);
   });
 
-  it("выкладка включает таймер копий вместе с остальными", () => {
-    expect(bashFunction("install_system")).toMatch(/systemctl enable --now [^\n]*joyrest-backup\.timer/);
+  it("выкладка каждый раз проверяет и включает таймер копий (а не только при изменении файлов служб)", () => {
+    const fn = bashFunction("install_system");
+    expect(fn).toMatch(/for timer in [^\n]*joyrest-backup\.timer/);
+    expect(fn).toMatch(/systemctl is-enabled --quiet "\$timer"/);
+    expect(fn).toMatch(/systemctl enable --now "\$timer"/);
+    // Включение — вне условия «файлы служб изменились».
+    expect(fn).not.toMatch(/if \[ "\$reload" = 1 \]; then[^]*enable --now[^]*\n    fi/);
+  });
+
+  it("joyrest status показывает, включён ли ночной таймер копий", () => {
+    expect(joyrest).toMatch(/Ночная копия: таймер/);
   });
 
   it("сроки хранения 7/4/3 — в коде и в CLAUDE.md (указываются в политике ПД)", () => {

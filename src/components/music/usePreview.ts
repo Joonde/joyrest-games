@@ -7,50 +7,50 @@ import { tracksRepo } from "../../data";
  */
 export function usePreview(): { playing: string | null; loading: string | null; toggle: (id: string) => void; error: boolean } {
   const audio = useRef<HTMLAudioElement | null>(null);
-  const urls = useRef(new Map<string, string>());
   const [playing, setPlaying] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    const cache = urls.current;
-    return () => {
-      audio.current?.pause();
-      cache.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, []);
+  useEffect(() => () => audio.current?.pause(), []);
 
-  async function toggle(id: string) {
+  // Всё — синхронно в обработчике касания: iPhone разрешает play() только прямо по касанию, поэтому
+  // файл не скачивается заранее, а играет по адресу (браузер сам качает и начинает, как только может).
+  function toggle(id: string) {
     setError(false);
     const el = (audio.current ??= new Audio());
-    if (playing === id) {
+    if (playing === id || loading === id) {
       el.pause();
       setPlaying(null);
+      setLoading(null);
       return;
     }
     el.pause();
-    try {
-      let url = urls.current.get(id);
-      if (!url) {
-        setLoading(id);
-        const blob = tracksRepo ? await tracksRepo.file(id) : null;
-        if (!blob) throw new Error("no file");
-        url = URL.createObjectURL(blob);
-        urls.current.set(id, url);
-      }
-      el.src = url;
-      el.onended = () => setPlaying(null);
-      await el.play();
-      setPlaying(id);
-    } catch {
+    if (!tracksRepo) {
+      setError(true);
+      return;
+    }
+    el.src = tracksRepo.fileUrl(id);
+    el.onended = () => setPlaying(null);
+    el.onerror = () => {
       setError(true);
       setPlaying(null);
-    } finally {
       setLoading(null);
-    }
+    };
+    setLoading(id);
+    el.play().then(
+      () => {
+        setPlaying(id);
+        setLoading(null);
+      },
+      (e: unknown) => {
+        // Пауза до начала (нажали другой трек) — не ошибка.
+        if (!(e instanceof DOMException && e.name === "AbortError")) setError(true);
+        setLoading(null);
+      },
+    );
   }
 
-  return { playing, loading, toggle: (id) => void toggle(id), error };
+  return { playing, loading, toggle, error };
 }
 
 /** Длительность файла по его метаданным; не удалось — null. */

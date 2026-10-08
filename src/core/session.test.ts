@@ -74,3 +74,19 @@ describe("ожидание пульта и правки таблицы", () => {
     expect(twice.a?.score).toBe(30);
   });
 });
+
+describe("отпечаток итогов шага (expect.result)", () => {
+  it("не зависит от порядка ключей и пропущенных undefined", async () => {
+    const { resultKey } = await import("./session");
+    expect(resultKey({ a: 1, b: { y: [1, 2], x: "т" } })).toBe(resultKey({ b: { x: "т", y: [1, 2] }, a: 1, c: undefined }));
+    expect(resultKey(null)).toBe(resultKey(undefined));
+    expect(resultKey({ judged: true })).not.toBe(resultKey({ judged: false }));
+  });
+
+  it("второй пульт с устаревшим видом не проходит", async () => {
+    const { meetsExpect, resultKey, startState } = await import("./session");
+    const state = { ...startState(), result: { judged: "c1" } };
+    expect(meetsExpect(state, { step: 0, result: resultKey({ judged: "c1" }) })).toBe(true);
+    expect(meetsExpect(state, { step: 0, result: resultKey(null) })).toBe(false);
+  });
+});

@@ -14,6 +14,7 @@ import * as permissions from "../../src/data/permissions";
 import type { TeamMember } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { imageMime } from "./games";
+import { professionOf } from "../../src/core/professions";
 
 export interface TeamOptions {
   sql: Sql;
@@ -36,6 +37,7 @@ interface TeamRow {
   avatar_sha: string | null;
   cover_sha: string | null;
   created_at: Date | null;
+  profession?: string | null;
 }
 
 /** «О себе»: без управляющих символов, переводы строк можно (не больше двух подряд). */
@@ -57,6 +59,7 @@ export function memberOf(row: TeamRow, adminUid: (id: string) => boolean): TeamM
     cover: row.cover_sha,
     owner: adminUid(row.id) || row.role === "admin",
     since: row.created_at ? row.created_at.getTime() : null,
+    profession: professionOf(row.profession),
   };
 }
 
@@ -97,7 +100,7 @@ export function registerTeam(app: FastifyInstance, options: TeamOptions): void {
       const user = await requireHost(request, reply);
       if (!user) return reply;
       const rows = await sql<TeamRow[]>`
-        select id, name, role, bio, avatar_sha, cover_sha, created_at from users
+        select id, name, role, bio, avatar_sha, cover_sha, created_at, profession from users
         where active = true order by (role = 'admin') desc, name`;
       return rows.map((row) => memberOf(row, isOwner));
     });

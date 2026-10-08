@@ -1,4 +1,5 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { GamePreview } from "./GamePreview";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
 import {
@@ -15,6 +16,7 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { TopBar } from "../../components/TopBar";
 import { useAutosave, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
@@ -74,16 +76,42 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const [copying, setCopying] = useState(false);
   const [toast, showToast] = useToast();
   const editable = permissions.canEditGame(profile, game);
-  const { status, change } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
+  // Роли без профессии ведущего (создатель игр, тестировщик) игры не проводят — только репетиция.
+  const launchable = permissions.canLaunchGame(profile, game);
+  const copyable = permissions.canCopyToPersonal(profile, game);
+  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
+  // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
+  const original = useRef<GamePatch>({ title: initial.title, content: game.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
+  const edited = useRef(false);
+  const [leaving, setLeaving] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
+  /** Дождаться, пока правки дойдут до сервера (до 6 с), — потом уходить. */
+  async function settled(): Promise<void> {
+    const end = Date.now() + 6000;
+    await new Promise((r) => setTimeout(r, 50));
+    while (statusRef.current !== "saved" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
+  }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
   const errors = useMemo(() => validateGame(game.mechanic, game.content), [game.mechanic, game.content]);
   const stepsText = stepsLabel(game.mechanic, game.content);
 
   function edit(patch: GamePatch) {
+    edited.current = true;
     setGame((g) => ({ ...g, ...patch }));
     change(patch);
   }
+
+  /** «← К играм»: без правок — сразу; с правками — спросить, сохранить их или вернуть как было. */
+  function goBack(to: string = back) {
+    leaveTo.current = to;
+    if (!editable || !edited.current) return navigate(to);
+    setLeaving(true);
+  }
+  const leaveTo = useRef(back);
 
   function onTitle(value: string) {
     setTitleInput(value);
@@ -110,11 +138,16 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   }
 
   const launchBlocked = errors.length > 0;
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const canPreview = Boolean(mechanic?.preview) && !launchBlocked;
   const MechanicEditor = mechanic?.Editor;
 
   return (
     <main className="page">
-      <TopBar title={editable ? "Игра" : "Игра JoyRest"} actions={[{ label: "В студию", to: back }]} />
+      <TopBar title={editable ? "Игра" : "Игра JoyRest"} actions={[{ label: "В студию", onClick: () => goBack(back) }]} onHome={() => goBack("/studio")} />
+      <button type="button" className="btn btn--quiet back-link" onClick={() => goBack()}>
+        ← К играм
+      </button>
       {editable ? (
         <p className={`save-status save-status--${status}`} role="status" aria-live="polite">
           <span className="save-status__dot" aria-hidden="true" />
@@ -161,24 +194,30 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </button>
             ) : (
               <>
-                <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
-                  Запустить
-                </Link>
-                <Link className="btn btn--secondary btn--block" to={`/studio/rehearsal/${game.id}`}>
+                {launchable && (
+                  <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+                    Запустить
+                  </Link>
+                )}
+                <Link className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"} to={`/studio/rehearsal/${game.id}`}>
                   Репетиция без гостей
                 </Link>
               </>
             )
           ) : (
             <>
-              <button type="button" className="btn btn--block" disabled={copying} onClick={() => void copyToMine()}>
-                {copying ? "Копируем…" : "Скопировать в мои игры"}
-              </button>
+              {copyable && (
+                <button type="button" className="btn btn--block" disabled={copying} onClick={() => void copyToMine()}>
+                  {copying ? "Копируем…" : "Скопировать в мои игры"}
+                </button>
+              )}
               {!launchBlocked && (
                 <>
-                  <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
-                    Запустить как есть
-                  </Link>
+                  {launchable && (
+                    <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
+                      Запустить как есть
+                    </Link>
+                  )}
                   <Link className="btn btn--quiet btn--block" to={`/studio/rehearsal/${game.id}`}>
                     Репетиция без гостей
                   </Link>
@@ -188,6 +227,20 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           )}
         </div>
       </section>
+
+      {canPreview && mechanic && (
+        <section className="card stack stack--tight">
+          <h2>Как игра пойдёт</h2>
+          <p className="muted small">Игра проходит сама с тестовыми командами: листайте моменты и смотрите экран зала и телефоны.</p>
+          <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreviewOpen(true)}>
+            Предпросмотр игры
+          </button>
+          <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
+            Как проводить эту игру
+          </Link>
+          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={game.playMode} themeId={game.themeId} />
+        </section>
+      )}
 
       {MechanicEditor ? (
         <Suspense fallback={<section className="card" aria-busy="true"><span className="skeleton skeleton--choice" /></section>}>
@@ -263,6 +316,42 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         </section>
       )}
 
+      <div className="actions">
+        <button type="button" className="btn btn--secondary btn--block" onClick={() => goBack()}>
+          ← К играм
+        </button>
+      </div>
+      <ConfirmDialog
+        open={leaving}
+        title="Сохранить изменения?"
+        confirmLabel="Сохранить и выйти"
+        cancelLabel="Остаться в игре"
+        busy={restoring}
+        onConfirm={() => {
+          setRestoring(true);
+          flush(true);
+          void settled().then(() => navigate(leaveTo.current));
+        }}
+        onCancel={() => setLeaving(false)}
+      >
+        <p>Вы меняли эту игру. Сохранить изменения или вернуть игру такой, какой она была, когда вы её открыли?</p>
+        <button
+          type="button"
+          className="btn btn--quiet btn--block"
+          disabled={restoring}
+          onClick={() => {
+            const before = original.current;
+            setRestoring(true);
+            setGame((g) => ({ ...g, ...before }));
+            change(before);
+            flush(true);
+            // Уходим, только когда игра на сервере уже вернулась к прежнему виду.
+            void settled().then(() => navigate(leaveTo.current));
+          }}
+        >
+          {restoring ? "Возвращаем…" : "Не сохранять — вернуть как было"}
+        </button>
+      </ConfirmDialog>
       <Toast text={toast} />
     </main>
   );

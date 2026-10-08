@@ -19,6 +19,8 @@ import { nextQuestion, reveal, showBoard, showQuestion } from "../src/mechanics/
 const BASE = (process.env.LOAD_BASE ?? "https://test.games.joy-rest.ru").replace(/\/$/, "");
 const GUESTS = Math.max(1, Math.min(1000, Number(process.env.GUESTS ?? 500) || 500));
 const TEAMS = process.env.TEAMS === "1" || process.env.TEAMS === "true";
+/** Сколько мероприятий идёт одновременно (разные ведущие, свои гости у каждого). */
+const EVENTS = Math.max(1, Math.min(12, Number(process.env.EVENTS ?? 1) || 1));
 const TEAM_SIZE = 10;
 const EMAIL = process.env.LOAD_HOST_EMAIL ?? "";
 const PASSWORD = process.env.LOAD_HOST_PASSWORD ?? "";
@@ -37,8 +39,12 @@ function say(line: string): void {
 }
 function finish(code: number): never {
   if (process.env.GITHUB_ACTIONS === "true") {
-    const text = report.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
-    console.log(`::${code === 0 ? "notice" : "error"} title=Нагрузка::${text}`);
+    const escape = (lines: string[]) => lines.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+    // Аннотация обрезается (~4 КБ): итог — отдельной, чтобы его было видно всегда.
+    const at = report.findIndex((l) => l.startsWith("\nИтог"));
+    const summary = at >= 0 ? report.slice(at) : report.slice(-25);
+    console.log(`::${code === 0 ? "notice" : "error"} title=Нагрузка — итог::${escape([report[0] ?? "", ...summary])}`);
+    console.log(`::notice title=Нагрузка — ход::${escape(report.slice(0, at >= 0 ? at : undefined))}`);
   }
   process.exit(code);
 }
@@ -174,8 +180,9 @@ function follow(device: Device, sessionId: string, onChange: (s: Versioned) => v
 
 const OPEN_ANSWERS = ["Снегурочка", "снегурка", "Снегурочк", "ёлка", "Ель", "не знаю"];
 /** Когда пульт открыл шаг (по часам этой машины) — для замера доставки. */
-const questionShownAt: number[] = [];
-const answeredBy = new Map<number, Set<string>>();
+const questionShownAt = new Map<string, number[]>();
+const answeredBy = new Map<string, Set<string>>();
+const shownList = (sessionId: string) => questionShownAt.get(sessionId) ?? questionShownAt.set(sessionId, []).get(sessionId) ?? [];
 
 async function startGuest(sessionId: string, index: number, teamIds: string[]): Promise<() => void> {
   const device = new Device();
@@ -210,7 +217,7 @@ async function startGuest(sessionId: string, index: number, teamIds: string[]): 
     const { phase, stage, step } = session.state;
     if (phase !== "playing" || stage !== "question" || seenSteps.has(step)) return;
     seenSteps.add(step);
-    const shown = questionShownAt[step];
+    const shown = shownList(sessionId)[step];
     if (shown) measure("вопрос дошёл до телефона", Date.now() - shown);
     if (!captain) return;
     const q = QUESTIONS[step];
@@ -223,7 +230,8 @@ async function startGuest(sessionId: string, index: number, teamIds: string[]): 
         .call<{ result: string }>("POST", `/api/sessions/${sessionId}/answers`, { step, pid, value })
         .then((r) => {
           measure("ответ принят сервером", Date.now() - sent);
-          if (r.result === "sent") (answeredBy.get(step) ?? answeredBy.set(step, new Set()).get(step))?.add(pid);
+          const key = `${sessionId}:${step}`;
+          if (r.result === "sent") (answeredBy.get(key) ?? answeredBy.set(key, new Set()).get(key))?.add(pid);
           else fail("ответ отклонён");
         })
         .catch(() => fail("ответ не отправился"));
@@ -243,25 +251,63 @@ async function main() {
     finish(2);
   }
   const started = Date.now();
-  const playMode: PlayMode = TEAMS ? "teams" : "solo";
-  say(`Нагрузка на ${BASE}: ${GUESTS} гостей, ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов`);
+  say(
+    EVENTS > 1
+      ? `Нагрузка на ${BASE}: ${EVENTS} мероприятий одновременно по ${GUESTS} гостей (всего ${EVENTS * GUESTS}), ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов; параллельно — сайт, «Игры сейчас», анкеты площадок`
+      : `Нагрузка на ${BASE}: ${GUESTS} гостей, ${TEAMS ? "команды по 10" : "каждый сам за себя"}, ${QUESTIONS.length} вопросов`,
+  );
 
   const health = await fetch(`${BASE}/health`).then((r) => r.json() as Promise<{ version?: string }>);
   say(`Версия на сервере: ${String(health.version ?? "?").slice(0, 7)}`);
 
   const host = new Device();
   await host.call("POST", "/api/auth/login", { email: EMAIL, password: PASSWORD });
+
+  // Фон, как в обычный вечер: студия («Игры сейчас»), команда, проверка сервера, анкеты площадок (QR).
+  let background = true;
+  const side = (async () => {
+    const visitor = new Device();
+    while (background) {
+      for (const [what, run] of [
+        ["сервер /health", () => fetch(`${BASE}/health`).then((r) => { if (!r.ok) throw new Error(String(r.status)); })],
+        ["студия: игры сейчас", () => host.call("GET", "/api/sessions/overview")],
+        ["команда JoyRest", () => host.call("GET", "/api/team")],
+        ["анкета площадки (QR)", () => fetch(`${BASE}/v?from=load`).then((r) => { if (!r.ok) throw new Error(String(r.status)); })],
+        ["анкеты: открыты ли", () => visitor.call("GET", "/api/venue-forms/status")],
+      ] as const) {
+        const t = Date.now();
+        try {
+          await run();
+          measure(what, Date.now() - t);
+        } catch {
+          fail(`${what}: ошибка`);
+        }
+      }
+      await wait(1500);
+    }
+  })();
+
+  const results = await Promise.allSettled(Array.from({ length: EVENTS }, (_, i) => runEvent(host, i)));
+  background = false;
+  await side;
+  for (const r of results) if (r.status === "rejected") fail(`мероприятие сорвалось: ${String(r.reason).slice(0, 80)}`);
+  report_(started);
+}
+
+async function runEvent(host: Device, index: number): Promise<void> {
+  const playMode: PlayMode = TEAMS ? "teams" : "solo";
   const sessionId = `load${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const created = await host.call<{ id: string; code: string }>("POST", "/api/sessions", {
     id: sessionId,
-    gameTitle: `Нагрузка ${GUESTS}`,
+    gameTitle: EVENTS > 1 ? `Нагрузка ${index + 1}/${EVENTS}` : `Нагрузка ${GUESTS}`,
     mechanic: "quiz",
     gameSnapshot: { title: DEMO_QUIZ.title, mechanic: "quiz", themeId: "joyrest", content: DEMO_QUIZ.content },
     themeId: "joyrest",
     playMode,
     screenMode: "laptop",
   });
-  say(`Сессия ${created.code}`);
+  const tag = EVENTS > 1 ? `[${index + 1}] ` : "";
+  say(`${tag}Сессия ${created.code}`);
 
   let session: Versioned | null = null;
   const stopSession = follow(host, sessionId, (s) => (session = s));
@@ -287,7 +333,7 @@ async function main() {
   const current = () => session as unknown as Versioned;
 
   // Гости входят пачками по 25 — как на мероприятии.
-  say("Гости входят…");
+  say(`${tag}Гости входят…`);
   const joinStart = Date.now();
   const teamIds: string[] = [];
   const stops: Array<() => void> = [];
@@ -316,7 +362,7 @@ async function main() {
     await wait(300);
   }
   const names = Object.values(current().leaderboard).map((e) => e.name);
-  say(`Вошли за ${joinSeconds.toFixed(1)} с. В таблице ${names.length}, уникальных имён ${new Set(names).size}`);
+  say(`${tag}Вошли за ${joinSeconds.toFixed(1)} с. В таблице ${names.length}, уникальных имён ${new Set(names).size}`);
 
   await host.call("POST", `/api/sessions/${sessionId}/phase`, { phase: "playing" });
   await until(() => current().state.phase === "playing", 5000);
@@ -330,7 +376,7 @@ async function main() {
       else if (event.type === "clear") answers = [];
     });
     const t0 = Date.now();
-    questionShownAt[step] = t0;
+    shownList(sessionId)[step] = t0;
     await apply(showQuestion(current(), DEMO_QUIZ.content));
     let lastCount = 0;
     while (answers.length < expected && Date.now() - t0 < 15_000) {
@@ -345,8 +391,8 @@ async function main() {
     await apply(showBoard(current(), DEMO_QUIZ.content));
     stopAnswers();
     if (step < QUESTIONS.length - 1) await apply(nextQuestion(current(), DEMO_QUIZ.content));
-    const got = answeredBy.get(step)?.size ?? 0;
-    say(`  вопрос ${step + 1}: пульт видит ${answers.length}, сервер принял ${got} из ${expected} за ${((Date.now() - t0) / 1000).toFixed(1)} с`);
+    const got = answeredBy.get(`${sessionId}:${step}`)?.size ?? 0;
+    say(`  ${tag}вопрос ${step + 1}: пульт видит ${answers.length}, сервер принял ${got} из ${expected} за ${((Date.now() - t0) / 1000).toFixed(1)} с`);
     if (answers.length < got) fail("пульт не увидел ответ");
   }
 
@@ -356,9 +402,14 @@ async function main() {
   stopSession();
   stopParticipants();
   stopScreen();
+  expectedTotal += expected * QUESTIONS.length;
+}
 
+let expectedTotal = 0;
+
+function report_(started: number): void {
   // ---------- Итог ----------
-  const answersExpected = expected * QUESTIONS.length;
+  const answersExpected = expectedTotal;
   const answersGot = [...answeredBy.values()].reduce((n, s) => n + s.size, 0);
   say(`\nИтог (${Math.round((Date.now() - started) / 1000)} с):`);
   for (const [what, list] of Object.entries(timings)) {

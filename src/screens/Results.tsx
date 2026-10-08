@@ -1,5 +1,6 @@
+import { durationLine } from "../core/eventTime";
 import { Link, useParams } from "react-router-dom";
-import { formatClock, formatDate, formatDuration } from "../core/format";
+import { formatClock, formatDate } from "../core/format";
 import { participantsLabel } from "../core/results";
 import { resultsRepo, useAuth, useLoad, type GameResult } from "../data";
 import { Logo } from "../components/Logo";
@@ -31,7 +32,7 @@ function ResultsView({ result }: { result: GameResult }) {
   const meta = [
     result.playedAt !== null ? formatDate(result.playedAt) : "",
     started !== null ? `начало в ${formatClock(started)}` : "",
-    started !== null && finished !== null && finished > started ? `шла ${formatDuration(finished - started)}` : "",
+    started !== null && finished !== null && finished > started ? durationLine(started, finished, result.breaksMs ?? 0, result.breaksCount ?? 0) : "",
     participantsLabel(result.participantsCount),
   ].filter(Boolean);
 

@@ -1,118 +1,174 @@
-# «Мафия»: ночная тема — своя, создана кодом (права наши). Ре минор, 60 уд/мин, 96 с, бесшовный круг.
-# Запуск: python3 scripts/sounds/mafia-night.py → night.wav; mp3: ffmpeg -i night.wav -codec:a libmp3lame -b:a 128k public/sounds/mafia-night-1.mp3
+# «Мафия»: ночная тема — своя мелодия, создана кодом (права наши). Волшебный вальс в духе сказочного кино:
+# челеста, вальсовый бас, струнная подложка, арфа. Ми минор, 3/4, четверть = 120, 64 такта = 96 с, бесшовный круг.
+# Мелодия придумана заново (хроматизмы, неаполитанский фа мажор) и не повторяет чужих тем.
+# Запуск: python3 scripts/sounds/mafia-night.py → night.wav; mp3: ffmpeg -i night.wav -codec:a libmp3lame -b:a 128k public/sounds/mafia-night-2.mp3
+import wave
 import numpy as np
-from scipy.signal import fftconvolve, butter, sosfilt
+from scipy.signal import butter, sosfilt
+
 SR = 44100
-BAR = 4.0
-CH = 3  # тактов на аккорд
-CHORDS = [  # MIDI-ноты аккордов (без баса), бас отдельно
-    ([62, 65, 69, 76], 38),  # Dm(add9-ish)
-    ([62, 65, 69, 70], 34),  # Bbmaj7 / D
-    ([62, 67, 70, 74], 31),  # Gm
-    ([61, 64, 69, 71], 33),  # A sus/7 — тайна
-    ([62, 65, 69, 72], 38),  # Dm7
-    ([60, 65, 69, 72], 36),  # F/C
-    ([62, 65, 70, 74], 34),  # Bb
-    ([61, 64, 67, 69], 33),  # A7 (полутон C# — напряжение)
-]
-L = int(SR * BAR * CH * len(CHORDS))
-TAIL = int(SR * 8)
-rng = np.random.default_rng(7)
+Q = 0.5  # четверть, с
+BAR = 3 * Q
+rng = np.random.default_rng(11)
 f = lambda m: 440.0 * 2 ** ((m - 69) / 12)
-mixL = np.zeros(L + TAIL); mixR = np.zeros(L + TAIL)
+
+# Мелодия (16 тактов): (нота MIDI, длительность в четвертях)
+MELODY = [
+    (67, 1), (71, 1), (72, 1), (71, 3),
+    (76, 1), (75, 1), (74, 1), (73, 2), (71, 1),
+    (69, 1), (72, 1), (76, 1), (79, 2), (78, 1),
+    (77, 1), (76, 1), (72, 1), (71, 3),
+    (67, 1), (71, 1), (72, 1), (71, 2), (79, 1),
+    (78, 1), (77, 1), (76, 1), (75, 3),
+    (76, 1), (79, 1), (83, 1), (84, 2), (83, 1),
+    (81, 1), (79, 1), (78, 1), (76, 3),
+]
+CHORDS = {  # аккорд такта: (бас, голоса)
+    "Em": (40, [52, 55, 59]), "Am": (45, [57, 60, 64]), "C": (48, [55, 60, 64]), "A": (45, [57, 61, 64]),
+    "F": (41, [57, 60, 65]), "B7": (47, [54, 57, 59, 63]),
+}
+HARM = ["Em", "Em", "C", "A", "Am", "Em", "F", "B7", "Em", "Em", "B7", "B7", "Em", "C", "Am", "Em"]
+SECTIONS = [  # (сдвиг мелодии в полутонах или None — без мелодии, громкость мелодии)
+    (0, 1.0), (12, 0.75), (None, 0.0), (0, 0.8),
+]
+L = int(SR * BAR * 16 * len(SECTIONS))
+TAIL = int(SR * 8)
+mixL = np.zeros(L + TAIL)
+mixR = np.zeros(L + TAIL)
+
 
 def add(sig, start, pan=0.0, gain=1.0):
-    s = int(start * SR); n = len(sig)
-    if s < 0: s += L
-    l = gain * np.cos((pan + 1) * np.pi / 4); r = gain * np.sin((pan + 1) * np.pi / 4)
+    s = int(start * SR)
+    if s < 0:
+        s += L
+    n = len(sig)
+    l = gain * np.cos((pan + 1) * np.pi / 4) * np.sqrt(2)
+    r = gain * np.sin((pan + 1) * np.pi / 4) * np.sqrt(2)
     end = min(s + n, L + TAIL)
-    mixL[s:end] += sig[: end - s] * l * np.sqrt(2); mixR[s:end] += sig[: end - s] * r * np.sqrt(2)
+    mixL[s:end] += sig[: end - s] * l
+    mixR[s:end] += sig[: end - s] * r
+
 
 def env(n, a, rel):
-    e = np.ones(n); A = int(a * SR); R = int(rel * SR)
+    e = np.ones(n)
+    A, R = max(1, int(a * SR)), max(1, int(rel * SR))
     e[:A] = np.sin(np.linspace(0, np.pi / 2, A)) ** 2
     e[n - R:] *= np.cos(np.linspace(0, np.pi / 2, R)) ** 2
     return e
 
-def pad(m, dur):
-    n = int(dur * SR); t = np.arange(n) / SR; out = np.zeros(n)
-    for det in (-0.07, 0.0, 0.06):
-        fr = f(m) * 2 ** (det / 12)
-        ph = rng.uniform(0, 2 * np.pi)
-        for h in range(1, 6):
-            out += np.sin(2 * np.pi * fr * h * t + ph * h) * (0.55 ** (h - 1)) / h
-    trem = 1 + 0.12 * np.sin(2 * np.pi * 0.17 * t + rng.uniform(0, 6))
-    return out * trem * env(n, 2.2, 2.6) / 6
 
-def bell(m, dur=4.5):
-    n = int(dur * SR); t = np.arange(n) / SR; fr = f(m)
-    out = (np.sin(2 * np.pi * fr * t) * np.exp(-t / 1.6)
-           + 0.35 * np.sin(2 * np.pi * fr * 2.0 * t) * np.exp(-t / 0.9)
-           + 0.18 * np.sin(2 * np.pi * fr * 3.01 * t) * np.exp(-t / 0.5)
-           + 0.08 * np.sin(2 * np.pi * fr * 4.2 * t) * np.exp(-t / 0.25))
-    a = int(0.004 * SR); out[:a] *= np.linspace(0, 1, a)
+def celesta(m, dur):
+    n = int((dur + 2.5) * SR)
+    t = np.arange(n) / SR
+    fr = f(m)
+    out = (np.sin(2 * np.pi * fr * t) * np.exp(-t / 1.4)
+           + 0.5 * np.sin(2 * np.pi * fr * 4 * t) * np.exp(-t / 0.35)
+           + 0.15 * np.sin(2 * np.pi * fr * 2 * t) * np.exp(-t / 0.7)
+           + 0.06 * np.sin(2 * np.pi * fr * 7.1 * t) * np.exp(-t / 0.12))
+    a = int(0.003 * SR)
+    out[:a] *= np.linspace(0, 1, a)
     return out
 
-def bass(m, dur):
-    n = int(dur * SR); t = np.arange(n) / SR
-    out = np.sin(2 * np.pi * f(m) * t) + 0.3 * np.sin(2 * np.pi * f(m) * 2 * t) + 0.25 * np.sin(2 * np.pi * f(m) / 2 * t)
-    return out * env(n, 1.5, 3.0)
 
-seg = BAR * CH
-for i, (notes, root) in enumerate(CHORDS):
-    t0 = i * seg
-    for k, m in enumerate(notes):
-        add(pad(m - 12, seg + 2.5), t0 - 0.6, pan=(k - 1.5) * 0.35, gain=0.11)
-    add(bass(root, seg + 2.0), t0 - 0.3, gain=0.16)
-    # музыкальная шкатулка: редкие ноты аккорда октавой выше, мягкий ритм
-    pool = sorted(set(n + 12 for n in notes) | set(n + 24 for n in notes[:2]))
-    beats = np.arange(0, seg, 0.5)
-    for b in beats:
-        if (b % 2 == 0 and rng.random() < 0.55) or rng.random() < 0.14:
-            m = int(rng.choice(pool))
-            add(bell(m), t0 + b + rng.uniform(0, 0.03), pan=rng.uniform(-0.6, 0.6), gain=0.05 + 0.03 * rng.random())
-    # раз в два аккорда — «вопрос»: нисходящая фраза с полутоном (тайна)
-    if i % 2 == 1:
-        phrase = [notes[-1] + 12, notes[-1] + 11, notes[1] + 12]
-        for j, m in enumerate(phrase):
-            add(bell(m, 5.5), t0 + seg - 3.5 + j * 0.75, pan=0.3, gain=0.05)
+def harp(m):
+    n = int(2.5 * SR)
+    t = np.arange(n) / SR
+    fr = f(m)
+    out = sum(np.sin(2 * np.pi * fr * h * t) * np.exp(-t * (1.2 + h * 0.9)) / h for h in range(1, 6))
+    a = int(0.002 * SR)
+    out[:a] *= np.linspace(0, 1, a)
+    return out
 
-# ночной воздух: мягкий шум с медленной волной
-noise = rng.standard_normal(L + TAIL)
-sos = butter(2, [300, 1600], btype="band", fs=SR, output="sos")
-air = sosfilt(sos, noise)
-tt = np.arange(L + TAIL) / SR
-air *= 0.012 * (0.6 + 0.4 * np.sin(2 * np.pi * tt / 24.0))
-mixL += air; mixR += np.roll(air, 1500)
+
+def strings(m, dur):
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    for det in (-0.08, 0.0, 0.07):
+        fr = f(m) * 2 ** (det / 12)
+        vib = 1 + 0.003 * np.sin(2 * np.pi * 5.2 * t + rng.uniform(0, 6))
+        ph = np.cumsum(2 * np.pi * fr * vib / SR)
+        for h in range(1, 7):
+            out += np.sin(ph * h) * (0.6 ** (h - 1)) / h
+    return out * env(n, 0.9, 1.2) / 6
+
+
+def pluck_bass(m, dur):
+    n = int((dur + 0.6) * SR)
+    t = np.arange(n) / SR
+    fr = f(m)
+    out = (np.sin(2 * np.pi * fr * t) + 0.35 * np.sin(2 * np.pi * fr * 2 * t)) * np.exp(-t / 0.9)
+    a = int(0.01 * SR)
+    out[:a] *= np.linspace(0, 1, a)
+    return out
+
+
+for sec, (shift, mel_gain) in enumerate(SECTIONS):
+    t_sec = sec * 16 * BAR
+    quiet = shift is None
+    # гармония: бас на первую долю, аккорд на вторую и третью (вальс), струны держат аккорд
+    for b, name in enumerate(HARM):
+        root, voices = CHORDS[name]
+        t0 = t_sec + b * BAR
+        add(pluck_bass(root, BAR), t0, gain=0.22 if not quiet else 0.14)
+        for beat in (1, 2):
+            for k, v in enumerate(voices):
+                add(harp(v + 12) * 0.5, t0 + beat * Q + k * 0.012, pan=0.25 * (k - 1), gain=0.05 if not quiet else 0.035)
+        for k, v in enumerate(voices[:3]):
+            add(strings(v, BAR + 1.0), t0 - 0.3, pan=(k - 1) * 0.5, gain=0.07 if not quiet else 0.09)
+    # мелодия на челесте
+    if not quiet:
+        t = t_sec
+        for m, beats in MELODY:
+            add(celesta(m + shift, beats * Q), t, pan=0.1, gain=0.16 * mel_gain)
+            t += beats * Q
+    else:
+        # тихая середина: редкие звёздочки челесты на тонах аккорда
+        for b, name in enumerate(HARM):
+            if b % 2 == 0:
+                _, voices = CHORDS[name]
+                add(celesta(int(rng.choice(voices)) + 24, 2.0), t_sec + b * BAR + Q, pan=rng.uniform(-0.6, 0.6), gain=0.07)
+    # волшебный перелив арфы в конце раздела
+    end = t_sec + 16 * BAR
+    for i, m in enumerate([64, 67, 71, 74, 76, 79, 83, 86, 88]):
+        add(harp(m), end - 1.4 + i * 0.07, pan=-0.5 + i * 0.12, gain=0.06)
 
 # бесшовный круг: хвост — в начало
 for ch in (mixL, mixR):
     ch[:TAIL] += ch[L:L + TAIL]
-mixL = mixL[:L]; mixR = mixR[:L]
+mixL, mixR = mixL[:L], mixR[:L]
 
-# реверберация (круговая свёртка — стык не слышен)
-ir_n = int(SR * 3.8); it = np.arange(ir_n) / SR
+# реверберация — круговая свёртка (стык не слышен)
+ir_n = int(SR * 3.2)
+it = np.arange(ir_n) / SR
+
+
 def ir(seed):
-    r = np.random.default_rng(seed).standard_normal(ir_n) * np.exp(-it / 1.1)
-    return sosfilt(butter(1, 5000, fs=SR, output="sos"), r)
+    r = np.random.default_rng(seed).standard_normal(ir_n) * np.exp(-it / 0.9)
+    return sosfilt(butter(1, 6000, fs=SR, output="sos"), r)
+
+
 def circ(x, h):
     n = len(x) + len(h)
     y = np.fft.irfft(np.fft.rfft(x, n) * np.fft.rfft(h, n), n)
-    out = y[: len(x)].copy(); out[: len(h)] += y[len(x): len(x) + len(h)]
+    out = y[: len(x)].copy()
+    out[: len(h)] += y[len(x): len(x) + len(h)]
     return out
-wetL = circ(mixL, ir(1)); wetR = circ(mixR, ir(2))
-wetL /= np.max(np.abs(wetL)); wetR /= np.max(np.abs(wetR))
+
+
+wetL, wetR = circ(mixL, ir(1)), circ(mixR, ir(2))
+wetL /= np.max(np.abs(wetL))
+wetR /= np.max(np.abs(wetR))
 dry = max(np.max(np.abs(mixL)), np.max(np.abs(mixR)))
-L_ = 0.55 * mixL / dry + 0.45 * wetL; R_ = 0.55 * mixR / dry + 0.45 * wetR
-# мягкий срез низа и верха
+Lc = 0.6 * mixL / dry + 0.4 * wetL
+Rc = 0.6 * mixR / dry + 0.4 * wetR
 hp = butter(2, 35, btype="high", fs=SR, output="sos")
-L_ = sosfilt(hp, L_); R_ = sosfilt(hp, R_)
-st = np.stack([L_, R_], axis=1)
-rms = np.sqrt(np.mean(st ** 2))
-st *= 0.165 / rms  # около −18 dBFS RMS: фон, не громче лобби
+st = np.stack([sosfilt(hp, Lc), sosfilt(hp, Rc)], axis=1)
+st *= 0.13 / np.sqrt(np.mean(st ** 2))
 st = np.tanh(st * 1.1) / 1.1
-print("peak", np.max(np.abs(st)), "rms", np.sqrt(np.mean(st ** 2)), "sec", L / SR)
-pcm = (st * 32767).astype(np.int16)
-import wave
+print("peak", round(float(np.max(np.abs(st))), 3), "sec", L / SR)
 with wave.open("night.wav", "wb") as w:
-    w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
+    w.setnchannels(2)
+    w.setsampwidth(2)
+    w.setframerate(SR)
+    w.writeframes((st * 32767).astype(np.int16).tobytes())

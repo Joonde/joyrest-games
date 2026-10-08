@@ -532,7 +532,7 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   /** Суперигра: пока капитаны выбирают уровень и отвечают. */
   superPick: "/sounds/super-pick-1.mp3",
   /** «Мафия»: ночь (раздача ролей и ночные ходы) — своя музыка, создана кодом (`scripts/sounds/mafia-night.py`). */
-  mafiaNight: "/sounds/mafia-night-1.mp3",
+  mafiaNight: "/sounds/mafia-night-2.mp3",
   /** Лобби: на экране QR, ждём гостей. */
   lobby: "/sounds/lobby-1.mp3",
   /** «Представить команды». */

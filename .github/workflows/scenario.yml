@@ -12,10 +12,6 @@ on:
   push:
     branches: ["claude/**"]
 
-concurrency:
-  group: e2e
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -24,6 +20,11 @@ jobs:
     name: Сценарий на test
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[scenario]')
     runs-on: ubuntu-24.04
+    # Очередь на уровне задачи: пропущенная задача (нет пометки в коммите) не занимает очередь и не
+    # отменяет ждущую проверку другого вида.
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4

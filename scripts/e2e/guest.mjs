@@ -37,7 +37,9 @@ const bad = (text) => {
 
 function finish(code) {
   if (process.env.GITHUB_ACTIONS === "true") {
-    const text = report.join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
+    // Замечания — первыми: длинная аннотация обрезается в конце.
+    const head = problems.length > 0 ? [`Замечаний: ${problems.length}`, ...problems.map((p) => `❌ ${p}`), "", "— Подробно —"] : [];
+    const text = [...head, ...report].join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");
     console.log(`::${code === 0 ? "notice" : "error"} title=Проверка гостем::${text}`);
   }
   process.exit(code);
@@ -348,6 +350,14 @@ async function overlapCheck(page, who) {
       const st = getComputedStyle(el);
       return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !el.closest("[inert], [hidden], .scene");
     };
+    // Закреплённые панели (вкладки пульта внизу, шапка) лежат поверх прокручиваемого содержимого — это не наезд.
+    const pinned = (el) => {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        const pos = getComputedStyle(n).position;
+        if (pos === "fixed" || pos === "sticky") return true;
+      }
+      return false;
+    };
     const controls = [...document.querySelectorAll("main button, main a.btn, main input:not([type=hidden]):not([type=radio]):not([type=checkbox]), main select, main textarea, main [role=tab], header button, header a")].filter(visible);
     const label = (el) => (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().replace(/\s+/g, " ").slice(0, 24);
     const overlaps = [];
@@ -356,6 +366,7 @@ async function overlapCheck(page, who) {
       for (let j = i + 1; j < controls.length; j++) {
         const x = controls[j];
         if (controls[i].contains(x) || x.contains(controls[i])) continue;
+        if (pinned(controls[i]) !== pinned(x)) continue;
         const b = x.getBoundingClientRect();
         const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
         const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
@@ -366,7 +377,10 @@ async function overlapCheck(page, who) {
     const clipped = controls
       .filter((el) => el.tagName === "BUTTON" || el.classList.contains("btn"))
       .filter((el) => el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).textOverflow !== "ellipsis" && getComputedStyle(el).overflowX !== "auto")
-      .map(label);
+      .map((el) => {
+        const wide = [...el.querySelectorAll("*")].find((k) => k.getBoundingClientRect().right > el.getBoundingClientRect().right + 2);
+        return `${label(el)} (${el.scrollWidth}>${el.clientWidth}${wide ? `, ${wide.className || wide.tagName}` : ""})`;
+      });
     return { overlaps: [...new Set(overlaps)].slice(0, 6), clipped: [...new Set(clipped)].slice(0, 6) };
   });
   if (found.overlaps.length > 0) bad(`${who}: кнопки наезжают: ${found.overlaps.join("; ")}`);

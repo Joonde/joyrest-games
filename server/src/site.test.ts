@@ -174,9 +174,9 @@ describe("исходники сайта (site/)", () => {
     for (const id of ["askError", "reviewError", "formError"]) expect(html).toContain(`id="${id}"`);
   });
 
-  it("в блоке «Шоу» нет кнопок без действия, пожелания — в комментарии к заявке", () => {
+  it("доп. услуги — без кнопок без действия, пожелания — в комментарии к заявке", () => {
     for (const text of [html, css, js]) expect(text).not.toContain("show-pick");
-    expect(html).toContain("напишите о пожеланиях в комментарии к заявке");
+    expect(html).toContain("Напишите о пожеланиях в комментарии к заявке.");
   });
 
   it("шапка: «Оставить заявку» ведёт к форме с фокусом, «Услуги» раскрывает раздел", () => {
@@ -277,7 +277,8 @@ describe("тексты и устройство страницы", () => {
   const js = readFileSync(join(root, "site/js/script.js"), "utf8");
 
   it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, пост Telegram на месте", () => {
-    expect(html).toContain("Мы только открываемся — здесь появятся фото и отзывы с наших первых мероприятий. А пока заглядывайте в наш Telegram-канал.");
+    expect(html).toContain("<h2>Следите за нами</h2>");
+    expect(html).toContain("Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.");
     expect(html).toContain('<section id="reviews" data-review-form="off">');
     expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
     expect(html).toContain('class="tg-card');
@@ -359,13 +360,18 @@ describe("тексты и устройство страницы", () => {
 
   it("диджеи, музыканты и площадки пока скрыты одним переключателем на направление", () => {
     expect(html).toContain('<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">');
-    const text = visibleText();
+    // Единственное разрешённое упоминание (решение владельца 9 октября 2026): диджей и «под ключ» — индивидуально.
+    const EXTRA = "Диджей, мероприятие под ключ и другие услуги — обсуждаем индивидуально.";
+    expect(visibleText()).toContain(EXTRA);
+    const text = visibleText().replace(EXTRA, "");
     expect(text).not.toMatch(/дидже|площадк|музыкант|подрядчик|под ключ|кавер|квартет/i);
     expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.");
     // Старый текст первого экрана сохранён рядом — вернётся вместе с услугами.
     expect(html).toContain("площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет");
     expect(text).toContain("Ведущие");
-    expect(text).toContain("Дополнительный номер к программе: фокусник или другое шоу.");
+    // Шоу и фокусника пока нет — нигде на странице.
+    expect(html).not.toMatch(/фокусник|шоу-блок|<h3>Шоу<\/h3>|value="show"/i);
+    expect(js).not.toContain("calcPackage");
     // Включили всё — старые тексты видны, замен нет.
     const allOn = html.replace(/data-service-(\w+)="off"/g, 'data-service-$1="on"');
     expect(allOn).toContain('data-service-dj="on" data-service-music="on" data-service-venue="on"');
@@ -379,13 +385,82 @@ describe("тексты и устройство страницы", () => {
     expect(js).toContain("option[data-needs], option[data-unless]");
   });
 
-  it("карта: работаем в Москве, остальные города — «Скоро» без мигания", () => {
-    const map = html.slice(html.indexOf('<svg class="coverage-map"'), html.indexOf("</svg>", html.indexOf('<svg class="coverage-map"')));
-    expect(map).toContain(">Москва</text>");
-    expect(map).not.toContain("офис");
-    expect(map.match(/>Скоро<\/text>/g)).toHaveLength(3);
-    expect(map.match(/map-pulse/g)).toHaveLength(1);
-    for (const city of ["Санкт-Петербург", "Курск", "Екатеринбург"]) expect(map).toContain(city);
+  it("география — строкой в контактах, без карты", () => {
+    expect(html).not.toContain("coverage-map");
+    expect(html).not.toContain('href="#coverage"');
+    expect(html).toContain("Москва и Московская область, другие города — по договорённости");
+  });
+
+  it("свадьбы — только строкой «скоро» на первом экране: ни плитки повода, ни карточки", () => {
+    expect(html).not.toContain('data-event="wedding"');
+    expect(html).not.toContain("<h3>Свадьбы</h3>");
+    expect(js).not.toContain("wedding:");
+  });
+
+  it("«Мероприятия» и «Пакеты» открыты сразу, «Услуги» — свёрнуты", () => {
+    expect(html).toContain('<section class="events band is-collapsible is-open" id="events">');
+    expect(html).toContain('<section class="is-collapsible is-open" id="packages">');
+    expect(html).toContain('<section class="is-collapsible" id="services">');
+    expect(html).toContain('<div class="collapsible-wrap open is-done" id="eventsList">');
+    expect(html).toContain('<div class="collapsible-wrap open is-done" id="packagesList">');
+    expect(html).toMatch(/id="eventsToggleBtn" aria-expanded="true">Скрыть /);
+  });
+
+  it("игры платформы: блок со снимками, плитки 📱, правила, заявка", () => {
+    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "game-board", "game-millionaire", "game-dragon", "game-checkers"]) {
+      expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
+    }
+    const games: [string, string][] = [
+      ["board", "Своя игра"], ["millionaire", "Кто хочет стать миллионером"], ["survival", "Гонка на выживание"],
+      ["dragon", "Бой с драконом"], ["story", "Давайте знакомиться"], ["checkers", "Шашки"],
+    ];
+    for (const [key, title] of games) {
+      expect(html, title).toContain(`</span>${title}<span class="format-phone">📱 с телефонов</span>`);
+      expect(html, key).toContain(`data-rule-key="${key}"`);
+      expect(js, key).toContain(`'${key}': { title: '${title}'`);
+      expect(html, title).toContain(`<option>${title}</option>`);
+    }
+    // У каждой кнопки «Полные правила» есть текст правил.
+    for (const m of html.matchAll(/data-rule-key="([\w-]+)"/g)) expect(js, m[1]).toContain(`'${m[1]}': { title:`);
+    // «+N» под кнопкой считает скрипт, в разметке — текущее число плиток.
+    const more = html.slice(html.indexOf('id="moreFormatsWrap"'), html.indexOf("/servicesList"));
+    expect(html).toContain(`Показать другие форматы (+${(more.match(/class="format-tile"/g) ?? []).length})`);
+    expect(js).toContain("function updateMoreCount()");
+  });
+
+  it("условия работы: время с перерывами, штрафы за неуважение к ведущему, обязательная галочка в заявке", () => {
+    const terms = html.slice(html.indexOf('<section id="terms">'), html.indexOf("</section>", html.indexOf('<section id="terms">')));
+    const plain = terms.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    expect(plain).toContain("вместе с перерывами");
+    expect(plain).toContain("разницу нужно доплатить");
+    expect(plain).toContain("Штраф 5 000 ₽");
+    expect(plain).toContain("ведущий вправе завершить мероприятие и уехать");
+    expect(plain).toContain("Штраф от 20 000 ₽");
+    expect(plain).toContain("залог 2 000 ₽");
+    expect(plain).toContain("за день или в день проведения , залог не возвращается");
+    const form = html.slice(html.indexOf('<form id="leadForm">'), html.indexOf("</form>", html.indexOf('<form id="leadForm">')));
+    expect(form).toContain('<input type="checkbox" id="termsAccept" required>');
+    expect(form).toContain('<input type="checkbox" id="depositAccept" required>');
+    expect(js).toContain("deposit: document.getElementById('depositAccept').checked");
+    // Галочка согласия на данные — первая в форме (её читает sendLead), условия — вторая.
+    expect(form.indexOf("consent-row")).toBeLessThan(form.indexOf("terms-row"));
+    expect(js).toContain("terms: document.getElementById('termsAccept').checked");
+    // Ставка выходного дня — 9 500 ₽/час.
+    expect(js).toContain("isWeekend ? 9500 : 7000");
+    expect(html).toContain("9 500 ₽/час в выходные");
+  });
+
+  it("частые вопросы — только факты, без условий бронирования и предоплаты", () => {
+    const faq = html.slice(html.indexOf('<section id="faq">'), html.indexOf('<section id="contact">'));
+    expect(faq.match(/<details class="faq-item">/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(faq).not.toMatch(/предоплат|бронирован|аванс|договор/i);
+  });
+
+  it("заявка: необязательные поля в «Дополнительно», раскрываются при выборе формата ведущего", () => {
+    const more = html.slice(html.indexOf('<details class="form-more" id="formMore">'), html.indexOf("</details>", html.indexOf('id="formMore"')));
+    for (const id of ["hostLevel", "contactMethod", "contactLink"]) expect(more).toContain(`id="${id}"`);
+    for (const id of ["name", "phone", "type", "guests", "message"]) expect(more).not.toContain(`id="${id}"`);
+    expect(js).toContain("formMore.open = true");
   });
 
   it("честные формулировки: калькулятор вместо конструктора, «хорошо подходят»", () => {

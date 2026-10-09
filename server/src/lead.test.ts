@@ -11,6 +11,8 @@ const VALID = {
   lead: {
     type: "lead",
     consent: true,
+    terms: true,
+    deposit: true,
     website: "",
     name: "Анна",
     phone: "+7 (900) 123-45-67",
@@ -76,6 +78,7 @@ describe("/api/lead: поля", () => {
     expect(sent[1]).toContain("Оценка: ★★★★★");
     expect(sent[2]).toContain("Телефон: +7 (900) 123-45-67");
     expect(sent[2]).toContain("Связь: Telegram — @anna");
+    expect(sent[2]).toContain("Условия работы и залога: приняты");
     await app.close();
   });
 
@@ -89,6 +92,9 @@ describe("/api/lead: поля", () => {
       [{ ...VALID.review, rating: 7 }, "оценку"],
       [{ ...VALID.review, rating: "5" }, "оценку"],
       [{ ...VALID.lead, consent: false }, "согласие"],
+      [{ ...VALID.lead, terms: false }, "условия работы"],
+      [{ ...VALID.lead, terms: undefined }, "условия работы"],
+      [{ ...VALID.lead, deposit: false }, "условия залога"],
       [{ ...VALID.lead, extra: "x" }, "устарела"],
       [{ ...VALID.lead, type: "spam" }, "Неизвестная"],
       [{ ...VALID.lead, name: { a: 1 } }, "Имя"],

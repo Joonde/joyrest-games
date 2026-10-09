@@ -67,6 +67,16 @@
   const askFabBtn = document.getElementById('askFabBtn');
   const askPanel = document.getElementById('askPanel');
   askFabBtn.addEventListener('click', () => askPanel.classList.toggle('open'));
+  // На телефоне кнопка «Задать вопрос» не закрывает текст первого экрана и форму заявки:
+  // пока они на экране, кнопка спрятана (css/style.css, .ask-fab.is-away — только до 760px).
+  if('IntersectionObserver' in window){
+    const visible = new Set();
+    const fabObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => entry.isIntersecting ? visible.add(entry.target) : visible.delete(entry.target));
+      askFabBtn.classList.toggle('is-away', visible.size > 0);
+    }, { threshold: 0.15 });
+    [document.querySelector('.hero'), document.getElementById('leadForm')].forEach(el => { if(el) fabObserver.observe(el); });
+  }
   document.addEventListener('click', (e) => {
     if(askPanel.classList.contains('open') && !askPanel.contains(e.target) && !askFabBtn.contains(e.target)){
       askPanel.classList.remove('open');
@@ -135,8 +145,8 @@
   const calcHostDiscountLabel = document.getElementById('calcHostDiscountLabel');
   const calcHostDiscount = document.getElementById('calcHostDiscount');
   const hostLevelField = document.getElementById('hostLevel');
-  const calcPackage = document.getElementById('calcPackage');
-  const calcPackageNote = document.getElementById('calcPackageNote');
+  // «Дополнительно» в заявке (формат ведущего, способ связи) — свёрнуто, пока не нужно.
+  const formMore = document.getElementById('formMore');
   const calcDayInputs = document.querySelectorAll('input[name="calcDay"]');
   const calcHours = document.getElementById('calcHours');
   const calcHoursValue = document.getElementById('calcHoursValue');
@@ -161,7 +171,6 @@
   const calcTaxiNote = document.getElementById('calcTaxiNote');
   const calcTotal = document.getElementById('calcTotal');
   const formatCheckboxes = [
-    document.getElementById('calcClassic'),
     document.getElementById('calcQuiz'),
     document.getElementById('calcDance'),
     document.getElementById('calcOutdoor'),
@@ -170,11 +179,8 @@
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₽';
 
   function recalc(){
-    calcPackageNote.style.display = calcPackage.value === 'host' ? 'none' : '';
-    document.getElementById('calcDjRow').style.display = (calcPackage.value === 'dj' || calcPackage.value === 'full') ? '' : 'none';
-
     const isWeekend = document.querySelector('input[name="calcDay"]:checked').value === 'weekend';
-    const hourlyRate = isWeekend ? 8500 : 7000;
+    const hourlyRate = isWeekend ? 9500 : 7000; // выходные: +2 500 ₽/час к будням (решение владельца 9 октября 2026)
 
     const hours = parseFloat(calcHours.value);
     calcHoursValue.textContent = hours.toString().replace('.', ',') + ' ч';
@@ -195,7 +201,7 @@
       calcExtraRow.style.display = 'none';
     }
 
-    // Additional formats: classic / quiz / dance / outdoor / out-of-town
+    // Доп. форматы: квиз / танцы / улица / выезд (классические игры входят в работу ведущего)
     let formatsFee = 0;
     let anyFormatChecked = false;
     formatCheckboxes.forEach(cb => {
@@ -206,7 +212,7 @@
     });
     if(anyFormatChecked){
       calcFormatsRow.style.display = '';
-      calcFormats.textContent = formatsFee > 0 ? fmt(formatsFee) : '0 ₽ (входит в работу ведущего)';
+      calcFormats.textContent = fmt(formatsFee);
     } else {
       calcFormatsRow.style.display = 'none';
     }
@@ -235,7 +241,7 @@
     const discountAmount = surcharge * discountPercent / 100;
     if(discountPercent > 0){
       calcDiscountRow.style.display = '';
-      calcDiscount.textContent = `−${fmt(discountAmount)} (${discountPercent}% от наценки за гостей)`;
+      calcDiscount.textContent = `−${fmt(discountAmount)} (${discountPercent}% от доплаты за группу)`;
     } else {
       calcDiscountRow.style.display = 'none';
     }
@@ -277,17 +283,21 @@
 
     calcTotal.textContent = fmt(runningTotal);
   }
-  [calcPackage, calcHostLevel, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
+  [calcHostLevel, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
   recalc();
 
   document.getElementById('calcSubmit').addEventListener('click', () => {
-    const summary = `Расчёт с калькулятора: пакет «${calcPackage.options[calcPackage.selectedIndex].text}», ведущий — ${calcHostLevel.options[calcHostLevel.selectedIndex].text}, ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
+    const day = document.querySelector('input[name="calcDay"]:checked').value === 'weekend' ? 'выходной день' : 'будний день';
+    const extras = formatCheckboxes.filter(cb => cb.checked).map(cb => cb.closest('label').textContent.trim().replace(/\s*\(.*$/, ''));
+    const summary = `Расчёт с калькулятора: ${day}, ведущий — ${calcHostLevel.options[calcHostLevel.selectedIndex].text}, ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
+      (extras.length ? `, доп. форматы: ${extras.join(', ')}` : '') +
       (calcCustom.checked ? `, индивидуальный сценарий (${calcComplexity.options[calcComplexity.selectedIndex].text})` : '') +
       `. Итого: ${calcTotal.textContent}.`;
     const messageField = document.getElementById('message');
     messageField.value = messageField.value ? messageField.value + '\n' + summary : summary;
     hostLevelField.value = calcHostLevel.value;
-    document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    if(calcHostLevel.value !== 'standard') formMore.open = true; // выбранный формат ведущего видно в заявке
+    document.getElementById('contact').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
   });
 
   // Section collapse/expand toggles (Мероприятия / Услуги / Пакеты услуг).
@@ -301,14 +311,15 @@
     // Высота по содержимому (в «Услугах» ещё и форматы, их список тоже раскрывается):
     // анимируем до scrollHeight, после раскрытия снимаем ограничение.
     wrap.addEventListener('transitionend', (e) => {
-      if(e.target === wrap && e.propertyName === 'max-height' && wrap.classList.contains('open')) wrap.style.maxHeight = 'none';
+      if(e.target === wrap && e.propertyName === 'max-height' && wrap.classList.contains('open')){ wrap.style.maxHeight = 'none'; wrap.classList.add('is-done'); }
     });
     const setOpen = (isOpen) => {
       if(wrap.classList.contains('open') === isOpen) return;
       const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      wrap.classList.remove('is-done');
       wrap.style.maxHeight = wrap.scrollHeight + 'px';
       if(!isOpen){ void wrap.offsetHeight; wrap.style.maxHeight = '0px'; }
-      else if(instant){ wrap.style.maxHeight = 'none'; }
+      else if(instant){ wrap.style.maxHeight = 'none'; wrap.classList.add('is-done'); }
       wrap.classList.toggle('open', isOpen);
       section.classList.toggle('is-open', isOpen);
       btn.classList.toggle('open', isOpen);
@@ -375,6 +386,7 @@
       const section = document.getElementById(link.dataset.openSection);
       if(!section) return;
       e.preventDefault();
+      closeMobileMenu(); // сначала закрыть меню: открытое сдвигает страницу, и прокрутка промахнётся
       if(sectionToggles[section.id]) sectionToggles[section.id](true);
       section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
     });
@@ -386,6 +398,7 @@
       e.preventDefault();
       hostLevelField.value = link.dataset.hostLevel;
       calcHostLevel.value = link.dataset.hostLevel;
+      formMore.open = true;
       recalc();
       document.getElementById('contact').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
       document.getElementById('name').focus({ preventScroll: true });
@@ -397,18 +410,21 @@
       const target = document.querySelector(link.getAttribute('href'));
       if(!field || !target) return;
       e.preventDefault();
+      closeMobileMenu();
       target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
       // Фокус сразу, в том же нажатии: иначе iPhone не откроет клавиатуру.
       field.focus({ preventScroll: true });
     });
   });
 
+  const toggleMoreFormats = document.getElementById('toggleMoreFormats');
+  const moreFormatsWrap = document.getElementById('moreFormatsWrap');
+
   // Event-type picker
   const PICKER_INFO = {
-    wedding: `<strong>Пока не оказываем услугу организации свадеб</strong> — это в ближайших планах компании. Оставьте заявку, и мы напишем первыми, как только запустим направление. А пока можете полистать форматы игр ниже — многие из них (например, «Битва тостов») отлично подойдут для банкета своими силами.`,
-    corporate: `<strong>Для корпоративов хорошо подходят:</strong> квизы (в том числе под сферу вашей компании), классические командные игры (Мафия, Бункер, Шпион) и активности вроде «Живого оркестра» или «Битвы тостов». Ниже показаны только они — если нужно больше вариантов, нажмите «Показать все форматы».`,
+    corporate: `<strong>Для корпоративов хорошо подходят:</strong> квизы (в том числе под сферу вашей компании), «Своя игра» и «Кто хочет стать миллионером» с телефонов гостей, «Давайте знакомиться» — если в команде много новых людей, классические командные игры (Мафия, Бункер, Шпион) и активности вроде «Живого оркестра» или «Битвы тостов». Ниже показаны только они — если нужно больше вариантов, нажмите «Показать все форматы».`,
     birthday: `<strong>Уточните возраст:</strong> подберём подходящие форматы отдельно для детского и отдельно для взрослого праздника.<div class="age-picks"><button type="button" class="age-pick" data-age="birthday-kids">Детский день рождения</button><button type="button" class="age-pick" data-age="birthday-adult">Взрослый день рождения</button></div>`,
-    other: `Отлично — тогда показываем все форматы без ограничений: игры, квизы, танцевальные форматы, сезонные и алкоразвлечения. Листайте ниже и выбирайте, что откликается.`
+    other: `Отлично — тогда показываем все форматы без ограничений: игры с телефонов, квизы, танцевальные форматы, сезонные и алкоразвлечения. Листайте ниже и выбирайте, что откликается.`
   };
   const pickerBtns = document.querySelectorAll('.picker-btn');
   const pickerInfo = document.getElementById('pickerInfo');
@@ -424,6 +440,7 @@
       header.style.display = hasVisible ? '' : 'none';
       grid.style.display = hasVisible ? '' : 'none';
     });
+    updateMoreCount();
   }
 
   function applyFilter(eventType){
@@ -431,6 +448,8 @@
       allTiles.forEach(t => t.classList.remove('filtered-out'));
       filterResetBtn.classList.remove('show');
       updateCategoryHeaders();
+      // «Другой повод» — все форматы: раскрываем «Услуги», где они лежат.
+      if(eventType === 'other' && sectionToggles.services) sectionToggles.services(true);
       return;
     }
     // Форматы лежат в сворачиваемых «Услугах»: раз их отфильтровали — показываем.
@@ -456,7 +475,7 @@
       btn.classList.add('active');
       pickerInfoInner.innerHTML = PICKER_INFO[type];
       pickerInfo.classList.add('open');
-      if(type === 'wedding' || type === 'birthday'){
+      if(type === 'birthday'){
         applyFilter(null);
       } else {
         applyFilter(type);
@@ -487,29 +506,35 @@
 
   // Full rules database + modal
   const RULES = {
-    'mafia': { title: 'Мафия', text: 'Игроки тайно делятся на мирных жителей и мафию. Днём все обсуждают и голосуют за подозреваемого, ночью мафия выбирает жертву. Мирные жители побеждают, если вычисляют всю мафию; мафия — если сравнивается с ними по числу.' },
-    'bunker': { title: 'Бункер', text: 'Каждый игрок получает карточку персонажа с профессией, качествами и особенностями. По раундам все раскрывают часть информации о себе, и группа голосует, кто покидает бункер. Побеждают те, кто остаётся в финальном составе.' },
-    'melody': { title: 'Угадай мелодию', text: 'Ведущий включает короткие отрывки песен — участники первыми поднимают сигнал и называют трек и исполнителя. За каждый верный ответ начисляется балл.' },
-    'truth': { title: 'Правда или действие', text: 'Игроки по очереди выбирают между честным ответом на вопрос или выполнением шуточного задания от ведущего или других участников.' },
+    'mafia': { title: 'Мафия', text: 'Игроки тайно делятся на мирных жителей и мафию; есть Дон, Комиссар и Доктор. Днём все обсуждают и голосуют за подозреваемого, ночью мафия выбирает жертву. Мирные жители побеждают, если вычисляют всю мафию; мафия — если сравнивается с ними по числу. Роли тайно приходят на телефоны, ночные ходы и голосование — тоже с телефона. За вечер можно сыграть несколько партий.' },
+    'bunker': { title: 'Бункер', text: 'Каждый игрок получает карточку персонажа: профессия, биология, здоровье, хобби, багаж, факт и особое условие. По раундам все раскрывают часть информации о себе, и группа тайно голосует, кто покидает бункер. Мест в бункере — вдвое меньше, чем игроков. Карточки приходят на телефоны, за вечер можно сыграть несколько партий.' },
+    'board': { title: 'Своя игра', text: 'Поле из категорий и стоимостей на экране зала. Ведущий открывает клетку, кто первый нажмёт кнопку на телефоне — тот отвечает: верно — очки и право выбрать следующую клетку, неверно — слово следующему. В клетках бывают музыкальные фрагменты, картинки и «Кот в мешке» со ставками.' },
+    'millionaire': { title: 'Кто хочет стать миллионером', text: '12 вопросов с четырьмя вариантами — от простых к сложным, с несгораемыми ступенями. Команды играют по очереди, у каждой своя лестница на экране. Подсказки — по одной каждого вида на команду: 50 на 50, помощь зала (голосуют телефоны остальных), звонок другу, право на ошибку, замена вопроса и совет ведущего.' },
+    'survival': { title: 'Гонка на выживание', text: 'До 30 раундов: вопросы с вариантами, открытые вопросы и задания. Никто не выбывает — гонка по очкам. Каждый пятый раунд — «Войнушка»: команды делают ставки, первая верно ответившая забирает банк. После второй войнушки появляется аукцион билета освобождения.' },
+    'dragon': { title: 'Бой с драконом', text: 'Каждая команда выбирает героя — у всех своя сила — и раскладывает очки по свойствам: сила, ум, ловкость, удача, харизма. Вопросы, задания и бросок кубика наносят дракону урон; не справились — дракон отнимает жизнь. Победили дракона — бонус. Есть вариант для детей.' },
+    'story': { title: 'Давайте знакомиться', text: 'Игра на знакомство из нескольких разделов: «Чья история?» — угадываем автора случая из жизни, «Две правды и ложь», «Что было дальше?» — настоящая концовка среди выдуманных, «Сочиняем историю» — предложение из слов гостей, которое потом показывают, и «Кто это сказал?». Всё пишется и угадывается с телефонов.' },
+    'checkers': { title: 'Шашки', text: 'Русские шашки команда на команду на большом экране: капитан ходит с телефона, подсвечены только разрешённые ходы. Съели шашку — команда, потерявшая её, отвечает на вопрос и может заработать очки. Очки — за шашки, дамки и победу.' },
+    'melody': { title: 'Угадай мелодию', text: 'Ведущий включает короткие отрывки песен — участники угадывают трек и исполнителя. Отрывок звучит с экрана зала, ответы — с телефонов, за быстрый верный ответ — больше очков.' },
+    'truth': { title: 'Правда или действие', text: 'Игроки по очереди выбирают между честным ответом на вопрос или выполнением шуточного задания от ведущего или других участников. Карточка появляется на экране, а свои вопросы и задания гости могут предложить с телефона.' },
     'spy': { title: 'Шпион', text: 'Все игроки, кроме одного, знают секретное место или слово. С помощью наводящих вопросов участники пытаются вычислить шпиона, а шпион — не выдать себя и угадать секрет.' },
     'kazaki': { title: 'Казаки-разбойники: Допрос', text: 'Активная игра на природе. Разбойники прячут на теле кусочки общей фразы и разбегаются по территории. Казаки ищут, угадывают за 5 попыток место тайника и выполняют задание, чтобы получить фрагмент. Побеждают, если верно соберут фразу.' },
     'chaos': { title: 'Большой переполох', text: 'Все пишут смешные задания на бумажках, складывают в эффектную ёмкость, передают под музыку по кругу — у кого в руках, когда музыка стихла, тот тянет и выполняет.' },
-    'toasts': { title: 'Битва тостов', text: 'Участник вытягивает карточку с двумя случайными несочетаемыми темами и должен произнести тост, органично их объединив, за 20–30 секунд. Оценка — аплодисментами зала. Подходит и для свадьбы, и для корпоратива.' },
+    'toasts': { title: 'Битва тостов', text: 'Участник вытягивает карточку с двумя случайными несочетаемыми темами и должен произнести тост, органично их объединив, за 20–30 секунд. Оценка — аплодисментами зала. Подходит и для корпоратива, и для дня рождения.' },
     'freeze': { title: 'Замри! Живые скульптуры', text: 'Ведущий называет слово или сцену — участники за 5 секунд застывают в позе, изображающей это. Зал выбирает лучшую скульптуру. Быстрый, энергичный формат для любого мероприятия.' },
     'mute': { title: 'Немая история', text: 'Команда вытягивает 10 карточек с изображениями (локации, персонажи, эмоции), собирает из них историю и показывает её жестами, без слов, другой команде. Очки — за каждую угаданную карточку.' },
     'orchestra': { title: 'Живой оркестр', text: 'Компактная игра для помещения. Каждому участнику назначается звук или жест-«инструмент», ведущий-«дирижёр» управляет громкостью и вступлением — получается импровизированный «оркестр» из зала. Подходит любому возрасту, без физической нагрузки.' },
     'musicloto': { title: 'Музыкальное лото', text: 'Классическое музыкальное бинго: на карточках — названия треков, ведущий включает отрывки песен, игроки закрывают совпадения. Первый, закрывший линию или всю карточку, — победитель.' },
-    'custom': { title: 'Своя игра под запрос', text: 'Обсуждаем тематику и состав гостей и разрабатываем правила специально под ваш сценарий мероприятия.' },
-    'quiz-classic': { title: 'Классический квиз', text: 'Стандартный набор туров на общую эрудицию: кино, музыка, история, логика. Ведущий читает вопросы по турам, команды пишут ответы на бланках, после каждого тура — подсчёт очков.' },
+    'custom': { title: 'Игра под ваш запрос', text: 'Обсуждаем тематику и состав гостей и разрабатываем правила специально под ваш сценарий мероприятия.' },
+    'quiz-classic': { title: 'Классический квиз', text: 'Стандартный набор туров на общую эрудицию: кино, музыка, история, логика. Вопросы и варианты — на большом экране, команды отвечают с телефонов, очки и таблица считаются сами; можно и на бланках, если так удобнее.' },
     'quiz-unusual': { title: 'Авторский квиз', text: 'Нестандартные форматы вопросов и тем — визуальные загадки, аудио-раунды, неожиданные категории. Для компаний, которые хотят удивить гостей.' },
     'quiz-company': { title: 'Квиз под компанию', text: 'Вопросы составляем индивидуально под сферу деятельности и специфику команды — отличный формат для корпоративов.' },
     'quiz-games': { title: 'Квиз с элементами игр', text: 'Классические туры чередуются с короткими мини-играми и активностями между раундами — динамика выше, чем у обычного квиза.' },
     'quiz-dance': { title: 'Квиз с музыкой и танцами', text: 'Вопросы чередуются с музыкальными и танцевальными раундами — сочетание викторины и активной вечеринки.' },
-    'justdance': { title: 'Just Dance Battle', text: 'Командная игра с закрытыми плитками на игровом поле. Открыл плитку — обязан станцевать под клип или спеть под минус в заданном составе (девушка, парни, вся команда). Побеждает команда с наибольшим числом баллов от зала.' },
+    'justdance': { title: 'Just Dance Battle', text: 'Командная игра с закрытыми плитками на игровом поле. Открыл плитку — обязан станцевать под клип или спеть под минус в заданном составе (девушка, парни, вся команда). Побеждает команда с наибольшим числом баллов от зала. Оценки другие команды ставят с телефонов.' },
     'danceloto': { title: 'Танцевальное лото', text: 'Тот же принцип, что и музыкальное лото, но в ячейках — танцевальные движения. Чтобы закрыть клетку, нужно реально исполнить движение, а не просто узнать его.' },
     'dancekuraj': { title: 'Танцевальный кураж', text: 'Под каждый трек команда получает готовую связку движений и должна повторить её слаженно и вовремя — это баттл между командами: кто точнее и с большим драйвом воспроизведёт хореографию, тот получает баллы от зала. Раунды можно разнообразить: «Зеркальный баттл» — пары повторяют движения друг друга; тематические треки из известных фильмов и клипов на угадывание; штрафной раунд, где сбившиеся выполняют весёлый фант; и финальный фристайл капитанов — импровизация без заготовки под общий трек.' },
     'alcohol': { title: 'Алкогольные приключения', text: 'Настольная игра-ходилка на 60 клеток с фишками-рюмками. На клетках — выпить, станцевать, спеть, сыграть в мини-игру или выполнить необычный фант. Две версии по градусу раскрепощённости: Lite и Intense.' },
-    'sweet-adventure': { title: 'Сладкие приключения', text: 'Та же настольная игра-ходилка на 60 клеток, что и «Алкогольные приключения», но без градуса: вместо рюмок — фишки-стаканчики сока или лимонада. На клетках — выпить сок, станцевать, спеть, сыграть в мини-игру или выполнить весёлый фант. Подходит для детских праздников и семейных мероприятий.' },
+    'sweet-adventure': { title: 'Сладкие приключения', text: 'Настольная игра-ходилка на 60 клеток без градуса: вместо рюмок — фишки-стаканчики сока или лимонада. На клетках — выпить сок, станцевать, спеть, сыграть в мини-игру или выполнить весёлый фант. Подходит для детских праздников и семейных мероприятий.' },
     'snowball': { title: 'Снежный десант', text: 'Команды бросают снежки по мишеням разного номинала на скорость и точность. Короткие раунды, не утомляет, расстояние регулируется под возраст. Сезонная игра — зима.' },
     'waterballoon': { title: 'Не урони каплю', text: 'Пары перебрасывают друг другу водный шарик, после каждой удачной ловли делая шаг назад. Побеждает пара, продержавшаяся на наибольшей дистанции. Сезонная игра — лето.' }
   };
@@ -550,15 +575,20 @@
     });
   });
 
-  // "Show other formats" toggle
-  const toggleMoreFormats = document.getElementById('toggleMoreFormats');
-  const moreFormatsWrap = document.getElementById('moreFormatsWrap');
+  // «Показать другие форматы (+N)»: N — сколько форматов под кнопкой с учётом выбранного повода.
+  function updateMoreCount(){
+    if(!toggleMoreFormats || moreFormatsWrap.classList.contains('open')) return;
+    const n = moreFormatsWrap.querySelectorAll('.format-tile:not(.filtered-out)').length;
+    toggleMoreFormats.hidden = n === 0;
+    toggleMoreFormats.textContent = `Показать другие форматы (+${n})`;
+  }
   if(toggleMoreFormats){
     toggleMoreFormats.addEventListener('click', () => {
       const isOpen = moreFormatsWrap.classList.toggle('open');
-      toggleMoreFormats.textContent = isOpen ? 'Скрыть остальные форматы' : toggleMoreFormats.dataset.closedLabel;
+      if(isOpen) toggleMoreFormats.textContent = 'Скрыть остальные форматы';
+      else updateMoreCount();
     });
-    toggleMoreFormats.dataset.closedLabel = toggleMoreFormats.textContent;
+    updateMoreCount();
   }
 
   // Touch/tap ripple effect
@@ -582,11 +612,12 @@
     burger.classList.toggle('open', isOpen);
     burger.setAttribute('aria-expanded', isOpen);
   });
-  panel.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+  function closeMobileMenu(){
     panel.classList.remove('open');
     burger.classList.remove('open');
     burger.setAttribute('aria-expanded', false);
-  }));
+  }
+  panel.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMobileMenu));
 
   // Form
   document.getElementById('leadForm').addEventListener('submit', async function(e){
@@ -601,6 +632,8 @@
       contactLink: document.getElementById('contactLink').value.trim(),
       message: document.getElementById('message').value.trim(),
       hostLevel: hostLevelField.value,
+      terms: document.getElementById('termsAccept').checked,
+      deposit: document.getElementById('depositAccept').checked,
     }, document.getElementById('formNote'), document.getElementById('formError'));
     if(ok) this.reset();
   });

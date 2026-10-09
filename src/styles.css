@@ -10565,6 +10565,7 @@ button.dance-card:active {
 /* Карта: переворот, рамка ар-деко, бегущий блик */
 .mf-card {
   display: block;
+  container-type: inline-size;
   width: min(100%, 320px);
   aspect-ratio: 2 / 3;
   margin: 0 auto;
@@ -10662,8 +10663,8 @@ button.dance-card:active {
 
 .mf-card__front {
   transform: rotateY(180deg);
-  padding: 18px 18px 20px;
-  gap: 4px;
+  padding: 5.6cqi 5.6cqi 6cqi;
+  gap: 1.2cqi;
   background: radial-gradient(circle at 50% 30%, var(--mf-bg1) 0%, var(--mf-bg2) 75%);
   text-align: center;
 }
@@ -10705,10 +10706,10 @@ button.dance-card:active {
 .mf-card__seat,
 .mf-card__side {
   position: absolute;
-  top: 18px;
-  padding: 2px 10px;
+  top: 5.6cqi;
+  padding: 0.6cqi 3cqi;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 4cqi;
   font-weight: 600;
   letter-spacing: 0.04em;
   background: rgb(0 0 0 / 0.45);
@@ -10716,28 +10717,35 @@ button.dance-card:active {
   z-index: 1;
 }
 
-.mf-card__seat { left: 18px; }
-.mf-card__side { right: 18px; color: #a3e0b8; }
+.mf-card__seat { left: 5.6cqi; }
+.mf-card__side { right: 5.6cqi; color: #a3e0b8; }
 .mf-card__side.is-mafia { color: #ff9aa2; }
 
 .mf-card__front .mf-art {
-  width: 78%;
-  margin-top: 18px;
+  /* Рисунок уступает место тексту: на узкой карте он меньше, текст не вылезает за рамку. */
+  flex: 1 1 0;
+  min-height: 0;
+  width: auto;
+  max-width: 78%;
+  margin-top: 5.6cqi;
   filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.5));
 }
 
 .mf-card__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 9.4cqi;
   line-height: 1;
   color: #fbf6f1;
   text-shadow: 0 0 18px var(--mf-glow);
+  flex: none;
 }
 
 .mf-card__power {
   margin: 0;
-  font-size: 13px;
+  flex: none;
+  max-width: 100%;
+  font-size: 4.3cqi;
   line-height: 1.35;
   color: rgb(251 246 241 / 0.88);
   text-wrap: balance;
@@ -10745,10 +10753,13 @@ button.dance-card:active {
 
 .mf-card__family {
   margin: 4px 0 0;
-  padding: 4px 10px;
+  flex: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 1.2cqi 3cqi;
   border-radius: 10px;
   background: rgb(0 0 0 / 0.4);
-  font-size: 13px;
+  font-size: 4cqi;
   font-weight: 600;
   color: #ffb3b9;
 }
@@ -11493,7 +11504,8 @@ button.dance-card:active {
   text-align: center;
   isolation: isolate;
 }
-.bk-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+.bk-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow: hidden; }
+.bk-in > * { max-width: 100%; min-width: 0; overflow-wrap: break-word; }
 .bk-icon { width: 1.2em; height: 1.2em; flex: none; }
 .bk-rivets::before, .bk-rivets::after {
   content: ""; position: absolute; width: 3.2cqi; height: 3.2cqi; border-radius: 50%;
@@ -11578,17 +11590,17 @@ button.dance-card:active {
 
 /* Катастрофа: тревожное зарево и полосы опасности */
 .bk-cata { background: radial-gradient(90% 60% at 50% 32%, #8E2A1C, #3A120C 60%, #160807); color: #FBF1E6; }
-.bk-cata > .bk-in { padding: 9cqi 7cqi 8cqi; gap: 2.4cqi; }
+.bk-cata > .bk-in { padding: 8.5cqi 6.5cqi 8cqi; gap: 1.8cqi; }
 .bk-cata__hazard { position: absolute; left: 0; right: 0; top: 0; height: 5cqi; background: repeating-linear-gradient(-45deg, #F1C230 0 4cqi, #16130F 4cqi 8cqi); }
 .bk-cata__hazard--bottom { top: auto; bottom: 0; }
-.bk-cata__kicker { font-size: 6cqi; letter-spacing: 0.3em; text-transform: uppercase; color: #F6C9A8; padding-left: 0.3em; }
-.bk-cata__sign { width: 26cqi; height: 26cqi; flex: none; display: grid; place-items: center; color: #FFD7A1; filter: drop-shadow(0 0 4cqi #FF7A3D99); }
-.bk-cata__sign .bk-icon { width: 24cqi; height: 24cqi; }
-.bk-cata__title { font-family: var(--font-display, "Cormorant Garamond", serif); font-weight: 700; font-size: 10.5cqi; line-height: 1; text-transform: uppercase; text-wrap: balance; }
-.bk-cata__text { font-size: 5.7cqi; line-height: 1.3; text-wrap: pretty; }
+.bk-cata__kicker { font-size: 5.2cqi; letter-spacing: 0.3em; text-transform: uppercase; color: #F6C9A8; padding-left: 0.3em; }
+.bk-cata__sign { width: 22cqi; height: 22cqi; flex: none; display: grid; place-items: center; color: #FFD7A1; filter: drop-shadow(0 0 4cqi #FF7A3D99); }
+.bk-cata__sign .bk-icon { width: 20cqi; height: 20cqi; }
+.bk-cata__title { font-family: var(--font-display, "Cormorant Garamond", serif); font-weight: 700; font-size: 9.2cqi; line-height: 1; text-transform: uppercase; text-wrap: balance; }
+.bk-cata__text { font-size: 5.6cqi; line-height: 1.28; text-wrap: pretty; }
 .bk-cata__text--muted { color: #F2CDBF; font-style: italic; }
-.bk-cata__facts { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 2cqi 5cqi; font-size: 6cqi; color: #F6C9A8; }
-.bk-cata__facts b { color: #FFE3B8; font-size: 9cqi; }
+.bk-cata__facts { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 1cqi 4cqi; font-size: 5.2cqi; color: #F6C9A8; }
+.bk-cata__facts b { color: #FFE3B8; font-size: 7.5cqi; }
 .bk-cata--compact { aspect-ratio: auto; border-radius: 12px; }
 .bk-cata--compact > .bk-in { position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-areas: "sign title" "sign facts"; align-items: center; justify-items: start; padding: 5cqi 5cqi; gap: 1cqi 4cqi; text-align: left; }
 .bk-cata--compact .bk-cata__kicker { display: none; }
@@ -11640,15 +11652,15 @@ button.dance-card:active {
 }
 .bk-dossier__head { display: flex; align-items: baseline; gap: 0.35em; min-width: 0; }
 .bk-dossier__seat { font-size: 0.8em; color: #6B5A3A; font-weight: 600; }
-.bk-dossier__name { font-weight: 600; font-size: 1.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bk-dossier__name { font-weight: 600; font-size: 1.1em; line-height: 1.15; min-width: 0; overflow-wrap: anywhere; }
 .bk-dossier__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2em; }
 .bk-row { display: flex; align-items: center; gap: 0.35em; border-radius: 0.3em; padding: 0.15em 0.35em; font-size: 0.8em; line-height: 1.2; background: color-mix(in srgb, var(--bk-c) 60%, #F2EBDC); min-width: 0; min-height: 1.7em; }
 .bk-row .bk-icon { width: 1.1em; height: 1.1em; }
-.bk-row__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-.bk-dossier--big .bk-row__text, .bk-final__survivors .bk-row__text { white-space: normal; }
+.bk-row__text { min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .bk-row.is-closed { background: repeating-linear-gradient(-45deg, #DCD3C2 0 0.3em, #E8E0D0 0.3em 0.6em); color: #6E6253; }
 .bk-dossier__used { margin: 0; display: flex; align-items: center; gap: 0.3em; font-size: 0.75em; font-weight: 600; color: #6B4E12; }
-.bk-dossier__stamp { font-size: 1.2em; border-width: 0.12em; padding: 0.15em 0.6em; }
+.bk-dossier__stamp { top: 0.55em; left: auto; right: 0.45em; transform: rotate(-6deg); font-size: 0.75em; border-width: 0.12em; padding: 0.1em 0.5em; letter-spacing: 0.12em; }
+.bk-dossier.is-exiled .bk-dossier__name { padding-right: 5.5em; }
 .bk-dossier.is-exiled { filter: grayscale(0.85); opacity: 0.65; }
 .bk-dossier.is-speaking { box-shadow: 0 0 0 0.25em #F1C230, 0 6px 18px rgba(0, 0, 0, 0.3); }
 @media (prefers-reduced-motion: reduce) {
@@ -11659,6 +11671,7 @@ button.dance-card:active {
 .bk-screen {
   position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: 2.4cqh 2.4cqw; overflow: hidden; border-radius: inherit;
   display: grid; grid-template-rows: auto minmax(22cqh, 1fr) auto; gap: 1.6cqh; color: #FBF6F1; font-size: 2.6cqh;
+  padding-bottom: 6.5cqh; /* место под строку особого условия: она не закрывает досье */
   background: radial-gradient(120% 90% at 50% 0%, #2B2A22, #14130F 70%);
 }
 .bk-screen::before {
@@ -11678,13 +11691,16 @@ button.dance-card:active {
 .bk-screen__stage { display: grid; place-items: center; }
 .bk-screen--big { grid-template-rows: auto minmax(0, 1fr); }
 .bk-screen__dossiers { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.8cqw; align-content: end; }
+/* На экране зала строка досье — до двух строк текста, дальше многоточие внутри рамки. */
+.bk-screen__dossiers .bk-row__text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bk-screen__dossiers .bk-dossier__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bk-screen__log { margin: 0; position: absolute; left: 50%; bottom: 1.2cqh; transform: translateX(-50%); background: #16130Fe6; border: 2px solid #E3C68C; color: #F3DFAE; padding: 0.6cqh 1.6cqw; border-radius: 999px; font-size: 2.2cqh; display: flex; align-items: center; gap: 0.6cqw; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: bk-log 6s ease both; }
 @keyframes bk-log { 0% { opacity: 0; transform: translate(-50%, 1cqh); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .bk-stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 3cqw; min-height: 0; }
 .bk-stage__card { height: 100%; max-height: 66cqh; aspect-ratio: 5 / 7; display: flex; }
 .bk-stage__card > .bk-card { height: 100%; width: auto; }
 .bk-stage__card--wide { max-height: 72cqh; }
-.bk-stage__card--small { max-height: 34cqh; }
+.bk-stage__card--small { max-height: 30cqh; }
 .bk-stage__text { display: grid; gap: 1cqh; max-width: 54cqw; justify-items: start; }
 .bk-stage--turn .bk-stage__text { justify-items: center; text-align: center; }
 .bk-stage__dossier { width: 26cqw; --bk-fs: 1.7cqw; }

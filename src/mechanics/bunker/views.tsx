@@ -76,8 +76,11 @@ function BunkerRow({ r, content }: { r: BunkerResult; content: BunkerContent }) 
 
 function Dossiers({ session, r, highlight }: { session: Session; r: BunkerResult; highlight: string | null }) {
   const cols = r.seats.length <= 8 ? r.seats.length : Math.ceil(r.seats.length / 2);
+  const rows = r.seats.length <= 8 ? 1 : 2;
+  // Размер — и по ширине колонки, и по высоте: досье (до 16 строк текста) не залезают на таймер и карту хода.
+  const fs = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, ${rows === 1 ? 2.8 : 1.35}cqh)`;
   return (
-    <ol className="bk-screen__dossiers" style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: `${Math.min(1.2, 9 / Math.max(cols, 6))}cqw` }}>
+    <ol className="bk-screen__dossiers" style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
       {r.seats.map((p, i) => (
         <li key={p}>
           <Dossier name={nameOf(session, p)} seat={i + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} exiled={r.exiled.includes(p)} speaking={highlight === p} />

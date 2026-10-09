@@ -34,7 +34,7 @@ export function BunkerEditor({ content, onChange, editable }: EditorProps<Bunker
         </p>
         <div className="row board-editor__size">
           {num("Партий за игру", "parties", 1, 10)}
-          {num("Раундов в партии", "rounds", 3, 7)}
+          {num("Раундов в партии (одна карта бункера на раунд)", "rounds", 3, BUNKER_LIMITS.bunkerCards)}
           {num("Речь в первом раунде, с", "firstSpeechSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Речь в следующих, с", "speechSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Обсуждение, с (0 — без таймера)", "discussSeconds", 0, 600)}

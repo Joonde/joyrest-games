@@ -65,7 +65,7 @@ export function parseBunker(raw: unknown): BunkerContent {
   const d = rec(raw);
   const b = createBunker();
   return {
-    rounds: int(d.rounds, b.rounds, 3, 7),
+    rounds: int(d.rounds, b.rounds, 3, BUNKER_LIMITS.bunkerCards),
     firstSpeechSeconds: int(d.firstSpeechSeconds, b.firstSpeechSeconds, 10, BUNKER_LIMITS.maxSeconds),
     speechSeconds: int(d.speechSeconds, b.speechSeconds, 10, BUNKER_LIMITS.maxSeconds),
     discussSeconds: int(d.discussSeconds, b.discussSeconds, 0, 600),

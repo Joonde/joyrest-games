@@ -11764,3 +11764,6 @@ button.dance-card:active {
   .bk-screen__log { animation: none; }
 }
 .bk-target__name { font-weight: 600; }
+.bk-phone__world { display: grid; gap: 12px; margin-top: 8px; }
+.bk-phone__bunker { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bk-phone__threats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -245,8 +245,15 @@ export function answerOf(value: unknown): BunkerAnswer {
   return out;
 }
 
+/**
+ * Отпечаток просьбы «сыграть» (шаг, цель, карта) — короткий хэш: в открытом `refused` не видно,
+ * на кого и на какую карту игрок пытался сыграть условие.
+ */
 export function useSig(step: number, use: Use): string {
-  return `${step}:${use.target ?? "-"}:${use.cat ?? "-"}`;
+  const text = `${step}:${use.target ?? "-"}:${use.cat ?? "-"}`;
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+  return h.toString(36);
 }
 
 // ——— Раздача ———
@@ -306,6 +313,10 @@ export function dealSecrets(seats: string[], content: BunkerContent, random: () 
       taken.add(ref);
       c[cat] = ref;
     }
+    // Стаж не больше, чем лет после 18.
+    const age = biologyOf(c.biology)?.age ?? 40;
+    const [, prof, years] = c.profession.split(":");
+    c.profession = `p:${prof}:${Math.min(Number(years), Math.max(0, age - 18))}`;
     chars[pid] = { ...c, special: specials[i % specials.length] as SpecialId };
   });
   const bunker = shuffle(BUNKER_CARDS.map((_, i) => i), random).slice(0, BUNKER_LIMITS.bunkerCards);
@@ -371,10 +382,26 @@ export function startOpening(session: Session): SessionChange {
 }
 
 /** Какие карты можно открыть на ходе: в первом раунде — только профессию. */
+/**
+ * Какие карты можно открыть на ходе: в первом раунде — только профессию. Пусто — открывать нечего
+ * (профессию уже открыл «Допрос», все карты открыты, вернулся «Вторым шансом»): тогда только речь.
+ */
 export function openable(r: BunkerResult, pid: string): Cat[] {
   const opened = r.open[pid] ?? [];
-  if (r.round <= 1 && !opened.includes("profession")) return ["profession"];
+  if (r.round <= 1) return opened.includes("profession") ? [] : ["profession"];
   return CATS.filter((c) => !opened.includes(c));
+}
+
+/** Игрок на ходе уже открыл карту или ему нечего открывать — можно дальше. */
+export function turnDone(r: BunkerResult): boolean {
+  return r.speakEndsAt !== null || (r.speaker !== null && openable(r, r.speaker).length === 0);
+}
+
+/** Речь без открытия карты (открывать нечего). */
+export function speakOnly(session: Session, content: BunkerContent, now: number): SessionChange {
+  const r = parseBunkerResult(session.state.result);
+  const secs = r.round <= 1 ? content.firstSpeechSeconds : content.speechSeconds;
+  return { state: { result: { ...r, speakEndsAt: now + secs * 1000, speakKind: "speech" } } };
 }
 
 /** Открыть карту игрока (ход, допрос или ведущий за игрока); на ходе — запускается таймер речи. */

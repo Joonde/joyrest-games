@@ -40,6 +40,9 @@ import {
   startOpening,
   startRound,
   startVote,
+  speakOnly,
+  turnDone,
+  useSig,
   type Secrets,
 } from "./logic";
 import { REFUSALS, SPECIAL_BY_ID } from "./specials";
@@ -68,7 +71,8 @@ export function BunkerHostControls({ session, content, answers, participants, co
   const names = useMemo(() => nameMap(session, participants), [session, participants]);
   const nm = (pid: string | null) => (pid ? (names[pid] ?? "Игрок") : "—");
   const seat = (pid: string) => r.seats.indexOf(pid) + 1;
-  const now = useServerNow(500, r.speakEndsAt !== null || r.voteEndsAt !== null);
+  // Время идёт всегда: от него считаются таймеры речи и голосования, которые ставит пульт.
+  const now = useServerNow(500, true);
   const own = answers.filter((a) => a.step === step);
 
   // Ключи телефонов: на раздаче — из текущих ответов, потом — один раз с сервера.
@@ -120,6 +124,8 @@ export function BunkerHostControls({ session, content, answers, participants, co
     };
   }, [r.hostSeal, sealedKey, keys, session.id]);
   const keyless = r.seats.filter((p) => !keys[p]);
+  const secretsRef = useRef<Secrets | null>(null);
+  secretsRef.current = secrets;
 
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {
@@ -135,13 +141,15 @@ export function BunkerHostControls({ session, content, answers, participants, co
     if (busy) return;
     setBusy(true);
     setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
+    const { phase, step: atStep, stage: atStage, result: atResult } = session.state;
     try {
       const change = typeof make === "function" ? await make() : make;
       if (!change) return;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
       if (clear !== undefined) await control.clearAnswers(clear);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      // Сверяем и итог шага: телефон мог только что сыграть особое условие — тогда изменение собрано
+      // по старому состоянию и не должно его затереть (пульт молча получит свежее, ведущий нажмёт снова).
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(atResult) } });
       await arrived;
     } catch (e) {
       if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
@@ -193,8 +201,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
     for (const a of list) {
       const v = answerOf(a.value);
       if (v.use && content.specials && !r.used[a.pid]) {
-        const sig = `${step}:${v.use.target ?? "-"}:${v.use.cat ?? "-"}`;
-        if (r.refused[a.pid]?.sig !== sig) return { kind: "use", pid: a.pid, use: v.use };
+        if (r.refused[a.pid]?.sig !== useSig(step, v.use)) return { kind: "use", pid: a.pid, use: v.use };
       }
     }
     if (r.mode === "open" && r.speaker && r.speakEndsAt === null) {
@@ -206,7 +213,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
   }
 
   // Сколько проголосовало — на экран (не чаще раза в 2 секунды).
-  const votedCount = r.mode === "vote" ? own.filter((a) => answerOf(a.value).vote).length : 0;
+  const votedCount = r.mode === "vote" ? own.filter((a) => r.alive.includes(a.pid) && answerOf(a.value).vote).length : 0;
   useEffect(() => {
     if (r.mode !== "vote" || votedCount === session.state.answered) return;
     const t = window.setTimeout(() => {
@@ -292,9 +299,9 @@ export function BunkerHostControls({ session, content, answers, participants, co
       case "opening":
         return btn(ACTION_LABELS.opening, () => void run(startOpening(session)));
       case "nextSpeaker":
-        return btn(`Следующий: ${nm(r.order[r.turn + 1] ?? null)}`, () => void run(nextSpeaker(session)), r.speakEndsAt === null);
+        return btn(`Следующий: ${nm(r.order[r.turn + 1] ?? null)}`, () => void run(nextSpeaker(session)), !turnDone(r));
       case "discuss":
-        return btn(ACTION_LABELS.discuss, () => void run(startDiscuss(session, content, now)), r.speakEndsAt === null);
+        return btn(ACTION_LABELS.discuss, () => void run(startDiscuss(session, content, now)), !turnDone(r));
       case "vote":
         return btn(`${ACTION_LABELS.vote} (изгнать: ${q})`, () => void run(startVote(session, content, now)));
       case "count":
@@ -322,7 +329,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
         return (
           <>
             {btn(`Партия ${r.party + 1} из ${content.parties}: собрать телефоны`, () => void run(startDeal(session, participants)), tableSize < BUNKER_LIMITS.minPlayers || tableSize > BUNKER_LIMITS.maxPlayers)}
-            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Закончить игру после этой партии?", text: "Сразу награждение по общему счёту.", confirmLabel: "К награждению", run: () => run(hasPodium(session.leaderboard) ? awardNow(session) : null) })}>
+            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Закончить игру после этой партии?", text: "Сразу награждение по общему счёту.", confirmLabel: "К награждению", run: () => (hasPodium(session.leaderboard) ? run(awardNow(session)) : control.requestFinish()) })}>
               Закончить и наградить
             </button>
           </>
@@ -373,7 +380,15 @@ export function BunkerHostControls({ session, content, answers, participants, co
             Ход: {label(speaker)}
             {r.speakEndsAt !== null ? <strong className="bk-host__timer"> · речь {clock(r.speakEndsAt - now)}</strong> : r.round <= 1 ? " — открывает профессию" : " — выбирает карту на телефоне"}
           </p>
-          {manualOpen && secrets && !partial && (
+          {manualOpen && openable(r, speaker).length === 0 && (
+            <>
+              <p className="muted small">Открывать нечего — все доступные карты уже открыты. Только речь.</p>
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(speakOnly(session, content, now))}>
+                Таймер речи
+              </button>
+            </>
+          )}
+          {manualOpen && secrets && !partial && openable(r, speaker).length > 0 && (
             <div className="bk-host__open">
               <span className="muted small">{keys[speaker] && !rehearsal ? "Телефон не отвечает? Откройте за игрока:" : "Игрок говорит, какую карту открыть:"}</span>
               {openable(r, speaker).map((c) => (
@@ -586,7 +601,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
                         confirmLabel: "Сыграть",
                         run: () =>
                           run(async () => {
-                            const out = applyUse(latest.current, content, secrets, manualUse.pid, { target: manualUse.target || null, cat: manualUse.cat || null }, nm);
+                            const out = applyUse(latest.current, content, secretsRef.current ?? secrets, manualUse.pid, { target: manualUse.target || null, cat: manualUse.cat || null }, nm);
                             if ("refusal" in out) return out.change;
                             const change = await resealed(out.secrets, out.change);
                             setSecrets(out.secrets);

@@ -278,3 +278,30 @@ describe("бункер: несколько партий", () => {
     expect(R(s).outcome).not.toBeNull();
   });
 });
+
+describe("бункер: исправления проверки", () => {
+  it("открывать нечего — только речь, ход не зависает", async () => {
+    const { turnDone, speakOnly } = await import("./logic");
+    let { s, sec, content } = setup();
+    s = applyChange(s, startRound(s, content, sec), 3);
+    s = applyChange(s, startOpening(s), 4);
+    const sp = R(s).speaker as string;
+    // профессию уже открыл «Допрос» — в первом раунде открывать нечего
+    s = applyChange(s, { state: { result: { ...R(s), open: { [sp]: ["profession"] } } } }, 5);
+    expect(openable(R(s), sp)).toEqual([]);
+    expect(turnDone(R(s))).toBe(true);
+    s = applyChange(s, speakOnly(s, content, 1000), 6);
+    expect(R(s).speakEndsAt).toBe(1000 + content.firstSpeechSeconds * 1000);
+  });
+
+  it("стаж не больше лет после 18, раундов не больше карт бункера", () => {
+    for (let k = 0; k < 20; k++) {
+      const sec = dealSecrets(players.map((p) => p.id), createBunker(), rnd);
+      for (const c of Object.values(sec.chars)) {
+        const age = Number(c.biology.split(":")[2]);
+        expect(Number(c.profession.split(":")[2])).toBeLessThanOrEqual(Math.max(0, age - 18));
+      }
+    }
+    expect(parseBunker({ rounds: 7 }).rounds).toBe(5);
+  });
+});

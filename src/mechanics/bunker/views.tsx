@@ -12,7 +12,7 @@ import { quotaNow, type BunkerContent } from "./content";
 import { BunkerCard, CardBack, CatastropheCard, Dossier, Icon, SpecialCard, ThreatCard, TraitCard } from "./CardArt";
 import { openPhoneCard, type PhoneCard } from "./deal";
 import { CAT_TITLES, CATS, cardText, type Cat } from "./decks";
-import { answerOf, openable, parseBunkerResult, type BunkerAnswer, type BunkerResult } from "./logic";
+import { answerOf, openable, parseBunkerResult, useSig, type BunkerAnswer, type BunkerResult } from "./logic";
 import { REFUSALS, SPECIAL_BY_ID, type Refusal } from "./specials";
 
 export type BunkerAnswerValue = BunkerAnswer;
@@ -378,11 +378,12 @@ function Final({ session, content, r }: { session: Session; content: BunkerConte
 
 // ——————————————————————————————————————————— телефон
 
-function usePhoneCard(key: string | null, sealed: string | undefined): PhoneCard | null | undefined {
+/** Своя карта: undefined — ещё открываем, null — на этом телефоне не открыть (нет ключа или карты). */
+function usePhoneCard(key: string | null, sealed: string | undefined, dealt: boolean): PhoneCard | null | undefined {
   const [card, setCard] = useState<PhoneCard | null | undefined>(undefined);
   useEffect(() => {
     if (!key || !sealed) {
-      setCard(sealed ? null : undefined);
+      setCard(sealed || dealt ? null : undefined);
       return;
     }
     let live = true;
@@ -423,7 +424,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
     }
   }, [dealing, myAnswer, sending]);
 
-  const card = usePhoneCard(key, r.sealed[pid]);
+  const card = usePhoneCard(key, r.sealed[pid], r.mode !== "deal" && r.hostSeal !== null);
   const now = useServerNow(500, r.speakEndsAt !== null || r.voteEndsAt !== null);
   const seated = r.seats.includes(pid);
   const alive = r.alive.includes(pid);
@@ -461,7 +462,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
 
   // Что сейчас нужно от игрока.
   let task: ReactNode = null;
-  const myTurn = r.mode === "open" && r.speaker === pid && r.speakEndsAt === null && alive;
+  const myTurn = r.mode === "open" && r.speaker === pid && r.speakEndsAt === null && alive && openable(r, pid).length > 0;
   if (myTurn) {
     const can = openable(r, pid);
     task = (
@@ -560,6 +561,32 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
       ) : (
         <p className="muted">Открываем ваши карты…</p>
       )}
+      {(
+        <details className="bk-phone__all" open={session.screenMode === "none"}>
+          <summary>Катастрофа и бункер</summary>
+          <div className="bk-phone__world">
+            <CatastropheCard id={r.catastrophe} years={r.years} places={r.places} compact />
+            {r.bunkerShown.length > 0 && (
+              <ol className="bk-phone__bunker">
+                {r.bunkerShown.map((c, i) => (
+                  <li key={i}>
+                    <BunkerCard index={c} n={i + 1} small />
+                  </li>
+                ))}
+              </ol>
+            )}
+            {r.threatsShown.length > 0 && (
+              <ol className="bk-phone__bunker bk-phone__threats">
+                {r.threatsShown.map((t, i) => (
+                  <li key={t}>
+                    <ThreatCard index={t} verdict={r.verdicts[i] ?? null} />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </details>
+      )}
       <details className="bk-phone__all">
         <summary>Все игроки</summary>
         <ul className="bk-phone__list">
@@ -591,7 +618,7 @@ function MyCards({ session, content, r, pid, card, mine, sending, send }: { sess
   const closedOf = (p: string) => CATS.filter((c) => !(r.open[p] ?? []).includes(c));
   const ready = s.target === "none" || (target && (s.target === "player" || cat));
   const timing = s.when === "vote" && r.mode !== "vote";
-  const pending = !!mine.use && !used && !(refused && refused.sig.startsWith(`${session.state.step}:${mine.use.target ?? "-"}:${mine.use.cat ?? "-"}`));
+  const pending = !!mine.use && !used && !(refused && refused.sig === useSig(session.state.step, mine.use));
   return (
     <section className="bk-phone__mine">
       <h3 className="bk-phone__h">Ваш персонаж</h3>

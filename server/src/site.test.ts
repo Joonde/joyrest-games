@@ -174,9 +174,9 @@ describe("исходники сайта (site/)", () => {
     for (const id of ["askError", "reviewError", "formError"]) expect(html).toContain(`id="${id}"`);
   });
 
-  it("в блоке «Шоу» нет кнопок без действия, пожелания — в комментарии к заявке", () => {
+  it("доп. услуги — без кнопок без действия, пожелания — в комментарии к заявке", () => {
     for (const text of [html, css, js]) expect(text).not.toContain("show-pick");
-    expect(html).toContain("напишите о пожеланиях в комментарии к заявке");
+    expect(html).toContain("Напишите о пожеланиях в комментарии к заявке.");
   });
 
   it("шапка: «Оставить заявку» ведёт к форме с фокусом, «Услуги» раскрывает раздел", () => {
@@ -360,13 +360,18 @@ describe("тексты и устройство страницы", () => {
 
   it("диджеи, музыканты и площадки пока скрыты одним переключателем на направление", () => {
     expect(html).toContain('<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">');
-    const text = visibleText();
+    // Единственное разрешённое упоминание (решение владельца 9 октября 2026): диджей и «под ключ» — индивидуально.
+    const EXTRA = "Диджей, мероприятие под ключ и другие услуги — обсуждаем индивидуально.";
+    expect(visibleText()).toContain(EXTRA);
+    const text = visibleText().replace(EXTRA, "");
     expect(text).not.toMatch(/дидже|площадк|музыкант|подрядчик|под ключ|кавер|квартет/i);
     expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.");
     // Старый текст первого экрана сохранён рядом — вернётся вместе с услугами.
     expect(html).toContain("площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет");
     expect(text).toContain("Ведущие");
-    expect(text).toContain("Дополнительный номер к программе: фокусник или другое шоу.");
+    // Шоу и фокусника пока нет — нигде на странице.
+    expect(html).not.toMatch(/фокусник|шоу-блок|<h3>Шоу<\/h3>|value="show"/i);
+    expect(js).not.toContain("calcPackage");
     // Включили всё — старые тексты видны, замен нет.
     const allOn = html.replace(/data-service-(\w+)="off"/g, 'data-service-$1="on"');
     expect(allOn).toContain('data-service-dj="on" data-service-music="on" data-service-venue="on"');
@@ -421,6 +426,28 @@ describe("тексты и устройство страницы", () => {
     const more = html.slice(html.indexOf('id="moreFormatsWrap"'), html.indexOf("/servicesList"));
     expect(html).toContain(`Показать другие форматы (+${(more.match(/class="format-tile"/g) ?? []).length})`);
     expect(js).toContain("function updateMoreCount()");
+  });
+
+  it("условия работы: время с перерывами, штрафы за неуважение к ведущему, обязательная галочка в заявке", () => {
+    const terms = html.slice(html.indexOf('<section id="terms">'), html.indexOf("</section>", html.indexOf('<section id="terms">')));
+    const plain = terms.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    expect(plain).toContain("вместе с перерывами");
+    expect(plain).toContain("разницу нужно доплатить");
+    expect(plain).toContain("Штраф 5 000 ₽");
+    expect(plain).toContain("ведущий вправе завершить мероприятие и уехать");
+    expect(plain).toContain("Штраф от 20 000 ₽");
+    expect(plain).toContain("залог 2 000 ₽");
+    expect(plain).toContain("за день или в день проведения , залог не возвращается");
+    const form = html.slice(html.indexOf('<form id="leadForm">'), html.indexOf("</form>", html.indexOf('<form id="leadForm">')));
+    expect(form).toContain('<input type="checkbox" id="termsAccept" required>');
+    expect(form).toContain('<input type="checkbox" id="depositAccept" required>');
+    expect(js).toContain("deposit: document.getElementById('depositAccept').checked");
+    // Галочка согласия на данные — первая в форме (её читает sendLead), условия — вторая.
+    expect(form.indexOf("consent-row")).toBeLessThan(form.indexOf("terms-row"));
+    expect(js).toContain("terms: document.getElementById('termsAccept').checked");
+    // Ставка выходного дня — 9 500 ₽/час.
+    expect(js).toContain("isWeekend ? 9500 : 7000");
+    expect(html).toContain("9 500 ₽/час в выходные");
   });
 
   it("частые вопросы — только факты, без условий бронирования и предоплаты", () => {

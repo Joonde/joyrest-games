@@ -94,6 +94,7 @@
     <a href="#services" data-open-section="services">Услуги и форматы</a>
     <a href="#packages" data-open-section="packages">Пакеты</a>
     <a href="#calculator">Калькулятор</a>
+    <a href="#terms">Условия работы</a>
     <a href="#process">Как это работает</a>
     <a href="#faq">Частые вопросы</a>
     <a href="#reviews">Telegram</a>
@@ -171,7 +172,7 @@
       <div class="event-list">
         <div class="event e2 reveal">
           <h3>Корпоративы</h3>
-          <p>Новогодние вечера, тимбилдинги, юбилеи компании — программы строим вокруг задач бизнеса: от нейтрального формата до вечеринки <span data-needs="dj">с диджеем и шоу-блоком</span><span data-unless="dj">с играми и шоу-блоком</span>. Для новых команд — игра на знакомство «Давайте знакомиться».</p>
+          <p>Новогодние вечера, тимбилдинги, юбилеи компании — программы строим вокруг задач бизнеса: от нейтрального формата до вечеринки <span data-needs="dj">с диджеем и конкурсами</span><span data-unless="dj">с играми и конкурсами</span>. Для новых команд — игра на знакомство «Давайте знакомиться».</p>
           <p style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;">Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.</p>
         </div>
         <div class="event e3 reveal">
@@ -238,7 +239,7 @@
     <div class="services-list">
       <div class="service-row reveal">
         <h3>Ведущие</h3>
-        <p>Подбор ведущего под формат и аудиторию — от камерного тона до энергичного шоу.</p>
+        <p>Подбор ведущего под формат и аудиторию — от камерного тона до энергичной программы.</p>
       </div>
       <div class="service-row reveal" data-needs="dj">
         <h3>Диджеи</h3>
@@ -577,7 +578,7 @@
           <button type="button" class="section-toggle-btn open" id="packagesToggleBtn" aria-expanded="true">Скрыть <span class="toggle-arrow">↓</span></button>
         </h2>
         <p data-needs="venue">Берите по частям или всё сразу под ключ.</p>
-        <p data-unless="venue">Ведущий и шоу — по отдельности или вместе.</p>
+        <p data-unless="venue">Работа ведущего — почасово, остальное обсуждаем индивидуально.</p>
       </div>
     </div>
     <div class="collapsible-wrap open is-done" id="packagesList">
@@ -585,7 +586,7 @@
       <div class="package reveal">
         <div class="pkg-num"></div>
         <h3>Ведущий</h3>
-        <p>Почасовая работа ведущего — от 7 000 ₽/час, минимум 1,5 часа. Точный расчёт — в калькуляторе ниже.</p>
+        <p>Почасовая работа ведущего: 7 000 ₽/час в будни и 9 500 ₽/час в выходные, минимум 1,5 часа. Время считается целиком, вместе с перерывами. Точный расчёт — в калькуляторе ниже.</p>
       </div>
       <div class="package reveal" data-needs="dj">
         <div class="pkg-num"></div>
@@ -594,10 +595,8 @@
       </div>
       <div class="package reveal">
         <div class="pkg-num"></div>
-        <h3>Шоу</h3>
-        <p data-needs="music">Дополнительный номер к программе: музыкант, фокусник или другое направление.</p>
-        <p data-unless="music">Дополнительный номер к программе: фокусник или другое шоу.</p>
-        <p class="calc-hint" style="margin-top:10px;">Состав и цена шоу обсуждаются индивидуально — напишите о пожеланиях в комментарии к заявке.</p>
+        <h3>Дополнительно</h3>
+        <p>Диджей, мероприятие под ключ и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.</p>
       </div>
       <div class="package featured reveal" data-needs="venue">
         <div class="pkg-num"></div>
@@ -649,20 +648,6 @@
       <div class="calc-inputs">
       <div class="calc-row">
         <div class="calc-row-top">
-          <label for="calcPackage">Пакет услуг</label>
-        </div>
-        <select id="calcPackage">
-          <option value="host">Только ведущий</option>
-          <option value="dj" data-needs="dj">+ Диджей</option>
-          <option value="show" data-needs="music">+ Шоу (музыкант/фокусник/др.)</option>
-          <option value="show" data-unless="music">+ Шоу (фокусник и др.)</option>
-          <option value="full" data-needs="venue">Под ключ</option>
-        </select>
-        <p class="calc-hint" id="calcPackageNote" style="display:none;">Этот пакет собирается индивидуально — ниже расчёт только за работу ведущего, остальное обсуждаем на созвоне.</p>
-      </div>
-
-      <div class="calc-row">
-        <div class="calc-row-top">
           <label for="calcHostLevel">Ведущий</label>
         </div>
         <select id="calcHostLevel">
@@ -680,7 +665,7 @@
           <label><input type="radio" name="calcDay" value="weekday" checked> Будний день</label>
           <label><input type="radio" name="calcDay" value="weekend"> Выходной день</label>
         </div>
-        <p class="calc-hint">Ставка ведущего: в будни 7 000 ₽/час, в выходные 8 500 ₽/час, но на расчёт действует скидка выходного дня −10%.</p>
+        <p class="calc-hint">Ставка ведущего: в будни 7 000 ₽/час, в выходные 9 500 ₽/час, но на расчёт действует скидка выходного дня −10%.</p>
       </div>
 
       <div class="calc-row">
@@ -740,7 +725,6 @@
         <div id="calcWeekendDiscountRow" style="display:none;"><span>Скидка выходного дня (−10%)</span><span id="calcWeekendDiscount">−0 ₽</span></div>
         <div id="calcHoursDiscountRow" style="display:none;"><span>Скидка за длительность 3+ часа (−5%)</span><span id="calcHoursDiscount">−0 ₽</span></div>
         <div id="calcHostDiscountRow" style="display:none;"><span id="calcHostDiscountLabel">Скидка «Новые лица» (−25%)</span><span id="calcHostDiscount">−0 ₽</span></div>
-        <div id="calcDjRow" style="display:none;" data-needs="dj"><span>Диджей</span><span>цена договорная</span></div>
       </div>
       <p class="calc-hint" id="calcTaxiNote" style="display:none;">+ такси ведущему по факту, отдельно от расчёта выше.</p>
       <div class="calc-total">
@@ -748,8 +732,42 @@
         <span id="calcTotal">10 500 ₽</span>
       </div>
       <button type="button" class="calc-submit" id="calcSubmit">Отправить расчёт в заявку</button>
-      <p class="calc-hint" data-needs="dj venue">Расчёт ориентировочный: точная стоимость площадки и других услуг пакета обсуждается отдельно. Диджей — цена договорная, зависит от дня недели, обсуждается отдельно от этого расчёта.</p>
-      <p class="calc-hint" data-unless="dj venue">Расчёт ориентировочный: точную сумму уточним на созвоне. Шоу обсуждается отдельно от этого расчёта.</p>
+      <p class="calc-hint">Расчёт ориентировочный: точную сумму уточним на созвоне. Время считается целиком, с перерывами; если мероприятие идёт дольше оплаченного, разницу нужно доплатить. После согласования даты — залог 2 000 ₽, он входит в оплату.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Условия работы ведущего (решение владельца 9 октября 2026): время вечера целиком, с перерывами;
+       штрафы за неуважение к ведущему. Галочка «Принимаю условия» в заявке — обязательная (terms в /api/lead). -->
+  <section id="terms">
+    <div class="section-head reveal">
+      <h2>Условия работы</h2>
+      <p>Коротко и честно — чтобы праздник прошёл спокойно для всех.</p>
+    </div>
+    <div class="terms-grid">
+      <div class="terms-card reveal">
+        <h3>Время работы ведущего</h3>
+        <p>Считаем всё время мероприятия — от начала программы до её конца, <strong>вместе с перерывами</strong>: ведущий в это время на месте и работает на ваш праздник, поэтому отдых гостей и работу ведущего мы не разделяем.</p>
+        <p>В конце игры у ведущего на экране видно, сколько шло мероприятие. Если оно длилось дольше оплаченного времени (минимум — 1,5 часа), разницу нужно доплатить.</p>
+      </div>
+      <div class="terms-card terms-card--important reveal" role="note" aria-label="Важно: залог и отмена">
+        <span class="terms-badge">Важно</span>
+        <h3>Залог и отмена</h3>
+        <p>Когда мы согласовали дату и условия, ведущий бронирует это время под вас — и в этот момент вносится <strong>залог 2 000 ₽</strong>.</p>
+        <p>Мероприятие прошло — залог входит в оплату. Если вы отменяете мероприятие <strong>за день или в день проведения</strong>, залог не возвращается: время ведущего уже занято, работа команды проделана.</p>
+      </div>
+      <div class="terms-card terms-card--important terms-card--wide reveal" role="note" aria-label="Важно: уважение к ведущему">
+        <span class="terms-badge">Важно</span>
+        <h3>Уважение к ведущему</h3>
+        <p>Ведущий — работающий человек. Оскорблять его честь и достоинство, применять силу или как-либо ещё посягать на его комфорт и безопасность нельзя. За нарушение взимается штраф:</p>
+        <table class="terms-table">
+          <thead><tr><th scope="col">Нарушение</th><th scope="col">Последствия</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Оскорбление ведущего</th><td>Штраф <strong>5 000 ₽</strong>. При грубых оскорблениях ведущий вправе завершить мероприятие и уехать.</td></tr>
+            <tr><th scope="row">Применение силы — удар и т.п.</th><td>Штраф <strong>от 20 000 ₽</strong>. Как ведущий поступит дальше, решается с ним индивидуально.</td></tr>
+          </tbody>
+        </table>
+        <p class="terms-note">Заказчик отвечает за поведение своих гостей и принимает эти условия, отправляя заявку.</p>
       </div>
     </div>
   </section>
@@ -827,7 +845,7 @@
       <div class="step reveal">
         <div class="step-index">03</div>
         <h3>Согласовываем детали</h3>
-        <p>Утверждаем программу, тайминг и всех участников события.</p>
+        <p>Утверждаем программу, тайминг и всех участников события, вы вносите залог 2 000 ₽ — он входит в оплату.</p>
       </div>
       <div class="step reveal">
         <div class="step-index">04</div>
@@ -864,7 +882,7 @@
       </details>
       <details class="faq-item">
         <summary>Сколько длится программа?</summary>
-        <p>Минимальный заказ — 1,5 часа работы ведущего. В калькуляторе можно посчитать до 5 часов, больше — обсуждаем индивидуально. В Мафии и Бункере за вечер можно сыграть несколько партий.</p>
+        <p>Минимальный заказ — 1,5 часа работы ведущего. В калькуляторе можно посчитать до 5 часов, больше — обсуждаем индивидуально. Время считается целиком, вместе с перерывами: в конце игры у ведущего видно, сколько шло мероприятие, и если дольше оплаченного — разницу нужно доплатить. В Мафии и Бункере за вечер можно сыграть несколько партий.</p>
       </details>
       <details class="faq-item">
         <summary>Есть ли программы для детей?</summary>
@@ -985,6 +1003,14 @@
           <label class="consent-row">
             <input type="checkbox" required>
             <span>Согласен(на) на обработку персональных данных в соответствии с <button type="button" class="privacy-link">политикой конфиденциальности</button></span>
+          </label>
+          <label class="consent-row terms-row">
+            <input type="checkbox" id="depositAccept" required>
+            <span>Принимаю <a href="#terms">условия залога</a>: 2 000 ₽ вносятся, когда согласованы дата и условия, и входят в оплату; при отмене за день или в день мероприятия залог не возвращается.</span>
+          </label>
+          <label class="consent-row terms-row">
+            <input type="checkbox" id="termsAccept" required>
+            <span>Принимаю <a href="#terms">условия работы</a>: время ведущего считается вместе с перерывами; за оскорбление ведущего — штраф 5 000 ₽, за применение силы — от 20 000 ₽.</span>
           </label>
           <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
           <button type="submit">Отправить заявку</button>

@@ -147,8 +147,6 @@
   const hostLevelField = document.getElementById('hostLevel');
   // «Дополнительно» в заявке (формат ведущего, способ связи) — свёрнуто, пока не нужно.
   const formMore = document.getElementById('formMore');
-  const calcPackage = document.getElementById('calcPackage');
-  const calcPackageNote = document.getElementById('calcPackageNote');
   const calcDayInputs = document.querySelectorAll('input[name="calcDay"]');
   const calcHours = document.getElementById('calcHours');
   const calcHoursValue = document.getElementById('calcHoursValue');
@@ -181,11 +179,8 @@
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₽';
 
   function recalc(){
-    calcPackageNote.style.display = calcPackage.value === 'host' ? 'none' : '';
-    document.getElementById('calcDjRow').style.display = (calcPackage.value === 'dj' || calcPackage.value === 'full') ? '' : 'none';
-
     const isWeekend = document.querySelector('input[name="calcDay"]:checked').value === 'weekend';
-    const hourlyRate = isWeekend ? 8500 : 7000;
+    const hourlyRate = isWeekend ? 9500 : 7000; // выходные: +2 500 ₽/час к будням (решение владельца 9 октября 2026)
 
     const hours = parseFloat(calcHours.value);
     calcHoursValue.textContent = hours.toString().replace('.', ',') + ' ч';
@@ -288,11 +283,11 @@
 
     calcTotal.textContent = fmt(runningTotal);
   }
-  [calcPackage, calcHostLevel, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
+  [calcHostLevel, ...calcDayInputs, calcHours, calcGuests, calcCustom, calcComplexity, ...formatCheckboxes].forEach(el => el.addEventListener('input', recalc));
   recalc();
 
   document.getElementById('calcSubmit').addEventListener('click', () => {
-    const summary = `Расчёт с калькулятора: пакет «${calcPackage.options[calcPackage.selectedIndex].text}», ведущий — ${calcHostLevel.options[calcHostLevel.selectedIndex].text}, ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
+    const summary = `Расчёт с калькулятора: ведущий — ${calcHostLevel.options[calcHostLevel.selectedIndex].text}, ${calcHoursValue.textContent} ведущего, ${calcGuestsValue.textContent} гостей` +
       (calcCustom.checked ? `, индивидуальный сценарий (${calcComplexity.options[calcComplexity.selectedIndex].text})` : '') +
       `. Итого: ${calcTotal.textContent}.`;
     const messageField = document.getElementById('message');
@@ -634,6 +629,8 @@
       contactLink: document.getElementById('contactLink').value.trim(),
       message: document.getElementById('message').value.trim(),
       hostLevel: hostLevelField.value,
+      terms: document.getElementById('termsAccept').checked,
+      deposit: document.getElementById('depositAccept').checked,
     }, document.getElementById('formNote'), document.getElementById('formError'));
     if(ok) this.reset();
   });

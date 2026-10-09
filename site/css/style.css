@@ -1189,6 +1189,31 @@
   }
   body:has(.ask-panel.open) .ask-fab.is-away{ opacity: 1; transform: none; pointer-events: auto; }
 
+  /* Условия работы: время ведущего и уважение к ведущему (важная карточка с таблицей штрафов). */
+  .terms-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .terms-card{ background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 26px 24px; min-width: 0; }
+  .terms-card h3{ font-size: 22px; margin: 0 0 10px; padding: 0; }
+  .terms-card p{ color: var(--ink-soft); font-size: 15px; margin: 0 0 12px; }
+  .terms-card p:last-child{ margin-bottom: 0; }
+  .terms-card strong{ color: var(--ink); font-weight: 600; }
+  .terms-card--important{ border: 2px solid var(--coral); }
+  .terms-card--wide{ grid-column: 1 / -1; }
+  .terms-badge{
+    display: inline-block; margin-bottom: 10px; padding: 3px 12px; border-radius: 999px;
+    background: var(--coral); color: var(--on-accent); font-size: 13px; font-weight: 600;
+  }
+  .terms-table{ width: 100%; border-collapse: collapse; margin: 4px 0 14px; font-size: 14.5px; }
+  .terms-table th, .terms-table td{ text-align: left; vertical-align: top; padding: 10px 8px 10px 0; border-top: 1px solid var(--line); color: var(--ink-soft); }
+  .terms-table thead th{ border-top: none; font-size: 12.5px; font-weight: 500; color: var(--ink-soft); padding-top: 0; }
+  .terms-table tbody th{ color: var(--ink); font-weight: 600; width: 42%; }
+  .terms-note{ font-size: 13.5px !important; }
+  .terms-row a{ color: var(--accent-text); text-decoration: underline; }
+  @media (max-width: 760px){
+    .terms-grid{ grid-template-columns: 1fr; gap: 14px; }
+    .terms-card{ padding: 22px 20px; }
+    .terms-table tbody th{ width: 38%; }
+  }
+
   .ripple-layer{
     position: fixed;
     inset: 0;
@@ -1239,6 +1264,7 @@
     .age-pick{ background: #2A2621; }
     .gallery-tile{ background: #2A2621; }
     .tg-card{ background: #2A2621; }
+    .terms-card{ background: #2A2621; }
   }
 
   /* Формы: ошибка отправки и скрытое поле-ловушка для ботов (люди его не видят). */

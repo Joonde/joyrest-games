@@ -79,7 +79,8 @@ const RULES = { question: QUESTION, review: REVIEW, lead: LEAD } as const;
 export type LeadType = keyof typeof RULES;
 
 /** Служебные поля формы: тип, согласие, оценка отзыва и ловушка. */
-const SERVICE_FIELDS = new Set(["type", "consent", "rating", "website"]);
+/** terms и deposit — согласие с условиями работы ведущего и залога (только заявка). */
+const SERVICE_FIELDS = new Set(["type", "consent", "rating", "website", "terms", "deposit"]);
 
 /** Формат ведущего в заявке: опытный или стартовые форматы с молодыми ведущими (скидка на работу ведущего). */
 export const HOST_LEVELS = {
@@ -156,6 +157,9 @@ export function checkLead(body: unknown): Checked {
   }
 
   if (type === "lead") {
+    // Условия работы (время с перерывами, штрафы за неуважение к ведущему) — обязательная галочка заявки.
+    if (body.deposit !== true) return { ok: false, message: "Отметьте, что принимаете условия залога." };
+    if (body.terms !== true) return { ok: false, message: "Отметьте, что принимаете условия работы ведущего." };
     if ((fields.phone.match(/\d/g) ?? []).length < 5) return { ok: false, message: "Проверьте номер телефона." };
     if (fields.guests !== "" && !/^\d{1,5}$/.test(fields.guests)) {
       return { ok: false, message: "Число гостей — только цифры." };
@@ -200,7 +204,7 @@ export function formatLead(lead: LeadData, label?: string): string {
         `${head}📩 Заявка с сайта JoyRest\n\n` +
         `Имя: ${f.name}\nТелефон: ${f.phone}\nТип мероприятия: ${or(f.eventType)}\n` +
         (lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}\n` : "") +
-        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\nКомментарий: ${or(f.message)}`
+        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\nКомментарий: ${or(f.message)}\nУсловия работы и залога: приняты`
       );
     }
   }

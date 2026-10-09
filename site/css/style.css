@@ -26,6 +26,8 @@
     --btn-outline-text: #322D28;
   }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* Кнопки и поля не наследуют шрифт страницы сами — без этого «Отправить расчёт» был системным шрифтом. */
+  button, input, select, textarea{ font-family: 'Jost', sans-serif; }
   html{ scroll-behavior: smooth; }
   section, .hero{ scroll-margin-top: 76px; }
   body{
@@ -151,9 +153,9 @@
     .nav{ gap: 8px; }
     .hbtn{ padding: 0 14px; }
   }
-  /* Узкие телефоны: «Услуги» — только в меню ☰ (не помещается без переносов). */
-  @media (max-width: 389px){
-    .hbtn--secondary{ display: none; }
+  /* Телефоны: «Услуги» — только в меню ☰, в шапке остаётся главная кнопка. */
+  @media (max-width: 480px){
+    .header-actions .hbtn--secondary{ display: none; }
   }
   .logo-frame{
     display: inline-flex;
@@ -179,15 +181,16 @@
     50%{ transform: scale(1.5); opacity: .55; }
   }
   .nav-links{ display: flex; gap: 22px; font-size: 14.5px; }
+  .nav-links{ align-items: center; }
   .nav-links a{
     color: var(--ink-soft);
     position: relative;
-    padding-bottom: 3px;
+    display: inline-flex; align-items: center; min-height: 44px;
   }
   .nav-links a::after{
     content: '';
     position: absolute;
-    left: 0; bottom: 0;
+    left: 0; bottom: 8px;
     width: 0; height: 2px;
     background: var(--coral);
     transition: width .25s ease;
@@ -430,6 +433,8 @@
     color: var(--on-accent);
     box-shadow: 0 8px 20px rgba(203,156,147,0.35);
     cursor: pointer;
+    min-height: 44px;
+    white-space: nowrap;
     transition: transform .3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .3s ease;
   }
   .section-toggle-btn:hover{ transform: translateY(-2px); box-shadow: 0 12px 26px rgba(203,156,147,0.45); }
@@ -442,12 +447,14 @@
     transition: max-height .7s cubic-bezier(0.22,1,0.36,1), visibility 0s linear .7s;
   }
   .collapsible-wrap.open{ max-height: none; visibility: visible; transition: max-height .7s cubic-bezier(0.22,1,0.36,1); }
+  /* Раскрытый до конца раздел не обрезает содержимое (появление .reveal сдвигает его вниз). */
+  .collapsible-wrap.open.is-done{ overflow: visible; }
   /* Свёрнутая секция компактная: заголовок с кнопкой и описание, без линии и больших отступов. */
   section.is-collapsible:not(.is-open){ padding-top: 48px; padding-bottom: 48px; }
   section.is-collapsible:not(.is-open) .section-head{ margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
   .formats-block{ margin-top: 56px; }
   @media (max-width: 480px){
-    .section-toggle-btn{ font-size: 12px; padding: 7px 13px; }
+    .section-toggle-btn{ font-size: 12.5px; padding: 0 16px; }
   }
   .event{
     position: relative;
@@ -566,8 +573,9 @@
     border: 1px solid rgba(34,30,27,0.45);
     color: var(--on-accent);
     font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    padding: 6px 12px;
+    font-size: 12px;
+    min-height: 44px;
+    padding: 0 14px;
     border-radius: 999px;
     cursor: pointer;
     transition: background .2s ease;
@@ -617,8 +625,8 @@
     position: absolute;
     top: 16px;
     right: 16px;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1px solid var(--line);
     background: #fff;
@@ -633,7 +641,7 @@
   .picker-wrap{ margin-top: -8px; }
   .picker-grid{
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }
   .picker-btn{
@@ -673,6 +681,7 @@
     border: 1.5px solid var(--line);
     border-radius: 999px;
     padding: 10px 18px;
+    min-height: 44px;
     font-size: 13.5px;
     font-family: 'Jost', sans-serif;
     color: var(--ink);
@@ -698,6 +707,7 @@
     color: var(--accent-text);
     cursor: pointer;
     margin: 4px 0 16px;
+    min-height: 44px;
     background: none;
     border: none;
     padding: 0;
@@ -705,7 +715,8 @@
   .filter-reset.show{ display: inline-flex; }
   .format-tile.filtered-out{ display: none; }
   @media (max-width: 760px){
-    .picker-grid{ grid-template-columns: repeat(2, 1fr); }
+    .picker-grid{ gap: 8px; }
+    .picker-btn{ padding: 14px 6px; font-size: 13.5px; }
   }
 
   /* Calculator */
@@ -730,16 +741,21 @@
   input[type="range"]{
     width: 100%;
     accent-color: var(--coral);
-    height: 4px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: transparent;
   }
+  input[type="range"]:focus{ box-shadow: none; }
+  input[type="range"]:focus-visible{ outline: 3px solid var(--btn-outline); outline-offset: 2px; }
   .calc-daytoggle{
     display: flex;
     gap: 20px;
     font-size: 14.5px;
     margin-bottom: 4px;
   }
-  .calc-daytoggle label{ display: flex; align-items: center; gap: 7px; cursor: pointer; }
-  .calc-daytoggle input{ accent-color: var(--coral); width: 16px; height: 16px; }
+  .calc-daytoggle label{ display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px; }
+  .calc-daytoggle input{ accent-color: var(--coral); width: 20px; height: 20px; margin: 0; }
   .consent-row{
     display: flex;
     align-items: flex-start;
@@ -748,17 +764,19 @@
     color: var(--ink-soft);
     line-height: 1.5;
   }
-  .consent-row input{ width: 16px; height: 16px; margin-top: 2px; accent-color: var(--coral); flex-shrink: 0; }
+  .consent-row{ min-height: 44px; cursor: pointer; }
+  .consent-row input{ width: 20px; height: 20px; margin: 0; accent-color: var(--coral); flex-shrink: 0; }
   .privacy-link{ color: var(--accent-text); text-decoration: underline; cursor: pointer; }
   .calc-toggle{
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 14.5px;
-    margin-bottom: 20px;
+    min-height: 44px;
+    margin-bottom: 4px;
     cursor: pointer;
   }
-  .calc-toggle input{ width: 18px; height: 18px; accent-color: var(--coral); }
+  .calc-toggle input{ width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: var(--coral); }
   .calc-breakdown{
     border-top: 1px solid var(--line);
     padding-top: 16px;
@@ -797,7 +815,7 @@
   .calc-submit:hover{ transform: translateY(-2px); }
 
   /* Packages */
-  .packages{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; counter-reset: pkg; }
+  .packages{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; counter-reset: pkg; }
   /* Номера пакетов — счётчиком: скрытые пакеты (data-needs) не оставляют дыр в нумерации. */
   .package:not(.package--start){ counter-increment: pkg; }
   .pkg-num::before{ content: counter(pkg, decimal-leading-zero); }
@@ -862,7 +880,9 @@
   .contact-info h2{ font-size: 32px; margin-bottom: 18px; }
   .contact-info p{ color: var(--ink-soft); font-size: 15px; max-width: 40ch; }
   .contact-detail{ margin-top: 28px; font-size: 15px; }
-  .contact-detail div{ padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .contact-detail div{ padding: 6px 0; min-height: 44px; line-height: 1.4; display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; border-bottom: 1px solid var(--line); }
+  .contact-detail a{ display: inline-flex; align-items: center; min-height: 44px; }
+  footer a{ display: inline-flex; align-items: center; min-height: 44px; }
 
   form{ display: flex; flex-direction: column; gap: 14px; }
   label{ font-size: 13px; color: var(--ink-soft); }
@@ -876,8 +896,8 @@
   }
   textarea{ resize: vertical; min-height: 80px; }
   button[type="submit"]{
-    margin-top: 6px; background: var(--emerald); color: var(--on-accent); font-weight: 600; border: none; padding: 15px 20px;
-    border-radius: 999px; font-size: 15px; font-weight: 500; cursor: pointer;
+    margin-top: 6px; background: var(--btn-primary-bg); color: var(--btn-primary-text); border: none; padding: 15px 20px; min-height: 52px;
+    border-radius: 999px; font-size: 15px; font-weight: 600; cursor: pointer;
     transition: transform .25s ease, background .25s ease;
   }
   button[type="submit"]:hover{ transform: translateY(-2px); }
@@ -964,24 +984,6 @@
     .logo{ transition: none !important; }
     .hbtn:hover{ transform: none; }
   }
-
-  /* Coverage map */
-  .coverage-wrap{ display: flex; justify-content: center; }
-  .coverage-map{ width: 100%; max-width: 560px; height: auto; overflow: visible; }
-  .map-zone{ fill: var(--bg-alt); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 5; }
-  .map-line{ stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
-  .map-dot{ fill: var(--emerald); transform-box: fill-box; transform-origin: center; }
-  .map-dot.hub{ fill: var(--coral); }
-  .map-pulse{ animation: pulse 2.6s ease-in-out infinite; }
-  .map-label{ font-family: 'Jost', sans-serif; font-size: 13px; fill: var(--ink); }
-  .map-label.hub{ font-weight: 500; }
-  /* Города «Скоро»: приглушённо, без мигания. */
-  .map-dot--soon{ fill: var(--ink-soft); opacity: .55; }
-  .map-line--soon{ opacity: .45; stroke-dasharray: 3 4; }
-  .map-label--soon{ fill: var(--ink-soft); }
-  .map-soon{ fill: var(--bg); stroke: var(--line); stroke-width: 1; }
-  .map-soon-text{ font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; fill: var(--ink-soft); text-anchor: middle; }
-  .coverage-caption{ text-align: center; margin-top: 8px; }
 
   /* Reviews & gallery placeholders */
   .reviews-grid{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -1088,7 +1090,7 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0 10px 26px rgba(0,0,0,0.18);
-    transition: transform .3s cubic-bezier(0.22, 1, 0.36, 1), background .3s ease;
+    transition: transform .3s cubic-bezier(0.22, 1, 0.36, 1), background .3s ease, opacity .3s ease;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1117,12 +1119,73 @@
   .ask-panel form{ display: flex; flex-direction: column; gap: 10px; }
   .ask-panel textarea{ min-height: 70px; }
   .ask-panel button[type="submit"]{
-    background: var(--emerald); color: var(--on-accent); font-weight: 600; border: none; padding: 11px; border-radius: 999px;
+    background: var(--btn-primary-bg); color: var(--btn-primary-text); font-weight: 600; border: none; padding: 11px; min-height: 44px; border-radius: 999px;
     font-size: 14px; cursor: pointer;
   }
   @media (max-width: 480px){
-    .ask-fab{ padding: 12px 16px; font-size: 13px; }
+    .ask-fab{ padding: 12px 16px; font-size: 13px; min-height: 44px; }
   }
+
+
+  /* «Игры с ваших телефонов»: снимки настоящих экранов платформы (демо-квиз). */
+  .platform-shots{ display: grid; grid-template-columns: 2.2fr 1fr 1fr; gap: 20px; align-items: start; }
+  .platform-shot{ margin: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .platform-shot img{ display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--line); background: #221E1B; }
+  .platform-shot figcaption{ font-size: 14px; color: var(--ink-soft); line-height: 1.5; }
+  .platform-shot figcaption strong{ color: var(--ink); font-weight: 600; }
+  .platform-points{ list-style: none; margin: 32px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 32px; }
+  .platform-points li{ position: relative; padding-left: 22px; color: var(--ink-soft); font-size: 15px; }
+  .platform-points li::before{ content: "✦"; position: absolute; left: 0; color: var(--accent-text); }
+  .platform-points strong{ color: var(--ink); font-weight: 600; }
+  .platform-games{ margin: 24px 0 0; color: var(--ink-soft); font-size: 15px; max-width: 80ch; }
+  .platform-link{ margin-top: 20px; }
+  @media (max-width: 760px){
+    /* Телефон: экран зала во всю ширину, телефон и пульт — рядом ниже. */
+    .platform-shots{ grid-template-columns: 1fr 1fr; gap: 14px; }
+    .platform-shot--hall{ grid-column: 1 / -1; }
+    .platform-shot figcaption{ font-size: 13px; }
+    .platform-points{ grid-template-columns: 1fr; }
+    .platform-link{ display: flex; }
+  }
+
+  /* Отметка «с телефонов» на плитке формата; в списке под кнопкой подпись раздела уже есть. */
+  .format-phone{
+    font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 500; color: var(--green-text);
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; margin-top: 2px;
+  }
+  .more-formats-wrap .format-tag-chip{ display: none; }
+
+  /* Частые вопросы: <details>, вопрос — строка ≥ 44px. */
+  .faq-list{ display: flex; flex-direction: column; max-width: 760px; }
+  .faq-item{ border-bottom: 1px solid var(--line); }
+  .faq-item summary{
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    min-height: 56px; padding: 12px 0; font-size: 16px; font-weight: 500; color: var(--ink);
+  }
+  .faq-item summary::-webkit-details-marker{ display: none; }
+  .faq-item summary::after{ content: "+"; flex: none; font-size: 22px; line-height: 1; color: var(--accent-text); transition: transform .25s ease; }
+  .faq-item[open] summary::after{ transform: rotate(45deg); }
+  .faq-item summary:focus-visible{ outline: 3px solid var(--btn-outline); outline-offset: 2px; border-radius: 8px; }
+  .faq-item p{ margin: 0 0 18px; color: var(--ink-soft); font-size: 15px; max-width: 70ch; }
+
+  /* Заявка: необязательные поля свёрнуты в «Дополнительно». */
+  .form-more{ border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+  .form-more summary{ cursor: pointer; min-height: 48px; display: flex; align-items: center; font-size: 14px; color: var(--accent-text); }
+  .form-more summary:focus-visible{ outline: 3px solid var(--btn-outline); outline-offset: 2px; border-radius: 8px; }
+  .form-more__body{ display: flex; flex-direction: column; gap: 14px; padding: 4px 0 16px; }
+
+  /* Калькулятор на компьютере: настройки слева, итог справа и не уезжает при прокрутке. */
+  @media (min-width: 1025px){
+    .calc-box{ max-width: 960px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 40px; align-items: start; }
+    .calc-result{ position: sticky; top: 96px; }
+    .calc-result .calc-breakdown{ border-top: none; padding-top: 0; margin-top: 0; }
+  }
+
+  /* «Задать вопрос» на телефоне: пока виден первый экран или форма заявки — спрятана (js/script.js). */
+  @media (max-width: 760px){
+    .ask-fab.is-away{ opacity: 0; transform: translateY(16px); pointer-events: none; }
+  }
+  body:has(.ask-panel.open) .ask-fab.is-away{ opacity: 1; transform: none; pointer-events: auto; }
 
   .ripple-layer{
     position: fixed;

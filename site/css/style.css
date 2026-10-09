@@ -1191,8 +1191,19 @@
   .faq-item p{ margin: 0 0 18px; color: var(--ink-soft); font-size: 15px; max-width: 70ch; }
 
   /* Заявка: необязательные поля свёрнуты в «Дополнительно». */
-  .form-more{ border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
-  .form-more summary{ cursor: pointer; min-height: 48px; display: flex; align-items: center; font-size: 14px; color: var(--accent-text); }
+  /* Явно раскрывающийся блок: контур как у вторичной кнопки, подсказка «Нажмите» и стрелка. */
+  .form-more{ border: 1.5px solid var(--btn-outline); border-radius: 14px; padding: 0 16px; background: var(--bg-alt); }
+  .form-more summary{ cursor: pointer; min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; padding: 8px 0; }
+  .form-more summary::-webkit-details-marker{ display: none; }
+  .form-more__text{ display: flex; flex-direction: column; gap: 2px; }
+  .form-more__title{ font-size: 15px; font-weight: 600; color: var(--ink); }
+  .form-more__hint{ font-size: 13px; color: var(--accent-text); }
+  .form-more[open] .form-more__hint{ display: none; }
+  .form-more__arrow{
+    flex: none; width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--btn-primary-bg); color: var(--btn-primary-text); font-size: 18px; line-height: 1; transition: transform .25s ease;
+  }
+  .form-more[open] .form-more__arrow{ transform: rotate(180deg); }
   .form-more summary:focus-visible{ outline: 3px solid var(--btn-outline); outline-offset: 2px; border-radius: 8px; }
   .form-more__body{ display: flex; flex-direction: column; gap: 14px; padding: 4px 0 16px; }
 

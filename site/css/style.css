@@ -766,7 +766,9 @@
   }
   .consent-row{ min-height: 44px; cursor: pointer; }
   .consent-row input{ width: 20px; height: 20px; margin: 0; accent-color: var(--coral); flex-shrink: 0; }
-  .privacy-link{ color: var(--accent-text); text-decoration: underline; cursor: pointer; }
+  .privacy-link{ color: var(--accent-text); text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; font: inherit; text-align: left; }
+  .privacy-link:focus-visible{ outline: 3px solid var(--btn-outline); outline-offset: 2px; border-radius: 4px; }
+  footer .privacy-link{ display: inline-flex; align-items: center; min-height: 44px; }
   .calc-toggle{
     display: flex;
     align-items: center;

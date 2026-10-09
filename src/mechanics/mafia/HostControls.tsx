@@ -265,7 +265,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
       return morning(latest.current, content, outcome, roles);
     });
 
-  const action = started ? mafiaPrimary(session) : "deal";
+  const action = started ? mafiaPrimary(session, content.parties) : "deal";
   const players = r.seats.length > 0 ? r.seats.length : participants.filter((p) => p.kind === "player").length + Object.keys(session.leaderboard).filter((id) => !participants.some((p) => p.id === id)).length;
   const back = stage === "podium" ? { change: podiumBack(session) } : mafiaBack(session);
 
@@ -279,6 +279,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
     <div className="stack host-quiz mf-host">
       <p className="eyebrow">
         Мафия · {content.city}
+        {content.parties > 1 || r.party > 1 ? ` · партия ${r.party} из ${Math.max(content.parties, r.party)}` : ""}
         {r.round > 0 ? ` · ${r.mode === "night" ? "ночь" : "день"} ${r.round}` : ""}
         {started ? ` · живых ${r.alive.length} из ${r.seats.length}` : ""}
       </p>
@@ -491,16 +492,32 @@ export function MafiaHostControls({ session, content, answers, participants, con
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || !rolesReady || !r.winner} onClick={() => r.winner && roles && void run(finishGame(session, content, roles, r.winner))}>
             {ACTION_LABELS.finish}
           </button>
+        ) : action === "nextParty" ? (
+          <>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || players < MAFIA_LIMITS.minPlayers} onClick={() => void run(startDeal(session, participants))}>
+              Партия {r.party + 1} из {content.parties}: собрать телефоны
+            </button>
+            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Закончить игру после этой партии?", text: "Сразу награждение по общему счёту.", confirmLabel: "К награждению", run: () => run(hasPodium(session.leaderboard) ? awardNow(session) : null) })}>
+              Закончить и наградить
+            </button>
+          </>
         ) : action === "podium" ? (
-          hasPodium(session.leaderboard) ? (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(awardNow(session))}>
-              {ACTION_LABELS.podium}
-            </button>
-          ) : (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => control.requestFinish()}>
-              Завершить игру
-            </button>
-          )
+          <>
+            {hasPodium(session.leaderboard) ? (
+              <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(awardNow(session))}>
+                {ACTION_LABELS.podium}
+              </button>
+            ) : (
+              <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => control.requestFinish()}>
+                Завершить игру
+              </button>
+            )}
+            {started && r.mode === "over" && (
+              <button type="button" className="btn btn--quiet btn--block" disabled={busy || players < MAFIA_LIMITS.minPlayers} onClick={() => void run(startDeal(session, participants))}>
+                Сыграть ещё партию
+              </button>
+            )}
+          </>
         ) : null}
         {started && !r.winner && r.mode !== "deal" && r.mode !== "over" && stage !== "podium" && (
           <button

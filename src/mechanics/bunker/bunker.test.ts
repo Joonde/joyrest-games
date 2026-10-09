@@ -167,7 +167,7 @@ describe("бункер: ход игры", () => {
     s = applyChange(s, finishBunker(s, content, pairChars), 15);
     expect(R(s).outcome).toMatchObject({ won: true, rebirth: true, beaten: 2 });
     expect(scores(s).p1).toBe(before + content.winPoints);
-    expect(bunkerPrimary(s, content)).toBe("podium");
+    expect(bunkerPrimary(s, { ...content, parties: 1 })).toBe("podium");
   });
 });
 
@@ -255,5 +255,26 @@ describe("бункер: особые условия", () => {
       expect("refusal" in out ? `${sp}: ${out.refusal}` : sp).toBe(sp);
       if (!("refusal" in out)) for (const c of Object.values(out.secrets.chars)) for (const k of CATS) expect(isRef(k, c[k])).toBe(true);
     }
+  });
+});
+
+describe("бункер: несколько партий", () => {
+  it("после итога — следующая партия: все снова в игре, номер партии, очки на месте", () => {
+    let { s, sec, content } = setup({ ...createBunker(), threats: 0, parties: 2 });
+    for (let i = 0; i < 5; i++) s = applyChange(s, startRound(s, content, sec), 3 + i);
+    s = applyChange(s, startVote(s, content, 0), 9);
+    s = applyChange(s, countVotes(s, content, { p1: "p6", p2: "p6" }, sec.chars, rnd), 10);
+    s = applyChange(s, startFinal(s, content, sec), 11);
+    s = applyChange(s, finishBunker(s, content, sec.chars), 12);
+    expect(bunkerPrimary(s, content)).toBe("nextParty");
+    expect(bunkerPrimary(s, { ...content, parties: 1 })).toBe("podium");
+    const before = scores(s);
+    s = applyChange(s, startDeal(s, players), 13);
+    expect(R(s)).toMatchObject({ party: 2, mode: "deal", exiled: [] });
+    expect(R(s).alive).toHaveLength(N);
+    expect(scores(s)).toEqual(before);
+    s = applyChange(s, bunkerBack(s)?.change ?? {}, 14);
+    expect(R(s).party).toBe(1);
+    expect(R(s).outcome).not.toBeNull();
   });
 });

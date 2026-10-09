@@ -39,6 +39,8 @@ export interface Tally {
 
 export interface BunkerResult {
   mode: Mode;
+  /** Номер партии (с 1): за игру можно сыграть несколько, очки копятся. */
+  party: number;
   dealStep: number | null;
   seats: string[];
   alive: string[];
@@ -109,6 +111,7 @@ function parseTally(v: unknown): Tally | null {
 export function emptyResult(): BunkerResult {
   return {
     mode: "deal",
+    party: 1,
     dealStep: null,
     seats: [],
     alive: [],
@@ -173,6 +176,7 @@ export function parseBunkerResult(raw: unknown): BunkerResult {
   const undo = rec(d.undo);
   return {
     mode: MODES.includes(d.mode as Mode) ? (d.mode as Mode) : e.mode,
+    party: typeof d.party === "number" && d.party >= 1 ? Math.floor(d.party) : 1,
     dealStep: typeof d.dealStep === "number" ? d.dealStep : null,
     seats: ids(d.seats),
     alive: ids(d.alive),
@@ -268,12 +272,17 @@ function snapshot(session: Session, r: BunkerResult, scores: Record<string, numb
 
 const q = (step: number, result: BunkerResult): SessionChange["state"] => ({ step, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result });
 
-/** «Собрать телефоны»: телефоны присылают ключи, игроки садятся по порядку входа. */
+/**
+ * «Собрать телефоны»: телефоны присылают ключи, игроки садятся по порядку входа. После финала прошлой
+ * партии — следующая: все снова в игре, новые персонажи и катастрофа, очки остаются.
+ */
 export function startDeal(session: Session, participants: Participant[]): SessionChange {
   const additions = leaderboardAdditions(session.leaderboard, participants, "solo");
   const seats = seatsOf({ ...session, leaderboard: { ...session.leaderboard, ...additions } }, participants);
-  const step = session.state.stage === "ready" ? session.state.step : session.state.step + 1;
-  return { leaderboard: additions, state: q(step, { ...emptyResult(), mode: "deal", seats, alive: seats, dealStep: step }) };
+  const prev = session.state.result === null || session.state.result === undefined ? null : parseBunkerResult(session.state.result);
+  const next = prev !== null && prev.mode === "final" && prev.outcome !== null;
+  const step = next ? session.state.step + 1 : session.state.stage === "ready" ? session.state.step : session.state.step + 1;
+  return { leaderboard: additions, state: q(step, { ...emptyResult(), mode: "deal", party: next ? prev.party + 1 : 1, seats, alive: seats, dealStep: step, undo: next ? snapshot(session, prev) : null }) };
 }
 
 function shuffle<T>(list: T[], random: () => number): T[] {
@@ -543,10 +552,11 @@ export function finishBunker(session: Session, content: BunkerContent, chars: Re
 
 // ——— Главная кнопка ———
 
-export type BunkerAction = "deal" | "dealt" | "round" | "opening" | "nextSpeaker" | "discuss" | "vote" | "count" | "revote" | "moreVote" | "final" | "threat" | "judge" | "outcome" | "podium";
+export type BunkerAction = "deal" | "nextParty" | "dealt" | "round" | "opening" | "nextSpeaker" | "discuss" | "vote" | "count" | "revote" | "moreVote" | "final" | "threat" | "judge" | "outcome" | "podium";
 
 export const ACTION_LABELS: Record<BunkerAction, string> = {
   deal: "Собрать телефоны",
+  nextParty: "Следующая партия",
   dealt: "Раздать карты",
   round: "Раунд",
   opening: "Круг открытия карт",
@@ -591,7 +601,7 @@ export function bunkerPrimary(session: Session, content: BunkerContent): BunkerA
     case "exile":
       return !r.tally?.cancelled && quota(content, r) > 0 ? "moreVote" : afterRound(content, r);
     case "final":
-      if (r.outcome) return "podium";
+      if (r.outcome) return r.party < content.parties ? "nextParty" : "podium";
       if (r.verdicts.some((v) => v === null)) return "judge";
       return r.threatsShown.length < content.threats ? "threat" : "outcome";
   }

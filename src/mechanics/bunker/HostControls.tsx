@@ -255,6 +255,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
 
   const action = started ? bunkerPrimary(session, content) : "deal";
   const players = r.seats.length > 0 ? r.seats.length : seatsOf(session, participants).length;
+  const tableSize = seatsOf(session, participants).length;
   const back = bunkerBack(session);
   const q = started ? quota(content, r) : 0;
   const needSecrets = !secrets || partial;
@@ -317,8 +318,24 @@ export function BunkerHostControls({ session, content, answers, participants, co
         );
       case "outcome":
         return btn(ACTION_LABELS.outcome, () => secrets && void run(finishBunker(session, content, secrets.chars)), needSecrets);
+      case "nextParty":
+        return (
+          <>
+            {btn(`Партия ${r.party + 1} из ${content.parties}: собрать телефоны`, () => void run(startDeal(session, participants)), tableSize < BUNKER_LIMITS.minPlayers || tableSize > BUNKER_LIMITS.maxPlayers)}
+            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Закончить игру после этой партии?", text: "Сразу награждение по общему счёту.", confirmLabel: "К награждению", run: () => run(hasPodium(session.leaderboard) ? awardNow(session) : null) })}>
+              Закончить и наградить
+            </button>
+          </>
+        );
       case "podium":
-        return hasPodium(session.leaderboard) ? btn(ACTION_LABELS.podium, () => void run(awardNow(session))) : btn("Завершить игру", () => control.requestFinish());
+        return (
+          <>
+            {hasPodium(session.leaderboard) ? btn(ACTION_LABELS.podium, () => void run(awardNow(session))) : btn("Завершить игру", () => control.requestFinish())}
+            <button type="button" className="btn btn--quiet btn--block" disabled={busy || tableSize < BUNKER_LIMITS.minPlayers || tableSize > BUNKER_LIMITS.maxPlayers} onClick={() => void run(startDeal(session, participants))}>
+              Сыграть ещё партию
+            </button>
+          </>
+        );
     }
   })();
 
@@ -329,6 +346,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
     <div className="stack host-quiz bk-host">
       <p className="eyebrow">
         Бункер
+        {content.parties > 1 || r.party > 1 ? ` · партия ${r.party} из ${Math.max(content.parties, r.party)}` : ""}
         {r.round > 0 ? ` · раунд ${r.round} из ${content.rounds}` : ""}
         {started && r.mode !== "deal" ? ` · в игре ${r.alive.length}, мест ${r.places}` : ""}
         {started && r.round > 0 && r.mode !== "final" ? ` · изгнать в раунде: ${q}` : ""}

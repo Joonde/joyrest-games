@@ -18,6 +18,8 @@ export interface Death {
 
 export interface MafiaResult {
   mode: MafiaMode;
+  /** Номер партии (с 1): за игру можно сыграть несколько, очки копятся. */
+  party: number;
   /** Номер дня (ночь после него — тот же номер). */
   round: number;
   /** Игроки за столом по порядку: номер игрока = место + 1. */
@@ -84,6 +86,7 @@ export function isRole(value: unknown): value is RoleId {
 export function emptyResult(): MafiaResult {
   return {
     mode: "deal",
+    party: 1,
     round: 0,
     seats: [],
     alive: [],
@@ -124,6 +127,7 @@ export function parseMafiaResult(raw: unknown): MafiaResult {
   const undo = record(d.undo);
   return {
     mode: MODES.includes(d.mode as MafiaMode) ? (d.mode as MafiaMode) : base.mode,
+    party: typeof d.party === "number" && d.party >= 1 ? Math.floor(d.party) : 1,
     round: typeof d.round === "number" ? d.round : 0,
     seats: strings(d.seats),
     alive: strings(d.alive),
@@ -465,20 +469,27 @@ export function nameMap(session: Session, participants: Participant[]): Record<s
   return out;
 }
 
-/** «Собрать телефоны»: телефоны присылают свои ключи, игроки садятся за стол по порядку входа. */
+/**
+ * «Собрать телефоны»: телефоны присылают свои ключи, игроки садятся за стол по порядку входа.
+ * После прошлой партии — следующая: новый шаг, новые роли, очки остаются, «Назад» вернёт итог партии.
+ */
 export function startDeal(session: Session, participants: Participant[]): SessionChange {
   const additions = leaderboardAdditions(session.leaderboard, participants, "solo");
   const board = { ...session.leaderboard, ...additions };
   const seats = seatsOf({ ...session, leaderboard: board }, participants);
+  const prev = session.state.result === null || session.state.result === undefined ? null : parseMafiaResult(session.state.result);
+  const next = prev !== null && prev.mode === "over";
+  const step = next ? session.state.step + 1 : session.state.step;
   return {
     leaderboard: additions,
     state: {
+      step,
       stage: "question",
       startedAt: "server",
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: { ...emptyResult(), mode: "deal", seats, alive: seats, dealStep: session.state.step },
+      result: { ...emptyResult(), mode: "deal", party: next ? prev.party + 1 : 1, seats, alive: seats, dealStep: step, undo: next ? snapshot(session, prev) : null },
     },
   };
 }
@@ -630,10 +641,10 @@ export function mafiaBack(session: Session): { change: SessionChange; clearAnswe
   };
 }
 
-export type MafiaAction = "deal" | "dealt" | "day" | "vote" | "verdict" | "revote" | "night" | "morning" | "finish" | "podium";
+export type MafiaAction = "deal" | "dealt" | "day" | "vote" | "verdict" | "revote" | "night" | "morning" | "finish" | "nextParty" | "podium";
 
-/** Главная кнопка пульта на каждом этапе. */
-export function mafiaPrimary(session: Session): MafiaAction {
+/** Главная кнопка пульта на каждом этапе. `parties` — сколько партий задано в игре. */
+export function mafiaPrimary(session: Session, parties = 1): MafiaAction {
   const r = parseMafiaResult(session.state.result);
   if (session.state.stage === "podium") return "podium";
   if (session.state.result === null || session.state.result === undefined) return "deal";
@@ -648,7 +659,7 @@ export function mafiaPrimary(session: Session): MafiaAction {
   }
   if (r.mode === "night") return "morning";
   if (r.mode === "morning") return r.winner ? "finish" : "day";
-  return "podium";
+  return r.party < parties ? "nextParty" : "podium";
 }
 
 export const ACTION_LABELS: Record<MafiaAction, string> = {
@@ -660,6 +671,7 @@ export const ACTION_LABELS: Record<MafiaAction, string> = {
   revote: "Переголосовать",
   night: "Наступает ночь",
   morning: "Наступает утро",
-  finish: "Открыть роли — итог игры",
+  finish: "Открыть роли — итог партии",
+  nextParty: "Следующая партия",
   podium: "Награждение",
 };

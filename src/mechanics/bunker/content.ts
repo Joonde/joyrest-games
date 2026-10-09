@@ -27,6 +27,8 @@ export interface BunkerContent {
   /** Очки: каждому, кто пережил раунд, и каждому спасшемуся при победе бункера. */
   roundPoints: number;
   winPoints: number;
+  /** Партий за игру: после финала — «Следующая партия», новые персонажи и катастрофа, очки копятся. */
+  parties: number;
 }
 
 export const BUNKER_LIMITS = { minPlayers: 4, maxPlayers: 16, maxSeconds: 300, maxPoints: 1000, bunkerCards: 5 } as const;
@@ -47,6 +49,7 @@ export function createBunker(): BunkerContent {
     catastrophe: null,
     roundPoints: 10,
     winPoints: 100,
+    parties: 3,
   };
 }
 
@@ -76,6 +79,7 @@ export function parseBunker(raw: unknown): BunkerContent {
     catastrophe: typeof d.catastrophe === "number" && CATASTROPHES.some((c) => c.id === d.catastrophe) ? d.catastrophe : null,
     roundPoints: int(d.roundPoints, b.roundPoints, 0, BUNKER_LIMITS.maxPoints),
     winPoints: int(d.winPoints, b.winPoints, 0, BUNKER_LIMITS.maxPoints),
+    parties: int(d.parties, b.parties, 1, 10),
   };
 }
 

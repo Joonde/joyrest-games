@@ -33,13 +33,14 @@ export function BunkerEditor({ content, onChange, editable }: EditorProps<Bunker
           Случилась катастрофа, мест в бункере — на половину игроков ({BUNKER_LIMITS.minPlayers}–{BUNKER_LIMITS.maxPlayers} человек). У каждого на телефоне тайный персонаж: профессия, биология, здоровье, хобби, багаж и факт{content.specials ? ", плюс особое условие" : ""}. Каждый раунд открывается карта бункера, игроки по очереди открывают по одной карте (в первом — профессию) и доказывают, что нужны. Потом обсуждение и тайное голосование: кого не берём. Ничья — оправдательные речи и переголосование, снова ничья — жребий.
         </p>
         <div className="row board-editor__size">
-          {num("Раундов", "rounds", 3, 7)}
+          {num("Партий за игру", "parties", 1, 10)}
+          {num("Раундов в партии", "rounds", 3, 7)}
           {num("Речь в первом раунде, с", "firstSpeechSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Речь в следующих, с", "speechSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Обсуждение, с (0 — без таймера)", "discussSeconds", 0, 600)}
           {num("Голосование, с", "voteSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Оправдание при ничьей, с", "justifySeconds", 10, BUNKER_LIMITS.maxSeconds)}
-          {num("Пропусков голосования за игру", "skipVotes", 0, 3)}
+          {num("Пропусков голосования за партию", "skipVotes", 0, 3)}
         </div>
         <label className="field">
           Голос изгнанных

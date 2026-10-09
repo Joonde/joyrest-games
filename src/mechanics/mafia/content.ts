@@ -77,6 +77,8 @@ export interface MafiaContent {
   survivorBonus: number;
   /** Название города на экране. */
   city: string;
+  /** Партий за игру: после каждой — «Следующая партия», очки копятся в общий счёт. */
+  parties: number;
 }
 
 export const MAFIA_LIMITS = {
@@ -98,6 +100,7 @@ export function createMafia(): MafiaContent {
     winPoints: 100,
     survivorBonus: 50,
     city: "Палермо",
+    parties: 3,
   };
 }
 
@@ -128,6 +131,7 @@ export function parseMafia(raw: unknown): MafiaContent {
     winPoints: int(d.winPoints, base.winPoints, 0, 1000),
     survivorBonus: int(d.survivorBonus, base.survivorBonus, 0, 1000),
     city: typeof d.city === "string" && d.city.trim() ? d.city.trim().slice(0, MAFIA_LIMITS.city) : base.city,
+    parties: int(d.parties, base.parties, 1, 10),
   };
 }
 

@@ -34,6 +34,12 @@ function Who({ session, r, pid }: { session: Session; r: BunkerResult; pid: stri
   );
 }
 
+/** «Партия 2 из 3» — если партий несколько. */
+function partyOf(content: BunkerContent, r: BunkerResult): string {
+  const total = Math.max(content.parties, r.party);
+  return total > 1 ? `Партия ${r.party} из ${total}` : "";
+}
+
 /** Сколько изгнать в этом раунде (для подписи). */
 function quotaOf(content: BunkerContent, r: BunkerResult): number {
   return quotaNow(r.round, content.rounds, r.alive.length, r.places, r.done);
@@ -97,6 +103,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
             </span>
           ))}
         </div>
+        {started && partyOf(content, r) && <p className="bk-kicker">{partyOf(content, r)}</p>}
         <h2 className="bk-title">Бункер</h2>
         <p className="bk-lead">{started ? `Раздаём карты: ${r.seats.length} ${plural(r.seats.length, "игрок", "игрока", "игроков")}, мест в бункере — ${Math.max(1, Math.floor(r.seats.length / 2))}` : "Катастрофа близко. Мест в бункере — только на половину из вас."}</p>
       </div>
@@ -115,7 +122,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
             <CatastropheCard id={r.catastrophe} years={r.years} places={r.places} area={r.area} />
           </div>
           <div className="bk-stage__text">
-            <p className="bk-kicker">Катастрофа случилась</p>
+            <p className="bk-kicker">{partyOf(content, r) ? `${partyOf(content, r)} · ` : ""}Катастрофа случилась</p>
             <h2 className="bk-title">
               В бункере {r.places} {plural(r.places, "место", "места", "мест")} на {r.seats.length}
             </h2>
@@ -328,7 +335,7 @@ function Final({ session, content, r }: { session: Session; content: BunkerConte
     <div className="bk-screen bk-screen--final">
       {o?.won && <Confetti burst={`bk:${session.state.step}`} />}
       <header className="bk-final__head">
-        <p className="bk-kicker">Двери бункера закрываются</p>
+        <p className="bk-kicker">{partyOf(content, r) ? `${partyOf(content, r)} · ` : ""}Двери бункера закрываются</p>
         <h2 className="bk-title">{o ? (o.won ? "Бункер выжил!" : "Бункер не выжил") : `В бункере: ${r.alive.length} ${plural(r.alive.length, "человек", "человека", "человек")}`}</h2>
         {o && (
           <p className="bk-lead">
@@ -424,7 +431,8 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
 
   const head = (
     <p className="eyebrow">
-      Бункер{seated ? ` · ваш номер ${r.seats.indexOf(pid) + 1}` : ""}
+      Бункер{partyOf(content, r) ? ` · ${partyOf(content, r).toLowerCase()}` : ""}
+      {seated ? ` · ваш номер ${r.seats.indexOf(pid) + 1}` : ""}
       {r.round > 0 && r.mode !== "final" ? ` · раунд ${r.round} из ${content.rounds}` : ""}
     </p>
   );
@@ -518,6 +526,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
       <section className="bk-phone__task">
         <h2>{alive ? (o ? (o.won ? "Вы в бункере — и бункер выжил!" : "Вы в бункере, но бункер не выжил") : "Вы в бункере!") : "Вы остались снаружи"}</h2>
         {!o && <p className="muted">Смотрите на экран: угрозы и итог.</p>}
+        {o && r.party < content.parties && <p className="muted">Скоро следующая партия — новые карты и новая катастрофа. Очки копятся.</p>}
       </section>
     );
   } else if (!alive) {

@@ -407,7 +407,7 @@ describe("тексты и устройство страницы", () => {
   });
 
   it("игры платформы: блок со снимками, плитки 📱, правила, заявка", () => {
-    for (const img of ["platform-hall", "platform-phone", "platform-pult"]) {
+    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "game-board", "game-millionaire", "game-dragon", "game-checkers"]) {
       expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
     }
     const games: [string, string][] = [

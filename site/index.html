@@ -73,6 +73,7 @@
     <nav class="nav-links">
       <a href="#events">Мероприятия</a>
       <a href="#platform">Платформа</a>
+      <a href="#gallery">Игры</a>
       <a href="#services" data-open-section="services">Форматы</a>
       <a href="#calculator">Калькулятор</a>
       <a href="#packages" data-open-section="packages">Пакеты</a>
@@ -91,6 +92,7 @@
   <div class="mobile-panel" id="mobilePanel">
     <a href="#events">Мероприятия</a>
     <a href="#platform">Игры с телефонов</a>
+    <a href="#gallery">Как выглядят игры</a>
     <a href="#services" data-open-section="services">Услуги и форматы</a>
     <a href="#packages" data-open-section="packages">Пакеты</a>
     <a href="#calculator">Калькулятор</a>
@@ -209,10 +211,6 @@
         <img src="img/platform-phone.webp" width="720" height="872" loading="lazy" decoding="async" alt="Телефон гостя: варианты ответа, выбранный ответ и надпись «Ответ принят»">
         <figcaption><strong>Телефон гостя</strong> — вход по QR-коду, без приложений и регистрации.</figcaption>
       </figure>
-      <figure class="platform-shot">
-        <img src="img/platform-pult.webp" width="720" height="938" loading="lazy" decoding="async" alt="Пульт ведущего: вопрос, верный ответ, таймер, сколько команд ответили и кнопка «Показать ответ»">
-        <figcaption><strong>Пульт ведущего</strong> — ведущий свободно ходит по залу и управляет игрой с телефона.</figcaption>
-      </figure>
     </div>
     <ul class="platform-points reveal">
       <li><strong>Без приложений.</strong> Гость сканирует QR-код или вводит код игры из шести цифр.</li>
@@ -222,6 +220,46 @@
     </ul>
     <p class="platform-games reveal">На платформе: классический и авторский квиз, квиз под компанию, «Угадай мелодию», музыкальное лото, «Своя игра», «Кто хочет стать миллионером», «Гонка на выживание», «Бой с драконом», «Давайте знакомиться», Мафия, Бункер, «Правда или действие», танцевальный баттл и шашки. В списке форматов они отмечены 📱.</p>
     <a href="#services" class="hbtn hbtn--secondary platform-link reveal" data-open-section="services">Смотреть форматы</a>
+  </section>
+
+  <!-- «Как выглядят наши игры»: настоящие карточки и экраны зала платформы (site/img/cards-*, game-*). -->
+  <section id="gallery">
+    <div class="section-head reveal">
+      <h2>Как выглядят наши игры</h2>
+      <p>Карточки и экраны — из нашей платформы: их видят гости на телефонах и на большом экране.</p>
+    </div>
+    <div class="gallery-cards reveal">
+      <figure class="gallery-item gallery-item--wide">
+        <div class="gallery-scroll" tabindex="0" role="group" aria-label="Карточки — листайте вбок"><img src="img/cards-mafia.webp" width="1400" height="518" loading="lazy" decoding="async" alt="Карточки «Мафии»: рубашка с логотипом JoyRest и роли Мафия, Комиссар и Доктор с иллюстрациями"></div>
+        <figcaption><strong>Мафия</strong> — роль тайно приходит на телефон: рубашка JoyRest и свой персонаж у каждой роли.</figcaption>
+      </figure>
+      <figure class="gallery-item gallery-item--wide">
+        <div class="gallery-scroll" tabindex="0" role="group" aria-label="Карточки — листайте вбок"><img src="img/cards-bunker.webp" width="1400" height="467" loading="lazy" decoding="async" alt="Карточки «Бункера»: катастрофа «Ядерная зима», профессия, особое условие, карта бункера и рубашка"></div>
+        <figcaption><strong>Бункер</strong> — катастрофа, карты персонажа, особые условия и чертежи бункера.</figcaption>
+      </figure>
+      <figure class="gallery-item gallery-item--wide">
+        <div class="gallery-scroll" tabindex="0" role="group" aria-label="Карточки — листайте вбок"><img src="img/cards-truth.webp" width="1400" height="613" loading="lazy" decoding="async" alt="Карточки «Правды или действия»: рубашка с выбором и лицевые стороны «Правда» и «Действие»"></div>
+        <figcaption><strong>Правда или действие</strong> — гость касается половины карты на телефоне, карточка открывается на экране.</figcaption>
+      </figure>
+    </div>
+    <div class="gallery-grid reveal">
+      <figure class="gallery-item">
+        <img src="img/game-board.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Своей игры»: поле категорий Кино, География, Праздники, Еда со стоимостями вопросов">
+        <figcaption><strong>Своя игра</strong> — поле категорий, «Кот в мешке» и кнопка «кто первый» на телефоне.</figcaption>
+      </figure>
+      <figure class="gallery-item">
+        <img src="img/game-millionaire.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Кто хочет стать миллионером»: вопрос с вариантами и лестницы трёх команд">
+        <figcaption><strong>Кто хочет стать миллионером</strong> — у каждой команды своя лестница и подсказки.</figcaption>
+      </figure>
+      <figure class="gallery-item">
+        <img src="img/game-dragon.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Боя с драконом»: дракон со шкалой здоровья, вопрос и герои команд">
+        <figcaption><strong>Бой с драконом</strong> — герои команд против дракона: вопросы, задания и кубик.</figcaption>
+      </figure>
+      <figure class="gallery-item">
+        <img src="img/game-checkers.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Шашек»: доска, счёт команд и вопрос команде, потерявшей шашку">
+        <figcaption><strong>Шашки</strong> — команда на команду, съели шашку — вопрос этой команде.</figcaption>
+      </figure>
+    </div>
   </section>
 
   <section class="is-collapsible" id="services">

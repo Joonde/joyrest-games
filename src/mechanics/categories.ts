@@ -3,7 +3,7 @@
 // ничего не хранится: новая игра сама попадает в свой раздел.
 import { trackIds, parseContent as parseQuiz } from "./quiz/content";
 
-export type CategoryId = "quiz" | "music" | "tv" | "adventure" | "cards" | "active" | "other";
+export type CategoryId = "quiz" | "music" | "tv" | "adventure" | "cards" | "social" | "active" | "other";
 
 export interface Category {
   id: CategoryId;
@@ -18,7 +18,8 @@ export const CATEGORIES: Category[] = [
   { id: "music", title: "Музыкальные", icon: "🎵", hint: "«Угадай мелодию», музыкальное лото" },
   { id: "tv", title: "Телешоу", icon: "📺", hint: "«Своя игра», «Миллионер», «Гонка на выживание»" },
   { id: "adventure", title: "Приключения и настолки", icon: "🎲", hint: "Настолка, шашки, «Бой с драконом»" },
-  { id: "cards", title: "Карточные игры", icon: "🃏", hint: "«Мафия» и другие игры с тайными картами" },
+  { id: "cards", title: "Карточные игры", icon: "🃏", hint: "«Мафия», «Бункер», «Правда или действие»" },
+  { id: "social", title: "Знакомство и общение", icon: "🤝", hint: "«Давайте знакомиться» — игры, чтобы узнать друг друга" },
   { id: "active", title: "Танцы и активные", icon: "💃", hint: "Танцевальный батл, караоке" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
 ];
@@ -34,6 +35,9 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   dragon: "adventure",
   dance: "active",
   mafia: "cards",
+  truth: "cards",
+  bunker: "cards",
+  story: "social",
 };
 
 /** Квиз про музыку: в названии мелодия, песни, музыка (шаблон «Угадай мелодию» — ещё без треков). */

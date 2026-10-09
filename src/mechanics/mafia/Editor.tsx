@@ -103,6 +103,10 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
         </div>
         <div className="row board-editor__size">
           <label className="field">
+            Партий за игру
+            <ClampedNumber value={content.parties} min={1} max={10} fallback={3} disabled={!editable} onChange={(parties) => onChange({ ...content, parties })} />
+          </label>
+          <label className="field">
             Очки каждому из победившей стороны
             <ClampedNumber value={content.winPoints} min={0} max={1000} fallback={100} disabled={!editable} onChange={(winPoints) => onChange({ ...content, winPoints })} />
           </label>

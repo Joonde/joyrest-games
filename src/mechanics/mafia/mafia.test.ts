@@ -272,3 +272,25 @@ describe("мафия: ход партии на пульте", () => {
     expect(parseMafiaResult(applyChange(over, back!.change, 9).state.result).mode).toBe("verdict");
   });
 });
+
+describe("мафия: несколько партий", () => {
+  it("после итога — следующая партия: новый шаг, номер партии, очки на месте, «Назад» возвращает итог", async () => {
+    const { startDeal: deal, mafiaPrimary: primary, parseMafiaResult: parse, mafiaBack: back } = await import("./logic");
+    const { applyChange: ap, startState: st } = await import("../../core/session");
+    const ps = ["a", "b", "c", "d", "e"].map((id, i) => ({ id, name: id, kind: "player" as const, teamId: null, captainUid: id, joinedAt: i + 1 }));
+    let s = { id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "М", mechanic: "mafia", gameSnapshot: null, themeId: "joyrest", playMode: "solo", screenMode: "laptop", state: { ...st(), phase: "playing" }, leaderboard: {}, createdAt: 0 } as unknown as import("../../data/types").Session;
+    s = ap(s, deal(s, ps), 1);
+    expect(parse(s.state.result).party).toBe(1);
+    s = ap(s, { addScore: {}, state: { stage: "reveal", result: { ...parse(s.state.result), mode: "over", winner: null } } }, 2);
+    s = ap(s, { addScore: { a: 100 } }, 3);
+    expect(primary(s, 3)).toBe("nextParty");
+    expect(primary(s, 1)).toBe("podium");
+    const step = s.state.step;
+    s = ap(s, deal(s, ps), 4);
+    expect(parse(s.state.result)).toMatchObject({ party: 2, mode: "deal", dealStep: step + 1 });
+    expect(s.state.step).toBe(step + 1);
+    expect(s.leaderboard.a?.score).toBe(100);
+    s = ap(s, back(s)?.change ?? {}, 5);
+    expect(parse(s.state.result)).toMatchObject({ party: 1, mode: "over" });
+  });
+});

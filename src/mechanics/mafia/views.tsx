@@ -18,6 +18,12 @@ export type MafiaAnswerValue = { key: string } | { target?: string; check?: stri
 
 const nameOf = (session: Session, pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? "Игрок") : "");
 
+/** «Партия 2 из 3» — если партий несколько. */
+function partyOf(content: MafiaContent, r: MafiaResult): string {
+  const total = Math.max(content.parties, r.party);
+  return total > 1 ? `Партия ${r.party} из ${total}` : "";
+}
+
 function clock(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -171,6 +177,7 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
     main = (
       <>
         <Fan count={r.seats.length} />
+        {partyOf(content, r) && <span className="quiz-screen__badge">{partyOf(content, r)}</span>}
         <h2 className="mf-title">{r.mode === "deal" ? "Раздаём роли…" : "Посмотрите свою роль"}</h2>
         <p className="mf-note">{r.mode === "deal" ? `Телефоны готовы: ${session.state.answered} из ${r.seats.length}` : "Коснитесь карты на телефоне. Никому не показывайте! Мафия знает своих."}</p>
       </>
@@ -253,6 +260,7 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
     main = (
       <>
         {r.winner && <Confetti burst={`mf:${step}`} />}
+        {partyOf(content, r) && <span className="quiz-screen__badge">{partyOf(content, r)} · итог</span>}
         <h2 className="mf-title">{r.winner === "city" ? "Победил город!" : r.winner === "mafia" ? "Победила мафия!" : "Партия окончена"}</h2>
         <ul className="mf-reveal">
           {r.seats.map((p) => {
@@ -479,7 +487,8 @@ export function MafiaPlayerView({ session, content, pid, myAnswer, sending, onAn
 
   const head = (
     <p className="eyebrow">
-      Мафия{seated ? ` · ваш номер ${seatNo}` : ""}
+      Мафия{partyOf(content, r) ? ` · ${partyOf(content, r).toLowerCase()}` : ""}
+      {seated ? ` · ваш номер ${seatNo}` : ""}
       {r.round > 0 && r.mode !== "over" ? ` · ${r.mode === "night" ? "ночь" : "день"} ${r.round}` : ""}
     </p>
   );
@@ -544,6 +553,7 @@ export function MafiaPlayerView({ session, content, pid, myAnswer, sending, onAn
         {head}
         <h2>{r.winner === "city" ? "Победил город!" : r.winner === "mafia" ? "Победила мафия!" : "Партия окончена"}</h2>
         {r.winner && <p className={won ? "success" : "muted"}>{won ? "Ваша сторона победила! 🎉" : "В этот раз не повезло"}</p>}
+        {r.party < content.parties && <p className="muted">Скоро следующая партия — роли раздадут заново. Очки копятся.</p>}
         {role && (
           <div className="mf-phone__card">
             <div className="mf-card is-open mf-card--still">

@@ -432,12 +432,13 @@ describe("тексты и устройство страницы", () => {
     const terms = html.slice(html.indexOf('<section id="terms">'), html.indexOf("</section>", html.indexOf('<section id="terms">')));
     const plain = terms.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     expect(plain).toContain("вместе с перерывами");
-    expect(plain).toContain("разницу нужно доплатить");
+    expect(plain).toContain("каждые начатые 30 минут сверх него оплачиваются по ставке ведущего");
     expect(plain).toContain("Штраф 5 000 ₽");
     expect(plain).toContain("ведущий вправе завершить мероприятие и уехать");
     expect(plain).toContain("Штраф от 20 000 ₽");
     expect(plain).toContain("залог 2 000 ₽");
-    expect(plain).toContain("за день или в день проведения , залог не возвращается");
+    expect(plain).toContain("за 2 дня и раньше , залог возвращаем");
+    expect(plain).toContain("за день или в день проведения — залог не возвращается");
     const form = html.slice(html.indexOf('<form id="leadForm">'), html.indexOf("</form>", html.indexOf('<form id="leadForm">')));
     expect(form).toContain('<input type="checkbox" id="termsAccept" required>');
     expect(form).toContain('<input type="checkbox" id="depositAccept" required>');
@@ -445,9 +446,9 @@ describe("тексты и устройство страницы", () => {
     // Галочка согласия на данные — первая в форме (её читает sendLead), условия — вторая.
     expect(form.indexOf("consent-row")).toBeLessThan(form.indexOf("terms-row"));
     expect(js).toContain("terms: document.getElementById('termsAccept').checked");
-    // Ставка выходного дня — 9 500 ₽/час.
-    expect(js).toContain("isWeekend ? 9500 : 7000");
-    expect(html).toContain("9 500 ₽/час в выходные");
+    // Ставка выходного дня — 8 500 ₽/час.
+    expect(js).toContain("isWeekend ? 8500 : 7000");
+    expect(html).toContain("8 500 ₽/час в выходные");
   });
 
   it("частые вопросы — только факты, без условий бронирования и предоплаты", () => {

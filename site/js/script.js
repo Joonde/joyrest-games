@@ -180,7 +180,7 @@
 
   function recalc(){
     const isWeekend = document.querySelector('input[name="calcDay"]:checked').value === 'weekend';
-    const hourlyRate = isWeekend ? 9500 : 7000; // выходные: +2 500 ₽/час к будням (решение владельца 9 октября 2026)
+    const hourlyRate = isWeekend ? 8500 : 7000; // выходные: 8 500 ₽/час (решение владельца 9 октября 2026)
 
     const hours = parseFloat(calcHours.value);
     calcHoursValue.textContent = hours.toString().replace('.', ',') + ' ч';

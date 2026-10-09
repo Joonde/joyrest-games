@@ -108,6 +108,9 @@
   .logo{
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
     border-radius: 15px;
   }
   /* Пока эмблема первого экрана видна, логотип в шапке скрыт (место сохраняется — кнопки

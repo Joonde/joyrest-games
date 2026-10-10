@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Олимп в движении</title>
-<style>
+<style>[hidden]{display:none!important}
 @font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
 @font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
 @font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
@@ -16,10 +15,8 @@
 @font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
 @font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-700-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
 @font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
-[hidden]{display:none!important}
 </style>
-</head>
-<body>
+<title>Олимп в движении</title>
 <style>
 :root{
   --bg:#08090B; --ink:#FBF6F1; --soft:#B5ABA2; --gold:#E3C68C; --gold2:#F3DFAE; --rose:#C49E96;
@@ -463,6 +460,23 @@ details.ab p{margin:0;font-size:14px;line-height:1.45;color:#E9E1D8}
 .folder .chev{color:var(--soft);transition:transform .2s}
 .folder[open] .chev{transform:rotate(180deg)}
 .item .use{min-width:92px}
+.coin3d{--d:70px;position:relative;width:var(--d);height:var(--d);perspective:calc(var(--d) * 5);border:0;padding:0;background:none;cursor:pointer;flex-shrink:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+.coin3d .spin{position:absolute;inset:0;transform-style:preserve-3d;animation:coinspin 7s cubic-bezier(.45,0,.2,1) infinite}
+.coin3d .cface{position:absolute;inset:0;border-radius:50%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.coin3d .cface svg,.coin3d .cface img{width:100%;height:100%;display:block;object-fit:cover}
+.coin3d .front{transform:translateZ(calc(var(--d) * .04))}
+.coin3d .back{transform:rotateY(180deg) translateZ(calc(var(--d) * .04))}
+.coin3d .cface::after{content:'';position:absolute;inset:-30%;background:linear-gradient(115deg,transparent 42%,rgba(255,250,225,.75) 50%,transparent 58%);animation:coinshine 3.5s ease-in-out infinite;mix-blend-mode:screen}
+.coin3d .rim{position:absolute;inset:1%;border-radius:50%;background:repeating-conic-gradient(#7A5520 0 4deg,#E9C678 4deg 8deg)}
+@keyframes coinspin{0%{transform:rotateY(0deg) rotateX(10deg)}28%{transform:rotateY(0deg) rotateX(-6deg)}46%{transform:rotateY(180deg) rotateX(8deg)}74%{transform:rotateY(180deg) rotateX(-6deg)}92%,100%{transform:rotateY(360deg) rotateX(10deg)}}
+@keyframes coinshine{0%,40%{transform:translateX(-70%)}75%,100%{transform:translateX(70%)}}
+.coin3d.toss .spin{animation:cointoss 1.6s cubic-bezier(.2,.7,.25,1) forwards}
+.coin3d.toss.athena .spin{animation-name:cointossB}
+@keyframes cointoss{0%{transform:translateY(0) rotateX(0) rotateY(0)}40%{transform:translateY(-55%) rotateX(720deg) rotateY(20deg)}100%{transform:translateY(0) rotateX(1440deg) rotateY(0)}}
+@keyframes cointossB{0%{transform:translateY(0) rotateX(0) rotateY(0)}40%{transform:translateY(-55%) rotateX(720deg) rotateY(20deg)}100%{transform:translateY(0) rotateX(1440deg) rotateY(180deg)}}
+@media (prefers-reduced-motion:reduce){.coin3d .spin{animation:none!important}.coin3d .cface::after{display:none}}
+
+body{font-feature-settings:"lnum" 1}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;animation-delay:0s!important;transition-delay:0s!important}
 }
@@ -663,6 +677,7 @@ details.ab p{margin:0;font-size:14px;line-height:1.45;color:#E9E1D8}
         <div class="list"><span>1 Бог</span><span>2 Силы</span><span>3 История</span><span>4 Сумка</span><span>5 Одежда</span></div>
         <button class="okbtn" id="hintOk">Понятно</button>
       </div>
+      <div id="coinDefs"></div>
       <div class="ptoast" id="ptoast" role="status" aria-live="polite"></div>
       <div class="psheet" id="psheet" hidden><div class="psheet-bg" id="psheetBg"></div><div class="psheet-card" role="dialog" aria-modal="true"><span class="grab"></span><div id="psheetBody" style="display:flex;flex-direction:column;gap:12px"></div><button class="close" id="psheetClose">Закрыть</button></div></div>
     </div>
@@ -1110,6 +1125,34 @@ const WEAK={}; Object.keys(STRONG).forEach(a=>STRONG[a].forEach(b=>{(WEAK[b]=WEA
 const BOSS_EL='ice';
 const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG[k].includes(BOSS_EL)?150:STRONG[BOSS_EL].includes(k)?50:100; });
 
+/* ---------- драхма: золотая монета, вращается; Олимп / Афина ---------- */
+const COIN_DEFS='<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>'+
+ '<radialGradient id="cgA" cx="36%" cy="30%" r="78%"><stop offset="0" stop-color="#FFF6D2"/><stop offset=".42" stop-color="#EBCB7C"/><stop offset=".78" stop-color="#B98A3C"/><stop offset="1" stop-color="#6E4C1C"/></radialGradient>'+
+ '<linearGradient id="cgR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF0BE"/><stop offset=".5" stop-color="#D9B262"/><stop offset="1" stop-color="#8C6226"/></linearGradient>'+
+ '<filter id="cEmb" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="1.4" dy="1.8" stdDeviation=".7" flood-color="#4A3010" flood-opacity=".75"/><feDropShadow dx="-.8" dy="-.8" stdDeviation=".4" flood-color="#FFF6D8" flood-opacity=".6"/></filter>'+
+ '<path id="cArc" d="M28 100 A72 72 0 0 1 172 100"/><path id="cArcB" d="M40 112 A60 60 0 0 0 160 112"/></defs></svg>';
+const coinRim=()=>{ let b=''; for(let i=0;i<60;i++){ const a=i*6*Math.PI/180; b+='<circle cx="'+(100+91*Math.cos(a)).toFixed(1)+'" cy="'+(100+91*Math.sin(a)).toFixed(1)+'" r="2.1" fill="#8E6427"/>'; } return '<circle cx="100" cy="100" r="98" fill="url(#cgA)"/>'+b+'<circle cx="100" cy="100" r="85" fill="none" stroke="#9A6E2C" stroke-width="2"/>'; };
+const COIN_OLYMP='<svg viewBox="0 0 200 200" aria-hidden="true">'+coinRim()+
+ '<g filter="url(#cEmb)" fill="url(#cgR)"><path d="M36 146 L66 102 L80 116 L102 74 L124 112 L138 98 L166 146 Z"/>'+
+ '<g transform="translate(102 70)"><path d="M-13 -6 L0 -14 L13 -6 Z"/><rect x="-12" y="-6" width="24" height="2.5"/><rect x="-10" y="-3.5" width="2.6" height="10"/><rect x="-4.4" y="-3.5" width="2.6" height="10"/><rect x="1.8" y="-3.5" width="2.6" height="10"/><rect x="7.4" y="-3.5" width="2.6" height="10"/><rect x="-13" y="6.5" width="26" height="2.5"/></g>'+
+ '<path d="M44 150 Q62 140 80 150 Q98 140 116 150 Q134 140 152 150 L152 156 L44 156 Z" opacity=".9"/></g>'+
+ '<path d="M80 116 L102 74 L96 112 Z M124 112 L138 98 L134 120 Z" fill="#FFF3CC" opacity=".55"/>'+
+ '<text font-family="Cormorant Garamond,Georgia,serif" font-weight="700" font-size="21" letter-spacing="5" fill="#5E3F12"><textPath href="#cArc" startOffset="50%" text-anchor="middle">ΟΛΥΜΠΟΣ</textPath></text>'+
+ '<text x="100" y="176" text-anchor="middle" font-family="Cormorant Garamond,Georgia,serif" font-weight="700" font-size="15" fill="#5E3F12">J✦R</text></svg>';
+const COIN_ATHENA='<svg viewBox="0 0 200 200" aria-hidden="true">'+coinRim()+
+ '<g filter="url(#cEmb)">'+
+ '<path d="M66 58 C 78 28, 130 20, 156 50" fill="none" stroke="#9E7230" stroke-width="13" stroke-linecap="round"/>'+
+ '<path d="M72 50 l-6 -9 M84 38 l-4 -10 M98 31 l-1 -10 M112 29 l2 -10 M126 31 l4 -10 M140 37 l6 -8 M150 45 l8 -6" stroke="#B98A3C" stroke-width="3" stroke-linecap="round"/>'+
+ '<path d="M60 112 C 56 76, 80 54, 112 54 C 138 54, 154 68, 158 88 L 150 100 L 140 96 L 138 108 L 104 110 C 92 112, 80 120, 76 132 Z" fill="url(#cgR)"/>'+
+ '<path d="M138 98 C 143 104 148 110 152 116 L 145 118 C 147 122 146 126 142 128 C 144 132 141 136 135 138 C 128 146 116 150 104 146 L 102 164 L 74 164 L 78 140 C 70 132 64 124 62 114 L 104 110 Z" fill="url(#cgR)"/>'+
+ '<path d="M66 118 c4 8 4 16 -2 22 M72 122 c5 8 5 16 0 22" fill="none" stroke="#8C6226" stroke-width="2.4" stroke-linecap="round"/></g>'+
+ '<path d="M124 104 q6 -3 11 0 q-5 4 -11 0z" fill="#5E3F12"/>'+
+ '<path d="M110 56 C 132 56 148 66 154 84" fill="none" stroke="#FFF3CC" stroke-width="2.4" opacity=".7"/>'+
+ '<g transform="translate(150 150) scale(.55)" filter="url(#cEmb)" fill="url(#cgR)"><ellipse cx="0" cy="6" rx="12" ry="15"/><circle cx="-5" cy="-2" r="5" fill="#FFF3CC"/><circle cx="5" cy="-2" r="5" fill="#FFF3CC"/><circle cx="-5" cy="-2" r="2.2" fill="#5E3F12"/><circle cx="5" cy="-2" r="2.2" fill="#5E3F12"/><path d="M-10 -12 L-6 -6 M10 -12 L6 -6" stroke="#8C6226" stroke-width="2.4"/></g>'+
+ '<text font-family="Cormorant Garamond,Georgia,serif" font-weight="700" font-size="20" letter-spacing="6" fill="#5E3F12"><textPath href="#cArcB" startOffset="50%" text-anchor="middle">ΑΘΗΝΑ</textPath></text></svg>';
+const COIN_IMG_O='<img src="/olymp/img/coin-olymp.jpg" alt="" draggable="false">', COIN_IMG_A='<img src="/olymp/img/coin-athena.jpg" alt="" draggable="false">';
+const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" style="transform:translateZ(calc(var(--d) * '+((i-4)*0.009).toFixed(3)+'))"></i>'; return '<button class="coin3d" id="'+id+'" aria-label="Подбросить драхму"><span class="spin">'+rim+'<span class="cface front">'+COIN_IMG_O+'</span><span class="cface back">'+COIN_IMG_A+'</span></span></button>'; };
+
 /* ---------- 5. телефон игрока: 5 страниц, снаряжение с пересчётом ---------- */
 (function(){
   const P=$('#pages'), N=5, NAMES=['Бог','Силы','История','Сумка','Одежда'];
@@ -1142,14 +1185,14 @@ const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG
   $('#gear').onclick=openSettings;
 
   /* ---- данные ---- */
-  const CAT={"rar": [{"key": "common", "name": "Обычный", "drop": 47.5, "color": "#B5ABA2"}, {"key": "uncommon", "name": "Необычный", "drop": 25, "color": "#A3C2AA"}, {"key": "rare", "name": "Редкий", "drop": 15, "color": "#6FA8D6"}, {"key": "epic", "name": "Эпический", "drop": 7, "color": "#B3AADD"}, {"key": "mythic", "name": "Мифический", "drop": 3.5, "color": "#D98AB8"}, {"key": "legendary", "name": "Легендарный", "drop": 1.5, "color": "#E8875A"}, {"key": "divine", "name": "Божественный", "drop": 0.5, "color": "#F3DFAE"}], "items": [{"id": "head-Венок-rare", "slot": "head", "name": "Благородный венок", "rar": "rare", "rarn": "Редкий", "stats": {"influence": 6, "luck": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "body-Хитон-epic", "slot": "body", "name": "Героический хитон", "rar": "epic", "rarn": "Эпический", "stats": {"influence": 9, "endurance": 4, "speed": 3}, "eff": ["Здоровье +5%"], "src": "Бои и боссы"}, {"id": "feet-Сандалии-uncommon", "slot": "feet", "name": "Искусные сандалии", "rar": "uncommon", "rarn": "Необычный", "stats": {"luck": 4, "speed": 3}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "acc-Браслет-rare", "slot": "acc", "name": "Благородный браслет", "rar": "rare", "rarn": "Редкий", "stats": {"might": 6, "luck": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "head-Шлем-rare", "slot": "head", "name": "Благородный шлем", "rar": "rare", "rarn": "Редкий", "stats": {"endurance": 6, "might": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "head-Капюшон-common", "slot": "head", "name": "Простой капюшон", "rar": "common", "rarn": "Обычный", "stats": {"cunning": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "body-Доспех-uncommon", "slot": "body", "name": "Искусный доспех", "rar": "uncommon", "rarn": "Необычный", "stats": {"endurance": 4, "speed": -1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "cloak-Хламида-epic", "slot": "cloak", "name": "Героическая хламида", "rar": "epic", "rarn": "Эпический", "stats": {"cunning": 9, "luck": 4, "speed": 3}, "eff": ["Уклонение +5%"], "src": "Бои и боссы"}, {"id": "cloak-Гиматий-common", "slot": "cloak", "name": "Простой гиматий", "rar": "common", "rarn": "Обычный", "stats": {"endurance": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "feet-Обмотки-rare", "slot": "feet", "name": "Благородные обмотки", "rar": "rare", "rarn": "Редкий", "stats": {"cunning": 6, "luck": 2, "speed": 5}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "acc-Кольцо-uncommon", "slot": "acc", "name": "Искусное кольцо", "rar": "uncommon", "rarn": "Необычный", "stats": {"luck": 4}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "acc-Амулет-epic", "slot": "acc", "name": "Героический амулет", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 9, "endurance": 4}, "eff": ["Сопротивление стихиям +5%"], "src": "Бои и боссы"}, {"id": "art-Серп Деметры", "slot": "art", "name": "Серп Деметры", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 6}, "eff": ["Лечение союзников +10%; раз за главу показывает скрытого врага"], "src": "Сюжет: «Вечная зима», сцена 1 (крит. удача)"}, {"id": "art-Кольцо Эвра", "slot": "art", "name": "Кольцо Эвра", "rar": "rare", "rarn": "Редкий", "stats": {"speed": 4, "endurance": -3}, "eff": ["Урон Ветром +10%"], "src": "Лавка Гермеса, сундуки"}, {"id": "art-Перо Стимфалиды", "slot": "art", "name": "Перо Стимфалиды", "rar": "uncommon", "rarn": "Необычный", "stats": {"speed": 3}, "eff": ["Урон Ветром +5%"], "src": "Бои: стимфалийские птицы"}, {"id": "art-Факел Гекаты", "slot": "art", "name": "Факел Гекаты", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 8}, "eff": ["Урон Тьмой +10%; видит невидимых"], "src": "Сюжет: перекрёсток трёх дорог"}, {"id": "art-Чаша Гебы", "slot": "art", "name": "Чаша Гебы", "rar": "rare", "rarn": "Редкий", "stats": {"hp": 15}, "eff": ["Нектар в чаше лечит на 20% сильнее"], "src": "Лавка Гермеса, сундуки"}, {"id": "cons-Зелье здоровья", "slot": "cons", "name": "Зелье здоровья", "rar": "common", "rarn": "Обычный", "stats": {}, "eff": ["+40 здоровья (по броску: ×2 … +10)"], "src": "Лавка — 10 драхм, бои"}, {"id": "cons-Амброзия", "slot": "cons", "name": "Амброзия", "rar": "epic", "rarn": "Эпический", "stats": {}, "eff": ["Снимает одно проклятие, без броска"], "src": "Лавка — 40 драхм, сюжет"}, {"id": "cons-Обол", "slot": "cons", "name": "Обол", "rar": "common", "rarn": "Обычный", "stats": {}, "eff": ["Плата Харону: пропуск через Ахерон"], "src": "Бои, сюжет"}]};
+  const CAT={"rar": [{"key": "common", "name": "Обычный", "drop": 50, "color": "#B5ABA2"}, {"key": "uncommon", "name": "Необычный", "drop": 25, "color": "#A3C2AA"}, {"key": "rare", "name": "Редкий", "drop": 15, "color": "#6FA8D6"}, {"key": "epic", "name": "Эпический", "drop": 7, "color": "#B3AADD"}, {"key": "legendary", "name": "Легендарный", "drop": 1.5, "color": "#E8875A"}, {"key": "mythic", "name": "Мифический", "drop": 1, "color": "#D98AB8"}, {"key": "divine", "name": "Божественный", "drop": 0.5, "color": "#F3DFAE"}], "items": [{"id": "head-Венок-rare-0", "slot": "head", "name": "Благородный венок", "rar": "rare", "rarn": "Редкий", "stats": {"influence": 3, "luck": 1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "body-Хитон-epic-0", "slot": "body", "name": "Героический хитон", "rar": "epic", "rarn": "Эпический", "stats": {"influence": 5, "endurance": 2, "speed": 2}, "eff": ["Здоровье +3%"], "src": "Бои и боссы"}, {"id": "feet-Сандалии-uncommon-0", "slot": "feet", "name": "Искусные сандалии", "rar": "uncommon", "rarn": "Необычный", "stats": {"luck": 2, "speed": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "acc-Браслет-rare-0", "slot": "acc", "name": "Благородный браслет", "rar": "rare", "rarn": "Редкий", "stats": {"might": 3, "luck": 1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "head-Шлем-rare-0", "slot": "head", "name": "Благородный шлем", "rar": "rare", "rarn": "Редкий", "stats": {"endurance": 3, "might": 1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "head-Капюшон-common-0", "slot": "head", "name": "Простой капюшон", "rar": "common", "rarn": "Обычный", "stats": {"cunning": 1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "body-Доспех-uncommon-0", "slot": "body", "name": "Искусный доспех", "rar": "uncommon", "rarn": "Необычный", "stats": {"endurance": 2, "speed": -1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "cloak-Хламида-epic-0", "slot": "cloak", "name": "Героическая хламида", "rar": "epic", "rarn": "Эпический", "stats": {"cunning": 5, "luck": 2, "speed": 2}, "eff": ["Уклонение +3%"], "src": "Бои и боссы"}, {"id": "cloak-Гиматий-common-0", "slot": "cloak", "name": "Простой гиматий", "rar": "common", "rarn": "Обычный", "stats": {"endurance": 1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "feet-Обмотки-rare-0", "slot": "feet", "name": "Благородные обмотки", "rar": "rare", "rarn": "Редкий", "stats": {"cunning": 3, "luck": 1, "speed": 3}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "acc-Кольцо-uncommon-0", "slot": "acc", "name": "Искусное кольцо", "rar": "uncommon", "rarn": "Необычный", "stats": {"luck": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "acc-Амулет-epic-0", "slot": "acc", "name": "Героический амулет", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 5, "endurance": 2}, "eff": ["Сопротивление стихиям +3%"], "src": "Бои и боссы"}, {"id": "art-Серп Деметры", "slot": "art", "name": "Серп Деметры", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 4}, "eff": ["Лечение союзников +6%; раз за главу показывает скрытого врага"], "src": "Сюжет: «Вечная зима», сцена 1 (крит. удача)"}, {"id": "art-Кольцо Эвра", "slot": "art", "name": "Кольцо Эвра", "rar": "rare", "rarn": "Редкий", "stats": {"speed": 3, "endurance": -2}, "eff": ["Урон Ветром +5%"], "src": "Лавка Гермеса, сундуки"}, {"id": "art-Перо Стимфалиды", "slot": "art", "name": "Перо Стимфалиды", "rar": "uncommon", "rarn": "Необычный", "stats": {"speed": 2}, "eff": ["Урон Ветром +3%"], "src": "Бои: стимфалийские птицы"}, {"id": "art-Факел Гекаты", "slot": "art", "name": "Факел Гекаты", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 5}, "eff": ["Урон Тьмой +5%; видит невидимых"], "src": "Сюжет: перекрёсток трёх дорог"}, {"id": "art-Чаша Гебы", "slot": "art", "name": "Чаша Гебы", "rar": "rare", "rarn": "Редкий", "stats": {"hp": 8}, "eff": ["Нектар в чаше лечит на 10% сильнее"], "src": "Лавка Гермеса, сундуки"}, {"id": "cons-Зелье здоровья", "slot": "cons", "name": "Зелье здоровья", "rar": "common", "rarn": "Обычный", "stats": {}, "eff": ["+40 здоровья (по броску: ×2 … +10)"], "src": "Лавка — 10 драхм, бои"}, {"id": "cons-Амброзия", "slot": "cons", "name": "Амброзия", "rar": "epic", "rarn": "Эпический", "stats": {}, "eff": ["Снимает одно проклятие, без броска"], "src": "Лавка — 40 драхм, сюжет"}, {"id": "cons-Обол", "slot": "cons", "name": "Обол", "rar": "common", "rarn": "Обычный", "stats": {}, "eff": ["Плата Харону: пропуск через Ахерон"], "src": "Бои, сюжет"}]};
   const RAR={}; CAT.rar.forEach(r=>RAR[r.key]=r);
   const IT={}; CAT.items.forEach(i=>IT[i.id]=i);
   const ID=n=>CAT.items.find(i=>i.name===n).id;
   const STN={might:'Мощь',influence:'Влияние',wisdom:'Мудрость',endurance:'Стойкость',luck:'Удача',cunning:'Хитрость',speed:'Скорость',hp:'Здоровье'};
   const SLOTN={head:'Голова',body:'Тело',cloak:'Плащ',feet:'Ноги',acc:'Аксессуар'};
   const S={
-    base:{might:74,influence:50,wisdom:44,endurance:49,luck:22,cunning:25,speed:100}, alloc:{}, left:2, hp:94, hpBase:118, gold:31,
+    base:{might:77,influence:57,wisdom:46,endurance:50,luck:26,cunning:25,speed:100}, alloc:{}, left:2, hp:94, hpBase:118, gold:31,
     eq:{head:ID('Благородный венок'),body:ID('Героический хитон'),cloak:null,feet:ID('Искусные сандалии'),acc:ID('Благородный браслет'),art:[ID('Серп Деметры'),ID('Кольцо Эвра'),null,null]},
     bag:['Благородный шлем','Простой капюшон','Искусный доспех','Героическая хламида','Простой гиматий','Благородные обмотки','Искусное кольцо','Героический амулет','Перо Стимфалиды','Факел Гекаты','Чаша Гебы'].map(ID),
     cons:[[ID('Зелье здоровья'),2],[ID('Амброзия'),1],[ID('Обол'),3]],
@@ -1249,11 +1292,12 @@ const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG
   const itemRow=(id,act,count)=>{const it=IT[id]; return '<div class="item"><button class="pic" style="--rc:'+RAR[it.rar].color+'" data-open="'+id+'" aria-label="Свойства: '+it.name+'"><span class="ibadge">i</span>'+SV[it.slot]+'</button><div><b>'+it.name+(count>1?' ×'+count:'')+'</b><small>'+rarDot(it.rar)+(Object.keys(it.stats).length?statLine(it.stats):(it.eff[0]||''))+'</small></div>'+act+'</div>';};
   const renderBag=()=>{
     const arts=S.bag.filter(id=>IT[id].slot==='art');
-    $('#pg4').innerHTML='<div class="gold"><div class="coin">'+COIN+'</div><div><b>'+S.gold+'</b><small>драхм · серебро Афин, передать нельзя</small></div></div>'+
+    $('#pg4').innerHTML='<div class="gold">'+coinHTML('drachma')+'<div><b>'+S.gold+'</b><small>драхм · золото Олимпа, передать нельзя<br>коснитесь монеты — подбросить</small></div></div>'+
       '<span class="ptitle">Артефакты · 4 слота</span><div class="slots">'+S.eq.art.map((id,i)=>slotBtn(id,id?IT[id].name.split(' ')[0]:'Слот '+(i+1),SV.art,'art'+i)).join('')+'</div>'+
       '<span class="ptitle">Артефакты в сумке</span>'+(arts.length?arts.map(id=>itemRow(id,'<button class="use" data-equip="'+id+'">Надеть</button>')).join(''):'<p class="sub">Пусто</p>')+
       '<span class="ptitle">Расходники</span>'+S.cons.filter(c=>c[1]>0).map(c=>itemRow(c[0],'<button class="use" data-use="'+c[0]+'">Использовать</button>',c[1])).join('');
     bindItems('#pg4');
+    const cn=$('#drachma'); cn.onclick=()=>{ if(cn.classList.contains('toss')) return; const ath=Math.random()<.5; cn.classList.toggle('athena',ath); cn.classList.add('toss'); sfx('pop'); setTimeout(()=>{ toast('Выпало: '+(ath?'Афина':'Олимп')); sfx('win'); },1600); setTimeout(()=>cn.classList.remove('toss','athena'),3400); };
   };
   /* ---- 5. Одежда ---- */
   const SETS=[{n:'Комплект «Олимпиец»',note:'легендарные вещи',have:0,b2:'+5% опыта',b4:'ультимативный навык заряжается на 15% быстрее'}];
@@ -1297,6 +1341,7 @@ const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG
   document.querySelectorAll('#phoneView [data-god]').forEach(fillEmb);
 })();
 
+document.getElementById('coinDefs').innerHTML=COIN_DEFS;
 /* ---------- запуск ---------- */
 function resize(){ sizeFx(); sizeThree(); }
 addEventListener('resize',resize); new ResizeObserver(resize).observe(stage);

@@ -52,6 +52,15 @@ describe("встроенная музыка экрана зала", () => {
     expect(of(session({ phase: "playing", stage: "question", step: 1, startedAt: 9 }))?.urls).toEqual(["/sounds/super-pick-1.mp3"]);
   });
 
+  it("«Дурак»: тихий фон всю партию, ходы не перезапускают трек", async () => {
+    const { durak } = await import("../../mechanics/durak");
+    const at = (state: Partial<SessionState>) => builtinMusicOf(session(state), durak.music?.(session(state), {} as never) ?? null);
+    const a = at({ phase: "playing", stage: "question", step: 1 });
+    expect(a).toEqual({ key: "durakTable", urls: ["/sounds/durak-table-1.mp3", "/sounds/durak-table-1.mp3"], volume: 0.35 });
+    expect(at({ phase: "playing", stage: "ready", step: 7 })?.key).toBe("durakTable");
+    expect(at({ phase: "playing", stage: "podium", step: 9 })).toBeNull();
+  });
+
   it("файлы на месте: у каждого встроенного трека есть файл", async () => {
     const { existsSync } = await import("node:fs");
     const { SAMPLES } = await import("../live/sound");

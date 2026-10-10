@@ -110,7 +110,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       {/* Прототип «Олимпа» (ветка claude/olymp-proto, только test): статичные страницы /olymp/*.html, не маршрут SPA */}
       <div className="card stack">
         <strong>Олимп — пробная история «Вечная зима»</strong>
-        <p className="muted small">С QR и телефонами гостей: «Библиотека JoyRest» → «Готовые шаблоны» → «Олимп: Вечная зима» (или «Новая игра» → «Олимп») → «Запустить». Ниже — прототип на одном телефоне.</p>
+        <p className="muted small">С QR и телефонами гостей: «Библиотека JoyRest» → «Готовые игры, которых нет в библиотеке» → «Олимп: Вечная зима» (или «Новая игра» → «Олимп») → «Запустить». Ниже — прототип на одном телефоне.</p>
         <div className="actions">
           <a className="btn btn--block" href="/olymp/play.html">Прототип на одном телефоне</a>
           <a className="btn btn--secondary btn--block" href="/olymp.html">Все прототипы «Олимпа»</a>

@@ -1,0 +1,24 @@
+{
+  "id": "CR-charon",
+  "name": "Харон",
+  "type": "guardian",
+  "world": "WD-hades",
+  "rank": "D",
+  "growth_percent": 82,
+  "stats": { "might": 35, "wisdom": 55, "cunning": 45, "influence": 40, "endurance": 50, "luck": 30 },
+  "health": 45,
+  "abilities": [{ "id": "ferry", "text": "Только он может переправить через Стикс" }],
+  "weakness": "Не повезёт без платы — монеты за переправу",
+  "behavior": "bargains",
+  "relation_start": 0,
+  "becomes_enemy_below": -50,
+  "hidden_power": {
+    "_comment": "Скрыто от ведущего и игроков до срабатывания условия",
+    "id": "styx_wrath",
+    "text": "Гнев Стикса: топит лодку, все в ней получают −20 здоровья",
+    "new_rank": "A",
+    "trigger": { "any": [{ "event": "payment_cheated" }, { "relation_below": -50 }] }
+  },
+  "reward": { "default": "pass:WD-hades", "if_relation_above_50": "secret_path:lethe" },
+  "lore": "Древний перевозчик душ. Помнит каждую неоплаченную душу."
+}

@@ -1,0 +1,58 @@
+{
+  "_comment": "Пример формата истории для игрового сервера и конструктора. Фрагмент истории «Вечная зима».",
+  "id": "ST-001",
+  "title": "Вечная зима",
+  "worlds": ["WD-earth", "WD-hades", "WD-beyond"],
+  "threat_start": 2,
+  "duration_min": 120,
+  "players": { "min": 3, "max": 6 },
+  "reward_norm": { "points_per_player": 15, "artifacts_per_group": 2 },
+  "reads_flags": [
+    { "flag": "persephone_captured", "if_set": "start_scene:s5", "if_not": "start_scene:s1" },
+    { "flag": "cerberus_gone", "if_set": "hades_entry_unguarded", "if_not": "hades_entry_guarded" }
+  ],
+  "sets_flags": {
+    "best": ["persephone_saved", "dark_mark_found"],
+    "mid": ["persephone_saved_weakened", "dark_mark_found"],
+    "worst": ["eternal_winter", "dark_mark_found"]
+  },
+  "hooks": ["ST-005", "ST-002"],
+  "roles": [
+    { "id": "demeter_ally", "best_gods": ["GD-14", "GD-25", "GD-07"], "fallback": "любой бог, чьи последователи голодают" },
+    { "id": "suspect", "best_gods": ["GD-13", "GD-11"], "fallback": "любой бог, которого обвиняют королевства" },
+    { "id": "night_walker", "best_gods": ["GD-16", "GD-22", "GD-32"], "fallback": "любой бог с картой ночных троп" }
+  ],
+  "start_scene": "s1",
+  "scenes": [
+    {
+      "id": "s1",
+      "title": "Голодный храм",
+      "world": "WD-earth",
+      "participants": "all",
+      "host_text": "Снег лежит на ступенях храма уже восьмой месяц…",
+      "inserts": [
+        { "if_flag": "prometheus_free", "text": "В храме горит чёрный огонь.", "difficulty_mod": 10 }
+      ],
+      "creatures": ["CR-demeter"],
+      "check": { "stat": "influence", "difficulty": 0 },
+      "outcomes": {
+        "crit_success": { "text": "Деметра отдаёт серп", "points": 5, "artifact": "AR-sickle", "set_flags": ["demeter_trust"], "next": "s2" },
+        "good": { "text": "Рассказывает о видении дочери", "points": 3, "set_flags": ["demeter_trust"], "next": "s2" },
+        "mid": { "text": "Называет только Ахерон", "points": 2, "next": "s2" },
+        "bad": { "text": "Холодна, толпа ворчит", "points": 1, "relation": { "CR-demeter": -10 }, "next": "s2" },
+        "crit_fail": { "text": "Толпа нападает", "points": 0, "stat_change": { "influence": -2 }, "set_flags": ["mob_angry"], "next": "s1b" }
+      }
+    },
+    {
+      "id": "s1b",
+      "title": "Голодная толпа",
+      "type": "battle",
+      "enemies": [{ "creature": "CR-mob", "count": 1 }],
+      "goal": "survive_3_turns",
+      "next": "s2"
+    }
+  ],
+  "bridges_out": [
+    { "to": "ST-005", "text": "На шкуре пожирателя — отпечаток лапы с тремя когтями…" }
+  ]
+}

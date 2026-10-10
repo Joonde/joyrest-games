@@ -73,7 +73,8 @@ export interface ScoreContext {
 }
 
 /** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */
-export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight";
+/** `dragonLobby` и `dragonBattle` — один трек: громко в лобби, тихо фоном боя (громкость — `BUILTIN_VOLUME`). */
+export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight" | "dragonLobby" | "dragonBattle";
 
 /**
  * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.

@@ -6,6 +6,8 @@ import { pauseMusic, playBuiltinMusic, playMusic, setMix, stopBuiltinMusic, stop
 export interface BuiltinMusic {
   key: string;
   urls: string[];
+  /** Громкость 0…1 (по умолчанию 1): например, тихий фон боя с драконом. */
+  volume?: number;
 }
 
 /**
@@ -36,6 +38,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
   const builtinKey = builtin && builtin.urls.length > 0 ? builtin.key : null;
   const builtinUrls = useRef<string[]>([]);
   builtinUrls.current = builtin?.urls ?? [];
+  const builtinVolume = builtin?.volume ?? 1;
   const hostPlaying = Boolean(trackId && rev && playing);
 
   // Встроенная музыка: только пока своя музыка ведущего не играет.
@@ -45,13 +48,13 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       return;
     }
     let cancelled = false;
-    void playBuiltinMusic(builtinKey, builtinUrls.current).then((ok) => {
+    void playBuiltinMusic(builtinKey, builtinUrls.current, builtinVolume).then((ok) => {
       if (!cancelled) setBlocked(!ok);
     });
     return () => {
       cancelled = true;
     };
-  }, [builtinKey, hostPlaying, attempt]);
+  }, [builtinKey, builtinVolume, hostPlaying, attempt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +114,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       window.setTimeout(() => {
         const own = trackId && rev && playing ? urls.current.get(trackId) : undefined;
         if (!own && builtinKey) {
-          void playBuiltinMusic(builtinKey, builtinUrls.current).then((ok) => ok && setBlocked(false));
+          void playBuiltinMusic(builtinKey, builtinUrls.current, builtinVolume).then((ok) => ok && setBlocked(false));
           return;
         }
         if (!own) return;

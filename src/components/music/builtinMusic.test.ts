@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
+import { dragon } from "../../mechanics/dragon";
 import { quiz } from "../../mechanics/quiz";
 import { newQuestion, type QuizContent } from "../../mechanics/quiz/content";
 import { builtinMusicOf } from "./builtinMusic";
@@ -50,6 +51,24 @@ describe("встроенная музыка экрана зала", () => {
   it("суперигра: заставка без музыки вопроса, выбор уровня — своя музыка", () => {
     expect(of(session({ phase: "playing", stage: "ready", step: 1 }))).toBeNull();
     expect(of(session({ phase: "playing", stage: "question", step: 1, startedAt: 9 }))?.urls).toEqual(["/sounds/super-pick-1.mp3"]);
+  });
+
+  it("бой с драконом: громко в лобби, тихим фоном весь бой без перезапуска, на награждении — тишина", () => {
+    const d = (state: Partial<SessionState>) => {
+      const s = { ...session(state), mechanic: "dragon" } as Session;
+      return builtinMusicOf(s, dragon.music?.(s, null as never) ?? null);
+    };
+    const lobby = d({ phase: "lobby" });
+    expect(lobby).toEqual({ key: "dragonLobby", urls: ["/sounds/dragon-battle-1.mp3", "/sounds/dragon-battle-1.mp3"], volume: 1 });
+    const a = d({ phase: "playing", stage: "ready", step: 0 });
+    const b = d({ phase: "playing", stage: "question", step: 3, startedAt: 7 });
+    expect(a?.key).toBe("dragonBattle");
+    expect(b?.key).toBe("dragonBattle"); // тот же ключ на всех шагах — трек не начинается заново
+    expect(a?.volume).toBeLessThan(0.5);
+    expect(a?.urls).toEqual(lobby?.urls);
+    expect(d({ phase: "playing", stage: "podium" })).toBeNull();
+    // Перерыв и «Представить команды» главнее музыки дракона.
+    expect(d({ phase: "lobby", teams: { hidden: true, shown: 0 } })?.key).toBe("teams");
   });
 
   it("файлы на месте: у каждого встроенного трека есть файл", async () => {

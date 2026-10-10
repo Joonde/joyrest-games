@@ -3,7 +3,7 @@ import { ELEMENTS, STRONG, d100Of, elementMult, foeXp, hpMaxOf, levelOf, outcome
 import { GODS, abilitiesOf } from "./gods";
 import { FOES, scaledHp } from "./foes";
 import { battleTotals, battleXp, beginTurn, canUse, endTurn, foeAct, godAct, startBattle, turnQueue, type Battle } from "./combat";
-import { exitsOf, validateStory } from "./story";
+import { branchNext, exitsOf, validateStory, visibleOptions } from "./story";
 import { WINTER } from "./winter";
 
 /** Детерминированный «кубик» для тестов. */
@@ -136,6 +136,57 @@ describe("история «Вечная зима»", () => {
     expect(validateStory(WINTER)).toEqual([]);
     expect(WINTER.scenes.filter((s) => s.kind === "end").map((s) => (s.kind === "end" ? s.ending : "")).sort()).toEqual(["bad", "good", "mid"]);
   });
+  it("все пути проходятся до концовки: каждая сцена встречается, у голосований есть выбор", () => {
+    const seen = new Set<string>();
+    const ends = new Set<string>();
+    let paths = 0;
+    let minScenes = Infinity;
+    let maxScenes = 0;
+    let maxFights = 0;
+    const walk = (id: string, flags: string[], scenes: number, fights: number, depth: number): void => {
+      expect(depth).toBeLessThan(60);
+      const scene = WINTER.scenes.find((x) => x.id === id);
+      expect(scene, id).toBeTruthy();
+      if (!scene) return;
+      seen.add(id);
+      const add = (flag?: string) => (flag && !flags.includes(flag) ? [...flags, flag] : flags);
+      const shown = scene.kind === "branch" ? scenes : scenes + 1;
+      switch (scene.kind) {
+        case "end":
+          ends.add(scene.ending);
+          paths++;
+          minScenes = Math.min(minScenes, shown);
+          maxScenes = Math.max(maxScenes, shown);
+          maxFights = Math.max(maxFights, fights);
+          return;
+        case "narrate":
+          return walk(scene.next, add(scene.flag), shown, fights, depth + 1);
+        case "branch":
+          return walk(branchNext(scene, flags), flags, shown, fights, depth + 1);
+        case "check":
+          for (const o of Object.values(scene.outcomes)) walk(o.next ?? scene.next, add(o.flag), shown, fights, depth + 1);
+          return;
+        case "vote": {
+          const options = visibleOptions(scene, flags);
+          expect(options.length).toBeGreaterThanOrEqual(2);
+          for (const o of options) walk(o.next, flags, shown, fights, depth + 1);
+          return;
+        }
+        case "fight":
+          walk(scene.win, flags, shown, fights + 1, depth + 1);
+          walk(scene.lose, flags, shown, fights + 1, depth + 1);
+          return;
+      }
+    };
+    walk(WINTER.start, [], 0, 0, 0);
+    expect([...ends].sort()).toEqual(["bad", "good", "mid"]);
+    expect(WINTER.scenes.filter((x) => !seen.has(x.id)).map((x) => x.id)).toEqual([]);
+    expect(paths).toBeGreaterThan(100);
+    expect(minScenes).toBeGreaterThanOrEqual(14);
+    expect(maxScenes).toBeLessThanOrEqual(30);
+    expect(maxFights).toBeLessThanOrEqual(5);
+  });
+
   it("есть узел, где ветки сходятся", () => {
     const into = WINTER.scenes.filter((s) => exitsOf(s).includes("acheron"));
     expect(into.length).toBeGreaterThanOrEqual(2);

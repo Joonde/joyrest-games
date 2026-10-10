@@ -44,6 +44,10 @@ interface SceneBase {
 export interface NarrateScene extends SceneBase {
   kind: "narrate";
   next: string;
+  /** Драхмы отряду при входе в сцену (минус — плата). */
+  coins?: number;
+  /** Флаг Саги при входе в сцену. */
+  flag?: string;
 }
 
 export interface CheckScene extends SceneBase {

@@ -448,6 +448,10 @@ function enter(r: OlympResult, sceneId: string, content: OlympContent): void {
     const pids = r.order.filter((p) => r.party[p]);
     r.check = { who: pids.length > 0 ? (pids[r.turn % pids.length] as string) : null, roll: null, mod: 0, outcome: null, chips: [] };
   }
+  if (scene.kind === "narrate") {
+    if (scene.flag && !r.flags.includes(scene.flag)) r.flags.push(scene.flag);
+    if (scene.coins) giveCoins(r, scene.coins, `${scene.id}_${r.seq}`);
+  }
   if (scene.kind === "vote") {
     const visible = visibleOptions(scene, r.flags);
     r.vote = { options: visible.map((o) => scene.options.indexOf(o)), tally: visible.map(() => 0), picked: null, tie: false };

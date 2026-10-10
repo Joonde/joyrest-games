@@ -372,7 +372,7 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
 
   return (
     <div className={`ol-screen ol-place--${place?.id ?? "olympus"}`}>
-      <Weather kind={r.phase === "fight" || r.phase === "fightEnd" ? "snow" : (place?.weather ?? "snow")} />
+      <Weather kind={place?.weather ?? "snow"} />
       {main}
       {r.order.length > 0 && r.phase !== "pick" && (
         <ul className="ol-party">

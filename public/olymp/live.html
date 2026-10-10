@@ -35,6 +35,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Jost,system-ui,s
 .snd[aria-pressed="true"]{background:rgba(227,198,140,.15)}
 .stage{position:relative;width:min(100%, calc((100vh - 182px) * 16 / 9));min-width:min(100%,320px);aspect-ratio:16/9;margin:0 auto;border-radius:18px;overflow:hidden;container-type:size;background:#0d0f13;isolation:isolate;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .hint{display:none;text-align:center;color:var(--soft);font-size:14px}
+.hint[hidden]{display:none!important}
 @media (orientation:portrait) and (max-width:700px){.hint{display:block}}
 @media (orientation:landscape) and (max-height:520px){
   body{padding-block:8px}
@@ -274,7 +275,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Jost,system-ui,s
 .dotsrow{display:flex;align-items:center;justify-content:center;gap:10px;padding:2px 0}
 .edge{width:44px;height:44px;border-radius:12px;border:1px solid rgba(227,198,140,.3);background:transparent;color:var(--gold2);font:600 22px/1 Jost,system-ui,sans-serif;cursor:pointer;display:grid;place-items:center}
 .edge[disabled]{opacity:.2;cursor:default}
-.pnav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid rgba(227,198,140,.18);background:rgba(10,9,7,.92)}
+.pnav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid rgba(227,198,140,.18);background:rgba(10,9,7,.92)}
 .pnav button{min-height:62px;background:none;border:0;color:var(--soft);font:500 11px Jost,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative;white-space:nowrap}
 .pnav button svg{width:21px;height:21px}
 .pnav button[aria-current="true"]{color:var(--gold2)}
@@ -343,11 +344,50 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Jost,system-ui,s
 .feed{display:flex;flex-direction:column;gap:6px;border-top:1px dashed rgba(158,195,214,.25);padding-top:10px}
 .feed div{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:13px;color:#E9E1D8}
 .feed time{color:var(--soft);font-variant-numeric:tabular-nums}
+.feed{max-height:340px;overflow-y:auto}
+.feed .ev,.lastev .ev{display:grid;grid-template-columns:24px 40px 1fr;gap:8px;align-items:start;font-size:13px;line-height:1.4;color:#E9E1D8}
+.ev span:last-child{min-width:0;overflow-wrap:break-word}
+.ev b{font-weight:600;color:#FBF6F1}
+.evi{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;color:var(--evc);background:color-mix(in srgb,var(--evc) 18%,transparent)}
+.ev time{color:var(--soft);font-variant-numeric:tabular-nums;padding-top:2px}
+.ev-curse span:last-child{color:#F0C2B6}
+.ev-idea span:last-child{font-style:italic}
+.lastev{display:flex;flex-direction:column;gap:6px;border-top:1px dashed rgba(158,195,214,.25);padding-top:10px}
+.lastev .lk{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.evf{display:flex;flex-wrap:wrap;gap:6px}
+.evf button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid rgba(158,195,214,.3);background:none;color:#CFE3EE;font:500 13px Jost,system-ui,sans-serif;cursor:pointer}
+.evf button[aria-pressed="true"]{background:#CFE3EE;color:#221E1B;border-color:#CFE3EE}
+.pnav button{font-size:10.5px}
+.pnav .badge{position:absolute;top:5px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#E3AA9C;color:#221E1B;font:700 10px/17px Jost,system-ui,sans-serif;text-align:center}
+.jsum{border:1px solid rgba(227,198,140,.3);background:rgba(227,198,140,.06);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.jsum .jt{font:700 18px 'Cormorant Garamond',serif;color:var(--gold2)}
+.jnums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;text-align:center}
+.jnums b{display:block;font:700 22px 'Cormorant Garamond',serif;font-variant-numeric:lining-nums tabular-nums}
+.jnums small{display:block;font-size:10.5px;line-height:1.25;color:var(--soft)}
+.jsearch input{width:100%;min-height:48px;border-radius:12px;border:1px solid rgba(158,195,214,.35);background:rgba(10,9,7,.5);color:var(--ink);padding:0 14px;font:400 15px Jost,system-ui,sans-serif}
+.jsearch input::placeholder{color:#8F857C}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.jscroll{position:relative;flex-wrap:nowrap;overflow-x:auto;margin:0 -18px;padding:0 18px 2px;scrollbar-width:none}
+.jscroll::-webkit-scrollbar{display:none}
+.jscroll button{flex:0 0 auto}
+.jsel{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.jsel label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.jsel span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.jsel select{min-height:44px;width:100%;border-radius:12px;border:1px solid rgba(158,195,214,.35);background:rgba(10,9,7,.5);color:var(--ink);padding:0 10px;font:500 14px Jost,system-ui,sans-serif}
+.jsum{padding:10px 12px;gap:6px}.jsum .jt{font-size:16px}.jnums b{font-size:20px}
+.jl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.jcount{font-size:12px;color:var(--soft);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.jcount .linkbtn{min-height:32px}
+.feed .jsc{display:block}
+.jsc{font:600 11px Jost,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);padding-top:8px;border-top:1px solid rgba(227,198,140,.15)}
+.jsc:first-child{border-top:0;padding-top:0}
+.jempty{padding:24px 0;text-align:center;color:var(--soft)}
+#pg6 .feed{max-height:none;overflow:visible;border-top:0;padding-top:0}
 .pts{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(227,198,140,.12);border:1px solid rgba(227,198,140,.5);border-radius:14px;padding:10px 14px;font-size:14px}
 .pts b{font:700 26px 'Cormorant Garamond',serif;color:var(--gold2)}
 .statrow{display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(251,246,241,.06)}
 .statrow .nm{font-size:15px;min-width:0}
-.statrow .nm small{display:block;color:var(--soft);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statrow .nm small{display:block;color:var(--soft);font-size:12px;line-height:1.35;text-wrap:pretty}
 .statrow .val{font:700 22px 'Cormorant Garamond',serif;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
 .statrow .val.up{color:var(--green);animation:popin .4s}
 .pplus{width:44px;height:44px;border-radius:12px;border:1.5px solid var(--gold);background:transparent;color:var(--gold2);font:600 22px Jost,system-ui,sans-serif;cursor:pointer}
@@ -383,7 +423,7 @@ details.ab p{margin:0;font-size:14px;line-height:1.45;color:#E9E1D8}
 .facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
 .facts dt{color:var(--soft)} .facts dd{margin:0}
 /* сумка и одежда */
-.gold{display:flex;align-items:center;gap:14px;background:linear-gradient(160deg,rgba(227,198,140,.16),rgba(227,198,140,.04));border:1px solid rgba(227,198,140,.4);border-radius:16px;padding:14px}
+.gold{display:flex;align-items:center;gap:14px;margin-top:36px;background:linear-gradient(160deg,rgba(227,198,140,.16),rgba(227,198,140,.04));border:1px solid rgba(227,198,140,.4);border-radius:16px;padding:14px}
 .coin{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F7E6B8,#C9A15F 60%,#7a5a22);display:grid;place-items:center;font:700 20px 'Cormorant Garamond',serif;color:#3a2a10;box-shadow:inset 0 0 0 3px rgba(122,90,34,.6)}
 .gold b{font:700 34px/1 'Cormorant Garamond',serif;color:var(--gold2)}
 .gold small{display:block;color:var(--soft);font-size:12px}
@@ -462,7 +502,7 @@ details.ab p{margin:0;font-size:14px;line-height:1.45;color:#E9E1D8}
 .item .use{min-width:92px}
 .coin3d{--d:70px;position:relative;width:var(--d);height:var(--d);perspective:calc(var(--d) * 5);border:0;padding:0;background:none;cursor:pointer;flex-shrink:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
 .coin3d .spin{position:absolute;inset:0;transform-style:preserve-3d;animation:coinspin 7s cubic-bezier(.45,0,.2,1) infinite}
-.coin3d .cface{position:absolute;inset:0;border-radius:50%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.coin3d .cface{position:absolute;inset:0;border-radius:50%;overflow:hidden;clip-path:circle(50% at 50% 50%);-webkit-mask-image:radial-gradient(circle at 50% 50%,#000 69.5%,transparent 70.5%);mask-image:radial-gradient(circle at 50% 50%,#000 69.5%,transparent 70.5%);backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .coin3d .cface svg,.coin3d .cface img{width:100%;height:100%;display:block;object-fit:cover}
 .coin3d .front{transform:translateZ(calc(var(--d) * .04))}
 .coin3d .back{transform:rotateY(180deg) translateZ(calc(var(--d) * .04))}
@@ -660,20 +700,21 @@ body{font-feature-settings:"lnum" 1}
 
   <div class="phonewrap" id="phoneView" hidden>
     <div class="phone" id="phone">
-      <div class="phead"><span class="pnum" id="pnum"><b>1</b>/ 5 · Бог</span><button class="gear" id="gear" aria-label="Настройки телефона"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.3 3h3.4l.5 2.4 1.9.8 2-1.4 2.4 2.4-1.4 2 .8 1.9 2.4.5v3.4l-2.4.5-.8 1.9 1.4 2-2.4 2.4-2-1.4-1.9.8-.5 2.4h-3.4l-.5-2.4-1.9-.8-2 1.4-2.4-2.4 1.4-2-.8-1.9L3 13.7v-3.4l2.4-.5.8-1.9-1.4-2 2.4-2.4 2 1.4 1.9-.8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-      <div class="dotsrow"><button class="edge l" id="prevP" aria-label="Предыдущая страница">‹</button><div class="dots" id="pdots"><i class="on"></i><i></i><i></i><i></i><i></i></div><button class="edge r" id="nextP" aria-label="Следующая страница">›</button></div>
+      <div class="phead"><span class="pnum" id="pnum"><b>1</b>/ 6 · Бог</span><button class="gear" id="gear" aria-label="Настройки телефона"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.3 3h3.4l.5 2.4 1.9.8 2-1.4 2.4 2.4-1.4 2 .8 1.9 2.4.5v3.4l-2.4.5-.8 1.9 1.4 2-2.4 2.4-2-1.4-1.9.8-.5 2.4h-3.4l-.5-2.4-1.9-.8-2 1.4-2.4-2.4 1.4-2-.8-1.9L3 13.7v-3.4l2.4-.5.8-1.9-1.4-2 2.4-2.4 2 1.4 1.9-.8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div class="dotsrow"><button class="edge l" id="prevP" aria-label="Предыдущая страница">‹</button><div class="dots" id="pdots"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><button class="edge r" id="nextP" aria-label="Следующая страница">›</button></div>
       <div class="pages" id="pages">
         <section class="page" aria-label="Бог" id="pg1"></section>
         <section class="page" aria-label="Силы" id="pg2"></section>
         <section class="page" aria-label="История" id="pg3"></section>
         <section class="page" aria-label="Сумка" id="pg4"></section>
         <section class="page" aria-label="Одежда" id="pg5"></section>
+        <section class="page" aria-label="Журнал" id="pg6"></section>
       </div>
       <nav class="pnav" id="pnav" aria-label="Страницы персонажа"></nav>
       <div class="swipehint" id="swipeHint" hidden>
         <div class="hand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v5M12 10V4a1.5 1.5 0 0 1 3 0v6M15 10V6a1.5 1.5 0 0 1 3 0v7a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4a1.5 1.5 0 0 1 2.5-1.6L9 13"/></svg><span class="trail"></span></div>
         <b>Листайте пальцем<br>влево и вправо</b>
-        <p>У вашего бога 5 страниц. Номер страницы — сверху, переключать можно и кнопками внизу.</p>
+        <p>У вашего бога 6 страниц, последняя — журнал всех событий. Номер страницы — сверху, переключать можно и кнопками внизу.</p>
         <div class="list"><span>1 Бог</span><span>2 Силы</span><span>3 История</span><span>4 Сумка</span><span>5 Одежда</span></div>
         <button class="okbtn" id="hintOk">Понятно</button>
       </div>
@@ -1150,24 +1191,29 @@ const COIN_ATHENA='<svg viewBox="0 0 200 200" aria-hidden="true">'+coinRim()+
  '<path d="M110 56 C 132 56 148 66 154 84" fill="none" stroke="#FFF3CC" stroke-width="2.4" opacity=".7"/>'+
  '<g transform="translate(150 150) scale(.55)" filter="url(#cEmb)" fill="url(#cgR)"><ellipse cx="0" cy="6" rx="12" ry="15"/><circle cx="-5" cy="-2" r="5" fill="#FFF3CC"/><circle cx="5" cy="-2" r="5" fill="#FFF3CC"/><circle cx="-5" cy="-2" r="2.2" fill="#5E3F12"/><circle cx="5" cy="-2" r="2.2" fill="#5E3F12"/><path d="M-10 -12 L-6 -6 M10 -12 L6 -6" stroke="#8C6226" stroke-width="2.4"/></g>'+
  '<text font-family="Cormorant Garamond,Georgia,serif" font-weight="700" font-size="20" letter-spacing="6" fill="#5E3F12"><textPath href="#cArcB" startOffset="50%" text-anchor="middle">ΑΘΗΝΑ</textPath></text></svg>';
-const COIN_IMG_O='<img src="/olymp/img/coin-olymp.jpg" alt="" draggable="false">', COIN_IMG_A='<img src="/olymp/img/coin-athena.jpg" alt="" draggable="false">';
+const COIN_IMG_O='<img src="/olymp/img/coin-olymp.webp" alt="" draggable="false">', COIN_IMG_A='<img src="/olymp/img/coin-athena.webp" alt="" draggable="false">';
 const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" style="transform:translateZ(calc(var(--d) * '+((i-4)*0.009).toFixed(3)+'))"></i>'; return '<button class="coin3d" id="'+id+'" aria-label="Подбросить драхму"><span class="spin">'+rim+'<span class="cface front">'+COIN_IMG_O+'</span><span class="cface back">'+COIN_IMG_A+'</span></span></button>'; };
 
-/* ---------- 5. телефон игрока: 5 страниц, снаряжение с пересчётом ---------- */
+/* ---------- 5. телефон игрока: 6 страниц, снаряжение с пересчётом ---------- */
 (function(){
-  const P=$('#pages'), N=5, NAMES=['Бог','Силы','История','Сумка','Одежда'];
+  const P=$('#pages'), N=6, NAMES=['Бог','Силы','История','Сумка','Одежда','Журнал'];
   const NAVIC=[
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="13,2 5,14 11,14 10,22 19,9 13,9"/></svg>',
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>',
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 8h12l-1 13H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 3l4 3 4-3 5 4-3 4-2-1v11H8V10l-2 1-3-4z"/></svg>'];
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 3l4 3 4-3 5 4-3 4-2-1v11H8V10l-2 1-3-4z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h10l3 3v15H6z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg>'];
   $('#pnav').innerHTML=NAMES.map((n,i)=>'<button'+(i?'':' aria-current="true"')+'><em>'+(i+1)+'</em>'+NAVIC[i]+n+'</button>').join('');
   const navB=[...document.querySelectorAll('#pnav button')], dots=[...document.querySelectorAll('#pdots i')];
   let cur=0;
-  const setCur=i=>{cur=i; navB.forEach((b,k)=>b.setAttribute('aria-current',String(k===i))); dots.forEach((d,k)=>d.classList.toggle('on',k===i)); $('#pnum').innerHTML='<b>'+(i+1)+'</b>/ '+N+' · '+NAMES[i]; $('#prevP').disabled=i===0; $('#nextP').disabled=i===N-1;};
+  const setCur=i=>{cur=i; navB.forEach((b,k)=>b.setAttribute('aria-current',String(k===i))); dots.forEach((d,k)=>d.classList.toggle('on',k===i)); $('#pnum').innerHTML='<b>'+(i+1)+'</b>/ '+N+' · '+NAMES[i]; $('#prevP').disabled=i===0; $('#nextP').disabled=i===N-1; if(i===5&&window.__journalSeen) window.__journalSeen();};
   const go=i=>{i=Math.max(0,Math.min(N-1,i)); P.scrollTo({left:i*P.clientWidth,behavior:reduce?'auto':'smooth'}); setCur(i); sfx('pop');};
+  window.__goPage=go;
   navB.forEach((b,i)=>b.onclick=()=>go(i));
+  // Новые события, пока журнал не открыт, — число на вкладке
+  window.__journalSeen=()=>{ S.seen=S.log.length; window.__journalBadge(); };
+  window.__journalBadge=()=>{ const b=navB[5]; if(!b) return; let el=b.querySelector('.badge'); const n=cur===5?0:S.log.length-S.seen; if(n>0){ if(!el){ el=document.createElement('span'); el.className='badge'; b.appendChild(el); } el.textContent=n>9?'9+':n; el.setAttribute('aria-label',n+' новых'); } else if(el) el.remove(); };
   $('#prevP').onclick=()=>go(cur-1); $('#nextP').onclick=()=>go(cur+1);
   let tm, lock=false; P.addEventListener('scroll',()=>{ if(lock||!P.clientWidth) return; clearTimeout(tm); tm=setTimeout(()=>setCur(Math.round(P.scrollLeft/P.clientWidth)),60);});
   new ResizeObserver(()=>{ if(!P.clientWidth) return; lock=true; P.scrollLeft=cur*P.clientWidth; setTimeout(()=>lock=false,120); }).observe(P);
@@ -1199,13 +1245,34 @@ const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" sty
     fx:[
       {n:'Слабость',t:'проклятие',d:'−15 к Мощи',left:'1 ход',neg:1,st:{might:-15}},
       {n:'Яд',t:'проклятие',d:'−8 здоровья в начале хода',left:'2 хода',neg:1},
-      {n:'Рок',t:'проклятие',d:'−10 к следующему броску',left:'1 бросок',neg:1},
-      {n:'Мудрость Афины',t:'благословение',d:'+10 к броскам',left:'2 хода',neg:0}],
-    log:[['19:42','Новый уровень — 4-й!'],['19:41','Победа над стаей: +210 опыта, +31 драхма'],['19:35','Пожиратель наложил «Слабость»']],
-    showAllFx:false, showLog:false
+      {n:'Рок',t:'проклятие',d:'−10 к следующему броску',left:'1 бросок',neg:1,roll:-10,once:1},
+      {n:'Мудрость Афины',t:'благословение',d:'+10 к броскам',left:'2 хода',neg:0,roll:10}],
+    log:[
+      // Журнал: k — вид, who — кто участвует, sc — сцена, d — урон [кто, кому, сколько], h — лечение/щит [кто, кому, сколько]
+      {t:'19:48',k:'fight',sc:'Бой: Пожиратель зимы',who:['Пожиратель','Зевс'],d:['Пожиратель','Зевс',16],x:'<b>Пожиратель зимы</b> → <b>Зевс</b>: «Удар когтем», 16 урона. У Зевса 94 / 122'},
+      {t:'19:47',k:'heal',sc:'Бой: Пожиратель зимы',who:['Гестия','Афина'],h:['Гестия','Афина',24],x:'<b>Гестия</b> вылечила <b>Афину</b>: бросок 64 — средне, +24 здоровья'},
+      {t:'19:47',k:'curse',sc:'Бой: Пожиратель зимы',who:['Пожиратель','Зевс'],x:'<b>Пожиратель зимы</b> наложил на <b>Зевса</b> «Рок»: −10 к следующему броску'},
+      {t:'19:47',k:'curse',sc:'Бой: Пожиратель зимы',who:['Пожиратель','Зевс','Аид'],x:'<b>Пожиратель зимы</b> «Зовёт тени»: на <b>Зевса</b> и <b>Аида</b> «Яд» — −8 здоровья в начале хода, 2 хода'},
+      {t:'19:46',k:'fight',sc:'Бой: Пожиратель зимы',who:['Зевс','Пожиратель'],d:['Зевс','Пожиратель',41],x:'<b>Зевс</b> → <b>Пожиратель зимы</b>: «Разряд» (Молния ×1,5), бросок 78 — хорошо, 41 урон. У босса 184 / 300'},
+      {t:'19:46',k:'heal',sc:'Бой: Пожиратель зимы',who:['Афина','Аид'],h:['Афина','Аид',30],x:'<b>Афина</b> поставила «Эгиду» на <b>Аида</b>: щит 30'},
+      {t:'19:46',k:'heal',sc:'Бой: Пожиратель зимы',who:['Афина','Зевс'],x:'<b>Афина</b> благословила <b>Зевса</b>: «Мудрость Афины», +10 к броскам, 2 хода'},
+      {t:'19:45',k:'fight',sc:'Бой: Пожиратель зимы',who:['Пожиратель','Зевс','Афина','Аид','Гестия'],d:['Пожиратель','все',12],x:'<b>Пожиратель зимы</b> → все: «Ледяной вой», по 12 урона'},
+      {t:'19:45',k:'curse',sc:'Бой: Пожиратель зимы',who:['Пожиратель','Зевс'],x:'<b>Пожиратель зимы</b> наложил на <b>Зевса</b> «Слабость»: −15 к Мощи, 2 хода'},
+      {t:'19:45',k:'fight',sc:'Бой: Пожиратель зимы',who:['Аид','Пожиратель'],d:['Аид','Пожиратель',75],x:'<b>Аид</b> → <b>Пожиратель зимы</b>: «Пламя Тартара» (Огонь ×1,5), бросок 97 — крит. удача, 75 урона. У босса 225 / 300'},
+      {t:'19:44',k:'idea',sc:'Бой: Пожиратель зимы',who:['Аид'],x:'<b>Аид</b>: «Бьём огнём — он ледяной, растает»'},
+      {t:'19:44',k:'start',sc:'Бой: Пожиратель зимы',who:['Пожиратель'],x:'Бой начался: <b>Пожиратель зимы</b>, ранг B, 300 здоровья, 80 драхм, 600 опыта'},
+      {t:'19:40',k:'vote',sc:'Развилка у Элевсина',who:['Зевс','Афина','Аид','Гестия'],x:'Голосование: Храм Деметры — 3, Река Ахерон — 1. Идём к храму'},
+      {t:'19:39',k:'idea',sc:'Развилка у Элевсина',who:['Афина'],x:'<b>Афина</b> предлагает: «Сначала храм — там ответы про Персефону»'},
+      {t:'19:38',k:'idea',sc:'Развилка у Элевсина',who:['Гестия'],x:'<b>Гестия</b> предлагает: «Спросим Гермеса про короткую дорогу»'},
+      {t:'19:36',k:'level',sc:'Бой: стая ледяных волков',who:['Зевс'],x:'<b>Зевс</b>: новый уровень — 4-й! 2 очка характеристик'},
+      {t:'19:35',k:'coin',sc:'Бой: стая ледяных волков',who:['Зевс','Афина','Аид','Гестия'],x:'Победа над стаей: +210 опыта, 31 драхма — <b>Зевсу</b> 9 (бросок 72)'},
+      {t:'19:34',k:'fight',sc:'Бой: стая ледяных волков',who:['Зевс'],d:['Вожак','Зевс',14],x:'Вожак стаи → <b>Зевс</b>: укус, 14 урона'}
+    ].map((e,i,a)=>(e.n=a.length-i,e)),
+    showAllFx:false, jF:'all', jWho:'all', jSort:'new', jQ:'', seen:12
   };
   const now=()=>{const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
-  const addLog=t=>{ S.log.unshift([now(),t]); };
+  const gameT=()=>{ const p=(S.log[0]?S.log[0].t:'19:00').split(':').map(Number); const m=p[0]*60+p[1]+1; return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+  const addLog=(t,k)=>{ S.log.unshift({t:gameT(),k:k||'me',who:['Зевс'],sc:S.log[0]?S.log[0].sc:'',x:'<b>Зевс</b>: '+t,n:(S.log[0]?S.log[0].n:0)+1}); if(typeof renderJournal==='function') renderJournal(); };
   const equipped=()=>[S.eq.head,S.eq.body,S.eq.cloak,S.eq.feet,S.eq.acc,...S.eq.art].filter(Boolean);
   const bonus=k=>{ let it=0,fx=0; equipped().forEach(id=>{it+=IT[id].stats[k]||0;}); S.fx.forEach(f=>{fx+=(f.st&&f.st[k])||0;}); return {it,fx}; };
   const total=k=>S.base[k]+(S.alloc[k]||0)+bonus(k).it+bonus(k).fx;
@@ -1226,16 +1293,17 @@ const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" sty
    '<div class="bars"><div class="bar2"><div class="t"><span>Здоровье</span><b id="hpTxt"></b></div><div class="track"><i id="hpBar" style="background:linear-gradient(90deg,#6E9277,#A3C2AA)"></i></div></div><div class="bar2"><div class="t"><span>Опыт до 5-го уровня</span><b>754 / 1 213</b></div><div class="track"><i style="width:62%;background:linear-gradient(90deg,#C9A15F,#F3DFAE)"></i></div></div></div>'+
    '<div class="infobox" id="statebox"></div><div class="pts" id="ptsBox"></div><div id="statList"></div>';
   const fxIcon=f=>f.neg?'<span class="ic" style="background:rgba(217,138,122,.2)"><svg viewBox="0 0 24 24" fill="none" stroke="#E3AA9C" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6"/></svg></span>':'<span class="ic" style="background:rgba(163,194,170,.2)"><svg viewBox="0 0 24 24" fill="none" stroke="#A3C2AA" stroke-width="2"><path d="M12 20V6M6 12l6-6 6 6"/></svg></span>';
+  const EVK={fight:['⚔','#E8875A','бой'],curse:['☠','#E3AA9C','проклятие'],heal:['✚','#A3C2AA','помощь: лечение, щиты, благословения'],coin:['◉','#E3C68C','награда'],level:['★','#F3DFAE','уровень'],idea:['💡','#CFE3EE','идея игрока'],vote:['✓','#B3AADD','голосование'],start:['⚑','#9EC3D6','начало боя'],me:['•','#B5ABA2','ваше действие']};
+  const evRow=e=>{ const k=EVK[e.k]||EVK.me; return '<div class="ev ev-'+e.k+'"><span class="evi" style="--evc:'+k[1]+'" title="'+k[2]+'" aria-label="'+k[2]+'">'+k[0]+'</span><time>'+e.t+'</time><span>'+e.x+'</span></div>'; };
   const renderState=()=>{
     const list=[...S.fx].sort((a,b)=>b.neg-a.neg); const shown=S.showAllFx?list:list.slice(0,2); const more=list.length-shown.length;
     const neg=list.filter(f=>f.neg).length;
     $('#statebox').innerHTML='<div class="hd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>Состояние<span class="cnt2">'+(neg?neg+' проклят.':'чисто')+'</span></div>'+
       (list.length?shown.map(f=>'<div class="fx">'+fxIcon(f)+'<div><b>'+f.n+'</b><small>'+f.t+' · '+f.d+'</small></div><span class="left">'+f.left+'</span></div>').join(''):'<div class="fx"><span></span><div><small>Эффектов нет</small></div><span></span></div>')+
       (list.length>2?'<button class="linkbtn" id="fxMore">'+(S.showAllFx?'Свернуть':'Ещё '+more+' '+(more===1?'эффект':more<5?'эффекта':'эффектов'))+'</button>':'')+
-      '<button class="linkbtn" id="logBtn" aria-expanded="'+S.showLog+'">'+(S.showLog?'Скрыть события ▴':'События ('+S.log.length+') ▾')+'</button>'+
-      (S.showLog?'<div class="feed">'+S.log.slice(0,20).map(e=>'<div><time>'+e[0]+'</time><span>'+e[1]+'</span></div>').join('')+'</div>':'');
+      '<div class="lastev"><span class="lk">Последнее</span>'+evRow(S.log[0])+'<button class="linkbtn" id="toJournal">Журнал: все события ('+S.log.length+') →</button></div>';
     const m=$('#fxMore'); if(m) m.onclick=()=>{S.showAllFx=!S.showAllFx; renderState();};
-    $('#logBtn').onclick=()=>{S.showLog=!S.showLog; renderState();};
+    $('#toJournal').onclick=()=>window.__goPage(5);
   };
   const renderStats=(changed)=>{
     clampHp(); $('#hpTxt').textContent=S.hp+' / '+hpMax(); $('#hpBar').style.width=(S.hp/hpMax()*100)+'%';
@@ -1243,7 +1311,7 @@ const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" sty
     $('#statList').innerHTML=STD.map(([k,d])=>{const b=bonus(k), add=(S.alloc[k]||0); const parts=[]; if(add) parts.push('<i class="pos">+'+add+' очки</i>'); if(b.it) parts.push('<i class="'+(b.it<0?'neg':'pos')+'">'+sign(b.it)+' вещи</i>'); if(b.fx) parts.push('<i class="'+(b.fx<0?'neg':'pos')+'">'+sign(b.fx)+' эффекты</i>');
       return '<div class="statrow"><div class="nm">'+STN[k]+'<small>'+(parts.length?parts.join(' '):d)+'</small></div><span class="val'+(changed&&changed.includes(k)?' up':'')+'">'+total(k)+'</span><button class="pplus" data-k="'+k+'" aria-label="Добавить к '+STN[k]+'"'+(S.left&&total(k)<100?'':' disabled')+'>+</button></div>';}).join('')+
       '<div class="statrow"><div class="nm">Скорость<small>только от одежды и предметов · '+sign(bonus('speed').it)+' вещи</small></div><span class="val'+(changed&&changed.includes('speed')?' up':'')+'">'+total('speed')+'</span><span class="lock" aria-label="Очки сюда не вкладываются"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></div>';
-    document.querySelectorAll('.pplus').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(!S.left) return; S.alloc[k]=(S.alloc[k]||0)+1; S.left--; sfx('pop'); if(!S.left) addLog('Очки уровня распределены'); renderAll([k]); });
+    document.querySelectorAll('.pplus').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(!S.left) return; S.alloc[k]=(S.alloc[k]||0)+1; S.left--; sfx('pop'); if(!S.left) addLog('распределил очки уровня','level'); renderAll([k]); });
   };
 
   /* ---- 2. Силы ---- */
@@ -1297,7 +1365,7 @@ const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" sty
       '<span class="ptitle">Артефакты в сумке</span>'+(arts.length?arts.map(id=>itemRow(id,'<button class="use" data-equip="'+id+'">Надеть</button>')).join(''):'<p class="sub">Пусто</p>')+
       '<span class="ptitle">Расходники</span>'+S.cons.filter(c=>c[1]>0).map(c=>itemRow(c[0],'<button class="use" data-use="'+c[0]+'">Использовать</button>',c[1])).join('');
     bindItems('#pg4');
-    const cn=$('#drachma'); cn.onclick=()=>{ if(cn.classList.contains('toss')) return; const ath=Math.random()<.5; cn.classList.toggle('athena',ath); cn.classList.add('toss'); sfx('pop'); setTimeout(()=>{ toast('Выпало: '+(ath?'Афина':'Олимп')); sfx('win'); },1600); setTimeout(()=>cn.classList.remove('toss','athena'),3400); };
+    const cn=$('#drachma'); cn.onclick=()=>{ if(cn.classList.contains('toss')) return; const ath=Math.random()<.5; cn.classList.toggle('athena',ath); cn.classList.add('toss'); sfx('pop'); setTimeout(()=>{ toast('Выпало: '+(ath?'Афина':'Олимп')); sfx('win'); },1600); setTimeout(()=>{ cn.classList.remove('toss','athena'); cn.querySelector('.spin').style.animationDelay=ath?'-3.3s':'0s'; },3400); };
   };
   /* ---- 5. Одежда ---- */
   const SETS=[{n:'Комплект «Олимпиец»',note:'легендарные вещи',have:0,b2:'+5% опыта',b4:'ультимативный навык заряжается на 15% быстрее'}];
@@ -1316,12 +1384,18 @@ const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" sty
   const equip=id=>{ const it=IT[id], b=snap();
     if(it.slot==='art'){ const free=S.eq.art.indexOf(null); if(free<0){ toast('Все 4 слота заняты — сначала снимите артефакт'); return; } S.eq.art[free]=id; }
     else { if(S.eq[it.slot]) S.bag.push(S.eq[it.slot]); S.eq[it.slot]=id; }
-    S.bag=S.bag.filter(x=>x!==id); addLog('Надето: '+it.name); sfx('pop'); toast('Надето: '+it.name); closeSheet(); renderAll(diffStats(b)); };
-  const unequip=id=>{ const w=where(id), b=snap(); if(!w) return; if(w.startsWith('art')) S.eq.art[+w.slice(3)]=null; else S.eq[w]=null; S.bag.push(id); addLog('Снято: '+IT[id].name); sfx('pop'); toast('Снято: '+IT[id].name+' — лежит в сумке'); closeSheet(); renderAll(diffStats(b)); };
+    S.bag=S.bag.filter(x=>x!==id); addLog('надел: '+it.name,'me'); sfx('pop'); toast('Надето: '+it.name); closeSheet(); renderAll(diffStats(b)); };
+  const unequip=id=>{ const w=where(id), b=snap(); if(!w) return; if(w.startsWith('art')) S.eq.art[+w.slice(3)]=null; else S.eq[w]=null; S.bag.push(id); addLog('снял: '+IT[id].name,'me'); sfx('pop'); toast('Снято: '+IT[id].name+' — лежит в сумке'); closeSheet(); renderAll(diffStats(b)); };
   const useItem=id=>{ const c=S.cons.find(x=>x[0]===id); if(!c||!c[1]) return; const it=IT[id];
     if(it.name==='Обол'){ toast('Обол тратится сам на переправе через Ахерон'); return; }
-    if(it.name==='Амброзия'){ const i=S.fx.findIndex(f=>f.neg); if(i<0){ toast('Проклятий нет'); return; } const b=snap(); const n=S.fx[i].n; S.fx.splice(i,1); c[1]--; addLog('Амброзия сняла «'+n+'»'); toast('Снято проклятие «'+n+'»'); closeSheet(); renderAll(diffStats(b)); return; }
-    if(it.name==='Зелье здоровья'){ if(S.hp>=hpMax()){ toast('Здоровье уже полное'); return; } const r=1+Math.floor(Math.random()*100); const heal=r>=96?80:r>=55?60:r>=35?40:r>=6?20:10; const got=Math.min(heal,hpMax()-S.hp); S.hp+=got; c[1]--; addLog('Зелье: бросок '+r+' → +'+got+' здоровья'); toast('Бросок '+r+': +'+got+' здоровья'); closeSheet(); renderAll([]); }
+    if(it.name==='Амброзия'){ const i=S.fx.findIndex(f=>f.neg); if(i<0){ toast('Проклятий нет'); return; } const b=snap(); const n=S.fx[i].n; S.fx.splice(i,1); c[1]--; addLog('амброзия сняла «'+n+'»','heal'); toast('Снято проклятие «'+n+'»'); closeSheet(); renderAll(diffStats(b)); return; }
+    if(it.name==='Зелье здоровья'){ if(S.hp>=hpMax()){ toast('Здоровье уже полное'); return; }
+      // как в бою: d100 + модификаторы эффектов; исход × 40 (крит. удача ×2, хорошо ×1,5, средне ×1, плохо ×0,25, крит. неудача — 0)
+      const raw=1+Math.floor(Math.random()*100), mods=S.fx.filter(f=>f.roll), mod=mods.reduce((m,f)=>m+f.roll,0), r=Math.max(1,Math.min(100,raw+mod));
+      const mul=r>=96?2:r>=75?1.5:r>=55?1:r>=6?0.25:0, out=r>=96?'крит. удача':r>=75?'хорошо':r>=55?'средне':r>=6?'плохо':'крит. неудача';
+      const got=Math.min(Math.round(40*mul),hpMax()-S.hp); S.hp+=got; c[1]--; const used=S.fx.filter(f=>f.once); S.fx=S.fx.filter(f=>!f.once);
+      const how='бросок '+raw+(mods.length?' '+mods.map(f=>(f.roll>0?'+':'−')+Math.abs(f.roll)+' '+f.n).join(' ')+' = '+r:'')+' — '+out;
+      addLog('выпил зелье здоровья: '+how+', +'+got+' здоровья'+(used.length?'. «'+used.map(f=>f.n).join('», «')+'» снят':''),'heal'); toast(how+': +'+got+' здоровья'); closeSheet(); renderAll([]); }
   };
   const openItem=id=>{ const it=IT[id], w=where(id), cons=it.slot==='cons';
     const act=cons?'<button class="okbtn" data-use="'+id+'">Использовать</button>':(w?'<button class="okbtn" data-unequip="'+id+'">Снять</button>':'<button class="okbtn" data-equip="'+id+'">Надеть</button>');
@@ -1336,7 +1410,42 @@ const coinHTML=(id)=>{ let rim=''; for(let i=0;i<9;i++) rim+='<i class="rim" sty
     r.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>useItem(b.dataset.use));
     r.querySelectorAll('[data-empty]').forEach(b=>b.onclick=()=>{ const w=b.dataset.empty; toast(w.startsWith('art')?'Свободный слот: наденьте артефакт из сумки ниже':'Свободно: выберите вещь в гардеробе ниже'); });
   }
-  const renderAll=changed=>{ const open=[...document.querySelectorAll('#pg5 details.folder')].map(d=>d.open); renderState(); renderStats(changed); renderBag(); renderWear(); document.querySelectorAll('#pg5 details.folder').forEach((d,i)=>{ if(open[i]) d.open=true; }); };
+  /* ---- 6. Журнал: все события отряда — фильтры, кто, сортировка, поиск ---- */
+  const JF=[['all','Все'],['fight','Удары'],['curse','Проклятия'],['heal','Помощь'],['coin','Награды'],['idea','Идеи'],['vote','Голоса']];
+  const JWHO=['Зевс','Афина','Аид','Гестия','Пожиратель'];
+  const JS=[['new','Новые сверху'],['old','По порядку'],['imp','Сначала важное']];
+  const IMP={curse:0,level:1,coin:2,fight:3,heal:4,vote:5,idea:6,start:7,me:8};
+  const norm=s=>s.toLowerCase().replace(/<[^>]+>/g,'').replace(/ё/g,'е');
+  const jChips=(arr,cur,attr)=>arr.map(([k,n])=>'<button data-'+attr+'="'+k+'" aria-pressed="'+(cur===k)+'">'+n+'</button>').join('');
+  const renderJournal=()=>{
+    const pg=$('#pg6'); if(!pg) return;
+    const q=norm(S.jQ.trim());
+    let L=S.log.filter(e=>(S.jF==='all'||e.k===S.jF||(S.jF==='fight'&&e.k==='fight'))&&(S.jWho==='all'||e.who.includes(S.jWho))&&(!q||q.split(/\s+/).every(w=>norm(e.x+' '+e.sc+' '+(EVK[e.k]||EVK.me)[2]).includes(w))));
+    L=L.slice().sort(S.jSort==='old'?(a,b)=>a.n-b.n:S.jSort==='imp'?(a,b)=>(IMP[a.k]-IMP[b.k])||(b.n-a.n):(a,b)=>b.n-a.n);
+    // итоги текущего боя для «вас» (Зевс): нанёс, получил, лечение, проклятия
+    const sc=S.log[0].sc, cur=S.log.filter(e=>e.sc===sc);
+    const dealt=cur.reduce((s,e)=>s+(e.d&&e.d[0]==='Зевс'?e.d[2]:0),0), got=cur.reduce((s,e)=>s+(e.d&&(e.d[1]==='Зевс'||e.d[1]==='все')?e.d[2]:0),0);
+    const healed=cur.reduce((s,e)=>s+(e.h?e.h[2]:0),0), curses=cur.filter(e=>e.k==='curse').length;
+    let html='<div class="jsum"><div class="jt">'+sc+'</div><div class="jnums"><div><b>'+dealt+'</b><small>вы нанесли</small></div><div><b>'+got+'</b><small>вы получили</small></div><div><b>'+healed+'</b><small>помощь отряду</small></div><div><b>'+curses+'</b><small>'+(curses%10===1&&curses%100!==11?'проклятие':curses%10>=2&&curses%10<=4&&(curses%100<12||curses%100>14)?'проклятия':'проклятий')+'</small></div></div></div>'+
+      '<label class="jsearch"><span class="sr">Поиск по журналу</span><input id="jq" type="search" placeholder="Поиск: имя, умение, проклятие…" value="'+S.jQ.replace(/"/g,'&quot;')+'"></label>'+
+      '<div class="evf jscroll" role="group" aria-label="Что показать">'+jChips(JF,S.jF,'f')+'</div>'+
+      '<div class="jsel"><label><span>Кто</span><select id="jwho">'+[['all','Все']].concat(JWHO.map(w=>[w,w==='Зевс'?'Зевс (вы)':w])).map(([k,n])=>'<option value="'+k+'"'+(S.jWho===k?' selected':'')+'>'+n+'</option>').join('')+'</select></label>'+
+      '<label><span>Порядок</span><select id="jsort">'+JS.map(([k,n])=>'<option value="'+k+'"'+(S.jSort===k?' selected':'')+'>'+n+'</option>').join('')+'</select></label></div>'+
+      '<div class="jcount">Показано '+L.length+' из '+S.log.length+((S.jF!=='all'||S.jWho!=='all'||S.jQ)?' · <button class="linkbtn" id="jreset">Сбросить</button>':'')+'</div>';
+    if(!L.length) html+='<div class="jempty">Таких событий нет</div>';
+    else if(S.jSort==='imp') html+='<div class="feed">'+L.map(evRow).join('')+'</div>';
+    else { let last=null; html+='<div class="feed">'; L.forEach(e=>{ if(e.sc!==last){ html+='<div class="jsc">'+e.sc+'</div>'; last=e.sc; } html+=evRow(e); }); html+='</div>'; }
+    const had=document.activeElement&&document.activeElement.id==='jq', pos=had?document.activeElement.selectionStart:0;
+    pg.innerHTML=html;
+    const inp=$('#jq'); inp.oninput=()=>{ S.jQ=inp.value; renderJournal(); }; if(had){ inp.focus(); inp.setSelectionRange(pos,pos); }
+    pg.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.jF=b.dataset.f; renderJournal();});
+    $('#jwho').onchange=e=>{S.jWho=e.target.value; renderJournal();};
+    $('#jsort').onchange=e=>{S.jSort=e.target.value; renderJournal();};
+    const sc0=pg.querySelector('.jscroll [aria-pressed="true"]'); if(sc0&&sc0.scrollIntoView) sc0.parentElement.scrollLeft=Math.max(0,sc0.offsetLeft-40);
+    const r=$('#jreset'); if(r) r.onclick=()=>{ S.jF='all'; S.jWho='all'; S.jQ=''; renderJournal(); };
+    window.__journalBadge&&window.__journalBadge();
+  };
+  const renderAll=changed=>{ const open=[...document.querySelectorAll('#pg5 details.folder')].map(d=>d.open); renderState(); renderStats(changed); renderBag(); renderWear(); renderJournal(); document.querySelectorAll('#pg5 details.folder').forEach((d,i)=>{ if(open[i]) d.open=true; }); };
   renderAll([]);
   document.querySelectorAll('#phoneView [data-god]').forEach(fillEmb);
 })();

@@ -83,6 +83,12 @@ section.v{display:flex;flex-direction:column;gap:12px}
 .hp i.low{background:linear-gradient(90deg,#B9786A,#E3AA9C)}
 .log{text-wrap:balance;font:italic 600 1.7cqw 'Cormorant Garamond',serif;color:#E9E1D8}
 .log b{color:var(--gold2);font-style:normal}
+.log .le{display:block;margin-top:.5cqw;font:500 1.15cqw/1.35 Jost,system-ui,sans-serif;font-style:normal;color:#E9E1D8;text-wrap:pretty}
+.log .le.old{opacity:.55}
+.log .le i{font-style:normal;font-weight:600}
+.log .le .dm{color:#F0C2B6}.log .le .hl{color:#A3C2AA}.log .le .cu{color:#E3AA9C}
+@media (prefers-reduced-motion:no-preference){.log .le:not(.old){animation:lein .5s ease-out}}
+@keyframes lein{from{opacity:0;transform:translateY(.6cqw)}}
 
 /* вариант А: лента сверху */
 .tlA{position:absolute;left:50%;top:3cqw;transform:translateX(-50%);display:flex;align-items:center;gap:1.1cqw;padding:1cqw 1.6cqw;border-radius:99px;background:rgba(14,12,18,.7);border:1px solid rgba(227,198,140,.25)}
@@ -250,7 +256,7 @@ section.v{display:flex;flex-direction:column;gap:12px}
 .card b{white-space:nowrap;font-size:16px}
 .card small{font-size:10.5px!important}
 .abt{font-size:13px!important}
-.abt>span{min-width:0;overflow:hidden}
+.abt>span{min-width:0;overflow:hidden;white-space:normal;line-height:1.2;overflow-wrap:normal}
 /* шаги */
 .steps{display:flex;gap:6px;padding:14px 16px 0}
 .steps span{flex:1;height:4px;border-radius:2px;background:rgba(251,246,241,.15)}
@@ -332,7 +338,7 @@ body{font-feature-settings:"lnum" 1}
         <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hades" data-god="hades" style="--s:3.6cqw"><span class="curse">Я</span></div><div class="mini" style="flex:1"><b>Аид · Олег</b><div class="hp"><i class="low" style="width:28%"></i></div><small>34 / 124 · яд</small></div></div>
         <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hestia" data-god="hestia" style="--s:3.6cqw"></div><div class="mini" style="flex:1"><b>Гестия · Дима</b><div class="hp"><i style="width:70%"></i></div><small>72 / 104</small></div></div>
       </div>
-      <p class="log" style="position:absolute;right:3cqw;top:12cqw;width:20cqw;margin:0">Ход <b>Зевса</b>. Аид отравлен&nbsp;— ему осталось недолго.</p>
+      <p class="log" aria-live="polite" style="position:absolute;right:3cqw;top:12cqw;width:22cqw;margin:0">Ходит: <b>Зевс</b></p>
     </div>
   </section>
 
@@ -358,7 +364,7 @@ body{font-feature-settings:"lnum" 1}
         <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hades" data-god="hades" style="--s:3cqw"><span class="curse">Я</span></div><div class="mini" style="flex:1"><b>Аид</b><div class="hp"><i class="low" style="width:28%"></i></div></div></div>
         <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hestia" data-god="hestia" style="--s:3cqw"></div><div class="mini" style="flex:1"><b>Гестия</b><div class="hp"><i style="width:70%"></i></div></div></div>
       </div>
-      <p class="log" id="wheelLog" style="position:absolute;left:3.5cqw;bottom:3.5cqw;width:26cqw;margin:0">Ходит: <b>Зевс</b></p>
+      <p class="log" id="wheelLog" aria-live="polite" style="position:absolute;left:3.5cqw;bottom:3.5cqw;width:26cqw;margin:0">Ходит: <b>Зевс</b></p>
     </div>
   </section>
 
@@ -377,6 +383,7 @@ body{font-feature-settings:"lnum" 1}
         <div class="frow"><span class="num">Δ</span><div class="emb hades" data-god="hades" style="--s:3cqw"><span class="curse">Я</span></div><div class="mini"><b>Аид</b><div class="hp"><i class="low" style="width:28%"></i></div></div></div>
         <div class="frow"><span class="num">Ε</span><div class="emb hestia" data-god="hestia" style="--s:3cqw"></div><div class="mini"><b>Гестия</b><div class="hp"><i style="width:70%"></i></div></div></div>
       </div>
+      <p class="log" aria-live="polite" style="position:absolute;right:3cqw;top:3cqw;width:19cqw;margin:0">Ходит: <b>Зевс</b></p>
       <div class="lb" style="left:40cqw;top:1cqw;width:38cqw"><div class="lb-aura"></div><div class="lb-body"><img src="/olymp/img/boss.jpg" alt="Пожиратель зимы"><div class="lb-eye l"></div><div class="lb-eye r"></div><div class="lb-mark"></div><div class="lb-breath"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="lb-flash"></div></div><div class="lb-mist"></div><div class="lb-wave"></div><span class="lb-dmg">−34</span></div>
       <div style="position:absolute;left:34cqw;right:5cqw;bottom:4cqw" class="hpwide">
         <div class="t"><span class="serif" style="font-size:3cqw;color:#CFE3EE">Пожиратель зимы</span><span>ранг B · <b class="bhp">184</b> / 300</span></div>
@@ -520,14 +527,43 @@ const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG
   document.querySelectorAll('[data-god]').forEach(fill);
   const WHO=['Зевс','Пожиратель','Афина','Аид','Гестия','Пожиратель']; let turn=0;
   const spokes=[...rotor.querySelectorAll('.emb')];
-  if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(()=>{ turn++; rotor.style.setProperty('--rr',(-60*turn)+'deg'); spokes.forEach((e,i)=>e.classList.toggle('cur',i===turn%6)); document.getElementById('wheelLog').innerHTML='Ходит: <b>'+WHO[turn%6]+'</b>'; const g=['zeus','boss','athena','hades','hestia','boss'][turn%6]; document.querySelectorAll('#wheelList .emb').forEach(e=>e.classList.toggle('cur',e.dataset.god===g)); },4000);
+  const advanceWheel=()=>{ rotor.style.setProperty('--rr',(-60*turn)+'deg'); spokes.forEach((e,i)=>e.classList.toggle('cur',i===turn%6)); const g=['zeus','boss','athena','hades','hestia','boss'][turn%6]; document.querySelectorAll('#wheelList .emb').forEach(e=>e.classList.toggle('cur',e.dataset.god===g)); };
   document.querySelectorAll('.seg').forEach(g=>{ const grp=g.dataset.group; g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); document.querySelectorAll('[data-opt^="'+grp+':"]').forEach(el=>el.hidden=el.dataset.opt!==grp+':'+b.dataset.pick); }); });
   const nm=document.getElementById('bossName'); const t=nm.textContent; nm.innerHTML=''; [...t].forEach((c,i)=>{const sp=document.createElement('span'); sp.textContent=c; sp.style.setProperty('--i',i); nm.appendChild(sp);});
 
   const lbs=[...document.querySelectorAll('.lb')]; let flip=0;
   let bossHp=184, dmgNow=0;
+  const EVTS=['Раунд 3. У <i>Пожирателя</i> 184 / 300'];
+  // действующие модификаторы: броня босса (ходов), «Рок» и «Оцепенение» (на следующий бросок), «Проклятие холода» (бросков)
+  const M={armor:0,rok:{},stun:{},cold:{}};
+  const renderLog=()=>document.querySelectorAll('.stage .log').forEach(l=>l.innerHTML=(l.id==='wheelLog'?'Ходит: <b>'+WHO[turn%6]+'</b>':'Журнал боя')+EVTS.slice(0,2).map((e,i)=>'<span class="le'+(i?' old':'')+'">'+e+'</span>').join(''));
+  const say2=t=>{ EVTS.unshift(t); EVTS.length=Math.min(EVTS.length,12); renderLog(); };
+  const GODS=[['Зевс','«Разряд»','Молния ×1,5'],['Афина','«Копьё мудрости»',''],['Аид','«Пламя Тартара»','Огонь ×1,5'],['Гестия','«Жар очага»','Огонь ×1,5']];
+  const OUT=r=>r>=96?'крит. удача':r>=75?'хорошо':r>=55?'средне':r>=6?'плохо':'крит. неудача';
+  const MUL=r=>r>=96?2:r>=75?1.5:r>=55?1:r>=6?0.25:0; // сила по исходу броска, как в правилах
+  let gi=0, bi=0;
+  const BOSS=[
+    ()=>'<i>Пожиратель</i> → все: «Ледяной вой», <span class="dm">по 12 урона</span>',
+    ()=>'<i>Пожиратель</i> → <i>Аид</i>: «Удар когтем», <span class="dm">28 урона</span>',
+    ()=>{ M.cold['Зевс']=2; return '<i>Пожиратель</i> наложил на <i>Зевса</i> <span class="cu">«Проклятие холода»</span>: −10 к броскам, 2 броска'; },
+    ()=>{ const h=Math.min(20,300-bossHp); bossHp+=h; setHp(); return '<i>Пожиратель</i>: «Пожирает душу», <span class="hl">+'+h+' здоровья</span>. У него '+bossHp+' / 300'; },
+    ()=>{ M.armor=2; return '<i>Пожиратель</i>: «Ледяная броня», урон по нему ×0,7 на 2 удара'; },
+    ()=>{ GODS.forEach(g=>M.stun[g[0]]=1); return '<i>Пожиратель</i> → все: <span class="cu">«Оцепенение»</span>, −15 к следующему броску'; },
+    ()=>'<i>Пожиратель</i> «Зовёт тени»: на <i>Зевса</i> и <i>Аида</i> <span class="cu">«Яд»</span>, −8 здоровья в начале хода'];
+  const PREP=[['Ледяной вой','урон всем'],['Удар когтем','урон одному'],['Проклятие холода','проклятие на одного'],['Пожирает душу','лечится'],['Ледяная броня','урон по нему −30%'],['Оцепенение','−15 к броскам всем'],['Зовёт тени','яд на двоих']];
+  const showPrep=()=>{ const n=bi%PREP.length; document.querySelectorAll('.intent').forEach(el=>el.innerHTML='Готовит: <b>'+PREP[n][0]+'</b> — '+PREP[n][1]+', '+(WHO[turn%6]==='Пожиратель'?'сейчас':'своим ходом')); document.querySelectorAll('.babs').forEach(g=>[...g.querySelectorAll('.bab')].forEach((b,k)=>b.classList.toggle('next',k===n))); };
   const setHp=()=>{ document.querySelectorAll('.bhp').forEach(b=>b.textContent=bossHp); document.querySelectorAll('.hptrack .now,.hptrack .lag,.bossmini').forEach(i=>i.style.width=(bossHp/3)+'%'); };
-  const ev=()=>{ const k=flip++%2?'roar':'hit'; if(k==='hit'){ if(bossHp===0) bossHp=300; dmgNow=Math.min(bossHp,18+Math.floor(Math.random()*25)); bossHp-=dmgNow; setHp(); } lbs.forEach(l=>{ if(k==='hit'&&l.closest('.intro')) return; if(k==='hit') l.querySelector('.lb-dmg').textContent='−'+dmgNow; l.classList.remove('hit','roar'); void l.offsetWidth; l.classList.add(k); }); };
+  const ev=()=>{ const who=WHO[turn%6]; let k=who==='Пожиратель'?'roar':'hit';
+    if(bossHp===0){ bossHp=300; setHp(); M.armor=0; M.rok={}; M.stun={}; M.cold={}; bi=0; k='roar'; say2('Новый бой: <i>Пожиратель зимы</i> снова встаёт, 300 / 300'); }
+    else if(k==='hit'){ const g=GODS.find(x=>x[0]===who), raw=1+Math.floor(Math.random()*100), base=16+Math.floor(Math.random()*11);
+      const mods=[]; if(M.rok[who]){ mods.push([-10,'Рок']); delete M.rok[who]; } if(M.stun[who]){ mods.push([-15,'Оцепенение']); delete M.stun[who]; } if(M.cold[who]){ mods.push([-10,'холод']); if(--M.cold[who]<=0) delete M.cold[who]; }
+      const r=Math.max(1,Math.min(100,raw+mods.reduce((a,m)=>a+m[0],0))), rollTxt='бросок '+raw+(mods.length?' '+mods.map(m=>'−'+(-m[0])+' '+m[1]).join(' ')+' = '+r:'');
+      const arm=M.armor>0; if(arm) M.armor--;
+      dmgNow=Math.min(bossHp,Math.round(base*MUL(r)*(g[2]?1.5:1)*(arm?0.7:1))); bossHp-=dmgNow; setHp();
+      if(r<=5){ M.rok[who]=1; say2('<i>'+g[0]+'</i>: '+g[1]+', '+rollTxt+' — крит. неудача, промах. На <i>'+({'Зевс':'Зевса','Афина':'Афину','Аид':'Аида','Гестия':'Гестию'}[g[0]])+'</i> <span class="cu">«Рок»</span>: −10 к следующему броску'); }
+      else say2('<i>'+g[0]+'</i> → <i>Пожиратель</i>: '+g[1]+', '+rollTxt+' — '+OUT(r)+', <span class="dm">'+dmgNow+' урона</span> ('+base+' × '+String(MUL(r)).replace('.',',')+(g[2]?', '+g[2]:'')+(arm?', броня ×0,7':'')+'). У него '+bossHp+' / 300'+(bossHp===0?'. <span class="hl">Повержен!</span> 80 драхм делятся броском':'')); }
+    else say2(BOSS[bi++%BOSS.length]()); turn++; advanceWheel(); renderLog(); showPrep(); lbs.forEach(l=>{ if(k==='hit'&&l.closest('.intro')) return; if(k==='hit') l.querySelector('.lb-dmg').textContent=dmgNow?'−'+dmgNow:'мимо'; l.classList.remove('hit','roar'); void l.offsetWidth; l.classList.add(k); }); };
+  renderLog(); showPrep();
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(ev,4200);
 
   document.querySelectorAll('.fan').forEach(f=>{ const cards=[...f.querySelectorAll('.card')]; const base=cards.map(c=>c.style.transform.replace(/ ?translateY\(-30px\)/,'')); const zs=cards.map(c=>c.style.zIndex);

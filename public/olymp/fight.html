@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Олимп — бой с боссом</title>
+<style>
+@font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Jost';font-weight:600;font-display:swap;src:url(/fonts/jost-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:600;font-display:swap;src:url(/fonts/jost-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-700-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+:root{--bg:#08090B;--ink:#FBF6F1;--soft:#B5ABA2;--gold:#E3C68C;--gold2:#F3DFAE;--rose:#C49E96;--green:#A3C2AA;--ice:#9EC3D6;--coral:#E3AA9C;--red:#D98A7A;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Jost,system-ui,sans-serif;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1{margin:0;font:700 34px/1.1 'Cormorant Garamond',serif;color:var(--gold2)}
+.lead{margin:6px 0 0;color:var(--soft);font-size:15px;max-width:68ch}
+h2{margin:0;font:700 26px/1.1 'Cormorant Garamond',serif}
+.vhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.tag{font:600 13px Jost,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#221E1B;background:var(--gold);border-radius:999px;padding:3px 10px}
+.vnote{margin:4px 0 0;color:var(--soft);font-size:14px;max-width:72ch}
+.pros{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:#E9E1D8;margin-top:6px}
+.pros span::before{content:'+ ';color:var(--green);font-weight:600}
+.pros span.con::before{content:'− ';color:var(--coral)}
+section.v{display:flex;flex-direction:column;gap:12px}
+.sep{height:1px;background:linear-gradient(90deg,transparent,rgba(227,198,140,.35),transparent)}
+.hint{display:none;color:var(--soft);font-size:13px}
+@media (orientation:portrait) and (max-width:700px){.hint{display:block}}
+
+/* общий экран зала */
+.stage{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;container-type:size;background:radial-gradient(ellipse at 50% 40%,#2c2238 0%,#151019 55%,#09080b 100%);box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.stage .frost{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 110%,rgba(158,195,214,.18),transparent 55%)}
+.snow{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 20% 30%,rgba(240,246,250,.7),transparent),radial-gradient(1.5px 1.5px at 70% 20%,rgba(240,246,250,.6),transparent),radial-gradient(2px 2px at 40% 70%,rgba(240,246,250,.5),transparent),radial-gradient(1.5px 1.5px at 85% 60%,rgba(240,246,250,.6),transparent),radial-gradient(2px 2px at 10% 85%,rgba(240,246,250,.5),transparent),radial-gradient(1.5px 1.5px at 55% 45%,rgba(240,246,250,.5),transparent);background-size:100% 100%;animation:fall 9s linear infinite}
+@keyframes fall{from{transform:translateY(-30%)}to{transform:translateY(30%)}}
+.kick{font-size:1.1cqw;letter-spacing:.16em;text-transform:uppercase;color:var(--soft)}
+.serif{font-family:'Cormorant Garamond',serif;font-weight:700}
+
+/* эмблемы */
+.emb{--c1:#C9A15F;--c2:#F3DFAE;--g:#221E1B;position:relative;width:var(--s,4cqw);aspect-ratio:1;border-radius:50%;flex-shrink:0}
+.emb .core{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:radial-gradient(circle at 34% 28%,var(--c2),var(--c1) 58%,#15120e 120%);box-shadow:0 0 calc(var(--s,4cqw)*.35) color-mix(in srgb,var(--c1) 55%,transparent)}
+.emb .core svg{width:58%;height:58%}
+.emb .core::after{content:'';position:absolute;inset:-40%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.6) 50%,transparent 60%);animation:sheen 3.6s ease-in-out infinite;animation-delay:var(--d,0s)}
+.emb::before{content:'';position:absolute;inset:-9%;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 20%,var(--c2) 30%,transparent 42% 70%,var(--c2) 80%,transparent 92%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));animation:spin 5s linear infinite}
+.emb.zeus{--c1:#C9A15F;--c2:#F7E6B8;--g:#2A2010}
+.emb.hades{--c1:#5B4F8C;--c2:#C9C0F0;--g:#F4F1FF}
+.emb.athena{--c1:#5F7F90;--c2:#D7EAF3;--g:#14222B}
+.emb.hestia{--c1:#B66E5D;--c2:#F6CDBE;--g:#2B140F}
+.emb.foe{--c1:#2b2540;--c2:#9EC3D6;--g:#CFE8F5}
+.emb.cur{box-shadow:0 0 0 .25cqw #F3DFAE,0 0 2.5cqw rgba(243,223,174,.6);border-radius:50%}
+@keyframes sheen{0%,55%{transform:translateX(-60%)}85%,100%{transform:translateX(60%)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.curse{position:absolute;right:-12%;bottom:-8%;width:42%;aspect-ratio:1;border-radius:50%;background:#6E9A4F;border:.15cqw solid #14110f;display:grid;place-items:center;font:700 .9cqw Jost,system-ui,sans-serif;color:#14110f;z-index:2}
+
+/* босс */
+.boss{position:absolute;filter:drop-shadow(0 0 3cqw rgba(158,195,214,.35));animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-.8cqw) scale(1.025)}}
+.boss .eye{animation:blink 5s infinite}
+@keyframes blink{0%,92%,100%{opacity:1}95%{opacity:.1}}
+.hpwide{display:flex;flex-direction:column;gap:.5cqw}
+.hpwide .t{white-space:nowrap;gap:1cqw;display:flex;justify-content:space-between;align-items:baseline;font-size:1.2cqw;color:var(--soft)}
+.hpwide .t b{font:700 2.2cqw 'Cormorant Garamond',serif;color:var(--ink)}
+.hptrack{height:1cqw;border-radius:1cqw;background:rgba(251,246,241,.1);overflow:hidden;position:relative}
+.hptrack i{position:absolute;inset:0 auto 0 0;border-radius:1cqw}
+.hptrack .lag{background:rgba(227,170,156,.6);width:61.3%}
+.hptrack .now{background:linear-gradient(90deg,#7a9fb3,#CFE3EE);width:61.3%;transition:width .5s ease}
+.hptrack .lag{transition:width 1.2s ease .6s}
+.chips{display:flex;gap:.6cqw;flex-wrap:wrap}
+.chip{white-space:nowrap;font-weight:600;font-size:1.05cqw;border-radius:999px;padding:.3cqw .9cqw;background:rgba(251,246,241,.08);border:1px solid rgba(227,198,140,.4);color:var(--gold2)}
+.mini{display:flex;flex-direction:column;gap:.35cqw;min-width:0}
+.mini b{font-size:1.15cqw;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini small{font-size:.9cqw;color:var(--soft)}
+.hp{height:.45cqw;border-radius:1cqw;background:rgba(251,246,241,.12);overflow:hidden}
+.hp i{display:block;height:100%;background:linear-gradient(90deg,#6E9277,#A3C2AA)}
+.hp i.low{background:linear-gradient(90deg,#B9786A,#E3AA9C)}
+.log{text-wrap:balance;font:italic 600 1.7cqw 'Cormorant Garamond',serif;color:#E9E1D8}
+.log b{color:var(--gold2);font-style:normal}
+
+/* вариант А: лента сверху */
+.tlA{position:absolute;left:50%;top:3cqw;transform:translateX(-50%);display:flex;align-items:center;gap:1.1cqw;padding:1cqw 1.6cqw;border-radius:99px;background:rgba(14,12,18,.7);border:1px solid rgba(227,198,140,.25)}
+.tlA .slot{position:relative;display:flex;flex-direction:column;align-items:center;gap:.3cqw}
+.tlA .slot small{white-space:nowrap;font-size:.85cqw;color:var(--soft)}
+.tlA .arrow{position:absolute;top:-2.4cqw;left:50%;transform:translateX(-50%);width:0;height:0;border-left:.8cqw solid transparent;border-right:.8cqw solid transparent;border-top:1.1cqw solid var(--gold2);animation:bob 1.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translate(-50%,.4cqw)}}
+.tlA .round{font-size:.9cqw;color:var(--soft);border-left:1px dashed rgba(181,171,162,.5);padding-left:1cqw;margin-left:.2cqw}
+.flow{display:flex;gap:1.1cqw;align-items:center;animation:shift 6s ease-in-out infinite}
+@keyframes shift{0%,80%{transform:none}90%,100%{transform:translateX(-2cqw);opacity:.9}}
+
+/* вариант Б: колесо */
+.wheel{position:absolute;left:50%;top:52%;width:44cqw;height:44cqw;margin:-22cqw 0 0 -22cqw;border-radius:50%;border:.2cqw solid rgba(227,198,140,.35)}
+.wheel::before{content:'';position:absolute;inset:3cqw;border-radius:50%;border:1px dashed rgba(227,198,140,.2)}
+.wheel .spoke{position:absolute;left:50%;top:50%;width:0;height:0}
+.wheel .spoke .emb{position:absolute}
+.ptr{position:absolute;left:50%;top:calc(52% - 25.6cqw);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:.2cqw;z-index:3}
+.ptr i{width:0;height:0;border-left:1cqw solid transparent;border-right:1cqw solid transparent;border-top:1.4cqw solid var(--gold2);filter:drop-shadow(0 0 .6cqw rgba(243,223,174,.8))}
+.ptr span{font-size:1cqw;color:var(--gold2);letter-spacing:.1em;text-transform:uppercase}
+.rotor{position:absolute;inset:0;--rr:0deg;transform:rotate(var(--rr));transition:transform 1.4s cubic-bezier(.5,0,.2,1)}
+.rotor .emb{transform:translate(-50%,-50%) rotate(calc(-1 * var(--rr)));transition:transform 1.4s cubic-bezier(.5,0,.2,1)}
+
+/* вариант В: фриз слева */
+.frieze{position:absolute;left:3cqw;top:3cqw;bottom:3cqw;width:21cqw;border-radius:1.4cqw;background:rgba(20,16,12,.75);border:1px solid rgba(227,198,140,.3);padding:1.2cqw;display:flex;flex-direction:column;gap:.8cqw;overflow:hidden}
+.frieze::before{content:'';position:absolute;left:0;right:0;top:0;height:1.2cqw;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 21H21V3H5V16H15V9H10' fill='none' stroke='%23C9A15F' stroke-width='2.4'/%3E%3C/svg%3E") 0 0/1.2cqw 1.2cqw repeat-x;opacity:.7}
+.frow{display:grid;grid-template-columns:2cqw auto 1fr;align-items:center;gap:.8cqw;padding:.5cqw .6cqw;border-radius:1cqw}
+.frow .num{font:700 1.4cqw 'Cormorant Garamond',serif;color:var(--soft);text-align:center}
+.frow.cur{background:linear-gradient(90deg,rgba(227,198,140,.22),rgba(227,198,140,.04));border:1px solid rgba(227,198,140,.55)}
+.frow.cur .num{color:var(--gold2)}
+.frow.big{grid-template-columns:2cqw 1fr}
+.frow.big .pic{grid-column:2;display:flex;gap:1cqw;align-items:center}
+.frow.big img{width:7cqw;height:7cqw;object-fit:cover;object-position:50% 12%;border-radius:1cqw;border:.15cqw solid var(--gold)}
+.frow.enemy .mini b{color:#CFE3EE}
+
+.babs{display:flex;gap:.5cqw;align-items:center;flex-wrap:wrap}
+.bab{width:2.6cqw;height:2.6cqw;border-radius:.7cqw;display:grid;place-items:center;background:rgba(158,195,214,.12);border:1px solid rgba(158,195,214,.35);color:#CFE3EE;position:relative}
+.bab svg{width:62%;height:62%}
+.bab.cd{opacity:.35}
+.bab.next{border-color:#E3AA9C;background:rgba(227,170,156,.2);color:#F6CDBE;box-shadow:0 0 1.4cqw rgba(227,170,156,.5);animation:warn 1.2s ease-in-out infinite}
+@keyframes warn{50%{box-shadow:0 0 2.4cqw rgba(227,170,156,.85)}}
+.intent{font-size:1.15cqw;color:#F6CDBE}
+.intent b{color:#FBF6F1}
+.medal{aspect-ratio:1;border-radius:50%;overflow:hidden;box-shadow:0 0 0 .3cqw rgba(158,195,214,.55),0 0 0 .9cqw rgba(18,15,24,.9),0 0 0 1.1cqw rgba(227,198,140,.45),0 0 5cqw rgba(158,195,214,.35)}
+.medal img{width:100%;height:100%;object-fit:cover;transform:scale(1.7);transform-origin:50% 22%;filter:saturate(1.1) contrast(1.05)}
+.medal::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,transparent 55%,rgba(18,15,24,.55))}
+/* выбор вида */
+.seg{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.seg span{font-size:13px;color:var(--soft);margin-right:6px}
+.seg button{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid rgba(227,198,140,.4);background:transparent;color:var(--ink);font:500 15px Jost,system-ui,sans-serif;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#221E1B;font-weight:600}
+.seg button:focus-visible{outline:3px solid var(--gold2);outline-offset:2px}
+[data-opt][hidden]{display:none!important}
+/* выход босса */
+.intro{background:#0d0b12}
+.intro .art{position:absolute;right:0;top:0;bottom:0;width:62cqw;-webkit-mask:radial-gradient(ellipse 70% 75% at 60% 50%,#000 45%,transparent 78%);mask:radial-gradient(ellipse 70% 75% at 60% 50%,#000 45%,transparent 78%)}
+.intro .art img{width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.intro.play img.emerge{animation:emerge 3.2s cubic-bezier(.2,.7,.2,1) both}
+@keyframes emerge{from{transform:scale(1.18);filter:brightness(0) blur(6px)}60%{filter:brightness(.8) blur(0)}to{transform:scale(1);filter:brightness(1)}}
+.intro .flashI{position:absolute;inset:0;background:radial-gradient(circle at 62% 45%,rgba(207,232,245,.9),transparent 60%);opacity:0;pointer-events:none}
+.intro.play .flashI{animation:iflash 1.4s ease-out 1.6s}
+@keyframes iflash{0%{opacity:0}10%{opacity:.85}100%{opacity:0}}
+.intro .txt{position:absolute;left:4cqw;top:50%;transform:translateY(-50%);width:38cqw;display:flex;flex-direction:column;gap:1.1cqw}
+.intro h3{margin:0;white-space:nowrap;font:700 5cqw/1 'Cormorant Garamond',serif;color:#E6F2F8;text-shadow:0 0 3cqw rgba(158,195,214,.5)}
+.intro h3 span{display:inline-block;white-space:pre;opacity:0}
+.intro.play h3 span{animation:let .8s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i)*55ms + 1.8s)}
+@keyframes let{from{opacity:0;filter:blur(10px);transform:translateY(.3em)}to{opacity:1;filter:none;transform:none}}
+.intro .fade{opacity:0}
+.intro.play .fade{animation:fin 1s ease forwards;animation-delay:var(--d)}
+@keyframes fin{from{opacity:0;transform:translateY(1cqw)}to{opacity:1;transform:none}}
+.intro p{margin:0;text-wrap:pretty;font:600 1.7cqw/1.35 'Cormorant Garamond',serif;color:#E9E1D8}
+.intro .chips .chip{font-size:1.2cqw}
+.rank{display:inline-flex;align-items:center;gap:.6cqw;font:600 1.2cqw Jost,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#CFE3EE}
+.rank b{font:700 2.2cqw 'Cormorant Garamond',serif;color:#221E1B;background:#CFE3EE;border-radius:.6cqw;padding:0 .8cqw;letter-spacing:0}
+.replay{align-self:flex-start;min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--gold);background:transparent;color:var(--ink);font:500 15px Jost,system-ui,sans-serif;cursor:pointer}
+.lb{position:absolute;aspect-ratio:1;pointer-events:none}
+.lb-aura{position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle at 57% 40%,rgba(158,195,214,.35),rgba(90,70,140,.15) 45%,transparent 70%);filter:blur(2cqw);animation:aura 5s ease-in-out infinite}
+@keyframes aura{50%{transform:scale(1.08);opacity:.8}}
+.lb-body{position:absolute;inset:0;-webkit-mask:radial-gradient(ellipse 44% 50% at 56% 46%,#000 42%,transparent 76%);mask:radial-gradient(ellipse 44% 50% at 56% 46%,#000 42%,transparent 76%);animation:lbBreath 5.5s ease-in-out infinite;transform-origin:57% 92%}
+@keyframes lbBreath{0%,100%{transform:scale(1) rotate(0deg)}35%{transform:scale(1.022) rotate(-.7deg)}70%{transform:scale(1.01) rotate(.4deg)}}
+.lb-body img{width:100%;height:100%;object-fit:cover;display:block}
+.lb-eye{position:absolute;width:6.5%;aspect-ratio:1.7;border-radius:50%;background:radial-gradient(#fff,#CFE8F5 30%,rgba(158,195,214,0) 70%);mix-blend-mode:screen;transform:translate(-50%,-50%);animation:eye 4.6s infinite}
+.lb-eye.l{left:55.6%;top:25.4%}.lb-eye.r{left:62.1%;top:25.4%;animation-delay:.05s}
+@keyframes eye{0%,100%{opacity:.85;transform:translate(-50%,-50%) scale(1)}45%{opacity:1;transform:translate(-50%,-50%) scale(1.4)}88%{opacity:.85;transform:translate(-50%,-50%) scale(1)}91%{opacity:0;transform:translate(-50%,-50%) scaleY(.1)}94%{opacity:.85;transform:translate(-50%,-50%) scale(1)}}
+.lb-mark{position:absolute;left:58.6%;top:21%;width:10%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(rgba(255,120,80,.95),rgba(255,60,40,0) 68%);mix-blend-mode:screen;animation:mark 2.4s ease-in-out infinite}
+@keyframes mark{50%{opacity:.35;transform:translate(-50%,-50%) scale(.8)}}
+.lb-breath i{position:absolute;left:58.5%;top:32%;width:7%;aspect-ratio:1;border-radius:50%;background:radial-gradient(rgba(230,242,248,.75),rgba(230,242,248,0) 70%);filter:blur(.4cqw);opacity:0;animation:breath 3.6s ease-out infinite}
+.lb-breath i:nth-child(2){animation-delay:.6s}.lb-breath i:nth-child(3){animation-delay:1.2s}.lb-breath i:nth-child(4){animation-delay:1.8s}.lb-breath i:nth-child(5){animation-delay:2.4s}.lb-breath i:nth-child(6){animation-delay:3s}
+@keyframes breath{0%{opacity:0;transform:translate(0,0) scale(.6)}20%{opacity:.9}100%{opacity:0;transform:translate(-120%,90%) scale(3)}}
+.lb-mist{position:absolute;left:5%;right:0;bottom:6%;height:22%;background:radial-gradient(ellipse at 50% 60%,rgba(207,227,238,.28),transparent 70%);filter:blur(1.4cqw);animation:mist 9s ease-in-out infinite alternate}
+@keyframes mist{to{transform:translateX(8%) scaleX(1.15)}}
+.lb-wave{position:absolute;left:57%;top:40%;width:10%;aspect-ratio:1;border-radius:50%;border:.35cqw solid rgba(207,232,245,.9);transform:translate(-50%,-50%) scale(0);opacity:0}
+.lb-flash{position:absolute;inset:0;background:radial-gradient(circle at 57% 40%,rgba(255,255,255,.85),transparent 60%);mix-blend-mode:screen;opacity:0}
+.lb-dmg{position:absolute;left:62%;top:30%;font:700 4.4cqw 'Cormorant Garamond',serif;color:#F6CDBE;text-shadow:0 0 1.4cqw rgba(217,138,122,.9);opacity:0;white-space:nowrap}
+.lb.hit .lb-body{animation:lbHit .5s,lbBreath 5.5s ease-in-out .5s infinite}
+@keyframes lbHit{20%{transform:translate(2%,0) rotate(1.5deg)}45%{transform:translate(-1.5%,0) rotate(-1deg)}70%{transform:translate(.8%,0)}}
+.lb.hit .lb-flash{animation:lbF .45s ease-out}
+@keyframes lbF{15%{opacity:1}100%{opacity:0}}
+.lb.hit .lb-dmg{animation:dmg 1.4s ease-out}
+@keyframes dmg{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1;transform:translateY(-10%) scale(1.15)}100%{opacity:0;transform:translateY(-120%) scale(1)}}
+.lb.roar .lb-aura{animation:roarAura 1.8s ease-in-out}
+@keyframes roarAura{50%{transform:scale(1.35);opacity:1;background:radial-gradient(circle at 57% 40%,rgba(200,180,255,.6),rgba(90,70,140,.3) 45%,transparent 70%)}}
+.lb.roar .lb-eye{animation:eyeRoar 1.8s ease-in-out}
+@keyframes eyeRoar{50%{transform:translate(-50%,-50%) scale(2.2);opacity:1}}
+.lb.roar .lb-wave{animation:wave 1.4s ease-out .6s}
+@keyframes wave{0%{opacity:.9;transform:translate(-50%,-50%) scale(0)}100%{opacity:0;transform:translate(-50%,-50%) scale(9)}}
+.lb.roar .lb-body{animation:lbRoar 1.8s ease-in-out,lbBreath 5.5s ease-in-out 1.8s infinite}
+@keyframes lbRoar{40%{transform:scale(1.06) translateY(-2%)}55%{transform:scale(1.06) translate(.6%,-2%)}60%{transform:scale(1.06) translate(-.6%,-2%)}}
+.zone{min-width:0}
+.nowrap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.5cqw}
+.res div{display:flex;flex-direction:column;align-items:center;gap:.2cqw;padding:.5cqw .2cqw;border-radius:.8cqw;background:rgba(251,246,241,.05);border:1px solid rgba(251,246,241,.1)}
+.res div svg{width:1.8cqw;height:1.8cqw}
+.res div span{font-size:.85cqw;color:var(--soft);white-space:nowrap}
+.res div b{font:700 1.5cqw Jost,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.res div.weak{border-color:rgba(163,194,170,.7);background:rgba(163,194,170,.12)} .res div.weak b{color:#A3C2AA}
+.res div.strong b{color:#E3AA9C} .res div.immune{opacity:.75} .res div.immune b{color:#D98A7A}
+.reslg{font-size:1cqw;color:var(--soft)}
+.elchip{display:inline-flex;align-items:center;gap:4px;font:600 11px Jost,system-ui,sans-serif;border-radius:999px;padding:2px 7px;border:1px solid color-mix(in srgb,var(--ec) 60%,transparent);color:var(--ec);background:color-mix(in srgb,var(--ec) 12%,transparent);white-space:nowrap}
+.vsline{font-size:12px;color:#E9E1D8;background:rgba(158,195,214,.08);border:1px dashed rgba(158,195,214,.35);border-radius:10px;padding:6px 9px}
+/* телефоны */
+.phones{display:flex;flex-wrap:wrap;gap:22px;justify-content:center}
+.pcol{display:flex;flex-direction:column;gap:10px;align-items:center;width:min(320px,100%)}
+.pcol h3{margin:0;font:700 22px 'Cormorant Garamond',serif;align-self:flex-start}
+.pcol p{margin:0;color:var(--soft);font-size:13px;align-self:flex-start}
+.phone{position:relative;width:100%;height:640px;border-radius:30px;border:1.5px solid rgba(227,198,140,.35);background:linear-gradient(180deg,#1f1a24,#100e12);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 16px 40px rgba(0,0,0,.6)}
+.ptop{padding:16px 16px 0;display:flex;align-items:center;gap:10px}
+.ptop .emb{--s:36px}
+.ptop b{font:700 22px 'Cormorant Garamond',serif}
+.ptop small{display:block;color:var(--soft);font-size:12px}
+.turn{margin:14px 16px 0;padding:10px 12px;border-radius:12px;background:rgba(227,198,140,.12);border:1px solid rgba(227,198,140,.45);font-size:14px;color:var(--gold2);display:flex;justify-content:space-between}
+.dim{flex:1;opacity:.35;padding:14px 16px;font-size:13px;color:var(--soft)}
+.sheet{background:#1b1712;border-top:1px solid rgba(227,198,140,.4);border-radius:22px 22px 0 0;padding:14px 14px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 30px rgba(0,0,0,.5);animation:slideup .6s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideup{from{transform:translateY(40%);opacity:0}}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:rgba(251,246,241,.25);align-self:center}
+.lbl{font:600 11px Jost,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.abgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.abt{cursor:pointer;min-width:0;overflow:hidden;white-space:nowrap;min-height:64px;border-radius:14px;border:1.5px solid rgba(251,246,241,.15);background:rgba(251,246,241,.04);color:var(--ink);font:600 14px Jost,system-ui,sans-serif;text-align:left;padding:8px 10px;display:flex;gap:8px;align-items:center}
+.abt svg{width:22px;height:22px;flex-shrink:0;color:var(--gold2)}
+.abt small{overflow:hidden;text-overflow:ellipsis;display:block;font-weight:400;font-size:11px;color:var(--soft)}
+.abt.sel{border-color:var(--gold2);background:rgba(227,198,140,.14)}
+.abt.ult{border-color:rgba(227,198,140,.5);background:linear-gradient(150deg,rgba(227,198,140,.18),rgba(227,198,140,.03))}
+.abt.off{opacity:.4}
+.targets{display:flex;gap:6px}
+.tg{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border-radius:12px;border:1.5px solid transparent;font-size:12px;background:none;color:var(--ink)}
+.tg .emb{--s:38px}
+.tg.sel{border-color:var(--gold2);background:rgba(227,198,140,.1)}
+.tg .hp{width:80%;height:4px}
+.rollbtn{min-height:56px;border:0;border-radius:14px;background:var(--rose);color:#221E1B;font:600 17px Jost,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;gap:10px}
+.rollbtn svg{width:26px;height:26px}
+.odds{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;font-size:10px;text-align:center;color:#221E1B;font-weight:600}
+.odds span{border-radius:6px;padding:4px 1px;line-height:1.15}
+/* веер */
+.fan{position:relative;height:250px;margin-top:auto}
+.card{cursor:pointer;position:absolute;bottom:20px;left:50%;width:92px;height:160px;margin-left:-46px;padding:8px!important;border-radius:14px;border:1.5px solid rgba(227,198,140,.55);background:linear-gradient(170deg,#2e2619,#16120d);transform-origin:50% 100%;padding:10px;display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 20px rgba(0,0,0,.5);transition:transform .4s}
+.card svg{width:30px;height:30px;color:var(--gold2)}
+.card b{font:700 19px/1 'Cormorant Garamond',serif}
+.card small{font-size:11px;color:var(--soft);line-height:1.3}
+.card.ult{border-color:var(--gold2);background:linear-gradient(170deg,#4a3b1f,#1d160c)}
+.card.sel{box-shadow:0 0 0 2px var(--gold2),0 0 30px rgba(243,223,174,.45)}
+.fantg{display:flex;justify-content:center;gap:6px;padding:6px 0}
+.fantg .tg{flex:0 0 auto}
+.bigdie{align-self:center;width:96px;height:96px;border-radius:50%;border:0;background:radial-gradient(circle at 38% 30%,#FBF7EE,#DCD1BE 60%,#9b8f78);color:#8C6224;font:700 30px 'Cormorant Garamond',serif;box-shadow:0 0 0 3px #C9973E,0 0 30px rgba(243,223,174,.4);margin-bottom:14px;animation:pulse2 2s ease-in-out infinite}
+@keyframes pulse2{50%{box-shadow:0 0 0 3px #C9973E,0 0 50px rgba(243,223,174,.7)}}
+.card.off{opacity:.5;filter:saturate(.4)}
+.card b{white-space:nowrap;font-size:16px}
+.card small{font-size:10.5px!important}
+.abt{font-size:13px!important}
+.abt>span{min-width:0;overflow:hidden}
+/* шаги */
+.steps{display:flex;gap:6px;padding:14px 16px 0}
+.steps span{flex:1;height:4px;border-radius:2px;background:rgba(251,246,241,.15)}
+.steps span.on{background:var(--gold)}
+.stepbody{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.stepbody h4{margin:0;font:700 28px/1.05 'Cormorant Garamond',serif}
+.ally{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;min-height:64px;padding:8px 12px;border-radius:14px;border:1.5px solid rgba(251,246,241,.12);background:rgba(251,246,241,.03)}
+.ally .emb{--s:44px}
+.ally b{font-size:15px}
+.ally .hp{height:6px;margin-top:5px}
+.ally em{font-style:normal;font-size:13px;color:var(--soft)}
+.ally{cursor:pointer}
+.ally.sel{border-color:var(--gold2);background:rgba(227,198,140,.1)}
+.navrow{display:grid;grid-template-columns:1fr 2fr;gap:8px;padding:0 16px 16px}
+.navrow button{min-height:52px;border-radius:14px;font:600 15px Jost,system-ui,sans-serif}
+.back{background:transparent;border:1.5px solid var(--gold);color:var(--ink)}
+.next{background:var(--rose);border:0;color:#221E1B}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Бой с боссом</h1>
+    <p class="lead">Сначала — выход босса во весь экран. Когда начинается бой, босс превращается в медальон, чтобы не загромождать экран. Вид боя выбирает ведущий (экран зала общий), вид хода — каждый игрок у себя на телефоне.</p>
+    <p class="hint">Экран зала лучше смотреть, повернув телефон боком.</p>
+  </header>
+
+
+  <section class="v">
+    <div class="vhead"><span class="tag">Экран</span><h2>Выход босса</h2></div>
+    <div class="stage intro play" id="intro">
+      <div class="lb" style="right:3cqw;top:0;width:56cqw"><div class="lb-aura"></div><div class="lb-body"><img src="/olymp/img/boss.jpg" alt="Пожиратель зимы" class="emerge"><div class="lb-eye l"></div><div class="lb-eye r"></div><div class="lb-mark"></div><div class="lb-breath"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="lb-flash"></div></div><div class="lb-mist"></div><div class="lb-wave"></div><span class="lb-dmg">−34</span></div>
+      <div class="snow"></div><div class="flashI"></div>
+      <div class="txt">
+        <span class="kick fade" style="--d:.6s">Из тумана Ахерона выходит</span>
+        <h3 id="bossName">Пожиратель зимы</h3>
+        <span class="rank fade" style="--d:2.8s"><b>B</b> ранг · босс</span>
+        <p class="fade" style="--d:3.2s">Осколок первичного Хаоса. Пожирает души и тепло; на лбу горит метка Тёмного мира.</p>
+        <div class="fade" style="--d:4s;display:flex;flex-direction:column;gap:.6cqw"><span class="reslg">Сколько урона проходит по нему</span><div class="res" id="resGrid"></div></div>
+        <div class="chips fade" style="--d:3.6s"><span class="chip">🪙 80 драхм</span><span class="chip">опыт 600</span><span class="chip">7 способностей</span></div>
+      </div>
+    </div>
+    <button class="replay" id="replay">Показать выход ещё раз</button>
+  </section>
+  <div class="sep"></div>
+  <section class="v">
+    <div class="vhead"><span class="tag">Экран</span><h2>Вид боя</h2></div>
+    <div class="seg" role="group" aria-label="Вид боя" data-group="hall"><span>Ведущий выбирает:</span><button data-pick="A" aria-pressed="true">Лента сверху</button><button data-pick="B" aria-pressed="false">Колесо судьбы</button><button data-pick="C" aria-pressed="false">Фриз слева</button></div>
+  </section>
+  <!-- ВАРИАНТ А -->
+  <section class="v" data-opt="hall:A">
+    <div class="vhead"><span class="tag">Экран · А</span><h2>Лента ходов сверху</h2></div>
+    <p class="vnote">Очередь — строкой вверху, как в классических ролевых играх. Стрелка над тем, кто ходит, лента сдвигается после хода.</p>
+    <div class="pros"><span>сразу понятно любому гостю</span><span>видно 6–7 ходов вперёд</span><span class="con">меньше «античного» характера</span></div>
+    <div class="stage">
+      <div class="frost"></div><div class="snow"></div>
+      <div class="tlA">
+        <div class="flow">
+          <div class="slot"><span class="arrow"></span><div class="emb zeus cur" data-god="zeus" style="--s:5cqw"></div><small>Зевс</small></div>
+          <div class="slot"><div class="emb foe" data-god="boss" style="--s:4cqw"></div><small>Пожиратель</small></div>
+          <div class="slot"><div class="emb athena" data-god="athena" style="--s:3.4cqw"></div><small>Афина</small></div>
+          <div class="slot"><div class="emb hades" data-god="hades" style="--s:3.4cqw"><span class="curse">Я</span></div><small>Аид</small></div>
+          <div class="slot"><div class="emb hestia" data-god="hestia" style="--s:3.4cqw"></div><small>Гестия</small></div>
+          <span class="round">раунд 3</span>
+          <div class="slot"><div class="emb zeus" data-god="zeus" style="--s:3cqw;opacity:.6"></div><small>Зевс</small></div>
+          <div class="slot"><div class="emb foe" data-god="boss" style="--s:3cqw;opacity:.6"></div><small>Пожир.</small></div>
+        </div>
+      </div>
+      <div class="lb" style="left:38.5cqw;top:9cqw;width:23cqw"><div class="lb-aura"></div><div class="lb-body"><img src="/olymp/img/boss.jpg" alt="Пожиратель зимы"><div class="lb-eye l"></div><div class="lb-eye r"></div><div class="lb-mark"></div><div class="lb-breath"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="lb-flash"></div></div><div class="lb-mist"></div><div class="lb-wave"></div><span class="lb-dmg">−34</span></div>
+      <div style="position:absolute;left:30cqw;right:30cqw;top:31cqw" class="hpwide">
+        <div class="t"><span class="serif" style="font-size:2.4cqw;color:#CFE3EE">Пожиратель зимы</span><span>ранг B · <b class="bhp">184</b> / 300</span></div>
+        <div class="hptrack"><i class="lag"></i><i class="now"></i></div>
+        <div class="chips"><span class="chip">🪙 80 драхм</span><span class="chip">опыт 600</span><span class="chip">уязвим: огонь, молния</span></div><div class="babs" title="Способности босса"><span class="bab next" aria-label="Ледяной вой — урон всем"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="10.5" stroke-dasharray="2 3"/></svg></span><span class="bab" aria-label="Удар когтем — урон одному"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L18 6M14 4h6v6"/></svg></span><span class="bab" aria-label="Проклятие холода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z"/><path d="M9 14l6-4M9 10l6 4"/></svg></span><span class="bab cd" aria-label="Пожирает душу — лечится"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><span class="bab" aria-label="Ледяная броня"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg></span><span class="bab" aria-label="Оцепенение — −15 к броскам"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6"/></svg></span><span class="bab cd" aria-label="Зовёт тени"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20c1-4 9-4 10 0M11 20c1-4 9-4 10 0"/></svg></span></div><span class="intent">Готовит: <b>Ледяной вой</b> — урон всем, следующим ходом</span>
+      </div>
+      <div style="position:absolute;left:4cqw;right:4cqw;bottom:3cqw;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.4cqw">
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb zeus cur" data-god="zeus" style="--s:3.6cqw"></div><div class="mini" style="flex:1"><b>Зевс · Аня</b><div class="hp"><i style="width:76%"></i></div><small>94 / 124</small></div></div>
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb athena" data-god="athena" style="--s:3.6cqw"></div><div class="mini" style="flex:1"><b>Афина · Катя</b><div class="hp"><i style="width:92%"></i></div><small>101 / 110</small></div></div>
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hades" data-god="hades" style="--s:3.6cqw"><span class="curse">Я</span></div><div class="mini" style="flex:1"><b>Аид · Олег</b><div class="hp"><i class="low" style="width:28%"></i></div><small>34 / 124 · яд</small></div></div>
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hestia" data-god="hestia" style="--s:3.6cqw"></div><div class="mini" style="flex:1"><b>Гестия · Дима</b><div class="hp"><i style="width:70%"></i></div><small>72 / 104</small></div></div>
+      </div>
+      <p class="log" style="position:absolute;right:3cqw;top:12cqw;width:20cqw;margin:0">Ход <b>Зевса</b>. Аид отравлен&nbsp;— ему осталось недолго.</p>
+    </div>
+  </section>
+
+  <!-- ВАРИАНТ Б -->
+  <section class="v" data-opt="hall:B" hidden>
+    <div class="vhead"><span class="tag">Экран · Б</span><h2>Колесо судьбы вокруг босса</h2></div>
+    <p class="vnote">Эмблемы стоят на колесе вокруг босса и поворачиваются к золотой стрелке сверху — как колесо Мойр. Красиво и «по-гречески».</p>
+    <div class="pros"><span>самый зрелищный</span><span>поворот колеса — момент напряжения</span><span class="con">дальние ходы читаются хуже</span></div>
+    <div class="stage">
+      <div class="frost"></div><div class="snow"></div>
+      <div class="ptr"><span>ходит</span><i></i></div>
+      <div class="wheel"><div class="rotor" id="rotor"></div></div>
+      <div class="lb" style="left:36cqw;top:15cqw;width:28cqw"><div class="lb-aura"></div><div class="lb-body"><img src="/olymp/img/boss.jpg" alt="Пожиратель зимы"><div class="lb-eye l"></div><div class="lb-eye r"></div><div class="lb-mark"></div><div class="lb-breath"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="lb-flash"></div></div><div class="lb-mist"></div><div class="lb-wave"></div><span class="lb-dmg">−34</span></div>
+      <div style="position:absolute;left:3.5cqw;top:3.5cqw;width:22cqw" class="hpwide">
+        <span class="kick">Вечная зима · у Ахерона</span>
+        <span class="serif nowrap" style="font-size:2.4cqw;color:#CFE3EE">Пожиратель зимы</span><div class="t"><span>ранг B · босс</span><span><b class="bhp">184</b> / 300</span></div>
+        <div class="hptrack"><i class="lag"></i><i class="now"></i></div>
+        <div class="chips"><span class="chip">🪙 80 драхм</span><span class="chip">опыт 600</span></div><div class="babs" title="Способности босса"><span class="bab next" aria-label="Ледяной вой — урон всем"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="10.5" stroke-dasharray="2 3"/></svg></span><span class="bab" aria-label="Удар когтем — урон одному"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L18 6M14 4h6v6"/></svg></span><span class="bab" aria-label="Проклятие холода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z"/><path d="M9 14l6-4M9 10l6 4"/></svg></span><span class="bab cd" aria-label="Пожирает душу — лечится"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><span class="bab" aria-label="Ледяная броня"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg></span><span class="bab" aria-label="Оцепенение — −15 к броскам"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6"/></svg></span><span class="bab cd" aria-label="Зовёт тени"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20c1-4 9-4 10 0M11 20c1-4 9-4 10 0"/></svg></span></div><span class="intent">Готовит: <b>Ледяной вой</b> — урон всем, следующим ходом</span>
+      </div>
+      <div id="wheelList" style="position:absolute;right:3.5cqw;top:3.5cqw;width:20cqw;display:flex;flex-direction:column;gap:1cqw">
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb zeus cur" data-god="zeus" style="--s:3cqw"></div><div class="mini" style="flex:1"><b>Зевс</b><div class="hp"><i style="width:80%"></i></div></div></div>
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb athena" data-god="athena" style="--s:3cqw"></div><div class="mini" style="flex:1"><b>Афина</b><div class="hp"><i style="width:92%"></i></div></div></div>
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hades" data-god="hades" style="--s:3cqw"><span class="curse">Я</span></div><div class="mini" style="flex:1"><b>Аид</b><div class="hp"><i class="low" style="width:28%"></i></div></div></div>
+        <div style="display:flex;gap:1cqw;align-items:center"><div class="emb hestia" data-god="hestia" style="--s:3cqw"></div><div class="mini" style="flex:1"><b>Гестия</b><div class="hp"><i style="width:70%"></i></div></div></div>
+      </div>
+      <p class="log" id="wheelLog" style="position:absolute;left:3.5cqw;bottom:3.5cqw;width:26cqw;margin:0">Ходит: <b>Зевс</b></p>
+    </div>
+  </section>
+
+  <!-- ВАРИАНТ В -->
+  <section class="v" data-opt="hall:C" hidden>
+    <div class="vhead"><span class="tag">Экран · В</span><h2>Фриз-очередь слева</h2></div>
+    <p class="vnote">Очередь — вертикальной лентой с меандром, как роспись на вазе. Тот, кто ходит, раскрывается с портретом; рядом — здоровье каждого. Босс справа занимает весь экран.</p>
+    <div class="pros"><span>очередь и здоровье в одном месте</span><span>портрет того, кто ходит</span><span class="con">лента занимает четверть экрана</span></div>
+    <div class="stage">
+      <div class="frost"></div><div class="snow"></div>
+      <div class="frieze">
+        <span class="kick" style="margin-top:1cqw;font-size:.95cqw">Очередь · раунд 3</span>
+        <div class="frow cur big"><span class="num">Α</span><div class="pic"><img src="/olymp/img/zeus.jpg" alt="Зевс"><div class="mini" style="flex:1"><b style="font-size:1.5cqw">Зевс</b><small>Аня</small><div class="hp"><i style="width:80%"></i></div><small>ходит сейчас</small></div></div></div>
+        <div class="frow enemy"><span class="num">Β</span><div class="emb foe" data-god="boss" style="--s:3cqw"></div><div class="mini"><b>Пожиратель</b><div class="hp"><i class="bossmini" style="width:61.3%;background:linear-gradient(90deg,#7a9fb3,#CFE3EE)"></i></div></div></div>
+        <div class="frow"><span class="num">Γ</span><div class="emb athena" data-god="athena" style="--s:3cqw"></div><div class="mini"><b>Афина</b><div class="hp"><i style="width:92%"></i></div></div></div>
+        <div class="frow"><span class="num">Δ</span><div class="emb hades" data-god="hades" style="--s:3cqw"><span class="curse">Я</span></div><div class="mini"><b>Аид</b><div class="hp"><i class="low" style="width:28%"></i></div></div></div>
+        <div class="frow"><span class="num">Ε</span><div class="emb hestia" data-god="hestia" style="--s:3cqw"></div><div class="mini"><b>Гестия</b><div class="hp"><i style="width:70%"></i></div></div></div>
+      </div>
+      <div class="lb" style="left:40cqw;top:1cqw;width:38cqw"><div class="lb-aura"></div><div class="lb-body"><img src="/olymp/img/boss.jpg" alt="Пожиратель зимы"><div class="lb-eye l"></div><div class="lb-eye r"></div><div class="lb-mark"></div><div class="lb-breath"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="lb-flash"></div></div><div class="lb-mist"></div><div class="lb-wave"></div><span class="lb-dmg">−34</span></div>
+      <div style="position:absolute;left:34cqw;right:5cqw;bottom:4cqw" class="hpwide">
+        <div class="t"><span class="serif" style="font-size:3cqw;color:#CFE3EE">Пожиратель зимы</span><span>ранг B · <b class="bhp">184</b> / 300</span></div>
+        <div class="hptrack"><i class="lag"></i><i class="now"></i></div>
+        <div class="chips"><span class="chip">🪙 80 драхм</span><span class="chip">опыт 600</span><span class="chip">уязвим: огонь, молния</span></div><div class="babs" title="Способности босса"><span class="bab next" aria-label="Ледяной вой — урон всем"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="10.5" stroke-dasharray="2 3"/></svg></span><span class="bab" aria-label="Удар когтем — урон одному"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L18 6M14 4h6v6"/></svg></span><span class="bab" aria-label="Проклятие холода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z"/><path d="M9 14l6-4M9 10l6 4"/></svg></span><span class="bab cd" aria-label="Пожирает душу — лечится"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></span><span class="bab" aria-label="Ледяная броня"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg></span><span class="bab" aria-label="Оцепенение — −15 к броскам"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6"/></svg></span><span class="bab cd" aria-label="Зовёт тени"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20c1-4 9-4 10 0M11 20c1-4 9-4 10 0"/></svg></span></div><span class="intent">Готовит: <b>Ледяной вой</b> — урон всем, следующим ходом</span>
+      </div>
+    </div>
+  </section>
+  <div class="sep"></div>
+
+  <!-- ТЕЛЕФОНЫ -->
+  <section class="v">
+    <div class="vhead"><span class="tag">Телефон</span><h2>Ход игрока — три варианта</h2></div>
+    <p class="vnote">Зевс ставит Эгиду (щит) на Аида, у которого мало здоровья. Везде одни и те же три шага: способность → цель → бросок. Игрок выбирает вид в настройках на своём телефоне.</p>
+    <div class="seg" role="group" aria-label="Вид хода" data-group="phone"><span>Игрок выбирает:</span><button data-pick="1" aria-pressed="true">Шторка</button><button data-pick="2" aria-pressed="false">Веер карт</button><button data-pick="3" aria-pressed="false">По шагам</button></div>
+    <div class="phones">
+      <div class="pcol" data-opt="phone:1">
+        <h3>1 · Шторка снизу</h3>
+        <p>Всё на одном экране: способности, цель и кнопка броска.</p>
+        <div class="phone">
+          <div class="ptop"><div class="emb zeus" data-god="zeus"></div><div><b>Зевс</b><small>уровень 4 · 94/124</small></div></div>
+          <div class="turn"><span>Ваш ход!</span><span>0:40</span></div>
+          <div class="dim">Страницы «Бог · Силы · История · Сумка» затемнены, пока идёт ход.</div>
+          <div class="sheet">
+            <span class="grab"></span>
+            <span class="lbl">Способность</span>
+            <div class="abgrid">
+              <button class="abt"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="13,2 5,14 11,14 10,22 19,9 13,9"/></svg><span>Разряд<small>молния · урон врагу</small></span></button>
+              <button class="abt sel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><span>Эгида<small>свет · щит союзнику</small></span></button>
+              <button class="abt off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Орлиный взор<small>через 1 ход</small></span></button>
+              <button class="abt ult"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 14a4 4 0 0 1 1-8 5 5 0 0 1 9 1 3.5 3.5 0 0 1 1 7z"/><path d="M11 15l-2 4h3l-1 3"/></svg><span>Гнев Олимпа<small>молния · заряд 70%</small></span></button>
+            </div>
+            <span class="lbl">Кого защитить</span>
+            <div class="targets">
+              <button class="tg"><div class="emb athena" data-god="athena"></div>Афина<div class="hp"><i style="width:92%"></i></div></button>
+              <button class="tg sel"><div class="emb hades" data-god="hades"></div>Аид<div class="hp"><i class="low" style="width:28%"></i></div></button>
+              <button class="tg"><div class="emb hestia" data-god="hestia"></div>Гестия<div class="hp"><i style="width:70%"></i></div></button>
+              <button class="tg"><div class="emb zeus" data-god="zeus"></div>Себя<div class="hp"><i style="width:80%"></i></div></button>
+            </div>
+            <div class="odds"><span style="background:#F3DFAE">крит<br>щит 30</span><span style="background:#A3C2AA">хорошо<br>22</span><span style="background:#9EC3D6">средне<br>15</span><span style="background:#E3AA9C">плохо<br>4</span><span style="background:#D98A7A">провал<br>«Рок»</span></div>
+            <button class="rollbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#221E1B" stroke-width="1.8"><polygon points="12,2 21,8 18,20 6,20 3,8"/><path d="M12 2v9M3 8l9 3 9-3M6 20l6-9 6 9"/></svg>Бросить кубик</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pcol" data-opt="phone:2" hidden>
+        <h3>2 · Веер карт</h3>
+        <p>Способности — как карты в руке, цель выбирается касанием эмблемы.</p>
+        <div class="phone">
+          <div class="ptop"><div class="emb zeus" data-god="zeus"></div><div><b>Ваш ход!</b><small>0:40 · выберите карту</small></div></div>
+          <span class="lbl" style="padding:14px 16px 0">Цель</span>
+          <div class="fantg">
+            <button class="tg"><div class="emb athena" data-god="athena"></div>Афина</button>
+            <button class="tg sel"><div class="emb hades" data-god="hades"></div>Аид · 34</button>
+            <button class="tg"><div class="emb hestia" data-god="hestia"></div>Гестия</button>
+            <button class="tg"><div class="emb zeus" data-god="zeus"></div>Себя</button>
+          </div>
+          <div class="fan">
+            <div class="card" style="transform:translateX(-80px) rotate(-8deg);z-index:1"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="13,2 5,14 11,14 10,22 19,9 13,9"/></svg><b>Разряд</b><small>Молния · урон врагу</small></div>
+            <div class="card off" style="transform:translateX(-27px) rotate(-3deg);z-index:2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><b>Взор</b><small>Ветер · будет через 1 ход</small></div>
+            <div class="card ult" style="transform:translateX(80px) rotate(8deg);z-index:3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 14a4 4 0 0 1 1-8 5 5 0 0 1 9 1 3.5 3.5 0 0 1 1 7z"/><path d="M11 15l-2 4h3l-1 3"/></svg><b>Гнев</b><small>Молния · всем · заряд 70%</small></div>
+            <div class="card sel" style="transform:translateX(27px) translateY(-30px) rotate(3deg);z-index:4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg><b>Эгида</b><small>Свет · щит союзнику: крит 30, провал — «Рок»</small></div>
+          </div>
+          <button class="bigdie" aria-label="Бросить кубик">d100</button>
+        </div>
+      </div>
+
+      <div class="pcol" data-opt="phone:3" hidden>
+        <h3>3 · По шагам</h3>
+        <p>Три коротких экрана: проще всего для новичков, но на одно касание больше.</p>
+        <div class="phone">
+          <div class="steps"><span class="on"></span><span class="on"></span><span></span></div>
+          <div class="stepbody">
+            <span class="lbl">Шаг 2 из 3 · Эгида</span>
+            <h4>Кого защитить?</h4>
+            <div class="ally"><div class="emb athena" data-god="athena"></div><div><b>Афина · Катя</b><div class="hp"><i style="width:92%"></i></div></div><em>101</em></div>
+            <div class="ally sel"><div class="emb hades" data-god="hades"></div><div><b>Аид · Олег</b><div class="hp"><i class="low" style="width:28%"></i></div></div><em>34 · яд</em></div>
+            <div class="ally"><div class="emb hestia" data-god="hestia"></div><div><b>Гестия · Дима</b><div class="hp"><i style="width:70%"></i></div></div><em>72</em></div>
+            <div class="ally"><div class="emb zeus" data-god="zeus"></div><div><b>Себя</b><div class="hp"><i style="width:80%"></i></div></div><em>94</em></div>
+          </div>
+          <div class="navrow"><button class="back">Назад</button><button class="next">Дальше: бросок</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="bodyG" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#3b3358"/><stop offset=".6" stop-color="#1c1828"/><stop offset="1" stop-color="#0b0a10"/></radialGradient>
+    <radialGradient id="eyeG"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".4" stop-color="#CFE8F5"/><stop offset="1" stop-color="rgba(158,195,214,0)"/></radialGradient>
+    <g id="bossArt">
+      <path d="M150 34 L162 70 L176 30 L184 76 L204 44 L200 90 Q262 116 258 190 Q252 262 150 276 Q48 262 42 190 Q38 116 100 90 L96 44 L116 76 L124 30 L138 70 Z" fill="url(#bodyG)" stroke="#9EC3D6" stroke-opacity=".35" stroke-width="2"/>
+      <path d="M60 210 Q30 240 18 290 M88 236 Q70 266 72 298 M212 236 Q230 266 228 298 M240 210 Q270 240 282 290" stroke="#2a2440" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <ellipse class="eye" cx="118" cy="150" rx="22" ry="12" fill="url(#eyeG)"/><ellipse class="eye" cx="182" cy="150" rx="22" ry="12" fill="url(#eyeG)"/>
+      <path d="M108 206 Q150 232 192 206 L184 222 L170 212 L160 228 L150 214 L140 228 L130 212 L116 222 Z" fill="#CFE3EE" opacity=".8"/>
+      <path d="M150 96 L156 120 L150 140 L144 120 Z" fill="#9EC3D6" opacity=".7"/>
+    </g>
+  </defs>
+</svg>
+
+<script>
+(function(){
+// стихии: 10 видов урона
+const EL={
+  fire:{n:'Огонь',c:'#E8875A',i:'<path d="M12 22c-4 0-6-3-5-6 0 2 2 2 2 0 0-3 2-5 2-9 3 3 6 7 5 11-1 3-2 4-4 4z" fill="currentColor"/>'},
+  water:{n:'Вода',c:'#6FA8D6',i:'<path d="M12 3c3 5 6 8 6 12a6 6 0 0 1-12 0c0-4 3-7 6-12z" fill="currentColor"/>'},
+  ice:{n:'Лёд',c:'#BFE3F2',i:'<path d="M12 2v20M3.5 7l17 10M3.5 17l17-10M9 4l3 2 3-2M9 20l3-2 3 2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'},
+  bolt:{n:'Молния',c:'#F3D46B',i:'<polygon points="13,2 5,14 11,14 10,22 19,9 13,9" fill="currentColor"/>'},
+  earth:{n:'Земля',c:'#B99369',i:'<path d="M2 20l7-12 4 6 3-4 6 10z" fill="currentColor"/>'},
+  wind:{n:'Ветер',c:'#A9D3B5',i:'<path d="M3 8h11a3 3 0 1 0-3-3M3 13h16a3 3 0 1 1-3 3M3 18h7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'},
+  light:{n:'Свет',c:'#FFF0B8',i:'<circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'},
+  dark:{n:'Тьма',c:'#9C8FD6',i:'<path d="M15 3a9 9 0 1 0 6 12A7 7 0 0 1 15 3z" fill="currentColor"/>'},
+  poison:{n:'Яд',c:'#8FC46A',i:'<path d="M9 3h6M10 3v5l-4 7a4 4 0 0 0 4 6h4a4 4 0 0 0 4-6l-4-7V3" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="16" r="1.6" fill="currentColor"/>'},
+  chaos:{n:'Хаос',c:'#D98AB8',i:'<path d="M12 12m-1 0a1 1 0 1 1 2 0a3 3 0 1 1-6 0a5 5 0 1 1 10 0a7 7 0 1 1-14 0" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'}
+};
+const elIcon=(k,size)=>'<svg viewBox="0 0 24 24" width="'+(size||16)+'" height="'+(size||16)+'" style="color:'+EL[k].c+'" aria-hidden="true">'+EL[k].i+'</svg>';
+const elChip=k=>'<span class="elchip" style="--ec:'+EL[k].c+'">'+elIcon(k,14)+EL[k].n+'</span>';
+// кто сильнее кого: урон ×1,5 по стихии из списка, ×0,5 — в обратную сторону
+const STRONG={fire:['ice','poison'],dark:['poison','chaos'],wind:['chaos','earth'],ice:['earth','water'],poison:['water','light'],chaos:['light','bolt'],earth:['bolt','fire'],water:['fire','dark'],light:['dark','wind'],bolt:['wind','ice']};
+const WEAK={}; Object.keys(STRONG).forEach(a=>STRONG[a].forEach(b=>{(WEAK[b]=WEAK[b]||[]).push(a);}));
+// сопротивления босса стихии Лёд: кто сильнее льда (Огонь, Молния) — 150%, против кого лёд силён (Земля, Вода) — 50%, сам Лёд — 0%
+const BOSS_EL='ice';
+const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG[k].includes(BOSS_EL)?150:STRONG[BOSS_EL].includes(k)?50:100; });
+
+
+
+  const rg=document.getElementById('resGrid'); if(rg) rg.innerHTML=Object.keys(EL).map(k=>{const v=BOSS_RES[k]; const cls=v===0?'immune':v>100?'weak':v<100?'strong':''; return '<div class="'+cls+'">'+elIcon(k)+'<span>'+EL[k].n+'</span><b>'+(v===0?'0%':v+'%')+'</b></div>';}).join('');
+  const GLYPH={
+    zeus:'<svg viewBox="0 0 48 48"><polygon points="28,3 11,27 21,27 17,45 37,19 26,19 31,3" fill="var(--g)"/></svg>',
+    hades:'<svg viewBox="0 0 48 48" fill="none" stroke="var(--g)" stroke-width="3.6" stroke-linecap="round"><path d="M24 45 V16"/><path d="M15 5 V15 Q15 22 24 22 Q33 22 33 15 V5"/></svg>',
+    athena:'<svg viewBox="0 0 48 48" fill="none" stroke="var(--g)" stroke-width="3" stroke-linecap="round"><circle cx="17" cy="22" r="6"/><circle cx="31" cy="22" r="6"/><circle cx="17" cy="22" r="1.6" fill="var(--g)"/><circle cx="31" cy="22" r="1.6" fill="var(--g)"/><path d="M11 12 L16 16 M37 12 L32 16 M22 29 L24 33 L26 29 M13 32 Q24 46 35 32"/></svg>',
+    hestia:'<svg viewBox="0 0 48 48"><path d="M24 45 C13 45 11 34 17 26 C17 32 21 33 21 28 C21 20 26 14 26 4 C35 13 39 25 35 35 C33 41 29 45 24 45Z" fill="var(--g)"/></svg>',
+    boss:'<svg viewBox="0 0 48 48"><ellipse cx="17" cy="22" rx="6" ry="3.4" fill="var(--g)"/><ellipse cx="31" cy="22" rx="6" ry="3.4" fill="var(--g)"/><path d="M14 33 Q24 39 34 33" stroke="var(--g)" stroke-width="2.4" fill="none"/></svg>'
+  };
+  const fill=el=>{ const extra=el.innerHTML; el.innerHTML='<span class="core">'+GLYPH[el.dataset.god]+'</span>'+extra; el.style.setProperty('--d',(Math.random()*-3.6).toFixed(2)+'s'); };
+  // колесо: 6 мест, текущий — сверху
+  const order=[['zeus',5],['boss',4.2],['athena',3.6],['hades',3.6],['hestia',3.6],['boss',3.6]];
+  const rotor=document.getElementById('rotor');
+  order.forEach((o,i)=>{ const a=(-90+i*60)*Math.PI/180, r=22; const sp=document.createElement('div'); sp.className='spoke'; const e=document.createElement('div'); e.className='emb '+(o[0]==='boss'?'foe':o[0])+(i===0?' cur':''); e.dataset.god=o[0]; e.style.setProperty('--s',o[1]+'cqw'); e.style.left=(Math.cos(a)*r)+'cqw'; e.style.top=(Math.sin(a)*r)+'cqw'; if(o[0]==='hades') e.innerHTML='<span class="curse">Я</span>'; sp.appendChild(e); rotor.appendChild(sp); });
+  document.querySelectorAll('[data-god]').forEach(fill);
+  const WHO=['Зевс','Пожиратель','Афина','Аид','Гестия','Пожиратель']; let turn=0;
+  const spokes=[...rotor.querySelectorAll('.emb')];
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(()=>{ turn++; rotor.style.setProperty('--rr',(-60*turn)+'deg'); spokes.forEach((e,i)=>e.classList.toggle('cur',i===turn%6)); document.getElementById('wheelLog').innerHTML='Ходит: <b>'+WHO[turn%6]+'</b>'; const g=['zeus','boss','athena','hades','hestia','boss'][turn%6]; document.querySelectorAll('#wheelList .emb').forEach(e=>e.classList.toggle('cur',e.dataset.god===g)); },4000);
+  document.querySelectorAll('.seg').forEach(g=>{ const grp=g.dataset.group; g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); document.querySelectorAll('[data-opt^="'+grp+':"]').forEach(el=>el.hidden=el.dataset.opt!==grp+':'+b.dataset.pick); }); });
+  const nm=document.getElementById('bossName'); const t=nm.textContent; nm.innerHTML=''; [...t].forEach((c,i)=>{const sp=document.createElement('span'); sp.textContent=c; sp.style.setProperty('--i',i); nm.appendChild(sp);});
+
+  const lbs=[...document.querySelectorAll('.lb')]; let flip=0;
+  let bossHp=184, dmgNow=0;
+  const setHp=()=>{ document.querySelectorAll('.bhp').forEach(b=>b.textContent=bossHp); document.querySelectorAll('.hptrack .now,.hptrack .lag,.bossmini').forEach(i=>i.style.width=(bossHp/3)+'%'); };
+  const ev=()=>{ const k=flip++%2?'roar':'hit'; if(k==='hit'){ if(bossHp===0) bossHp=300; dmgNow=Math.min(bossHp,18+Math.floor(Math.random()*25)); bossHp-=dmgNow; setHp(); } lbs.forEach(l=>{ if(k==='hit'&&l.closest('.intro')) return; if(k==='hit') l.querySelector('.lb-dmg').textContent='−'+dmgNow; l.classList.remove('hit','roar'); void l.offsetWidth; l.classList.add(k); }); };
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(ev,4200);
+
+  document.querySelectorAll('.fan').forEach(f=>{ const cards=[...f.querySelectorAll('.card')]; const base=cards.map(c=>c.style.transform.replace(/ ?translateY\(-30px\)/,'')); const zs=cards.map(c=>c.style.zIndex);
+    const pick=i=>cards.forEach((c,k)=>{ c.classList.toggle('sel',k===i); c.style.transform=k===i?base[k]+' translateY(-30px)':base[k]; c.style.zIndex=k===i?9:zs[k]; });
+    cards.forEach((c,i)=>{ c.setAttribute('role','button'); c.tabIndex=0; c.onclick=()=>{ if(!c.classList.contains('off')) pick(i); }; }); });
+
+  const pickIn=(sel,item)=>document.querySelectorAll(sel).forEach(box=>{ const its=[...box.querySelectorAll(item)]; its.forEach(b=>b.addEventListener('click',()=>{ if(b.classList.contains('off')) return; its.forEach(x=>x.classList.toggle('sel',x===b)); })); });
+  pickIn('.abgrid','.abt'); pickIn('.targets','.tg'); pickIn('.fantg','.tg'); pickIn('.stepbody','.ally');
+  document.querySelectorAll('.ally').forEach(a=>{a.setAttribute('role','button'); a.tabIndex=0;});
+  const say=(btn,t)=>{ const old=btn.textContent; btn.textContent=t; setTimeout(()=>btn.textContent=old,1600); };
+  document.querySelectorAll('.rollbtn').forEach(b=>b.addEventListener('click',()=>{ const r=1+Math.floor(Math.random()*100); say(b,'Выпало '+r+' — смотрите на экран'); }));
+  document.querySelectorAll('.bigdie').forEach(b=>b.addEventListener('click',()=>{ const r=1+Math.floor(Math.random()*100); say(b,String(r)); }));
+  document.querySelectorAll('.navrow').forEach(nr=>{ const steps=nr.parentElement.querySelectorAll('.steps span'); const lbl=nr.parentElement.querySelector('.stepbody .lbl'); let st=2;
+    const upd=()=>{ steps.forEach((s,i)=>s.classList.toggle('on',i<st)); lbl.textContent='Шаг '+st+' из 3 · Эгида'; nr.querySelector('.next').textContent=st<3?'Дальше: бросок':'Бросить кубик'; };
+    nr.querySelector('.back').onclick=()=>{ st=Math.max(1,st-1); upd(); }; nr.querySelector('.next').onclick=()=>{ if(st<3){ st++; upd(); } else say(nr.querySelector('.next'),'Выпало '+(1+Math.floor(Math.random()*100))); }; });
+  document.getElementById('replay').onclick=()=>{ const el=document.getElementById('intro'); el.classList.remove('play'); void el.offsetWidth; el.classList.add('play'); };
+
+})();
+</script>
+
+<a href="/olymp.html" style="position:fixed;left:12px;bottom:12px;z-index:99;font:600 13px Jost,system-ui,sans-serif;color:#221E1B;background:#E3C68C;border-radius:999px;padding:10px 14px;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.4)">← Олимп</a>
+</body>
+</html>

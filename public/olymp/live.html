@@ -1,0 +1,1310 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Олимп в движении</title>
+<style>
+@font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Jost';font-weight:600;font-display:swap;src:url(/fonts/jost-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:600;font-display:swap;src:url(/fonts/jost-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-700-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+:root{
+  --bg:#08090B; --ink:#FBF6F1; --soft:#B5ABA2; --gold:#E3C68C; --gold2:#F3DFAE; --rose:#C49E96;
+  --green:#A3C2AA; --ice:#9EC3D6; --coral:#E3AA9C; --red:#D98A7A; --panel:rgba(20,17,15,.62);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Jost,system-ui,sans-serif;padding-inline:16px;padding-block:12px 24px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.brand{font:700 22px 'Cormorant Garamond',serif;color:var(--gold2);letter-spacing:.08em}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tab,.snd{font:500 15px Jost,sans-serif;color:var(--soft);background:transparent;border:1px solid rgba(227,198,140,.25);border-radius:999px;padding:0 14px;min-height:44px;cursor:pointer}
+.tab[aria-pressed="true"]{color:#221E1B;background:var(--gold);border-color:var(--gold)}
+.snd{color:var(--gold2);border-color:var(--gold)}
+.snd[aria-pressed="true"]{background:rgba(227,198,140,.15)}
+.stage{position:relative;width:min(100%, calc((100vh - 182px) * 16 / 9));min-width:min(100%,320px);aspect-ratio:16/9;margin:0 auto;border-radius:18px;overflow:hidden;container-type:size;background:#0d0f13;isolation:isolate;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.hint{display:none;text-align:center;color:var(--soft);font-size:14px}
+@media (orientation:portrait) and (max-width:700px){.hint{display:block}}
+@media (orientation:landscape) and (max-height:520px){
+  body{padding-block:8px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 168px;grid-template-rows:auto 1fr;gap:8px;max-width:none}
+  .top{grid-column:2;grid-row:1;flex-direction:column;align-items:stretch}
+  .brand{display:none}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .tab,.snd{min-height:44px;font-size:12px;padding:0 4px;border-radius:12px}
+  .snd{grid-column:1/3}
+  .stage{grid-column:1;grid-row:1/3;width:100%;max-height:calc(100vh - 16px)}
+  .phonewrap{grid-column:1;grid-row:1/3}
+  .phone{height:calc(100vh - 16px)!important;min-height:0!important}
+  .controls{grid-column:2;grid-row:2;flex-direction:column;align-items:stretch;justify-content:flex-start;flex-wrap:nowrap;overflow-y:auto;max-height:calc(100vh - 190px);gap:4px}
+  .controls .btn{min-height:44px;font-size:14px;padding:0 10px}
+  .cap{display:none}
+  .controls .btn{flex:0 0 auto}
+}
+.controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;min-height:56px}
+.cap{width:100%;text-align:center;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft)}
+.btn{font:600 16px Jost,sans-serif;min-height:52px;padding:0 22px;border-radius:14px;border:0;background:var(--rose);color:#221E1B;cursor:pointer;transition:transform .2s, filter .2s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn--secondary{background:transparent;color:var(--ink);border:1.5px solid var(--gold)}
+.btn--quiet{background:transparent;color:var(--soft)}
+@media (max-width:600px){.controls .btn{flex:1 1 100%}}
+.btn:focus-visible,.tab:focus-visible,.snd:focus-visible{outline:3px solid var(--gold2);outline-offset:2px}
+
+/* общие слои */
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+.view{position:absolute;inset:0;opacity:0;visibility:hidden;filter:blur(12px);transform:scale(1.04);transition:opacity .9s ease, filter .9s ease, transform 1.1s cubic-bezier(.2,.7,.2,1), visibility 0s .9s}
+.view.on{opacity:1;visibility:visible;filter:none;transform:none;transition:opacity .9s ease, filter .9s ease, transform 1.1s cubic-bezier(.2,.7,.2,1)}
+.serif{font-family:'Cormorant Garamond',serif;font-weight:700}
+.kicker{font-size:1.15cqw;letter-spacing:.18em;text-transform:uppercase;color:var(--soft)}
+.glass{background:var(--panel);border:1px solid rgba(227,198,140,.22);border-radius:1.6cqw;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+
+/* эмблемы */
+.emb{--c1:#C9A15F;--c2:#F3DFAE;--g:#221E1B;position:relative;width:var(--s,4cqw);aspect-ratio:1;border-radius:50%;flex-shrink:0}
+.emb .core{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:radial-gradient(circle at 34% 28%, var(--c2), var(--c1) 58%, #15120e 120%);box-shadow:0 0 calc(var(--s,4cqw)*.35) color-mix(in srgb, var(--c1) 55%, transparent)}
+.emb .core svg{width:58%;height:58%}
+.emb .core::after{content:'';position:absolute;inset:-40%;background:linear-gradient(115deg, transparent 40%, rgba(255,255,255,.65) 50%, transparent 60%);animation:sheen 3.6s ease-in-out infinite;animation-delay:var(--d,0s)}
+.emb::before{content:'';position:absolute;inset:-9%;border-radius:50%;background:conic-gradient(from 0deg, transparent 0 20%, var(--c2) 30%, transparent 42% 70%, var(--c2) 80%, transparent 92%);-webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));animation:spin 5s linear infinite}
+.emb.zeus{--c1:#C9A15F;--c2:#F7E6B8;--g:#2A2010}
+.emb.hades{--c1:#5B4F8C;--c2:#C9C0F0;--g:#F4F1FF}
+.emb.athena{--c1:#5F7F90;--c2:#D7EAF3;--g:#14222B}
+.emb.hestia{--c1:#B66E5D;--c2:#F6CDBE;--g:#2B140F}
+.emb.demeter{--c1:#6E7A4A;--c2:#E6E2A8;--g:#1B1F0E}
+@keyframes sheen{0%,55%{transform:translateX(-60%)}85%,100%{transform:translateX(60%)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- карточка бога ---------- */
+#v-card{background:radial-gradient(ellipse at 50% 55%, #2b2316 0%, #120f0c 55%, #070708 100%)}
+#v-card .storm{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%, rgba(158,195,214,.18), transparent 60%);opacity:0}
+#v-card .storm.flash{animation:storm 1.4s ease-out}
+@keyframes storm{0%{opacity:0}6%{opacity:1}12%{opacity:.2}18%{opacity:.9}100%{opacity:0}}
+.card-area{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:5cqw;perspective:120cqw}
+.gcard{position:relative;width:27cqw;aspect-ratio:3/4.2;transform-style:preserve-3d;transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}
+.gcard.flipped{transform:rotateY(180deg)}
+.gcard .float{position:absolute;inset:0;transform-style:preserve-3d;animation:hover 6s ease-in-out infinite}
+@keyframes hover{0%,100%{transform:rotateX(4deg) rotateZ(-1deg) translateY(0)}50%{transform:rotateX(-3deg) rotateZ(1deg) translateY(-.8cqw)}}
+.face{position:absolute;inset:0;border-radius:1.6cqw;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.back{background:radial-gradient(circle at 50% 45%, #3a2c18, #15110c 70%);border:.25cqw solid #8a6c38;display:grid;place-items:center}
+.back .laurel{font:700 7cqw 'Cormorant Garamond',serif;color:var(--gold);text-shadow:0 0 2cqw rgba(227,198,140,.5)}
+.back .meander{inset:1.2cqw;padding:1.2cqw;background-size:1.2cqw 1.2cqw;opacity:.85}
+.front{transform:rotateY(180deg);border:.25cqw solid var(--gold);background:#14110f;box-shadow:0 0 4cqw rgba(227,198,140,.35)}
+.front img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 12%;transform:scale(1.08);animation:kenburns 14s ease-in-out infinite alternate}
+@keyframes kenburns{to{transform:scale(1.16) translateY(-2%)}}
+.front .bolt{position:absolute;inset:0;background:radial-gradient(ellipse at 22% 20%, rgba(210,235,255,.85), transparent 45%);mix-blend-mode:screen;opacity:0}
+.front .bolt.flash{animation:storm 1.2s ease-out}
+.front .holo{position:absolute;inset:0;background:linear-gradient(120deg, transparent 30%, rgba(243,223,174,.35) 45%, rgba(163,194,170,.25) 52%, rgba(179,170,221,.25) 58%, transparent 70%);background-size:250% 100%;mix-blend-mode:overlay;animation:holo 5s ease-in-out infinite}
+@keyframes holo{0%,100%{background-position:100% 0}50%{background-position:0 0}}
+.front .shade{position:absolute;left:0;right:0;bottom:0;height:52%;background:linear-gradient(transparent, rgba(12,10,8,.96) 55%)}
+.front .info{position:absolute;left:1.6cqw;right:1.6cqw;bottom:1.4cqw;display:flex;flex-direction:column;gap:.6cqw}
+.front .name{font:700 3.6cqw/1 'Cormorant Garamond',serif;color:var(--gold2)}
+.front .dom{white-space:nowrap;font-size:1.1cqw;color:#E9E1D8}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5cqw .9cqw;margin-top:.4cqw}
+.stat{display:flex;flex-direction:column;gap:.25cqw;font-size:.95cqw;color:var(--soft)}
+.stat b{color:var(--ink);font-weight:600}
+.bar{height:.35cqw;border-radius:1cqw;background:rgba(251,246,241,.14);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#C9A15F,#F3DFAE);transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.front .emb{position:absolute;top:1.2cqw;right:1.2cqw}
+.party{display:flex;flex-direction:column;gap:1.4cqw;width:24cqw}
+.party .row{display:flex;gap:1.2cqw;align-items:center;opacity:0;transform:translateX(2cqw);transition:all .7s cubic-bezier(.2,.8,.2,1)}
+.party .row.in{opacity:1;transform:none}
+.party .row span{font-size:1.4cqw;white-space:nowrap}
+.party .row small{display:block;color:var(--soft);font-size:1.05cqw}
+
+/* ---------- сцена ---------- */
+#v-scene{background:linear-gradient(180deg,#1a2531 0%,#121820 55%,#0b0d10 100%)}
+.glowA,.glowB{position:absolute;border-radius:50%;filter:blur(6cqw);opacity:.7}
+.glowA{width:60cqw;height:40cqw;left:-10cqw;top:-18cqw;background:radial-gradient(#2f4a5c,transparent 70%);animation:drift 22s ease-in-out infinite alternate}
+.glowB{width:45cqw;height:30cqw;right:2cqw;bottom:-6cqw;background:radial-gradient(#6a4528,transparent 70%);animation:drift 18s ease-in-out infinite alternate-reverse}
+@keyframes drift{to{transform:translate(6cqw,2cqw) scale(1.1)}}
+.temple{position:absolute;right:-1cqw;bottom:0;width:50cqw;filter:brightness(.72) saturate(.85)}
+.temple .win{animation:flicker 3.2s infinite}
+.temple .win:nth-of-type(2n){animation-delay:-1.3s}
+@keyframes flicker{0%,100%{opacity:.85}20%{opacity:.6}40%{opacity:1}60%{opacity:.7}80%{opacity:.95}}
+.shafts{position:absolute;right:6cqw;bottom:6cqw;width:40cqw;height:40cqw;background:repeating-conic-gradient(from 200deg at 60% 100%, rgba(243,223,174,.10) 0 3deg, transparent 3deg 9deg);-webkit-mask:radial-gradient(circle at 60% 100%, #000, transparent 70%);mask:radial-gradient(circle at 60% 100%, #000, transparent 70%);animation:shaft 9s ease-in-out infinite alternate}
+@keyframes shaft{0%{opacity:.4;transform:rotate(-2deg)}100%{opacity:1;transform:rotate(2deg)}}
+.glint{position:absolute;width:.5cqw;height:.5cqw;border-radius:50%;background:#FFE7B0;box-shadow:0 0 1.2cqw .4cqw rgba(255,214,140,.8);animation:twinkle 2.6s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.1;transform:scale(.6)}50%{opacity:1;transform:scale(1.2)}}
+.fog{position:absolute;left:-20%;width:140%;height:28%;bottom:-4%;background:radial-gradient(ellipse at center, rgba(200,215,230,.22), transparent 70%);filter:blur(2cqw);animation:fogmove 26s ease-in-out infinite alternate}
+.fog.two{bottom:8%;opacity:.5;animation-duration:34s;animation-direction:alternate-reverse}
+@keyframes fogmove{to{transform:translateX(10%)}}
+.place{position:absolute;left:5cqw;top:4cqw;display:flex;gap:.8cqw;align-items:center}
+.pill{font-size:1.05cqw;letter-spacing:.12em;text-transform:uppercase;border:1px solid rgba(158,195,214,.6);color:#CFE3EE;border-radius:999px;padding:.4cqw 1cqw}
+.pill.warm{border-color:rgba(227,198,140,.6);color:var(--gold2)}
+.story{position:absolute;left:5cqw;top:9cqw;width:50cqw;display:flex;flex-direction:column;gap:1.6cqw}
+.story h1{margin:0;font:700 6cqw/1 'Cormorant Garamond',serif;letter-spacing:.01em}
+.story h1 .wd{display:inline-block;white-space:nowrap}
+.story h1 .wd span{display:inline-block;opacity:0}
+.story p{margin:0;font:600 2.15cqw/1.38 'Cormorant Garamond',serif;color:#E9E1D8;opacity:0}
+.say{position:absolute;left:5cqw;bottom:4cqw;width:52cqw;display:flex;gap:1.4cqw;align-items:center;padding:1.2cqw 1.6cqw;opacity:0}
+.say q{font:italic 600 2.3cqw/1.3 'Cormorant Garamond',serif;color:var(--gold2);quotes:'«' '»'}
+.say small{display:block;font-size:1.05cqw;color:var(--soft);margin-bottom:.3cqw;letter-spacing:.12em;text-transform:uppercase}
+.check{position:absolute;right:4cqw;top:10cqw;width:27cqw;padding:1.4cqw;display:flex;flex-direction:column;gap:1cqw;opacity:0}
+.speaker{display:flex;gap:1.2cqw;align-items:center}
+.speaker img{width:6.5cqw;height:6.5cqw;border-radius:1.2cqw;object-fit:cover;object-position:50% 14%;border:2px solid var(--gold)}
+.speaker b{display:block;font:700 2.2cqw/1 'Cormorant Garamond',serif}
+.speaker small{color:var(--soft);font-size:1.05cqw}
+.need{display:flex;justify-content:space-between;align-items:baseline}
+.need .serif{font-size:3.4cqw;color:var(--gold2)}
+.need span{font-size:1.1cqw;color:var(--soft)}
+.chance{height:.6cqw;border-radius:1cqw;background:rgba(251,246,241,.12);overflow:hidden}
+.chance i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6E9277,#A3C2AA);transition:width 1.4s 1.6s cubic-bezier(.2,.8,.2,1)}
+.team{position:absolute;right:4cqw;top:3.6cqw;display:flex;gap:1cqw;opacity:0}
+#v-scene.play .story h1 .wd span{animation:letter .9s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 45ms + .3s)}
+@keyframes letter{from{opacity:0;filter:blur(10px);transform:translateY(.25em)}to{opacity:1;filter:none;transform:none}}
+#v-scene.play .story p{animation:up 1.2s ease forwards;animation-delay:var(--d)}
+#v-scene.play .say{animation:up 1s ease forwards 3.6s}
+#v-scene.play .check{animation:up 1s ease forwards 1.2s}
+#v-scene.play .team{animation:up 1s ease forwards 2.2s}
+#v-scene.play .chance i{width:66%}
+@keyframes up{from{opacity:0;transform:translateY(1.5cqw);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+
+/* ---------- бросок ---------- */
+#v-roll{background:radial-gradient(ellipse at 50% 55%, #33281a 0%, #17130f 55%, #08080a 100%)}
+.rays{position:absolute;left:50%;top:50%;width:160cqw;height:160cqw;margin:-80cqw 0 0 -80cqw;background:repeating-conic-gradient(rgba(243,223,174,.07) 0 6deg, transparent 6deg 18deg);animation:spin 60s linear infinite;transition:opacity 1s;opacity:.35}
+#v-roll[data-out="crit"] .rays{opacity:1;background:repeating-conic-gradient(rgba(243,223,174,.22) 0 6deg, transparent 6deg 18deg);animation-duration:14s}
+#v-roll[data-out="fail"] .rays{opacity:.15}
+.meander{position:absolute;inset:1cqw;padding:1.3cqw;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 21H21V3H5V16H15V9H10' fill='none' stroke='%23C9A15F' stroke-width='2.4'/%3E%3C/svg%3E") 0 0/1.3cqw 1.3cqw repeat;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);pointer-events:none;opacity:.55;border-radius:.8cqw}
+.temple .flame{transform-box:fill-box;transform-origin:50% 100%;animation:flame .5s ease-in-out infinite alternate}
+.temple .flame.f2{animation-duration:.37s}
+@keyframes flame{0%{transform:scale(1,1) skewX(-3deg)}100%{transform:scale(.88,1.12) skewX(4deg)}}
+.altar{position:absolute;left:50%;bottom:15%;width:74cqw;transform:translateX(-50%) scaleY(.34);transform-origin:50% 100%;opacity:.85;transition:opacity 1s}
+#v-roll.done .altar{opacity:.18}
+.floor{position:absolute;left:20%;right:20%;bottom:12%;height:30%;background:radial-gradient(ellipse at center, rgba(227,198,140,.13), transparent 70%)}
+#dice{position:absolute;inset:0;transition:opacity .7s ease, transform .9s ease}
+#dice canvas{width:100%;height:100%;display:block}
+.rhead{position:absolute;left:4cqw;top:3.6cqw;display:flex;gap:1cqw;align-items:center;font-size:1.4cqw;color:#E9E1D8}
+.rhead b{color:var(--ink)}
+.dlab{position:absolute;transform:translate(-50%,-50%) scale(.4);opacity:0;font:700 4.6cqw/1 'Cormorant Garamond',serif;color:var(--gold2);padding:.4cqw 1.2cqw;border-radius:1cqw;background:rgba(20,17,15,.7);border:1px solid rgba(227,198,140,.5);transition:all .55s cubic-bezier(.2,.9,.3,1.3);font-variant-numeric:tabular-nums}
+.dlab.ice{color:#E6F2F8;border-color:rgba(207,227,238,.6)}
+.dlab.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.dlab.merge{left:25%!important;top:47%!important;opacity:0;transform:translate(-50%,-50%) scale(1.6);transition:all .6s cubic-bezier(.5,0,.7,.4)}
+.res{position:absolute;inset:0;pointer-events:none}
+.meterbox{position:absolute;left:5cqw;top:9cqw;width:40cqw;opacity:0;transform:scale(.9);transition:all .8s cubic-bezier(.2,.8,.2,1)}
+.meterbox svg{width:100%;display:block;overflow:visible}
+.needle{transform-box:view-box;transform-origin:100px 100px;transform:rotate(0deg);transition:transform 1.6s cubic-bezier(.15,.9,.25,1.05)}
+.bignum{position:absolute;left:50%;top:112%;transform:translate(-50%,-50%);font:700 13cqw/1 'Cormorant Garamond',serif;color:var(--oc,#F3DFAE);text-shadow:0 0 4cqw color-mix(in srgb, var(--oc,#F3DFAE) 55%, transparent);font-variant-numeric:tabular-nums}
+.out{position:absolute;left:48cqw;top:15cqw;width:46cqw;display:flex;flex-direction:column;gap:1.8cqw}
+.word{font:700 5.2cqw/1.05 'Cormorant Garamond',serif;color:var(--oc,#F3DFAE)}
+.word .wd{display:inline-block;white-space:nowrap}
+.word .wd span{display:inline-block;opacity:0}
+.otext{margin:0;font:600 2.25cqw/1.38 'Cormorant Garamond',serif;color:#E9E1D8;opacity:0;transform:translateY(1cqw);transition:all .9s ease .9s}
+.chips{display:flex;flex-wrap:wrap;gap:.8cqw}
+.chip{font-weight:600;font-size:1.35cqw;color:#221E1B;background:var(--gold);border-radius:999px;padding:.6cqw 1.3cqw;opacity:0;transform:scale(.6)}
+.chip.minus{background:var(--coral)}
+.chip.plus{background:var(--green)}
+#v-roll.done .meterbox{opacity:1;transform:none}
+#v-roll.done .word .wd span{animation:letter .7s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 35ms + .5s)}
+#v-roll.done .otext{opacity:1;transform:none}
+#v-roll.done .chip{animation:pop .6s cubic-bezier(.2,.9,.3,1.4) forwards;animation-delay:calc(var(--i) * 180ms + 1.6s)}
+@keyframes pop{to{opacity:1;transform:none}}
+.flashW{position:absolute;inset:0;background:#fff8e6;opacity:0;pointer-events:none;z-index:20}
+.flashW.go{animation:flashw 1.1s ease-out}
+@keyframes flashw{0%{opacity:0}8%{opacity:.85}100%{opacity:0}}
+.crack{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:21;opacity:0}
+.crack path{fill:none;stroke:#F4E8E0;stroke-width:2.2;stroke-dasharray:1400;stroke-dashoffset:1400;filter:drop-shadow(0 0 4px rgba(217,138,122,.9))}
+.crack.go{opacity:1}
+.crack.go path{animation:draw .5s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.shake{animation:shake .5s}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-1.2%,.6%)}40%{transform:translate(1%,-.8%)}60%{transform:translate(-.6%,.8%)}80%{transform:translate(.6%,-.4%)}}
+
+/* ---------- карта ---------- */
+#v-map{background:radial-gradient(ellipse at 30% 60%, #3a3326 0%, #221e17 55%, #121009 100%)}
+#v-map svg.mapsvg{position:absolute;inset:0;width:100%;height:100%}
+.mhead{position:absolute;left:4cqw;top:3.4cqw;display:flex;flex-direction:column;gap:.4cqw}
+.mhead .serif{font-size:4.2cqw;line-height:1;color:var(--gold2)}
+.timer{position:absolute;right:4cqw;top:3.4cqw;text-align:right}
+.timer .serif{font-size:4.4cqw;line-height:1;font-variant-numeric:tabular-nums}
+.timer small{display:block;color:var(--soft);font-size:1.1cqw}
+.branch{stroke-dasharray:14 12;animation:march 1.2s linear infinite}
+@keyframes march{to{stroke-dashoffset:-26}}
+.branch.chosen{stroke:#F3DFAE;stroke-width:6;filter:drop-shadow(0 0 6px rgba(243,223,174,.8))}
+.branch.faded{opacity:.15}
+.trail{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+#v-map.play .trail{animation:draw 1.6s ease forwards .3s}
+.node{position:absolute;transform:translate(-50%,calc(-100% - 2.2cqw));width:auto;min-width:17cqw;max-width:26cqw;padding:1cqw 1.2cqw;display:flex;flex-direction:column;gap:.4cqw;cursor:pointer;transition:transform .5s, box-shadow .5s, opacity .6s, border-color .5s;border-radius:1.4cqw;background:rgba(20,17,15,.72);border:1.5px solid rgba(181,171,162,.35);color:var(--ink);text-align:left;font-family:Jost,sans-serif}
+.node:hover{border-color:var(--gold)}
+.node .serif{font-size:2.1cqw;line-height:1;white-space:nowrap}
+.node small{white-space:nowrap}
+.node small{font-size:1.05cqw;color:var(--soft)}
+.node .votes{display:flex;gap:.5cqw;min-height:2.6cqw;align-items:center}
+.node .count{margin-left:auto;font:700 2cqw 'Cormorant Garamond',serif;color:var(--gold2)}
+.node.mine{border-color:var(--gold)}
+.node.win{border:2.5px solid var(--gold2);box-shadow:0 0 4cqw rgba(243,223,174,.45);transform:translate(-50%,calc(-100% - 2.2cqw)) scale(1.08);z-index:3}
+.node.dim{opacity:.35}
+.dot{animation:pulse 2s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%{transform:scale(1);opacity:.9}100%{transform:scale(2.4);opacity:0}}
+.ava{--s:2.6cqw}
+.fly{position:absolute;z-index:25;transition:left .95s cubic-bezier(.3,.7,.2,1), top .95s cubic-bezier(.5,0,.3,1);transform:translate(0,0)}
+.ava.pop{animation:popin .45s cubic-bezier(.2,.9,.3,1.5)}
+@keyframes popin{from{transform:scale(.2)}to{transform:none}}
+.token{position:absolute;transform:translate(-50%,-50%);z-index:4;--s:4.2cqw}
+.banner{position:absolute;left:50%;bottom:4cqw;transform:translate(-50%,2cqw);opacity:0;transition:all .7s cubic-bezier(.2,.8,.2,1);padding:1.2cqw 2.4cqw;text-align:center;z-index:6}
+.banner.on{opacity:1;transform:translate(-50%,0)}
+.banner .serif{font-size:2.8cqw;color:var(--gold2);display:block}
+.banner small{font-size:1.2cqw;color:var(--soft)}
+
+/* ---------- телефон игрока ---------- */
+.phonewrap[hidden]{display:none}
+.phonewrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{position:relative;width:min(390px,100%);height:min(800px,calc(100vh - 140px));min-height:600px;border-radius:34px;border:1.5px solid rgba(227,198,140,.35);background:linear-gradient(180deg,#1d1914,#110f0c);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.phead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 0 18px;gap:10px}
+.pnum{font:600 13px Jost,system-ui,sans-serif;color:var(--gold2);letter-spacing:.06em;white-space:nowrap}
+.pnum b{font:700 18px 'Cormorant Garamond',serif;margin-right:4px}
+.gear{width:44px;height:44px;border-radius:12px;border:1px solid rgba(227,198,140,.35);background:transparent;color:var(--gold2);display:grid;place-items:center;cursor:pointer}
+.gear svg{width:22px;height:22px}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(251,246,241,.22);transition:all .3s}
+.dots i.on{width:26px;border-radius:4px;background:var(--gold)}
+.pages{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+.pages::-webkit-scrollbar{display:none}
+.page>*{flex-shrink:0}
+.page{flex:0 0 100%;scroll-snap-align:start;overflow-y:auto;padding:10px 18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.dotsrow{display:flex;align-items:center;justify-content:center;gap:10px;padding:2px 0}
+.edge{width:44px;height:44px;border-radius:12px;border:1px solid rgba(227,198,140,.3);background:transparent;color:var(--gold2);font:600 22px/1 Jost,system-ui,sans-serif;cursor:pointer;display:grid;place-items:center}
+.edge[disabled]{opacity:.2;cursor:default}
+.pnav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid rgba(227,198,140,.18);background:rgba(10,9,7,.92)}
+.pnav button{min-height:62px;background:none;border:0;color:var(--soft);font:500 11px Jost,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative;white-space:nowrap}
+.pnav button svg{width:21px;height:21px}
+.pnav button[aria-current="true"]{color:var(--gold2)}
+.pnav button[aria-current="true"]::before{content:'';position:absolute;top:0;left:22%;right:22%;height:2px;background:linear-gradient(90deg,#E3C68C,#A3C2AA);border-radius:2px}
+.pnav button em{position:absolute;top:6px;right:calc(50% - 20px);font:600 9px Jost,system-ui,sans-serif;font-style:normal;color:var(--soft)}
+/* подсказка о листании */
+.swipehint{position:absolute;inset:0;z-index:20;background:rgba(10,8,6,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;backdrop-filter:blur(3px)}
+.swipehint[hidden]{display:none}
+.swipehint .hand{position:relative;width:180px;height:90px}
+.swipehint .hand svg{position:absolute;left:50%;top:10px;width:54px;height:54px;margin-left:-27px;color:var(--gold2);animation:handswipe 2s ease-in-out infinite}
+@keyframes handswipe{0%{transform:translateX(40px) rotate(8deg);opacity:0}15%{opacity:1}60%{transform:translateX(-40px) rotate(-6deg);opacity:1}80%,100%{transform:translateX(-50px);opacity:0}}
+.swipehint .trail{position:absolute;left:30px;right:30px;bottom:12px;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:trail 2s ease-in-out infinite}
+@keyframes trail{0%,10%{opacity:0}50%{opacity:1}90%,100%{opacity:0}}
+.swipehint b{font:700 26px/1.15 'Cormorant Garamond',serif;color:var(--gold2)}
+.swipehint p{margin:0;color:#E9E1D8;font-size:14px;line-height:1.5}
+.swipehint .list{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.swipehint .list span{font-size:12px;border:1px solid rgba(227,198,140,.4);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.okbtn{min-height:52px;padding:0 28px;border:0;border-radius:14px;background:var(--rose);color:#221E1B;font:600 16px Jost,system-ui,sans-serif;cursor:pointer}
+/* всплывающая карточка */
+.psheet{position:absolute;inset:0;z-index:15;display:flex;flex-direction:column;justify-content:flex-end}
+.psheet[hidden]{display:none}
+.psheet-bg{position:absolute;inset:0;background:rgba(8,7,6,.6)}
+.psheet-card{position:relative;max-height:82%;overflow-y:auto;background:#1c1813;border-top:1px solid rgba(227,198,140,.45);border-radius:22px 22px 0 0;padding:14px 18px 22px;display:flex;flex-direction:column;gap:12px;animation:slideup .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideup{from{transform:translateY(30%);opacity:0}}
+.psheet-card .grab{width:40px;height:4px;border-radius:2px;background:rgba(251,246,241,.25);align-self:center}
+.psheet-card h4{margin:0;font:700 26px/1.1 'Cormorant Garamond',serif;color:var(--gold2)}
+.psheet-card .sub{font-size:13px;color:var(--soft)}
+.psheet-card .close{min-height:48px;border-radius:14px;border:1.5px solid var(--gold);background:transparent;color:var(--ink);font:600 15px Jost,system-ui,sans-serif;cursor:pointer}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:14px}
+.kv span{color:var(--soft)} .kv b{text-align:right;font-variant-numeric:tabular-nums}
+.kv b.plus{color:var(--green)} .kv b.minus{color:var(--coral)}
+.choice2{display:flex;gap:12px;align-items:center;min-height:56px;padding:10px 14px;border-radius:14px;border:1.5px solid rgba(251,246,241,.15);background:transparent;color:var(--ink);font:500 15px Jost,system-ui,sans-serif;text-align:left;cursor:pointer}
+.choice2 i{width:20px;height:20px;border-radius:50%;border:2px solid #B5ABA2;flex-shrink:0;display:grid;place-items:center}
+.choice2[aria-checked="true"]{border-color:var(--gold)}
+.choice2[aria-checked="true"] i{border-color:var(--rose)}
+.choice2[aria-checked="true"] i::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--rose)}
+.choice2 small{display:block;color:var(--soft);font-size:12px}
+/* страница «Бог» */
+.ptitle{font:700 12px Jost,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.hero{position:relative;margin:-10px -18px 0;height:230px;overflow:hidden}
+.hero img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;animation:kenburns 14s ease-in-out infinite alternate}
+.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,#1d1914 96%)}
+.hero .who{position:absolute;left:18px;right:18px;bottom:10px;z-index:1;display:flex;align-items:flex-end;gap:12px}
+.hero .who b{display:block;font:700 40px/1 'Cormorant Garamond',serif;color:var(--gold2)}
+.hero .who span{font-size:13px;color:#E9E1D8;white-space:nowrap}
+.lvl{position:relative;width:62px;height:62px;flex-shrink:0;margin-left:auto}
+.lvl svg.ring{position:absolute;inset:-6px;width:74px;height:74px;transform:rotate(-90deg)}
+.lvl .emb{--s:62px}
+.lvl em{position:absolute;right:-6px;bottom:-4px;font:700 14px Jost,sans-serif;font-style:normal;background:#221E1B;border:1.5px solid var(--gold);color:var(--gold2);border-radius:999px;padding:1px 7px;z-index:2}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar2{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--soft)}
+.bar2 .t{display:flex;justify-content:space-between;white-space:nowrap;gap:8px}
+.bar2 .t b{color:var(--ink);font-variant-numeric:tabular-nums}
+.bar2 .track{height:8px;border-radius:4px;background:rgba(251,246,241,.1);overflow:hidden}
+.bar2 .track i{display:block;height:100%;border-radius:4px}
+.infobox{border:1px solid rgba(158,195,214,.35);background:rgba(158,195,214,.06);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.infobox .hd{display:flex;align-items:center;gap:8px;font:600 12px Jost,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#CFE3EE}
+.infobox .hd svg{width:16px;height:16px}
+.fx{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;font-size:14px}
+.fx .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center}
+.fx .ic svg{width:18px;height:18px}
+.fx b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx small{display:block;color:var(--soft);font-size:12px;line-height:1.35}
+.fx>div{min-width:0}
+.fx .left{font-size:12px;color:var(--soft);white-space:nowrap}
+.feed{display:flex;flex-direction:column;gap:6px;border-top:1px dashed rgba(158,195,214,.25);padding-top:10px}
+.feed div{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:13px;color:#E9E1D8}
+.feed time{color:var(--soft);font-variant-numeric:tabular-nums}
+.pts{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(227,198,140,.12);border:1px solid rgba(227,198,140,.5);border-radius:14px;padding:10px 14px;font-size:14px}
+.pts b{font:700 26px 'Cormorant Garamond',serif;color:var(--gold2)}
+.statrow{display:grid;grid-template-columns:1fr auto 44px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(251,246,241,.06)}
+.statrow .nm{font-size:15px;min-width:0}
+.statrow .nm small{display:block;color:var(--soft);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statrow .val{font:700 22px 'Cormorant Garamond',serif;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
+.statrow .val.up{color:var(--green);animation:popin .4s}
+.pplus{width:44px;height:44px;border-radius:12px;border:1.5px solid var(--gold);background:transparent;color:var(--gold2);font:600 22px Jost,system-ui,sans-serif;cursor:pointer}
+.pplus:disabled{opacity:.25;cursor:default}
+.lock{width:44px;height:44px;display:grid;place-items:center;color:var(--soft)}
+.lock svg{width:18px;height:18px}
+/* способности */
+.elchip{display:inline-flex;align-items:center;gap:4px;font:600 11px Jost,system-ui,sans-serif;border-radius:999px;padding:3px 8px;border:1px solid color-mix(in srgb,var(--ec) 60%,transparent);color:var(--ec);background:color-mix(in srgb,var(--ec) 12%,transparent);white-space:nowrap}
+.kind{font:600 11px Jost,system-ui,sans-serif;border-radius:999px;padding:3px 8px;background:rgba(251,246,241,.08);color:var(--soft);white-space:nowrap}
+details.ab{border:1px solid rgba(251,246,241,.12);border-radius:16px;background:rgba(251,246,241,.03)}
+details.ab.ult{border-color:var(--gold);background:linear-gradient(160deg,rgba(227,198,140,.14),rgba(227,198,140,.03))}
+details.ab summary{list-style:none;display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px 14px;cursor:pointer;min-height:68px}
+details.ab summary::-webkit-details-marker{display:none}
+details.ab .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(227,198,140,.14)}
+details.ab .ic svg{width:24px;height:24px}
+details.ab .nm{min-width:0;display:flex;flex-direction:column;gap:5px}
+details.ab .nm b{font:700 21px/1 'Cormorant Garamond',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+details.ab .tags{display:flex;gap:5px;flex-wrap:wrap}
+details.ab .more{font:600 12px Jost,system-ui,sans-serif;color:var(--gold2);white-space:nowrap}
+details.ab[open] .more{color:var(--soft)}
+details.ab .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+details.ab p{margin:0;font-size:14px;line-height:1.45;color:#E9E1D8}
+.outcomes{display:flex;flex-direction:column;gap:4px}
+.outcomes div{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;font-size:13px;padding:6px 10px;border-radius:9px}
+.outcomes div span:first-child{font-weight:600;color:#221E1B;border-radius:6px;padding:2px 6px;text-align:center;white-space:nowrap}
+.vs{font-size:13px;color:#E9E1D8;background:rgba(158,195,214,.08);border:1px dashed rgba(158,195,214,.35);border-radius:10px;padding:8px 10px}
+.charge{height:6px;border-radius:3px;background:rgba(251,246,241,.1);overflow:hidden}
+.charge i{display:block;height:100%;width:70%;background:linear-gradient(90deg,#C9A15F,#F3DFAE);animation:chg 2.4s ease-in-out infinite alternate}
+@keyframes chg{from{filter:brightness(.9)}to{filter:brightness(1.3)}}
+.elgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+/* история */
+.lore{font:600 18px/1.5 'Cormorant Garamond',serif;color:#E9E1D8;margin:0}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
+.facts dt{color:var(--soft)} .facts dd{margin:0}
+/* сумка и одежда */
+.gold{display:flex;align-items:center;gap:14px;background:linear-gradient(160deg,rgba(227,198,140,.16),rgba(227,198,140,.04));border:1px solid rgba(227,198,140,.4);border-radius:16px;padding:14px}
+.coin{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F7E6B8,#C9A15F 60%,#7a5a22);display:grid;place-items:center;font:700 20px 'Cormorant Garamond',serif;color:#3a2a10;box-shadow:inset 0 0 0 3px rgba(122,90,34,.6)}
+.gold b{font:700 34px/1 'Cormorant Garamond',serif;color:var(--gold2)}
+.gold small{display:block;color:var(--soft);font-size:12px}
+.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.slot{position:relative;aspect-ratio:1;border-radius:14px;border:1.5px dashed rgba(251,246,241,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;font:500 11px/1.15 Jost,system-ui,sans-serif;color:var(--soft);padding:4px;background:transparent;cursor:pointer}
+.slot.full{border:1.5px solid var(--gold);background:linear-gradient(160deg,#4a5236,#23271a);color:var(--gold2)}
+.slot.full.blue{background:linear-gradient(160deg,#334a5c,#18222b)}
+.slot.full.purple{background:linear-gradient(160deg,#4a3b5c,#211a2b)}
+.slot svg{width:24px;height:24px}
+.slot .nm{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slots.five .slot .nm{font-size:9.5px;letter-spacing:-.3px;text-overflow:clip}
+.ibadge{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#221E1B;font:700 12px/20px 'Cormorant Garamond',serif;font-style:italic;text-align:center;box-shadow:0 0 0 2px #1d1914}
+.item{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(251,246,241,.06)}
+.item .pic{position:relative;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;border:0;cursor:pointer}
+.item .pic svg{width:24px;height:24px}
+.item>div{min-width:0}
+.item b{font-size:15px;display:block;line-height:1.25}
+.item small{display:block;color:var(--soft);font-size:12px;line-height:1.35}
+.use{min-height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--gold);background:transparent;color:var(--ink);font:600 13px Jost,system-ui,sans-serif;cursor:pointer}
+.setbox{border:1px solid rgba(227,198,140,.4);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:rgba(227,198,140,.06)}
+.setbox .sethd{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.setbox .cnt{font:600 12px Jost,system-ui,sans-serif;color:#221E1B;background:var(--gold);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.setbox b{white-space:nowrap;font:700 20px 'Cormorant Garamond',serif;color:var(--gold2)}
+.setbox div:not(.sethd){font-size:13px;color:#E9E1D8;display:flex;gap:8px}
+.setbox div.off{color:var(--soft)}
+.setbox div span{white-space:nowrap;font-weight:600}
+.speed{display:flex;align-items:center;justify-content:space-between;gap:12px;border-radius:16px;padding:12px 14px;background:rgba(169,211,181,.08);border:1px solid rgba(169,211,181,.4)}
+.speed b{font:700 30px 'Cormorant Garamond',serif;color:#CFEAD6}
+.speed small{color:var(--soft);font-size:12px;display:block}
+
+.ptoast{position:absolute;left:16px;right:16px;top:104px;z-index:30;background:#2b241a;border:1px solid var(--gold);color:var(--ink);border-radius:14px;padding:10px 14px;font-size:14px;opacity:0;transform:translateY(10px);pointer-events:none;transition:all .3s}
+.ptoast.on{animation:toast 2.6s ease forwards}
+@keyframes toast{0%{opacity:0;transform:translateY(10px)}10%,80%{opacity:1;transform:none}100%{opacity:0}}
+.whotags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.infobox .cnt2{margin-left:auto;font:600 11px Jost,system-ui,sans-serif;letter-spacing:0;text-transform:none;color:#E3AA9C}
+.linkbtn{align-self:flex-start;min-height:44px;padding:0 4px;border:0;background:none;color:#CFE3EE;font:600 13px Jost,system-ui,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.pts.done{border-color:rgba(163,194,170,.5);background:rgba(163,194,170,.08);color:#CFEAD6}
+.statrow .nm small i{font-style:normal;margin-right:4px}
+.pos{color:#A3C2AA}.neg{color:#E3AA9C}
+.rowhd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.use.wide{min-height:48px;width:100%}
+.elsvg{width:100%;max-width:320px;align-self:center}
+.elsvg line{stroke-width:1.6}
+.elsvg line.all{stroke:rgba(227,198,140,.45)}.elsvg line.win{stroke:#A3C2AA;stroke-width:2.6}.elsvg line.lose{stroke:#E3AA9C;stroke-width:2.6}.elsvg line.dim{stroke:rgba(251,246,241,.08)}
+.enode{cursor:pointer;outline:none}
+.enode circle{fill:#1c1813;stroke-width:2}
+.enode.on circle{fill:#2e2619;stroke-width:3.5}
+.enode text{font:600 10px Jost,system-ui,sans-serif;fill:#E9E1D8}
+.enode:focus-visible circle{stroke:#fff}
+.ablist{display:flex;flex-direction:column;gap:8px}
+.ablist>div{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:center}
+.ablist .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(227,198,140,.12)}
+.ablist .ic svg{width:20px;height:20px}
+.ablist b{display:block;font-size:14px}
+.ablist small{color:var(--soft);font-size:12px}
+.roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.roles>div{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.roles small{color:var(--soft);font-size:12px;line-height:1.3}
+.coin svg{width:46px;height:46px}
+.coin{background:none!important;box-shadow:none!important}
+.slots.five{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.slot.full{border:1.5px solid var(--rc);background:linear-gradient(160deg,color-mix(in srgb,var(--rc) 30%,#1a1612),#16120e);color:var(--ink)}
+.slot .nm.sm{font-size:10px;opacity:.7}
+.item .pic{background:linear-gradient(160deg,color-mix(in srgb,var(--rc) 40%,#1a1612),#16120e)!important;border:1.5px solid var(--rc)!important;color:var(--ink)}
+.rdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.rtag{font:600 12px Jost,system-ui,sans-serif;color:#221E1B;background:var(--rc);border-radius:999px;padding:3px 10px}
+.effs{margin:0;padding-left:18px;font-size:14px;line-height:1.45;color:#E9E1D8}
+.folder{border:1px solid rgba(251,246,241,.12);border-radius:14px;padding:0 12px;background:rgba(251,246,241,.03)}
+.folder summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:52px;cursor:pointer}
+.folder summary::-webkit-details-marker{display:none}
+.folder summary svg{width:22px;height:22px;color:var(--gold2)}
+.folder summary b{font-size:15px}
+.folder .cnt3{margin-left:auto;font:600 12px Jost,system-ui,sans-serif;color:var(--soft)}
+.folder .chev{color:var(--soft);transition:transform .2s}
+.folder[open] .chev{transform:rotate(180deg)}
+.item .use{min-width:92px}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;animation-delay:0s!important;transition-delay:0s!important}
+}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <span class="brand">ОЛИМП</span>
+    <div class="tabs" role="group" aria-label="Экраны">
+      <button class="tab" data-v="v-card">1 · Бог</button>
+      <button class="tab" data-v="v-scene">2 · Сцена</button>
+      <button class="tab" data-v="v-roll">3 · Бросок</button>
+      <button class="tab" data-v="v-map">4 · Развилка</button>
+      <button class="tab" data-v="v-phone">5 · Телефон</button>
+      <button class="snd" id="snd" aria-pressed="false">Включить звук</button>
+    </div>
+  </div>
+  <p class="hint">Это экран зала. Поверните телефон боком — будет крупнее.</p>
+
+  <div class="stage" id="stage">
+    <canvas id="fx" aria-hidden="true"></canvas>
+
+    <!-- 1. Карточка бога -->
+    <section class="view" id="v-card" aria-label="Карточка бога">
+      <div class="storm" id="storm"></div>
+      <div class="card-area">
+        <div class="gcard" id="gcard">
+          <div class="float">
+            <div class="face back"><div class="meander"></div><span class="laurel">J✦R</span></div>
+            <div class="face front">
+              <img src="/olymp/img/zeus.jpg" alt="Зевс">
+              <div class="bolt" id="bolt"></div>
+              <div class="holo"></div>
+              <div class="shade"></div>
+              <div class="info">
+                <span class="name">Зевс</span>
+                <span class="dom">Гром и власть · лидер атаки</span>
+                <div class="stats" id="stats"></div>
+              </div>
+              <div class="emb zeus" style="--s:4.6cqw" data-god="zeus"></div>
+            </div>
+          </div>
+        </div>
+        <div class="party" id="party">
+          <span class="kicker">Боги разобраны</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Сцена -->
+    <section class="view" id="v-scene" aria-label="Сцена">
+      <div class="glowA"></div><div class="glowB"></div>
+      <div class="shafts"></div>
+      <svg class="temple" viewBox="0 0 640 360" aria-hidden="true">
+        <defs>
+          <linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD9A0"/><stop offset="1" stop-color="#B8642C"/></linearGradient>
+          <linearGradient id="marble" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6E7884"/><stop offset=".45" stop-color="#B9C0C8"/><stop offset=".7" stop-color="#9AA3AD"/><stop offset="1" stop-color="#58616C"/></linearGradient>
+          <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8E98A3"/><stop offset="1" stop-color="#4E5660"/></linearGradient>
+          <g id="col">
+            <polygon points="-20,288 20,288 17,112 -17,112" fill="url(#marble)"/>
+            <path d="M-11 286 L-9.5 114 M-3.5 286 L-3 114 M3.5 286 L3 114 M11 286 L9.5 114" stroke="rgba(30,36,44,.45)" stroke-width="1.6"/>
+            <path d="M-23 112 Q-24 102 -27 100 L27 100 Q24 102 23 112 Z" fill="#A9B1BA"/>
+            <rect x="-29" y="92" width="58" height="8" fill="#C3CAD1"/>
+          </g>
+        </defs>
+        <rect class="win" x="70" y="104" width="500" height="184" fill="url(#warm)" opacity=".8"/>
+        <rect x="70" y="104" width="500" height="184" fill="rgba(10,8,6,.45)"/>
+        <rect x="290" y="150" width="60" height="138" fill="#1b130c" opacity=".7"/>
+        <use href="#col" x="100"/><use href="#col" x="188"/><use href="#col" x="276"/><use href="#col" x="364"/><use href="#col" x="452"/><use href="#col" x="540"/>
+        <rect x="64" y="72" width="512" height="20" fill="url(#stone)"/>
+        <rect x="64" y="50" width="512" height="22" fill="#7C8691"/>
+        <g fill="#3E454E">
+          <rect x="80" y="52" width="14" height="18"/><rect x="124" y="52" width="14" height="18"/><rect x="168" y="52" width="14" height="18"/><rect x="212" y="52" width="14" height="18"/><rect x="256" y="52" width="14" height="18"/><rect x="300" y="52" width="14" height="18"/><rect x="344" y="52" width="14" height="18"/><rect x="388" y="52" width="14" height="18"/><rect x="432" y="52" width="14" height="18"/><rect x="476" y="52" width="14" height="18"/><rect x="520" y="52" width="14" height="18"/><rect x="560" y="52" width="14" height="18"/>
+        </g>
+        <rect x="56" y="44" width="528" height="7" fill="#C3CAD1"/>
+        <polygon points="56,44 320,2 584,44" fill="#A9B1BA"/>
+        <polygon points="80,40 320,10 560,40" fill="#59616B"/>
+        <circle cx="320" cy="28" r="8" fill="none" stroke="#C9A15F" stroke-width="2.4" opacity=".9"/>
+        <path d="M312 8 Q320 -8 328 8" fill="#C9A15F"/><path d="M50 44 Q56 30 62 44" fill="#C9A15F"/><path d="M578 44 Q584 30 590 44" fill="#C9A15F"/>
+        <rect x="56" y="288" width="528" height="14" fill="#9AA3AD"/><rect x="42" y="302" width="556" height="16" fill="#838C96"/><rect x="28" y="318" width="584" height="20" fill="#6C7580"/>
+        <g fill="#EEF3F7" opacity=".9">
+          <path d="M56 44 L320 2 L584 44 L584 47 L320 6 L56 47 Z"/>
+          <path d="M56 286 Q200 282 320 287 T584 286 L584 290 L56 290 Z"/>
+          <path d="M42 300 Q200 296 330 301 T598 300 L598 304 L42 304 Z"/>
+          <path d="M28 316 Q180 312 320 317 T612 316 L612 320 L28 320 Z"/>
+        </g>
+        <g class="brazier" transform="translate(40 318)"><path d="M-14 -24 H14 L8 -12 H-8 Z" fill="#8C6224"/><path d="M-2 -12 L-10 2 M2 -12 L10 2 M0 -12 V2" stroke="#6B4A1C" stroke-width="2.4"/><path class="flame" d="M0 -60 C10 -44 14 -32 8 -24 H-8 C-14 -32 -8 -44 0 -60Z" fill="#F6B25A"/><path class="flame f2" d="M0 -48 C6 -38 8 -30 4 -24 H-4 C-8 -30 -5 -38 0 -48Z" fill="#FFE7A8"/></g>
+        <g class="brazier" transform="translate(600 318)"><path d="M-14 -24 H14 L8 -12 H-8 Z" fill="#8C6224"/><path d="M-2 -12 L-10 2 M2 -12 L10 2 M0 -12 V2" stroke="#6B4A1C" stroke-width="2.4"/><path class="flame" d="M0 -60 C10 -44 14 -32 8 -24 H-8 C-14 -32 -8 -44 0 -60Z" fill="#F6B25A"/><path class="flame f2" d="M0 -48 C6 -38 8 -30 4 -24 H-4 C-8 -30 -5 -38 0 -48Z" fill="#FFE7A8"/></g>
+      </svg>
+      <span class="glint" style="right:41cqw;bottom:16cqw"></span>
+      <span class="glint" style="right:30cqw;bottom:20cqw;animation-delay:-.8s"></span>
+      <span class="glint" style="right:19cqw;bottom:14cqw;animation-delay:-1.7s"></span>
+      <span class="glint" style="right:12cqw;bottom:22cqw;animation-delay:-2.2s"></span>
+      <div class="fog"></div><div class="fog two"></div>
+
+      <div class="place"><span class="pill">Земля смертных</span><span class="pill warm">Храм Деметры</span></div>
+      <div class="story">
+        <span class="kicker">Вечная зима · сцена 1</span>
+        <h1 id="sceneTitle">Голодный храм</h1>
+        <p style="--d:1.4s">Снег лежит на ступенях храма уже восьмой месяц.</p>
+        <p style="--d:2.4s">Внутри — толпа голодных людей и Деметра, постаревшая от горя. Она поднимает глаза на вошедших богов.</p>
+      </div>
+      <div class="say glass">
+        <div class="emb demeter" style="--s:6cqw" data-god="demeter"></div>
+        <div><small>Деметра</small><q>Вы пришли помочь… или вы тоже лжёте мне?</q></div>
+      </div>
+      <div class="check glass">
+        <div class="speaker"><img src="/olymp/img/zeus.jpg" alt="Зевс"><div><b>Говорит Зевс</b><small>Проверка Влияния · 65</small></div></div>
+        <div class="need"><span class="serif">35+</span><span>нужно выбросить</span></div>
+        <div class="chance"><i></i></div>
+        <span style="font-size:1.1cqw;color:var(--soft)">Шанс 66% · пять исходов</span>
+      </div>
+      <div class="team" id="team"></div>
+    </section>
+
+    <!-- 3. Бросок -->
+    <section class="view" id="v-roll" aria-label="Бросок кубика">
+      <div class="rays"></div>
+      <svg class="altar" id="altar" viewBox="-320 -320 640 640" aria-hidden="true"></svg>
+      <div class="floor"></div>
+      <div id="dice"></div>
+      <div class="rhead"><div class="emb zeus" style="--s:3cqw" data-god="zeus"></div><span><b>Зевс</b> · Влияние 65 · нужно 35+</span></div>
+      <span class="dlab" id="labA"></span><span class="dlab ice" id="labB"></span>
+      <div class="res">
+        <div class="meterbox"><svg viewBox="0 0 200 118" id="meter" aria-hidden="true"></svg><span class="bignum" id="bignum">0</span></div>
+        <div class="out" id="out">
+          <div class="word" id="word"></div>
+          <p class="otext" id="otext"></p>
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+      <div class="flashW" id="flashW"></div>
+      <svg class="crack" id="crack" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M400 520 L470 470 L520 500 L600 420 L650 440 L720 360"/>
+        <path d="M400 520 L350 600 L380 660 L330 760"/>
+        <path d="M470 470 L455 380 L500 300"/>
+      </svg>
+    </section>
+
+    <!-- 4. Развилка -->
+    <section class="view" id="v-map" aria-label="Карта и развилка">
+      <svg class="mapsvg" viewBox="0 0 1600 900" aria-hidden="true">
+        <g opacity=".5" stroke="#B5ABA2" fill="none" stroke-width="1">
+          <path d="M0 200 Q400 150 800 220 T1600 180"/><path d="M0 420 Q350 380 700 450 T1600 400"/><path d="M0 640 Q500 600 900 680 T1600 640"/>
+        </g>
+        <path d="M880 900 C 960 760, 1080 640, 1150 470 S 1350 260, 1600 170" stroke="#5F8FA8" stroke-width="16" fill="none" opacity=".45"/>
+        <path d="M880 900 C 960 760, 1080 640, 1150 470 S 1350 260, 1600 170" stroke="#9EC3D6" stroke-width="3" fill="none" opacity=".6" class="branch"/>
+        <g fill="#2a3a2e" opacity=".9" transform="translate(60 90)">
+          <ellipse cx="640" cy="300" rx="11" ry="34"/><ellipse cx="672" cy="280" rx="12" ry="42"/><ellipse cx="700" cy="305" rx="9" ry="28"/><ellipse cx="860" cy="280" rx="12" ry="40"/><ellipse cx="890" cy="305" rx="10" ry="30"/><ellipse cx="612" cy="230" rx="10" ry="32"/><ellipse cx="925" cy="225" rx="11" ry="36"/>
+        </g>
+        <g fill="#14110f" stroke="#6b6158" stroke-width="2">
+          <polygon points="1250,900 1380,640 1510,900"/><polygon points="1380,900 1480,700 1600,900"/>
+        </g>
+        <polygon points="1380,640 1350,700 1410,700" fill="#E9F1F6" opacity=".7"/>
+        <g fill="#C9A15F" opacity=".9"><polygon points="1362,628 1380,616 1398,628"/><rect x="1364" y="628" width="4" height="14"/><rect x="1372" y="628" width="4" height="14"/><rect x="1380" y="628" width="4" height="14"/><rect x="1388" y="628" width="4" height="14"/><rect x="1360" y="642" width="40" height="3"/></g>
+        <text x="1380" y="608" text-anchor="middle" font-family="Cormorant Garamond, serif" font-weight="700" font-size="22" fill="#C9A15F" opacity=".85">Олимп</text>
+        <g fill="#1d1915" stroke="#8a7a62" stroke-width="2" transform="translate(30 80)"><rect x="1060" y="540" width="40" height="30"/><polygon points="1056,540 1080,518 1104,540"/><rect x="1112" y="555" width="34" height="26"/><polygon points="1108,555 1129,537 1150,555"/></g>
+        <circle cx="1460" cy="230" r="34" fill="none" stroke="#B5ABA2" stroke-width="2" stroke-dasharray="6 8" opacity=".5"/>
+        <text x="1460" y="243" text-anchor="middle" font-family="Cormorant Garamond, serif" font-weight="700" font-size="40" fill="#B5ABA2" opacity=".6">?</text>
+        <text x="1460" y="300" text-anchor="middle" font-family="Jost, sans-serif" font-size="20" fill="#B5ABA2" opacity=".6">Царство Аида</text>
+        <path id="trail" class="trail" d="M150 780 C 250 760, 330 700, 430 640" stroke="#E3C68C" stroke-width="5" fill="none"/>
+        <path id="p-forest" class="branch" d="M430 640 C 520 500, 640 420, 800 380" stroke="#B5ABA2" stroke-width="3" fill="none"/>
+        <path id="p-village" class="branch" d="M430 640 C 620 640, 820 600, 1010 590" stroke="#B5ABA2" stroke-width="3" fill="none"/>
+        <path id="p-olymp" class="branch" d="M430 640 C 640 760, 900 830, 1190 800" stroke="#B5ABA2" stroke-width="3" fill="none"/>
+        <circle cx="150" cy="780" r="10" fill="#6b6158"/>
+        <circle cx="800" cy="380" r="12" fill="#E3C68C"/><circle class="dot" cx="800" cy="380" r="12" fill="none" stroke="#E3C68C" stroke-width="3"/>
+        <circle cx="1010" cy="590" r="12" fill="#E3C68C"/><circle class="dot" cx="1010" cy="590" r="12" fill="none" stroke="#E3C68C" stroke-width="3" style="animation-delay:-.6s"/>
+        <circle cx="1190" cy="800" r="12" fill="#E3C68C"/><circle class="dot" cx="1190" cy="800" r="12" fill="none" stroke="#E3C68C" stroke-width="3" style="animation-delay:-1.2s"/>
+        <text x="430" y="700" text-anchor="middle" font-family="Jost, sans-serif" font-size="22" fill="#E9E1D8">Храм Деметры</text>
+      </svg>
+      <div class="meander"></div>
+      <div class="mhead"><span class="kicker">Вечная зима · Земля смертных</span><span class="serif">Куда идём дальше?</span></div>
+      <div class="timer"><span class="serif" id="timer">0:20</span><small id="tally">голосов 0 из 4</small></div>
+      <button class="node" id="n-forest" style="left:50%;top:42.2%"><span class="serif">Заснеженный лес</span><small>Следы теней без лиц</small><span class="votes"><span class="count">0</span></span></button>
+      <button class="node" id="n-village" style="left:63.1%;top:65.6%"><span class="serif">Деревня у Ахерона</span><small>Там видели лодку Харона</small><span class="votes"><span class="count">0</span></span></button>
+      <button class="node" id="n-olymp" style="left:74.4%;top:88.9%"><span class="serif">Дорога на Олимп</span><small>Спросить Гермеса</small><span class="votes"><span class="count">0</span></span></button>
+      <div class="token emb zeus" id="token" data-god="zeus"></div>
+      <div class="banner glass" id="banner"><span class="serif" id="bTitle"></span><small id="bSub"></small></div>
+    </section>
+  </div>
+
+  <div class="phonewrap" id="phoneView" hidden>
+    <div class="phone" id="phone">
+      <div class="phead"><span class="pnum" id="pnum"><b>1</b>/ 5 · Бог</span><button class="gear" id="gear" aria-label="Настройки телефона"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.3 3h3.4l.5 2.4 1.9.8 2-1.4 2.4 2.4-1.4 2 .8 1.9 2.4.5v3.4l-2.4.5-.8 1.9 1.4 2-2.4 2.4-2-1.4-1.9.8-.5 2.4h-3.4l-.5-2.4-1.9-.8-2 1.4-2.4-2.4 1.4-2-.8-1.9L3 13.7v-3.4l2.4-.5.8-1.9-1.4-2 2.4-2.4 2 1.4 1.9-.8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div class="dotsrow"><button class="edge l" id="prevP" aria-label="Предыдущая страница">‹</button><div class="dots" id="pdots"><i class="on"></i><i></i><i></i><i></i><i></i></div><button class="edge r" id="nextP" aria-label="Следующая страница">›</button></div>
+      <div class="pages" id="pages">
+        <section class="page" aria-label="Бог" id="pg1"></section>
+        <section class="page" aria-label="Силы" id="pg2"></section>
+        <section class="page" aria-label="История" id="pg3"></section>
+        <section class="page" aria-label="Сумка" id="pg4"></section>
+        <section class="page" aria-label="Одежда" id="pg5"></section>
+      </div>
+      <nav class="pnav" id="pnav" aria-label="Страницы персонажа"></nav>
+      <div class="swipehint" id="swipeHint" hidden>
+        <div class="hand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v5M12 10V4a1.5 1.5 0 0 1 3 0v6M15 10V6a1.5 1.5 0 0 1 3 0v7a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4a1.5 1.5 0 0 1 2.5-1.6L9 13"/></svg><span class="trail"></span></div>
+        <b>Листайте пальцем<br>влево и вправо</b>
+        <p>У вашего бога 5 страниц. Номер страницы — сверху, переключать можно и кнопками внизу.</p>
+        <div class="list"><span>1 Бог</span><span>2 Силы</span><span>3 История</span><span>4 Сумка</span><span>5 Одежда</span></div>
+        <button class="okbtn" id="hintOk">Понятно</button>
+      </div>
+      <div class="ptoast" id="ptoast" role="status" aria-live="polite"></div>
+      <div class="psheet" id="psheet" hidden><div class="psheet-bg" id="psheetBg"></div><div class="psheet-card" role="dialog" aria-modal="true"><span class="grab"></span><div id="psheetBody" style="display:flex;flex-direction:column;gap:12px"></div><button class="close" id="psheetClose">Закрыть</button></div></div>
+    </div>
+  </div>
+  <div class="controls" id="controls"></div>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const stage=$('#stage');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sleep=ms=>new Promise(r=>setTimeout(r,reduce?0:ms));
+
+/* ---------- эмблемы ---------- */
+const GLYPH={
+  zeus:'<svg viewBox="0 0 48 48"><polygon points="28,3 11,27 21,27 17,45 37,19 26,19 31,3" fill="var(--g)"/></svg>',
+  hades:'<svg viewBox="0 0 48 48" fill="none" stroke="var(--g)" stroke-width="3.6" stroke-linecap="round"><path d="M24 45 V16"/><path d="M15 5 V15 Q15 22 24 22 Q33 22 33 15 V5"/></svg>',
+  athena:'<svg viewBox="0 0 48 48" fill="none" stroke="var(--g)" stroke-width="3" stroke-linecap="round"><circle cx="17" cy="22" r="6"/><circle cx="31" cy="22" r="6"/><circle cx="17" cy="22" r="1.6" fill="var(--g)"/><circle cx="31" cy="22" r="1.6" fill="var(--g)"/><path d="M11 12 L16 16 M37 12 L32 16 M22 29 L24 33 L26 29 M13 32 Q24 46 35 32"/></svg>',
+  hestia:'<svg viewBox="0 0 48 48"><path d="M24 45 C13 45 11 34 17 26 C17 32 21 33 21 28 C21 20 26 14 26 4 C35 13 39 25 35 35 C33 41 29 45 24 45Z" fill="var(--g)"/></svg>',
+  demeter:'<svg viewBox="0 0 48 48" fill="var(--g)" stroke="var(--g)" stroke-width="2.4" stroke-linecap="round"><path d="M24 45 V10" fill="none"/><ellipse cx="24" cy="8" rx="3" ry="5"/><ellipse cx="19" cy="15" rx="2.6" ry="4.4" transform="rotate(-30 19 15)"/><ellipse cx="29" cy="15" rx="2.6" ry="4.4" transform="rotate(30 29 15)"/><ellipse cx="19" cy="24" rx="2.6" ry="4.4" transform="rotate(-30 19 24)"/><ellipse cx="29" cy="24" rx="2.6" ry="4.4" transform="rotate(30 29 24)"/><ellipse cx="19" cy="33" rx="2.6" ry="4.4" transform="rotate(-30 19 33)"/><ellipse cx="29" cy="33" rx="2.6" ry="4.4" transform="rotate(30 29 33)"/></svg>'
+};
+function fillEmb(el){const g=el.dataset.god; el.innerHTML='<span class="core">'+GLYPH[g]+'</span>'; el.style.setProperty('--d',(Math.random()*-3.6).toFixed(2)+'s');}
+function emb(g,size){const el=document.createElement('div'); el.className='emb '+g; el.dataset.god=g; if(size) el.style.setProperty('--s',size); fillEmb(el); return el;}
+document.querySelectorAll('[data-god]').forEach(fillEmb);
+
+const GODS=[
+  {id:'zeus',name:'Зевс',who:'Аня',role:'лидер атаки'},
+  {id:'hades',name:'Аид',who:'Олег',role:'подозреваемый'},
+  {id:'athena',name:'Афина',who:'Катя',role:'союзник Деметры'},
+  {id:'hestia',name:'Гестия',who:'Дима',role:'хранит очаг'}
+];
+// отряд в сцене — только эмблемы
+GODS.forEach(g=>$('#team').appendChild(emb(g.id,'4.2cqw')));
+// отряд у карточки
+GODS.forEach(g=>{const r=document.createElement('div'); r.className='row'; r.appendChild(emb(g.id,'4.4cqw')); const t=document.createElement('span'); t.innerHTML=g.name+'<small>'+g.who+' · '+g.role+'</small>'; r.appendChild(t); $('#party').appendChild(r);});
+// свойства Зевса
+const STATS=[['Мощь',80],['Влияние',65],['Мудрость',50],['Стойкость',50],['Удача',30],['Хитрость',25]];
+$('#stats').innerHTML=STATS.map(s=>'<div class="stat"><span>'+s[0]+' <b>'+s[1]+'</b></span><span class="bar"><i data-w="'+s[1]+'"></i></span></div>').join('');
+
+function splitLetters(el,text){el.innerHTML=''; let i=0; text.split(' ').forEach((w,wi,arr)=>{ const wd=document.createElement('span'); wd.className='wd'; [...w].forEach(ch=>{const s=document.createElement('span'); s.textContent=ch; s.style.setProperty('--i',i++); wd.appendChild(s);}); el.appendChild(wd); if(wi<arr.length-1){ el.appendChild(document.createTextNode(' ')); i++; } });}
+splitLetters($('#sceneTitle'),'Голодный храм');
+
+/* ---------- звук: мягкая лира, арфа, тёплый фон — всё синтезируется в браузере, без файлов ---------- */
+const AU={ctx:null,on:false,master:null,amb:null,rev:null,lyre:{}};
+function ac(){
+  if(!AU.ctx){ const c=AU.ctx=new (window.AudioContext||window.webkitAudioContext)(); AU.master=c.createGain(); AU.master.gain.value=.8; const comp=c.createDynamicsCompressor(); comp.threshold.value=-20; comp.ratio.value=3; AU.master.connect(comp); comp.connect(c.destination);
+    // просторное эхо храма: длинный мягкий хвост
+    const len=c.sampleRate*4.5, ir=c.createBuffer(2,len,c.sampleRate); for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch); let lp=0; for(let i=0;i<len;i++){ lp=lp*.6+(Math.random()*2-1)*.4; d[i]=lp*Math.pow(1-i/len,2.6);} } AU.rev=c.createConvolver(); AU.rev.buffer=ir; const wet=c.createGain(); wet.gain.value=.55; AU.rev.connect(wet); wet.connect(AU.master); }
+  return AU.ctx;
+}
+function noiseBuf(){const c=ac(); const b=c.createBuffer(1,c.sampleRate*2,c.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; return b;}
+// струна (Карплус — Стронг) с мягким щипком и долгим звучанием
+function lyreBuf(f){ const c=ac(), key=Math.round(f); if(AU.lyre[key]) return AU.lyre[key]; const sr=c.sampleRate, N=Math.round(sr/f), len=Math.floor(sr*3.4), b=c.createBuffer(1,len,sr), d=b.getChannelData(0); const ring=new Float32Array(N); let a=0,bb=0; for(let i=0;i<N;i++){ a=a*.7+(Math.random()*2-1)*.3; bb=bb*.6+a*.4; ring[i]=bb*2.2; } for(let i=0;i<len;i++){ const j=i%N, nx=(j+1)%N, v=ring[j]; d[i]=v*Math.min(1,i/(sr*.006)); ring[j]=(v+ring[nx])*.4994; } return AU.lyre[key]=b; }
+function pluck(f,at,vol,dest){ const c=ac(), t=c.currentTime+(at||0), s=c.createBufferSource(); s.buffer=lyreBuf(f); const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1900; const g=c.createGain(); g.gain.value=vol||.25; s.connect(lp); lp.connect(g); g.connect(dest||AU.master); g.connect(AU.rev); s.start(t); }
+// пентатоника — без полутонов, поэтому любые соседние ноты звучат мягко
+const PEN_D=[146.83,174.61,196,220,261.63,293.66,349.23,392,440,523.25,587.33];   // ре минорная
+const PEN_A=[110,130.81,146.83,164.81,196,220,261.63,293.66,329.63,392,440];       // ля минорная
+const DOR=PEN_D; // совместимость
+function makeAmb(kind){
+  const c=ac(), out=c.createGain(), nodes=[], timers=[]; out.gain.value=0; out.connect(AU.master);
+  out.gain.linearRampToValueAtTime(1,c.currentTime+4);
+  const wind=(vol,freq)=>{const n=c.createBufferSource(); n.buffer=noiseBuf(); n.loop=true; const f=c.createBiquadFilter(); f.type='lowpass'; f.frequency.value=freq; f.Q.value=.5; const l=c.createOscillator(); l.frequency.value=.05; const lg=c.createGain(); lg.gain.value=freq*.4; l.connect(lg); lg.connect(f.frequency); const g=c.createGain(); g.gain.value=vol; n.connect(f); f.connect(g); g.connect(out); n.start(); l.start(); nodes.push(n,l);};
+  // тёплый фон-аккорды: плавно перетекают друг в друга
+  const pad=(chords,vol,period)=>{ let i=0; const play=()=>{ const t=c.currentTime, fs=chords[i%chords.length]; i++; fs.forEach((fr,j)=>{ [-5,5].forEach(det=>{ const o=c.createOscillator(); o.type='triangle'; o.frequency.value=fr; o.detune.value=det; const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=700; const g=c.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol/(j+1.5),t+period*.45); g.gain.setValueAtTime(vol/(j+1.5),t+period*.75); g.gain.linearRampToValueAtTime(0,t+period*1.5); o.connect(lp); lp.connect(g); g.connect(out); g.connect(AU.rev); o.start(t); o.stop(t+period*1.55); nodes.push(o); }); }); timers.push(setTimeout(play,period*1000)); }; play(); };
+  // мелодия: плавные шаги по пентатонике, ровный неспешный ритм, паузы между фразами
+  const melody=(scale,lo,hi,vol,beat)=>{ let k=lo+Math.floor((hi-lo)/2); const phrase=()=>{ const n=3+Math.floor(Math.random()*3); let dir=Math.random()<.5?-1:1; for(let i=0;i<n;i++){ if(k+dir<lo||k+dir>hi) dir=-dir; if(i>0&&Math.random()<.3) dir=-dir; k+=dir; pluck(scale[k],i*beat,vol*(i===n-1?.85:1),out); if(i===n-1) pluck(scale[Math.max(lo,k-2)],i*beat+.02,vol*.45,out); } timers.push(setTimeout(phrase,(n*beat+2.2+Math.random()*2.4)*1000)); }; timers.push(setTimeout(phrase,1600)); };
+  const tympanon=(every,vol)=>{ const beat=()=>{ const t=c.currentTime, o=c.createOscillator(); o.frequency.setValueAtTime(90,t); o.frequency.exponentialRampToValueAtTime(50,t+.35); const g=c.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.03); g.gain.exponentialRampToValueAtTime(.0001,t+.7); o.connect(g); g.connect(out); o.start(t); o.stop(t+.75); timers.push(setTimeout(beat,every)); }; timers.push(setTimeout(beat,600)); };
+  const Dm=[73.42,110,146.83,174.61], F=[87.31,130.81,174.61,220], C=[65.41,98,130.81,196], Am=[55,82.41,110,130.81], G=[49,73.42,98,146.83], Em=[41.2,61.74,82.41,123.47];
+  if(kind==='scene'){ wind(.1,500); pad([Dm,F,C,Dm],.05,9); melody(PEN_D,2,8,.2,.62); }
+  if(kind==='card'){ pad([F,C,Dm,C],.045,8); melody(PEN_D,5,10,.16,.5); }
+  if(kind==='roll'){ pad([Dm,Am],.05,7); tympanon(1100,.18); }
+  if(kind==='map'){ wind(.05,380); pad([Am,F,G,Em],.045,9); melody(PEN_A,3,9,.18,.6); }
+  return {stop(){const t=c.currentTime; out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value,t); out.gain.linearRampToValueAtTime(0,t+2.5); timers.forEach(clearTimeout); setTimeout(()=>{nodes.forEach(n=>{try{n.stop()}catch(e){}}); out.disconnect();},2700);}};
+}
+function setAmb(kind){ if(!AU.on) return; if(AU.amb) AU.amb.stop(); AU.amb=makeAmb(kind); }
+function sfx(kind){
+  if(!AU.on) return; const c=ac(), t=c.currentTime;
+  const hit=(at,vol,freq,dur)=>{const n=c.createBufferSource(); n.buffer=noiseBuf(); const f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.value=freq; f.Q.value=1.4; const g=c.createGain(); g.gain.setValueAtTime(vol,t+at); g.gain.exponentialRampToValueAtTime(.0001,t+at+(dur||.08)); n.connect(f); f.connect(g); g.connect(AU.master); n.start(t+at); n.stop(t+at+(dur||.08)+.05);};
+  const drum=(at,vol)=>{const o=c.createOscillator(); o.frequency.setValueAtTime(95,t+at); o.frequency.exponentialRampToValueAtTime(48,t+at+.4); const g=c.createGain(); g.gain.setValueAtTime(0,t+at); g.gain.linearRampToValueAtTime(vol,t+at+.03); g.gain.exponentialRampToValueAtTime(.0001,t+at+.9); o.connect(g); g.connect(AU.master); g.connect(AU.rev); o.start(t+at); o.stop(t+at+.95);};
+  const shimmer=(at,vol)=>{[2093,2637,3136].forEach((f,i)=>{const o=c.createOscillator(); o.frequency.value=f; const g=c.createGain(); g.gain.setValueAtTime(0,t+at+i*.06); g.gain.linearRampToValueAtTime(vol,t+at+i*.06+.05); g.gain.exponentialRampToValueAtTime(.0001,t+at+i*.06+2.4); o.connect(g); g.connect(AU.rev); o.start(t+at+i*.06); o.stop(t+at+2.6);});};
+  const run=(sc,idx,step,vol)=>idx.forEach((k,i)=>pluck(sc[k],i*step,vol));
+  if(kind==='knock'){ hit(0,.22,1600+Math.random()*700,.05); hit(0,.16,480,.08); }
+  if(kind==='rattle'){ [0,.16,.3,.42,.52,.6,.67].forEach((a,i)=>hit(a,.3-i*.03,1600+Math.random()*900,.05)); }
+  if(kind==='thunder'){ const n=c.createBufferSource(); n.buffer=noiseBuf(); const f=c.createBiquadFilter(); f.type='lowpass'; f.frequency.setValueAtTime(400,t); f.frequency.exponentialRampToValueAtTime(90,t+2.4); const g=c.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.8,t+.08); g.gain.exponentialRampToValueAtTime(.0001,t+2.6); n.connect(f); f.connect(g); g.connect(AU.master); g.connect(AU.rev); n.start(t); n.stop(t+2.7); }
+  if(kind==='flip'){ run(PEN_D,[3,4,5,6,7,8,9,10],.08,.18); }
+  if(kind==='pop'){ pluck(PEN_D[7+Math.floor(Math.random()*4)],0,.14); }
+  if(kind==='crit'){ run(PEN_D,[0,2,4,5,7,9,10],.11,.24); shimmer(.6,.05); drum(0,.3); }
+  if(kind==='good'){ run(PEN_D,[2,4,5,7],.13,.22); drum(0,.2); }
+  if(kind==='mid'){ run(PEN_D,[3,5],.16,.2); }
+  if(kind==='bad'){ run(PEN_A,[6,5,3],.2,.2); }
+  if(kind==='fail'){ drum(0,.4); run(PEN_A,[5,3,1,0],.22,.2); }
+  if(kind==='harp'){ [...Array(11).keys()].forEach((k,i)=>pluck(PEN_A[k]*2,i*.07,.13)); [9,7,6,4].forEach((k,i)=>pluck(PEN_A[k]*2,1.0+i*.22,.1)); }
+  if(kind==='win'){ [...Array(11).keys()].forEach((k,i)=>pluck(PEN_D[k]*2,i*.06,.12)); shimmer(.7,.04); }
+}
+const AMB={'v-card':'card','v-scene':'scene','v-roll':'roll','v-map':'map','v-phone':'card'};
+$('#snd').onclick=()=>{ if(!AU.on){ ac().resume(); AU.on=true; $('#snd').textContent='Выключить звук'; $('#snd').setAttribute('aria-pressed','true'); setAmb(AMB[view]); } else { AU.on=false; if(AU.amb){AU.amb.stop(); AU.amb=null;} $('#snd').textContent='Включить звук'; $('#snd').setAttribute('aria-pressed','false'); } };
+
+/* ---------- частицы: снег, золотая пыль, вспышки ---------- */
+const fx={c:$('#fx'),ctx:null,w:0,h:0,mode:'snow',f:[],b:[]};
+function sizeFx(){const r=stage.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2); fx.w=r.width; fx.h=r.height; fx.c.width=r.width*d; fx.c.height=r.height*d; fx.ctx=fx.c.getContext('2d'); fx.ctx.setTransform(d,0,0,d,0,0);}
+for(let i=0;i<110;i++) fx.f.push({x:Math.random(),y:Math.random(),r:Math.random()*1.9+.5,s:Math.random()*.5+.25,p:Math.random()*6.28});
+function tickFx(t){
+  const {ctx,w,h}=fx, k=w/900; ctx.clearRect(0,0,w,h);
+  if(!reduce) fx.f.forEach((f,i)=>{
+    if(fx.mode==='snow'){ f.y+=f.s*.0017; f.x+=Math.sin(t/1700+f.p)*.0004+.0002; if(f.y>1.02){f.y=-.02;f.x=Math.random();} if(f.x>1.02)f.x=-.02; ctx.fillStyle='rgba(236,243,248,'+(.3+f.r/5)+')'; ctx.beginPath(); ctx.arc(f.x*w,f.y*h,f.r*k,0,7); ctx.fill(); }
+    else if(fx.mode==='motes'||(fx.mode==='dust'&&i%3===0)){ f.y-=f.s*(fx.mode==='dust'?.0004:.0009); f.x+=Math.sin(t/2200+f.p)*.0003; if(f.y<-.02){f.y=1.02;f.x=Math.random();} const a=.2+.25*Math.sin(t/500+f.p); ctx.fillStyle='rgba(243,223,174,'+a+')'; ctx.beginPath(); ctx.arc(f.x*w,f.y*h,f.r*.8*k,0,7); ctx.fill(); }
+  });
+  fx.b=fx.b.filter(p=>p.l>0);
+  fx.b.forEach(p=>{p.x+=p.vx; p.y+=p.vy; p.vy+=.05*k; p.vx*=.985; p.l--; ctx.globalAlpha=Math.max(0,p.l/p.m); ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();});
+  ctx.globalAlpha=1; requestAnimationFrame(tickFx);
+}
+function burst(px,py,colors,n){ if(reduce) return; const k=fx.w/900, x=px*fx.w, y=py*fx.h; for(let i=0;i<n;i++){const a=Math.random()*6.28, s=(Math.random()*5+1.5)*k; fx.b.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2.2*k,r:(Math.random()*2.2+.8)*k,l:50+Math.random()*50,m:100,c:colors[i%colors.length]});} }
+
+/* ---------- переключение экранов ---------- */
+let view='v-card';
+const gen={roll:0,map:0,card:0};
+function restart(el,cls){el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);}
+function show(v){
+  if(view==='v-map'&&v!=='v-map') stopMap();
+  gen.roll++; gen.card++; cardTimers.forEach(clearTimeout); cardTimers=[];
+  view=v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on',el.id===v));
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===v)));
+  fx.mode={'v-card':'motes','v-scene':'snow','v-roll':'motes','v-map':'dust','v-phone':'none'}[v];
+  stage.hidden=v==='v-phone'; $('#phoneView').hidden=v!=='v-phone'; if(v==='v-phone'&&window.__phoneHint) setTimeout(window.__phoneHint,400); document.querySelector('.hint').hidden=v==='v-phone';
+  setAmb(AMB[v]);
+  if(v==='v-card') playCard();
+  if(v==='v-scene') restart($('#v-scene'),'play');
+  if(v==='v-roll') resetRoll();
+  if(v==='v-map') startMap();
+  renderControls();
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+/* ---------- 1. карточка ---------- */
+let cardTimers=[];
+async function playCard(){
+  const tok=++gen.card; cardTimers.forEach(clearTimeout); cardTimers=[];
+  const card=$('#gcard'); card.classList.remove('flipped');
+  document.querySelectorAll('#stats i').forEach(i=>i.style.width='0');
+  document.querySelectorAll('#party .row').forEach(r=>r.classList.remove('in'));
+  await sleep(700); if(tok!==gen.card||view!=='v-card') return;
+  card.classList.add('flipped'); sfx('flip');
+  await sleep(700); if(tok!==gen.card||view!=='v-card') return; restart($('#storm'),'flash'); restart($('#bolt'),'flash'); sfx('thunder'); burst(.5,.45,['#F3DFAE','#CFE3EE','#fff'],70);
+  document.querySelectorAll('#stats i').forEach(i=>i.style.width=i.dataset.w+'%');
+  document.querySelectorAll('#party .row').forEach((r,i)=>cardTimers.push(setTimeout(()=>{ if(tok!==gen.card||view!=='v-card') return; r.classList.add('in'); sfx('pop');},reduce?0:900+i*450)));
+  const storm=()=>{ if(tok!==gen.card||view!=='v-card') return; restart($('#bolt'),'flash'); restart($('#storm'),'flash'); if(Math.random()<.5) sfx('thunder'); cardTimers.push(setTimeout(storm,6000+Math.random()*5000)); };
+  cardTimers.push(setTimeout(storm,7000));
+}
+
+/* ---------- 3. бросок: два греческих d10 — мраморный (десятки) и чернофигурный (единицы) ---------- */
+// своя отрисовка на canvas 2D: без внешних библиотек, работает на любом телефоне
+const V3={add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],mul:(a,k)=>[a[0]*k,a[1]*k,a[2]*k],dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len:a=>Math.hypot(a[0],a[1],a[2]),norm:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];}};
+const Q={
+  axis:(ax,ang)=>{const s=Math.sin(ang/2);return [Math.cos(ang/2),ax[0]*s,ax[1]*s,ax[2]*s];},
+  mul:(a,b)=>[a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3],a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2],a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1],a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]],
+  norm:q=>{const l=Math.hypot(...q);return q.map(x=>x/l);},
+  slerp:(a,b,t)=>{let d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3]; if(d<0){b=b.map(x=>-x);d=-d;} if(d>.9995) return Q.norm(a.map((x,i)=>x+(b[i]-x)*t)); const th=Math.acos(d), s=Math.sin(th), w1=Math.sin((1-t)*th)/s, w2=Math.sin(t*th)/s; return a.map((x,i)=>x*w1+b[i]*w2);},
+  rot:(q,v)=>{const [w,x,y,z]=q; const ix=w*v[0]+y*v[2]-z*v[1], iy=w*v[1]+z*v[0]-x*v[2], iz=w*v[2]+x*v[1]-y*v[0], iw=-x*v[0]-y*v[1]-z*v[2]; return [ix*w+iw*-x+iy*-z-iz*-y, iy*w+iw*-y+iz*-x-ix*-z, iz*w+iw*-z+ix*-y-iy*-x];},
+  fromMat:m=>{const t=m[0][0]+m[1][1]+m[2][2]; let q; if(t>0){const s=Math.sqrt(t+1)*2; q=[.25*s,(m[2][1]-m[1][2])/s,(m[0][2]-m[2][0])/s,(m[1][0]-m[0][1])/s];} else if(m[0][0]>m[1][1]&&m[0][0]>m[2][2]){const s=Math.sqrt(1+m[0][0]-m[1][1]-m[2][2])*2; q=[(m[2][1]-m[1][2])/s,.25*s,(m[0][1]+m[1][0])/s,(m[0][2]+m[2][0])/s];} else if(m[1][1]>m[2][2]){const s=Math.sqrt(1+m[1][1]-m[0][0]-m[2][2])*2; q=[(m[0][2]-m[2][0])/s,(m[0][1]+m[1][0])/s,.25*s,(m[1][2]+m[2][1])/s];} else {const s=Math.sqrt(1+m[2][2]-m[0][0]-m[1][1])*2; q=[(m[1][0]-m[0][1])/s,(m[0][2]+m[2][0])/s,(m[1][2]+m[2][1])/s,.25*s];} return Q.norm(q);}
+};
+// геометрия d10 (пятиугольный трапецоэдр): грани — «воздушные змеи»
+const D10=(()=>{
+  const H=1.05, E=H*(1-Math.cos(Math.PI/5))/(1+Math.cos(Math.PI/5)), T=[0,H,0], B=[0,-H,0];
+  const U=[...Array(5)].map((_,i)=>{const a=i*2*Math.PI/5; return [Math.cos(a),E,Math.sin(a)];});
+  const L=[...Array(5)].map((_,i)=>{const a=i*2*Math.PI/5+Math.PI/5; return [Math.cos(a),-E,Math.sin(a)];});
+  const faces=[];
+  const mk=(tip,s1,far,s2)=>{
+    const c=V3.mul(V3.add(V3.add(tip,far),V3.add(s1,s2)),.25);
+    let n=V3.norm(V3.cross(V3.sub(s1,tip),V3.sub(s2,tip))); if(V3.dot(n,c)<0) n=V3.mul(n,-1);
+    let up=V3.sub(tip,c); up=V3.norm(V3.sub(up,V3.mul(n,V3.dot(up,n))));
+    const right=V3.cross(up,n), [sl,sr]=V3.dot(V3.sub(s1,c),right)<0?[s1,s2]:[s2,s1];
+    faces.push({tip,sl,far,sr,n,up,rest:V3.dot(n,tip)});
+  };
+  for(let i=0;i<5;i++){ mk(T,U[i],L[i],U[(i+1)%5]); mk(B,L[i],U[(i+1)%5],L[(i+1)%5]); }
+  return {faces,R:H};
+})();
+// где на текстуре лежат вершины грани (координаты холста 256×256)
+const TX={tip:[128,10],sl:[36,204],sr:[220,204],far:[128,248]};
+function kitePath(c,inset){const k=1-inset/120, cx=128, cy=150, p=[TX.tip,TX.sr,TX.far,TX.sl].map(([x,y])=>[cx+(x-cx)*k,cy+(y-cy)*k]); c.beginPath(); p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])); c.closePath();}
+function marbleTex(label){
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; const c=cv.getContext('2d');
+  const g=c.createLinearGradient(0,0,256,256); g.addColorStop(0,'#FBF7EE'); g.addColorStop(.6,'#EDE5D6'); g.addColorStop(1,'#DCD1BE'); c.fillStyle=g; c.fillRect(0,0,256,256);
+  for(let i=0;i<7;i++){ c.strokeStyle='rgba(120,110,100,'+(.08+Math.random()*.14)+')'; c.lineWidth=.6+Math.random()*1.8; c.beginPath(); let x=Math.random()*256,y=Math.random()*256; c.moveTo(x,y); for(let j=0;j<4;j++){ const nx=x+(Math.random()-.3)*140, ny=y+(Math.random()-.5)*120; c.quadraticCurveTo((x+nx)/2+(Math.random()-.5)*60,(y+ny)/2+(Math.random()-.5)*60,nx,ny); x=nx;y=ny; } c.stroke(); }
+  c.lineJoin='round'; kitePath(c,10); c.strokeStyle='#B8893A'; c.lineWidth=5; c.stroke(); kitePath(c,20); c.strokeStyle='rgba(184,137,58,.55)'; c.lineWidth=1.6; c.stroke();
+  c.font='700 '+(label.length>1?86:104)+'px "Cormorant Garamond", Georgia, serif'; c.textAlign='center'; c.textBaseline='middle';
+  c.fillStyle='rgba(60,40,15,.55)'; c.fillText(label,130,158);
+  const gg=c.createLinearGradient(0,110,0,200); gg.addColorStop(0,'#F7E2A6'); gg.addColorStop(.5,'#C9973E'); gg.addColorStop(1,'#8C6224'); c.fillStyle=gg; c.fillText(label,128,155);
+  if(label==='60'||label==='90'||label==='6'||label==='9'){ c.fillStyle='#B8893A'; c.fillRect(100,200,56,5); }
+  return cv;
+}
+function meander(c,y,w,color){ // греческий меандр полосой
+  c.strokeStyle=color; c.lineWidth=3; c.beginPath(); const s=12; for(let x=128-w/2;x<128+w/2-s;x+=s*1.5){ c.moveTo(x,y+s); c.lineTo(x,y); c.lineTo(x+s,y); c.lineTo(x+s,y+s*.66); c.lineTo(x+s*.4,y+s*.66); c.lineTo(x+s*.4,y+s*.33); } c.stroke();
+}
+function terraTex(label){
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; const c=cv.getContext('2d');
+  const g=c.createRadialGradient(128,140,20,128,140,180); g.addColorStop(0,'#D27A45'); g.addColorStop(1,'#9C4A24'); c.fillStyle=g; c.fillRect(0,0,256,256);
+  for(let i=0;i<500;i++){ c.fillStyle='rgba(60,20,5,'+Math.random()*.12+')'; c.fillRect(Math.random()*256,Math.random()*256,1.5,1.5); }
+  c.lineJoin='round'; kitePath(c,8); c.strokeStyle='#1A1310'; c.lineWidth=7; c.stroke(); kitePath(c,19); c.strokeStyle='rgba(26,19,16,.8)'; c.lineWidth=1.6; c.stroke();
+  meander(c,70,70,'#1A1310');
+  c.font='700 108px "Cormorant Garamond", Georgia, serif'; c.textAlign='center'; c.textBaseline='middle';
+  c.fillStyle='rgba(251,230,200,.35)'; c.fillText(label,129,160); c.fillStyle='#1A1310'; c.fillText(label,128,158);
+  if(label==='6'||label==='9'){ c.fillStyle='#1A1310'; c.fillRect(104,206,48,5); }
+  return cv;
+}
+const DICE=[
+  {kind:'marble',labels:['00','10','20','30','40','50','60','70','80','90'],edge:'#C9973E',spec:.55,tex:[]},
+  {kind:'terra',labels:['0','1','2','3','4','5','6','7','8','9'],edge:'#1A1310',spec:.18,tex:[]}
+];
+let diceReady=null;
+function prepDice(){
+  if(diceReady) return diceReady;
+  const fontLoad=document.fonts&&document.fonts.load?document.fonts.load('700 100px "Cormorant Garamond"').catch(()=>{}):Promise.resolve();
+  diceReady=Promise.race([fontLoad,new Promise(r=>setTimeout(r,1500))]).then(()=>{ DICE.forEach(d=>{ d.tex=d.labels.map(l=>d.kind==='marble'?marbleTex(l):terraTex(l)); }); });
+  return diceReady;
+}
+const dc={cv:null,ctx:null,w:0,h:0,dpr:1};
+function sizeDice(){ if(!dc.cv){ dc.cv=document.createElement('canvas'); $('#dice').appendChild(dc.cv); dc.ctx=dc.cv.getContext('2d'); } const r=stage.getBoundingClientRect(); dc.dpr=Math.min(devicePixelRatio||1,2); dc.w=r.width; dc.h=r.height; dc.cv.width=r.width*dc.dpr; dc.cv.height=r.height*dc.dpr; }
+const CAM=(()=>{const C=[0,6.2,6.6], f=V3.norm(V3.sub([0,-.4,0],C)), r=V3.norm(V3.cross(f,[0,1,0])), u=V3.cross(r,f); return {C,f,r,u,fov:36};})();
+function proj(p){ const d=V3.sub(p,CAM.C), z=V3.dot(d,CAM.f), F=dc.h/2/Math.tan(CAM.fov*Math.PI/360); return [dc.w/2+V3.dot(d,CAM.r)/z*F, dc.h/2-V3.dot(d,CAM.u)/z*F, z]; }
+const LIGHT=V3.norm([2.5,7,4.5]), SIZE=.78, FLOOR=-.5;
+function drawDice(dice){
+  const c=dc.ctx, k=dc.dpr; c.setTransform(k,0,0,k,0,0); c.clearRect(0,0,dc.w,dc.h);
+  dice.forEach(d=>{ const hgt=Math.max(0,d.p[1]-d.restY), s=proj([d.p[0],FLOOR-SIZE*.95,d.p[2]]), e=proj([d.p[0]+SIZE,FLOOR-SIZE*.95,d.p[2]]), rx=Math.abs(e[0]-s[0])*(1.1+hgt*.25); const g=c.createRadialGradient(s[0],s[1],0,s[0],s[1],rx); g.addColorStop(0,'rgba(0,0,0,'+(.55/(1+hgt*1.4))+')'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.beginPath(); c.ellipse(s[0],s[1],rx,rx*.42,0,0,7); c.fill(); });
+  const list=[];
+  dice.forEach(d=>D10.faces.forEach((f,i)=>{
+    const n=Q.rot(d.q,f.n), w=p=>V3.add(d.p,V3.mul(Q.rot(d.q,p),SIZE)), ctr=w(V3.mul(V3.add(f.tip,f.far),.5)), toCam=V3.sub(CAM.C,ctr);
+    if(V3.dot(n,toCam)<=0) return;
+    list.push({d,i,n,z:V3.len(toCam),pts:{tip:proj(w(f.tip)),sl:proj(w(f.sl)),sr:proj(w(f.sr)),far:proj(w(f.far))},toCam:V3.norm(toCam)});
+  }));
+  list.sort((a,b)=>b.z-a.z);
+  list.forEach(F=>{
+    const P=F.pts, D=DICE[F.d.idx], tex=D.tex[F.i]; if(!tex) return;
+    c.save(); c.setTransform(k,0,0,k,0,0); c.beginPath(); c.moveTo(P.tip[0],P.tip[1]); c.lineTo(P.sr[0],P.sr[1]); c.lineTo(P.far[0],P.far[1]); c.lineTo(P.sl[0],P.sl[1]); c.closePath();
+    c.fillStyle=D.kind==='marble'?'#E9E0CF':'#B5582C'; c.fill(); c.clip();
+    const t0=TX.tip,t1=TX.sl,t2=TX.sr, s0=P.tip,s1=P.sl,s2=P.sr;
+    const a1=t1[0]-t0[0],b1=t1[1]-t0[1],a2=t2[0]-t0[0],b2=t2[1]-t0[1],det=a1*b2-a2*b1;
+    const x1=s1[0]-s0[0],y1=s1[1]-s0[1],x2=s2[0]-s0[0],y2=s2[1]-s0[1];
+    const ma=(x1*b2-x2*b1)/det, mc=(x2*a1-x1*a2)/det, mb=(y1*b2-y2*b1)/det, md=(y2*a1-y1*a2)/det;
+    const me=s0[0]-ma*t0[0]-mc*t0[1], mf=s0[1]-mb*t0[0]-md*t0[1];
+    c.setTransform(ma*k,mb*k,mc*k,md*k,me*k,mf*k); c.drawImage(tex,0,0);
+    c.setTransform(k,0,0,k,0,0);
+    const diff=Math.max(0,V3.dot(F.n,LIGHT)), shade=.42+.62*diff;
+    if(shade<1){ c.fillStyle='rgba(20,12,6,'+(1-shade)*.85+')'; c.fill(); }
+    const hv=V3.norm(V3.add(LIGHT,F.toCam)), sp=Math.pow(Math.max(0,V3.dot(F.n,hv)),24)*D.spec;
+    if(sp>.01){ c.fillStyle='rgba(255,246,225,'+sp+')'; c.fill(); }
+    c.restore();
+    c.save(); c.setTransform(k,0,0,k,0,0); c.beginPath(); c.moveTo(P.tip[0],P.tip[1]); c.lineTo(P.sr[0],P.sr[1]); c.lineTo(P.far[0],P.far[1]); c.lineTo(P.sl[0],P.sl[1]); c.closePath();
+    c.lineJoin='round'; c.strokeStyle=D.edge; c.globalAlpha=.9; c.lineWidth=Math.max(1.2,dc.w/700); c.stroke(); c.restore();
+  });
+}
+function targetQ(face,yaw){ // грань с числом — вверх, число читается со стороны зрителей
+  const f=D10.faces[face], n=f.n, u=f.up, nu=V3.cross(n,u);
+  const W=[[0,1,0],[0,0,-1],[-1,0,0]], A=[n,u,nu];
+  const m=[[0,0,0],[0,0,0],[0,0,0]]; for(let i=0;i<3;i++) for(let j=0;j<3;j++){ let s=0; for(let k=0;k<3;k++) s+=W[k][i]*A[k][j]; m[i][j]=s; }
+  return Q.mul(Q.axis([0,1,0],yaw),Q.fromMat(m));
+}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function throwDice(faces,done,tok){
+  prepDice().then(()=>{
+    if(tok!==gen.roll) return;
+    sizeDice();
+    const dice=faces.map((face,i)=>{const s=i?1:-1; const tq=targetQ(face,rnd(-.25,.25)); return {idx:i,face,p:[4.4*s,2.6,1.9],v:[-s*rnd(4.8,6),rnd(1.5,3),-rnd(2.8,3.8)],q:Q.norm([Math.random(),Math.random(),Math.random(),Math.random()]),w:[rnd(-14,14),rnd(-14,14),rnd(-14,14)],tq,restY:FLOOR-SIZE+SIZE*D10.faces[face].rest};});
+    if(reduce){ dice.forEach((d,i)=>{d.p=[i?.9:-.9,d.restY,0]; d.q=d.tq;}); drawDice(dice); done(dice.map(d=>onScreen(d))); return; }
+    const t0=performance.now(), PH=1350, SET=650; let last=t0, q0=null;
+    const step=now=>{
+      if(tok!==gen.roll) return;
+      const dt=Math.min(.033,(now-last)/1000); last=now; const el=now-t0;
+      dice.forEach(d=>{
+        if(el<PH){
+          d.v[1]-=18*dt; d.p=V3.add(d.p,V3.mul(d.v,dt));
+          const low=FLOOR-SIZE+SIZE*.82; if(d.p[1]<low){ d.p[1]=low; if(d.v[1]<0) d.v[1]*=-.45; d.v[0]*=.8; d.v[2]*=.8; d.w=V3.mul(d.w,.75); if(Math.abs(d.v[1])>2) sfx('knock'); }
+          if(Math.abs(d.p[0])>3.2){d.p[0]=Math.sign(d.p[0])*3.2; d.v[0]*=-.6;} if(Math.abs(d.p[2])>1.6){d.p[2]=Math.sign(d.p[2])*1.6; d.v[2]*=-.6;}
+          const wl=V3.len(d.w); if(wl>.01) d.q=Q.norm(Q.mul(Q.axis(V3.mul(d.w,1/wl),wl*dt),d.q)); d.w=V3.mul(d.w,.993);
+        } else {
+          if(!d.q0){ d.q0=d.q; d.p0=d.p.slice(); }
+          const k=Math.min(1,(el-PH)/SET), e=1-Math.pow(1-k,3);
+          d.q=Q.slerp(d.q0,d.tq,e);
+          const gx=d.idx?1.25:-1.25, gz=Math.max(-.5,Math.min(.5,d.p0[2])); d.p=[d.p0[0]+(gx-d.p0[0])*e, d.p0[1]+(d.restY-d.p0[1])*e + Math.sin(k*Math.PI)*.22*(1-k), d.p0[2]+(gz-d.p0[2])*e];
+        }
+      });
+      const [a,b]=dice, dx=b.p[0]-a.p[0], dz=b.p[2]-a.p[2], dist=Math.hypot(dx,dz);
+      if(el<PH&&dist<1.55&&dist>0){const nx=dx/dist,nz=dz/dist,push=(1.55-dist)/2; a.p[0]-=nx*push; a.p[2]-=nz*push; b.p[0]+=nx*push; b.p[2]+=nz*push; const rv=(b.v[0]-a.v[0])*nx+(b.v[2]-a.v[2])*nz; if(rv<0){a.v[0]+=rv*nx; a.v[2]+=rv*nz; b.v[0]-=rv*nx; b.v[2]-=rv*nz; sfx('knock');}}
+      drawDice(dice);
+      if(el>=PH+SET){ done(dice.map(d=>onScreen(d))); return; }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+function onScreen(d){ const s=proj([d.p[0],d.p[1]+1.25,d.p[2]]); return {x:s[0]/dc.w*100,y:s[1]/dc.h*100}; }
+function sizeThree(){ if(dc.cv) sizeDice(); }
+
+const OUT=[
+  {key:'crit',min:96,word:'Критическая удача!',color:'#F3DFAE',text:'Деметра впервые за восемь месяцев улыбается. Она вкладывает в руку Зевса серп, который чувствует всё живое.',chips:[['+30 опыта Зевсу','plus'],['Артефакт: Серп Деметры',''],['Сага: Деметра доверяет богам','']]},
+  {key:'good',min:55,word:'Хорошо!',color:'#A3C2AA',text:'Деметра узнаёт в Зевсе брата и рассказывает последнее видение дочери: Персефону уводили тени без лиц — к реке Ахерон.',chips:[['+20 опыта Зевсу','plus'],['Сага: Деметра доверяет богам','']]},
+  {key:'mid',min:35,word:'Средне',color:'#9EC3D6',text:'Деметра отвечает коротко: «Ищите у Ахерона». Больше она не скажет.',chips:[['+10 опыта Зевсу','plus']]},
+  {key:'bad',min:6,word:'Плохо',color:'#E3AA9C',text:'Деметра отворачивается. Толпа ворчит: боги снова пришли с пустыми словами.',chips:[['+5 опыта Зевсу','plus'],['Деметра: отношение −10','minus']]},
+  {key:'fail',min:1,word:'Критическая неудача',color:'#D98A7A',text:'«Лжецы!» — голодная толпа бросается на богов. Придётся отбиваться.',chips:[['Проклятие «Рок» Зевсу','minus'],['Бой: толпа, ранг F','minus']]}
+];
+const outcomeOf=v=>OUT.find(o=>v>=o.min);
+
+(function buildAltar(){ const units=[]; for(let i=0;i<44;i++){ const a=i*360/44; units.push('<g transform="rotate('+a+')"><path d="M-14 -300 V-276 H10 V-294 H-6 V-284 H2" fill="none" stroke="#C9A15F" stroke-width="3.2"/></g>'); }
+  $('#altar').innerHTML='<defs><radialGradient id="alt" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#5a4a36"/><stop offset=".75" stop-color="#2c241b"/><stop offset="1" stop-color="#1a1510"/></radialGradient></defs><circle r="318" fill="url(#alt)"/><circle r="306" fill="none" stroke="#C9A15F" stroke-width="3" opacity=".8"/><circle r="268" fill="none" stroke="#C9A15F" stroke-width="2" opacity=".6"/>'+units.join('')+'<circle r="250" fill="none" stroke="rgba(243,223,174,.08)" stroke-width="40"/>';
+})();
+// шкала: 1–5, 6–34, 35–54, 55–95, 96–100
+(function buildMeter(){
+  const R=84, pt=v=>{const a=Math.PI*(1-v/100); return [100+R*Math.cos(a),100-R*Math.sin(a)];};
+  const seg=(a,b,c)=>{const [x1,y1]=pt(a),[x2,y2]=pt(b); return '<path d="M'+x1.toFixed(1)+' '+y1.toFixed(1)+' A'+R+' '+R+' 0 0 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+'" stroke="'+c+'" stroke-width="13" fill="none"/>';};
+  const tick=v=>{const [x,y]=pt(v); const a=Math.PI*(1-v/100); return '<text x="'+(100+(R+15)*Math.cos(a)).toFixed(1)+'" y="'+(100-(R+15)*Math.sin(a)+3).toFixed(1)+'" text-anchor="middle" font-size="7" fill="#B5ABA2" font-family="Jost,system-ui,sans-serif">'+v+'</text>';};
+  $('#meter').innerHTML='<path d="M16 100 A84 84 0 0 1 184 100" stroke="rgba(251,246,241,.08)" stroke-width="19" fill="none"/>'+seg(0,5,'#8E4A3E')+seg(5.6,34.4,'#B9786A')+seg(35,54.4,'#6F8FA0')+seg(55,95.4,'#6E9277')+seg(96,100,'#E3C68C')+tick(35)+tick(55)+tick(96)+'<g class="needle" id="needle"><line x1="100" y1="100" x2="48" y2="100" stroke="#FBF6F1" stroke-width="3" stroke-linecap="round"/><circle cx="100" cy="100" r="4.5" fill="#FBF6F1"/></g>';
+})();
+let rolling=false, lastRoll=null;
+function resetRoll(){
+  const v=$('#v-roll'); v.classList.remove('done'); v.removeAttribute('data-out');
+  ['#labA','#labB'].forEach(s=>{$(s).className='dlab'+(s==='#labB'?' ice':'');});
+  $('#crack').classList.remove('go'); stage.classList.remove('shake'); $('#flashW').classList.remove('go');
+  if(dc.ctx){ dc.ctx.setTransform(1,0,0,1,0,0); dc.ctx.clearRect(0,0,dc.cv.width,dc.cv.height); }
+  $('#dice').style.opacity=1; $('#needle').style.transform='rotate(0deg)'; $('#bignum').textContent='';
+  lastRoll=null; rolling=false;
+}
+function place(el,p,txt){ el.style.left=p.x+'%'; el.style.top=p.y+'%'; el.textContent=txt; el.classList.remove('merge'); requestAnimationFrame(()=>el.classList.add('show')); }
+function doRoll(force){
+  if(rolling||view!=='v-roll') return; resetRoll(); rolling=true; renderControls();
+  const tok=++gen.roll;
+  const v=force||(1+Math.floor(Math.random()*100));
+  const tens=v===100?'00':String(Math.floor((v%100)/10)*10).padStart(2,'0'), units=String(v%10);
+  const fT=DICE[0].labels.indexOf(tens), fU=DICE[1].labels.indexOf(units);
+  throwDice([fT,fU],pos=>{
+    if(tok!==gen.roll) return;
+    place($('#labA'),pos[0],tens); place($('#labB'),pos[1],units);
+    sfx('pop');
+    setTimeout(()=>{ if(tok!==gen.roll) return; $('#dice').style.opacity=0; $('#labA').classList.add('merge'); $('#labB').classList.add('merge'); reveal(v,tok); },reduce?0:1200);
+  },tok);
+}
+function reveal(v,tok){
+  const o=outcomeOf(v), view_=$('#v-roll'); lastRoll=v;
+  view_.style.setProperty('--oc',o.color); view_.dataset.out=o.key; view_.classList.add('done');
+  const num=$('#bignum'); const t0=performance.now(), D=reduce?1:900;
+  const count=now=>{ if(tok!==gen.roll) return; const k=Math.min(1,(now-t0)/D), e=1-Math.pow(1-k,3); num.textContent=Math.max(1,Math.round(v*e)); if(k<1) requestAnimationFrame(count);};
+  requestAnimationFrame(count);
+  setTimeout(()=>{ if(tok===gen.roll) $('#needle').style.transform='rotate('+(v*1.8)+'deg)'; },reduce?0:250);
+  splitLetters($('#word'),o.word); $('#otext').textContent=o.text;
+  $('#chips').innerHTML=''; o.chips.forEach((c,i)=>{const s=document.createElement('span'); s.className='chip '+c[1]; s.style.setProperty('--i',i); s.textContent=c[0]; $('#chips').appendChild(s);});
+  setTimeout(()=>{
+    if(tok!==gen.roll) return;
+    sfx(o.key);
+    if(o.key==='crit'){ restart($('#flashW'),'go'); burst(.25,.55,['#F3DFAE','#E3C68C','#fff'],180); }
+    if(o.key==='good'){ burst(.25,.55,['#A3C2AA','#F3DFAE'],80); }
+    if(o.key==='mid'){ burst(.25,.55,['#9EC3D6'],30); }
+    if(o.key==='fail'){ restart(stage,'shake'); restart($('#crack'),'go'); }
+  },reduce?0:1100);
+  setTimeout(()=>{ if(tok!==gen.roll) return; rolling=false; renderControls();},reduce?0:1700);
+}
+
+/* ---------- 4. развилка ---------- */
+const NODES=[{id:'forest',name:'Заснеженный лес',path:'p-forest'},{id:'village',name:'Деревня у Ахерона',path:'p-village'},{id:'olymp',name:'Дорога на Олимп',path:'p-olymp'}];
+const BOTS=[{g:'athena',to:'forest',at:1500},{g:'hades',to:'village',at:3000},{g:'hestia',to:'olymp',at:4400}];
+let map={timers:[]};
+function stopMap(){ gen.map++; (map.timers||[]).forEach(t=>{clearTimeout(t);clearInterval(t);}); map.timers=[]; map.done=true; document.querySelectorAll('.emb.fly').forEach(e=>e.remove()); }
+function startMap(){
+  stopMap(); const tk=gen.map;
+  map={votes:{forest:0,village:0,olymp:0},mine:null,done:false,left:20,timers:[],total:0,tk};
+  NODES.forEach(n=>{const c=$('#n-'+n.id); c.classList.remove('win','dim','mine'); c.querySelectorAll('.emb').forEach(e=>e.remove()); c.querySelector('.count').textContent='0'; const p=$('#'+n.path); p.classList.remove('chosen','faded'); p.setAttribute('stroke','#B5ABA2');});
+  const tr=$('#trail'); tr.style.setProperty('--len',tr.getTotalLength()); restart($('#v-map'),'play');
+  placeToken(430,640); $('#banner').classList.remove('on'); map.timers.push(setTimeout(()=>{ if(view==='v-map'&&gen.map===tk) sfx('harp'); },reduce?0:500));
+  $('#timer').textContent='0:20'; $('#tally').textContent='голосов 0 из 4';
+  map.timers.push(setInterval(()=>{ if(map.done) return; map.left--; $('#timer').textContent='0:'+String(map.left).padStart(2,'0'); if(map.left<=0) finish(); },1000));
+  BOTS.forEach(b=>map.timers.push(setTimeout(()=>addVote(b.to,b.g,false),reduce?0:b.at+1400)));
+  if(view==='v-map') renderControls();
+}
+function placeToken(x,y){const t=$('#token'); t.style.left=(x/16)+'%'; t.style.top=(y/9)+'%';}
+function addVote(to,g,me){
+  if(map.done) return; const tk=gen.map;
+  const card=$('#n-'+to), row=card.querySelector('.votes'), sr=stage.getBoundingClientRect(), rr=row.getBoundingClientRect();
+  const n=row.querySelectorAll('.emb').length;
+  const fly=emb(g,'2.6cqw'); fly.classList.add('fly'); fly.style.left=(me?48:10+Math.random()*80)+'%'; fly.style.top='104%'; stage.appendChild(fly);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ fly.style.left=((rr.left-sr.left)+n*sr.width*.031)/sr.width*100+'%'; fly.style.top=((rr.top-sr.top)+rr.height/2-sr.width*.013)/sr.height*100+'%'; }));
+  map.timers.push(setTimeout(()=>{
+    fly.remove(); if(tk!==gen.map||map.done) return; const a=emb(g,'2.6cqw'); a.classList.add('pop'); row.insertBefore(a,row.querySelector('.count'));
+    map.votes[to]++; map.total++; card.querySelector('.count').textContent=map.votes[to];
+    $('#tally').textContent='голосов '+map.total+' из 4'; sfx('pop');
+    burst((rr.left-sr.left+n*sr.width*.031)/sr.width,(rr.top-sr.top)/sr.height,['#F3DFAE','#E3C68C'],16);
+    if(map.total===4) map.timers.push(setTimeout(finish,900));
+  },reduce?0:980));
+}
+function vote(id){ if(map.mine||map.done) return; map.mine=id; $('#n-'+id).classList.add('mine'); addVote(id,'zeus',true); renderControls(); }
+NODES.forEach(n=>$('#n-'+n.id).onclick=()=>vote(n.id));
+function banner(t,s){$('#bTitle').textContent=t; $('#bSub').textContent=s; restart($('#banner'),'on');}
+function finish(){
+  if(map.done) return; map.done=true; map.timers.forEach(t=>{clearTimeout(t);clearInterval(t);}); map.timers=[]; const tk=gen.map;
+  const max=Math.max(...NODES.map(n=>map.votes[n.id])); const tied=NODES.filter(n=>map.votes[n.id]===max);
+  const go=w=>{
+    if(tk!==gen.map) return;
+    $('#banner').classList.remove('on');
+    NODES.forEach(n=>{ $('#n-'+n.id).classList.add(n.id===w.id?'win':'dim'); $('#'+n.path).classList.add(n.id===w.id?'chosen':'faded'); });
+    sfx('win');
+    const p=$('#'+w.path), L=p.getTotalLength(), t0=performance.now(), D=reduce?1:2400;
+    const mv=now=>{ if(tk!==gen.map) return; const k=Math.min(1,(now-t0)/D), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2, pt=p.getPointAtLength(L*e); placeToken(pt.x,pt.y); if(k<1) requestAnimationFrame(mv); else { burst(pt.x/1600,pt.y/900,['#F3DFAE','#fff'],60); banner('Отряд идёт: '+w.name,'Дальше — сцена 2 · выбор записан в Сагу'); renderControls(); }};
+    requestAnimationFrame(mv);
+  };
+  if(tied.length>1){ banner('Ничья — решает кубик','Сервер бросает за отряд'); sfx('rattle'); map.timers.push(setTimeout(()=>{ if(tk===gen.map) go(tied[Math.floor(Math.random()*tied.length)]); },reduce?0:1800)); }
+  else go(tied[0]);
+  renderControls();
+}
+
+/* ---------- кнопки под экраном (то, что на телефоне) ---------- */
+function renderControls(){
+  const c=$('#controls'); c.innerHTML='';
+  const cap=t=>{const s=document.createElement('span'); s.className='cap'; s.textContent=t; c.appendChild(s);};
+  const add=(label,cls,fn,dis)=>{const b=document.createElement('button'); b.className='btn '+(cls||''); b.textContent=label; b.disabled=!!dis; if(fn) b.onclick=fn; c.appendChild(b);};
+  if(view==='v-card'){ cap('Гость выбрал бога'); add('К первой сцене','',()=>show('v-scene')); add('Показать карточку ещё раз','btn--secondary',()=>playCard()); }
+  if(view==='v-scene'){ cap('На телефоне Зевса'); add('Бросить кубик','',()=>{show('v-roll'); const t=gen.roll; setTimeout(()=>{ if(view==='v-roll'&&gen.roll===t) doRoll(); },reduce?0:800);}); add('Начать сцену заново','btn--quiet',()=>restart($('#v-scene'),'play')); }
+  if(view==='v-roll'){
+    if(rolling) add('Кубик катится…','',null,true);
+    else if(!lastRoll){ cap('На телефоне Зевса'); add('Бросить кубик','',()=>doRoll()); }
+    else { add('К развилке на карте','',()=>show('v-map')); add('Бросить ещё раз','btn--secondary',()=>doRoll()); add('Крит. удача','btn--quiet',()=>doRoll(96+Math.floor(Math.random()*5))); add('Крит. провал','btn--quiet',()=>doRoll(1+Math.floor(Math.random()*5))); }
+  }
+  if(view==='v-map'){
+    if(map.done){ add('Сыграть развилку заново','',()=>startMap()); add('К карточке бога','btn--quiet',()=>show('v-card')); }
+    else { cap(map.mine?'Голос принят — ждём остальных':'Ваш голос — телефон Зевса'); NODES.forEach(n=>add(n.name,map.mine===n.id?'':'btn--secondary',()=>vote(n.id),!!map.mine)); }
+  }
+}
+
+// стихии: 10 видов урона
+const EL={
+  fire:{n:'Огонь',c:'#E8875A',i:'<path d="M12 22c-4 0-6-3-5-6 0 2 2 2 2 0 0-3 2-5 2-9 3 3 6 7 5 11-1 3-2 4-4 4z" fill="currentColor"/>'},
+  water:{n:'Вода',c:'#6FA8D6',i:'<path d="M12 3c3 5 6 8 6 12a6 6 0 0 1-12 0c0-4 3-7 6-12z" fill="currentColor"/>'},
+  ice:{n:'Лёд',c:'#BFE3F2',i:'<path d="M12 2v20M3.5 7l17 10M3.5 17l17-10M9 4l3 2 3-2M9 20l3-2 3 2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'},
+  bolt:{n:'Молния',c:'#F3D46B',i:'<polygon points="13,2 5,14 11,14 10,22 19,9 13,9" fill="currentColor"/>'},
+  earth:{n:'Земля',c:'#B99369',i:'<path d="M2 20l7-12 4 6 3-4 6 10z" fill="currentColor"/>'},
+  wind:{n:'Ветер',c:'#A9D3B5',i:'<path d="M3 8h11a3 3 0 1 0-3-3M3 13h16a3 3 0 1 1-3 3M3 18h7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'},
+  light:{n:'Свет',c:'#FFF0B8',i:'<circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'},
+  dark:{n:'Тьма',c:'#9C8FD6',i:'<path d="M15 3a9 9 0 1 0 6 12A7 7 0 0 1 15 3z" fill="currentColor"/>'},
+  poison:{n:'Яд',c:'#8FC46A',i:'<path d="M9 3h6M10 3v5l-4 7a4 4 0 0 0 4 6h4a4 4 0 0 0 4-6l-4-7V3" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="16" r="1.6" fill="currentColor"/>'},
+  chaos:{n:'Хаос',c:'#D98AB8',i:'<path d="M12 12m-1 0a1 1 0 1 1 2 0a3 3 0 1 1-6 0a5 5 0 1 1 10 0a7 7 0 1 1-14 0" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'}
+};
+const elIcon=(k,size)=>'<svg viewBox="0 0 24 24" width="'+(size||16)+'" height="'+(size||16)+'" style="color:'+EL[k].c+'" aria-hidden="true">'+EL[k].i+'</svg>';
+const elChip=k=>'<span class="elchip" style="--ec:'+EL[k].c+'">'+elIcon(k,14)+EL[k].n+'</span>';
+// кто сильнее кого: урон ×1,5 по стихии из списка, ×0,5 — в обратную сторону
+const STRONG={fire:['ice','poison'],dark:['poison','chaos'],wind:['chaos','earth'],ice:['earth','water'],poison:['water','light'],chaos:['light','bolt'],earth:['bolt','fire'],water:['fire','dark'],light:['dark','wind'],bolt:['wind','ice']};
+const WEAK={}; Object.keys(STRONG).forEach(a=>STRONG[a].forEach(b=>{(WEAK[b]=WEAK[b]||[]).push(a);}));
+// сопротивления босса стихии Лёд: кто сильнее льда (Огонь, Молния) — 150%, против кого лёд силён (Земля, Вода) — 50%, сам Лёд — 0%
+const BOSS_EL='ice';
+const BOSS_RES={}; Object.keys(EL).forEach(k=>{ BOSS_RES[k]=k===BOSS_EL?0:STRONG[k].includes(BOSS_EL)?150:STRONG[BOSS_EL].includes(k)?50:100; });
+
+/* ---------- 5. телефон игрока: 5 страниц, снаряжение с пересчётом ---------- */
+(function(){
+  const P=$('#pages'), N=5, NAMES=['Бог','Силы','История','Сумка','Одежда'];
+  const NAVIC=[
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="13,2 5,14 11,14 10,22 19,9 13,9"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 8h12l-1 13H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 3l4 3 4-3 5 4-3 4-2-1v11H8V10l-2 1-3-4z"/></svg>'];
+  $('#pnav').innerHTML=NAMES.map((n,i)=>'<button'+(i?'':' aria-current="true"')+'><em>'+(i+1)+'</em>'+NAVIC[i]+n+'</button>').join('');
+  const navB=[...document.querySelectorAll('#pnav button')], dots=[...document.querySelectorAll('#pdots i')];
+  let cur=0;
+  const setCur=i=>{cur=i; navB.forEach((b,k)=>b.setAttribute('aria-current',String(k===i))); dots.forEach((d,k)=>d.classList.toggle('on',k===i)); $('#pnum').innerHTML='<b>'+(i+1)+'</b>/ '+N+' · '+NAMES[i]; $('#prevP').disabled=i===0; $('#nextP').disabled=i===N-1;};
+  const go=i=>{i=Math.max(0,Math.min(N-1,i)); P.scrollTo({left:i*P.clientWidth,behavior:reduce?'auto':'smooth'}); setCur(i); sfx('pop');};
+  navB.forEach((b,i)=>b.onclick=()=>go(i));
+  $('#prevP').onclick=()=>go(cur-1); $('#nextP').onclick=()=>go(cur+1);
+  let tm, lock=false; P.addEventListener('scroll',()=>{ if(lock||!P.clientWidth) return; clearTimeout(tm); tm=setTimeout(()=>setCur(Math.round(P.scrollLeft/P.clientWidth)),60);});
+  new ResizeObserver(()=>{ if(!P.clientWidth) return; lock=true; P.scrollLeft=cur*P.clientWidth; setTimeout(()=>lock=false,120); }).observe(P);
+  setCur(0);
+  const sheet=html=>{ $('#psheetBody').innerHTML=html; $('#psheet').hidden=false; };
+  const closeSheet=()=>{ $('#psheet').hidden=true; };
+  $('#psheetClose').onclick=$('#psheetBg').onclick=closeSheet;
+  const toast=t=>{ const el=$('#ptoast'); el.textContent=t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); };
+  let hintShown=false; window.__phoneHint=()=>{ if(hintShown) return; hintShown=true; $('#swipeHint').hidden=false; };
+  $('#hintOk').onclick=()=>$('#swipeHint').hidden=true;
+  let mode='sheet'; const MODES=[['sheet','Шторка снизу','способности, цель и бросок на одном экране'],['fan','Веер карт','способности как карты в руке'],['steps','По шагам','три коротких экрана — проще для новичков']];
+  const openSettings=()=>{ sheet('<h4>Настройки</h4><span class="ptitle">Вид хода в бою</span>'+MODES.map(m=>'<button class="choice2" role="radio" aria-checked="'+(m[0]===mode)+'" data-m="'+m[0]+'"><i></i><span>'+m[1]+'<small>'+m[2]+'</small></span></button>').join('')+'<div class="vs">Вид боя на большом экране выбирает ведущий: пульт → Настройки → «Вид боя».</div><button class="use wide" id="showHint">Показать подсказку о листании</button>');
+    document.querySelectorAll('.choice2').forEach(b=>b.onclick=()=>{ mode=b.dataset.m; openSettings(); });
+    $('#showHint').onclick=()=>{ closeSheet(); $('#swipeHint').hidden=false; }; };
+  $('#gear').onclick=openSettings;
+
+  /* ---- данные ---- */
+  const CAT={"rar": [{"key": "common", "name": "Обычный", "drop": 47.5, "color": "#B5ABA2"}, {"key": "uncommon", "name": "Необычный", "drop": 25, "color": "#A3C2AA"}, {"key": "rare", "name": "Редкий", "drop": 15, "color": "#6FA8D6"}, {"key": "epic", "name": "Эпический", "drop": 7, "color": "#B3AADD"}, {"key": "mythic", "name": "Мифический", "drop": 3.5, "color": "#D98AB8"}, {"key": "legendary", "name": "Легендарный", "drop": 1.5, "color": "#E8875A"}, {"key": "divine", "name": "Божественный", "drop": 0.5, "color": "#F3DFAE"}], "items": [{"id": "head-Венок-rare", "slot": "head", "name": "Благородный венок", "rar": "rare", "rarn": "Редкий", "stats": {"influence": 6, "luck": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "body-Хитон-epic", "slot": "body", "name": "Героический хитон", "rar": "epic", "rarn": "Эпический", "stats": {"influence": 9, "endurance": 4, "speed": 3}, "eff": ["Здоровье +5%"], "src": "Бои и боссы"}, {"id": "feet-Сандалии-uncommon", "slot": "feet", "name": "Искусные сандалии", "rar": "uncommon", "rarn": "Необычный", "stats": {"luck": 4, "speed": 3}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "acc-Браслет-rare", "slot": "acc", "name": "Благородный браслет", "rar": "rare", "rarn": "Редкий", "stats": {"might": 6, "luck": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "head-Шлем-rare", "slot": "head", "name": "Благородный шлем", "rar": "rare", "rarn": "Редкий", "stats": {"endurance": 6, "might": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "head-Капюшон-common", "slot": "head", "name": "Простой капюшон", "rar": "common", "rarn": "Обычный", "stats": {"cunning": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "body-Доспех-uncommon", "slot": "body", "name": "Искусный доспех", "rar": "uncommon", "rarn": "Необычный", "stats": {"endurance": 4, "speed": -1}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "cloak-Хламида-epic", "slot": "cloak", "name": "Героическая хламида", "rar": "epic", "rarn": "Эпический", "stats": {"cunning": 9, "luck": 4, "speed": 3}, "eff": ["Уклонение +5%"], "src": "Бои и боссы"}, {"id": "cloak-Гиматий-common", "slot": "cloak", "name": "Простой гиматий", "rar": "common", "rarn": "Обычный", "stats": {"endurance": 2}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "feet-Обмотки-rare", "slot": "feet", "name": "Благородные обмотки", "rar": "rare", "rarn": "Редкий", "stats": {"cunning": 6, "luck": 2, "speed": 5}, "eff": [], "src": "Бои, сундуки, лавка Гермеса (дорого)"}, {"id": "acc-Кольцо-uncommon", "slot": "acc", "name": "Искусное кольцо", "rar": "uncommon", "rarn": "Необычный", "stats": {"luck": 4}, "eff": [], "src": "Бои, сундуки, лавка Гермеса"}, {"id": "acc-Амулет-epic", "slot": "acc", "name": "Героический амулет", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 9, "endurance": 4}, "eff": ["Сопротивление стихиям +5%"], "src": "Бои и боссы"}, {"id": "art-Серп Деметры", "slot": "art", "name": "Серп Деметры", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 6}, "eff": ["Лечение союзников +10%; раз за главу показывает скрытого врага"], "src": "Сюжет: «Вечная зима», сцена 1 (крит. удача)"}, {"id": "art-Кольцо Эвра", "slot": "art", "name": "Кольцо Эвра", "rar": "rare", "rarn": "Редкий", "stats": {"speed": 4, "endurance": -3}, "eff": ["Урон Ветром +10%"], "src": "Лавка Гермеса, сундуки"}, {"id": "art-Перо Стимфалиды", "slot": "art", "name": "Перо Стимфалиды", "rar": "uncommon", "rarn": "Необычный", "stats": {"speed": 3}, "eff": ["Урон Ветром +5%"], "src": "Бои: стимфалийские птицы"}, {"id": "art-Факел Гекаты", "slot": "art", "name": "Факел Гекаты", "rar": "epic", "rarn": "Эпический", "stats": {"wisdom": 8}, "eff": ["Урон Тьмой +10%; видит невидимых"], "src": "Сюжет: перекрёсток трёх дорог"}, {"id": "art-Чаша Гебы", "slot": "art", "name": "Чаша Гебы", "rar": "rare", "rarn": "Редкий", "stats": {"hp": 15}, "eff": ["Нектар в чаше лечит на 20% сильнее"], "src": "Лавка Гермеса, сундуки"}, {"id": "cons-Зелье здоровья", "slot": "cons", "name": "Зелье здоровья", "rar": "common", "rarn": "Обычный", "stats": {}, "eff": ["+40 здоровья (по броску: ×2 … +10)"], "src": "Лавка — 10 драхм, бои"}, {"id": "cons-Амброзия", "slot": "cons", "name": "Амброзия", "rar": "epic", "rarn": "Эпический", "stats": {}, "eff": ["Снимает одно проклятие, без броска"], "src": "Лавка — 40 драхм, сюжет"}, {"id": "cons-Обол", "slot": "cons", "name": "Обол", "rar": "common", "rarn": "Обычный", "stats": {}, "eff": ["Плата Харону: пропуск через Ахерон"], "src": "Бои, сюжет"}]};
+  const RAR={}; CAT.rar.forEach(r=>RAR[r.key]=r);
+  const IT={}; CAT.items.forEach(i=>IT[i.id]=i);
+  const ID=n=>CAT.items.find(i=>i.name===n).id;
+  const STN={might:'Мощь',influence:'Влияние',wisdom:'Мудрость',endurance:'Стойкость',luck:'Удача',cunning:'Хитрость',speed:'Скорость',hp:'Здоровье'};
+  const SLOTN={head:'Голова',body:'Тело',cloak:'Плащ',feet:'Ноги',acc:'Аксессуар'};
+  const S={
+    base:{might:74,influence:50,wisdom:44,endurance:49,luck:22,cunning:25,speed:100}, alloc:{}, left:2, hp:94, hpBase:118, gold:31,
+    eq:{head:ID('Благородный венок'),body:ID('Героический хитон'),cloak:null,feet:ID('Искусные сандалии'),acc:ID('Благородный браслет'),art:[ID('Серп Деметры'),ID('Кольцо Эвра'),null,null]},
+    bag:['Благородный шлем','Простой капюшон','Искусный доспех','Героическая хламида','Простой гиматий','Благородные обмотки','Искусное кольцо','Героический амулет','Перо Стимфалиды','Факел Гекаты','Чаша Гебы'].map(ID),
+    cons:[[ID('Зелье здоровья'),2],[ID('Амброзия'),1],[ID('Обол'),3]],
+    fx:[
+      {n:'Слабость',t:'проклятие',d:'−15 к Мощи',left:'1 ход',neg:1,st:{might:-15}},
+      {n:'Яд',t:'проклятие',d:'−8 здоровья в начале хода',left:'2 хода',neg:1},
+      {n:'Рок',t:'проклятие',d:'−10 к следующему броску',left:'1 бросок',neg:1},
+      {n:'Мудрость Афины',t:'благословение',d:'+10 к броскам',left:'2 хода',neg:0}],
+    log:[['19:42','Новый уровень — 4-й!'],['19:41','Победа над стаей: +210 опыта, +31 драхма'],['19:35','Пожиратель наложил «Слабость»']],
+    showAllFx:false, showLog:false
+  };
+  const now=()=>{const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+  const addLog=t=>{ S.log.unshift([now(),t]); };
+  const equipped=()=>[S.eq.head,S.eq.body,S.eq.cloak,S.eq.feet,S.eq.acc,...S.eq.art].filter(Boolean);
+  const bonus=k=>{ let it=0,fx=0; equipped().forEach(id=>{it+=IT[id].stats[k]||0;}); S.fx.forEach(f=>{fx+=(f.st&&f.st[k])||0;}); return {it,fx}; };
+  const total=k=>S.base[k]+(S.alloc[k]||0)+bonus(k).it+bonus(k).fx;
+  const hpMax=()=>{ let pct=0, flat=0; equipped().forEach(id=>{ IT[id].eff.forEach(t=>{ const m=t.match(/^Здоровье \+(\d+)%/); if(m) pct+=+m[1]; }); flat+=IT[id].stats.hp||0; }); return Math.round(S.hpBase*(1+pct/100))+flat; };
+  const clampHp=()=>{ S.hp=Math.min(S.hp,hpMax()); };
+  const sign=v=>(v>0?'+':v<0?'−':'')+Math.abs(v);
+  const statLine=st=>Object.keys(st).map(k=>'<span class="'+(st[k]<0?'neg':'pos')+'">'+STN[k]+' '+sign(st[k])+'</span>').join(' · ');
+  const rarDot=r=>'<span class="rdot" style="background:'+RAR[r].color+'"></span>';
+  const rarTag=r=>'<span class="rtag" style="--rc:'+RAR[r].color+'">'+RAR[r].name+'</span>';
+  const COIN='<svg viewBox="0 0 48 48" aria-hidden="true"><defs><radialGradient id="silv" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#FBFAF6"/><stop offset=".55" stop-color="#C9C6BE"/><stop offset="1" stop-color="#7B7870"/></radialGradient></defs><circle cx="24" cy="24" r="22" fill="url(#silv)" stroke="#8C887F" stroke-width="2"/><circle cx="24" cy="24" r="18.5" fill="none" stroke="#8C887F" stroke-width="1" stroke-dasharray="1.5 2"/><path d="M15 15l4 4M33 15l-4 4" stroke="#55524C" stroke-width="2" stroke-linecap="round"/><ellipse cx="24" cy="29" rx="8.5" ry="10" fill="#6A675F"/><circle cx="20" cy="23" r="4" fill="#EDEBE5"/><circle cx="28" cy="23" r="4" fill="#EDEBE5"/><circle cx="20" cy="23" r="1.7" fill="#2E2C28"/><circle cx="28" cy="23" r="1.7" fill="#2E2C28"/><path d="M24 25l-1.6 3h3.2z" fill="#C9973E"/><path d="M19 33q5 3 10 0M19 36q5 3 10 0" stroke="#4A4741" stroke-width="1" fill="none"/></svg>';
+
+  /* ---- 1. Бог ---- */
+  const ROLES={warrior:['Воитель','главный урон','#E8875A'],guardian:['Страж','держит удары, щиты','#9EC3D6'],healer:['Целитель','лечение, снятие проклятий','#A3C2AA'],oracle:['Оракул','усиления, предвидение','#F3DFAE'],sorcerer:['Чародей','стихийный урон по всем, проклятия','#B3AADD'],trickster:['Плут','скорость, ловушки, обман','#D98AB8']};
+  const roleChip=k=>'<span class="elchip" style="--ec:'+ROLES[k][2]+'">'+ROLES[k][0]+'</span>';
+  const STD=[['might','урон, сила ударов'],['influence','разговоры, убеждение'],['wisdom','знания, магия'],['endurance','защита, здоровье'],['luck','крит. удачи чаще'],['cunning','обман, ловушки']];
+  $('#pg1').innerHTML=
+   '<div class="hero"><img src="/olymp/img/zeus.jpg" alt="Зевс"><div class="who"><div><b>Зевс</b><span class="whotags">'+roleChip('warrior')+elChip('bolt')+'</span></div><div class="lvl"><svg class="ring" viewBox="0 0 74 74" aria-hidden="true"><circle cx="37" cy="37" r="34" fill="none" stroke="rgba(251,246,241,.12)" stroke-width="4"/><circle cx="37" cy="37" r="34" fill="none" stroke="#E3C68C" stroke-width="4" stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="81"/></svg><div class="emb zeus" data-god="zeus"></div><em>4</em></div></div></div>'+
+   '<div class="bars"><div class="bar2"><div class="t"><span>Здоровье</span><b id="hpTxt"></b></div><div class="track"><i id="hpBar" style="background:linear-gradient(90deg,#6E9277,#A3C2AA)"></i></div></div><div class="bar2"><div class="t"><span>Опыт до 5-го уровня</span><b>754 / 1 213</b></div><div class="track"><i style="width:62%;background:linear-gradient(90deg,#C9A15F,#F3DFAE)"></i></div></div></div>'+
+   '<div class="infobox" id="statebox"></div><div class="pts" id="ptsBox"></div><div id="statList"></div>';
+  const fxIcon=f=>f.neg?'<span class="ic" style="background:rgba(217,138,122,.2)"><svg viewBox="0 0 24 24" fill="none" stroke="#E3AA9C" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6"/></svg></span>':'<span class="ic" style="background:rgba(163,194,170,.2)"><svg viewBox="0 0 24 24" fill="none" stroke="#A3C2AA" stroke-width="2"><path d="M12 20V6M6 12l6-6 6 6"/></svg></span>';
+  const renderState=()=>{
+    const list=[...S.fx].sort((a,b)=>b.neg-a.neg); const shown=S.showAllFx?list:list.slice(0,2); const more=list.length-shown.length;
+    const neg=list.filter(f=>f.neg).length;
+    $('#statebox').innerHTML='<div class="hd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>Состояние<span class="cnt2">'+(neg?neg+' проклят.':'чисто')+'</span></div>'+
+      (list.length?shown.map(f=>'<div class="fx">'+fxIcon(f)+'<div><b>'+f.n+'</b><small>'+f.t+' · '+f.d+'</small></div><span class="left">'+f.left+'</span></div>').join(''):'<div class="fx"><span></span><div><small>Эффектов нет</small></div><span></span></div>')+
+      (list.length>2?'<button class="linkbtn" id="fxMore">'+(S.showAllFx?'Свернуть':'Ещё '+more+' '+(more===1?'эффект':more<5?'эффекта':'эффектов'))+'</button>':'')+
+      '<button class="linkbtn" id="logBtn" aria-expanded="'+S.showLog+'">'+(S.showLog?'Скрыть события ▴':'События ('+S.log.length+') ▾')+'</button>'+
+      (S.showLog?'<div class="feed">'+S.log.slice(0,20).map(e=>'<div><time>'+e[0]+'</time><span>'+e[1]+'</span></div>').join('')+'</div>':'');
+    const m=$('#fxMore'); if(m) m.onclick=()=>{S.showAllFx=!S.showAllFx; renderState();};
+    $('#logBtn').onclick=()=>{S.showLog=!S.showLog; renderState();};
+  };
+  const renderStats=(changed)=>{
+    clampHp(); $('#hpTxt').textContent=S.hp+' / '+hpMax(); $('#hpBar').style.width=(S.hp/hpMax()*100)+'%';
+    $('#ptsBox').className='pts'+(S.left?'':' done'); $('#ptsBox').innerHTML=S.left?'<span>Новый уровень! Распределите очки</span><b>'+S.left+'</b>':'<span>Очки уровня распределены ✓</span>';
+    $('#statList').innerHTML=STD.map(([k,d])=>{const b=bonus(k), add=(S.alloc[k]||0); const parts=[]; if(add) parts.push('<i class="pos">+'+add+' очки</i>'); if(b.it) parts.push('<i class="'+(b.it<0?'neg':'pos')+'">'+sign(b.it)+' вещи</i>'); if(b.fx) parts.push('<i class="'+(b.fx<0?'neg':'pos')+'">'+sign(b.fx)+' эффекты</i>');
+      return '<div class="statrow"><div class="nm">'+STN[k]+'<small>'+(parts.length?parts.join(' '):d)+'</small></div><span class="val'+(changed&&changed.includes(k)?' up':'')+'">'+total(k)+'</span><button class="pplus" data-k="'+k+'" aria-label="Добавить к '+STN[k]+'"'+(S.left&&total(k)<100?'':' disabled')+'>+</button></div>';}).join('')+
+      '<div class="statrow"><div class="nm">Скорость<small>только от одежды и предметов · '+sign(bonus('speed').it)+' вещи</small></div><span class="val'+(changed&&changed.includes('speed')?' up':'')+'">'+total('speed')+'</span><span class="lock" aria-label="Очки сюда не вкладываются"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></div>';
+    document.querySelectorAll('.pplus').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; if(!S.left) return; S.alloc[k]=(S.alloc[k]||0)+1; S.left--; sfx('pop'); if(!S.left) addLog('Очки уровня распределены'); renderAll([k]); });
+  };
+
+  /* ---- 2. Силы ---- */
+  const ic={bolt:'<svg viewBox="0 0 24 24" fill="#F3D46B"><polygon points="13,2 5,14 11,14 10,22 19,9 13,9"/></svg>',shield:'<svg viewBox="0 0 24 24" fill="none" stroke="#FFF0B8" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></svg>',eye:'<svg viewBox="0 0 24 24" fill="none" stroke="#A9D3B5" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',storm:'<svg viewBox="0 0 24 24" fill="none" stroke="#F3D46B" stroke-width="1.8" stroke-linejoin="round"><path d="M6 14a4 4 0 0 1 1-8 5 5 0 0 1 9 1 3.5 3.5 0 0 1 1 7z"/><path d="M11 15l-2 4h3l-1 3"/></svg>'};
+  const OUTC=[['крит','#F3DFAE'],['хорошо','#A3C2AA'],['средне','#9EC3D6'],['плохо','#E3AA9C'],['провал','#D98A7A']];
+  const outs=v=>'<div class="outcomes">'+OUTC.map((o,i)=>'<div><span style="background:'+o[1]+'">'+o[0]+'</span><span>'+v[i]+'</span></div>').join('')+'</div>';
+  const AB=[
+    {i:'bolt',n:'Разряд',el:'bolt',k:'урон одному',cd:'перезарядка 1 ход',d:'Молния бьёт выбранного противника. Сила зависит от Мощи.',o:['40 урона молнией','30 урона','20 урона','5 урона','молния бьёт вас: −10'],vs:'Пожиратель зимы — стихия Лёд, молния сильнее льда: проходит на <b>'+BOSS_RES.bolt+'%</b>, при «средне» — 30 урона вместо 20.'},
+    {i:'shield',n:'Эгида',el:'light',k:'щит союзнику',cd:'перезарядка 3 хода',d:'Закрывает союзника щитом света до его следующего хода.',o:['щит на 30 урона','щит на 22','щит на 15','щит на 4','союзнику «Рок»: −10 к броску']},
+    {i:'eye',n:'Орлиный взор',el:'wind',k:'поддержка',cd:'перезарядка 2 хода',d:'Орёл облетает поле: союзник получает прибавку к следующему броску, может раскрыться скрытая сила врага.',o:['+20 к броску союзника','+15','+10','+3','−10 к броску союзника']},
+    {i:'storm',n:'Гнев Олимпа',el:'bolt',k:'урон всем · раз за бой',cd:'заряд копится от бросков и урона',d:'Гроза над всем полем: молнии бьют каждого врага.',o:['×2 урона всем','×1,5','×1','×0,5','молния бьёт по своим'],vs:'Против Пожирателя молния — <b>'+BOSS_RES.bolt+'%</b> (как и Огонь); Земля и Вода — всего 50%, Лёд — 0%.',ult:1}];
+  const abCard=a=>'<details class="ab'+(a.ult?' ult':'')+'"><summary><span class="ic">'+ic[a.i]+'</span><span class="nm"><b>'+a.n+'</b><span class="tags">'+elChip(a.el)+'<span class="kind">'+a.k+'</span></span></span><span class="more">Подробнее</span></summary><div class="body"><p>'+a.d+' <span style="color:var(--soft)">'+a.cd+'.</span></p>'+(a.ult?'<div class="bar2"><div class="t"><span>Заряд</span><b>70%</b></div><div class="charge"><i></i></div></div>':'')+outs(a.o)+(a.vs?'<div class="vs">'+a.vs+'</div>':'')+'</div></details>';
+  $('#pg2').innerHTML='<div class="rowhd"><span class="ptitle">Способности</span><button class="use" id="elBtn">Схема стихий</button></div>'+AB.map(abCard).join('');
+  document.querySelectorAll('#pg2 details.ab').forEach(d=>d.addEventListener('toggle',()=>{ d.querySelector('.more').textContent=d.open?'Свернуть':'Подробнее'; }));
+  // схема стихий
+  const ORDER=['fire','dark','wind','ice','poison','chaos','earth','water','light','bolt'];
+  const POS={}; ORDER.forEach((k,i)=>{const a=-Math.PI/2+i*2*Math.PI/10; POS[k]=[150+112*Math.cos(a),150+112*Math.sin(a)];});
+  const elScheme=sel=>{
+    const line=(a,b,cls)=>{const [x1,y1]=POS[a],[x2,y2]=POS[b], dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy), ux=dx/L, uy=dy/L; return '<line class="'+cls+'" x1="'+(x1+ux*20).toFixed(1)+'" y1="'+(y1+uy*20).toFixed(1)+'" x2="'+(x2-ux*22).toFixed(1)+'" y2="'+(y2-uy*22).toFixed(1)+'" marker-end="url(#ar-'+cls+')"/>';};
+    let lines='';
+    ORDER.forEach(a=>STRONG[a].forEach(b=>{ const cls=sel? (a===sel?'win':(b===sel?'lose':'dim')) :'all'; lines+=line(a,b,cls); }));
+    const nodes=ORDER.map(k=>{const [x,y]=POS[k]; return '<g class="enode'+(k===sel?' on':'')+'" data-el="'+k+'" tabindex="0" role="button" aria-label="'+EL[k].n+'"><circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="19" style="stroke:'+EL[k].c+'"/><svg x="'+(x-10).toFixed(1)+'" y="'+(y-10).toFixed(1)+'" width="20" height="20" viewBox="0 0 24 24" style="color:'+EL[k].c+'">'+EL[k].i+'</svg><text x="'+x.toFixed(1)+'" y="'+(y+32).toFixed(1)+'" text-anchor="middle">'+EL[k].n+'</text></g>';}).join('');
+    const mk=(id,c)=>'<marker id="ar-'+id+'" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+c+'"/></marker>';
+    const info=sel?'<div class="kv"><span>Сильнее против (урон ×1,5)</span><b class="plus">'+STRONG[sel].map(k=>EL[k].n).join(', ')+'</b><span>Слабее против (урон ×0,5)</span><b class="minus">'+WEAK[sel].map(k=>EL[k].n).join(', ')+'</b></div>':'<p class="sub" style="margin:0">Стрелка — «сильнее против». Коснитесь стихии, чтобы увидеть её связи.</p>';
+    sheet('<h4>Схема стихий</h4><svg class="elsvg" viewBox="0 0 300 310" role="img" aria-label="Какие стихии сильнее каких"><defs>'+mk('all','rgba(227,198,140,.45)')+mk('win','#A3C2AA')+mk('lose','#E3AA9C')+mk('dim','rgba(251,246,241,.08)')+'</defs>'+lines+nodes+'</svg>'+info+'<div class="vs">У каждой стихии 2 сильные и 2 слабые стороны. У врагов к этому добавляются свои сопротивления: например, Пожиратель зимы не чувствует Лёд (0%).</div>');
+    document.querySelectorAll('.enode').forEach(g=>{ g.onclick=()=>elScheme(g.dataset.el===sel?null:g.dataset.el); g.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); g.onclick(); } }; });
+  };
+  $('#elBtn').onclick=()=>elScheme(null);
+
+  /* ---- 3. История ---- */
+  $('#pg3').innerHTML='<span class="ptitle">О боге</span><div style="display:flex;gap:14px;align-items:center"><div class="emb zeus" data-god="zeus" style="--s:56px"></div><div><b style="font:700 30px/1 \'Cormorant Garamond\',serif;color:var(--gold2)">Зевс</b><div style="font-size:13px;color:var(--soft)">Царь Олимпа · олимпиец</div></div></div>'+
+    '<p class="lore">Младший сын Кроноса, тот, кто низверг титанов и разделил мир с братьями: себе взял небо, Посейдону — море, Аиду — подземное царство. Его слово — закон на Олимпе, его гнев — гроза над всеми мирами.</p>'+
+    '<dl class="facts"><dt>Роль</dt><dd>'+roleChip('warrior')+' '+ROLES.warrior[1]+'</dd><dt>Стихия</dt><dd>'+elChip('bolt')+'</dd><dt>Символы</dt><dd>орёл, молния, дуб, скипетр</dd><dt>Силён против</dt><dd>титанов и их порождений</dd><dt>Слабость</dt><dd>ревность Геры: против Геры и её союзников броски −10</dd><dt>Дом</dt><dd>Олимп</dd></dl>'+
+    '<span class="ptitle">Способности</span><div class="ablist">'+AB.map(a=>'<div><span class="ic">'+ic[a.i]+'</span><span><b>'+a.n+(a.ult?' · ультимативный':'')+'</b><small>'+EL[a.el].n+' · '+a.k+'</small></span></div>').join('')+'</div>'+
+    '<span class="ptitle">Роли богов</span><div class="roles">'+Object.keys(ROLES).map(k=>'<div>'+roleChip(k)+'<small>'+ROLES[k][1]+'</small></div>').join('')+'</div>';
+
+  /* ---- 4. Сумка ---- */
+  const SV={art:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 9l6-1z"/></svg>',
+    head:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 16c-2-5 1-10 5-11M19 16c2-5-1-10-5-11"/><path d="M6 10l-2-1M6 13h-2M18 10l2-1M18 13h2"/></svg>',
+    body:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 3l4 3 4-3 3 3-2 3v12H7V9L5 6z"/></svg>',
+    cloak:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 3h8l1 3-2 15H9L7 6z"/><path d="M8 3c1 3 7 3 8 0"/></svg>',
+    feet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18h12a4 4 0 0 0 4-4v-1H9L6 9"/><path d="M15 9l4-3M17 11l4-2"/></svg>',
+    acc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="5" r="2"/></svg>',
+    cons:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6M10 3v5l-4 7a4 4 0 0 0 4 6h4a4 4 0 0 0 4-6l-4-7V3"/></svg>'};
+  const slotBtn=(id,label,slotIcon,where)=>id?'<button class="slot full" style="--rc:'+RAR[IT[id].rar].color+'" data-open="'+id+'" data-where="'+where+'"><span class="ibadge">i</span>'+slotIcon+'<span class="nm">'+label+'</span></button>':'<button class="slot" data-empty="'+where+'">'+slotIcon+'<span class="nm">'+label+'</span><span class="nm sm">пусто</span></button>';
+  const itemRow=(id,act,count)=>{const it=IT[id]; return '<div class="item"><button class="pic" style="--rc:'+RAR[it.rar].color+'" data-open="'+id+'" aria-label="Свойства: '+it.name+'"><span class="ibadge">i</span>'+SV[it.slot]+'</button><div><b>'+it.name+(count>1?' ×'+count:'')+'</b><small>'+rarDot(it.rar)+(Object.keys(it.stats).length?statLine(it.stats):(it.eff[0]||''))+'</small></div>'+act+'</div>';};
+  const renderBag=()=>{
+    const arts=S.bag.filter(id=>IT[id].slot==='art');
+    $('#pg4').innerHTML='<div class="gold"><div class="coin">'+COIN+'</div><div><b>'+S.gold+'</b><small>драхм · серебро Афин, передать нельзя</small></div></div>'+
+      '<span class="ptitle">Артефакты · 4 слота</span><div class="slots">'+S.eq.art.map((id,i)=>slotBtn(id,id?IT[id].name.split(' ')[0]:'Слот '+(i+1),SV.art,'art'+i)).join('')+'</div>'+
+      '<span class="ptitle">Артефакты в сумке</span>'+(arts.length?arts.map(id=>itemRow(id,'<button class="use" data-equip="'+id+'">Надеть</button>')).join(''):'<p class="sub">Пусто</p>')+
+      '<span class="ptitle">Расходники</span>'+S.cons.filter(c=>c[1]>0).map(c=>itemRow(c[0],'<button class="use" data-use="'+c[0]+'">Использовать</button>',c[1])).join('');
+    bindItems('#pg4');
+  };
+  /* ---- 5. Одежда ---- */
+  const SETS=[{n:'Комплект «Олимпиец»',note:'легендарные вещи',have:0,b2:'+5% опыта',b4:'ультимативный навык заряжается на 15% быстрее'}];
+  const renderWear=()=>{
+    const wearB=bonus('speed').it;
+    $('#pg5').innerHTML='<div class="speed"><div><small>Скорость</small><b>'+total('speed')+'</b></div><span class="elchip" style="--ec:#A9D3B5">'+sign(wearB)+' от одежды и артефактов</span></div>'+
+      '<span class="ptitle">Надето · касание — свойства</span><div class="slots five">'+['head','body','cloak','feet','acc'].map(k=>slotBtn(S.eq[k],SLOTN[k],SV[k],k)).join('')+'</div>'+
+      '<span class="ptitle">Гардероб</span>'+['head','body','cloak','feet','acc'].map(k=>{const own=S.bag.filter(id=>IT[id].slot===k); return '<details class="folder"><summary>'+SV[k]+'<b>'+SLOTN[k]+'</b><span class="cnt3">'+own.length+'</span><span class="chev">▾</span></summary>'+(own.length?own.map(id=>itemRow(id,'<button class="use" data-equip="'+id+'">Надеть</button>')).join(''):'<p class="sub" style="margin:4px 0 10px">Пока ничего нет</p>')+'</details>';}).join('')+
+      '<div class="setbox"><div class="sethd"><b>«Олимпиец»</b><span class="cnt">0 из 4</span></div><div class="off"><span>2 вещи:</span> +5% опыта</div><div class="off"><span>4 вещи:</span> ульта заряжается на 15% быстрее</div></div>';
+    bindItems('#pg5');
+  };
+  /* ---- действия с вещами ---- */
+  const where=id=>{ for(const k of ['head','body','cloak','feet','acc']) if(S.eq[k]===id) return k; const i=S.eq.art.indexOf(id); return i>=0?'art'+i:null; };
+  const diffStats=(before)=>Object.keys(STN).filter(k=>k!=='hp'&&total(k)!==before[k]);
+  const snap=()=>{const o={}; Object.keys(STN).forEach(k=>{ if(k!=='hp') o[k]=total(k); }); return o;};
+  const equip=id=>{ const it=IT[id], b=snap();
+    if(it.slot==='art'){ const free=S.eq.art.indexOf(null); if(free<0){ toast('Все 4 слота заняты — сначала снимите артефакт'); return; } S.eq.art[free]=id; }
+    else { if(S.eq[it.slot]) S.bag.push(S.eq[it.slot]); S.eq[it.slot]=id; }
+    S.bag=S.bag.filter(x=>x!==id); addLog('Надето: '+it.name); sfx('pop'); toast('Надето: '+it.name); closeSheet(); renderAll(diffStats(b)); };
+  const unequip=id=>{ const w=where(id), b=snap(); if(!w) return; if(w.startsWith('art')) S.eq.art[+w.slice(3)]=null; else S.eq[w]=null; S.bag.push(id); addLog('Снято: '+IT[id].name); sfx('pop'); toast('Снято: '+IT[id].name+' — лежит в сумке'); closeSheet(); renderAll(diffStats(b)); };
+  const useItem=id=>{ const c=S.cons.find(x=>x[0]===id); if(!c||!c[1]) return; const it=IT[id];
+    if(it.name==='Обол'){ toast('Обол тратится сам на переправе через Ахерон'); return; }
+    if(it.name==='Амброзия'){ const i=S.fx.findIndex(f=>f.neg); if(i<0){ toast('Проклятий нет'); return; } const b=snap(); const n=S.fx[i].n; S.fx.splice(i,1); c[1]--; addLog('Амброзия сняла «'+n+'»'); toast('Снято проклятие «'+n+'»'); closeSheet(); renderAll(diffStats(b)); return; }
+    if(it.name==='Зелье здоровья'){ if(S.hp>=hpMax()){ toast('Здоровье уже полное'); return; } const r=1+Math.floor(Math.random()*100); const heal=r>=96?80:r>=55?60:r>=35?40:r>=6?20:10; const got=Math.min(heal,hpMax()-S.hp); S.hp+=got; c[1]--; addLog('Зелье: бросок '+r+' → +'+got+' здоровья'); toast('Бросок '+r+': +'+got+' здоровья'); closeSheet(); renderAll([]); }
+  };
+  const openItem=id=>{ const it=IT[id], w=where(id), cons=it.slot==='cons';
+    const act=cons?'<button class="okbtn" data-use="'+id+'">Использовать</button>':(w?'<button class="okbtn" data-unequip="'+id+'">Снять</button>':'<button class="okbtn" data-equip="'+id+'">Надеть</button>');
+    sheet('<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+rarTag(it.rar)+'<span class="kind">'+(cons?'расходник':it.slot==='art'?'артефакт':SLOTN[it.slot])+(w?' · надето':'')+'</span></div><h4>'+it.name+'</h4>'+
+      (Object.keys(it.stats).length?'<div class="kv">'+Object.keys(it.stats).map(k=>'<span>'+STN[k]+'</span><b class="'+(it.stats[k]<0?'minus':'plus')+'">'+sign(it.stats[k])+'</b>').join('')+'</div>':'')+
+      (it.eff.length?'<ul class="effs">'+it.eff.map(e=>'<li>'+e+'</li>').join('')+'</ul>':'')+'<span class="sub">Где взять: '+it.src+'</span>'+act);
+    bindItems('#psheetBody'); };
+  function bindItems(root){ const r=$(root);
+    r.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openItem(b.dataset.open));
+    r.querySelectorAll('[data-equip]').forEach(b=>b.onclick=()=>equip(b.dataset.equip));
+    r.querySelectorAll('[data-unequip]').forEach(b=>b.onclick=()=>unequip(b.dataset.unequip));
+    r.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>useItem(b.dataset.use));
+    r.querySelectorAll('[data-empty]').forEach(b=>b.onclick=()=>{ const w=b.dataset.empty; toast(w.startsWith('art')?'Свободный слот: наденьте артефакт из сумки ниже':'Свободно: выберите вещь в гардеробе ниже'); });
+  }
+  const renderAll=changed=>{ const open=[...document.querySelectorAll('#pg5 details.folder')].map(d=>d.open); renderState(); renderStats(changed); renderBag(); renderWear(); document.querySelectorAll('#pg5 details.folder').forEach((d,i)=>{ if(open[i]) d.open=true; }); };
+  renderAll([]);
+  document.querySelectorAll('#phoneView [data-god]').forEach(fillEmb);
+})();
+
+/* ---------- запуск ---------- */
+function resize(){ sizeFx(); sizeThree(); }
+addEventListener('resize',resize); new ResizeObserver(resize).observe(stage);
+sizeFx(); requestAnimationFrame(tickFx);
+show('v-card');
+})();
+</script>
+
+<a href="/olymp.html" style="position:fixed;left:12px;bottom:12px;z-index:99;font:600 13px Jost,system-ui,sans-serif;color:#221E1B;background:#E3C68C;border-radius:999px;padding:10px 14px;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.4)">← Олимп</a>
+</body>
+</html>

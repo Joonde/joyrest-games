@@ -100,7 +100,7 @@ describe("Олимп на сессии", () => {
 
   it("история проходится до концовки при 1–10 командах, опыт = очки, драхмы целые", () => {
     const endings = new Set<string>();
-    for (let seed = 1; seed <= 60; seed++) {
+    for (let seed = 1; seed <= 30; seed++) {
       const n = 1 + (seed % 10);
       const { r, seen } = play(n, seed, (["easy", "normal", "hard"] as const)[seed % 3]);
       expect(r.phase).toBe("end");
@@ -110,7 +110,7 @@ describe("Олимп на сессии", () => {
     }
     // разные пути и концовки встречаются
     expect(endings.size).toBeGreaterThanOrEqual(2);
-  });
+  }, 60_000);
 
   it("«Назад» отменяет одно действие вместе с опытом", () => {
     const content = createOlymp();

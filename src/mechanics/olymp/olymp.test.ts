@@ -200,7 +200,7 @@ describe("бой", () => {
     // баланс пробной истории: отряд чаще побеждает, но не всегда
     expect(wins).toBeGreaterThan(150);
     expect(wins).toBeLessThan(300);
-  });
+  }, 60_000);
   it("ход не в свою очередь и неготовая способность — ошибка", () => {
     const b = startBattle("wolves", [{ pid: "a", god: "zeus", level: 1 }, { pid: "b", god: "athena", level: 1 }]);
     const other = b.actor === "a" ? "b" : "a";

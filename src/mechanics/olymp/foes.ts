@@ -58,6 +58,25 @@ export const FOES: Foe[] = [
     ],
   },
   {
+    id: "cerberus", name: "Цербер", rank: "B", boss: false, element: "fire", hp: 240, speed: 115, coins: 50,
+    resist: resistOf("fire"), image: "cerberus", about: "Трёхголовый пёс Аида. Сторожит короткую тропу мимо дворца — и голоден с тех пор, как пришла зима.",
+    abilities: [
+      { id: "c-bite", name: "Три пасти", kind: "strike", power: 20, hint: "урон одному" },
+      { id: "c-fire", name: "Огненный рык", kind: "blast", power: 10, hint: "урон всем" },
+      { id: "c-fear", name: "Ужас Тартара", kind: "curse", power: 0, hint: "проклятие на одного", effect: { id: "fear", name: "Ужас Тартара", kind: "curse", turns: 2, roll: -10 } },
+      { id: "c-guard", name: "Стойка стража", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "guard", name: "Стойка стража", kind: "bless", turns: 2, taken: 0.7 } },
+    ],
+  },
+  {
+    id: "keres", name: "Керы", rank: "C", boss: false, element: "dark", hp: 210, speed: 110, coins: 45,
+    resist: resistOf("dark"), image: "keres", about: "Крылатые духи гибели. Пожиратель позвал их сторожить дорогу к Ледяным вратам.",
+    abilities: [
+      { id: "k-claw", name: "Когти гибели", kind: "strike", power: 18, hint: "урон одному" },
+      { id: "k-wings", name: "Чёрные крылья", kind: "blast", power: 9, hint: "урон всем" },
+      { id: "k-doom", name: "Предсказание смерти", kind: "curse", power: 0, hint: "яд на одного", effect: { id: "doom", name: "Предсказание смерти", kind: "curse", turns: 2, dot: 7 } },
+    ],
+  },
+  {
     id: "devourer", name: "Пожиратель зимы", rank: "B", boss: true, element: "ice", hp: 300, speed: 130, coins: 80,
     resist: resistOf("ice"), image: "boss", about: "Осколок первичного Хаоса. Пожирает души и тепло; на лбу горит метка Тёмного мира.",
     abilities: [

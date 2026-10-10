@@ -183,7 +183,8 @@ describe("бой", () => {
     let wins = 0;
     for (let seed = 1; seed <= 300; seed++) {
       const gods = [...GODS].sort((a, c) => ((seed * 31 + a.id.length * 7) % 11) - ((seed * 31 + c.id.length * 7) % 11)).slice(0, 2 + (seed % 7)).map((g) => g.id);
-      const b = runBattle(seed % 3 === 0 ? "devourer" : seed % 3 === 1 ? "wolves" : "shades", gods, seed, 1 + (seed % 4));
+      const foes = ["devourer", "wolves", "shades", "cerberus", "keres"];
+      const b = runBattle(foes[seed % foes.length] as string, gods, seed, 1 + (seed % 4));
       expect(b.over).not.toBeNull();
       if (b.over === "win") {
         wins++;

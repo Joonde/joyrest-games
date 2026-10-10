@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Блэкджек — экран зала</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&amp;family=Jost:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#D9B877}a:hover{color:#F0D49A}
+.card{position:relative;flex:none;width:var(--w);height:calc(var(--w)*1.4);border-radius:calc(var(--w)*.1);background:#FBF7EE;box-shadow:0 8px 20px rgba(0,0,0,.45),inset 0 0 0 1px rgba(184,150,90,.6);color:#1B1A22;overflow:hidden;font-family:'Cormorant Garamond',serif}
+.card::before{content:"";position:absolute;inset:calc(var(--w)*.05);border:1px solid rgba(184,150,90,.55);border-radius:calc(var(--w)*.07);pointer-events:none}
+.card::after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 42%,rgba(255,236,190,.45) 50%,transparent 58%);animation:sheen 5s ease-in-out infinite;pointer-events:none}
+@keyframes sheen{0%,55%{transform:translateX(-70%)}85%,100%{transform:translateX(70%)}}
+.card.red{color:#A3243B}
+.cr{position:absolute;top:calc(var(--w)*.08);left:calc(var(--w)*.1);font-weight:700;font-size:calc(var(--w)*.27);line-height:.85;text-align:center}
+.cr span{display:block;font-size:.75em;margin-top:2px}
+.cr.b{top:auto;left:auto;bottom:calc(var(--w)*.08);right:calc(var(--w)*.1);transform:rotate(180deg)}
+.cp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:calc(var(--w)*.55)}
+.back{background-color:#5A1626;background-image:repeating-linear-gradient(45deg,rgba(217,184,119,.22) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(217,184,119,.22) 0 1px,transparent 1px 9px)}
+.back::before{border-color:rgba(217,184,119,.8)}
+.medal{position:absolute;left:50%;top:50%;width:calc(var(--w)*.56);height:calc(var(--w)*.56);transform:translate(-50%,-50%);border-radius:50%;background:#5A1626;border:1px solid #D9B877;display:flex;align-items:center;justify-content:center;color:#D9B877;font-weight:700;font-size:calc(var(--w)*.16)}
+.box{position:absolute;width:150px;height:210px;display:flex;flex-direction:column;align-items:center}
+.hand{position:relative;width:120px;height:96px}
+.hand .card{position:absolute;top:0}
+.tot{margin-top:6px;min-width:34px;padding:2px 10px;border-radius:999px;background:rgba(11,9,12,.85);border:1px solid rgba(217,184,119,.6);font-weight:600;font-size:15px;text-align:center}
+.spot{margin-top:8px;width:62px;height:62px;border-radius:50%;border:1.5px solid rgba(232,217,181,.55);display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:12px;color:#E8D9B5}
+.nm{margin-top:6px;font-size:14px;font-weight:500;text-align:center;line-height:1.2}
+.glow{animation:glow 1.8s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 3px rgba(232,199,126,.25)}50%{box-shadow:0 0 0 9px rgba(232,199,126,.12)}}
+.card{box-sizing:border-box;border-radius:calc(var(--w)*.09);border:max(2px,calc(var(--w)*.03)) solid transparent;background:radial-gradient(ellipse at 30% 18%,#FFFDF7 0%,#F7F0E0 55%,#EADFC5 100%) padding-box,linear-gradient(135deg,#7A5A24 0%,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877 100%) border-box;box-shadow:0 12px 26px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.35)}
+.card::before{inset:max(2px,calc(var(--w)*.025));border:max(3px,calc(var(--w)*.03)) double rgba(168,130,56,.7);border-radius:calc(var(--w)*.05)}
+.card::after{background:linear-gradient(115deg,transparent 40%,rgba(255,232,180,.35) 47%,rgba(255,255,255,.75) 50%,rgba(255,220,160,.35) 53%,transparent 60%)}
+.cr,.cp{background:linear-gradient(160deg,#55525E 0%,#121117 75%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card.red .cr,.card.red .cp{background-image:linear-gradient(160deg,#D9466A 0%,#8A1430 75%)}
+.cr{z-index:1;top:calc(var(--w)*.08);left:calc(var(--w)*.09);font-size:calc(var(--w)*.2);line-height:.95}
+.cr span{font-size:.8em;margin-top:0}
+.cr.b{bottom:calc(var(--w)*.08);right:calc(var(--w)*.09)}
+.cp{font-size:calc(var(--w)*.42)}
+.back{background:repeating-linear-gradient(45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,repeating-linear-gradient(-45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,radial-gradient(circle at 50% 40%,#7E2639 0%,#3E0E19 100%) padding-box,linear-gradient(135deg,#7A5A24 0%,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877 100%) border-box}
+.back::before{border-color:rgba(233,207,138,.8)}
+.medal{width:calc(var(--w)*.5);height:calc(var(--w)*.5);background:radial-gradient(circle at 40% 35%,#6E1F31,#3E0E19);border:1px solid #E9CF8A;box-shadow:0 0 0 calc(var(--w)*.03) rgba(62,14,25,.9),0 0 0 calc(var(--w)*.04) rgba(233,207,138,.6);color:#E9CF8A;font-size:calc(var(--w)*.14)}
+.medal::after{content:"";position:absolute;inset:-22%;border-radius:50%;border:1px dashed rgba(233,207,138,.55);animation:spin 20s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tex{position:absolute;inset:0;border-radius:inherit;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.2px);background-size:5px 5px;pointer-events:none}
+.light{position:absolute;inset:0;border-radius:inherit;background:radial-gradient(ellipse at 50% 28%,rgba(255,236,190,.22) 0%,transparent 55%);animation:breathe 7s ease-in-out infinite;pointer-events:none}
+@keyframes breathe{0%,100%{opacity:.6}50%{opacity:1}}
+.inlay{position:absolute;inset:12px;border-radius:inherit;padding:2px;background:linear-gradient(90deg,#8C6A2F,#F6E3A6,#8C6A2F,#D9B877,#8C6A2F,#F6E3A6,#8C6A2F) 0 0/300% 100%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.75;animation:glint 8s linear infinite;pointer-events:none}
+@keyframes glint{to{background-position:300% 0}}
+.dust{position:absolute;width:4px;height:4px;border-radius:50%;background:#F6E3A6;box-shadow:0 0 8px 2px rgba(246,227,166,.6);opacity:0;animation:rise 8s ease-in-out infinite;pointer-events:none}
+@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:.85}100%{transform:translateY(-120px);opacity:0}}
+.crp{animation:crp 4s ease-in-out infinite}
+@keyframes crp{0%,100%{filter:drop-shadow(0 0 6px rgba(233,207,138,.35))}50%{filter:drop-shadow(0 0 22px rgba(233,207,138,.7))}}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 50% 45%, #1E1822 0%, #0E0C10 70%); font-family: Jost, sans-serif; color: #EDE6DA">
+
+<header style="position: absolute; left: 40px; right: 40px; top: 28px; display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 54px; height: 54px; border-radius: 50%; border: 1px solid #D9B877; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 20px; color: #D9B877">J✦R</div>
+<div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 600; line-height: 1">Блэкджек · классический</div>
+<div style="font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C; margin-top: 6px">6 колод · раунд 5</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px">
+<div style="text-align: right">
+<div style="font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C">Занять бокс</div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 600; line-height: 1.1">код 7310</div>
+</div>
+<div style="width: 66px; height: 66px; border-radius: 10px; background: #EDE6DA; color: #0E0C10; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">[QR]</div>
+</div>
+</header>
+
+<div style="position: absolute; left: 200px; top: 170px; width: 1200px; height: 680px; box-sizing: border-box; padding: 0 26px 26px; border-radius: 0 0 600px 600px / 0 0 680px 680px; background: #2A1A14; box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 0 0 2px #6B4A2E">
+<div style="position: relative; width: 100%; height: 100%; border-radius: 0 0 574px 574px / 0 0 654px 654px; background: {{felt}}; box-shadow: inset 0 0 0 2px rgba(217,184,119,.55), inset 0 0 70px rgba(0,0,0,.55); overflow: hidden">
+<div class="tex"></div><div class="light"></div><div class="inlay"></div>
+<svg width="1148" height="654" viewBox="0 0 1148 654" aria-hidden="true" style="position: absolute; left: 0; top: 0">
+<path id="arc1" d="M214 20 A360 290 0 0 0 934 20" fill="none"></path>
+<path id="arc2" d="M264 20 A310 240 0 0 0 884 20" fill="none"></path>
+<text font-family="Cormorant Garamond, serif" font-size="26" font-weight="700" fill="#E8C77E" letter-spacing="4" text-anchor="middle"><textPath href="#arc1" startOffset="50%">БЛЭКДЖЕК ПЛАТИТ 3 К 2</textPath></text>
+<text font-family="Jost, sans-serif" font-size="14" fill="rgba(232,217,181,.75)" letter-spacing="3" text-anchor="middle"><textPath href="#arc2" startOffset="50%">ДИЛЕР БЕРЁТ ДО 16 И СТОИТ НА 17 · СТРАХОВКА 2 К 1</textPath></text>
+</svg>
+
+<div style="position: absolute; left: 470px; top: 36px; display: flex; gap: 10px">
+<div class="card" style="--w: 86px"><div class="cr">A<span>♠︎</span></div><div class="cp">♠︎</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card back" style="--w: 86px"><div class="medal">J✦R</div></div>
+</div>
+<div style="position: absolute; left: 470px; top: 162px; width: 182px; text-align: center; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: #E8D9B5">Дилер · 11</div>
+
+<div style="position: absolute; left: 930px; top: 26px; width: 120px; height: 100px">
+<div style="position: absolute; left: 0; top: 10px; width: 120px; height: 86px; border-radius: 10px 10px 10px 30px; background: #120C0A; border: 1px solid #6B4A2E; box-shadow: 0 10px 20px rgba(0,0,0,.5)"></div>
+<div class="card back" style="--w: 60px; position: absolute; left: 14px; top: 0; transform: rotate(-24deg)"><div class="medal"></div></div>
+</div>
+<div style="position: absolute; left: 930px; top: 128px; width: 120px; text-align: center; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #E8D9B5">Шуз</div>
+
+<div style="position: absolute; left: 110px; top: 30px; width: 100px; height: 96px">
+<div class="card back" style="--w: 56px; position: absolute; left: 20px; top: 6px; transform: rotate(-8deg)"><div class="medal"></div></div>
+<div class="card back" style="--w: 56px; position: absolute; left: 26px; top: 2px; transform: rotate(6deg)"><div class="medal"></div></div>
+</div>
+<div style="position: absolute; left: 110px; top: 118px; width: 100px; text-align: center; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #E8D9B5">Сброс</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 744px; top: 52px; width: 112px; display: flex; flex-direction: column; align-items: center">
+<img class="crp" src="/_blob/248337cb2acafe58e07eba10e9fc70bb" alt="Крупье" style="width: 112px; height: 112px; border-radius: 50%; object-fit: cover; border: 2px solid #E9CF8A; box-shadow: 0 0 0 4px rgba(14,12,16,.95), 0 0 0 5px rgba(233,207,138,.45)">
+<div style="margin-top: -10px; padding: 4px 14px; border-radius: 999px; background: #1A1418; border: 1px solid #D9B877; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: #E8D9B5">Крупье</div>
+</div>
+<div style="position: absolute; left: 864px; top: 78px; padding: 8px 16px; border-radius: 14px 14px 14px 4px; background: rgba(237,230,218,.94); color: #1B1A22; font-size: 16px; font-weight: 500">У дилера туз. Страховка?</div>
+
+<div class="box" style="left: 254px; top: 281px; opacity: .5">
+<div class="hand"><div class="card" style="--w: 58px; left: 10px"><div class="cr">K<span>♣︎</span></div><div class="cp">♣︎</div></div><div class="card red" style="--w: 58px; left: 32px; transform: rotate(4deg)"><div class="cr">5<span>♦︎</span></div><div class="cp">♦︎</div></div><div class="card" style="--w: 58px; left: 54px; transform: rotate(8deg)"><div class="cr">9<span>♠︎</span></div><div class="cp">♠︎</div></div></div>
+<div class="tot">24 · перебор</div>
+<div class="nm">Олег</div>
+</div>
+
+<div class="box" style="left: 368px; top: 434px">
+<div class="hand"><div class="card" style="--w: 58px; left: 20px"><div class="cr">A<span>♣︎</span></div><div class="cp">♣︎</div></div><div class="card red" style="--w: 58px; left: 44px; transform: rotate(5deg)"><div class="cr">K<span>♥︎</span></div><div class="cp">♥︎</div></div></div>
+<div class="tot" style="background: #E8C77E; color: #1B1A22">Блэкджек!</div>
+<div class="nm"><span style="font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C">команда</span><br>Стол 2</div>
+</div>
+
+<div class="box" style="left: 533px; top: 534px">
+<div class="hand"><div class="card red" style="--w: 58px; left: 20px"><div class="cr">10<span>♦︎</span></div><div class="cp">♦︎</div></div><div class="card" style="--w: 58px; left: 44px; transform: rotate(5deg)"><div class="cr">9<span>♣︎</span></div><div class="cp">♣︎</div></div></div>
+<div class="tot">19 · стоп</div>
+<div class="nm">Ира</div>
+</div>
+
+<div class="box" style="left: 725px; top: 562px">
+<div class="hand"><div class="card" style="--w: 58px; left: 20px"><div class="cr">7<span>♠︎</span></div><div class="cp">♠︎</div></div><div class="card red" style="--w: 58px; left: 44px; transform: rotate(5deg)"><div class="cr">5<span>♥︎</span></div><div class="cp">♥︎</div></div></div>
+<div class="tot glow" style="border: 2px solid #E8C77E">12 · ход</div>
+<div class="nm">Сергей</div>
+<div style="margin-top: 6px; width: 120px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.14)"><div style="width: 58%; height: 100%; border-radius: 2px; background: #E8C77E"></div></div>
+</div>
+
+<div class="box" style="left: 917px; top: 534px">
+<div style="display: flex; gap: 6px">
+<div style="position: relative; width: 70px; height: 96px"><div class="card" style="--w: 48px; position: absolute; left: 0; top: 0"><div class="cr">8<span>♠︎</span></div><div class="cp">♠︎</div></div><div class="card red" style="--w: 48px; position: absolute; left: 18px; top: 6px; transform: rotate(5deg)"><div class="cr">Q<span>♦︎</span></div><div class="cp">♦︎</div></div></div>
+<div style="position: relative; width: 70px; height: 96px"><div class="card" style="--w: 48px; position: absolute; left: 0; top: 0"><div class="cr">8<span>♣︎</span></div><div class="cp">♣︎</div></div><div class="card" style="--w: 48px; position: absolute; left: 18px; top: 6px; transform: rotate(5deg)"><div class="cr">3<span>♠︎</span></div><div class="cp">♠︎</div></div></div>
+</div>
+<div class="tot">18 / 11 · сплит</div>
+<div class="nm">Дима</div>
+</div>
+
+<div class="box" style="left: 1082px; top: 434px">
+<div class="spot" style="margin-top: 20px; width: 84px; height: 84px; border-style: dashed">свободно</div>
+<div class="nm" style="color: #B9AE9C">сканируйте QR</div>
+</div>
+
+<div class="box" style="left: 1196px; top: 281px">
+<div class="hand"><div class="card red" style="--w: 58px; left: 10px"><div class="cr">6<span>♥︎</span></div><div class="cp">♥︎</div></div><div class="card" style="--w: 58px; left: 32px; transform: rotate(4deg)"><div class="cr">5<span>♣︎</span></div><div class="cp">♣︎</div></div><div class="card red" style="--w: 58px; left: 54px; transform: rotate(90deg); top: 14px"><div class="cr">9<span>♦︎</span></div><div class="cp">♦︎</div></div></div>
+<div class="tot">20 · дабл</div>
+<div class="nm"><span style="font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C">команда</span><br>Бар</div>
+</div>
+
+<div class="dust" style="left: 420px; top: 560px; animation-delay: 0s"></div>
+<div class="dust" style="left: 640px; top: 420px; animation-delay: -1.2s"></div>
+<div class="dust" style="left: 980px; top: 600px; animation-delay: -2.5s"></div>
+<div class="dust" style="left: 1180px; top: 450px; animation-delay: -3.7s"></div>
+<div class="dust" style="left: 760px; top: 640px; animation-delay: -4.4s"></div>
+<div class="dust" style="left: 540px; top: 330px; animation-delay: -5.6s"></div>
+<div class="dust" style="left: 1060px; top: 330px; animation-delay: -6.3s"></div>
+<div class="dust" style="left: 880px; top: 500px; animation-delay: -7.1s"></div>
+<div style="position: absolute; left: 40px; bottom: 26px; font-size: 14px; color: #8F8676; letter-spacing: .06em">Боксов 6 из 7 · фишки игровые, без денег</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"table":{"editor":"enum","options":["Изумруд","Бордо","Ночь","Графит"],"default":"Ночь"},"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const felts = {
+      'Изумруд': 'radial-gradient(ellipse at 50% 20%, #1F6A4C 0%, #134631 55%, #0B2E20 100%)',
+      'Бордо': 'radial-gradient(ellipse at 50% 20%, #7A2236 0%, #571627 55%, #340C17 100%)',
+      'Ночь': 'radial-gradient(ellipse at 50% 20%, #1F3A66 0%, #142847 55%, #0B172C 100%)',
+      'Графит': 'radial-gradient(ellipse at 50% 20%, #3A3A40 0%, #26262B 55%, #151518 100%)'
+    };
+    return { felt: felts[this.props.table ?? 'Ночь'] || felts['Ночь'] };
+  }
+}
+</script>
+</body>
+</html>

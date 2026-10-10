@@ -377,7 +377,9 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
   const me = statusOf(v, pid, r);
   const isDefender = pid === v.defender && !v.taking && !v.over;
   const openPairs = uncovered(v);
-  const canPlay = content.highlight ? new Set(playable(v, pid, sorted)) : null;
+  // Подсветка — только когда от игрока ждут хода: в чужой ход рука не гаснет.
+  const acting = !v.over && (pid === v.defender || pid === v.attacker || throwers(v).includes(pid));
+  const canPlay = content.highlight && acting ? new Set(playable(v, pid, sorted)) : null;
   const pending = sent !== null && sent.seq === r.seq && (sending || myAnswer !== null);
   const rejected = r.reject && r.reject.pid === pid && sent && r.reject.n === sent.n ? r.reject.msg : null;
   const bot = r.bots.includes(pid);
@@ -407,7 +409,7 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
   const canCover = isDefender && oneCard !== null && defendTarget !== null && v.table[defendTarget] !== undefined && beats((v.table[defendTarget] as { a: string }).a, oneCard, v.trump, v.opts.spades);
   const transferOk = isDefender && picked.length > 0 && canTransfer(v, pid, picked);
   const attackStart = v.table.length === 0 && pid === v.attacker && picked.length > 0;
-  const throwOk = v.table.length > 0 && pid !== v.defender && picked.length > 0 && picked.every((c) => canPlay === null || playable(v, pid, sorted).includes(c)) && throwers(v).includes(pid) && picked.length <= room(v);
+  const throwOk = v.table.length > 0 && pid !== v.defender && picked.length > 0 && picked.every((c) => playable(v, pid, sorted).includes(c)) && throwers(v).includes(pid) && picked.length <= room(v);
   const allCovered = v.table.length > 0 && openPairs.length === 0;
   const canPass = v.table.length > 0 && pid !== v.defender && throwers(v).includes(pid) && !v.passed.includes(pid) && (allCovered || v.taking);
 

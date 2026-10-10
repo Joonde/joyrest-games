@@ -107,6 +107,15 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const body = (
     <div className="stack">
       {permissions.hostsGames(profile) && <ActiveGames hostId={profile.uid} />}
+      {/* Прототип «Олимпа» (ветка claude/olymp-proto, только test): статичные страницы /olymp/*.html, не маршрут SPA */}
+      <div className="card stack">
+        <strong>Олимп — пробная история «Вечная зима»</strong>
+        <p className="muted small">Ролевая игра про богов: прототип на правилах игры. Один телефон, ходите по очереди.</p>
+        <div className="actions">
+          <a className="btn btn--block" href="/olymp/play.html">Играть в «Вечную зиму»</a>
+          <a className="btn btn--secondary btn--block" href="/olymp.html">Все прототипы «Олимпа»</a>
+        </div>
+      </div>
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
       )}

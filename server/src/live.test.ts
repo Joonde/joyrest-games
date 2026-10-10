@@ -219,6 +219,17 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/sessions/sess2/answers/1/${guest.uid}`, guest.cookie)).json().value).toBe("y");
     // Чужой телефон чужой ответ не перепишет.
     expect((await call("POST", "/api/sessions/sess2/answers", stranger.cookie, { step: 1, pid: guest.uid, value: "z" })).json()).toEqual({ result: "rejected" });
+
+    // «Назад» и снова «Показать вопрос», а удаление ответов не дошло: старый ответ не мешает новому.
+    const again = (value: string) => call("POST", "/api/sessions/sess2/answers", guest.cookie, { step: 2, pid: guest.uid, value });
+    expect((await call("POST", "/api/sessions/sess2/apply", host, { state: { step: 2, stage: "question", startedAt: "server", timeLimit: 20, result: null } })).statusCode).toBe(200);
+    expect((await again("old")).json()).toEqual({ result: "sent" });
+    expect((await call("POST", "/api/sessions/sess2/apply", host, { state: { stage: "ready", startedAt: null } })).statusCode).toBe(200);
+    clock += 5_000;
+    expect((await call("POST", "/api/sessions/sess2/apply", host, { state: { stage: "question", startedAt: "server", timeLimit: 20 } })).statusCode).toBe(200);
+    expect((await again("new")).json()).toEqual({ result: "sent" });
+    expect((await again("again")).json()).toEqual({ result: "rejected" });
+    expect((await call("GET", `/api/sessions/sess2/answers/2/${guest.uid}`, guest.cookie)).json()).toMatchObject({ value: "new", submittedAt: clock });
   });
 
   it("команды: создать можно только в режиме команд; ответ отправляет капитан, участник видит ответ команды", async () => {

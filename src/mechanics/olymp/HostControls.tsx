@@ -54,9 +54,13 @@ export function OlympHostControls({ session, content, answers, participants, con
     const done = waiters.current;
     waiters.current = [];
     done.forEach((w) => w());
-    setPick(null);
   }, [session]);
   const { stage, step } = session.state;
+  // Выбор способности ведущим сбрасывается только с новым шагом (новый ход), а не при любом
+  // обновлении сессии — вход гостя или счётчик ответов не стирают выбор.
+  useEffect(() => {
+    setPick(null);
+  }, [step]);
   const r = parseOlympResult(session.state.result);
   const scene = currentScene(content, r);
   const noTeams = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
@@ -124,7 +128,7 @@ export function OlympHostControls({ session, content, answers, participants, con
         <p className="muted">Капитаны выберут богов: одна команда — один бог. Потом ведущий читает сцены, команды бросают кубик, голосуют и сражаются.</p>
       ) : r.phase === "pick" ? (
         <p>
-          Богов выбрали: {answered.size} из {r.order.length}. Кто не успеет — получит первого свободного бога.
+          Богов выбрали: {[...answered].filter((p) => r.order.includes(p)).length} из {r.order.length}. Кто не успеет — получит первого свободного бога.
         </p>
       ) : (
         sceneCard
@@ -330,7 +334,8 @@ export function OlympHostControls({ session, content, answers, participants, con
             Завершить игру
           </button>
         )}
-        {stage !== "podium" && r.order.length > 0 && r.phase !== "pick" && r.phase !== "end" && (
+        {/* Не во время броска, голосования и хода: таймер шага потом не вернуть «Назад». */}
+        {stage !== "podium" && stage !== "question" && r.order.length > 0 && r.phase !== "pick" && r.phase !== "end" && (
           <button
             type="button"
             className="btn btn--quiet btn--block"

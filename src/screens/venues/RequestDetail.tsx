@@ -401,7 +401,7 @@ function Matching({ request, onOfferCreated }: { request: VenueRequestRecord; on
         </>
       )}
 
-      <div className="offer-bar card">
+      <div className={picked.length > 0 ? "offer-bar offer-bar--sticky card" : "offer-bar card"}>
         <p>
           <strong>Выбрано: {picked.length}</strong>
           {picked.length === 0 && <span className="muted small"> — отметьте площадки галочками</span>}

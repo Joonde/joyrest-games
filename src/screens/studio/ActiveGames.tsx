@@ -8,8 +8,23 @@ import { Icon } from "../../components/Icon";
 
 const NONE: SessionSummary[] = [];
 
+/**
+ * Один запрос на всех: у владельца «Идёт игра» и «Игры сейчас» на одной странице, и без этого
+ * каждый из них раз в 20 с отдельно спрашивал сервер.
+ */
+const inflight = new Map<string, { at: number; promise: Promise<SessionSummary[]> }>();
+
+function loadOverview(hostId: string): Promise<SessionSummary[]> {
+  const hit = inflight.get(hostId);
+  if (hit && Date.now() - hit.at < 2_000) return hit.promise;
+  const promise = fetchOverview(hostId);
+  inflight.set(hostId, { at: Date.now(), promise });
+  promise.catch(() => inflight.delete(hostId));
+  return promise;
+}
+
 /** Список «Игры сейчас»: лёгкий (свой сервер) или из сессий ведущего (Firebase). */
-async function loadOverview(hostId: string): Promise<SessionSummary[]> {
+async function fetchOverview(hostId: string): Promise<SessionSummary[]> {
   if (sessionsRepo.overview) return sessionsRepo.overview();
   const list = await sessionsRepo.listByHost(hostId);
   return list.map((s) => ({
@@ -31,13 +46,19 @@ async function loadOverview(hostId: string): Promise<SessionSummary[]> {
 
 /** Обновлять список раз в 20 с, пока страница видна. */
 function useOverview(hostId: string) {
-  const [state, , update] = useLoad(() => loadOverview(hostId).catch(() => NONE), [hostId]);
-  // Тихо обновляем без каркаса загрузки: список не мигает.
+  // Ошибку первой загрузки не прячем: «игр не было» при сбое сервера вводит в заблуждение.
+  const [state, retry, update] = useLoad(() => loadOverview(hostId), [hostId]);
+  const ready = state.status === "ready";
+  // Тихо обновляем без каркаса загрузки: список не мигает. После ошибки — обычная повторная загрузка.
   const reload = useCallback(() => {
+    if (!ready) {
+      retry();
+      return;
+    }
     void loadOverview(hostId)
       .then((fresh) => update(() => fresh))
       .catch(() => undefined);
-  }, [hostId, update]);
+  }, [hostId, update, ready, retry]);
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") reload();
@@ -230,6 +251,15 @@ export function LiveOverview({ adminId, owner = true }: { adminId: string; owner
   const active = games.filter((g) => g.phase !== "finished").sort((a, b) => (a.phase === b.phase ? b.updatedAt - a.updatedAt : a.phase === "playing" ? -1 : 1));
 
   if (state.status === "loading") return <p className="muted">Загружаем игры…</p>;
+  if (state.status === "error")
+    return (
+      <div className="stack live-overview">
+        <p className="muted">Не удалось загрузить игры.</p>
+        <button type="button" className="btn btn--secondary" onClick={reload}>
+          Попробовать ещё раз
+        </button>
+      </div>
+    );
   return (
     <div className="stack live-overview">
       <div className="seg" role="group" aria-label="Как показать">

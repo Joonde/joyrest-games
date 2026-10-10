@@ -118,7 +118,7 @@ export function DurakScreenView({ session, content }: ViewProps<DurakContent>) {
                   </span>
                 </div>
                 <div className="dk-battle">
-                  {v.table.map((p, i) => {
+                  {v.table.map((p) => {
                     const fresh = r.last && r.last.cards.includes(p.a) && (r.last.a === "attack" || r.last.a === "transfer");
                     const freshD = r.last && p.d !== null && r.last.cards.includes(p.d);
                     const fly = lastFrom ? ({ "--fx": `${lastFrom.x}cqw`, "--fy": `${lastFrom.y}cqh` } as CSSProperties) : undefined;

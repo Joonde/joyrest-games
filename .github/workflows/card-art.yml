@@ -1,0 +1,49 @@
+# Картинки карточного стола: скачивает файлы из public/cards/art/manifest.json в репозиторий,
+# чтобы они хранились в GitHub, попадали в образ и на сервер (и в его резервные копии).
+# Ссылки Figma AI живут 7 дней, поэтому запуск — сразу при изменении manifest в ветке
+# claude/* (~1 минута) и кнопкой Run workflow. Уже скачанные файлы не перекачиваются.
+name: Картинки карт
+
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [public/cards/art/manifest.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: card-art-${{ github.ref }}
+
+jobs:
+  fetch:
+    name: Скачать картинки
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Скачиваю новые файлы
+        run: |
+          set -euo pipefail
+          cd public/cards/art
+          added=0
+          while IFS=$'\t' read -r file url; do
+            case "$file" in (*/*|.*|"") echo "Плохое имя файла: $file"; exit 1;; esac
+            if [ -s "$file" ]; then echo "Уже есть: $file"; continue; fi
+            curl -fsSL --retry 3 --max-time 60 -o "$file.tmp" "$url"
+            type=$(file -b --mime-type "$file.tmp")
+            case "$type" in (image/png|image/jpeg|image/webp) ;; (*) echo "Не картинка ($type): $file"; rm -f "$file.tmp"; exit 1;; esac
+            mv "$file.tmp" "$file"; echo "Скачан: $file ($type, $(stat -c %s "$file") байт)"; added=$((added+1))
+          done < <(jq -r '.files[] | [.file, .url] | @tsv' manifest.json)
+          echo "ADDED=$added" >> "$GITHUB_ENV"
+      - name: Сохраняю в ветку
+        if: env.ADDED != '0'
+        run: |
+          git config user.name "joyrest-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/cards/art
+          git commit -m "Картинки карт: скачано $ADDED [no-test]"
+          git push

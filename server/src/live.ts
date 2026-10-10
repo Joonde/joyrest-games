@@ -110,6 +110,10 @@ const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
 const STAGES = new Set<StepStage>(["ready", "question", "reveal", "board", "podium"]);
 const SMALL_BODY = 16 * 1024;
+/** Сигнал «я на связи» уходит пульту не чаще раза в столько (телефон шлёт раз в 30 с). */
+const TOUCH_PUBLISH_MS = 55_000;
+/** Когда последний сигнал участника ушёл пульту (`session:pid`). */
+const touchPublished = new Map<string, number>();
 /** Команд в одной сессии. */
 const MAX_TEAMS = 100;
 /** Сколько сессий с экраном зала помним (старые вытесняются). */
@@ -777,7 +781,11 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!hosted) return reply;
       const phase = isRecord(request.body) ? request.body.phase : null;
       if (!PHASES.has(phase as SessionPhase)) return fail(reply, 400, "invalid-argument");
-      await change(hosted.row.id, () => ({ state: phase === "playing" ? PLAYING_RESET : { phase: phase as SessionPhase }, leaderboard: {} }));
+      // «playing» сбрасывает игру к началу — только из лобби: повтор или старый запрос не обнулит идущую игру.
+      const result = await change(hosted.row.id, (state) =>
+        phase === "playing" && state.phase !== "lobby" ? "conflict" : { state: phase === "playing" ? PLAYING_RESET : { phase: phase as SessionPhase }, leaderboard: {} },
+      );
+      if (result === "conflict") return { ok: true };
       // «Начать игру» — отсюда считаются 40 минут для баллов ведущего (первый раз).
       if (phase === "playing") {
         await sql`update sessions set started_at = coalesce(started_at, ${new Date(now())}) where id = ${hosted.row.id}`;
@@ -932,15 +940,23 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (session.play_mode !== "teams" || normalizeState(session.state).phase === "finished") return fail(reply, 403, "permission-denied");
       if (!teamId || !validName(body.name)) return fail(reply, 400, "invalid-argument");
       // Одно устройство — одна команда; в сессии — не больше MAX_TEAMS команд (спам на большом экране).
-      const [counts] = await sql<{ mine: number; total: number }[]>`
-        select count(*) filter (where captain_uid = ${who.uid} and id <> ${teamId})::int as mine, count(*)::int as total
-        from participants where session_id = ${session.id} and kind = 'team'`;
-      if ((counts?.mine ?? 0) > 0) return fail(reply, 409, "already-exists");
-      if ((counts?.total ?? 0) >= MAX_TEAMS) return fail(reply, 429, "resource-exhausted");
-      const rows = await sql<ParticipantRow[]>`
-        insert into participants (session_id, id, name, kind, team_id, captain_uid)
-        values (${session.id}, ${teamId}, ${body.name}, 'team', null, ${who.uid})
-        on conflict (session_id, id) do nothing returning ${sql(PARTICIPANT_COLUMNS)}`;
+      // Подсчёт и вставка — в одной транзакции под замком сессии: две вкладки или повтор после
+      // обрыва не создадут вторую команду с тем же капитаном и не пробьют лимит.
+      const outcome = await sql.begin(async (tx) => {
+        await tx`select pg_advisory_xact_lock(hashtext(${`teams:${session.id}`}::text))`;
+        const [counts] = await tx<{ mine: number; total: number }[]>`
+          select count(*) filter (where captain_uid = ${who.uid} and id <> ${teamId})::int as mine, count(*)::int as total
+          from participants where session_id = ${session.id} and kind = 'team'`;
+        if ((counts?.mine ?? 0) > 0) return { error: 409 as const };
+        if ((counts?.total ?? 0) >= MAX_TEAMS) return { error: 429 as const };
+        const inserted = await tx<ParticipantRow[]>`
+          insert into participants (session_id, id, name, kind, team_id, captain_uid)
+          values (${session.id}, ${teamId}, ${body.name}, 'team', null, ${who.uid})
+          on conflict (session_id, id) do nothing returning ${tx(PARTICIPANT_COLUMNS)}`;
+        return { rows: inserted };
+      });
+      if ("error" in outcome) return outcome.error === 409 ? fail(reply, 409, "already-exists") : fail(reply, 429, "resource-exhausted");
+      const rows = outcome.rows;
       if (rows[0]) publishParticipant(session.id, rows[0]);
       else {
         const existing = await loadParticipant(session.id, teamId);
@@ -980,11 +996,20 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who) return reply;
       const { id, pid } = request.params;
       if (pid !== who.uid) return fail(reply, 403, "permission-denied");
+      const at = now();
       const [row] = await sql<ParticipantRow[]>`
-        update participants set seen_at = ${new Date(now())} where session_id = ${id} and id = ${pid} and kind = 'player'
+        update participants set seen_at = ${new Date(at)} where session_id = ${id} and id = ${pid} and kind = 'player'
         returning ${sql(PARTICIPANT_COLUMNS)}`;
       if (!row) return fail(reply, 404, "not-found");
-      publishParticipant(id, row);
+      // Пульту — не каждый сигнал (на 500 гостях это ~17 событий в секунду), а раз в ~минуту: его
+      // копия seenAt не старше 75 с, «на связи» не мигает. Вернулся после обрыва — сразу.
+      const key = `${id}:${pid}`;
+      const last = touchPublished.get(key);
+      if (last === undefined || at - last >= TOUCH_PUBLISH_MS || at < last) {
+        if (touchPublished.size > 20_000) touchPublished.clear();
+        touchPublished.set(key, at);
+        publishParticipant(id, row);
+      }
       return { ok: true };
     });
 
@@ -1106,19 +1131,37 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       // Отвечает сам игрок или капитан своей команды.
       const participant = await loadParticipant(session.id, pid);
       if (!participant || participant.captain_uid !== who.uid) return { result: "rejected" };
-      // Шаг, где ответ можно менять (ночь «Мафии»: семья договаривается) — ведущий отметил `result.changeable`.
-      const changeable = answersChangeable(session.state);
-      const [row] = changeable
-        ? await sql<AnswerRow[]>`
+      const value = sql.json((body.value ?? null) as never);
+      // Проверка шага и запись — под блокировкой строки сессии (for share): пока пульт пишет
+      // «Показать ответ» (for update), ответ ждёт и потом видит уже закрытый вопрос — принятых,
+      // но не посчитанных ответов не бывает.
+      const row = await sql.begin(async (tx) => {
+        const [fresh] = await tx<{ state: unknown }[]>`select state from sessions where id = ${session.id} for share`;
+        if (!fresh) return undefined;
+        const state = normalizeState(fresh.state);
+        if (!permissions.canSubmitAnswer(state, step as number, now())) return undefined;
+        // Шаг, где ответ можно менять (ночь «Мафии»: семья договаривается) — ведущий отметил `result.changeable`.
+        if (answersChangeable(fresh.state)) {
+          const [r] = await tx<AnswerRow[]>`
             insert into answers (session_id, step, pid, uid, value, submitted_at)
-            values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${sql.json((body.value ?? null) as never)}, ${new Date(time)})
+            values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${value}, ${new Date(time)})
             on conflict (session_id, step, pid) do update set value = excluded.value, submitted_at = excluded.submitted_at
               where answers.uid = excluded.uid
-            returning step, pid, uid, value, submitted_at`
-        : await sql<AnswerRow[]>`
-            insert into answers (session_id, step, pid, uid, value, submitted_at)
-            values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${sql.json((body.value ?? null) as never)}, ${new Date(time)})
-            on conflict (session_id, step, pid) do nothing returning step, pid, uid, value, submitted_at`;
+            returning step, pid, uid, value, submitted_at`;
+          return r;
+        }
+        // Ответ, оставшийся с прошлого показа этого же вопроса («Назад» и снова «Показать вопрос»,
+        // а удаление ответов не дошло), старше нового старта: его заменяет новый, иначе он
+        // заблокировал бы ответ и дал бы максимум очков за «скорость».
+        const staleBefore = new Date(state.startedAt ?? 0);
+        const [r] = await tx<AnswerRow[]>`
+          insert into answers (session_id, step, pid, uid, value, submitted_at)
+          values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${value}, ${new Date(time)})
+          on conflict (session_id, step, pid) do update set uid = excluded.uid, value = excluded.value, submitted_at = excluded.submitted_at
+            where answers.submitted_at < ${staleBefore}
+          returning step, pid, uid, value, submitted_at`;
+        return r;
+      });
       // Повторное нажатие ничего не меняет (кроме шагов, где ответ можно менять).
       if (!row) return { result: "rejected" };
       hub.publish(`answers:${session.id}`, { type: "answer", answer: answerOf(row) });
@@ -1180,9 +1223,12 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
 
     /**
      * Поток событий: подписка раньше снимка (ничего не теряется), снимок, дальше изменения.
-     * «Я жив» — комментарий раз в keepAliveMs: прокси и мобильные сети не рвут тихое соединение.
+     * «Я жив» — событие `ping` раз в keepAliveMs: прокси и мобильные сети не рвут тихое соединение,
+     * а браузер по нему видит, что поток жив.
      */
     async function stream(_request: FastifyRequest, reply: FastifyReply, channel: string, filter: (event: object) => boolean, snapshot: () => Promise<object>) {
+      // Продление входа (Set-Cookie от проверки сеанса) — иначе после hijack оно не дойдёт до браузера.
+      const cookie = reply.getHeader("set-cookie");
       reply.hijack();
       const res = reply.raw;
       res.writeHead(200, {
@@ -1190,6 +1236,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         "Cache-Control": "no-store, no-transform",
         "X-Accel-Buffering": "no",
         Connection: "keep-alive",
+        ...(cookie !== undefined ? { "Set-Cookie": cookie as string | string[] } : {}),
       });
       const send = (event: object) => {
         if (res.destroyed) return;
@@ -1207,7 +1254,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         else queued.push(event);
       });
       const ping = setInterval(() => {
-        if (!res.destroyed) res.write(": ping\n\n");
+        // Именованное событие, а не комментарий: браузер его видит и понимает, что связь жива
+        // (комментарий EventSource молча пропускает — «повисший» поток не заметить). `data:1` без
+        // пробела — сценарии нагрузки читают только строки «data: {…}».
+        if (!res.destroyed) res.write("event: ping\ndata:1\n\n");
       }, keepAliveMs);
       const close = () => {
         clearInterval(ping);

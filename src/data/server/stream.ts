@@ -26,6 +26,13 @@ const MAX_PROBE_EVERY = 150;
 const PROBE_TIMEOUT_MS = 3000;
 /** Сколько ждать снимок после подключения: дольше — поток где-то застрял (прокси, буфер). */
 const SNAPSHOT_TIMEOUT_MS = 8000;
+/**
+ * Сервер шлёт «я жив» раз в 25 с. Тишина дольше — соединение «повисло» (сменилась сеть, телефон
+ * проснулся), хотя браузер считает его открытым: переподключаемся сами и берём свежий снимок.
+ */
+const SILENCE_MS = 60_000;
+/** Вернулись на вкладку или появилась сеть, а данных не было столько — переподключаемся сразу. */
+const STALE_ON_WAKE_MS = 30_000;
 
 function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
@@ -41,6 +48,32 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
   let polling = false;
   let probeEvery = RETRY_STREAM_EVERY / 2;
   let nextProbeAt = RETRY_STREAM_EVERY;
+  /** Когда поток последний раз что-то присылал (событие или «я жив»). */
+  let lastSeen = Date.now();
+  let watchdog: ReturnType<typeof setInterval> | null = null;
+
+  function stopWatchdog() {
+    if (watchdog !== null) clearInterval(watchdog);
+    watchdog = null;
+  }
+
+  /** Поток открыт, но молчит: закрываем и идём обычным путём сбоя (опрос, затем новый поток). */
+  function restartSilent() {
+    if (stopped || polling || !source) return;
+    stopWatchdog();
+    streamFailed();
+  }
+
+  function onWake() {
+    if (stopped || polling || !source) return;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    if (Date.now() - lastSeen > STALE_ON_WAKE_MS) restartSilent();
+  }
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", onWake);
+    document.addEventListener("visibilitychange", onWake);
+  }
 
   function stopTimer() {
     if (timer !== null) clearTimeout(timer);
@@ -49,6 +82,7 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
 
   function giveUp(error: unknown) {
     stopped = true;
+    stopWatchdog();
     source?.close();
     stopTimer();
     options.onError(asError(error));
@@ -98,6 +132,7 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
 
   /** Поток сломался: узнаём опросом, настоящая ли это ошибка; после двух сбоев — только опрос. */
   function streamFailed() {
+    stopWatchdog();
     source?.close();
     source = null;
     stopTimer();
@@ -128,10 +163,19 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
     let gotSnapshot = false;
     const es = new EventSource(options.url);
     source = es;
+    lastSeen = Date.now();
+    stopWatchdog();
+    watchdog = setInterval(() => {
+      if (source === es && Date.now() - lastSeen > SILENCE_MS) restartSilent();
+    }, 10_000);
+    es.addEventListener("ping", () => {
+      lastSeen = Date.now();
+    });
     timer = setTimeout(() => {
       if (!gotSnapshot) streamFailed();
     }, SNAPSHOT_TIMEOUT_MS);
     es.onmessage = (message: MessageEvent<string>) => {
+      lastSeen = Date.now();
       if (!gotSnapshot) {
         gotSnapshot = true;
         failures = 0;
@@ -157,6 +201,11 @@ export function openStream<E>(options: StreamOptions<E>): Unsubscribe {
   return () => {
     stopped = true;
     stopTimer();
+    stopWatchdog();
     source?.close();
+    if (typeof window !== "undefined") {
+      window.removeEventListener("online", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    }
   };
 }

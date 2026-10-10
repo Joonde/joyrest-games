@@ -257,6 +257,8 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
 
 function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded: (track: Track) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  /** id трека, описание которого уже на сервере, а файл не дошёл: повтор не плодит пустые треки. */
+  const pendingId = useRef<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<TrackCategory>("background");
@@ -267,13 +269,20 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
   const [error, setError] = useState<string | null>(null);
   const canLibrary = permissions.canUploadTrack(profile, "agency");
 
+  function clearInput() {
+    // Иначе тот же файл не выбрать повторно: у поля остаётся прежнее значение и onChange молчит.
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   function pick(next: File | null) {
     setError(null);
     if (!next) return;
     if (next.size > MAX_BYTES) {
       setError("Файл больше 15 МБ. Возьмите mp3 поменьше или обрежьте трек.");
+      clearInput();
       return;
     }
+    pendingId.current = null;
     setFile(next);
     setTitle(titleFromFile(next.name));
   }
@@ -287,9 +296,14 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
     setBusy(true);
     setError(null);
     try {
-      const id = newTrackId();
-      await tracksRepo.create({ id, scope: canLibrary && toLibrary ? "agency" : "personal", title: title.trim(), category, license, licenseNote: note.trim() });
+      let id = pendingId.current;
+      if (!id) {
+        id = newTrackId();
+        await tracksRepo.create({ id, scope: canLibrary && toLibrary ? "agency" : "personal", title: title.trim(), category, license, licenseNote: note.trim() });
+        pendingId.current = id;
+      }
       const track = await tracksRepo.upload(id, file, await audioDuration(file));
+      pendingId.current = null;
       onUploaded(track);
       setFile(null);
       setTitle("");
@@ -383,7 +397,15 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
             <button type="submit" className="btn btn--block" disabled={busy}>
               {busy ? "Загружаем…" : "Загрузить"}
             </button>
-            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => setFile(null)}>
+            <button
+              type="button"
+              className="btn btn--quiet btn--block"
+              disabled={busy}
+              onClick={() => {
+                setFile(null);
+                clearInput();
+              }}
+            >
               Отмена
             </button>
           </div>

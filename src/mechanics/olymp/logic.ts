@@ -37,7 +37,8 @@ export interface CheckState {
   mod: number;
   outcome: Outcome | null;
   /** Что дал бросок: «+20 опыта Зевсу», «Сага запомнила». */
-  chips: Array<[string, "good" | "bad" | "gold"]>;
+  /** Объекты, а не пары-массивы: Firestore не хранит массивы в массивах. */
+  chips: Array<{ t: string; k: "good" | "bad" | "gold" }>;
 }
 
 export interface VoteState {
@@ -82,7 +83,8 @@ export interface OlympResult {
   log: LogEntry[];
   seq: number;
   /** Одно действие назад: прежнее состояние (без журнала) и начисленный опыт. */
-  undo: { result: Omit<OlympResult, "undo" | "log">; score: Record<string, number>; stage: "ready" | "question" | "reveal" } | null;
+  /** `timeLimit` — таймер прежнего этапа (голосование): «Назад» возвращает его. */
+  undo: { result: Omit<OlympResult, "undo" | "log">; score: Record<string, number>; stage: "ready" | "question" | "reveal"; timeLimit?: number | null } | null;
 }
 
 const LOG_KEEP = 60;
@@ -136,7 +138,7 @@ function parseCheck(v: unknown): CheckState | null {
     roll: typeof c.roll === "number" ? c.roll : null,
     mod: num(c.mod),
     outcome: OUTCOMES.includes(c.outcome as Outcome) ? (c.outcome as Outcome) : null,
-    chips: Array.isArray(c.chips) ? (c.chips as Array<[string, "good" | "bad" | "gold"]>).filter((x) => Array.isArray(x) && typeof x[0] === "string").slice(0, 8) : [],
+    chips: Array.isArray(c.chips) ? (c.chips as unknown[]).map(parseChip).filter((x): x is CheckState["chips"][number] => x !== null).slice(0, 8) : [],
   };
 }
 
@@ -179,6 +181,15 @@ function parseCore(d: Record<string, unknown>): Omit<OlympResult, "undo" | "log"
   };
 }
 
+/** Пометка броска: новый вид `{ t, k }` и старый `[t, k]` (сессии до исправления). */
+function parseChip(x: unknown): CheckState["chips"][number] | null {
+  const kinds = ["good", "bad", "gold"] as const;
+  const pick = (t: unknown, k: unknown) => (typeof t === "string" && kinds.includes(k as (typeof kinds)[number]) ? { t, k: k as (typeof kinds)[number] } : null);
+  if (Array.isArray(x)) return pick(x[0], x[1]);
+  const o = rec(x);
+  return pick(o.t, o.k);
+}
+
 export function parseOlympResult(raw: unknown): OlympResult {
   const d = rec(raw);
   const u = rec(d.undo);
@@ -186,7 +197,10 @@ export function parseOlympResult(raw: unknown): OlympResult {
   return {
     ...parseCore(d),
     log: parseLog(d.log, LOG_KEEP),
-    undo: Object.keys(rec(u.result)).length > 0 ? { result: parseCore(rec(u.result)), score: rec(u.score) as Record<string, number>, stage } : null,
+    undo:
+      Object.keys(rec(u.result)).length > 0
+        ? { result: parseCore(rec(u.result)), score: rec(u.score) as Record<string, number>, stage, timeLimit: typeof u.timeLimit === "number" && u.timeLimit > 0 ? u.timeLimit : null }
+        : null,
   };
 }
 
@@ -203,9 +217,15 @@ export function score(): ScoreDelta[] {
 
 // ------------------------------------------------------------------ помощники
 
+const ROMAN = ["", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X"];
+
+/** Имя бога команды; больше 10 команд — боги повторяются: «Зевс II», чтобы журнал и бой не путались. */
 export function godName(r: OlympResult, pid: string | null | undefined): string {
   const m = pid ? r.party[pid] : undefined;
-  return (m && godOf(m.god)?.name) ?? "Бог";
+  const base = (m && godOf(m.god)?.name) ?? "Бог";
+  if (!m || !pid) return base;
+  const before = r.order.slice(0, Math.max(0, r.order.indexOf(pid))).filter((p) => r.party[p]?.god === m.god).length;
+  return before > 0 ? `${base}${ROMAN[before] ?? ` ${before + 1}`}` : base;
 }
 
 export function levelOfMember(m: Member): number {
@@ -314,7 +334,7 @@ function write(r: OlympResult): Record<string, unknown> {
 /** Запись действия: новое состояние, «Назад» на одно действие, опыт — в таблицу. */
 function commit(session: Session, participants: Participant[], prev: OlympResult, next: OlympResult, stage: "ready" | "question" | "reveal", deltas: Record<string, number> = {}, newStep = true, timeLimit: number | null = null): SessionChange {
   const prevStage = session.state.stage === "question" || session.state.stage === "reveal" ? session.state.stage : "ready";
-  next.undo = { result: stripUndo(prev), score: deltas, stage: prevStage };
+  next.undo = { result: stripUndo(prev), score: deltas, stage: prevStage, timeLimit: prevStage === "question" ? session.state.timeLimit ?? null : null };
   const nonzero = Object.fromEntries(Object.entries(deltas).filter(([, n]) => n !== 0));
   return {
     state: {
@@ -489,25 +509,25 @@ export function showRoll(session: Session, content: OlympContent, answers: Answe
   const xp = branch.xp ?? OUTCOME_XP[outcome];
   if (xp > 0) {
     giveXp(r, who, xp, deltas);
-    chips.push([`+${xp} опыта: ${name}`, "good"]);
+    chips.push({ t: `+${xp} опыта: ${name}`, k: "good" });
   }
   // Разовые эффекты (Рок) сгорают на этом броске.
   m.effects = m.effects.filter((e) => e.turns > 1);
   if (branch.effect) {
     m.effects = [...m.effects.filter((e) => e.id !== branch.effect?.id), { ...branch.effect, left: branch.effect.turns }];
-    chips.push([`«${branch.effect.name}» на ${name}`, "bad"]);
+    chips.push({ t: `«${branch.effect.name}» на ${name}`, k: "bad" });
   }
   if (branch.flag && !r.flags.includes(branch.flag)) {
     r.flags.push(branch.flag);
-    chips.push(["Сага запомнила", "gold"]);
+    chips.push({ t: "Сага запомнила", k: "gold" });
   }
   if (branch.hurt) {
     m.hp = Math.max(1, m.hp - branch.hurt);
-    chips.push([`−${branch.hurt} здоровья: ${name}`, "bad"]);
+    chips.push({ t: `−${branch.hurt} здоровья: ${name}`, k: "bad" });
   }
   if (branch.coins) {
     giveCoins(r, branch.coins, `${session.id}_${session.state.step}_coins`);
-    chips.push([branch.coins > 0 ? `+${branch.coins} драхм отряду` : `${branch.coins} драхм`, branch.coins > 0 ? "gold" : "bad"]);
+    chips.push({ t: branch.coins > 0 ? `+${branch.coins} драхм отряду` : `${branch.coins} драхм`, k: branch.coins > 0 ? "gold" : "bad" });
   }
   Object.assign(check, { roll, mod, outcome, chips });
   r.turn += 1;
@@ -596,7 +616,7 @@ export function startFight(session: Session, content: OlympContent, participants
   seatLate(r, orderOf(session, participants, r));
   const diff = difficultyOf(content);
   const pids = r.order.filter((p) => r.party[p]);
-  const b = startBattle(scene.foe, pids.map((p) => ({ pid: p, god: (r.party[p] as Member).god, level: levelOfMember(r.party[p] as Member), hp: (r.party[p] as Member).hp })), r.seq, { hp: diff.hp, power: diff.power });
+  const b = startBattle(scene.foe, pids.map((p) => ({ pid: p, name: godName(r, p), god: (r.party[p] as Member).god, level: levelOfMember(r.party[p] as Member), hp: (r.party[p] as Member).hp })), r.seq, { hp: diff.hp, power: diff.power });
   for (const f of b.fighters) {
     const m = r.party[f.id];
     if (!m) continue;
@@ -711,7 +731,7 @@ export function olympBack(session: Session): SessionChange | null {
   const minus = Object.fromEntries(Object.entries(u.score).filter(([, n]) => typeof n === "number" && n !== 0).map(([p, n]) => [p, -(n as number)]));
   const stage = u.stage;
   return {
-    state: { step: session.state.step + 1, answered: 0, stage, startedAt: stage === "question" ? "server" : null, timeLimit: null, revealed: stage === "reveal", result: write(restored) },
+    state: { step: session.state.step + 1, answered: 0, stage, startedAt: stage === "question" ? "server" : null, timeLimit: stage === "question" ? u.timeLimit ?? null : null, revealed: stage === "reveal", result: write(restored) },
     ...(Object.keys(minus).length > 0 ? { addScore: minus } : {}),
   };
 }

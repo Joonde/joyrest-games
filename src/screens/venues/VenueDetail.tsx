@@ -255,6 +255,8 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
           <button className="btn btn--block" type="button" disabled={busy || !draft.name || !dirty} onClick={() => saveEdits(false)}>
             {dirty ? "Сохранить изменения" : "Изменений нет"}
           </button>
+        </div>
+        <div className="actions">
           <button className="btn btn--secondary btn--block" type="button" disabled={busy || !draft.name || !dirty} onClick={() => saveEdits(true)}>
             Сохранить и вернуться к списку
           </button>

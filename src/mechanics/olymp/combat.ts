@@ -98,6 +98,8 @@ export interface Battle {
 
 /** Бог, который вступает в бой. */
 export interface GodEntry {
+  /** Имя в бою, если бог повторяется (больше 10 команд): «Зевс II». */
+  name?: string;
   pid: string;
   god: string;
   level: number;
@@ -150,7 +152,7 @@ export function startBattle(foeId: string, gods: GodEntry[], seq = 1, opts: Batt
     const hpMax = hpMaxOf(g.level, bonus.hpPercent ?? 0);
     const speed = god.speed + (bonus.speed ?? 0);
     fighters.push({
-      id: g.pid, side: "god", ref: god.id, name: god.name, level: g.level,
+      id: g.pid, side: "god", ref: god.id, name: g.name ?? god.name, level: g.level,
       hp: Math.max(1, Math.min(hpMax, g.hp ?? hpMax)), hpMax, shield: 0, speed, stats,
       effects: [], cd: {}, charge: 0, ultUsed: false, next: turnTime(speed), dealt: 0, helped: false, down: false,
     });

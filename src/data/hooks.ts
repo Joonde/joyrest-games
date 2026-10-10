@@ -109,9 +109,17 @@ function rememberSession(code: string, sessionId: string): void {
 
 async function findSession(code: string, hostId: string | undefined): Promise<Session | null> {
   if (hostId) return sessionsRepo.findHostSessionByCode(code, hostId);
-  const active = await sessionsRepo.findByCode(code);
-  if (active) return active;
   const knownId = knownSessions().find(([c]) => c === code)?.[1];
+  let active: Session | null;
+  try {
+    active = await sessionsRepo.findByCode(code);
+  } catch (error) {
+    // Лимит поиска по коду (весь зал за одним Wi‑Fi) или игра уже не ищется по коду — открываем
+    // свою игру по запомненному id, чтобы гость увидел финал. Сбой сети — обычный повтор.
+    if (!knownId || errorCodeOf(error) === "unavailable") throw error;
+    active = null;
+  }
+  if (active) return active;
   if (!knownId) return null;
   const known = await sessionsRepo.get(knownId);
   return known?.code === code ? known : null;

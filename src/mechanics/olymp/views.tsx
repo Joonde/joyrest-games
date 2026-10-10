@@ -13,7 +13,7 @@ import { intentOf, turnQueue, type Battle, type Fighter, type LogEntry } from ".
 import { ELEMENT_NAMES, OUTCOME_NAMES, STAT_NAMES, STATS, levelOf, threshold, xpToNext, type ElementId, type Outcome } from "./rules";
 import { placeOf, sceneOf, visibleOptions, type Scene } from "./story";
 import { storyOf, type OlympContent } from "./content";
-import { battleTotals, currentScene, godName, hpMaxOfMember, memberRollMod, memberStat, parseOlympResult, readyAbilities, type Member, type OlympResult } from "./logic";
+import { currentScene, godName, hpMaxOfMember, memberRollMod, memberStat, parseOlympResult, readyAbilities, type Member, type OlympResult } from "./logic";
 
 export type OlympAnswerValue = { god: string } | { roll: true } | { vote: number } | { ability: string; target: string | null };
 
@@ -276,7 +276,6 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
       </section>
     );
   } else if ((r.phase === "fight" || r.phase === "fightEnd") && b) {
-    const totals = battleTotals(b);
     main = (
       <section className="ol-screen__fight">
         <FoeCard b={b} size="screen" />
@@ -307,7 +306,8 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
         )}
         {b.over && r.phase === "fight" && <h2 className="ol-title">{b.over === "win" ? "Противник повержен!" : "Отряд пал"}</h2>}
         <p className="ol-note ol-note--small">
-          Урон отряда: {Object.entries(totals.dealt).filter(([n]) => b.fighters.some((f) => f.side === "god" && f.name === n)).map(([n, v]) => `${n} ${v}`).join(" · ") || "—"}
+          {/* Из бойцов, а не из журнала: журнал боя обрезан до последних записей. */}
+          Урон отряда: {b.fighters.filter((f) => f.side === "god" && f.dealt > 0).map((f) => `${f.name} ${f.dealt}`).join(" · ") || "—"}
         </p>
       </section>
     );
@@ -334,7 +334,7 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
             {check.outcome && <p className="ol-lead ol-lead--small">{scene.outcomes[check.outcome].text}</p>}
             {check.chips.length > 0 && (
               <span className="ol-chips">
-                {check.chips.map(([t, k], i) => (
+                {check.chips.map(({ t, k }, i) => (
                   <span key={i} className={`ol-chip is-${k}`}>
                     {t}
                   </span>
@@ -344,6 +344,7 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
           </div>
         )}
         {vote && scene.kind === "vote" && (
+          <>
           <ol className="ol-vote">
             {vote.options.map((o, i) => (
               <li key={o} className={vote.picked === i ? "is-picked" : ""}>
@@ -352,6 +353,7 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
                 {vote.picked !== null && <em>{vote.tally[i] ?? 0}</em>}
               </li>
             ))}
+          </ol>
             {stage === "question" && (
               <p className="ol-note">
                 Голосуют капитаны · {session.state.answered} из {r.order.length}
@@ -359,7 +361,7 @@ export function OlympScreenView({ session, content }: ViewProps<OlympContent>) {
               </p>
             )}
             {vote.tie && <p className="ol-note">Ничья — решил жребий</p>}
-          </ol>
+          </>
         )}
         {scene.kind === "fight" && <p className="ol-note">Сейчас начнётся бой: {foeOf(scene.foe)?.name}</p>}
       </section>
@@ -634,6 +636,16 @@ export function OlympPlayerView({ session, content, pid, role, myAnswer, sending
   const m = r.party[pid];
   const god = m ? godOf(m.god) : undefined;
   const b = r.battle;
+  // Ждём действия этого телефона (бросок, голос, ход в бою) — сами открываем вкладку «Игра»,
+  // иначе капитан, читающий журнал, не видит кнопку.
+  const mustAct =
+    captain &&
+    stage === "question" &&
+    !myAnswer &&
+    ((r.phase === "check" && r.check?.who === pid) || r.phase === "vote" || (r.phase === "fight" && !!b && b.actor === pid && !b.over && !r.acted));
+  useEffect(() => {
+    if (mustAct) setTab("game");
+  }, [mustAct, session.state.step]);
 
   let body: ReactNode;
   if (r.phase === "pick" && r.order.length > 0) {
@@ -660,7 +672,7 @@ export function OlympPlayerView({ session, content, pid, role, myAnswer, sending
             </div>
           </div>
         ) : (
-          <p className="ol-note-phone">{mine ? (myAnswer ? "Бросок отправлен — смотрите на экран" : role === "member" ? "Бросает капитан вашей команды" : "Ваш бог бросает — ждите кнопку") : `Бросает ${godName(r, r.check.who)}`}</p>
+          <p className="ol-note-phone">{mine ? (r.check.outcome ? "Бросок сделан — смотрите на экран" : myAnswer ? "Бросок отправлен — смотрите на экран" : role === "member" ? "Бросает капитан вашей команды" : "Ваш бог бросает — ждите кнопку") : `Бросает ${godName(r, r.check.who)}`}</p>
         )}
         {r.check.outcome && (
           <div className="ol-card">

@@ -85,6 +85,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const edited = useRef(false);
   const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [leaveError, setLeaveError] = useState(false);
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -112,6 +113,19 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
     setLeaving(true);
   }
   const leaveTo = useRef(back);
+
+  /** Уйти, когда правки дошли (или лежат в очереди без связи); сервер отказал — остаться и сказать. */
+  function leaveWhenSettled() {
+    setLeaveError(false);
+    void settled().then(() => {
+      if (statusRef.current === "error") {
+        setRestoring(false);
+        setLeaveError(true);
+        return;
+      }
+      navigate(leaveTo.current);
+    });
+  }
 
   function onTitle(value: string) {
     setTitleInput(value);
@@ -330,11 +344,19 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         onConfirm={() => {
           setRestoring(true);
           flush(true);
-          void settled().then(() => navigate(leaveTo.current));
+          leaveWhenSettled();
         }}
-        onCancel={() => setLeaving(false)}
+        onCancel={() => {
+          setLeaving(false);
+          setLeaveError(false);
+        }}
       >
         <p>Вы меняли эту игру. Сохранить изменения или вернуть игру такой, какой она была, когда вы её открыли?</p>
+        {leaveError && (
+          <p className="error" role="alert">
+            Сервер не принял изменения. Проверьте интернет и нажмите ещё раз.
+          </p>
+        )}
         <button
           type="button"
           className="btn btn--quiet btn--block"
@@ -346,7 +368,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
             change(before);
             flush(true);
             // Уходим, только когда игра на сервере уже вернулась к прежнему виду.
-            void settled().then(() => navigate(leaveTo.current));
+            leaveWhenSettled();
           }}
         >
           {restoring ? "Возвращаем…" : "Не сохранять — вернуть как было"}

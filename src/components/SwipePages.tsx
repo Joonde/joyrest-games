@@ -12,6 +12,8 @@ interface Page {
  */
 export function SwipePages({ pages, storageKey }: { pages: Page[]; storageKey: string }) {
   const box = useRef<HTMLDivElement>(null);
+  /** Идёт прокрутка по касанию переключателя: промежуточные положения не меняют вкладку. */
+  const jumping = useRef<number | null>(null);
   const [index, setIndex] = useState(() => {
     try {
       const saved = Number(sessionStorage.getItem(storageKey));
@@ -27,6 +29,23 @@ export function SwipePages({ pages, storageKey }: { pages: Page[]; storageKey: s
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при открытии
   }, []);
 
+  // Высота видимого экрана → --swipe-h: невидимый экран не выше него, пустой прокрутки снизу нет.
+  useEffect(() => {
+    const el = box.current;
+    const page = el?.children[index] as HTMLElement | undefined;
+    if (!el || !page) return;
+    const write = () => el.style.setProperty("--swipe-h", `${Math.ceil(page.getBoundingClientRect().height)}px`);
+    write();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(write);
+    ro.observe(page);
+    return () => ro.disconnect();
+  }, [index]);
+
+  useEffect(() => () => {
+    if (jumping.current !== null) window.clearTimeout(jumping.current);
+  }, []);
+
   function go(i: number) {
     setIndex(i);
     try {
@@ -36,12 +55,18 @@ export function SwipePages({ pages, storageKey }: { pages: Page[]; storageKey: s
     }
     const el = box.current;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
+    if (el) {
+      if (jumping.current !== null) window.clearTimeout(jumping.current);
+      jumping.current = window.setTimeout(() => {
+        jumping.current = null;
+      }, reduce ? 50 : 700);
+      el.scrollTo({ left: i * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
+    }
   }
 
   function onScroll() {
     const el = box.current;
-    if (!el || el.clientWidth === 0) return;
+    if (!el || el.clientWidth === 0 || jumping.current !== null) return;
     const i = Math.round(el.scrollLeft / el.clientWidth);
     if (i !== index && i >= 0 && i < pages.length) {
       setIndex(i);

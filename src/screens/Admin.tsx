@@ -32,12 +32,20 @@ type CleanupState = { status: "running" } | { status: "done"; report: CleanupRep
  * Автоочистка без Cloud Functions: при каждом входе admin удаляются сессии старше
  * 30 дней. Итоги для истории сохраняются перед удалением.
  */
+/** Одна очистка за открытие приложения: переключение вкладок «Команды» не запускает её снова. */
+let cleanupRun: Promise<CleanupReport> | null = null;
+
 function useSessionCleanup(): CleanupState {
   const [state, setState] = useState<CleanupState>({ status: "running" });
   useEffect(() => {
     let cancelled = false;
-    sessionsRepo
-      .removeExpired(retentionCutoff(Date.now()))
+    if (!cleanupRun) {
+      cleanupRun = sessionsRepo.removeExpired(retentionCutoff(Date.now()));
+      cleanupRun.catch(() => {
+        cleanupRun = null; // не вышло — попробуем при следующем открытии
+      });
+    }
+    cleanupRun
       .then((report) => !cancelled && setState({ status: "done", report }))
       .catch(() => !cancelled && setState({ status: "error" }));
     return () => {

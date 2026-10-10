@@ -172,7 +172,11 @@ export const serverSessionsRepository: SessionsRepository = {
       onError,
       poll: async () => {
         try {
-          onEvent({ type: "snapshot", session: await api("GET", base(sessionId)) });
+          // Опрос сотен телефонов: «не изменилось» (204) — без скачивания всей сессии со снимком игры.
+          const known = current;
+          const data = await api("GET", known ? `${base(sessionId)}?since=${known.version}` : base(sessionId));
+          if (data === null && known) return;
+          onEvent({ type: "snapshot", session: data });
         } catch (error) {
           if (errorCodeOf(error) !== "not-found") throw error;
           current = null;

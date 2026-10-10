@@ -46,6 +46,18 @@ export const SLIDE_TEMPLATES: SlideTemplate[] = [
     defaults: { title: "Перерыв", text: "Скоро продолжим — не уходите далеко", lines: [], minutes: 10 },
   },
   {
+    kind: "tech",
+    label: "Тех. пауза",
+    fields: { title: "Заголовок", text: "Подпись" },
+    defaults: { title: "Технический перерыв", text: "Небольшая пауза — скоро продолжим. Не уходите далеко!", lines: [] },
+  },
+  {
+    kind: "join",
+    label: "QR для входа",
+    fields: { title: "Заголовок" },
+    defaults: { title: "Присоединяйтесь к игре", text: "", lines: [] },
+  },
+  {
     kind: "award",
     label: "Награждение",
     fields: { title: "Заголовок", text: "Подпись" },
@@ -67,6 +79,20 @@ export const SLIDE_TEMPLATES: SlideTemplate[] = [
 
 export function slideTemplate(kind: SlideKind): SlideTemplate {
   return SLIDE_TEMPLATES.find((t) => t.kind === kind) ?? (SLIDE_TEMPLATES[SLIDE_TEMPLATES.length - 1] as SlideTemplate);
+}
+
+/**
+ * «Технический перерыв» одним касанием с главной вкладки пульта: неполадки (звук, экран, связь) —
+ * на экране красивая заставка с музыкой вместо зависшей игры. `id` — новый для каждого показа.
+ */
+export function techSlide(id: string): SlideState {
+  const d = slideTemplate("tech").defaults;
+  return { id, kind: "tech", title: d.title, text: d.text, lines: [], endsAt: null };
+}
+
+/** «QR для опоздавших» одним касанием: крупный код входа поверх игры, пока ведущий не уберёт. */
+export function joinSlide(id: string): SlideState {
+  return { id, kind: "join", title: slideTemplate("join").defaults.title, text: "", lines: [], endsAt: null };
 }
 
 /** Пункты из текста поля: строка — пункт, пустые убираются. */

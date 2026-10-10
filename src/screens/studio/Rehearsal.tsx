@@ -1,3 +1,4 @@
+import { AddTimeButton } from "../../components/live/AddTimeButton";
 import { Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { applyChange, startState } from "../../core/session";
@@ -139,6 +140,7 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
             <Suspense fallback={null}>
               {!mechanic.ownPeek && session.state.phase === "playing" && <PeekCard session={session} onApply={control.apply} />}
               <HostControls session={session} content={content} answers={[]} participants={demo} control={control} rehearsal />
+              <AddTimeButton session={session} now={() => Date.now()} onApply={control.apply} />
             </Suspense>
           )}
         </section>

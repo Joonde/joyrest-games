@@ -58,6 +58,11 @@ describe("parseContent", () => {
     expect(questions.map((q) => q.round?.length ?? null)).toEqual(["Кино и музыка".length, null, null, 60]);
   });
 
+  it("заметка ведущему — до 300 символов, мусор — пусто", () => {
+    const { questions } = parseContent({ questions: [{ note: "Факт: Эйфелеву башню красят раз в 7 лет" }, { note: 5 }, { note: "я".repeat(400) }] });
+    expect(questions.map((q) => q.note?.length)).toEqual([39, 0, 300]);
+  });
+
   it("одинаковые id вопросов становятся разными", () => {
     const { questions } = parseContent({ questions: [{ id: "a" }, { id: "a" }] });
     expect(new Set(questions.map((q) => q.id)).size).toBe(2);

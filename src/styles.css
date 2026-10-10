@@ -12490,3 +12490,62 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .page > [role="status"]:empty {
   position: absolute;
 }
+
+/* Пульт квиза: заметка ведущему и следующий вопрос (видны только ведущему). */
+.host-note {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-highlight);
+  background: var(--color-surface-alt);
+  overflow-wrap: anywhere;
+}
+
+.host-note__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.host-next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.host-next p {
+  margin: 0;
+}
+
+.host-next__text {
+  overflow-wrap: anywhere;
+}
+
+/* Слайд «QR для входа»: крупный код поверх игры для опоздавших. */
+.slide__join {
+  display: flex;
+  align-items: center;
+  gap: 5cqw;
+  text-align: left;
+}
+
+.slide__qr--join {
+  width: 48cqh;
+}
+
+.slide__join-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2cqh;
+  max-width: 44cqw;
+}
+
+.slide__text--small {
+  font-size: 0.7em;
+  opacity: 0.85;
+}

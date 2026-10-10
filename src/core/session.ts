@@ -72,6 +72,22 @@ export function secondsLeft(state: SessionState, serverNow: number): number | nu
   return Math.max(0, Math.ceil((deadline - serverNow) / 1000));
 }
 
+/** Самое долгое время на ответ после продлений, секунды. */
+export const MAX_TIME_LIMIT = 900;
+
+/**
+ * «+10 секунд» на пульте: продлить время открытого вопроса. Если время уже вышло — ответы снова
+ * принимаются ещё `seconds` секунд с этой минуты (гости не успели). null — продлевать нечего
+ * (вопрос не открыт, без таймера или дальше потолка).
+ */
+export function addTimeChange(state: SessionState, serverNow: number, seconds = 10): SessionChange | null {
+  if (state.phase !== "playing" || state.stage !== "question" || state.revealed || state.startedAt === null || state.timeLimit === null) return null;
+  const elapsed = Math.max(0, Math.ceil((serverNow - state.startedAt) / 1000));
+  const next = Math.min(MAX_TIME_LIMIT, Math.max(state.timeLimit, elapsed) + seconds);
+  if (next <= state.timeLimit) return null;
+  return { state: { timeLimit: next }, expect: { phase: "playing", step: state.step, stage: "question" } };
+}
+
 /** Принимаются ли ответы сейчас (тот же смысл, что в firestore.rules, без запаса на сеть). */
 export function acceptsAnswers(state: SessionState, serverNow: number): boolean {
   if (state.phase !== "playing" || state.stage !== "question" || state.revealed) return false;

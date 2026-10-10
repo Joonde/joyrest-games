@@ -35,10 +35,12 @@ import { LoadFailed, Message, Pending } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
 import { screenStatusLabel, useScreenStatus } from "../components/live/screenStatus";
 import { SoundPad } from "../components/live/SoundPad";
+import { AddTimeButton } from "../components/live/AddTimeButton";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
-import { SlidesPanel } from "../components/live/SlidesPanel";
+import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
+import { joinSlide, techSlide } from "../core/slides";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
 import { joinHost, playUrl, playUrlHint } from "../components/links";
@@ -337,6 +339,7 @@ function Console({ session }: { session: Session }) {
                 </Suspense>
               </section>
             )}
+            {phase === "playing" && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
             {phase === "playing" && withScreen && !mechanic?.ownPeek && <PeekCard session={session} onApply={apply} />}
             {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
@@ -345,6 +348,28 @@ function Console({ session }: { session: Session }) {
                 </button>
                 {!canAwardNow(session.state) && <p className="muted small">Наградить можно после того, как покажете ответ.</p>}
               </>
+            )}
+            {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
+            {phase !== "finished" && withScreen && slide?.kind !== "tech" && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block"
+                disabled={busy}
+                onClick={() => void apply({ state: { slide: techSlide(slideId()) } }).catch(() => setError("Не получилось показать перерыв. Проверьте интернет."))}
+              >
+                Технический перерыв
+              </button>
+            )}
+            {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
+            {phase === "playing" && withScreen && slide?.kind !== "join" && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block"
+                disabled={busy}
+                onClick={() => void apply({ state: { slide: joinSlide(slideId()) } }).catch(() => setError("Не получилось показать QR. Проверьте интернет."))}
+              >
+                QR для опоздавших на экран
+              </button>
             )}
             {phase === "playing" && (
               <>

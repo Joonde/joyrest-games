@@ -36,7 +36,7 @@ export function parseMix(value: unknown): MixState | null {
   return { music: volume(v.music, DEFAULT_MIX.music), effects: volume(v.effects, DEFAULT_MIX.effects), muted: v.muted === true };
 }
 
-export const SLIDE_KINDS: readonly SlideKind[] = ["intro", "rules", "round", "break", "award", "thanks", "custom"];
+export const SLIDE_KINDS: readonly SlideKind[] = ["intro", "rules", "round", "break", "tech", "join", "award", "thanks", "custom"];
 export const SLIDE_LIMITS = { title: 120, text: 400, lines: 8, line: 140 } as const;
 
 function slideText(value: unknown, max: number): string {

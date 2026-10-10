@@ -9,7 +9,8 @@ const CONTINUOUS = new Set<MusicMoment>(["durakTable"]);
 /** Встроенная музыка: лобби (QR, ждём гостей), «Представить команды», слайд «Перерыв» — два трека по кругу с наплывом. */
 export function builtinMusicOf(session: Session, moment: MusicMoment | null): BuiltinMusic | null {
   const slide = session.state.slide;
-  if (slide?.kind === "break") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
+  // Перерыв и технический перерыв — спокойная музыка перерыва по кругу.
+  if (slide?.kind === "break" || slide?.kind === "tech") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
   // Фон всей партии («Дурак»): один ключ на игру — ходы не перезапускают трек.
   if (moment && !slide && CONTINUOUS.has(moment)) return { key: moment, urls: [...BUILTIN_MUSIC[moment]], volume: BUILTIN_VOLUME[moment] ?? 1 };
   // Момент игры (заставка вопроса, выбор в суперигре): каждый новый шаг — трек с начала.

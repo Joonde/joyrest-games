@@ -3,6 +3,9 @@ import { countdownLabel } from "../../core/slides";
 import type { SlideState } from "../../data";
 import { Logo } from "../Logo";
 import { QrCode } from "../QrCode";
+import { formatSessionCode } from "../../core/code";
+import { VPN_HINT } from "../../core/texts";
+import { joinHint, playUrl } from "../links";
 import { playSound } from "./sound";
 import { useServerNow } from "./useServerNow";
 
@@ -20,7 +23,7 @@ const CHANNEL = "https://t.me/JoyRest";
  * Слайд поверх экрана зала (CLAUDE.md, раздел 7, «Слайды»): шаблон в стиле темы на её живом фоне.
  * Размеры — в единицах контейнера, как у вопросов: предпросмотр совпадает с телевизором.
  */
-export function SlideView({ slide, preview = false }: { slide: SlideState; preview?: boolean }) {
+export function SlideView({ slide, preview = false, code }: { slide: SlideState; preview?: boolean; code?: string }) {
   const now = useServerNow(500, slide.kind === "break" && slide.endsAt !== null);
   const last = useRef(slide.id);
 
@@ -38,6 +41,7 @@ export function SlideView({ slide, preview = false }: { slide: SlideState; previ
     <div className={`slide slide--${slide.kind}`}>
       {slide.kind === "intro" && <Logo kind="emblem" className="slide__emblem" title="" />}
       {slide.kind === "round" && <p className="slide__eyebrow">Следующий раунд</p>}
+      {slide.kind === "tech" && <p className="slide__eyebrow">Пауза</p>}
       {slide.title && <h2 className="slide__title">{slide.title}</h2>}
       {slide.kind === "rules" && slide.lines.length > 0 && (
         <ol className="slide__rules">
@@ -55,6 +59,16 @@ export function SlideView({ slide, preview = false }: { slide: SlideState; previ
         </p>
       )}
       {slide.text && <p className="slide__text">{slide.text}</p>}
+      {slide.kind === "join" && code && (
+        <div className="slide__join">
+          <QrCode value={playUrl(code)} label={`QR-код для входа в игру ${formatSessionCode(code)}`} className="slide__qr slide__qr--join" />
+          <div className="slide__join-text">
+            <p className="slide__text">Наведите камеру на QR-код или откройте {joinHint()}</p>
+            <div className="big-code">{formatSessionCode(code)}</div>
+            <p className="slide__text slide__text--small">{VPN_HINT}</p>
+          </div>
+        </div>
+      )}
       {slide.kind === "thanks" && (
         <div className="slide__channel">
           <QrCode value={CHANNEL} label="QR-код канала JoyRest в Telegram" className="slide__qr" />

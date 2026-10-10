@@ -185,7 +185,7 @@ function Screen({ session }: { session: Session }) {
       )}
       {session.state.slide ? (
         <main className="quiz-stage">
-          <SlideView slide={session.state.slide} />
+          <SlideView slide={session.state.slide} code={session.code} />
         </main>
       ) : (
         <>

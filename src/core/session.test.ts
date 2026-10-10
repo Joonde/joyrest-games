@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "../data/types";
-import { acceptsAnswers, adjustBoard, answerDeadline, applyChange, meetsExpect, secondsLeft, startState } from "./session";
+import { acceptsAnswers, addTimeChange, adjustBoard, answerDeadline, applyChange, meetsExpect, secondsLeft, startState } from "./session";
 
 const session: Session = {
   id: "s",
@@ -88,5 +88,23 @@ describe("отпечаток итогов шага (expect.result)", () => {
     const state = { ...startState(), result: { judged: "c1" } };
     expect(meetsExpect(state, { step: 0, result: resultKey({ judged: "c1" }) })).toBe(true);
     expect(meetsExpect(state, { step: 0, result: resultKey(null) })).toBe(false);
+  });
+});
+
+describe("+10 секунд", () => {
+  const open = { ...startState(), stage: "question" as const, startedAt: 100_000, timeLimit: 20 };
+
+  it("продлевает открытый вопрос; время вышло — ещё 10 секунд с этой минуты", () => {
+    expect(addTimeChange(open, 105_000)).toEqual({ state: { timeLimit: 30 }, expect: { phase: "playing", step: 0, stage: "question" } });
+    // Прошло 45 с при лимите 20 — гости снова отвечают до 55-й секунды.
+    expect(addTimeChange(open, 145_000)?.state?.timeLimit).toBe(55);
+    expect(acceptsAnswers({ ...open, timeLimit: 55 }, 150_000)).toBe(true);
+  });
+
+  it("нечего продлевать: вопрос не открыт, без таймера, ответ показан, потолок", () => {
+    expect(addTimeChange({ ...open, stage: "reveal" }, 105_000)).toBeNull();
+    expect(addTimeChange({ ...open, timeLimit: null }, 105_000)).toBeNull();
+    expect(addTimeChange({ ...open, revealed: true }, 105_000)).toBeNull();
+    expect(addTimeChange({ ...open, timeLimit: 900 }, 105_000)).toBeNull();
   });
 });

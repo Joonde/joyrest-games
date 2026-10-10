@@ -92,6 +92,8 @@ export interface Battle {
   log: LogEntry[];
   /** Номер следующей записи журнала. */
   seq: number;
+  /** Сила противника (сложность): множитель урона и лечения. */
+  power?: number;
 }
 
 /** Бог, который вступает в бой. */
@@ -124,7 +126,18 @@ function clone(b: Battle): Battle {
 }
 
 /** Начать бой: боги в порядке входа, противник — по карточке, здоровье под размер отряда. */
-export function startBattle(foeId: string, gods: GodEntry[], seq = 1): Battle {
+/** Сила противника растёт с отрядом: на 3 бога — как в карточке, каждый следующий +15%, меньше — −15%. */
+export function partyPower(gods: number): number {
+  return Math.max(0.6, 1 + 0.15 * (Math.max(1, gods) - 3));
+}
+
+/** Сложность: множители здоровья и силы противника (1 — как в карточке). */
+export interface BattleOptions {
+  hp?: number;
+  power?: number;
+}
+
+export function startBattle(foeId: string, gods: GodEntry[], seq = 1, opts: BattleOptions = {}): Battle {
   const foe = foeOf(foeId);
   if (!foe) throw new Error(`Нет противника ${foeId}`);
   const fighters: Fighter[] = [];
@@ -142,13 +155,13 @@ export function startBattle(foeId: string, gods: GodEntry[], seq = 1): Battle {
       effects: [], cd: {}, charge: 0, ultUsed: false, next: turnTime(speed), dealt: 0, helped: false, down: false,
     });
   }
-  const hp = scaledHp(foe, fighters.length);
+  const hp = Math.max(1, Math.round(scaledHp(foe, fighters.length) * (opts.hp ?? 1)));
   fighters.push({
     id: "foe", side: "foe", ref: foe.id, name: foe.name, level: 1, hp, hpMax: hp, shield: 0, speed: foe.speed,
     stats: { might: 50, influence: 50, wisdom: 50, endurance: 50, luck: 50, cunning: 50 },
     effects: [], cd: {}, charge: 0, ultUsed: false, next: turnTime(foe.speed), dealt: 0, helped: false, down: false,
   });
-  const b: Battle = { foe: foe.id, fighters, actor: null, intent: 0, turns: 0, over: null, log: [], seq };
+  const b: Battle = { foe: foe.id, fighters, actor: null, intent: 0, turns: 0, over: null, log: [], seq, power: (opts.power ?? 1) * partyPower(fighters.length - 1) };
   push(b, { k: "start", x: `Бой: ${foe.name}, ранг ${foe.rank}${foe.boss ? ", босс" : ""}. Здоровье ${hp}, драхм ${foe.coins}, опыта ${foeXp(foe.rank, foe.boss)}`, who: [foe.name] });
   b.actor = nextActor(b);
   return b;
@@ -397,7 +410,7 @@ export function foeAct(battle: Battle, roll: number): Battle {
   b.intent = (b.intent + 1) % foe.abilities.length;
   const alive = b.fighters.filter((f) => f.side === "god" && !f.down);
   const pick = alive[(roll - 1) % Math.max(1, alive.length)];
-  const mult = roll >= 96 ? 1.5 : roll <= 5 ? 0 : 1;
+  const mult = (roll >= 96 ? 1.5 : roll <= 5 ? 0 : 1) * (b.power ?? 1);
   const tag = roll >= 96 ? " (крит. удача ×1,5)" : "";
   if (mult === 0 && (ability.kind === "strike" || ability.kind === "blast")) {
     push(b, { k: "fight", x: `${foe.name}: «${ability.name}» — промах (бросок ${roll})`, who: [foe.name] });
@@ -413,16 +426,16 @@ export function foeAct(battle: Battle, roll: number): Battle {
     const fallen = alive.filter((t) => t.down).map((t) => t.name);
     push(b, { k: "fight", x: `${foe.name} → все: «${ability.name}», по ${Math.round(ability.power * mult)} до защиты${tag}${fallen.length ? `. Без сил: ${fallen.join(", ")}` : ""}`, who: [foe.name, ...alive.map((t) => t.name)], d: [foe.name, "все", total] });
   } else if (ability.kind === "heal") {
-    const heal = Math.min(foeF.hpMax - foeF.hp, ability.power);
+    const heal = Math.min(foeF.hpMax - foeF.hp, Math.round(ability.power * (b.power ?? 1)));
     foeF.hp += heal;
     push(b, { k: "heal", x: `${foe.name}: «${ability.name}», +${heal} здоровья. У него ${foeF.hp} / ${foeF.hpMax}`, who: [foe.name], h: [foe.name, foe.name, heal] });
   } else if (ability.kind === "armor" && ability.effect) {
     applyEffect(foeF, ability.effect, foe.name);
     push(b, { k: "curse", x: `${foe.name}: «${ability.name}»${effectText(ability.effect)}`, who: [foe.name] });
   } else if (ability.kind === "curse" && ability.effect && pick) {
-    if (ability.power > 0) hurt(pick, ability.power * takenOf(pick));
+    if (ability.power > 0) hurt(pick, ability.power * (b.power ?? 1) * takenOf(pick));
     applyEffect(pick, ability.effect, foe.name);
-    push(b, { k: "curse", x: `${foe.name} наложил на ${pick.name} «${ability.effect.name}»${effectText(ability.effect)}${ability.power ? `, ${hpWord(ability.power)}` : ""}`, who: [foe.name, pick.name] });
+    push(b, { k: "curse", x: `${foe.name} наложил на ${pick.name} «${ability.effect.name}»${effectText(ability.effect)}${ability.power ? `, ${hpWord(Math.round(ability.power * (b.power ?? 1)))}` : ""}`, who: [foe.name, pick.name] });
   } else if (ability.kind === "curseAll" && ability.effect) {
     for (const t of alive) applyEffect(t, ability.effect, foe.name);
     push(b, { k: "curse", x: `${foe.name} → все: «${ability.effect.name}»${effectText(ability.effect)}`, who: [foe.name, ...alive.map((t) => t.name)] });

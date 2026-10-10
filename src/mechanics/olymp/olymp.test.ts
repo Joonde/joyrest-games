@@ -127,7 +127,7 @@ describe("боги и противники", () => {
     }
     const boss = FOES.find((f) => f.id === "devourer");
     expect(boss && scaledHp(boss, 4)).toBe(300);
-    expect(boss && scaledHp(boss, 8)).toBe(600);
+    expect(boss && scaledHp(boss, 8)).toBe(516);
   });
 });
 

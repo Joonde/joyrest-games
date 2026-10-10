@@ -8,6 +8,8 @@ import { quest } from "./quest";
 import { millionaire } from "./millionaire";
 import { survival } from "./survival";
 import { dragon } from "./dragon";
+import { olymp } from "./olymp";
+import { createOlymp } from "./olymp/content";
 import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "./dragon/demo";
 import { DEMO_SURVIVAL } from "./survival/demo";
 import { DEMO_MILLIONAIRE } from "./millionaire/demo";
@@ -38,7 +40,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(mafia), register(durak), register(truth), register(story), register(bunker)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(story), register(bunker)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -50,6 +52,7 @@ const HINTS: Record<string, string> = {
   quest: "Поле 40–100 клеток на экране, кубик на телефоне капитана, в клетках — задания, вопросы, танцы, бонусы и ловушки.",
   dance: "Команды по очереди выбирают батл, танец или караоке; оценивают другие команды. Видео — ссылка или файл на экране зала.",
   checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
+  olymp: "Ролевая история про греческих богов: команда — бог, ведущий читает сцены, d100 решает исход, голосование за путь, бои с боссом, три концовки.",
   dragon: "Капитаны выбирают героя и свойства, команды бьют дракона: вопросы, задания, кубик; жизни, гибель, несколько боёв.",
   survival: "До 30 раундов из вопросов и заданий, каждый 5-й — войнушка со ставками, аукцион билета освобождения.",
   millionaire: "12 вопросов с вариантами, у каждой команды своя лестница на экране, несгораемые ступени и 6 подсказок.",
@@ -139,6 +142,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "36 вопросов на 12 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
   { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания, 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
+  { mechanic: olymp.id, title: "Олимп: Вечная зима", hint: "Пробная история на 40–90 минут: 10 богов, проверки d100, развилки, бои с волками, тенями и Пожирателем зимы, три концовки.", content: createOlymp(), playMode: "teams", ageRating: "18+", themeId: "winter" },
   { mechanic: dragon.id, title: "Бой с драконом", hint: "2 боя по 8 заданий: вопросы, силовые задания, песни и кубик; 10 героев.", content: DEMO_DRAGON, playMode: "teams", themeId: "adventure" },
   { mechanic: truth.id, title: "Правда или действие", hint: "40 карточек для любой компании: 20 вопросов и 20 заданий, 3 круга, задания от гостей.", content: DEMO_TRUTH, playMode: "solo" },
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },

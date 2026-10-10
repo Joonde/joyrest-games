@@ -76,8 +76,8 @@ export function foeOf(id: string | null | undefined): Foe | undefined {
   return FOES.find((f) => f.id === id);
 }
 
-/** Здоровье противника под отряд: на 4 бога — как в карточке, на каждого следующего +25%, меньше — −20%. */
+/** Здоровье противника под отряд: на 4 бога — как в карточке, на каждого следующего +18%, меньше — −20%. */
 export function scaledHp(foe: Foe, gods: number): number {
   const n = Math.max(1, gods);
-  return Math.round(foe.hp * (1 + (n - 4) * (n > 4 ? 0.25 : 0.2)));
+  return Math.round(foe.hp * (1 + (n - 4) * (n > 4 ? 0.18 : 0.2)));
 }

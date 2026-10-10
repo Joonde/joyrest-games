@@ -73,7 +73,7 @@ export interface ScoreContext {
 }
 
 /** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */
-export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight";
+export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight" | "durakTable";
 
 /**
  * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.

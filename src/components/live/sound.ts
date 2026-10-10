@@ -518,7 +518,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -535,6 +535,8 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   mafiaNight: "/sounds/mafia-night-2.mp3",
   /** Лобби: на экране QR, ждём гостей. */
   lobby: "/sounds/lobby-1.mp3",
+  /** «Дурак»: тихий фон за столом всю партию. */
+  durakTable: "/sounds/durak-table-1.mp3",
   /** «Представить команды». */
   teamsIntro: "/sounds/teams-intro-1.mp3",
 };
@@ -548,7 +550,11 @@ export const BUILTIN_MUSIC = {
   superPick: [SAMPLES.superPick].filter((u): u is string => Boolean(u)),
   // Один трек дважды: следующий круг вступает наплывом, стык mp3 не слышен.
   mafiaNight: [SAMPLES.mafiaNight, SAMPLES.mafiaNight].filter((u): u is string => Boolean(u)),
+  durakTable: [SAMPLES.durakTable, SAMPLES.durakTable].filter((u): u is string => Boolean(u)),
 } as const;
+
+/** Громкость встроенной музыки момента (1 — как обычно); фон за столом — тихо, под разговор. */
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
@@ -706,6 +712,8 @@ let builtinList: string[] = [];
 let builtinIndex = 0;
 let builtinDeck = 0;
 let builtinTimer = 0;
+/** Громкость текущей встроенной музыки (0–1). */
+let builtinVolume = 1;
 /** Секунды наплыва между треками и плавного начала и конца. */
 const CROSSFADE = 4;
 const FADE_IN = 2.5;
@@ -748,7 +756,7 @@ async function startBuiltinTrack(fade: number): Promise<boolean> {
   } catch {
     return false;
   }
-  rampDeck(d, 1, fade);
+  rampDeck(d, builtinVolume, fade);
   window.clearTimeout(builtinTimer);
   if (builtinList.length > 1) {
     const key = builtinKey;
@@ -776,8 +784,9 @@ async function startBuiltinTrack(fade: number): Promise<boolean> {
  * Включить встроенную музыку (список адресов, по кругу с наплывом). Тот же `key` — уже играет, ничего
  * не делаем. false — браузер не дал звук (нужно касание экрана).
  */
-export async function playBuiltinMusic(key: string, urls: string[]): Promise<boolean> {
+export async function playBuiltinMusic(key: string, urls: string[], volume = 1): Promise<boolean> {
   if (!soundReady() || urls.length === 0) return false;
+  builtinVolume = Math.max(0, Math.min(1, volume));
   if (builtinKey === key && decks.some((d) => !d.el.paused)) return true;
   stopBuiltinMusic(1);
   // Музыка ведущего на паузе, пока звучит встроенная.

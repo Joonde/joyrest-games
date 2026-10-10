@@ -30,4 +30,6 @@ export const durak: Mechanic<DurakContent, DurakAnswerValue> = {
   validate: validateDurak,
   // Таблица очков посреди партии не нужна: очки — по итогу каждой партии.
   ownPeek: true,
+  // Тихий фон за столом всю игру (на экране зала), кроме награждения.
+  music: (session) => (session.state.phase === "playing" && session.state.stage !== "podium" ? "durakTable" : null),
 };

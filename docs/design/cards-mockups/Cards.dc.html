@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Колоды JoyRest</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&amp;family=Jost:wght@400;500;600&amp;family=UnifrakturMaguntia&amp;family=Cinzel:wght@600;700&amp;family=Cinzel+Decorative:wght@700&amp;family=Orbitron:wght@600;800&amp;family=Playfair+Display:ital,wght@1,700&amp;family=Ruslan+Display&amp;family=Unbounded:wght@600;800&amp;family=Shippori+Mincho:wght@700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#D9B877}a:hover{color:#F0D49A}
+.panel{box-sizing:border-box;padding:18px 20px 22px;border-radius:20px;background:rgba(255,255,255,.035);border:1px solid rgba(217,184,119,.18)}
+.ph{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px}
+.pn{font-family:var(--font);font-size:24px;color:var(--title,#F3E3BC);line-height:1.1}
+.pd{font-size:13px;color:#B9AE9C;text-align:right}
+.row{display:flex;gap:12px}
+.card{position:relative;flex:none;box-sizing:border-box;width:var(--w);height:calc(var(--w)*1.4);border-radius:calc(var(--w)*.09);border:max(2px,calc(var(--w)*.03)) solid transparent;background:var(--face) padding-box,var(--frame) border-box;box-shadow:0 12px 26px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.35);color:var(--ink);overflow:hidden;font-family:var(--font)}
+.card::before{content:"";position:absolute;inset:max(2px,calc(var(--w)*.025));border:max(3px,calc(var(--w)*.03)) double var(--rim);border-radius:calc(var(--w)*.05);pointer-events:none;z-index:2}
+.card::after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 40%,var(--sheen,rgba(255,240,200,.55)) 50%,transparent 60%);animation:sheen 5s ease-in-out infinite;pointer-events:none;z-index:3}
+@keyframes sheen{0%,55%{transform:translateX(-70%)}85%,100%{transform:translateX(70%)}}
+.card.red{color:var(--ink2)}
+.cr{position:absolute;z-index:1;top:calc(var(--w)*.08);left:calc(var(--w)*.09);font-weight:700;font-size:calc(var(--w)*.2);line-height:.95;text-align:center;text-shadow:var(--glow,none)}
+.cr span{display:block;font-size:.8em;font-family:Jost,sans-serif;font-weight:400}
+.cr.b{top:auto;left:auto;bottom:calc(var(--w)*.08);right:calc(var(--w)*.09);transform:rotate(180deg)}
+.cp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:calc(var(--w)*.42);text-shadow:var(--glow,none)}
+.cp.ace{font-size:calc(var(--w)*.56);padding-bottom:calc(var(--w)*.1);box-sizing:border-box}
+.brand{position:absolute;left:0;right:0;bottom:22%;text-align:center;font-family:'Cormorant Garamond',serif;font-weight:700;font-size:calc(var(--w)*.1);letter-spacing:.05em;color:var(--brand,var(--ink2))}
+.face{position:absolute;left:26%;right:26%;top:13%;bottom:13%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--fbg);border:var(--fborder);border-radius:var(--fradius,6px);color:var(--fink);clip-path:var(--fclip,none);text-shadow:var(--glow,none)}
+.face b{font-size:calc(var(--w)*.3);line-height:1;font-weight:700}
+.face i{font-style:normal;font-size:calc(var(--w)*.14);font-family:Jost,sans-serif}
+.back{background:var(--backbg)}
+.medal{position:absolute;z-index:1;left:50%;top:50%;width:calc(var(--w)*.48);height:calc(var(--w)*.48);transform:translate(-50%,-50%);border-radius:var(--mradius,50%);background:var(--mbg);border:var(--mborder);color:var(--mink);display:flex;align-items:center;justify-content:center;font-family:var(--mfont,'Cormorant Garamond',serif);font-weight:700;font-size:calc(var(--w)*.13);text-shadow:var(--glow,none)}
+.deco{position:absolute;inset:0;width:100%;height:100%}
+
+.t-classic{--font:'Cormorant Garamond',serif;--face:radial-gradient(ellipse at 30% 18%,#FFFDF7,#F7F0E0 55%,#EADFC5);--frame:linear-gradient(135deg,#7A5A24,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877);--rim:rgba(168,130,56,.7);--ink:#16151B;--ink2:#9C1934;--fbg:linear-gradient(160deg,#6E1F31,#3E0E19);--fborder:1px solid #E9CF8A;--fink:#E9CF8A;--backbg:repeating-linear-gradient(45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,repeating-linear-gradient(-45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,radial-gradient(circle at 50% 40%,#7E2639,#3E0E19) padding-box,var(--frame) border-box;--mbg:radial-gradient(circle at 40% 35%,#6E1F31,#3E0E19);--mborder:1px solid #E9CF8A;--mink:#E9CF8A}
+.t-gothic{--font:'UnifrakturMaguntia',serif;--title:#D9DBE4;--face:radial-gradient(ellipse at 50% 30%,#F1EEE8,#DCD6CC);--frame:linear-gradient(135deg,#1C1C21,#C9CBD6 25%,#45464F 50%,#E4E6EE 70%,#1C1C21);--rim:rgba(40,36,48,.75);--ink:#121016;--ink2:#7E0A1B;--fbg:linear-gradient(180deg,#2A1630,#0B080E);--fborder:1px solid #C9CBD6;--fradius:50% 50% 4px 4px / 32% 32% 4px 4px;--fink:#E4E6EE;--brand:#2A1630;--sheen:rgba(220,224,240,.45);--backbg:radial-gradient(circle at 50% 50%,transparent 0 30%,rgba(201,203,214,.5) 30.5% 31.5%,transparent 32% 41%,rgba(201,203,214,.35) 41.5% 42.5%,transparent 43%) padding-box,repeating-conic-gradient(from 0deg at 50% 50%,rgba(201,203,214,.2) 0deg 2deg,transparent 2deg 15deg) padding-box,radial-gradient(circle at 50% 45%,#3A1E44,#07060A) padding-box,var(--frame) border-box;--mbg:#0B080E;--mborder:1px solid #C9CBD6;--mink:#E4E6EE;--mfont:'UnifrakturMaguntia',serif}
+.t-greece{--font:'Cinzel',serif;--face:linear-gradient(115deg,transparent 46%,rgba(150,140,130,.12) 47%,transparent 49%),linear-gradient(60deg,transparent 60%,rgba(150,140,130,.1) 61%,transparent 63%),radial-gradient(ellipse at 30% 20%,#FFFFFF,#F2EFE8);--frame:linear-gradient(135deg,#7A3A1E,#E8B87A 25%,#B5482A 50%,#F0C890 72%,#7A3A1E);--rim:rgba(181,72,42,.6);--ink:#1E1A16;--ink2:#B5482A;--fbg:#C2552F;--fborder:2px solid #1E1A16;--fink:#1E1A16;--brand:#B5482A;--backbg:radial-gradient(circle at 50% 50%,#C9582F,#8E3419) padding-box,var(--frame) border-box;--mbg:#1E1A16;--mborder:2px solid #E8B87A;--mink:#E8B87A;--mfont:'Cinzel',serif}
+.t-rome{--font:'Cinzel Decorative',serif;--face:radial-gradient(ellipse at 30% 20%,#FFFBF2,#EFE6D2);--frame:linear-gradient(135deg,#3A1240,#E9CF8A 25%,#6B2A70 50%,#F6E3A6 72%,#3A1240);--rim:rgba(75,30,79,.65);--ink:#1A1418;--ink2:#9E1B32;--fbg:linear-gradient(160deg,#5E2563,#2E0E32);--fborder:2px solid #E9CF8A;--fradius:3px;--fink:#F6E3A6;--brand:#4B1E4F;--backbg:radial-gradient(circle at 50% 45%,#6B2A70,#2E0E32) padding-box,var(--frame) border-box;--mbg:#2E0E32;--mborder:1px solid #E9CF8A;--mink:#F6E3A6;--mfont:'Cinzel',serif}
+.t-cyber{--font:'Orbitron',sans-serif;--title:#19F0FF;--face:linear-gradient(160deg,#141829,#07080F);--frame:linear-gradient(135deg,#FF2E88,#7B2EFF 40%,#19F0FF 70%,#FF2E88);--rim:rgba(25,240,255,.35);--ink:#19F0FF;--ink2:#FF2E88;--glow:0 0 6px currentColor;--fbg:repeating-linear-gradient(0deg,rgba(25,240,255,.08) 0 1px,transparent 1px 4px),rgba(123,46,255,.15);--fborder:1px solid #19F0FF;--fradius:0;--fclip:polygon(18% 0,100% 0,100% 82%,82% 100%,0 100%,0 18%);--fink:#FF2E88;--brand:#19F0FF;--sheen:rgba(25,240,255,.35);--backbg:repeating-linear-gradient(0deg,rgba(25,240,255,.22) 0 1px,transparent 1px 11px) padding-box,repeating-linear-gradient(90deg,rgba(255,46,136,.22) 0 1px,transparent 1px 11px) padding-box,radial-gradient(circle at 50% 40%,#1C1240,#05060C) padding-box,var(--frame) border-box;--mbg:#05060C;--mborder:1px solid #19F0FF;--mradius:4px;--mink:#19F0FF;--mfont:'Orbitron',sans-serif}
+.t-vintage{--font:'Playfair Display',serif;--face:radial-gradient(ellipse at 40% 25%,#F8EED6,#E8D9B4);--frame:linear-gradient(135deg,#3B2A1A,#B08A55 30%,#5A4128 55%,#C9A46A 75%,#3B2A1A);--rim:rgba(59,42,26,.7);--ink:#2B2118;--ink2:#7A2E1E;--fbg:#E3D0A6;--fborder:3px double #3B2A1A;--fradius:50%;--fink:#2B2118;--brand:#3B2A1A;--sheen:rgba(255,245,215,.4);--backbg:repeating-radial-gradient(circle at 50% 0%,rgba(239,226,196,.28) 0 1px,transparent 1px 6px) padding-box,repeating-radial-gradient(circle at 50% 100%,rgba(239,226,196,.28) 0 1px,transparent 1px 6px) padding-box,#1C2A3F padding-box,var(--frame) border-box;--mbg:#EFE2C4;--mborder:2px solid #B08A55;--mradius:50% / 40%;--mink:#1C2A3F;--mfont:'Playfair Display',serif}
+.t-russia{--font:'Ruslan Display',serif;--face:radial-gradient(ellipse at 40% 25%,#FFF8E8,#F3E2BE);--frame:linear-gradient(135deg,#8A1A10,#E7B54A 25%,#C8241B 50%,#F2CF6A 72%,#8A1A10);--rim:rgba(200,36,27,.55);--ink:#16100C;--ink2:#C8241B;--fbg:#16100C;--fborder:1px solid #E7B54A;--fradius:50% 50% 6px 6px / 40% 40% 6px 6px;--fink:#F2CF6A;--brand:#C8241B;--backbg:radial-gradient(circle at 50% 45%,#2A1A12,#0B0806) padding-box,var(--frame) border-box;--mbg:#0B0806;--mborder:1px solid #E7B54A;--mink:#F2CF6A}
+.t-kpop{--font:'Unbounded',sans-serif;--title:#FFB3DA;--face:linear-gradient(160deg,#FFF0F7,#F1ECFF 50%,#E6FFF6);--frame:conic-gradient(from 30deg,#FF8AC8,#B79CFF,#7FE7FF,#B5FFD9,#FFE08A,#FF8AC8);--rim:rgba(183,156,255,.6);--ink:#3A1C71;--ink2:#FF3E9A;--fbg:linear-gradient(180deg,#FFD6EC,#D9CCFF);--fborder:2px solid #FFFFFF;--fradius:999px;--fink:#3A1C71;--brand:#B79CFF;--sheen:rgba(255,255,255,.8);--backbg:radial-gradient(circle,rgba(255,255,255,.95) 0 1.4px,transparent 2px) 0 0/13px 13px padding-box,conic-gradient(from 210deg at 50% 50%,#FF8AC8,#B79CFF,#7FE7FF,#FFD6F0,#FF8AC8) padding-box,var(--frame) border-box;--mbg:#FFFFFF;--mborder:2px solid #FF8AC8;--mink:#FF3E9A;--mfont:'Unbounded',sans-serif}
+.t-anime{--font:'Shippori Mincho',serif;--title:#F4B6C8;--face:radial-gradient(circle at 50% 100%,transparent 0 5px,rgba(42,35,80,.07) 5px 6px,transparent 6px 9px,rgba(42,35,80,.07) 9px 10px,transparent 10px) 0 0/20px 10px,radial-gradient(ellipse at 40% 20%,#FFFCF6,#F5EDE4);--frame:linear-gradient(135deg,#2A2350,#E9CF8A 22%,#F4B6C8 45%,#E9CF8A 66%,#2A2350 90%);--rim:rgba(42,35,80,.55);--ink:#1B1838;--ink2:#C2253F;--fbg:radial-gradient(circle at 70% 26%,#FFF4D6 0 11%,rgba(255,226,180,.35) 12% 18%,transparent 26%),linear-gradient(180deg,#1A1440 0%,#4A2C6E 55%,#D97C9C 100%);--fborder:1px solid #E9CF8A;--fradius:4px;--fink:#FFF4D6;--brand:#C2253F;--sheen:rgba(255,230,240,.6);--backbg:radial-gradient(circle at 66% 28%,rgba(255,246,222,.98) 0 10%,rgba(255,214,170,.35) 11% 17%,rgba(255,214,170,.08) 18% 30%,transparent 31%) padding-box,radial-gradient(circle,rgba(255,255,255,.8) 0 .8px,transparent 1.2px) 0 0/17px 23px padding-box,linear-gradient(180deg,#0F0B28 0%,#2B1F5C 42%,#6E3B7C 74%,#E58AA6 100%) padding-box,var(--frame) border-box;--mbg:#C2253F;--mborder:1px solid #F7D9A0;--mradius:3px;--mink:#FFF4D6;--mfont:'Shippori Mincho',serif}
+.t-anime .face b{font-weight:800}
+.t-anime .back .medal{transform:translate(-50%,-50%) rotate(-4deg);width:calc(var(--w)*.3);height:calc(var(--w)*.3);font-size:calc(var(--w)*.1);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.petal{transform-box:fill-box;transform-origin:center;animation:fall 7s linear infinite}
+@keyframes fall{0%{transform:translate(0,-6px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translate(-14px,70px) rotate(220deg);opacity:0}}
+.kata{position:absolute;z-index:1;right:9%;top:10%;writing-mode:vertical-rl;font-family:'Shippori Mincho',serif;font-weight:700;font-size:calc(var(--w)*.085);letter-spacing:.15em;color:#F7D9A0}
+.t-wedding{--font:'Cormorant Garamond',serif;--face:radial-gradient(ellipse at 40% 25%,#FFFBFA,#F6E8E5);--frame:linear-gradient(135deg,#9A6A5E,#F1CDBF 25%,#B88C7E 50%,#F8DED4 72%,#9A6A5E);--rim:rgba(184,140,126,.7);--ink:#2F2A2A;--ink2:#B04A5A;--fbg:linear-gradient(180deg,#F7E4E0,#EBCFC9);--fborder:1px solid #B88C7E;--fradius:50% 50% 6px 6px / 30% 30% 6px 6px;--fink:#8C4A55;--brand:#B88C7E;--backbg:repeating-linear-gradient(45deg,rgba(184,140,126,.35) 0 1px,transparent 1px 9px) padding-box,repeating-linear-gradient(-45deg,rgba(184,140,126,.35) 0 1px,transparent 1px 9px) padding-box,#EFDDD8 padding-box,var(--frame) border-box;--mbg:#FBF3F1;--mborder:1px solid #B88C7E;--mink:#8C4A55}
+.t-cyber .back .medal{animation:glitch 3s steps(1) infinite}
+@keyframes glitch{0%,88%,100%{text-shadow:0 0 6px #19F0FF}90%{text-shadow:-2px 0 #FF2E88,2px 0 #19F0FF;transform:translate(-52%,-50%)}94%{text-shadow:2px 0 #FF2E88,-2px 0 #19F0FF;transform:translate(-48%,-50%)}}
+.t-kpop .back{animation:holo 9s linear infinite}
+@keyframes holo{to{filter:hue-rotate(360deg)}}
+.t-gothic .back .deco{animation:spin 40s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.full .cr{background:rgba(255,252,246,.92);padding:calc(var(--w)*.03) calc(var(--w)*.035);border-radius:calc(var(--w)*.04);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.cp.glowpip{z-index:1;color:#FFF4D6;text-shadow:0 0 10px rgba(255,236,200,.95),0 0 26px rgba(244,182,200,.8)}
+.t-wedding .cp.glowpip{color:#B9786A;text-shadow:0 0 8px #fff,0 0 18px #fff}
+.zoom{transform:scale(2.4);transform-origin:var(--fo,30% 30%)}
+.t-wedding .face{--fbg:rgba(255,250,248,.8);backdrop-filter:blur(2px);box-shadow:0 4px 14px rgba(0,0,0,.18);z-index:1}
+.t-wedding .face b{font-style:italic}
+.t-wedding .back .medal{background:rgba(255,250,248,.82);flex-direction:column;gap:1px;font-style:italic}
+</style>
+</helmet>
+<div style="width: 1240px; height: 1440px; box-sizing: border-box; padding: 40px 48px; display: flex; flex-direction: column; gap: 26px; background: radial-gradient(ellipse at 50% 20%, #1E1822 0%, #0E0C10 70%); font-family: Jost, sans-serif; color: #EDE6DA">
+
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<pattern id="mea" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M1 15V1h14v10H5V5h6v3" fill="none" stroke="#1E1A16" stroke-width="2"></path></pattern>
+<g id="laurel" fill="#E9CF8A">
+<path d="M50 104C30 102 15 88 16 66" fill="none" stroke="#E9CF8A" stroke-width="1.4"></path>
+<ellipse cx="33.5" cy="98.6" rx="5.5" ry="2.3" transform="rotate(-20 33.5 98.6)"></ellipse>
+<ellipse cx="24.7" cy="91.2" rx="5.5" ry="2.3" transform="rotate(-40 24.7 91.2)"></ellipse>
+<ellipse cx="19" cy="81.3" rx="5.5" ry="2.3" transform="rotate(-62 19 81.3)"></ellipse>
+<ellipse cx="17" cy="70" rx="5.5" ry="2.3" transform="rotate(-85 17 70)"></ellipse>
+<ellipse cx="19" cy="58.7" rx="5.5" ry="2.3" transform="rotate(-108 19 58.7)"></ellipse>
+<ellipse cx="24.7" cy="48.8" rx="5.5" ry="2.3" transform="rotate(-130 24.7 48.8)"></ellipse>
+</g>
+<g id="khokh">
+<path d="M8 132C26 112 18 92 36 84S52 60 44 44" fill="none" stroke="#E7B54A" stroke-width="1.6"></path>
+<path d="M92 8C74 26 84 44 66 54S50 78 58 94" fill="none" stroke="#E7B54A" stroke-width="1.6"></path>
+<ellipse cx="22" cy="110" rx="7" ry="3" fill="#E7B54A" transform="rotate(-50 22 110)"></ellipse>
+<ellipse cx="30" cy="96" rx="7" ry="3" fill="#F2CF6A" transform="rotate(20 30 96)"></ellipse>
+<ellipse cx="78" cy="30" rx="7" ry="3" fill="#E7B54A" transform="rotate(-50 78 30)"></ellipse>
+<ellipse cx="70" cy="44" rx="7" ry="3" fill="#F2CF6A" transform="rotate(20 70 44)"></ellipse>
+<circle cx="14" cy="122" r="4.5" fill="#C8241B"></circle><circle cx="20" cy="126" r="3.5" fill="#E0392B"></circle>
+<circle cx="86" cy="18" r="4.5" fill="#C8241B"></circle><circle cx="80" cy="14" r="3.5" fill="#E0392B"></circle>
+<circle cx="56" cy="104" r="4" fill="#C8241B"></circle><circle cx="44" cy="36" r="4" fill="#C8241B"></circle>
+</g>
+</defs>
+</svg>
+
+<div style="display: flex; align-items: flex-end; justify-content: space-between">
+<div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 600; line-height: 1">Колоды JoyRest</div>
+<div style="font-size: 15px; color: #B9AE9C; margin-top: 8px">10 стилей: ведущий выбирает колоду в настройках стола. На каждой рубашке — знак J✦R</div>
+</div>
+<div style="font-size: 13px; color: #8F8676">рубашка · туз · король · дама · число</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+
+<section class="panel t-classic">
+<div class="ph"><div class="pn">Классика JoyRest</div><div class="pd">айвори, бордо, золото</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="24" height="14" viewBox="0 0 34 20" aria-hidden="true"><path d="M2 18L5 4l7 7 5-10 5 10 7-7 3 14z" fill="currentColor"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="22" height="12" viewBox="0 0 30 18" aria-hidden="true"><path d="M3 16l3-10 5 5 4-9 4 9 5-5 3 10z" fill="none" stroke="currentColor" stroke-width="2"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-gothic">
+<div class="ph"><div class="pn">Готика</div><div class="pd">витраж-роза, серебро, кровь</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><svg class="deco" viewBox="0 0 100 140" aria-hidden="true"><path d="M50 8L58 22H42Z M50 132L42 118H58Z" fill="#C9CBD6" opacity=".7"></path></svg><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="18" height="16" viewBox="0 0 20 18" aria-hidden="true"><path d="M8 0h4v6h6v4h-6v8H8v-8H2V6h6z" fill="currentColor"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1c3 4 3 6 0 9-3-3-3-5 0-9zM1 10c4-3 6-3 9 0-3 3-5 3-9 0zM19 10c-4 3-6 3-9 0 3-3 5-3 9 0zM10 19c-3-4-3-6 0-9 3 3 3 5 0 9z" fill="currentColor"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-greece">
+<div class="ph"><div class="pn">Греция</div><div class="pd">мрамор, терракота, меандр</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><svg class="deco" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="8" width="100" height="16" fill="url(#mea)"></rect><rect x="0" y="116" width="100" height="16" fill="url(#mea)"></rect></svg><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="26" height="12" viewBox="0 0 26 12" aria-hidden="true"><path d="M1 11C5 3 9 1 13 1s8 2 12 10" fill="none" stroke="currentColor" stroke-width="2"></path><circle cx="13" cy="4" r="2" fill="currentColor"></circle></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true"><path d="M2 13V5M7 13V5M13 13V5M18 13V5M0 4h20L10 0z" stroke="currentColor" stroke-width="1.6" fill="currentColor"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-rome">
+<div class="ph"><div class="pn">Рим</div><div class="pd">пурпур империи, лавровый венок</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><svg class="deco" viewBox="0 0 100 140" aria-hidden="true"><use href="#laurel"></use><use href="#laurel" transform="translate(100 0) scale(-1 1)"></use></svg><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><path d="M13 13C6 13 2 9 1 2M13 13c7 0 11-4 12-11" fill="none" stroke="currentColor" stroke-width="1.6"></path><path d="M4 6l3 1M7 9l3 1M22 6l-3 1M19 9l-3 1" stroke="currentColor" stroke-width="2"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true"><path d="M9 0l2.4 5H17l-4.5 3.4L14 14 9 10.6 4 14l1.5-5.6L1 5h5.6z" fill="currentColor"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-cyber">
+<div class="ph"><div class="pn">Киберпанк</div><div class="pd">неон, сетка, глитч</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 11V3l5 4 5-6 5 6 5-4v8z" fill="none" stroke="currentColor" stroke-width="1.6"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><path d="M1 6h4l2-5 4 10 2-5h4" fill="none" stroke="currentColor" stroke-width="1.6"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-vintage">
+<div class="ph"><div class="pn">Old fashion</div><div class="pd">гравюра, сепия, 1920-е</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="24" height="14" viewBox="0 0 34 20" aria-hidden="true"><path d="M2 18L5 4l7 7 5-10 5 10 7-7 3 14z" fill="currentColor"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="20" height="12" viewBox="0 0 20 12" aria-hidden="true"><path d="M1 10c3-6 6-8 9-8s6 2 9 8" fill="none" stroke="currentColor" stroke-width="1.6"></path><circle cx="10" cy="2.5" r="1.8" fill="currentColor"></circle></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-russia">
+<div class="ph"><div class="pn">Хохлома</div><div class="pd">чёрный лак, золото, рябина</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><svg class="deco" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><use href="#khokh"></use></svg><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 13V7l4-6 3 5 3-5 3 5 3-5 4 6v6z" fill="currentColor"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true"><path d="M1 12C1 5 6 1 11 1s10 4 10 11z" fill="currentColor"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-kpop">
+<div class="ph"><div class="pn">K-pop</div><div class="pd">голограмма, пастель, блёстки</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><div class="medal">J✦R</div></div>
+<div class="card" style="--w: 92px"><div class="cr">A<span>♠︎</span></div><div class="cp ace">♠︎</div><div class="brand">J✦R</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="currentColor"></path></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red" style="--w: 92px"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 14S0 9 0 4a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 5-8 10-8 10z" fill="currentColor"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-anime">
+<div class="ph"><div class="pn">Аниме</div><div class="pd">ночная сакура · рисованные герои</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><img class="art" src="/_blob/170c195cf0f4c43de46ee2725b5e8be8" alt=""><div class="kata">ジョイレスト</div><div class="medal">J✦R</div></div>
+<div class="card full" style="--w: 92px"><img class="art" src="/_blob/170c195cf0f4c43de46ee2725b5e8be8" alt=""><div class="cr">A<span>♠︎</span></div><div class="cp ace glowpip">♠︎</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red full" style="--w: 92px"><img class="art" src="/_blob/f6e10a1891f1cef43934e653befc258b" alt="Король червей"><div class="cr">K<span>♥︎</span></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red full" style="--w: 92px"><img class="art" src="/_blob/71ccd5ecc75170ec167ba7d9f07166d6" alt="Дама бубен"><div class="cr">Q<span>♦︎</span></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+<section class="panel t-wedding">
+<div class="ph"><div class="pn" style="font-style: italic">Свадьба</div><div class="pd">живые пионы, розовое золото, монограмма</div></div>
+<div class="row">
+<div class="card back" style="--w: 92px"><img class="art" src="/_blob/b8ec7bc02899c0dbebec2fd606adb88f" alt=""><div class="medal">А &amp; М<span style="font-size: 5px; font-style: normal; letter-spacing: .2em">JOYREST</span></div></div>
+<div class="card full" style="--w: 92px"><img class="art" src="/_blob/b8ec7bc02899c0dbebec2fd606adb88f" alt=""><div class="cr">A<span>♠︎</span></div><div class="cp ace glowpip">♠︎</div><div class="cr b">A<span>♠︎</span></div></div>
+<div class="card red full" style="--w: 92px"><img class="art zoom" src="/_blob/b8ec7bc02899c0dbebec2fd606adb88f" alt="" style="--fo: 22% 30%"><div class="cr">K<span>♥︎</span></div><div class="face"><svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true"><circle cx="7" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="13" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"></circle></svg><b>K</b><i>♥︎</i></div><div class="cr b">K<span>♥︎</span></div></div>
+<div class="card red full" style="--w: 92px"><img class="art zoom" src="/_blob/b8ec7bc02899c0dbebec2fd606adb88f" alt="" style="--fo: 78% 72%"><div class="cr">Q<span>♦︎</span></div><div class="face"><svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M8 14S0 9 0 4a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 5-8 10-8 10z" fill="currentColor"></path></svg><b>Q</b><i>♦︎</i></div><div class="cr b">Q<span>♦︎</span></div></div>
+<div class="card" style="--w: 92px"><div class="cr">7<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">7<span>♣︎</span></div></div>
+</div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":1440}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

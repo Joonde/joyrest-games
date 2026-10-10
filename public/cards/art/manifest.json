@@ -1,0 +1,10 @@
+{
+  "comment": "Картинки карточного стола. Ссылки Figma AI живут 7 дней: при изменении этого файла задача «Картинки карт» скачивает новые файлы в эту папку. Уже скачанные не трогаются.",
+  "files": [
+    { "file": "croupier.png", "what": "Крупье-мафиози, аватар крупье на всех столах", "url": "https://www.figma.com/api/mcp/asset/11e32cbf-7178-43d0-88fe-fff7caa8588b.png", "expires": "2026-10-17" },
+    { "file": "anime-back.png", "what": "Колода «Аниме»: рубашка (луна, сакура, круг под J✦R)", "url": "https://www.figma.com/api/mcp/asset/4768f97f-0980-4c0f-94fc-56ba0cc8ed1c.png", "expires": "2026-10-17" },
+    { "file": "wedding-back.png", "what": "Колода «Свадьба»: рубашка (венок из пионов, круг под монограмму)", "url": "https://www.figma.com/api/mcp/asset/0f0e3caa-42db-49ce-8cb0-d87317f72175.png", "expires": "2026-10-17" },
+    { "file": "anime-king.png", "what": "Колода «Аниме»: король червей (самурай-император)", "url": "https://www.figma.com/api/mcp/asset/596504b2-e439-450d-8006-5417fe8b48fb.png", "expires": "2026-10-17" },
+    { "file": "anime-queen.png", "what": "Колода «Аниме»: дама бубен (лунная императрица)", "url": "https://www.figma.com/api/mcp/asset/30941c5a-673c-4508-afed-ff05a37ae4b0.png", "expires": "2026-10-17" }
+  ]
+}

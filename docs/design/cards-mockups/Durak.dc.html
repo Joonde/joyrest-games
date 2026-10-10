@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Дурак — экран зала</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&amp;family=Jost:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#D9B877}a:hover{color:#F0D49A}
+.card{position:relative;flex:none;width:var(--w);height:calc(var(--w)*1.4);border-radius:calc(var(--w)*.1);background:#FBF7EE;box-shadow:0 8px 20px rgba(0,0,0,.45),inset 0 0 0 1px rgba(184,150,90,.6);color:#1B1A22;overflow:hidden;font-family:'Cormorant Garamond',serif}
+.card::before{content:"";position:absolute;inset:calc(var(--w)*.05);border:1px solid rgba(184,150,90,.55);border-radius:calc(var(--w)*.07);pointer-events:none}
+.card::after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 42%,rgba(255,236,190,.45) 50%,transparent 58%);animation:sheen 5s ease-in-out infinite;pointer-events:none}
+@keyframes sheen{0%,55%{transform:translateX(-70%)}85%,100%{transform:translateX(70%)}}
+.card.red{color:#A3243B}
+.cr{position:absolute;top:calc(var(--w)*.08);left:calc(var(--w)*.1);font-weight:700;font-size:calc(var(--w)*.27);line-height:.85;text-align:center}
+.cr span{display:block;font-size:.75em;margin-top:2px}
+.cr.b{top:auto;left:auto;bottom:calc(var(--w)*.08);right:calc(var(--w)*.1);transform:rotate(180deg)}
+.cp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:calc(var(--w)*.55)}
+.back{background-color:#5A1626;background-image:repeating-linear-gradient(45deg,rgba(217,184,119,.22) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(217,184,119,.22) 0 1px,transparent 1px 9px)}
+.back::before{border-color:rgba(217,184,119,.8)}
+.medal{position:absolute;left:50%;top:50%;width:calc(var(--w)*.56);height:calc(var(--w)*.56);transform:translate(-50%,-50%);border-radius:50%;background:#5A1626;border:1px solid #D9B877;display:flex;align-items:center;justify-content:center;color:#D9B877;font-weight:700;font-size:calc(var(--w)*.16)}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(232,199,126,.35),0 8px 20px rgba(0,0,0,.45)}50%{box-shadow:0 0 0 9px rgba(232,199,126,.15),0 8px 20px rgba(0,0,0,.45)}}
+.land{animation:land 3s ease-out infinite}
+@keyframes land{0%{transform:translate(-260px,-180px) rotate(-40deg);opacity:0}25%{opacity:1}45%,100%{transform:translate(0,0) rotate(0);opacity:1}}
+.card{box-sizing:border-box;border-radius:calc(var(--w)*.09);border:max(2px,calc(var(--w)*.03)) solid transparent;background:radial-gradient(ellipse at 30% 18%,#FFFDF7 0%,#F7F0E0 55%,#EADFC5 100%) padding-box,linear-gradient(135deg,#7A5A24 0%,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877 100%) border-box;box-shadow:0 12px 26px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.35)}
+.card::before{inset:max(2px,calc(var(--w)*.025));border:max(3px,calc(var(--w)*.03)) double rgba(168,130,56,.7);border-radius:calc(var(--w)*.05)}
+.card::after{background:linear-gradient(115deg,transparent 40%,rgba(255,232,180,.35) 47%,rgba(255,255,255,.75) 50%,rgba(255,220,160,.35) 53%,transparent 60%)}
+.cr,.cp{background:linear-gradient(160deg,#55525E 0%,#121117 75%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card.red .cr,.card.red .cp{background-image:linear-gradient(160deg,#D9466A 0%,#8A1430 75%)}
+.cr{z-index:1;top:calc(var(--w)*.08);left:calc(var(--w)*.09);font-size:calc(var(--w)*.2);line-height:.95}
+.cr span{font-size:.8em;margin-top:0}
+.cr.b{bottom:calc(var(--w)*.08);right:calc(var(--w)*.09)}
+.cp{font-size:calc(var(--w)*.42)}
+.back{background:repeating-linear-gradient(45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,repeating-linear-gradient(-45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,radial-gradient(circle at 50% 40%,#7E2639 0%,#3E0E19 100%) padding-box,linear-gradient(135deg,#7A5A24 0%,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877 100%) border-box}
+.back::before{border-color:rgba(233,207,138,.8)}
+.medal{width:calc(var(--w)*.5);height:calc(var(--w)*.5);background:radial-gradient(circle at 40% 35%,#6E1F31,#3E0E19);border:1px solid #E9CF8A;box-shadow:0 0 0 calc(var(--w)*.03) rgba(62,14,25,.9),0 0 0 calc(var(--w)*.04) rgba(233,207,138,.6);color:#E9CF8A;font-size:calc(var(--w)*.14)}
+.medal::after{content:"";position:absolute;inset:-22%;border-radius:50%;border:1px dashed rgba(233,207,138,.55);animation:spin 20s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tex{position:absolute;inset:0;border-radius:inherit;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.2px);background-size:5px 5px;pointer-events:none}
+.light{position:absolute;inset:0;border-radius:inherit;background:radial-gradient(ellipse at 50% 28%,rgba(255,236,190,.22) 0%,transparent 55%);animation:breathe 7s ease-in-out infinite;pointer-events:none}
+@keyframes breathe{0%,100%{opacity:.6}50%{opacity:1}}
+.inlay{position:absolute;inset:12px;border-radius:inherit;padding:2px;background:linear-gradient(90deg,#8C6A2F,#F6E3A6,#8C6A2F,#D9B877,#8C6A2F,#F6E3A6,#8C6A2F) 0 0/300% 100%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.75;animation:glint 8s linear infinite;pointer-events:none}
+@keyframes glint{to{background-position:300% 0}}
+.dust{position:absolute;width:4px;height:4px;border-radius:50%;background:#F6E3A6;box-shadow:0 0 8px 2px rgba(246,227,166,.6);opacity:0;animation:rise 8s ease-in-out infinite;pointer-events:none}
+@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:.85}100%{transform:translateY(-120px);opacity:0}}
+.crp{animation:crp 4s ease-in-out infinite}
+@keyframes crp{0%,100%{filter:drop-shadow(0 0 6px rgba(233,207,138,.35))}50%{filter:drop-shadow(0 0 22px rgba(233,207,138,.7))}}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: radial-gradient(ellipse at 50% 55%, #1E1822 0%, #0E0C10 70%); font-family: Jost, sans-serif; color: #EDE6DA">
+
+<header style="position: absolute; left: 40px; right: 40px; top: 28px; display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 54px; height: 54px; border-radius: 50%; border: 1px solid #D9B877; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 20px; color: #D9B877">J✦R</div>
+<div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 600; line-height: 1">Дурак · Переводной</div>
+<div style="font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C; margin-top: 6px">36 карт · командами 3 на 3 · партия 2</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 28px">
+<div style="display: flex; align-items: center; gap: 14px; font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #D89AA0"></span>Роза 1</span>
+<span style="color: #8F8676">:</span>
+<span style="display: flex; align-items: center; gap: 8px">0 Золото<span style="width: 12px; height: 12px; border-radius: 50%; background: #D9B877"></span></span>
+</div>
+<div style="width: 66px; height: 66px; border-radius: 10px; background: #EDE6DA; color: #0E0C10; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">[QR]</div>
+</div>
+</header>
+
+<div style="position: absolute; left: 200px; top: 200px; width: 1200px; height: 560px; box-sizing: border-box; padding: 26px; border-radius: 50%; background: #2A1A14; box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 0 0 2px #6B4A2E, inset 0 0 0 9px #22150F">
+<div style="position: relative; width: 100%; height: 100%; border-radius: 50%; background: {{felt}}; box-shadow: inset 0 0 0 2px rgba(217,184,119,.55), inset 0 0 70px rgba(0,0,0,.55)">
+<div class="tex"></div><div class="light"></div><div class="inlay"></div>
+
+<div style="position: absolute; left: 150px; top: 150px; width: 170px; height: 160px">
+<div class="card red" style="--w: 84px; position: absolute; left: 44px; top: 30px; transform: rotate(90deg)"><div class="cr">7<span>♥︎</span></div><div class="cp">♥︎</div><div class="cr b">7<span>♥︎</span></div></div>
+<div class="card back" style="--w: 84px; position: absolute; left: 4px; top: 4px; box-shadow: 3px 3px 0 #3E0F1B, 6px 6px 0 #2F0B14, 0 10px 24px rgba(0,0,0,.5)"><div class="medal">J✦R</div></div>
+</div>
+<div style="position: absolute; left: 136px; top: 300px; width: 200px; text-align: center">
+<div style="font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: #E8D9B5">Колода · 12</div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: #F3E3BC">Козырь <span style="color: #F09AA6">♥︎</span></div>
+</div>
+
+<div style="position: absolute; left: 390px; top: 120px; display: flex; gap: 46px">
+<div style="position: relative; width: 112px; height: 150px">
+<div class="card" style="--w: 88px; position: absolute; left: 0; top: 0"><div class="cr">9<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">9<span>♣︎</span></div></div>
+<div class="card" style="--w: 88px; position: absolute; left: 22px; top: 26px; transform: rotate(9deg)"><div class="cr">K<span>♣︎</span></div><div class="cp">♣︎</div><div class="cr b">K<span>♣︎</span></div></div>
+</div>
+<div style="position: relative; width: 112px; height: 150px">
+<div class="card red" style="--w: 88px; position: absolute; left: 0; top: 0"><div class="cr">9<span>♦︎</span></div><div class="cp">♦︎</div><div class="cr b">9<span>♦︎</span></div></div>
+<div class="card red" style="--w: 88px; position: absolute; left: 22px; top: 26px; transform: rotate(9deg)"><div class="cr">6<span>♥︎</span></div><div class="cp">♥︎</div><div class="cr b">6<span>♥︎</span></div></div>
+</div>
+<div style="position: relative; width: 112px; height: 150px">
+<div class="land" style="position: absolute; left: 0; top: 0"><div class="card pulse" style="--w: 88px"><div class="cr">Q<span>♠︎</span></div><div class="cp">♠︎</div><div class="cr b">Q<span>♠︎</span></div></div></div>
+</div>
+</div>
+<div style="position: absolute; left: 390px; top: 300px; width: 410px; text-align: center; font-size: 15px; color: #F3E3BC">Нужно покрыть <b>даму ♠︎</b> · на столе 3 из 6</div>
+
+<div style="position: absolute; left: 880px; top: 150px; width: 150px; height: 150px">
+<div class="card back" style="--w: 70px; position: absolute; left: 20px; top: 20px; transform: rotate(-18deg)"><div class="medal"></div></div>
+<div class="card back" style="--w: 70px; position: absolute; left: 36px; top: 14px; transform: rotate(11deg)"><div class="medal"></div></div>
+<div class="card back" style="--w: 70px; position: absolute; left: 28px; top: 26px; transform: rotate(-3deg)"><div class="medal">J✦R</div></div>
+</div>
+<div style="position: absolute; left: 880px; top: 300px; width: 150px; text-align: center; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: #E8D9B5">Бито · 8</div>
+
+<div style="position: absolute; left: 0; right: 0; top: 368px; text-align: center; color: rgba(217,184,119,.3); font-family: 'Cormorant Garamond', serif">
+<div style="font-size: 56px; font-weight: 700; line-height: 1">J✦R</div>
+<div style="font-size: 13px; letter-spacing: .6em; margin-top: 4px">JOYREST</div>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 744px; top: 66px; width: 112px; display: flex; flex-direction: column; align-items: center">
+<img class="crp" src="/_blob/86c08d4ac3811d0026bebac5a67cc214" alt="Крупье" style="width: 132px; height: 132px; border-radius: 50%; object-fit: cover; border: 2px solid #E9CF8A; box-shadow: 0 0 0 4px rgba(14,12,16,.95), 0 0 0 5px rgba(233,207,138,.45)">
+<div style="margin-top: -10px; padding: 4px 14px; border-radius: 999px; background: #1A1418; border: 1px solid #D9B877; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: #E8D9B5">Крупье</div>
+</div>
+<div style="position: absolute; left: 872px; top: 96px; padding: 8px 16px; border-radius: 14px 14px 14px 4px; background: rgba(237,230,218,.94); color: #1B1A22; font-size: 16px; font-weight: 500">Сергей отбивается. Можно перевести</div>
+
+<div style="position: absolute; left: 370px; top: 118px; width: 210px; display: flex; flex-direction: column; align-items: center">
+<div style="display: flex; margin-bottom: -16px; position: relative; z-index: 1"><div class="card back" style="--w: 28px; transform: rotate(-12deg)"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px; transform: rotate(12deg)"><div class="medal"></div></div></div>
+<div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(20,16,22,.94); border: 1px solid rgba(216,154,160,.6); box-shadow: 0 10px 24px rgba(0,0,0,.45)">
+<div style="width: 40px; height: 40px; border-radius: 50%; background: #D89AA0; color: #1A0F10; display: flex; align-items: center; justify-content: center; font-weight: 600">Л</div>
+<div style="flex: 1"><div style="font-size: 16px; font-weight: 500">Лена</div><div style="font-size: 13px; color: #D89AA0">Роза · 4 карты</div></div>
+<div style="font-size: 12px; padding: 3px 8px; border-radius: 8px; background: rgba(216,154,160,.18); color: #F2D3D6">Ходит</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 1010px; top: 118px; width: 210px; display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="display: flex; margin-bottom: -22px; position: relative; z-index: 1"><div class="card back" style="--w: 28px; transform: rotate(-12deg)"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px; transform: rotate(12deg)"><div class="medal"></div></div></div>
+<div class="pulse" style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(28,22,20,.96); border: 2px solid #E8C77E">
+<div style="width: 40px; height: 40px; border-radius: 50%; background: #D9B877; color: #16120A; display: flex; align-items: center; justify-content: center; font-weight: 600">С</div>
+<div style="flex: 1"><div style="font-size: 16px; font-weight: 500">Сергей</div><div style="font-size: 13px; color: #D9B877">Золото · 6 карт</div></div>
+<div style="font-size: 12px; padding: 3px 8px; border-radius: 8px; background: #E8C77E; color: #1B1A22; font-weight: 600">Бьётся</div>
+</div>
+<div style="width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,.12)"><div style="width: 62%; height: 100%; border-radius: 2px; background: #E8C77E"></div></div>
+</div>
+
+<div style="position: absolute; left: 1366px; top: 400px; width: 210px; display: flex; flex-direction: column; align-items: center">
+<div style="display: flex; margin-bottom: -16px; position: relative; z-index: 1"><div class="card back" style="--w: 28px; transform: rotate(-12deg)"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px; transform: rotate(12deg)"><div class="medal"></div></div></div>
+<div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(20,16,22,.94); border: 1px solid rgba(216,154,160,.6); box-shadow: 0 10px 24px rgba(0,0,0,.45)">
+<div style="width: 40px; height: 40px; border-radius: 50%; background: #D89AA0; color: #1A0F10; display: flex; align-items: center; justify-content: center; font-weight: 600">П</div>
+<div style="flex: 1"><div style="font-size: 16px; font-weight: 500">Паша</div><div style="font-size: 13px; color: #D89AA0">Роза · 6 карт</div></div>
+<div style="font-size: 12px; padding: 3px 8px; border-radius: 8px; background: rgba(216,154,160,.18); color: #F2D3D6">Подкидывает</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 910px; top: 742px; width: 210px; display: flex; flex-direction: column; align-items: center">
+<div style="display: flex; margin-bottom: -16px; position: relative; z-index: 1"><div class="card back" style="--w: 28px; transform: rotate(-12deg)"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px; transform: rotate(12deg)"><div class="medal"></div></div></div>
+<div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(20,16,22,.94); border: 1px solid rgba(217,184,119,.5); box-shadow: 0 10px 24px rgba(0,0,0,.45)">
+<div style="width: 40px; height: 40px; border-radius: 50%; background: #D9B877; color: #16120A; display: flex; align-items: center; justify-content: center; font-weight: 600">Н</div>
+<div style="flex: 1"><div style="font-size: 16px; font-weight: 500">Настя</div><div style="font-size: 13px; color: #D9B877">Золото · 5 карт</div></div>
+<div style="font-size: 12px; color: #B9AE9C">Ждёт</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 480px; top: 742px; width: 210px; display: flex; flex-direction: column; align-items: center">
+<div style="display: flex; margin-bottom: -16px; position: relative; z-index: 1"><div class="card back" style="--w: 28px; transform: rotate(-12deg)"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px; transform: rotate(12deg)"><div class="medal"></div></div></div>
+<div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(20,16,22,.94); border: 1px solid rgba(216,154,160,.6); box-shadow: 0 10px 24px rgba(0,0,0,.45)">
+<div style="width: 40px; height: 40px; border-radius: 50%; background: #D89AA0; color: #1A0F10; display: flex; align-items: center; justify-content: center; font-weight: 600">В</div>
+<div style="flex: 1"><div style="font-size: 16px; font-weight: 500">Вика</div><div style="font-size: 13px; color: #D89AA0">Роза · 6 карт</div></div>
+<div style="font-size: 12px; padding: 3px 8px; border-radius: 8px; background: rgba(216,154,160,.18); color: #F2D3D6">Подкидывает</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 24px; top: 400px; width: 210px; display: flex; flex-direction: column; align-items: center">
+<div style="display: flex; margin-bottom: -16px; position: relative; z-index: 1"><div class="card back" style="--w: 28px; transform: rotate(-12deg)"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px"><div class="medal"></div></div><div class="card back" style="--w: 28px; margin-left: -14px; transform: rotate(12deg)"><div class="medal"></div></div></div>
+<div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(20,16,22,.94); border: 1px solid rgba(217,184,119,.5); box-shadow: 0 10px 24px rgba(0,0,0,.45)">
+<div style="width: 40px; height: 40px; border-radius: 50%; background: #D9B877; color: #16120A; display: flex; align-items: center; justify-content: center; font-weight: 600">Т</div>
+<div style="flex: 1"><div style="font-size: 16px; font-weight: 500">Тимур</div><div style="font-size: 13px; color: #D9B877">Золото · 6 карт</div></div>
+<div style="font-size: 12px; color: #B9AE9C">Ждёт</div>
+</div>
+</div>
+
+<div class="dust" style="left: 420px; top: 560px; animation-delay: 0s"></div>
+<div class="dust" style="left: 640px; top: 420px; animation-delay: -1.2s"></div>
+<div class="dust" style="left: 980px; top: 600px; animation-delay: -2.5s"></div>
+<div class="dust" style="left: 1180px; top: 450px; animation-delay: -3.7s"></div>
+<div class="dust" style="left: 760px; top: 640px; animation-delay: -4.4s"></div>
+<div class="dust" style="left: 540px; top: 330px; animation-delay: -5.6s"></div>
+<div class="dust" style="left: 1060px; top: 330px; animation-delay: -6.3s"></div>
+<div class="dust" style="left: 880px; top: 500px; animation-delay: -7.1s"></div>
+<div style="position: absolute; left: 40px; bottom: 26px; font-size: 14px; color: #8F8676; letter-spacing: .06em">Партнёры сидят через одного и не подкидывают друг другу</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"table":{"editor":"enum","options":["Изумруд","Бордо","Ночь","Графит"],"default":"Бордо"},"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const felts = {
+      'Изумруд': 'radial-gradient(ellipse at 50% 40%, #1F6A4C 0%, #134631 55%, #0B2E20 100%)',
+      'Бордо': 'radial-gradient(ellipse at 50% 40%, #7A2236 0%, #571627 55%, #340C17 100%)',
+      'Ночь': 'radial-gradient(ellipse at 50% 40%, #1F3A66 0%, #142847 55%, #0B172C 100%)',
+      'Графит': 'radial-gradient(ellipse at 50% 40%, #3A3A40 0%, #26262B 55%, #151518 100%)'
+    };
+    return { felt: felts[this.props.table ?? 'Бордо'] || felts['Бордо'] };
+  }
+}
+</script>
+</body>
+</html>

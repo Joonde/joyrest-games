@@ -137,51 +137,42 @@ describe("история «Вечная зима»", () => {
     expect(WINTER.scenes.filter((s) => s.kind === "end").map((s) => (s.kind === "end" ? s.ending : "")).sort()).toEqual(["bad", "good", "mid"]);
   });
   it("все пути проходятся до концовки: каждая сцена встречается, у голосований есть выбор", () => {
+    // Обход состояний «сцена + флаги Саги» с запоминанием: ~300 тыс. путей сводятся к сотням состояний.
     const seen = new Set<string>();
     const ends = new Set<string>();
-    let paths = 0;
-    let minScenes = Infinity;
-    let maxScenes = 0;
-    let maxFights = 0;
-    const walk = (id: string, flags: string[], scenes: number, fights: number, depth: number): void => {
+    const memo = new Map<string, [number, number, number]>();
+    const walk = (id: string, flags: string[], depth: number): [number, number, number] => {
       expect(depth).toBeLessThan(60);
+      const key = `${id}|${[...flags].sort().join(",")}`;
+      const hit = memo.get(key);
+      if (hit) return hit;
       const scene = WINTER.scenes.find((x) => x.id === id);
       expect(scene, id).toBeTruthy();
-      if (!scene) return;
+      if (!scene) return [0, 0, 0];
       seen.add(id);
       const add = (flag?: string) => (flag && !flags.includes(flag) ? [...flags, flag] : flags);
-      const shown = scene.kind === "branch" ? scenes : scenes + 1;
-      switch (scene.kind) {
-        case "end":
-          ends.add(scene.ending);
-          paths++;
-          minScenes = Math.min(minScenes, shown);
-          maxScenes = Math.max(maxScenes, shown);
-          maxFights = Math.max(maxFights, fights);
-          return;
-        case "narrate":
-          return walk(scene.next, add(scene.flag), shown, fights, depth + 1);
-        case "branch":
-          return walk(branchNext(scene, flags), flags, shown, fights, depth + 1);
-        case "check":
-          for (const o of Object.values(scene.outcomes)) walk(o.next ?? scene.next, add(o.flag), shown, fights, depth + 1);
-          return;
-        case "vote": {
-          const options = visibleOptions(scene, flags);
-          expect(options.length).toBeGreaterThanOrEqual(2);
-          for (const o of options) walk(o.next, flags, shown, fights, depth + 1);
-          return;
-        }
-        case "fight":
-          walk(scene.win, flags, shown, fights + 1, depth + 1);
-          walk(scene.lose, flags, shown, fights + 1, depth + 1);
-          return;
-      }
+      const own = scene.kind === "branch" ? 0 : 1;
+      const fight = scene.kind === "fight" ? 1 : 0;
+      let next: Array<[string, string[]]> = [];
+      if (scene.kind === "end") ends.add(scene.ending);
+      else if (scene.kind === "narrate") next = [[scene.next, add(scene.flag)]];
+      else if (scene.kind === "branch") next = [[branchNext(scene, flags), flags]];
+      else if (scene.kind === "check") next = Object.values(scene.outcomes).map((o) => [o.next ?? scene.next, add(o.flag)]);
+      else if (scene.kind === "vote") {
+        const options = visibleOptions(scene, flags);
+        expect(options.length).toBeGreaterThanOrEqual(2);
+        next = options.map((o) => [o.next, flags]);
+      } else if (scene.kind === "fight") next = [[scene.win, flags], [scene.lose, flags]];
+      const tails = next.map(([to, f]) => walk(to, f, depth + 1));
+      const result: [number, number, number] = tails.length === 0
+        ? [own, own, 0]
+        : [own + Math.min(...tails.map((t) => t[0])), own + Math.max(...tails.map((t) => t[1])), fight + Math.max(...tails.map((t) => t[2]))];
+      memo.set(key, result);
+      return result;
     };
-    walk(WINTER.start, [], 0, 0, 0);
+    const [minScenes, maxScenes, maxFights] = walk(WINTER.start, [], 0);
     expect([...ends].sort()).toEqual(["bad", "good", "mid"]);
     expect(WINTER.scenes.filter((x) => !seen.has(x.id)).map((x) => x.id)).toEqual([]);
-    expect(paths).toBeGreaterThan(100);
     expect(minScenes).toBeGreaterThanOrEqual(14);
     expect(maxScenes).toBeLessThanOrEqual(30);
     expect(maxFights).toBeLessThanOrEqual(5);

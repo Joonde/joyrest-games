@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Дурак — телефон игрока</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&amp;family=Jost:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#D9B877}a:hover{color:#F0D49A}
+.card{position:relative;flex:none;width:var(--w);height:calc(var(--w)*1.4);border-radius:calc(var(--w)*.1);background:#FBF7EE;box-shadow:0 8px 20px rgba(0,0,0,.45),inset 0 0 0 1px rgba(184,150,90,.6);color:#1B1A22;overflow:hidden;font-family:'Cormorant Garamond',serif}
+.card::before{content:"";position:absolute;inset:calc(var(--w)*.05);border:1px solid rgba(184,150,90,.55);border-radius:calc(var(--w)*.07);pointer-events:none}
+.card::after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 42%,rgba(255,236,190,.45) 50%,transparent 58%);animation:sheen 5s ease-in-out infinite;pointer-events:none}
+@keyframes sheen{0%,55%{transform:translateX(-70%)}85%,100%{transform:translateX(70%)}}
+.card.red{color:#A3243B}
+.cr{position:absolute;top:calc(var(--w)*.08);left:calc(var(--w)*.1);font-weight:700;font-size:calc(var(--w)*.27);line-height:.85;text-align:center}
+.cr span{display:block;font-size:.75em;margin-top:2px}
+.cr.b{top:auto;left:auto;bottom:calc(var(--w)*.08);right:calc(var(--w)*.1);transform:rotate(180deg)}
+.cp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:calc(var(--w)*.55)}
+.back{background-color:#5A1626;background-image:repeating-linear-gradient(45deg,rgba(217,184,119,.22) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(217,184,119,.22) 0 1px,transparent 1px 9px)}
+.back::before{border-color:rgba(217,184,119,.8)}
+.medal{position:absolute;left:50%;top:50%;width:calc(var(--w)*.56);height:calc(var(--w)*.56);transform:translate(-50%,-50%);border-radius:50%;background:#5A1626;border:1px solid #D9B877;display:flex;align-items:center;justify-content:center;color:#D9B877;font-weight:700;font-size:calc(var(--w)*.16)}
+.slot{position:absolute;width:104px;padding:0;border:0;background:none;cursor:pointer;transform-origin:50% 140%;transition:transform .25s ease}
+.slot .card{transition:transform .25s cubic-bezier(.3,1.4,.5,1),box-shadow .25s,filter .25s}
+.slot.dim .card{filter:brightness(.62) saturate(.7)}
+.slot.sel .card{transform:translateY(-38px);box-shadow:0 0 0 3px #E8C77E,0 18px 30px rgba(0,0,0,.6)}
+.f0{left:24px;top:27px;transform:rotate(-21deg)}.f1{left:58px;top:14px;transform:rotate(-15deg)}.f2{left:92px;top:5px;transform:rotate(-9deg)}.f3{left:126px;top:1px;transform:rotate(-3deg)}
+.f4{left:160px;top:1px;transform:rotate(3deg)}.f5{left:194px;top:5px;transform:rotate(9deg)}.f6{left:228px;top:14px;transform:rotate(15deg)}.f7{left:262px;top:27px;transform:rotate(21deg)}
+.opp{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:#B9AE9C;min-width:56px}
+.av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
+.card{box-sizing:border-box;border-radius:calc(var(--w)*.09);border:max(2px,calc(var(--w)*.03)) solid transparent;background:radial-gradient(ellipse at 30% 18%,#FFFDF7 0%,#F7F0E0 55%,#EADFC5 100%) padding-box,linear-gradient(135deg,#7A5A24 0%,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877 100%) border-box;box-shadow:0 12px 26px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.35)}
+.card::before{inset:max(2px,calc(var(--w)*.025));border:max(3px,calc(var(--w)*.03)) double rgba(168,130,56,.7);border-radius:calc(var(--w)*.05)}
+.card::after{background:linear-gradient(115deg,transparent 40%,rgba(255,232,180,.35) 47%,rgba(255,255,255,.75) 50%,rgba(255,220,160,.35) 53%,transparent 60%)}
+.cr,.cp{background:linear-gradient(160deg,#55525E 0%,#121117 75%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card.red .cr,.card.red .cp{background-image:linear-gradient(160deg,#D9466A 0%,#8A1430 75%)}
+.cr{z-index:1;top:calc(var(--w)*.08);left:calc(var(--w)*.09);font-size:calc(var(--w)*.2);line-height:.95}
+.cr span{font-size:.8em;margin-top:0}
+.cr.b{bottom:calc(var(--w)*.08);right:calc(var(--w)*.09)}
+.cp{font-size:calc(var(--w)*.42)}
+.back{background:repeating-linear-gradient(45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,repeating-linear-gradient(-45deg,rgba(233,207,138,.22) 0 1px,transparent 1px 9px) padding-box,radial-gradient(circle at 50% 40%,#7E2639 0%,#3E0E19 100%) padding-box,linear-gradient(135deg,#7A5A24 0%,#E9CF8A 22%,#A88238 45%,#F6E3A6 62%,#8C6A2F 82%,#D9B877 100%) border-box}
+.back::before{border-color:rgba(233,207,138,.8)}
+.medal{width:calc(var(--w)*.5);height:calc(var(--w)*.5);background:radial-gradient(circle at 40% 35%,#6E1F31,#3E0E19);border:1px solid #E9CF8A;box-shadow:0 0 0 calc(var(--w)*.03) rgba(62,14,25,.9),0 0 0 calc(var(--w)*.04) rgba(233,207,138,.6);color:#E9CF8A;font-size:calc(var(--w)*.14)}
+.medal::after{content:"";position:absolute;inset:-22%;border-radius:50%;border:1px dashed rgba(233,207,138,.55);animation:spin 20s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tex{position:absolute;inset:0;border-radius:inherit;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.2px);background-size:5px 5px;pointer-events:none}
+.light{position:absolute;inset:0;border-radius:inherit;background:radial-gradient(ellipse at 50% 28%,rgba(255,236,190,.22) 0%,transparent 55%);animation:breathe 7s ease-in-out infinite;pointer-events:none}
+@keyframes breathe{0%,100%{opacity:.6}50%{opacity:1}}
+.inlay{position:absolute;inset:12px;border-radius:inherit;padding:2px;background:linear-gradient(90deg,#8C6A2F,#F6E3A6,#8C6A2F,#D9B877,#8C6A2F,#F6E3A6,#8C6A2F) 0 0/300% 100%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.75;animation:glint 8s linear infinite;pointer-events:none}
+@keyframes glint{to{background-position:300% 0}}
+.dust{position:absolute;width:4px;height:4px;border-radius:50%;background:#F6E3A6;box-shadow:0 0 8px 2px rgba(246,227,166,.6);opacity:0;animation:rise 8s ease-in-out infinite;pointer-events:none}
+@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:.85}100%{transform:translateY(-120px);opacity:0}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 18px 16px 22px; display: flex; flex-direction: column; background: radial-gradient(ellipse at 50% 30%, #2A1520 0%, #0E0C10 65%); font-family: Jost, sans-serif; color: #EDE6DA; overflow: hidden">
+
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid #D9B877; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 14px; color: #D9B877">J✦R</div>
+<div><div style="font-size: 15px; font-weight: 500">Сергей · <span style="color: #D9B877">Золото</span></div><div style="font-size: 12px; color: #B9AE9C">Переводной · 36 карт</div></div>
+</div>
+<div style="text-align: right">
+<div style="font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C">Козырь</div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 700; color: #F09AA6; line-height: 1">♥︎ <span style="font-size: 15px; color: #E8D9B5">колода 12</span></div>
+</div>
+</div>
+
+<div style="margin-top: 16px; display: flex; justify-content: space-between">
+<div class="opp"><div class="av" style="background: #D89AA0; color: #1A0F10; box-shadow: 0 0 0 2px #E8C77E">Л</div>Лена · 4</div>
+<div class="opp"><div class="av" style="background: #D89AA0; color: #1A0F10">П</div>Паша · 6</div>
+<div class="opp"><div class="av" style="background: #D9B877; color: #16120A">Н</div>Настя · 5</div>
+<div class="opp"><div class="av" style="background: #D89AA0; color: #1A0F10">В</div>Вика · 6</div>
+<div class="opp"><div class="av" style="background: #D9B877; color: #16120A">Т</div>Тимур · 6</div>
+</div>
+
+<div style="margin-top: 16px; padding: 14px 12px; border-radius: 16px; background: rgba(122,34,54,.28); border: 1px solid rgba(217,184,119,.22)">
+<div style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #B9AE9C; text-align: center">Лена ходит под вас</div>
+<div style="margin-top: 10px; display: flex; justify-content: center; gap: 22px">
+<div style="position: relative; width: 66px; height: 82px"><div class="card" style="--w: 50px; position: absolute; left: 0; top: 0"><div class="cr">9<span>♣︎</span></div><div class="cp">♣︎</div></div><div class="card" style="--w: 50px; position: absolute; left: 14px; top: 12px; transform: rotate(9deg)"><div class="cr">K<span>♣︎</span></div><div class="cp">♣︎</div></div></div>
+<div style="position: relative; width: 66px; height: 82px"><div class="card red" style="--w: 50px; position: absolute; left: 0; top: 0"><div class="cr">9<span>♦︎</span></div><div class="cp">♦︎</div></div><div class="card red" style="--w: 50px; position: absolute; left: 14px; top: 12px; transform: rotate(9deg)"><div class="cr">6<span>♥︎</span></div><div class="cp">♥︎</div></div></div>
+<div style="position: relative; width: 66px; height: 82px"><div class="card" style="--w: 50px; position: absolute; left: 0; top: 0; box-shadow: 0 0 0 2px #E8C77E, 0 8px 20px rgba(0,0,0,.45)"><div class="cr">Q<span>♠︎</span></div><div class="cp">♠︎</div></div></div>
+</div>
+<div style="margin-top: 8px; text-align: center; font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: #F3E3BC">{{hint}}</div>
+</div>
+
+<div style="position: relative; height: 240px; margin-top: auto">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="8">
+<button type="button" class="slot {{c.slot}}" onClick="{{c.pick}}" aria-label="{{c.label}}">
+<div class="card {{c.color}}" style="--w: 104px"><div class="cr">{{c.rank}}<span>{{c.suit}}</span></div><div class="cp">{{c.suit}}</div><div class="cr b">{{c.rank}}<span>{{c.suit}}</span></div></div>
+</button>
+</sc-for>
+</div>
+
+<div style="display: flex; gap: 8px; margin-top: 8px">
+<button type="button" style="flex: 1; height: 54px; border-radius: 14px; border: 1px solid rgba(237,230,218,.3); background: transparent; color: #EDE6DA; font-family: Jost, sans-serif; font-size: 16px; font-weight: 600">Взять</button>
+<button type="button" disabled style="flex: 1; height: 54px; border-radius: 14px; border: 1px solid rgba(217,184,119,.2); background: transparent; color: #6E675C; font-family: Jost, sans-serif; font-size: 16px; font-weight: 600">Перевести</button>
+<button type="button" style="flex: 1.3; height: 54px; border-radius: 14px; border: none; background: #E8C77E; color: #1B1A22; font-family: Jost, sans-serif; font-size: 16px; font-weight: 600">Покрыть</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { picked: 2 }; }
+  renderVals() {
+    const hand = [
+      { rank: '6', suit: '♠︎', red: false, ok: false, name: 'шестёрка пик' },
+      { rank: '8', suit: '♠︎', red: false, ok: false, name: 'восьмёрка пик' },
+      { rank: 'K', suit: '♠︎', red: false, ok: true, name: 'король пик' },
+      { rank: '10', suit: '♦︎', red: true, ok: false, name: 'десятка бубен' },
+      { rank: 'J', suit: '♦︎', red: true, ok: false, name: 'валет бубен' },
+      { rank: 'A', suit: '♣︎', red: false, ok: false, name: 'туз треф' },
+      { rank: '7', suit: '♥︎', red: true, ok: true, name: 'семёрка червей, козырь' },
+      { rank: 'Q', suit: '♥︎', red: true, ok: true, name: 'дама червей, козырь' }
+    ];
+    const picked = this.state.picked;
+    const cards = hand.map((h, i) => ({
+      rank: h.rank, suit: h.suit, label: h.name,
+      color: h.red ? 'red' : '',
+      slot: 'f' + i + (i === picked ? ' sel' : '') + (h.ok ? '' : ' dim'),
+      pick: () => this.setState({ picked: i })
+    }));
+    const p = hand[picked];
+    const hint = p && p.ok ? 'Покрыть даму ♠︎ картой ' + p.rank + ' ' + p.suit : 'Эта карта не бьёт даму ♠︎';
+    return { cards, hint };
+  }
+}
+</script>
+</body>
+</html>

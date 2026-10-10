@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Пульт — настройки карточной игры</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&amp;family=Jost:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#D9B877}a:hover{color:#F0D49A}
+.sec{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#B9AE9C;margin:0 0 10px}
+.game{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border-radius:16px;border:1px solid rgba(217,184,119,.22);background:rgba(255,255,255,.03);color:#EDE6DA;font-family:Jost,sans-serif;text-align:left;cursor:pointer}
+.game.on{border-color:#E8C77E;background:rgba(232,199,126,.1)}
+.gi{width:44px;height:44px;border-radius:12px;background:#1A1418;border:1px solid rgba(217,184,119,.45);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:24px;color:#E8C77E}
+.chip{padding:9px 14px;border-radius:999px;border:1px solid rgba(217,184,119,.3);background:transparent;color:#E8D9B5;font-family:Jost,sans-serif;font-size:14px;cursor:pointer;min-height:40px}
+.chip.on{background:#E8C77E;border-color:#E8C77E;color:#1B1A22;font-weight:600}
+.sw{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;border:0;background:none;color:#B9AE9C;font-family:Jost,sans-serif;font-size:11px;cursor:pointer}
+.dot{width:54px;height:54px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(217,184,119,.5)}
+.sw.on .dot,.sw.on .mini{outline:2px solid #E8C77E;outline-offset:3px}
+.sw.on{color:#F3E3BC}
+.mini{width:46px;height:64px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(217,184,119,.7)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(217,184,119,.12);font-size:15px}
+.val{padding:4px 10px;border-radius:8px;background:rgba(217,184,119,.12);color:#F3E3BC;font-size:14px;white-space:nowrap}
+.step{width:40px;height:40px;border-radius:12px;border:1px solid rgba(217,184,119,.4);background:transparent;color:#F3E3BC;font-size:20px;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 844px; box-sizing: border-box; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; background: #121015; font-family: Jost, sans-serif; color: #EDE6DA">
+
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 14px">
+<div style="width: 46px; height: 46px; border-radius: 50%; border: 1px solid #D9B877; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 17px; color: #D9B877">J✦R</div>
+<div><div style="font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 600; line-height: 1">Карточный стол</div><div style="font-size: 13px; color: #B9AE9C; margin-top: 4px">Пульт ведущего · настройки перед игрой</div></div>
+</div>
+<button type="button" style="height: 48px; padding: 0 24px; border-radius: 14px; border: none; background: #E8C77E; color: #1B1A22; font-family: Jost, sans-serif; font-size: 16px; font-weight: 600; cursor: pointer">Открыть стол и QR</button>
+</div>
+
+<div style="flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; gap: 28px; min-height: 0">
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div class="sec">Игра</div>
+<sc-for list="{{games}}" as="g" hint-placeholder-count="3">
+<button type="button" class="game {{g.cls}}" onClick="{{g.pick}}">
+<div class="gi">{{g.icon}}</div>
+<div><div style="font-size: 17px; font-weight: 500">{{g.name}}</div><div style="font-size: 13px; color: #B9AE9C">{{g.sub}}</div></div>
+</button>
+</sc-for>
+<div class="sec" style="margin-top: 16px">Как играют</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<sc-for list="{{modes}}" as="m" hint-placeholder-count="2"><button type="button" class="chip {{m.cls}}" onClick="{{m.pick}}">{{m.name}}</button></sc-for>
+</div>
+<div style="font-size: 13px; color: #B9AE9C; line-height: 1.45">{{modeNote}}</div>
+</div>
+
+<div style="display: flex; flex-direction: column; min-width: 0">
+<div class="sec">Вариант правил</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<sc-for list="{{variants}}" as="v" hint-placeholder-count="4"><button type="button" class="chip {{v.cls}}" onClick="{{v.pick}}">{{v.name}}</button></sc-for>
+</div>
+<div style="margin-top: 22px; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid rgba(217,184,119,.22)">
+<div><div style="font-size: 16px; font-weight: 500">Мест за столом</div><div style="font-size: 13px; color: #B9AE9C">по правилам максимум {{max}}; гостей больше — откройте ещё стол</div></div>
+<div style="display: flex; align-items: center; gap: 12px">
+<button type="button" class="step" onClick="{{dec}}" aria-label="Меньше мест">−</button>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 700; min-width: 40px; text-align: center; color: #F3E3BC">{{seats}}</div>
+<button type="button" class="step" onClick="{{inc}}" aria-label="Больше мест">+</button>
+</div>
+</div>
+<div class="sec" style="margin-top: 22px">Правила</div>
+<div>
+<sc-for list="{{rules}}" as="r" hint-placeholder-count="6"><div class="row"><span>{{r.k}}</span><span class="val">{{r.v}}</span></div></sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div class="sec">Превью стола</div>
+<div style="position: relative; height: 170px; border-radius: 50%; background: #2A1A14; padding: 12px; box-sizing: border-box; box-shadow: 0 16px 40px rgba(0,0,0,.5)">
+<div style="position: relative; width: 100%; height: 100%; border-radius: 50%; background: {{feltBg}}; box-shadow: inset 0 0 0 1px rgba(217,184,119,.55); display: flex; align-items: center; justify-content: center; gap: 10px">
+<div style="width: 40px; height: 56px; border-radius: 5px; background: {{backBg}}; box-shadow: inset 0 0 0 1px rgba(217,184,119,.8), 0 6px 12px rgba(0,0,0,.4); transform: rotate(-8deg)"></div>
+<div style="font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 700; color: rgba(217,184,119,.45)">J✦R</div>
+<div style="width: 40px; height: 56px; border-radius: 5px; background: {{backBg}}; box-shadow: inset 0 0 0 1px rgba(217,184,119,.8), 0 6px 12px rgba(0,0,0,.4); transform: rotate(8deg)"></div>
+</div>
+</div>
+<div class="sec" style="margin-top: 14px">Шаблон стола</div>
+<div style="display: flex; justify-content: space-between">
+<sc-for list="{{felts}}" as="f" hint-placeholder-count="4"><button type="button" class="sw {{f.cls}}" onClick="{{f.pick}}"><div class="dot" style="background: {{f.bg}}"></div>{{f.name}}</button></sc-for>
+</div>
+<div class="sec" style="margin-top: 14px">Колода · стиль карт</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 6px">
+<sc-for list="{{backs}}" as="b" hint-placeholder-count="4"><button type="button" class="sw {{b.cls}}" onClick="{{b.pick}}"><div class="mini" style="background: {{b.bg}}"></div>{{b.name}}</button></sc-for>
+</div>
+<div style="display: flex; gap: 8px; margin-top: 12px">
+<button type="button" style="flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid #D9B877; background: rgba(217,184,119,.12); color: #F3E3BC; font-family: Jost, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer">Показать колоды на экран</button>
+<button type="button" style="flex: 1; min-height: 44px; border-radius: 12px; border: none; background: #E8C77E; color: #1B1A22; font-family: Jost, sans-serif; font-size: 14px; font-weight: 600; cursor: pointer">Голосование гостей</button>
+</div>
+<div style="font-size: 12px; color: #8F8676; margin-top: 6px">Можно и посреди игры: новая колода — со следующей раздачи</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { game: 0, variant: 0, mode: 0, seats: 8, felt: 0, back: 0 }; }
+  renderVals() {
+    const s = this.state;
+    const lattice = (c, g) => 'repeating-linear-gradient(45deg, ' + g + ' 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, ' + g + ' 0 1px, transparent 1px 7px), ' + c;
+    const G = [
+      { name: 'Покер', icon: '♠︎', sub: 'холдем, омаха · до 10 мест',
+        variants: ['Техасский холдем', 'Омаха', 'Омаха Hi-Lo', 'Шорт-дек 6+'], max: [10, 10, 10, 9],
+        rules: [['Лимит ставок', 'No-Limit'], ['Стартовые фишки', '5 000'], ['Блайнды', '50 / 100, рост каждые 15 мин'], ['Время на ход', '30 с'], ['Подсказка комбинации', 'вкл.'], ['Анте', 'выкл.']] },
+      { name: 'Дурак', icon: '♥︎', sub: 'подкидной, переводной · до 6',
+        variants: ['Подкидной', 'Переводной', 'Погонный', 'Пики пиками'], max: [6, 6, 6, 6],
+        rules: [['Колода', '36 карт'], ['Подкидывать', 'до 6 карт, в первый отбой 5'], ['Кто подкидывает', 'все игроки'], ['Первый ход', 'младший козырь'], ['Перевод', 'кроме первого кона'], ['Подсветка карт, которые бьют', 'вкл.']] },
+      { name: 'Блэкджек', icon: 'A', sub: 'против крупье · 7 боксов',
+        variants: ['Классический', 'Европейский'], max: [7, 7],
+        rules: [['Колод в шузе', '6'], ['Дилер', 'берёт до 16, стоит на 17'], ['Блэкджек платит', '3 к 2'], ['Дабл', 'на 9, 10, 11'], ['Сплит', 'один раз, тузы по одной карте'], ['Страховка', '2 к 1']] }
+    ];
+    const g = G[s.game];
+    const vi = Math.min(s.variant, g.variants.length - 1);
+    const max = g.max[vi];
+    const seats = Math.min(s.seats, max);
+    const F = [
+      { name: 'Изумруд', bg: 'radial-gradient(circle at 40% 35%, #1F6A4C, #0B2E20)' },
+      { name: 'Бордо', bg: 'radial-gradient(circle at 40% 35%, #7A2236, #340C17)' },
+      { name: 'Ночь', bg: 'radial-gradient(circle at 40% 35%, #1F3A66, #0B172C)' },
+      { name: 'Графит', bg: 'radial-gradient(circle at 40% 35%, #3A3A40, #151518)' }
+    ];
+    const B = [
+      { name: 'Классика', bg: lattice('#5A1626', 'rgba(217,184,119,.35)') },
+      { name: 'Готика', bg: 'repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,203,214,.35) 0deg 3deg, transparent 3deg 18deg), #120C16' },
+      { name: 'Греция', bg: 'radial-gradient(circle, #1E1A16 0 22%, transparent 24%), #B5482A' },
+      { name: 'Рим', bg: 'radial-gradient(circle, transparent 0 24%, #E9CF8A 25% 29%, transparent 30%), #4B1E4F' },
+      { name: 'Кибер', bg: 'repeating-linear-gradient(0deg, rgba(25,240,255,.4) 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, rgba(255,46,136,.4) 0 1px, transparent 1px 8px), #0B0D18' },
+      { name: 'Винтаж', bg: 'repeating-radial-gradient(circle at 50% 0, rgba(239,226,196,.35) 0 1px, transparent 1px 5px), #1C2A3F' },
+      { name: 'Хохлома', bg: 'radial-gradient(circle at 35% 62%, #C8241B 0 9%, transparent 10%), radial-gradient(circle at 65% 35%, #E7B54A 0 11%, transparent 12%), #120D0A' },
+      { name: 'K-pop', bg: 'conic-gradient(#FF8AC8, #B79CFF, #7FE7FF, #FFD6F0, #FF8AC8)' },
+      { name: 'Аниме', bg: 'radial-gradient(circle at 66% 28%, #FFF4D6 0 12%, transparent 13%), linear-gradient(180deg, #0F0B28, #2B1F5C 45%, #6E3B7C 75%, #E58AA6)' },
+      { name: 'Свадьба', bg: lattice('#E9D6D2', 'rgba(170,120,110,.45)') }
+    ];
+    const notes = ['Каждый гость садится на своё место со своего телефона.', 'За одним местом — команда (столик). Ходит капитан, остальные видят карты команды у себя.'];
+    return {
+      games: G.map((x, i) => ({ name: x.name, icon: x.icon, sub: x.sub, cls: i === s.game ? 'on' : '', pick: () => this.setState({ game: i, variant: 0 }) })),
+      variants: g.variants.map((n, i) => ({ name: n, cls: i === vi ? 'on' : '', pick: () => this.setState({ variant: i }) })),
+      modes: ['Каждый сам', 'Командами'].map((n, i) => ({ name: n, cls: i === s.mode ? 'on' : '', pick: () => this.setState({ mode: i }) })),
+      modeNote: notes[s.mode],
+      rules: g.rules.map(r => ({ k: r[0], v: r[1] })),
+      max, seats,
+      dec: () => this.setState({ seats: Math.max(2, seats - 1) }),
+      inc: () => this.setState({ seats: Math.min(max, seats + 1) }),
+      felts: F.map((x, i) => ({ name: x.name, bg: x.bg, cls: i === s.felt ? 'on' : '', pick: () => this.setState({ felt: i }) })),
+      backs: B.map((x, i) => ({ name: x.name, bg: x.bg, cls: i === s.back ? 'on' : '', pick: () => this.setState({ back: i }) })),
+      feltBg: F[s.felt].bg,
+      backBg: B[s.back].bg
+    };
+  }
+}
+</script>
+</body>
+</html>

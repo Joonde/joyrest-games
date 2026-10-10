@@ -1,0 +1,26 @@
+{
+  "_comment": "Сага — общее состояние группы. Истории читают её на входе и пишут на выходе.",
+  "saga_id": "SG-0001",
+  "threat_level": 3,
+  "stories_done": ["ST-001", "ST-005"],
+  "heroes": [
+    {
+      "player": "Игрок 1",
+      "god": "GD-01",
+      "stats": { "might": 84, "wisdom": 52, "cunning": 27, "influence": 68, "endurance": 50, "luck": 33 },
+      "health": 100,
+      "artifacts": ["AR-cyclops-bolt", null, null, null],
+      "bag": ["AR-cursed-ring"],
+      "wounds": [],
+      "debts": ["hades_favor"],
+      "fate_bag_count": 2
+    }
+  ],
+  "world_flags": ["persephone_saved", "dark_mark_found", "cerberus_gone"],
+  "relations": { "CR-charon": { "Игрок 1": 20 }, "CR-demeter": { "Игрок 1": 60 } },
+  "map": { "open_worlds": ["WD-olympus", "WD-earth", "WD-hades"], "hell_circles_done": [1, 2, 3], "fog_worlds_open": [] },
+  "log": [
+    { "t": "2026-10-10T19:05:00Z", "type": "roll", "who": "Игрок 1", "stat": "influence", "value": 87, "outcome": "good" },
+    { "t": "2026-10-10T19:06:10Z", "type": "host_edit", "who": "Ведущий", "target": "Игрок 1", "change": { "wisdom": 2 }, "reason": "помощь Деметре" }
+  ]
+}

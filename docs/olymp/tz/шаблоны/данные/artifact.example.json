@@ -1,0 +1,18 @@
+{
+  "id": "AR-cyclops-bolt",
+  "name": "Молния Киклопов",
+  "rarity": "legendary",
+  "owner_god": "GD-01",
+  "other_gods_max_outcome": "mid",
+  "world": "WD-tartarus",
+  "source": { "story": "ST-004", "scene": "s6" },
+  "lore": "Вторая, недоделанная молния, выкованная киклопами.",
+  "outcomes": {
+    "crit_success": { "stats": { "might": 6, "wisdom": 3 }, "action": { "id": "bolt_strike", "uses": "per_battle", "damage_mult": 2 } },
+    "good": { "stats": { "might": 5, "wisdom": 2 }, "action": { "id": "bolt_strike", "uses": "per_story", "damage_mult": 2 } },
+    "mid": { "stats": { "might": 4, "wisdom": -1 } },
+    "bad": { "stats": { "might": 3, "wisdom": -3 } },
+    "crit_fail": { "stats": { "might": 3, "luck": -4 }, "curse": "on_crit_fail_hits_ally" }
+  },
+  "limits": { "max_bonus_per_stat_all_artifacts": 15, "stat_cap": 95 }
+}

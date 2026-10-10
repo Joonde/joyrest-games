@@ -1,0 +1,21 @@
+{
+  "id": "GD-01",
+  "name": "Зевс",
+  "domain": "гром, власть",
+  "tier": "olympian",
+  "team_role": "attack_leader",
+  "home_world": "WD-olympus",
+  "symbols": ["орёл", "молния", "дуб", "скипетр"],
+  "base_stats": { "might": 80, "wisdom": 50, "cunning": 25, "influence": 65, "endurance": 50, "luck": 30 },
+  "health": 100,
+  "ability": { "id": "thunderbolt", "text": "Один мощный удар за бой (урон ×2), бьёт любого, кроме Аида", "uses": "per_battle" },
+  "weakness": { "id": "hera_jealousy", "text": "Против Геры и её союзников броски −10", "roll_mod": -10, "against": ["GD-02"] },
+  "talents": [
+    { "id": "eagle", "text": "Разведка сцены" },
+    { "id": "father_aegis", "text": "Щит для союзника раз в историю" }
+  ],
+  "counters": { "strong_against": ["GD-35", "titans"], "weak_against": ["GD-13", "GD-28"] },
+  "story_hooks": ["власть на Олимпе", "Кронос", "ревность Геры", "дети-полубоги"],
+  "portrait": { "file": "zeus.jpg", "animation": "lightning_flash" },
+  "lore": "См. библию мира."
+}

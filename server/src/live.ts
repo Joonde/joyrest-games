@@ -942,6 +942,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       // Одно устройство — одна команда; в сессии — не больше MAX_TEAMS команд (спам на большом экране).
       // Подсчёт и вставка — в одной транзакции под замком сессии: две вкладки или повтор после
       // обрыва не создадут вторую команду с тем же капитаном и не пробьют лимит.
+      const teamName = body.name as string;
       const outcome = await sql.begin(async (tx) => {
         await tx`select pg_advisory_xact_lock(hashtext(${`teams:${session.id}`}::text))`;
         const [counts] = await tx<{ mine: number; total: number }[]>`
@@ -951,7 +952,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if ((counts?.total ?? 0) >= MAX_TEAMS) return { error: 429 as const };
         const inserted = await tx<ParticipantRow[]>`
           insert into participants (session_id, id, name, kind, team_id, captain_uid)
-          values (${session.id}, ${teamId}, ${body.name}, 'team', null, ${who.uid})
+          values (${session.id}, ${teamId}, ${teamName}, 'team', null, ${who.uid})
           on conflict (session_id, id) do nothing returning ${tx(PARTICIPANT_COLUMNS)}`;
         return { rows: inserted };
       });

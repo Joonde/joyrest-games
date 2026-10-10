@@ -383,7 +383,7 @@ function useMyAnswer(session: Session, pid: string, ask: boolean, personal = fal
   }, [session.id, step, slot, pid, ask]);
 
   const current = answer?.slot === slot ? answer.value : undefined;
-  return [current, (value: unknown) => setAnswer({ slot, value: { value } })] as const;
+  return [current, (value: unknown) => setAnswer({ slot, value: { value } }), () => setAnswer({ slot, value: null })] as const;
 }
 
 function InGame({
@@ -421,13 +421,17 @@ function InGame({
   const ask =
     (session.state.step === firstStep.current && stage !== "ready") ||
     (role === "member" && (stage === "reveal" || stage === "board"));
-  const [myAnswer, setMyAnswer] = useMyAnswer(session, pid, phase === "playing" && ask);
+  const [myAnswer, setMyAnswer, clearMyAnswer] = useMyAnswer(session, pid, phase === "playing" && ask);
   // Режим команд: свой ответ телефона (подсказка капитана, голос участника) — по своему игроку.
-  const [myPersonal, setMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && session.state.step === firstStep.current && stage !== "ready", true);
+  const [myPersonal, setMyPersonal, clearMyPersonal] = useMyAnswer(session, me.id, teams && phase === "playing" && session.state.step === firstStep.current && stage !== "ready", true);
   const [personalSending, setPersonalSending] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useWakeLock(phase !== "finished");
+  // Ведущий добавил время или открыл новый шаг — прежнее «время вышло» больше не верно.
+  useEffect(() => {
+    setError(null);
+  }, [session.state.timeLimit, session.state.step, session.state.stage]);
 
   // Ведущий убрал гостя: запись была в таблице и пропала.
   const seen = useRef(false);
@@ -467,6 +471,8 @@ function InGame({
           setMyAnswer(saved.value);
         } else {
           forgetAnswer(session.id, slot);
+          // Ответа на сервере нет — кнопки снова доступны (ведущий может дать «+10 секунд»).
+          clearMyAnswer();
           setError(session.state.timeLimit === null ? "Не успели: ведущий уже показал ответ." : "Ответ не принят: время вышло.");
         }
       }
@@ -493,6 +499,7 @@ function InGame({
           setMyPersonal(saved.value);
         } else {
           forgetAnswer(session.id, slot);
+          clearMyPersonal();
           setError("Не принято: вопрос уже закрыт.");
         }
       }

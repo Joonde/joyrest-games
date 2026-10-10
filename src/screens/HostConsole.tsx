@@ -360,6 +360,9 @@ function Console({ session }: { session: Session }) {
                 Технический перерыв
               </button>
             )}
+            {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
+              <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
+            )}
             {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
             {phase === "playing" && withScreen && slide?.kind !== "join" && (
               <button

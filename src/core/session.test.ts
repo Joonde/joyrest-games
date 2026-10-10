@@ -106,5 +106,7 @@ describe("+10 секунд", () => {
     expect(addTimeChange({ ...open, timeLimit: null }, 105_000)).toBeNull();
     expect(addTimeChange({ ...open, revealed: true }, 105_000)).toBeNull();
     expect(addTimeChange({ ...open, timeLimit: 900 }, 105_000)).toBeNull();
+    // Открыт дольше потолка — продление не дало бы ни секунды.
+    expect(addTimeChange(open, 100_000 + 905_000)).toBeNull();
   });
 });

@@ -166,6 +166,9 @@ function Screen({ session }: { session: Session }) {
   if (phase === "playing") sawGame.current = true;
   // Пульт видит, что экран на связи и звук разрешён.
   useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
+  // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
+  const slide = session.state.slide ?? null;
+  const shownSlide = slide && !(slide.kind === "join" && phase === "finished") ? slide : null;
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
@@ -183,9 +186,9 @@ function Screen({ session }: { session: Session }) {
           </button>
         )
       )}
-      {session.state.slide ? (
+      {shownSlide ? (
         <main className="quiz-stage">
-          <SlideView slide={session.state.slide} code={session.code} />
+          <SlideView slide={shownSlide} code={session.code} />
         </main>
       ) : (
         <>

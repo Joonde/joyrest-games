@@ -84,7 +84,8 @@ export function addTimeChange(state: SessionState, serverNow: number, seconds = 
   if (state.phase !== "playing" || state.stage !== "question" || state.revealed || state.startedAt === null || state.timeLimit === null) return null;
   const elapsed = Math.max(0, Math.ceil((serverNow - state.startedAt) / 1000));
   const next = Math.min(MAX_TIME_LIMIT, Math.max(state.timeLimit, elapsed) + seconds);
-  if (next <= state.timeLimit) return null;
+  // Продление должно дать время с этой минуты, иначе кнопка «сработает» впустую (потолок близко).
+  if (next <= state.timeLimit || state.startedAt + next * 1000 <= serverNow) return null;
   return { state: { timeLimit: next }, expect: { phase: "playing", step: state.step, stage: "question" } };
 }
 

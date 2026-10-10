@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { addTimeChange } from "../../core/session";
+import { useServerNow } from "./useServerNow";
 import type { Session, SessionChange } from "../../data/types";
 
 /**
@@ -10,7 +11,10 @@ export function AddTimeButton({ session, now, onApply }: { session: Session; now
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const { phase, stage, timeLimit, revealed } = session.state;
-  if (phase !== "playing" || stage !== "question" || revealed || timeLimit === null) return null;
+  const open = phase === "playing" && stage === "question" && !revealed && timeLimit !== null;
+  // Перерисовка раз в секунду: кнопка гаснет, когда продлевать уже нечего.
+  useServerNow(1000, open);
+  if (!open) return null;
 
   async function add() {
     const change = addTimeChange(session.state, now());

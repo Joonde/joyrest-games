@@ -12529,9 +12529,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 /* Слайд «QR для входа»: крупный код поверх игры для опоздавших. */
 .slide__join {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 5cqw;
   text-align: left;
+}
+
+.slide__join .big-code {
+  font-size: 12cqh;
 }
 
 .slide__qr--join {

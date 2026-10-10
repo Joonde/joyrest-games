@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<style>[hidden]{display:none!important}
+@font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-cyrillic-400-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:400;font-display:swap;src:url(/fonts/jost-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:500;font-display:swap;src:url(/fonts/jost-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Jost';font-weight:600;font-display:swap;src:url(/fonts/jost-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Jost';font-weight:600;font-display:swap;src:url(/fonts/jost-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-600-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url(/fonts/cormorant-garamond-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+@font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-cyrillic-700-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-weight:700;font-display:swap;src:url(/fonts/cormorant-garamond-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2212}
+</style>
+<title>Олимп — Вечная зима</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+:root{--bg:#0B0C0F;--panel:#16151A;--panel2:#1E1C22;--line:rgba(227,198,140,.22);--ink:#FBF6F1;--soft:#B5ABA2;--gold:#E3C68C;--gold2:#F3DFAE;--rose:#C49E96;--green:#A3C2AA;--red:#E3AA9C;--ice:#9EC3D6;--violet:#B3AADD;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 Jost,system-ui,sans-serif;font-variant-numeric:lining-nums;-webkit-tap-highlight-color:transparent}
+.serif{font-family:'Cormorant Garamond',Georgia,serif;font-weight:700}
+button{font:inherit;color:inherit}
+.app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:0 16px calc(84px + env(safe-area-inset-bottom,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:linear-gradient(var(--bg) 70%,transparent);padding:12px 0 10px;display:flex;align-items:center;gap:10px}
+header.top .logo{font:700 22px 'Cormorant Garamond',serif;color:var(--gold2);letter-spacing:.04em}
+header.top .sub{color:var(--soft);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+header.top .gold{white-space:nowrap;font-weight:600;color:var(--gold2);font-size:14px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(11,12,15,.96);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs button{min-height:58px;background:none;border:0;color:var(--soft);font-weight:500;font-size:13px;position:relative;cursor:pointer}
+nav.tabs button[aria-current="true"]{color:var(--gold2)}
+nav.tabs button[aria-current="true"]::before{content:'';position:absolute;top:0;left:28%;right:28%;height:2px;background:linear-gradient(90deg,#E3C68C,#A3C2AA);border-radius:2px}
+nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 18px);min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#221E1B;font:700 11px/18px Jost,sans-serif;padding:0 5px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.btn{min-height:52px;border-radius:14px;border:0;background:var(--rose);color:#221E1B;font-weight:600;font-size:16px;padding:0 18px;cursor:pointer;width:100%}
+.btn:disabled{opacity:.45;cursor:default}
+.btn2{min-height:48px;border-radius:14px;border:1.5px solid var(--gold);background:transparent;color:var(--ink);font-weight:600;padding:0 16px;cursor:pointer;width:100%}
+.quiet{background:none;border:0;color:#CFE3EE;text-decoration:underline;text-underline-offset:3px;min-height:44px;cursor:pointer;padding:0 4px;font-weight:600;font-size:14px}
+:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+.place{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ice)}
+h1.t{margin:0;font:700 32px/1.1 'Cormorant Garamond',serif;text-wrap:balance;color:var(--gold2)}
+h2.t{margin:0;font:700 24px/1.15 'Cormorant Garamond',serif;text-wrap:balance}
+.lead{font:600 19px/1.45 'Cormorant Garamond',serif;color:#ECE4DA;text-wrap:pretty;margin:0}
+.muted{color:var(--soft);font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;font-weight:600;border-radius:999px;padding:4px 10px;background:rgba(251,246,241,.07);border:1px solid rgba(251,246,241,.14);white-space:nowrap}
+.chip.wrap{white-space:normal;border-radius:12px;line-height:1.35}
+.chip.good{background:rgba(163,194,170,.16);border-color:rgba(163,194,170,.4);color:#CFE6D4}
+.chip.bad{background:rgba(227,170,156,.14);border-color:rgba(227,170,156,.4);color:#F0C2B6}
+.chip.gold{background:rgba(227,198,140,.14);border-color:rgba(227,198,140,.45);color:var(--gold2)}
+/* сцена и погода */
+.scene{position:relative;overflow:hidden}
+.weather{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:inherit}
+.weather i{position:absolute;top:-10px;width:4px;height:4px;border-radius:50%;background:#fff;opacity:.7;animation:fall linear infinite}
+.weather.embers i{background:#F3A86B;top:auto;bottom:-10px;animation-name:rise;width:3px;height:3px}
+.weather.mist i{width:140px;height:40px;border-radius:50%;background:radial-gradient(rgba(158,195,214,.18),transparent 70%);animation-name:drift;top:auto}
+@keyframes fall{to{transform:translate(30px,520px)}}
+@keyframes rise{to{transform:translate(-20px,-420px);opacity:0}}
+@keyframes drift{from{transform:translateX(-160px)}to{transform:translateX(560px)}}
+@media (prefers-reduced-motion:reduce){.weather{display:none}}
+.scene>*:not(.weather){position:relative}
+/* выбор богов */
+.godgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gcard{text-align:left;border-radius:16px;border:1.5px solid rgba(251,246,241,.14);background:var(--panel2);padding:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;min-width:0}
+.gcard[aria-pressed="true"]{border-color:var(--gold2);background:rgba(227,198,140,.1)}
+.gcard b{font:700 20px 'Cormorant Garamond',serif}
+.gcard small{color:var(--soft);font-size:12px;line-height:1.35}
+.emb{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font:700 18px 'Cormorant Garamond',serif;color:#221E1B;background:radial-gradient(circle at 35% 30%,#fff8,transparent 55%),var(--ec);box-shadow:0 0 0 2px rgba(0,0,0,.35),0 0 14px color-mix(in srgb,var(--ec) 45%,transparent)}
+.row{display:flex;align-items:center;gap:10px;min-width:0}
+.row>div{min-width:0;flex:1}
+/* кубик */
+.die{display:flex;align-items:center;gap:16px}
+.d100{width:92px;height:92px;flex-shrink:0;border-radius:22px;display:grid;place-items:center;font:700 44px 'Cormorant Garamond',serif;color:#221E1B;background:radial-gradient(circle at 35% 28%,#FFF3D2,#E3C68C 45%,#9C7A3C);box-shadow:0 10px 24px rgba(0,0,0,.5),inset 0 -6px 12px rgba(0,0,0,.25);font-variant-numeric:tabular-nums}
+.d100.spin{animation:wob .12s linear infinite}
+@keyframes wob{50%{transform:rotate(8deg) scale(1.04)}}
+.outc{font:700 26px 'Cormorant Garamond',serif}
+.o-crit{color:var(--gold2)}.o-good{color:var(--green)}.o-mid{color:var(--ice)}.o-bad{color:var(--red)}.o-fail{color:#E87F6E}
+/* бой */
+.foe{display:flex;flex-direction:column;gap:8px}
+.bar{height:10px;border-radius:6px;background:rgba(251,246,241,.1);overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#6E9277,#A3C2AA);transition:width .5s}
+.bar.foe i{background:linear-gradient(90deg,#7a9fb3,#CFE3EE)}
+.bar.low i{background:linear-gradient(90deg,#B9786A,#E3AA9C)}
+.bar.sh{height:4px}.bar.sh i{background:#9EC3D6}
+.bar.ch{height:4px}.bar.ch i{background:linear-gradient(90deg,#C9A15F,#F3DFAE)}
+.hpline{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--soft)}
+.hpline b{color:var(--ink);font-variant-numeric:tabular-nums}
+.queue{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.queue span{flex:0 0 auto;font-size:12px;font-weight:600;border-radius:999px;padding:5px 10px;background:rgba(251,246,241,.06);border:1px solid rgba(251,246,241,.12)}
+.queue span.now{background:var(--gold);color:#221E1B;border-color:var(--gold)}
+.queue span.foeq{color:#CFE3EE}
+.party{display:flex;flex-direction:column;gap:8px}
+.pm{border-radius:14px;padding:10px 12px;background:var(--panel2);border:1.5px solid transparent;display:flex;gap:10px;align-items:center}
+.pm.cur{border-color:var(--gold2)}
+.pm.down{opacity:.45}
+.pm.tgt{cursor:pointer;border-color:var(--green)}
+.pm .nm{display:flex;justify-content:space-between;gap:6px;font-weight:600;font-size:14px}
+.pm .nm small{color:var(--soft);font-weight:400;white-space:nowrap}
+.abil{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ab{text-align:left;border-radius:14px;border:1.5px solid rgba(251,246,241,.15);background:rgba(251,246,241,.04);padding:10px 12px;min-height:66px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ab b{font-size:14px;line-height:1.25}
+.ab small{font-size:11.5px;color:var(--soft);line-height:1.3}
+.ab.ult{border-color:rgba(227,198,140,.55);background:linear-gradient(150deg,rgba(227,198,140,.18),rgba(227,198,140,.03))}
+.ab:disabled{opacity:.38;cursor:default}
+.log{display:flex;flex-direction:column;gap:8px}
+.ev{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13.5px;line-height:1.4;color:#E9E1D8}
+.ev .i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;color:var(--c);background:color-mix(in srgb,var(--c) 18%,transparent)}
+.ev b{color:#fff;font-weight:600}
+.ev.fresh{animation:in .5s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.ev-curse span:last-child{color:#F0C2B6}
+.ev-story span:last-child{color:#D9D2C9;font-style:italic}
+.filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.filters button{flex:0 0 auto;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid rgba(158,195,214,.3);background:none;color:#CFE3EE;font-size:13px;font-weight:500;cursor:pointer}
+.filters button[aria-pressed="true"]{background:#CFE3EE;color:#221E1B}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#2A2622;border:1px solid var(--line);color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;z-index:9;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.res span{font-size:11.5px;text-align:center;border-radius:8px;padding:4px 2px;background:rgba(251,246,241,.05)}
+.res span.w{color:#CFE6D4;background:rgba(163,194,170,.14)}.res span.s{color:#F0C2B6;background:rgba(227,170,156,.12)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.stats div{background:rgba(251,246,241,.05);border-radius:10px;padding:6px 8px;font-size:12px;color:var(--soft)}
+.stats b{display:block;color:var(--ink);font-size:16px}
+.end{font:700 40px/1.05 'Cormorant Garamond',serif;color:var(--gold2);text-align:center;text-wrap:balance}
+</style>
+
+<div class="app">
+  <header class="top"><span class="logo">ОЛИМП</span><span class="sub" id="sub">Вечная зима</span><span class="gold" id="goldTop"></span></header>
+  <main id="main" class="stack"></main>
+</div>
+<nav class="tabs" aria-label="Разделы"><button data-tab="game" aria-current="true">Игра</button><button data-tab="party" aria-current="false">Отряд</button><button data-tab="log" aria-current="false">Журнал<span class="badge" id="logBadge" hidden></span></button></nav>
+<div class="toast" id="toast" hidden></div>
+
+<script>(() => {
+  var __defProp = Object.defineProperty;
+  var __returnValue = (v) => v;
+  function __exportSetter(name, newValue) {
+    this[name] = __returnValue.bind(null, newValue);
+  }
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, {
+        get: all[name],
+        enumerable: true,
+        configurable: true,
+        set: __exportSetter.bind(all, name)
+      });
+  };
+
+  // src/mechanics/olymp/rules.ts
+  var exports_rules = {};
+  __export(exports_rules, {
+    ELEMENTS: () => ELEMENTS,
+    ELEMENT_NAMES: () => ELEMENT_NAMES,
+    MAX_LEVEL: () => MAX_LEVEL,
+    OUTCOME_MULT: () => OUTCOME_MULT,
+    OUTCOME_NAMES: () => OUTCOME_NAMES,
+    OUTCOME_XP: () => OUTCOME_XP,
+    POINTS_PER_LEVEL: () => POINTS_PER_LEVEL,
+    RANK_XP: () => RANK_XP,
+    STATS: () => STATS,
+    STAT_NAMES: () => STAT_NAMES,
+    STRONG: () => STRONG,
+    clampRoll: () => clampRoll,
+    d100Of: () => d100Of,
+    elementMult: () => elementMult,
+    foeXp: () => foeXp,
+    hpMaxOf: () => hpMaxOf,
+    levelOf: () => levelOf,
+    outcomeOf: () => outcomeOf,
+    resistOf: () => resistOf,
+    splitCoins: () => splitCoins,
+    splitXp: () => splitXp,
+    threshold: () => threshold,
+    turnTime: () => turnTime,
+    xpToNext: () => xpToNext
+  });
+  var STATS = ["might", "influence", "wisdom", "endurance", "luck", "cunning"];
+  var STAT_NAMES = {
+    might: "Мощь",
+    influence: "Влияние",
+    wisdom: "Мудрость",
+    endurance: "Стойкость",
+    luck: "Удача",
+    cunning: "Хитрость",
+    speed: "Скорость"
+  };
+  var OUTCOME_NAMES = {
+    crit: "Критическая удача",
+    good: "Хорошо",
+    mid: "Средне",
+    bad: "Плохо",
+    fail: "Критическая неудача"
+  };
+  var OUTCOME_MULT = { crit: 2, good: 1.5, mid: 1, bad: 0.25, fail: 0 };
+  var OUTCOME_XP = { crit: 30, good: 20, mid: 10, bad: 5, fail: 0 };
+  function threshold(stat) {
+    return Math.max(5, Math.min(95, 100 - Math.round(stat)));
+  }
+  function outcomeOf(raw, stat, mod = 0) {
+    const roll = clampRoll(raw);
+    if (roll >= 96)
+      return "crit";
+    if (roll <= 5)
+      return "fail";
+    const value = roll + mod;
+    const thr = threshold(stat);
+    if (value >= thr + 20)
+      return "good";
+    if (value >= thr)
+      return "mid";
+    return "bad";
+  }
+  function clampRoll(raw) {
+    return Math.max(1, Math.min(100, Math.round(raw)));
+  }
+  function d100Of(answer, salt = "") {
+    const text = `${answer.id}:${answer.submittedAt ?? 0}:${salt}`;
+    let h = 2166136261;
+    for (let i = 0;i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    h ^= h >>> 15;
+    h = Math.imul(h, 2246822507);
+    h ^= h >>> 13;
+    return Math.abs(h) % 100 + 1;
+  }
+  var ELEMENTS = ["fire", "water", "ice", "bolt", "earth", "wind", "light", "dark", "poison", "chaos"];
+  var ELEMENT_NAMES = {
+    fire: "Огонь",
+    water: "Вода",
+    ice: "Лёд",
+    bolt: "Молния",
+    earth: "Земля",
+    wind: "Ветер",
+    light: "Свет",
+    dark: "Тьма",
+    poison: "Яд",
+    chaos: "Хаос"
+  };
+  var STRONG = {
+    fire: ["ice", "poison"],
+    dark: ["poison", "chaos"],
+    wind: ["chaos", "earth"],
+    ice: ["earth", "water"],
+    poison: ["water", "light"],
+    chaos: ["light", "bolt"],
+    earth: ["bolt", "fire"],
+    water: ["fire", "dark"],
+    light: ["dark", "wind"],
+    bolt: ["wind", "ice"]
+  };
+  function elementMult(attack, target) {
+    if (!attack || !target)
+      return 1;
+    if (STRONG[attack].includes(target))
+      return 1.5;
+    if (STRONG[target].includes(attack))
+      return 0.5;
+    return 1;
+  }
+  function resistOf(element) {
+    const out = {};
+    for (const e of ELEMENTS) {
+      out[e] = e === element ? 0 : Math.round(elementMult(e, element) * 100);
+    }
+    return out;
+  }
+  var MAX_LEVEL = 30;
+  var POINTS_PER_LEVEL = 2;
+  function xpToNext(level) {
+    if (level >= MAX_LEVEL)
+      return Infinity;
+    return Math.round(100 * Math.pow(Math.max(1, level), 1.8));
+  }
+  function levelOf(totalXp) {
+    let level = 1;
+    let rest = Math.max(0, Math.floor(totalXp));
+    while (level < MAX_LEVEL && rest >= xpToNext(level)) {
+      rest -= xpToNext(level);
+      level += 1;
+    }
+    return { level, xp: rest, next: xpToNext(level) };
+  }
+  function hpMaxOf(level, hpPercent = 0) {
+    return Math.round((100 + 6 * (Math.max(1, level) - 1)) * (1 + hpPercent / 100));
+  }
+  function splitCoins(total, rolls) {
+    const n = rolls.length;
+    if (n === 0 || total <= 0)
+      return rolls.map(() => 0);
+    const sum = rolls.reduce((a, r) => a + Math.max(1, r), 0);
+    const exact = rolls.map((r) => total * Math.max(1, r) / sum);
+    const out = exact.map((x) => Math.floor(x));
+    let left = total - out.reduce((a, x) => a + x, 0);
+    const order = exact.map((x, i) => ({ i, frac: x - Math.floor(x), roll: rolls[i] ?? 0 })).sort((a, b) => b.frac - a.frac || b.roll - a.roll || a.i - b.i);
+    for (const o of order) {
+      if (left <= 0)
+        break;
+      out[o.i] = (out[o.i] ?? 0) + 1;
+      left -= 1;
+    }
+    return out;
+  }
+  function splitXp(total, damage, helpers = []) {
+    const ids = [...new Set([...Object.keys(damage), ...helpers])];
+    const out = {};
+    if (ids.length === 0 || total <= 0)
+      return out;
+    const floor = Math.round(total * 0.1);
+    const dealt = ids.reduce((a, id) => a + Math.max(0, damage[id] ?? 0), 0);
+    for (const id of ids) {
+      const share = dealt > 0 ? total * Math.max(0, damage[id] ?? 0) / dealt : total / ids.length;
+      out[id] = Math.max(Math.round(share), helpers.includes(id) || (damage[id] ?? 0) > 0 ? floor : 0);
+    }
+    return out;
+  }
+  var RANK_XP = { F: 20, E: 40, D: 70, C: 120, B: 200, A: 350, S: 600, SS: 1000, SSS: 1800 };
+  function foeXp(rank, boss, muchWeaker = false) {
+    const base = RANK_XP[rank] * (boss ? 3 : 1);
+    return muchWeaker ? Math.round(base / 4) : base;
+  }
+  function turnTime(speed) {
+    return 1000 / Math.max(10, speed);
+  }
+
+  // src/mechanics/olymp/gods.ts
+  var exports_gods = {};
+  __export(exports_gods, {
+    GODS: () => GODS,
+    ROLES: () => ROLES,
+    abilitiesOf: () => abilitiesOf,
+    abilityOf: () => abilityOf,
+    godOf: () => godOf
+  });
+  var ROLES = {
+    warrior: { name: "Воитель", hint: "главный урон по одному" },
+    guardian: { name: "Страж", hint: "держит удары, щиты" },
+    healer: { name: "Целитель", hint: "лечение, снятие проклятий" },
+    oracle: { name: "Оракул", hint: "усиления, предвидение" },
+    sorcerer: { name: "Чародей", hint: "стихийный урон по всем, проклятия" },
+    trickster: { name: "Плут", hint: "скорость, ловушки, обман" }
+  };
+  var s = (might, influence, wisdom, endurance, luck, cunning) => ({ might, influence, wisdom, endurance, luck, cunning });
+  var GODS = [
+    {
+      id: "zeus",
+      name: "Зевс",
+      role: "warrior",
+      element: "bolt",
+      emblem: "bolt",
+      symbols: "орёл, молния, дуб, скипетр",
+      weakness: "ревность Геры: против Геры и её союзников броски −10",
+      about: "Царь богов и громовержец. Ведёт отряд прямо в бой и не любит ждать.",
+      stats: s(65, 50, 40, 45, 30, 25),
+      speed: 100,
+      abilities: [
+        { id: "zeus-1", name: "Разряд", kind: "strike", element: "bolt", stat: "might", power: 22, target: "foe", cooldown: 0, text: "Молния в одного врага." },
+        { id: "zeus-2", name: "Гром небес", kind: "blast", element: "bolt", stat: "might", power: 12, target: "foes", cooldown: 2, text: "Гром бьёт всех врагов." },
+        { id: "zeus-3", name: "Орлиный взор", kind: "bless", element: null, stat: "wisdom", power: 0, target: "allies", cooldown: 3, effect: { id: "eagle", name: "Орлиный взор", kind: "bless", turns: 2, roll: 10 }, text: "Отряд видит слабые места врага: +10 к броскам на 2 хода." }
+      ],
+      ult: { id: "zeus-u", name: "Гнев Олимпа", kind: "strike", element: "bolt", stat: "might", power: 60, target: "foe", cooldown: 0, ult: true, text: "Небо раскалывается: огромный удар молнией по одному врагу." }
+    },
+    {
+      id: "poseidon",
+      name: "Посейдон",
+      role: "guardian",
+      element: "water",
+      emblem: "trident",
+      symbols: "трезубец, конь, дельфин",
+      weakness: "вспыльчив: после крит. неудачи следующий бросок −10",
+      about: "Владыка морей. Стоит стеной перед отрядом, а волной сбивает врагов с ног.",
+      stats: s(55, 35, 35, 65, 35, 30),
+      speed: 90,
+      abilities: [
+        { id: "poseidon-1", name: "Удар трезубца", kind: "strike", element: "water", stat: "might", power: 18, target: "foe", cooldown: 0, text: "Трезубец в одного врага." },
+        { id: "poseidon-2", name: "Морская стена", kind: "shield", element: null, stat: "endurance", power: 25, target: "allies", cooldown: 3, text: "Щит всему отряду." },
+        { id: "poseidon-3", name: "Прилив", kind: "curse", element: "water", stat: "endurance", power: 8, target: "foes", cooldown: 3, effect: { id: "tide", name: "Прилив", kind: "curse", turns: 2, speed: -20 }, text: "Волна по всем врагам: урон и −20 к скорости на 2 хода." }
+      ],
+      ult: { id: "poseidon-u", name: "Землетрясение", kind: "blast", element: "earth", stat: "might", power: 35, target: "foes", cooldown: 0, ult: true, text: "Колебатель земли: сильный удар по всем врагам." }
+    },
+    {
+      id: "hades",
+      name: "Аид",
+      role: "sorcerer",
+      element: "dark",
+      emblem: "bident",
+      symbols: "двузубец, шлем-невидимка, кипарис",
+      weakness: "в светлых храмах броски −10",
+      about: "Владыка подземного мира. Знает тени по именам и проклинает так, что не отмолить.",
+      stats: s(40, 40, 60, 40, 30, 45),
+      speed: 95,
+      abilities: [
+        { id: "hades-1", name: "Пламя Тартара", kind: "strike", element: "fire", stat: "wisdom", power: 20, target: "foe", cooldown: 0, text: "Огонь из глубин в одного врага." },
+        { id: "hades-2", name: "Тень Эреба", kind: "blast", element: "dark", stat: "wisdom", power: 11, target: "foes", cooldown: 2, text: "Тьма бьёт всех врагов." },
+        { id: "hades-3", name: "Проклятие Стикса", kind: "curse", element: "dark", stat: "wisdom", power: 0, target: "foe", cooldown: 3, effect: { id: "styx", name: "Проклятие Стикса", kind: "curse", turns: 3, taken: 1.3 }, text: "Враг получает на 30% больше урона 3 хода." }
+      ],
+      ult: { id: "hades-u", name: "Суд мёртвых", kind: "blast", element: "dark", stat: "wisdom", power: 32, target: "foes", cooldown: 0, ult: true, text: "Тени судят всех врагов разом." }
+    },
+    {
+      id: "athena",
+      name: "Афина",
+      role: "oracle",
+      element: "light",
+      emblem: "owl",
+      symbols: "сова, олива, эгида",
+      weakness: "гордость: против Ареса броски −10",
+      about: "Богиня мудрости и справедливой войны. Видит исход боя раньше других.",
+      stats: s(40, 50, 65, 45, 30, 30),
+      speed: 100,
+      abilities: [
+        { id: "athena-1", name: "Копьё мудрости", kind: "strike", element: "light", stat: "wisdom", power: 18, target: "foe", cooldown: 0, text: "Копьё света в одного врага." },
+        { id: "athena-2", name: "Эгида", kind: "shield", element: null, stat: "wisdom", power: 30, target: "ally", cooldown: 2, text: "Щит одному союзнику." },
+        { id: "athena-3", name: "Мудрость Афины", kind: "bless", element: null, stat: "wisdom", power: 0, target: "ally", cooldown: 2, effect: { id: "wisdom", name: "Мудрость Афины", kind: "bless", turns: 2, roll: 10 }, text: "Союзник получает +10 к броскам на 2 хода." }
+      ],
+      ult: { id: "athena-u", name: "Победа Ники", kind: "bless", element: null, stat: "wisdom", power: 0, target: "allies", cooldown: 0, ult: true, effect: { id: "nike", name: "Победа Ники", kind: "bless", turns: 2, roll: 20 }, text: "Весь отряд получает +20 к броскам на 2 хода." }
+    },
+    {
+      id: "hestia",
+      name: "Гестия",
+      role: "healer",
+      element: "fire",
+      emblem: "hearth",
+      symbols: "очаг, факел, хлеб",
+      weakness: "не любит раздоров: в спорах броски −10",
+      about: "Хранительница очага. Пока горит её огонь, отряд встаёт после любой беды.",
+      stats: s(30, 55, 55, 50, 35, 25),
+      speed: 95,
+      abilities: [
+        { id: "hestia-1", name: "Жар очага", kind: "strike", element: "fire", stat: "wisdom", power: 16, target: "foe", cooldown: 0, text: "Огонь очага в одного врага." },
+        { id: "hestia-2", name: "Тёплые руки", kind: "heal", element: null, stat: "wisdom", power: 25, target: "ally", cooldown: 1, cleanse: 1, text: "Лечит одного союзника и снимает одно проклятие." },
+        { id: "hestia-3", name: "Общий стол", kind: "heal", element: null, stat: "influence", power: 14, target: "allies", cooldown: 3, text: "Лечит весь отряд." }
+      ],
+      ult: { id: "hestia-u", name: "Вечный огонь", kind: "heal", element: null, stat: "wisdom", power: 40, target: "allies", cooldown: 0, ult: true, cleanse: 99, text: "Сильное лечение всего отряда и снятие всех проклятий." }
+    },
+    {
+      id: "hermes",
+      name: "Гермес",
+      role: "trickster",
+      element: "wind",
+      emblem: "caduceus",
+      symbols: "крылатые сандалии, кадуцей, кошелёк",
+      weakness: "любопытен: ловушки срабатывают на нём чаще",
+      about: "Вестник богов, покровитель путников и хитрецов. Успевает дважды, пока другие думают.",
+      stats: s(35, 45, 40, 30, 50, 60),
+      speed: 125,
+      abilities: [
+        { id: "hermes-1", name: "Удар кадуцея", kind: "strike", element: "wind", stat: "cunning", power: 15, target: "foe", cooldown: 0, text: "Быстрый удар в одного врага." },
+        { id: "hermes-2", name: "Попутный ветер", kind: "bless", element: null, stat: "cunning", power: 0, target: "allies", cooldown: 3, effect: { id: "tailwind", name: "Попутный ветер", kind: "bless", turns: 2, speed: 25 }, text: "Отряду +25 к скорости на 2 хода." },
+        { id: "hermes-3", name: "Обман", kind: "curse", element: null, stat: "cunning", power: 0, target: "foe", cooldown: 3, effect: { id: "trick", name: "Обман", kind: "curse", turns: 1, skip: true }, text: "Враг путается и пропускает ход." }
+      ],
+      ult: { id: "hermes-u", name: "Кража огня", kind: "strike", element: "wind", stat: "cunning", power: 30, target: "foe", cooldown: 0, ult: true, effect: { id: "stolen", name: "Украденная сила", kind: "curse", turns: 2, stats: { might: -15 } }, text: "Сильный удар и −15 к Мощи врага на 2 хода." }
+    },
+    {
+      id: "artemis",
+      name: "Артемида",
+      role: "warrior",
+      element: "ice",
+      emblem: "moon",
+      symbols: "лук, лань, серебряный месяц",
+      weakness: "не прощает обмана: против лжецов броски −10",
+      about: "Охотница при луне. Стрела находит цель даже в метель.",
+      stats: s(55, 30, 40, 35, 45, 45),
+      speed: 110,
+      abilities: [
+        { id: "artemis-1", name: "Серебряная стрела", kind: "strike", element: "ice", stat: "might", power: 20, target: "foe", cooldown: 0, text: "Стрела в одного врага." },
+        { id: "artemis-2", name: "Дождь стрел", kind: "blast", element: "ice", stat: "luck", power: 10, target: "foes", cooldown: 2, text: "Стрелы по всем врагам." },
+        { id: "artemis-3", name: "Метка охотницы", kind: "curse", element: null, stat: "cunning", power: 0, target: "foe", cooldown: 3, effect: { id: "mark", name: "Метка охотницы", kind: "curse", turns: 2, taken: 1.25 }, text: "Врага легче ранить: +25% урона по нему 2 хода." }
+      ],
+      ult: { id: "artemis-u", name: "Лунная охота", kind: "strike", element: "ice", stat: "might", power: 55, target: "foe", cooldown: 0, ult: true, text: "Выстрел при полной луне в одного врага." }
+    },
+    {
+      id: "hephaestus",
+      name: "Гефест",
+      role: "guardian",
+      element: "earth",
+      emblem: "anvil",
+      symbols: "молот, наковальня, кузнечные клещи",
+      weakness: "медлителен: скорость ниже всех",
+      about: "Кузнец богов. Кует щиты прямо в бою и бьёт так, что звенит земля.",
+      stats: s(55, 25, 45, 65, 30, 30),
+      speed: 80,
+      abilities: [
+        { id: "hephaestus-1", name: "Удар молота", kind: "strike", element: "earth", stat: "might", power: 22, target: "foe", cooldown: 0, text: "Молот в одного врага." },
+        { id: "hephaestus-2", name: "Кованый щит", kind: "shield", element: null, stat: "endurance", power: 40, target: "ally", cooldown: 2, text: "Крепкий щит одному союзнику." },
+        { id: "hephaestus-3", name: "Раскалённый металл", kind: "curse", element: "fire", stat: "might", power: 8, target: "foe", cooldown: 3, effect: { id: "burn", name: "Ожог", kind: "curse", turns: 3, dot: 8 }, text: "Удар и ожог: −8 здоровья в начале хода 3 хода." }
+      ],
+      ult: { id: "hephaestus-u", name: "Доспех Олимпа", kind: "shield", element: null, stat: "endurance", power: 45, target: "allies", cooldown: 0, ult: true, text: "Щит всему отряду." }
+    },
+    {
+      id: "ares",
+      name: "Арес",
+      role: "warrior",
+      element: "chaos",
+      emblem: "helm",
+      symbols: "копьё, шлем, коршун",
+      weakness: "безрассуден: после промаха сам получает урон",
+      about: "Бог яростной битвы. Где он — там шум, кровь и победа любой ценой.",
+      stats: s(70, 25, 25, 50, 40, 35),
+      speed: 105,
+      abilities: [
+        { id: "ares-1", name: "Удар копья", kind: "strike", element: "chaos", stat: "might", power: 24, target: "foe", cooldown: 0, text: "Копьё в одного врага." },
+        { id: "ares-2", name: "Боевой клич", kind: "bless", element: null, stat: "influence", power: 0, target: "allies", cooldown: 3, effect: { id: "warcry", name: "Боевой клич", kind: "bless", turns: 2, stats: { might: 10 } }, text: "Отряду +10 к Мощи на 2 хода." },
+        { id: "ares-3", name: "Ярость", kind: "bless", element: null, stat: "might", power: 0, target: "self", cooldown: 3, effect: { id: "rage", name: "Ярость", kind: "bless", turns: 2, stats: { might: 20 }, taken: 1.2 }, text: "+20 к Мощи себе, но получает на 20% больше урона." }
+      ],
+      ult: { id: "ares-u", name: "Бойня", kind: "blast", element: "chaos", stat: "might", power: 38, target: "foes", cooldown: 0, ult: true, text: "Ярость войны обрушивается на всех врагов." }
+    },
+    {
+      id: "apollo",
+      name: "Аполлон",
+      role: "healer",
+      element: "poison",
+      emblem: "lyre",
+      symbols: "лира, лавр, солнечная колесница",
+      weakness: "тщеславен: если смеются над ним — броски −10",
+      about: "Бог света, музыки и врачевания. Его лира лечит, а стрелы несут мор.",
+      stats: s(35, 55, 55, 40, 40, 30),
+      speed: 100,
+      abilities: [
+        { id: "apollo-1", name: "Стрела мора", kind: "curse", element: "poison", stat: "wisdom", power: 12, target: "foe", cooldown: 0, effect: { id: "plague", name: "Мор", kind: "curse", turns: 2, dot: 6 }, text: "Стрела и яд: −6 здоровья в начале хода 2 хода." },
+        { id: "apollo-2", name: "Песнь лиры", kind: "heal", element: null, stat: "influence", power: 22, target: "ally", cooldown: 1, cleanse: 1, text: "Лечит одного союзника и снимает одно проклятие." },
+        { id: "apollo-3", name: "Лавровый венок", kind: "bless", element: null, stat: "influence", power: 0, target: "ally", cooldown: 3, effect: { id: "laurel", name: "Лавровый венок", kind: "bless", turns: 3, dot: -10 }, text: "Союзник восстанавливает 10 здоровья в начале хода 3 хода." }
+      ],
+      ult: { id: "apollo-u", name: "Солнце в зените", kind: "heal", element: null, stat: "wisdom", power: 30, target: "allies", cooldown: 0, ult: true, cleanse: 99, text: "Лечит весь отряд и снимает все проклятия." }
+    }
+  ];
+  function godOf(id) {
+    return GODS.find((g) => g.id === id);
+  }
+  function abilitiesOf(god) {
+    return [...god.abilities, god.ult];
+  }
+  function abilityOf(id) {
+    for (const god of GODS) {
+      const ability = abilitiesOf(god).find((a) => a.id === id);
+      if (ability)
+        return { god, ability };
+    }
+    return;
+  }
+
+  // src/mechanics/olymp/foes.ts
+  var exports_foes = {};
+  __export(exports_foes, {
+    FOES: () => FOES,
+    foeOf: () => foeOf,
+    scaledHp: () => scaledHp
+  });
+  var FOES = [
+    {
+      id: "wolves",
+      name: "Стая ледяных волков",
+      rank: "D",
+      boss: false,
+      element: "ice",
+      hp: 160,
+      speed: 105,
+      coins: 30,
+      resist: resistOf("ice"),
+      image: "wolves",
+      about: "Голодная стая, что пришла с зимой. Вожак светится инеем.",
+      abilities: [
+        { id: "w-bite", name: "Укус вожака", kind: "strike", power: 14, hint: "урон одному" },
+        { id: "w-howl", name: "Вой стаи", kind: "curseAll", power: 0, hint: "−10 к броскам всем", effect: { id: "howl", name: "Вой стаи", kind: "curse", turns: 1, roll: -10 } },
+        { id: "w-pack", name: "Стая окружает", kind: "blast", power: 8, hint: "урон всем" }
+      ]
+    },
+    {
+      id: "shades",
+      name: "Тени Ахерона",
+      rank: "C",
+      boss: false,
+      element: "dark",
+      hp: 200,
+      speed: 95,
+      coins: 40,
+      resist: resistOf("dark"),
+      image: "shades",
+      about: "Безликие тени, что уводят живых к реке.",
+      abilities: [
+        { id: "s-touch", name: "Холодное касание", kind: "strike", power: 16, hint: "урон одному" },
+        { id: "s-forget", name: "Забвение", kind: "curse", power: 0, hint: "проклятие на одного", effect: { id: "forget", name: "Забвение", kind: "curse", turns: 2, stats: { wisdom: -15 } } },
+        { id: "s-drain", name: "Пьют тепло", kind: "heal", power: 20, hint: "лечится" },
+        { id: "s-mist", name: "Туман реки", kind: "blast", power: 9, hint: "урон всем" }
+      ]
+    },
+    {
+      id: "devourer",
+      name: "Пожиратель зимы",
+      rank: "B",
+      boss: true,
+      element: "ice",
+      hp: 300,
+      speed: 130,
+      coins: 80,
+      resist: resistOf("ice"),
+      image: "boss",
+      about: "Осколок первичного Хаоса. Пожирает души и тепло; на лбу горит метка Тёмного мира.",
+      abilities: [
+        { id: "d-howl", name: "Ледяной вой", kind: "blast", power: 12, hint: "урон всем" },
+        { id: "d-claw", name: "Удар когтем", kind: "strike", power: 22, hint: "урон одному" },
+        { id: "d-cold", name: "Проклятие холода", kind: "curse", power: 0, hint: "проклятие на одного", effect: { id: "cold", name: "Проклятие холода", kind: "curse", turns: 2, roll: -10 } },
+        { id: "d-soul", name: "Пожирает душу", kind: "heal", power: 20, hint: "лечится" },
+        { id: "d-armor", name: "Ледяная броня", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "icearmor", name: "Ледяная броня", kind: "bless", turns: 2, taken: 0.7 } },
+        { id: "d-numb", name: "Оцепенение", kind: "curseAll", power: 0, hint: "−15 к броскам всем", effect: { id: "numb", name: "Оцепенение", kind: "curse", turns: 1, roll: -15 } },
+        { id: "d-shades", name: "Зовёт тени", kind: "curse", power: 6, hint: "яд на одного", effect: { id: "poison", name: "Яд", kind: "curse", turns: 2, dot: 8 } }
+      ]
+    }
+  ];
+  function foeOf(id) {
+    return FOES.find((f) => f.id === id);
+  }
+  function scaledHp(foe, gods) {
+    const n = Math.max(1, gods);
+    return Math.round(foe.hp * (1 + (n - 4) * (n > 4 ? 0.25 : 0.2)));
+  }
+
+  // src/mechanics/olymp/combat.ts
+  var exports_combat = {};
+  __export(exports_combat, {
+    ULT_PER_ACTION: () => ULT_PER_ACTION,
+    ULT_PER_HIT: () => ULT_PER_HIT,
+    battleTotals: () => battleTotals,
+    battleXp: () => battleXp,
+    beginTurn: () => beginTurn,
+    canUse: () => canUse,
+    defenseOf: () => defenseOf,
+    effectText: () => effectText,
+    endTurn: () => endTurn,
+    foeAct: () => foeAct,
+    godAct: () => godAct,
+    godDamage: () => godDamage,
+    hpWord: () => hpWord,
+    intentOf: () => intentOf,
+    nextActor: () => nextActor,
+    rollModOf: () => rollModOf,
+    speedOf: () => speedOf,
+    startBattle: () => startBattle,
+    statOf: () => statOf,
+    takenOf: () => takenOf,
+    turnQueue: () => turnQueue
+  });
+  var LOG_KEEP = 80;
+  var ULT_PER_ACTION = 25;
+  var ULT_PER_HIT = 10;
+  function fighterOf(b, id) {
+    return b.fighters.find((f) => f.id === id);
+  }
+  function push(b, entry) {
+    b.log.unshift({ ...entry, n: b.seq });
+    b.seq += 1;
+    if (b.log.length > LOG_KEEP)
+      b.log.length = LOG_KEEP;
+  }
+  function clone(b) {
+    return JSON.parse(JSON.stringify(b));
+  }
+  function startBattle(foeId, gods, seq = 1) {
+    const foe = foeOf(foeId);
+    if (!foe)
+      throw new Error(`Нет противника ${foeId}`);
+    const fighters = [];
+    for (const g of gods) {
+      const god = godOf(g.god);
+      if (!god)
+        continue;
+      const bonus = g.bonus ?? {};
+      const stats = { ...god.stats };
+      for (const k of Object.keys(stats))
+        stats[k] += Math.round(bonus[k] ?? 0);
+      const hpMax = hpMaxOf(g.level, bonus.hpPercent ?? 0);
+      const speed = god.speed + (bonus.speed ?? 0);
+      fighters.push({
+        id: g.pid,
+        side: "god",
+        ref: god.id,
+        name: god.name,
+        level: g.level,
+        hp: Math.max(1, Math.min(hpMax, g.hp ?? hpMax)),
+        hpMax,
+        shield: 0,
+        speed,
+        stats,
+        effects: [],
+        cd: {},
+        charge: 0,
+        ultUsed: false,
+        next: turnTime(speed),
+        dealt: 0,
+        helped: false,
+        down: false
+      });
+    }
+    const hp = scaledHp(foe, fighters.length);
+    fighters.push({
+      id: "foe",
+      side: "foe",
+      ref: foe.id,
+      name: foe.name,
+      level: 1,
+      hp,
+      hpMax: hp,
+      shield: 0,
+      speed: foe.speed,
+      stats: { might: 50, influence: 50, wisdom: 50, endurance: 50, luck: 50, cunning: 50 },
+      effects: [],
+      cd: {},
+      charge: 0,
+      ultUsed: false,
+      next: turnTime(foe.speed),
+      dealt: 0,
+      helped: false,
+      down: false
+    });
+    const b = { foe: foe.id, fighters, actor: null, intent: 0, turns: 0, over: null, log: [], seq };
+    push(b, { k: "start", x: `Бой: ${foe.name}, ранг ${foe.rank}${foe.boss ? ", босс" : ""}. Здоровье ${hp}, драхм ${foe.coins}, опыта ${foeXp(foe.rank, foe.boss)}`, who: [foe.name] });
+    b.actor = nextActor(b);
+    return b;
+  }
+  function speedOf(f) {
+    return Math.max(10, f.speed + f.effects.reduce((a, e) => a + (e.speed ?? 0), 0));
+  }
+  function statOf(f, stat) {
+    return f.stats[stat] + f.effects.reduce((a, e) => a + (e.stats?.[stat] ?? 0), 0);
+  }
+  function rollModOf(f) {
+    return f.effects.reduce((a, e) => a + (e.roll ?? 0), 0);
+  }
+  function takenOf(f) {
+    return f.effects.reduce((a, e) => a * (e.taken ?? 1), 1);
+  }
+  function nextActor(b) {
+    if (b.over)
+      return null;
+    let best = null;
+    for (const f of b.fighters) {
+      if (f.down)
+        continue;
+      if (!best || f.next < best.next - 0.000000001 || Math.abs(f.next - best.next) < 0.000000001 && f.side === "god" && best.side === "foe")
+        best = f;
+    }
+    return best ? best.id : null;
+  }
+  function turnQueue(b, count) {
+    const sim = b.fighters.filter((f) => !f.down).map((f) => ({ id: f.id, next: f.next, step: turnTime(speedOf(f)), god: f.side === "god" }));
+    const out = [];
+    for (let i = 0;i < count && sim.length > 0; i++) {
+      sim.sort((a, c) => a.next - c.next || (a.god === c.god ? 0 : a.god ? -1 : 1));
+      const first = sim[0];
+      if (!first)
+        break;
+      out.push(first.id);
+      first.next += first.step;
+    }
+    return out;
+  }
+  function canUse(f, ability) {
+    if (ability.ult)
+      return !f.ultUsed && f.charge >= 100;
+    return (f.cd[ability.id] ?? 0) <= 0;
+  }
+  function applyEffect(target, spec, from, bonusTurns = 0) {
+    const rest = target.effects.filter((e) => e.id !== spec.id);
+    rest.push({ id: spec.id, name: spec.name, kind: spec.kind, left: Math.max(1, spec.turns + bonusTurns), roll: spec.roll, stats: spec.stats, dot: spec.dot, speed: spec.speed, taken: spec.taken, skip: spec.skip, from });
+    target.effects = rest;
+  }
+  var ROCK = { id: "rock", name: "Рок", kind: "curse", turns: 1, roll: -10 };
+  function hurt(target, amount) {
+    const dmg = Math.max(0, Math.round(amount));
+    const byShield = Math.min(target.shield, dmg);
+    target.shield -= byShield;
+    const toHp = Math.min(target.hp, dmg - byShield);
+    target.hp -= toHp;
+    if (target.side === "god")
+      target.charge = Math.min(100, target.charge + ULT_PER_HIT);
+    if (target.hp <= 0) {
+      target.hp = 0;
+      target.down = true;
+    }
+    return { hp: toHp, shield: byShield };
+  }
+  function plural(n, one, few, many) {
+    const m10 = n % 10;
+    const m100 = n % 100;
+    if (m10 === 1 && m100 !== 11)
+      return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14))
+      return few;
+    return many;
+  }
+  function hpWord(n) {
+    return `${n} ${plural(n, "урон", "урона", "урона")}`;
+  }
+  function resistMult(foeRef, element) {
+    const foe = foeOf(foeRef);
+    if (!foe || !element)
+      return 1;
+    return (foe.resist[element] ?? 100) / 100;
+  }
+  function godDamage(power, outcome, level, elementResist, taken) {
+    return Math.round(power * OUTCOME_MULT[outcome] * elementResist * (1 + 0.05 * (level - 1)) * taken);
+  }
+  function godAct(battle, actorId, abilityId, targetIds, roll) {
+    const b = clone(battle);
+    const actor = fighterOf(b, actorId);
+    if (!actor || actor.side !== "god" || b.actor !== actorId || b.over)
+      throw new Error("Не ход этого бога");
+    const god = godOf(actor.ref);
+    const ability = god ? abilitiesOf(god).find((a) => a.id === abilityId) : undefined;
+    if (!ability || !canUse(actor, ability))
+      throw new Error("Способность не готова");
+    const outcome = outcomeOf(roll, statOf(actor, ability.stat), rollModOf(actor));
+    const mod = rollModOf(actor);
+    const rollText = `бросок ${roll}${mod ? ` ${mod > 0 ? "+" : "−"}${Math.abs(mod)}` : ""} — ${OUTCOME_NAMES[outcome].toLowerCase()}`;
+    const foe = b.fighters.find((f) => f.side === "foe" && !f.down);
+    const allies = b.fighters.filter((f) => f.side === "god" && !f.down);
+    const targets = ability.target === "foe" || ability.target === "foes" ? foe ? [foe] : [] : ability.target === "self" ? [actor] : ability.target === "allies" ? allies : targetIds.map((id) => fighterOf(b, id)).filter((f) => !!f && f.side === "god" && !f.down).slice(0, 1);
+    if (targets.length === 0)
+      throw new Error("Нет цели");
+    if (ability.ult) {
+      actor.ultUsed = true;
+      actor.charge = 0;
+    } else {
+      actor.cd[ability.id] = ability.cooldown + 1;
+      actor.charge = Math.min(100, actor.charge + ULT_PER_ACTION);
+    }
+    let amount = 0;
+    if (outcome === "fail") {
+      applyEffect(actor, ROCK, actor.name);
+      push(b, { k: "curse", x: `${actor.name}: «${ability.name}», ${rollText}. Промах, на ${actor.name} «Рок»: −10 к следующему броску`, who: [actor.name] });
+    } else if (ability.kind === "strike" || ability.kind === "blast" || ability.kind === "curse" && ability.power > 0 && targets[0]?.side === "foe") {
+      const target = targets[0];
+      const res = resistMult(target.ref, ability.element);
+      const raw = godDamage(ability.power, outcome, actor.level, res, takenOf(target));
+      const got = hurt(target, raw);
+      amount = got.hp + got.shield;
+      actor.dealt += got.hp;
+      const parts = [`${ability.power} × ${String(OUTCOME_MULT[outcome]).replace(".", ",")}`];
+      if (ability.element && res !== 1)
+        parts.push(`${ELEMENT_NAMES[ability.element]} ${Math.round(res * 100)}%`);
+      if (takenOf(target) !== 1)
+        parts.push(`эффекты ×${String(Math.round(takenOf(target) * 100) / 100).replace(".", ",")}`);
+      push(b, {
+        k: "fight",
+        x: `${actor.name} → ${target.name}: «${ability.name}», ${rollText}, ${hpWord(amount)} (${parts.join(", ")}). У ${target.side === "foe" ? "противника" : target.name} ${target.hp} / ${target.hpMax}`,
+        who: [actor.name, target.name],
+        d: [actor.name, target.name, amount]
+      });
+      if (ability.effect && outcome !== "bad") {
+        applyEffect(target, ability.effect, actor.name, outcome === "crit" ? 1 : 0);
+        push(b, { k: "curse", x: `${actor.name} наложил на ${target.name} «${ability.effect.name}»${effectText(ability.effect)}`, who: [actor.name, target.name] });
+      }
+      if (target.down && target.side === "foe") {
+        b.over = "win";
+        push(b, { k: "fight", x: `${target.name} повержен! Последний удар — ${actor.name}`, who: [target.name, actor.name] });
+      }
+    } else if (ability.kind === "curse") {
+      for (const t of targets) {
+        if (outcome === "bad")
+          continue;
+        applyEffect(t, ability.effect, actor.name, outcome === "crit" ? 1 : 0);
+      }
+      push(b, {
+        k: "curse",
+        x: outcome === "bad" ? `${actor.name}: «${ability.name}», ${rollText} — не подействовало` : `${actor.name} наложил на ${targets.map((t) => t.name).join(", ")} «${ability.effect?.name ?? ability.name}»${ability.effect ? effectText(ability.effect) : ""}, ${rollText}`,
+        who: [actor.name, ...targets.map((t) => t.name)]
+      });
+    } else if (ability.kind === "heal") {
+      for (const t of targets) {
+        const heal = Math.min(t.hpMax - t.hp, Math.round(ability.power * OUTCOME_MULT[outcome]));
+        t.hp += heal;
+        amount += heal;
+        let cleansed = [];
+        if (ability.cleanse && outcome !== "bad") {
+          const curses = t.effects.filter((e) => e.kind === "curse").slice(0, ability.cleanse);
+          cleansed = curses.map((e) => e.name);
+          t.effects = t.effects.filter((e) => !curses.includes(e));
+        }
+        push(b, { k: "heal", x: `${actor.name} лечит ${t.name}: «${ability.name}», ${rollText}, +${heal} здоровья (${t.hp} / ${t.hpMax})${cleansed.length ? `, снято: «${cleansed.join("», «")}»` : ""}`, who: [actor.name, t.name], h: [actor.name, t.name, heal] });
+      }
+      actor.helped = true;
+    } else if (ability.kind === "shield") {
+      for (const t of targets) {
+        const add = Math.round(ability.power * OUTCOME_MULT[outcome]);
+        t.shield = Math.min(Math.round(t.hpMax / 2), t.shield + add);
+        amount += add;
+        push(b, { k: "heal", x: `${actor.name} ставит щит на ${t.name}: «${ability.name}», ${rollText}, щит ${t.shield}`, who: [actor.name, t.name], h: [actor.name, t.name, add] });
+      }
+      actor.helped = true;
+    } else if (ability.kind === "bless" && ability.effect) {
+      if (outcome !== "bad")
+        for (const t of targets)
+          applyEffect(t, ability.effect, actor.name, outcome === "crit" ? 1 : 0);
+      push(b, {
+        k: "heal",
+        x: outcome === "bad" ? `${actor.name}: «${ability.name}», ${rollText} — не подействовало` : `${actor.name} благословляет ${targets.map((t) => t.name).join(", ")}: «${ability.effect.name}»${effectText(ability.effect)}, ${rollText}`,
+        who: [actor.name, ...targets.map((t) => t.name)]
+      });
+      actor.helped = true;
+    }
+    return { battle: b, outcome, amount };
+  }
+  function effectText(e) {
+    const parts = [];
+    if (e.roll)
+      parts.push(`${e.roll > 0 ? "+" : "−"}${Math.abs(e.roll)} к броскам`);
+    for (const [k, v] of Object.entries(e.stats ?? {}))
+      if (v)
+        parts.push(`${v > 0 ? "+" : "−"}${Math.abs(v)} к ${STAT_DAT[k]}`);
+    if (e.dot)
+      parts.push(e.dot > 0 ? `−${e.dot} здоровья в начале хода` : `+${-e.dot} здоровья в начале хода`);
+    if (e.speed)
+      parts.push(`${e.speed > 0 ? "+" : "−"}${Math.abs(e.speed)} к скорости`);
+    if (e.taken)
+      parts.push(e.taken < 1 ? `урон по нему ×${String(e.taken).replace(".", ",")}` : `урон по нему +${Math.round((e.taken - 1) * 100)}%`);
+    if (e.skip)
+      parts.push("пропускает ход");
+    parts.push(`${e.turns} ${plural(e.turns, "ход", "хода", "ходов")}`);
+    return `: ${parts.join(", ")}`;
+  }
+  var STAT_DAT = { might: "Мощи", influence: "Влиянию", wisdom: "Мудрости", endurance: "Стойкости", luck: "Удаче", cunning: "Хитрости" };
+  function intentOf(b) {
+    const foe = foeOf(b.foe);
+    return foe ? foe.abilities[b.intent % foe.abilities.length] : undefined;
+  }
+  function foeAct(battle, roll) {
+    const b = clone(battle);
+    const foeF = b.fighters.find((f) => f.side === "foe");
+    const foe = foeOf(b.foe);
+    if (!foeF || !foe || b.actor !== foeF.id || b.over)
+      throw new Error("Не ход противника");
+    const ability = foe.abilities[b.intent % foe.abilities.length];
+    b.intent = (b.intent + 1) % foe.abilities.length;
+    const alive = b.fighters.filter((f) => f.side === "god" && !f.down);
+    const pick = alive[(roll - 1) % Math.max(1, alive.length)];
+    const mult = roll >= 96 ? 1.5 : roll <= 5 ? 0 : 1;
+    const tag = roll >= 96 ? " (крит. удача ×1,5)" : "";
+    if (mult === 0 && (ability.kind === "strike" || ability.kind === "blast")) {
+      push(b, { k: "fight", x: `${foe.name}: «${ability.name}» — промах (бросок ${roll})`, who: [foe.name] });
+    } else if (ability.kind === "strike" && pick) {
+      const got = hurt(pick, ability.power * mult * takenOf(pick) * defenseOf(pick));
+      push(b, { k: "fight", x: `${foe.name} → ${pick.name}: «${ability.name}», ${hpWord(got.hp + got.shield)}${got.shield ? ` (щит принял ${got.shield})` : ""}${tag}. У ${pick.name} ${pick.hp} / ${pick.hpMax}${pick.down ? " — без сил!" : ""}`, who: [foe.name, pick.name], d: [foe.name, pick.name, got.hp + got.shield] });
+    } else if (ability.kind === "blast") {
+      let total = 0;
+      for (const t of alive) {
+        const got = hurt(t, ability.power * mult * takenOf(t) * defenseOf(t));
+        total += got.hp + got.shield;
+      }
+      const fallen = alive.filter((t) => t.down).map((t) => t.name);
+      push(b, { k: "fight", x: `${foe.name} → все: «${ability.name}», по ${Math.round(ability.power * mult)} до защиты${tag}${fallen.length ? `. Без сил: ${fallen.join(", ")}` : ""}`, who: [foe.name, ...alive.map((t) => t.name)], d: [foe.name, "все", total] });
+    } else if (ability.kind === "heal") {
+      const heal = Math.min(foeF.hpMax - foeF.hp, ability.power);
+      foeF.hp += heal;
+      push(b, { k: "heal", x: `${foe.name}: «${ability.name}», +${heal} здоровья. У него ${foeF.hp} / ${foeF.hpMax}`, who: [foe.name], h: [foe.name, foe.name, heal] });
+    } else if (ability.kind === "armor" && ability.effect) {
+      applyEffect(foeF, ability.effect, foe.name);
+      push(b, { k: "curse", x: `${foe.name}: «${ability.name}»${effectText(ability.effect)}`, who: [foe.name] });
+    } else if (ability.kind === "curse" && ability.effect && pick) {
+      if (ability.power > 0)
+        hurt(pick, ability.power * takenOf(pick));
+      applyEffect(pick, ability.effect, foe.name);
+      push(b, { k: "curse", x: `${foe.name} наложил на ${pick.name} «${ability.effect.name}»${effectText(ability.effect)}${ability.power ? `, ${hpWord(ability.power)}` : ""}`, who: [foe.name, pick.name] });
+    } else if (ability.kind === "curseAll" && ability.effect) {
+      for (const t of alive)
+        applyEffect(t, ability.effect, foe.name);
+      push(b, { k: "curse", x: `${foe.name} → все: «${ability.effect.name}»${effectText(ability.effect)}`, who: [foe.name, ...alive.map((t) => t.name)] });
+    }
+    if (alive.every((t) => t.down)) {
+      b.over = "lose";
+      push(b, { k: "fight", x: `Отряд пал. ${foe.name} победил`, who: [foe.name] });
+    }
+    return b;
+  }
+  function defenseOf(f) {
+    if (f.side !== "god")
+      return 1;
+    return 1 - Math.min(0.4, Math.max(0, statOf(f, "endurance")) / 250);
+  }
+  function beginTurn(battle) {
+    const b = clone(battle);
+    const actor = b.actor ? fighterOf(b, b.actor) : undefined;
+    if (!actor || b.over)
+      return { battle: b, skip: true };
+    for (const e of actor.effects) {
+      if (!e.dot)
+        continue;
+      if (e.dot > 0) {
+        const got = hurt(actor, e.dot);
+        push(b, { k: "curse", x: `${actor.name}: «${e.name}», ${hpWord(got.hp + got.shield)}. Здоровье ${actor.hp} / ${actor.hpMax}`, who: [actor.name], d: [e.from, actor.name, got.hp + got.shield] });
+      } else {
+        const heal = Math.min(actor.hpMax - actor.hp, -e.dot);
+        actor.hp += heal;
+        push(b, { k: "heal", x: `${actor.name}: «${e.name}», +${heal} здоровья`, who: [actor.name], h: [e.from, actor.name, heal] });
+      }
+    }
+    if (actor.down) {
+      if (actor.side === "foe")
+        b.over = "win";
+      else if (b.fighters.filter((f) => f.side === "god").every((f) => f.down))
+        b.over = "lose";
+      return { battle: b, skip: true };
+    }
+    const skip = actor.effects.some((e) => e.skip);
+    if (skip)
+      push(b, { k: "curse", x: `${actor.name} пропускает ход: «${actor.effects.find((e) => e.skip)?.name ?? ""}»`, who: [actor.name] });
+    return { battle: b, skip };
+  }
+  function endTurn(battle) {
+    const b = clone(battle);
+    const actor = b.actor ? fighterOf(b, b.actor) : undefined;
+    if (actor) {
+      for (const k of Object.keys(actor.cd)) {
+        actor.cd[k] = Math.max(0, (actor.cd[k] ?? 0) - 1);
+        if (actor.cd[k] === 0)
+          delete actor.cd[k];
+      }
+      actor.effects = actor.effects.map((e) => ({ ...e, left: e.left - 1 })).filter((e) => e.left > 0);
+      actor.next += turnTime(speedOf(actor));
+    }
+    b.turns += 1;
+    b.actor = nextActor(b);
+    return b;
+  }
+  function battleXp(b) {
+    const foe = foeOf(b.foe);
+    if (!foe || b.over !== "win")
+      return {};
+    const gods = b.fighters.filter((f) => f.side === "god");
+    const dmg = {};
+    for (const g of gods)
+      if (g.dealt > 0)
+        dmg[g.id] = g.dealt;
+    return splitXp(foeXp(foe.rank, foe.boss), dmg, gods.filter((g) => g.helped && !dmg[g.id]).map((g) => g.id));
+  }
+  function battleTotals(b) {
+    const dealt = {};
+    const taken = {};
+    let help = 0;
+    let curses = 0;
+    const gods = b.fighters.filter((f) => f.side === "god").map((f) => f.name);
+    for (const e of b.log) {
+      if (e.d) {
+        dealt[e.d[0]] = (dealt[e.d[0]] ?? 0) + e.d[2];
+        if (e.d[1] !== "все")
+          taken[e.d[1]] = (taken[e.d[1]] ?? 0) + e.d[2];
+      }
+      if (e.h && gods.includes(e.h[1]))
+        help += e.h[2];
+      if (e.k === "curse")
+        curses += 1;
+    }
+    return { dealt, taken, help, curses };
+  }
+
+  // src/mechanics/olymp/story.ts
+  var exports_story = {};
+  __export(exports_story, {
+    branchNext: () => branchNext,
+    exitsOf: () => exitsOf,
+    placeOf: () => placeOf,
+    sceneOf: () => sceneOf,
+    validateStory: () => validateStory,
+    visibleOptions: () => visibleOptions
+  });
+  function sceneOf(story, id) {
+    return story.scenes.find((s) => s.id === id);
+  }
+  function placeOf(story, id) {
+    return story.places.find((p) => p.id === id);
+  }
+  function exitsOf(scene) {
+    switch (scene.kind) {
+      case "narrate":
+        return [scene.next];
+      case "check":
+        return [scene.next, ...Object.values(scene.outcomes).map((o) => o.next).filter((n) => !!n)];
+      case "vote":
+        return scene.options.map((o) => o.next);
+      case "fight":
+        return [scene.win, scene.lose];
+      case "branch":
+        return [...scene.rules.map((r) => r.next), scene.default];
+      case "end":
+        return [];
+    }
+  }
+  function visibleOptions(scene, flags) {
+    return scene.options.filter((o) => !o.needs || flags.includes(o.needs));
+  }
+  function branchNext(scene, flags) {
+    return scene.rules.find((r) => flags.includes(r.flag))?.next ?? scene.default;
+  }
+  function validateStory(story) {
+    const errors = [];
+    const ids = new Set;
+    for (const s of story.scenes) {
+      if (ids.has(s.id))
+        errors.push(`Сцена ${s.id} повторяется`);
+      ids.add(s.id);
+      if (!placeOf(story, s.place))
+        errors.push(`Сцена ${s.id}: нет места ${s.place}`);
+      if (!s.text.trim() || !s.screen.trim())
+        errors.push(`Сцена ${s.id}: нет текста`);
+      if (s.kind === "vote" && s.options.filter((o) => !o.needs).length < 2)
+        errors.push(`Сцена ${s.id}: меньше двух вариантов без условий`);
+    }
+    if (!ids.has(story.start))
+      errors.push(`Нет начальной сцены ${story.start}`);
+    for (const s of story.scenes)
+      for (const n of exitsOf(s))
+        if (!ids.has(n))
+          errors.push(`Сцена ${s.id} ведёт в несуществующую ${n}`);
+    const seen = new Set;
+    const queue = [story.start];
+    while (queue.length) {
+      const id = queue.shift();
+      if (seen.has(id))
+        continue;
+      seen.add(id);
+      const s = sceneOf(story, id);
+      if (s)
+        queue.push(...exitsOf(s));
+    }
+    for (const s of story.scenes)
+      if (!seen.has(s.id))
+        errors.push(`Сцена ${s.id} недостижима`);
+    const ends = story.scenes.filter((s) => s.kind === "end");
+    if (ends.length === 0)
+      errors.push("Нет ни одной концовки");
+    const canEnd = new Set(ends.map((e) => e.id));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const s of story.scenes) {
+        if (canEnd.has(s.id))
+          continue;
+        if (exitsOf(s).some((n) => canEnd.has(n))) {
+          canEnd.add(s.id);
+          changed = true;
+        }
+      }
+    }
+    for (const s of story.scenes)
+      if (!canEnd.has(s.id))
+        errors.push(`Из сцены ${s.id} не дойти до концовки`);
+    return errors;
+  }
+
+  // src/mechanics/olymp/winter.ts
+  var ROCK2 = { id: "rock", name: "Рок", kind: "curse", turns: 1, roll: -10 };
+  var WINTER = {
+    id: "winter",
+    title: "Вечная зима",
+    blurb: "Персефона пропала, Деметра в горе — и на землю пришла зима, которая не кончается. Боги спускаются с Олимпа, чтобы вернуть весну.",
+    start: "prologue",
+    places: [
+      { id: "olympus", name: "Олимп во льду", weather: "snow", music: "olympus" },
+      { id: "eleusis", name: "Голодный храм Элевсина", weather: "embers", music: "temple" },
+      { id: "arcadia", name: "Леса Аркадии", weather: "snow", music: "forest" },
+      { id: "acheron", name: "Берег Ахерона", weather: "mist", music: "river" },
+      { id: "gates", name: "Ледяные врата", weather: "snow", music: "boss" },
+      { id: "spring", name: "Луг Персефоны", weather: "none", music: "spring" }
+    ],
+    scenes: [
+      {
+        id: "prologue",
+        kind: "narrate",
+        place: "olympus",
+        title: "Олимп во льду",
+        screen: "Третий месяц на земле не тает снег. Деметра не выходит из храма.",
+        text: "Третий месяц на земле не тает снег. Поля Деметры стоят белыми, люди жгут последние оливы, чтобы согреться. " + "Даже на Олимпе иней ложится на золото колонн. Деметра заперлась в своём храме: её дочь Персефона пропала, " + "и вместе с ней ушла весна. Зевс собирает богов у очага Гестии. «Если зима останется, — говорит он, — " + "люди перестанут приносить жертвы. А без них и мы станем тенями».",
+        next: "council"
+      },
+      {
+        id: "council",
+        kind: "check",
+        place: "olympus",
+        title: "Совет у очага",
+        screen: "Кто убедит Гермеса рассказать, что он видел у Ахерона?",
+        action: "Один бог говорит с Гермесом-вестником. Бросок Влияния.",
+        text: "Гермес видит всё, что происходит между небом и подземным миром, но молчит: Аид — его дядя, а вестник не любит " + "выбирать сторону. Кто-то должен убедить его заговорить.",
+        stat: "influence",
+        next: "fork",
+        outcomes: {
+          crit: { text: "Гермес смеётся и рассказывает всё: тени без лиц увели Персефону к Ахерону, а за ними шёл холод, какого не помнит и Аид. Он дарит отряду обол для Харона.", flag: "obol", coins: 10 },
+          good: { text: "Гермес шепчет: «Ищите у реки Ахерон. Только не платите Харону медью — он любит серебро».", flag: "hint-charon" },
+          mid: { text: "Гермес пожимает плечами: «Ахерон… может быть. Спросите Деметру, она знает дочь лучше всех»." },
+          bad: { text: "Гермес отшучивается и исчезает в метели. Придётся искать самим." },
+          fail: { text: "Гермес обижен: «Боги, которые не умеют просить!» — и уносит с собой всю удачу. На говорившего — «Рок».", effect: ROCK2 }
+        }
+      },
+      {
+        id: "fork",
+        kind: "vote",
+        place: "olympus",
+        title: "Куда идти",
+        screen: "Отряд голосует: храм Деметры или следы в лесах Аркадии?",
+        text: "Две дороги ведут с Олимпа. В Элевсине — Деметра, которая знает дочь лучше всех. В Аркадии охотники видели следы, что не тают даже днём.",
+        options: [
+          { label: "Храм Деметры", hint: "поговорить с матерью, узнать, куда ушла Персефона", next: "eleusis" },
+          { label: "Леса Аркадии", hint: "идти по следам — быстрее, но опасно", next: "arcadia" }
+        ]
+      },
+      {
+        id: "eleusis",
+        kind: "narrate",
+        place: "eleusis",
+        title: "Голодный храм",
+        screen: "В храме пахнет холодным пеплом. Деметра не поднимает глаз.",
+        text: "В храме Элевсина пахнет холодным пеплом. Жрицы спят у погасших жаровен, на алтаре — пустые корзины. " + "Деметра сидит у статуи дочери и не поднимает глаз. «Зачем пришли боги, которые три месяца не замечали моего горя?»",
+        next: "demeter"
+      },
+      {
+        id: "demeter",
+        kind: "check",
+        place: "eleusis",
+        title: "Слово к Деметре",
+        screen: "Убедить Деметру довериться богам. Бросок Влияния.",
+        action: "Один бог говорит с Деметрой. Бросок Влияния.",
+        text: "Деметра не верит богам Олимпа. Нужно найти слова, которые дойдут до матери.",
+        stat: "influence",
+        next: "acheron",
+        outcomes: {
+          crit: { text: "Деметра узнаёт в говорящем родную кровь и плачет впервые за три месяца. Она отдаёт отряду колос — знак матери, который откроет любые врата подземного мира.", flag: "demeter-trust", coins: 15 },
+          good: { text: "Деметра рассказывает о последнем видении дочери: Персефону уводили тени без лиц — к реке Ахерон.", flag: "demeter-trust" },
+          mid: { text: "Деметра кивает: «Ахерон. Она снилась мне у чёрной воды». Больше она не говорит." },
+          bad: { text: "Деметра отворачивается. Жрица шёпотом подсказывает путь к Ахерону." },
+          fail: { text: "Слова ранят мать. Деметра проклинает гостя: холод её горя ложится ему на плечи.", effect: { id: "grief", name: "Скорбь Деметры", kind: "curse", turns: 3, stats: { influence: -15 } } }
+        }
+      },
+      {
+        id: "arcadia",
+        kind: "narrate",
+        place: "arcadia",
+        title: "Следы в снегу",
+        screen: "Следы не тают даже днём. Из чащи доносится вой.",
+        text: "Снег в Аркадии скрипит, как стекло. Следы, о которых говорили охотники, светятся инеем и ведут на север. " + "Вдруг из чащи доносится вой — и между соснами загораются голубые глаза.",
+        next: "wolves"
+      },
+      {
+        id: "wolves",
+        kind: "fight",
+        place: "arcadia",
+        title: "Стая ледяных волков",
+        screen: "Бой! Стая ледяных волков.",
+        text: "Голодная стая окружает отряд. Вожак светится инеем — он ведёт остальных. Бой!",
+        foe: "wolves",
+        win: "trail",
+        lose: "wolves-lost"
+      },
+      {
+        id: "wolves-lost",
+        kind: "narrate",
+        place: "arcadia",
+        title: "Отступление",
+        screen: "Отряд отступает. Охотница Аталанта выводит богов к реке.",
+        text: "Стая теснит отряд к обрыву. В последний миг из метели выходит охотница Аталанта и отгоняет волков факелом. «Вам к Ахерону, — говорит она. — Следы ведут туда». Отряд идёт дальше, израненный.",
+        next: "acheron"
+      },
+      {
+        id: "trail",
+        kind: "check",
+        place: "arcadia",
+        title: "Чьи это следы",
+        screen: "Прочитать следы. Бросок Мудрости.",
+        action: "Один бог читает следы. Бросок Мудрости.",
+        text: "Среди волчьих следов — другие: босые, лёгкие, будто кто-то шёл, не касаясь снега. А рядом — борозды, словно тащили сани изо льда.",
+        stat: "wisdom",
+        next: "acheron",
+        outcomes: {
+          crit: { text: "Это шаги Персефоны — она шла сама, будто во сне. А сани — от Ледяных врат: значит, Пожиратель держит её там, за рекой. Отряд находит тайный брод.", flag: "ford" },
+          good: { text: "Следы Персефоны — она шла как во сне. Её вели к Ахерону.", flag: "sleepwalk" },
+          mid: { text: "Следы ведут к реке Ахерон. Дальше снег их заметает." },
+          bad: { text: "Следы путаются. Отряд блуждает до темноты, но выходит к реке." },
+          fail: { text: "Под ногой ломается лёд. Читавший следы проваливается в ледяную воду.", hurt: 15 }
+        }
+      },
+      {
+        id: "acheron",
+        kind: "narrate",
+        place: "acheron",
+        title: "Берег Ахерона",
+        screen: "Чёрная вода, туман, лодка Харона. На том берегу — Ледяные врата.",
+        text: "Ветки сходятся у одной реки. Ахерон течёт без звука, над чёрной водой стоит туман. У причала ждёт Харон — " + "старик в капюшоне, с веслом длиннее лодки. На том берегу сквозь туман сияют Ледяные врата, и оттуда идёт холод.",
+        next: "crossing"
+      },
+      {
+        id: "crossing",
+        kind: "vote",
+        place: "acheron",
+        title: "Переправа",
+        screen: "Как переправиться через Ахерон?",
+        text: "Харон протягивает руку за платой. Можно заплатить, можно его обмануть, а можно пробиться силой — но тени у причала не любят шума.",
+        options: [
+          { label: "Заплатить обол", hint: "обол Гермеса — честная плата", next: "ferry", needs: "obol" },
+          { label: "Тайный брод", hint: "тот, что нашли по следам", next: "gates", needs: "ford" },
+          { label: "Уговорить Харона", hint: "бросок Хитрости или Влияния", next: "charon" },
+          { label: "Пробиться силой", hint: "бой с тенями у причала", next: "shades" }
+        ]
+      },
+      {
+        id: "ferry",
+        kind: "narrate",
+        place: "acheron",
+        title: "Лодка Харона",
+        screen: "Харон берёт обол и молча гребёт к Ледяным вратам.",
+        text: "Харон пробует обол на зуб, кивает и молча гребёт. Вода под лодкой шепчет имена. На середине реки становится так холодно, что у богов белеют брови.",
+        next: "gates"
+      },
+      {
+        id: "charon",
+        kind: "check",
+        place: "acheron",
+        title: "Разговор с Хароном",
+        screen: "Уговорить Харона перевезти без платы. Бросок Хитрости.",
+        action: "Один бог торгуется с Хароном. Бросок Хитрости.",
+        text: "Харон не перевозит живых без платы. Но и он устал от этого холода.",
+        stat: "cunning",
+        next: "gates",
+        outcomes: {
+          crit: { text: "Харон смеётся впервые за тысячу лет: «Ради весны — перевезу даром». Он рассказывает, что Пожиратель боится огня и молнии.", flag: "weakness" },
+          good: { text: "Харон соглашается — за обещание вернуть весну и тепло на его берег." },
+          mid: { text: "Харон берёт с каждого по драхме и перевозит.", coins: -10 },
+          bad: { text: "Харон отказывает и стучит веслом. Из тумана поднимаются тени.", next: "shades" },
+          fail: { text: "Харон оскорблён. Он толкает говорившего веслом в ледяную воду — и зовёт тени.", hurt: 15, next: "shades" }
+        }
+      },
+      {
+        id: "shades",
+        kind: "fight",
+        place: "acheron",
+        title: "Тени Ахерона",
+        screen: "Бой! Тени Ахерона.",
+        text: "Из тумана поднимаются безликие тени. Они тянут к богам холодные руки — те самые, что увели Персефону. Бой!",
+        foe: "shades",
+        win: "gates",
+        lose: "shades-lost"
+      },
+      {
+        id: "shades-lost",
+        kind: "narrate",
+        place: "acheron",
+        title: "Харон сжалился",
+        screen: "Тени отступают сами — их зовёт Пожиратель. Харон перевозит раненых.",
+        text: "Тени уже окружили отряд, но вдруг отступают: их зовёт кто-то с того берега. Харон молча подаёт руку раненым богам. «Он ждёт вас, — говорит Харон. — Ему тоже нужны души».",
+        next: "gates"
+      },
+      {
+        id: "gates",
+        kind: "narrate",
+        place: "gates",
+        title: "Ледяные врата",
+        screen: "За вратами — спящая Персефона во льду. Её сторожит Пожиратель зимы.",
+        text: "Ледяные врата выше храма. За ними, в глыбе льда, спит Персефона — её руки сложены, как у статуи. " + "Перед глыбой поднимается из тумана Пожиратель зимы: осколок первичного Хаоса, на его лбу горит метка Тёмного мира. " + "Он пожирает тепло и души — и он голоден.",
+        next: "boss"
+      },
+      {
+        id: "boss",
+        kind: "fight",
+        place: "gates",
+        title: "Пожиратель зимы",
+        screen: "Бой с боссом! Пожиратель зимы.",
+        text: "Пожиратель ревёт, и от его голоса трескается лёд. Бой!",
+        foe: "devourer",
+        win: "free",
+        lose: "end-winter"
+      },
+      {
+        id: "free",
+        kind: "check",
+        place: "gates",
+        title: "Разбудить Персефону",
+        screen: "Глыба льда тает. Разбудить Персефону. Бросок Мудрости.",
+        action: "Один бог будит Персефону. Бросок Мудрости.",
+        text: "Пожиратель рассыпается снегом. Лёд вокруг Персефоны трескается, но она не просыпается: холод ещё держит её сон.",
+        stat: "wisdom",
+        next: "awake",
+        outcomes: {
+          crit: { text: "Персефона открывает глаза и улыбается: она помнит голоса богов, которые пришли за ней.", flag: "awake-well", xp: 40 },
+          good: { text: "Персефона просыпается и узнаёт отряд.", flag: "awake-well" },
+          mid: { text: "Персефона просыпается, но дрожит: холод ещё в ней." },
+          bad: { text: "Персефона просыпается с трудом и не помнит, где была." },
+          fail: { text: "Осколок метки впивается в будившего. Персефона просыпается, но холод остаётся с ним.", effect: { id: "mark", name: "Метка Тёмного мира", kind: "curse", turns: 3, roll: -10 } }
+        }
+      },
+      {
+        id: "awake",
+        kind: "branch",
+        place: "spring",
+        title: "Возвращение",
+        screen: "Отряд выводит Персефону к свету.",
+        text: "Отряд выводит Персефону из подземного мира. Как её встретит земля — зависит от того, что боги сделали в пути.",
+        rules: [
+          { flag: "demeter-trust", next: "end-spring" },
+          { flag: "awake-well", next: "end-spring" }
+        ],
+        default: "end-half"
+      },
+      {
+        id: "end-spring",
+        kind: "end",
+        place: "spring",
+        title: "Весна возвращается",
+        ending: "good",
+        screen: "Снег тает за одну ночь. Деметра обнимает дочь. Весна вернулась.",
+        text: "Снег тает за одну ночь. Деметра выходит из храма и обнимает дочь, и там, где падают её слёзы, прорастает пшеница. " + "Люди снова зажигают жертвенники, и на Олимпе впервые за три месяца тепло. Но в пустом углу Ледяных врат осталась " + "метка Тёмного мира — кто-то ещё смотрит на землю оттуда."
+      },
+      {
+        id: "end-half",
+        kind: "end",
+        place: "spring",
+        title: "Полгода зимы",
+        ending: "mid",
+        screen: "Персефона вернулась — но холод взял с неё клятву. Полгода она будет уходить под землю.",
+        text: "Персефона вернулась, но холод взял с неё клятву: каждые полгода она будет уходить под землю, и тогда на земле будет зима. " + "Деметра благодарит богов сдержанно. Люди говорят, что так и появились времена года."
+      },
+      {
+        id: "end-winter",
+        kind: "end",
+        place: "gates",
+        title: "Вечная зима",
+        ending: "bad",
+        screen: "Пожиратель победил. Зима осталась на земле.",
+        text: "Пожиратель гасит последнее тепло в груди богов. Отряд приходит в себя на Олимпе — живой, но без сил. " + "Персефона осталась во льду, а на земле — вечная зима. Может быть, следующий отряд будет сильнее."
+      }
+    ]
+  };
+
+  // src/mechanics/olymp/_entry.ts
+  globalThis.OLYMP = { ...exports_rules, ...exports_gods, ...exports_foes, ...exports_combat, ...exports_story, WINTER };
+})();
+</script>
+<script>
+(function(){
+const O=window.OLYMP, ST=O.WINTER;
+const EC={fire:'#E8875A',water:'#6FA8D6',ice:'#9EC3D6',bolt:'#F3DFAE',earth:'#C9A15F',wind:'#A9D3B5',light:'#FBF1C7',dark:'#B3AADD',poison:'#9DCB6B',chaos:'#D98AB8'};
+const KIND={fight:['⚔','#E8875A'],curse:['☠','#E3AA9C'],heal:['✚','#A3C2AA'],coin:['◉','#E3C68C'],level:['★','#F3DFAE'],start:['⚑','#9EC3D6'],vote:['✓','#B3AADD'],story:['❧','#CFE3EE'],idea:['💡','#CFE3EE']};
+const $=s=>document.querySelector(s), esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const d100=()=>1+Math.floor(Math.random()*100);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let G=null, tab='game', seenLog=0, busy=false;
+
+const fresh=()=>({phase:'pick',pick:[],party:[],flags:[],scene:ST.start,log:[],seq:1,check:null,vote:null,battle:null,lastN:0,battleEnd:null,logF:'all'});
+const save=()=>{ try{ localStorage.setItem('olymp-winter',JSON.stringify(G)); }catch(e){} };
+const load=()=>{ try{ const s=localStorage.getItem('olymp-winter'); return s?JSON.parse(s):null; }catch(e){ return null; } };
+
+function addLog(k,x,who){ G.log.unshift({n:G.seq++,k,x,who:who||[]}); }
+function member(pid){ return G.party.find(m=>m.pid===pid); }
+function godOf(m){ return O.godOf(m.god); }
+function lvl(m){ return O.levelOf(m.xp); }
+function hpMax(m){ return O.hpMaxOf(lvl(m).level); }
+function bold(x,who){ let s=esc(x); [...new Set(who||[])].sort((a,b)=>b.length-a.length).forEach(n=>{ if(n&&n!=='все') s=s.split(esc(n)).join('<b>'+esc(n)+'</b>'); }); return s; }
+function emb(god,size){ return '<span class="emb" style="--ec:'+EC[god.element]+';'+(size?'width:'+size+'px;height:'+size+'px':'')+'" aria-hidden="true">'+god.name[0]+'</span>'; }
+function toast(t){ const el=$('#toast'); el.textContent=t; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2600); }
+function giveXp(m,amount,why){ if(!amount) return; const before=lvl(m).level; m.xp+=amount; const after=lvl(m).level; if(after>before){ const grow=hpMax(m)-O.hpMaxOf(before); m.hp=Math.min(hpMax(m),m.hp+grow); addLog('level',godOf(m).name+': новый уровень — '+after+'-й! Здоровье '+hpMax(m),[godOf(m).name]); toast(godOf(m).name+' — '+after+'-й уровень!'); } }
+function goldTotal(){ return G.party.reduce((a,m)=>a+m.coins,0); }
+function rollMod(m){ return m.effects.reduce((a,e)=>a+(e.roll||0),0); }
+function statWith(m,k){ const g=godOf(m); return g.stats[k]+m.effects.reduce((a,e)=>a+((e.stats&&e.stats[k])||0),0); }
+
+/* ---------- выбор богов ---------- */
+function renderPick(){
+  $('#sub').textContent='Вечная зима · выбор богов';
+  const n=G.pick.length;
+  $('#main').innerHTML='<div class="card scene">'+weather('snow')+'<div class="place">Пробная история · 18+</div><h1 class="t">Вечная зима</h1><p class="lead">'+esc(ST.blurb)+'</p><p class="muted">Выберите богов отряда — от 2 до 6. Один телефон, ходите по очереди: этот прототип проходит историю целиком на правилах настоящей игры.</p></div>'+
+    '<div class="godgrid">'+O.GODS.map(g=>'<button class="gcard" data-g="'+g.id+'" aria-pressed="'+G.pick.includes(g.id)+'"><span class="row">'+emb(g)+'<span style="min-width:0"><b>'+g.name+'</b><br><small>'+O.ROLES[g.role].name+' · '+O.ELEMENT_NAMES[g.element]+'</small></span></span><small>'+esc(O.ROLES[g.role].hint)+'</small></button>').join('')+'</div>'+
+    '<button class="btn" id="go"'+(n>=2&&n<=6?'':' disabled')+'>'+(n<2?'Выберите хотя бы двух богов':n>6?'Не больше шести':'Начать — '+n+' '+(n<5?'бога':'богов'))+'</button>';
+  document.querySelectorAll('.gcard').forEach(b=>b.onclick=()=>{ const id=b.dataset.g; G.pick=G.pick.includes(id)?G.pick.filter(x=>x!==id):[...G.pick,id]; renderPick(); });
+  $('#go').onclick=()=>{ G.party=G.pick.map((g,i)=>({pid:'p'+i,god:g,xp:0,hp:100,coins:0,effects:[]})); G.phase='scene'; addLog('story','Отряд собран: '+G.party.map(m=>godOf(m).name).join(', '),G.party.map(m=>godOf(m).name)); enterScene(ST.start); };
+}
+function weather(kind){ if(kind==='none') return ''; let s='<div class="weather '+kind+'">'; const n=kind==='mist'?5:kind==='embers'?16:26; for(let i=0;i<n;i++){ const l=Math.round(Math.random()*100), d=(kind==='mist'?14:5)+Math.random()*(kind==='mist'?10:6), del=-Math.random()*d; s+='<i style="left:'+l+'%;'+(kind==='mist'?'top:'+Math.round(Math.random()*80)+'%;':'')+'animation-duration:'+d.toFixed(1)+'s;animation-delay:'+del.toFixed(1)+'s"></i>'; } return s+'</div>'; }
+
+/* ---------- сцены ---------- */
+function enterScene(id){
+  const sc=O.sceneOf(ST,id); G.scene=id; G.check=null; G.vote=null;
+  if(sc.kind==='branch'){ const nx=O.branchNext(sc,G.flags); addLog('story',sc.title+': '+sc.text); return enterScene(nx); }
+  if(sc.kind==='end'){ G.phase='end'; addLog('story','Концовка: «'+sc.title+'»'); }
+  else if(sc.kind==='fight'){ G.phase='scene'; }
+  else G.phase='scene';
+  addLog('story',sc.title+' — '+sc.screen); save(); render();
+}
+function renderScene(){
+  const sc=O.sceneOf(ST,G.scene), pl=O.placeOf(ST,sc.place);
+  $('#sub').textContent=pl.name;
+  let body='';
+  if(sc.kind==='narrate') body='<button class="btn" id="next">Дальше</button>';
+  if(sc.kind==='fight') body='<p class="muted">Противник: '+esc(O.foeOf(sc.foe).name)+'</p><button class="btn" id="fight">Начать бой</button>';
+  if(sc.kind==='vote'){ const opts=O.visibleOptions(sc,G.flags); body='<p class="muted">Отряд решает большинством — выберите, куда идти:</p>'+opts.map((o,i)=>'<button class="btn2" data-o="'+i+'" style="text-align:left;padding:10px 16px;min-height:60px"><b>'+esc(o.label)+'</b><br><span class="muted">'+esc(o.hint)+'</span></button>').join(''); }
+  if(sc.kind==='check') body=renderCheck(sc);
+  $('#main').innerHTML='<div class="card scene">'+weather(pl.weather)+'<div class="place">'+esc(pl.name)+'</div><h1 class="t">'+esc(sc.title)+'</h1><p class="lead">'+esc(sc.text)+'</p>'+(sc.kind==='check'?'<div class="chips"><span class="chip gold wrap">'+esc(sc.action)+'</span></div>':'')+'</div><div class="stack">'+body+'</div>';
+  const nb=$('#next'); if(nb) nb.onclick=()=>enterScene(sc.next);
+  const fb=$('#fight'); if(fb) fb.onclick=()=>startFight(sc);
+  document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{ const o=O.visibleOptions(sc,G.flags)[+b.dataset.o]; addLog('vote','Голосование «'+sc.title+'»: «'+o.label+'»'); enterScene(o.next); });
+  if(sc.kind==='check') bindCheck(sc);
+}
+function renderCheck(sc){
+  const c=G.check||{who:G.party[0].pid};
+  if(!c.done){
+    const m=member(c.who), stat=statWith(m,sc.stat), mod=rollMod(m), thr=O.threshold(stat);
+    return '<div class="card"><b>Кто бросает?</b><div class="party">'+G.party.map(p=>{const g=godOf(p);return '<button class="pm'+(p.pid===c.who?' cur':'')+'" data-who="'+p.pid+'" style="text-align:left;cursor:pointer">'+emb(g,34)+'<div><div class="nm">'+g.name+'<small>'+O.STAT_NAMES[sc.stat]+' '+statWith(p,sc.stat)+'</small></div></div></button>';}).join('')+'</div>'+
+      '<p class="muted">Порог '+thr+' (100 − '+O.STAT_NAMES[sc.stat]+'), «хорошо» — от '+(thr+20)+'. 96–100 — всегда крит. удача, 1–5 — всегда крит. неудача.'+(mod?' Эффекты: '+(mod>0?'+':'−')+Math.abs(mod)+' к броску.':'')+'</p>'+
+      '<div class="die"><span class="d100" id="die">?</span><button class="btn" id="roll">Бросить d100</button></div></div>';
+  }
+  const br=sc.outcomes[c.outcome];
+  return '<div class="card"><div class="die"><span class="d100">'+c.roll+'</span><div><div class="outc o-'+c.outcome+'">'+O.OUTCOME_NAMES[c.outcome]+'</div><div class="muted">'+esc(godOf(member(c.who)).name)+' · '+O.STAT_NAMES[sc.stat]+(c.mod?' · '+(c.mod>0?'+':'−')+Math.abs(c.mod)+' от эффектов':'')+'</div></div></div><p class="lead">'+esc(br.text)+'</p><div class="chips">'+c.chips.map(x=>'<span class="chip '+x[1]+'">'+esc(x[0])+'</span>').join('')+'</div></div><button class="btn" id="next2">Дальше</button>';
+}
+function bindCheck(sc){
+  const c=G.check||(G.check={who:G.party[0].pid});
+  document.querySelectorAll('[data-who]').forEach(b=>b.onclick=()=>{ c.who=b.dataset.who; renderScene(); });
+  const rb=$('#roll'); if(rb) rb.onclick=()=>{ if(busy) return; busy=true; rb.disabled=true; const die=$('#die'); die.classList.add('spin'); let k=0; const iv=setInterval(()=>{ die.textContent=d100(); if(++k>=(reduce?1:9)){ clearInterval(iv); die.classList.remove('spin'); busy=false; resolveCheck(sc); } },90); };
+  const nb=$('#next2'); if(nb) nb.onclick=()=>{ const br=sc.outcomes[c.outcome]; enterScene(br.next||sc.next); };
+}
+function resolveCheck(sc){
+  const c=G.check, m=member(c.who), g=godOf(m); const roll=d100(); const mod=rollMod(m);
+  const outcome=O.outcomeOf(roll,statWith(m,sc.stat),mod); const br=sc.outcomes[outcome]; const chips=[];
+  const xp=br.xp!=null?br.xp:O.OUTCOME_XP[outcome]; if(xp){ giveXp(m,xp); chips.push(['+'+xp+' опыта '+g.name,'good']); }
+  m.effects=m.effects.filter(e=>!e.once);
+  if(br.effect){ m.effects.push({...br.effect,left:br.effect.turns,once:br.effect.turns===1}); chips.push(['«'+br.effect.name+'» на '+g.name,'bad']); }
+  if(br.flag&&!G.flags.includes(br.flag)){ G.flags.push(br.flag); chips.push(['Сага запомнила','gold']); }
+  if(br.hurt){ m.hp=Math.max(1,m.hp-br.hurt); chips.push(['−'+br.hurt+' здоровья '+g.name,'bad']); }
+  if(br.coins){ coins(br.coins,chips); }
+  Object.assign(c,{done:true,roll,mod,outcome,chips});
+  addLog(outcome==='fail'?'curse':'story',g.name+': «'+sc.title+'», бросок '+roll+(mod?(mod>0?' +':' −')+Math.abs(mod):'')+' — '+O.OUTCOME_NAMES[outcome].toLowerCase()+'. '+br.text,[g.name]);
+  save(); renderScene();
+}
+function coins(amount,chips){
+  if(amount>0){ const rolls=G.party.map(()=>d100()); const parts=O.splitCoins(amount,rolls); G.party.forEach((m,i)=>m.coins+=parts[i]); addLog('coin','Отряду '+amount+' драхм, делим бросками: '+G.party.map((m,i)=>godOf(m).name+' '+rolls[i]+' → '+parts[i]).join(', '),G.party.map(m=>godOf(m).name)); chips&&chips.push(['+'+amount+' драхм отряду','gold']); }
+  else { let left=-amount; G.party.forEach(m=>{ const t=Math.min(m.coins,Math.ceil(left/G.party.length)); m.coins-=t; }); addLog('coin','Отряд заплатил '+(-amount)+' драхм'); chips&&chips.push([amount+' драхм','bad']); }
+}
+
+/* ---------- бой ---------- */
+function startFight(sc){
+  const B=O.startBattle(sc.foe,G.party.map(m=>({pid:m.pid,god:m.god,level:lvl(m).level,hp:Math.max(1,m.hp)})),G.seq);
+  // эффекты из сюжета переходят в бой
+  for(const f of B.fighters){ const m=member(f.id); if(m) f.effects=m.effects.map(e=>({id:e.id,name:e.name,kind:e.kind,left:e.left||e.turns,roll:e.roll,stats:e.stats,dot:e.dot,speed:e.speed,taken:e.taken,skip:e.skip,from:'сюжет'})); }
+  G.party.forEach(m=>m.effects=[]);
+  G.battle=B; G.phase='fight'; G.pending=null; G.lastDie=null; syncLog(); save(); render(); setTimeout(startTurn,400);
+}
+function syncLog(){ const B=G.battle; if(!B) return; const fresh=B.log.filter(e=>e.n>=G.seq).sort((a,b)=>a.n-b.n); for(const e of fresh){ G.log.unshift({...e}); } if(B.seq>G.seq) G.seq=B.seq; }
+function startTurn(){
+  const B=G.battle; if(!B||B.over) return finishFight();
+  const r=O.beginTurn(B); G.battle=r.battle; syncLog();
+  if(G.battle.over){ render(); return finishFight(); }
+  if(r.skip){ G.battle=O.endTurn(G.battle); render(); return setTimeout(startTurn,reduce?200:900); }
+  const actor=G.battle.fighters.find(f=>f.id===G.battle.actor);
+  render();
+  if(actor.side==='foe'){ busy=true; setTimeout(()=>{ G.battle=O.foeAct(G.battle,d100()); syncLog(); busy=false; afterAction(); },reduce?300:1300); }
+}
+function afterAction(){ if(G.battle.over){ save(); render(); return finishFight(); } G.battle=O.endTurn(G.battle); save(); render(); setTimeout(startTurn,reduce?150:600); }
+function useAbility(abId,targets){
+  const B=G.battle; const roll=d100(); busy=true; G.lastDie={roll:'…'}; render();
+  setTimeout(()=>{ try{ const res=O.godAct(G.battle,B.actor,abId,targets,roll); G.battle=res.battle; G.lastDie={roll,outcome:res.outcome}; }catch(e){ toast(e.message); busy=false; render(); return; } syncLog(); busy=false; G.pending=null; afterAction(); },reduce?100:700);
+}
+function finishFight(){
+  if(G.battleEnd) return;
+  const B=G.battle, sc=O.sceneOf(ST,G.scene), foe=O.foeOf(B.foe);
+  const win=B.over==='win'; const lines=[];
+  // здоровье переносится в историю
+  for(const f of B.fighters){ const m=member(f.id); if(!m) continue; m.hp=f.down?Math.max(1,Math.round(f.hpMax*(win?0.25:0.3))):f.hp; }
+  if(win){ const xp=O.battleXp(B); for(const [pid,v] of Object.entries(xp)){ const m=member(pid); giveXp(m,v); lines.push(godOf(m).name+' +'+v+' опыта'); } addLog('coin','Опыт за бой: '+lines.join(', '),G.party.map(m=>godOf(m).name)); coins(foe.coins); }
+  else addLog('fight','Отряд отступает. Наград нет',[]);
+  G.battleEnd={win,lines,next:win?sc.win:sc.lose,totals:O.battleTotals(B)}; save(); render();
+}
+function renderFight(){
+  const B=G.battle, foeF=B.fighters.find(f=>f.side==='foe'), foe=O.foeOf(B.foe), actor=B.fighters.find(f=>f.id===B.actor);
+  $('#sub').textContent='Бой · '+foe.name;
+  const intent=O.intentOf(B);
+  const res=Object.entries(foe.resist).filter(([k,v])=>v!==100).map(([k,v])=>'<span class="'+(v>100?'w':'s')+'">'+O.ELEMENT_NAMES[k]+' '+v+'%</span>').join('');
+  const fx=f=>f.effects.map(e=>'<span class="chip '+(e.kind==='curse'?'bad':'good')+'">'+esc(e.name)+' · '+e.left+'</span>').join('');
+  let h='<div class="card foe"><div class="place">'+(foe.boss?'Босс · ':'')+'ранг '+foe.rank+' · '+O.ELEMENT_NAMES[foe.element]+'</div><h2 class="t">'+esc(foe.name)+'</h2>'+
+    '<div class="hpline"><span>Здоровье</span><b>'+foeF.hp+' / '+foeF.hpMax+'</b></div><div class="bar foe"><i style="width:'+(foeF.hp/foeF.hpMax*100)+'%"></i></div>'+
+    (B.over?'':'<div class="muted">Готовит: <b style="color:#fff">'+esc(intent.name)+'</b> — '+esc(intent.hint)+'</div>')+
+    (fx(foeF)?'<div class="chips">'+fx(foeF)+'</div>':'')+'<div class="res">'+res+'</div></div>';
+  if(!B.over){ const q=O.turnQueue(B,8); h+='<div class="queue" aria-label="Очередь ходов">'+q.map((id,i)=>{const f=B.fighters.find(x=>x.id===id);return '<span class="'+(i===0?'now':'')+(f.side==='foe'?' foeq':'')+'">'+esc(f.side==='foe'?'Противник':f.name)+'</span>';}).join('')+'</div>'; }
+
+  const partyHtml='<div class="party">'+B.fighters.filter(f=>f.side==='god').map(f=>{const g=O.godOf(f.ref);const low=f.hp/f.hpMax<.35;const tgt=G.pending&&!f.down;return '<div class="pm'+(f.id===B.actor&&!B.over?' cur':'')+(f.down?' down':'')+(tgt?' tgt':'')+'" data-t="'+f.id+'"'+(tgt?' role="button" tabindex="0"':'')+'>'+emb(g,36)+'<div><div class="nm">'+g.name+' <small>ур. '+f.level+(f.shield?' · щит '+f.shield:'')+'</small></div><div class="hpline"><span>'+(f.down?'без сил':'здоровье')+'</span><b>'+f.hp+' / '+f.hpMax+'</b></div><div class="bar'+(low?' low':'')+'"><i style="width:'+(f.hp/f.hpMax*100)+'%"></i></div><div class="bar ch" style="margin-top:4px" title="заряд ульты"><i style="width:'+f.charge+'%"></i></div>'+(f.effects.length?'<div class="chips" style="margin-top:6px">'+fx(f)+'</div>':'')+'</div></div>';}).join('')+'</div>';
+  if(G.battleEnd){ const E=G.battleEnd; h+='<div class="card"><h2 class="t" style="color:'+(E.win?'var(--green)':'var(--red)')+'">'+(E.win?'Победа!':'Поражение')+'</h2>'+(E.win?'<p class="muted">'+esc(E.lines.join(' · '))+'</p><p class="muted">'+foe.coins+' драхм поделены бросками — смотрите журнал.</p>':'<p class="muted">Отряд отступает. Наград нет, история продолжится.</p>')+'<button class="btn" id="after">Дальше</button></div>'; }
+  else if(actor&&actor.side==='god'){
+    const g=O.godOf(actor.ref);
+    h+='<div class="card"><div class="row">'+emb(g,40)+'<div><b style="font-size:17px">Ходит '+g.name+'</b><div class="muted">'+(G.pending?'Коснитесь союзника выше — на кого':'Выберите способность — бросок кубика решит силу')+'</div></div></div>';
+    if(G.lastDie&&busy) h+='<div class="die"><span class="d100 spin">'+G.lastDie.roll+'</span></div>';
+    else if(G.pending) h+='<button class="btn2" id="cancel">Отмена</button>';
+    else h+='<div class="abil">'+O.abilitiesOf(g).map(a=>{const ok=O.canUse(actor,a);const cd=actor.cd[a.id]||0;const tag=a.ult?(actor.ultUsed?'уже использована':'заряд '+actor.charge+'%'):(cd?'ещё '+cd+' '+(cd===1?'ход':'хода'):(a.element?O.ELEMENT_NAMES[a.element]+' · ':'')+kindName(a));return '<button class="ab'+(a.ult?' ult':'')+'" data-a="'+a.id+'"'+(ok?'':' disabled')+'><b>'+esc(a.name)+'</b><small>'+esc(tag)+'</small><small>'+esc(a.text)+'</small></button>';}).join('')+'</div>';
+    h+='</div>';
+  } else if(actor) h+='<div class="card"><b>Ходит противник…</b><div class="muted">«'+esc(intent.name)+'»</div></div>';
+  if(G.pending) h+='<div class="card"><b>На кого?</b>'+partyHtml+'</div>';
+  h+='<div class="card"><b>Журнал боя</b><div class="log">'+G.log.filter(e=>e.n>=B.log[B.log.length-1].n).slice(0,4).map((e,i)=>evHtml(e,i===0)).join('')+'</div></div>';
+  if(!G.pending) h+='<div class="card"><b>Отряд</b>'+partyHtml+'</div>';
+  $('#main').innerHTML=h;
+  document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ if(busy) return; const a=O.abilitiesOf(O.godOf(actor.ref)).find(x=>x.id===b.dataset.a); if(a.target==='ally'){ G.pending=a.id; render(); } else useAbility(a.id,[]); });
+  document.querySelectorAll('.pm.tgt').forEach(el=>{ const go=()=>{ const id=G.pending; G.pending=null; useAbility(id,[el.dataset.t]); }; el.onclick=go; el.onkeydown=e=>{ if(e.key==='Enter') go(); }; });
+  const cb=$('#cancel'); if(cb) cb.onclick=()=>{ G.pending=null; render(); };
+  const ab=$('#after'); if(ab) ab.onclick=()=>{ const nx=G.battleEnd.next; G.battle=null; G.battleEnd=null; enterScene(nx); };
+}
+function kindName(a){ return {strike:'удар по одному',blast:'удар по всем',heal:a.target==='allies'?'лечение всех':'лечение',shield:a.target==='allies'?'щит всем':'щит союзнику',bless:'благословение',curse:'проклятие'}[a.kind]; }
+function evHtml(e,isNew){ const k=KIND[e.k]||KIND.story; return '<div class="ev ev-'+e.k+(isNew?' fresh':'')+'"><span class="i" style="--c:'+k[1]+'">'+k[0]+'</span><span>'+bold(e.x,e.who)+'</span></div>'; }
+
+/* ---------- концовка, отряд, журнал ---------- */
+function renderEnd(){
+  const sc=O.sceneOf(ST,G.scene), pl=O.placeOf(ST,sc.place);
+  $('#sub').textContent='Концовка';
+  $('#main').innerHTML='<div class="card scene">'+weather(pl.weather)+'<div class="place">'+({good:'Хорошая концовка',mid:'Средняя концовка',bad:'Плохая концовка'}[sc.ending])+'</div><div class="end">'+esc(sc.title)+'</div><p class="lead">'+esc(sc.text)+'</p></div>'+
+    '<div class="card"><b>Итоги отряда</b>'+G.party.map(m=>{const g=godOf(m),L=lvl(m);return '<div class="row">'+emb(g,34)+'<div><b>'+g.name+'</b> · '+L.level+'-й уровень · '+m.xp+' опыта · '+m.coins+' драхм</div></div>';}).join('')+'<p class="muted">Флаги Саги: '+(G.flags.length?G.flags.join(', '):'нет')+'. Другие концовки — с другими выборами и бросками.</p></div>'+
+    '<button class="btn" id="again">Сыграть ещё раз</button>';
+  $('#again').onclick=()=>{ G=fresh(); save(); render(); };
+}
+function renderParty(){
+  $('#sub').textContent='Отряд';
+  if(!G.party.length){ $('#main').innerHTML='<div class="card"><p class="muted">Отряд ещё не собран.</p></div>'; return; }
+  $('#main').innerHTML=G.party.map(m=>{ const g=godOf(m), L=lvl(m), hm=hpMax(m); const bf=G.battle&&G.battle.fighters.find(f=>f.id===m.pid); const hp=bf?bf.hp:m.hp;
+    return '<div class="card"><div class="row">'+emb(g,48)+'<div><h2 class="t">'+g.name+'</h2><div class="muted">'+O.ROLES[g.role].name+' · '+O.ELEMENT_NAMES[g.element]+' · '+L.level+'-й уровень</div></div><span class="chip gold">◉ '+m.coins+'</span></div>'+
+      '<div class="hpline"><span>Здоровье</span><b>'+hp+' / '+hm+'</b></div><div class="bar"><i style="width:'+(hp/hm*100)+'%"></i></div>'+
+      '<div class="hpline"><span>Опыт до '+(L.level+1)+'-го</span><b>'+L.xp+' / '+L.next+'</b></div><div class="bar ch"><i style="width:'+(L.xp/L.next*100)+'%"></i></div>'+
+      '<div class="stats">'+O.STATS.map(k=>'<div>'+O.STAT_NAMES[k]+'<b>'+statWith(m,k)+'</b></div>').join('')+'<div>Скорость<b>'+g.speed+'</b></div></div>'+
+      '<details><summary class="quiet">Способности и история</summary><div class="log" style="margin-top:8px">'+O.abilitiesOf(g).map(a=>'<div><b>'+esc(a.name)+(a.ult?' · ульта':'')+'</b> — '+esc(a.text)+'</div>').join('')+'<div class="muted">'+esc(g.about)+' Символы: '+esc(g.symbols)+'. Слабость: '+esc(g.weakness)+'.</div></div></details></div>'; }).join('')+
+    '<button class="quiet" id="reset">Начать историю заново</button>';
+  $('#reset').onclick=()=>{ G=fresh(); save(); tab='game'; render(); };
+}
+const LF=[['all','Все'],['fight','Бой'],['curse','Проклятия'],['heal','Помощь'],['coin','Награды'],['story','Сюжет']];
+function renderLog(){
+  $('#sub').textContent='Журнал · '+G.log.length;
+  const ok=e=>G.logF==='all'||e.k===G.logF||(G.logF==='coin'&&e.k==='level')||(G.logF==='story'&&(e.k==='vote'||e.k==='start'));
+  $('#main').innerHTML='<div class="filters">'+LF.map(([k,n])=>'<button data-f="'+k+'" aria-pressed="'+(G.logF===k)+'">'+n+'</button>').join('')+'</div><div class="card"><div class="log">'+(G.log.filter(ok).map(e=>evHtml(e,false)).join('')||'<span class="muted">Пока пусто</span>')+'</div></div>';
+  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{ G.logF=b.dataset.f; renderLog(); });
+  seenLog=G.log.length;
+}
+function render(){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===tab)));
+  $('#goldTop').textContent=G.party.length?'◉ '+goldTotal():'';
+  if(tab==='party') renderParty(); else if(tab==='log') renderLog();
+  else if(G.phase==='pick') renderPick(); else if(G.phase==='fight') renderFight(); else if(G.phase==='end') renderEnd(); else renderScene();
+  const nb=G.log.length-seenLog, badge=$('#logBadge'); if(tab!=='log'&&nb>0){ badge.hidden=false; badge.textContent=nb>9?'9+':nb; } else badge.hidden=true;
+}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; window.scrollTo(0,0); render(); });
+G=load()||fresh(); if(!G.logF) G.logF='all'; seenLog=G.log.length;
+render();
+if(G.phase==='fight'&&G.battle&&!G.battleEnd){ if(G.battle.over) finishFight(); else { const a=G.battle.fighters.find(f=>f.id===G.battle.actor); if(a&&a.side==='foe') startTurn(); } }
+})();
+</script>
+
+<a href="/olymp.html" style="position:fixed;left:12px;bottom:12px;z-index:99;font:600 13px Jost,system-ui,sans-serif;color:#221E1B;background:#E3C68C;border-radius:999px;padding:10px 14px;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.4)">← Олимп</a>
+</body>
+</html>

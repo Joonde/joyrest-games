@@ -151,7 +151,7 @@ export interface TeamsReveal {
   sizes?: Record<string, number>;
 }
 
-export type SlideKind = "intro" | "rules" | "round" | "break" | "award" | "thanks" | "custom";
+export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom";
 
 export interface SlideState {
   /** Новый id — новый показ (звук заставки играет один раз). */

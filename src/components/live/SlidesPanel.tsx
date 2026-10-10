@@ -11,6 +11,8 @@ const SLIDE_ICONS: Record<SlideKind, IconName> = {
   rules: "rules",
   round: "round",
   break: "break",
+  tech: "break",
+  join: "custom",
   award: "award",
   thanks: "thanks",
   custom: "custom",
@@ -23,7 +25,7 @@ interface Draft {
   minutes: number;
 }
 
-function slideId(): string {
+export function slideId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(8));
   return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
 }

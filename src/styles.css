@@ -2215,14 +2215,13 @@ kbd {
   background: #2b1d1a;
 }
 
-/* Конец игры на экране зала: дорога в студию видна всегда. */
+/* Конец игры на экране зала: дорога в студию видна всегда — сверху слева, основной кнопкой. */
 .screen-exit {
   position: fixed;
-  left: 50%;
-  bottom: max(16px, var(--safe-bottom));
-  transform: translateX(-50%);
+  top: max(16px, var(--safe-top));
+  left: max(16px, var(--safe-left));
   z-index: 25;
-  background: var(--color-bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 .hall.is-idle .screen-controls {
@@ -12656,10 +12655,10 @@ button.dance-card:active {
 .dk-stock, .dk-bito { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1.4cqh; min-width: 14cqh; }
 .dk-stock { flex-direction: row; align-items: center; }
 .dk-stock__trump { transform: rotate(90deg) translateY(-3cqh); }
-.dk-stock__deck { margin-left: -9cqh; box-shadow: 0.3cqh 0.3cqh 0 #3e0f1b, 0.6cqh 0.6cqh 0 #2f0b14, 0 1cqh 2cqh rgba(0, 0, 0, 0.5); }
+.dk-stock__deck { margin-left: -5cqh; box-shadow: 0.3cqh 0.3cqh 0 #3e0f1b, 0.6cqh 0.6cqh 0 #2f0b14, 0 1cqh 2cqh rgba(0, 0, 0, 0.5); }
 .dk-stock__label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 1.2cqh; white-space: nowrap; text-align: center; font-size: 1.8cqh; letter-spacing: 0.12em; text-transform: uppercase; color: #e8d9b5; }
 .dk-stock__label b { display: block; margin-top: 0.4cqh; font-family: "Cormorant Garamond", serif; font-size: 2.8cqh; letter-spacing: 0; text-transform: none; color: #f3e3bc; }
-.dk-stock__label b.is-red { color: #f09aa6; }
+.dk-stock__label b.is-red:not(.dk-stock__suit) { color: #f09aa6; }
 .dk-bito { flex-direction: row; }
 .dk-battle { position: relative; z-index: 1; flex: 1; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 2.4cqh 3cqh; max-width: 62cqh; min-height: 20cqh; }
 .dk-pair { position: relative; width: 13.5cqh; height: 18.5cqh; }
@@ -12737,7 +12736,7 @@ button.dance-card:active {
 
 /* ---------------------------------------------------------------- «Дурак»: телефон гостя */
 
-.dk-phone { gap: 12px; }
+.dk-phone { gap: 12px; --cw: clamp(68px, 23vw, 104px); }
 .dk-phone__deal { display: flex; justify-content: center; padding: 24px 0; }
 .dk-phone__opps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .dk-opp { flex: none; display: flex; flex-direction: column; padding: 6px 10px; border-radius: 12px; background: var(--color-surface-alt); border: 1px solid var(--color-border); font-size: 13px; min-width: 76px; }
@@ -12745,18 +12744,41 @@ button.dance-card:active {
 .dk-opp__n { color: var(--color-text-muted); }
 .dk-opp--turn, .dk-opp--defend { border-color: #e8c77e; box-shadow: 0 0 0 2px rgba(232, 199, 126, 0.25); }
 .dk-opp--out { opacity: 0.55; }
-.dk-mini { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 90px; align-items: center; }
+.dk-mini { --mw: 54px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 104px; align-items: center; transition: box-shadow 0.2s; }
+.dk-mini.is-drop { box-shadow: inset 0 0 0 2px rgba(232, 199, 126, 0.7); }
+.dk-mini.is-over { box-shadow: inset 0 0 0 3px #e8c77e, inset 0 0 24px rgba(232, 199, 126, 0.35); }
 .dk-mini--empty { gap: 12px; color: #f3e3bc; }
 .dk-mini__trump { transform: rotate(90deg); }
-.dk-mini__pair { position: relative; width: 60px; height: 76px; padding: 0; border: 0; background: none; border-radius: 8px; }
+.dk-mini__pair { position: relative; width: calc(var(--mw) + 14px); height: calc(var(--mw) * 1.4 + 14px); transition: transform 0.15s; padding: 0; border: 0; background: none; border-radius: 8px; }
 .dk-mini__pair > .dk-card { position: absolute; left: 0; top: 0; }
 .dk-mini__pair .dk-mini__d { left: 12px; top: 12px; transform: rotate(8deg); }
 button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .dk-mini__pair.is-open > .dk-card:first-child { box-shadow: 0 0 0 2px rgba(232, 199, 126, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4); }
 .dk-mini__pair.is-target > .dk-card:first-child { box-shadow: 0 0 0 3px #e8c77e, 0 0 16px rgba(232, 199, 126, 0.6); }
+.dk-mini__pair.is-beatable > .dk-card:first-child { box-shadow: 0 0 0 3px #9fd9a8, 0 0 14px rgba(159, 217, 168, 0.55); }
+.dk-mini__pair.is-no > .dk-card:first-child { filter: brightness(0.6); }
+.dk-mini__pair.is-over { transform: scale(1.12); }
+.dk-mini__pair.is-over.is-beatable > .dk-card:first-child { box-shadow: 0 0 0 4px #9fd9a8, 0 0 22px rgba(159, 217, 168, 0.8); }
+/* Козырь: крупная масть над столом и золотая рамка со звездой у каждой козырной карты. */
+.dk-trumpbar { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0; padding: 8px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(232, 199, 126, 0.18), rgba(232, 199, 126, 0.06)); box-shadow: inset 0 0 0 1.5px #e8c77e; color: #f3e3bc; }
+.dk-trumpbar b { color: #f6e3a6; font-size: 1.1em; }
+.dk-trumpbar small { display: block; font-size: 0.8em; color: #d8c9a6; }
+.dk-trumpbar__glyph { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; background: #fbf6f1; color: #16151b; font-size: 30px; line-height: 1; box-shadow: 0 0 0 2px #e8c77e, 0 0 14px rgba(232, 199, 126, 0.6); }
+.dk-trumpbar.is-red .dk-trumpbar__glyph { color: #9c1934; }
+.dk-card.is-trump { outline: max(2px, calc(var(--w) * 0.035)) solid #e8c77e; outline-offset: max(-2px, calc(var(--w) * -0.03)); }
+.dk-trumpmark { position: absolute; z-index: 4; top: 3%; right: 4%; display: grid; place-items: center; width: calc(var(--w) * 0.24); height: calc(var(--w) * 0.24); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3c4, #d9a940 60%, #8c6a2f); color: #3e0e19; font-family: "Jost", sans-serif; font-size: calc(var(--w) * 0.17); line-height: 1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.dk-stock__suit span { display: inline-grid; place-items: center; width: 4.4cqh; height: 4.4cqh; margin-left: 0.6cqh; vertical-align: middle; border-radius: 50%; background: #fbf6f1; color: #16151b; font-size: 3.2cqh; box-shadow: 0 0 0 0.3cqh #e8c77e, 0 0 2cqh rgba(232, 199, 126, 0.7); }
+.dk-stock__suit.is-red span { color: #9c1934; }
 .dk-phone__status { margin: 0; text-align: center; font-weight: 500; }
 .dk-phone__status--turn, .dk-phone__status--defend { color: var(--color-highlight, #e3c68c); }
-.dk-hand { position: relative; height: 210px; margin-top: auto; }
+.dk-hand { display: flex; flex-direction: column; margin-top: auto; padding-top: 34px; container-type: inline-size; }
+.dk-hand--rows { --cw: clamp(60px, 18vw, 86px); }
+.dk-hand__row { position: relative; z-index: 0; height: calc(var(--cw) * 1.4 + 18px); }
+.dk-hand--rows .dk-hand__row { height: calc(var(--cw) * 1.4 + 4px); }
+.dk-hand--rows .dk-hand__row + .dk-hand__row { margin-top: calc(var(--cw) * -0.72); }
+.dk-hand.is-draggable .dk-hand__slot { touch-action: none; }
+.dk-hand__slot.is-dragging > .dk-card { opacity: 0.35; }
+.dk-ghost { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -108%) rotate(-4deg) scale(0.9); filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.6)); }
 .dk-hand__slot {
   position: absolute;
   left: 50%;
@@ -12766,7 +12788,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   background: none;
   cursor: pointer;
   transform-origin: 50% 160%;
-  transform: translateX(calc(-50% + var(--off) * clamp(22px, 7.5vw, 38px))) translateY(var(--lift)) rotate(var(--rot));
+  transform: translateX(calc(-50% + var(--off) * min(clamp(22px, 7.5vw, 38px), (100cqw - var(--cw) - 8px) / var(--n, 1)))) translateY(var(--lift)) rotate(var(--rot));
   transition: transform 0.25s ease;
 }
 .dk-hand__slot > .dk-card { transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1), box-shadow 0.25s, filter 0.25s; }

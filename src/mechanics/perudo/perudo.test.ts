@@ -62,7 +62,7 @@ describe("перудо: ставки", () => {
     expect(diceOf("ключ-а-1234567890", "n2", 5)).not.toEqual(a);
     // Распределение ровное.
     const hist = [0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < 600; i++) for (const d of diceOf(`k${i}`, "r", 5)) hist[d - 1]++;
+    for (let i = 0; i < 600; i++) for (const d of diceOf(`k${i}`, "r", 5)) hist[d - 1] = (hist[d - 1] ?? 0) + 1;
     expect(Math.min(...hist)).toBeGreaterThan(400);
     expect(hostCupKey("H", "p")).toBe("H:p");
   });

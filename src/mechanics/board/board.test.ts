@@ -19,6 +19,7 @@ import {
   parseBoardResult,
   playDeltas,
   setCat,
+  catGiveOf,
   startCatQuestion,
   toBoard,
 } from "./logic";
@@ -151,7 +152,7 @@ describe("Своя игра: ход", () => {
     expect(parseBoardResult(s.state.result).cell).toBeNull();
   });
 
-  it("«Кот в мешке»: ведущий отдаёт вопрос одному и ставит цену; отвечает только он — верно плюс, неверно минус", () => {
+  it("«Кот в мешке»: выбиравший отдаёт вопрос другому (ведущий может поправить и поставить цену); отвечает только он — верно плюс, неверно минус", () => {
     const c = content();
     let s = session();
     s = apply(s, openCell(s, c, "b1"));
@@ -159,6 +160,12 @@ describe("Своя игра: ход", () => {
     expect(s.state.timeLimit).toBeNull();
     expect(boardPrimary(s, c)).toBe("toBuzz");
     expect(startCatQuestion(s, c)).toBeNull();
+    // Выбиравший клетку отдаёт вопрос с телефона; себе — нельзя, ставок нет.
+    const picked = { ...s, state: { ...s.state, result: { ...(s.state.result as object), pickerBefore: "p1" } } } as Session;
+    const give = (to: string, at: number): Answer => ({ id: `0_p1_${at}`, step: 0, pid: "p1", uid: "p1", value: { give: to }, submittedAt: at });
+    expect(catGiveOf(picked, [give("p1", 1)])).toBeNull();
+    expect(catGiveOf(picked, [give("p2", 1), give("p3", 2)])).toBe("p3");
+    expect(catGiveOf(picked, [{ ...give("p3", 1), pid: "p2" }])).toBeNull();
     s = apply(s, setCat(s, "p3", 99999));
     expect(parseBoardResult(s.state.result).catPrice).toBe(CAT_MAX);
     s = apply(s, setCat(s, "p3", 250));

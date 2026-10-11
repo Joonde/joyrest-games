@@ -18,7 +18,7 @@ import { allCells, findCell, roundCategories, roundsOf, type BoardCell, type Boa
 import { maxBet, parseBoardResult, type BoardResult } from "./logic";
 
 /** Ответ гостя: нажатие кнопки или ставка в «Коте в мешке». */
-export type BoardAnswerValue = { buzz: true } | { bet: number };
+export type BoardAnswerValue = { buzz: true } | { bet: number } | { give: string };
 
 function useSoundOnChange(value: string, sound: Parameters<typeof playSound>[0]) {
   const previous = useRef(value);
@@ -208,7 +208,9 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
             Вопрос достаётся: <NameText name={to} /> · цена {result.catPrice}
           </p>
         ) : (
-          <p className="board-screen__hint">Ведущий отдаёт вопрос одному игроку — он обязан ответить. Верно — плюс цена, неверно — минус.</p>
+          <p className="board-screen__hint">
+            {name(result.pickerBefore) ? <><NameText name={name(result.pickerBefore) ?? ""} /> выбирает, кому отдать вопрос.</> : "Ведущий отдаёт вопрос одному игроку."} Он обязан ответить: верно — плюс цена, неверно — минус.
+          </p>
         )}
       </div>
     );
@@ -370,6 +372,28 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
 
   if (stage === "question" && result.mode === "bet") {
     const me2 = result.catTo === pid;
+    const giver = result.pickerBefore === pid && role !== "member";
+    const gave = myAnswer && typeof myAnswer.value === "object" && myAnswer.value !== null ? (myAnswer.value as { give?: unknown }).give : undefined;
+    const others = Object.keys(session.leaderboard).filter((p) => p !== pid);
+    if (giver && !result.catTo) {
+      return (
+        <div className="quiz-phone">
+          {title}
+          <CatInBag small />
+          <h2>Кот в мешке! Кому отдаёте вопрос?</h2>
+          <p className="muted small">Тот, кого выберете, обязан ответить. Верно — плюс {result.catPrice || cell.points}, неверно — минус.</p>
+          <div className="stack stack--tight">
+            {others.map((p) => (
+              <button key={p} type="button" className={gave === p ? "btn btn--block" : "btn btn--secondary btn--block"} disabled={sending || typeof gave === "string"} onClick={() => onAnswer({ give: p })}>
+                <NameText name={session.leaderboard[p]?.name ?? ""} />
+              </button>
+            ))}
+          </div>
+          {typeof gave === "string" && <p className="success">Выбрано — ведущий объявит. Передумали — скажите ведущему.</p>}
+          {scoreLine}
+        </div>
+      );
+    }
     return (
       <div className="quiz-phone quiz-phone--center">
         {title}
@@ -390,7 +414,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
             </>
           ) : (
             <>
-              <strong>Ведущий отдаёт вопрос</strong>
+              <strong>{result.pickerBefore && session.leaderboard[result.pickerBefore] ? <><NameText name={session.leaderboard[result.pickerBefore]?.name ?? ""} /> выбирает, кому отдать вопрос</> : "Ведущий отдаёт вопрос"}</strong>
               <span>Кому достанется — тот и отвечает</span>
             </>
           )}
@@ -416,7 +440,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
       {result.catStep && stage === "question" ? (
         <div className="buzz">
           <div className={myBet ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-            <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : `Отвечает ${speaker ?? ""}`}</strong>
+            <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : speaker ? <>Отвечает <NameText name={speaker} /></> : "Ведущий выбирает, кто отвечает"}</strong>
             <span>
               {cell.kind === "auction" ? "Аукцион" : "Кот в мешке"} · цена {result.catPrice || myBet || cell.points}
             </span>

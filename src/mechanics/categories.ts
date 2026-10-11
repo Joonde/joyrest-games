@@ -19,7 +19,7 @@ export const CATEGORIES: Category[] = [
   { id: "tv", title: "Телешоу", icon: "📺", hint: "«Своя игра», «Миллионер», «Гонка на выживание»" },
   { id: "adventure", title: "Приключения и настолки", icon: "🎲", hint: "Настолка, шашки, «Бой с драконом»" },
   { id: "olymp", title: "Олимп", icon: "⚡", hint: "Ролевые истории про греческих богов: «Вечная зима», «Метка Тёмного мира»" },
-  { id: "cards", title: "Карточные игры", icon: "🃏", hint: "«Мафия», «Бункер», «Дурак», «Правда или действие»" },
+  { id: "cards", title: "Карточные и кости", icon: "🃏", hint: "«Мафия», «Бункер», «Дурак», «Перудо», «Правда или действие»" },
   { id: "social", title: "Знакомство и общение", icon: "🤝", hint: "«Давайте знакомиться» — игры, чтобы узнать друг друга" },
   { id: "active", title: "Танцы и активные", icon: "💃", hint: "Танцевальный батл, караоке" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
@@ -39,6 +39,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   mafia: "cards",
   durak: "cards",
   truth: "cards",
+  perudo: "cards",
   bunker: "cards",
   story: "social",
 };

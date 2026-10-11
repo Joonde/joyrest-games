@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Loading } from "./components/Status";
 import { ConnectionBanner } from "./components/ConnectionBanner";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { Home } from "./screens/Home";
 import { JoinByCode } from "./screens/JoinByCode";
 import { NotFound } from "./screens/NotFound";
@@ -37,6 +38,7 @@ export function App() {
   return (
     <BrowserRouter>
       <ConnectionBanner />
+      <UpdateBanner />
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<Home />} />

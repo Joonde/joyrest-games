@@ -2181,6 +2181,39 @@ kbd {
   border-bottom-color: var(--color-success);
 }
 
+/* «Вышло обновление»: старая вкладка не знает новых кнопок — обновить одним касанием. */
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+.update-banner__btn {
+  flex: none;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* ---------- Игра: экран зала ---------- */
 
 .hall.is-idle,

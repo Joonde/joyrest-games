@@ -9193,6 +9193,52 @@ button.dance-card:active {
   color: var(--color-text-muted);
 }
 
+.sv-task-timer {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 1.4cqh 3cqw;
+  border-radius: 999px;
+  border: 0.5cqh solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface));
+}
+
+.sv-task-timer__who {
+  font-size: 3.6cqh;
+  font-weight: 600;
+}
+
+.sv-task-timer__n {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 10cqh;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  min-width: 12cqh;
+  text-align: center;
+}
+
+.sv-task-timer.is-over {
+  border-color: var(--color-danger);
+}
+
+.sv-mark-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.sv-mark-row > .column-opt {
+  flex: 1;
+  min-width: 0;
+}
+
+.sv-mark-row__timer {
+  flex: none;
+  width: auto;
+  padding-inline: 14px;
+}
+
 .sv-secret strong {
   font-size: 30px;
   font-family: "Cormorant Garamond", serif;

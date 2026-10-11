@@ -110,6 +110,21 @@ function RoundCard({ round, result, reveal, size = "screen" }: { round: Survival
   );
 }
 
+/** Очередь команды в задании: крупный отсчёт 30 секунд по часам сервера. */
+function TaskTimer({ session, timer }: { session: Session; timer: { pid: string; endsAt: number } }) {
+  const now = useServerNow(200, true);
+  const left = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
+  useCountdownSounds(left);
+  return (
+    <div className={left === 0 ? "sv-task-timer is-over" : "sv-task-timer"} role="timer">
+      <span className="sv-task-timer__who">
+        Показывает <NameText name={nameOf(session, timer.pid)} />
+      </span>
+      <span className="sv-task-timer__n">{left === 0 ? "Время!" : left}</span>
+    </div>
+  );
+}
+
 export function SurvivalScreenView({ session, content }: ViewProps<SurvivalContent>) {
   const r = parseSurvivalResult(session.state.result);
   const { stage, step } = session.state;
@@ -200,6 +215,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
         {round.kind === "task" && <p className="sv-kind">Задание</p>}
         <RoundCard round={round} result={r} reveal={stage === "reveal"} />
         {round.kind === "task" && taskWords(round).length > 0 && stage === "question" && <p className="sv-note">Капитаны видят своё слово на телефоне — показывают по очереди, без слов</p>}
+        {round.kind === "task" && stage === "question" && r.taskTimer && <TaskTimer session={session} timer={r.taskTimer} />}
         {war && r.freed.length > 0 && (
           <p className="sv-note">
             По билету пропускают: {r.freed.map((p) => nameOf(session, p)).join(", ")}

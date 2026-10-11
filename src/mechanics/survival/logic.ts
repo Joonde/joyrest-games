@@ -39,7 +39,12 @@ export interface SurvivalResult {
   deltas: Record<string, number>;
   /** Билеты до ставок (для «Назад» с вопроса войнушки). */
   prevTickets: Record<string, number> | null;
+  /** Задание: чья очередь показывать и до какого времени (по часам сервера) — отсчёт на экране. */
+  taskTimer: { pid: string; endsAt: number } | null;
 }
+
+/** Сколько длится показ задания одной командой, мс (решение владельца 11 октября 2026). */
+export const TASK_MS = 30_000;
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -72,6 +77,7 @@ export function parseSurvivalResult(raw: unknown): SurvivalResult {
     marks: ids(d.marks),
     deltas: counts(d.deltas, true),
     prevTickets: prev && typeof prev === "object" ? counts(prev) : null,
+    taskTimer: pid(rec(d.taskTimer).pid) && typeof rec(d.taskTimer).endsAt === "number" ? { pid: rec(d.taskTimer).pid as string, endsAt: rec(d.taskTimer).endsAt as number } : null,
   };
 }
 
@@ -148,7 +154,7 @@ export function survivalPrimary(session: Session, content: SurvivalContent): Sur
 }
 
 function fresh(r: SurvivalResult): SurvivalResult {
-  return { ...r, bets: {}, freed: [], bank: 0, prize: 0, winner: null, bid: null, marks: [], deltas: {}, prevTickets: null };
+  return { ...r, bets: {}, freed: [], bank: 0, prize: 0, winner: null, bid: null, marks: [], deltas: {}, prevTickets: null, taskTimer: null };
 }
 
 /** «Начать игру»: команды в порядке подключения, раунд 1. */
@@ -252,6 +258,12 @@ export function showRound(session: Session, content: SurvivalContent, participan
 }
 
 /** Ведущий отмечает команду (задание выполнено / открытый ответ засчитан). */
+/** Задание: очередь команды — 30 секунд на экране (`now` — часы сервера на пульте); null — убрать отсчёт. */
+export function startTaskTimer(session: Session, team: string | null, now: number): SessionChange {
+  const r = parseSurvivalResult(session.state.result);
+  return { state: { result: write({ ...r, taskTimer: team ? { pid: team, endsAt: now + TASK_MS } : null }) } };
+}
+
 export function toggleMark(session: Session, team: string): SessionChange {
   const r = parseSurvivalResult(session.state.result);
   const marks = r.marks.includes(team) ? r.marks.filter((p) => p !== team) : [...r.marks, team];

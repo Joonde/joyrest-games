@@ -5,11 +5,13 @@ import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey } from "../../core/session";
+import { clock } from "../../data";
 import type { Session, SessionChange } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
 import { KIND_TITLES, LETTERS, warIndex, type SurvivalContent, taskWordFor, taskWords } from "./content";
 import {
+  startTaskTimer,
   afterAuction,
   auctionPending,
   closeBets,
@@ -163,7 +165,8 @@ export function SurvivalHostControls({ session, content, answers, participants, 
                   const on = auto || r.marks.includes(p);
                   const text = round.kind === "open" ? answers.find((a) => a.step === step && a.pid === p)?.value : null;
                   return (
-                    <button key={p} type="button" className="column-opt" aria-pressed={on} disabled={busy || auto || r.phase !== "play"} onClick={() => void run(toggleMark(session, p))}>
+<div key={p} className="sv-mark-row">
+                                        <button type="button" className="column-opt" aria-pressed={on} disabled={busy || auto || r.phase !== "play"} onClick={() => void run(toggleMark(session, p))}>
                       <span className="column-opt__check" aria-hidden="true">{on ? "✓" : ""}</span>
                       <span className="line-clamp">
                         <NameText name={name(p)} />
@@ -171,6 +174,12 @@ export function SurvivalHostControls({ session, content, answers, participants, 
                         {round.kind === "task" && taskWordFor(round, r.order, p) ? ` — слово «${taskWordFor(round, r.order, p)}»` : ""}
                       </span>
                     </button>
+                    {round.kind === "task" && r.phase === "play" && (
+                      <button type="button" className="btn btn--secondary sv-mark-row__timer" disabled={busy} onClick={() => void run(startTaskTimer(session, p, Date.now() + clock.offset()))}>
+                        ▶ 30 с
+                      </button>
+                    )}
+                    </div>
                   );
                 })}
               </div>

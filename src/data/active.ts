@@ -12,6 +12,7 @@ import type {
   ParticipantsRepository,
   ProposalsRepository,
   ScreenStatusRepository,
+  AudienceRepository,
   TeamRepository,
   TracksRepository,
   StaffRepository,
@@ -37,6 +38,7 @@ import { serverParticipantsRepository } from "./server/participants";
 import { serverProposalsRepository } from "./server/proposals";
 import { serverStaffRepository } from "./server/staff";
 import { serverScreenStatusRepository } from "./server/screen";
+import { serverAudienceRepository } from "./server/audience";
 import { serverTeamRepository } from "./server/team";
 import { serverTracksRepository } from "./server/tracks";
 import { serverResultsRepository } from "./server/results";
@@ -69,5 +71,7 @@ export const tracksRepo: TracksRepository | null = server ? serverTracksReposito
 export const teamRepo: TeamRepository | null = server ? serverTeamRepository : null;
 /** Экран зала сообщает пульту, что он на связи и звук разрешён, — только свой сервер. */
 export const screenRepo: ScreenStatusRepository | null = server ? serverScreenStatusRepository : null;
+/** «Помощь зала» по QR — только свой сервер. */
+export const audienceRepo: AudienceRepository | null = server ? serverAudienceRepository : null;
 /** База площадок, анкеты и предложения клиентам — только свой сервер. */
 export const venuesRepo: VenuesRepository | null = server ? serverVenuesRepository : null;

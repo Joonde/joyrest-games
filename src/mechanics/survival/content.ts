@@ -116,8 +116,29 @@ export function acceptedAnswers(round: SurvivalRound): string[] {
 }
 
 /**
+ * Задание с тайными словами (решение владельца 11 октября 2026): в поле ответа задания — слова через «|»
+ * («слон | жираф | кенгуру»). Капитан каждой команды видит на телефоне своё слово (по порядку команд), ведущий
+ * — у кого какое, и засчитывает угадавших. Команды показывают по очереди. Без слов — обычное задание.
+ */
+export function taskWords(round: Pick<SurvivalRound, "kind" | "answer">): string[] {
+  if (round.kind !== "task") return [];
+  return round.answer
+    .split("|")
+    .map((w) => w.trim())
+    .filter(Boolean);
+}
+
+/** Тайное слово команды в задании (null — слов нет или команды нет в очереди). */
+export function taskWordFor(round: Pick<SurvivalRound, "kind" | "answer">, order: string[], pid: string): string | null {
+  const words = taskWords(round);
+  const i = order.indexOf(pid);
+  return words.length > 0 && i >= 0 ? (words[i % words.length] ?? null) : null;
+}
+
+/**
  * Список: строка — раунд по порядку. «Вопрос?» и строки «- вариант», «* верный» — вопрос с вариантами;
- * «Вопрос? = ответ | ответ2» — открытый; «Задание: …» — задание. «(150)» в конце — очки.
+ * «Вопрос? = ответ | ответ2» — открытый; «Задание: …» — задание («Задание: … = слон | жираф» — тайные слова
+ * командам). «(150)» в конце — очки.
  */
 export function parseSurvivalList(text: string): SurvivalRound[] {
   const out: SurvivalRound[] = [];
@@ -144,7 +165,8 @@ export function parseSurvivalList(text: string): SurvivalRound[] {
     const body = (pts ? line.slice(0, pts.index) : line).trim();
     const points = pts ? Math.min(SURVIVAL_LIMITS.maxPoints, Number(pts[1])) : 100;
     if (/^задание\s*[:.]/i.test(body)) {
-      current = { ...newSurvivalRound("task"), text: body.replace(/^задание\s*[:.]\s*/i, "").slice(0, SURVIVAL_LIMITS.text), points };
+      const [task, words] = body.replace(/^задание\s*[:.]\s*/i, "").split("=");
+      current = { ...newSurvivalRound("task"), text: (task ?? "").trim().slice(0, SURVIVAL_LIMITS.text), answer: (words ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };
     } else if (body.includes("=")) {
       const [q, a] = body.split("=");
       current = { ...newSurvivalRound("open"), text: (q ?? "").trim().slice(0, SURVIVAL_LIMITS.text), answer: (a ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };

@@ -1,5 +1,6 @@
 // Звуки по кнопке ведущего (CLAUDE.md, раздел 7, «Звуки»): пульт пишет в state.cue, экран зала
 // играет звук, когда меняется id. Чистые функции: их используют и браузер, и сервер.
+import { parseTrackClip } from "./trackClip";
 import type { CueSound, MixState, MusicState, PeekView, ScreenReport, SlideKind, SlideState, SoundCue, TeamsReveal } from "./types";
 
 export const CUE_SOUNDS: readonly CueSound[] = ["gong", "drumroll", "fanfare", "applause", "wrong", "stop"];
@@ -18,9 +19,11 @@ export function parseCue(value: unknown): SoundCue | null {
 /** Музыка на экране зала из базы или запроса; непонятное — null (музыки нет). */
 export function parseMusic(value: unknown): MusicState | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  const { trackId, playing, rev } = value as Record<string, unknown>;
+  const { trackId, playing, rev, clip } = value as Record<string, unknown>;
   if (typeof trackId !== "string" || !CUE_ID.test(trackId) || typeof rev !== "string" || !CUE_ID.test(rev)) return null;
-  return { trackId, playing: playing === true, rev };
+  const music: MusicState = { trackId, playing: playing === true, rev };
+  if (clip !== undefined && clip !== null) music.clip = parseTrackClip(clip);
+  return music;
 }
 
 export const DEFAULT_MIX: MixState = { music: 70, effects: 100, muted: false };
@@ -36,7 +39,7 @@ export function parseMix(value: unknown): MixState | null {
   return { music: volume(v.music, DEFAULT_MIX.music), effects: volume(v.effects, DEFAULT_MIX.effects), muted: v.muted === true };
 }
 
-export const SLIDE_KINDS: readonly SlideKind[] = ["intro", "rules", "round", "break", "tech", "join", "award", "thanks", "custom"];
+export const SLIDE_KINDS: readonly SlideKind[] = ["intro", "rules", "round", "break", "tech", "join", "award", "thanks", "custom", "draw"];
 export const SLIDE_LIMITS = { title: 120, text: 400, lines: 8, line: 140 } as const;
 
 function slideText(value: unknown, max: number): string {

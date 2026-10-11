@@ -4,7 +4,7 @@ import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
 import { roundLeaderboard } from "../core/rounds";
-import { teamNameVisible, teamOrder, teamsReveal } from "../core/teams";
+import { maskedName, teamNameVisible, teamOrder, teamsReveal } from "../core/teams";
 import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } from "../data";
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
@@ -84,6 +84,16 @@ function useIdle(): boolean {
 const IS_APPLE_TOUCH =
   typeof navigator !== "undefined" &&
   (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
+/** Динамик с крестиком: звук на экране зала ещё не включён. */
+function SoundOffIcon() {
+  return (
+    <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 19h7l10-8v26l-10-8H8z" fill="currentColor" fillOpacity="0.15" />
+      <path d="M32 19l9 10M41 19l-9 10" />
+    </svg>
+  );
+}
 
 /** Полноэкранный режим, звук и (ведущему) «В студию»: кнопки в углу экрана зала. */
 function ScreenControls({ toStudio }: { toStudio: (() => void) | null }) {
@@ -184,7 +194,8 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
     <div className={idle ? "hall is-idle" : "hall"}>
       {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
       {!standalone && <Scene themeId={session.themeId} />}
-      <ScreenControls toStudio={isHost ? () => (phase === "finished" ? navigate("/studio") : setLeaving(true)) : null} />
+      {/* После игры «В студию» — отдельная кнопка слева сверху, здесь её не дублируем. */}
+      <ScreenControls toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null} />
       {isHost && (
         <ConfirmDialog
           open={leaving}
@@ -200,15 +211,21 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
           <p>Игра продолжится. Экран зала можно снова открыть из студии: «Идёт игра» → «Экран зала».</p>
         </ConfirmDialog>
       )}
+      {/* Звук выключен или браузер ждёт касания — круглый значок в правом нижнем углу, не поверх игры. */}
       {muted ? (
-        <button type="button" className="screen-tap" onClick={() => setMuted(false)}>
-          🔇 Звук выключен на этом экране — включить
+        <button type="button" className="screen-tap" onClick={() => setMuted(false)} title="Звук выключен на этом экране — включить" aria-label="Звук выключен на этом экране — включить">
+          <SoundOffIcon />
         </button>
       ) : (
         (!soundReady || musicBlocked) && (
-          <button type="button" className="screen-tap" onClick={unlockSound}>
-            {musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}
-            {IS_APPLE_TOUCH && <span className="screen-tap__hint">Нет звука — выключите беззвучный режим</span>}
+          <button
+            type="button"
+            className="screen-tap is-waiting"
+            onClick={unlockSound}
+            title={`${musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}${IS_APPLE_TOUCH ? ". Нет звука — выключите беззвучный режим" : ""}`}
+            aria-label={musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}
+          >
+            <SoundOffIcon />
           </button>
         )
       )}
@@ -227,9 +244,9 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
           {!standalone && phase === "lobby" && <Lobby session={session} />}
           {!standalone && phase === "playing" && <Playing session={session} />}
           {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
-          {/* Игра окончена: выход виден всегда (не прячется вместе с кнопками экрана). */}
+          {/* Игра окончена: выход сверху слева, виден всегда (не прячется вместе с кнопками экрана и не уходит под плашку звука). */}
           {phase === "finished" && (
-            <a className="btn btn--secondary screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
+            <a className="btn screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
               e.preventDefault();
               if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
               navigate(isHost ? "/studio" : "/");
@@ -250,12 +267,35 @@ function StandaloneScreen({ session }: { session: Session }) {
   return ScreenView && content !== null ? <ScreenView session={session} content={content} /> : null;
 }
 
+const plural = (n: number, one: string, few: string, many: string) => {
+  const d = n % 10;
+  const h = n % 100;
+  return d === 1 && h !== 11 ? one : d >= 2 && d <= 4 && (h < 12 || h > 14) ? few : many;
+};
+const teamWord = (n: number) => plural(n, "команда", "команды", "команд");
+const playerWord = (n: number) => plural(n, "игрок", "игрока", "игроков");
+
+/** Сколько ждём гостей: «4:12» с открытия сессии, обновляется раз в секунду. */
+function useWaitClock(since: number | null): string {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const s = Math.max(0, Math.floor((now - (since || now)) / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
 function Lobby({ session }: { session: Session }) {
   const teams = session.playMode === "teams";
   const reveal = teamsReveal(session.state);
+  const waitLabel = useWaitClock(session.createdAt);
   if (teams && reveal.shown !== null) return <TeamsPresentation session={session} />;
   const board = sortedLeaderboard(session.leaderboard);
   const ordered = teams ? teamOrder(session.leaderboard) : [];
+  const phonesTotal = teams ? Object.values(reveal.sizes ?? {}).reduce((a, b) => a + b, 0) : 0;
   return (
     <main className="screen screen--lobby">
       <div className="screen__qr">
@@ -267,10 +307,16 @@ function Lobby({ session }: { session: Session }) {
         <p className="screen-text">Наведите камеру на QR-код или откройте {joinHint()} и введите код</p>
         <div className="big-code">{formatSessionCode(session.code)}</div>
         <p className="screen-note">{VPN_HINT}</p>
-        <p className="screen-text">
-          {teams ? "Команд" : "Игроков"}: {board.length}
-        </p>
-        <div className="chips" aria-live="polite">
+      </div>
+      <aside className="lobby-joined" aria-label="Кто присоединился">
+        <div className="lobby-joined__head">
+          <span className="lobby-joined__label">Присоединились</span>
+          <span className="lobby-joined__count">{board.length}</span>
+          <span className="lobby-joined__sub">
+            {teams ? `${teamWord(board.length)}${phonesTotal > 0 ? ` · телефонов ${phonesTotal}` : ""}` : playerWord(board.length)} · ждём {waitLabel}
+          </span>
+        </div>
+        <div className={`chips lobby-joined__list${board.length > 40 ? " is-dense" : board.length > 14 ? " is-compact" : ""}`} aria-live="polite">
           {teams
             ? ordered.map((team) => {
                 const hidden = !teamNameVisible(session.state, team.number);
@@ -279,8 +325,8 @@ function Lobby({ session }: { session: Session }) {
                   <span key={team.id} className="chip chip--team" style={teamStyle(team.entry.colorIndex)}>
                     {hidden ? (
                       <>
-                        Команда {team.number}
-                        {phones > 0 && <span className="chip__stars" aria-label={`телефонов: ${phones}`}> {"★".repeat(Math.min(phones, 8))}</span>}
+                        Команда {team.number} <span className="chip__mask" aria-label="название скрыто">{maskedName(team.entry.name)}</span>
+                        {phones > 0 && <span className="chip__stars" aria-label={`телефонов: ${phones}`}> · {"★".repeat(Math.min(phones, 8))}</span>}
                       </>
                     ) : (
                       <NameText name={team.entry.name} />
@@ -294,7 +340,7 @@ function Lobby({ session }: { session: Session }) {
                 </span>
               ))}
         </div>
-      </div>
+      </aside>
     </main>
   );
 }
@@ -358,8 +404,8 @@ function Playing({ session }: { session: Session }) {
   const ScreenView = mechanic?.ScreenView;
   const { stage } = session.state;
   const peek = session.state.peek ?? null;
-  // QR для опоздавших — между вопросами (на заставке и таблице), чтобы не закрывать варианты.
-  const joinBadge = !peek && (stage === "ready" || stage === "board");
+  // QR для опоздавших сам больше не всплывает (закрывал поле игры): его показывает и убирает ведущий —
+  // «QR для опоздавших на экран» на пульте. Внизу остаётся только строка с адресом и кодом.
   return (
     <main className="quiz-stage">
       <Logo kind="monogram" className="logo--corner" title="" />
@@ -381,20 +427,9 @@ function Playing({ session }: { session: Session }) {
           <h1 className="screen-title">Игра идёт</h1>
         </div>
       )}
-      {joinBadge ? (
-        <div className="join-badge">
-          <QrCode value={playUrl(session.code)} label={`QR-код для входа: ${formatSessionCode(session.code)}`} />
-          <p>
-            Опоздали? {joinHint()}
-            <br />
-            код <strong>{formatSessionCode(session.code)}</strong>
-          </p>
-        </div>
-      ) : (
-        <p className="stage-code">
-          Вход: {joinHint()} · код {formatSessionCode(session.code)}
-        </p>
-      )}
+      <p className="stage-code">
+        Вход: {joinHint()} · код {formatSessionCode(session.code)}
+      </p>
     </main>
   );
 }

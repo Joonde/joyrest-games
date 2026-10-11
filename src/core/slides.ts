@@ -70,6 +70,13 @@ export const SLIDE_TEMPLATES: SlideTemplate[] = [
     defaults: { title: "Спасибо за игру!", text: "Ваш вечер провела команда JoyRest", lines: [] },
   },
   {
+    // Жеребьёвка — только кнопкой «Жеребьёвка» на пульте (`src/core/draw.ts`), в списке шаблонов её нет.
+    kind: "draw",
+    label: "Жеребьёвка",
+    fields: { title: "Победитель" },
+    defaults: { title: "", text: "", lines: [] },
+  },
+  {
     kind: "custom",
     label: "Свой слайд",
     fields: { title: "Заголовок", text: "Текст" },

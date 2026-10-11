@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
-import { createSurvival, newSurvivalRound, parseSurvival, parseSurvivalList, ticketAllowed, type SurvivalContent } from "./content";
+import { createSurvival, newSurvivalRound, parseSurvival, parseSurvivalList, ticketAllowed, type SurvivalContent, parseSurvivalList as parseListForWords, taskWordFor } from "./content";
 import { DEMO_SURVIVAL } from "./demo";
 import {
   afterAuction,
@@ -178,5 +178,18 @@ describe("Гонка на выживание: ход", () => {
     expect(parseSurvivalResult(s.state.result).phase).toBe("over");
     expect(survivalPrimary(s, content)).toBe("podium");
     expect(Object.keys(s.leaderboard)).toEqual(["A", "B", "C"]);
+  });
+});
+
+describe("задание с тайными словами", () => {
+  it("каждой команде своё слово по порядку, без слов — обычное задание", () => {
+    const [task, plain] = parseListForWords("Задание: покажите животное = слон | жираф (150)\nЗадание: споём (100)");
+    expect(task?.text).toBe("покажите животное");
+    expect(task?.points).toBe(150);
+    expect(taskWordFor(task!, ["a", "b", "c"], "a")).toBe("слон");
+    expect(taskWordFor(task!, ["a", "b", "c"], "b")).toBe("жираф");
+    expect(taskWordFor(task!, ["a", "b", "c"], "c")).toBe("слон");
+    expect(taskWordFor(task!, ["a"], "z")).toBeNull();
+    expect(taskWordFor(plain!, ["a"], "a")).toBeNull();
   });
 });

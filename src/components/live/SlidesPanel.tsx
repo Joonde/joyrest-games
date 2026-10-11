@@ -16,6 +16,7 @@ const SLIDE_ICONS: Record<SlideKind, IconName> = {
   award: "award",
   thanks: "thanks",
   custom: "custom",
+  draw: "custom",
 };
 
 interface Draft {
@@ -121,7 +122,7 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
         </div>
       )}
       <div className="tiles tiles--small" role="group" aria-label="Шаблон слайда">
-        {SLIDE_TEMPLATES.map((t) => (
+        {SLIDE_TEMPLATES.filter((t) => t.kind !== "draw").map((t) => (
           <button key={t.kind} type="button" className="tile" aria-pressed={kind === t.kind} onClick={() => setKind(t.kind)}>
             <Icon name={SLIDE_ICONS[t.kind]} className="tile__icon" />
             <span className="tile__label">{t.label}</span>

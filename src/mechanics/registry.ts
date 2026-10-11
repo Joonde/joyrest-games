@@ -119,7 +119,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   {
     mechanic: board.id,
     title: DEMO_BOARD.title,
-    hint: "4 категории по 5 вопросов, два «Кота в мешке». Клетки с треками и картинками добавьте в копии игры.",
+    hint: "Два раунда по 4 категории и 5 вопросов (второй дороже), «Коты в мешке» и «Аукционы». Клетки с треками и картинками добавьте в копии игры.",
     content: DEMO_BOARD.content,
     themeId: "studio",
   },
@@ -141,7 +141,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
   { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "36 вопросов на 12 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
-  { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания, 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
+  { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания с тайными словами капитанам (30 секунд на команду), 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
   { mechanic: olymp.id, title: "Олимп: Вечная зима", hint: "История на 1–2 часа: 10 богов, проверки d100, развилки, Поля Асфоделей и дворец Аида, бои с волками, тенями, Цербером и Пожирателем зимы, три концовки.", content: createOlymp(), playMode: "teams", ageRating: "18+", themeId: "winter" },
   { mechanic: olymp.id, title: "Олимп: Метка Тёмного мира", hint: "Вторая история, 1–1,5 часа: кто-то крадёт огонь очага Гестии. Лемнос или Дельфы, море, Лабиринт Крита, Минотавр и Вестник Эреба, три концовки.", content: { ...createOlymp(), story: "mark" }, playMode: "teams", ageRating: "18+", themeId: "adventure" },
   { mechanic: dragon.id, title: "Бой с драконом", hint: "2 боя по 8 заданий: вопросы, силовые задания, песни и кубик; 10 героев.", content: DEMO_DRAGON, playMode: "teams", themeId: "adventure" },

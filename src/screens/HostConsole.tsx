@@ -41,6 +41,7 @@ import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, techSlide } from "../core/slides";
+import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
 import { joinHost, playUrl, playUrlHint } from "../components/links";
@@ -268,6 +269,22 @@ function Console({ session }: { session: Session }) {
   const tools = withScreen && !standalone;
   const tabs = PULT_TABS.filter((t) => tools || !t.screenOnly);
   const apply = (change: SessionChange) => sessionsRepo.apply(session.id, change);
+
+  /** Жеребьёвка: жребий среди участников таблицы, слайд с монеткой и (если игра умеет) право первого хода. */
+  async function runDraw() {
+    const s = latest.current;
+    const pool: Array<[string, LeaderboardEntry]> = Object.entries(s.leaderboard);
+    const won = drawWinner(pool);
+    if (!won) return;
+    const [pid, entry] = won;
+    const slide = drawSlide(slideId(), pool.map(([, e]) => e.name), entry.name, Date.now() + clock.offset());
+    const turn = mechanic?.firstTurn && content !== null ? mechanic.firstTurn(s, content, pid) : null;
+    try {
+      await apply({ ...(turn ?? {}), state: { ...(turn?.state ?? {}), slide } });
+    } catch {
+      setError("Не получилось провести жеребьёвку. Проверьте интернет.");
+    }
+  }
   const slide = session.state.slide ?? null;
   const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
   // Телефон ведущего не гаснет, пока идёт вечер.
@@ -317,7 +334,7 @@ function Console({ session }: { session: Session }) {
             {phase === "lobby" && (
               <>
                 <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
-                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} />}
+                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} onStart={() => void start()} starting={busy || !mechanic} />}
                 <LobbyNames session={session} onMore={() => setTab("people")} />
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
                   Начать игру
@@ -365,6 +382,12 @@ function Console({ session }: { session: Session }) {
             )}
             {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
+            )}
+            {/* Жеребьёвка: монетка на экране выбирает среди подключившихся, кто ходит первым. */}
+            {phase !== "finished" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
+              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void runDraw()}>
+                Жеребьёвка — кто ходит первым
+              </button>
             )}
             {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
             {phase === "playing" && tools && slide?.kind !== "join" && (
@@ -467,7 +490,7 @@ function Console({ session }: { session: Session }) {
  * Команды в лобби: «Скрыть названия команд» (экран показывает «Команда 1 ★★★») и «Представить
  * команды» — по одной, крупно, в порядке подключения; в конце — все вместе.
  */
-function TeamsCard({ session, onApply }: { session: Session; onApply: (change: SessionChange) => Promise<unknown> }) {
+function TeamsCard({ session, onApply, onStart, starting }: { session: Session; onApply: (change: SessionChange) => Promise<unknown>; onStart: () => void; starting: boolean }) {
   const [busy, setBusy] = useState(false);
   const reveal = teamsReveal(session.state);
   const ordered = teamOrder(session.leaderboard);
@@ -501,6 +524,12 @@ function TeamsCard({ session, onApply }: { session: Session; onApply: (change: S
           )}
         </p>
         <div className="actions">
+          {/* Все команды представлены — дальше сразу игра (кнопка не прячется внизу страницы). */}
+          {done && (
+            <button type="button" className="btn btn--block" disabled={busy || starting} onClick={onStart}>
+              Начать игру
+            </button>
+          )}
           {!done && (
             <button type="button" className="btn btn--block" disabled={busy} onClick={() => void set({ ...reveal, shown: shown + 1 })}>
               {shown + 1 >= ordered.length ? "Показать все команды" : "Следующая команда"}
@@ -523,7 +552,7 @@ function TeamsCard({ session, onApply }: { session: Session; onApply: (change: S
         <input type="checkbox" checked={reveal.hidden} disabled={busy} onChange={(e) => void set({ hidden: e.target.checked, shown: null })} />
         <span className="choice__text">
           <span className="choice__title">Скрыть названия команд</span>
-          <span className="choice__hint">Пока все подключаются, экран показывает «Команда 1 ★★★». Названия откроются на представлении.</span>
+          <span className="choice__hint">Включено сразу: пока все подключаются, экран показывает «Команда 1 ✱✱✱✱ · ★★» (звёздочки — телефоны). Названия откроются на «Представить команды» или с началом игры.</span>
         </span>
       </label>
       <button type="button" className="btn btn--secondary btn--block" disabled={busy || ordered.length === 0} onClick={() => void set({ ...reveal, shown: 0 })}>

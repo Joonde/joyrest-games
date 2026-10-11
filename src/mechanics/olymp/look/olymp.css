@@ -554,6 +554,25 @@
   gap: 0.6cqw;
 }
 
+.olx-lobby__teams {
+  max-height: 22cqw;
+  overflow-y: auto;
+  align-content: flex-start;
+  scrollbar-width: thin;
+}
+
+.olx-lobby__teams.is-compact {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.olx-lobby__teams.is-compact li {
+  font-size: 1cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .olx-lobby__teams li {
   font-size: 1.3cqw;
   border: 1px solid rgba(227, 198, 140, 0.4);

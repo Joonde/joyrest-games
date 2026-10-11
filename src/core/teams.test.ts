@@ -3,7 +3,7 @@ import { nameParts } from "../components/NameText";
 import type { LeaderboardEntry, SessionState } from "../data/types";
 import { formatDuration } from "./format";
 import { isOnline, PRESENCE_TIMEOUT_MS } from "./presence";
-import { presentationDone, publicTeamName, teamNameVisible, teamOrder } from "./teams";
+import { maskedName, presentationDone, publicTeamName, teamNameVisible, teamOrder, teamsReveal } from "./teams";
 
 const board: Record<string, LeaderboardEntry> = {
   z: { name: "🦊 Лисы", kind: "team", score: 0, colorIndex: 1 },
@@ -28,7 +28,9 @@ describe("скрытые названия и представление кома
     expect(publicTeamName(lobby({ hidden: true, shown: 0 }), first)).toBe("🐻 Медведи");
     expect(publicTeamName(lobby({ hidden: true, shown: 0 }), second)).toBe("Команда 2");
     expect(teamNameVisible({ phase: "playing", teams: { hidden: true, shown: null } }, 2)).toBe(true);
-    expect(publicTeamName(lobby(null), second)).toBe("🦊 Лисы");
+    // По умолчанию названия скрыты; галочкой их открыли — видны.
+    expect(publicTeamName(lobby(null), second)).toBe("Команда 2");
+    expect(publicTeamName(lobby({ hidden: false, shown: null }), second)).toBe("🦊 Лисы");
     expect(presentationDone({ teams: { hidden: true, shown: 3 } }, 3)).toBe(true);
     expect(presentationDone({ teams: { hidden: true, shown: 2 } }, 3)).toBe(false);
   });
@@ -64,5 +66,13 @@ describe("сколько шла игра", () => {
     expect(formatDuration(47 * 60_000)).toBe("47 мин");
     expect(formatDuration(72 * 60_000)).toBe("1 ч 12 мин");
     expect(formatDuration(120 * 60_000)).toBe("2 ч");
+  });
+
+  it("по умолчанию названия скрыты; звёздочки повторяют длину названия", () => {
+    expect(teamsReveal({})).toEqual({ hidden: true, shown: null });
+    expect(teamNameVisible({ phase: "lobby" }, 1)).toBe(false);
+    expect(teamNameVisible({ phase: "lobby", teams: { hidden: false, shown: null } }, 1)).toBe(true);
+    expect(maskedName("🐻 Медведи гризли")).toBe("✱✱✱✱✱✱✱ ✱✱✱✱✱✱");
+    expect(maskedName("")).toBe("✱✱✱");
   });
 });

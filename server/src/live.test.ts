@@ -337,6 +337,27 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/scr1/screen", host)).json()).toEqual({ screen: null });
   });
 
+  it("помощь зала по QR: голос без участия в игре, один на устройство, только пока ведущий открыл голосование", async () => {
+    await newSession("aud1");
+    const a = await device();
+    const b = await device();
+    const vote = (who: { cookie: string }, step: number, v: number) => call("POST", "/api/sessions/aud1/audience", who.cookie, { step, vote: v });
+    expect((await call("POST", "/api/sessions/aud1/phase", host, { phase: "playing" })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/aud1/apply", host, { state: { step: 3, stage: "question", startedAt: "server", timeLimit: 20, result: { mode: "question" } } })).statusCode).toBe(200);
+    expect((await vote(a, 3, 1)).json()).toEqual({ result: "rejected" });
+    expect((await call("POST", "/api/sessions/aud1/apply", host, { state: { result: { mode: "audience", audienceVote: true } } })).statusCode).toBe(200);
+    expect((await vote(a, 3, 1)).json()).toEqual({ result: "ok" });
+    expect((await vote(a, 3, 2)).json()).toEqual({ result: "ok" });
+    expect((await vote(b, 3, 2)).json()).toEqual({ result: "ok" });
+    expect((await vote(b, 2, 0)).json()).toEqual({ result: "rejected" });
+    expect((await vote(b, 3, -1)).statusCode).toBe(400);
+    expect((await call("POST", "/api/sessions/aud1/audience", "", { step: 3, vote: 1 })).statusCode).toBe(401);
+    expect((await call("GET", "/api/sessions/aud1/audience", host)).json()).toEqual({ step: 3, counts: [0, 0, 2, 0] });
+    expect((await call("GET", "/api/sessions/aud1/audience", a.cookie)).statusCode).toBe(403);
+    clock += 24_000;
+    expect((await vote(a, 3, 0)).json()).toEqual({ result: "rejected" });
+  });
+
   it("вернуться за своего игрока: только за того, кто не на связи; прежний телефон теряет доступ", async () => {
     await newSession("rej1");
     const anna = await device();

@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { CHORUS_LENGTHS, clock, FADE_IN, FADE_OUT, moveHandle, type Clip, type ClipJoin } from "../../core/clip";
 import { tracksRepo, type Track } from "../../data";
 import { ClampedNumber } from "../ClampedNumber";
-import { loadTracks } from "./TrackPicker";
+import { forgetTracks, loadTracks } from "./TrackPicker";
+import { UploadTrackButton } from "./uploadTrack";
 
 const BARS = 72;
 const peaksCache = new Map<string, Promise<number[] | null>>();
@@ -166,7 +167,15 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
           </select>
         )}
       </label>
-      {tracks !== null && tracks.length === 0 && <p className="muted small">Треков пока нет — загрузите их в студии на вкладке «Музыка».</p>}
+      {tracks !== null && tracks.length === 0 && <p className="muted small">Треков пока нет — загрузите свой прямо здесь.</p>}
+      <UploadTrackButton
+        disabled={disabled}
+        onUploaded={(t) => {
+          forgetTracks();
+          setTracks((list) => [t, ...(list ?? [])]);
+          set({ trackId: t.id });
+        }}
+      />
 
       {clip.trackId && (
         <>

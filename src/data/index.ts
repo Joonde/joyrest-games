@@ -8,6 +8,7 @@ export type { Actor } from "./permissions";
 
 export {
   answersRepo,
+  audienceRepo,
   authService,
   clock,
   gamesRepo,
@@ -25,6 +26,7 @@ export {
 } from "./active";
 
 export { answerId } from "./answers";
+export { CLIP_FADES, DEFAULT_TRACK_CLIP, isClipped, parseTrackClip } from "./trackClip";
 export { dataBackend } from "./backend";
 export { CUE_SOUNDS, DEFAULT_MIX, SCREEN_REPORT_MS, SCREEN_STALE_MS, SLIDE_LIMITS } from "./cues";
 export {

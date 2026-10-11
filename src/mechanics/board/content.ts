@@ -1,9 +1,11 @@
-// «Своя игра»: поле категорий (строки) × стоимостей (колонки). В клетке — вопрос, трек, картинка
-// или «Кот в мешке». Команда выбирает клетку, у всех кнопка «кто первый», ведущий решает «Верно» или
-// «Неверно». Сыгранная клетка гаснет, пока не закроется всё поле.
+// «Своя игра»: поле категорий (строки) × стоимостей (колонки). В клетке — вопрос, трек, картинка,
+// «Кот в мешке» или «Аукцион». Команда выбирает клетку, у всех кнопка «кто первый», ведущий решает
+// «Верно» или «Неверно». Сыгранная клетка гаснет, пока не закроется всё поле раунда. Раундов 1–3
+// (решение владельца 11 октября 2026: как в передаче, минимум два): у каждой категории свой `round`,
+// поле раунда — его категории; во втором раунде стоимость по умолчанию вдвое выше.
 import { clipFields, parseClip, type Clip } from "../../core/clip";
 
-export type CellKind = "question" | "track" | "picture" | "cat";
+export type CellKind = "question" | "track" | "picture" | "cat" | "auction";
 
 export interface BoardCell {
   id: string;
@@ -30,15 +32,24 @@ export interface BoardCategory {
   id: string;
   title: string;
   cells: BoardCell[];
+  /** Раунд категории: 1–3. */
+  round: number;
 }
+
+export const MAX_ROUNDS = 3;
 
 export interface BoardContent {
   categories: BoardCategory[];
   /** Неверный ответ снимает стоимость клетки. */
   penalty: boolean;
-  /** Сколько секунд на ставку в «Коте в мешке». */
+  /** Сколько секунд на ставки в «Аукционе». */
   betTime: number;
+  /** Сколько секунд жать кнопку после «Запустить отсчёт» (ведущий сначала читает вопрос). */
+  buzzTime: number;
 }
+
+/** Время на вопрос после «Запустить отсчёт» — выбор ведущего в конструкторе. */
+export const BUZZ_TIMES = [5, 10, 15, 20, 30] as const;
 
 export const BOARD_LIMITS = {
   minRows: 1,
@@ -59,10 +70,11 @@ export const CELL_TITLES: Record<CellKind, string> = {
   track: "Трек",
   picture: "Картинка",
   cat: "Кот в мешке",
+  auction: "Аукцион",
 };
 
 /** Метка клетки на поле ведущего (гости её не видят). */
-export const CELL_MARKS: Record<CellKind, string> = { question: "", track: "♪", picture: "фото", cat: "кот" };
+export const CELL_MARKS: Record<CellKind, string> = { question: "", track: "♪", picture: "фото", cat: "кот", auction: "аукц." };
 
 function id(prefix: string): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -73,20 +85,49 @@ export function newCell(points: number): BoardCell {
   return { id: id("c"), points, kind: "question", text: "", answer: "", imageId: null, ...(clipFields({ ...parseClip({}) }) as Pick<BoardCell, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">) };
 }
 
-/** Стоимость по умолчанию в колонке: 100, 200, 300… */
-export function defaultPoints(column: number): number {
-  return (column + 1) * 100;
+/** Стоимость по умолчанию в колонке: 100, 200, 300… (во втором раунде — 200, 400…, в третьем — 300…). */
+export function defaultPoints(column: number, round = 1): number {
+  return (column + 1) * 100 * Math.max(1, round);
 }
 
-export function newCategory(columns: number, title = ""): BoardCategory {
-  return { id: id("k"), title, cells: Array.from({ length: columns }, (_, i) => newCell(defaultPoints(i))) };
+export function newCategory(columns: number, title = "", round = 1): BoardCategory {
+  return { id: id("k"), title, round, cells: Array.from({ length: columns }, (_, i) => newCell(defaultPoints(i, round))) };
+}
+
+/** Сколько раундов в игре. */
+export function roundsOf(content: BoardContent): number {
+  return Math.max(1, ...content.categories.map((c) => c.round));
+}
+
+/** Категории раунда по порядку. */
+export function roundCategories(content: BoardContent, round: number): BoardCategory[] {
+  return content.categories.filter((c) => c.round === round);
+}
+
+/**
+ * Поменять число раундов: новые раунды — того же размера, что первый, с удвоенной (утроенной) стоимостью;
+ * лишние раунды убираются.
+ */
+export function setRounds(content: BoardContent, rounds: number): BoardContent {
+  const n = Math.min(MAX_ROUNDS, Math.max(1, rounds));
+  const first = roundCategories(content, 1);
+  const rows = Math.max(1, first.length);
+  const cols = Math.max(1, ...first.map((c) => c.cells.length));
+  const categories = content.categories.filter((c) => c.round <= n);
+  for (let r = 2; r <= n; r++) {
+    if (categories.some((c) => c.round === r)) continue;
+    for (let i = 0; i < rows; i++) categories.push(newCategory(cols, `Категория ${i + 1}`, r));
+  }
+  return { ...content, categories };
 }
 
 export function createBoard(): BoardContent {
   return {
-    categories: Array.from({ length: 4 }, (_, i) => newCategory(5, `Категория ${i + 1}`)),
+    // Как в передаче — два раунда; второй дороже.
+    categories: [1, 2].flatMap((round) => Array.from({ length: 4 }, (_, i) => newCategory(5, `Категория ${i + 1}`, round))),
     penalty: false,
     betTime: 30,
+    buzzTime: 15,
   };
 }
 
@@ -108,15 +149,18 @@ export function findCell(content: BoardContent, cellId: string | null): { cell: 
   return null;
 }
 
-/** Поменять число строк или колонок: новые клетки — со стоимостью колонки, лишние убираются. */
+/** Поменять число строк (в каждом раунде) или колонок: новые клетки — со стоимостью колонки, лишние убираются. */
 export function resizeBoard(content: BoardContent, rows: number, cols: number): BoardContent {
   const r = Math.min(BOARD_LIMITS.maxRows, Math.max(BOARD_LIMITS.minRows, rows));
   const c = Math.min(BOARD_LIMITS.maxCols, Math.max(BOARD_LIMITS.minCols, cols));
-  const categories = content.categories.slice(0, r).map((cat) => ({
-    ...cat,
-    cells: Array.from({ length: c }, (_, i) => cat.cells[i] ?? newCell(defaultPoints(i))),
-  }));
-  while (categories.length < r) categories.push(newCategory(c, `Категория ${categories.length + 1}`));
+  const categories: BoardCategory[] = [];
+  for (let round = 1; round <= roundsOf(content); round++) {
+    const list = roundCategories(content, round)
+      .slice(0, r)
+      .map((cat) => ({ ...cat, cells: Array.from({ length: c }, (_, i) => cat.cells[i] ?? newCell(defaultPoints(i, round))) }));
+    while (list.length < r) list.push(newCategory(c, `Категория ${list.length + 1}`, round));
+    categories.push(...list);
+  }
   return { ...content, categories };
 }
 
@@ -141,7 +185,7 @@ function parseCell(raw: unknown, col: number, seen: Set<string>): BoardCell {
   let cellId = typeof d.id === "string" && ID.test(d.id) ? d.id : `c${seen.size + 1}`;
   while (seen.has(cellId)) cellId = `${cellId}_`;
   seen.add(cellId);
-  const kind: CellKind = d.kind === "track" || d.kind === "picture" || d.kind === "cat" ? d.kind : "question";
+  const kind: CellKind = d.kind === "track" || d.kind === "picture" || d.kind === "cat" || d.kind === "auction" ? d.kind : "question";
   return {
     id: cellId,
     points: int(d.points, defaultPoints(col), BOARD_LIMITS.minPoints, BOARD_LIMITS.maxPoints),
@@ -157,7 +201,7 @@ function parseCell(raw: unknown, col: number, seen: Set<string>): BoardCell {
 export function parseBoard(raw: unknown): BoardContent {
   const d = rec(raw);
   const seen = new Set<string>();
-  const cats = Array.isArray(d.categories) ? d.categories.slice(0, BOARD_LIMITS.maxRows) : [];
+  const cats = Array.isArray(d.categories) ? d.categories.slice(0, BOARD_LIMITS.maxRows * MAX_ROUNDS) : [];
   return {
     categories: cats.map((c, i) => {
       const cd = rec(c);
@@ -166,10 +210,12 @@ export function parseBoard(raw: unknown): BoardContent {
         id: typeof cd.id === "string" && ID.test(cd.id) ? cd.id : `k${i + 1}`,
         title: text(cd.title, BOARD_LIMITS.title),
         cells: cells.map((cell, col) => parseCell(cell, col, seen)),
+        round: int(cd.round, 1, 1, MAX_ROUNDS),
       };
     }),
     penalty: d.penalty === true,
     betTime: int(d.betTime, 30, BOARD_LIMITS.minBetTime, BOARD_LIMITS.maxBetTime),
+    buzzTime: (BUZZ_TIMES as readonly number[]).includes(d.buzzTime as number) ? (d.buzzTime as number) : 15,
   };
 }
 

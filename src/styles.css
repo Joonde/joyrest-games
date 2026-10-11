@@ -2215,14 +2215,13 @@ kbd {
   background: #2b1d1a;
 }
 
-/* Конец игры на экране зала: дорога в студию видна всегда. */
+/* Конец игры на экране зала: дорога в студию видна всегда — сверху слева, основной кнопкой. */
 .screen-exit {
   position: fixed;
-  left: 50%;
-  bottom: max(16px, var(--safe-bottom));
-  transform: translateX(-50%);
+  top: max(16px, var(--safe-top));
+  left: max(16px, var(--safe-left));
   z-index: 25;
-  background: var(--color-bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 .hall.is-idle .screen-controls {
@@ -2511,28 +2510,38 @@ kbd {
 /* Экран зала: браузер не дал включить музыку без касания. */
 .screen-tap {
   position: fixed;
-  left: 50%;
-  bottom: max(6cqh, var(--safe-bottom));
+  right: max(2cqh, var(--safe-right));
+  bottom: max(2cqh, var(--safe-bottom));
   z-index: 30;
-  transform: translateX(-50%);
-  padding: 1.2cqh 3cqw;
-  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  width: max(52px, 8cqh);
+  height: max(52px, 8cqh);
+  padding: 1.6cqh;
+  border-radius: 50%;
   border: 0.3cqh solid var(--color-highlight);
   background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 2.6cqh;
-  white-space: nowrap;
+  color: var(--color-highlight);
   font-family: inherit;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4cqh;
+  box-shadow: 0 0.6cqh 2cqh rgba(0, 0, 0, 0.45);
 }
 
-.screen-tap__hint {
-  font-size: 1.8cqh;
-  color: var(--color-text-muted);
+/* Ждёт касания — мягко пульсирует, чтобы ведущий заметил. */
+.screen-tap.is-waiting {
+  animation: screen-tap-pulse 2s ease-in-out infinite;
+}
+
+@keyframes screen-tap-pulse {
+  50% {
+    box-shadow: 0 0 0 1.2cqh color-mix(in srgb, var(--color-highlight) 30%, transparent), 0 0.6cqh 2cqh rgba(0, 0, 0, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-tap.is-waiting {
+    animation: none;
+  }
 }
 
 /* Пульт: фильтр треков — тихие кнопки, выбранная с обводкой. */
@@ -3287,6 +3296,65 @@ kbd {
 }
 
 /* Слайды экрана зала (SlideView): крупно, в стиле темы, размеры в единицах контейнера. */
+/* Жеребьёвка: золотая монетка с именем, переворот на каждое имя. */
+.draw-coin {
+  perspective: 120cqh;
+  margin: 2cqh 0;
+}
+
+.draw-coin__face {
+  display: grid;
+  place-items: center;
+  width: 38cqh;
+  height: 38cqh;
+  padding: 4cqh;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #e9cf8a 35%, #c9a15f 70%, #8c6a2f);
+  box-shadow: inset 0 0 0 1.2cqh rgba(140, 106, 47, 0.55), inset 0 0 0 1.6cqh rgba(255, 243, 196, 0.6), 0 2cqh 6cqh rgba(0, 0, 0, 0.5);
+  color: #2b1d0e;
+  animation: draw-flip 0.16s ease-out;
+}
+
+.draw-coin__face.is-final {
+  animation: draw-land 0.9s cubic-bezier(0.2, 1.5, 0.4, 1);
+  box-shadow: inset 0 0 0 1.2cqh rgba(140, 106, 47, 0.55), inset 0 0 0 1.6cqh rgba(255, 243, 196, 0.6), 0 0 8cqh rgba(243, 223, 174, 0.75);
+}
+
+.draw-coin__name {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 5.2cqh;
+  line-height: 1.05;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+@keyframes draw-flip {
+  from {
+    transform: rotateY(90deg);
+  }
+}
+
+@keyframes draw-land {
+  from {
+    transform: rotateY(180deg) scale(0.8);
+  }
+}
+
+.draw-winner {
+  animation: mil-flash 0.8s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-coin__face,
+  .draw-coin__face.is-final,
+  .draw-winner {
+    animation: none;
+  }
+}
+
 .slide {
   position: relative;
   width: 100%;
@@ -5187,8 +5255,10 @@ ul.chips {
 /* ---------- Экран зала: лобби с крупным QR, представление команд, QR для опоздавших ---------- */
 
 .screen--lobby {
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4vw;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 3vw;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .screen__qr {
@@ -5198,8 +5268,92 @@ ul.chips {
 
 /* QR — главный элемент лобби: его сканируют с дальних столов. */
 .screen--lobby .screen__qr .qr {
-  width: min(78vh, 46vw);
+  width: min(72vh, 34vw);
   max-width: none;
+}
+
+/* Колонка «Присоединились»: число крупно, имена ниже; растёт только внутри себя — длинный
+   список уплотняется в несколько колонок и прокручивается, QR и код не двигаются. */
+.lobby-joined {
+  align-self: stretch;
+  min-height: 0;
+  max-height: calc(100dvh - 10vh);
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+  padding: 2.4vh 1.6vw;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg, 24px);
+  background: var(--color-surface);
+}
+
+.lobby-joined__head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 1vw;
+  padding-bottom: 1.6vh;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lobby-joined__label {
+  grid-column: 1 / -1;
+  font-size: clamp(14px, 1.2vw, 22px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.lobby-joined__count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(48px, 6vw, 120px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.lobby-joined__sub {
+  font-size: clamp(14px, 1.2vw, 22px);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lobby-joined__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: flex-start;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.lobby-joined__list .chip {
+  font-size: clamp(14px, 1.3vw, 24px);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-joined__list.is-compact,
+.lobby-joined__list.is-dense {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.lobby-joined__list.is-dense {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lobby-joined__list.is-compact .chip {
+  padding: 6px 12px;
+  font-size: clamp(12px, 1.05vw, 20px);
+}
+
+.lobby-joined__list.is-dense .chip {
+  padding: 4px 8px;
+  font-size: clamp(11px, 0.85vw, 16px);
 }
 
 .screen--lobby .big-code {
@@ -5209,6 +5363,12 @@ ul.chips {
 .logo--lobby {
   width: clamp(140px, 16vw, 300px);
   color: var(--color-logo);
+}
+
+.chip__mask {
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  filter: blur(0.6px);
 }
 
 .chip__stars {
@@ -5311,9 +5471,29 @@ ul.chips {
   font-size: 2.8cqh;
 }
 
+@media (max-width: 1100px) and (min-width: 721px) {
+  .screen--lobby {
+    grid-template-columns: auto minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
+  }
+
+  .lobby-joined {
+    grid-column: 1 / -1;
+    max-height: 40vh;
+  }
+}
+
 @media (max-width: 720px) {
   .screen--lobby {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .lobby-joined {
+    max-height: 60vh;
+    text-align: left;
   }
 
   .screen--lobby .screen__qr .qr {
@@ -6439,6 +6619,89 @@ ul.chips {
   margin-left: auto;
   font-family: "Cormorant Garamond", serif;
   font-size: 6cqh;
+  /* Цена вопроса — заметно: обведена и подсвечена (решение владельца 11 октября 2026). */
+  padding: 0.6cqh 2.4cqw;
+  border: 0.4cqh solid var(--color-highlight);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-highlight) 18%, var(--color-surface));
+  color: var(--color-text);
+  font-weight: 700;
+  box-shadow: 0 0 3cqh color-mix(in srgb, var(--color-highlight) 45%, transparent);
+  white-space: nowrap;
+}
+
+.board-screen__hint--wait {
+  font-size: 3.4cqh;
+  color: var(--color-text);
+  animation: board-wait 1.8s ease-in-out infinite;
+}
+
+@keyframes board-wait {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.board-screen__go {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqh;
+}
+
+.board-screen__count {
+  display: grid;
+  place-items: center;
+  min-width: 14cqh;
+  height: 14cqh;
+  padding: 0 2cqw;
+  border-radius: 999px;
+  border: 0.5cqh solid var(--color-highlight);
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 9cqh;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-screen__count.is-over {
+  font-size: 4.5cqh;
+  border-color: var(--color-danger);
+}
+
+.board-screen__cat-to {
+  margin: 0;
+  font-size: 4.6cqh;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.board-cat__who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.board-editor__round {
+  margin: 8px 0 0;
+  font-size: 1.1rem;
+}
+
+.board-host__arm {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1.5px dashed var(--color-highlight);
+}
+
+.board-host__arm p {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-screen__hint--wait {
+    animation: none;
+  }
 }
 
 /* Поле: строка = категория + клетки. Размеры от контейнера — как на телевизоре, так и в предпросмотре. */
@@ -7953,6 +8216,7 @@ button.dance-card:active {
 
 /* ---------- «Кто хочет стать миллионером» ---------- */
 .mil-screen {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 4cqh 3cqw 3cqh;
@@ -8126,10 +8390,187 @@ button.dance-card:active {
   transform: rotate(-45deg);
 }
 
+.mil-lifeline svg {
+  width: 72%;
+  height: 72%;
+}
+
 .mil-lifelines--phone .mil-lifeline {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   font-size: 18px;
+}
+
+/* Подсказки команды, чей ход, — крупные плитки с подписью на экране зала. */
+.mil-tray {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1.2cqw;
+}
+
+.mil-tray__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqh;
+  padding: 1.2cqh 0.6cqw;
+  border-radius: 2cqh;
+  border: 2px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  color: var(--color-highlight);
+  min-width: 0;
+}
+
+.mil-tray__icon {
+  display: grid;
+  place-items: center;
+  width: 6.5cqh;
+  height: 6.5cqh;
+}
+
+.mil-tray__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mil-tray__label {
+  color: var(--color-text);
+  font-size: 2cqh;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.mil-tray__item.is-used {
+  opacity: 0.32;
+  border-color: var(--color-border);
+}
+
+.mil-tray__item.is-used::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 38%;
+  height: 0.5cqh;
+  border-radius: 1cqh;
+  background: var(--color-danger);
+  transform: rotate(-24deg);
+}
+
+.mil-tray__item.is-used.is-active {
+  opacity: 1;
+  border-color: var(--color-highlight);
+}
+
+.mil-tray__item.is-used.is-active::after {
+  display: none;
+}
+
+.mil-tray__item.is-active {
+  box-shadow: 0 0 0 0.5cqh var(--color-highlight), 0 0 4cqh color-mix(in srgb, var(--color-highlight) 60%, transparent);
+  animation: mil-tray-pop 0.9s ease-out;
+}
+
+@keyframes mil-tray-pop {
+  from {
+    transform: scale(1.25);
+  }
+}
+
+/* «Совет ведущего» на экране: лампочка светится, ниже — наводка. */
+.mil-tip {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  margin: 0 auto;
+  padding: 1.6cqh 2.4cqw;
+  border-radius: 2.4cqh;
+  border: 2px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface));
+  text-align: left;
+  max-width: 100%;
+  animation: mil-flash 0.8s ease-out;
+}
+
+.mil-tip__icon {
+  flex: none;
+  width: 8cqh;
+  height: 8cqh;
+  color: var(--color-highlight);
+  filter: drop-shadow(0 0 2cqh color-mix(in srgb, var(--color-highlight) 70%, transparent));
+  animation: mil-bulb 2s ease-in-out infinite;
+}
+
+.mil-tip__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes mil-bulb {
+  50% {
+    filter: drop-shadow(0 0 4cqh var(--color-highlight));
+  }
+}
+
+.mil-tip__title {
+  margin: 0;
+  font-size: 3cqh;
+  font-weight: 700;
+  color: var(--color-highlight);
+}
+
+.mil-tip__text {
+  margin: 0.4cqh 0 0;
+  font-size: 3.6cqh;
+  text-wrap: balance;
+}
+
+/* «Помощь зала»: вопрос с растущими процентами и QR для голосования рядом. */
+.mil-audience {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2.4cqw;
+  align-items: center;
+}
+
+.mil-audience__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqh;
+  width: 26cqh;
+}
+
+.mil-audience__qr .qr {
+  width: 26cqh;
+  height: auto;
+}
+
+.mil-audience__title {
+  margin: 0;
+  font-size: 3.4cqh;
+  font-weight: 700;
+  color: var(--color-highlight);
+}
+
+.mil-audience__hint,
+.mil-audience__count {
+  margin: 0;
+  font-size: 2.4cqh;
+  text-align: center;
+}
+
+.mil-audience__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .mil-question__text {
@@ -8181,38 +8622,115 @@ button.dance-card:active {
   font-variant-numeric: tabular-nums;
 }
 
-.mil-option__pct::before {
-  content: "";
+.mil-option > * {
+  position: relative;
+}
+
+.mil-option > .mil-option__bar,
+.mil-option > .mil-option__glow {
   position: absolute;
+}
+
+/* Проценты зала — полоса растёт на глазах. */
+.mil-option__bar {
   inset: 0 auto 0 0;
   width: var(--pct);
-  background: color-mix(in srgb, var(--color-highlight) 22%, transparent);
-  z-index: -1;
+  background: color-mix(in srgb, var(--color-highlight) 28%, transparent);
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .mil-option.is-gone {
   opacity: 0.25;
 }
 
-.mil-option.is-picked {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary);
+/* Выбор команды: оранжевая рамка дышит — ведущий ещё переспросит. */
+.mil-option.is-chosen {
+  border-color: #f0a64a;
+  box-shadow: 0 0 0 0.4cqh #f0a64a, 0 0 3cqh rgba(240, 166, 74, 0.55);
+  animation: mil-chosen 1.2s ease-in-out infinite;
+}
+
+@keyframes mil-chosen {
+  50% {
+    box-shadow: 0 0 0 0.6cqh #f0a64a, 0 0 5cqh rgba(240, 166, 74, 0.85);
+  }
+}
+
+/* «Окончательный ответ»: заливка оранжевым, текст тёмный. */
+.mil-option.is-locked {
+  border-color: #f6c27a;
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  box-shadow: 0 0 4cqh rgba(240, 166, 74, 0.6);
+}
+
+.mil-option.is-locked .mil-option__letter {
+  color: #3a210c;
+}
+
+/* Верный ответ: зелёная заливка и бегущая по рамке радуга зелёных оттенков. */
+@property --mil-a {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
 
 .mil-option.is-right {
-  border-color: var(--color-success);
-  border-width: 0.6cqh;
+  border-color: transparent;
+  background: linear-gradient(180deg, #8fe3a8, #3fb26a);
+  color: #10251a;
+  box-shadow: 0 0 5cqh rgba(80, 220, 130, 0.65);
+  animation: mil-right 0.7s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .mil-option.is-right .mil-option__letter {
-  color: var(--color-success);
+  color: #0c3a20;
 }
 
-.mil-option.is-right::after {
-  content: "✓";
-  margin-left: auto;
-  color: var(--color-success);
-  font-weight: 700;
+.mil-option__glow {
+  inset: -0.2cqh;
+  border-radius: inherit;
+  padding: 0.7cqh;
+  background: conic-gradient(from var(--mil-a), #3ddc84, #c8ff6a, #fff6a8, #66f0d0, #2fbf71, #b6ffda, #3ddc84);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: mil-spin 1.4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes mil-spin {
+  to {
+    --mil-a: 360deg;
+  }
+}
+
+@keyframes mil-right {
+  from {
+    transform: scale(0.94);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Вспышка света за вопросом при верном ответе. */
+.mil-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 55%, rgba(120, 255, 170, 0.45), transparent 55%);
+  animation: mil-burst 1.6s ease-out forwards;
+  z-index: 0;
+}
+
+@keyframes mil-burst {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .mil-option.is-wrong {
@@ -8234,6 +8752,10 @@ button.dance-card:active {
 .mil-question--phone .mil-option.is-right,
 .mil-question--phone .mil-option.is-wrong {
   border-width: 3px;
+}
+
+.mil-question--phone .mil-option__glow {
+  padding: 4px;
 }
 
 .mil-outcome {
@@ -8302,15 +8824,102 @@ button.dance-card:active {
   gap: 8px;
 }
 
+/* Подсказка на телефоне: крупный значок и подпись в две строки, текст не вылезает. */
 .mil-phone-lifeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   min-width: 0;
-  padding-inline: 8px;
-  white-space: normal;
+  min-height: 96px;
+  padding: 10px 4px 8px;
+  border-radius: 16px;
+  border: 1.5px solid var(--color-highlight);
+  background: var(--color-surface);
+  color: var(--color-highlight);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mil-phone-lifeline__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.mil-phone-lifeline__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mil-phone-lifeline__label {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.mil-phone-lifeline:disabled {
+  cursor: default;
 }
 
 .mil-phone-lifeline.is-used {
-  text-decoration: line-through;
-  opacity: 0.5;
+  opacity: 0.35;
+  border-color: var(--color-border);
+}
+
+.mil-phone-lifeline.is-used::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 30px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-danger);
+  transform: rotate(-24deg);
+}
+
+.mil-phone-lifeline.is-asked {
+  box-shadow: 0 0 0 3px #f0a64a;
+  animation: mil-chosen 1.2s ease-in-out infinite;
+}
+
+.mil-phone-option.is-chosen {
+  border-color: #f0a64a;
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  opacity: 1;
+}
+
+.mil-phone-option.is-chosen .mil-option__letter {
+  color: #3a210c;
+}
+
+.mil-phone-status {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  text-align: center;
+  font-weight: 500;
+}
+
+.mil-phone-status.is-chosen {
+  box-shadow: inset 0 0 0 2px #f0a64a;
+}
+
+.mil-phone-status.is-locked {
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  font-weight: 600;
 }
 
 .mil-call--phone {
@@ -8353,6 +8962,102 @@ button.dance-card:active {
   color: var(--color-primary-text);
 }
 
+.mil-ask {
+  border: 2px solid #f0a64a;
+  box-shadow: 0 0 0 3px rgba(240, 166, 74, 0.25);
+}
+
+.mil-ask__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.mil-ask__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  color: var(--color-highlight);
+}
+
+.mil-ask__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mil-host-locked {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  font-weight: 600;
+}
+
+.mil-host-lifelines .tile__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.clip-editor {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+}
+
+.clip-editor__wave {
+  position: relative;
+  height: 48px;
+  border-radius: 10px;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-text) 18%, transparent) 0 2px, transparent 2px 6px), var(--color-surface);
+  touch-action: none;
+}
+
+.clip-editor__range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-highlight) 35%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-highlight);
+}
+
+.clip-editor__handle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 28px;
+  margin-left: -14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-highlight);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.clip-editor__handle::after {
+  content: "";
+  position: absolute;
+  inset: 12px 12px;
+  border-radius: 2px;
+  background: #221e1b;
+}
+
+.clip-editor__fades {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.vote-page__title {
+  margin: 0;
+  text-wrap: balance;
+}
+
 .mil-host-lifeline.is-used {
   opacity: 0.45;
   text-decoration: line-through;
@@ -8371,15 +9076,17 @@ button.dance-card:active {
 }
 
 .mil-host-lifeline .tile__icon {
-  width: auto;
+  width: 36px;
+  height: 36px;
   max-width: none;
   aspect-ratio: auto;
-  font-size: 26px;
-  line-height: 1.1;
+  color: var(--color-highlight);
 }
 
 .mil-host-lifelines .tile__label {
   font-size: 13px;
+  line-height: 1.15;
+  text-wrap: balance;
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
@@ -8414,7 +9121,15 @@ button.dance-card:active {
 
 @media (prefers-reduced-motion: reduce) {
   .mil-step.is-next,
-  .mil-flash {
+  .mil-flash,
+  .mil-option.is-chosen,
+  .mil-option.is-right,
+  .mil-option__glow,
+  .mil-tip,
+  .mil-tip__icon,
+  .mil-tray__item.is-active,
+  .mil-phone-lifeline.is-asked,
+  .mil-burst {
     animation: none;
   }
 }
@@ -8548,8 +9263,10 @@ button.dance-card:active {
   padding: 4cqh 3cqw 3cqh;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 3cqw;
+  /* Вопрос сверху крупно, дорожки снизу во всю ширину (решение владельца 11 октября 2026). */
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2cqh;
   font-size: 3.2cqh;
 }
 
@@ -8570,9 +9287,11 @@ button.dance-card:active {
 .sv-screen__side {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 2cqh;
+  justify-content: flex-end;
+  gap: 1.2cqh;
   min-width: 0;
+  max-height: 46cqh;
+  overflow: hidden;
 }
 
 .sv-title {
@@ -8631,17 +9350,73 @@ button.dance-card:active {
   color: var(--color-text-muted);
 }
 
+.sv-task-timer {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  padding: 1.4cqh 3cqw;
+  border-radius: 999px;
+  border: 0.5cqh solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface));
+}
+
+.sv-task-timer__who {
+  font-size: 3.6cqh;
+  font-weight: 600;
+}
+
+.sv-task-timer__n {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 10cqh;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  min-width: 12cqh;
+  text-align: center;
+}
+
+.sv-task-timer.is-over {
+  border-color: var(--color-danger);
+}
+
+.sv-mark-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.sv-mark-row > .column-opt {
+  flex: 1;
+  min-width: 0;
+}
+
+.sv-mark-row__timer {
+  flex: none;
+  width: auto;
+  padding-inline: 14px;
+}
+
+.sv-secret strong {
+  font-size: 30px;
+  font-family: "Cormorant Garamond", serif;
+}
+
+.sv-lanes--multi .sv-lane {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+}
+
 .sv-lanes {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 1.4cqh;
+  grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  gap: 1.2cqh 3cqw;
 }
 
 .sv-lane {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 2.4fr) auto;
   align-items: center;
   gap: 1cqw;
 }
@@ -8673,6 +9448,16 @@ button.dance-card:active {
   width: 1.6cqh;
   border-radius: 0 1cqh 1cqh 0;
   background: repeating-conic-gradient(#fbf6f1 0 25%, #221e1b 0 50%) 0 0 / 0.8cqh 0.8cqh;
+}
+
+/* Деления трассы: тонкая черта на каждый раунд, флажок-черта — на каждую войнушку. */
+.sv-lane__marks {
+  position: absolute;
+  inset: 0 5cqh 0 2.5cqh;
+  background:
+    repeating-linear-gradient(90deg, rgba(243, 223, 174, 0.55) 0 0.35cqh, transparent 0.35cqh calc(100% * var(--war) / var(--segs))),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 0.2cqh, transparent 0.2cqh calc(100% / var(--segs)));
+  pointer-events: none;
 }
 
 .sv-lane__runner {
@@ -12245,10 +13030,10 @@ button.dance-card:active {
 .dk-stock, .dk-bito { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1.4cqh; min-width: 14cqh; }
 .dk-stock { flex-direction: row; align-items: center; }
 .dk-stock__trump { transform: rotate(90deg) translateY(-3cqh); }
-.dk-stock__deck { margin-left: -9cqh; box-shadow: 0.3cqh 0.3cqh 0 #3e0f1b, 0.6cqh 0.6cqh 0 #2f0b14, 0 1cqh 2cqh rgba(0, 0, 0, 0.5); }
+.dk-stock__deck { margin-left: -5cqh; box-shadow: 0.3cqh 0.3cqh 0 #3e0f1b, 0.6cqh 0.6cqh 0 #2f0b14, 0 1cqh 2cqh rgba(0, 0, 0, 0.5); }
 .dk-stock__label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 1.2cqh; white-space: nowrap; text-align: center; font-size: 1.8cqh; letter-spacing: 0.12em; text-transform: uppercase; color: #e8d9b5; }
 .dk-stock__label b { display: block; margin-top: 0.4cqh; font-family: "Cormorant Garamond", serif; font-size: 2.8cqh; letter-spacing: 0; text-transform: none; color: #f3e3bc; }
-.dk-stock__label b.is-red { color: #f09aa6; }
+.dk-stock__label b.is-red:not(.dk-stock__suit) { color: #f09aa6; }
 .dk-bito { flex-direction: row; }
 .dk-battle { position: relative; z-index: 1; flex: 1; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 2.4cqh 3cqh; max-width: 62cqh; min-height: 20cqh; }
 .dk-pair { position: relative; width: 13.5cqh; height: 18.5cqh; }
@@ -12326,7 +13111,7 @@ button.dance-card:active {
 
 /* ---------------------------------------------------------------- «Дурак»: телефон гостя */
 
-.dk-phone { gap: 12px; }
+.dk-phone { gap: 12px; --cw: clamp(68px, 23vw, 104px); }
 .dk-phone__deal { display: flex; justify-content: center; padding: 24px 0; }
 .dk-phone__opps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .dk-opp { flex: none; display: flex; flex-direction: column; padding: 6px 10px; border-radius: 12px; background: var(--color-surface-alt); border: 1px solid var(--color-border); font-size: 13px; min-width: 76px; }
@@ -12334,18 +13119,41 @@ button.dance-card:active {
 .dk-opp__n { color: var(--color-text-muted); }
 .dk-opp--turn, .dk-opp--defend { border-color: #e8c77e; box-shadow: 0 0 0 2px rgba(232, 199, 126, 0.25); }
 .dk-opp--out { opacity: 0.55; }
-.dk-mini { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 90px; align-items: center; }
+.dk-mini { --mw: 54px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 104px; align-items: center; transition: box-shadow 0.2s; }
+.dk-mini.is-drop { box-shadow: inset 0 0 0 2px rgba(232, 199, 126, 0.7); }
+.dk-mini.is-over { box-shadow: inset 0 0 0 3px #e8c77e, inset 0 0 24px rgba(232, 199, 126, 0.35); }
 .dk-mini--empty { gap: 12px; color: #f3e3bc; }
 .dk-mini__trump { transform: rotate(90deg); }
-.dk-mini__pair { position: relative; width: 60px; height: 76px; padding: 0; border: 0; background: none; border-radius: 8px; }
+.dk-mini__pair { position: relative; width: calc(var(--mw) + 14px); height: calc(var(--mw) * 1.4 + 14px); transition: transform 0.15s; padding: 0; border: 0; background: none; border-radius: 8px; }
 .dk-mini__pair > .dk-card { position: absolute; left: 0; top: 0; }
 .dk-mini__pair .dk-mini__d { left: 12px; top: 12px; transform: rotate(8deg); }
 button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .dk-mini__pair.is-open > .dk-card:first-child { box-shadow: 0 0 0 2px rgba(232, 199, 126, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4); }
 .dk-mini__pair.is-target > .dk-card:first-child { box-shadow: 0 0 0 3px #e8c77e, 0 0 16px rgba(232, 199, 126, 0.6); }
+.dk-mini__pair.is-beatable > .dk-card:first-child { box-shadow: 0 0 0 3px #9fd9a8, 0 0 14px rgba(159, 217, 168, 0.55); }
+.dk-mini__pair.is-no > .dk-card:first-child { filter: brightness(0.6); }
+.dk-mini__pair.is-over { transform: scale(1.12); }
+.dk-mini__pair.is-over.is-beatable > .dk-card:first-child { box-shadow: 0 0 0 4px #9fd9a8, 0 0 22px rgba(159, 217, 168, 0.8); }
+/* Козырь: крупная масть над столом и золотая рамка со звездой у каждой козырной карты. */
+.dk-trumpbar { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0; padding: 8px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(232, 199, 126, 0.18), rgba(232, 199, 126, 0.06)); box-shadow: inset 0 0 0 1.5px #e8c77e; color: #f3e3bc; }
+.dk-trumpbar b { color: #f6e3a6; font-size: 1.1em; }
+.dk-trumpbar small { display: block; font-size: 0.8em; color: #d8c9a6; }
+.dk-trumpbar__glyph { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; background: #fbf6f1; color: #16151b; font-size: 30px; line-height: 1; box-shadow: 0 0 0 2px #e8c77e, 0 0 14px rgba(232, 199, 126, 0.6); }
+.dk-trumpbar.is-red .dk-trumpbar__glyph { color: #9c1934; }
+.dk-card.is-trump { outline: max(2px, calc(var(--w) * 0.035)) solid #e8c77e; outline-offset: max(-2px, calc(var(--w) * -0.03)); }
+.dk-trumpmark { position: absolute; z-index: 4; top: 3%; right: 4%; display: grid; place-items: center; width: calc(var(--w) * 0.24); height: calc(var(--w) * 0.24); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3c4, #d9a940 60%, #8c6a2f); color: #3e0e19; font-family: "Jost", sans-serif; font-size: calc(var(--w) * 0.17); line-height: 1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.dk-stock__suit span { display: inline-grid; place-items: center; width: 4.4cqh; height: 4.4cqh; margin-left: 0.6cqh; vertical-align: middle; border-radius: 50%; background: #fbf6f1; color: #16151b; font-size: 3.2cqh; box-shadow: 0 0 0 0.3cqh #e8c77e, 0 0 2cqh rgba(232, 199, 126, 0.7); }
+.dk-stock__suit.is-red span { color: #9c1934; }
 .dk-phone__status { margin: 0; text-align: center; font-weight: 500; }
 .dk-phone__status--turn, .dk-phone__status--defend { color: var(--color-highlight, #e3c68c); }
-.dk-hand { position: relative; height: 210px; margin-top: auto; }
+.dk-hand { display: flex; flex-direction: column; margin-top: auto; padding-top: 34px; container-type: inline-size; }
+.dk-hand--rows { --cw: clamp(60px, 18vw, 86px); }
+.dk-hand__row { position: relative; z-index: 0; height: calc(var(--cw) * 1.4 + 18px); }
+.dk-hand--rows .dk-hand__row { height: calc(var(--cw) * 1.4 + 4px); }
+.dk-hand--rows .dk-hand__row + .dk-hand__row { margin-top: calc(var(--cw) * -0.72); }
+.dk-hand.is-draggable .dk-hand__slot { touch-action: none; }
+.dk-hand__slot.is-dragging > .dk-card { opacity: 0.35; }
+.dk-ghost { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -108%) rotate(-4deg) scale(0.9); filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.6)); }
 .dk-hand__slot {
   position: absolute;
   left: 50%;
@@ -12355,7 +13163,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   background: none;
   cursor: pointer;
   transform-origin: 50% 160%;
-  transform: translateX(calc(-50% + var(--off) * clamp(22px, 7.5vw, 38px))) translateY(var(--lift)) rotate(var(--rot));
+  transform: translateX(calc(-50% + var(--off) * min(clamp(22px, 7.5vw, 38px), (100cqw - var(--cw) - 8px) / var(--n, 1)))) translateY(var(--lift)) rotate(var(--rot));
   transition: transform 0.25s ease;
 }
 .dk-hand__slot > .dk-card { transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1), box-shadow 0.25s, filter 0.25s; }

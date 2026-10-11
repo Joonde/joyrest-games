@@ -39,7 +39,7 @@ import { validateCheckers } from "../src/mechanics/checkers/validate";
 import { moveChange, nextTurn as checkersNextTurn, parseCheckersResult, startGame as startCheckers } from "../src/mechanics/checkers/logic";
 import { parseBoard } from "../src/mechanics/board/content";
 import { validateBoard } from "../src/mechanics/board/validate";
-import { boardBuzzSync, boardReveal, boardWrong, openCell, parseBoardResult, startCatQuestion, toBoard } from "../src/mechanics/board/logic";
+import { armBuzz, boardBuzzSync, boardReveal, boardWrong, openCell, parseBoardResult, setCat, startCatQuestion, toBoard } from "../src/mechanics/board/logic";
 
 const BASE = (process.env.LOAD_BASE ?? "https://test.games.joy-rest.ru").replace(/\/$/, "");
 const ADMIN_EMAIL = (process.env.TEST_ADMIN_EMAIL ?? "").trim();
@@ -625,7 +625,10 @@ async function main() {
     if (!first || !cat) check(false, "в шаблоне есть клетки и «Кот в мешке»");
     else {
       check((await act(openCell(await get(), game, first.id))) === 200, "ведущий открыл клетку");
-      let step = (await get()).state.step;
+      // Ведущий читает вопрос — нажатие до «Запустить отсчёт» не считается.
+      await g2.call("POST", `/api/sessions/${sid}/answers`, { step: (await get()).state.step, pid: u2, value: { buzz: true } });
+      check((await act(armBuzz(await get(), game) ?? {})) === 200, "«Запустить отсчёт»");
+      const step = (await get()).state.step;
       await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { buzz: true } });
       await wait(30);
       await g2.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u2, value: { buzz: true } });
@@ -639,18 +642,14 @@ async function main() {
       const afterCell = parseBoardResult((await get()).state.result);
       check(afterCell.opened.includes(first.id) && afterCell.picker === u2, "клетка погасла, выбирает ответивший верно");
 
-      check((await act(openCell(await get(), game, cat.id))) === 200, "открыт «Кот в мешке» — ставки");
-      step = (await get()).state.step;
-      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { bet: cat.points } });
-      await g2.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u2, value: { bet: 50 } });
-      await act(startCatQuestion(await get(), game, await answersOf()));
-      step = (await get()).state.step;
-      await g1.call("POST", `/api/sessions/${sid}/answers`, { step, pid: u1, value: { buzz: true } });
-      await act(boardBuzzSync(await get(), await answersOf()) ?? {});
+      check((await act(openCell(await get(), game, cat.id))) === 200, "открыт «Кот в мешке»");
+      // Ведущий отдаёт вопрос одному игроку и ставит цену — отвечает только он.
+      await act(setCat(await get(), u1, 300));
+      await act(startCatQuestion(await get(), game) ?? {});
+      check(parseBoardResult((await get()).state.result).buzz.current === u1, "«Кот в мешке»: отвечает тот, кому отдали");
       await act(boardReveal(await get(), game, await people(), true));
       const final = await get();
-      check((final.leaderboard[u1]?.score ?? 0) === cat.points, "«Кот в мешке»: верно — ставка победителю", String(final.leaderboard[u1]?.score));
-      check((final.leaderboard[u2]?.score ?? 0) === first.points - 50, "вторая ставка сгорела", String(final.leaderboard[u2]?.score));
+      check((final.leaderboard[u1]?.score ?? 0) === 300, "«Кот в мешке»: верно — плюс цена", String(final.leaderboard[u1]?.score));
     }
     check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Своя игра» завершена");
   }

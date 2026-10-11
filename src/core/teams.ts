@@ -20,8 +20,19 @@ export function teamOrder(leaderboard: Record<string, LeaderboardEntry>): Ordere
     .map(([id, entry], i) => ({ id, entry, number: i + 1 }));
 }
 
+/**
+ * Скрыты ли названия: по умолчанию — да (решение владельца 11 октября 2026: интрига до «Представить
+ * команды», чтобы зал посмеялся). Ведущий может открыть их галочкой на пульте.
+ */
 export function teamsReveal(state: Pick<SessionState, "teams">): TeamsReveal {
-  return state.teams ?? { hidden: false, shown: null };
+  return state.teams ?? { hidden: true, shown: null };
+}
+
+/** Название звёздочками: длина и пробелы видны, буквы — нет («✱✱✱✱ ✱✱✱»). */
+export function maskedName(name: string): string {
+  const letters = [...name.replace(/^\P{L}+/u, "").trim()];
+  const masked = letters.map((ch) => (/\s/.test(ch) ? " " : "✱")).join("").replace(/ +/g, " ");
+  return [...masked].slice(0, 18).join("") || "✱✱✱";
 }
 
 /**

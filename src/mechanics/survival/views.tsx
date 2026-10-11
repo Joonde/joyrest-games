@@ -10,7 +10,7 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { isWar, KIND_TITLES, LETTERS, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
+import { isWar, KIND_TITLES, LETTERS, taskWordFor, taskWords, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
 import { auctionPending, isWarRound, minBet, parseSurvivalResult, roundNumber, roundOf, type SurvivalResult } from "./logic";
 
 export type SurvivalAnswerValue = { choice: number } | { text: string } | { bet: number } | { ticket: true } | { bid: number };
@@ -33,22 +33,39 @@ function warNote(content: SurvivalContent, r: SurvivalResult): string {
   return `До войнушки: ${left} ${left === 1 ? "раунд" : left < 5 ? "раунда" : "раундов"}`;
 }
 
-/** Дорожки: у лидера — до финишной черты, остальные — по доле от его очков. */
+/**
+ * Длина трассы — сколько очков можно набрать за всю игру (очки всех раундов и призы войнушек), чтобы
+ * фишки ехали понемногу, раунд за раундом, а не стояли у финиша с первого ответа.
+ */
+export function raceGoal(content: SurvivalContent): number {
+  let goal = 0;
+  content.rounds.forEach((round, i) => {
+    const n = i + 1;
+    goal += isWar(content, n) ? content.warPrize * warIndex(content, n) : round.points;
+  });
+  return Math.max(1, goal);
+}
+
 /** Гонщик на дорожке: смайлик команды или первая буква. */
 function carOf(name: string): string {
   const first = Array.from(name.trim())[0] ?? "?";
   return /\p{Extended_Pictographic}/u.test(first) ? first : first.toUpperCase();
 }
 
-export function RaceLanes({ session, result, size = "screen" }: { session: Session; result: SurvivalResult; size?: "screen" | "phone" }) {
+export function RaceLanes({ session, content, result, size = "screen" }: { session: Session; content: SurvivalContent; result: SurvivalResult; size?: "screen" | "phone" }) {
   const scores = result.order.map((p) => session.leaderboard[p]?.score ?? 0);
   const top = Math.max(1, ...scores);
+  // Трасса — вся игра: фишки двигаются по делениям раунд за раундом (финиш — максимум очков игры).
+  const goal = Math.max(raceGoal(content), top);
   const ranked = [...result.order].sort((a, b) => (session.leaderboard[b]?.score ?? 0) - (session.leaderboard[a]?.score ?? 0));
+  // Много команд — дорожки в две-три колонки.
+  const cols = size === "phone" ? 1 : ranked.length > 12 ? 3 : ranked.length > 6 ? 2 : 1;
+  const segs = Math.max(1, Math.min(30, content.rounds.length));
   return (
-    <ol className={`sv-lanes sv-lanes--${size}`} aria-label="Гонка по очкам">
+    <ol className={`sv-lanes sv-lanes--${size}${cols > 1 ? " sv-lanes--multi" : ""}`} aria-label="Гонка по очкам" style={{ ["--cols" as string]: String(cols), ["--segs" as string]: String(segs), ["--war" as string]: String(Math.max(1, content.warEvery)) }}>
       {ranked.map((p) => {
         const score = session.leaderboard[p]?.score ?? 0;
-        const share = Math.max(0, Math.min(1, score / top));
+        const share = Math.max(0, Math.min(1, score / goal));
         const tickets = result.tickets[p] ?? 0;
         return (
           <li key={p} className={`sv-lane${p === result.winner ? " is-winner" : ""}`} style={{ ["--team" as string]: colorOf(session, result, p), ["--share" as string]: String(share) }}>
@@ -59,6 +76,7 @@ export function RaceLanes({ session, result, size = "screen" }: { session: Sessi
               {tickets > 0 ? <span className="sv-lane__ticket" aria-label={`Билетов: ${tickets}`}>{"🎟".repeat(tickets)}</span> : null}
             </span>
             <span className="sv-lane__track">
+              <span className="sv-lane__marks" aria-hidden="true" />
               <span className="sv-lane__runner" />
               <span className="sv-lane__car" aria-hidden="true">
                 {carOf(nameOf(session, p))}
@@ -88,6 +106,21 @@ function RoundCard({ round, result, reveal, size = "screen" }: { round: Survival
       )}
       {round.kind === "open" && reveal && <p className="sv-round__answer">Ответ: {round.answer.split("|")[0]?.trim()}</p>}
       {result.phase === "reveal" && result.deltas && Object.keys(result.deltas).length === 0 && reveal && <p className="sv-round__note">Очков в этом раунде никто не получил</p>}
+    </div>
+  );
+}
+
+/** Очередь команды в задании: крупный отсчёт 30 секунд по часам сервера. */
+function TaskTimer({ session, timer }: { session: Session; timer: { pid: string; endsAt: number } }) {
+  const now = useServerNow(200, true);
+  const left = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
+  useCountdownSounds(left);
+  return (
+    <div className={left === 0 ? "sv-task-timer is-over" : "sv-task-timer"} role="timer">
+      <span className="sv-task-timer__who">
+        Показывает <NameText name={nameOf(session, timer.pid)} />
+      </span>
+      <span className="sv-task-timer__n">{left === 0 ? "Время!" : left}</span>
     </div>
   );
 }
@@ -181,6 +214,8 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
         </span>
         {round.kind === "task" && <p className="sv-kind">Задание</p>}
         <RoundCard round={round} result={r} reveal={stage === "reveal"} />
+        {round.kind === "task" && taskWords(round).length > 0 && stage === "question" && <p className="sv-note">Капитаны видят своё слово на телефоне — показывают по очереди, без слов</p>}
+        {round.kind === "task" && stage === "question" && r.taskTimer && <TaskTimer session={session} timer={r.taskTimer} />}
         {war && r.freed.length > 0 && (
           <p className="sv-note">
             По билету пропускают: {r.freed.map((p) => nameOf(session, p)).join(", ")}
@@ -209,7 +244,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
         <p className="sv-counter">
           Раунд {Math.min(roundNumber(r), content.rounds.length)}/{content.rounds.length} · {warNote(content, r)}
         </p>
-        <RaceLanes session={session} result={r} />
+        <RaceLanes session={session} content={content} result={r} />
       </section>
     </div>
   );
@@ -273,7 +308,7 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
       <div className="quiz-phone quiz-phone--center">
         {head}
         <h2>{r.phase === "over" ? "Финиш гонки!" : r.order.length === 0 ? "Скоро старт!" : isWarRound(content, r) ? "⚔️ Войнушка!" : auctionPending(content, r) ? "🎟 Аукцион билета" : `Раунд ${roundNumber(r)}`}</h2>
-        {session.screenMode === "none" && r.order.length > 0 && <RaceLanes session={session} result={r} size="phone" />}
+        {session.screenMode === "none" && r.order.length > 0 && <RaceLanes session={session} content={content} result={r} size="phone" />}
       </div>
     );
   }
@@ -369,7 +404,15 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
         <>
           {round.kind === "task" && <p className="eyebrow">Задание · {pointsLabel(round.points)}</p>}
           <RoundCard round={round} result={r} reveal={stage === "reveal"} size="phone" />
-          {stage === "question" && round.kind === "task" && <p className="muted">Выполняйте — ведущий засчитает.</p>}
+          {stage === "question" && round.kind === "task" && taskWordFor(round, r.order, pid) && role !== "member" && (
+            <div className="buzz__plate buzz__plate--glow sv-secret" role="status">
+              <span>Ваше слово — видите только вы:</span>
+              <strong>{taskWordFor(round, r.order, pid)}</strong>
+              <span>Покажите его команде без слов, когда ведущий позовёт</span>
+            </div>
+          )}
+          {stage === "question" && round.kind === "task" && taskWords(round).length > 0 && role === "member" && <p className="muted">Капитан покажет слово — угадывайте! Ведущий засчитает.</p>}
+          {stage === "question" && round.kind === "task" && taskWords(round).length === 0 && <p className="muted">Выполняйте — ведущий засчитает.</p>}
           {stage === "question" && round.kind !== "task" && (sent ?? memberNote)}
           {stage === "reveal" && (
             <p className={(r.deltas[pid] ?? 0) > 0 ? "success" : (r.deltas[pid] ?? 0) < 0 ? "error" : "muted"}>
@@ -378,7 +421,7 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
           )}
         </>
       )}
-      {session.screenMode === "none" && <RaceLanes session={session} result={r} size="phone" />}
+      {session.screenMode === "none" && <RaceLanes session={session} content={content} result={r} size="phone" />}
     </div>
   );
 }

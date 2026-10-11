@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { categoryTitle, durationLabel, nextInCategory, TRACK_CATEGORIES } from "../../core/music";
-import { DEFAULT_MIX, tracksRepo, useLoad, type MixState, type Session, type SessionChange, type Track, type TrackCategory } from "../../data";
+import { DEFAULT_MIX, isClipped, tracksRepo, useLoad, type MixState, type Session, type SessionChange, type Track, type TrackCategory } from "../../data";
 
 const EMPTY = { mine: [] as Track[], library: [] as Track[] };
 
@@ -43,7 +43,7 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
     onApply(change).catch(() => setError(true));
   }
 
-  const play = (track: Track) => send({ state: { music: { trackId: track.id, playing: true, rev: rev() } } });
+  const play = (track: Track) => send({ state: { music: { trackId: track.id, playing: true, rev: rev(), ...(isClipped(track.clip) ? { clip: track.clip } : {}) } } });
 
   function changeMix(next: MixState) {
     setMixLocal(next);

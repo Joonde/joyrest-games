@@ -6,9 +6,11 @@ import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey, secondsLeft } from "../../core/session";
+import { audienceRepo } from "../../data";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { LETTERS, LEVELS, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent } from "./content";
+import { LifelineIcon } from "./icons";
 import {
   applyLifeline,
   audienceVotes,
@@ -16,6 +18,8 @@ import {
   endCall,
   finishAudience,
   levelToPlay,
+  liveAudience,
+  lockAnswer,
   markPick,
   millionaireBack,
   millionairePrimary,
@@ -23,19 +27,23 @@ import {
   nextTurn,
   parseMillionaireResult,
   questionOf,
+  refuseLifeline,
   requestedLifeline,
   retryQuestion,
   revealAnswer,
   showQuestion,
+  showTip,
   startMillionaire,
+  syncChosen,
   teamPick,
 } from "./logic";
 import { teamsCovered } from "./validate";
 
 /**
  * Пульт «Миллионера»: «Начать игру» → «Показать вопрос» команды → капитан выбирает на телефоне (или
- * ведущий отмечает ответ команды) → «Показать ответ» → «Следующая команда». Подсказки — плитками: каждая
- * у команды один раз; капитан может попросить подсказку с телефона — пульт включает её сам.
+ * ведущий отмечает ответ команды) — выбор сразу подсвечивается на экране → ведущий переспрашивает «Это
+ * окончательный ответ?» и фиксирует → «Показать ответ» → «Следующая команда». Подсказки — плитками: каждая
+ * у команды один раз; игрок может попросить подсказку с телефона — ведущий переспрашивает и включает.
  */
 export function MillionaireHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<MillionaireContent>) {
   const [busy, setBusy] = useState(false);
@@ -55,19 +63,56 @@ export function MillionaireHostControls({ session, content, answers, participant
   const q = questionOf(content, r);
   const now = useServerNow(500, stage === "question");
 
-  // Капитан попросил подсказку с телефона — включаем (любой открытый пульт; отпечаток итогов шага мирит).
+  // Просьба подсказки с телефона: ведущий переспрашивает и сам включает или отклоняет.
   const asked = requestedLifeline(session, answers, participants);
-  const askKey = asked ? `${step}:${asked}` : "";
-  const askedBlocked = asked ? canUseLifeline(session, content, answers, asked) : null;
-  useEffect(() => {
-    if (!askKey || busy || !asked) return;
-    const s = latest.current;
-    const change = applyLifeline(s, content, answers, asked, now);
+  const askedCheck = asked ? canUseLifeline(session, content, answers, asked.id) : null;
+
+  /** Запись без кнопки (подсветка выбора, проценты зала): только поверх того же состояния. */
+  function quiet(change: SessionChange | null) {
     if (!change) return;
+    const s = latest.current;
     const { phase, step: atStep, stage: atStage } = s.state;
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(s.state.result) } }).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новой просьбе
-  }, [askKey, busy]);
+  }
+
+  // Ответ пришёл с телефона или поменялся — сразу подсветить его на экране зала.
+  const pickNow = teamPick(session, answers);
+  useEffect(() => {
+    if (busy) return;
+    quiet(syncChosen(latest.current, answers));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом ответе
+  }, [pickNow, r.chosen, step, busy]);
+
+  // «Помощь зала»: голоса гостей по QR забираем с сервера раз в 1,5 с — проценты на экране растут сами.
+  const [qrVotes, setQrVotes] = useState<number[]>([]);
+  const audienceOpen = r.mode === "audience" && stage === "question";
+  useEffect(() => {
+    if (!audienceOpen || rehearsal || !audienceRepo) {
+      setQrVotes([]);
+      return;
+    }
+    const repo = audienceRepo;
+    let alive = true;
+    const tick = () =>
+      void repo
+        .counts(session.id)
+        .then((got) => {
+          if (alive && got.step === latest.current.state.step) setQrVotes(got.counts);
+        })
+        .catch(() => undefined);
+    tick();
+    const timer = window.setInterval(tick, 1500);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [audienceOpen, step, session.id, rehearsal]);
+  const qrKey = qrVotes.join(",");
+  useEffect(() => {
+    if (!audienceOpen || busy) return;
+    quiet(liveAudience(latest.current, answers, participants, qrVotes));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- по новым голосам
+  }, [qrKey, answers.length, audienceOpen, busy]);
 
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {
@@ -112,7 +157,7 @@ export function MillionaireHostControls({ session, content, answers, participant
   const pick = teamPick(session, answers);
   const level = levelToPlay(r, r.turn);
   const used = r.turn ? (r.used[r.turn] ?? []) : [];
-  const votes = r.mode === "audience" ? audienceVotes(session, answers, participants) : [0, 0, 0, 0];
+  const votes = r.mode === "audience" ? audienceVotes(session, answers, participants).map((n, i) => n + (qrVotes[i] ?? 0)) : [0, 0, 0, 0];
   const voteLeft = r.mode === "audience" ? secondsLeft(session.state, now) : null;
   const callLeft = r.callEndsAt !== null ? Math.max(0, Math.ceil((r.callEndsAt - now) / 1000)) : 0;
 
@@ -173,11 +218,14 @@ export function MillionaireHostControls({ session, content, answers, participant
                 ))}
               </ol>
               {q.note && <p className="muted small">{q.note}</p>}
-              {stage === "question" && r.mode === "question" && (
+              {stage === "question" && r.mode === "question" && r.locked && (
+                <p className="mil-host-locked">Окончательный ответ — {LETTERS[r.chosen ?? 0]}. «Назад» снимет фиксацию.</p>
+              )}
+              {stage === "question" && r.mode === "question" && !r.locked && (
                 <>
                   <p className="small">
                     Ответ команды: <strong>{pick !== null ? LETTERS[pick] : "ещё нет"}</strong>
-                    {pick !== null && r.hostPick === null ? " (с телефона капитана)" : ""}
+                    {pick !== null && r.hostPick === null ? " (с телефона — подсвечен на экране)" : ""}
                   </p>
                   <div className="mil-host-pick" role="group" aria-label="Отметить ответ команды">
                     {q.options.map((_, i) =>
@@ -212,10 +260,57 @@ export function MillionaireHostControls({ session, content, answers, participant
               )}
             </div>
           )}
-          {asked && askedBlocked && !askedBlocked.ok && askedBlocked.reason !== "Уже использована" && (
-            <p className="error small" role="status">
-              Капитан просит «{lifelineTitle(asked)}» — нельзя: {askedBlocked.reason?.toLowerCase()}.
-            </p>
+          {asked && askedCheck && (
+            <section className="card stack stack--tight mil-ask" role="status">
+              <p className="mil-ask__title">
+                <span className="mil-ask__icon">
+                  <LifelineIcon id={asked.id} />
+                </span>
+                <span>
+                  <NameText name={name(r.turn)} /> просит «{lifelineTitle(asked.id)}»
+                </span>
+              </p>
+              {askedCheck.ok ? (
+                <>
+                  <p className="muted small">Переспросите: «Точно берёте „{lifelineTitle(asked.id)}“?» — и подтвердите.</p>
+                  <div className="actions">
+                    <button type="button" className="btn" disabled={busy} onClick={() => void run(() => Promise.resolve(applyLifeline(latest.current, content, answers, asked.id, now)))}>
+                      Да, включить подсказку
+                    </button>
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
+                      Передумали — не включать
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="error small">Нельзя: {askedCheck.reason?.toLowerCase()}.</p>
+                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
+                    Понятно, убрать просьбу
+                  </button>
+                </>
+              )}
+            </section>
+          )}
+          {r.tip && stage === "question" && q && (
+            <section className="card stack stack--tight">
+              <p className="eyebrow">Совет ведущего</p>
+              <p>{q.hint?.trim() || q.note.trim() || "Наводки в вопросе нет — подскажите своими словами: какие варианты можно отбросить и почему."}</p>
+              <p className="muted small">Не называйте ответ — наведите на мысль. Наводку можно показать и на экране.</p>
+              <div className="actions">
+                {r.tipText ? (
+                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(showTip(session, null))}>
+                    Убрать наводку с экрана
+                  </button>
+                ) : (
+                  (q.hint?.trim() || q.note.trim()) && (
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(showTip(session, q.hint?.trim() || q.note.trim()))}>
+                      Показать наводку на экране
+                    </button>
+                  )
+                )}
+              </div>
+            </section>
           )}
           {stage === "question" && r.mode === "question" && content.lifelines.length > 0 && (
             <section className="stack stack--tight">
@@ -234,7 +329,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                       onClick={() => askLifeline(l.id)}
                     >
                       <span className="tile__icon" aria-hidden="true">
-                        {l.icon}
+                        <LifelineIcon id={l.id} />
                       </span>
                       <span className="tile__label">{l.title}</span>
                     </button>
@@ -277,13 +372,32 @@ export function MillionaireHostControls({ session, content, answers, participant
             Показать вопрос
           </button>
         )}
+        {action === "lock" && (
+          <>
+            {pick !== null && <p className="muted small">Спросите: «{LETTERS[pick]} — это ваш окончательный ответ?»</p>}
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run(() => control.freshAnswers(step).then((fresh) => lockAnswer(latest.current, fresh.length > 0 ? fresh : answers)))}>
+              {pick === null ? "Ждём ответ команды" : `Да, окончательный — ${LETTERS[pick]}`}
+            </button>
+          </>
+        )}
         {action === "reveal" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run(() => control.freshAnswers(step).then((fresh) => revealAnswer(latest.current, content, fresh.length > 0 ? fresh : answers, participants)))}>
             {pick === null ? "Ждём ответ команды" : `Показать ответ (${LETTERS[pick]})`}
           </button>
         )}
         {action === "audienceDone" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => control.freshAnswers(step).then((fresh) => finishAudience(latest.current, fresh.length > 0 ? fresh : answers, participants)))}>
+          <button
+            type="button"
+            className="btn btn--block host-quiz__primary"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const [fresh, qr] = await Promise.all([control.freshAnswers(step), !rehearsal && audienceRepo ? audienceRepo.counts(session.id).catch(() => null) : Promise.resolve(null)]);
+                const extra = qr && qr.step === latest.current.state.step ? qr.counts : qrVotes;
+                return finishAudience(latest.current, fresh.length > 0 ? fresh : answers, participants, extra);
+              })
+            }
+          >
             Итоги голосования на экран
           </button>
         )}

@@ -241,6 +241,17 @@ export function canSubmitAnswer(state: SessionState, step: number, serverNow: nu
 }
 
 /**
+ * Голос зала по QR (без участия в игре, CLAUDE.md, раздел 6, «Миллионер»): принимается, пока открыт шаг
+ * с пометкой ведущего `result.audienceVote` и не вышло его время (те же правила, что у ответа).
+ * Только свой сервер: в `firestore.rules` его нет, у Firebase-версии голосования по QR нет (`audienceRepo` — null).
+ */
+export function canAudienceVote(state: SessionState, step: number, serverNow: number): boolean {
+  const result = state.result;
+  const open = typeof result === "object" && result !== null && !Array.isArray(result) && (result as Record<string, unknown>).audienceVote === true;
+  return open && canSubmitAnswer(state, step, serverNow);
+}
+
+/**
  * Ответы списком видит только ведущий сессии. По id телефон открывает свой ответ
  * или ответ своей команды.
  */

@@ -5,8 +5,14 @@
 import { ClampedNumber } from "../ClampedNumber";
 import { useEffect, useState } from "react";
 import { tracksRepo, type Track } from "../../data";
+import { UploadTrackButton } from "./uploadTrack";
 
 let cached: Promise<Track[]> | null = null;
+
+/** Загрузили новый трек прямо из игры — список перечитается. */
+export function forgetTracks(): void {
+  cached = null;
+}
 
 /** Треки ведущего и общей библиотеки (один запрос на весь конструктор). */
 export function loadTracks(): Promise<Track[]> {
@@ -79,9 +85,15 @@ export function TrackPicker({
           {trackId && tracks !== null && !chosen && <option value={trackId}>Трек недоступен</option>}
         </select>
       )}
-      {tracks !== null && tracks.length === 0 && (
-        <p className="muted small">Треков пока нет — загрузите их в студии на вкладке «Музыка».</p>
-      )}
+      {tracks !== null && tracks.length === 0 && <p className="muted small">Треков пока нет — загрузите свой прямо здесь.</p>}
+      <UploadTrackButton
+        disabled={disabled}
+        onUploaded={(t) => {
+          forgetTracks();
+          setTracks((list) => [t, ...(list ?? [])]);
+          onChange({ trackId: t.id });
+        }}
+      />
       {trackId && (
         <div className="q-numbers">
           <label className="field">

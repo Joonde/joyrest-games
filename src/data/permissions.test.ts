@@ -223,6 +223,15 @@ describe("ответы", () => {
     result: null,
   };
 
+  it("голос зала по QR — только на шаге с пометкой audienceVote и пока идёт время", () => {
+    const vote = { ...open, result: { audienceVote: true } };
+    expect(p.canAudienceVote(vote, 2, 15_000)).toBe(true);
+    expect(p.canAudienceVote(vote, 2, 33_500)).toBe(false);
+    expect(p.canAudienceVote(vote, 3, 15_000)).toBe(false);
+    expect(p.canAudienceVote(open, 2, 15_000)).toBe(false);
+    expect(p.canAudienceVote({ ...open, result: { audienceVote: "yes" } }, 2, 15_000)).toBe(false);
+  });
+
   it("только на открытый вопрос и пока идёт время (+3 с на сеть)", () => {
     expect(p.canSubmitAnswer(open, 2, 15_000)).toBe(true);
     expect(p.canSubmitAnswer(open, 2, 32_500)).toBe(true);

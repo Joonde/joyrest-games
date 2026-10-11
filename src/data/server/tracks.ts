@@ -2,8 +2,9 @@
 import type { TracksRepository } from "../contracts";
 import type { Track, TrackCategory, TrackLicense, TrackShareStatus } from "../types";
 import { api, asRecord, asText, getImage, putAudio } from "./api";
+import { parseTrackClip } from "../trackClip";
 
-const CATEGORIES: TrackCategory[] = ["lobby", "background", "contest", "board", "break", "award", "holiday"];
+const CATEGORIES: TrackCategory[] = ["music", "lobby", "background", "contest", "board", "break", "award", "holiday"];
 const LICENSES: TrackLicense[] = ["pixabay", "bought", "own", "other"];
 const SHARE: TrackShareStatus[] = ["none", "pending", "accepted", "rejected"];
 
@@ -29,6 +30,7 @@ export function parseTrack(value: unknown): Track {
     shareStatus: pick(d.shareStatus, SHARE, "none"),
     shareReason: typeof d.shareReason === "string" ? d.shareReason : null,
     createdAt: num(d.createdAt) ?? 0,
+    clip: parseTrackClip(d.clip),
   };
 }
 

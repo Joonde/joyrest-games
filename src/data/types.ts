@@ -151,7 +151,7 @@ export interface TeamsReveal {
   sizes?: Record<string, number>;
 }
 
-export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom";
+export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw";
 
 export interface SlideState {
   /** Новый id — новый показ (звук заставки играет один раз). */
@@ -170,6 +170,17 @@ export interface MusicState {
   playing: boolean;
   /** Меняется при каждом новом запуске трека (с начала); пауза и продолжение его не меняют. */
   rev: string;
+  /** Отрезок, громкость и затухание трека (из его настроек). */
+  clip?: TrackClip;
+}
+
+/** Отрезок трека: секунды начала и конца (null — до конца), затухания в секундах, громкость 0–100. */
+export interface TrackClip {
+  start: number;
+  end: number | null;
+  fadeIn: number;
+  fadeOut: number;
+  volume: number;
 }
 
 export interface MixState {
@@ -180,7 +191,7 @@ export interface MixState {
 
 // ---------- Музыка (только свой сервер, CLAUDE.md, раздел 7) ----------
 
-export type TrackCategory = "lobby" | "background" | "contest" | "board" | "break" | "award" | "holiday";
+export type TrackCategory = "music" | "lobby" | "background" | "contest" | "board" | "break" | "award" | "holiday";
 export type TrackLicense = "pixabay" | "bought" | "own" | "other";
 export type TrackShareStatus = "none" | "pending" | "accepted" | "rejected";
 
@@ -201,6 +212,8 @@ export interface Track {
   shareStatus: TrackShareStatus;
   shareReason: string | null;
   createdAt: number;
+  /** Отрезок, громкость и затухание на экране зала. */
+  clip: TrackClip;
 }
 
 export interface TrackInput {

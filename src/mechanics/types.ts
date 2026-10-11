@@ -73,7 +73,7 @@ export interface ScoreContext {
 }
 
 /** Моменты игры со встроенной музыкой (файлы — `BUILTIN_MUSIC` в `sound.ts`). */
-export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight" | "durakTable";
+export type MusicMoment = "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh";
 
 /**
  * Действия пульта. На настоящей сессии пишут в базу, в «Репетиции» — меняют сессию в памяти.
@@ -130,6 +130,11 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   standalone?: { themeId: string };
   /** Встроенная музыка момента на экране зала (заставка вопроса, выбор в суперигре); null — нет. */
   music?: (session: Session, content: Content) => MusicMoment | null;
+  /**
+   * Жеребьёвка на пульте выбрала участника: сделать его первым ходящим (например, право выбора клетки в
+   * «Своей игре»). null — в этой игре жребий только объявляется на экране.
+   */
+  firstTurn?: (session: Session, content: Content, pid: string) => SessionChange | null;
   /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */
   preview?: { driver: PreviewDriver<Content>; teams?: number; limit?: number };
 }

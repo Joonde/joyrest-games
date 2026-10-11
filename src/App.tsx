@@ -31,6 +31,7 @@ const NewVenue = lazy(() => import("./screens/venues/VenueDetail").then((m) => (
 const RequestDetail = lazy(() => import("./screens/venues/RequestDetail").then((m) => ({ default: m.RequestDetail })));
 const VenueQrPage = lazy(() => import("./screens/venues/VenueQrPage").then((m) => ({ default: m.VenueQrPage })));
 const Play = lazy(() => import("./screens/Play").then((m) => ({ default: m.Play })));
+const AudienceVote = lazy(() => import("./screens/AudienceVote").then((m) => ({ default: m.AudienceVote })));
 
 export function App() {
   return (
@@ -60,6 +61,7 @@ export function App() {
           <Route path="/host/:code" element={<HostConsole />} />
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />
+          <Route path="/vote/:code" element={<AudienceVote />} />
           <Route path="/j" element={<JoinByCode />} />
           <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />

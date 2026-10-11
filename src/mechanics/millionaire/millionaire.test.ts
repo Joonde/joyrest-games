@@ -8,17 +8,21 @@ import {
   audienceVotes,
   canUseLifeline,
   finishAudience,
+  liveAudience,
+  lockAnswer,
   markPick,
   millionaireBack,
   millionairePrimary,
   nextTurn,
   parseMillionaireResult,
   questionOf,
+  refuseLifeline,
   requestedLifeline,
   retryQuestion,
   revealAnswer,
   showQuestion,
   startMillionaire,
+  syncChosen,
 } from "./logic";
 import { validateMillionaire } from "./validate";
 
@@ -180,8 +184,8 @@ describe("Кто хочет стать миллионером: подсказк�
     let { s, content } = atQuestion();
     const before = parseMillionaireResult(s.state.result).q;
     const old = ans(s, "A", "uA", { choice: 0 });
-    // Ответ выбран — подсказку уже не взять.
-    expect(canUseLifeline(s, content, [old], "swap").ok).toBe(false);
+    // Ответ выбран, но не зафиксирован — подсказку ещё можно взять.
+    expect(canUseLifeline(s, content, [old], "swap").ok).toBe(true);
     s = apply(s, applyLifeline(s, content, [], "swap", t));
     const r = parseMillionaireResult(s.state.result);
     expect(r.q).not.toBe(before);
@@ -208,7 +212,7 @@ describe("Кто хочет стать миллионером: подсказк�
     expect(r.mode).toBe("question");
     expect(r.audience).toEqual([0, 100, 0, 0]);
     expect(s.state.timeLimit).toBeNull();
-    expect(millionairePrimary(s)).toBe("reveal");
+    expect(millionairePrimary(s)).toBe("lock");
   });
 
   it("звонок другу: минута по часам сервера; право на ошибку спасает один раз", () => {
@@ -233,8 +237,58 @@ describe("Кто хочет стать миллионером: подсказк�
     expect(requestedLifeline(s, [ans(s, "pA2", "pA2", { lifeline: "fifty" })], everyone)).toBeNull();
     expect(requestedLifeline(s, [ans(s, "uB", "uB", { lifeline: "fifty" })], everyone)).toBeNull();
     s.leaderboard.A = { name: "Команда A", kind: "team", score: 0, captainUid: "uA" };
-    expect(requestedLifeline(s, [ans(s, "uA", "uA", { lifeline: "fifty" })], everyone)).toBe("fifty");
+    expect(requestedLifeline(s, [ans(s, "uA", "uA", { lifeline: "fifty", n: "x1" })], everyone)).toEqual({ id: "fifty", n: "x1" });
     expect(requestedLifeline(s, [ans(s, "uA", "uA", { lifeline: "nope" })], everyone)).toBeNull();
+    // Ведущий переспросил — игрок передумал: эта просьба гаснет, новая (другой номер) снова видна.
+    const s2 = apply(s, refuseLifeline(s, "x1"));
+    expect(requestedLifeline(s2, [ans(s2, "uA", "uA", { lifeline: "fifty", n: "x1" })], everyone)).toBeNull();
+    expect(requestedLifeline(s2, [ans(s2, "uA", "uA", { lifeline: "fifty", n: "x2" })], everyone)).toEqual({ id: "fifty", n: "x2" });
+    // Игрок в solo просит своим ответом.
+    expect(requestedLifeline(s, [ans(s, "A", "uA", { lifeline: "call", n: "y" })], everyone)).toEqual({ id: "call", n: "y" });
+  });
+
+  it("выбор подсвечивается, ведущий переспрашивает и фиксирует; после фиксации телефон ответ не меняет", () => {
+    let { s, content } = atQuestion();
+    expect(millionairePrimary(s)).toBe("lock");
+    expect(parseMillionaireResult(s.state.result).changeable).toBe(true);
+    expect(lockAnswer(s, [])).toBeNull();
+    s = apply(s, syncChosen(s, [ans(s, "A", "uA", { choice: 0 })]));
+    expect(parseMillionaireResult(s.state.result).chosen).toBe(0);
+    // Передумал до фиксации.
+    s = apply(s, syncChosen(s, [ans(s, "A", "uA", { choice: 1 })]));
+    expect(syncChosen(s, [ans(s, "A", "uA", { choice: 1 })])).toBeNull();
+    s = apply(s, lockAnswer(s, [ans(s, "A", "uA", { choice: 1 })]));
+    let r = parseMillionaireResult(s.state.result);
+    expect(r).toMatchObject({ chosen: 1, locked: true, changeable: false });
+    expect(millionairePrimary(s)).toBe("reveal");
+    expect(canUseLifeline(s, content, [], "fifty")).toMatchObject({ ok: false, reason: "Ответ уже зафиксирован" });
+    // Телефон прислал другой ответ — не считается.
+    expect(syncChosen(s, [ans(s, "A", "uA", { choice: 2 })])).toBeNull();
+    s = apply(s, revealAnswer(s, content, [ans(s, "A", "uA", { choice: 2 })], everyone));
+    expect(parseMillionaireResult(s.state.result).outcome).toBe("right");
+    // «Назад» с ответа — снова к зафиксированному вопросу, ещё «Назад» — фиксация снята.
+    s = apply(s, millionaireBack(s, content, everyone)?.change ?? null);
+    expect(millionairePrimary(s)).toBe("reveal");
+    s = apply(s, millionaireBack(s, content, everyone)?.change ?? null);
+    r = parseMillionaireResult(s.state.result);
+    expect(r.locked).toBe(false);
+    expect(millionairePrimary(s)).toBe("lock");
+  });
+
+  it("помощь зала: гости по QR добавляют голоса, проценты на экране обновляются сами", () => {
+    let { s, content } = atQuestion();
+    s = apply(s, applyLifeline(s, content, [], "audience", t));
+    expect(parseMillionaireResult(s.state.result)).toMatchObject({ audienceVote: true, audience: [0, 0, 0, 0] });
+    const phonesVotes = [ans(s, "uB", "uB", { vote: 1 })];
+    expect(liveAudience(s, [], everyone)).toBeNull();
+    s = apply(s, liveAudience(s, phonesVotes, everyone, [0, 2, 1, 0]));
+    let r = parseMillionaireResult(s.state.result);
+    expect(r.audience).toEqual([0, 75, 25, 0]);
+    expect(r.votes).toBe(4);
+    expect(liveAudience(s, phonesVotes, everyone, [0, 2, 1, 0])).toBeNull();
+    s = apply(s, finishAudience(s, phonesVotes, everyone, [0, 2, 1, 1]));
+    r = parseMillionaireResult(s.state.result);
+    expect(r).toMatchObject({ mode: "question", audienceVote: false, votes: 5, audience: [0, 60, 20, 20] });
   });
 
   it("подсказку нельзя, пока вопрос не открыт или после ответа; выключенную в игре — нельзя", () => {
@@ -243,6 +297,8 @@ describe("Кто хочет стать миллионером: подсказк�
     s = apply(s, showQuestion(s, content));
     expect(canUseLifeline(s, { ...content, lifelines: ["host"] }, [], "fifty").ok).toBe(false);
     s = apply(s, markPick(s, 1));
-    expect(canUseLifeline(s, content, [], "fifty")).toMatchObject({ ok: false, reason: "Ответ уже выбран" });
+    expect(canUseLifeline(s, content, [], "fifty").ok).toBe(true);
+    s = apply(s, lockAnswer(s, []));
+    expect(canUseLifeline(s, content, [], "fifty")).toMatchObject({ ok: false, reason: "Ответ уже зафиксирован" });
   });
 });

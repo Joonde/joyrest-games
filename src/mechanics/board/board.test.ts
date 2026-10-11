@@ -1,24 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
-import type { Answer, Participant, Session } from "../../data/types";
-import { createBoard, findCell, parseBoard, resizeBoard, type BoardContent } from "./content";
+import type { Answer, Participant, Session, SessionChange } from "../../data/types";
+import { createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
 import {
+  armBuzz,
   boardBack,
+  boardFirstTurn,
   boardBuzzSync,
   boardPrimary,
   boardReveal,
   boardSteps,
   boardWrong,
+  CAT_MAX,
+  nextRound,
+  startAuction,
   maxBet,
   openCell,
   parseBoardResult,
   playDeltas,
+  setCat,
   startCatQuestion,
   toBoard,
 } from "./logic";
 
 function content(): BoardContent {
-  const board = resizeBoard(createBoard(), 2, 2);
+  const board = resizeBoard(setRounds(createBoard(), 1), 2, 2);
   const [a, b] = board.categories;
   if (!a || !b) throw new Error("поле");
   a.cells = a.cells.map((c, i) => ({ ...c, id: `a${i}`, text: "Вопрос", answer: "Ответ" }));
@@ -52,8 +58,12 @@ function session(): Session {
 
 let time = 1000;
 const press = (pid: string, step: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { buzz: true }, submittedAt: at });
-const bet = (pid: string, step: number, value: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { bet: value }, submittedAt: 1 });
-const apply = (s: Session, change: ReturnType<typeof openCell>) => applyChange(s, change, (time += 1000));
+const apply = (s: Session, change: SessionChange | null) => applyChange(s, change ?? {}, (time += 1000));
+/** Открыть клетку и сразу «Запустить отсчёт» (ведущий прочитал вопрос). */
+const openArmed = (s: Session, c: BoardContent, id: string) => {
+  const opened = apply(s, openCell(s, c, id));
+  return parseBoardResult(opened.state.result).mode === "buzz" ? apply(opened, armBuzz(opened, c)) : opened;
+};
 
 describe("Своя игра: поле", () => {
   it("разбор поля не бросает и сохраняет клетки; шаги — все клетки", () => {
@@ -77,8 +87,15 @@ describe("Своя игра: ход", () => {
     s = apply(s, openCell(s, c, "a1"));
     expect(s.state.stage).toBe("question");
     expect(parseBoardResult(s.state.result).cell).toBe("a1");
+    // Ведущий читает вопрос: кнопка не активна, фальстарт не считается.
+    expect(boardPrimary(s, c)).toBe("arm");
+    expect(boardBuzzSync(s, [press("p3", 0, 1)])).toBeNull();
+    s = apply(s, armBuzz(s, c));
+    expect(s.state.step).toBe(1);
+    expect(s.state.timeLimit).toBe(c.buzzTime);
+    expect(boardPrimary(s, c)).toBe("reveal");
 
-    const answers = [press("p2", 0, 20), press("p1", 0, 10)];
+    const answers = [press("p2", 1, 20), press("p1", 1, 10)];
     s = apply(s, boardBuzzSync(s, answers) ?? {});
     expect(parseBoardResult(s.state.result).buzz.current).toBe("p1");
     expect(boardBuzzSync(s, answers)).toBeNull();
@@ -97,7 +114,7 @@ describe("Своя игра: ход", () => {
     const r = parseBoardResult(s.state.result);
     expect(r.opened).toEqual(["a1"]);
     expect(r.cell).toBeNull();
-    expect(s.state.step).toBe(1);
+    expect(s.state.step).toBe(2);
     // Сыгранную клетку не открыть второй раз.
     expect(openCell(s, c, "a1")).toEqual({});
   });
@@ -105,8 +122,8 @@ describe("Своя игра: ход", () => {
   it("«Назад» с поля возвращает прошлую клетку, с вопроса — закрывает её и возвращает штраф", () => {
     const c = content();
     let s = session();
-    s = apply(s, openCell(s, c, "a0"));
-    s = apply(s, boardBuzzSync(s, [press("p1", 0, 5)]) ?? {});
+    s = openArmed(s, c, "a0");
+    s = apply(s, boardBuzzSync(s, [press("p1", 1, 5)]) ?? {});
     s = apply(s, boardReveal(s, c, participants, true));
     s = apply(s, toBoard(s));
     const back = boardBack(s, c);
@@ -126,56 +143,64 @@ describe("Своя игра: ход", () => {
     s = apply(s, boardWrong(s, c));
     expect(s.leaderboard.p1?.score).toBeLessThan(0);
     const closed = boardBack(s, c);
-    expect(closed?.clear).toEqual([0]);
+    // Все шаги клетки: вопрос и отсчёт.
+    expect(closed?.clear).toEqual([0, 1]);
     s = apply(s, closed?.change ?? {});
     expect(s.leaderboard.p1?.score).toBe(0);
     expect(s.state.stage).toBe("ready");
     expect(parseBoardResult(s.state.result).cell).toBeNull();
   });
 
-  it("«Кот в мешке»: ставки, кнопка; верный получает ставку, остальные ставившие теряют", () => {
+  it("«Кот в мешке»: ведущий отдаёт вопрос одному и ставит цену; отвечает только он — верно плюс, неверно минус", () => {
     const c = content();
     let s = session();
     s = apply(s, openCell(s, c, "b1"));
     expect(parseBoardResult(s.state.result).mode).toBe("bet");
-    expect(s.state.timeLimit).toBe(c.betTime);
+    expect(s.state.timeLimit).toBeNull();
     expect(boardPrimary(s, c)).toBe("toBuzz");
-
-    const points = findCell(c, "b1")?.cell.points ?? 0;
-    s = apply(s, startCatQuestion(s, c, [bet("p1", 0, 100), bet("p2", 0, 99999), bet("p3", 0, 30)]));
+    expect(startCatQuestion(s, c)).toBeNull();
+    s = apply(s, setCat(s, "p3", 99999));
+    expect(parseBoardResult(s.state.result).catPrice).toBe(CAT_MAX);
+    s = apply(s, setCat(s, "p3", 250));
+    s = apply(s, startCatQuestion(s, c));
     const r = parseBoardResult(s.state.result);
     expect(s.state.step).toBe(1);
-    expect(r.mode).toBe("buzz");
-    expect(r.catStep).toBe(true);
-    expect(r.bets).toEqual({ p1: 100, p2: points, p3: 30 });
-
-    // Без ставки — слова нет; p3 ставил.
+    expect(r).toMatchObject({ mode: "buzz", catStep: true, armed: true, bets: { p3: 250 } });
+    expect(r.buzz.current).toBe("p3");
+    // Никто другой слово не перехватит.
     expect(boardBuzzSync(s, [press("p9", 1, 1)])).toBeNull();
-    s = apply(s, boardBuzzSync(s, [press("p9", 1, 1), press("p3", 1, 3)]) ?? {});
-    expect(parseBoardResult(s.state.result).buzz.current).toBe("p3");
-    // У кота неверный ответ не штрафуется отдельно: теряется ставка.
-    expect(boardWrong(s, c).addScore).toBeUndefined();
+    // Неверно — минус цена.
+    const wrong = apply(s, boardReveal(s, c, participants, false));
+    // У p3 было 50.
+    expect(wrong.leaderboard.p3?.score).toBe(-200);
     s = apply(s, boardReveal(s, c, participants, true));
-    expect(s.leaderboard.p3?.score).toBe(80);
-    expect(s.leaderboard.p1?.score).toBe(-100);
-    expect(s.leaderboard.p2?.score).toBe(-points);
-
-    // «Назад» с вопроса кота убирает и ставки, и нажатия (два шага).
-    s = apply(s, boardBack(s, c)?.change ?? {});
+    expect(s.leaderboard.p3?.score).toBe(300);
+    expect(parseBoardResult(s.state.result).picker).toBe("p3");
+    // «Назад» с вопроса кота убирает оба шага клетки.
+    s = apply(s, boardBack(s, c)?.change ?? null);
     expect(boardBack(s, c)?.clear).toEqual([0, 1]);
+  });
+
+  it("жеребьёвка даёт право выбрать первую клетку — только пока на экране поле", () => {
+    const c = content();
+    let s = session();
+    s = apply(s, boardFirstTurn(s, "p2"));
+    expect(parseBoardResult(s.state.result).picker).toBe("p2");
+    s = apply(s, openCell(s, c, "a0"));
+    expect(boardFirstTurn(s, "p1")).toBeNull();
   });
 
   it("никто не ответил: очков нет; все клетки сыграны — награждение", () => {
     const c = content();
     let s = session();
     for (const id of ["a0", "a1", "b0"]) {
-      s = apply(s, openCell(s, c, id));
+      s = openArmed(s, c, id);
       s = apply(s, boardReveal(s, c, participants, false));
       s = apply(s, toBoard(s));
     }
     s = apply(s, openCell(s, c, "b1"));
-    s = apply(s, startCatQuestion(s, c, [bet("p3", s.state.step, 10)]));
-    s = apply(s, boardBuzzSync(s, [press("p3", s.state.step, 1)]) ?? {});
+    s = apply(s, setCat(s, "p3", 10));
+    s = apply(s, startCatQuestion(s, c));
     s = apply(s, boardReveal(s, c, participants, true));
     // Последняя клетка: дальше — награждение (у p3 очки есть).
     expect(boardPrimary(s, c)).toBe("podium");
@@ -186,11 +211,11 @@ describe("Своя игра: ход", () => {
     const c = content();
     let s = session();
     const a = findCell(c, "a0")?.cell.points ?? 0;
-    s = apply(s, openCell(s, c, "a0"));
+    s = openArmed(s, c, "a0");
     s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, 1)]) ?? {});
     s = apply(s, boardReveal(s, c, participants, true));
     s = apply(s, toBoard(s));
-    s = apply(s, openCell(s, c, "a1"));
+    s = openArmed(s, c, "a1");
     s = apply(s, boardBuzzSync(s, [press("p2", s.state.step, 1)]) ?? {});
     s = apply(s, boardReveal(s, c, participants, true));
     // Назад: ответ a1 → вопрос a1 → поле → ответ a0 → вопрос a0.
@@ -200,5 +225,54 @@ describe("Своя игра: ход", () => {
     expect(s.leaderboard.p2?.score).toBe(0);
     s = apply(s, boardReveal(s, c, participants, true));
     expect(s.leaderboard.p1?.score).toBe(a);
+  });
+
+  it("раунды: поле раунда, «Следующий раунд» — дороже; «Назад» возвращает в прошлый раунд", () => {
+    const base = content();
+    expect(roundsOf(createBoard())).toBe(2);
+    const two = resizeBoard(setRounds(base, 2), 2, 1);
+    expect(roundsOf(two)).toBe(2);
+    expect(two.categories.filter((c) => c.round === 2)[0]?.cells[0]?.points).toBe(200);
+    const c: BoardContent = { ...two, categories: two.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => ({ ...cell, kind: "question" as const, text: "В", answer: "О" })) })) };
+    let s = session();
+    const r1 = c.categories.filter((cat) => cat.round === 1).flatMap((cat) => cat.cells.map((cell) => cell.id));
+    for (const id of r1) {
+      s = openArmed(s, c, id);
+      s = apply(s, boardReveal(s, c, participants, false));
+      if (id !== r1.at(-1)) s = apply(s, toBoard(s));
+    }
+    expect(boardPrimary(s, c)).toBe("nextRound");
+    s = apply(s, nextRound(s, c));
+    let r = parseBoardResult(s.state.result);
+    expect(r.round).toBe(2);
+    expect(s.state.stage).toBe("ready");
+    expect(r.opened).toEqual(r1);
+    expect(boardPrimary(s, c)).toBe("pick");
+    s = apply(s, boardBack(s, c)?.change ?? null);
+    r = parseBoardResult(s.state.result);
+    expect(r.round).toBe(1);
+    expect(s.state.stage).toBe("reveal");
+  });
+
+  it("аукцион: все ставят, отвечает поставивший больше (при равных — раньше); верно плюс, неверно минус", () => {
+    const base = content();
+    const c: BoardContent = { ...base, categories: base.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => (cell.id === "a1" ? { ...cell, kind: "auction" as const } : cell)) })) };
+    let s = session();
+    s = apply(s, openCell(s, c, "a1"));
+    expect(parseBoardResult(s.state.result).mode).toBe("auction");
+    expect(s.state.timeLimit).toBe(c.betTime);
+    expect(boardPrimary(s, c)).toBe("auction");
+    const points = findCell(c, "a1")?.cell.points ?? 0;
+    const bid = (pid: string, value: number, at: number): Answer => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value: { bet: value }, submittedAt: at });
+    // У p1 счёт 0 — может поставить до стоимости клетки; p2 ставит столько же, но позже.
+    s = apply(s, startAuction(s, c, [bid("p2", points, 9), bid("p1", 99999, 5), bid("p3", 10, 1)]));
+    const r = parseBoardResult(s.state.result);
+    expect(r).toMatchObject({ mode: "buzz", catStep: true, catTo: "p1", catPrice: points, bets: { p1: points } });
+    expect(r.buzz.current).toBe("p1");
+    s = apply(s, boardReveal(s, c, participants, true));
+    expect(s.leaderboard.p1?.score).toBe(points);
+    // Ставок нет — отвечает выбиравший клетку за её стоимость; некому — нельзя.
+    const empty = apply(session(), openCell(session(), c, "a1"));
+    expect(startAuction(empty, c, [])).toBeNull();
   });
 });

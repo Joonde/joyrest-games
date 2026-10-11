@@ -25,10 +25,10 @@ export const mafia: Mechanic<MafiaContent, MafiaAnswerValue> = {
   validate: validateMafia,
   // Таблица очков посреди партии не нужна: очки — только в конце.
   ownPeek: true,
-  // Ночь (и раздача ролей): тихая таинственная музыка на экране зала.
+  // Ночь (раздача ролей, ночь знакомства): тихая таинственная музыка на экране зала.
   music: (session) => {
     if (session.state.phase !== "playing" || session.state.result === null || session.state.result === undefined) return null;
     const mode = parseMafiaResult(session.state.result).mode;
-    return mode === "night" || mode === "deal" || mode === "roles" ? "mafiaNight" : null;
+    return mode === "night" || mode === "deal" || mode === "roles" || mode === "meet" ? "mafiaNight" : null;
   },
 };

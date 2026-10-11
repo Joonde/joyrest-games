@@ -151,7 +151,7 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
   useEffect(() => {
     const key = `${step}:${r.mode}`;
     if (prev.current !== key) {
-      if (r.mode === "night") playSound("gong");
+      if (r.mode === "night" || r.mode === "meet") playSound("gong");
       else if (r.mode === "deal") playSound("whoosh");
       else if (r.mode === "verdict") playSound(r.out ? "wrong" : "sparkle");
       else if (r.mode === "morning") {
@@ -161,7 +161,7 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
     }
     prev.current = key;
   }, [step, r.mode]);
-  const nightish = r.mode === "night" || r.mode === "deal" || r.mode === "roles";
+  const nightish = r.mode === "night" || r.mode === "deal" || r.mode === "roles" || r.mode === "meet";
   const alive = r.alive.length;
 
   let main: ReactNode;
@@ -180,6 +180,15 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
         {partyOf(content, r) && <span className="quiz-screen__badge">{partyOf(content, r)}</span>}
         <h2 className="mf-title">{r.mode === "deal" ? "Раздаём роли…" : "Посмотрите свою роль"}</h2>
         <p className="mf-note">{r.mode === "deal" ? `Телефоны готовы: ${session.state.answered} из ${r.seats.length}` : "Коснитесь карты на телефоне. Никому не показывайте! Мафия знает своих."}</p>
+      </>
+    );
+  } else if (r.mode === "meet") {
+    main = (
+      <>
+        <span className="quiz-screen__badge">Ночь знакомства</span>
+        <h2 className="mf-title">Город засыпает…</h2>
+        <p className="mf-note">Мафия просыпается и знакомится друг с другом. Этой ночью никто не стреляет и не проверяет.</p>
+        <p className="mf-note">Закройте глаза и не подглядывайте!</p>
       </>
     );
   } else if (r.mode === "night") {
@@ -489,7 +498,7 @@ export function MafiaPlayerView({ session, content, pid, myAnswer, sending, onAn
     <p className="eyebrow">
       Мафия{partyOf(content, r) ? ` · ${partyOf(content, r).toLowerCase()}` : ""}
       {seated ? ` · ваш номер ${seatNo}` : ""}
-      {r.round > 0 && r.mode !== "over" ? ` · ${r.mode === "night" ? "ночь" : "день"} ${r.round}` : ""}
+      {r.mode === "meet" ? " · ночь знакомства" : r.round > 0 && r.mode !== "over" ? ` · ${r.mode === "night" ? "ночь" : "день"} ${r.round}` : ""}
     </p>
   );
 
@@ -541,6 +550,36 @@ export function MafiaPlayerView({ session, content, pid, myAnswer, sending, onAn
         <h2>Ваша роль</h2>
         <div className="mf-phone__card">{cardView ?? <p className="muted">Открываем карту…</p>}</div>
         <p className="muted small">Коснитесь карты, чтобы перевернуть. Через 6 секунд она сама закроется.</p>
+      </div>
+    );
+  }
+
+  if (r.mode === "meet") {
+    const family = card && isMafia(card.role) ? card.family : null;
+    return (
+      <div className="quiz-phone quiz-phone--center mf-phone">
+        {head}
+        <h2>Ночь знакомства</h2>
+        {family ? (
+          <div className="stack">
+            <p>Мафия просыпается. Посмотрите друг на друга — это ваша семья:</p>
+            <ul className="mf-phone__reveal">
+              {family.map((f) => (
+                <li key={f.pid}>
+                  №{r.seats.indexOf(f.pid) + 1} · <NameText name={f.name} /> — {ROLES[f.role].title}
+                </li>
+              ))}
+            </ul>
+            {family.length === 0 && <p className="muted">Вы одни — играйте за всю семью.</p>}
+            <p className="muted small">Этой ночью никого не убивают. Договоритесь взглядом, кого выбирать в следующие ночи.</p>
+          </div>
+        ) : (
+          <>
+            <p>Город спит. Закройте глаза и не подглядывайте 😴</p>
+            <p className="muted small">Этой ночью никто не стреляет — мафия только знакомится.</p>
+          </>
+        )}
+        {cardView && <div className="mf-phone__card">{cardView}</div>}
       </div>
     );
   }

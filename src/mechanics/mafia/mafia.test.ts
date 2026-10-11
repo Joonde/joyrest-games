@@ -24,9 +24,11 @@ import {
   resolveNight,
   roleCard,
   startDay,
+  startMeet,
   startDeal,
   startNight,
   startVote,
+  voteCandidates,
   tallyVotes,
   toggleNominee,
   verdict,
@@ -149,6 +151,8 @@ describe("мафия: музыка ночи", () => {
     expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
     s = applyChange(s, dealt(s, {}, null), 2);
     expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
+    s = applyChange(s, startMeet(s), 2);
+    expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
     s = applyChange(s, startDay(s), 3);
     expect(mafia.music?.(s, createMafia())).toBeNull();
     s = applyChange(s, startNight(s), 4);
@@ -214,6 +218,14 @@ describe("мафия: ход партии на пульте", () => {
     expect(parseMafiaResult(s.state.result)).toMatchObject({ mode: "deal", dealStep: 0 });
     expect(s.state.stage).toBe("question");
     s = applyChange(s, dealt(s, { a: "x" }, null), 2);
+    // После раздачи — ночь знакомства: без нового шага и ответов, никто не выбывает; «Назад» — к картам.
+    expect(mafiaPrimary(s)).toBe("meet");
+    const step = s.state.step;
+    s = applyChange(s, startMeet(s), 2);
+    expect(parseMafiaResult(s.state.result)).toMatchObject({ mode: "meet", round: 0 });
+    expect(s.state.step).toBe(step);
+    expect(parseMafiaResult(s.state.result).alive).toHaveLength(8);
+    expect(parseMafiaResult(mafiaBack(s)?.change.state?.result).mode).toBe("roles");
     expect(mafiaPrimary(s)).toBe("day");
     s = applyChange(s, startDay(s), 3);
     expect(parseMafiaResult(s.state.result).round).toBe(1);
@@ -252,13 +264,14 @@ describe("мафия: ход партии на пульте", () => {
     expect(s.leaderboard.a?.score).toBe(0);
   });
 
-  it("день без кандидатов — сразу ночь; «никого» не даёт переголосовать; досрочный конец можно отменить", () => {
+  it("день без кандидатов — голосование против любого живого; «никого» не даёт переголосовать; досрочный конец можно отменить", () => {
     const content = parseMafia({});
     let s = session();
     s = applyChange(s, startDeal(s, players), 1);
     s = applyChange(s, dealt(s, {}, null), 2);
     s = applyChange(s, startDay(s), 3);
-    expect(mafiaPrimary(s)).toBe("night");
+    expect(mafiaPrimary(s)).toBe("vote");
+    expect(voteCandidates(parseMafiaResult(s.state.result))).toEqual(parseMafiaResult(s.state.result).alive);
     s = applyChange(s, toggleNominee(s, "e"), 4);
     s = applyChange(s, toggleNominee(s, "f"), 5);
     s = applyChange(s, startVote(s, content, ["e", "f"]), 6);

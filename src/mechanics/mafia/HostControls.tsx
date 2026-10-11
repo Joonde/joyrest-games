@@ -29,9 +29,11 @@ import {
   parseMafiaResult,
   resolveNight,
   startDay,
+  startMeet,
   startDeal,
   startNight,
   startVote,
+  voteCandidates,
   toggleNominee,
   verdict,
   whispers,
@@ -300,7 +302,24 @@ export function MafiaHostControls({ session, content, answers, participants, con
           <p className="muted small">Роли: {rolesLine(content, r.seats.length)}.</p>
         </div>
       ) : r.mode === "roles" ? (
-        <p>Гости смотрят свои карты. Мафия видит свою семью на карте. Когда все посмотрели — «Наступает день».</p>
+        <p>Гости смотрят свои карты. Мафия видит свою семью на карте. Когда все посмотрели — «Ночь знакомства».</p>
+      ) : r.mode === "meet" ? (
+        <div className="card stack stack--tight">
+          <p className="eyebrow">Ночь знакомства · читайте вслух</p>
+          <p>«Город засыпает. Все закрывают глаза.»</p>
+          <p>«Просыпается мафия. Посмотрите друг на друга и запомните своих.» — пауза 20–30 секунд.</p>
+          <p>«Мафия засыпает.» Если хотите: «Просыпается Комиссар… засыпает», «Просыпается Доктор… засыпает» — им можно кивнуть.</p>
+          {roles && (
+            <p className="muted small">
+              Мафия:{" "}
+              {r.seats
+                .filter((p) => isMafia(roles[p]))
+                .map((p) => `№${seat(p)} ${nm(p)}${roles[p] === "don" ? " (Дон)" : ""}`)
+                .join(", ")}
+            </p>
+          )}
+          <p className="muted small">Этой ночью никто не стреляет, не лечит и не проверяет. Дальше — «Наступает день».</p>
+        </div>
       ) : null}
 
       {started && r.mode === "night" && (
@@ -330,7 +349,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
           )}
           {r.mode === "day" && (
             <>
-              <p className="muted small">«Слово» — таймер речи на экране. «На голосование» — выставить кандидата. Никого не выставили — сразу ночь.</p>
+              <p className="muted small">«Слово» — таймер речи на экране. «На голосование» — выставить кандидата. Никого не выставили — голосуют против любого живого.</p>
               {r.killed && r.speakKind !== "last" && (
                 <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(giveWord(session, r.killed, content.lastWordSeconds, now, "last"))}>
                   Последнее слово убитого ({content.lastWordSeconds} с)
@@ -457,14 +476,26 @@ export function MafiaHostControls({ session, content, answers, participants, con
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void doDeal()}>
             {ACTION_LABELS.dealt}
           </button>
+        ) : action === "meet" ? (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startMeet(session))}>
+            {ACTION_LABELS.meet}
+          </button>
         ) : action === "day" ? (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startDay(session))}>
             {ACTION_LABELS.day}
           </button>
         ) : action === "vote" ? (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startVote(session, content, r.nominees))}>
-            {ACTION_LABELS.vote} ({r.nominees.length === 1 ? "1 кандидат" : `${r.nominees.length} кандидата`})
-          </button>
+          <>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startVote(session, content, voteCandidates(r)))}>
+              {ACTION_LABELS.vote}
+              {r.nominees.length === 0 ? " — против любого живого" : ` (${r.nominees.length === 1 ? "1 кандидат" : `кандидатов: ${r.nominees.length}`})`}
+            </button>
+            {r.mode === "day" && (
+              <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Пропустить голосование?", text: "Сегодня никого не выгоняют — сразу наступает ночь.", confirmLabel: "Наступает ночь", run: () => run(startNight(session)) })}>
+                Без голосования — наступает ночь
+              </button>
+            )}
+          </>
         ) : action === "verdict" ? (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void doVerdict()}>
             {ACTION_LABELS.verdict}

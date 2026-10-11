@@ -217,7 +217,9 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       if (!title) return fail(reply, 400, "invalid-argument");
       const category = body.category === undefined ? track.category : pick(body.category, TRACK_CATEGORIES, "background");
       const clip = body.clip === undefined ? parseTrackClip(track.clip) : parseTrackClip(body.clip);
-      await sql`update tracks set title = ${title}, category = ${category}, clip = ${sql.json(clip as never)}, updated_at = now() where id = ${track.id}`;
+      // «Откуда трек» — ссылка или пара слов (сайт, канал, купил); хранится в license_note.
+      const note = body.licenseNote === undefined ? track.license_note : cleanLine(body.licenseNote, NOTE_MAX);
+      await sql`update tracks set title = ${title}, category = ${category}, clip = ${sql.json(clip as never)}, license_note = ${note}, updated_at = now() where id = ${track.id}`;
       const updated = await findTrack(track.id);
       return updated ? trackOf(updated) : fail(reply, 404, "not-found");
     });

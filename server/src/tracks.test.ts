@@ -134,5 +134,10 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     expect((await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { title: "Лобби JoyRest" } })).json().title).toBe(
       "Лобби JoyRest",
     );
+    // «Откуда трек» правится отдельно и не трогает остальное.
+    const sourced = (
+      await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { licenseNote: "https://vk.com/audio1" } })
+    ).json();
+    expect(sourced).toMatchObject({ title: "Лобби JoyRest", licenseNote: "https://vk.com/audio1" });
   });
 });

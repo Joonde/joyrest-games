@@ -14,6 +14,26 @@ import { LoadFailedInline } from "../../components/Status";
 import { audioDuration, usePreview } from "../../components/music/usePreview";
 
 const MAX_BYTES = 15 * 1024 * 1024;
+const SOURCE_MAX = 200;
+
+/** «Откуда трек»: ссылка открывается в новой вкладке, остальное — просто текст. */
+function TrackSource({ text }: { text: string }) {
+  const value = text.trim();
+  if (!value) return null;
+  const url = /^https?:\/\/\S+$/i.test(value) ? value : null;
+  return (
+    <p className="muted small line-clamp">
+      Откуда:{" "}
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          {value.replace(/^https?:\/\/(www\.)?/i, "")}
+        </a>
+      ) : (
+        value
+      )}
+    </p>
+  );
+}
 const EMPTY = { mine: [] as Track[], library: [] as Track[] };
 const NONE: Track[] = [];
 
@@ -46,6 +66,9 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
   const [dialogError, setDialogError] = useState<string | null>(null);
   /** Трек, у которого открыт редактор отрезка. */
   const [clipFor, setClipFor] = useState<string | null>(null);
+  /** Трек, у которого правят «Откуда трек». */
+  const [sourceFor, setSourceFor] = useState<Track | null>(null);
+  const [sourceDraft, setSourceDraft] = useState("");
 
   if (!repo) return <p className="muted">Музыка доступна на своём сервере JoyRest.</p>;
 
@@ -111,6 +134,27 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
     }
   }
 
+  function editSource(track: Track) {
+    setSourceDraft(track.licenseNote);
+    setDialogError(null);
+    setSourceFor(track);
+  }
+
+  async function saveSource() {
+    if (!repo || !sourceFor) return;
+    setBusy(true);
+    setDialogError(null);
+    try {
+      replace(await repo.update(sourceFor.id, { licenseNote: sourceDraft.trim() }));
+      setSourceFor(null);
+      onToast("Сохранено");
+    } catch {
+      setDialogError("Не удалось сохранить. Проверьте интернет.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function row(track: Track, actions: MenuAction[], extra?: ReactNode) {
     const label = SHARE_LABELS[track.shareStatus];
     return (
@@ -133,6 +177,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
             {label && <li className={track.shareStatus === "rejected" ? "meta__warn" : undefined}>{label}</li>}
             {reviewer && track.ownerName && track.scope === "personal" && <li>{track.ownerName}</li>}
           </ul>
+          <TrackSource text={track.licenseNote} />
           {track.shareStatus === "rejected" && track.shareReason && <p className="muted small">Причина: {track.shareReason}</p>}
           {isClipped(track.clip) && clipFor !== track.id && (
             <p className="muted small">
@@ -184,7 +229,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
                 t,
                 [],
                 <>
-                  {t.license !== "other" && <p className="muted small">Права: {LICENSE_TITLES[t.license]}{t.licenseNote ? ` — ${t.licenseNote}` : ""}</p>}
+                  {t.license !== "other" && <p className="muted small">Права: {LICENSE_TITLES[t.license]}</p>}
                   <div className="actions">
                     <button type="button" className="btn btn--block" onClick={() => void accept(t)}>
                       Принять в общую
@@ -224,6 +269,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
                     actions.push({ label: "Предложить в общую", onClick: () => void share(t) });
                   }
                   if (t.ready) actions.push({ label: "Отрезок, громкость, затухание", onClick: () => setClipFor(t.id) });
+                  actions.push({ label: t.licenseNote ? "Откуда трек — изменить" : "Откуда трек — добавить", onClick: () => editSource(t) });
                   actions.push({ label: "Удалить", onClick: () => setToDelete(t) });
                   return row(t, actions);
                 })}
@@ -243,6 +289,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
                     permissions.canEditTrack(profile, t)
                       ? [
                           { label: "Отрезок, громкость, затухание", onClick: () => setClipFor(t.id) },
+                          { label: "Откуда трек", onClick: () => editSource(t) },
                           { label: "Удалить из общей", onClick: () => setToDelete(t) },
                         ]
                       : [],
@@ -266,6 +313,27 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
         <p>
           «{toDelete?.title}» пропадёт {toDelete?.scope === "agency" ? "из общей музыки у всех ведущих" : "из ваших треков"}.
         </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={sourceFor !== null}
+        title="Откуда трек"
+        confirmLabel="Сохранить"
+        busy={busy}
+        error={dialogError}
+        onConfirm={() => void saveSource()}
+        onCancel={() => setSourceFor(null)}
+      >
+        <label className="field">
+          Ссылка или откуда взят (необязательно)
+          <input
+            maxLength={SOURCE_MAX}
+            inputMode="url"
+            placeholder="https://… или «ВКонтакте, купил, свой»"
+            value={sourceDraft}
+            onChange={(e) => setSourceDraft(e.target.value)}
+          />
+        </label>
       </ConfirmDialog>
 
       <ConfirmDialog
@@ -294,6 +362,7 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<TrackCategory>("music");
+  const [source, setSource] = useState("");
   const [toLibrary, setToLibrary] = useState(permissions.canUploadTrack(profile, "agency"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -327,7 +396,7 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
       let id = pendingId.current;
       if (!id) {
         id = newTrackId();
-        await tracksRepo.create({ id, scope: canLibrary && toLibrary ? "agency" : "personal", title: title.trim(), category, license: "other", licenseNote: "" });
+        await tracksRepo.create({ id, scope: canLibrary && toLibrary ? "agency" : "personal", title: title.trim(), category, license: "other", licenseNote: source.trim() });
         pendingId.current = id;
       }
       const track = await tracksRepo.upload(id, file, await audioDuration(file));
@@ -335,6 +404,7 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
       onUploaded(track);
       setFile(null);
       setTitle("");
+      setSource("");
       if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
@@ -377,6 +447,16 @@ function UploadCard({ profile, onUploaded }: { profile: UserProfile; onUploaded:
           <label className="field">
             Название
             <input maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />
+          </label>
+          <label className="field">
+            Откуда трек (необязательно)
+            <input
+              maxLength={SOURCE_MAX}
+              inputMode="url"
+              placeholder="Ссылка https://… или «ВКонтакте, купил, свой»"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+            />
           </label>
           <label className="field">
             Для чего

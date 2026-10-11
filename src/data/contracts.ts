@@ -244,7 +244,7 @@ export interface TracksRepository {
   /** Описание трека; файл — следующим шагом (`upload`). id создаёт браузер. */
   create(input: TrackInput): Promise<Track>;
   upload(id: string, file: Blob, durationMs: number | null): Promise<Track>;
-  update(id: string, patch: { title?: string; category?: TrackCategory; clip?: TrackClip }): Promise<Track>;
+  update(id: string, patch: { title?: string; category?: TrackCategory; clip?: TrackClip; licenseNote?: string }): Promise<Track>;
   remove(id: string): Promise<void>;
   share(id: string): Promise<Track>;
   accept(id: string): Promise<Track>;

@@ -11,7 +11,8 @@ import { rankedLeaderboard } from "./leaderboard";
 
 export const EVENING_MECHANIC = "evening";
 
-export const PROGRAM_LIMITS = { minBlocks: 1, maxBlocks: 5, title: 80, results: 10 } as const;
+/** `results` — строк в итогах блока: все участники, чтобы в конце вечера у каждого были очки по блокам. */
+export const PROGRAM_LIMITS = { minBlocks: 1, maxBlocks: 5, title: 80, results: 200 } as const;
 
 /** Блок вечера в студии: ссылка на игру и запомненные название и механика (для списка). */
 export interface ProgramBlockRef {
@@ -126,6 +127,25 @@ export function newProgram(title: string, blocks: Array<ProgramBlockInfo & { sna
 export function eveningScore(program: SessionProgram, pid: string, entry: LeaderboardEntry | undefined): number {
   if (program.at !== "block") return entry?.score ?? 0;
   return (program.totals[pid] ?? 0) + (entry?.score ?? 0);
+}
+
+/** Итоговая таблица вечера: очки каждого по блокам и сумма (по убыванию суммы, места с учётом равных). */
+export function eveningTable(program: SessionProgram, board: Leaderboard): Array<{ pid: string; name: string; colorIndex?: number; place: number; total: number; blocks: Array<number | null> }> {
+  return rankedLeaderboard(board).map((e) => {
+    const row: { pid: string; name: string; colorIndex?: number; place: number; total: number; blocks: Array<number | null> } = {
+      pid: e.id,
+      name: e.name,
+      place: e.place,
+      total: e.score,
+      // null — блок не сыгран (вечер закончили раньше), 0 — играл без очков или пришёл позже.
+      blocks: program.blocks.map((_, i) => {
+        const result = program.results.find((r) => r.index === i);
+        return result ? (result.board.find((r) => r.pid === e.id)?.score ?? 0) : null;
+      }),
+    };
+    if (e.colorIndex !== undefined) row.colorIndex = e.colorIndex;
+    return row;
+  });
 }
 
 /** Победители блока (места с очками больше нуля, равные — вместе). */

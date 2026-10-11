@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Leaderboard } from "../data/types";
-import { blockWinners, EVENING_MECHANIC, eveningScore, moveProgram, newProgram, nextBlockIndex, parseProgram, publicProgram } from "./program";
+import { blockWinners, eveningTable, EVENING_MECHANIC, eveningScore, moveProgram, newProgram, nextBlockIndex, parseProgram, publicProgram } from "./program";
 
 const blocks = [
   { title: "Квиз", mechanic: "quiz", snapshot: { content: { q: 1 } } },
@@ -55,6 +55,14 @@ describe("мероприятие из блоков", () => {
     expect(fin?.leaderboard.b?.score).toBe(500);
     expect(fin && nextBlockIndex(fin.program)).toBeNull();
     expect(fin && moveProgram(fin.program, fin.leaderboard, "next", 1)).toBeNull();
+    // В конце — очки по блокам и общий счёт; несыгранный блок — null.
+    if (!fin) return;
+    expect(eveningTable(fin.program, fin.leaderboard).map((r) => [r.pid, r.place, r.blocks, r.total])).toEqual([
+      ["b", 1, [100, 400, null], 500],
+      ["a", 2, [300, 0, null], 300],
+      ["d", 3, [0, 50, null], 50],
+      ["c", 4, [0, 0, null], 0],
+    ]);
   });
 
   it("последний блок сразу ведёт к итогам; ничья — несколько победителей; без очков — нет победителя", () => {

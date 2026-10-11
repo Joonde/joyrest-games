@@ -14025,3 +14025,79 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     align-content: center;
   }
 }
+
+.ev-final {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2cqh;
+}
+
+.ev-final .board-view__title {
+  font-size: 4.6cqh;
+  margin: 0;
+}
+
+.ev-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.ev-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.ev-table th,
+.ev-table td {
+  padding: 0.35em 0.5em;
+  text-align: right;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.ev-table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+}
+
+.ev-table .ev-table__name,
+.ev-table th:nth-child(2) {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  width: 100%;
+}
+
+.ev-phone .ev-table {
+  font-size: 0.9rem;
+}
+
+.ev-phone .ev-table th,
+.ev-phone .ev-table td {
+  padding: 0.4em 0.3em;
+}
+
+.ev-table td:first-child {
+  border-left: 4px solid var(--team, transparent);
+}
+
+.ev-table__total {
+  font-weight: 700;
+}
+
+.ev-table tr.is-me td {
+  background: var(--color-surface-alt);
+}
+
+.ev-table__legend {
+  margin: 0.6em 0 0;
+  font-size: 0.8em;
+  color: var(--color-text-muted);
+}
+
+.ev-screen .ev-table {
+  font-size: 3cqh;
+}

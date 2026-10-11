@@ -3,7 +3,8 @@ import type { CSSProperties } from "react";
 import { BoardView } from "../../components/live/BoardView";
 import { NameText } from "../../components/NameText";
 import { rankedLeaderboard } from "../../core/leaderboard";
-import { blockWinners, nextBlockIndex, type SessionProgram } from "../../core/program";
+import { blockWinners, eveningTable, nextBlockIndex, type SessionProgram } from "../../core/program";
+import type { Leaderboard } from "../../data/types";
 import { teamColorVar } from "../../themes/registry";
 import type { PlayerViewProps, ViewProps } from "../types";
 import type { EveningContent } from "./content";
@@ -53,6 +54,47 @@ function BlockList({ program, compact }: { program: SessionProgram; compact?: bo
   );
 }
 
+/** Итоги вечера: очки каждого по блокам и общий счёт. */
+function EveningTable({ program, board, limit, me }: { program: SessionProgram; board: Leaderboard; limit: number; me?: string }) {
+  const rows = eveningTable(program, board);
+  const shown = rows.slice(0, limit);
+  const mine = me ? rows.find((r) => r.pid === me) : undefined;
+  if (mine && !shown.includes(mine)) shown.push(mine);
+  return (
+    <div className="ev-table-wrap">
+      <table className="ev-table">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Имя</th>
+            {program.blocks.map((b, i) => (
+              <th key={i} scope="col" title={b.title}>
+                Б{i + 1}
+              </th>
+            ))}
+            <th scope="col">Всего</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((r) => (
+            <tr key={r.pid} className={r.pid === me ? "is-me" : undefined} style={{ "--team": teamColorVar(r.colorIndex) } as CSSProperties}>
+              <td>{r.place}</td>
+              <td className="ev-table__name">
+                <NameText name={r.name} />
+              </td>
+              {r.blocks.map((v, i) => (
+                <td key={i}>{v === null ? "—" : v}</td>
+              ))}
+              <td className="ev-table__total">{r.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="ev-table__legend">{program.blocks.map((b, i) => `Б${i + 1} — ${b.title}`).join(" · ")}</p>
+    </div>
+  );
+}
+
 function heading(program: SessionProgram): { eyebrow: string; title: string } {
   if (program.at === "final") return { eyebrow: program.title || "Мероприятие", title: "Итоги вечера" };
   const done = program.blocks[program.index]?.title ?? "";
@@ -78,7 +120,14 @@ export function EveningScreenView({ session }: ViewProps<EveningContent>) {
         <BlockList program={program} />
       </section>
       <section className="ev-screen__board">
-        <BoardView leaderboard={session.leaderboard} title="Общий счёт вечера" showLast={false} limit={8} />
+        {program.at === "final" ? (
+          <div className="ev-final">
+            <h2 className="board-view__title">Очки по блокам</h2>
+            <EveningTable program={program} board={session.leaderboard} limit={8} />
+          </div>
+        ) : (
+          <BoardView leaderboard={session.leaderboard} title="Общий счёт вечера" showLast={false} limit={8} />
+        )}
       </section>
     </div>
   );
@@ -99,7 +148,7 @@ export function EveningPlayerView({ session, pid }: PlayerViewProps<EveningConte
           Ваше место в вечере: <strong>{me.place}</strong> · {me.score} очк.
         </p>
       )}
-      <BlockList program={program} compact />
+      {program.at === "final" ? <EveningTable program={program} board={session.leaderboard} limit={5} me={pid} /> : <BlockList program={program} compact />}
       <p className="muted small">
         {program.at === "final"
           ? "Смотрите на экран — сейчас награждение."

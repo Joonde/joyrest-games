@@ -121,7 +121,7 @@ export function Emb({ god, glyph, size, className = "", style, children }: { god
 }
 
 /** Портреты богов, которые уже нарисованы (public/olymp/img). Остальные — эмблема. */
-export const PORTRAITS = new Set(["zeus", "hades", "athena"]);
+export const PORTRAITS = new Set(["zeus", "hades", "athena", "poseidon", "hestia", "hermes", "artemis", "hephaestus"]);
 export const portraitOf = (god: string): string | null => (PORTRAITS.has(god) ? `/olymp/img/${god}.jpg` : null);
 
 // ------------------------------------------------------------------ стихии

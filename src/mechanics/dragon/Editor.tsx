@@ -1,5 +1,6 @@
 // Конструктор «Боя с драконом»: бои (имя и здоровье дракона), задания полосками со свойством (Ум, Ловкость —
 // вопрос; Сила, Харизма — задание; Удача — кубик), жизни команд, бонусы; шаблоны «Классика» и «Для детей».
+import { Fold } from "../../components/Fold";
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -76,6 +77,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
           </label>
         </div>
         {editable && (
+          <Fold title="Шаблоны и вставка списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replace(DEMO_DRAGON.battles, "Заполнить шаблоном «Классика»", "classic", DEMO_DRAGON.lives)}>
               Шаблон «Классика»
@@ -87,6 +89,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
+          </Fold>
         )}
         {importing && editable && (
           <div className="stack stack--tight">

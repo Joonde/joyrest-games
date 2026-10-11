@@ -1,4 +1,5 @@
 // Конструктор «Активной настолки»: размер поля (40–100), клетки полосками, тип задания, список, шаблоны.
+import { Fold } from "../../components/Fold";
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -67,6 +68,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
           </div>
         </fieldset>
         {editable && (
+          <Fold title="Шаблоны и вставка списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => fillFrom(DEMO_QUEST.content.cells, "Заполнить шаблоном «Классика»")}>
               Заполнить шаблоном «Классика»
@@ -78,6 +80,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
+          </Fold>
         )}
         {importing && editable && (
           <div className="stack stack--tight">

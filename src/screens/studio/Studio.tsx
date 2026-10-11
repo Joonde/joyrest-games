@@ -1,4 +1,5 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
 import { authService, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
@@ -76,6 +77,16 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const wanted = parseTab(params.get("tab"));
   const tab: TabId = tabs.some((t) => t.id === wanted) ? wanted : (tabs[0]?.id ?? "mine");
   const [toast, showToast] = useToast();
+  // Сообщение с прошлого экрана («Игра сохранена») — один раз.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const passed = (location.state as { toast?: unknown } | null)?.toast;
+  useEffect(() => {
+    if (typeof passed !== "string") return;
+    showToast(passed);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом сообщении
+  }, [passed]);
 
   const gamesOpen = permissions.canUseGames(profile);
   const musicOpen = permissions.canUseTracks(profile) && Boolean(tracksRepo);

@@ -17,10 +17,11 @@ import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
 import { useAutosave, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
-import { THEME_HINTS, themesForRating } from "../../themes/registry";
+import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
 const AGE_HINTS: Record<AgeRating, string> = {
   "0+": "Для всех, в том числе детские праздники.",
@@ -86,6 +87,11 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [leaveError, setLeaveError] = useState(false);
+  /** «Сохранить игру»: сначала «Точно сохранить?», потом — своё название. */
+  const [saveStep, setSaveStep] = useState<"confirm" | "name" | null>(null);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -149,6 +155,30 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       showToast("Не удалось скопировать. Проверьте интернет.");
       setCopying(false);
     }
+  }
+
+  /** Сохранить под своим названием и вернуться к своим играм. */
+  async function saveGame() {
+    const clean = cleanGameTitle(saveName);
+    if (!isValidGameTitle(clean)) {
+      setSaveError("Введите название — так игра будет называться в ваших играх.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    setTitleInput(clean);
+    edit({ title: clean });
+    flush(true);
+    await settled();
+    if (statusRef.current === "error") {
+      setSaving(false);
+      setSaveError("Сервер не принял изменения. Проверьте интернет и нажмите ещё раз.");
+      return;
+    }
+    edited.current = false;
+    setSaving(false);
+    setSaveStep(null);
+    navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", { state: { toast: `Игра «${clean}» сохранена в ${game.scope === "agency" ? "библиотеке" : "ваших играх"}` } });
   }
 
   const launchBlocked = errors.length > 0;
@@ -277,8 +307,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <h2>Настройки</h2>
           {/* Самостоятельная игра («Олимп») — со своим видом, оформление не выбирается. */}
           {!mechanic?.standalone && (
+          <Fold title="Оформление по умолчанию" value={getTheme(game.themeId).title}>
           <fieldset>
-            <legend>Оформление по умолчанию</legend>
+            <legend className="visually-hidden">Оформление по умолчанию</legend>
             {themesForRating(game.ageRating).map((theme) => (
               <label key={theme.id} className="choice">
                 <input
@@ -294,6 +325,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </label>
             ))}
           </fieldset>
+          </Fold>
           )}
           <fieldset>
             <legend>Участники по умолчанию</legend>
@@ -334,10 +366,53 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       )}
 
       <div className="actions">
+        {editable && (
+          <button
+            type="button"
+            className="btn btn--block"
+            onClick={() => {
+              setSaveName(cleanGameTitle(titleInput) || game.title);
+              setSaveError(null);
+              setSaveStep("confirm");
+            }}
+          >
+            Сохранить игру
+          </button>
+        )}
         <button type="button" className="btn btn--secondary btn--block" onClick={() => goBack()}>
           ← К играм
         </button>
       </div>
+      <ConfirmDialog
+        open={saveStep === "confirm"}
+        title="Сохранить игру?"
+        confirmLabel="Да, сохранить"
+        cancelLabel="Ещё поправлю"
+        onConfirm={() => setSaveStep("name")}
+        onCancel={() => setSaveStep(null)}
+      >
+        <p>Вопросы, блоки и настройки сохранятся такими, как сейчас. Дальше можно назвать игру по-своему.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={saveStep === "name"}
+        title="Как назовём игру?"
+        confirmLabel={saving ? "Сохраняем…" : "Сохранить"}
+        cancelLabel="Отмена"
+        busy={saving}
+        onConfirm={() => void saveGame()}
+        onCancel={() => setSaveStep(null)}
+      >
+        <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти в своих играх (например, «Квиз на свадьбу Ани и Димы»).</p>
+        <label className="field">
+          Название
+          <input maxLength={GAME_TITLE_MAX_LENGTH} autoComplete="off" autoFocus value={saveName} onChange={(e) => setSaveName(e.target.value)} />
+        </label>
+        {saveError && (
+          <p className="error" role="alert">
+            {saveError}
+          </p>
+        )}
+      </ConfirmDialog>
       <ConfirmDialog
         open={leaving}
         title="Сохранить изменения?"

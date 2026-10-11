@@ -1,5 +1,6 @@
 // Конструктор «Миллионера»: лестница из 12 ступеней (очки, несгораемые), подсказки в игре, вопросы по
 // ступеням полосками (каждой команде нужен свой вопрос на ступень, плюс запасные для «Замены вопроса»).
+import { Fold } from "../../components/Fold";
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -127,6 +128,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           ))}
         </details>
         {editable && (
+          <Fold title="Шаблоны и вставка списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replaceAll(DEMO_MILLIONAIRE.questions, "Заполнить шаблоном")}>
               Заполнить шаблоном (36 вопросов)
@@ -135,6 +137,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
+          </Fold>
         )}
         {importing && editable && (
           <div className="stack stack--tight">

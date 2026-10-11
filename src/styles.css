@@ -13750,3 +13750,77 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     transition: none;
   }
 }
+
+/* ---------- Сворачиваемый блок: шаблоны, оформление, механики, импорт ---------- */
+
+.fold {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.fold + .fold {
+  margin-top: 8px;
+}
+
+.fold__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--control-height);
+  padding: 8px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+
+.fold__head::-webkit-details-marker {
+  display: none;
+}
+
+.fold__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fold__value {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.fold__chev {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.2s;
+}
+
+.fold[open] > .fold__head .fold__chev {
+  transform: rotate(-135deg) translateY(-2px);
+}
+
+.fold__body {
+  display: grid;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.fold__head:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold__chev {
+    transition: none;
+  }
+}

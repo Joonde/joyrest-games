@@ -1,3 +1,4 @@
+import { Fold } from "../../components/Fold";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameSnapshot } from "../../core/games";
@@ -167,8 +168,9 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
         {/* У самостоятельной игры («Олимп») свой вид — выбирать оформление не нужно. */}
         {!standalone && (
           <>
+        <Fold title="Оформление" value={getTheme(themeId).title}>
         <fieldset>
-          <legend>Оформление</legend>
+          <legend className="visually-hidden">Оформление</legend>
           {themeChoices.map((theme) => (
             <label key={theme.id} className="choice">
               <input type="radio" name="themeId" checked={themeId === theme.id} onChange={() => setThemeId(theme.id)} />
@@ -179,6 +181,7 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
             </label>
           ))}
         </fieldset>
+        </Fold>
         <div
           className="preview-screen"
           style={themeStyle(themeId)}

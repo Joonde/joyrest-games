@@ -36,6 +36,7 @@ import {
 import { ImportSheet } from "./ImportSheet";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { ClampedNumber } from "../../components/ClampedNumber";
+import { Fold } from "../../components/Fold";
 import { KindIcon } from "./KindIcon";
 import { QuizPreview } from "./Preview";
 import { errorsFor, validateContent, type QuestionField } from "./validate";
@@ -495,8 +496,9 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
 
   return (
     <div className="stack">
+      <Fold title="Формат вопроса" value={KIND_TITLES[q.kind]} open={!q.text.trim()}>
       <fieldset>
-        <legend>Формат вопроса</legend>
+        <legend className="visually-hidden">Формат вопроса</legend>
         <div className="format-tiles" role="radiogroup" aria-label="Формат вопроса">
           {KINDS.map((kind) => (
             <button
@@ -514,6 +516,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </div>
         <p className="muted small">{KIND_HINTS[q.kind]}</p>
       </fieldset>
+      </Fold>
 
       <label className="field">
         {q.kind === "super" ? "Название на заставке" : "Вопрос"}
@@ -771,9 +774,8 @@ function AddQuestion({ onPick, onClose }: { onPick: (kind: QuestionKind) => void
           Закрыть
         </button>
       </div>
-      {FORMAT_BLOCKS.map((block) => (
-        <div key={block.id} className="stack stack--tight">
-          <h3 className="add-question__block">{block.title}</h3>
+      {FORMAT_BLOCKS.map((block, i) => (
+        <Fold key={block.id} title={block.title} value={`${QUESTION_FORMATS.filter((f) => f.block === block.id).length}`} open={i === 0}>
           <div className="format-tiles">
             {QUESTION_FORMATS.filter((f) => f.block === block.id).map((f) => (
               <button key={f.id} type="button" className={`format-tile format-tile--${block.id}`} onClick={() => onPick(f.kind)}>
@@ -782,7 +784,7 @@ function AddQuestion({ onPick, onClose }: { onPick: (kind: QuestionKind) => void
               </button>
             ))}
           </div>
-        </div>
+        </Fold>
       ))}
       <p className="muted small">Суперигру ставьте последним вопросом раунда: её очки войдут в счёт этого раунда.</p>
     </section>

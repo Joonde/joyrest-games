@@ -9,9 +9,10 @@ import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type 
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
-import { allCells, findCell, type BoardCell, type BoardContent } from "./content";
+import { allCells, findCell, roundsOf, type BoardCell, type BoardContent } from "./content";
 
-export type BoardMode = "pick" | "bet" | "buzz";
+/** pick — поле; bet — «Кот в мешке» (ведущий отдаёт вопрос); auction — ставки «Аукциона»; buzz — вопрос. */
+export type BoardMode = "pick" | "bet" | "auction" | "buzz";
 
 /** Что было до «К полю» — «Назад» с поля вернёт ответ прошлой клетки. */
 interface PrevPlay {
@@ -54,6 +55,8 @@ export interface BoardResult {
   /** «Кот в мешке»: кому ведущий отдал вопрос (отвечает только он, увернуться нельзя) и его цена. */
   catTo: string | null;
   catPrice: number;
+  /** Текущий раунд (1–3). */
+  round: number;
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -89,7 +92,7 @@ function parsePrev(value: unknown): PrevPlay | null {
 
 export function parseBoardResult(raw: unknown): BoardResult {
   const d = rec(raw);
-  const mode = d.mode === "bet" || d.mode === "buzz" ? d.mode : "pick";
+  const mode = d.mode === "bet" || d.mode === "buzz" || d.mode === "auction" ? d.mode : "pick";
   return {
     opened: strings(d.opened),
     cell: typeof d.cell === "string" && ID.test(d.cell) ? d.cell : null,
@@ -106,6 +109,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
     catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
     catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(1, Math.round(d.catPrice))) : 0,
+    round: typeof d.round === "number" && Number.isInteger(d.round) && d.round >= 1 && d.round <= 3 ? d.round : 1,
   };
 }
 
@@ -152,11 +156,23 @@ export function score(step: BoardStep, _answers: Answer[], { state }: ScoreConte
 
 // ---------------------------------------------------------------- ход
 
-export type BoardAction = "pick" | "toBuzz" | "arm" | "reveal" | "toBoard" | "podium" | "podiumNext" | "finish";
+export type BoardAction = "pick" | "toBuzz" | "auction" | "arm" | "reveal" | "toBoard" | "nextRound" | "podium" | "podiumNext" | "finish";
 
+/** Клетки раунда. */
+export function roundCells(content: BoardContent, round: number) {
+  return allCells(content).filter(({ category }) => category.round === round);
+}
+
+/** Сыграно всё поле текущего раунда (играющая сейчас клетка считается сыгранной). */
 export function allOpened(content: BoardContent, result: BoardResult): boolean {
-  const total = allCells(content);
+  const total = roundCells(content, result.round);
   return total.length > 0 && total.every(({ cell }) => result.opened.includes(cell.id) || cell.id === result.cell);
+}
+
+/** Есть ли следующий раунд с клетками. */
+export function hasNextRound(content: BoardContent, result: BoardResult): boolean {
+  for (let r = result.round + 1; r <= roundsOf(content); r++) if (roundCells(content, r).length > 0) return true;
+  return false;
 }
 
 /** Главное действие пульта на этом этапе. */
@@ -164,14 +180,15 @@ export function boardPrimary(session: Session, content: BoardContent): BoardActi
   const { stage } = session.state;
   const result = parseBoardResult(session.state.result);
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
-  if (stage === "question") return result.mode === "bet" ? "toBuzz" : result.armed ? "reveal" : "arm";
+  if (stage === "question") return result.mode === "bet" ? "toBuzz" : result.mode === "auction" ? "auction" : result.armed ? "reveal" : "arm";
   if (stage === "reveal") {
-    if (allOpened(content, result)) return hasPodium(session.leaderboard) ? "podium" : "finish";
+    if (allOpened(content, result)) return hasNextRound(content, result) ? "nextRound" : hasPodium(session.leaderboard) ? "podium" : "finish";
     return "toBoard";
   }
-  // Поле: ждём выбор клетки; если сыграно всё — награждение.
-  const done = allCells(content).every(({ cell }) => result.opened.includes(cell.id));
-  if (done && allCells(content).length > 0) return hasPodium(session.leaderboard) ? "podium" : "finish";
+  // Поле: ждём выбор клетки; если сыграно всё поле раунда — следующий раунд или награждение.
+  const cells = roundCells(content, result.round);
+  const done = cells.every(({ cell }) => result.opened.includes(cell.id));
+  if (done && cells.length > 0) return hasNextRound(content, result) ? "nextRound" : hasPodium(session.leaderboard) ? "podium" : "finish";
   return "pick";
 }
 
@@ -181,12 +198,13 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   const result = parseBoardResult(session.state.result);
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points };
+  const auction = found.cell.kind === "auction";
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points };
   return {
     state: {
       stage: "question",
       startedAt: "server",
-      timeLimit: null,
+      timeLimit: auction ? content.betTime : null,
       revealed: false,
       answered: 0,
       result: write(next),
@@ -231,6 +249,53 @@ export function startCatQuestion(session: Session, content: BoardContent): Sessi
       answered: 0,
       result: write({ ...result, mode: "buzz", buzz: { order: [result.catTo], current: result.catTo, out: [], winner: null }, bets: { [result.catTo]: price }, catStep: true, armed: true }),
     },
+  };
+}
+
+/**
+ * «Аукцион»: ставки сделаны — вопрос тому, кто поставил больше всех (при равных — кто раньше). Ставка — от
+ * 1 до своего счёта (у кого меньше стоимости клетки — до стоимости). Отвечает только он: верно — плюс
+ * ставка и право выбора, неверно — минус ставка. Ставок нет — отвечает выбиравший клетку за её стоимость.
+ */
+export function startAuction(session: Session, content: BoardContent, answers: Answer[]): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  const found = findCell(content, result.cell);
+  if (!found || result.mode !== "auction") return null;
+  let best: { pid: string; bet: number; at: number } | null = null;
+  for (const a of answers) {
+    if (a.step !== session.state.step) continue;
+    const raw = rec(a.value).bet;
+    if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) continue;
+    const bet = Math.min(Math.round(raw), maxBet(session.leaderboard[a.pid]?.score ?? 0, found.cell.points));
+    const at = a.submittedAt ?? Number.MAX_SAFE_INTEGER;
+    if (!best || bet > best.bet || (bet === best.bet && at < best.at)) best = { pid: a.pid, bet, at };
+  }
+  const who = best?.pid ?? result.pickerBefore;
+  if (!who) return null;
+  const price = best?.bet ?? found.cell.points;
+  return {
+    state: {
+      step: session.state.step + 1,
+      stage: "question",
+      startedAt: "server",
+      timeLimit: null,
+      revealed: false,
+      answered: 0,
+      result: write({ ...result, mode: "buzz", buzz: { order: [who], current: who, out: [], winner: null }, bets: { [who]: price }, catStep: true, armed: true, catTo: who, catPrice: price }),
+    },
+  };
+}
+
+/** Раунд кончился: клетка гаснет, на экране — поле следующего раунда (дороже). */
+export function nextRound(session: Session, content: BoardContent): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  if (!hasNextRound(content, result)) return null;
+  const base = session.state.stage === "reveal" && result.cell ? toBoard(session) : null;
+  const after = base ? parseBoardResult(base.state?.result) : result;
+  let round = result.round + 1;
+  while (round < 3 && roundCells(content, round).length === 0) round++;
+  return {
+    state: { ...(base?.state ?? {}), step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...after, round }) },
   };
 }
 
@@ -356,13 +421,15 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
   // С поля — к ответу прошлой клетки (она снова «не сыграна», пока ведущий не вернётся к полю).
   const prev = result.prev;
   if (!prev || step === 0) return null;
+  // Назад через начало раунда — к прошлому раунду (раунд клетки).
+  const prevRound = findCell(content, prev.cell)?.category.round ?? result.round;
   return {
     change: {
       state: {
         step: step - 1,
         stage: "reveal",
         revealed: true,
-        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep }),
+        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep, round: prevRound }),
       },
     },
   };

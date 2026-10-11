@@ -1,5 +1,5 @@
 // «Своя игра»: экран зала (поле, вопрос, кот в мешке, ответ) и телефон гостя (кнопка, ставка).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BuzzButton } from "../../components/live/BuzzButton";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
@@ -14,8 +14,8 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { allCells, findCell, type BoardCell, type BoardContent } from "./content";
-import { parseBoardResult, type BoardResult } from "./logic";
+import { allCells, findCell, roundCategories, roundsOf, type BoardCell, type BoardContent } from "./content";
+import { maxBet, parseBoardResult, type BoardResult } from "./logic";
 
 /** Ответ гостя: нажатие кнопки или ставка в «Коте в мешке». */
 export type BoardAnswerValue = { buzz: true } | { bet: number };
@@ -76,10 +76,11 @@ export function CatInBag({ small = false }: { small?: boolean }) {
 
 /** Поле: строки — категории, колонки — стоимость. Сыгранные клетки погасли, играющая светится. */
 export function BoardGrid({ content, result, small = false }: { content: BoardContent; result: BoardResult; small?: boolean }) {
-  const columns = Math.max(1, ...content.categories.map((c) => c.cells.length));
+  const categories = roundCategories(content, result.round);
+  const columns = Math.max(1, ...categories.map((c) => c.cells.length));
   return (
     <div className={small ? "board-grid board-grid--small" : "board-grid"} style={{ ["--board-cols" as string]: columns }} role="table" aria-label="Поле «Своей игры»">
-      {content.categories.map((category) => (
+      {categories.map((category) => (
         <div key={category.id} className="board-grid__row" role="row">
           <div className="board-grid__title" role="rowheader">
             <span className="line-clamp">{category.title || "Категория"}</span>
@@ -138,7 +139,10 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   useCellMedia(session, content, cell, result);
   useSoundOnChange(result.buzz.current ?? "", "gong");
   useSoundOnChange(stage === "reveal" && result.buzz.winner ? `${step}:win` : "", "correct");
-  useSoundOnChange(stage === "question" && result.mode === "bet" ? `${step}:cat` : "", "whoosh");
+  useSoundOnChange(stage === "question" && (result.mode === "bet" || result.mode === "auction") ? `${step}:cat` : "", "whoosh");
+  useSoundOnChange(stage === "ready" ? `round:${result.round}` : "", "fanfare");
+  const auctionNow = useServerNow(250, stage === "question" && result.mode === "auction");
+  const auctionLeft = stage === "question" && result.mode === "auction" ? secondsLeft(session.state, auctionNow) : null;
   const name = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? null) : null);
 
   if (stage === "ready" || !cell) {
@@ -146,7 +150,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
     return (
       <div className="board-screen">
         <div className="board-screen__top">
-          <span className="quiz-screen__badge">Своя игра</span>
+          <span className="quiz-screen__badge">{roundsOf(content) > 1 ? `Своя игра · раунд ${result.round}` : "Своя игра"}</span>
           {picker ? (
             <span className="board-screen__picker">
               Выбирает: <NameText name={picker} />
@@ -163,9 +167,32 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const head = (
     <div className="board-screen__top">
       <span className="quiz-screen__badge">{category?.title || "Своя игра"}</span>
-      <span className="board-screen__points">{cell.kind === "cat" ? (result.catStep && result.catTo ? `Кот в мешке · ${result.catPrice} очков` : "Кот в мешке") : `${cell.points} очков`}</span>
+      <span className="board-screen__points">
+        {cell.kind === "cat" || cell.kind === "auction"
+          ? `${cell.kind === "cat" ? "Кот в мешке" : "Аукцион"}${result.catStep && result.catTo ? ` · ${result.catPrice} очков` : ""}`
+          : `${cell.points} очков`}
+      </span>
     </div>
   );
+
+  if (stage === "question" && result.mode === "auction") {
+    // Сколько ставок сделано — пишет пульт (`answered`): экран ставок не видит.
+    return (
+      <div className="board-screen board-screen--cat">
+        {head}
+        <h2 className="board-screen__cat-title" data-shine="on">
+          Аукцион!
+        </h2>
+        <p className="board-screen__hint">Ставьте очки на телефонах: на сколько играете. Кто поставит больше всех — отвечает на сложный вопрос. Верно — ставка ваша, неверно — минус ставка.</p>
+        {auctionLeft !== null && (
+          <span className={auctionLeft === 0 ? "board-screen__count is-over" : "board-screen__count"} role="timer">
+            {auctionLeft === 0 ? "Ставки сделаны" : auctionLeft}
+          </span>
+        )}
+        <p className="board-screen__hint">Ставок: {session.state.answered ?? 0}</p>
+      </div>
+    );
+  }
 
   if (stage === "question" && result.mode === "bet") {
     const to = name(result.catTo);
@@ -245,6 +272,35 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
 
 // ---------------------------------------------------------------- телефон
 
+function BetForm({ max, points, sending, onBet }: { max: number; points: number; sending: boolean; onBet: (bet: number) => void }) {
+  const [value, setValue] = useState(String(Math.min(points, max)));
+  const n = Math.round(Number(value));
+  const valid = Number.isFinite(n) && n >= 1 && n <= max;
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (valid) onBet(n);
+  }
+  const quick = [...new Set([points, Math.max(1, Math.round(max / 2)), max])].filter((x) => x >= 1 && x <= max).sort((a, b) => a - b);
+  return (
+    <form className="stack bet-form" onSubmit={submit}>
+      <label className="field">
+        <span className="field__label">Ваша ставка — от 1 до {max}</span>
+        <input type="number" inputMode="numeric" min={1} max={max} value={value} onChange={(e) => setValue(e.target.value)} />
+      </label>
+      <div className="row bet-form__quick">
+        {quick.map((x) => (
+          <button key={x} type="button" className="pick-chip" aria-pressed={n === x} onClick={() => setValue(String(x))}>
+            {x === max ? `Всё: ${x}` : x}
+          </button>
+        ))}
+      </div>
+      <button className="btn btn--block" type="submit" disabled={!valid || sending}>
+        {sending ? "Отправляем…" : `Поставить ${valid ? n : ""}`}
+      </button>
+    </form>
+  );
+}
+
 export function BoardPlayerView({ session, content, pid, role, myAnswer, sending, onAnswer }: PlayerViewProps<BoardContent, BoardAnswerValue>) {
   const { stage } = session.state;
   const { result, cell, category } = playing(session, content);
@@ -284,6 +340,33 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
       {category?.title || "Своя игра"} · {cell.kind === "cat" ? "Кот в мешке" : `${cell.points} очков`}
     </p>
   );
+
+  if (stage === "question" && result.mode === "auction") {
+    const placed = myAnswer && typeof myAnswer.value === "object" && myAnswer.value !== null ? (myAnswer.value as { bet?: unknown }).bet : undefined;
+    const max = maxBet(me?.score ?? 0, cell.points);
+    return (
+      <div className="quiz-phone quiz-phone--center">
+        {title}
+        <h2>Аукцион!</h2>
+        {role === "member" ? (
+          <div className="buzz__plate" role="status">
+            <strong>Ставку делает капитан</strong>
+            <span>Подскажите ему, сколько ставить</span>
+          </div>
+        ) : typeof placed === "number" ? (
+          <div className="buzz__plate buzz__plate--glow" role="status">
+            <strong>Ставка принята: {Math.min(placed, max)}</strong>
+            <span>Больше всех — отвечаете на вопрос</span>
+          </div>
+        ) : open ? (
+          <BetForm max={max} points={cell.points} sending={sending} onBet={(bet) => onAnswer({ bet: Math.min(bet, max) })} />
+        ) : (
+          <p className="muted">Ставки закрыты.</p>
+        )}
+        {scoreLine}
+      </div>
+    );
+  }
 
   if (stage === "question" && result.mode === "bet") {
     const me2 = result.catTo === pid;
@@ -334,7 +417,9 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
         <div className="buzz">
           <div className={myBet ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
             <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : `Отвечает ${speaker ?? ""}`}</strong>
-            <span>Кот в мешке · цена {result.catPrice || myBet || cell.points}</span>
+            <span>
+              {cell.kind === "auction" ? "Аукцион" : "Кот в мешке"} · цена {result.catPrice || myBet || cell.points}
+            </span>
           </div>
         </div>
       ) : waiting && role !== "member" ? (

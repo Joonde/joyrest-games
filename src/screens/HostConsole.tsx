@@ -334,7 +334,7 @@ function Console({ session }: { session: Session }) {
             {phase === "lobby" && (
               <>
                 <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
-                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} />}
+                {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} onStart={() => void start()} starting={busy || !mechanic} />}
                 <LobbyNames session={session} onMore={() => setTab("people")} />
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
                   Начать игру
@@ -490,7 +490,7 @@ function Console({ session }: { session: Session }) {
  * Команды в лобби: «Скрыть названия команд» (экран показывает «Команда 1 ★★★») и «Представить
  * команды» — по одной, крупно, в порядке подключения; в конце — все вместе.
  */
-function TeamsCard({ session, onApply }: { session: Session; onApply: (change: SessionChange) => Promise<unknown> }) {
+function TeamsCard({ session, onApply, onStart, starting }: { session: Session; onApply: (change: SessionChange) => Promise<unknown>; onStart: () => void; starting: boolean }) {
   const [busy, setBusy] = useState(false);
   const reveal = teamsReveal(session.state);
   const ordered = teamOrder(session.leaderboard);
@@ -524,6 +524,12 @@ function TeamsCard({ session, onApply }: { session: Session; onApply: (change: S
           )}
         </p>
         <div className="actions">
+          {/* Все команды представлены — дальше сразу игра (кнопка не прячется внизу страницы). */}
+          {done && (
+            <button type="button" className="btn btn--block" disabled={busy || starting} onClick={onStart}>
+              Начать игру
+            </button>
+          )}
           {!done && (
             <button type="button" className="btn btn--block" disabled={busy} onClick={() => void set({ ...reveal, shown: shown + 1 })}>
               {shown + 1 >= ordered.length ? "Показать все команды" : "Следующая команда"}

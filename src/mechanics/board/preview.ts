@@ -1,12 +1,12 @@
 import type { PreviewDriver } from "../preview";
 import { scoringIds } from "../preview";
 import type { BoardContent } from "./content";
-import { armBuzz, boardBuzzSync, boardPrimary, boardReveal, boardWrong, openCell, parseBoardResult, setCat, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBuzzSync, boardPrimary, boardReveal, boardWrong, nextRound, openCell, parseBoardResult, roundCells, setCat, startAuction, startCatQuestion, toBoard } from "./logic";
 
 export const boardPreview: PreviewDriver<BoardContent> = ({ session, content, participants, answers }) => {
   const teams = scoringIds(participants);
   const r = parseBoardResult(session.state.result);
-  const cells = content.categories.flatMap((c) => c.cells.map((cell) => ({ cat: c, cell })));
+  const cells = roundCells(content, r.round).map(({ category, cell }) => ({ cat: category, cell }));
   switch (boardPrimary(session, content)) {
     case "pick": {
       const left = cells.filter(({ cell }) => !r.opened.includes(cell.id));
@@ -40,6 +40,15 @@ export const boardPreview: PreviewDriver<BoardContent> = ({ session, content, pa
     }
     case "toBoard":
       return { label: "Пульт: «К полю»", change: toBoard(session) };
+    case "nextRound": {
+      const change = nextRound(session, content);
+      return change ? { label: "Пульт: «Следующий раунд» — поле дороже", change } : null;
+    }
+    case "auction": {
+      if (answers.length === 0) return { label: "Аукцион: команды ставят очки", answers: teams.map((pid, i) => ({ pid, value: { bet: 100 + i * 50 } })) };
+      const change = startAuction(session, content, answers);
+      return change ? { label: "Пульт: «Ставки сделаны» — отвечает поставивший больше всех", change } : null;
+    }
     default:
       return null;
   }

@@ -8,16 +8,17 @@ import { Toast, useToast } from "../../components/Toast";
 import { clipFields, parseClip } from "../../core/clip";
 import { mediaRepo } from "../../data";
 import type { EditorProps } from "../types";
-import { allCells, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, resizeBoard, type BoardCell, type BoardContent, type CellKind } from "./content";
+import { allCells, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, MAX_ROUNDS, resizeBoard, roundCategories, roundsOf, setRounds, type BoardCell, type BoardContent, type CellKind } from "./content";
 import { validateBoard } from "./validate";
 
-const KINDS: CellKind[] = ["question", "track", "picture", "cat"];
+const KINDS: CellKind[] = ["question", "track", "picture", "cat", "auction"];
 
 const KIND_HINTS: Record<CellKind, string> = {
   question: "Вопрос на экране, гости жмут кнопку «кто первый», отвечают вслух.",
   track: "Звучит фрагмент трека — угадать песню. На верный ответ — припев и конфетти.",
   picture: "Картинка на экране — что на ней? Отвечают кнопкой.",
-  cat: "Сначала ставки (до своего счёта или стоимости клетки), потом сложный вопрос. Верно — ставка ваша, неверно — ставку теряют все, кто ставил.",
+  cat: "Ведущий отдаёт вопрос одному игроку и ставит цену — отвечать обязательно. Верно — плюс цена, неверно — минус.",
+  auction: "Все ставят очки на телефонах, кто больше — отвечает на сложный вопрос. Верно — ставка его, неверно — минус ставка.",
 };
 
 export function BoardEditor({ gameId, content, onChange, editable }: EditorProps<BoardContent>) {
@@ -25,7 +26,8 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
   const [toast, showToast] = useToast();
   const latest = useRef(content);
   latest.current = content;
-  const rows = content.categories.length;
+  const rounds = roundsOf(content);
+  const rows = Math.max(1, roundCategories(content, 1).length);
   const cols = columnsOf(content);
   const errors = validateBoard(content);
   const errorCells = new Set(errors.map((e) => e.path.split("/")[1]).filter(Boolean));
@@ -63,7 +65,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
   }
 
   function resetPoints() {
-    onChange({ ...content, categories: content.categories.map((cat) => ({ ...cat, cells: cat.cells.map((c, i) => ({ ...c, points: defaultPoints(i) })) })) });
+    onChange({ ...content, categories: content.categories.map((cat) => ({ ...cat, cells: cat.cells.map((c, i) => ({ ...c, points: defaultPoints(i, cat.round) })) })) });
   }
 
   return (
@@ -73,7 +75,11 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
         <p className="muted small">Строки — категории, колонки — стоимость. Гость выбирает клетку, все жмут кнопку «кто первый». Сыгранная клетка гаснет, пока не закроется всё поле.</p>
         <div className="row board-editor__size">
           <label className="field">
-            Категорий
+            Раундов
+            <ClampedNumber value={rounds} min={1} max={MAX_ROUNDS} fallback={2} disabled={!editable} onChange={(n) => onChange(setRounds(content, n))} />
+          </label>
+          <label className="field">
+            Категорий в раунде
             <ClampedNumber value={rows} min={BOARD_LIMITS.minRows} max={BOARD_LIMITS.maxRows} fallback={4} disabled={!editable} onChange={(r) => onChange(resizeBoard(content, r, cols))} />
           </label>
           <label className="field">
@@ -88,6 +94,10 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
             <span className="choice__hint">Как в телевизионной «Своей игре». Без галочки ошибка просто передаёт слово следующему.</span>
           </span>
         </label>
+        <label className="field">
+          Время на ставки в «Аукционе», секунд
+          <ClampedNumber value={content.betTime} min={BOARD_LIMITS.minBetTime} max={BOARD_LIMITS.maxBetTime} fallback={30} disabled={!editable} onChange={(betTime) => onChange({ ...content, betTime })} />
+        </label>
         <fieldset className="stack stack--tight">
           <legend>Время на ответ после «Запустить отсчёт»</legend>
           <p className="muted small">Ведущий сначала читает вопрос — кнопки гостей не активны (без фальстарта). Потом «Запустить отсчёт» — и столько секунд жать кнопку.</p>
@@ -101,7 +111,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
         </fieldset>
         {editable && (
           <button type="button" className="btn btn--quiet btn--block" onClick={resetPoints}>
-            Стоимость по колонкам: 100, 200, 300…
+            Стоимость по колонкам: 100, 200, 300… (во 2-м раунде — вдвое)
           </button>
         )}
       </section>
@@ -109,8 +119,11 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
       <section className="card">
         <h2>Категории и клетки</h2>
         <p className="muted small">Коснитесь клетки, чтобы заполнить вопрос. Красная рамка — в клетке чего-то не хватает.</p>
+        {Array.from({ length: rounds }, (_, i) => i + 1).map((round) => (
+          <div key={round} className="stack stack--tight">
+            {rounds > 1 && <h3 className="board-editor__round">Раунд {round}</h3>}
         <div className="board-editor__grid" style={{ ["--board-cols" as string]: Math.max(1, cols) }}>
-          {content.categories.map((category, r) => (
+          {roundCategories(content, round).map((category, r) => (
             <div key={category.id} className="board-editor__row">
               <input
                 className="board-editor__title"
@@ -139,6 +152,8 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
             </div>
           ))}
         </div>
+          </div>
+        ))}
       </section>
 
       {open && (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
-import { createBoard, findCell, parseBoard, resizeBoard, type BoardContent } from "./content";
+import { createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
 import {
   armBuzz,
   boardBack,
@@ -12,6 +12,8 @@ import {
   boardSteps,
   boardWrong,
   CAT_MAX,
+  nextRound,
+  startAuction,
   maxBet,
   openCell,
   parseBoardResult,
@@ -22,7 +24,7 @@ import {
 } from "./logic";
 
 function content(): BoardContent {
-  const board = resizeBoard(createBoard(), 2, 2);
+  const board = resizeBoard(setRounds(createBoard(), 1), 2, 2);
   const [a, b] = board.categories;
   if (!a || !b) throw new Error("поле");
   a.cells = a.cells.map((c, i) => ({ ...c, id: `a${i}`, text: "Вопрос", answer: "Ответ" }));
@@ -223,5 +225,54 @@ describe("Своя игра: ход", () => {
     expect(s.leaderboard.p2?.score).toBe(0);
     s = apply(s, boardReveal(s, c, participants, true));
     expect(s.leaderboard.p1?.score).toBe(a);
+  });
+
+  it("раунды: поле раунда, «Следующий раунд» — дороже; «Назад» возвращает в прошлый раунд", () => {
+    const base = content();
+    expect(roundsOf(createBoard())).toBe(2);
+    const two = resizeBoard(setRounds(base, 2), 2, 1);
+    expect(roundsOf(two)).toBe(2);
+    expect(two.categories.filter((c) => c.round === 2)[0]?.cells[0]?.points).toBe(200);
+    const c: BoardContent = { ...two, categories: two.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => ({ ...cell, kind: "question" as const, text: "В", answer: "О" })) })) };
+    let s = session();
+    const r1 = c.categories.filter((cat) => cat.round === 1).flatMap((cat) => cat.cells.map((cell) => cell.id));
+    for (const id of r1) {
+      s = openArmed(s, c, id);
+      s = apply(s, boardReveal(s, c, participants, false));
+      if (id !== r1.at(-1)) s = apply(s, toBoard(s));
+    }
+    expect(boardPrimary(s, c)).toBe("nextRound");
+    s = apply(s, nextRound(s, c));
+    let r = parseBoardResult(s.state.result);
+    expect(r.round).toBe(2);
+    expect(s.state.stage).toBe("ready");
+    expect(r.opened).toEqual(r1);
+    expect(boardPrimary(s, c)).toBe("pick");
+    s = apply(s, boardBack(s, c)?.change ?? null);
+    r = parseBoardResult(s.state.result);
+    expect(r.round).toBe(1);
+    expect(s.state.stage).toBe("reveal");
+  });
+
+  it("аукцион: все ставят, отвечает поставивший больше (при равных — раньше); верно плюс, неверно минус", () => {
+    const base = content();
+    const c: BoardContent = { ...base, categories: base.categories.map((cat) => ({ ...cat, cells: cat.cells.map((cell) => (cell.id === "a1" ? { ...cell, kind: "auction" as const } : cell)) })) };
+    let s = session();
+    s = apply(s, openCell(s, c, "a1"));
+    expect(parseBoardResult(s.state.result).mode).toBe("auction");
+    expect(s.state.timeLimit).toBe(c.betTime);
+    expect(boardPrimary(s, c)).toBe("auction");
+    const points = findCell(c, "a1")?.cell.points ?? 0;
+    const bid = (pid: string, value: number, at: number): Answer => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value: { bet: value }, submittedAt: at });
+    // У p1 счёт 0 — может поставить до стоимости клетки; p2 ставит столько же, но позже.
+    s = apply(s, startAuction(s, c, [bid("p2", points, 9), bid("p1", 99999, 5), bid("p3", 10, 1)]));
+    const r = parseBoardResult(s.state.result);
+    expect(r).toMatchObject({ mode: "buzz", catStep: true, catTo: "p1", catPrice: points, bets: { p1: points } });
+    expect(r.buzz.current).toBe("p1");
+    s = apply(s, boardReveal(s, c, participants, true));
+    expect(s.leaderboard.p1?.score).toBe(points);
+    // Ставок нет — отвечает выбиравший клетку за её стоимость; некому — нельзя.
+    const empty = apply(session(), openCell(session(), c, "a1"));
+    expect(startAuction(empty, c, [])).toBeNull();
   });
 });

@@ -7,8 +7,8 @@ import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { allCells, CELL_MARKS, CELL_TITLES, findCell, type BoardContent } from "./content";
-import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, openCell, parseBoardResult, replayCell, setCat, startCatQuestion, toBoard } from "./logic";
+import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
+import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, startAuction, startCatQuestion, toBoard } from "./logic";
 
 /**
  * Пульт «Своей игры»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
@@ -30,8 +30,9 @@ export function BoardHostControls({ session, content, answers, participants, con
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
   const cell = found?.cell ?? null;
-  const now = useServerNow(250, stage === "question" && result.armed && !result.catStep);
-  const left = stage === "question" && result.armed && !result.catStep ? secondsLeft(session.state, now) : null;
+  const timed = stage === "question" && ((result.armed && !result.catStep) || result.mode === "auction");
+  const now = useServerNow(250, timed);
+  const left = timed ? secondsLeft(session.state, now) : null;
 
   // Пришло нажатие — слово первому, кто ещё не ошибся (пишет любой открытый пульт, `expect` их мирит).
   const syncKey = stage === "question" && result.mode === "buzz" ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
@@ -43,6 +44,18 @@ export function BoardHostControls({ session, content, answers, participants, con
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт при новых нажатиях и смене слова
   }, [syncKey, result.buzz.current, result.buzz.order.length, busy]);
+
+  // «Аукцион»: экран показывает, сколько ставок сделано, — пульт пишет счётчик не чаще раза в 2 секунды.
+  const betCount = stage === "question" && result.mode === "auction" ? Object.keys(collectBets(answers, step)).length : -1;
+  useEffect(() => {
+    if (betCount < 0 || betCount === (session.state.answered ?? 0) || rehearsal) return;
+    const timer = window.setTimeout(() => {
+      const { phase, step: atStep, stage: atStage } = latest.current.state;
+      void control.apply({ state: { answered: betCount }, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    }, 2000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом числе ставок
+  }, [betCount]);
 
   function nextSession(): Promise<void> {
     return new Promise((resolve) => {
@@ -81,8 +94,10 @@ export function BoardHostControls({ session, content, answers, participants, con
 
   const nameOf = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок") : "");
   const peek = session.state.peek ?? null;
-  const total = allCells(content).length;
-  const played = result.opened.length;
+  const rounds = roundsOf(content);
+  const total = roundCells(content, result.round).length;
+  const played = roundCells(content, result.round).filter(({ cell: c }) => result.opened.includes(c.id)).length;
+  const fieldCats = roundCategories(content, result.round);
   const primary = boardPrimary(session, content);
   const backPlan = boardBack(session, content);
 
@@ -125,17 +140,24 @@ export function BoardHostControls({ session, content, answers, participants, con
     );
   }
 
-  const endButton = (primary === "podium" || primary === "finish") && (
-    <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "podium" ? void run(awardNow(session)) : control.requestFinish())}>
-      {primary === "podium" ? "Все клетки сыграны — награждение" : "Завершить игру"}
-    </button>
-  );
+  const endButton =
+    primary === "nextRound" ? (
+      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(nextRound(latest.current, content) ?? {}))}>
+        Раунд {result.round} сыгран — следующий раунд
+      </button>
+    ) : (
+      (primary === "podium" || primary === "finish") && (
+        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "podium" ? void run(awardNow(session)) : control.requestFinish())}>
+          {primary === "podium" ? "Все клетки сыграны — награждение" : "Завершить игру"}
+        </button>
+      )
+    );
 
   if (stage === "ready" || !cell) {
     return (
       <div className="stack host-quiz board-host">
         <p className="eyebrow">
-          Своя игра · сыграно {played} из {total}
+          Своя игра{rounds > 1 ? ` · раунд ${result.round} из ${rounds}` : ""} · сыграно {played} из {total}
         </p>
         {peekButton}
         <p className="muted small">
@@ -147,8 +169,8 @@ export function BoardHostControls({ session, content, answers, participants, con
             "Коснитесь клетки, чтобы открыть вопрос. Метки ♪, фото и «кот» видите только вы."
           )}
         </p>
-        <div className="board-host__grid" style={{ ["--board-cols" as string]: Math.max(1, ...content.categories.map((c) => c.cells.length)) }}>
-          {content.categories.map((category) => (
+        <div className="board-host__grid" style={{ ["--board-cols" as string]: Math.max(1, ...fieldCats.map((c) => c.cells.length)) }}>
+          {fieldCats.map((category) => (
             <div key={category.id} className="board-host__row">
               <span className="board-host__title line-clamp">{category.title || "Категория"}</span>
               {category.cells.map((c) => {
@@ -157,7 +179,7 @@ export function BoardHostControls({ session, content, answers, participants, con
                   <button
                     key={c.id}
                     type="button"
-                    className={`board-host__cell${opened ? " is-opened" : ""}${c.kind === "cat" ? " is-cat" : ""}`}
+                    className={`board-host__cell${opened ? " is-opened" : ""}${c.kind === "cat" || c.kind === "auction" ? " is-cat" : ""}`}
                     disabled={busy || opened}
                     aria-label={`${category.title}, ${c.points}, ${CELL_TITLES[c.kind]}${opened ? ", сыграна" : ""}`}
                     onClick={() => void run(openCell(session, content, c.id))}
@@ -190,6 +212,45 @@ export function BoardHostControls({ session, content, answers, participants, con
       </p>
     </div>
   );
+
+  if (stage === "question" && result.mode === "auction") {
+    const bets = collectBets(answers, step);
+    return (
+      <div className="stack host-quiz board-host">
+        {header}
+        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один (при равных — кто раньше). Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку.</p>
+        <div className="host-quiz__live" aria-live="polite">
+          <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
+            {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
+          </span>
+          <span>
+            Ставок: <strong>{Object.keys(bets).length}</strong>
+          </span>
+        </div>
+        {Object.keys(bets).length > 0 && (
+          <ul className="buzz-queue buzz-queue--plain">
+            {Object.entries(bets)
+              .sort((a, b) => b[1] - a[1])
+              .map(([pid, bet]) => (
+                <li key={pid}>
+                  <span className="buzz-queue__name">
+                    <NameText name={nameOf(pid)} />
+                  </span>
+                  <span className="buzz-queue__state">{bet}</span>
+                </li>
+              ))}
+          </ul>
+        )}
+        {errorLine}
+        <div className="actions">
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => startAuction(latest.current, content, await control.freshAnswers(step).catch(() => answers)) ?? {})}>
+            Ставки сделаны — показать вопрос
+          </button>
+          {backButton}
+        </div>
+      </div>
+    );
+  }
 
   if (stage === "question" && result.mode === "bet") {
     // «Кот в мешке»: ведущий отдаёт вопрос одному игроку (обычно не тому, кто выбрал клетку) и ставит цену.

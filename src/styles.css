@@ -6575,6 +6575,11 @@ ul.chips {
   gap: 8px;
 }
 
+.board-editor__round {
+  margin: 8px 0 0;
+  font-size: 1.1rem;
+}
+
 .board-host__arm {
   display: grid;
   gap: 12px;

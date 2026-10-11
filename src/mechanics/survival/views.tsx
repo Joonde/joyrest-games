@@ -10,7 +10,7 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { isWar, KIND_TITLES, LETTERS, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
+import { isWar, KIND_TITLES, LETTERS, taskWordFor, taskWords, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
 import { auctionPending, isWarRound, minBet, parseSurvivalResult, roundNumber, roundOf, type SurvivalResult } from "./logic";
 
 export type SurvivalAnswerValue = { choice: number } | { text: string } | { bet: number } | { ticket: true } | { bid: number };
@@ -199,6 +199,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
         </span>
         {round.kind === "task" && <p className="sv-kind">Задание</p>}
         <RoundCard round={round} result={r} reveal={stage === "reveal"} />
+        {round.kind === "task" && taskWords(round).length > 0 && stage === "question" && <p className="sv-note">Капитаны видят своё слово на телефоне — показывают по очереди, без слов</p>}
         {war && r.freed.length > 0 && (
           <p className="sv-note">
             По билету пропускают: {r.freed.map((p) => nameOf(session, p)).join(", ")}
@@ -387,7 +388,15 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
         <>
           {round.kind === "task" && <p className="eyebrow">Задание · {pointsLabel(round.points)}</p>}
           <RoundCard round={round} result={r} reveal={stage === "reveal"} size="phone" />
-          {stage === "question" && round.kind === "task" && <p className="muted">Выполняйте — ведущий засчитает.</p>}
+          {stage === "question" && round.kind === "task" && taskWordFor(round, r.order, pid) && role !== "member" && (
+            <div className="buzz__plate buzz__plate--glow sv-secret" role="status">
+              <span>Ваше слово — видите только вы:</span>
+              <strong>{taskWordFor(round, r.order, pid)}</strong>
+              <span>Покажите его команде без слов, когда ведущий позовёт</span>
+            </div>
+          )}
+          {stage === "question" && round.kind === "task" && taskWords(round).length > 0 && role === "member" && <p className="muted">Капитан покажет слово — угадывайте! Ведущий засчитает.</p>}
+          {stage === "question" && round.kind === "task" && taskWords(round).length === 0 && <p className="muted">Выполняйте — ведущий засчитает.</p>}
           {stage === "question" && round.kind !== "task" && (sent ?? memberNote)}
           {stage === "reveal" && (
             <p className={(r.deltas[pid] ?? 0) > 0 ? "success" : (r.deltas[pid] ?? 0) < 0 ? "error" : "muted"}>

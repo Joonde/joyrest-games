@@ -8,7 +8,7 @@ import { resultKey } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
-import { KIND_TITLES, LETTERS, warIndex, type SurvivalContent } from "./content";
+import { KIND_TITLES, LETTERS, warIndex, type SurvivalContent, taskWordFor, taskWords } from "./content";
 import {
   afterAuction,
   auctionPending,
@@ -154,6 +154,9 @@ export function SurvivalHostControls({ session, content, answers, participants, 
           {(r.phase === "play" || (r.phase === "reveal" && !war)) && round && round.kind !== "choice" && (
             <section className="stack stack--tight">
               <p className="eyebrow">{round.kind === "task" ? "Кто выполнил задание" : "Засчитать ответ вручную"}</p>
+              {round.kind === "task" && taskWords(round).length > 0 && (
+                <p className="muted small">Капитаны видят на телефоне своё слово. Зовите команды по очереди: капитан показывает, команда угадывает — отметьте угадавших.</p>
+              )}
               <div className="sv-marks">
                 {r.order.map((p) => {
                   const auto = right.has(p);
@@ -165,6 +168,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
                       <span className="line-clamp">
                         <NameText name={name(p)} />
                         {text && typeof (text as { text?: unknown }).text === "string" ? ` — «${(text as { text: string }).text}»` : ""}
+                        {round.kind === "task" && taskWordFor(round, r.order, p) ? ` — слово «${taskWordFor(round, r.order, p)}»` : ""}
                       </span>
                     </button>
                   );

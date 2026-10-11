@@ -9193,6 +9193,11 @@ button.dance-card:active {
   color: var(--color-text-muted);
 }
 
+.sv-secret strong {
+  font-size: 30px;
+  font-family: "Cormorant Garamond", serif;
+}
+
 .sv-lanes--multi .sv-lane {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
 }

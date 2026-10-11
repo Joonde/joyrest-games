@@ -148,7 +148,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
                       ))}
                     {round.kind !== "choice" && !war && (
                       <label className="field">
-                        {round.kind === "open" ? "Верный ответ (несколько — через «|»)" : "Подсказка ведущему (необязательно)"}
+                        {round.kind === "open" ? "Верный ответ (несколько — через «|»)" : "Тайные слова командам через «|» (капитан видит своё на телефоне, ведущий — у кого какое)"}
                         <input maxLength={SURVIVAL_LIMITS.answer} value={round.answer} disabled={!editable} onChange={(e) => update(round.id, { answer: e.target.value })} />
                       </label>
                     )}

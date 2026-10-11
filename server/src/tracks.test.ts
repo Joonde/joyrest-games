@@ -75,8 +75,8 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     await admin.end();
   });
 
-  it("ведущий загружает трек себе: описание, потом файл; права подтверждает", async () => {
-    expect((await post("/api/tracks", anna, { id: "t1", title: "Лобби", category: "lobby", license: "other" })).statusCode).toBe(400);
+  it("ведущий загружает трек себе: описание, потом файл; откуда трек — не спрашиваем", async () => {
+    expect((await post("/api/tracks", anna, { id: "t0", title: "Без пояснения", category: "music", license: "other" })).statusCode).toBe(200);
     expect((await post("/api/tracks", anna, { id: "t1", title: "Лобби", category: "lobby", license: "pixabay" })).statusCode).toBe(200);
     expect((await post("/api/tracks", anna, { id: "t2", title: "В общую", license: "pixabay", scope: "agency" })).statusCode).toBe(403);
     expect((await upload("t1", anna, Buffer.from("<html>not audio"))).statusCode).toBe(400);
@@ -88,7 +88,7 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     expect((await upload("t1", anna, mp3(1))).statusCode).toBe(200);
     expect((await upload("t1", anna, mp3(2))).statusCode).toBe(409);
     const lists = (await get("/api/tracks", anna)).json();
-    expect(lists.mine.map((t: { id: string }) => t.id)).toEqual(["t1"]);
+    expect(lists.mine.map((t: { id: string }) => t.id).filter((id: string) => id !== "t0")).toEqual(["t1"]);
     expect(lists.library).toEqual([]);
     expect((await get("/api/tracks", boris)).json().mine).toEqual([]);
   });

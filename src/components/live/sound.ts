@@ -671,6 +671,10 @@ export function stopAllSounds(): void {
 
 let player: HTMLAudioElement | null = null;
 let playerSource: MediaElementAudioSourceNode | null = null;
+/** Громкость и затухания отрезка трека ведущего (поверх микшера). */
+let playerGain: GainNode | null = null;
+let clipTimer = 0;
+let playerClip: { start: number; end: number | null; fadeIn: number; fadeOut: number; volume: number } | null = null;
 
 function musicElement(): HTMLAudioElement | null {
   if (!ctx) return null;
@@ -682,13 +686,50 @@ function musicElement(): HTMLAudioElement | null {
     if (!bus) return null;
     // Через Web Audio — чтобы работали микшер и приглушение (у iPhone громкость <audio> не меняется).
     playerSource = ctx.createMediaElementSource(player);
-    playerSource.connect(bus);
+    playerGain = ctx.createGain();
+    playerSource.connect(playerGain).connect(bus);
   }
   return player;
 }
 
+function rampPlayer(to: number, seconds: number): void {
+  if (!ctx || !playerGain) return;
+  const t = ctx.currentTime;
+  playerGain.gain.cancelScheduledValues(t);
+  playerGain.gain.setValueAtTime(playerGain.gain.value, t);
+  playerGain.gain.linearRampToValueAtTime(to, t + Math.max(0.03, seconds));
+}
+
+/**
+ * Отрезок трека по кругу: с `start`, плавное начало, у `end` (или конца файла) — затухание и снова с начала
+ * отрезка. Следит раз в 0,2 с (по `currentTime`, точнее не нужно).
+ */
+function watchClip(): void {
+  window.clearInterval(clipTimer);
+  const el = player;
+  const clip = playerClip;
+  if (!el || !clip) return;
+  let fading = false;
+  clipTimer = window.setInterval(() => {
+    if (el.paused) return;
+    const end = clip.end ?? (Number.isFinite(el.duration) ? el.duration : null);
+    if (end === null) return;
+    if (!fading && clip.fadeOut > 0 && el.currentTime >= end - clip.fadeOut) {
+      fading = true;
+      rampPlayer(0, clip.fadeOut);
+    }
+    if (el.currentTime >= end - 0.15 || (el.ended && clip.end === null)) {
+      fading = false;
+      el.currentTime = clip.start;
+      if (playerGain) playerGain.gain.value = clip.fadeIn > 0 ? 0 : clip.volume / 100;
+      rampPlayer(clip.volume / 100, clip.fadeIn);
+      if (el.paused) void el.play().catch(() => undefined);
+    }
+  }, 200);
+}
+
 /** Включить трек: с начала (новый запуск) или продолжить. false — браузер не дал (нет касания экрана). */
-export async function playMusic(url: string, fromStart: boolean): Promise<boolean> {
+export async function playMusic(url: string, fromStart: boolean, clip?: { start: number; end: number | null; fadeIn: number; fadeOut: number; volume: number }): Promise<boolean> {
   // Достаточно, чтобы звук был создан: в момент касания он ещё «просыпается» (resume), а запуск плеера
   // должен случиться прямо в касании — иначе Safari и телевизоры его не пропустят. Пока звук спит,
   // экран и так просит коснуться (useSoundReady).
@@ -700,9 +741,19 @@ export async function playMusic(url: string, fromStart: boolean): Promise<boolea
   // Музыка ведущего главнее встроенной (перерыв, представление команд).
   if (builtinKey) stopBuiltinMusic(1.5);
   if (el.src !== url) el.src = url;
-  if (fromStart) el.currentTime = 0;
+  playerClip = clip ?? null;
+  // Отрезок с концом — круг ведёт таймер (конец отрезка не конец файла).
+  el.loop = !clip || (clip.end === null && clip.fadeOut === 0);
+  const volume = (clip?.volume ?? 100) / 100;
+  if (fromStart) {
+    el.currentTime = clip?.start ?? 0;
+    if (playerGain) playerGain.gain.value = clip && clip.fadeIn > 0 ? 0 : volume;
+  }
   try {
     await el.play();
+    if (fromStart && clip && clip.fadeIn > 0) rampPlayer(volume, clip.fadeIn);
+    else rampPlayer(volume, 0.2);
+    watchClip();
     return true;
   } catch {
     return false;

@@ -97,7 +97,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
         }
       }
       const fromStart = started.current !== key;
-      const ok = await playMusic(url, fromStart);
+      const ok = await playMusic(url, fromStart, music?.clip);
       if (cancelled) return;
       if (ok) started.current = key;
       setBlocked(!ok);
@@ -127,7 +127,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
       }
       if (!own) return;
       const key = `${trackId}:${rev}`;
-      void playMusic(own, started.current !== key).then((ok) => {
+      void playMusic(own, started.current !== key, music?.clip).then((ok) => {
         if (ok) {
           started.current = key;
           setBlocked(false);

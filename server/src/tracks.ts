@@ -13,6 +13,7 @@ import { join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
+import { parseTrackClip } from "../../src/data/trackClip";
 import type { Track, TrackCategory, TrackLicense, TrackShareStatus } from "../../src/data/types";
 import { actorOf, apiGuard, identityOf, newUserId, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { cleanReason } from "./proposals";
@@ -41,7 +42,7 @@ export const DEFAULT_TRACK_LIMITS: TrackLimits = {
   minFreeBytes: 3 * 1024 * 1024 * 1024,
 };
 
-export const TRACK_CATEGORIES: readonly TrackCategory[] = ["lobby", "background", "contest", "board", "break", "award", "holiday"];
+export const TRACK_CATEGORIES: readonly TrackCategory[] = ["music", "lobby", "background", "contest", "board", "break", "award", "holiday"];
 export const TRACK_LICENSES: readonly TrackLicense[] = ["pixabay", "bought", "own", "other"];
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -66,6 +67,7 @@ interface TrackRow {
   share_reason: string | null;
   library_track_id: string | null;
   created_at: Date;
+  clip: unknown;
 }
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -103,6 +105,7 @@ export function trackOf(row: TrackRow): Track {
     shareStatus: pick<TrackShareStatus>(row.share_status, ["none", "pending", "accepted", "rejected"], "none"),
     shareReason: row.share_reason,
     createdAt: row.created_at.getTime(),
+    clip: parseTrackClip(row.clip),
   };
 }
 
@@ -122,7 +125,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
   const freeBytes = options.freeBytes ?? diskFree;
   const select = () => sql`
     select t.id, t.owner_id, u.name as owner_name, t.scope, t.title, t.category, t.license, t.license_note,
-           t.sha256, t.mime, t.size, t.duration_ms, t.share_status, t.share_reason, t.library_track_id, t.created_at
+           t.sha256, t.mime, t.size, t.duration_ms, t.share_status, t.share_reason, t.library_track_id, t.created_at, t.clip
     from tracks t left join users u on u.id = t.owner_id`;
 
   app.register(async (api) => {
@@ -191,7 +194,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       const license = pick(body.license, TRACK_LICENSES, "other");
       const note = cleanLine(body.licenseNote, NOTE_MAX);
       // Права подтверждает ведущий: «другое» — только с пояснением, откуда трек.
-      if (license === "other" && !note) return fail(reply, 400, "invalid-argument");
+      // Откуда трек — больше не спрашиваем (решение владельца 11 октября 2026): «другое» без пояснения.
       const existing = await findTrack(id);
       if (existing) return existing.owner_id === user.id ? trackOf(existing) : fail(reply, 409, "already-exists");
       await sql`
@@ -213,7 +216,8 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       const title = body.title === undefined ? track.title : cleanLine(body.title, TITLE_MAX);
       if (!title) return fail(reply, 400, "invalid-argument");
       const category = body.category === undefined ? track.category : pick(body.category, TRACK_CATEGORIES, "background");
-      await sql`update tracks set title = ${title}, category = ${category}, updated_at = now() where id = ${track.id}`;
+      const clip = body.clip === undefined ? parseTrackClip(track.clip) : parseTrackClip(body.clip);
+      await sql`update tracks set title = ${title}, category = ${category}, clip = ${sql.json(clip as never)}, updated_at = now() where id = ${track.id}`;
       const updated = await findTrack(track.id);
       return updated ? trackOf(updated) : fail(reply, 404, "not-found");
     });
@@ -324,13 +328,13 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
           await tx`
             update tracks set title = ${track.title}, category = ${track.category}, license = ${track.license},
               license_note = ${track.license_note}, sha256 = ${track.sha256}, mime = ${track.mime}, size = ${track.size},
-              duration_ms = ${track.duration_ms}, updated_at = now()
+              duration_ms = ${track.duration_ms}, clip = ${sql.json(parseTrackClip(track.clip) as never)}, updated_at = now()
             where id = ${target}`;
         } else {
           await tx`
-            insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms)
+            insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms, clip)
             values (${target}, ${user.id}, 'agency', ${track.title}, ${track.category}, ${track.license},
-                    ${track.license_note}, ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms})`;
+                    ${track.license_note}, ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms}, ${sql.json(parseTrackClip(track.clip) as never)})`;
         }
         await tx`
           update tracks set share_status = 'accepted', share_reason = null, library_track_id = ${target}, updated_at = now()

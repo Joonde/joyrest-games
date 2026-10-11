@@ -2,6 +2,7 @@
 import type { TrackCategory, TrackLicense } from "../data/types";
 
 export const TRACK_CATEGORIES: Array<{ id: TrackCategory; title: string; hint: string }> = [
+  { id: "music", title: "Музыка", hint: "Для любой игры: квиз, лото, батл, «Своя игра»" },
   { id: "lobby", title: "Лобби", hint: "Пока гости подключаются" },
   { id: "background", title: "Фон", hint: "Под вопросы и разговоры" },
   { id: "contest", title: "Конкурс", hint: "Заводная, для активных конкурсов" },
@@ -19,7 +20,7 @@ export const LICENSE_TITLES: Record<TrackLicense, string> = {
 };
 
 export function categoryTitle(id: TrackCategory): string {
-  return TRACK_CATEGORIES.find((c) => c.id === id)?.title ?? "Фон";
+  return TRACK_CATEGORIES.find((c) => c.id === id)?.title ?? "Музыка";
 }
 
 /** 61000 → «1:01». */

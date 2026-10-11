@@ -123,6 +123,38 @@ export function GameList({ scope, profile, onToast }: Props) {
       ? demoGames.filter((d) => !state.data.some((g) => g.title === d.title))
       : [];
   const [addingDemo, setAddingDemo] = useState(false);
+  // Игры из готовых шаблонов (по названию), которые уже в библиотеке: их можно обновить до свежей версии.
+  const templateGames =
+    scope === "agency" && canCreate && state.status === "ready" ? state.data.filter((g) => demoGames.some((d) => d.title === g.title && d.mechanic === g.mechanic)) : [];
+  const [refreshOpen, setRefreshOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
+  /** «Обновить готовые игры»: шаблоны в библиотеке получают свежее содержимое из кода, недостающие добавляются. */
+  async function refreshTemplates() {
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      for (const game of templateGames) {
+        const demo = demoGames.find((d) => d.title === game.title && d.mechanic === game.mechanic);
+        if (!demo) continue;
+        await gamesRepo.update(game.id, {
+          content: demo.content,
+          themeId: demo.themeId ?? DEFAULT_THEME_ID,
+          ageRating: demo.ageRating ?? "0+",
+          playMode: demo.playMode ?? "solo",
+        });
+      }
+      for (const demo of missingDemos) await addDemo(demo, true);
+      setRefreshOpen(false);
+      retry();
+      onToast("Готовые игры обновлены");
+    } catch {
+      setRefreshError("Не всё обновилось. Проверьте интернет и нажмите ещё раз — уже обновлённые игры не пострадают.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
   const [demosOpen, setDemosOpen] = useState(false);
   const [open, setOpen] = useState<CategoryId | null>(() => readOpen(scope));
   function toggle(id: CategoryId) {
@@ -131,7 +163,7 @@ export function GameList({ scope, profile, onToast }: Props) {
     saveOpen(scope, next);
   }
 
-  async function addDemo(demo: (typeof demoGames)[number]) {
+  async function addDemo(demo: (typeof demoGames)[number], quiet = false) {
     setAddingDemo(true);
     try {
       const draft = {
@@ -146,8 +178,9 @@ export function GameList({ scope, profile, onToast }: Props) {
       };
       const id = await gamesRepo.create(draft);
       update((games) => [{ ...draft, id, createdAt: Date.now(), updatedAt: Date.now() }, ...games]);
-      onToast("Игра добавлена в библиотеку");
-    } catch {
+      if (!quiet) onToast("Игра добавлена в библиотеку");
+    } catch (e) {
+      if (quiet) throw e;
       onToast("Не удалось добавить. Проверьте интернет.");
     } finally {
       setAddingDemo(false);
@@ -184,6 +217,17 @@ export function GameList({ scope, profile, onToast }: Props) {
 
       {scope === "agency" && proposalsRepo && permissions.canReviewProposals(profile) && (
         <ProposalsBlock onAccepted={retry} onToast={onToast} />
+      )}
+
+      {templateGames.length > 0 && (
+        <section className="card stack stack--tight">
+          <p className="muted small">
+            Готовые игры в библиотеке: {templateGames.length}. Когда шаблоны улучшаются (новые вопросы, раунды, задания), обновите их одним касанием.
+          </p>
+          <button type="button" className="btn btn--secondary btn--block" disabled={refreshing} onClick={() => setRefreshOpen(true)}>
+            Обновить готовые игры до свежих шаблонов
+          </button>
+        </section>
       )}
 
       {missingDemos.length > 0 && (
@@ -257,6 +301,22 @@ export function GameList({ scope, profile, onToast }: Props) {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={refreshOpen}
+        title="Обновить готовые игры?"
+        confirmLabel="Обновить"
+        busy={refreshing}
+        error={refreshError}
+        onConfirm={() => void refreshTemplates()}
+        onCancel={() => setRefreshOpen(false)}
+      >
+        <p>
+          {templateGames.length} игр из шаблонов получат свежие вопросы и настройки
+          {missingDemos.length > 0 ? `, ещё ${missingDemos.length} новых шаблонов добавятся в библиотеку` : ""}. Ваши правки в этих играх библиотеки
+          заменятся шаблоном. Копии у ведущих («Мои игры») и уже идущие игры не изменятся.
+        </p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={toDelete !== null}

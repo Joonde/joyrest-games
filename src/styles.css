@@ -8896,6 +8896,57 @@ button.dance-card:active {
   height: 100%;
 }
 
+.clip-editor {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+}
+
+.clip-editor__wave {
+  position: relative;
+  height: 48px;
+  border-radius: 10px;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-text) 18%, transparent) 0 2px, transparent 2px 6px), var(--color-surface);
+  touch-action: none;
+}
+
+.clip-editor__range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-highlight) 35%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-highlight);
+}
+
+.clip-editor__handle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 28px;
+  margin-left: -14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-highlight);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.clip-editor__handle::after {
+  content: "";
+  position: absolute;
+  inset: 12px 12px;
+  border-radius: 2px;
+  background: #221e1b;
+}
+
+.clip-editor__fades {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .vote-page__title {
   margin: 0;
   text-wrap: balance;

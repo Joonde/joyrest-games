@@ -8345,6 +8345,16 @@ button.dance-card:active {
 }
 
 .mil-step {
+  /* Номер ступени 1–12 — видно, на какой стадии команда (решение владельца 12 октября 2026). */
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  font-size: min(2.6cqh, 2cqw);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
   border-radius: 0.6cqh;
   background: var(--color-surface-alt);
   transition: background-color 0.5s ease, transform 0.5s ease;
@@ -8357,6 +8367,7 @@ button.dance-card:active {
 
 .mil-step.is-on {
   background: var(--team);
+  color: var(--color-team-text);
 }
 
 .mil-step.is-next {

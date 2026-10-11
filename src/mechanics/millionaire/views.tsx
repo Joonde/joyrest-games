@@ -93,7 +93,9 @@ export function LadderBars({ session, content, result, compact = false }: { sess
             <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
             <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${LEVELS}`}>
               {Array.from({ length: LEVELS }, (_, i) => LEVELS - i).map((n) => (
-                <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`} />
+                <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`}>
+                  {n}
+                </li>
               ))}
             </ol>
             <span className="mil-bar__name">

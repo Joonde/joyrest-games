@@ -2387,7 +2387,10 @@ kbd {
   align-items: center;
   gap: 3cqh;
   text-align: center;
-  overflow: hidden;
+  /* На телефоне вместо телевизора таблица может не поместиться — листается. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .final__eyebrow {
@@ -11735,7 +11738,8 @@ button.dance-card:active {
 .bk-screen--intro .bk-title { font-size: 10cqh; letter-spacing: 0.1em; text-transform: uppercase; color: #F1C230; }
 .bk-screen--final { grid-template-rows: auto minmax(0, 1fr); }
 .bk-final__head { text-align: center; display: grid; gap: 0.6cqh; justify-items: center; }
-.bk-final__body { display: grid; grid-template-columns: minmax(0, 1fr) 30cqw; gap: 2cqw; align-items: start; min-height: 0; }
+.bk-final__body { display: grid; grid-template-columns: minmax(0, 1fr) 30cqw; gap: 2cqw; align-items: start; min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* Финал «Бункера»: много спасшихся или телефон вместо экрана — досье и карты листаются, а не обрезаются. */
 .bk-final__survivors { align-content: start; }
 .bk-final__side { display: grid; gap: 1.6cqh; align-content: start; }
 .bk-final__bunker { justify-content: flex-start; flex-wrap: wrap; }

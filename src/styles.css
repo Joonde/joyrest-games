@@ -9106,8 +9106,10 @@ button.dance-card:active {
   padding: 4cqh 3cqw 3cqh;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 3cqw;
+  /* Вопрос сверху крупно, дорожки снизу во всю ширину (решение владельца 11 октября 2026). */
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2cqh;
   font-size: 3.2cqh;
 }
 
@@ -9128,9 +9130,11 @@ button.dance-card:active {
 .sv-screen__side {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 2cqh;
+  justify-content: flex-end;
+  gap: 1.2cqh;
   min-width: 0;
+  max-height: 46cqh;
+  overflow: hidden;
 }
 
 .sv-title {
@@ -9189,17 +9193,22 @@ button.dance-card:active {
   color: var(--color-text-muted);
 }
 
+.sv-lanes--multi .sv-lane {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+}
+
 .sv-lanes {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 1.4cqh;
+  grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  gap: 1.2cqh 3cqw;
 }
 
 .sv-lane {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 2.4fr) auto;
   align-items: center;
   gap: 1cqw;
 }
@@ -9231,6 +9240,16 @@ button.dance-card:active {
   width: 1.6cqh;
   border-radius: 0 1cqh 1cqh 0;
   background: repeating-conic-gradient(#fbf6f1 0 25%, #221e1b 0 50%) 0 0 / 0.8cqh 0.8cqh;
+}
+
+/* Деления трассы: тонкая черта на каждый раунд, флажок-черта — на каждую войнушку. */
+.sv-lane__marks {
+  position: absolute;
+  inset: 0 5cqh 0 2.5cqh;
+  background:
+    repeating-linear-gradient(90deg, rgba(243, 223, 174, 0.55) 0 0.35cqh, transparent 0.35cqh calc(100% * var(--war) / var(--segs))),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 0.2cqh, transparent 0.2cqh calc(100% / var(--segs)));
+  pointer-events: none;
 }
 
 .sv-lane__runner {

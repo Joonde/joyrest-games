@@ -33,22 +33,39 @@ function warNote(content: SurvivalContent, r: SurvivalResult): string {
   return `До войнушки: ${left} ${left === 1 ? "раунд" : left < 5 ? "раунда" : "раундов"}`;
 }
 
-/** Дорожки: у лидера — до финишной черты, остальные — по доле от его очков. */
+/**
+ * Длина трассы — сколько очков можно набрать за всю игру (очки всех раундов и призы войнушек), чтобы
+ * фишки ехали понемногу, раунд за раундом, а не стояли у финиша с первого ответа.
+ */
+export function raceGoal(content: SurvivalContent): number {
+  let goal = 0;
+  content.rounds.forEach((round, i) => {
+    const n = i + 1;
+    goal += isWar(content, n) ? content.warPrize * warIndex(content, n) : round.points;
+  });
+  return Math.max(1, goal);
+}
+
 /** Гонщик на дорожке: смайлик команды или первая буква. */
 function carOf(name: string): string {
   const first = Array.from(name.trim())[0] ?? "?";
   return /\p{Extended_Pictographic}/u.test(first) ? first : first.toUpperCase();
 }
 
-export function RaceLanes({ session, result, size = "screen" }: { session: Session; result: SurvivalResult; size?: "screen" | "phone" }) {
+export function RaceLanes({ session, content, result, size = "screen" }: { session: Session; content: SurvivalContent; result: SurvivalResult; size?: "screen" | "phone" }) {
   const scores = result.order.map((p) => session.leaderboard[p]?.score ?? 0);
   const top = Math.max(1, ...scores);
+  // Трасса — вся игра: фишки двигаются по делениям раунд за раундом (финиш — максимум очков игры).
+  const goal = Math.max(raceGoal(content), top);
   const ranked = [...result.order].sort((a, b) => (session.leaderboard[b]?.score ?? 0) - (session.leaderboard[a]?.score ?? 0));
+  // Много команд — дорожки в две-три колонки.
+  const cols = size === "phone" ? 1 : ranked.length > 12 ? 3 : ranked.length > 6 ? 2 : 1;
+  const segs = Math.max(1, Math.min(30, content.rounds.length));
   return (
-    <ol className={`sv-lanes sv-lanes--${size}`} aria-label="Гонка по очкам">
+    <ol className={`sv-lanes sv-lanes--${size}${cols > 1 ? " sv-lanes--multi" : ""}`} aria-label="Гонка по очкам" style={{ ["--cols" as string]: String(cols), ["--segs" as string]: String(segs), ["--war" as string]: String(Math.max(1, content.warEvery)) }}>
       {ranked.map((p) => {
         const score = session.leaderboard[p]?.score ?? 0;
-        const share = Math.max(0, Math.min(1, score / top));
+        const share = Math.max(0, Math.min(1, score / goal));
         const tickets = result.tickets[p] ?? 0;
         return (
           <li key={p} className={`sv-lane${p === result.winner ? " is-winner" : ""}`} style={{ ["--team" as string]: colorOf(session, result, p), ["--share" as string]: String(share) }}>
@@ -59,6 +76,7 @@ export function RaceLanes({ session, result, size = "screen" }: { session: Sessi
               {tickets > 0 ? <span className="sv-lane__ticket" aria-label={`Билетов: ${tickets}`}>{"🎟".repeat(tickets)}</span> : null}
             </span>
             <span className="sv-lane__track">
+              <span className="sv-lane__marks" aria-hidden="true" />
               <span className="sv-lane__runner" />
               <span className="sv-lane__car" aria-hidden="true">
                 {carOf(nameOf(session, p))}
@@ -209,7 +227,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
         <p className="sv-counter">
           Раунд {Math.min(roundNumber(r), content.rounds.length)}/{content.rounds.length} · {warNote(content, r)}
         </p>
-        <RaceLanes session={session} result={r} />
+        <RaceLanes session={session} content={content} result={r} />
       </section>
     </div>
   );
@@ -273,7 +291,7 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
       <div className="quiz-phone quiz-phone--center">
         {head}
         <h2>{r.phase === "over" ? "Финиш гонки!" : r.order.length === 0 ? "Скоро старт!" : isWarRound(content, r) ? "⚔️ Войнушка!" : auctionPending(content, r) ? "🎟 Аукцион билета" : `Раунд ${roundNumber(r)}`}</h2>
-        {session.screenMode === "none" && r.order.length > 0 && <RaceLanes session={session} result={r} size="phone" />}
+        {session.screenMode === "none" && r.order.length > 0 && <RaceLanes session={session} content={content} result={r} size="phone" />}
       </div>
     );
   }
@@ -378,7 +396,7 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
           )}
         </>
       )}
-      {session.screenMode === "none" && <RaceLanes session={session} result={r} size="phone" />}
+      {session.screenMode === "none" && <RaceLanes session={session} content={content} result={r} size="phone" />}
     </div>
   );
 }

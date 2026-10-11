@@ -440,7 +440,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
       {result.catStep && stage === "question" ? (
         <div className="buzz">
           <div className={myBet ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-            <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : `Отвечает ${speaker ?? ""}`}</strong>
+            <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : speaker ? <>Отвечает <NameText name={speaker} /></> : "Ведущий выбирает, кто отвечает"}</strong>
             <span>
               {cell.kind === "auction" ? "Аукцион" : "Кот в мешке"} · цена {result.catPrice || myBet || cell.points}
             </span>

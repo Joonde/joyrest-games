@@ -675,7 +675,7 @@ export function OlympPlayerView({ session, content, pid, role, myAnswer, sending
             </div>
           </div>
         ) : (
-          <p className="ol-note-phone">{mine ? (r.check.outcome ? "Бросок сделан — смотрите на экран" : myAnswer ? "Бросок отправлен — смотрите на экран" : role === "member" ? "Бросает капитан вашей команды" : "Ваш бог бросает — ждите кнопку") : `Бросает ${godName(r, r.check.who)}`}</p>
+          <p className="ol-note-phone">{mine ? (r.check.outcome ? "Бросок сделан — смотрите на экран" : myAnswer ? "Бросок отправлен — смотрите на экран" : role === "member" ? "Бросает капитан вашей команды" : "Бросаете вы! Кубик появится здесь, когда ведущий нажмёт «Бросок»") : `Бросает ${godName(r, r.check.who)}`}</p>
         )}
         {r.check.outcome && (
           <div className="ol-card">

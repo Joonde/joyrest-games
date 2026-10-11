@@ -11,12 +11,6 @@ export type Sfx = "knock" | "rattle" | "thunder" | "flip" | "pop" | "crit" | "go
 // Пентатоника без полутонов: любые соседние ноты звучат мягко.
 const PEN_D = [146.83, 174.61, 196, 220, 261.63, 293.66, 349.23, 392, 440, 523.25, 587.33];
 const PEN_A = [110, 130.81, 146.83, 164.81, 196, 220, 261.63, 293.66, 329.63, 392, 440];
-const Dm = [73.42, 110, 146.83, 174.61];
-const F = [87.31, 130.81, 174.61, 220];
-const C = [65.41, 98, 130.81, 196];
-const Am = [55, 82.41, 110, 130.81];
-const G = [49, 73.42, 98, 146.83];
-const Em = [41.2, 61.74, 82.41, 123.47];
 
 interface Engine {
   ctx: AudioContext;
@@ -91,7 +85,7 @@ function lyreBuf(e: Engine, f: number): AudioBuffer {
   return b;
 }
 
-function pluck(e: Engine, f: number, at: number, vol: number, dest: AudioNode): void {
+function pluck(e: Engine, f: number, at: number, vol: number, dest: AudioNode, wet = true): void {
   const t = e.ctx.currentTime + at;
   const s = e.ctx.createBufferSource();
   s.buffer = lyreBuf(e, f);
@@ -103,185 +97,330 @@ function pluck(e: Engine, f: number, at: number, vol: number, dest: AudioNode): 
   s.connect(lp);
   lp.connect(g);
   g.connect(dest);
-  g.connect(e.rev);
+  if (wet) g.connect(e.rev);
   s.start(t);
 }
 
-interface Running {
-  kind: Ambient;
-  stop: () => void;
-}
-let current: Running | null = null;
+// ------------------------------------------------------------------ единая композиция
+//
+// Фон «Олимпа» — одна непрерывная пьеса, а не набор отдельных мелодий: при смене экрана музыка не
+// обрывается и не начинается заново, меняются только инструменты (настроение момента). Пьеса идёт
+// по кругу через восемь тональностей (ре минор → фа мажор → до мажор → ля минор → ми минор →
+// соль мажор → соль минор → си-бемоль мажор, ~3,5 минуты), в бою — свои тёмные тональности.
+// Каждая смена тональности — через общий аккорд и мягкий перебор арфы; затухание — 4 с.
 
-function makeAmbient(e: Engine, kind: Ambient): Running {
+type Q = "M" | "m";
+interface Section {
+  /** Аккорды: корень (MIDI) и лад; каждый звучит два такта. */
+  chords: [number, Q][];
+  /** Тоника и лад пентатоники мелодии. */
+  tonic: number;
+  minor: boolean;
+}
+
+const CALM: Section[] = [
+  { tonic: 62, minor: true, chords: [[50, "m"], [46, "M"], [53, "M"], [48, "M"]] },
+  { tonic: 65, minor: false, chords: [[53, "M"], [48, "M"], [50, "m"], [46, "M"]] },
+  { tonic: 60, minor: false, chords: [[48, "M"], [43, "M"], [45, "m"], [41, "M"]] },
+  { tonic: 69, minor: true, chords: [[45, "m"], [41, "M"], [48, "M"], [43, "M"]] },
+  { tonic: 64, minor: true, chords: [[40, "m"], [48, "M"], [43, "M"], [50, "M"]] },
+  { tonic: 67, minor: false, chords: [[43, "M"], [50, "M"], [40, "m"], [48, "M"]] },
+  { tonic: 67, minor: true, chords: [[43, "m"], [51, "M"], [46, "M"], [41, "M"]] },
+  { tonic: 70, minor: false, chords: [[46, "M"], [41, "M"], [43, "m"], [45, "M"]] },
+];
+const DARK: Section[] = [
+  { tonic: 62, minor: true, chords: [[50, "m"], [46, "M"], [43, "m"], [45, "M"]] },
+  { tonic: 64, minor: true, chords: [[40, "m"], [48, "M"], [45, "m"], [47, "M"]] },
+  { tonic: 67, minor: true, chords: [[43, "m"], [51, "M"], [48, "m"], [50, "M"]] },
+  { tonic: 69, minor: true, chords: [[45, "m"], [41, "M"], [50, "m"], [40, "M"]] },
+];
+
+type Layer = "pad" | "bass" | "arp" | "melody" | "drum" | "wind";
+/** Настроение момента — громкость инструментов (0…1), рисунок перебора и барабана. */
+const MOODS: Record<Exclude<Ambient, "none">, { mix: Record<Layer, number>; dark?: boolean; arp: "slow" | "flow" | "pulse"; drum: number[] }> = {
+  card: { mix: { pad: 0.9, bass: 0.5, arp: 0.7, melody: 0.85, drum: 0, wind: 0 }, arp: "slow", drum: [] },
+  temple: { mix: { pad: 1, bass: 0.5, arp: 0.45, melody: 0.9, drum: 0, wind: 0.25 }, arp: "slow", drum: [] },
+  scene: { mix: { pad: 0.9, bass: 0.5, arp: 0.5, melody: 0.9, drum: 0, wind: 0.8 }, arp: "slow", drum: [] },
+  river: { mix: { pad: 0.9, bass: 0.4, arp: 0.45, melody: 0.7, drum: 0, wind: 0.9 }, arp: "slow", drum: [] },
+  map: { mix: { pad: 0.8, bass: 0.6, arp: 0.8, melody: 0.7, drum: 0.35, wind: 0.4 }, arp: "flow", drum: [0] },
+  spring: { mix: { pad: 0.8, bass: 0.5, arp: 1, melody: 1, drum: 0.2, wind: 0 }, arp: "flow", drum: [0, 2] },
+  roll: { mix: { pad: 0.7, bass: 0.7, arp: 0.35, melody: 0.25, drum: 1, wind: 0 }, arp: "pulse", drum: [0, 1, 2, 3] },
+  boss: { mix: { pad: 0.85, bass: 1, arp: 0.5, melody: 0.45, drum: 1, wind: 0.5 }, dark: true, arp: "pulse", drum: [0, 1.5, 2] },
+};
+const LAYER_VOL: Record<Layer, number> = { pad: 0.05, bass: 0.09, arp: 0.09, melody: 0.2, drum: 0.2, wind: 0.09 };
+
+const BEAT = 60 / 70;
+const BAR = BEAT * 4;
+const hz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+const triad = (root: number, q: Q) => [0, q === "M" ? 4 : 3, 7].map((i) => root + i);
+/** Нота аккорда, ближайшая к `near` (в любой октаве). */
+function voice(pc: number, near: number): number {
+  let m = pc;
+  while (m < near - 6) m += 12;
+  while (m > near + 6) m -= 12;
+  return m;
+}
+function pentatonic(sec: Section, lo: number, hi: number): number[] {
+  const steps = sec.minor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+  const out: number[] = [];
+  for (let m = lo; m <= hi; m++) if (steps.includes((((m - sec.tonic) % 12) + 12) % 12)) out.push(m);
+  return out;
+}
+
+interface Score {
+  ctx: AudioContext;
+  master: GainNode;
+  layers: Record<Layer, GainNode>;
+  mood: Exclude<Ambient, "none">;
+  timer: number | null;
+  nextBar: number;
+  bar: number;
+  calm: number;
+  dark: number;
+  section: Section;
+  /** Тёмная ли сейчас пьеса (меняется на границе такта). */
+  isDark: boolean;
+  melodyNote: number;
+  windNode: AudioBufferSourceNode | null;
+  stopAt: number | null;
+}
+let score: Score | null = null;
+
+function makeScore(e: Engine): Score {
   const c = e.ctx;
-  const out = c.createGain();
-  out.gain.value = 0;
-  out.connect(e.music);
-  out.gain.linearRampToValueAtTime(1, c.currentTime + 4);
-  const nodes: AudioScheduledSourceNode[] = [];
-  const timers: number[] = [];
-  const wind = (vol: number, freq: number) => {
-    const n = c.createBufferSource();
-    n.buffer = e.noise;
-    n.loop = true;
-    const f = c.createBiquadFilter();
-    f.type = "lowpass";
-    f.frequency.value = freq;
-    f.Q.value = 0.5;
-    const l = c.createOscillator();
-    l.frequency.value = 0.05;
-    const lg = c.createGain();
-    lg.gain.value = freq * 0.4;
-    l.connect(lg);
-    lg.connect(f.frequency);
+  const master = c.createGain();
+  master.gain.value = 0;
+  master.connect(e.music);
+  // Эхо храма — после общей громкости: затухание пьесы гасит и его (хвост доигрывает сам).
+  const send = c.createGain();
+  send.gain.value = 0.7;
+  master.connect(send);
+  send.connect(e.rev);
+  const layers = {} as Record<Layer, GainNode>;
+  (["pad", "bass", "arp", "melody", "drum", "wind"] as Layer[]).forEach((l) => {
     const g = c.createGain();
-    g.gain.value = vol;
-    n.connect(f);
-    f.connect(g);
-    g.connect(out);
-    n.start();
-    l.start();
-    nodes.push(n, l);
-  };
-  // Тёплый фон: аккорды плавно перетекают друг в друга.
-  const pad = (chords: number[][], vol: number, period: number) => {
-    let i = 0;
-    const play = () => {
-      const t = c.currentTime;
-      const fs = chords[i % chords.length] as number[];
-      i++;
-      fs.forEach((fr, j) => {
-        [-5, 5].forEach((det) => {
-          const o = c.createOscillator();
-          o.type = "triangle";
-          o.frequency.value = fr;
-          o.detune.value = det;
-          const lp = c.createBiquadFilter();
-          lp.type = "lowpass";
-          lp.frequency.value = 700;
-          const g = c.createGain();
-          g.gain.setValueAtTime(0, t);
-          g.gain.linearRampToValueAtTime(vol / (j + 1.5), t + period * 0.45);
-          g.gain.setValueAtTime(vol / (j + 1.5), t + period * 0.75);
-          g.gain.linearRampToValueAtTime(0, t + period * 1.5);
-          o.connect(lp);
-          lp.connect(g);
-          g.connect(out);
-          g.connect(e.rev);
-          o.start(t);
-          o.stop(t + period * 1.55);
-          nodes.push(o);
-        });
-      });
-      timers.push(window.setTimeout(play, period * 1000));
-    };
-    play();
-  };
-  // Мелодия: плавные шаги по пентатонике, неспешный ритм, паузы между фразами.
-  const melody = (scale: number[], lo: number, hi: number, vol: number, beat: number) => {
-    let k = lo + Math.floor((hi - lo) / 2);
-    const phrase = () => {
-      const n = 3 + Math.floor(Math.random() * 3);
-      let dir = Math.random() < 0.5 ? -1 : 1;
-      for (let i = 0; i < n; i++) {
-        if (k + dir < lo || k + dir > hi) dir = -dir;
-        if (i > 0 && Math.random() < 0.3) dir = -dir;
-        k += dir;
-        pluck(e, scale[k] as number, i * beat, vol * (i === n - 1 ? 0.85 : 1), out);
-        if (i === n - 1) pluck(e, scale[Math.max(lo, k - 2)] as number, i * beat + 0.02, vol * 0.45, out);
-      }
-      timers.push(window.setTimeout(phrase, (n * beat + 2.2 + Math.random() * 2.4) * 1000));
-    };
-    timers.push(window.setTimeout(phrase, 1600));
-  };
-  const tympanon = (every: number, vol: number) => {
-    const beat = () => {
-      const t = c.currentTime;
-      const o = c.createOscillator();
-      o.frequency.setValueAtTime(90, t);
-      o.frequency.exponentialRampToValueAtTime(50, t + 0.35);
-      const g = c.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(vol, t + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
-      o.connect(g);
-      g.connect(out);
-      o.start(t);
-      o.stop(t + 0.75);
-      timers.push(window.setTimeout(beat, every));
-    };
-    timers.push(window.setTimeout(beat, 600));
-  };
-  if (kind === "scene") {
-    wind(0.1, 500);
-    pad([Dm, F, C, Dm], 0.05, 9);
-    melody(PEN_D, 2, 8, 0.2, 0.62);
-  }
-  if (kind === "temple") {
-    pad([F, C, Dm, C], 0.05, 9);
-    melody(PEN_D, 3, 9, 0.18, 0.6);
-  }
-  if (kind === "card") {
-    pad([F, C, Dm, C], 0.045, 8);
-    melody(PEN_D, 5, 10, 0.16, 0.5);
-  }
-  if (kind === "roll") {
-    pad([Dm, Am], 0.05, 7);
-    tympanon(1100, 0.18);
-  }
-  if (kind === "map") {
-    wind(0.05, 380);
-    pad([Am, F, G, Em], 0.045, 9);
-    melody(PEN_A, 3, 9, 0.18, 0.6);
-  }
-  if (kind === "river") {
-    wind(0.08, 320);
-    pad([Am, Em, F, Em], 0.045, 10);
-    melody(PEN_A, 1, 6, 0.15, 0.7);
-  }
-  if (kind === "boss") {
-    wind(0.07, 260);
-    pad([Am, Em], 0.055, 6);
-    tympanon(900, 0.22);
-  }
-  if (kind === "spring") {
-    pad([F, C, G, C], 0.04, 8);
-    melody(PEN_D, 5, 10, 0.17, 0.42);
-  }
+    g.gain.value = 0;
+    g.connect(master);
+    layers[l] = g;
+  });
+  // Ветер — непрерывный, громкость задаёт настроение.
+  const n = c.createBufferSource();
+  n.buffer = e.noise;
+  n.loop = true;
+  const f = c.createBiquadFilter();
+  f.type = "lowpass";
+  f.frequency.value = 420;
+  f.Q.value = 0.5;
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 0.05;
+  const lg = c.createGain();
+  lg.gain.value = 170;
+  lfo.connect(lg);
+  lg.connect(f.frequency);
+  n.connect(f);
+  f.connect(layers.wind);
+  n.start();
+  lfo.start();
   return {
-    kind,
-    stop() {
-      const t = c.currentTime;
-      out.gain.cancelScheduledValues(t);
-      out.gain.setValueAtTime(out.gain.value, t);
-      out.gain.linearRampToValueAtTime(0, t + 2.5);
-      timers.forEach((x) => window.clearTimeout(x));
-      window.setTimeout(() => {
-        nodes.forEach((n) => {
-          try {
-            n.stop();
-          } catch {
-            // Уже остановлен.
-          }
-        });
-        out.disconnect();
-      }, 2700);
-    },
+    ctx: c,
+    master,
+    layers,
+    mood: "card",
+    timer: null,
+    nextBar: c.currentTime + 0.15,
+    bar: 0,
+    calm: 0,
+    dark: 0,
+    section: CALM[0] as Section,
+    isDark: false,
+    melodyNote: 69,
+    windNode: n,
+    stopAt: null,
   };
+}
+
+function scheduleBar(e: Engine, s: Score, t: number): void {
+  const c = s.ctx;
+  const mood = MOODS[s.mood];
+  // Граница раздела (8 тактов) или смена светлое ↔ тёмное — следующая тональность.
+  const inSection = s.bar % 8;
+  let fresh = false;
+  if ((mood.dark ?? false) !== s.isDark) {
+    s.isDark = mood.dark ?? false;
+    s.bar = 0;
+    s.section = s.isDark ? (DARK[s.dark % DARK.length] as Section) : (CALM[s.calm % CALM.length] as Section);
+    fresh = true;
+  } else if (inSection === 0 && s.bar > 0) {
+    if (s.isDark) s.dark++;
+    else s.calm++;
+    s.section = s.isDark ? (DARK[s.dark % DARK.length] as Section) : (CALM[s.calm % CALM.length] as Section);
+    fresh = true;
+  }
+  const sec = s.section;
+  const barIn = s.bar % 8;
+  const [root, q] = sec.chords[Math.floor(barIn / 2)] as [number, Q];
+  const notes = triad(root, q);
+  if (fresh) {
+    // Мягкий перебор арфы по новой тональности — шов между разделами.
+    pentatonic(sec, 67, 86).forEach((m, i) => pluck(e, hz(m), t - c.currentTime + i * 0.07, 0.05, s.layers.arp, false));
+  }
+  // Подклад: аккорд держится два такта, вступает и уходит внахлёст.
+  if (barIn % 2 === 0) {
+    const len = BAR * 2;
+    notes.forEach((m, j) => {
+      [-5, 5].forEach((det) => {
+        const o = c.createOscillator();
+        o.type = "triangle";
+        o.frequency.value = hz(voice(m % 12, 57 + j * 4));
+        o.detune.value = det;
+        const lp = c.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 760;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(LAYER_VOL.pad / (j * 0.4 + 1), t + 1.6);
+        g.gain.setValueAtTime(LAYER_VOL.pad / (j * 0.4 + 1), t + len - 0.4);
+        g.gain.linearRampToValueAtTime(0, t + len + 2.2);
+        o.connect(lp);
+        lp.connect(g);
+        g.connect(s.layers.pad);
+        o.start(t);
+        o.stop(t + len + 2.3);
+      });
+    });
+  }
+  // Бас: корень аккорда, мягко.
+  {
+    const o = c.createOscillator();
+    o.type = "sine";
+    o.frequency.value = hz(36 + (root % 12));
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(LAYER_VOL.bass, t + 0.25);
+    g.gain.setValueAtTime(LAYER_VOL.bass, t + BAR * 0.7);
+    g.gain.linearRampToValueAtTime(0, t + BAR + 0.3);
+    o.connect(g);
+    g.connect(s.layers.bass);
+    o.start(t);
+    o.stop(t + BAR + 0.35);
+  }
+  // Перебор лиры по аккорду.
+  const arpNotes = [...notes.map((m) => voice(m % 12, 64)), voice(notes[0] as number, 64) + 12].sort((a, b) => a - b);
+  const pattern = mood.arp === "slow" ? [0, 1, 2, 3].map((i) => [i, i]) : mood.arp === "flow" ? [0, 1, 2, 3, 2, 1, 2, 3].map((k, i) => [i / 2, k]) : [0, 0, 1, 0, 2, 0, 1, 0].map((k, i) => [i / 2, k]);
+  pattern.forEach(([beat, k]) => {
+    const m = (arpNotes[k as number] as number) - (mood.arp === "pulse" ? 12 : 0);
+    pluck(e, hz(m), t - c.currentTime + (beat as number) * BEAT, LAYER_VOL.arp * (beat === 0 ? 1.2 : 1), s.layers.arp, false);
+  });
+  // Мелодия: фраза по пентатонике, сильная доля — на звуке аккорда; каждый 4-й такт — вздох.
+  if (barIn % 4 !== 3) {
+    const scale = pentatonic(sec, 62, 84);
+    const rhythms = [[2, 2], [1, 1, 2], [1.5, 0.5, 2], [1, 1, 1, 1], [3, 1], [2, 1, 1]];
+    const rhythm = rhythms[Math.floor(Math.random() * rhythms.length)] as number[];
+    let at = 0;
+    rhythm.forEach((d, i) => {
+      let note: number;
+      if (i === 0) {
+        const chordTones = scale.filter((m) => notes.some((n) => n % 12 === m % 12));
+        const pool = chordTones.length > 0 ? chordTones : scale;
+        note = pool.reduce((best, m) => (Math.abs(m - s.melodyNote) < Math.abs(best - s.melodyNote) ? m : best), pool[0] as number);
+      } else {
+        let idx = scale.indexOf(s.melodyNote);
+        if (idx < 0) idx = Math.floor(scale.length / 2);
+        const step = [-2, -1, -1, 1, 1, 2][Math.floor(Math.random() * 6)] as number;
+        idx = Math.min(scale.length - 1, Math.max(0, idx + step));
+        note = scale[idx] as number;
+      }
+      s.melodyNote = note;
+      pluck(e, hz(note), t - c.currentTime + at * BEAT, LAYER_VOL.melody * (i === 0 ? 1 : 0.85), s.layers.melody, false);
+      if (d >= 2) pluck(e, hz(note - 12), t - c.currentTime + at * BEAT + 0.02, LAYER_VOL.melody * 0.35, s.layers.melody, false);
+      at += d;
+    });
+  }
+  // Тимпан.
+  mood.drum.forEach((beat) => {
+    const bt = t + beat * BEAT;
+    const o = c.createOscillator();
+    o.frequency.setValueAtTime(hz(36 + (root % 12)) * 2, bt);
+    o.frequency.exponentialRampToValueAtTime(hz(36 + (root % 12)), bt + 0.35);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, bt);
+    g.gain.linearRampToValueAtTime(LAYER_VOL.drum * (beat === 0 ? 1 : 0.7), bt + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, bt + 0.8);
+    o.connect(g);
+    g.connect(s.layers.drum);
+    o.start(bt);
+    o.stop(bt + 0.85);
+  });
+  s.bar++;
+}
+
+function applyMood(s: Score): void {
+  const mix = MOODS[s.mood].mix;
+  const now = s.ctx.currentTime;
+  (Object.keys(mix) as Layer[]).forEach((l) => s.layers[l].gain.setTargetAtTime(mix[l], now, 1.1));
+}
+
+function startScore(e: Engine, mood: Exclude<Ambient, "none">): void {
+  if (score && score.ctx !== e.ctx) {
+    stopScoreNow(score);
+    score = null;
+  }
+  if (!score) score = makeScore(e);
+  const s = score;
+  s.mood = mood;
+  s.stopAt = null;
+  applyMood(s);
+  const now = s.ctx.currentTime;
+  s.master.gain.cancelScheduledValues(now);
+  s.master.gain.setValueAtTime(s.master.gain.value, now);
+  s.master.gain.linearRampToValueAtTime(1, now + 3);
+  if (s.timer === null) {
+    if (s.nextBar < now + 0.1) s.nextBar = now + 0.15;
+    s.timer = window.setInterval(() => {
+      const cur = s.ctx.currentTime;
+      if (s.stopAt !== null && cur >= s.stopAt) {
+        stopScoreNow(s);
+        if (score === s) score = null;
+        return;
+      }
+      while (s.nextBar < cur + 1.2 && (s.stopAt === null || s.nextBar < s.stopAt)) {
+        scheduleBar(e, s, s.nextBar);
+        s.nextBar += BAR;
+      }
+    }, 250);
+  }
+}
+
+function stopScoreNow(s: Score): void {
+  if (s.timer !== null) window.clearInterval(s.timer);
+  s.timer = null;
+  try {
+    s.windNode?.stop();
+  } catch {
+    // Уже остановлен.
+  }
+  s.master.disconnect();
+}
+
+/** Пьеса затихает плавно (4 с), без обрыва. */
+function fadeScore(): void {
+  const s = score;
+  if (!s || s.stopAt !== null) return;
+  const now = s.ctx.currentTime;
+  s.master.gain.cancelScheduledValues(now);
+  s.master.gain.setValueAtTime(s.master.gain.value, now);
+  s.master.gain.linearRampToValueAtTime(0, now + 4);
+  s.stopAt = now + 4.2;
 }
 
 function setAmbient(kind: Ambient): void {
-  if (current?.kind === kind) return;
-  current?.stop();
-  current = null;
-  if (kind === "none") return;
+  if (kind === "none") return fadeScore();
   const e = eng();
   if (!e) return;
-  current = makeAmbient(e, kind);
+  startScore(e, kind);
 }
 
-/** Фон экрана зала: меняется вместе с моментом игры, плавно; пока звук не разрешён — молчит. */
+/** Фон экрана зала: одна пьеса на всю игру, момент меняет только инструменты; пока звук не разрешён — молчит. */
 export function useAmbient(kind: Ambient): void {
   const ready = useSoundReady();
   const muted = useMuted();
@@ -402,3 +541,4 @@ export function sfx(kind: Sfx): void {
     shimmer(0.7, 0.04);
   }
 }
+

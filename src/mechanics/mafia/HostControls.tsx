@@ -29,6 +29,7 @@ import {
   parseMafiaResult,
   resolveNight,
   startDay,
+  startMeet,
   startDeal,
   startNight,
   startVote,
@@ -300,7 +301,24 @@ export function MafiaHostControls({ session, content, answers, participants, con
           <p className="muted small">Роли: {rolesLine(content, r.seats.length)}.</p>
         </div>
       ) : r.mode === "roles" ? (
-        <p>Гости смотрят свои карты. Мафия видит свою семью на карте. Когда все посмотрели — «Наступает день».</p>
+        <p>Гости смотрят свои карты. Мафия видит свою семью на карте. Когда все посмотрели — «Ночь знакомства».</p>
+      ) : r.mode === "meet" ? (
+        <div className="card stack stack--tight">
+          <p className="eyebrow">Ночь знакомства · читайте вслух</p>
+          <p>«Город засыпает. Все закрывают глаза.»</p>
+          <p>«Просыпается мафия. Посмотрите друг на друга и запомните своих.» — пауза 20–30 секунд.</p>
+          <p>«Мафия засыпает.» Если хотите: «Просыпается Комиссар… засыпает», «Просыпается Доктор… засыпает» — им можно кивнуть.</p>
+          {roles && (
+            <p className="muted small">
+              Мафия:{" "}
+              {r.seats
+                .filter((p) => isMafia(roles[p]))
+                .map((p) => `№${seat(p)} ${nm(p)}${roles[p] === "don" ? " (Дон)" : ""}`)
+                .join(", ")}
+            </p>
+          )}
+          <p className="muted small">Этой ночью никто не стреляет, не лечит и не проверяет. Дальше — «Наступает день».</p>
+        </div>
       ) : null}
 
       {started && r.mode === "night" && (
@@ -456,6 +474,10 @@ export function MafiaHostControls({ session, content, answers, participants, con
         ) : action === "dealt" ? (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void doDeal()}>
             {ACTION_LABELS.dealt}
+          </button>
+        ) : action === "meet" ? (
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startMeet(session))}>
+            {ACTION_LABELS.meet}
           </button>
         ) : action === "day" ? (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startDay(session))}>

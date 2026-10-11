@@ -6,7 +6,7 @@ import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } fr
 import type { ScoreDelta, Step } from "../types";
 import { ROLES, type MafiaContent, type RoleCounts, type RoleId } from "./content";
 
-export type MafiaMode = "deal" | "roles" | "day" | "vote" | "verdict" | "night" | "morning" | "over";
+export type MafiaMode = "deal" | "roles" | "meet" | "day" | "vote" | "verdict" | "night" | "morning" | "over";
 
 export interface Death {
   pid: string;
@@ -76,7 +76,7 @@ function stringMap(value: unknown): Record<string, string> {
   return out;
 }
 
-const MODES: MafiaMode[] = ["deal", "roles", "day", "vote", "verdict", "night", "morning", "over"];
+const MODES: MafiaMode[] = ["deal", "roles", "meet", "day", "vote", "verdict", "night", "morning", "over"];
 const ROLE_IDS: RoleId[] = ["mafia", "don", "commissar", "doctor", "civilian"];
 
 export function isRole(value: unknown): value is RoleId {
@@ -500,6 +500,15 @@ export function dealt(session: Session, sealed: Record<string, string>, hostSeal
   return { state: { stage: "reveal", revealed: true, result: { ...r, changeable: false, mode: "roles", sealed, hostSeal, undo: null } } };
 }
 
+/**
+ * «Ночь знакомства» (клубное правило, решение владельца 11 октября 2026): город спит, мафия
+ * просыпается и видит свою семью, никто не стреляет и не проверяет. Без нового шага и ответов.
+ */
+export function startMeet(session: Session): SessionChange {
+  const r = parseMafiaResult(session.state.result);
+  return { state: { stage: "reveal", revealed: true, result: { ...r, changeable: false, mode: "meet", whisper: {}, done: 0, undo: snapshot(session, r) } } };
+}
+
 /** «Наступает день»: обсуждение, ведущий даёт слово и выставляет кандидатов. */
 export function startDay(session: Session): SessionChange {
   const r = parseMafiaResult(session.state.result);
@@ -507,7 +516,7 @@ export function startDay(session: Session): SessionChange {
     state: {
       stage: "reveal",
       revealed: true,
-      result: { ...r, changeable: false, mode: "day", round: r.mode === "roles" ? 1 : r.round + (r.mode === "morning" ? 1 : 0), nominees: [], tally: null, out: null, revote: false, speaker: null, speakEndsAt: null, speakKind: null, killed: r.mode === "morning" ? r.killed : null, whisper: {}, done: 0, undo: snapshot(session, r) },
+      result: { ...r, changeable: false, mode: "day", round: r.mode === "roles" || r.mode === "meet" ? 1 : r.round + (r.mode === "morning" ? 1 : 0), nominees: [], tally: null, out: null, revote: false, speaker: null, speakEndsAt: null, speakKind: null, killed: r.mode === "morning" ? r.killed : null, whisper: {}, done: 0, undo: snapshot(session, r) },
     },
   };
 }
@@ -641,7 +650,7 @@ export function mafiaBack(session: Session): { change: SessionChange; clearAnswe
   };
 }
 
-export type MafiaAction = "deal" | "dealt" | "day" | "vote" | "verdict" | "revote" | "night" | "morning" | "finish" | "nextParty" | "podium";
+export type MafiaAction = "deal" | "dealt" | "meet" | "day" | "vote" | "verdict" | "revote" | "night" | "morning" | "finish" | "nextParty" | "podium";
 
 /** Главная кнопка пульта на каждом этапе. `parties` — сколько партий задано в игре. */
 export function mafiaPrimary(session: Session, parties = 1): MafiaAction {
@@ -649,7 +658,8 @@ export function mafiaPrimary(session: Session, parties = 1): MafiaAction {
   if (session.state.stage === "podium") return "podium";
   if (session.state.result === null || session.state.result === undefined) return "deal";
   if (r.mode === "deal") return "dealt";
-  if (r.mode === "roles") return "day";
+  if (r.mode === "roles") return "meet";
+  if (r.mode === "meet") return "day";
   if (r.mode === "day") return r.nominees.length > 0 ? "vote" : "night";
   if (r.mode === "vote") return "verdict";
   if (r.mode === "verdict") {
@@ -665,6 +675,7 @@ export function mafiaPrimary(session: Session, parties = 1): MafiaAction {
 export const ACTION_LABELS: Record<MafiaAction, string> = {
   deal: "Собрать телефоны",
   dealt: "Раздать роли",
+  meet: "Ночь знакомства",
   day: "Наступает день",
   vote: "Голосование",
   verdict: "Подсчитать голоса",

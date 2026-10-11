@@ -24,6 +24,7 @@ import {
   resolveNight,
   roleCard,
   startDay,
+  startMeet,
   startDeal,
   startNight,
   startVote,
@@ -149,6 +150,8 @@ describe("мафия: музыка ночи", () => {
     expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
     s = applyChange(s, dealt(s, {}, null), 2);
     expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
+    s = applyChange(s, startMeet(s), 2);
+    expect(mafia.music?.(s, createMafia())).toBe("mafiaNight");
     s = applyChange(s, startDay(s), 3);
     expect(mafia.music?.(s, createMafia())).toBeNull();
     s = applyChange(s, startNight(s), 4);
@@ -214,6 +217,14 @@ describe("мафия: ход партии на пульте", () => {
     expect(parseMafiaResult(s.state.result)).toMatchObject({ mode: "deal", dealStep: 0 });
     expect(s.state.stage).toBe("question");
     s = applyChange(s, dealt(s, { a: "x" }, null), 2);
+    // После раздачи — ночь знакомства: без нового шага и ответов, никто не выбывает; «Назад» — к картам.
+    expect(mafiaPrimary(s)).toBe("meet");
+    const step = s.state.step;
+    s = applyChange(s, startMeet(s), 2);
+    expect(parseMafiaResult(s.state.result)).toMatchObject({ mode: "meet", round: 0 });
+    expect(s.state.step).toBe(step);
+    expect(parseMafiaResult(s.state.result).alive).toHaveLength(8);
+    expect(parseMafiaResult(mafiaBack(s)?.change.state?.result).mode).toBe("roles");
     expect(mafiaPrimary(s)).toBe("day");
     s = applyChange(s, startDay(s), 3);
     expect(parseMafiaResult(s.state.result).round).toBe(1);

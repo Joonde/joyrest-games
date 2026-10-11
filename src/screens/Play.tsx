@@ -527,6 +527,20 @@ function InGame({
     );
   }
 
+  // Самостоятельная игра («Олимп»): свой телефон на всех этапах — лобби, игра, награждение, финал.
+  if (mechanic?.standalone && PlayerView && content !== null) {
+    return (
+      <main className="page--standalone">
+        <PlayerView session={session} content={content} participant={me} pid={pid} role={role} myAnswer={myAnswer} sending={sending} onAnswer={(value) => void answer(value)} />
+        {error && (
+          <p className="error standalone-error" role="alert">
+            {error}
+          </p>
+        )}
+      </main>
+    );
+  }
+
   return (
     <main className="page page--play">
       <header className="play-head">

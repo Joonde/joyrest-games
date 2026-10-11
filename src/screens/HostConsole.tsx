@@ -263,7 +263,10 @@ function Console({ session }: { session: Session }) {
   const withScreen = session.screenMode !== "none";
   const menu: MenuAction[] = [{ label: "В студию", to: "/studio" }];
   if (withScreen) menu.unshift({ label: "Открыть экран зала здесь", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
-  const tabs = PULT_TABS.filter((t) => withScreen || !t.screenOnly);
+  // Самостоятельная игра («Олимп») ведётся своим пультом: общие звуки, музыка и слайды не нужны.
+  const standalone = Boolean(mechanic?.standalone);
+  const tools = withScreen && !standalone;
+  const tabs = PULT_TABS.filter((t) => tools || !t.screenOnly);
   const apply = (change: SessionChange) => sessionsRepo.apply(session.id, change);
   const slide = session.state.slide ?? null;
   const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
@@ -339,9 +342,9 @@ function Console({ session }: { session: Session }) {
                 </Suspense>
               </section>
             )}
-            {phase === "playing" && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
-            {phase === "playing" && withScreen && !mechanic?.ownPeek && <PeekCard session={session} onApply={apply} />}
-            {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
+            {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
+            {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}
+            {phase === "playing" && !standalone && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
                   Наградить сейчас
@@ -350,7 +353,7 @@ function Console({ session }: { session: Session }) {
               </>
             )}
             {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
-            {phase !== "finished" && withScreen && slide?.kind !== "tech" && (
+            {phase !== "finished" && tools && slide?.kind !== "tech" && (
               <button
                 type="button"
                 className="btn btn--secondary btn--block"
@@ -364,7 +367,7 @@ function Console({ session }: { session: Session }) {
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
             )}
             {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
-            {phase === "playing" && withScreen && slide?.kind !== "join" && (
+            {phase === "playing" && tools && slide?.kind !== "join" && (
               <button
                 type="button"
                 className="btn btn--secondary btn--block"

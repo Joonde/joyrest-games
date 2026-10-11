@@ -1,0 +1,4891 @@
+/* «Олимп» — свой вид, как в согласованном прототипе (public/olymp/*.html, ветка claude/olymp-proto).
+   Экран зала — кадр 16:9 (.olx-stage), всё в единицах кадра (cqw). Цвета — свои у игры:
+   «Олимп» не зависит от темы платформы. Телефон игрока — .olp (в конце файла). */
+
+.olx, .olp {
+  --ox-bg: #08090b;
+  --ox-ink: #fbf6f1;
+  --ox-soft: #b5aba2;
+  --ox-gold: #e3c68c;
+  --ox-gold2: #f3dfae;
+  --ox-rose: #c49e96;
+  --ox-green: #a3c2aa;
+  --ox-ice: #9ec3d6;
+  --ox-coral: #e3aa9c;
+  --ox-red: #d98a7a;
+  --ox-panel: rgba(20, 17, 15, 0.62);
+  font-feature-settings: "lnum" 1;
+}
+
+.olx {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--ox-bg);
+  color: var(--ox-ink);
+  font-family: Jost, system-ui, sans-serif;
+  overflow: hidden;
+  container-type: size;
+}
+
+.olx-stage {
+  position: relative;
+  width: min(100cqw, calc(100cqh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  container-type: size;
+  background: #0d0f13;
+  isolation: isolate;
+}
+
+.olx-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.olx-code {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.6cqw;
+  z-index: 31;
+  text-align: center;
+  font-size: 0.95cqw;
+  color: rgba(181, 171, 162, 0.75);
+  pointer-events: none;
+}
+
+.olx-view {
+  position: absolute;
+  inset: 0;
+  animation: olx-viewin 0.9s ease both;
+}
+
+@keyframes olx-viewin {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: scale(1.04);
+  }
+}
+
+.olx-serif {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+}
+
+.olx-kicker {
+  font-size: 1.15cqw;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ox-soft);
+}
+
+.olx-small {
+  font-size: 1.1cqw;
+  color: var(--ox-soft);
+}
+
+.olx-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.olx-glass {
+  background: var(--ox-panel);
+  border: 1px solid rgba(227, 198, 140, 0.22);
+  border-radius: 1.6cqw;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.olx-h2 {
+  margin: 0;
+  font: 700 3.4cqw/1.05 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+  text-wrap: balance;
+}
+
+.olx-brand {
+  margin: 0;
+  font: 700 8cqw/0.9 "Cormorant Garamond", serif;
+  letter-spacing: 0.08em;
+  color: var(--ox-gold2);
+  text-shadow: 0 0 3cqw rgba(243, 223, 174, 0.35);
+}
+
+.olx-brand--sm {
+  font-size: 6cqw;
+  letter-spacing: 0.02em;
+}
+
+/* буквы по одной */
+.olx-wd {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.olx-wd > span {
+  display: inline-block;
+  opacity: 0;
+  animation: olx-letter 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes olx-letter {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(0.25em);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+/* ---------- эмблемы ---------- */
+.olx-emb {
+  --c1: #c9a15f;
+  --c2: #f3dfae;
+  --g: #221e1b;
+  position: relative;
+  display: inline-block;
+  width: var(--s, 4cqw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.olx-emb__core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 34% 28%, var(--c2), var(--c1) 58%, #15120e 120%);
+  box-shadow: 0 0 calc(var(--s, 4cqw) * 0.35) color-mix(in srgb, var(--c1) 55%, transparent);
+}
+
+.olx-emb__core svg {
+  width: 58%;
+  height: 58%;
+}
+
+.olx-emb__core::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.65) 50%, transparent 60%);
+  animation: olx-sheen 3.6s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+.olx-emb::before {
+  content: "";
+  position: absolute;
+  inset: -9%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 20%, var(--c2) 30%, transparent 42% 70%, var(--c2) 80%, transparent 92%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  animation: olx-spin 5s linear infinite;
+}
+
+.olx-emb.is-cur {
+  box-shadow: 0 0 0 0.25cqw #f3dfae, 0 0 2.5cqw rgba(243, 223, 174, 0.6);
+}
+
+.olx-emb.is-down {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.olx-emb.is-pop {
+  animation: olx-popin 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.5);
+}
+
+.olx-curse {
+  position: absolute;
+  right: -12%;
+  bottom: -8%;
+  width: 42%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #6e9a4f;
+  border: 0.15cqw solid #14110f;
+  display: grid;
+  place-items: center;
+  font: 700 0.9cqw Jost, system-ui, sans-serif;
+  color: #14110f;
+  z-index: 2;
+}
+
+@keyframes olx-sheen {
+  0%,
+  55% {
+    transform: translateX(-60%);
+  }
+  85%,
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+@keyframes olx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes olx-popin {
+  from {
+    transform: scale(0.2);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.olx-elchip,
+.olp .olx-elchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 11px Jost, system-ui, sans-serif;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--ec) 60%, transparent);
+  color: var(--ec);
+  background: color-mix(in srgb, var(--ec) 12%, transparent);
+  white-space: nowrap;
+}
+
+/* ---------- фоны и декорации ---------- */
+.olx-bg {
+  position: absolute;
+  inset: 0;
+}
+
+.olx-bg--temple {
+  background: linear-gradient(180deg, #1a2531 0%, #121820 55%, #0b0d10 100%);
+}
+
+.olx-bg--forest {
+  background: linear-gradient(180deg, #1b2a26 0%, #121a17 55%, #0a0c0b 100%);
+}
+
+.olx-bg--river {
+  background: linear-gradient(180deg, #1b1f2b 0%, #12141c 55%, #08090c 100%);
+}
+
+.olx-bg--gates {
+  background: linear-gradient(180deg, #1c2a38 0%, #101722 55%, #07090d 100%);
+}
+
+.olx-bg--sea {
+  background: linear-gradient(180deg, #1c3040 0%, #14202c 55%, #0a1016 100%);
+}
+
+.olx-bg--maze {
+  background: linear-gradient(180deg, #2b2418 0%, #1a1610 55%, #0c0a07 100%);
+}
+
+.olx-bg--meadow {
+  background: linear-gradient(180deg, #34462e 0%, #22301f 55%, #121a10 100%);
+}
+
+.olx-bg--map {
+  background: radial-gradient(ellipse at 30% 60%, #3a3326 0%, #221e17 55%, #121009 100%);
+}
+
+.olx-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(6cqw);
+  opacity: 0.7;
+}
+
+.olx-glow--a {
+  width: 60cqw;
+  height: 40cqw;
+  left: -10cqw;
+  top: -18cqw;
+  background: radial-gradient(#2f4a5c, transparent 70%);
+  animation: olx-drift 22s ease-in-out infinite alternate;
+}
+
+.olx-glow--b {
+  width: 45cqw;
+  height: 30cqw;
+  right: 2cqw;
+  bottom: -6cqw;
+  background: radial-gradient(#6a4528, transparent 70%);
+  animation: olx-drift 18s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes olx-drift {
+  to {
+    transform: translate(6cqw, 2cqw) scale(1.1);
+  }
+}
+
+.olx-temple,
+.olx-decor {
+  position: absolute;
+  right: -1cqw;
+  bottom: 0;
+  width: 50cqw;
+  filter: brightness(0.72) saturate(0.85);
+}
+
+.olx-decor {
+  width: 60cqw;
+}
+
+.olx-decor--river,
+.olx-decor--sea,
+.olx-decor--meadow,
+.olx-decor--forest {
+  left: 0;
+  right: 0;
+  width: 100cqw;
+}
+
+.olx-win {
+  animation: olx-flicker 3.2s infinite;
+}
+
+@keyframes olx-flicker {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  40% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.7;
+  }
+  80% {
+    opacity: 0.95;
+  }
+}
+
+.olx-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: olx-flame 0.5s ease-in-out infinite alternate;
+}
+
+.olx-flame--2 {
+  animation-duration: 0.37s;
+}
+
+@keyframes olx-flame {
+  0% {
+    transform: scale(1, 1) skewX(-3deg);
+  }
+  100% {
+    transform: scale(0.88, 1.12) skewX(4deg);
+  }
+}
+
+.olx-wave {
+  animation: olx-waves 7s ease-in-out infinite alternate;
+}
+
+@keyframes olx-waves {
+  to {
+    transform: translateX(-60px);
+  }
+}
+
+.olx-boat {
+  animation: olx-boat 6s ease-in-out infinite alternate;
+}
+
+@keyframes olx-boat {
+  to {
+    transform: translate(300px, 272px) rotate(-1.5deg);
+  }
+}
+
+.olx-lantern {
+  animation: olx-flicker 2s infinite;
+}
+
+.olx-sun {
+  animation: olx-flicker 6s infinite;
+}
+
+.olx-shafts {
+  position: absolute;
+  right: 6cqw;
+  bottom: 6cqw;
+  width: 40cqw;
+  height: 40cqw;
+  background: repeating-conic-gradient(from 200deg at 60% 100%, rgba(243, 223, 174, 0.1) 0 3deg, transparent 3deg 9deg);
+  -webkit-mask: radial-gradient(circle at 60% 100%, #000, transparent 70%);
+  mask: radial-gradient(circle at 60% 100%, #000, transparent 70%);
+  animation: olx-shaft 9s ease-in-out infinite alternate;
+}
+
+@keyframes olx-shaft {
+  0% {
+    opacity: 0.4;
+    transform: rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(2deg);
+  }
+}
+
+.olx-glint {
+  position: absolute;
+  width: 0.5cqw;
+  height: 0.5cqw;
+  border-radius: 50%;
+  background: #ffe7b0;
+  box-shadow: 0 0 1.2cqw 0.4cqw rgba(255, 214, 140, 0.8);
+  animation: olx-twinkle 2.6s ease-in-out infinite;
+}
+
+@keyframes olx-twinkle {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.olx-fog {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 28%;
+  bottom: -4%;
+  background: radial-gradient(ellipse at center, rgba(200, 215, 230, 0.22), transparent 70%);
+  filter: blur(2cqw);
+  animation: olx-fogmove 26s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.olx-fog--two {
+  bottom: 8%;
+  opacity: 0.5;
+  animation-duration: 34s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes olx-fogmove {
+  to {
+    transform: translateX(10%);
+  }
+}
+
+.olx-meander {
+  position: absolute;
+  inset: 1cqw;
+  padding: 1.3cqw;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 21H21V3H5V16H15V9H10' fill='none' stroke='%23C9A15F' stroke-width='2.4'/%3E%3C/svg%3E") 0 0 / 1.3cqw 1.3cqw repeat;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  opacity: 0.55;
+  border-radius: 0.8cqw;
+}
+
+/* ---------- лобби ---------- */
+.olx-lobby .olx-temple {
+  opacity: 0.5;
+}
+
+.olx-lobby__txt {
+  position: absolute;
+  left: 5cqw;
+  top: 6cqw;
+  width: 48cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2cqw;
+}
+
+.olx-lobby__story {
+  font: 700 3.4cqw/1.05 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+}
+
+.olx-lobby__blurb {
+  margin: 0;
+  font: 600 1.9cqw/1.35 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+}
+
+.olx-lobby__count {
+  margin: 0;
+  font-size: 1.4cqw;
+  color: var(--ox-gold2);
+}
+
+.olx-lobby__teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6cqw;
+}
+
+.olx-lobby__teams li {
+  font-size: 1.3cqw;
+  border: 1px solid rgba(227, 198, 140, 0.4);
+  border-radius: 999px;
+  padding: 0.3cqw 1cqw;
+  animation: olx-popin 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.5);
+}
+
+.olx-lobby__qr {
+  position: absolute;
+  right: 5cqw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30cqw;
+  padding: 1.6cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqw;
+  text-align: center;
+}
+
+.olx-lobby__qr > :first-child {
+  width: 100%;
+}
+
+.olx-lobby__code {
+  font: 700 4.4cqw/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.olx-lobby__qr small {
+  font-size: 1.1cqw;
+  color: var(--ox-soft);
+}
+
+/* ---------- карточки богов ---------- */
+.olx-cardview {
+  background: radial-gradient(ellipse at 50% 55%, #2b2316 0%, #120f0c 55%, #070708 100%);
+}
+
+.olx-storm {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(158, 195, 214, 0.18), transparent 60%);
+  opacity: 0;
+}
+
+.olx-storm.is-flash {
+  animation: olx-storm 1.4s ease-out 0.7s;
+}
+
+@keyframes olx-storm {
+  0% {
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0.2;
+  }
+  18% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.olx-cardarea {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5cqw;
+  perspective: 120cqw;
+}
+
+.olx-gcard {
+  position: relative;
+  width: 27cqw;
+  aspect-ratio: 3 / 4.2;
+  transform-style: preserve-3d;
+  transition: transform 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.olx-gcard.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.olx-gcard__float {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: olx-hover 6s ease-in-out infinite;
+}
+
+@keyframes olx-hover {
+  0%,
+  100% {
+    transform: rotateX(4deg) rotateZ(-1deg) translateY(0);
+  }
+  50% {
+    transform: rotateX(-3deg) rotateZ(1deg) translateY(-0.8cqw);
+  }
+}
+
+.olx-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.6cqw;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.olx-face--back {
+  background: radial-gradient(circle at 50% 45%, #3a2c18, #15110c 70%);
+  border: 0.25cqw solid #8a6c38;
+  display: grid;
+  place-items: center;
+}
+
+.olx-face--back .olx-meander {
+  inset: 1.2cqw;
+  padding: 1.2cqw;
+  background-size: 1.2cqw 1.2cqw;
+  opacity: 0.85;
+}
+
+.olx-laurel {
+  font: 700 7cqw "Cormorant Garamond", serif;
+  color: var(--ox-gold);
+  text-shadow: 0 0 2cqw rgba(227, 198, 140, 0.5);
+}
+
+.olx-face--front {
+  transform: rotateY(180deg);
+  border: 0.25cqw solid var(--ox-gold);
+  background: #14110f;
+  box-shadow: 0 0 4cqw rgba(227, 198, 140, 0.35);
+}
+
+.olx-face--front > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  transform: scale(1.08);
+  animation: olx-kenburns 14s ease-in-out infinite alternate;
+}
+
+.olx-face__emb {
+  position: absolute;
+  inset: 0 0 35% 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 45%, #3a2c18, #14110f 70%);
+}
+
+@keyframes olx-kenburns {
+  to {
+    transform: scale(1.16) translateY(-2%);
+  }
+}
+
+.olx-bolt {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 22% 20%, rgba(210, 235, 255, 0.85), transparent 45%);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+.olx-gcard.is-flipped .olx-bolt {
+  animation: olx-storm 1.2s ease-out 0.7s;
+}
+
+.olx-holo {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(243, 223, 174, 0.35) 45%, rgba(163, 194, 170, 0.25) 52%, rgba(179, 170, 221, 0.25) 58%, transparent 70%);
+  background-size: 250% 100%;
+  mix-blend-mode: overlay;
+  animation: olx-holo 5s ease-in-out infinite;
+}
+
+@keyframes olx-holo {
+  0%,
+  100% {
+    background-position: 100% 0;
+  }
+  50% {
+    background-position: 0 0;
+  }
+}
+
+.olx-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 52%;
+  background: linear-gradient(transparent, rgba(12, 10, 8, 0.96) 55%);
+}
+
+.olx-gcard__info {
+  position: absolute;
+  left: 1.6cqw;
+  right: 1.6cqw;
+  bottom: 1.4cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6cqw;
+}
+
+.olx-gcard__name {
+  font: 700 3.6cqw/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olx-gcard__dom {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1.1cqw;
+  color: #e9e1d8;
+}
+
+.olx-gcard__emb {
+  position: absolute !important;
+  top: 1.2cqw;
+  right: 1.2cqw;
+}
+
+.olx-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5cqw 0.9cqw;
+  margin-top: 0.4cqw;
+}
+
+.olx-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25cqw;
+  font-size: 0.95cqw;
+  color: var(--ox-soft);
+  white-space: nowrap;
+}
+
+.olx-stat b {
+  color: var(--ox-ink);
+  font-weight: 600;
+}
+
+.olx-bar {
+  height: 0.35cqw;
+  border-radius: 1cqw;
+  background: rgba(251, 246, 241, 0.14);
+  overflow: hidden;
+}
+
+.olx-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #c9a15f, #f3dfae);
+  transition: width 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 1.4s;
+}
+
+.olx-party {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1cqw;
+  width: 26cqw;
+  max-height: 46cqw;
+  overflow: hidden;
+}
+
+.olx-party__row {
+  display: flex;
+  gap: 1.2cqw;
+  align-items: center;
+  opacity: 0;
+  transform: translateX(2cqw);
+  transition: all 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 1cqw;
+  padding: 0.3cqw 0.6cqw;
+}
+
+.olx-party__row.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.olx-party__row.is-cur {
+  background: rgba(227, 198, 140, 0.12);
+}
+
+.olx-party__row span {
+  font-size: 1.4cqw;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.olx-party__row small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 1.05cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olx-pick {
+  position: absolute;
+  inset: 5cqw 4cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4cqw;
+  text-align: center;
+}
+
+.olx-pick__fan {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1cqw;
+  perspective: 120cqw;
+}
+
+.olx-pick__card {
+  width: 8.2cqw;
+  aspect-ratio: 3 / 4.4;
+  border-radius: 1cqw;
+  border: 0.18cqw solid #8a6c38;
+  background: radial-gradient(circle at 50% 35%, #3a2c18, #15110c 75%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5cqw;
+  transform: translateY(calc(var(--i) * var(--i) * 0.25cqw)) rotate(calc(var(--i) * 2deg));
+  animation: olx-hover 6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.3s);
+  box-shadow: 0 1cqw 2cqw rgba(0, 0, 0, 0.5);
+}
+
+.olx-pick__card b {
+  font: 700 1.6cqw/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olx-pick__card small {
+  font-size: 0.85cqw;
+  color: var(--ox-soft);
+}
+
+.olx-pick__count {
+  margin: 0;
+  font-size: 1.6cqw;
+  color: #e9e1d8;
+}
+
+.olx-pick__count b {
+  font: 700 3cqw "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+/* ---------- сцена ---------- */
+.olx-place {
+  position: absolute;
+  left: 5cqw;
+  top: 4cqw;
+  display: flex;
+  gap: 0.8cqw;
+  align-items: center;
+}
+
+.olx-pill {
+  font-size: 1.05cqw;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid rgba(158, 195, 214, 0.6);
+  color: #cfe3ee;
+  border-radius: 999px;
+  padding: 0.4cqw 1cqw;
+  white-space: nowrap;
+}
+
+.olx-pill--warm {
+  border-color: rgba(227, 198, 140, 0.6);
+  color: var(--ox-gold2);
+}
+
+.olx-story {
+  position: absolute;
+  left: 5cqw;
+  top: 9cqw;
+  width: 52cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6cqw;
+}
+
+.olx-story__title {
+  margin: 0;
+  font: 700 6cqw/1 "Cormorant Garamond", serif;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.olx-story p {
+  margin: 0;
+  font: 600 2.15cqw/1.38 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+  opacity: 0;
+  animation: olx-up 1.2s ease forwards;
+  text-shadow: 0 0.2cqw 1cqw rgba(0, 0, 0, 0.6);
+}
+
+@keyframes olx-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.5cqw);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.olx-say {
+  position: absolute;
+  left: 5cqw;
+  bottom: 4cqw;
+  width: 46cqw;
+  display: flex;
+  gap: 1.4cqw;
+  align-items: center;
+  padding: 1.2cqw 1.6cqw;
+  opacity: 0;
+  animation: olx-up 1s ease forwards 3.2s;
+}
+
+.olx-say q {
+  font: italic 600 2.3cqw/1.3 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+  quotes: "«" "»";
+}
+
+.olx-say small {
+  display: block;
+  font-size: 1.05cqw;
+  color: var(--ox-soft);
+  margin-bottom: 0.3cqw;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.olx-say--foe q {
+  color: #cfe3ee;
+}
+
+.olx-check {
+  position: absolute;
+  right: 4cqw;
+  top: 10cqw;
+  width: 28cqw;
+  padding: 1.4cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqw;
+  opacity: 0;
+  animation: olx-up 1s ease forwards 1.2s;
+}
+
+.olx-check.is-waiting {
+  border-color: rgba(243, 223, 174, 0.6);
+  box-shadow: 0 0 3cqw rgba(243, 223, 174, 0.25);
+}
+
+.olx-speaker {
+  display: flex;
+  gap: 1.2cqw;
+  align-items: center;
+}
+
+.olx-speaker img {
+  width: 6.5cqw;
+  height: 6.5cqw;
+  border-radius: 1.2cqw;
+  object-fit: cover;
+  object-position: 50% 14%;
+  border: 2px solid var(--ox-gold);
+}
+
+.olx-speaker b {
+  display: block;
+  font: 700 2.2cqw/1 "Cormorant Garamond", serif;
+}
+
+.olx-speaker small {
+  color: var(--ox-soft);
+  font-size: 1.05cqw;
+}
+
+.olx-need {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.olx-need .olx-serif {
+  font-size: 3.4cqw;
+  color: var(--ox-gold2);
+}
+
+.olx-need span:last-child {
+  font-size: 1.1cqw;
+  color: var(--ox-soft);
+}
+
+.olx-chance {
+  height: 0.6cqw;
+  border-radius: 1cqw;
+  background: rgba(251, 246, 241, 0.12);
+  overflow: hidden;
+}
+
+.olx-chance i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #6e9277, #a3c2aa);
+  animation: olx-grow 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 1.6s both;
+  transform-origin: left;
+}
+
+@keyframes olx-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.olx-wait {
+  font-size: 1.3cqw;
+  color: var(--ox-gold2);
+  animation: olx-pulse-t 1.6s ease-in-out infinite;
+}
+
+@keyframes olx-pulse-t {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.olx-team {
+  position: absolute;
+  right: 4cqw;
+  top: 3.6cqw;
+  display: flex;
+  gap: 1cqw;
+  opacity: 0;
+  animation: olx-up 1s ease forwards 2.2s;
+}
+
+.olx-team--end {
+  position: static;
+  justify-content: center;
+  animation-delay: 2.6s;
+}
+
+/* ---------- бросок ---------- */
+.olx-roll {
+  background: radial-gradient(ellipse at 50% 55%, #33281a 0%, #17130f 55%, #08080a 100%);
+}
+
+.olx-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160cqw;
+  height: 160cqw;
+  margin: -80cqw 0 0 -80cqw;
+  background: repeating-conic-gradient(rgba(243, 223, 174, 0.07) 0 6deg, transparent 6deg 18deg);
+  animation: olx-spin 60s linear infinite;
+  transition: opacity 1s;
+  opacity: 0.35;
+}
+
+.olx-roll[data-out="crit"].is-done .olx-rays {
+  opacity: 1;
+  background: repeating-conic-gradient(rgba(243, 223, 174, 0.22) 0 6deg, transparent 6deg 18deg);
+  animation-duration: 14s;
+}
+
+.olx-roll[data-out="fail"].is-done .olx-rays {
+  opacity: 0.15;
+}
+
+.olx-altar {
+  position: absolute;
+  left: 50%;
+  bottom: 15%;
+  width: 74cqw;
+  transform: translateX(-50%) scaleY(0.34);
+  transform-origin: 50% 100%;
+  opacity: 0.85;
+  transition: opacity 1s;
+}
+
+.olx-roll.is-done .olx-altar {
+  opacity: 0.18;
+}
+
+.olx-floor {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 12%;
+  height: 30%;
+  background: radial-gradient(ellipse at center, rgba(227, 198, 140, 0.13), transparent 70%);
+}
+
+.olx-dice {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.7s ease;
+}
+
+.olx-rhead {
+  position: absolute;
+  left: 4cqw;
+  top: 3.6cqw;
+  display: flex;
+  gap: 1cqw;
+  align-items: center;
+  font-size: 1.4cqw;
+  color: #e9e1d8;
+}
+
+.olx-rhead b {
+  color: var(--ox-ink);
+}
+
+.olx-dlab {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 0;
+  font: 700 4.6cqw/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+  padding: 0.4cqw 1.2cqw;
+  border-radius: 1cqw;
+  background: rgba(20, 17, 15, 0.7);
+  border: 1px solid rgba(227, 198, 140, 0.5);
+  transition: all 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  font-variant-numeric: tabular-nums;
+  z-index: 5;
+}
+
+.olx-dlab--ice {
+  color: #e6f2f8;
+  border-color: rgba(207, 227, 238, 0.6);
+}
+
+.olx-dlab.is-show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.olx-dlab.is-merge {
+  left: 25% !important;
+  top: 47% !important;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(1.6);
+  transition: all 0.6s cubic-bezier(0.5, 0, 0.7, 0.4);
+}
+
+.olx-res {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.olx-meterbox {
+  position: absolute;
+  left: 5cqw;
+  top: 9cqw;
+  width: 40cqw;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.olx-meterbox svg {
+  width: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.olx-needle {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  transition: transform 1.6s cubic-bezier(0.15, 0.9, 0.25, 1.05) 0.25s;
+}
+
+.olx-bignum {
+  position: absolute;
+  left: 50%;
+  top: 112%;
+  transform: translate(-50%, -50%);
+  font: 700 13cqw/1 "Cormorant Garamond", serif;
+  color: var(--oc, #f3dfae);
+  text-shadow: 0 0 4cqw color-mix(in srgb, var(--oc, #f3dfae) 55%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.olx-out {
+  position: absolute;
+  left: 48cqw;
+  top: 15cqw;
+  width: 46cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8cqw;
+}
+
+.olx-word {
+  font: 700 5.2cqw/1.05 "Cormorant Garamond", serif;
+  color: var(--oc, #f3dfae);
+}
+
+.olx-otext {
+  margin: 0;
+  font: 600 2.25cqw/1.38 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+  opacity: 0;
+  transform: translateY(1cqw);
+  transition: all 0.9s ease 0.9s;
+}
+
+.olx-roll.is-done .olx-meterbox {
+  opacity: 1;
+  transform: none;
+}
+
+.olx-roll.is-done .olx-otext,
+.olx-otext.is-on {
+  opacity: 1;
+  transform: none;
+}
+
+.olx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8cqw;
+}
+
+.olx-chip {
+  font-weight: 600;
+  font-size: 1.35cqw;
+  color: #221e1b;
+  background: var(--ox-gold);
+  border-radius: 999px;
+  padding: 0.6cqw 1.3cqw;
+  white-space: nowrap;
+}
+
+.olx-out .olx-chip {
+  opacity: 0;
+  transform: scale(0.6);
+  animation: olx-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.4) forwards;
+}
+
+.olx-chip--bad {
+  background: var(--ox-coral);
+}
+
+.olx-chip--good {
+  background: var(--ox-green);
+}
+
+.olx-chip--gold {
+  background: var(--ox-gold);
+}
+
+@keyframes olx-pop {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.olx-flashw {
+  position: absolute;
+  inset: 0;
+  background: #fff8e6;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.olx-flashw.is-go {
+  animation: olx-flashw 1.1s ease-out;
+}
+
+@keyframes olx-flashw {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.olx-crack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 21;
+  opacity: 0;
+}
+
+.olx-crack path {
+  fill: none;
+  stroke: #f4e8e0;
+  stroke-width: 2.2;
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  filter: drop-shadow(0 0 4px rgba(217, 138, 122, 0.9));
+}
+
+.olx-crack.is-go {
+  opacity: 1;
+}
+
+.olx-crack.is-go path {
+  animation: olx-draw 0.5s ease-out forwards;
+}
+
+@keyframes olx-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.olx-roll.is-shake {
+  animation: olx-shake 0.5s 1.1s;
+}
+
+@keyframes olx-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translate(-1.2%, 0.6%);
+  }
+  40% {
+    transform: translate(1%, -0.8%);
+  }
+  60% {
+    transform: translate(-0.6%, 0.8%);
+  }
+  80% {
+    transform: translate(0.6%, -0.4%);
+  }
+}
+
+/* ---------- карта ---------- */
+.olx-mapsvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.olx-mhead {
+  position: absolute;
+  left: 4cqw;
+  top: 3.4cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4cqw;
+  max-width: 60cqw;
+}
+
+.olx-mhead .olx-serif {
+  font-size: 4.2cqw;
+  line-height: 1;
+  color: var(--ox-gold2);
+}
+
+.olx-timer {
+  position: absolute;
+  right: 4cqw;
+  top: 3.4cqw;
+  text-align: right;
+}
+
+.olx-timer .olx-serif {
+  font-size: 4.4cqw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.olx-timer small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 1.1cqw;
+}
+
+.olx-branch {
+  stroke-dasharray: 14 12;
+  animation: olx-march 1.2s linear infinite;
+  transition: opacity 0.6s;
+}
+
+@keyframes olx-march {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+
+.olx-branch.is-chosen {
+  stroke: #f3dfae;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 6px rgba(243, 223, 174, 0.8));
+}
+
+.olx-branch.is-faded {
+  opacity: 0.15;
+}
+
+.olx-trail {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  animation: olx-draw 1.6s ease forwards 0.3s;
+}
+
+.olx-node {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 2.2cqw));
+  min-width: 17cqw;
+  max-width: 26cqw;
+  padding: 1cqw 1.2cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4cqw;
+  transition: transform 0.5s, box-shadow 0.5s, opacity 0.6s, border-color 0.5s;
+  border-radius: 1.4cqw;
+  background: rgba(20, 17, 15, 0.72);
+  border: 1.5px solid rgba(181, 171, 162, 0.35);
+  color: var(--ox-ink);
+  z-index: 3;
+}
+
+.olx-node .olx-serif {
+  font-size: 2.1cqw;
+  line-height: 1.05;
+}
+
+.olx-node small {
+  font-size: 1.05cqw;
+  color: var(--ox-soft);
+}
+
+.olx-votes {
+  display: flex;
+  gap: 0.5cqw;
+  min-height: 2.6cqw;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.olx-count {
+  margin-left: auto;
+  font: 700 2cqw "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olx-node.is-win {
+  border: 2.5px solid var(--ox-gold2);
+  box-shadow: 0 0 4cqw rgba(243, 223, 174, 0.45);
+  transform: translate(-50%, calc(-100% - 2.2cqw)) scale(1.08);
+  z-index: 4;
+}
+
+.olx-node.is-dim {
+  opacity: 0.35;
+}
+
+.olx-dot {
+  animation: olx-pulse 2s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes olx-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.olx-token {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+}
+
+.olx-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 4cqw;
+  transform: translate(-50%, 2cqw);
+  opacity: 0;
+  transition: all 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  padding: 1.2cqw 2.4cqw;
+  text-align: center;
+  z-index: 6;
+}
+
+.olx-banner.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.olx-banner .olx-serif {
+  font-size: 2.8cqw;
+  color: var(--ox-gold2);
+  display: block;
+  white-space: nowrap;
+}
+
+.olx-banner small {
+  font-size: 1.2cqw;
+  color: var(--ox-soft);
+}
+
+/* ---------- бой ---------- */
+.olx-fight {
+  background: radial-gradient(ellipse at 50% 40%, #2c2238 0%, #151019 55%, #09080b 100%);
+}
+
+.olx-frost {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 110%, rgba(158, 195, 214, 0.18), transparent 55%);
+}
+
+.olx-hpbox,
+.olx-logbox {
+  position: absolute;
+}
+
+.olx-hpwide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5cqw;
+}
+
+.olx-hpwide__t {
+  white-space: nowrap;
+  gap: 1cqw;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1.2cqw;
+  color: var(--ox-soft);
+}
+
+.olx-hpwide__t b {
+  font: 700 2.2cqw "Cormorant Garamond", serif;
+  color: var(--ox-ink);
+}
+
+.olx-foename {
+  font-size: 2.4cqw;
+  color: #cfe3ee;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olx-hpbox--wheel .olx-hpwide__t {
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: normal;
+}
+
+.olx-hpwide.is-wide .olx-foename {
+  font-size: 3cqw;
+}
+
+.olx-hptrack {
+  height: 1cqw;
+  border-radius: 1cqw;
+  background: rgba(251, 246, 241, 0.1);
+  overflow: hidden;
+  position: relative;
+}
+
+.olx-hptrack i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 1cqw;
+}
+
+.olx-hptrack__lag {
+  background: rgba(227, 170, 156, 0.6);
+  transition: width 1.2s ease 0.6s;
+}
+
+.olx-hptrack__now {
+  background: linear-gradient(90deg, #7a9fb3, #cfe3ee);
+  transition: width 0.5s ease;
+}
+
+.olx-fight .olx-chip {
+  font-size: 1.05cqw;
+  padding: 0.3cqw 0.9cqw;
+  background: rgba(251, 246, 241, 0.08);
+  border: 1px solid rgba(227, 198, 140, 0.4);
+  color: var(--ox-gold2);
+}
+
+.olx-fight .olx-chip--bad {
+  color: #f6cdbe;
+  border-color: rgba(227, 170, 156, 0.6);
+}
+
+.olx-fight .olx-chip--good {
+  color: #cfead6;
+  border-color: rgba(163, 194, 170, 0.6);
+}
+
+.olx-babs {
+  display: flex;
+  gap: 0.5cqw;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.olx-bab {
+  width: 2.6cqw;
+  height: 2.6cqw;
+  border-radius: 0.7cqw;
+  display: grid;
+  place-items: center;
+  background: rgba(158, 195, 214, 0.12);
+  border: 1px solid rgba(158, 195, 214, 0.35);
+  color: #cfe3ee;
+}
+
+.olx-bab svg {
+  width: 62%;
+  height: 62%;
+}
+
+.olx-bab.is-next {
+  border-color: #e3aa9c;
+  background: rgba(227, 170, 156, 0.2);
+  color: #f6cdbe;
+  box-shadow: 0 0 1.4cqw rgba(227, 170, 156, 0.5);
+  animation: olx-warn 1.2s ease-in-out infinite;
+}
+
+@keyframes olx-warn {
+  50% {
+    box-shadow: 0 0 2.4cqw rgba(227, 170, 156, 0.85);
+  }
+}
+
+.olx-intent {
+  font-size: 1.15cqw;
+  color: #f6cdbe;
+}
+
+.olx-intent b {
+  color: #fbf6f1;
+}
+
+.olx-log {
+  margin: 0;
+  text-wrap: balance;
+  font: italic 600 1.7cqw "Cormorant Garamond", serif;
+  color: #e9e1d8;
+}
+
+.olx-log b {
+  color: var(--ox-gold2);
+  font-style: normal;
+}
+
+.olx-le {
+  display: block;
+  margin-top: 0.5cqw;
+  font: 500 1.15cqw/1.35 Jost, system-ui, sans-serif;
+  color: #e9e1d8;
+  text-wrap: pretty;
+  animation: olx-lein 0.5s ease-out;
+}
+
+.olx-le.is-old {
+  opacity: 0.55;
+  animation: none;
+}
+
+.olx-le i {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ox-gold2);
+}
+
+@keyframes olx-lein {
+  from {
+    opacity: 0;
+    transform: translateY(0.6cqw);
+  }
+}
+
+.olx-minis {
+  position: absolute;
+  left: 4cqw;
+  right: 4cqw;
+  bottom: 3cqw;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 1.4cqw;
+}
+
+.olx-mini {
+  display: flex;
+  gap: 1cqw;
+  align-items: center;
+  min-width: 0;
+  border-radius: 1cqw;
+  padding: 0.3cqw;
+}
+
+.olx-mini.is-cur {
+  background: rgba(227, 198, 140, 0.1);
+}
+
+.olx-mini.is-down {
+  opacity: 0.5;
+}
+
+.olx-mini__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35cqw;
+  min-width: 0;
+  flex: 1;
+}
+
+.olx-mini__body b {
+  font-size: 1.15cqw;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olx-mini__body small {
+  font-size: 0.9cqw;
+  color: var(--ox-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olx-hp {
+  height: 0.45cqw;
+  border-radius: 1cqw;
+  background: rgba(251, 246, 241, 0.12);
+  overflow: hidden;
+}
+
+.olx-hp i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #6e9277, #a3c2aa);
+  transition: width 0.6s ease;
+}
+
+.olx-hp i.is-low {
+  background: linear-gradient(90deg, #b9786a, #e3aa9c);
+}
+
+/* лента сверху */
+.olx-tla {
+  position: absolute;
+  left: 50%;
+  top: 3cqw;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  padding: 1cqw 1.6cqw;
+  border-radius: 99px;
+  background: rgba(14, 12, 18, 0.7);
+  border: 1px solid rgba(227, 198, 140, 0.25);
+  z-index: 4;
+}
+
+.olx-flow {
+  display: flex;
+  gap: 1.1cqw;
+  align-items: center;
+}
+
+.olx-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3cqw;
+  animation: olx-up 0.6s ease both;
+}
+
+.olx-slot small {
+  white-space: nowrap;
+  font-size: 0.85cqw;
+  color: var(--ox-soft);
+}
+
+.olx-arrow {
+  position: absolute;
+  top: -2.4cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 0.8cqw solid transparent;
+  border-right: 0.8cqw solid transparent;
+  border-top: 1.1cqw solid var(--ox-gold2);
+  animation: olx-bob 1.2s ease-in-out infinite;
+}
+
+@keyframes olx-bob {
+  50% {
+    transform: translate(-50%, 0.4cqw);
+  }
+}
+
+.olx-round {
+  font-size: 0.9cqw;
+  color: var(--ox-soft);
+  border-left: 1px dashed rgba(181, 171, 162, 0.5);
+  padding-left: 1cqw;
+  margin-left: 0.2cqw;
+  white-space: nowrap;
+}
+
+/* колесо */
+.olx-wheel {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 44cqw;
+  height: 44cqw;
+  margin: -22cqw 0 0 -22cqw;
+  border-radius: 50%;
+  border: 0.2cqw solid rgba(227, 198, 140, 0.35);
+}
+
+.olx-wheel::before {
+  content: "";
+  position: absolute;
+  inset: 3cqw;
+  border-radius: 50%;
+  border: 1px dashed rgba(227, 198, 140, 0.2);
+}
+
+.olx-spoke {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  transition: left 1.4s cubic-bezier(0.5, 0, 0.2, 1), top 1.4s cubic-bezier(0.5, 0, 0.2, 1);
+  z-index: 3;
+}
+
+.olx-ptr {
+  position: absolute;
+  left: 50%;
+  top: calc(52% - 30cqw);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2cqw;
+  z-index: 3;
+}
+
+.olx-ptr i {
+  width: 0;
+  height: 0;
+  border-left: 1cqw solid transparent;
+  border-right: 1cqw solid transparent;
+  border-top: 1.4cqw solid var(--ox-gold2);
+  filter: drop-shadow(0 0 0.6cqw rgba(243, 223, 174, 0.8));
+}
+
+.olx-ptr span {
+  font-size: 1cqw;
+  color: var(--ox-gold2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.olx-wlist {
+  position: absolute;
+  right: 3.5cqw;
+  top: 3.5cqw;
+  width: 20cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqw;
+}
+
+.olx-wlist__row {
+  display: flex;
+  gap: 1cqw;
+  align-items: center;
+}
+
+/* фриз */
+.olx-frieze {
+  position: absolute;
+  left: 3cqw;
+  top: 3cqw;
+  bottom: 3cqw;
+  width: 21cqw;
+  border-radius: 1.4cqw;
+  background: rgba(20, 16, 12, 0.75);
+  border: 1px solid rgba(227, 198, 140, 0.3);
+  padding: 2.4cqw 1.2cqw 1.2cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8cqw;
+  overflow: hidden;
+  z-index: 3;
+}
+
+.olx-frieze::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1.2cqw;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 21H21V3H5V16H15V9H10' fill='none' stroke='%23C9A15F' stroke-width='2.4'/%3E%3C/svg%3E") 0 0 / 1.2cqw 1.2cqw repeat-x;
+  opacity: 0.7;
+}
+
+.olx-frieze .olx-kicker {
+  font-size: 0.95cqw;
+}
+
+.olx-frow {
+  display: grid;
+  grid-template-columns: 2cqw auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8cqw;
+  padding: 0.5cqw 0.6cqw;
+  border-radius: 1cqw;
+  animation: olx-up 0.6s ease both;
+}
+
+.olx-frow__num {
+  font: 700 1.4cqw "Cormorant Garamond", serif;
+  color: var(--ox-soft);
+  text-align: center;
+}
+
+.olx-frow.is-cur {
+  background: linear-gradient(90deg, rgba(227, 198, 140, 0.22), rgba(227, 198, 140, 0.04));
+  border: 1px solid rgba(227, 198, 140, 0.55);
+}
+
+.olx-frow.is-cur .olx-frow__num {
+  color: var(--ox-gold2);
+}
+
+.olx-frow img {
+  width: 7cqw;
+  height: 7cqw;
+  object-fit: cover;
+  object-position: 50% 12%;
+  border-radius: 1cqw;
+  border: 0.15cqw solid var(--ox-gold);
+}
+
+.olx-frow.is-big .olx-mini__body b {
+  font-size: 1.5cqw;
+}
+
+.olx-frow.is-enemy .olx-mini__body b {
+  color: #cfe3ee;
+}
+
+.olx-lastdie {
+  position: absolute;
+  left: 50%;
+  top: 22cqw;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  padding: 0.6cqw 1.4cqw;
+  border-radius: 99px;
+  background: rgba(14, 12, 18, 0.8);
+  border: 1px solid color-mix(in srgb, var(--oc) 60%, transparent);
+  font-size: 1.15cqw;
+  z-index: 6;
+  white-space: nowrap;
+  animation: olx-dieflash 4.5s ease forwards;
+}
+
+.olx-lastdie b {
+  font: 700 2.6cqw "Cormorant Garamond", serif;
+  color: var(--oc);
+}
+
+.olx-fight--frieze .olx-lastdie {
+  left: 57cqw;
+  top: 26cqw;
+}
+
+@keyframes olx-dieflash {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.7);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    opacity: 0.4;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* живой противник */
+.olx-lb {
+  position: absolute;
+  aspect-ratio: 1;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.olx-lb__aura {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 57% 40%, rgba(158, 195, 214, 0.35), rgba(90, 70, 140, 0.15) 45%, transparent 70%);
+  filter: blur(2cqw);
+  animation: olx-aura 5s ease-in-out infinite;
+}
+
+@keyframes olx-aura {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+.olx-lb__body {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: radial-gradient(ellipse 44% 50% at 56% 46%, #000 42%, transparent 76%);
+  mask: radial-gradient(ellipse 44% 50% at 56% 46%, #000 42%, transparent 76%);
+  animation: olx-lbbreath 5.5s ease-in-out infinite;
+  transform-origin: 57% 92%;
+}
+
+.olx-lb--medal .olx-lb__body {
+  -webkit-mask: none;
+  mask: none;
+  inset: 18%;
+  display: grid;
+  place-items: center;
+}
+
+.olx-lb--medal .olx-emb {
+  width: 100%;
+}
+
+@keyframes olx-lbbreath {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.022) rotate(-0.7deg);
+  }
+  70% {
+    transform: scale(1.01) rotate(0.4deg);
+  }
+}
+
+.olx-lb__body img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.olx-lb__eye {
+  position: absolute;
+  width: 6.5%;
+  aspect-ratio: 1.7;
+  border-radius: 50%;
+  background: radial-gradient(#fff, #cfe8f5 30%, rgba(158, 195, 214, 0) 70%);
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%);
+  animation: olx-eye 4.6s infinite;
+}
+
+.olx-lb__eye--l {
+  left: 55.6%;
+  top: 25.4%;
+}
+
+.olx-lb__eye--r {
+  left: 62.1%;
+  top: 25.4%;
+  animation-delay: 0.05s;
+}
+
+@keyframes olx-eye {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.4);
+  }
+  88% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  91% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scaleY(0.1);
+  }
+  94% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.olx-lb__mark {
+  position: absolute;
+  left: 58.6%;
+  top: 21%;
+  width: 10%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(rgba(255, 120, 80, 0.95), rgba(255, 60, 40, 0) 68%);
+  mix-blend-mode: screen;
+  animation: olx-mark 2.4s ease-in-out infinite;
+}
+
+@keyframes olx-mark {
+  50% {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+.olx-lb__breath i {
+  position: absolute;
+  left: 58.5%;
+  top: 32%;
+  width: 7%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(rgba(230, 242, 248, 0.75), rgba(230, 242, 248, 0) 70%);
+  filter: blur(0.4cqw);
+  opacity: 0;
+  animation: olx-breath 3.6s ease-out infinite;
+}
+
+.olx-lb__breath i:nth-child(2) {
+  animation-delay: 0.6s;
+}
+.olx-lb__breath i:nth-child(3) {
+  animation-delay: 1.2s;
+}
+.olx-lb__breath i:nth-child(4) {
+  animation-delay: 1.8s;
+}
+.olx-lb__breath i:nth-child(5) {
+  animation-delay: 2.4s;
+}
+.olx-lb__breath i:nth-child(6) {
+  animation-delay: 3s;
+}
+
+@keyframes olx-breath {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-120%, 90%) scale(3);
+  }
+}
+
+.olx-lb__mist {
+  position: absolute;
+  left: 5%;
+  right: 0;
+  bottom: 6%;
+  height: 22%;
+  background: radial-gradient(ellipse at 50% 60%, rgba(207, 227, 238, 0.28), transparent 70%);
+  filter: blur(1.4cqw);
+  animation: olx-mist 9s ease-in-out infinite alternate;
+}
+
+@keyframes olx-mist {
+  to {
+    transform: translateX(8%) scaleX(1.15);
+  }
+}
+
+.olx-lb__wave {
+  position: absolute;
+  left: 57%;
+  top: 40%;
+  width: 10%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 0.35cqw solid rgba(207, 232, 245, 0.9);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+.olx-lb__flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 57% 40%, rgba(255, 255, 255, 0.85), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+.olx-lb__dmg {
+  position: absolute;
+  left: 62%;
+  top: 30%;
+  font: 700 4.4cqw "Cormorant Garamond", serif;
+  color: #f6cdbe;
+  text-shadow: 0 0 1.4cqw rgba(217, 138, 122, 0.9);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.olx-lb.is-hit .olx-lb__body {
+  animation: olx-lbhit 0.5s, olx-lbbreath 5.5s ease-in-out 0.5s infinite;
+}
+
+@keyframes olx-lbhit {
+  20% {
+    transform: translate(2%, 0) rotate(1.5deg);
+  }
+  45% {
+    transform: translate(-1.5%, 0) rotate(-1deg);
+  }
+  70% {
+    transform: translate(0.8%, 0);
+  }
+}
+
+.olx-lb.is-hit .olx-lb__flash {
+  animation: olx-lbf 0.45s ease-out;
+}
+
+@keyframes olx-lbf {
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.olx-lb.is-hit .olx-lb__dmg {
+  animation: olx-dmg 1.4s ease-out;
+}
+
+@keyframes olx-dmg {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-10%) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120%) scale(1);
+  }
+}
+
+.olx-lb.is-roar .olx-lb__aura {
+  animation: olx-roaraura 1.8s ease-in-out;
+}
+
+@keyframes olx-roaraura {
+  50% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+}
+
+.olx-lb.is-roar .olx-lb__eye {
+  animation: olx-eyeroar 1.8s ease-in-out;
+}
+
+@keyframes olx-eyeroar {
+  50% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 1;
+  }
+}
+
+.olx-lb.is-roar .olx-lb__wave {
+  animation: olx-wave 1.4s ease-out 0.6s;
+}
+
+@keyframes olx-wave {
+  0% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(9);
+  }
+}
+
+.olx-lb.is-roar .olx-lb__body {
+  animation: olx-lbroar 1.8s ease-in-out, olx-lbbreath 5.5s ease-in-out 1.8s infinite;
+}
+
+@keyframes olx-lbroar {
+  40% {
+    transform: scale(1.06) translateY(-2%);
+  }
+  55% {
+    transform: scale(1.06) translate(0.6%, -2%);
+  }
+  60% {
+    transform: scale(1.06) translate(-0.6%, -2%);
+  }
+}
+
+/* выход противника */
+.olx-intro {
+  background: #0d0b12;
+}
+
+.olx-intro__art {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 62cqw;
+  display: grid;
+  place-items: center;
+  -webkit-mask: radial-gradient(ellipse 70% 75% at 60% 50%, #000 45%, transparent 78%);
+  mask: radial-gradient(ellipse 70% 75% at 60% 50%, #000 45%, transparent 78%);
+}
+
+.olx-intro__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+}
+
+.olx-intro .is-emerge {
+  animation: olx-emerge 3.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes olx-emerge {
+  from {
+    transform: scale(1.18);
+    filter: brightness(0) blur(6px);
+  }
+  60% {
+    filter: brightness(0.8) blur(0);
+  }
+  to {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.olx-flashi {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 62% 45%, rgba(207, 232, 245, 0.9), transparent 60%);
+  opacity: 0;
+  pointer-events: none;
+  animation: olx-iflash 1.4s ease-out 1.6s;
+}
+
+@keyframes olx-iflash {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.olx-intro__txt {
+  position: absolute;
+  left: 4cqw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40cqw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1cqw;
+}
+
+.olx-intro h3 {
+  margin: 0;
+  font: 700 5cqw/1 "Cormorant Garamond", serif;
+  color: #e6f2f8;
+  text-shadow: 0 0 3cqw rgba(158, 195, 214, 0.5);
+}
+
+.olx-intro h3 span {
+  display: inline-block;
+  white-space: pre;
+  opacity: 0;
+  animation: olx-letter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.olx-fade {
+  opacity: 0;
+  animation: olx-up 1s ease forwards;
+}
+
+.olx-intro p {
+  margin: 0;
+  text-wrap: pretty;
+  font: 600 1.7cqw/1.35 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+}
+
+.olx-intro .olx-chip {
+  font-size: 1.2cqw;
+  background: rgba(251, 246, 241, 0.08);
+  border: 1px solid rgba(227, 198, 140, 0.4);
+  color: var(--ox-gold2);
+}
+
+.olx-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6cqw;
+  font: 600 1.2cqw Jost, system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfe3ee;
+}
+
+.olx-rank b {
+  font: 700 2.2cqw "Cormorant Garamond", serif;
+  color: #221e1b;
+  background: #cfe3ee;
+  border-radius: 0.6cqw;
+  padding: 0 0.8cqw;
+  letter-spacing: 0;
+}
+
+.olx-resbox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6cqw;
+}
+
+.olx-reslg {
+  font-size: 1cqw;
+  color: var(--ox-soft);
+}
+
+.olx-resgrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5cqw;
+}
+
+.olx-resgrid div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2cqw;
+  padding: 0.5cqw 0.2cqw;
+  border-radius: 0.8cqw;
+  background: rgba(251, 246, 241, 0.05);
+  border: 1px solid rgba(251, 246, 241, 0.1);
+}
+
+.olx-resgrid span {
+  font-size: 0.85cqw;
+  color: var(--ox-soft);
+  white-space: nowrap;
+}
+
+.olx-resgrid b {
+  font: 700 1.5cqw Jost, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.olx-resgrid .is-weak {
+  border-color: rgba(163, 194, 170, 0.7);
+  background: rgba(163, 194, 170, 0.12);
+}
+
+.olx-resgrid .is-weak b {
+  color: #a3c2aa;
+}
+
+.olx-resgrid .is-strong b {
+  color: #e3aa9c;
+}
+
+.olx-resgrid .is-immune {
+  opacity: 0.75;
+}
+
+.olx-resgrid .is-immune b {
+  color: #d98a7a;
+}
+
+/* итог боя, концовка, пантеон */
+.olx-fightend,
+.olx-end,
+.olx-pantheon {
+  background: radial-gradient(ellipse at 50% 45%, #33281a 0%, #17130f 55%, #08080a 100%);
+}
+
+.olx-fightend.is-lose,
+.olx-end--bad {
+  background: radial-gradient(ellipse at 50% 45%, #2c2238 0%, #151019 55%, #09080b 100%);
+}
+
+.olx-fightend.is-lose .olx-rays,
+.olx-end--bad .olx-rays {
+  opacity: 0.12;
+}
+
+.olx-end--good {
+  background: radial-gradient(ellipse at 50% 40%, #46553a 0%, #1f2a1b 55%, #0b0f09 100%);
+}
+
+.olx-fightend__box,
+.olx-end__box {
+  position: absolute;
+  inset: 6cqw 10cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6cqw;
+  text-align: center;
+}
+
+.olx-awards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(26cqw, 1fr));
+  gap: 1cqw 2cqw;
+  width: 100%;
+}
+
+.olx-awards li {
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  text-align: left;
+  animation: olx-up 0.8s ease both;
+}
+
+.olx-awards__who {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.4cqw;
+}
+
+.olx-awards small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 1cqw;
+}
+
+.olx-awards .olx-chip {
+  font-size: 1.1cqw;
+  padding: 0.3cqw 0.9cqw;
+}
+
+.olx-end__text {
+  margin: 0;
+  max-width: 60cqw;
+  font: 600 2.4cqw/1.38 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+  opacity: 0;
+  animation: olx-up 1.2s ease forwards 1.6s;
+}
+
+.olx-pantheon__k {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3cqw;
+  text-align: center;
+  z-index: 2;
+}
+
+.olx-pantheon__podium {
+  position: absolute;
+  inset: 5cqw 4cqw 3cqw;
+  container-type: size;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .olx *,
+  .olx *::before,
+  .olx *::after,
+  .olp *,
+  .olp *::before,
+  .olp *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* =====================================================================================
+   Телефон игрока (.olp): 6 страниц бога листаются пальцем, вкладки снизу, шторка действия.
+   ===================================================================================== */
+.olp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 520px;
+  background: linear-gradient(180deg, #1d1914, #110f0c);
+  color: var(--ox-ink);
+  font-family: Jost, system-ui, sans-serif;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.olp--solo {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 18px 32px;
+  gap: 16px;
+}
+
+.olp button {
+  font-family: inherit;
+}
+
+.olp button:focus-visible,
+.olp select:focus-visible,
+.olp input:focus-visible {
+  outline: 3px solid var(--ox-gold2);
+  outline-offset: 2px;
+}
+
+.olp-brand {
+  font: 700 34px/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+  letter-spacing: 0.08em;
+}
+
+.olp-solohead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.olp-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ox-soft);
+  line-height: 1.45;
+}
+
+.olp-phead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 0 18px;
+  gap: 10px;
+}
+
+.olp-pnum {
+  font: 600 13px Jost, system-ui, sans-serif;
+  color: var(--ox-gold2);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.olp-pnum b {
+  font: 700 18px "Cormorant Garamond", serif;
+  margin-right: 4px;
+}
+
+.olp-who {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--ox-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olp-gear {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(227, 198, 140, 0.35);
+  background: transparent;
+  color: var(--ox-gold2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.olp-gear svg {
+  width: 22px;
+  height: 22px;
+}
+
+.olp-now {
+  margin: 8px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(227, 198, 140, 0.3);
+  background: rgba(227, 198, 140, 0.08);
+  color: var(--ox-ink);
+  text-align: left;
+  min-height: 52px;
+}
+
+.olp-now b {
+  font: 700 19px/1.1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-now span {
+  font-size: 13px;
+  color: #e9e1d8;
+}
+
+.olp-now:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.olp-now.is-call {
+  border-color: var(--ox-gold2);
+  background: rgba(227, 198, 140, 0.18);
+  animation: olp-callpulse 1.6s ease-in-out infinite;
+  cursor: pointer;
+}
+
+@keyframes olp-callpulse {
+  50% {
+    box-shadow: 0 0 22px rgba(243, 223, 174, 0.4);
+  }
+}
+
+.olp-now--big {
+  margin: 0;
+  padding: 18px;
+}
+
+.olp-now--big b {
+  font-size: 28px;
+}
+
+.olp-now--big span {
+  font-size: 15px;
+}
+
+.olp-podium {
+  margin: 8px 14px 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(20, 17, 15, 0.8);
+  border: 1px solid rgba(227, 198, 140, 0.35);
+  max-height: 40dvh;
+  overflow-y: auto;
+}
+
+.olp-dotsrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.olp-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.olp-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(251, 246, 241, 0.22);
+  transition: all 0.3s;
+}
+
+.olp-dots i.is-on {
+  width: 26px;
+  border-radius: 4px;
+  background: var(--ox-gold);
+}
+
+.olp-edge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(227, 198, 140, 0.3);
+  background: transparent;
+  color: var(--ox-gold2);
+  font: 600 22px/1 Jost, system-ui, sans-serif;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.olp-edge:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.olp-pages {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.olp-pages::-webkit-scrollbar {
+  display: none;
+}
+
+.olp-page {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  overflow-y: auto;
+  padding: 10px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.olp-page > * {
+  flex-shrink: 0;
+}
+
+.olp-nav {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-top: 1px solid rgba(227, 198, 140, 0.18);
+  background: rgba(10, 9, 7, 0.92);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.olp-nav button {
+  min-height: 62px;
+  background: none;
+  border: 0;
+  color: var(--ox-soft);
+  font: 500 10.5px Jost, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+}
+
+.olp-nav button svg {
+  width: 21px;
+  height: 21px;
+}
+
+.olp-nav button[aria-current="true"] {
+  color: var(--ox-gold2);
+}
+
+.olp-nav button[aria-current="true"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 22%;
+  right: 22%;
+  height: 2px;
+  background: linear-gradient(90deg, #e3c68c, #a3c2aa);
+  border-radius: 2px;
+}
+
+.olp-nav em {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 20px);
+  font: 600 9px Jost, system-ui, sans-serif;
+  font-style: normal;
+  color: var(--ox-soft);
+}
+
+.olp-badge {
+  position: absolute;
+  top: 5px;
+  left: calc(50% + 6px);
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #e3aa9c;
+  color: #221e1b;
+  font: 700 10px/17px Jost, system-ui, sans-serif;
+  text-align: center;
+}
+
+.olp-ptitle {
+  font: 700 12px Jost, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ox-soft);
+}
+
+.olp-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* Бог */
+.olp-hero {
+  position: relative;
+  margin: -10px -18px 0;
+  height: 230px;
+  overflow: hidden;
+}
+
+.olp-hero > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  animation: olx-kenburns 14s ease-in-out infinite alternate;
+}
+
+.olp-hero__emb {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-bottom: 50px;
+  background: radial-gradient(circle at 50% 40%, #3a2c18, #15110c 70%);
+}
+
+.olp-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, #1d1914 96%);
+}
+
+.olp-hero__who {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.olp-hero__who b {
+  display: block;
+  font: 700 40px/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+  margin-bottom: 6px;
+}
+
+.olp-lvl {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.olp-ring {
+  position: absolute;
+  inset: -6px;
+  width: 74px;
+  height: 74px;
+  transform: rotate(-90deg);
+}
+
+.olp-lvl em {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  font: 700 14px Jost, sans-serif;
+  font-style: normal;
+  background: #221e1b;
+  border: 1.5px solid var(--ox-gold);
+  color: var(--ox-gold2);
+  border-radius: 999px;
+  padding: 1px 7px;
+  z-index: 2;
+}
+
+.olp-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.olp-bar2 {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ox-soft);
+}
+
+.olp-bar2__t {
+  display: flex;
+  justify-content: space-between;
+  white-space: nowrap;
+  gap: 8px;
+}
+
+.olp-bar2__t b {
+  color: var(--ox-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.olp-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(251, 246, 241, 0.1);
+  overflow: hidden;
+}
+
+.olp-track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s ease;
+}
+
+.olp-track i.is-hp {
+  background: linear-gradient(90deg, #6e9277, #a3c2aa);
+}
+
+.olp-track i.is-hp.is-low {
+  background: linear-gradient(90deg, #b9786a, #e3aa9c);
+}
+
+.olp-track i.is-xp {
+  background: linear-gradient(90deg, #c9a15f, #f3dfae);
+}
+
+.olp-infobox {
+  border: 1px solid rgba(158, 195, 214, 0.35);
+  background: rgba(158, 195, 214, 0.06);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.olp-infobox__hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 12px Jost, system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #cfe3ee;
+}
+
+.olp-infobox__hd svg {
+  width: 16px;
+  height: 16px;
+}
+
+.olp-cnt {
+  margin-left: auto;
+  font: 600 11px Jost, system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #e3aa9c;
+}
+
+.olp-fx {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.olp-fx__ic {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+}
+
+.olp-fx__ic svg {
+  width: 18px;
+  height: 18px;
+}
+
+.olp-fx__ic.is-bad {
+  background: rgba(217, 138, 122, 0.2);
+  color: #e3aa9c;
+}
+
+.olp-fx__ic.is-good {
+  background: rgba(163, 194, 170, 0.2);
+  color: #a3c2aa;
+}
+
+.olp-fx b {
+  display: block;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olp-fx small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.olp-fx__left {
+  font-size: 12px;
+  color: var(--ox-soft);
+  white-space: nowrap;
+}
+
+.olp-link {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: #cfe3ee;
+  font: 600 13px Jost, system-ui, sans-serif;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.olp-lastev {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px dashed rgba(158, 195, 214, 0.25);
+  padding-top: 10px;
+}
+
+.olp-lk {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ox-soft);
+}
+
+.olp-ev {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e9e1d8;
+}
+
+.olp-ev span:last-child {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.olp-ev i {
+  font-style: normal;
+  font-weight: 600;
+  color: #fbf6f1;
+}
+
+.olp-ev--curse span:last-child {
+  color: #f0c2b6;
+}
+
+.olp-evi {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--evc);
+  background: color-mix(in srgb, var(--evc) 18%, transparent);
+}
+
+.olp-statlist {
+  display: flex;
+  flex-direction: column;
+}
+
+.olp-statrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(251, 246, 241, 0.06);
+}
+
+.olp-statrow__nm {
+  font-size: 15px;
+  min-width: 0;
+}
+
+.olp-statrow__nm small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.olp-statrow__nm small i {
+  font-style: normal;
+}
+
+.olp .pos {
+  color: #a3c2aa;
+}
+
+.olp .neg {
+  color: #e3aa9c;
+}
+
+.olp-statrow__val {
+  font: 700 22px "Cormorant Garamond", serif;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+}
+
+.olp-lock {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--ox-soft);
+}
+
+.olp-lock svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Силы */
+.olp-rowhd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.olp-use {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--ox-gold);
+  background: transparent;
+  color: var(--ox-ink);
+  font: 600 13px Jost, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.olp-use--wide {
+  min-height: 48px;
+  width: 100%;
+}
+
+.olp-ab {
+  border: 1px solid rgba(251, 246, 241, 0.12);
+  border-radius: 16px;
+  background: rgba(251, 246, 241, 0.03);
+}
+
+.olp-ab.is-ult {
+  border-color: var(--ox-gold);
+  background: linear-gradient(160deg, rgba(227, 198, 140, 0.14), rgba(227, 198, 140, 0.03));
+}
+
+.olp-ab summary {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  min-height: 68px;
+}
+
+.olp-ab summary::-webkit-details-marker {
+  display: none;
+}
+
+.olp-ab__ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(227, 198, 140, 0.14);
+  color: var(--ox-gold2);
+  flex-shrink: 0;
+}
+
+.olp-ab__ic svg {
+  width: 24px;
+  height: 24px;
+}
+
+.olp-ab__nm {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.olp-ab__nm b {
+  font: 700 21px/1 "Cormorant Garamond", serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.olp-kind {
+  font: 600 11px Jost, system-ui, sans-serif;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: rgba(251, 246, 241, 0.08);
+  color: var(--ox-soft);
+  white-space: nowrap;
+}
+
+.olp-more {
+  font: 600 12px Jost, system-ui, sans-serif;
+  color: var(--ox-gold2);
+  white-space: nowrap;
+}
+
+.olp-ab[open] .olp-more {
+  color: var(--ox-soft);
+}
+
+.olp-ab__body {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.olp-ab__body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #e9e1d8;
+}
+
+.olp-soft {
+  color: var(--ox-soft);
+}
+
+.olp-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.olp-outcomes div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.olp-outcomes div span:first-child {
+  font-weight: 600;
+  color: #221e1b;
+  border-radius: 6px;
+  padding: 2px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.olp-vs {
+  font-size: 13px;
+  color: #e9e1d8;
+  background: rgba(158, 195, 214, 0.08);
+  border: 1px dashed rgba(158, 195, 214, 0.35);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.olp-charge {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(251, 246, 241, 0.1);
+  overflow: hidden;
+}
+
+.olp-charge i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #c9a15f, #f3dfae);
+  animation: olp-chg 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes olp-chg {
+  from {
+    filter: brightness(0.9);
+  }
+  to {
+    filter: brightness(1.3);
+  }
+}
+
+/* История */
+.olp-lorehead {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.olp-lorehead b {
+  font: 700 30px/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-lorehead small {
+  display: block;
+  font-size: 13px;
+  color: var(--ox-soft);
+}
+
+.olp-lore {
+  font: 600 18px/1.5 "Cormorant Garamond", serif;
+  color: #e9e1d8;
+  margin: 0;
+}
+
+.olp-lore--sm {
+  font-size: 16px;
+}
+
+.olp-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  font-size: 14px;
+  margin: 0;
+}
+
+.olp-facts dt {
+  color: var(--ox-soft);
+}
+
+.olp-facts dd {
+  margin: 0;
+}
+
+.olp-ablist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.olp-ablist > div {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.olp-ablist b {
+  display: block;
+  font-size: 14px;
+}
+
+.olp-ablist small {
+  color: var(--ox-soft);
+  font-size: 12px;
+}
+
+.olp-roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.olp-roles > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.olp-roles small {
+  color: var(--ox-soft);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* Сумка и одежда */
+.olp-gold {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 24px;
+  background: linear-gradient(160deg, rgba(227, 198, 140, 0.16), rgba(227, 198, 140, 0.04));
+  border: 1px solid rgba(227, 198, 140, 0.4);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.olp-gold b {
+  font: 700 34px/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-gold small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 12px;
+}
+
+.olp-slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.olp-slots--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.olp-slot {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(251, 246, 241, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  font: 500 11px/1.15 Jost, system-ui, sans-serif;
+  color: var(--ox-soft);
+  padding: 4px;
+  background: transparent;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.olp-slot svg {
+  width: 24px;
+  height: 24px;
+}
+
+.olp-slot__nm {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.olp-slots--five .olp-slot__nm {
+  font-size: 9.5px;
+  letter-spacing: -0.3px;
+}
+
+.olp-slot__nm.is-sm {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.olp-speed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(169, 211, 181, 0.08);
+  border: 1px solid rgba(169, 211, 181, 0.4);
+}
+
+.olp-speed b {
+  font: 700 30px "Cormorant Garamond", serif;
+  color: #cfead6;
+}
+
+.olp-speed small {
+  color: var(--ox-soft);
+  font-size: 12px;
+  display: block;
+}
+
+.olp-folder {
+  border: 1px solid rgba(251, 246, 241, 0.12);
+  border-radius: 14px;
+  padding: 0 12px;
+  background: rgba(251, 246, 241, 0.03);
+}
+
+.olp-folder summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  cursor: pointer;
+}
+
+.olp-folder summary::-webkit-details-marker {
+  display: none;
+}
+
+.olp-folder summary svg {
+  width: 22px;
+  height: 22px;
+  color: var(--ox-gold2);
+}
+
+.olp-folder summary b {
+  font-size: 15px;
+}
+
+.olp-folder .olp-sub {
+  margin: 4px 0 10px;
+}
+
+.olp-cnt3 {
+  margin-left: auto;
+  font: 600 12px Jost, system-ui, sans-serif;
+  color: var(--ox-soft);
+}
+
+.olp-chev {
+  color: var(--ox-soft);
+  transition: transform 0.2s;
+}
+
+.olp-folder[open] .olp-chev {
+  transform: rotate(180deg);
+}
+
+.olp-setbox {
+  border: 1px solid rgba(227, 198, 140, 0.4);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(227, 198, 140, 0.06);
+}
+
+.olp-setbox__hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.olp-setbox__hd b {
+  font: 700 20px "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-setcnt {
+  font: 600 12px Jost, system-ui, sans-serif;
+  color: #221e1b;
+  background: var(--ox-gold);
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.olp-setbox > div:not(.olp-setbox__hd) {
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+}
+
+.olp-setbox .is-off {
+  color: var(--ox-soft);
+}
+
+.olp-setbox span {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* драхма */
+.olx-coin {
+  --d: 70px;
+  position: relative;
+  width: var(--d);
+  height: var(--d);
+  perspective: calc(var(--d) * 5);
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.55));
+}
+
+.olx-coin__spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: olx-coinspin 7s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.olx-coin__face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  clip-path: circle(50% at 50% 50%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 69.5%, transparent 70.5%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 69.5%, transparent 70.5%);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.olx-coin__face img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.olx-coin__face--front {
+  transform: translateZ(calc(var(--d) * 0.04));
+}
+
+.olx-coin__face--back {
+  transform: rotateY(180deg) translateZ(calc(var(--d) * 0.04));
+}
+
+.olx-coin__face::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 250, 225, 0.75) 50%, transparent 58%);
+  animation: olx-coinshine 3.5s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+.olx-coin__rim {
+  position: absolute;
+  inset: 1%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#7a5520 0 4deg, #e9c678 4deg 8deg);
+}
+
+@keyframes olx-coinspin {
+  0% {
+    transform: rotateY(0deg) rotateX(10deg);
+  }
+  28% {
+    transform: rotateY(0deg) rotateX(-6deg);
+  }
+  46% {
+    transform: rotateY(180deg) rotateX(8deg);
+  }
+  74% {
+    transform: rotateY(180deg) rotateX(-6deg);
+  }
+  92%,
+  100% {
+    transform: rotateY(360deg) rotateX(10deg);
+  }
+}
+
+@keyframes olx-coinshine {
+  0%,
+  40% {
+    transform: translateX(-70%);
+  }
+  75%,
+  100% {
+    transform: translateX(70%);
+  }
+}
+
+.olx-coin.is-toss .olx-coin__spin {
+  animation: olx-cointoss 1.6s cubic-bezier(0.2, 0.7, 0.25, 1) forwards;
+}
+
+.olx-coin.is-toss.is-athena .olx-coin__spin {
+  animation-name: olx-cointossb;
+}
+
+@keyframes olx-cointoss {
+  0% {
+    transform: translateY(0) rotateX(0) rotateY(0);
+  }
+  40% {
+    transform: translateY(-55%) rotateX(720deg) rotateY(20deg);
+  }
+  100% {
+    transform: translateY(0) rotateX(1440deg) rotateY(0);
+  }
+}
+
+@keyframes olx-cointossb {
+  0% {
+    transform: translateY(0) rotateX(0) rotateY(0);
+  }
+  40% {
+    transform: translateY(-55%) rotateX(720deg) rotateY(20deg);
+  }
+  100% {
+    transform: translateY(0) rotateX(1440deg) rotateY(180deg);
+  }
+}
+
+/* Журнал */
+.olp-jsum {
+  border: 1px solid rgba(227, 198, 140, 0.3);
+  background: rgba(227, 198, 140, 0.06);
+  border-radius: 16px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.olp-jsum__t {
+  font: 700 16px "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-jnums {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  text-align: center;
+}
+
+.olp-jnums b {
+  display: block;
+  font: 700 20px "Cormorant Garamond", serif;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.olp-jnums small {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--ox-soft);
+}
+
+.olp-jsearch input {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(158, 195, 214, 0.35);
+  background: rgba(10, 9, 7, 0.5);
+  color: var(--ox-ink);
+  padding: 0 14px;
+  font: 400 15px Jost, system-ui, sans-serif;
+}
+
+.olp-jsearch input::placeholder {
+  color: #8f857c;
+}
+
+.olp-evf {
+  display: flex;
+  gap: 6px;
+}
+
+.olp-evf button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(158, 195, 214, 0.3);
+  background: none;
+  color: #cfe3ee;
+  font: 500 13px Jost, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.olp-evf button[aria-pressed="true"] {
+  background: #cfe3ee;
+  color: #221e1b;
+  border-color: #cfe3ee;
+}
+
+.olp-jscroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  margin: 0 -18px;
+  padding: 0 18px 2px;
+  scrollbar-width: none;
+}
+
+.olp-jscroll::-webkit-scrollbar {
+  display: none;
+}
+
+.olp-jsel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.olp-jsel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.olp-jsel span {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ox-soft);
+}
+
+.olp-jsel select {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(158, 195, 214, 0.35);
+  background: rgba(10, 9, 7, 0.5);
+  color: var(--ox-ink);
+  padding: 0 10px;
+  font: 500 14px Jost, system-ui, sans-serif;
+}
+
+.olp-jcount {
+  font-size: 12px;
+  color: var(--ox-soft);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.olp-jcount .olp-link {
+  min-height: 32px;
+}
+
+.olp-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.olp-jempty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--ox-soft);
+}
+
+/* Шторка и окна */
+.olp-psheet {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.olp-psheet__bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 7, 6, 0.6);
+}
+
+.olp-psheet__card {
+  position: relative;
+  max-height: 86%;
+  overflow-y: auto;
+  background: #1c1813;
+  border-top: 1px solid rgba(227, 198, 140, 0.45);
+  border-radius: 22px 22px 0 0;
+  padding: 14px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: olp-slideup 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes olp-slideup {
+  from {
+    transform: translateY(30%);
+    opacity: 0;
+  }
+}
+
+.olp-grab {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(251, 246, 241, 0.25);
+  align-self: center;
+}
+
+.olp-psheet h4,
+.olp-turn h4 {
+  margin: 0;
+  font: 700 26px/1.1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-close {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1.5px solid var(--ox-gold);
+  background: transparent;
+  color: var(--ox-ink);
+  font: 600 15px Jost, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.olp-kv {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+.olp-kv span {
+  color: var(--ox-soft);
+}
+
+.olp-kv b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.olp-kv b.plus {
+  color: var(--ox-green);
+}
+
+.olp-kv b.minus {
+  color: var(--ox-coral);
+}
+
+.olp-choice {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(251, 246, 241, 0.15);
+  background: transparent;
+  color: var(--ox-ink);
+  font: 500 15px Jost, system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.olp-choice i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #b5aba2;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+
+.olp-choice[aria-checked="true"] {
+  border-color: var(--ox-gold);
+}
+
+.olp-choice[aria-checked="true"] i {
+  border-color: var(--ox-rose);
+}
+
+.olp-choice[aria-checked="true"] i::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ox-rose);
+}
+
+.olp-choice small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 12px;
+}
+
+.olp-choice:disabled {
+  opacity: 0.5;
+}
+
+.olp-elsvg {
+  width: 100%;
+  max-width: 320px;
+  align-self: center;
+}
+
+.olp-elsvg line {
+  stroke-width: 1.6;
+}
+
+.olp-elsvg line.is-all {
+  stroke: rgba(227, 198, 140, 0.45);
+}
+
+.olp-elsvg line.is-win {
+  stroke: #a3c2aa;
+  stroke-width: 2.6;
+}
+
+.olp-elsvg line.is-lose {
+  stroke: #e3aa9c;
+  stroke-width: 2.6;
+}
+
+.olp-elsvg line.is-dim {
+  stroke: rgba(251, 246, 241, 0.08);
+}
+
+.olp-enode {
+  cursor: pointer;
+  outline: none;
+}
+
+.olp-enode circle {
+  fill: #1c1813;
+  stroke-width: 2;
+}
+
+.olp-enode.is-on circle {
+  fill: #2e2619;
+  stroke-width: 3.5;
+}
+
+.olp-enode text {
+  font: 600 10px Jost, system-ui, sans-serif;
+  fill: #e9e1d8;
+}
+
+.olp-enode:focus-visible circle {
+  stroke: #fff;
+}
+
+.olp-swipehint {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(10, 8, 6, 0.86);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  backdrop-filter: blur(3px);
+}
+
+.olp-hand {
+  position: relative;
+  width: 180px;
+  height: 90px;
+}
+
+.olp-hand svg {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 54px;
+  height: 54px;
+  margin-left: -27px;
+  color: var(--ox-gold2);
+  animation: olp-handswipe 2s ease-in-out infinite;
+}
+
+@keyframes olp-handswipe {
+  0% {
+    transform: translateX(40px) rotate(8deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  60% {
+    transform: translateX(-40px) rotate(-6deg);
+    opacity: 1;
+  }
+  80%,
+  100% {
+    transform: translateX(-50px);
+    opacity: 0;
+  }
+}
+
+.olp-hand__trail {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  bottom: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--ox-gold), transparent);
+  animation: olp-trail 2s ease-in-out infinite;
+}
+
+@keyframes olp-trail {
+  0%,
+  10% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.olp-swipehint b {
+  font: 700 26px/1.15 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-swipehint p {
+  margin: 0;
+  color: #e9e1d8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.olp-hintlist {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.olp-hintlist span {
+  font-size: 12px;
+  border: 1px solid rgba(227, 198, 140, 0.4);
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.olp-okbtn {
+  min-height: 52px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ox-rose);
+  color: #221e1b;
+  font: 600 16px Jost, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.olp-toast {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 110px;
+  z-index: 30;
+  background: #2b241a;
+  border: 1px solid var(--ox-gold);
+  color: var(--ox-ink);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 14px;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: all 0.3s;
+}
+
+.olp-toast.is-on {
+  opacity: 1;
+  transform: none;
+}
+
+/* Ход, бросок, голос */
+.olp-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.olp-turnhd {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(227, 198, 140, 0.12);
+  border: 1px solid rgba(227, 198, 140, 0.45);
+  font-size: 15px;
+  color: var(--ox-gold2);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.olp-lbl {
+  font: 600 11px Jost, system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ox-soft);
+}
+
+.olp-abgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.olp-abt {
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  min-height: 64px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(251, 246, 241, 0.15);
+  background: rgba(251, 246, 241, 0.04);
+  color: var(--ox-ink);
+  font: 600 13px Jost, system-ui, sans-serif;
+  text-align: left;
+  padding: 8px 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.olp-abt svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--ox-gold2);
+}
+
+.olp-abt > span {
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.olp-abt small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--ox-soft);
+}
+
+.olp-abt.is-sel {
+  border-color: var(--ox-gold2);
+  background: rgba(227, 198, 140, 0.14);
+}
+
+.olp-abt.is-ult {
+  border-color: rgba(227, 198, 140, 0.5);
+  background: linear-gradient(150deg, rgba(227, 198, 140, 0.18), rgba(227, 198, 140, 0.03));
+}
+
+.olp-abt.is-ult.is-sel {
+  border-color: var(--ox-gold2);
+}
+
+.olp-abt.is-off,
+.olp-abt:disabled {
+  opacity: 0.4;
+}
+
+.olp-targets,
+.olp-fantg {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.olp-fantg {
+  justify-content: center;
+}
+
+.olp-tg {
+  flex: 1 0 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  font-size: 12px;
+  background: none;
+  color: var(--ox-ink);
+  cursor: pointer;
+}
+
+.olp-tg.is-sel {
+  border-color: var(--ox-gold2);
+  background: rgba(227, 198, 140, 0.1);
+}
+
+.olp-hp {
+  display: block;
+  width: 80%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(251, 246, 241, 0.12);
+  overflow: hidden;
+}
+
+.olp-hp i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #6e9277, #a3c2aa);
+}
+
+.olp-hp i.is-low {
+  background: linear-gradient(90deg, #b9786a, #e3aa9c);
+}
+
+.olp-odds {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  font-size: 10px;
+  text-align: center;
+  color: #221e1b;
+  font-weight: 600;
+}
+
+.olp-odds span {
+  border-radius: 6px;
+  padding: 4px 1px;
+  line-height: 1.15;
+  overflow: hidden;
+}
+
+.olp-rollbtn {
+  min-height: 56px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ox-rose);
+  color: #221e1b;
+  font: 600 17px Jost, system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.olp-rollbtn svg {
+  width: 26px;
+  height: 26px;
+}
+
+.olp-rollbtn:disabled,
+.olp-bigdie:disabled,
+.olp-next:disabled {
+  opacity: 0.5;
+}
+
+.olp-fan {
+  position: relative;
+  height: 230px;
+}
+
+.olp-card {
+  cursor: pointer;
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  width: 92px;
+  height: 160px;
+  margin-left: -46px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(227, 198, 140, 0.55);
+  background: linear-gradient(170deg, #2e2619, #16120d);
+  transform-origin: 50% 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  transition: transform 0.4s;
+  color: var(--ox-ink);
+  text-align: left;
+}
+
+.olp-card svg {
+  width: 30px;
+  height: 30px;
+  color: var(--ox-gold2);
+}
+
+.olp-card b {
+  font: 700 16px/1 "Cormorant Garamond", serif;
+}
+
+.olp-card small {
+  font-size: 10.5px;
+  color: var(--ox-soft);
+  line-height: 1.3;
+}
+
+.olp-card.is-ult {
+  border-color: var(--ox-gold2);
+  background: linear-gradient(170deg, #4a3b1f, #1d160c);
+}
+
+.olp-card.is-sel {
+  box-shadow: 0 0 0 2px var(--ox-gold2), 0 0 30px rgba(243, 223, 174, 0.45);
+}
+
+.olp-card.is-off {
+  opacity: 0.5;
+  filter: saturate(0.4);
+}
+
+.olp-bigdie {
+  align-self: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 0;
+  background: radial-gradient(circle at 38% 30%, #fbf7ee, #dcd1be 60%, #9b8f78);
+  color: #8c6224;
+  font: 700 30px "Cormorant Garamond", serif;
+  box-shadow: 0 0 0 3px #c9973e, 0 0 30px rgba(243, 223, 174, 0.4);
+  margin-bottom: 6px;
+  animation: olp-pulse2 2s ease-in-out infinite;
+  cursor: pointer;
+}
+
+.olp-bigdie--wide {
+  width: 100%;
+  height: auto;
+  min-height: 72px;
+  border-radius: 18px;
+  font-size: 26px;
+}
+
+@keyframes olp-pulse2 {
+  50% {
+    box-shadow: 0 0 0 3px #c9973e, 0 0 50px rgba(243, 223, 174, 0.7);
+  }
+}
+
+.olp-steps {
+  display: flex;
+  gap: 6px;
+}
+
+.olp-steps span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(251, 246, 241, 0.15);
+}
+
+.olp-steps span.is-on {
+  background: var(--ox-gold);
+}
+
+.olp-ally {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 64px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(251, 246, 241, 0.12);
+  background: rgba(251, 246, 241, 0.03);
+  color: var(--ox-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.olp-ally b {
+  font-size: 15px;
+  display: block;
+}
+
+.olp-ally small {
+  display: block;
+  color: var(--ox-soft);
+  font-size: 12px;
+}
+
+.olp-ally em {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ox-soft);
+}
+
+.olp-ally .olp-hp {
+  width: 100%;
+  height: 6px;
+  margin-top: 5px;
+}
+
+.olp-ally.is-sel {
+  border-color: var(--ox-gold2);
+  background: rgba(227, 198, 140, 0.1);
+}
+
+.olp-ally:disabled {
+  opacity: 0.4;
+}
+
+.olp-navrow {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+}
+
+.olp-navrow button {
+  min-height: 52px;
+  border-radius: 14px;
+  font: 600 15px Jost, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.olp-back {
+  background: transparent;
+  border: 1.5px solid var(--ox-gold);
+  color: var(--ox-ink);
+}
+
+.olp-back:disabled {
+  opacity: 0.35;
+}
+
+.olp-next {
+  background: var(--ox-rose);
+  border: 0;
+  color: #221e1b;
+}
+
+/* выбор бога */
+.olp-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.olp-pick__row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin: 0 -18px;
+  padding: 4px 18px 8px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.olp-pick__row::-webkit-scrollbar {
+  display: none;
+}
+
+.olp-pick__card {
+  flex: 0 0 104px;
+  scroll-snap-align: start;
+  min-height: 150px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(227, 198, 140, 0.35);
+  background: radial-gradient(circle at 50% 35%, #3a2c18, #15110c 75%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 10px 6px;
+  color: var(--ox-ink);
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.olp-pick__card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  opacity: 0.85;
+}
+
+.olp-pick__card b,
+.olp-pick__card small {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+.olp-pick__card b {
+  font: 700 20px/1 "Cormorant Garamond", serif;
+  color: var(--ox-gold2);
+}
+
+.olp-pick__card small {
+  font-size: 11px;
+  color: #e9e1d8;
+}
+
+.olp-pick__card .olx-emb {
+  margin-bottom: auto;
+  margin-top: 8px;
+}
+
+.olp-pick__card[aria-checked="true"] {
+  border-color: var(--ox-gold2);
+  box-shadow: 0 0 0 2px var(--ox-gold2), 0 0 24px rgba(243, 223, 174, 0.35);
+}
+
+.olp-pick__info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

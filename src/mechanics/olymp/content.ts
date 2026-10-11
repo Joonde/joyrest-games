@@ -21,10 +21,12 @@ export interface OlympContent {
   difficulty: Difficulty;
   /** Секунд на голосование (0 — без таймера, закрывает ведущий). */
   voteSeconds: number;
+  /** Вид боя на экране зала по умолчанию (пульт может сменить в игре). */
+  fightView: "ribbon" | "wheel" | "frieze";
 }
 
 export function createOlymp(): OlympContent {
-  return { story: WINTER.id, difficulty: "normal", voteSeconds: 60 };
+  return { story: WINTER.id, difficulty: "normal", voteSeconds: 60, fightView: "ribbon" };
 }
 
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -34,7 +36,8 @@ export function parseOlymp(raw: unknown): OlympContent {
   const story = STORIES.some((s) => s.id === d.story) ? (d.story as string) : WINTER.id;
   const difficulty = DIFFICULTIES.some((x) => x.id === d.difficulty) ? (d.difficulty as Difficulty) : "normal";
   const vs = typeof d.voteSeconds === "number" && Number.isFinite(d.voteSeconds) ? Math.round(d.voteSeconds) : 60;
-  return { story, difficulty, voteSeconds: Math.max(0, Math.min(300, vs)) };
+  const fightView = d.fightView === "wheel" || d.fightView === "frieze" ? d.fightView : "ribbon";
+  return { story, difficulty, voteSeconds: Math.max(0, Math.min(300, vs)), fightView };
 }
 
 export function storyOf(content: OlympContent): Story {

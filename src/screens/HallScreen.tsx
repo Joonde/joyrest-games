@@ -177,11 +177,13 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
   const slide = session.state.slide ?? null;
-  const shownSlide = slide && !(slide.kind === "join" && phase === "finished") ? slide : null;
+  const standalone = Boolean(mechanic?.standalone);
+  const shownSlide = slide && !standalone && !(slide.kind === "join" && phase === "finished") ? slide : null;
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
-      <Scene themeId={session.themeId} />
+      {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
+      {!standalone && <Scene themeId={session.themeId} />}
       <ScreenControls toStudio={isHost ? () => (phase === "finished" ? navigate("/studio") : setLeaving(true)) : null} />
       {isHost && (
         <ConfirmDialog
@@ -216,13 +218,36 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
         </main>
       ) : (
         <>
-          {phase === "lobby" && <Lobby session={session} />}
-          {phase === "playing" && <Playing session={session} />}
-          {phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
+          {standalone && mechanic && (
+            // Самостоятельная игра («Олимп») рисует все этапы сама: лобби, игру, награждение, финал.
+            <main className="quiz-stage">
+              <StandaloneScreen session={session} />
+            </main>
+          )}
+          {!standalone && phase === "lobby" && <Lobby session={session} />}
+          {!standalone && phase === "playing" && <Playing session={session} />}
+          {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
+          {/* Игра окончена: выход виден всегда (не прячется вместе с кнопками экрана). */}
+          {phase === "finished" && (
+            <a className="btn btn--secondary screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
+              e.preventDefault();
+              if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+              navigate(isHost ? "/studio" : "/");
+            }}>
+              {isHost ? "В студию" : "На главную"}
+            </a>
+          )}
         </>
       )}
     </div>
   );
+}
+
+function StandaloneScreen({ session }: { session: Session }) {
+  const mechanic = getMechanic(session.mechanic);
+  const content = useMemo(() => (mechanic ? mechanic.parse(snapshotContent(session.gameSnapshot)) : null), [mechanic, session.gameSnapshot]);
+  const ScreenView = mechanic?.ScreenView;
+  return ScreenView && content !== null ? <ScreenView session={session} content={content} /> : null;
 }
 
 function Lobby({ session }: { session: Session }) {

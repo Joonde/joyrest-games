@@ -275,6 +275,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       {editable && (
         <section className="card">
           <h2>Настройки</h2>
+          {/* Самостоятельная игра («Олимп») — со своим видом, оформление не выбирается. */}
+          {!mechanic?.standalone && (
           <fieldset>
             <legend>Оформление по умолчанию</legend>
             {themesForRating(game.ageRating).map((theme) => (
@@ -292,6 +294,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </label>
             ))}
           </fieldset>
+          )}
           <fieldset>
             <legend>Участники по умолчанию</legend>
             {PLAY_MODES.map((mode) => (

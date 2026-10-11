@@ -19,6 +19,8 @@ import {
   showRoll,
   startFight,
   startOlymp,
+  setFightView,
+  fightViewOf,
 } from "./logic";
 
 const teams = (n: number): Participant[] => Array.from({ length: n }, (_, i) => ({ id: `T${i}`, name: `Команда ${i + 1}`, kind: "team", teamId: null, captainUid: `u${i}`, joinedAt: i }));
@@ -84,7 +86,8 @@ function play(n: number, seed: number, difficulty: "easy" | "normal" | "hard" = 
 describe("Олимп на сессии", () => {
   it("содержимое: по умолчанию «Вечная зима», без ошибок", () => {
     expect(validateOlymp(createOlymp())).toEqual([]);
-    expect(parseOlymp({ difficulty: "x", voteSeconds: 9999 })).toEqual({ story: "winter", difficulty: "normal", voteSeconds: 300 });
+    expect(parseOlymp({ difficulty: "x", voteSeconds: 9999 })).toEqual({ story: "winter", difficulty: "normal", voteSeconds: 300, fightView: "ribbon" });
+    expect(parseOlymp({ fightView: "wheel" }).fightView).toBe("wheel");
   });
 
   it("боги: раньше выбравший получает бога, занятого — первый свободный, без ответа — тоже", () => {
@@ -130,6 +133,8 @@ describe("Олимп на сессии", () => {
     let s = session();
     s = apply(s, startOlymp(s, parts));
     s = apply(s, closePick(s, content, [], parts));
+    expect(parseOlympResult(s.state.result).phase).toBe("party");
+    s = apply(s, nextScene(s, content, parts)); // карточки отряда → пролог
     s = apply(s, nextScene(s, content, parts)); // пролог → совет (проверка)
     s = apply(s, openRoll(s, parts));
     const before = { ...s.leaderboard };
@@ -172,5 +177,30 @@ describe("Олимп на сессии", () => {
     const ok = readyAbilities(r.battle!, actor)[0];
     s = apply(s, godTurn(s, parts, [ans(s, actor, { ability: ok?.id, target: null })]));
     expect(parseOlympResult(s.state.result).lastDie?.ability).toBe(ok?.name);
+  });
+
+  it("отряд, голоса по вариантам и вид боя с пульта", () => {
+    const content = createOlymp();
+    const parts = teams(3);
+    let s = session();
+    s = apply(s, startOlymp(s, parts));
+    s = apply(s, closePick(s, content, [], parts));
+    expect(parseOlympResult(s.state.result).phase).toBe("party");
+    expect(olympPrimary(s, content)).toBe("next");
+    for (let i = 0; i < 20 && olympPrimary(s, content) !== "openVote"; i++) {
+      const a = olympPrimary(s, content);
+      if (a === "next") s = apply(s, nextScene(s, content, parts));
+      else if (a === "roll") s = apply(s, openRoll(s, parts));
+      else if (a === "showRoll") s = apply(s, showRoll(s, content, [], parts));
+    }
+    s = apply(s, openVote(s, content, parts));
+    s = apply(s, closeVote(s, content, [ans(s, "T0", { vote: 0 }), ans(s, "T1", { vote: 1 }), ans(s, "T2", { vote: 0 })], parts));
+    const r = parseOlympResult(s.state.result);
+    expect(r.vote?.voters).toEqual([["T0", "T2"], ["T1"]]);
+    expect(fightViewOf(r, content)).toBe("ribbon");
+    const before = s.state.step;
+    s = apply(s, setFightView(s, "frieze"));
+    expect(fightViewOf(parseOlympResult(s.state.result), content)).toBe("frieze");
+    expect(s.state.step).toBe(before);
   });
 });

@@ -5279,6 +5279,12 @@ ul.chips {
   color: var(--color-logo);
 }
 
+.chip__mask {
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  filter: blur(0.6px);
+}
+
 .chip__stars {
   letter-spacing: 0.08em;
 }

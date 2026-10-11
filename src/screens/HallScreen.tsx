@@ -4,7 +4,7 @@ import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
 import { roundLeaderboard } from "../core/rounds";
-import { teamNameVisible, teamOrder, teamsReveal } from "../core/teams";
+import { maskedName, teamNameVisible, teamOrder, teamsReveal } from "../core/teams";
 import { clock, useGuestSignIn, useSessionByCode, type Session, type SoundCue } from "../data";
 import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
@@ -296,8 +296,8 @@ function Lobby({ session }: { session: Session }) {
                   <span key={team.id} className="chip chip--team" style={teamStyle(team.entry.colorIndex)}>
                     {hidden ? (
                       <>
-                        Команда {team.number}
-                        {phones > 0 && <span className="chip__stars" aria-label={`телефонов: ${phones}`}> {"★".repeat(Math.min(phones, 8))}</span>}
+                        Команда {team.number} <span className="chip__mask" aria-label="название скрыто">{maskedName(team.entry.name)}</span>
+                        {phones > 0 && <span className="chip__stars" aria-label={`телефонов: ${phones}`}> · {"★".repeat(Math.min(phones, 8))}</span>}
                       </>
                     ) : (
                       <NameText name={team.entry.name} />

@@ -546,7 +546,7 @@ function TeamsCard({ session, onApply }: { session: Session; onApply: (change: S
         <input type="checkbox" checked={reveal.hidden} disabled={busy} onChange={(e) => void set({ hidden: e.target.checked, shown: null })} />
         <span className="choice__text">
           <span className="choice__title">Скрыть названия команд</span>
-          <span className="choice__hint">Пока все подключаются, экран показывает «Команда 1 ★★★». Названия откроются на представлении.</span>
+          <span className="choice__hint">Включено сразу: пока все подключаются, экран показывает «Команда 1 ✱✱✱✱ · ★★» (звёздочки — телефоны). Названия откроются на «Представить команды» или с началом игры.</span>
         </span>
       </label>
       <button type="button" className="btn btn--secondary btn--block" disabled={busy || ordered.length === 0} onClick={() => void set({ ...reveal, shown: 0 })}>

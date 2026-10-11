@@ -332,7 +332,8 @@ async function teamsGame(browser, token) {
   await expectText(captain.page, captain.page.locator(".play-head__who"), "🐯 Утки", "Телефон капитана, команда");
   const member = await guestJoin(browser, code, { name: "Игрок", joinTeam: "🐯 Утки" }, "Игрок команды");
   await expectText(member.page, member.page.locator(".play-head__who"), "🐯 Утки", "Телефон игрока команды, команда");
-  await expectText(screen, screen.locator(".chip"), "🐯 Утки", "Экран зала, команды");
+  // Названия команд по умолчанию скрыты до «Представить команды»: на экране — «Команда 1 ✱✱✱✱».
+  await expectText(screen, screen.locator(".chip"), "Команда 1", "Экран зала, команды (название скрыто)");
   await expectText(host, host.locator("main"), "🐯 Утки", "Пульт, команды");
   await shot(captain.page, "капитан", "Телефон капитана");
   await shot(screen, "экран-команды", "Экран зала: команды");

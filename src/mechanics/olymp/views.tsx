@@ -15,6 +15,9 @@ import { placeOf, sceneOf, visibleOptions, type Scene } from "./story";
 import { storyOf, type OlympContent } from "./content";
 import { currentScene, godName, hpMaxOfMember, memberRollMod, memberStat, parseOlympResult, readyAbilities, type Member, type OlympResult } from "./logic";
 
+/** Противники, у которых уже есть своя картинка в public/olymp/art (остальные — без картинки). */
+const FOE_ART = new Set(["boss"]);
+
 export type OlympAnswerValue = { god: string } | { roll: true } | { vote: number } | { ability: string; target: string | null };
 
 export const ELEMENT_COLORS: Record<ElementId, string> = {
@@ -163,7 +166,7 @@ function FoeCard({ b, size }: { b: Battle; size: "screen" | "phone" }) {
   const res = Object.entries(foe.resist).filter(([, v]) => v !== 100) as Array<[ElementId, number]>;
   return (
     <div className={`ol-foe ol-foe--${size}${foe.boss ? " is-boss" : ""}`}>
-      {size === "screen" && foe.boss && <img className="ol-foe__img" src="/olymp/art/boss.jpg" alt="" />}
+      {size === "screen" && FOE_ART.has(foe.image) && <img className="ol-foe__img" src={`/olymp/art/${foe.image}.jpg`} alt="" />}
       <div className="ol-foe__body">
         <span className="ol-place">
           {foe.boss ? "Босс · " : ""}ранг {foe.rank} · {ELEMENT_NAMES[foe.element]}

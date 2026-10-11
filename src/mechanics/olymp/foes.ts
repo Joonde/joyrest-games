@@ -78,7 +78,7 @@ export const FOES: Foe[] = [
   },
   {
     id: "telchines", name: "Тельхины", rank: "C", boss: false, element: "water", hp: 200, speed: 100, coins: 40,
-    resist: resistOf("water"), image: "telchines", about: "Морские колдуны-кузнецы с Лемноса, полулюди-полутюлени. Крадут жар чужих горнов.",
+    resist: resistOf("water"), image: "telchines", about: "Морские колдуны-кузнецы с Родоса, полулюди-полутюлени. Прячутся под Лемносом и крадут жар чужих горнов.",
     abilities: [
       { id: "t-hammer", name: "Молот из коралла", kind: "strike", power: 16, hint: "урон одному" },
       { id: "t-steam", name: "Горячий пар", kind: "blast", power: 9, hint: "урон всем" },
@@ -86,27 +86,27 @@ export const FOES: Foe[] = [
     ],
   },
   {
-    id: "python", name: "Пифон", rank: "B", boss: false, element: "poison", hp: 230, speed: 105, coins: 50,
-    resist: resistOf("poison"), image: "python", about: "Древний змей Дельф, поднятый из мёртвых меткой Тёмного мира.",
+    id: "python", name: "Пифон", rank: "C", boss: false, element: "earth", hp: 210, speed: 105, coins: 45,
+    resist: resistOf("earth"), image: "python", about: "Древний змей Дельф, сын Геи, поднятый из мёртвых меткой Тёмного мира.",
     abilities: [
       { id: "p-coil", name: "Кольца змея", kind: "strike", power: 18, hint: "урон одному" },
       { id: "p-fumes", name: "Ядовитый пар", kind: "curseAll", power: 0, hint: "яд всем", effect: { id: "fumes", name: "Ядовитый пар", kind: "curse", turns: 2, dot: 5 } },
       { id: "p-shed", name: "Сбросить кожу", kind: "heal", power: 20, hint: "лечится" },
-      { id: "p-strike", name: "Бросок", kind: "blast", power: 8, hint: "урон всем" },
+      { id: "p-tail", name: "Хвост сметает всех", kind: "blast", power: 8, hint: "урон всем" },
     ],
   },
   {
     id: "minotaur", name: "Минотавр", rank: "B", boss: false, element: "earth", hp: 230, speed: 100, coins: 50,
-    resist: resistOf("earth"), image: "minotaur", about: "Пленник Лабиринта, отмеченный меткой. Бык с телом великана.",
+    resist: resistOf("earth"), image: "minotaur", about: "Пленник Лабиринта, отмеченный меткой. Великан с бычьей головой.",
     abilities: [
       { id: "mi-horns", name: "Удар рогами", kind: "strike", power: 22, hint: "урон одному" },
       { id: "mi-stomp", name: "Топот", kind: "blast", power: 10, hint: "урон всем" },
-      { id: "mi-rage", name: "Ярость", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "rage", name: "Ярость быка", kind: "bless", turns: 2, taken: 0.7 } },
+      { id: "mi-hide", name: "Бычья шкура", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "hide", name: "Бычья шкура", kind: "bless", turns: 2, taken: 0.7 } },
     ],
   },
   {
     id: "herald", name: "Вестник Эреба", rank: "B", boss: true, element: "dark", hp: 300, speed: 125, coins: 80,
-    resist: resistOf("dark"), image: "boss", about: "Слуга Эреба, бога вечного мрака. Крадёт огонь богов, чтобы его господин вышел к свету.",
+    resist: { ...resistOf("dark"), fire: 150 }, image: "herald", about: "Слуга Эреба, бога вечного мрака. Крадёт огонь богов, чтобы его господин вышел к свету.",
     abilities: [
       { id: "h-smoke", name: "Удар из дыма", kind: "strike", power: 22, hint: "урон одному" },
       { id: "h-dark", name: "Волна мрака", kind: "blast", power: 12, hint: "урон всем" },

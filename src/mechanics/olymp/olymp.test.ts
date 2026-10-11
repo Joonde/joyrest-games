@@ -175,7 +175,8 @@ describe("история «Вечная зима»", () => {
     const [minScenes, maxScenes, maxFights] = walk(story.start, [], 0);
     expect([...ends].sort()).toEqual(["bad", "good", "mid"]);
     expect(story.scenes.filter((x) => !seen.has(x.id)).map((x) => x.id)).toEqual([]);
-    expect(minScenes).toBeGreaterThanOrEqual(12);
+    // «Вечная зима» — от 14 сцен даже при поражении, «Метка» короче (поражение от босса — 13).
+    expect(minScenes).toBeGreaterThanOrEqual(story.id === "winter" ? 14 : 12);
     expect(maxScenes).toBeLessThanOrEqual(30);
     expect(maxFights).toBeLessThanOrEqual(5);
   });

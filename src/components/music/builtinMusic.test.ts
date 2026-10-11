@@ -33,6 +33,11 @@ describe("встроенная музыка экрана зала", () => {
     expect(of(session({ phase: "lobby", teams: { hidden: true, shown: 0 } }))?.urls).toEqual(["/sounds/teams-intro-1.mp3"]);
   });
 
+  it("технический перерыв — та же музыка перерыва", () => {
+    const slide = { id: "t1", kind: "tech" as const, title: "Технический перерыв", text: "", lines: [], endsAt: null };
+    expect(of(session({ phase: "playing", slide }))?.urls).toEqual(["/sounds/break-golden-hour-1.mp3", "/sounds/break-event-1.mp3"]);
+  });
+
   it("перерыв — два трека по кругу, поверх любой фазы", () => {
     const slide = { id: "b1", kind: "break" as const, title: "Перерыв", text: "", lines: [], endsAt: null };
     for (const phase of ["lobby", "playing", "finished"] as const) {

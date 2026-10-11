@@ -173,6 +173,17 @@ function musicOut(): GainNode | null {
   return musicBus;
 }
 
+/**
+ * Свой синтез механики («Олимп»: лира, арфа, гром): общий контекст и шины платформы — поэтому
+ * «Выключить звук» на экране, «Стоп» и микшер действуют и на него. null — звук ещё не разрешён.
+ */
+export function audioBuses(): { ctx: AudioContext; music: GainNode; effects: AudioNode } | null {
+  const music = musicOut();
+  const effects = out();
+  if (!ctx || !music || !effects || ctx.state !== "running") return null;
+  return { ctx, music, effects };
+}
+
 function applyLevels(): void {
   if (!ctx) return;
   effectsBus?.gain.setTargetAtTime(effectsLevel(), ctx.currentTime, 0.05);

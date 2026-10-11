@@ -1,8 +1,9 @@
 // Конструктор «Олимпа»: история и правила заданы в коде, здесь — сложность боёв, время голосования
 // и обзор сцен истории (читать перед игрой).
 import type { EditorProps } from "../types";
-import { DIFFICULTIES, storyOf, validateOlymp, type OlympContent } from "./content";
+import { DIFFICULTIES, STORIES, storyOf, validateOlymp, type OlympContent } from "./content";
 import { foeOf } from "./foes";
+import { FIGHT_VIEWS } from "./logic";
 import { placeOf } from "./story";
 
 const KIND: Record<string, string> = { narrate: "рассказ", check: "проверка кубиком", vote: "голосование", fight: "бой", branch: "развилка по Саге", end: "концовка" };
@@ -17,6 +18,20 @@ export function OlympEditor({ content, onChange, editable }: EditorProps<OlympCo
         <p>{story.blurb}</p>
         <p className="muted small">Одна команда — один бог (до 10). Ведущий читает сцены с пульта, команды бросают d100, голосуют за путь и сражаются. Очки — опыт богов, в конце — награждение. Только 18+.</p>
       </section>
+      {STORIES.length > 1 && (
+        <section className="card stack">
+          <h2>История</h2>
+          <div className="stack stack--tight" role="radiogroup" aria-label="История">
+            {STORIES.map((s) => (
+              <label key={s.id} className="choice">
+                <input type="radio" name="olymp-story" checked={story.id === s.id} disabled={!editable} onChange={() => onChange({ ...content, story: s.id })} />
+                <span className="choice__title">{s.title}</span>
+                <span className="choice__hint">{s.blurb}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="card stack">
         <h2>Сложность боёв</h2>
         <div className="stack stack--tight" role="radiogroup" aria-label="Сложность">
@@ -39,6 +54,19 @@ export function OlympEditor({ content, onChange, editable }: EditorProps<OlympCo
             onChange={(e) => onChange({ ...content, voteSeconds: Math.max(0, Math.min(300, Math.round(Number(e.target.value) || 0))) })}
           />
         </label>
+      </section>
+      <section className="card stack">
+        <h2>Вид боя на экране зала</h2>
+        <p className="muted small">Ведущий может сменить вид прямо в игре, на пульте.</p>
+        <div className="stack stack--tight" role="radiogroup" aria-label="Вид боя">
+          {FIGHT_VIEWS.map((v) => (
+            <label key={v.id} className="choice">
+              <input type="radio" name="olymp-fight-view" checked={content.fightView === v.id} disabled={!editable} onChange={() => onChange({ ...content, fightView: v.id })} />
+              <span className="choice__title">{v.title}</span>
+              <span className="choice__hint">{v.hint}</span>
+            </label>
+          ))}
+        </div>
       </section>
       <section className="card stack">
         <h2>Сцены истории · {story.scenes.length}</h2>

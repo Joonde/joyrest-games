@@ -58,6 +58,65 @@ export const FOES: Foe[] = [
     ],
   },
   {
+    id: "cerberus", name: "Цербер", rank: "B", boss: false, element: "fire", hp: 240, speed: 115, coins: 50,
+    resist: resistOf("fire"), image: "cerberus", about: "Трёхголовый пёс Аида. Сторожит короткую тропу мимо дворца — и голоден с тех пор, как пришла зима.",
+    abilities: [
+      { id: "c-bite", name: "Три пасти", kind: "strike", power: 20, hint: "урон одному" },
+      { id: "c-fire", name: "Огненный рык", kind: "blast", power: 10, hint: "урон всем" },
+      { id: "c-fear", name: "Ужас Тартара", kind: "curse", power: 0, hint: "проклятие на одного", effect: { id: "fear", name: "Ужас Тартара", kind: "curse", turns: 2, roll: -10 } },
+      { id: "c-guard", name: "Стойка стража", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "guard", name: "Стойка стража", kind: "bless", turns: 2, taken: 0.7 } },
+    ],
+  },
+  {
+    id: "keres", name: "Керы", rank: "C", boss: false, element: "dark", hp: 210, speed: 110, coins: 45,
+    resist: resistOf("dark"), image: "keres", about: "Крылатые духи гибели. Пожиратель позвал их сторожить дорогу к Ледяным вратам.",
+    abilities: [
+      { id: "k-claw", name: "Когти гибели", kind: "strike", power: 18, hint: "урон одному" },
+      { id: "k-wings", name: "Чёрные крылья", kind: "blast", power: 9, hint: "урон всем" },
+      { id: "k-doom", name: "Предсказание смерти", kind: "curse", power: 0, hint: "яд на одного", effect: { id: "doom", name: "Предсказание смерти", kind: "curse", turns: 2, dot: 7 } },
+    ],
+  },
+  {
+    id: "telchines", name: "Тельхины", rank: "C", boss: false, element: "water", hp: 200, speed: 100, coins: 40,
+    resist: resistOf("water"), image: "telchines", about: "Морские колдуны-кузнецы с Родоса, полулюди-полутюлени. Прячутся под Лемносом и крадут жар чужих горнов.",
+    abilities: [
+      { id: "t-hammer", name: "Молот из коралла", kind: "strike", power: 16, hint: "урон одному" },
+      { id: "t-steam", name: "Горячий пар", kind: "blast", power: 9, hint: "урон всем" },
+      { id: "t-hex", name: "Сглаз", kind: "curse", power: 0, hint: "проклятие на одного", effect: { id: "hex", name: "Сглаз Тельхинов", kind: "curse", turns: 2, roll: -10 } },
+    ],
+  },
+  {
+    id: "python", name: "Пифон", rank: "C", boss: false, element: "earth", hp: 210, speed: 105, coins: 45,
+    resist: resistOf("earth"), image: "python", about: "Древний змей Дельф, сын Геи, поднятый из мёртвых меткой Тёмного мира.",
+    abilities: [
+      { id: "p-coil", name: "Кольца змея", kind: "strike", power: 18, hint: "урон одному" },
+      { id: "p-fumes", name: "Ядовитый пар", kind: "curseAll", power: 0, hint: "яд всем", effect: { id: "fumes", name: "Ядовитый пар", kind: "curse", turns: 2, dot: 5 } },
+      { id: "p-shed", name: "Сбросить кожу", kind: "heal", power: 20, hint: "лечится" },
+      { id: "p-tail", name: "Хвост сметает всех", kind: "blast", power: 8, hint: "урон всем" },
+    ],
+  },
+  {
+    id: "minotaur", name: "Минотавр", rank: "B", boss: false, element: "earth", hp: 230, speed: 100, coins: 50,
+    resist: resistOf("earth"), image: "minotaur", about: "Пленник Лабиринта, отмеченный меткой. Великан с бычьей головой.",
+    abilities: [
+      { id: "mi-horns", name: "Удар рогами", kind: "strike", power: 22, hint: "урон одному" },
+      { id: "mi-stomp", name: "Топот", kind: "blast", power: 10, hint: "урон всем" },
+      { id: "mi-hide", name: "Бычья шкура", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "hide", name: "Бычья шкура", kind: "bless", turns: 2, taken: 0.7 } },
+    ],
+  },
+  {
+    id: "herald", name: "Вестник Эреба", rank: "B", boss: true, element: "dark", hp: 300, speed: 125, coins: 80,
+    resist: { ...resistOf("dark"), fire: 150 }, image: "herald", about: "Слуга Эреба, бога вечного мрака. Крадёт огонь богов, чтобы его господин вышел к свету.",
+    abilities: [
+      { id: "h-smoke", name: "Удар из дыма", kind: "strike", power: 22, hint: "урон одному" },
+      { id: "h-dark", name: "Волна мрака", kind: "blast", power: 12, hint: "урон всем" },
+      { id: "h-blind", name: "Слепота", kind: "curseAll", power: 0, hint: "−15 к броскам всем", effect: { id: "blind", name: "Слепота", kind: "curse", turns: 1, roll: -15 } },
+      { id: "h-feed", name: "Пьёт огонь", kind: "heal", power: 20, hint: "лечится" },
+      { id: "h-veil", name: "Покров тьмы", kind: "armor", power: 0, hint: "урон по нему ×0,7", effect: { id: "veil", name: "Покров тьмы", kind: "bless", turns: 2, taken: 0.7 } },
+      { id: "h-mark", name: "Метка", kind: "curse", power: 6, hint: "проклятие на одного", effect: { id: "dmark", name: "Метка Эреба", kind: "curse", turns: 2, stats: { endurance: -15 } } },
+    ],
+  },
+  {
     id: "devourer", name: "Пожиратель зимы", rank: "B", boss: true, element: "ice", hp: 300, speed: 130, coins: 80,
     resist: resistOf("ice"), image: "boss", about: "Осколок первичного Хаоса. Пожирает души и тепло; на лбу горит метка Тёмного мира.",
     abilities: [

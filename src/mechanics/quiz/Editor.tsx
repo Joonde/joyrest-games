@@ -709,6 +709,17 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       <p className="muted small">
         Пусто — вопрос продолжает прежний раунд. После последнего вопроса раунда экран покажет итоги раунда и общий счёт.
       </p>
+
+      <label className="field">
+        Заметка ведущему
+        <textarea
+          maxLength={LIMITS.note}
+          rows={2}
+          placeholder="Факт, шутка или подводка к вопросу — видно только на пульте"
+          value={q.note ?? ""}
+          onChange={(e) => onChange({ note: e.target.value })}
+        />
+      </label>
     </div>
   );
 }

@@ -3,8 +3,9 @@ import { ELEMENTS, STRONG, d100Of, elementMult, foeXp, hpMaxOf, levelOf, outcome
 import { GODS, abilitiesOf } from "./gods";
 import { FOES, scaledHp } from "./foes";
 import { battleTotals, battleXp, beginTurn, canUse, endTurn, foeAct, godAct, startBattle, turnQueue, type Battle } from "./combat";
-import { exitsOf, validateStory } from "./story";
+import { branchNext, exitsOf, validateStory, visibleOptions } from "./story";
 import { WINTER } from "./winter";
+import { STORIES } from "./content";
 
 /** Детерминированный «кубик» для тестов. */
 function rng(seed: number): () => number {
@@ -136,6 +137,50 @@ describe("история «Вечная зима»", () => {
     expect(validateStory(WINTER)).toEqual([]);
     expect(WINTER.scenes.filter((s) => s.kind === "end").map((s) => (s.kind === "end" ? s.ending : "")).sort()).toEqual(["bad", "good", "mid"]);
   });
+  it.each(STORIES.map((x) => [x.title, x] as const))("«%s»: все пути проходятся до концовки, каждая сцена встречается, у голосований есть выбор", (_title, story) => {
+    expect(validateStory(story)).toEqual([]);
+    // Обход состояний «сцена + флаги Саги» с запоминанием: ~300 тыс. путей сводятся к сотням состояний.
+    const seen = new Set<string>();
+    const ends = new Set<string>();
+    const memo = new Map<string, [number, number, number]>();
+    const walk = (id: string, flags: string[], depth: number): [number, number, number] => {
+      expect(depth).toBeLessThan(60);
+      const key = `${id}|${[...flags].sort().join(",")}`;
+      const hit = memo.get(key);
+      if (hit) return hit;
+      const scene = story.scenes.find((x) => x.id === id);
+      expect(scene, id).toBeTruthy();
+      if (!scene) return [0, 0, 0];
+      seen.add(id);
+      const add = (flag?: string) => (flag && !flags.includes(flag) ? [...flags, flag] : flags);
+      const own = scene.kind === "branch" ? 0 : 1;
+      const fight = scene.kind === "fight" ? 1 : 0;
+      let next: Array<[string, string[]]> = [];
+      if (scene.kind === "end") ends.add(scene.ending);
+      else if (scene.kind === "narrate") next = [[scene.next, add(scene.flag)]];
+      else if (scene.kind === "branch") next = [[branchNext(scene, flags), flags]];
+      else if (scene.kind === "check") next = Object.values(scene.outcomes).map((o) => [o.next ?? scene.next, add(o.flag)]);
+      else if (scene.kind === "vote") {
+        const options = visibleOptions(scene, flags);
+        expect(options.length).toBeGreaterThanOrEqual(2);
+        next = options.map((o) => [o.next, flags]);
+      } else if (scene.kind === "fight") next = [[scene.win, flags], [scene.lose, flags]];
+      const tails = next.map(([to, f]) => walk(to, f, depth + 1));
+      const result: [number, number, number] = tails.length === 0
+        ? [own, own, 0]
+        : [own + Math.min(...tails.map((t) => t[0])), own + Math.max(...tails.map((t) => t[1])), fight + Math.max(...tails.map((t) => t[2]))];
+      memo.set(key, result);
+      return result;
+    };
+    const [minScenes, maxScenes, maxFights] = walk(story.start, [], 0);
+    expect([...ends].sort()).toEqual(["bad", "good", "mid"]);
+    expect(story.scenes.filter((x) => !seen.has(x.id)).map((x) => x.id)).toEqual([]);
+    // «Вечная зима» — от 14 сцен даже при поражении, «Метка» короче (поражение от босса — 13).
+    expect(minScenes).toBeGreaterThanOrEqual(story.id === "winter" ? 14 : 12);
+    expect(maxScenes).toBeLessThanOrEqual(30);
+    expect(maxFights).toBeLessThanOrEqual(5);
+  });
+
   it("есть узел, где ветки сходятся", () => {
     const into = WINTER.scenes.filter((s) => exitsOf(s).includes("acheron"));
     expect(into.length).toBeGreaterThanOrEqual(2);
@@ -183,7 +228,8 @@ describe("бой", () => {
     let wins = 0;
     for (let seed = 1; seed <= 300; seed++) {
       const gods = [...GODS].sort((a, c) => ((seed * 31 + a.id.length * 7) % 11) - ((seed * 31 + c.id.length * 7) % 11)).slice(0, 2 + (seed % 7)).map((g) => g.id);
-      const b = runBattle(seed % 3 === 0 ? "devourer" : seed % 3 === 1 ? "wolves" : "shades", gods, seed, 1 + (seed % 4));
+      const foes = ["devourer", "wolves", "shades", "cerberus", "keres"];
+      const b = runBattle(foes[seed % foes.length] as string, gods, seed, 1 + (seed % 4));
       expect(b.over).not.toBeNull();
       if (b.over === "win") {
         wins++;

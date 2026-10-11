@@ -35,10 +35,12 @@ import { LoadFailed, Message, Pending } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
 import { screenStatusLabel, useScreenStatus } from "../components/live/screenStatus";
 import { SoundPad } from "../components/live/SoundPad";
+import { AddTimeButton } from "../components/live/AddTimeButton";
 import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
-import { SlidesPanel } from "../components/live/SlidesPanel";
+import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
+import { joinSlide, techSlide } from "../core/slides";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
 import { joinHost, playUrl, playUrlHint } from "../components/links";
@@ -261,7 +263,10 @@ function Console({ session }: { session: Session }) {
   const withScreen = session.screenMode !== "none";
   const menu: MenuAction[] = [{ label: "В студию", to: "/studio" }];
   if (withScreen) menu.unshift({ label: "Открыть экран зала здесь", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
-  const tabs = PULT_TABS.filter((t) => withScreen || !t.screenOnly);
+  // Самостоятельная игра («Олимп») ведётся своим пультом: общие звуки, музыка и слайды не нужны.
+  const standalone = Boolean(mechanic?.standalone);
+  const tools = withScreen && !standalone;
+  const tabs = PULT_TABS.filter((t) => tools || !t.screenOnly);
   const apply = (change: SessionChange) => sessionsRepo.apply(session.id, change);
   const slide = session.state.slide ?? null;
   const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
@@ -337,14 +342,40 @@ function Console({ session }: { session: Session }) {
                 </Suspense>
               </section>
             )}
-            {phase === "playing" && withScreen && !mechanic?.ownPeek && <PeekCard session={session} onApply={apply} />}
-            {phase === "playing" && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
+            {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
+            {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}
+            {phase === "playing" && !standalone && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
                   Наградить сейчас
                 </button>
                 {!canAwardNow(session.state) && <p className="muted small">Наградить можно после того, как покажете ответ.</p>}
               </>
+            )}
+            {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
+            {phase !== "finished" && tools && slide?.kind !== "tech" && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block"
+                disabled={busy}
+                onClick={() => void apply({ state: { slide: techSlide(slideId()) } }).catch(() => setError("Не получилось показать перерыв. Проверьте интернет."))}
+              >
+                Технический перерыв
+              </button>
+            )}
+            {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
+              <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
+            )}
+            {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
+            {phase === "playing" && tools && slide?.kind !== "join" && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--block"
+                disabled={busy}
+                onClick={() => void apply({ state: { slide: joinSlide(slideId()) } }).catch(() => setError("Не получилось показать QR. Проверьте интернет."))}
+              >
+                QR для опоздавших на экран
+              </button>
             )}
             {phase === "playing" && (
               <>

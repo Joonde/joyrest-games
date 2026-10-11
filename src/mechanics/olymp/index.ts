@@ -12,6 +12,8 @@ export const olymp: Mechanic<OlympContent, OlympAnswerValue> = {
   id: "olymp",
   title: "Олимп",
   supports: { solo: true, teams: true, noScreen: false },
+  // Свой экран, телефон и пульт — общие инструменты платформы (слайды, звуки, оформление) не нужны.
+  standalone: { themeId: "adventure" },
   create: createOlymp,
   parse: parseOlymp,
   mediaIds: () => [],

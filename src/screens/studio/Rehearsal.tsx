@@ -1,3 +1,4 @@
+import { AddTimeButton } from "../../components/live/AddTimeButton";
 import { Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { applyChange, startState } from "../../core/session";
@@ -96,8 +97,8 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
       <div className="rehearsal">
         <section className="rehearsal__screen" aria-label="Экран зала">
           <p className="eyebrow">Экран зала</p>
-          <div className="preview-screen" style={themeStyle(game.themeId)}>
-            <Scene themeId={game.themeId} />
+          <div className="preview-screen" style={themeStyle(mechanic?.standalone?.themeId ?? game.themeId)}>
+            {!mechanic?.standalone && <Scene themeId={game.themeId} />}
             {finished ? (
               <div className="quiz-screen quiz-screen--board">
                 <BoardView leaderboard={session.leaderboard} title="Игра завершена" />
@@ -137,8 +138,9 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
             </>
           ) : (
             <Suspense fallback={null}>
-              {!mechanic.ownPeek && session.state.phase === "playing" && <PeekCard session={session} onApply={control.apply} />}
+              {!mechanic.ownPeek && !mechanic.standalone && session.state.phase === "playing" && <PeekCard session={session} onApply={control.apply} />}
               <HostControls session={session} content={content} answers={[]} participants={demo} control={control} rehearsal />
+              {!mechanic.standalone && <AddTimeButton session={session} now={() => Date.now()} onApply={control.apply} />}
             </Suspense>
           )}
         </section>

@@ -58,6 +58,8 @@ export interface QuizQuestion {
   penalty?: SuperPenalty;
   /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
   round: string | null;
+  /** Заметка ведущему (факт, шутка, подводка): видна только на пульте, не на экране и телефонах. */
+  note?: string;
 }
 
 /** Музыкальный фрагмент вопроса (трек, угадывание, припев, звучание). */
@@ -165,6 +167,7 @@ export const LIMITS = {
   minPoints: 1,
   maxPoints: 1000,
   round: 60,
+  note: 300,
   trackStart: 3600,
   minTrackLength: 3,
   maxTrackLength: 120,
@@ -401,6 +404,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     pictures: kind === "pictures" ? parsePictures(data.pictures) : [],
     ...(kind === "super" ? { levels: parseLevels(data.levels), superStyle: parseStyle(data.superStyle), penalty: parsePenalty(data.penalty) } : {}),
     round: parseRound(data.round),
+    note: text(data.note, LIMITS.note),
   };
 }
 

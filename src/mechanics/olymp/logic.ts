@@ -16,7 +16,16 @@ import { OUTCOME_NAMES, OUTCOME_XP, d100Of, hpMaxOf, levelOf, outcomeOf, splitCo
 import { branchNext, sceneOf, visibleOptions, type CheckScene, type Scene, type VoteScene } from "./story";
 import { difficultyOf, storyOf, type OlympContent } from "./content";
 
-export type OlympPhase = "pick" | "scene" | "check" | "vote" | "fight" | "fightEnd" | "end";
+/** "party" — боги выбраны: на экране зала карточки отряда, потом первая сцена. */
+export type OlympPhase = "pick" | "party" | "scene" | "check" | "vote" | "fight" | "fightEnd" | "end";
+
+/** Вид боя на экране зала (выбирает ведущий): лента ходов сверху, колесо судьбы, фриз слева. */
+export type FightView = "ribbon" | "wheel" | "frieze";
+export const FIGHT_VIEWS: Array<{ id: FightView; title: string; hint: string }> = [
+  { id: "ribbon", title: "Лента сверху", hint: "очередь строкой, как в классических ролевых играх" },
+  { id: "wheel", title: "Колесо судьбы", hint: "эмблемы на колесе вокруг противника" },
+  { id: "frieze", title: "Фриз слева", hint: "очередь лентой с меандром, портрет того, кто ходит" },
+];
 
 /** Эффект из истории (проклятие после неудачного броска): действует до конца следующего боя или проверки. */
 export interface StoryEffect extends EffectSpec {
@@ -49,6 +58,8 @@ export interface VoteState {
   /** Победивший вариант (номер в `options`), null — голосование идёт. */
   picked: number | null;
   tie: boolean;
+  /** Кто за что голосовал (команды по вариантам) — эмблемы на карте после итога. */
+  voters?: string[][];
 }
 
 export interface FightEnd {
@@ -82,6 +93,8 @@ export interface OlympResult {
   fightEnd: FightEnd | null;
   log: LogEntry[];
   seq: number;
+  /** Вид боя, выбранный на пульте; нет — из настроек игры. */
+  view?: FightView;
   /** Одно действие назад: прежнее состояние (без журнала) и начисленный опыт. */
   /** `timeLimit` — таймер прежнего этапа (голосование): «Назад» возвращает его. */
   undo: { result: Omit<OlympResult, "undo" | "log">; score: Record<string, number>; stage: "ready" | "question" | "reveal"; timeLimit?: number | null } | null;
@@ -90,7 +103,7 @@ export interface OlympResult {
 const LOG_KEEP = 60;
 const BATTLE_LOG_KEEP = 16;
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
-const PHASES: OlympPhase[] = ["pick", "scene", "check", "vote", "fight", "fightEnd", "end"];
+const PHASES: OlympPhase[] = ["pick", "party", "scene", "check", "vote", "fight", "fightEnd", "end"];
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 const num = (v: unknown, def = 0) => (typeof v === "number" && Number.isFinite(v) ? v : def);
 const ids = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && ID.test(x)))].slice(0, 200) : []);
@@ -146,7 +159,8 @@ function parseVote(v: unknown): VoteState | null {
   const d = rec(v);
   if (!Array.isArray(d.options)) return null;
   const nums = (a: unknown) => (Array.isArray(a) ? a.map((x) => Math.max(0, Math.round(num(x)))).slice(0, 8) : []);
-  return { options: nums(d.options), tally: nums(d.tally), picked: typeof d.picked === "number" ? d.picked : null, tie: d.tie === true };
+  const voters = Array.isArray(d.voters) ? d.voters.slice(0, 8).map((x) => ids(x)) : undefined;
+  return { options: nums(d.options), tally: nums(d.tally), picked: typeof d.picked === "number" ? d.picked : null, tie: d.tie === true, ...(voters ? { voters } : {}) };
 }
 
 function parseBattle(v: unknown): Battle | null {
@@ -178,6 +192,7 @@ function parseCore(d: Record<string, unknown>): Omit<OlympResult, "undo" | "log"
     lastDie: typeof die.pid === "string" && typeof die.roll === "number" && OUTCOMES.includes(die.outcome as Outcome) ? { pid: die.pid, roll: die.roll, outcome: die.outcome as Outcome, ability: typeof die.ability === "string" ? die.ability : "" } : null,
     fightEnd: parseFightEnd(d.fightEnd),
     seq: Math.max(1, Math.round(num(d.seq, 1))),
+    ...(FIGHT_VIEWS.some((v) => v.id === d.view) ? { view: d.view as FightView } : {}),
   };
 }
 
@@ -374,6 +389,7 @@ export function olympPrimary(session: Session, content: OlympContent): OlympActi
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
   if (r.order.length === 0) return "start";
   if (r.phase === "pick") return "pickDone";
+  if (r.phase === "party") return "next";
   const scene = sceneOf(storyOf(content), r.scene);
   if (r.phase === "end") return hasPodium(session.leaderboard) ? "podium" : "finish";
   if (r.phase === "check") return stage === "question" ? "showRoll" : r.check?.outcome ? "next" : "roll";
@@ -422,7 +438,9 @@ export function closePick(session: Session, content: OlympContent, answers: Answ
   const gods = assignGods(r.order, answers, session.state.step, session.state.startedAt ?? 0);
   for (const p of r.order) r.party[p] = r.party[p] ?? newMember(gods[p] as string);
   log(r, "story", `Отряд собран: ${r.order.map((p) => godName(r, p)).join(", ")}`, r.order.map((p) => godName(r, p)));
-  enter(r, storyOf(content).start, content);
+  // Сначала — карточки богов на экране зала, «Дальше» — первая сцена.
+  void content;
+  r.phase = "party";
   return commit(session, participants, prev, r, "ready");
 }
 
@@ -448,6 +466,10 @@ function enter(r: OlympResult, sceneId: string, content: OlympContent): void {
     const pids = r.order.filter((p) => r.party[p]);
     r.check = { who: pids.length > 0 ? (pids[r.turn % pids.length] as string) : null, roll: null, mod: 0, outcome: null, chips: [] };
   }
+  if (scene.kind === "narrate") {
+    if (scene.flag && !r.flags.includes(scene.flag)) r.flags.push(scene.flag);
+    if (scene.coins) giveCoins(r, scene.coins, `${scene.id}_${r.seq}`);
+  }
   if (scene.kind === "vote") {
     const visible = visibleOptions(scene, r.flags);
     r.vote = { options: visible.map((o) => scene.options.indexOf(o)), tally: visible.map(() => 0), picked: null, tie: false };
@@ -459,6 +481,11 @@ function enter(r: OlympResult, sceneId: string, content: OlympContent): void {
 export function nextScene(session: Session, content: OlympContent, participants: Participant[]): SessionChange | null {
   const prev = parseOlympResult(session.state.result);
   const r = clone(prev);
+  if (r.phase === "party") {
+    seatLate(r, orderOf(session, participants, r));
+    enter(r, storyOf(content).start, content);
+    return commit(session, participants, prev, r, "ready");
+  }
   const scene = sceneOf(storyOf(content), r.scene);
   if (!scene) return null;
   let to: string | null = null;
@@ -551,12 +578,14 @@ export function closeVote(session: Session, content: OlympContent, answers: Answ
   const r = clone(prev);
   const vote = r.vote as VoteState;
   const tally = vote.options.map(() => 0);
+  const voters: string[][] = vote.options.map(() => []);
   const seen = new Set<string>();
   for (const a of answers) {
     if (a.step !== session.state.step || seen.has(a.pid) || !r.order.includes(a.pid)) continue;
     const i = rec(a.value).vote;
     if (typeof i === "number" && i >= 0 && i < tally.length) {
       tally[i] = (tally[i] ?? 0) + 1;
+      voters[i]?.push(a.pid);
       seen.add(a.pid);
     }
   }
@@ -564,6 +593,7 @@ export function closeVote(session: Session, content: OlympContent, answers: Answ
   const top = tally.map((n, i) => (n === best ? i : -1)).filter((i) => i >= 0);
   const pick = top.length === 1 ? (top[0] as number) : (top[(d100Of({ id: `${session.id}_${session.state.step}_tie`, submittedAt: session.state.startedAt ?? 0 }) - 1) % top.length] as number);
   vote.tally = tally;
+  vote.voters = voters;
   vote.picked = pick;
   vote.tie = top.length > 1;
   const option = scene.options[vote.options[pick] ?? 0];
@@ -747,4 +777,15 @@ export function currentScene(content: OlympContent, r: OlympResult): Scene | und
 
 export function isCheck(scene: Scene | undefined): scene is CheckScene {
   return scene?.kind === "check";
+}
+
+/** Вид боя на экране зала: выбор пульта, иначе — из настроек игры. */
+export function fightViewOf(r: OlympResult, content: OlympContent): FightView {
+  return r.view ?? content.fightView;
+}
+
+/** Пульт меняет вид боя: только оформление экрана, шаг и «Назад» не трогаются. */
+export function setFightView(session: Session, view: FightView): SessionChange {
+  const r = parseOlympResult(session.state.result);
+  return { state: { result: write({ ...r, view }) } };
 }

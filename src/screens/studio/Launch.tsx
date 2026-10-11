@@ -104,7 +104,8 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
   const [playMode, setPlayMode] = useState<PlayMode>(
     playModes.some((m) => m.id === game.playMode) ? game.playMode : (playModes[0]?.id ?? "solo"),
   );
-  const [themeId, setThemeId] = useState(getTheme(game.themeId).id);
+  const standalone = getMechanic(game.mechanic)?.standalone ?? null;
+  const [themeId, setThemeId] = useState(standalone?.themeId ?? getTheme(game.themeId).id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -163,6 +164,9 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
             </label>
           ))}
         </fieldset>
+        {/* У самостоятельной игры («Олимп») свой вид — выбирать оформление не нужно. */}
+        {!standalone && (
+          <>
         <fieldset>
           <legend>Оформление</legend>
           {themeChoices.map((theme) => (
@@ -188,6 +192,8 @@ function LaunchForm({ game, profile }: { game: Game; profile: UserProfile }) {
             <div className="big-code">482 913</div>
           </div>
         </div>
+          </>
+        )}
         {error && (
           <p className="error" role="alert">
             {error}

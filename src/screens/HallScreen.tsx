@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
 import { rankedLeaderboard, sortedLeaderboard } from "../core/leaderboard";
@@ -25,6 +25,7 @@ import {
   useSoundUnlock,
 } from "../components/live/sound";
 import { useWakeLock } from "../components/live/useWakeLock";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Logo } from "../components/Logo";
 import { NameText } from "../components/NameText";
 import { VPN_HINT } from "../core/texts";
@@ -46,7 +47,8 @@ export function HallScreen() {
   }
   if (state.status === "notFound") return <Message title="Сессия не найдена">Проверьте код: {code}</Message>;
   if (state.status === "error") return <LoadFailed onRetry={retry}>{state.message}</LoadFailed>;
-  return <Screen session={state.session} />;
+  // Ведущий открыл экран зала на своём устройстве — ему нужна дорога обратно в студию.
+  return <Screen session={state.session} isHost={auth.uid === state.session.hostId} />;
 }
 
 function teamStyle(colorIndex: number | undefined): CSSProperties {
@@ -83,8 +85,8 @@ const IS_APPLE_TOUCH =
   typeof navigator !== "undefined" &&
   (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
-/** Полноэкранный режим, звук: кнопки в углу экрана зала. */
-function ScreenControls() {
+/** Полноэкранный режим, звук и (ведущему) «В студию»: кнопки в углу экрана зала. */
+function ScreenControls({ toStudio }: { toStudio: (() => void) | null }) {
   const muted = useMuted();
   const ready = useSoundReady();
   const [full, setFull] = useState(() => document.fullscreenElement !== null);
@@ -121,6 +123,11 @@ function ScreenControls() {
           {full ? "Выйти из полного экрана" : "Во весь экран"}
         </button>
       )}
+      {toStudio && (
+        <button type="button" className="btn btn--secondary" onClick={toStudio}>
+          В студию
+        </button>
+      )}
     </div>
   );
 }
@@ -138,7 +145,9 @@ function useCueSound(cue: SoundCue | null | undefined): void {
   }, [cue]);
 }
 
-function Screen({ session }: { session: Session }) {
+function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
+  const navigate = useNavigate();
+  const [leaving, setLeaving] = useState(false);
   useTheme(session.themeId);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
@@ -166,11 +175,31 @@ function Screen({ session }: { session: Session }) {
   if (phase === "playing") sawGame.current = true;
   // Пульт видит, что экран на связи и звук разрешён.
   useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
+  // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
+  const slide = session.state.slide ?? null;
+  const standalone = Boolean(mechanic?.standalone);
+  const shownSlide = slide && !standalone && !(slide.kind === "join" && phase === "finished") ? slide : null;
 
   return (
     <div className={idle ? "hall is-idle" : "hall"}>
-      <Scene themeId={session.themeId} />
-      <ScreenControls />
+      {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
+      {!standalone && <Scene themeId={session.themeId} />}
+      <ScreenControls toStudio={isHost ? () => (phase === "finished" ? navigate("/studio") : setLeaving(true)) : null} />
+      {isHost && (
+        <ConfirmDialog
+          open={leaving}
+          title="Уйти с экрана зала?"
+          confirmLabel="В студию"
+          cancelLabel="Остаться"
+          onCancel={() => setLeaving(false)}
+          onConfirm={() => {
+            if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+            navigate("/studio");
+          }}
+        >
+          <p>Игра продолжится. Экран зала можно снова открыть из студии: «Идёт игра» → «Экран зала».</p>
+        </ConfirmDialog>
+      )}
       {muted ? (
         <button type="button" className="screen-tap" onClick={() => setMuted(false)}>
           🔇 Звук выключен на этом экране — включить
@@ -183,19 +212,42 @@ function Screen({ session }: { session: Session }) {
           </button>
         )
       )}
-      {session.state.slide ? (
+      {shownSlide ? (
         <main className="quiz-stage">
-          <SlideView slide={session.state.slide} />
+          <SlideView slide={shownSlide} code={session.code} />
         </main>
       ) : (
         <>
-          {phase === "lobby" && <Lobby session={session} />}
-          {phase === "playing" && <Playing session={session} />}
-          {phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
+          {standalone && mechanic && (
+            // Самостоятельная игра («Олимп») рисует все этапы сама: лобби, игру, награждение, финал.
+            <main className="quiz-stage">
+              <StandaloneScreen session={session} />
+            </main>
+          )}
+          {!standalone && phase === "lobby" && <Lobby session={session} />}
+          {!standalone && phase === "playing" && <Playing session={session} />}
+          {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
+          {/* Игра окончена: выход виден всегда (не прячется вместе с кнопками экрана). */}
+          {phase === "finished" && (
+            <a className="btn btn--secondary screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
+              e.preventDefault();
+              if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+              navigate(isHost ? "/studio" : "/");
+            }}>
+              {isHost ? "В студию" : "На главную"}
+            </a>
+          )}
         </>
       )}
     </div>
   );
+}
+
+function StandaloneScreen({ session }: { session: Session }) {
+  const mechanic = getMechanic(session.mechanic);
+  const content = useMemo(() => (mechanic ? mechanic.parse(snapshotContent(session.gameSnapshot)) : null), [mechanic, session.gameSnapshot]);
+  const ScreenView = mechanic?.ScreenView;
+  return ScreenView && content !== null ? <ScreenView session={session} content={content} /> : null;
 }
 
 function Lobby({ session }: { session: Session }) {

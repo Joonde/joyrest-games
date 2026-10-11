@@ -81,6 +81,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
 
   const total = content.questions.length;
   const round = roundAt(content, step);
+  const next = content.questions[step + 1];
+  const nextRound = next?.round ? `новый раунд «${next.round}»` : null;
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
   const result = parseResult(session.state.result);
   const own = answers.filter((a) => a.step === step);
@@ -250,6 +252,12 @@ export function QuizHostControls({ session, content, answers, participants, cont
         <p className="muted small">
           Верный ответ: <strong className="host-quiz__answer">{correctText(q) || "—"}</strong>
         </p>
+        {q.note?.trim() && (
+          <p className="host-note">
+            <span className="host-note__label">Заметка</span>
+            {q.note}
+          </p>
+        )}
       </div>
 
       {stage === "question" && (
@@ -406,6 +414,18 @@ export function QuizHostControls({ session, content, answers, participants, cont
       )}
 
       {buttons}
+
+      {/* Следующий вопрос заранее — чтобы подготовить подводку, пока зал смотрит ответ и таблицу. */}
+      {(stage === "reveal" || stage === "board") && next && (
+        <section className="host-next" aria-label="Следующий вопрос">
+          <p className="eyebrow">
+            Дальше · вопрос {step + 2} из {total}
+            {nextRound ? ` · ${nextRound}` : ""}
+          </p>
+          <p className="host-next__text">{next.text || "Без текста"}</p>
+          {next.note?.trim() && <p className="muted small">Заметка: {next.note}</p>}
+        </section>
+      )}
     </div>
   );
 }

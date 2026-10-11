@@ -30,13 +30,16 @@ import {
   openVote,
   parseOlympResult,
   readyAbilities,
+  setFightView,
   setRoller,
   showRoll,
+  fightViewOf,
+  FIGHT_VIEWS,
   startFight,
   startOlymp,
   type Member,
 } from "./logic";
-import { Emblem } from "./views";
+import { GodEmb } from "./hall";
 
 /**
  * Пульт «Олимпа»: ведущий читает сцену (текст — здесь), жмёт «Дальше», «Бросок», «Голосование»,
@@ -126,6 +129,20 @@ export function OlympHostControls({ session, content, answers, participants, con
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
         <p className="muted">Капитаны выберут богов: одна команда — один бог. Потом ведущий читает сцены, команды бросают кубик, голосуют и сражаются.</p>
+      ) : r.phase === "party" ? (
+        <div className="card stack stack--tight">
+          <p className="eyebrow">Боги разобраны · на экране — карточки отряда</p>
+          <ol className="ol-host-list">
+            {r.order
+              .filter((p) => r.party[p])
+              .map((p) => (
+                <li key={p}>
+                  <GodEmb god={(r.party[p] as Member).god} size="22px" /> {godName(r, p)} · <NameText name={team(p)} />
+                </li>
+              ))}
+          </ol>
+          <p className="muted small">Представьте богов команд, потом — «К первой сцене».</p>
+        </div>
       ) : r.phase === "pick" ? (
         <p>
           Богов выбрали: {[...answered].filter((p) => r.order.includes(p)).length} из {r.order.length}. Кто не успеет — получит первого свободного бога.
@@ -147,7 +164,7 @@ export function OlympHostControls({ session, content, answers, participants, con
                   const m = r.party[p] as Member;
                   return (
                     <button key={p} type="button" className="column-opt" aria-pressed={r.check?.who === p} disabled={busy} onClick={() => void run(setRoller(session, participants, p))}>
-                      <Emblem god={godOf(m.god)} size={26} />
+                      <GodEmb god={m.god} size="26px" />
                       <span className="line-clamp">
                         {godOf(m.god)?.name} · <NameText name={team(p)} /> · {STAT_NAMES[scene.stat]} {memberStat(m, scene.stat)}
                       </span>
@@ -233,6 +250,19 @@ export function OlympHostControls({ session, content, answers, participants, con
         </section>
       )}
 
+      {(r.phase === "fight" || r.phase === "fightEnd" || scene?.kind === "fight") && (
+        <div className="stack stack--tight">
+          <span className="muted small">Вид боя на экране зала</span>
+          <div className="ol-host-who" role="radiogroup" aria-label="Вид боя">
+            {FIGHT_VIEWS.map((v) => (
+              <button key={v.id} type="button" role="radio" className="column-opt" aria-checked={fightViewOf(r, content) === v.id} aria-pressed={fightViewOf(r, content) === v.id} disabled={busy} onClick={() => void run(setFightView(session, v.id))}>
+                <span className="line-clamp">{v.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {r.order.length > 0 && r.phase !== "pick" && (
         <details className="quest-host__places">
           <summary>Отряд: здоровье, опыт, драхмы</summary>
@@ -274,7 +304,7 @@ export function OlympHostControls({ session, content, answers, participants, con
         )}
         {action === "next" && (
           <button type="button" className={primary} disabled={busy} onClick={() => void run(nextScene(session, content, participants))}>
-            Дальше
+            {r.phase === "party" ? "К первой сцене" : "Дальше"}
           </button>
         )}
         {action === "roll" && (

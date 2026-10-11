@@ -3,7 +3,7 @@
 // ничего не хранится: новая игра сама попадает в свой раздел.
 import { trackIds, parseContent as parseQuiz } from "./quiz/content";
 
-export type CategoryId = "quiz" | "music" | "tv" | "adventure" | "olymp" | "cards" | "social" | "active" | "other";
+export type CategoryId = "evening" | "quiz" | "music" | "tv" | "adventure" | "olymp" | "cards" | "social" | "active" | "other";
 
 export interface Category {
   id: CategoryId;
@@ -14,6 +14,7 @@ export interface Category {
 
 /** Порядок разделов на экране. */
 export const CATEGORIES: Category[] = [
+  { id: "evening", title: "Мероприятия из блоков", icon: "🎉", hint: "Несколько игр подряд по одному коду: общий счёт вечера и победители блоков" },
   { id: "quiz", title: "Квизы", icon: "🧠", hint: "Вопросы на экране, ответы на телефонах" },
   { id: "music", title: "Музыкальные", icon: "🎵", hint: "«Угадай мелодию», музыкальное лото" },
   { id: "tv", title: "Телешоу", icon: "📺", hint: "«Своя игра», «Миллионер», «Гонка на выживание»" },
@@ -42,6 +43,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   perudo: "cards",
   bunker: "cards",
   story: "social",
+  evening: "evening",
 };
 
 /** Квиз про музыку: в названии мелодия, песни, музыка (шаблон «Угадай мелодию» — ещё без треков). */

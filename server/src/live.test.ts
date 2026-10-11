@@ -272,6 +272,59 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", `/api/sessions?host=${hostUid}`, host)).json().length).toBeGreaterThan(0);
   });
 
+  it("мероприятие из блоков: один код, блок → перерыв → следующий блок, общий счёт, ответы прошлого блока в архиве", async () => {
+    const snap = (title: string, mechanic: string) => ({ title, mechanic, themeId: "joyrest", content: { questions: [] } });
+    const program = { title: "Вечер", blocks: [{ title: "Квиз", mechanic: "quiz", snapshot: snap("Квиз", "quiz") }, { title: "Своя игра", mechanic: "board", snapshot: snap("Своя игра", "board") }] };
+    // Больше 5 блоков или блок без снимка — отказ.
+    const bad = await call("POST", "/api/sessions", host, { id: "prog-bad", gameTitle: "Вечер", mechanic: "evening", program: { blocks: [{ title: "x", mechanic: "quiz" }] } });
+    expect(bad.statusCode).toBe(400);
+    const created = await call("POST", "/api/sessions", host, { id: "prog1", gameId: "g1", gameTitle: "Вечер", mechanic: "evening", gameSnapshot: snap("Вечер", "evening"), playMode: "solo", screenMode: "laptop", themeId: "joyrest", program });
+    expect(created.statusCode, created.body).toBe(200);
+    const code = created.json().code as string;
+    const guest = await device();
+    const first = (await call("GET", `/api/sessions/by-code/${code}`, guest.cookie)).json();
+    // Сессия начинается с первой игры; браузер видит программу без снимков.
+    expect(first).toMatchObject({ mechanic: "quiz", gameSnapshot: { mechanic: "quiz" }, program: { title: "Вечер", at: "block", index: 0, blocks: [{ mechanic: "quiz" }, { mechanic: "board" }] } });
+    expect(JSON.stringify(first.program)).not.toContain("snapshot");
+
+    await call("POST", `/api/sessions/prog1/participants/${guest.uid}/join`, guest.cookie, { name: "Аня", teamId: null });
+    await call("POST", "/api/sessions/prog1/phase", host, { phase: "playing" });
+    await call("POST", "/api/sessions/prog1/apply", host, { state: { stage: "question", startedAt: "server", timeLimit: 20 } });
+    expect((await call("POST", "/api/sessions/prog1/answers", guest.cookie, { step: 0, pid: guest.uid, value: "a" })).json()).toEqual({ result: "sent" });
+    await call("POST", "/api/sessions/prog1/leaderboard", host, { entries: { [guest.uid]: { name: "Аня", kind: "player", score: 0 } } });
+    await call("POST", "/api/sessions/prog1/apply", host, { addScore: { [guest.uid]: 120 } });
+
+    // Гость не переключает вечер; неверный номер блока — 409.
+    expect((await call("POST", "/api/sessions/prog1/program", guest.cookie, { action: "break", from: 0 })).statusCode).toBe(403);
+    expect((await call("POST", "/api/sessions/prog1/program", host, { action: "break", from: 1 })).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/prog1/program", host, { action: "break", from: 0 })).statusCode).toBe(200);
+    const pause = (await call("GET", "/api/sessions/prog1", guest.cookie)).json();
+    expect(pause).toMatchObject({ mechanic: "evening", state: { phase: "playing", step: 0, stage: "ready" }, program: { at: "break", totals: { [guest.uid]: 120 } } });
+    expect(pause.leaderboard[guest.uid].score).toBe(120);
+    // Ответ прошлого блока больше не на шаге 0.
+    expect((await call("GET", "/api/sessions/prog1/answers/0", host)).json()).toEqual([]);
+    // Повтор того же действия (второй пульт) — 409, вечер не сдвигается дважды.
+    expect((await call("POST", "/api/sessions/prog1/program", host, { action: "break", from: 0 })).statusCode).toBe(409);
+
+    expect((await call("POST", "/api/sessions/prog1/program", host, { action: "next", from: 0 })).statusCode).toBe(200);
+    const second = (await call("GET", "/api/sessions/prog1", guest.cookie)).json();
+    expect(second).toMatchObject({ mechanic: "board", gameSnapshot: { mechanic: "board" }, program: { at: "block", index: 1 } });
+    expect(second.leaderboard[guest.uid].score).toBe(0);
+    // Тот же код — та же сессия.
+    expect((await call("GET", `/api/sessions/by-code/${code}`, guest.cookie)).json().id).toBe("prog1");
+
+    await call("POST", "/api/sessions/prog1/apply", host, { addScore: { [guest.uid]: 30 } });
+    // Последний блок — сразу итоги вечера; «Завершить» пишет в историю общий счёт.
+    expect((await call("POST", "/api/sessions/prog1/program", host, { action: "break", from: 1 })).statusCode).toBe(200);
+    const final = (await call("GET", "/api/sessions/prog1", guest.cookie)).json();
+    expect(final).toMatchObject({ mechanic: "evening", program: { at: "final" } });
+    expect(final.program.results.map((r: { title: string }) => r.title)).toEqual(["Квиз", "Своя игра"]);
+    expect((await call("POST", "/api/sessions/prog1/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("GET", "/api/results/prog1", "")).json().board).toEqual([{ name: "Аня", score: 150 }]);
+    // После завершения вечер не переключить.
+    expect((await call("POST", "/api/sessions/prog1/program", host, { action: "next", from: 1 })).statusCode).toBe(409);
+  });
+
   it("время вечера: начало — первый гость, перерывы — слайд «Перерыв», в итогах — их длительность", async () => {
     await newSession("ev1");
     expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBeNull();

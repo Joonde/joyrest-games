@@ -421,7 +421,7 @@ function Playing({ session }: { session: Session }) {
       ) : stage === "podium" ? (
         <Podium session={session} />
       ) : ScreenView && content !== null ? (
-        <ScreenView session={session} content={content} />
+        <ScreenView key={programKey(session)} session={session} content={content} />
       ) : (
         <div className="screen-center">
           <h1 className="screen-title">Игра идёт</h1>
@@ -429,6 +429,7 @@ function Playing({ session }: { session: Session }) {
       )}
       <p className="stage-code">
         Вход: {joinHint()} · код {formatSessionCode(session.code)}
+        {session.program?.at === "block" ? ` · блок ${session.program.index + 1} из ${session.program.blocks.length}: ${session.program.blocks[session.program.index]?.title ?? ""}` : ""}
       </p>
     </main>
   );
@@ -466,4 +467,9 @@ function Final({ session, sawGame }: { session: Session; sawGame: boolean }) {
       </div>
     </main>
   );
+}
+
+/** Мероприятие из блоков: новый блок — вид игры с чистого листа, даже если механика та же. */
+function programKey(session: Session): string {
+  return session.program ? `${session.program.at}-${session.program.index}` : "game";
 }

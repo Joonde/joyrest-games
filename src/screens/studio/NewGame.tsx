@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { cleanGameTitle, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
-import { gamesRepo, permissions, type AuthUser, type GameScope, type UserProfile } from "../../data";
+import { gamesRepo, permissions, sessionsRepo, type AuthUser, type GameScope, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Message } from "../../components/Status";
@@ -81,7 +81,8 @@ function NewGameForm({ profile }: { user: AuthUser; profile: UserProfile }) {
           <legend>Формат игры</legend>
           <p className="muted small">Выбрано: {selectableMechanics.find((m) => m.id === mechanic)?.title}. Форматы собраны по разделам — коснитесь раздела.</p>
           {CATEGORIES.map((c) => {
-            const list = selectableMechanics.filter((m) => categoryOf({ mechanic: m.id, content: null }) === c.id);
+            // «Мероприятие из блоков» — только на своём сервере (переключение блоков делает сервер).
+            const list = selectableMechanics.filter((m) => categoryOf({ mechanic: m.id, content: null }) === c.id && (m.id !== "evening" || Boolean(sessionsRepo.program)));
             if (list.length === 0) return null;
             const chosen = list.find((m) => m.id === mechanic);
             return (

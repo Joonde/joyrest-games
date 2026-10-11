@@ -329,8 +329,11 @@ async function createOrFindTeam(sessionId: string, uid: string, name: string): P
  * Попытка ответа: шаг и время показа вопроса. «Назад» с вопроса и новый показ дают новую попытку —
  * телефон снова даёт ответить (старый ответ сервер уже удалил).
  */
-function answerSlot(state: Session["state"], personal = false): string {
-  return `${state.step}.${state.startedAt ?? 0}${personal ? ".me" : ""}`;
+function answerSlot(session: Session, personal = false): string {
+  const { state } = session;
+  // Мероприятие из блоков: у каждого блока шаги с нуля — ответ прошлого блока не считается ответом нового.
+  const block = session.program && session.program.index > 0 ? `b${session.program.index}.` : "";
+  return `${block}${state.step}.${state.startedAt ?? 0}${personal ? ".me" : ""}`;
 }
 
 /** Ответ на шаг запоминается на телефоне: после перезагрузки гость видит, что ответил. */
@@ -359,7 +362,7 @@ function rememberAnswer(sessionId: string, slot: string, value: unknown): void {
 /** Ответ на текущий шаг: с телефона, а если его нет — с сервера (после перезагрузки, у участника команды). */
 function useMyAnswer(session: Session, pid: string, ask: boolean, personal = false) {
   const { step } = session.state;
-  const slot = answerSlot(session.state, personal);
+  const slot = answerSlot(session, personal);
   const [answer, setAnswer] = useState<{ slot: string; value: { value: unknown } | null } | null>(null);
 
   useEffect(() => {
@@ -456,7 +459,7 @@ function InGame({
 
   async function answer(value: unknown) {
     const step = session.state.step;
-    const slot = answerSlot(session.state);
+    const slot = answerSlot(session);
     setSending(true);
     setError(null);
     rememberAnswer(session.id, slot, value);
@@ -485,7 +488,7 @@ function InGame({
 
   async function sendPersonal(value: unknown) {
     const step = session.state.step;
-    const slot = answerSlot(session.state, true);
+    const slot = answerSlot(session, true);
     setPersonalSending(true);
     setError(null);
     rememberAnswer(session.id, slot, value);
@@ -574,7 +577,13 @@ function InGame({
 
       {phase === "playing" && session.state.stage !== "podium" && PlayerView && content !== null && (
         <div className="card">
+          {session.program?.at === "block" && (
+            <p className="eyebrow">
+              Блок {session.program.index + 1} из {session.program.blocks.length} · {session.program.blocks[session.program.index]?.title}
+            </p>
+          )}
           <PlayerView
+            key={session.program ? `${session.program.at}-${session.program.index}` : "game"}
             session={session}
             content={content}
             participant={me}

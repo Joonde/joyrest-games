@@ -29,6 +29,7 @@ import { createStory } from "./story/content";
 import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
+import { evening } from "./evening";
 import { DEMO_MELODY, DEMO_QUIZ } from "./quiz/demo";
 import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
@@ -42,7 +43,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(story), register(bunker)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -64,7 +65,8 @@ const HINTS: Record<string, string> = {
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
-  board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
+  board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
+  evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
 
 /** Механики, которые можно выбрать при создании игры. */

@@ -17,6 +17,7 @@ import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/sessio
 import { compactBoard } from "../../src/core/results";
 import { breakStats, parseBreaks, trackBreaks } from "../../src/core/eventTime";
 import { retentionCutoff } from "../../src/core/retention";
+import { moveProgram, newProgram, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
 import type { ChangeExpect, Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
@@ -102,9 +103,11 @@ interface SessionRow {
   event_started_at?: Date | null;
   /** Перерывы (`src/core/eventTime.ts`). */
   breaks?: unknown;
+  /** Мероприятие из блоков (миграция 0016, `src/core/program.ts`). */
+  program?: unknown;
 }
 
-const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks"];
+const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks", "program"];
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
@@ -122,6 +125,8 @@ const AUDIENCE_VOTES_MAX = 3000;
 /** Сколько сессий с экраном зала помним (старые вытесняются). */
 const SCREENS_MAX = 5000;
 const SNAPSHOT_BODY = 1024 * 1024;
+/** Мероприятие из блоков: до пяти снимков игр в одном запросе. */
+const PROGRAM_BODY = 4 * 1024 * 1024;
 /** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */
 export const CLEANUP_LIMIT = 100;
 
@@ -201,6 +206,8 @@ function sessionOf(row: SessionRow) {
     createdAt: row.created_at ? row.created_at.getTime() : null,
     eventStartedAt: row.event_started_at ? row.event_started_at.getTime() : null,
     breaks: parseBreaks(row.breaks),
+    // Программа вечера без снимков игр (их знает только сервер).
+    program: publicProgram(row.program ?? null),
     version: row.version,
   };
 }
@@ -627,7 +634,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
 
     // ---------------------------------------------------------------- сессии
 
-    api.post<{ Body: unknown }>("/api/sessions", { bodyLimit: SNAPSHOT_BODY }, async (request, reply) => {
+    api.post<{ Body: unknown }>("/api/sessions", { bodyLimit: PROGRAM_BODY }, async (request, reply) => {
       const who = await requireIdentity(request, reply);
       if (!who) return reply;
       if (!who.user || !permissions.canCreateSession(actor(who))) return fail(reply, 403, "permission-denied");
@@ -641,15 +648,32 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       }
       const text = (value: unknown, max: number) => (typeof value === "string" && value.length <= max ? value : "");
       const state = { ...normalizeState({}), phase: "lobby" };
+      // Мероприятие из блоков: игра сессии — первый блок, остальные снимки ждут в программе.
+      let program: StoredProgram | null = null;
+      let mechanic = typeof body.mechanic === "string" ? body.mechanic : null;
+      let snapshot: unknown = body.gameSnapshot ?? null;
+      if (body.program !== undefined && body.program !== null) {
+        const raw = isRecord(body.program) ? body.program : {};
+        const blocks = (Array.isArray(raw.blocks) ? raw.blocks : []).filter(isRecord);
+        const valid = blocks.every((b) => typeof b.mechanic === "string" && b.mechanic.length > 0 && b.mechanic.length <= 40 && isRecord(b.snapshot));
+        if (!valid || blocks.length < PROGRAM_LIMITS.minBlocks || blocks.length > PROGRAM_LIMITS.maxBlocks) return fail(reply, 400, "invalid-argument");
+        program = newProgram(
+          text(raw.title, PROGRAM_LIMITS.title) || text(body.gameTitle, PROGRAM_LIMITS.title),
+          blocks.map((b) => ({ title: text(b.title, PROGRAM_LIMITS.title), mechanic: b.mechanic as string, snapshot: b.snapshot })),
+        );
+        mechanic = program.blocks[0]?.mechanic ?? null;
+        snapshot = program.snapshots[0] ?? null;
+      }
       for (let attempt = 0; attempt < 10; attempt++) {
         const code = generateSessionCode();
         // Код занят незавершённой сессией — уникальный индекс не даст записать, пробуем другой.
         const rows = await sql`
-          insert into sessions (id, code, host_id, game_id, game_title, mechanic, game_snapshot, theme_id, play_mode, screen_mode, state)
+          insert into sessions (id, code, host_id, game_id, game_title, mechanic, game_snapshot, theme_id, play_mode, screen_mode, state, program)
           values (${id}, ${code}, ${who.uid}, ${typeof body.gameId === "string" ? body.gameId : null}, ${text(body.gameTitle, 200)},
-                  ${typeof body.mechanic === "string" ? body.mechanic : null}, ${sql.json((body.gameSnapshot ?? null) as never)},
+                  ${mechanic}, ${sql.json(snapshot as never)},
                   ${text(body.themeId, 40) || "joyrest"}, ${body.playMode === "teams" ? "teams" : "solo"},
-                  ${body.screenMode === "remote" || body.screenMode === "none" ? body.screenMode : "laptop"}, ${sql.json(state as never)})
+                  ${body.screenMode === "remote" || body.screenMode === "none" ? body.screenMode : "laptop"}, ${sql.json(state as never)},
+                  ${program ? sql.json(program as never) : null})
           on conflict do nothing returning id`;
         if (rows.length > 0) return { id, code };
         const again = await loadSession(id);
@@ -852,6 +876,51 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const end = Math.min(now(), (last?.updated_at.getTime() ?? now()) + 15 * 60_000);
         await awardGamePoints(sql, row.id, end);
       }
+      return { ok: true };
+    });
+
+    // Мероприятие из блоков: «Завершить блок» (перерыв), «Начать блок N», «Итоги вечера». Одно изменение под
+    // блокировкой строки: итоги блока в программу, таблица (очки блока или вечера), механика и снимок
+    // следующей игры, игра с первого шага. Ответы прошлого блока уходят в архив (шаги < 0): они остаются для
+    // баллов ведущего, но не мешают шагам новой игры.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/program", { bodyLimit: SMALL_BODY }, async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const action = body.action;
+      const from = body.from;
+      if ((action !== "break" && action !== "next" && action !== "final") || !Number.isInteger(from)) return fail(reply, 400, "invalid-argument");
+      const outcome = await sql.begin(async (tx) => {
+        const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${hosted.row.id} for update`;
+        const row = rows[0];
+        if (!row) return "missing" as const;
+        const parsed = parseProgram(row.program ?? null);
+        const state = normalizeState(row.state);
+        if (!parsed || state.phase !== "playing") return "conflict" as const;
+        const stored: StoredProgram = { ...parsed, snapshots: storedSnapshots(row.program) };
+        const move = moveProgram(stored, normalizeBoard(row.leaderboard), action as ProgramAction, from as number);
+        if (!move) return "conflict" as const;
+        // Новая игра с первого шага; музыка, микшер и названия команд остаются, слайд и таблица поверх — уходят.
+        const nextState: SessionState = { ...state, ...PLAYING_RESET, startedAt: null, cue: null, slide: null, peek: null } as SessionState;
+        // Шаги прошлого блока — в архив: блок k получает шаги −(шаг + 1) − 100000·(k + 1).
+        const archived = await tx<{ step: number }[]>`
+          update answers set step = -(step + 1) - ${100_000 * (parsed.index + 1)}
+          where session_id = ${row.id} and step >= 0 returning step`;
+        const [updated] = await tx<{ version: number }[]>`
+          update sessions set state = ${tx.json(nextState as never)}, leaderboard = ${tx.json(move.leaderboard as never)},
+            mechanic = ${move.mechanic}, game_snapshot = ${tx.json(move.snapshot as never)}, program = ${tx.json(move.program as never)},
+            version = version + 1, updated_at = now(), hidden_at = null
+          where id = ${row.id} returning version::int as version`;
+        const steps = [...new Set(archived.map((a) => -(a.step + 100_000 * (parsed.index + 1)) - 1))];
+        const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
+        return { session: fresh[0] ? sessionOf(fresh[0]) : null, steps, version: updated?.version ?? row.version + 1 };
+      });
+      if (outcome === "missing") return fail(reply, 404, "not-found");
+      // Повтор, второй пульт или игра уже ушла дальше — пульт получит свежее состояние.
+      if (outcome === "conflict") return fail(reply, 409, "failed-precondition");
+      for (const step of outcome.steps) hub.publish(`answers:${hosted.row.id}`, { type: "clear", step });
+      // Механика и снимок сменились — всем свежий снимок сессии.
+      if (outcome.session) hub.publish(`session:${hosted.row.id}`, { type: "snapshot", session: outcome.session });
       return { ok: true };
     });
 

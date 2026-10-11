@@ -28,6 +28,7 @@ import {
   startDeal,
   startNight,
   startVote,
+  voteCandidates,
   tallyVotes,
   toggleNominee,
   verdict,
@@ -263,13 +264,14 @@ describe("мафия: ход партии на пульте", () => {
     expect(s.leaderboard.a?.score).toBe(0);
   });
 
-  it("день без кандидатов — сразу ночь; «никого» не даёт переголосовать; досрочный конец можно отменить", () => {
+  it("день без кандидатов — голосование против любого живого; «никого» не даёт переголосовать; досрочный конец можно отменить", () => {
     const content = parseMafia({});
     let s = session();
     s = applyChange(s, startDeal(s, players), 1);
     s = applyChange(s, dealt(s, {}, null), 2);
     s = applyChange(s, startDay(s), 3);
-    expect(mafiaPrimary(s)).toBe("night");
+    expect(mafiaPrimary(s)).toBe("vote");
+    expect(voteCandidates(parseMafiaResult(s.state.result))).toEqual(parseMafiaResult(s.state.result).alive);
     s = applyChange(s, toggleNominee(s, "e"), 4);
     s = applyChange(s, toggleNominee(s, "f"), 5);
     s = applyChange(s, startVote(s, content, ["e", "f"]), 6);

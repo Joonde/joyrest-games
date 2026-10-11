@@ -527,6 +527,11 @@ export function giveWord(session: Session, pid: string | null, seconds: number, 
   return { state: { result: { ...r, speaker: pid, speakEndsAt: pid ? now + seconds * 1000 : null, speakKind: pid ? kind : null } } };
 }
 
+/** За кого голосуют: выставленные кандидаты, а если никого не выставили — все живые. */
+export function voteCandidates(r: Pick<MafiaResult, "nominees" | "alive">): string[] {
+  return r.nominees.length > 0 ? r.nominees : r.alive;
+}
+
 /** Выставить или снять кандидата на голосование. */
 export function toggleNominee(session: Session, pid: string): SessionChange {
   const r = parseMafiaResult(session.state.result);
@@ -660,7 +665,8 @@ export function mafiaPrimary(session: Session, parties = 1): MafiaAction {
   if (r.mode === "deal") return "dealt";
   if (r.mode === "roles") return "meet";
   if (r.mode === "meet") return "day";
-  if (r.mode === "day") return r.nominees.length > 0 ? "vote" : "night";
+  // Днём голосование есть всегда: без выставленных кандидатов — против любого живого (решение 11 октября 2026).
+  if (r.mode === "day") return "vote";
   if (r.mode === "vote") return "verdict";
   if (r.mode === "verdict") {
     if (r.winner) return "finish";

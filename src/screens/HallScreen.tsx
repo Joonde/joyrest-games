@@ -184,7 +184,8 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
     <div className={idle ? "hall is-idle" : "hall"}>
       {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
       {!standalone && <Scene themeId={session.themeId} />}
-      <ScreenControls toStudio={isHost ? () => (phase === "finished" ? navigate("/studio") : setLeaving(true)) : null} />
+      {/* После игры «В студию» — отдельная кнопка слева сверху, здесь её не дублируем. */}
+      <ScreenControls toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null} />
       {isHost && (
         <ConfirmDialog
           open={leaving}
@@ -227,9 +228,9 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
           {!standalone && phase === "lobby" && <Lobby session={session} />}
           {!standalone && phase === "playing" && <Playing session={session} />}
           {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
-          {/* Игра окончена: выход виден всегда (не прячется вместе с кнопками экрана). */}
+          {/* Игра окончена: выход сверху слева, виден всегда (не прячется вместе с кнопками экрана и не уходит под плашку звука). */}
           {phase === "finished" && (
-            <a className="btn btn--secondary screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
+            <a className="btn screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
               e.preventDefault();
               if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
               navigate(isHost ? "/studio" : "/");

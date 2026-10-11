@@ -1,6 +1,6 @@
 // «Дурак»: экран зала — стол с крупье, места игроков с веером рубашек, колода с козырем, бой и бито;
 // телефон — своя рука веером (касание поднимает карту), мини-стол и кнопки хода.
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -10,7 +10,7 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { isKey, newKey, storedKey, storeKey, unseal } from "../mafia/seal";
 import { BackFan, CardArt, CROUPIER_ART, suitGlyph } from "./CardArt";
 import { DECKS, deckTitle, isDeckStyle, type DeckStyle, type DurakContent } from "./content";
-import { beats, canTransfer, isCard, playable, rankOf, room, sortHand, throwers, uncovered, type DurakAction, type TableView } from "./engine";
+import { beats, canTransfer, isCard, playable, rankOf, room, sortHand, suitOf, throwers, uncovered, type DurakAction, type Suit, type TableView } from "./engine";
 import { nameOf, parseDurakResult, type DurakAnswerValue, type DurakResult } from "./logic";
 
 const FELT: Record<DurakContent["table"], string> = {
@@ -23,6 +23,18 @@ const FELT: Record<DurakContent["table"], string> = {
 function partyLabel(content: DurakContent, r: DurakResult): string {
   if (content.parties === 0) return `партия ${r.party}`;
   return content.parties > 1 ? `партия ${r.party} из ${content.parties}` : "";
+}
+
+const SUIT_WORD: Record<Suit, string> = { S: "пики", H: "червы", D: "бубны", C: "трефы" };
+const isTrump = (card: string, trump: Suit) => suitOf(card) === trump;
+
+/** Рука в несколько рядов: в ряду не больше 10 карт, иначе на телефоне их не различить. */
+const ROW_MAX = 10;
+function handRows(cards: string[]): string[][] {
+  if (cards.length <= ROW_MAX) return [cards];
+  const rows = Math.ceil(cards.length / ROW_MAX);
+  const per = Math.ceil(cards.length / rows);
+  return Array.from({ length: rows }, (_, i) => cards.slice(i * per, (i + 1) * per)).filter((row) => row.length > 0);
 }
 
 function titleOf(content: DurakContent): string {
@@ -110,11 +122,13 @@ export function DurakScreenView({ session, content }: ViewProps<DurakContent>) {
             ) : (
               <>
                 <div className="dk-stock">
-                  {v.deckLeft > 0 && <CardArt card={v.trumpCard} deck={deck} width="9cqh" className="dk-stock__trump" />}
+                  {v.deckLeft > 0 && <CardArt card={v.trumpCard} deck={deck} width="9cqh" trump className="dk-stock__trump" />}
                   {v.deckLeft > 1 && <CardArt card={null} deck={deck} width="9cqh" className="dk-stock__deck" />}
                   <span className="dk-stock__label">
-                    {v.deckLeft > 0 ? `Колода · ${v.deckLeft}` : "Колода пуста"}
-                    <b className={v.trump === "H" || v.trump === "D" ? "is-red" : undefined}>Козырь {suitGlyph(v.trumpCard)}</b>
+                    {v.deckLeft > 0 ? "Колода" : "Колода пуста"}
+                    <b className={`dk-stock__suit${v.trump === "H" || v.trump === "D" ? " is-red" : ""}`}>
+                      Козырь <span>{suitGlyph(v.trumpCard)}</span>
+                    </b>
                   </span>
                 </div>
                 <div className="dk-battle">
@@ -124,8 +138,8 @@ export function DurakScreenView({ session, content }: ViewProps<DurakContent>) {
                     const fly = lastFrom ? ({ "--fx": `${lastFrom.x}cqw`, "--fy": `${lastFrom.y}cqh` } as CSSProperties) : undefined;
                     return (
                       <div className="dk-pair" key={p.a}>
-                        <CardArt card={p.a} deck={deck} width="11cqh" className={fresh ? "dk-fly" : undefined} style={fresh ? fly : undefined} />
-                        {p.d && <CardArt card={p.d} deck={deck} width="11cqh" className={`dk-pair__d${freshD ? " dk-fly" : ""}`} style={freshD ? fly : undefined} />}
+                        <CardArt card={p.a} deck={deck} width="11cqh" trump={isTrump(p.a, v.trump)} className={fresh ? "dk-fly" : undefined} style={fresh ? fly : undefined} />
+                        {p.d && <CardArt card={p.d} deck={deck} width="11cqh" trump={isTrump(p.d, v.trump)} className={`dk-pair__d${freshD ? " dk-fly" : ""}`} style={freshD ? fly : undefined} />}
                       </div>
                     );
                   })}
@@ -286,6 +300,11 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
   const [picked, setPicked] = useState<string[]>([]);
   const [target, setTarget] = useState<number | null>(null);
   const [sent, setSent] = useState<{ n: string; seq: number } | null>(null);
+  // Перетаскивание карты на стол: карта летит за пальцем, отпустили над картой стола — покрыть её.
+  const [drag, setDrag] = useState<{ card: string; x: number; y: number; over: number | "table" | null } | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const dragRef = useRef<{ card: string; x0: number; y0: number; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
   const seated = r.seats.includes(pid);
   const dealing = r.mode === "deal" && stage === "question" && seated && role !== "member";
   const now = useServerNow(500, stage === "question");
@@ -321,13 +340,16 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
   useEffect(() => {
     setPicked([]);
     setTarget(null);
+    setHint(null);
+    setDrag(null);
+    dragRef.current = null;
   }, [r.seq, r.mode]);
 
   const head = (
     <p className="eyebrow">
       {titleOf(content)}
       {partyLabel(content, r) ? ` · ${partyLabel(content, r)}` : ""}
-      {seated && v ? ` · козырь ${suitGlyph(v.trumpCard)} · в колоде ${v.deckLeft}` : ""}
+      
     </p>
   );
 
@@ -357,6 +379,7 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
         {head}
         <h2>Карты у капитана</h2>
         <p className="muted">Ходит капитан вашего столика. Подсказывайте ему — и следите за экраном.</p>
+        {v && <TrumpBar v={v} />}
         {v && <MiniTable v={v} deck={r.deckStyle} target={null} onTarget={() => undefined} />}
       </div>
     );
@@ -409,9 +432,71 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
   const canCover = isDefender && oneCard !== null && defendTarget !== null && v.table[defendTarget] !== undefined && beats((v.table[defendTarget] as { a: string }).a, oneCard, v.trump, v.opts.spades);
   const transferOk = isDefender && picked.length > 0 && canTransfer(v, pid, picked);
   const attackStart = v.table.length === 0 && pid === v.attacker && picked.length > 0;
-  const throwOk = v.table.length > 0 && pid !== v.defender && picked.length > 0 && picked.every((c) => playable(v, pid, sorted).includes(c)) && throwers(v).includes(pid) && picked.length <= room(v);
+  const canThrowNow = v.table.length > 0 && pid !== v.defender && throwers(v).includes(pid) && room(v) > 0;
+  const throwOk = canThrowNow && picked.length > 0 && picked.every((c) => playable(v, pid, sorted).includes(c)) && picked.length <= room(v);
   const allCovered = v.table.length > 0 && openPairs.length === 0;
   const canPass = v.table.length > 0 && pid !== v.defender && throwers(v).includes(pid) && !v.passed.includes(pid) && (allCovered || v.taking);
+  const canDrag = open && !v.over && !pending && !bot && ((isDefender && v.table.length > 0) || (v.table.length === 0 && pid === v.attacker) || canThrowNow);
+  // Куда можно положить тащимую карту: открытые карты стола, которые она бьёт.
+  const beatable = drag && isDefender ? new Set(openPairs.filter((i) => beats((v.table[i] as { a: string }).a, drag.card, v.trump, v.opts.spades))) : null;
+
+  function dropAt(x: number, y: number): number | "table" | null {
+    const el = document.elementFromPoint(x, y);
+    const pair = el?.closest<HTMLElement>("[data-pair]");
+    if (pair) return Number(pair.dataset.pair);
+    return el?.closest(".dk-mini") ? "table" : null;
+  }
+
+  function drop(card: string, at: number | "table" | null) {
+    if (!v || at === null) return;
+    if (isDefender) {
+      if (typeof at === "number") {
+        const pair = v.table[at];
+        if (pair && pair.d === null && beats(pair.a, card, v.trump, v.opts.spades)) send({ a: "defend", c: card, t: at });
+        else setHint(pair && pair.d !== null ? "Эта карта уже покрыта" : "Этой картой её не побить");
+        return;
+      }
+      if (v.opts.transfer && canTransfer(v, pid, [card])) send({ a: "transfer", c: [card] });
+      else setHint("Перетащите карту на ту, которую бьёте");
+      return;
+    }
+    // Ход и подкидывание: тащили выбранную карту — уходят все выбранные (одного достоинства).
+    const cards = picked.includes(card) && picked.length > 1 ? picked : [card];
+    if (v.table.length === 0 && pid === v.attacker) {
+      if (cards.every((c) => rankOf(c) === rankOf(card))) send({ a: "attack", c: cards });
+      return;
+    }
+    const ok = playable(v, pid, sorted);
+    if (canThrowNow && cards.every((c) => ok.includes(c)) && cards.length <= room(v)) send({ a: "attack", c: cards });
+    else setHint("Подкинуть можно только карту того же достоинства, что на столе");
+  }
+
+  function onDown(e: ReactPointerEvent<HTMLButtonElement>, card: string) {
+    if (!canDrag || (e.pointerType === "mouse" && e.button !== 0)) return;
+    dragRef.current = { card, x0: e.clientX, y0: e.clientY, moved: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onMove(e: ReactPointerEvent<HTMLButtonElement>) {
+    const d = dragRef.current;
+    if (!d) return;
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 10) return;
+    d.moved = true;
+    setDrag({ card: d.card, x: e.clientX, y: e.clientY, over: dropAt(e.clientX, e.clientY) });
+  }
+  function onUp(e: ReactPointerEvent<HTMLButtonElement>) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d || !d.moved) return;
+    skipClick.current = true;
+    setDrag(null);
+    drop(d.card, dropAt(e.clientX, e.clientY));
+  }
+  function onCancel() {
+    dragRef.current = null;
+    setDrag(null);
+  }
+
+  const rows = handRows(sorted);
 
   return (
     <div className={`quiz-phone dk-phone ${FELT[content.table]}`}>
@@ -432,7 +517,17 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
           })}
       </div>
 
-      <MiniTable v={v} deck={r.deckStyle} target={isDefender && openPairs.length > 1 ? defendTarget : null} onTarget={(i) => setTarget(i)} />
+      <TrumpBar v={v} />
+
+      <MiniTable
+        v={v}
+        deck={r.deckStyle}
+        target={isDefender && openPairs.length > 1 ? defendTarget : null}
+        onTarget={(i) => setTarget(i)}
+        beatable={beatable}
+        over={drag?.over ?? null}
+        dropping={drag !== null}
+      />
 
       <p className={`dk-phone__status dk-phone__status--${me.kind}`} aria-live="polite">
         {v.over
@@ -444,11 +539,11 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
           : bot
             ? "За вас играет компьютер — скажите ведущему, если вернулись"
             : isDefender
-              ? openPairs.length > 1 && defendTarget === null
-                ? "Отбивайтесь: коснитесь карты на столе, потом своей"
-                : "Отбивайтесь — или берите"
+              ? openPairs.length > 1
+                ? "Перетащите свою карту на ту, которую бьёте — или берите"
+                : "Отбивайтесь: перетащите карту на стол — или берите"
               : v.table.length === 0 && pid === v.attacker
-                ? `Ваш ход под ${nameOf(session, v.defender)}`
+                ? `Ваш ход под ${nameOf(session, v.defender)}: перетащите карту на стол`
                 : canPass
                   ? v.taking
                     ? "Защитник берёт — можно подкинуть вдогонку"
@@ -456,35 +551,56 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
                   : me.text || "Ждём ход"}
         {left !== null && !v.over && (me.kind === "turn" || me.kind === "defend" || canPass) ? ` · ${left} с` : ""}
       </p>
-      {rejected && (
+      {(rejected || hint) && (
         <p className="error" role="alert">
-          {rejected}
+          {rejected ?? hint}
         </p>
       )}
 
-      <div className="dk-hand" role="group" aria-label="Ваши карты">
+      <div className={`dk-hand${rows.length > 1 ? " dk-hand--rows" : ""}${canDrag ? " is-draggable" : ""}`} role="group" aria-label="Ваши карты">
         {hand === null && <p className="buzz__plate">Карты не открыть на этом телефоне — скажите ведущему.</p>}
-        {sorted.map((c, i) => {
-          const k = sorted.length;
-          const off = i - (k - 1) / 2;
-          const spread = Math.min(9, 60 / Math.max(1, k));
-          const dim = canPlay !== null && !canPlay.has(c);
-          const sel = picked.includes(c);
-          return (
-            <button
-              key={c}
-              type="button"
-              className={`dk-hand__slot${sel ? " is-picked" : ""}${dim ? " is-dim" : ""}`}
-              style={{ "--off": off, "--rot": `${off * spread}deg`, "--lift": `${Math.abs(off) ** 1.6 * 2.2}px`, zIndex: i + 1 } as CSSProperties}
-              onClick={() => toggle(c)}
-              aria-pressed={sel}
-              disabled={v.over || pending || bot}
-            >
-              <CardArt card={c} deck={r.deckStyle} width="clamp(68px, 23vw, 104px)" />
-            </button>
-          );
-        })}
+        {rows.map((row, ri) => (
+          <div key={ri} className="dk-hand__row" style={{ "--n": Math.max(1, row.length - 1) } as CSSProperties}>
+            {row.map((c, i) => {
+              const k = row.length;
+              const off = i - (k - 1) / 2;
+              // В несколько рядов карты лежат ровно: наклон веера поднимал крайние над соседним рядом.
+              const spread = rows.length > 1 ? 0 : Math.min(9, 60 / Math.max(1, k));
+              const dim = canPlay !== null && !canPlay.has(c);
+              const sel = picked.includes(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  className={`dk-hand__slot${sel ? " is-picked" : ""}${dim ? " is-dim" : ""}${drag?.card === c ? " is-dragging" : ""}`}
+                  style={{ "--off": off, "--rot": `${off * spread}deg`, "--lift": `${rows.length > 1 ? 0 : Math.abs(off) ** 1.6 * 2.2}px`, zIndex: i + 1 } as CSSProperties}
+                  onClick={() => {
+                    if (skipClick.current) {
+                      skipClick.current = false;
+                      return;
+                    }
+                    setHint(null);
+                    toggle(c);
+                  }}
+                  onPointerDown={(e) => onDown(e, c)}
+                  onPointerMove={onMove}
+                  onPointerUp={onUp}
+                  onPointerCancel={onCancel}
+                  aria-pressed={sel}
+                  disabled={v.over || pending || bot}
+                >
+                  <CardArt card={c} deck={r.deckStyle} width="var(--cw)" trump={isTrump(c, v.trump)} />
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
+      {drag && (
+        <div className="dk-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
+          <CardArt card={drag.card} deck={r.deckStyle} width="var(--cw)" trump={isTrump(drag.card, v.trump)} />
+        </div>
+      )}
 
       {!v.over && !bot && (
         <div className="dk-phone__actions">
@@ -508,7 +624,7 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
               {picked.length > 1 ? `Ходить (${picked.length})` : "Ходить"}
             </button>
           )}
-          {v.table.length > 0 && pid !== v.defender && throwers(v).includes(pid) && room(v) > 0 && (
+          {canThrowNow && (
             <button type="button" className="btn btn--secondary" disabled={!open || pending || !throwOk} onClick={() => send({ a: "attack", c: picked })}>
               Подкинуть
             </button>
@@ -525,30 +641,62 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
   );
 }
 
-function MiniTable({ v, deck, target, onTarget }: { v: TableView; deck: DeckStyle; target: number | null; onTarget: (i: number) => void }) {
+/** Козырь крупно: масть и слово, без счёта карт в колоде (это упрощало бы игру). */
+function TrumpBar({ v }: { v: TableView }) {
+  const red = v.trump === "H" || v.trump === "D";
+  return (
+    <p className={`dk-trumpbar${red ? " is-red" : ""}`}>
+      <span className="dk-trumpbar__glyph" aria-hidden="true">
+        {suitGlyph(v.trumpCard)}
+      </span>
+      <span>
+        Козырь — <b>{SUIT_WORD[v.trump]}</b>
+        <small>{v.deckLeft > 0 ? "козыри в руке — с золотой рамкой ★" : "колода пуста"}</small>
+      </span>
+    </p>
+  );
+}
+
+function MiniTable({
+  v,
+  deck,
+  target,
+  onTarget,
+  beatable = null,
+  over = null,
+  dropping = false,
+}: {
+  v: TableView;
+  deck: DeckStyle;
+  target: number | null;
+  onTarget: (i: number) => void;
+  beatable?: Set<number> | null;
+  over?: number | "table" | null;
+  dropping?: boolean;
+}) {
   if (v.table.length === 0) {
     return (
-      <div className="dk-mini dk-mini--empty">
-        <CardArt card={v.trumpCard} deck={deck} width="44px" className="dk-mini__trump" />
-        <span className="muted small">{v.deckLeft > 0 ? `В колоде ${v.deckLeft}` : "Колода пуста"}</span>
+      <div className={`dk-mini dk-mini--empty${dropping ? " is-drop" : ""}${over === "table" ? " is-over" : ""}`}>
+        <span className="muted small">{dropping ? "Отпустите карту здесь" : "Стол пуст"}</span>
       </div>
     );
   }
   return (
-    <div className="dk-mini" role="group" aria-label="Карты на столе">
+    <div className={`dk-mini${dropping ? " is-drop" : ""}${over === "table" ? " is-over" : ""}`} role="group" aria-label="Карты на столе">
       {v.table.map((p, i) => {
         const inner = (
           <>
-            <CardArt card={p.a} deck={deck} width="46px" />
-            {p.d && <CardArt card={p.d} deck={deck} width="46px" className="dk-mini__d" />}
+            <CardArt card={p.a} deck={deck} width="var(--mw)" trump={isTrump(p.a, v.trump)} />
+            {p.d && <CardArt card={p.d} deck={deck} width="var(--mw)" trump={isTrump(p.d, v.trump)} className="dk-mini__d" />}
           </>
         );
+        const cls = `dk-mini__pair${p.d === null ? " is-open" : ""}${target === i ? " is-target" : ""}${beatable?.has(i) ? " is-beatable" : ""}${over === i ? " is-over" : ""}${beatable && p.d === null && !beatable.has(i) ? " is-no" : ""}`;
         return target !== null && p.d === null ? (
-          <button key={p.a} type="button" className={`dk-mini__pair is-open${target === i ? " is-target" : ""}`} onClick={() => onTarget(i)} aria-pressed={target === i}>
+          <button key={p.a} type="button" data-pair={i} className={cls} onClick={() => onTarget(i)} aria-pressed={target === i}>
             {inner}
           </button>
         ) : (
-          <span key={p.a} className={`dk-mini__pair${p.d === null ? " is-open" : ""}`}>
+          <span key={p.a} data-pair={p.d === null ? i : undefined} className={cls}>
             {inner}
           </span>
         );

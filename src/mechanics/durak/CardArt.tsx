@@ -133,10 +133,12 @@ export interface CardArtProps {
   width: number | string;
   className?: string;
   style?: CSSProperties;
+  /** Козырная масть — золотая рамка и значок ★ в углу. */
+  trump?: boolean;
 }
 
 /** Одна карта: лицо или рубашка. */
-export function CardArt({ card, deck, width, className, style }: CardArtProps) {
+export function CardArt({ card, deck, width, className, style, trump }: CardArtProps) {
   const css = { ...style, ["--w" as string]: typeof width === "number" ? `${width}px` : width } as CSSProperties;
   const art = DECK_ART[deck];
   if (card === null) {
@@ -151,9 +153,9 @@ export function CardArt({ card, deck, width, className, style }: CardArtProps) {
   const label = rankLabel(card);
   const glyph = suitGlyph(card);
   const faceArt = r === 13 ? art?.K : r === 12 ? art?.Q : r === 11 ? art?.J : undefined;
-  const classes = `dk-card dk-d--${deck}${isRed(card) ? " is-red" : ""}${faceArt ? " is-full" : ""}${className ? ` ${className}` : ""}`;
+  const classes = `dk-card dk-d--${deck}${isRed(card) ? " is-red" : ""}${faceArt ? " is-full" : ""}${trump ? " is-trump" : ""}${className ? ` ${className}` : ""}`;
   return (
-    <div className={classes} style={css} role="img" aria-label={cardName(card)}>
+    <div className={classes} style={css} role="img" aria-label={trump ? `${cardName(card)}, козырь` : cardName(card)}>
       {faceArt && <img className="dk-art" src={faceArt} alt="" draggable={false} />}
       <span className="dk-idx">
         {label}
@@ -169,6 +171,11 @@ export function CardArt({ card, deck, width, className, style }: CardArtProps) {
         <span className={r === 14 ? "dk-pip dk-pip--ace" : "dk-pip"}>{glyph}</span>
       ) : null}
       {r === 14 && <span className="dk-brand">J✦R</span>}
+      {trump && (
+        <span className="dk-trumpmark" aria-hidden="true">
+          ★
+        </span>
+      )}
       <span className="dk-idx dk-idx--b">
         {label}
         <span>{glyph}</span>

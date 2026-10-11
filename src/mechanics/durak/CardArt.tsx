@@ -7,8 +7,14 @@ import { rankOf, suitOf } from "./engine";
 
 /** Рисованные картинки колод (полные оригиналы — public/cards/art/*.png). */
 export const DECK_ART: Partial<Record<DeckStyle, { back?: string; K?: string; Q?: string; J?: string }>> = {
-  anime: { back: "/cards/art/web/anime-back.webp", K: "/cards/art/web/anime-king.webp", Q: "/cards/art/web/anime-queen.webp" },
-  wedding: { back: "/cards/art/web/wedding-back.webp" },
+  anime: { back: "/cards/art/web/anime-back.webp", K: "/cards/art/web/anime-king.webp", Q: "/cards/art/web/anime-queen.webp", J: "/cards/art/web/anime-jack.webp" },
+  wedding: {
+    back: "/cards/art/web/wedding-back.webp",
+    K: "/cards/art/web/wedding-king.webp",
+    Q: "/cards/art/web/wedding-queen.webp",
+    J: "/cards/art/web/wedding-jack.webp",
+  },
+  classic: { K: "/cards/art/web/classic-king.webp" },
 };
 
 export const CROUPIER_ART = "/cards/art/web/croupier.webp";

@@ -4,7 +4,7 @@
  * Используют вкладка «Музыка» и выбор трека в конструкторах игр.
  */
 import { useRef, useState } from "react";
-import { tracksRepo, type Track, type TrackCategory } from "../../data";
+import { permissions, tracksRepo, useAuth, type Track, type TrackCategory } from "../../data";
 import { titleFromFile } from "../../core/music";
 import { audioDuration } from "./usePreview";
 
@@ -50,7 +50,12 @@ export function UploadTrackButton({ onUploaded, disabled }: { onUploaded: (track
   const pending = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Какой файл грузили: тот же файл повторно — дописываем прежнее описание трека, а не создаём новое. */
+  const lastFile = useRef<string>("");
+  const [auth] = useAuth();
   if (!tracksRepo) return null;
+  // Загружать треки может не каждый (например, «Создатель игр» без профессии ведущего) — сервер ответил бы 403.
+  if (auth.status !== "signedIn" || !auth.profile || !permissions.canUploadTrack(auth.profile, "personal")) return null;
 
   async function pick(file: File | null) {
     if (ref.current) ref.current.value = "";
@@ -58,7 +63,9 @@ export function UploadTrackButton({ onUploaded, disabled }: { onUploaded: (track
     setError(null);
     if (file.size > MAX_TRACK_BYTES) return setError("Файл больше 15 МБ. Возьмите mp3 поменьше.");
     setBusy(true);
-    pending.current = null;
+    const fileKey = `${file.name}|${file.size}|${file.lastModified}`;
+    if (fileKey !== lastFile.current) pending.current = null;
+    lastFile.current = fileKey;
     try {
       onUploaded(await uploadTrack(file, { pendingId: pending }));
     } catch (e) {

@@ -105,9 +105,10 @@ export function registerStaff(app: FastifyInstance, options: StaffOptions): void
       const level = body.level === null ? null : levelOf(body.level);
       if (body.level !== null && level === null) return fail(reply, 400, "invalid-argument");
       const raw = body.experienceSince;
+      // Дата без времени — полночь UTC: «сегодня» по Москве ночью для сервера ещё «завтра», поэтому запас в сутки.
       let since: string | null = null;
       if (raw !== null && raw !== undefined) {
-        if (typeof raw !== "string" || !DATE.test(raw) || Number.isNaN(Date.parse(raw)) || Date.parse(raw) > Date.now()) {
+        if (typeof raw !== "string" || !DATE.test(raw) || Number.isNaN(Date.parse(raw)) || Date.parse(raw) > Date.now() + 86_400_000) {
           return fail(reply, 400, "invalid-argument");
         }
         since = raw;

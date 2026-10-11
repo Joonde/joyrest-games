@@ -341,6 +341,10 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     await call("POST", "/api/sessions/prog2/apply", host, { addScore: { m1: 5 } });
     expect((await call("POST", "/api/sessions/prog2/finish", host, { participantsCount: 0 })).statusCode).toBe(200);
     expect((await call("GET", "/api/results/prog2", "")).json()).toMatchObject({ mechanic: "evening", board: [{ name: "Аня", score: 75 }] });
+    // Экран и телефоны тоже видят итоги вечера: блок закрыт, в таблице — общий счёт.
+    const closed = (await call("GET", "/api/sessions/prog2", host)).json();
+    expect(closed).toMatchObject({ mechanic: "evening", state: { phase: "finished" }, program: { at: "final" } });
+    expect(closed.leaderboard.m1.score).toBe(75);
   });
 
   it("время вечера: начало — первый гость, перерывы — слайд «Перерыв», в итогах — их длительность", async () => {

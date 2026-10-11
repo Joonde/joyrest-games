@@ -29,7 +29,7 @@ function refOf(game: Game): ProgramBlockRef {
 }
 
 /** Свои игры и библиотека, которые можно поставить блоком (без самого вечера и «Олимпа»). */
-function useAvailableGames(): { games: Game[] | null; failed: boolean } {
+function useAvailableGames(libraryOnly: boolean): { games: Game[] | null; failed: boolean } {
   const [auth] = useAuth();
   const uid = auth.status === "signedIn" ? auth.user.uid : null;
   const [games, setGames] = useState<Game[] | null>(null);
@@ -37,7 +37,8 @@ function useAvailableGames(): { games: Game[] | null; failed: boolean } {
   useEffect(() => {
     if (!uid) return;
     let cancelled = false;
-    Promise.all([gamesRepo.listPersonal(uid), gamesRepo.listAgency()])
+    // Вечер в библиотеке запускают все ведущие — в нём только игры библиотеки (чужую личную игру они не откроют).
+    Promise.all([libraryOnly ? Promise.resolve([]) : gamesRepo.listPersonal(uid), gamesRepo.listAgency()])
       .then(([mine, library]) => {
         if (cancelled) return;
         const seen = new Set<string>();
@@ -47,12 +48,12 @@ function useAvailableGames(): { games: Game[] | null; failed: boolean } {
     return () => {
       cancelled = true;
     };
-  }, [uid]);
+  }, [uid, libraryOnly]);
   return { games, failed };
 }
 
-export function EveningEditor({ content, onChange, editable }: EditorProps<EveningContent>) {
-  const { games, failed } = useAvailableGames();
+export function EveningEditor({ content, onChange, editable, scope }: EditorProps<EveningContent>) {
+  const { games, failed } = useAvailableGames(scope === "agency");
   const [note, setNote] = useState<string | null>(null);
   const blocks = content.blocks;
   const room = PROGRAM_LIMITS.maxBlocks - blocks.length;
@@ -104,7 +105,11 @@ export function EveningEditor({ content, onChange, editable }: EditorProps<Eveni
                     {mechanicTitle(b.mechanic)}
                     {game ? (mineIds.has(game.id) ? " · мои игры" : " · библиотека") : ""}
                   </span>
-                  {lost && <span className="error small">Игра не найдена (удалена?) — уберите блок или замените.</span>}
+                  {lost && (
+                    <span className="error small">
+                      {scope === "agency" ? "Не игра библиотеки (или удалена) — ведущие её не запустят. Замените блок." : "Игра не найдена (удалена?) — уберите блок или замените."}
+                    </span>
+                  )}
                 </span>
                 {editable && (
                   <span className="ev-edit__tools">

@@ -124,8 +124,8 @@ const AUDIENCE_SESSIONS_MAX = 2000;
 const AUDIENCE_VOTES_MAX = 3000;
 /** Сколько сессий с экраном зала помним (старые вытесняются). */
 const SCREENS_MAX = 5000;
-/** Мероприятие из блоков: до пяти снимков игр в одном запросе. */
-const PROGRAM_BODY = 4 * 1024 * 1024;
+/** Мероприятие из блоков: до пяти снимков игр в одном запросе (Caddy пускает тела до 2 МБ). */
+const PROGRAM_BODY = 1900 * 1024;
 /** Сколько старых сессий удаляется за один вход admin; остальные — в следующий раз. */
 export const CLEANUP_LIMIT = 100;
 
@@ -621,7 +621,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const breaksChanged = JSON.stringify(breaks) !== JSON.stringify(before);
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(next.state as never)}, leaderboard = ${tx.json(next.leaderboard as never)},
-            version = version + 1, updated_at = now(), hidden_at = null,
+            -- Музыка и слайды после финиша не возвращают убранную из списка игру.
+            version = version + 1, updated_at = now(), hidden_at = case when ${next.state.phase === "finished"} then hidden_at else null end,
             -- «Начать игру» (любым путём: /apply или /phase) — начало игры для баллов ведущего.
             started_at = case when ${starting} then coalesce(started_at, ${new Date(at)}) else started_at end,
             -- Вечер без гостей с телефонами начинается с «Начать игру».
@@ -883,6 +884,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       // «шла» сутки — баллы ведущему считаются до него.
       const [last] = await sql<{ updated_at: Date }[]>`select updated_at from sessions where id = ${hosted.row.id}`;
       const wasLobby = normalizeState(hosted.row.state).phase === "lobby";
+      // Вечер из блоков закрывают посреди блока («Игры сейчас», «Завершить вечер досрочно»): сначала итоги блока и
+      // общий счёт — экран, телефоны и история увидят вечер целиком.
+      if (parseProgram(hosted.row.program ?? null)?.at === "block" && !wasLobby) await moveEvening(hosted.row.id, "final", null, false);
       const done = await change(hosted.row.id, () => ({ state: { phase: "finished", peek: null }, leaderboard: {} }), { staleOnly: hosted.staleOnly });
       if (done === "conflict") return fail(reply, 403, "permission-denied");
       if (done === "missing") return fail(reply, 404, "not-found");
@@ -897,6 +901,48 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       return { ok: true };
     });
 
+    /**
+     * Переход вечера из блоков под блокировкой строки (см. `/program`). `from: null` — текущий блок (закрытие
+     * вечера из «Игр сейчас»); `touch: false` — не двигать `updated_at` (брошенность игры проверяется после).
+     */
+    async function moveEvening(sessionId: string, action: ProgramAction, from: number | null, touch: boolean): Promise<"ok" | "missing" | "conflict"> {
+      const outcome = await sql.begin(async (tx) => {
+        const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${sessionId} for update`;
+        const row = rows[0];
+        if (!row) return "missing" as const;
+        const parsed = parseProgram(row.program ?? null);
+        const state = normalizeState(row.state);
+        if (!parsed || state.phase !== "playing") return "conflict" as const;
+        const stored: StoredProgram = { ...parsed, snapshots: storedSnapshots(row.program) };
+        const move = moveProgram(stored, normalizeBoard(row.leaderboard), action, from ?? parsed.index);
+        if (!move) return "conflict" as const;
+        // Новая игра с первого шага; музыка, микшер и названия команд остаются, слайд и таблица поверх — уходят.
+        const nextState: SessionState = { ...state, ...PLAYING_RESET, startedAt: null, cue: null, slide: null, peek: null } as SessionState;
+        // Слайд «Перерыв» уходит вместе со сменой блока — перерыв вечера закрывается сейчас.
+        const breaks = trackBreaks(parseBreaks(row.breaks), state.slide ?? null, null, now());
+        // Шаги прошлого блока — в архив: блок k получает шаги −(шаг + 1) − 100000·(k + 1).
+        const archived = await tx<{ step: number }[]>`
+          update answers set step = -(step + 1) - ${100_000 * (parsed.index + 1)}
+          where session_id = ${row.id} and step >= 0 returning step`;
+        await tx`
+          update sessions set state = ${tx.json(nextState as never)}, leaderboard = ${tx.json(move.leaderboard as never)},
+            mechanic = ${move.mechanic}, game_snapshot = ${tx.json(move.snapshot as never)}, program = ${tx.json(move.program as never)},
+            breaks = ${tx.json(breaks as never)}, version = version + 1,
+            updated_at = case when ${touch} then now() else updated_at end, hidden_at = null
+          where id = ${row.id}`;
+        const steps = [...new Set(archived.map((x) => -(x.step + 100_000 * (parsed.index + 1)) - 1))];
+        const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
+        return { session: fresh[0] ? sessionOf(fresh[0]) : null, steps };
+      });
+      if (outcome === "missing" || outcome === "conflict") return outcome;
+      // Голоса «помощи зала» прошлого блока не переходят в новый (шаги снова с нуля).
+      audience.delete(sessionId);
+      for (const step of outcome.steps) hub.publish(`answers:${sessionId}`, { type: "clear", step });
+      // Механика и снимок сменились — всем свежий снимок сессии.
+      if (outcome.session) hub.publish(`session:${sessionId}`, { type: "snapshot", session: outcome.session });
+      return "ok";
+    }
+
     // Мероприятие из блоков: «Завершить блок» (перерыв), «Начать блок N», «Итоги вечера». Одно изменение под
     // блокировкой строки: итоги блока в программу, таблица (очки блока или вечера), механика и снимок
     // следующей игры, игра с первого шага. Ответы прошлого блока уходят в архив (шаги < 0): они остаются для
@@ -908,42 +954,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       const action = body.action;
       const from = body.from;
       if ((action !== "break" && action !== "next" && action !== "final") || !Number.isInteger(from)) return fail(reply, 400, "invalid-argument");
-      const outcome = await sql.begin(async (tx) => {
-        const rows = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${hosted.row.id} for update`;
-        const row = rows[0];
-        if (!row) return "missing" as const;
-        const parsed = parseProgram(row.program ?? null);
-        const state = normalizeState(row.state);
-        if (!parsed || state.phase !== "playing") return "conflict" as const;
-        const stored: StoredProgram = { ...parsed, snapshots: storedSnapshots(row.program) };
-        const move = moveProgram(stored, normalizeBoard(row.leaderboard), action as ProgramAction, from as number);
-        if (!move) return "conflict" as const;
-        // Новая игра с первого шага; музыка, микшер и названия команд остаются, слайд и таблица поверх — уходят.
-        const nextState: SessionState = { ...state, ...PLAYING_RESET, startedAt: null, cue: null, slide: null, peek: null } as SessionState;
-        // Слайд «Перерыв» уходит вместе со сменой блока — перерыв вечера закрывается сейчас.
-        const before = parseBreaks(row.breaks);
-        const breaks = trackBreaks(before, state.slide ?? null, null, now());
-        // Шаги прошлого блока — в архив: блок k получает шаги −(шаг + 1) − 100000·(k + 1).
-        const archived = await tx<{ step: number }[]>`
-          update answers set step = -(step + 1) - ${100_000 * (parsed.index + 1)}
-          where session_id = ${row.id} and step >= 0 returning step`;
-        const [updated] = await tx<{ version: number }[]>`
-          update sessions set state = ${tx.json(nextState as never)}, leaderboard = ${tx.json(move.leaderboard as never)},
-            mechanic = ${move.mechanic}, game_snapshot = ${tx.json(move.snapshot as never)}, program = ${tx.json(move.program as never)},
-            breaks = ${tx.json(breaks as never)}, version = version + 1, updated_at = now(), hidden_at = null
-          where id = ${row.id} returning version::int as version`;
-        const steps = [...new Set(archived.map((a) => -(a.step + 100_000 * (parsed.index + 1)) - 1))];
-        const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
-        return { session: fresh[0] ? sessionOf(fresh[0]) : null, steps, version: updated?.version ?? row.version + 1 };
-      });
-      if (outcome === "missing") return fail(reply, 404, "not-found");
+      const result = await moveEvening(hosted.row.id, action, from as number, true);
+      if (result === "missing") return fail(reply, 404, "not-found");
       // Повтор, второй пульт или игра уже ушла дальше — пульт получит свежее состояние.
-      if (outcome === "conflict") return fail(reply, 409, "failed-precondition");
-      // Голоса «помощи зала» прошлого блока не переходят в новый (шаги снова с нуля).
-      audience.delete(hosted.row.id);
-      for (const step of outcome.steps) hub.publish(`answers:${hosted.row.id}`, { type: "clear", step });
-      // Механика и снимок сменились — всем свежий снимок сессии.
-      if (outcome.session) hub.publish(`session:${hosted.row.id}`, { type: "snapshot", session: outcome.session });
+      if (result === "conflict") return fail(reply, 409, "failed-precondition");
       return { ok: true };
     });
 

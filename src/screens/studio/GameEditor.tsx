@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { GamePreview } from "./GamePreview";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
@@ -19,7 +19,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
-import { useAutosave, type SaveStatus } from "../../components/useAutosave";
+import { dropDraft, readDraft, useAutosave, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
 import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
@@ -72,17 +72,35 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const navigate = useNavigate();
   const mechanic = getMechanic(initial.mechanic);
   // Содержимое сразу приводим к формату механики: дальше с ним работает только она.
-  const [game, setGame] = useState<Game>(() => ({ ...initial, content: mechanic ? mechanic.parse(initial.content) : initial.content }));
-  const [titleInput, setTitleInput] = useState(initial.title);
+  // Правки, которые в прошлый раз не дошли до сервера (вкладку закрыли без связи), возвращаются и уходят снова —
+  // если игра на сервере с тех пор не менялась (иначе свежее — на сервере).
+  const [draft] = useState(() => {
+    const d = readDraft<GamePatch>(`game.${initial.id}`);
+    if (d && (initial.updatedAt === null || d.at > initial.updatedAt)) return d.patch;
+    if (d) dropDraft(`game.${initial.id}`);
+    return null;
+  });
+  const [game, setGame] = useState<Game>(() => {
+    const merged = { ...initial, ...(draft ?? {}) };
+    return { ...merged, content: mechanic ? mechanic.parse(merged.content) : merged.content };
+  });
+  const [titleInput, setTitleInput] = useState(game.title);
   const [copying, setCopying] = useState(false);
   const [toast, showToast] = useToast();
   const editable = permissions.canEditGame(profile, game);
   // Роли без профессии ведущего (создатель игр, тестировщик) игры не проводят — только репетиция.
   const launchable = permissions.canLaunchGame(profile, game);
   const copyable = permissions.canCopyToPersonal(profile, game);
-  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
+  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch), `game.${initial.id}`);
+  useEffect(() => {
+    if (!draft) return;
+    edited.current = true;
+    change(draft);
+    showToast("Вернули правки, которые не успели сохраниться");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз при открытии
+  }, []);
   // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
-  const original = useRef<GamePatch>({ title: initial.title, content: game.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
+  const original = useRef<GamePatch>({ title: initial.title, content: mechanic ? mechanic.parse(initial.content) : initial.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
   const edited = useRef(false);
   const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -288,6 +306,12 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={game.playMode} themeId={game.themeId} />
         </section>
       )}
+      {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}
+      {!(canPreview && mechanic) && (
+        <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
+          Как проводить эту игру
+        </Link>
+      )}
 
       {MechanicEditor ? (
         <Suspense fallback={<section className="card" aria-busy="true"><span className="skeleton skeleton--choice" /></section>}>
@@ -296,6 +320,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
             themeId={game.themeId}
             content={game.content}
             editable={editable}
+            scope={game.scope}
             onChange={(content) => edit({ content })}
           />
         </Suspense>

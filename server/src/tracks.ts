@@ -231,7 +231,11 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       if (!track) return { ok: true };
       if (!permissions.canEditTrack(actorOf(user), ref(track))) return fail(reply, 403, "permission-denied");
       // Файл остаётся, пока на него ссылается другой трек (копия в библиотеке); без ссылок — уберёт уборка.
-      await sql`delete from tracks where id = ${track.id}`;
+      await sql.begin(async (tx) => {
+        await tx`delete from tracks where id = ${track.id}`;
+        // Убрали копию из общей музыки — у исходного трека ведущего снова можно «Предложить в общую».
+        await tx`update tracks set share_status = 'none', share_reason = null, library_track_id = null, updated_at = now() where library_track_id = ${track.id}`;
+      });
       request.log.info({ track: "delete" }, "track");
       return { ok: true };
     });
@@ -257,7 +261,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         return fail(reply, 507, "resource-exhausted");
       }
       const [{ used }] = await sql<{ used: string }[]>`
-        select coalesce(sum(size), 0)::text as used from tracks where owner_id = ${track.owner_id} and sha256 is not null`;
+        select coalesce(sum(size), 0)::text as used from tracks where owner_id = ${track.owner_id} and sha256 is not null and scope = 'personal'`;
       if (Number(used) + bytes.length > limits.perHostBytes) return fail(reply, 413, "resource-exhausted");
 
       await mkdir(audioDir, { recursive: true });

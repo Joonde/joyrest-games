@@ -59,6 +59,9 @@ const CAPTAIN_CHECK_MS = 15_000;
 /** Шаг ручной корректировки очков. */
 const SCORE_STEP = 10;
 
+/** Убранные ведущим участники (когда): 15 с таблица их не возвращает, пока не придёт удаление из списка. */
+const removedRecently = new Map<string, number>();
+
 export function HostConsole() {
   const { code = "" } = useParams();
   return (
@@ -137,6 +140,8 @@ function Console({ session }: { session: Session }) {
   useEffect(() => {
     if (session.state.phase === "finished") return;
     const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
+    // Только что убранного ведущим не возвращаем: событие «участник удалён» может прийти позже таблицы.
+    for (const pid of Object.keys(additions)) if (Date.now() - (removedRecently.get(pid) ?? 0) < 15_000) delete additions[pid];
     if (Object.keys(additions).length > 0) {
       sessionsRepo.upsertLeaderboard(session.id, additions).catch(() => setError("Не удалось обновить список игроков."));
     }
@@ -420,7 +425,8 @@ function Console({ session }: { session: Session }) {
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
             )}
             {/* Жеребьёвка: монетка на экране выбирает среди подключившихся, кто ходит первым. */}
-            {phase !== "finished" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
+            {/* В лобби жребий потерялся бы при «Начать игру» (право первого хода ставится в идущей игре). */}
+            {phase === "playing" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
               <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void runDraw()}>
                 Жеребьёвка — кто ходит первым
               </button>
@@ -446,12 +452,15 @@ function Console({ session }: { session: Session }) {
             )}
             {phase === "finished" && (
               <section className="card">
-                <h2>Игра завершена</h2>
-                <p>Итоги сохранены в «Истории игр».</p>
+                <h2>{Object.keys(session.leaderboard).length === 0 ? "Сессия закрыта" : "Игра завершена"}</h2>
+                {/* Закрыли в лобби без игроков — итогов нет, ссылка вела бы на «Итоги не найдены». */}
+                <p>{Object.keys(session.leaderboard).length === 0 ? "Игра не начиналась — в «Историю игр» она не попала." : "Итоги сохранены в «Истории игр»."}</p>
                 <div className="actions">
-                  <Link className="btn btn--block" to={`/results/${session.id}`}>
-                    Открыть итоги
-                  </Link>
+                  {Object.keys(session.leaderboard).length > 0 && (
+                    <Link className="btn btn--block" to={`/results/${session.id}`}>
+                      Открыть итоги
+                    </Link>
+                  )}
                   <Link className="btn btn--secondary btn--block" to="/studio">
                     В студию
                   </Link>
@@ -806,6 +815,7 @@ function PeopleCard({
         await sessionsRepo.apply(session.id, { addScore: { [edit.pid]: sign * amount } });
         onToast(`${sign > 0 ? "+" : "−"}${amount} — ${edit.name}`);
       } else {
+        removedRecently.set(edit.pid, Date.now());
         if (participants.some((p) => p.id === edit.pid)) await participantsRepo.remove(session.id, edit.pid);
         if (session.leaderboard[edit.pid]) await sessionsRepo.apply(session.id, { leaderboard: { [edit.pid]: null } });
         onToast(edit.team ? "Команда убрана" : "Игрок убран");

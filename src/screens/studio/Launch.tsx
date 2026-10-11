@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameSnapshot } from "../../core/games";
 import {
+  errorCodeOf,
   gamesRepo,
   isPermanentError,
   permissions,
@@ -194,8 +195,15 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
       });
       // С экраном зала — сразу выбор: это устройство пульт или экран.
       navigate(screenMode === "none" ? `/host/${code}` : `/host/${code}?pick=1`);
-    } catch {
-      setError("Не удалось создать сессию. Проверьте интернет и попробуйте снова.");
+    } catch (e) {
+      const network = errorCodeOf(e) === "unavailable" || errorCodeOf(e) === "";
+      setError(
+        network
+          ? "Не удалось создать сессию. Проверьте интернет и попробуйте снова."
+          : blocks
+            ? "Сервер не принял вечер — возможно, игры блоков слишком большие. Уберите один блок и попробуйте снова."
+            : "Сервер не принял игру. Откройте её в конструкторе и проверьте, всё ли заполнено.",
+      );
       setBusy(false);
     }
   }

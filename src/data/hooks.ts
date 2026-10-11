@@ -168,7 +168,9 @@ export function useSessionByCode(
       })
       .catch((error: unknown) => {
         if (!cancelled && !(error instanceof Cancelled)) {
-          setState({ status: "error", message: "Нет доступа к этой сессии." });
+          // Много неверных кодов подряд (весь зал за одним Wi‑Fi) — это не «нет доступа».
+          const tooMany = errorCodeOf(error) === "resource-exhausted";
+          setState({ status: "error", message: tooMany ? "Слишком много попыток ввести код. Подождите пару минут и попробуйте снова." : "Нет доступа к этой сессии." });
         }
       });
 

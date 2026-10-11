@@ -32,6 +32,8 @@ export interface EditorProps<Content> {
   onChange: (content: Content) => void;
   /** false — игра из библиотеки JoyRest у ведущего: только просмотр. */
   editable: boolean;
+  /** Где лежит игра: в игру библиотеки нельзя ставить личные игры (вечер из блоков). */
+  scope?: "agency" | "personal";
 }
 
 export interface ViewProps<Content> {

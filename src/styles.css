@@ -5255,8 +5255,10 @@ ul.chips {
 /* ---------- Экран зала: лобби с крупным QR, представление команд, QR для опоздавших ---------- */
 
 .screen--lobby {
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4vw;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 3vw;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .screen__qr {
@@ -5266,8 +5268,92 @@ ul.chips {
 
 /* QR — главный элемент лобби: его сканируют с дальних столов. */
 .screen--lobby .screen__qr .qr {
-  width: min(78vh, 46vw);
+  width: min(72vh, 34vw);
   max-width: none;
+}
+
+/* Колонка «Присоединились»: число крупно, имена ниже; растёт только внутри себя — длинный
+   список уплотняется в несколько колонок и прокручивается, QR и код не двигаются. */
+.lobby-joined {
+  align-self: stretch;
+  min-height: 0;
+  max-height: calc(100dvh - 10vh);
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+  padding: 2.4vh 1.6vw;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg, 24px);
+  background: var(--color-surface);
+}
+
+.lobby-joined__head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 1vw;
+  padding-bottom: 1.6vh;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lobby-joined__label {
+  grid-column: 1 / -1;
+  font-size: clamp(14px, 1.2vw, 22px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.lobby-joined__count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(48px, 6vw, 120px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.lobby-joined__sub {
+  font-size: clamp(14px, 1.2vw, 22px);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lobby-joined__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: flex-start;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.lobby-joined__list .chip {
+  font-size: clamp(14px, 1.3vw, 24px);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-joined__list.is-compact,
+.lobby-joined__list.is-dense {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.lobby-joined__list.is-dense {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lobby-joined__list.is-compact .chip {
+  padding: 6px 12px;
+  font-size: clamp(12px, 1.05vw, 20px);
+}
+
+.lobby-joined__list.is-dense .chip {
+  padding: 4px 8px;
+  font-size: clamp(11px, 0.85vw, 16px);
 }
 
 .screen--lobby .big-code {
@@ -5385,9 +5471,29 @@ ul.chips {
   font-size: 2.8cqh;
 }
 
+@media (max-width: 1100px) and (min-width: 721px) {
+  .screen--lobby {
+    grid-template-columns: auto minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
+  }
+
+  .lobby-joined {
+    grid-column: 1 / -1;
+    max-height: 40vh;
+  }
+}
+
 @media (max-width: 720px) {
   .screen--lobby {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .lobby-joined {
+    max-height: 60vh;
+    text-align: left;
   }
 
   .screen--lobby .screen__qr .qr {

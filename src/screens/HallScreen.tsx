@@ -267,12 +267,35 @@ function StandaloneScreen({ session }: { session: Session }) {
   return ScreenView && content !== null ? <ScreenView session={session} content={content} /> : null;
 }
 
+const plural = (n: number, one: string, few: string, many: string) => {
+  const d = n % 10;
+  const h = n % 100;
+  return d === 1 && h !== 11 ? one : d >= 2 && d <= 4 && (h < 12 || h > 14) ? few : many;
+};
+const teamWord = (n: number) => plural(n, "команда", "команды", "команд");
+const playerWord = (n: number) => plural(n, "игрок", "игрока", "игроков");
+
+/** Сколько ждём гостей: «4:12» с открытия сессии, обновляется раз в секунду. */
+function useWaitClock(since: number | null): string {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const s = Math.max(0, Math.floor((now - (since || now)) / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
 function Lobby({ session }: { session: Session }) {
   const teams = session.playMode === "teams";
   const reveal = teamsReveal(session.state);
+  const waitLabel = useWaitClock(session.createdAt);
   if (teams && reveal.shown !== null) return <TeamsPresentation session={session} />;
   const board = sortedLeaderboard(session.leaderboard);
   const ordered = teams ? teamOrder(session.leaderboard) : [];
+  const phonesTotal = teams ? Object.values(reveal.sizes ?? {}).reduce((a, b) => a + b, 0) : 0;
   return (
     <main className="screen screen--lobby">
       <div className="screen__qr">
@@ -284,10 +307,16 @@ function Lobby({ session }: { session: Session }) {
         <p className="screen-text">Наведите камеру на QR-код или откройте {joinHint()} и введите код</p>
         <div className="big-code">{formatSessionCode(session.code)}</div>
         <p className="screen-note">{VPN_HINT}</p>
-        <p className="screen-text">
-          {teams ? "Команд" : "Игроков"}: {board.length}
-        </p>
-        <div className="chips" aria-live="polite">
+      </div>
+      <aside className="lobby-joined" aria-label="Кто присоединился">
+        <div className="lobby-joined__head">
+          <span className="lobby-joined__label">Присоединились</span>
+          <span className="lobby-joined__count">{board.length}</span>
+          <span className="lobby-joined__sub">
+            {teams ? `${teamWord(board.length)}${phonesTotal > 0 ? ` · телефонов ${phonesTotal}` : ""}` : playerWord(board.length)} · ждём {waitLabel}
+          </span>
+        </div>
+        <div className={`chips lobby-joined__list${board.length > 40 ? " is-dense" : board.length > 14 ? " is-compact" : ""}`} aria-live="polite">
           {teams
             ? ordered.map((team) => {
                 const hidden = !teamNameVisible(session.state, team.number);
@@ -311,7 +340,7 @@ function Lobby({ session }: { session: Session }) {
                 </span>
               ))}
         </div>
-      </div>
+      </aside>
     </main>
   );
 }

@@ -97,8 +97,8 @@ function Lobby({ session, content }: { session: Session; content: OlympContent }
         <p className="olx-lobby__count">
           {teams.length === 0 ? "Ждём первую команду" : `${session.playMode === "teams" ? "Команд" : "Игроков"} в отряде: ${teams.length}`}
         </p>
-        <ul className="olx-lobby__teams">
-          {teams.slice(0, 10).map(([pid, e]) => (
+        <ul className={`olx-lobby__teams${teams.length > 10 ? " is-compact" : ""}`} aria-live="polite">
+          {teams.map(([pid, e]) => (
             <li key={pid}>
               <NameText name={e.name} />
             </li>

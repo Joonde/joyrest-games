@@ -38,7 +38,12 @@ export interface BoardContent {
   penalty: boolean;
   /** Сколько секунд на ставку в «Коте в мешке». */
   betTime: number;
+  /** Сколько секунд жать кнопку после «Запустить отсчёт» (ведущий сначала читает вопрос). */
+  buzzTime: number;
 }
+
+/** Время на вопрос после «Запустить отсчёт» — выбор ведущего в конструкторе. */
+export const BUZZ_TIMES = [5, 10, 15, 20, 30] as const;
 
 export const BOARD_LIMITS = {
   minRows: 1,
@@ -87,6 +92,7 @@ export function createBoard(): BoardContent {
     categories: Array.from({ length: 4 }, (_, i) => newCategory(5, `Категория ${i + 1}`)),
     penalty: false,
     betTime: 30,
+    buzzTime: 15,
   };
 }
 
@@ -170,6 +176,7 @@ export function parseBoard(raw: unknown): BoardContent {
     }),
     penalty: d.penalty === true,
     betTime: int(d.betTime, 30, BOARD_LIMITS.minBetTime, BOARD_LIMITS.maxBetTime),
+    buzzTime: (BUZZ_TIMES as readonly number[]).includes(d.buzzTime as number) ? (d.buzzTime as number) : 15,
   };
 }
 

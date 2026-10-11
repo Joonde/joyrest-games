@@ -57,6 +57,7 @@ const content: BoardContent = {
   })),
   penalty: false,
   betTime: 30,
+  buzzTime: 15,
 };
 
 export const DEMO_BOARD = { title: "Своя игра: кино, география, праздники, еда", content };

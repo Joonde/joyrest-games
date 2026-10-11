@@ -1,7 +1,7 @@
 import type { PreviewDriver } from "../preview";
 import { scoringIds } from "../preview";
 import type { BoardContent } from "./content";
-import { boardBuzzSync, boardPrimary, boardReveal, boardWrong, openCell, parseBoardResult, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBuzzSync, boardPrimary, boardReveal, boardWrong, openCell, parseBoardResult, setCat, startCatQuestion, toBoard } from "./logic";
 
 export const boardPreview: PreviewDriver<BoardContent> = ({ session, content, participants, answers }) => {
   const teams = scoringIds(participants);
@@ -16,9 +16,19 @@ export const boardPreview: PreviewDriver<BoardContent> = ({ session, content, pa
       if (!next) return null;
       return { label: `Ведущий открывает клетку «${next.cat.title} · ${next.cell.points}»`, change: openCell(session, content, next.cell.id) };
     }
-    case "toBuzz":
-      if (answers.length === 0) return { label: "Кот в мешке: команды делают ставки", answers: teams.map((pid, i) => ({ pid, value: { bet: 100 + i * 50 } })) };
-      return { label: "Пульт: «Ставки сделаны»", change: startCatQuestion(session, content, answers) };
+    case "toBuzz": {
+      // «Кот в мешке»: ведущий отдаёт вопрос другой команде и ставит цену.
+      if (!r.catTo) {
+        const to = teams.find((pid) => pid !== r.pickerBefore) ?? teams[0] ?? null;
+        return { label: "Кот в мешке: ведущий отдаёт вопрос другой команде", change: setCat(session, to, r.catPrice) };
+      }
+      const change = startCatQuestion(session, content);
+      return change ? { label: "Пульт: «Показать вопрос» — отвечает только эта команда", change } : null;
+    }
+    case "arm": {
+      const change = armBuzz(session, content);
+      return change ? { label: "Ведущий прочитал вопрос: «Запустить отсчёт»", change } : null;
+    }
     case "reveal": {
       if (answers.length === 0) return { label: "Команды жмут кнопку «Кто первый»", answers: [...teams].reverse().map((pid) => ({ pid, value: { buzz: true } })) };
       const sync = boardBuzzSync(session, answers);

@@ -1,8 +1,9 @@
 // «Своя игра»: экран зала (поле, вопрос, кот в мешке, ответ) и телефон гостя (кнопка, ставка).
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef } from "react";
 import { BuzzButton } from "../../components/live/BuzzButton";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
+import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { useServerNow } from "../../components/live/useServerNow";
 import { MediaImage, preloadMedia } from "../../components/media/MediaImage";
 import { preloadTrack, useFragment } from "../../components/music/useFragment";
@@ -14,7 +15,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { allCells, findCell, type BoardCell, type BoardContent } from "./content";
-import { maxBet, parseBoardResult, type BoardResult } from "./logic";
+import { parseBoardResult, type BoardResult } from "./logic";
 
 /** Ответ гостя: нажатие кнопки или ставка в «Коте в мешке». */
 export type BoardAnswerValue = { buzz: true } | { bet: number };
@@ -115,7 +116,8 @@ function useCellMedia(session: Session, content: BoardContent, cell: BoardCell |
   }, [session.gameId, result.opened.length]);
   const music = cell && cell.trackId && result.mode === "buzz" ? cell : null;
   const chorus = stage === "reveal" && Boolean(result.buzz.winner) && music?.chorusStart !== null && music?.chorusStart !== undefined;
-  const key = !music ? null : stage === "question" ? `q:${step}:${session.state.startedAt ?? 0}:${result.replay}` : stage === "reveal" ? `r:${step}:${result.replay}` : null;
+  // Ключ — клетка, а не шаг: «Запустить отсчёт» (новый шаг) не перезапускает фрагмент.
+  const key = !music ? null : stage === "question" ? `q:${result.openStep ?? step}:${result.cell}:${result.replay}` : stage === "reveal" ? `r:${step}:${result.replay}` : null;
   useFragment(
     music?.trackId ?? null,
     chorus ? (music?.chorusStart ?? 0) : (music?.trackStart ?? 0),
@@ -128,8 +130,11 @@ function useCellMedia(session: Session, content: BoardContent, cell: BoardCell |
 export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const { stage, step } = session.state;
   const { result, cell, category } = playing(session, content);
-  const now = useServerNow(250, stage === "question" && result.mode === "bet");
-  const left = stage === "question" && result.mode === "bet" ? secondsLeft(session.state, now) : null;
+  const counting = stage === "question" && result.armed && !result.catStep && !result.buzz.current;
+  const now = useServerNow(250, counting);
+  const left = counting ? secondsLeft(session.state, now) : null;
+  useCountdownSounds(left);
+  useSoundOnChange(stage === "question" && result.armed && !result.catStep ? `${step}:armed` : "", "whoosh");
   useCellMedia(session, content, cell, result);
   useSoundOnChange(result.buzz.current ?? "", "gong");
   useSoundOnChange(stage === "reveal" && result.buzz.winner ? `${step}:win` : "", "correct");
@@ -158,13 +163,12 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const head = (
     <div className="board-screen__top">
       <span className="quiz-screen__badge">{category?.title || "Своя игра"}</span>
-      <span className="board-screen__points">{cell.kind === "cat" ? "Кот в мешке" : `${cell.points} очков`}</span>
+      <span className="board-screen__points">{cell.kind === "cat" ? (result.catStep && result.catTo ? `Кот в мешке · ${result.catPrice} очков` : "Кот в мешке") : `${cell.points} очков`}</span>
     </div>
   );
 
   if (stage === "question" && result.mode === "bet") {
-    // Счётчик ставок пишет пульт (`answered`): экран зала ставок не видит.
-    const bets = session.state.answered ?? 0;
+    const to = name(result.catTo);
     return (
       <div className="board-screen board-screen--cat">
         {head}
@@ -172,15 +176,13 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
         <h2 className="board-screen__cat-title" data-shine="on">
           Кот в мешке!
         </h2>
-        <p className="board-screen__hint">
-          Делайте ставки на телефонах: до своего счёта или до {cell.points}. Ответит тот, кто первым нажмёт кнопку, — верно: ставка ваша, неверно: ставку теряют все, кто ставил.
-        </p>
-        <p className="board-screen__timer" role="timer">
-          {left === null ? "" : left === 0 ? "Ставки сделаны" : `${left} с`}
-        </p>
-        <p className="board-screen__hint">
-          Ставок: {bets}
-        </p>
+        {to ? (
+          <p className="board-screen__cat-to" role="status">
+            Вопрос достаётся: <NameText name={to} /> · цена {result.catPrice}
+          </p>
+        ) : (
+          <p className="board-screen__hint">Ведущий отдаёт вопрос одному игроку — он обязан ответить. Верно — плюс цена, неверно — минус.</p>
+        )}
       </div>
     );
   }
@@ -189,7 +191,6 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const winner = name(result.buzz.winner);
   const revealed = stage === "reveal";
   const confetti = revealed && winner && cell.confetti ? <Confetti burst={`board:${step}`} /> : null;
-  const betsCount = Object.keys(result.bets).length;
   return (
     <div className={cell.imageId ? "board-screen board-screen--question board-screen--image" : "board-screen board-screen--question"}>
       {confetti}
@@ -226,46 +227,23 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
             <NameText name={speaker} />
           </strong>
         </div>
+      ) : !result.armed ? (
+        <p className="board-screen__hint board-screen__hint--wait">Слушаем вопрос — кнопки включатся, когда ведущий запустит отсчёт</p>
       ) : (
-        <p className="board-screen__hint">
-          Знаете ответ — жмите кнопку на телефоне. Нажали: {result.buzz.order.length}
-          {result.catStep ? ` · ставок: ${betsCount}` : ""}
-        </p>
+        <div className="board-screen__go">
+          {left !== null && (
+            <span className={left === 0 ? "board-screen__count is-over" : "board-screen__count"} role="timer">
+              {left === 0 ? "Время вышло" : left}
+            </span>
+          )}
+          <p className="board-screen__hint">Знаете ответ — жмите кнопку на телефоне! Нажали: {result.buzz.order.length}</p>
+        </div>
       )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------- телефон
-
-function BetForm({ max, points, sending, onBet }: { max: number; points: number; sending: boolean; onBet: (bet: number) => void }) {
-  const [value, setValue] = useState(String(points));
-  const n = Math.round(Number(value));
-  const valid = Number.isFinite(n) && n >= 1 && n <= max;
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (valid) onBet(n);
-  }
-  const quick = [...new Set([points, Math.max(1, Math.round(max / 2)), max])].filter((x) => x >= 1 && x <= max).sort((a, b) => a - b);
-  return (
-    <form className="stack bet-form" onSubmit={submit}>
-      <label className="field">
-        <span className="field__label">Ваша ставка — от 1 до {max}</span>
-        <input type="number" inputMode="numeric" min={1} max={max} value={value} onChange={(e) => setValue(e.target.value)} />
-      </label>
-      <div className="row bet-form__quick">
-        {quick.map((x) => (
-          <button key={x} type="button" className="pick-chip" aria-pressed={n === x} onClick={() => setValue(String(x))}>
-            {x === max ? `Всё: ${x}` : x}
-          </button>
-        ))}
-      </div>
-      <button className="btn btn--block" type="submit" disabled={!valid || sending}>
-        {sending ? "Отправляем…" : `Поставить ${valid ? n : ""}`}
-      </button>
-    </form>
-  );
-}
 
 export function BoardPlayerView({ session, content, pid, role, myAnswer, sending, onAnswer }: PlayerViewProps<BoardContent, BoardAnswerValue>) {
   const { stage } = session.state;
@@ -308,37 +286,42 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
   );
 
   if (stage === "question" && result.mode === "bet") {
-    const placed = myAnswer && typeof myAnswer.value === "object" && myAnswer.value !== null ? (myAnswer.value as { bet?: unknown }).bet : undefined;
-    const max = maxBet(me?.score ?? 0, cell.points);
+    const me2 = result.catTo === pid;
     return (
       <div className="quiz-phone quiz-phone--center">
         {title}
         <CatInBag small />
         <h2>Кот в мешке!</h2>
-        {role === "member" ? (
-          <div className="buzz__plate" role="status">
-            <strong>Ставку делает капитан</strong>
-            <span>Подскажите ему, сколько ставить</span>
-          </div>
-        ) : typeof placed === "number" ? (
-          <div className="buzz__plate buzz__plate--glow" role="status">
-            <strong>Ставка принята: {Math.min(placed, max)}</strong>
-            <span>Сейчас будет вопрос — ответит тот, кто первым нажмёт кнопку</span>
-          </div>
-        ) : open ? (
-          <BetForm max={max} points={cell.points} sending={sending} onBet={(bet) => onAnswer({ bet: Math.min(bet, max) })} />
-        ) : (
-          <p className="muted">Ставки закрыты — без ставки вы в этом вопросе ничего не теряете.</p>
-        )}
+        <div className={me2 ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
+          {me2 ? (
+            <>
+              <strong>Вопрос достаётся вам!</strong>
+              <span>Цена {result.catPrice} — отвечать обязательно</span>
+            </>
+          ) : result.catTo ? (
+            <>
+              <strong>
+                Отвечает <NameText name={session.leaderboard[result.catTo]?.name ?? ""} />
+              </strong>
+              <span>Цена {result.catPrice}</span>
+            </>
+          ) : (
+            <>
+              <strong>Ведущий отдаёт вопрос</strong>
+              <span>Кому достанется — тот и отвечает</span>
+            </>
+          )}
+        </div>
         {scoreLine}
       </div>
     );
   }
 
   const pressed = myAnswer !== null && myAnswer !== undefined && isBuzz(myAnswer.value);
-  // В «Коте в мешке» отвечают только те, кто сделал ставку.
+  // В «Коте в мешке» отвечает только тот, кому отдали вопрос; кнопки ни у кого нет.
   const noBet = result.catStep && !result.bets[pid];
-  const phone = buzzPhone(result.buzz, pid, pressed, open && role !== "member" && !noBet);
+  const phone = buzzPhone(result.buzz, pid, pressed, open && result.armed && role !== "member" && !noBet);
+  const waiting = stage === "question" && !result.armed;
   const speakerId = result.buzz.winner ?? result.buzz.current;
   const speaker = speakerId ? (session.leaderboard[speakerId]?.name ?? null) : null;
   const myBet = result.bets[pid];
@@ -347,12 +330,18 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
       {title}
       {noScreen && <h2 className="quiz-phone__question">{cell.text || "Угадайте мелодию"}</h2>}
       {noScreen && cell.imageId && <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={cell.imageId} variant="small" alt="" />}
-      {result.catStep && myBet ? <p className="small">Ваша ставка: {myBet}</p> : null}
-      {noBet && stage === "question" ? (
+      {result.catStep && stage === "question" ? (
+        <div className="buzz">
+          <div className={myBet ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
+            <strong>{myBet ? "Отвечаете вы — говорите ведущему!" : `Отвечает ${speaker ?? ""}`}</strong>
+            <span>Кот в мешке · цена {result.catPrice || myBet || cell.points}</span>
+          </div>
+        </div>
+      ) : waiting && role !== "member" ? (
         <div className="buzz">
           <div className="buzz__plate" role="status">
-            <strong>В этом вопросе отвечают те, кто сделал ставку</strong>
-            <span>{speaker ? `Отвечает ${speaker}` : "Смотрите на экран — следующая клетка скоро"}</span>
+            <strong>Слушайте вопрос</strong>
+            <span>Кнопка включится, когда ведущий запустит отсчёт — нажатие раньше не засчитается</span>
           </div>
         </div>
       ) : role === "member" ? (

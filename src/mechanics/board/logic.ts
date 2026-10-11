@@ -1,8 +1,9 @@
 // Ход «Своей игры» на пульте — чистые функции (пульт пишет в базу, репетиция — в память).
 //
-// Этапы: `ready` — поле, ведущий касается клетки → `question` (кнопка «кто первый»; у «Кота в мешке»
-// сначала ставки — свой шаг, потом вопрос — следующий шаг) → `reveal` (ответ, очки) → «К полю»: следующий
-// шаг, клетка погасла. Все клетки сыграны — награждение (общий пьедестал).
+// Этапы: `ready` — поле, ведущий касается клетки → `question`: вопрос на экране, ведущий его читает, кнопки
+// гостей ещё не активны (без фальстарта) → «Запустить отсчёт» (`armed`, новый шаг: нажатия до него не
+// считаются, время — `content.buzzTime`) → кнопка «кто первый» (у «Кота в мешке» сначала ставки — свой шаг)
+// → `reveal` (ответ, очки) → «К полю»: следующий шаг, клетка погасла. Все клетки сыграны — награждение.
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type BuzzState } from "../../core/buzz";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
@@ -22,6 +23,8 @@ interface PrevPlay {
   catStep: boolean;
   /** Кто выбирал до розыгрыша этой клетки — «Назад» с ответа возвращает право выбора ему. */
   pickerBefore: string | null;
+  /** Шаг, на котором открыли клетку (её шаги убирает «Назад»). */
+  openStep: number | null;
 }
 
 export interface BoardResult {
@@ -44,6 +47,13 @@ export interface BoardResult {
   /** Кто выбирал клетку до её розыгрыша. */
   pickerBefore: string | null;
   prev: PrevPlay | null;
+  /** Ведущий дочитал вопрос и запустил отсчёт: кнопки гостей активны. */
+  armed: boolean;
+  /** Шаг, на котором клетку открыли («Назад» с вопроса возвращает к нему и чистит все шаги клетки). */
+  openStep: number | null;
+  /** «Кот в мешке»: кому ведущий отдал вопрос (отвечает только он, увернуться нельзя) и его цена. */
+  catTo: string | null;
+  catPrice: number;
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -73,6 +83,7 @@ function parsePrev(value: unknown): PrevPlay | null {
     picker: typeof d.picker === "string" && ID.test(d.picker) ? d.picker : null,
     catStep: d.catStep === true,
     pickerBefore: typeof d.pickerBefore === "string" && ID.test(d.pickerBefore) ? d.pickerBefore : null,
+    openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
   };
 }
 
@@ -91,8 +102,15 @@ export function parseBoardResult(raw: unknown): BoardResult {
     replay: typeof d.replay === "number" ? d.replay : 0,
     pickerBefore: typeof d.pickerBefore === "string" && ID.test(d.pickerBefore) ? d.pickerBefore : null,
     prev: parsePrev(d.prev),
+    armed: d.armed === true,
+    openStep: typeof d.openStep === "number" && Number.isInteger(d.openStep) && d.openStep >= 0 ? d.openStep : null,
+    catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
+    catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(1, Math.round(d.catPrice))) : 0,
   };
 }
+
+/** Цена «Кота в мешке» — от 1 до стольки очков. */
+export const CAT_MAX = 5000;
 
 function write(result: BoardResult): Record<string, unknown> {
   return { ...result };
@@ -134,7 +152,7 @@ export function score(step: BoardStep, _answers: Answer[], { state }: ScoreConte
 
 // ---------------------------------------------------------------- ход
 
-export type BoardAction = "pick" | "toBuzz" | "reveal" | "toBoard" | "podium" | "podiumNext" | "finish";
+export type BoardAction = "pick" | "toBuzz" | "arm" | "reveal" | "toBoard" | "podium" | "podiumNext" | "finish";
 
 export function allOpened(content: BoardContent, result: BoardResult): boolean {
   const total = allCells(content);
@@ -146,7 +164,7 @@ export function boardPrimary(session: Session, content: BoardContent): BoardActi
   const { stage } = session.state;
   const result = parseBoardResult(session.state.result);
   if (stage === "podium") return podiumDone(session) ? "finish" : "podiumNext";
-  if (stage === "question") return result.mode === "bet" ? "toBuzz" : "reveal";
+  if (stage === "question") return result.mode === "bet" ? "toBuzz" : result.armed ? "reveal" : "arm";
   if (stage === "reveal") {
     if (allOpened(content, result)) return hasPodium(session.leaderboard) ? "podium" : "finish";
     return "toBoard";
@@ -157,18 +175,18 @@ export function boardPrimary(session: Session, content: BoardContent): BoardActi
   return "pick";
 }
 
-/** Ведущий коснулся клетки: вопрос с кнопкой; у кота — сначала ставки. */
+/** Ведущий коснулся клетки: вопрос (кнопки откроет «Запустить отсчёт»); у кота — сначала выбор, кому он достаётся. */
 export function openCell(session: Session, content: BoardContent, cellId: string): SessionChange {
   const found = findCell(content, cellId);
   const result = parseBoardResult(session.state.result);
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points };
   return {
     state: {
       stage: "question",
       startedAt: "server",
-      timeLimit: cat ? content.betTime : null,
+      timeLimit: null,
       revealed: false,
       answered: 0,
       result: write(next),
@@ -187,17 +205,22 @@ export function collectBets(answers: Answer[], step: number): Record<string, num
   return bets;
 }
 
+/** «Кот в мешке»: ведущий выбирает, кому отдать вопрос, и ставит его цену. */
+export function setCat(session: Session, to: string | null, price: number): SessionChange {
+  const result = parseBoardResult(session.state.result);
+  const catPrice = Math.min(CAT_MAX, Math.max(1, Math.round(Number.isFinite(price) ? price : 1)));
+  return { state: { result: write({ ...result, catTo: to, catPrice }) } };
+}
+
 /**
- * «Кот в мешке»: ставки приняты — вопрос и кнопка на следующем шаге. Ставка не больше
- * допустимой (свой счёт или стоимость клетки).
+ * «Кот в мешке»: вопрос тому, кому его отдали, — отвечает только он (кнопка не нужна, увернуться нельзя).
+ * Верно — плюс цена и право выбора, неверно — минус цена.
  */
-export function startCatQuestion(session: Session, content: BoardContent, answers: Answer[]): SessionChange {
+export function startCatQuestion(session: Session, content: BoardContent): SessionChange | null {
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
-  if (!found) return {};
-  const raw = collectBets(answers, session.state.step);
-  const bets: Record<string, number> = {};
-  for (const [pid, bet] of Object.entries(raw)) bets[pid] = Math.min(bet, maxBet(session.leaderboard[pid]?.score ?? 0, found.cell.points));
+  if (!found || !result.catTo) return null;
+  const price = result.catPrice > 0 ? result.catPrice : found.cell.points;
   return {
     state: {
       step: session.state.step + 1,
@@ -206,7 +229,27 @@ export function startCatQuestion(session: Session, content: BoardContent, answer
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, mode: "buzz", buzz: EMPTY_BUZZ, bets, catStep: true }),
+      result: write({ ...result, mode: "buzz", buzz: { order: [result.catTo], current: result.catTo, out: [], winner: null }, bets: { [result.catTo]: price }, catStep: true, armed: true }),
+    },
+  };
+}
+
+/**
+ * «Запустить отсчёт»: ведущий дочитал вопрос — кнопки активны на `content.buzzTime` секунд. Новый шаг:
+ * нажатия, сделанные до отсчёта (фальстарт), не считаются.
+ */
+export function armBuzz(session: Session, content: BoardContent): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  if (session.state.stage !== "question" || result.mode !== "buzz" || result.armed) return null;
+  return {
+    state: {
+      step: session.state.step + 1,
+      stage: "question",
+      startedAt: "server",
+      timeLimit: content.buzzTime,
+      revealed: false,
+      answered: 0,
+      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true }),
     },
   };
 }
@@ -215,7 +258,7 @@ export function startCatQuestion(session: Session, content: BoardContent, answer
 export function boardBuzzSync(session: Session, answers: Answer[]): SessionChange | null {
   if (session.state.stage !== "question") return null;
   const result = parseBoardResult(session.state.result);
-  if (result.mode !== "buzz") return null;
+  if (result.mode !== "buzz" || !result.armed) return null;
   // «Кот в мешке»: слово получают только сделавшие ставку.
   const order = buzzOrder(answers, session.state.step).filter((pid) => !result.catStep || (result.bets[pid] ?? 0) > 0);
   const next = syncBuzz(result.buzz, order);
@@ -257,7 +300,7 @@ export function boardReveal(session: Session, content: BoardContent, participant
 export function toBoard(session: Session): SessionChange {
   const result = parseBoardResult(session.state.result);
   if (!result.cell) return {};
-  const prev: PrevPlay = { cell: result.cell, buzz: result.buzz, bets: result.bets, fines: result.fines, picker: result.picker, catStep: result.catStep, pickerBefore: result.pickerBefore };
+  const prev: PrevPlay = { cell: result.cell, buzz: result.buzz, bets: result.bets, fines: result.fines, picker: result.picker, catStep: result.catStep, pickerBefore: result.pickerBefore, openStep: result.openStep };
   return {
     state: {
       step: session.state.step + 1,
@@ -266,7 +309,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0 }),
     },
   };
 }
@@ -302,12 +345,13 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Клетка закрывается без розыгрыша: штрафы возвращаются, ответы и ставки убираются.
     const refund: Record<string, number> = {};
     for (const [pid, fine] of Object.entries(result.fines)) refund[pid] = fine;
-    const back = result.catStep ? step - 1 : step;
+    // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
+    const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false }) },
+      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0 }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
-    return { change, clear: result.catStep ? [step - 1, step] : [step] };
+    return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };
   }
   // С поля — к ответу прошлой клетки (она снова «не сыграна», пока ведущий не вернётся к полю).
   const prev = result.prev;
@@ -318,8 +362,15 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
         step: step - 1,
         stage: "reveal",
         revealed: true,
-        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null }),
+        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep }),
       },
     },
   };
+}
+
+/** Жеребьёвка выбрала участника — у него право выбрать первую клетку (только пока на экране поле). */
+export function boardFirstTurn(session: Session, pid: string): SessionChange | null {
+  if (session.state.phase !== "playing" || session.state.stage !== "ready") return null;
+  const result = parseBoardResult(session.state.result);
+  return { state: { result: write({ ...result, picker: pid }) } };
 }

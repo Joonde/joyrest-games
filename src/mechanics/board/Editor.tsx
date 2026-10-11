@@ -8,7 +8,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { clipFields, parseClip } from "../../core/clip";
 import { mediaRepo } from "../../data";
 import type { EditorProps } from "../types";
-import { allCells, BOARD_LIMITS, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, resizeBoard, type BoardCell, type BoardContent, type CellKind } from "./content";
+import { allCells, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, resizeBoard, type BoardCell, type BoardContent, type CellKind } from "./content";
 import { validateBoard } from "./validate";
 
 const KINDS: CellKind[] = ["question", "track", "picture", "cat"];
@@ -88,10 +88,17 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
             <span className="choice__hint">Как в телевизионной «Своей игре». Без галочки ошибка просто передаёт слово следующему.</span>
           </span>
         </label>
-        <label className="field">
-          Время на ставку в «Коте в мешке», секунд
-          <ClampedNumber value={content.betTime} min={BOARD_LIMITS.minBetTime} max={BOARD_LIMITS.maxBetTime} fallback={30} disabled={!editable} onChange={(betTime) => onChange({ ...content, betTime })} />
-        </label>
+        <fieldset className="stack stack--tight">
+          <legend>Время на ответ после «Запустить отсчёт»</legend>
+          <p className="muted small">Ведущий сначала читает вопрос — кнопки гостей не активны (без фальстарта). Потом «Запустить отсчёт» — и столько секунд жать кнопку.</p>
+          <div className="row" role="radiogroup" aria-label="Секунд на ответ">
+            {BUZZ_TIMES.map((t) => (
+              <button key={t} type="button" className="pick-chip" role="radio" aria-checked={content.buzzTime === t} aria-pressed={content.buzzTime === t} disabled={!editable} onClick={() => onChange({ ...content, buzzTime: t })}>
+                {t} с
+              </button>
+            ))}
+          </div>
+        </fieldset>
         {editable && (
           <button type="button" className="btn btn--quiet btn--block" onClick={resetPoints}>
             Стоимость по колонкам: 100, 200, 300…

@@ -3296,6 +3296,65 @@ kbd {
 }
 
 /* Слайды экрана зала (SlideView): крупно, в стиле темы, размеры в единицах контейнера. */
+/* Жеребьёвка: золотая монетка с именем, переворот на каждое имя. */
+.draw-coin {
+  perspective: 120cqh;
+  margin: 2cqh 0;
+}
+
+.draw-coin__face {
+  display: grid;
+  place-items: center;
+  width: 38cqh;
+  height: 38cqh;
+  padding: 4cqh;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #e9cf8a 35%, #c9a15f 70%, #8c6a2f);
+  box-shadow: inset 0 0 0 1.2cqh rgba(140, 106, 47, 0.55), inset 0 0 0 1.6cqh rgba(255, 243, 196, 0.6), 0 2cqh 6cqh rgba(0, 0, 0, 0.5);
+  color: #2b1d0e;
+  animation: draw-flip 0.16s ease-out;
+}
+
+.draw-coin__face.is-final {
+  animation: draw-land 0.9s cubic-bezier(0.2, 1.5, 0.4, 1);
+  box-shadow: inset 0 0 0 1.2cqh rgba(140, 106, 47, 0.55), inset 0 0 0 1.6cqh rgba(255, 243, 196, 0.6), 0 0 8cqh rgba(243, 223, 174, 0.75);
+}
+
+.draw-coin__name {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 5.2cqh;
+  line-height: 1.05;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+@keyframes draw-flip {
+  from {
+    transform: rotateY(90deg);
+  }
+}
+
+@keyframes draw-land {
+  from {
+    transform: rotateY(180deg) scale(0.8);
+  }
+}
+
+.draw-winner {
+  animation: mil-flash 0.8s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-coin__face,
+  .draw-coin__face.is-final,
+  .draw-winner {
+    animation: none;
+  }
+}
+
 .slide {
   position: relative;
   width: 100%;
@@ -6448,6 +6507,84 @@ ul.chips {
   margin-left: auto;
   font-family: "Cormorant Garamond", serif;
   font-size: 6cqh;
+  /* Цена вопроса — заметно: обведена и подсвечена (решение владельца 11 октября 2026). */
+  padding: 0.6cqh 2.4cqw;
+  border: 0.4cqh solid var(--color-highlight);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-highlight) 18%, var(--color-surface));
+  color: var(--color-text);
+  font-weight: 700;
+  box-shadow: 0 0 3cqh color-mix(in srgb, var(--color-highlight) 45%, transparent);
+  white-space: nowrap;
+}
+
+.board-screen__hint--wait {
+  font-size: 3.4cqh;
+  color: var(--color-text);
+  animation: board-wait 1.8s ease-in-out infinite;
+}
+
+@keyframes board-wait {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.board-screen__go {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqh;
+}
+
+.board-screen__count {
+  display: grid;
+  place-items: center;
+  min-width: 14cqh;
+  height: 14cqh;
+  padding: 0 2cqw;
+  border-radius: 999px;
+  border: 0.5cqh solid var(--color-highlight);
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 9cqh;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-screen__count.is-over {
+  font-size: 4.5cqh;
+  border-color: var(--color-danger);
+}
+
+.board-screen__cat-to {
+  margin: 0;
+  font-size: 4.6cqh;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.board-cat__who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.board-host__arm {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1.5px dashed var(--color-highlight);
+}
+
+.board-host__arm p {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-screen__hint--wait {
+    animation: none;
+  }
 }
 
 /* Поле: строка = категория + клетки. Размеры от контейнера — как на телевизоре, так и в предпросмотре. */

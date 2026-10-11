@@ -41,6 +41,7 @@ import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, techSlide } from "../core/slides";
+import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
 import { joinHost, playUrl, playUrlHint } from "../components/links";
@@ -268,6 +269,22 @@ function Console({ session }: { session: Session }) {
   const tools = withScreen && !standalone;
   const tabs = PULT_TABS.filter((t) => tools || !t.screenOnly);
   const apply = (change: SessionChange) => sessionsRepo.apply(session.id, change);
+
+  /** Жеребьёвка: жребий среди участников таблицы, слайд с монеткой и (если игра умеет) право первого хода. */
+  async function runDraw() {
+    const s = latest.current;
+    const pool: Array<[string, LeaderboardEntry]> = Object.entries(s.leaderboard);
+    const won = drawWinner(pool);
+    if (!won) return;
+    const [pid, entry] = won;
+    const slide = drawSlide(slideId(), pool.map(([, e]) => e.name), entry.name, Date.now() + clock.offset());
+    const turn = mechanic?.firstTurn && content !== null ? mechanic.firstTurn(s, content, pid) : null;
+    try {
+      await apply({ ...(turn ?? {}), state: { ...(turn?.state ?? {}), slide } });
+    } catch {
+      setError("Не получилось провести жеребьёвку. Проверьте интернет.");
+    }
+  }
   const slide = session.state.slide ?? null;
   const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
   // Телефон ведущего не гаснет, пока идёт вечер.
@@ -365,6 +382,12 @@ function Console({ session }: { session: Session }) {
             )}
             {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
+            )}
+            {/* Жеребьёвка: монетка на экране выбирает среди подключившихся, кто ходит первым. */}
+            {phase !== "finished" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
+              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void runDraw()}>
+                Жеребьёвка — кто ходит первым
+              </button>
             )}
             {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
             {phase === "playing" && tools && slide?.kind !== "join" && (

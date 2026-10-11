@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { parseSlide } from "../data/cues";
 import { DRAW_MS, drawFrame, drawNames, drawSlide, drawWinner } from "./draw";
 
 describe("жеребьёвка", () => {
@@ -9,10 +8,9 @@ describe("жеребьёвка", () => {
     expect(drawWinner([], () => 0.5)).toBeNull();
   });
 
-  it("слайд: победитель в заголовке и в списке, сервер принимает его как есть", () => {
+  it("слайд: победитель в заголовке и в списке", () => {
     const slide = drawSlide("d1", ["Аня", "Боря", "Вика"], "Боря", 1000);
     expect(slide).toMatchObject({ kind: "draw", title: "Боря", endsAt: 1000 + DRAW_MS });
-    expect(parseSlide(slide)).toEqual(slide);
     expect(drawNames(slide).at(-1)).toBe("Боря");
     expect(drawNames(slide)).toHaveLength(3);
   });

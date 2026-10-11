@@ -28,7 +28,9 @@ describe("скрытые названия и представление кома
     expect(publicTeamName(lobby({ hidden: true, shown: 0 }), first)).toBe("🐻 Медведи");
     expect(publicTeamName(lobby({ hidden: true, shown: 0 }), second)).toBe("Команда 2");
     expect(teamNameVisible({ phase: "playing", teams: { hidden: true, shown: null } }, 2)).toBe(true);
-    expect(publicTeamName(lobby(null), second)).toBe("🦊 Лисы");
+    // По умолчанию названия скрыты; галочкой их открыли — видны.
+    expect(publicTeamName(lobby(null), second)).toBe("Команда 2");
+    expect(publicTeamName(lobby({ hidden: false, shown: null }), second)).toBe("🦊 Лисы");
     expect(presentationDone({ teams: { hidden: true, shown: 3 } }, 3)).toBe(true);
     expect(presentationDone({ teams: { hidden: true, shown: 2 } }, 3)).toBe(false);
   });

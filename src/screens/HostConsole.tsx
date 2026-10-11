@@ -3,6 +3,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSPr
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
+import { EVENING_MECHANIC } from "../core/program";
 import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core/leaderboard";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { startState } from "../core/session";
@@ -395,7 +396,8 @@ function Console({ session }: { session: Session }) {
             )}
             {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
             {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}
-            {phase === "playing" && !standalone && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
+            {/* Перерыв и итоги вечера ведёт своя карточка («Награждение вечера»). */}
+            {phase === "playing" && !standalone && session.mechanic !== EVENING_MECHANIC && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
                   Наградить сейчас

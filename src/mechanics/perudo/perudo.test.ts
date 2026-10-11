@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session } from "../../data/types";
 import { createPerudo, parsePerudo } from "./content";
-import { diceOf, hostCupKey } from "./dice";
+import { diceOf, hostCupKey, keyPrint } from "./dice";
 import { bidText, diceWord } from "./text";
 import { aliveCups, countFace, isLegalBid, keysFrom, minQty, moveFromAnswers, parsePerudoResult, perudoBack, perudoPrimary, placeBid, resolveCall, startDeal, startRound, totalDice } from "./logic";
 
@@ -65,6 +65,9 @@ describe("перудо: ставки", () => {
     for (let i = 0; i < 600; i++) for (const d of diceOf(`k${i}`, "r", 5)) hist[d - 1] = (hist[d - 1] ?? 0) + 1;
     expect(Math.min(...hist)).toBeGreaterThan(400);
     expect(hostCupKey("H", "p")).toBe("H:p");
+    // Отпечаток ключа короткий и разный у разных ключей.
+    expect(keyPrint("ключ-а-1234567890")).toMatch(/^[0-9a-f]{1,8}$/);
+    expect(keyPrint("ключ-а-1234567890")).not.toBe(keyPrint("ключ-б-1234567890"));
   });
 });
 
@@ -104,6 +107,12 @@ describe("перудо: партия", () => {
     const back = perudoBack(s);
     const undone = apply(s, back?.change ?? null);
     expect(parsePerudoResult(undone.state.result)).toMatchObject({ mode: "bid", turn: "b", dice: { a: 2, b: 2, c: 2 } });
+    // После «Назад» прежний ход с телефона (он остался в ответах шага) не ложится на стол снова.
+    const oldSeq = parsePerudoResult(s.state.result).prev?.result.seq;
+    expect(oldSeq).toBeDefined();
+    expect(moveFromAnswers(s, [])).toBeNull();
+    expect(moveFromAnswers(undone, [ans(1, "b", { n: String(oldSeq), dudo: true })])).toBeNull();
+    expect(moveFromAnswers(undone, [ans(1, "b", { n: String(parsePerudoResult(undone.state.result).seq), dudo: true })])).not.toBeNull();
 
     // Раунд 2 — палифико: b открывает; c не верит — ставка ложная, b выбывает (очки за выбывших раньше — 0).
     s = apply(s, startRound(s, "n2"));

@@ -25,6 +25,8 @@ export interface ProgramBlockRef {
 export interface ProgramBlockInfo {
   title: string;
   mechanic: string;
+  /** Игра блока: её картинки (`/api/media/<игра>/…`). */
+  gameId?: string | null;
 }
 
 export interface BlockResultRow {
@@ -88,7 +90,11 @@ export function parseProgram(raw: unknown): SessionProgram | null {
   const blocks = raw.blocks
     .filter(isRecord)
     .slice(0, PROGRAM_LIMITS.maxBlocks)
-    .map((b) => ({ title: text(b.title, PROGRAM_LIMITS.title), mechanic: text(b.mechanic, 40) }));
+    .map((b) => ({
+      title: text(b.title, PROGRAM_LIMITS.title),
+      mechanic: text(b.mechanic, 40),
+      gameId: typeof b.gameId === "string" && b.gameId.length <= 64 ? b.gameId : null,
+    }));
   if (blocks.length === 0) return null;
   const at: ProgramAt = raw.at === "break" || raw.at === "final" ? raw.at : "block";
   const index = Math.min(Math.max(0, Math.floor(finite(raw.index))), blocks.length - 1);
@@ -114,7 +120,7 @@ export function storedSnapshots(raw: unknown): unknown[] {
 export function newProgram(title: string, blocks: Array<ProgramBlockInfo & { snapshot: unknown }>): StoredProgram {
   return {
     title: title.slice(0, PROGRAM_LIMITS.title),
-    blocks: blocks.slice(0, PROGRAM_LIMITS.maxBlocks).map((b) => ({ title: b.title.slice(0, PROGRAM_LIMITS.title), mechanic: b.mechanic })),
+    blocks: blocks.slice(0, PROGRAM_LIMITS.maxBlocks).map((b) => ({ title: b.title.slice(0, PROGRAM_LIMITS.title), mechanic: b.mechanic, gameId: b.gameId ?? null })),
     snapshots: blocks.slice(0, PROGRAM_LIMITS.maxBlocks).map((b) => b.snapshot),
     at: "block",
     index: 0,
@@ -229,4 +235,13 @@ export function eveningSnapshot(program: SessionProgram): { title: string; mecha
 /** Программа для браузера: без снимков игр. */
 export function publicProgram(raw: unknown): SessionProgram | null {
   return parseProgram(raw);
+}
+
+/**
+ * Ключ для того, что игра запоминает на устройстве (отметки лото, выборы ведущего в «Мафии», кости «Перудо»):
+ * в вечере из блоков у каждого блока свой — та же игра в следующем блоке начинается с чистого листа.
+ */
+export function storeScope(session: { id: string; program?: SessionProgram | null }): string {
+  const p = session.program;
+  return p && p.index > 0 ? `${session.id}.b${p.index}` : session.id;
 }

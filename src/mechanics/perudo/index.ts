@@ -23,5 +23,4 @@ export const perudo: Mechanic<PerudoContent, PerudoAnswerValue> = {
   steps: perudoSteps,
   score,
   validate: validatePerudo,
-  ownPeek: true,
 };

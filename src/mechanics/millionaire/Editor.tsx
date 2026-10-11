@@ -137,9 +137,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
-          </Fold>
-        )}
-        {importing && editable && (
+        {importing && (
           <div className="stack stack--tight">
             <p className="muted small">Вопрос с новой строки, варианты — «- …», верный — «* …». «# Ступень 5» — следующие вопросы на 5-ю ступень; без неё вопросы идут по ступеням 1, 2, 3…</p>
             <textarea value={text} rows={10} placeholder={"# Ступень 1\nСтолица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид"} onChange={(e) => setText(e.target.value)} />
@@ -147,6 +145,8 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
               Заменить вопросы
             </button>
           </div>
+        )}
+          </Fold>
         )}
       </section>
 

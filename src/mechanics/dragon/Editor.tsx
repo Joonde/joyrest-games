@@ -89,9 +89,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
-          </Fold>
-        )}
-        {importing && editable && (
+        {importing && (
           <div className="stack stack--tight">
             <p className="muted small">«# Бой: Огненный дракон 2000» — новый бой и его здоровье. Задание — «Ум: вопрос?» с вариантами «- …» и верным «* …»; «Сила: …» и «Харизма: …» — задание; «Удача» — кубик. «(150)» в конце — урон.</p>
             <textarea value={text} rows={10} placeholder={"# Бой: Огненный дракон 2000\nУм: Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nСила: 10 приседаний всей командой (150)\nУдача: бросок!"} onChange={(e) => setText(e.target.value)} />
@@ -99,6 +97,8 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
               Заменить бои
             </button>
           </div>
+        )}
+          </Fold>
         )}
       </section>
 

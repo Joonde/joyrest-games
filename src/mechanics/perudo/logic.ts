@@ -77,6 +77,11 @@ export interface PerudoResult {
   seq: number;
   /** Ответ телефона на шаге можно менять (сервер перезаписывает). */
   changeable: boolean;
+  /**
+   * Отпечатки ключей, с которыми пульт бросил кости раунда (`keyPrint`). Телефон показывает кости, только если
+   * его ключ совпал: ключ не дошёл до ведущего — кости этого стакана у ведущего, а не «свои» на телефоне.
+   */
+  prints: Record<string, string>;
   winner: string | null;
   /** Прошлое состояние — «Назад» на одно действие. */
   prev: { step: number; stage: string; result: Omit<PerudoResult, "prev"> } | null;
@@ -122,7 +127,13 @@ function shownOf(v: unknown): Record<string, number[]> | null {
 }
 
 export function emptyResult(): PerudoResult {
-  return { mode: "deal", party: 1, seats: [], waiting: [], keysStep: null, nonce: "", round: 0, dice: {}, out: [], turn: null, bid: null, bidder: null, history: [], palifico: false, palificoNext: false, palificoDone: [], starter: null, call: null, shown: null, seq: 0, changeable: false, winner: null, prev: null };
+  return { mode: "deal", party: 1, seats: [], waiting: [], keysStep: null, nonce: "", round: 0, dice: {}, out: [], turn: null, bid: null, bidder: null, history: [], palifico: false, palificoNext: false, palificoDone: [], starter: null, call: null, shown: null, seq: 0, changeable: false, prints: {}, winner: null, prev: null };
+}
+
+function printsOf(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [pid, v] of Object.entries(rec(raw)).slice(0, PERUDO_LIMITS.maxCups)) if (typeof v === "string" && /^[0-9a-f]{1,16}$/.test(v)) out[pid] = v;
+  return out;
 }
 
 function parseFlat(raw: unknown): Omit<PerudoResult, "prev"> {
@@ -154,6 +165,7 @@ function parseFlat(raw: unknown): Omit<PerudoResult, "prev"> {
     shown: shownOf(d.shown),
     seq: intIn(d.seq, 0, 1e9) ?? base.seq,
     changeable: d.changeable === true,
+    prints: printsOf(d.prints),
     winner: pidOrNull(d.winner),
   };
 }
@@ -273,7 +285,7 @@ export function startDeal(session: Session, participants: Participant[], content
 }
 
 /** «Бросить кости»: новый раунд, новое число раунда; ходит `starter`. */
-export function startRound(session: Session, nonce: string): SessionChange | null {
+export function startRound(session: Session, nonce: string, prints: Record<string, string> = {}): SessionChange | null {
   const r = parsePerudoResult(session.state.result);
   if (r.mode !== "deal" && r.mode !== "reveal") return null;
   const starter = r.starter && (r.dice[r.starter] ?? 0) > 0 ? r.starter : nextCup(r, r.starter);
@@ -293,6 +305,7 @@ export function startRound(session: Session, nonce: string): SessionChange | nul
     shown: null,
     seq: r.seq + 1,
     changeable: true,
+    prints,
     prev: snapshot(session, r),
   };
   return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result } };
@@ -419,7 +432,8 @@ export function perudoBack(session: Session): { change: SessionChange; clearAnsw
   if ((r.mode === "reveal" || r.mode === "over") && r.call && p.result.mode === "bid") for (const [k, n] of Object.entries(r.call.points)) if (n) undo[k] = -n;
   const leftStep = session.state.step !== p.step ? session.state.step : undefined;
   return {
-    change: { state: { step: p.step, stage, ...(stage === "question" ? { revealed: false } : { revealed: true }), result: { ...p.result, prev: null } }, ...(Object.keys(undo).length > 0 ? { addScore: undo } : {}) },
+    // Номер хода — новый: прежний ход с телефона остался в ответах шага и не должен лечь на стол снова.
+    change: { state: { step: p.step, stage, ...(stage === "question" ? { revealed: false } : { revealed: true }), result: { ...p.result, seq: Math.max(r.seq, p.result.seq) + 1, prev: null } }, ...(Object.keys(undo).length > 0 ? { addScore: undo } : {}) },
     ...(leftStep !== undefined ? { clearAnswers: leftStep } : {}),
   };
 }

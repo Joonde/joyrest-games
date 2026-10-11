@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { storeScope } from "../../core/program";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -134,14 +135,15 @@ export function MafiaHostControls({ session, content, answers, participants, con
   const rolesReady = roles !== null && missingRoles.length === 0;
 
   // Выбор ведущего за игроков без телефона (на этом шаге).
-  const [manual, setManual] = useState<Record<string, string>>(() => loadManual(session.id, step));
-  useEffect(() => setManual(loadManual(session.id, step)), [session.id, step]);
+  const scope = storeScope(session);
+  const [manual, setManual] = useState<Record<string, string>>(() => loadManual(scope, step));
+  useEffect(() => setManual(loadManual(scope, step)), [scope, step]);
   const setManualFor = (pid: string, value: string) => {
     const next = { ...manual };
     if (value) next[pid] = value;
     else delete next[pid];
     setManual(next);
-    saveManual(session.id, step, next);
+    saveManual(scope, step, next);
   };
   const keyless = r.seats.filter((p) => !keys[p]);
 
@@ -157,7 +159,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
         .freshAnswers(s)
         .then((list) => {
           if (!live) return;
-          past.current.set(s, nightChoices(list, r.seats, loadManual(session.id, s)).choices);
+          past.current.set(s, nightChoices(list, r.seats, loadManual(scope, s)).choices);
           setPastVer((v) => v + 1);
         })
         .catch(() => undefined);

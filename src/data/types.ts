@@ -340,7 +340,7 @@ export interface NewSessionOptions {
   mechanic: string | null;
   gameSnapshot: unknown;
   /** Мероприятие из блоков: игры вечера по порядку (сессия начинается с первой). Только свой сервер. */
-  program?: { title: string; blocks: Array<{ title: string; mechanic: string; snapshot: unknown }> };
+  program?: { title: string; blocks: Array<{ title: string; mechanic: string; gameId: string; snapshot: unknown }> };
 }
 
 /** Строка итоговой таблицы: игрок (solo) или команда (teams). */

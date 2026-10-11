@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { EveningTable } from "../mechanics/evening/views";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
@@ -632,6 +633,7 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
       ) : (
         <p>Спасибо, что были с нами!</p>
       )}
+      {session.program && <EveningTable program={session.program} board={session.leaderboard} limit={5} me={pid} />}
       <div className="actions">
         <Link className="btn btn--secondary btn--block" to={`/results/${session.id}`}>
           Итоги игры

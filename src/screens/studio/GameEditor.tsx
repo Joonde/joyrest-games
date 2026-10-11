@@ -99,7 +99,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   async function settled(): Promise<void> {
     const end = Date.now() + 6000;
     await new Promise((r) => setTimeout(r, 50));
-    while (statusRef.current !== "saved" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
+    while (statusRef.current !== "saved" && statusRef.current !== "error" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
   }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
@@ -178,7 +178,10 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
     edited.current = false;
     setSaving(false);
     setSaveStep(null);
-    navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", { state: { toast: `Игра «${clean}» сохранена в ${game.scope === "agency" ? "библиотеке" : "ваших играх"}` } });
+    // Нет связи: правка ждёт в очереди устройства и уйдёт сама — честно об этом и говорим.
+    const where = game.scope === "agency" ? "библиотеке" : "ваших играх";
+    const toast = statusRef.current === "saved" ? `Игра «${clean}» сохранена в ${where}` : `Игра «${clean}» сохранится в ${where}, когда появится связь`;
+    navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", { state: { toast } });
   }
 
   const launchBlocked = errors.length > 0;
@@ -403,10 +406,18 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         onCancel={() => setSaveStep(null)}
       >
         <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти в своих играх (например, «Квиз на свадьбу Ани и Димы»).</p>
-        <label className="field">
-          Название
-          <input maxLength={GAME_TITLE_MAX_LENGTH} autoComplete="off" autoFocus value={saveName} onChange={(e) => setSaveName(e.target.value)} />
-        </label>
+        {/* «Готово» на клавиатуре телефона сохраняет. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!saving) void saveGame();
+          }}
+        >
+          <label className="field">
+            Название
+            <input maxLength={GAME_TITLE_MAX_LENGTH} autoComplete="off" autoFocus enterKeyHint="done" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
+          </label>
+        </form>
         {saveError && (
           <p className="error" role="alert">
             {saveError}

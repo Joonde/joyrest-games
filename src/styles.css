@@ -14112,3 +14112,27 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .ev-screen .ev-table {
   font-size: 3cqh;
 }
+
+.final__board .ev-table {
+  font-size: 3cqh;
+}
+
+.card--center .ev-table-wrap {
+  width: 100%;
+  text-align: left;
+}
+
+/* Вечер из блоков: номер и название блока в строке входа — одной строкой, не задевая углы экрана. */
+.stage-code:has(.stage-code__block) {
+  left: 8cqw;
+  right: 8cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Номера ступеней «Миллионера»: в узких колонках (много команд) и на телефоне не помещаются — прячем. */
+.mil-bars.is-many .mil-step > span,
+.mil-phone-bars .mil-step > span {
+  display: none;
+}

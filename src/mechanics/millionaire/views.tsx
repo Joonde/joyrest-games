@@ -84,7 +84,7 @@ function LifelineTray({ content, used, active }: { content: MillionaireContent; 
 /** Полоски команд: 12 делений, несгораемые отмечены, у той, чей ход, — подсветка. */
 export function LadderBars({ session, content, result, compact = false }: { session: Session; content: MillionaireContent; result: MillionaireResult; compact?: boolean }) {
   return (
-    <div className="mil-bars" style={{ gridTemplateColumns: `repeat(${Math.max(1, result.order.length)}, minmax(0, 1fr))` }}>
+    <div className={result.order.length > 8 ? "mil-bars is-many" : "mil-bars"} style={{ gridTemplateColumns: `repeat(${Math.max(1, result.order.length)}, minmax(0, 1fr))` }}>
       {result.order.map((pid) => {
         const level = result.levels[pid] ?? 0;
         const active = pid === result.turn && result.mode !== "over";
@@ -94,7 +94,7 @@ export function LadderBars({ session, content, result, compact = false }: { sess
             <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${LEVELS}`}>
               {Array.from({ length: LEVELS }, (_, i) => LEVELS - i).map((n) => (
                 <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`}>
-                  {n}
+                  <span aria-hidden="true">{n}</span>
                 </li>
               ))}
             </ol>

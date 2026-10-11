@@ -1,12 +1,13 @@
 // «Перудо»: экран зала (стол со стаканами, ставка крупно, вскрытие) и телефон (свои кости, ставка, «Не верю!»).
 import { useEffect, useMemo, useState } from "react";
+import { storeScope } from "../../core/program";
 import { NameText } from "../../components/NameText";
 import { playSound } from "../../components/live/sound";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { newKey } from "../mafia/seal";
 import type { PerudoContent } from "./content";
-import { diceOf, storeCupKey, storedCupKey } from "./dice";
+import { diceOf, keyPrint, storeCupKey, storedCupKey } from "./dice";
 import { bidText, diceWord } from "./text";
 import { aliveCups, minQty, parsePerudoResult, totalDice, type Bid, type PerudoAnswerValue, type PerudoResult } from "./logic";
 
@@ -241,8 +242,19 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
   const r = parsePerudoResult(session.state.result);
   const started = session.state.result !== null && session.state.result !== undefined && r.seats.length > 0;
   const seated = r.seats.includes(pid);
-  const [key, setKey] = useState<string | null>(() => storedCupKey(session.id, pid));
+  const [key, setKey] = useState<string | null>(() => storedCupKey(storeScope(session), pid));
   const dealing = r.mode === "deal" && seated && session.state.step === r.keysStep && role !== "member";
+
+  // Режим команд: ключ стакана команды запоминают все её телефоны — сменится капитан, кости не потеряются.
+  const teamDeal = r.mode === "deal" && seated && session.state.step === r.keysStep && role === "member";
+  useEffect(() => {
+    if (!teamDeal || !myAnswer) return;
+    const sent = typeof myAnswer.value === "object" && myAnswer.value !== null ? (myAnswer.value as { key?: unknown }).key : null;
+    if (typeof sent === "string" && sent.length >= 16 && sent !== key) {
+      storeCupKey(storeScope(session), pid, sent);
+      setKey(sent);
+    }
+  }, [teamDeal, myAnswer]);
 
   // Раздача: телефон сам создаёт ключ стакана и отправляет ведущему.
   useEffect(() => {
@@ -250,7 +262,7 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
     const sent = myAnswer && typeof myAnswer.value === "object" && myAnswer.value !== null ? (myAnswer.value as { key?: unknown }).key : null;
     if (typeof sent === "string" && sent.length >= 16) {
       if (sent !== key) {
-        storeCupKey(session.id, pid, sent);
+        storeCupKey(storeScope(session), pid, sent);
         setKey(sent);
       }
       return;
@@ -258,7 +270,7 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
     if (myAnswer) return;
     try {
       const k = key ?? newKey();
-      storeCupKey(session.id, pid, k);
+      storeCupKey(storeScope(session), pid, k);
       setKey(k);
       onAnswer({ key: k });
     } catch {
@@ -266,7 +278,14 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
     }
   }, [dealing, myAnswer, sending]);
 
-  const mine = useMemo(() => (key && r.nonce && (r.dice[pid] ?? 0) > 0 && r.mode !== "deal" ? diceOf(key, r.nonce, r.dice[pid] ?? 0) : null), [key, r.nonce, r.dice[pid], r.mode]);
+  // Свои кости — только если ведущий бросил именно с этим ключом (иначе ключ не дошёл, кости у ведущего).
+  // На вскрытии — то, что открыто на столе (после потери кости их уже меньше).
+  const printOk = Object.keys(r.prints).length === 0 || (key !== null && r.prints[pid] === keyPrint(key));
+  const shownMine = r.mode === "reveal" || r.mode === "over" ? (r.shown?.[pid] ?? null) : null;
+  const mine = useMemo(
+    () => shownMine ?? (key && printOk && r.nonce && (r.dice[pid] ?? 0) > 0 && r.mode !== "deal" ? diceOf(key, r.nonce, r.dice[pid] ?? 0) : null),
+    [key, printOk, r.nonce, r.dice[pid], r.mode, shownMine],
+  );
   const myTurn = r.mode === "bid" && r.turn === pid && role !== "member";
   const sentSeq = myAnswer && typeof myAnswer.value === "object" && myAnswer.value !== null ? (myAnswer.value as { n?: unknown }).n : null;
   const waiting = myTurn && sentSeq === String(r.seq);
@@ -307,8 +326,8 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
     </div>
   ) : (r.dice[pid] ?? 0) > 0 && r.mode !== "deal" ? (
     <p className="buzz__plate">
-      <strong>{role === "member" ? "Кости у капитана" : "Кости не открыть на этом телефоне"}</strong>
-      <span>{role === "member" ? "Подсказывайте ему — и следите за экраном" : "Ведущий видит ваши кости — подойдите к нему тихо"}</span>
+      <strong>{role === "member" && !key ? "Кости у капитана" : "Кости не открыть на этом телефоне"}</strong>
+      <span>{role === "member" && !key ? "Подсказывайте ему — и следите за экраном" : "Ведущий видит ваши кости — подойдите к нему тихо"}</span>
     </p>
   ) : null;
 

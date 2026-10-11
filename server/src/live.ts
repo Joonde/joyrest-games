@@ -17,7 +17,7 @@ import { adjustBoard, MAX_SCORE_DELTA, meetsExpect } from "../../src/core/sessio
 import { compactBoard } from "../../src/core/results";
 import { breakStats, parseBreaks, trackBreaks } from "../../src/core/eventTime";
 import { retentionCutoff } from "../../src/core/retention";
-import { moveProgram, newProgram, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
+import { EVENING_MECHANIC, moveProgram, newProgram, parseProgram, PROGRAM_LIMITS, publicProgram, storedSnapshots, type ProgramAction, type StoredProgram } from "../../src/core/program";
 import { parseCue, parseMix, parseMusic, parsePeek, parseScreenReport, parseSlide, parseTeams, SCREEN_STALE_MS } from "../../src/data/cues";
 import * as permissions from "../../src/data/permissions";
 import type { ChangeExpect, Leaderboard, LeaderboardEntry, Participant, ScreenStatus, SessionPhase, SessionState, StepStage } from "../../src/data/types";
@@ -188,12 +188,18 @@ function normalizeBoard(value: unknown): Leaderboard {
   return board;
 }
 
+function blockGameId(row: SessionRow): string | null {
+  const program = parseProgram(row.program ?? null);
+  return program?.at === "block" ? (program.blocks[program.index]?.gameId ?? null) : null;
+}
+
 function sessionOf(row: SessionRow) {
   return {
     id: row.id,
     code: row.code,
     hostId: row.host_id,
-    gameId: row.game_id,
+    // Вечер из блоков: картинки блока лежат у его игры — браузеру id игры текущего блока.
+    gameId: blockGameId(row) ?? row.game_id,
     gameTitle: row.game_title,
     mechanic: row.mechanic,
     gameSnapshot: row.game_snapshot ?? null,
@@ -484,7 +490,15 @@ export async function expireSessions(sql: Sql, cutoff: Date, limit = CLEANUP_LIM
 async function saveResult(db: Sql | TransactionSql, row: SessionRow, participantsCount: number, replace: boolean, until = Date.now()): Promise<void> {
   // В транзакции и вне её запросы пишутся одинаково.
   const sql = db as Sql;
-  const board = sql.json(compactBoard(normalizeBoard(row.leaderboard)) as never);
+  // Вечер из блоков, закрытый посреди блока («Игры сейчас», автоочистка): в историю — общий счёт вечера.
+  const program = parseProgram(row.program ?? null);
+  const current = normalizeBoard(row.leaderboard);
+  const totalBoard: Leaderboard =
+    program?.at === "block"
+      ? Object.fromEntries(Object.entries(current).map(([pid, e]) => [pid, { ...e, score: (program.totals[pid] ?? 0) + e.score }]))
+      : current;
+  const board = sql.json(compactBoard(totalBoard) as never);
+  const mechanic = program ? EVENING_MECHANIC : row.mechanic;
   const title = row.game_title.slice(0, 80);
   // Начало вечера — первый гость; без него — «Начать игру». Перерывы — до момента сохранения.
   const started = row.event_started_at ?? row.started_at ?? null;
@@ -492,7 +506,7 @@ async function saveResult(db: Sql | TransactionSql, row: SessionRow, participant
   if (replace) {
     await sql`
       insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, finished_at, breaks_ms, breaks_count)
-      values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
+      values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${mechanic}, ${row.theme_id}, ${row.play_mode},
               ${row.created_at}, ${participantsCount}, ${board}, ${started}, now(), ${pauses.ms}, ${pauses.count})
       on conflict (id) do update set participants_count = excluded.participants_count, board = excluded.board,
         started_at = excluded.started_at, finished_at = coalesce(results.finished_at, excluded.finished_at),
@@ -500,7 +514,7 @@ async function saveResult(db: Sql | TransactionSql, row: SessionRow, participant
   } else {
     await sql`
       insert into results (id, host_id, code, game_title, mechanic, theme_id, play_mode, played_at, participants_count, board, started_at, breaks_ms, breaks_count)
-      values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${row.mechanic}, ${row.theme_id}, ${row.play_mode},
+      values (${row.id}, ${row.host_id}, ${row.code}, ${title}, ${mechanic}, ${row.theme_id}, ${row.play_mode},
               ${row.created_at}, ${participantsCount}, ${board}, ${started}, ${pauses.ms}, ${pauses.count})
       on conflict (id) do nothing`;
   }
@@ -658,7 +672,12 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (!valid || blocks.length < PROGRAM_LIMITS.minBlocks || blocks.length > PROGRAM_LIMITS.maxBlocks) return fail(reply, 400, "invalid-argument");
         program = newProgram(
           text(raw.title, PROGRAM_LIMITS.title) || text(body.gameTitle, PROGRAM_LIMITS.title),
-          blocks.map((b) => ({ title: text(b.title, PROGRAM_LIMITS.title), mechanic: b.mechanic as string, snapshot: b.snapshot })),
+          blocks.map((b) => ({
+            title: text(b.title, PROGRAM_LIMITS.title),
+            mechanic: b.mechanic as string,
+            gameId: typeof b.gameId === "string" && ID.test(b.gameId) ? b.gameId : null,
+            snapshot: b.snapshot,
+          })),
         );
         mechanic = program.blocks[0]?.mechanic ?? null;
         snapshot = program.snapshots[0] ?? null;
@@ -901,6 +920,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         if (!move) return "conflict" as const;
         // Новая игра с первого шага; музыка, микшер и названия команд остаются, слайд и таблица поверх — уходят.
         const nextState: SessionState = { ...state, ...PLAYING_RESET, startedAt: null, cue: null, slide: null, peek: null } as SessionState;
+        // Слайд «Перерыв» уходит вместе со сменой блока — перерыв вечера закрывается сейчас.
+        const before = parseBreaks(row.breaks);
+        const breaks = trackBreaks(before, state.slide ?? null, null, now());
         // Шаги прошлого блока — в архив: блок k получает шаги −(шаг + 1) − 100000·(k + 1).
         const archived = await tx<{ step: number }[]>`
           update answers set step = -(step + 1) - ${100_000 * (parsed.index + 1)}
@@ -908,7 +930,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         const [updated] = await tx<{ version: number }[]>`
           update sessions set state = ${tx.json(nextState as never)}, leaderboard = ${tx.json(move.leaderboard as never)},
             mechanic = ${move.mechanic}, game_snapshot = ${tx.json(move.snapshot as never)}, program = ${tx.json(move.program as never)},
-            version = version + 1, updated_at = now(), hidden_at = null
+            breaks = ${tx.json(breaks as never)}, version = version + 1, updated_at = now(), hidden_at = null
           where id = ${row.id} returning version::int as version`;
         const steps = [...new Set(archived.map((a) => -(a.step + 100_000 * (parsed.index + 1)) - 1))];
         const fresh = await tx<SessionRow[]>`select ${tx(SESSION_COLUMNS)}, version::int as version from sessions where id = ${row.id}`;
@@ -917,6 +939,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (outcome === "missing") return fail(reply, 404, "not-found");
       // Повтор, второй пульт или игра уже ушла дальше — пульт получит свежее состояние.
       if (outcome === "conflict") return fail(reply, 409, "failed-precondition");
+      // Голоса «помощи зала» прошлого блока не переходят в новый (шаги снова с нуля).
+      audience.delete(hosted.row.id);
       for (const step of outcome.steps) hub.publish(`answers:${hosted.row.id}`, { type: "clear", step });
       // Механика и снимок сменились — всем свежий снимок сессии.
       if (outcome.session) hub.publish(`session:${hosted.row.id}`, { type: "snapshot", session: outcome.session });
@@ -1254,8 +1278,9 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
           const [r] = await tx<AnswerRow[]>`
             insert into answers (session_id, step, pid, uid, value, submitted_at)
             values (${session.id}, ${step as number}, ${pid}, ${who.uid}, ${value}, ${new Date(time)})
-            on conflict (session_id, step, pid) do update set value = excluded.value, submitted_at = excluded.submitted_at
-              where answers.uid = excluded.uid
+            -- Перезаписать может только текущий капитан участника (проверено выше): сменился капитан команды —
+            -- новый капитан продолжает ход команды.
+            on conflict (session_id, step, pid) do update set value = excluded.value, submitted_at = excluded.submitted_at, uid = excluded.uid
             returning step, pid, uid, value, submitted_at`;
           return r;
         }

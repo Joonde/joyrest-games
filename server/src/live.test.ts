@@ -325,6 +325,24 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("POST", "/api/sessions/prog1/program", host, { action: "next", from: 1 })).statusCode).toBe(409);
   });
 
+  it("вечер из блоков, закрытый посреди блока из «Игр сейчас»: в истории — общий счёт вечера; картинки — от игры блока", async () => {
+    const snap = (mechanic: string) => ({ title: mechanic, mechanic, themeId: "joyrest", content: {} });
+    const program = { title: "Вечер 2", blocks: [{ title: "Квиз", mechanic: "quiz", gameId: "gq", snapshot: snap("quiz") }, { title: "Лото", mechanic: "lotto", gameId: "gl", snapshot: snap("lotto") }] };
+    expect((await call("POST", "/api/sessions", host, { id: "prog2", gameId: "ge", gameTitle: "Вечер 2", mechanic: "evening", gameSnapshot: snap("evening"), playMode: "solo", screenMode: "laptop", themeId: "joyrest", program })).statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/prog2", host)).json().gameId).toBe("gq");
+    await call("POST", "/api/sessions/prog2/phase", host, { phase: "playing" });
+    await call("POST", "/api/sessions/prog2/leaderboard", host, { entries: { m1: { name: "Аня", kind: "player", score: 0 } } });
+    await call("POST", "/api/sessions/prog2/apply", host, { addScore: { m1: 70 } });
+    await call("POST", "/api/sessions/prog2/program", host, { action: "break", from: 0 });
+    // В перерыве — id самого вечера.
+    expect((await call("GET", "/api/sessions/prog2", host)).json().gameId).toBe("ge");
+    await call("POST", "/api/sessions/prog2/program", host, { action: "next", from: 0 });
+    expect((await call("GET", "/api/sessions/prog2", host)).json().gameId).toBe("gl");
+    await call("POST", "/api/sessions/prog2/apply", host, { addScore: { m1: 5 } });
+    expect((await call("POST", "/api/sessions/prog2/finish", host, { participantsCount: 0 })).statusCode).toBe(200);
+    expect((await call("GET", "/api/results/prog2", "")).json()).toMatchObject({ mechanic: "evening", board: [{ name: "Аня", score: 75 }] });
+  });
+
   it("время вечера: начало — первый гость, перерывы — слайд «Перерыв», в итогах — их длительность", async () => {
     await newSession("ev1");
     expect((await call("GET", "/api/sessions/ev1", host)).json().eventStartedAt).toBeNull();

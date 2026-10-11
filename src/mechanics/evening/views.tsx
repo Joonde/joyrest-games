@@ -55,7 +55,7 @@ function BlockList({ program, compact }: { program: SessionProgram; compact?: bo
 }
 
 /** Итоги вечера: очки каждого по блокам и общий счёт. */
-function EveningTable({ program, board, limit, me }: { program: SessionProgram; board: Leaderboard; limit: number; me?: string }) {
+export function EveningTable({ program, board, limit, me }: { program: SessionProgram; board: Leaderboard; limit: number; me?: string }) {
   const rows = eveningTable(program, board);
   const shown = rows.slice(0, limit);
   const mine = me ? rows.find((r) => r.pid === me) : undefined;

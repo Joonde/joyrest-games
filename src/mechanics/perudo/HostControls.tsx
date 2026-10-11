@@ -8,7 +8,8 @@ import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { hostKey } from "../mafia/deal";
 import type { PerudoContent } from "./content";
-import { diceOf, hostCupKey, newNonce } from "./dice";
+import { diceOf, hostCupKey, keyPrint, newNonce } from "./dice";
+import { resultKey } from "../../core/session";
 import { aliveCups, keysFrom, minQty, moveFromAnswers, parsePerudoResult, perudoBack, perudoPrimary, placeBid, resolveCall, startDeal, startRound, totalDice, type Bid } from "./logic";
 import { bidText } from "./text";
 import { Die } from "./views";
@@ -38,7 +39,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
   const r = parsePerudoResult(session.state.result);
   const started = session.state.result !== null && session.state.result !== undefined;
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Игрок") : "—");
-  const noPlayers = scoringParticipants(participants, session.playMode).length + Object.keys(session.leaderboard).length < 2;
+  const noPlayers = new Set([...scoringParticipants(participants, session.playMode).map((p) => p.id), ...Object.keys(session.leaderboard)]).size < 2;
   const action = perudoPrimary(session, content);
   const back = perudoBack(session);
   const host = hostKey(session.id);
@@ -47,9 +48,10 @@ export function PerudoHostControls({ session, content, answers, participants, co
   const dealKeys = r.mode === "deal" && step === r.keysStep ? keysFrom(answers, r.keysStep) : null;
   const dealKey = dealKeys ? Object.keys(dealKeys).sort().join(",") : "";
   useEffect(() => {
-    if (dealKeys) setKeys(dealKeys);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- при новых ключах
-  }, [dealKey]);
+    // Новая партия — ключи прошлой не в счёт.
+    if (r.mode === "deal") setKeys(dealKeys ?? {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- при новых ключах и новой партии
+  }, [dealKey, r.party, r.mode]);
   useEffect(() => {
     if (r.keysStep === null || r.mode === "deal") return;
     let stop = false;
@@ -60,13 +62,19 @@ export function PerudoHostControls({ session, content, answers, participants, co
     return () => {
       stop = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- на новую партию
-  }, [r.keysStep, r.party]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- на новую партию и каждый раунд
+  }, [r.keysStep, r.party, r.round]);
 
   /** Кости всех стаканов этого раунда (стакан без телефона — ключом ведущего). */
   function allDice(k: Record<string, string>): Record<string, number[]> {
     const out: Record<string, number[]> = {};
-    for (const p of aliveCups(r)) out[p] = diceOf(k[p] ?? hostCupKey(host, p), r.nonce, r.dice[p] ?? 0);
+    const printed = Object.keys(r.prints).length > 0;
+    for (const p of aliveCups(r)) {
+      const own = k[p];
+      // Бросали без ключа этого стакана (не дошёл) — его кости и дальше от ключа ведущего.
+      const use = own && (!printed || r.prints[p] === keyPrint(own)) ? own : hostCupKey(host, p);
+      out[p] = diceOf(use, r.nonce, r.dice[p] ?? 0);
+    }
     return out;
   }
 
@@ -85,6 +93,8 @@ export function PerudoHostControls({ session, content, answers, participants, co
     setBusy(true);
     setError(null);
     const { phase, step: atStep, stage: atStage } = session.state;
+    // Ставки раунда идут на одном шаге: сверяем и сам ход, чтобы отставший пульт не затёр новую ставку.
+    const atResult = resultKey(session.state.result);
     try {
       const change = typeof make === "function" ? await make() : make;
       if (!change) {
@@ -93,7 +103,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
       }
       const arrived = rehearsal ? Promise.resolve() : nextSession();
       if (clear !== undefined) await control.clearAnswers(clear);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: atResult } });
       await arrived;
     } catch (e) {
       if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
@@ -101,6 +111,20 @@ export function PerudoHostControls({ session, content, answers, participants, co
       setBusy(false);
     }
   }
+
+  /**
+   * Бросок: свежие ключи с сервера и их отпечатки в раунд — телефон, чей ключ не дошёл, не покажет «свои» кости,
+   * а пульт и вскрытие считают его стакан ключом ведущего.
+   */
+  const roll = () =>
+    run(async () => {
+      const list = r.keysStep !== null ? await control.freshAnswers(r.keysStep).catch(() => []) : [];
+      const k = { ...keys, ...keysFrom(list, r.keysStep) };
+      setKeys(k);
+      const prints: Record<string, string> = {};
+      for (const p of r.seats) if (k[p]) prints[p] = keyPrint(k[p] as string);
+      return startRound(latest.current, newNonce(), prints);
+    });
 
   /** Вскрытие: свежие ключи с сервера, чтобы не ошибиться с костями. */
   const call = (kind: "dudo" | "calza") =>
@@ -119,8 +143,8 @@ export function PerudoHostControls({ session, content, answers, participants, co
     if ("bid" in move) {
       const change = placeBid(latest.current, move.pid, move.bid);
       if (!change) return;
-      const { phase, step: atStep, stage: atStage } = latest.current.state;
-      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+      const { phase, step: atStep, stage: atStage, result: atResult } = latest.current.state;
+      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(atResult) } }).catch(() => undefined);
     } else void call(move.call);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только на новый ход
   }, [moveKey, busy]);
@@ -244,7 +268,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
           </>
         )}
         {action === "roll" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startRound(session, newNonce()))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void roll()}>
             Бросить кости
           </button>
         )}
@@ -261,7 +285,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
           </>
         )}
         {action === "nextRound" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startRound(session, newNonce()))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void roll()}>
             Следующий раунд{r.palificoNext ? " — Палифико" : ""}
           </button>
         )}

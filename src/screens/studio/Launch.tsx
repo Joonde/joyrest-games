@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameSnapshot } from "../../core/games";
 import {
   gamesRepo,
+  isPermanentError,
   permissions,
   sessionsRepo,
   useLoad,
@@ -21,6 +22,8 @@ import { EVENING_MECHANIC } from "../../core/program";
 import { NOT_IN_EVENING, parseEvening } from "../../mechanics/evening/content";
 import { getTheme, THEME_HINTS, themesForRating, themeStyle } from "../../themes/registry";
 import { Scene } from "../../components/live/Scene";
+
+const AGE_ORDER = ["0+", "12+", "18+"];
 
 const SCREEN_MODES: Array<{ id: ScreenMode; title: string; hint: string }> = [
   { id: "laptop", title: "С экраном зала", hint: "Ноутбук, планшет или телевизор показывают вопросы, телефон — пульт." },
@@ -101,7 +104,11 @@ function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfil
 /** Мероприятие из блоков: игры вечера загружаются и проверяются до запуска — каждая станет снимком. */
 function EveningLoader({ game, profile }: { game: Game; profile: UserProfile }) {
   const refs = parseEvening(game.content).blocks;
-  const [state, retry] = useLoad(() => Promise.all(refs.map((r) => gamesRepo.get(r.gameId))), [game.id, refs.map((r) => r.gameId).join(",")]);
+  // Нет доступа к игре блока (чужая личная игра) — как «не найдена», а не общая ошибка загрузки.
+  const [state, retry] = useLoad(
+    () => Promise.all(refs.map((r) => gamesRepo.get(r.gameId).catch((e: unknown) => (isPermanentError(e) ? null : Promise.reject(e))))),
+    [game.id, refs.map((r) => r.gameId).join(",")],
+  );
   if (state.status === "loading") return <Pending skeleton={<StudioSkeleton />} label="Собираем вечер" />;
   if (state.status === "error") return <LoadFailed onRetry={retry} />;
   const problems: string[] = [];
@@ -155,7 +162,9 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
   );
   const screenModes = SCREEN_MODES.filter((m) => m.id !== "none" || supports.noScreen);
   const playModes = PLAY_MODES.filter((m) => supports[m.id]);
-  const themeChoices = themesForRating(game.ageRating);
+  // Вечер из блоков: оформление — по самой «взрослой» игре вечера.
+  const rating = (blocks ?? [game]).map((g) => g.ageRating).reduce((a, b) => (AGE_ORDER.indexOf(b) > AGE_ORDER.indexOf(a) ? b : a), game.ageRating);
+  const themeChoices = themesForRating(rating);
   const [screenMode, setScreenMode] = useState<ScreenMode>(screenModes[0]?.id ?? "laptop");
   const [playMode, setPlayMode] = useState<PlayMode>(
     playModes.some((m) => m.id === game.playMode) ? game.playMode : (playModes[0]?.id ?? "solo"),
@@ -180,7 +189,7 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
         playMode,
         screenMode,
         ...(blocks
-          ? { program: { title: game.title, blocks: blocks.map((g) => ({ title: g.title, mechanic: g.mechanic, snapshot: gameSnapshot(g) })) } }
+          ? { program: { title: game.title, blocks: blocks.map((g) => ({ title: g.title, mechanic: g.mechanic, gameId: g.id, snapshot: gameSnapshot(g) })) } }
           : {}),
       });
       // С экраном зала — сразу выбор: это устройство пульт или экран.

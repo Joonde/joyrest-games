@@ -80,9 +80,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
-          </Fold>
-        )}
-        {importing && editable && (
+        {importing && (
           <div className="stack stack--tight">
             <p className="muted small">
               Строка — клетка по порядку. «Вопрос: текст = ответ», «Танец: …», «Караоке: …», «+3» (бонус), «Ловушка −2», «Пропуск», «Пусто», иначе — задание. В конце «(30)» — очки.
@@ -92,6 +90,8 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
               Заполнить клетки
             </button>
           </div>
+        )}
+          </Fold>
         )}
       </section>
 

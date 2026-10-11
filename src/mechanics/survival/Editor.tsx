@@ -90,9 +90,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
-          </Fold>
-        )}
-        {importing && editable && (
+        {importing && (
           <div className="stack stack--tight">
             <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …». «(150)» в конце — очки.</p>
             <textarea value={text} rows={10} placeholder={"Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nЗадание: спойте гимн команды (200)"} onChange={(e) => setText(e.target.value)} />
@@ -100,6 +98,8 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
               Заменить раунды
             </button>
           </div>
+        )}
+          </Fold>
         )}
       </section>
 

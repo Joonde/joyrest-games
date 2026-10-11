@@ -31,8 +31,8 @@ const apply = (s: Session, c: SessionChange | null) => {
 const ans = (s: Session, pid: string, value: unknown, late = 10): Answer => ({ id: `${s.state.step}_${pid}`, step: s.state.step, pid, uid: `u${pid}`, value, submittedAt: (s.state.startedAt ?? 0) + late });
 
 /** Прогон всей истории: телефоны отвечают как настоящие капитаны, пульт жмёт главную кнопку. */
-function play(n: number, seed: number, difficulty: "easy" | "normal" | "hard" = "normal") {
-  const content = { ...createOlymp(), difficulty };
+function play(n: number, seed: number, difficulty: "easy" | "normal" | "hard" = "normal", story = "winter") {
+  const content = { ...createOlymp(), difficulty, story };
   const parts = teams(n);
   let s = session();
   let rnd = seed;
@@ -109,6 +109,18 @@ describe("Олимп на сессии", () => {
       expect(r.log.length).toBeGreaterThan(5);
     }
     // разные пути и концовки встречаются
+    expect(endings.size).toBeGreaterThanOrEqual(2);
+  }, 60_000);
+
+  it("вторая история «Метка Тёмного мира» проходится до концовки при 1–10 командах", () => {
+    const endings = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const { r, seen } = play(1 + (seed % 10), seed * 7, (["easy", "normal", "hard"] as const)[seed % 3], "mark");
+      expect(r.phase).toBe("end");
+      expect(r.scene.startsWith("m-end")).toBe(true);
+      endings.add(r.scene);
+      expect(seen).toContain("fight");
+    }
     expect(endings.size).toBeGreaterThanOrEqual(2);
   }, 60_000);
 

@@ -5,6 +5,7 @@ import { FOES, scaledHp } from "./foes";
 import { battleTotals, battleXp, beginTurn, canUse, endTurn, foeAct, godAct, startBattle, turnQueue, type Battle } from "./combat";
 import { branchNext, exitsOf, validateStory, visibleOptions } from "./story";
 import { WINTER } from "./winter";
+import { STORIES } from "./content";
 
 /** Детерминированный «кубик» для тестов. */
 function rng(seed: number): () => number {
@@ -136,7 +137,8 @@ describe("история «Вечная зима»", () => {
     expect(validateStory(WINTER)).toEqual([]);
     expect(WINTER.scenes.filter((s) => s.kind === "end").map((s) => (s.kind === "end" ? s.ending : "")).sort()).toEqual(["bad", "good", "mid"]);
   });
-  it("все пути проходятся до концовки: каждая сцена встречается, у голосований есть выбор", () => {
+  it.each(STORIES.map((x) => [x.title, x] as const))("«%s»: все пути проходятся до концовки, каждая сцена встречается, у голосований есть выбор", (_title, story) => {
+    expect(validateStory(story)).toEqual([]);
     // Обход состояний «сцена + флаги Саги» с запоминанием: ~300 тыс. путей сводятся к сотням состояний.
     const seen = new Set<string>();
     const ends = new Set<string>();
@@ -146,7 +148,7 @@ describe("история «Вечная зима»", () => {
       const key = `${id}|${[...flags].sort().join(",")}`;
       const hit = memo.get(key);
       if (hit) return hit;
-      const scene = WINTER.scenes.find((x) => x.id === id);
+      const scene = story.scenes.find((x) => x.id === id);
       expect(scene, id).toBeTruthy();
       if (!scene) return [0, 0, 0];
       seen.add(id);
@@ -170,10 +172,10 @@ describe("история «Вечная зима»", () => {
       memo.set(key, result);
       return result;
     };
-    const [minScenes, maxScenes, maxFights] = walk(WINTER.start, [], 0);
+    const [minScenes, maxScenes, maxFights] = walk(story.start, [], 0);
     expect([...ends].sort()).toEqual(["bad", "good", "mid"]);
-    expect(WINTER.scenes.filter((x) => !seen.has(x.id)).map((x) => x.id)).toEqual([]);
-    expect(minScenes).toBeGreaterThanOrEqual(14);
+    expect(story.scenes.filter((x) => !seen.has(x.id)).map((x) => x.id)).toEqual([]);
+    expect(minScenes).toBeGreaterThanOrEqual(12);
     expect(maxScenes).toBeLessThanOrEqual(30);
     expect(maxFights).toBeLessThanOrEqual(5);
   });

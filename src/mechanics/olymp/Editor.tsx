@@ -1,7 +1,7 @@
 // Конструктор «Олимпа»: история и правила заданы в коде, здесь — сложность боёв, время голосования
 // и обзор сцен истории (читать перед игрой).
 import type { EditorProps } from "../types";
-import { DIFFICULTIES, storyOf, validateOlymp, type OlympContent } from "./content";
+import { DIFFICULTIES, STORIES, storyOf, validateOlymp, type OlympContent } from "./content";
 import { foeOf } from "./foes";
 import { placeOf } from "./story";
 
@@ -17,6 +17,20 @@ export function OlympEditor({ content, onChange, editable }: EditorProps<OlympCo
         <p>{story.blurb}</p>
         <p className="muted small">Одна команда — один бог (до 10). Ведущий читает сцены с пульта, команды бросают d100, голосуют за путь и сражаются. Очки — опыт богов, в конце — награждение. Только 18+.</p>
       </section>
+      {STORIES.length > 1 && (
+        <section className="card stack">
+          <h2>История</h2>
+          <div className="stack stack--tight" role="radiogroup" aria-label="История">
+            {STORIES.map((s) => (
+              <label key={s.id} className="choice">
+                <input type="radio" name="olymp-story" checked={story.id === s.id} disabled={!editable} onChange={() => onChange({ ...content, story: s.id })} />
+                <span className="choice__title">{s.title}</span>
+                <span className="choice__hint">{s.blurb}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="card stack">
         <h2>Сложность боёв</h2>
         <div className="stack stack--tight" role="radiogroup" aria-label="Сложность">

@@ -2,9 +2,10 @@
 // в игре хранится только выбор истории и настройки проведения.
 import type { ValidationError } from "../types";
 import { validateStory, type Story } from "./story";
+import { MARK } from "./mark";
 import { WINTER } from "./winter";
 
-export const STORIES: Story[] = [WINTER];
+export const STORIES: Story[] = [WINTER, MARK];
 
 export type Difficulty = "easy" | "normal" | "hard";
 

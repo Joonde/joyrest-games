@@ -1,0 +1,25 @@
+{
+  "note": "Портреты богов «Олимпа» (Figma AI, gemini-3.1-flash-image, 11 октября 2026). Ссылки живут 7 дней.",
+  "files": [
+    {
+      "file": "poseidon.png",
+      "url": "https://www.figma.com/api/mcp/asset/f11dc70f-eb21-46ee-87dd-1dcee1a9f719.png"
+    },
+    {
+      "file": "hestia.png",
+      "url": "https://www.figma.com/api/mcp/asset/22bc50b3-7a9b-4e24-82ff-8d078eaf510e.png"
+    },
+    {
+      "file": "hermes.png",
+      "url": "https://www.figma.com/api/mcp/asset/c5c871e5-3356-478d-98b8-21e806ec1be1.png"
+    },
+    {
+      "file": "artemis.png",
+      "url": "https://www.figma.com/api/mcp/asset/6150d86d-8cd3-436a-893d-38971245570b.png"
+    },
+    {
+      "file": "hephaestus.png",
+      "url": "https://www.figma.com/api/mcp/asset/2cdd7393-652b-487c-a48a-913e9f53c2a8.png"
+    }
+  ]
+}

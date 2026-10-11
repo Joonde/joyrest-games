@@ -8,7 +8,7 @@ import { secondsLeft } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
-import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, startAuction, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, startAuction, startCatQuestion, toBoard } from "./logic";
 
 /**
  * Пульт «Своей игры»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
@@ -44,6 +44,16 @@ export function BoardHostControls({ session, content, answers, participants, con
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт при новых нажатиях и смене слова
   }, [syncKey, result.buzz.current, result.buzz.order.length, busy]);
+
+  // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
+  const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
+  useEffect(() => {
+    if (!catGive || busy || catGive === result.catTo) return;
+    const price = result.catPrice > 0 ? result.catPrice : (cell?.points ?? 0);
+    const { phase, step: atStep, stage: atStage } = latest.current.state;
+    void control.apply({ ...setCat(latest.current, catGive, price), expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только новый выбор игрока
+  }, [catGive]);
 
   // «Аукцион»: экран показывает, сколько ставок сделано, — пульт пишет счётчик не чаще раза в 2 секунды.
   const betCount = stage === "question" && result.mode === "auction" ? Object.keys(collectBets(answers, step)).length : -1;
@@ -253,21 +263,22 @@ export function BoardHostControls({ session, content, answers, participants, con
   }
 
   if (stage === "question" && result.mode === "bet") {
-    // «Кот в мешке»: ведущий отдаёт вопрос одному игроку (обычно не тому, кто выбрал клетку) и ставит цену.
-    const pool = Object.keys(session.leaderboard);
+    // «Кот в мешке»: выбравший клетку отдаёт вопрос другому игроку (с телефона или называет ведущему); ставок нет.
+    const pool = Object.keys(session.leaderboard).filter((pid) => pid !== result.pickerBefore || Object.keys(session.leaderboard).length < 2);
     const prices = [...new Set([...allCells(content).map(({ cell: c }) => c.points), cell.points])].filter((n) => n > 0).sort((a, b) => a - b);
     const price = result.catPrice > 0 ? result.catPrice : cell.points;
     return (
       <div className="stack host-quiz board-host">
         {header}
-        <p className="muted small">Кот в мешке! Отдайте вопрос одному игроку — он обязан ответить. Верно — плюс цена и право выбора, неверно — минус цена.</p>
+        <p className="muted small">
+          Кот в мешке! {result.pickerBefore ? <><NameText name={nameOf(result.pickerBefore)} /> выбирает на телефоне, кому отдать вопрос (себе нельзя) — или назовёт вам, коснитесь имени.</> : "Отдайте вопрос одному игроку."} Ставок нет: он обязан ответить, верно — плюс цена и право выбора, неверно — минус цена.
+        </p>
         <fieldset className="stack stack--tight">
           <legend>Кому достаётся вопрос</legend>
           <div className="board-cat__who">
             {pool.map((pid) => (
               <button key={pid} type="button" className="pick-chip" aria-pressed={result.catTo === pid} disabled={busy} onClick={() => void run(setCat(session, pid, price))}>
                 <NameText name={nameOf(pid)} />
-                {pid === result.pickerBefore ? " · выбирал" : ""}
               </button>
             ))}
           </div>

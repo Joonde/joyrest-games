@@ -223,7 +223,23 @@ export function collectBets(answers: Answer[], step: number): Record<string, num
   return bets;
 }
 
-/** «Кот в мешке»: ведущий выбирает, кому отдать вопрос, и ставит его цену. */
+/**
+ * «Кот в мешке» (решение владельца 11 октября 2026): кто выбрал клетку, тот на своём телефоне отдаёт вопрос
+ * другому игроку — `{ give: pid }`; себе нельзя, ставок нет. Последний выбор того, кто выбирал, на этом шаге.
+ */
+export function catGiveOf(session: Session, answers: Answer[]): string | null {
+  const result = parseBoardResult(session.state.result);
+  const giver = result.pickerBefore;
+  if (result.mode !== "bet" || !giver) return null;
+  const mine = answers.filter((a) => a.step === session.state.step && a.pid === giver).sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
+  for (const a of mine) {
+    const to = rec(a.value).give;
+    if (typeof to === "string" && to !== giver && session.leaderboard[to]) return to;
+  }
+  return null;
+}
+
+/** «Кот в мешке»: кому отдан вопрос и его цена (ведущий может поправить выбор игрока). */
 export function setCat(session: Session, to: string | null, price: number): SessionChange {
   const result = parseBoardResult(session.state.result);
   const catPrice = Math.min(CAT_MAX, Math.max(1, Math.round(Number.isFinite(price) ? price : 1)));

@@ -191,6 +191,10 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                           Пояснение для ведущего (видит только пульт)
                           <input maxLength={MILLIONAIRE_LIMITS.note} value={q.note} disabled={!editable} onChange={(e) => update(q.id, { note: e.target.value })} />
                         </label>
+                        <label className="field">
+                          Наводка для «Совета ведущего» (не ответ, а направление мысли)
+                          <input maxLength={MILLIONAIRE_LIMITS.hint} value={q.hint ?? ""} disabled={!editable} placeholder="Например: вспомните, где проходит Олимпиада-80" onChange={(e) => update(q.id, { hint: e.target.value })} />
+                        </label>
                         {mine.map((e) => (
                           <p key={e.message} className="error small">
                             {e.message}

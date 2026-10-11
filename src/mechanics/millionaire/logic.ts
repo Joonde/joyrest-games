@@ -1,8 +1,10 @@
 // Ход «Кто хочет стать миллионером» — чистые функции.
 //
 // Команды ходят по очереди, у каждой своя ступень (0–12). Ход: заставка (`ready`, «Ход команды X ·
-// вопрос на 5 000») → вопрос (`question`): капитан выбирает вариант на телефоне (`{ choice }`) или ведущий
-// отмечает ответ команды на пульте → «Показать ответ» (`reveal`): верно — ступенью выше, неверно — вниз до
+// вопрос на 5 000») → вопрос (`question`): капитан выбирает вариант на телефоне (`{ choice }`, до фиксации
+// можно передумать) или ведущий отмечает ответ команды на пульте — выбор подсвечивается на экране
+// (`chosen`) → ведущий переспрашивает «Это окончательный ответ?» и фиксирует его (`locked`) → «Показать
+// ответ» (`reveal`): верно — ступенью выше, неверно — вниз до
 // несгораемой; «Право на ошибку» — вариант гаснет, вопрос заново → «Следующая команда». Дошла до 12 —
 // миллионер, дальше не ходит. Подсказки — каждая один раз за игру у команды; любая подсказка открывает
 // новый шаг (свежий приём ответов: капитан может попросить следующую подсказку с телефона, а прежний
@@ -48,6 +50,18 @@ export interface MillionaireResult {
   flash: LifelineId | null;
   /** Дошли до 12 ступени или вопросы кончились. */
   done: string[];
+  /** Выбор команды, подсвеченный на экране (пульт пишет его, как только ответ пришёл). */
+  chosen: number | null;
+  /** Ведущий переспросил и зафиксировал ответ — теперь только «Показать ответ». */
+  locked: boolean;
+  /** Просьба подсказки с телефона, которую ведущий отклонил (её номер `n`). */
+  refused: string | null;
+  /** «Совет ведущего»: наводка на экране зала (ведущий показывает по кнопке). */
+  tipText: string | null;
+  /** Голосование зала открыто: голосуют и гости по QR (сервер принимает голоса только при этой пометке). */
+  audienceVote: boolean;
+  /** Ответ на шаге можно поменять до фиксации (сервер перезаписывает ответ телефона). */
+  changeable: boolean;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -89,6 +103,12 @@ export function parseMillionaireResult(raw: unknown): MillionaireResult {
     from: typeof d.from === "number" && d.from >= 0 && d.from <= LEVELS ? d.from : 0,
     flash: LIFELINE_IDS.includes(d.flash as LifelineId) ? (d.flash as LifelineId) : null,
     done: ids(d.done),
+    chosen: opt(d.chosen),
+    locked: d.locked === true,
+    refused: typeof d.refused === "string" ? d.refused.slice(0, 40) : null,
+    tipText: typeof d.tipText === "string" && d.tipText.trim() !== "" ? d.tipText.slice(0, 300) : null,
+    audienceVote: d.audienceVote === true,
+    changeable: d.changeable === true,
   };
 }
 
@@ -137,7 +157,7 @@ function scoreChange(session: Session, participants: Participant[], content: Mil
   return board;
 }
 
-export type MillionaireAction = "start" | "show" | "reveal" | "retry" | "audienceDone" | "next" | "podium" | "podiumNext" | "finish";
+export type MillionaireAction = "start" | "show" | "lock" | "reveal" | "retry" | "audienceDone" | "next" | "podium" | "podiumNext" | "finish";
 
 export function millionairePrimary(session: Session): MillionaireAction {
   const { stage } = session.state;
@@ -146,13 +166,16 @@ export function millionairePrimary(session: Session): MillionaireAction {
   if (r.mode === "over") return hasPodium(session.leaderboard) ? "podium" : "finish";
   if (stage === "ready") return r.order.length === 0 ? "start" : "show";
   if (r.mode === "audience") return "audienceDone";
-  if (r.mode === "question") return "reveal";
+  if (r.mode === "question") return r.locked ? "reveal" : "lock";
   if (r.outcome === "saved") return "retry";
   return "next";
 }
 
+/** Новый приём ответа: выбор не подсвечен и не зафиксирован, можно передумать. */
+const fresh = { chosen: null, locked: false, refused: null, audienceVote: false, changeable: true } as const;
+
 function base(r: MillionaireResult): MillionaireResult {
-  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null };
+  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null, ...fresh };
 }
 
 /** Кто ходит следующим после `from` (по кругу, мимо закончивших). null — играть некому. */
@@ -187,13 +210,15 @@ export function showQuestion(session: Session, content: MillionaireContent): Ses
   const q = (r.q ? questionOf(content, r) : null) ?? freshQuestion(content, level, r.seen);
   if (!q) return null;
   const seen = r.seen.includes(q.id) ? r.seen : [...r.seen, q.id];
-  return { state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, q: q.id, seen, mode: "question" }) } };
+  return { state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, q: q.id, seen, mode: "question", ...fresh, hostPick: null }) } };
 }
 
 /** Ответ команды на шаг: капитан с телефона (после времени показа) или отметка ведущего. */
 export function teamPick(session: Session, answers: Answer[]): number | null {
   const r = parseMillionaireResult(session.state.result);
   if (!r.turn) return null;
+  // Зафиксированный ответ больше не меняется, что бы ни прислал телефон.
+  if (r.locked) return r.hostPick;
   const since = session.state.startedAt ?? 0;
   const answer = answers.find((a) => a.step === session.state.step && a.pid === r.turn && (a.submittedAt ?? 0) >= since);
   const choice = answer ? opt(rec(answer.value).choice) : null;
@@ -202,9 +227,29 @@ export function teamPick(session: Session, answers: Answer[]): number | null {
 }
 
 /** Ведущий отмечает ответ команды (капитан сказал вслух или телефона нет). */
-export function markPick(session: Session, choice: number | null): SessionChange {
+export function markPick(session: Session, choice: number | null): SessionChange | null {
   const r = parseMillionaireResult(session.state.result);
-  return { state: { result: write({ ...r, hostPick: choice !== null && !r.removed.includes(choice) ? choice : null }) } };
+  if (r.locked) return null;
+  const hostPick = choice !== null && !r.removed.includes(choice) ? choice : null;
+  return { state: { result: write({ ...r, hostPick, chosen: hostPick }) } };
+}
+
+/** Ответ пришёл с телефона или поменялся — подсветить его на экране (null — подсвечивать нечего). */
+export function syncChosen(session: Session, answers: Answer[]): SessionChange | null {
+  const r = parseMillionaireResult(session.state.result);
+  if (session.state.stage !== "question" || r.mode !== "question" || r.locked) return null;
+  const pick = teamPick(session, answers);
+  if (pick === r.chosen) return null;
+  return { state: { result: write({ ...r, chosen: pick }) } };
+}
+
+/** «Это окончательный ответ?» — да: ответ зафиксирован, телефон его больше не поменяет. */
+export function lockAnswer(session: Session, answers: Answer[]): SessionChange | null {
+  const r = parseMillionaireResult(session.state.result);
+  if (session.state.stage !== "question" || r.mode !== "question" || r.locked) return null;
+  const pick = teamPick(session, answers);
+  if (pick === null) return null;
+  return { state: { result: write({ ...r, chosen: pick, hostPick: pick, locked: true, changeable: false, refused: null }) } };
 }
 
 /** «Показать ответ». */
@@ -237,7 +282,7 @@ export function revealAnswer(session: Session, content: MillionaireContent, answ
 /** После «Права на ошибку»: тот же вопрос заново, новый шаг (прежний выбор не считается). */
 export function retryQuestion(session: Session): SessionChange {
   const r = parseMillionaireResult(session.state.result);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null }) } };
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null, ...fresh }) } };
 }
 
 /** «Следующая команда»; некому ходить — конец игры. */
@@ -269,7 +314,7 @@ export function lifelineState(session: Session, content: MillionaireContent, id:
   if (!content.lifelines.includes(id)) return { ok: false, reason: "В этой игре такой подсказки нет" };
   if (session.state.stage !== "question" || r.mode !== "question" || !r.turn) return { ok: false, reason: "Только пока открыт вопрос" };
   if ((r.used[r.turn] ?? []).includes(id)) return { ok: false, reason: "Уже использована" };
-  if (r.hostPick !== null) return { ok: false, reason: "Ответ уже выбран" };
+  if (r.locked) return { ok: false, reason: "Ответ уже зафиксирован" };
   if (id === "fifty" && wrongLeft(content, r).length < 2) return { ok: false, reason: "Неверных вариантов осталось меньше двух" };
   if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
   return { ok: true };
@@ -281,7 +326,8 @@ export function canUseLifeline(session: Session, content: MillionaireContent, an
   if (!content.lifelines.includes(id)) return { ok: false, reason: "В этой игре такой подсказки нет" };
   if (session.state.stage !== "question" || r.mode !== "question" || !r.turn) return { ok: false, reason: "Только пока открыт вопрос" };
   if ((r.used[r.turn] ?? []).includes(id)) return { ok: false, reason: "Уже использована" };
-  if (teamPick(session, answers) !== null) return { ok: false, reason: "Ответ уже выбран" };
+  if (r.locked) return { ok: false, reason: "Ответ уже зафиксирован" };
+  void answers;
   if (id === "fifty" && wrongLeft(content, r).length < 2) return { ok: false, reason: "Неверных вариантов осталось меньше двух" };
   if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
   return { ok: true };
@@ -302,7 +348,8 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
   const r = parseMillionaireResult(session.state.result);
   const team = r.turn as string;
   const used = { ...r.used, [team]: [...(r.used[team] ?? []), id] };
-  let next: MillionaireResult = { ...r, used, flash: id, hostPick: null };
+  // Подсказка — новый шаг: прежний выбор не считается, капитан выбирает заново.
+  let next: MillionaireResult = { ...r, used, flash: id, hostPick: null, ...fresh };
   let timeLimit: number | null = null;
   if (id === "fifty") {
     const wrong = wrongLeft(content, r);
@@ -313,7 +360,7 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
     if (!q) return null;
     next = { ...next, q: q.id, seen: [...r.seen, q.id], removed: [], audience: null, votes: 0, tip: false, callEndsAt: null };
   } else if (id === "audience") {
-    next = { ...next, mode: "audience", audience: null, votes: 0 };
+    next = { ...next, mode: "audience", audience: [0, 0, 0, 0], votes: 0, audienceVote: true, changeable: false };
     timeLimit = content.audienceSeconds;
   } else if (id === "call") {
     next.callEndsAt = now + content.callSeconds * 1000;
@@ -344,13 +391,35 @@ export function audienceVotes(session: Session, answers: Answer[], participants:
   return counts;
 }
 
-/** Итоги голосования: проценты на экран, вопрос снова открыт для капитана. */
-export function finishAudience(session: Session, answers: Answer[], participants: Participant[]): SessionChange {
+/** Голоса телефонов игры и гостей по QR (`extra` — счёт сервера по вариантам), погашенные не считаются. */
+function tally(session: Session, answers: Answer[], participants: Participant[], extra: number[]): { audience: number[]; votes: number } {
   const r = parseMillionaireResult(session.state.result);
-  const counts = audienceVotes(session, answers, participants);
-  const total = counts.reduce((a, b) => a + b, 0);
-  const audience = counts.map((n) => (total > 0 ? Math.round((n * 100) / total) : 0));
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes: total, flash: null }) } };
+  const counts = audienceVotes(session, answers, participants).map((n, i) => (r.removed.includes(i) ? 0 : n + Math.max(0, Math.floor(extra[i] ?? 0))));
+  const votes = counts.reduce((a, b) => a + b, 0);
+  return { audience: counts.map((n) => (votes > 0 ? Math.round((n * 100) / votes) : 0)), votes };
+}
+
+/** Пока зал голосует: проценты на экране обновляются (null — ничего не поменялось). */
+export function liveAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = []): SessionChange | null {
+  const r = parseMillionaireResult(session.state.result);
+  if (r.mode !== "audience" || session.state.stage !== "question") return null;
+  const { audience, votes } = tally(session, answers, participants, extra);
+  if (votes === r.votes && audience.every((n, i) => n === (r.audience?.[i] ?? 0))) return null;
+  return { state: { result: write({ ...r, audience, votes }) } };
+}
+
+/** Итоги голосования: проценты на экран, вопрос снова открыт для капитана. */
+export function finishAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = []): SessionChange {
+  const r = parseMillionaireResult(session.state.result);
+  const { audience, votes } = tally(session, answers, participants, extra);
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, ...fresh }) } };
+}
+
+/** «Совет ведущего»: наводка на экран зала (пусто — убрать). */
+export function showTip(session: Session, text: string | null): SessionChange {
+  const r = parseMillionaireResult(session.state.result);
+  const tipText = text && text.trim() !== "" ? text.trim().slice(0, 300) : null;
+  return { state: { result: write({ ...r, tipText }) } };
 }
 
 /** Звонок закончен раньше минуты. */
@@ -359,22 +428,41 @@ export function endCall(session: Session, now: number): SessionChange {
   return { state: { result: write({ ...r, callEndsAt: r.callEndsAt !== null ? Math.min(r.callEndsAt, now) : null }) } };
 }
 
-/** Подсказка, которую капитан попросил с телефона (свой ответ телефона на шаг). */
-export function requestedLifeline(session: Session, answers: Answer[], participants: Participant[]): LifelineId | null {
+/** Просьба подсказки с телефона: какая и её номер (чтобы отказ относился только к ней). */
+export interface LifelineAsk {
+  id: LifelineId;
+  n: string;
+}
+
+/**
+ * Подсказка, которую игрок попросил с телефона: в solo — ответом своего игрока, в командах — капитан
+ * своим ответом телефона. Пульт её не включает сам: ведущий переспрашивает и подтверждает.
+ */
+export function requestedLifeline(session: Session, answers: Answer[], participants: Participant[]): LifelineAsk | null {
   const r = parseMillionaireResult(session.state.result);
-  if (!r.turn || session.state.stage !== "question" || r.mode !== "question") return null;
+  if (!r.turn || session.state.stage !== "question" || r.mode !== "question" || r.locked) return null;
   const captainUid = session.leaderboard[r.turn]?.captainUid ?? participants.find((p) => p.id === r.turn)?.captainUid ?? null;
   const since = session.state.startedAt ?? 0;
   for (const a of answers) {
     if (a.step !== session.state.step || (a.submittedAt ?? 0) < since) continue;
-    const id = rec(a.value).lifeline;
+    const value = rec(a.value);
+    const id = value.lifeline;
     if (!LIFELINE_IDS.includes(id as LifelineId)) continue;
-    // Просит капитан команды, чей ход: телефон команды с его устройства (или сам игрок в solo — там просит ведущий).
+    const n = typeof value.n === "string" ? value.n.slice(0, 40) : "";
+    if (n !== "" && n === r.refused) continue;
+    const solo = a.pid === r.turn;
     const phone = participants.find((p) => p.id === a.pid);
-    if (!phone || phone.teamId !== r.turn || a.uid !== captainUid) continue;
-    return id as LifelineId;
+    const captain = phone !== undefined && phone.teamId === r.turn && a.uid === captainUid;
+    if (!solo && !captain) continue;
+    return { id: id as LifelineId, n };
   }
   return null;
+}
+
+/** Ведущий переспросил — игрок передумал: просьба гаснет на телефоне и пульте. */
+export function refuseLifeline(session: Session, n: string): SessionChange {
+  const r = parseMillionaireResult(session.state.result);
+  return { state: { result: write({ ...r, refused: n.slice(0, 40) }) } };
 }
 
 export interface MillionaireBack {
@@ -393,14 +481,18 @@ export function millionaireBack(session: Session, content: MillionaireContent, p
     const removed = r.outcome === "saved" && r.pick !== null ? r.removed.filter((i) => i !== r.pick) : r.removed;
     const done = r.outcome === "right" && r.from + 1 >= LEVELS ? r.done.filter((p) => p !== team) : r.done;
     const change: SessionChange = {
-      state: { stage: "question", revealed: false, result: write({ ...r, mode: "question", outcome: null, pick: null, shield: r.outcome === "saved" ? true : r.shield, removed, done, levels: { ...r.levels, [team]: r.from } }) },
+      state: { stage: "question", revealed: false, result: write({ ...r, mode: "question", outcome: null, pick: null, shield: r.outcome === "saved" ? true : r.shield, removed, done, levels: { ...r.levels, [team]: r.from }, locked: true, changeable: false }) },
     };
     if (r.outcome !== "saved") change.leaderboard = scoreChange(session, participants, content, team, r.from, r.levels[team] ?? 0);
     return { change };
   }
+  // Ответ зафиксирован — «Назад» снимает фиксацию: можно переспросить и выбрать другой.
+  if (stage === "question" && r.mode === "question" && r.locked) {
+    return { change: { state: { result: write({ ...r, locked: false, hostPick: null, changeable: true }) } } };
+  }
   // Пока подсказок на вопросе не брали — можно вернуться к заставке хода (вопрос останется тем же).
   if (stage === "question" && r.mode === "question" && !r.audience && !r.shield && !r.tip && r.callEndsAt === null && r.removed.length === 0 && r.outcome === null) {
-    return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "turn", hostPick: null }) } }, clear: [step] };
+    return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "turn", hostPick: null, chosen: null }) } }, clear: [step] };
   }
   return null;
 }

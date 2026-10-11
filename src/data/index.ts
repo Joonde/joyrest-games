@@ -8,6 +8,7 @@ export type { Actor } from "./permissions";
 
 export {
   answersRepo,
+  audienceRepo,
   authService,
   clock,
   gamesRepo,

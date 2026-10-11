@@ -2511,28 +2511,38 @@ kbd {
 /* Экран зала: браузер не дал включить музыку без касания. */
 .screen-tap {
   position: fixed;
-  left: 50%;
-  bottom: max(6cqh, var(--safe-bottom));
+  right: max(2cqh, var(--safe-right));
+  bottom: max(2cqh, var(--safe-bottom));
   z-index: 30;
-  transform: translateX(-50%);
-  padding: 1.2cqh 3cqw;
-  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  width: max(52px, 8cqh);
+  height: max(52px, 8cqh);
+  padding: 1.6cqh;
+  border-radius: 50%;
   border: 0.3cqh solid var(--color-highlight);
   background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 2.6cqh;
-  white-space: nowrap;
+  color: var(--color-highlight);
   font-family: inherit;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4cqh;
+  box-shadow: 0 0.6cqh 2cqh rgba(0, 0, 0, 0.45);
 }
 
-.screen-tap__hint {
-  font-size: 1.8cqh;
-  color: var(--color-text-muted);
+/* Ждёт касания — мягко пульсирует, чтобы ведущий заметил. */
+.screen-tap.is-waiting {
+  animation: screen-tap-pulse 2s ease-in-out infinite;
+}
+
+@keyframes screen-tap-pulse {
+  50% {
+    box-shadow: 0 0 0 1.2cqh color-mix(in srgb, var(--color-highlight) 30%, transparent), 0 0.6cqh 2cqh rgba(0, 0, 0, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-tap.is-waiting {
+    animation: none;
+  }
 }
 
 /* Пульт: фильтр треков — тихие кнопки, выбранная с обводкой. */
@@ -7953,6 +7963,7 @@ button.dance-card:active {
 
 /* ---------- «Кто хочет стать миллионером» ---------- */
 .mil-screen {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 4cqh 3cqw 3cqh;
@@ -8126,10 +8137,187 @@ button.dance-card:active {
   transform: rotate(-45deg);
 }
 
+.mil-lifeline svg {
+  width: 72%;
+  height: 72%;
+}
+
 .mil-lifelines--phone .mil-lifeline {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   font-size: 18px;
+}
+
+/* Подсказки команды, чей ход, — крупные плитки с подписью на экране зала. */
+.mil-tray {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1.2cqw;
+}
+
+.mil-tray__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqh;
+  padding: 1.2cqh 0.6cqw;
+  border-radius: 2cqh;
+  border: 2px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  color: var(--color-highlight);
+  min-width: 0;
+}
+
+.mil-tray__icon {
+  display: grid;
+  place-items: center;
+  width: 6.5cqh;
+  height: 6.5cqh;
+}
+
+.mil-tray__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mil-tray__label {
+  color: var(--color-text);
+  font-size: 2cqh;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.mil-tray__item.is-used {
+  opacity: 0.32;
+  border-color: var(--color-border);
+}
+
+.mil-tray__item.is-used::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 38%;
+  height: 0.5cqh;
+  border-radius: 1cqh;
+  background: var(--color-danger);
+  transform: rotate(-24deg);
+}
+
+.mil-tray__item.is-used.is-active {
+  opacity: 1;
+  border-color: var(--color-highlight);
+}
+
+.mil-tray__item.is-used.is-active::after {
+  display: none;
+}
+
+.mil-tray__item.is-active {
+  box-shadow: 0 0 0 0.5cqh var(--color-highlight), 0 0 4cqh color-mix(in srgb, var(--color-highlight) 60%, transparent);
+  animation: mil-tray-pop 0.9s ease-out;
+}
+
+@keyframes mil-tray-pop {
+  from {
+    transform: scale(1.25);
+  }
+}
+
+/* «Совет ведущего» на экране: лампочка светится, ниже — наводка. */
+.mil-tip {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  margin: 0 auto;
+  padding: 1.6cqh 2.4cqw;
+  border-radius: 2.4cqh;
+  border: 2px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface));
+  text-align: left;
+  max-width: 100%;
+  animation: mil-flash 0.8s ease-out;
+}
+
+.mil-tip__icon {
+  flex: none;
+  width: 8cqh;
+  height: 8cqh;
+  color: var(--color-highlight);
+  filter: drop-shadow(0 0 2cqh color-mix(in srgb, var(--color-highlight) 70%, transparent));
+  animation: mil-bulb 2s ease-in-out infinite;
+}
+
+.mil-tip__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes mil-bulb {
+  50% {
+    filter: drop-shadow(0 0 4cqh var(--color-highlight));
+  }
+}
+
+.mil-tip__title {
+  margin: 0;
+  font-size: 3cqh;
+  font-weight: 700;
+  color: var(--color-highlight);
+}
+
+.mil-tip__text {
+  margin: 0.4cqh 0 0;
+  font-size: 3.6cqh;
+  text-wrap: balance;
+}
+
+/* «Помощь зала»: вопрос с растущими процентами и QR для голосования рядом. */
+.mil-audience {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2.4cqw;
+  align-items: center;
+}
+
+.mil-audience__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqh;
+  width: 26cqh;
+}
+
+.mil-audience__qr .qr {
+  width: 26cqh;
+  height: auto;
+}
+
+.mil-audience__title {
+  margin: 0;
+  font-size: 3.4cqh;
+  font-weight: 700;
+  color: var(--color-highlight);
+}
+
+.mil-audience__hint,
+.mil-audience__count {
+  margin: 0;
+  font-size: 2.4cqh;
+  text-align: center;
+}
+
+.mil-audience__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .mil-question__text {
@@ -8181,38 +8369,115 @@ button.dance-card:active {
   font-variant-numeric: tabular-nums;
 }
 
-.mil-option__pct::before {
-  content: "";
+.mil-option > * {
+  position: relative;
+}
+
+.mil-option > .mil-option__bar,
+.mil-option > .mil-option__glow {
   position: absolute;
+}
+
+/* Проценты зала — полоса растёт на глазах. */
+.mil-option__bar {
   inset: 0 auto 0 0;
   width: var(--pct);
-  background: color-mix(in srgb, var(--color-highlight) 22%, transparent);
-  z-index: -1;
+  background: color-mix(in srgb, var(--color-highlight) 28%, transparent);
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .mil-option.is-gone {
   opacity: 0.25;
 }
 
-.mil-option.is-picked {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary);
+/* Выбор команды: оранжевая рамка дышит — ведущий ещё переспросит. */
+.mil-option.is-chosen {
+  border-color: #f0a64a;
+  box-shadow: 0 0 0 0.4cqh #f0a64a, 0 0 3cqh rgba(240, 166, 74, 0.55);
+  animation: mil-chosen 1.2s ease-in-out infinite;
+}
+
+@keyframes mil-chosen {
+  50% {
+    box-shadow: 0 0 0 0.6cqh #f0a64a, 0 0 5cqh rgba(240, 166, 74, 0.85);
+  }
+}
+
+/* «Окончательный ответ»: заливка оранжевым, текст тёмный. */
+.mil-option.is-locked {
+  border-color: #f6c27a;
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  box-shadow: 0 0 4cqh rgba(240, 166, 74, 0.6);
+}
+
+.mil-option.is-locked .mil-option__letter {
+  color: #3a210c;
+}
+
+/* Верный ответ: зелёная заливка и бегущая по рамке радуга зелёных оттенков. */
+@property --mil-a {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
 
 .mil-option.is-right {
-  border-color: var(--color-success);
-  border-width: 0.6cqh;
+  border-color: transparent;
+  background: linear-gradient(180deg, #8fe3a8, #3fb26a);
+  color: #10251a;
+  box-shadow: 0 0 5cqh rgba(80, 220, 130, 0.65);
+  animation: mil-right 0.7s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .mil-option.is-right .mil-option__letter {
-  color: var(--color-success);
+  color: #0c3a20;
 }
 
-.mil-option.is-right::after {
-  content: "✓";
-  margin-left: auto;
-  color: var(--color-success);
-  font-weight: 700;
+.mil-option__glow {
+  inset: -0.2cqh;
+  border-radius: inherit;
+  padding: 0.7cqh;
+  background: conic-gradient(from var(--mil-a), #3ddc84, #c8ff6a, #fff6a8, #66f0d0, #2fbf71, #b6ffda, #3ddc84);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: mil-spin 1.4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes mil-spin {
+  to {
+    --mil-a: 360deg;
+  }
+}
+
+@keyframes mil-right {
+  from {
+    transform: scale(0.94);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Вспышка света за вопросом при верном ответе. */
+.mil-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 55%, rgba(120, 255, 170, 0.45), transparent 55%);
+  animation: mil-burst 1.6s ease-out forwards;
+  z-index: 0;
+}
+
+@keyframes mil-burst {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .mil-option.is-wrong {
@@ -8234,6 +8499,10 @@ button.dance-card:active {
 .mil-question--phone .mil-option.is-right,
 .mil-question--phone .mil-option.is-wrong {
   border-width: 3px;
+}
+
+.mil-question--phone .mil-option__glow {
+  padding: 4px;
 }
 
 .mil-outcome {
@@ -8302,15 +8571,102 @@ button.dance-card:active {
   gap: 8px;
 }
 
+/* Подсказка на телефоне: крупный значок и подпись в две строки, текст не вылезает. */
 .mil-phone-lifeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   min-width: 0;
-  padding-inline: 8px;
-  white-space: normal;
+  min-height: 96px;
+  padding: 10px 4px 8px;
+  border-radius: 16px;
+  border: 1.5px solid var(--color-highlight);
+  background: var(--color-surface);
+  color: var(--color-highlight);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mil-phone-lifeline__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.mil-phone-lifeline__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mil-phone-lifeline__label {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.mil-phone-lifeline:disabled {
+  cursor: default;
 }
 
 .mil-phone-lifeline.is-used {
-  text-decoration: line-through;
-  opacity: 0.5;
+  opacity: 0.35;
+  border-color: var(--color-border);
+}
+
+.mil-phone-lifeline.is-used::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 30px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-danger);
+  transform: rotate(-24deg);
+}
+
+.mil-phone-lifeline.is-asked {
+  box-shadow: 0 0 0 3px #f0a64a;
+  animation: mil-chosen 1.2s ease-in-out infinite;
+}
+
+.mil-phone-option.is-chosen {
+  border-color: #f0a64a;
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  opacity: 1;
+}
+
+.mil-phone-option.is-chosen .mil-option__letter {
+  color: #3a210c;
+}
+
+.mil-phone-status {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  text-align: center;
+  font-weight: 500;
+}
+
+.mil-phone-status.is-chosen {
+  box-shadow: inset 0 0 0 2px #f0a64a;
+}
+
+.mil-phone-status.is-locked {
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  font-weight: 600;
 }
 
 .mil-call--phone {
@@ -8353,6 +8709,51 @@ button.dance-card:active {
   color: var(--color-primary-text);
 }
 
+.mil-ask {
+  border: 2px solid #f0a64a;
+  box-shadow: 0 0 0 3px rgba(240, 166, 74, 0.25);
+}
+
+.mil-ask__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.mil-ask__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  color: var(--color-highlight);
+}
+
+.mil-ask__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mil-host-locked {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f6c27a, #e8913a);
+  color: #221e1b;
+  font-weight: 600;
+}
+
+.mil-host-lifelines .tile__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vote-page__title {
+  margin: 0;
+  text-wrap: balance;
+}
+
 .mil-host-lifeline.is-used {
   opacity: 0.45;
   text-decoration: line-through;
@@ -8371,15 +8772,17 @@ button.dance-card:active {
 }
 
 .mil-host-lifeline .tile__icon {
-  width: auto;
+  width: 36px;
+  height: 36px;
   max-width: none;
   aspect-ratio: auto;
-  font-size: 26px;
-  line-height: 1.1;
+  color: var(--color-highlight);
 }
 
 .mil-host-lifelines .tile__label {
   font-size: 13px;
+  line-height: 1.15;
+  text-wrap: balance;
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
@@ -8414,7 +8817,15 @@ button.dance-card:active {
 
 @media (prefers-reduced-motion: reduce) {
   .mil-step.is-next,
-  .mil-flash {
+  .mil-flash,
+  .mil-option.is-chosen,
+  .mil-option.is-right,
+  .mil-option__glow,
+  .mil-tip,
+  .mil-tip__icon,
+  .mil-tray__item.is-active,
+  .mil-phone-lifeline.is-asked,
+  .mil-burst {
     animation: none;
   }
 }

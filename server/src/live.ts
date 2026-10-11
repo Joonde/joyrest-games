@@ -116,6 +116,9 @@ const TOUCH_PUBLISH_MS = 55_000;
 const touchPublished = new Map<string, number>();
 /** Команд в одной сессии. */
 const MAX_TEAMS = 100;
+/** «Помощь зала» по QR: сколько сессий и голосов на шаг помним (только память процесса). */
+const AUDIENCE_SESSIONS_MAX = 2000;
+const AUDIENCE_VOTES_MAX = 3000;
 /** Сколько сессий с экраном зала помним (старые вытесняются). */
 const SCREENS_MAX = 5000;
 const SNAPSHOT_BODY = 1024 * 1024;
@@ -511,6 +514,8 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
   const claimsBySession = new WindowLimiter(60, 10 * 60_000);
   /** Последнее сообщение экрана зала по каждой сессии (см. `/screen`). */
   const screens = new Map<string, ScreenStatus>();
+  /** Голоса зала по QR: сессия → шаг и голос каждого устройства (последний голос считается). */
+  const audience = new Map<string, { step: number; votes: Map<string, number> }>();
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -1105,6 +1110,41 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       reply.header("cache-control", "no-store");
       const screen = screens.get(hosted.row.id);
       return { screen: screen && now() - screen.seenAt <= SCREEN_STALE_MS ? screen : null };
+    });
+
+    // ---------------------------------------------------------------- «Помощь зала» по QR
+
+    // Гость наводит камеру на QR экрана зала и голосует, не входя в игру (без участника и таблицы).
+    // Голос — одно устройство на шаг, можно передумать. Только в памяти: голосование длится секунды.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/sessions/:id/audience", { bodyLimit: 1024 }, async (request, reply) => {
+      const who = await requireIdentity(request, reply);
+      if (!who) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const { step, vote } = body;
+      if (typeof step !== "number" || !Number.isInteger(step) || step < 0 || typeof vote !== "number" || !Number.isInteger(vote) || vote < 0 || vote > 9) return fail(reply, 400, "invalid-argument");
+      const row = await loadSession(request.params.id);
+      if (!row) return fail(reply, 404, "not-found");
+      if (!permissions.canAudienceVote(normalizeState(row.state), step, now())) return { result: "rejected" };
+      let entry = audience.get(row.id);
+      if (!entry || entry.step !== step) {
+        if (!entry && audience.size >= AUDIENCE_SESSIONS_MAX) audience.delete(audience.keys().next().value ?? "");
+        entry = { step, votes: new Map() };
+        audience.set(row.id, entry);
+      }
+      if (!entry.votes.has(who.uid) && entry.votes.size >= AUDIENCE_VOTES_MAX) return fail(reply, 429, "resource-exhausted");
+      entry.votes.set(who.uid, vote);
+      return { result: "ok" };
+    });
+
+    // Пульт раз в пару секунд забирает счёт голосов и сам пишет проценты на экран зала.
+    api.get<{ Params: { id: string } }>("/api/sessions/:id/audience", async (request, reply) => {
+      const hosted = await hostedSession(request, reply);
+      if (!hosted) return reply;
+      reply.header("cache-control", "no-store");
+      const entry = audience.get(hosted.row.id);
+      const counts: number[] = [];
+      for (const v of entry?.votes.values() ?? []) counts[v] = (counts[v] ?? 0) + 1;
+      return { step: entry?.step ?? null, counts: Array.from({ length: Math.max(4, counts.length) }, (_, i) => counts[i] ?? 0) };
     });
 
     api.delete<{ Params: { id: string; pid: string } }>("/api/sessions/:id/participants/:pid", async (request, reply) => {

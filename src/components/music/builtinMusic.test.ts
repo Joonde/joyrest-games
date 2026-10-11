@@ -66,6 +66,18 @@ describe("встроенная музыка экрана зала", () => {
     expect(at({ phase: "playing", stage: "podium", step: 9 })).toBeNull();
   });
 
+  it("«Миллионер»: музыка напряжения, пока открыт вопрос; на старших ступенях — быстрее", async () => {
+    const { millionaire } = await import("../../mechanics/millionaire");
+    const result = (level: number, mode = "question") => ({ order: ["A"], turn: "A", levels: { A: level }, mode, q: "q1" });
+    const at = (state: Partial<SessionState>) => builtinMusicOf(session(state), millionaire.music?.(session(state), {} as never) ?? null);
+    expect(at({ phase: "playing", stage: "question", step: 2, result: result(0) })).toEqual({ key: "thinkLow", urls: ["/sounds/millionaire-think-low-1.mp3", "/sounds/millionaire-think-low-1.mp3"], volume: 0.55 });
+    // Подсказка — новый шаг, но музыка та же (не с начала).
+    expect(at({ phase: "playing", stage: "question", step: 3, result: result(0, "audience") })?.key).toBe("thinkLow");
+    expect(at({ phase: "playing", stage: "question", step: 4, result: result(8) })?.key).toBe("thinkHigh");
+    expect(at({ phase: "playing", stage: "reveal", step: 4, result: result(8, "reveal") })).toBeNull();
+    expect(at({ phase: "playing", stage: "ready", step: 5, result: result(8, "turn") })).toBeNull();
+  });
+
   it("файлы на месте: у каждого встроенного трека есть файл", async () => {
     const { existsSync } = await import("node:fs");
     const { SAMPLES } = await import("../live/sound");

@@ -529,7 +529,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -550,6 +550,16 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   durakTable: "/sounds/durak-table-1.mp3",
   /** «Представить команды». */
   teamsIntro: "/sounds/teams-intro-1.mp3",
+  /** Напряжение, пока открыт вопрос («Миллионер», «Своя игра»): своя музыка, создана кодом (`scripts/sounds/millionaire.py`). */
+  thinkLow: "/sounds/millionaire-think-low-1.mp3",
+  /** То же на старших ступенях «Миллионера» — быстрее и плотнее. */
+  thinkHigh: "/sounds/millionaire-think-high-1.mp3",
+  /** «Миллионер»: вопрос на экране, «окончательный ответ», верно, неверно, подсказка. */
+  milQuestion: "/sounds/millionaire-question-1.mp3",
+  milLock: "/sounds/millionaire-lock-1.mp3",
+  milRight: "/sounds/millionaire-right-1.mp3",
+  milWrong: "/sounds/millionaire-wrong-1.mp3",
+  milLifeline: "/sounds/millionaire-lifeline-1.mp3",
 };
 
 /** Встроенная музыка момента: перерыв, представление команд. */
@@ -562,10 +572,12 @@ export const BUILTIN_MUSIC = {
   // Один трек дважды: следующий круг вступает наплывом, стык mp3 не слышен.
   mafiaNight: [SAMPLES.mafiaNight, SAMPLES.mafiaNight].filter((u): u is string => Boolean(u)),
   durakTable: [SAMPLES.durakTable, SAMPLES.durakTable].filter((u): u is string => Boolean(u)),
+  thinkLow: [SAMPLES.thinkLow, SAMPLES.thinkLow].filter((u): u is string => Boolean(u)),
+  thinkHigh: [SAMPLES.thinkHigh, SAMPLES.thinkHigh].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом — тихо, под разговор. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
@@ -677,7 +689,10 @@ function musicElement(): HTMLAudioElement | null {
 
 /** Включить трек: с начала (новый запуск) или продолжить. false — браузер не дал (нет касания экрана). */
 export async function playMusic(url: string, fromStart: boolean): Promise<boolean> {
-  if (!soundReady()) return false;
+  // Достаточно, чтобы звук был создан: в момент касания он ещё «просыпается» (resume), а запуск плеера
+  // должен случиться прямо в касании — иначе Safari и телевизоры его не пропустят. Пока звук спит,
+  // экран и так просит коснуться (useSoundReady).
+  if (!ctx) return false;
   const el = musicElement();
   if (!el) return false;
   // Ведущий включил музыку — фрагмент «Угадай мелодию» замолкает, музыка уже не «ждёт» его.
@@ -796,7 +811,8 @@ async function startBuiltinTrack(fade: number): Promise<boolean> {
  * не делаем. false — браузер не дал звук (нужно касание экрана).
  */
 export async function playBuiltinMusic(key: string, urls: string[], volume = 1): Promise<boolean> {
-  if (!soundReady() || urls.length === 0) return false;
+  // Как у playMusic: звук создан — пробуем; в касании плеер запускается сразу.
+  if (!ctx || urls.length === 0) return false;
   builtinVolume = Math.max(0, Math.min(1, volume));
   if (builtinKey === key && decks.some((d) => !d.el.paused)) return true;
   stopBuiltinMusic(1);

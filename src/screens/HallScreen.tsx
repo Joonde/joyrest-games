@@ -85,6 +85,16 @@ const IS_APPLE_TOUCH =
   typeof navigator !== "undefined" &&
   (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
+/** Динамик с крестиком: звук на экране зала ещё не включён. */
+function SoundOffIcon() {
+  return (
+    <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 19h7l10-8v26l-10-8H8z" fill="currentColor" fillOpacity="0.15" />
+      <path d="M32 19l9 10M41 19l-9 10" />
+    </svg>
+  );
+}
+
 /** Полноэкранный режим, звук и (ведущему) «В студию»: кнопки в углу экрана зала. */
 function ScreenControls({ toStudio }: { toStudio: (() => void) | null }) {
   const muted = useMuted();
@@ -200,15 +210,21 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
           <p>Игра продолжится. Экран зала можно снова открыть из студии: «Идёт игра» → «Экран зала».</p>
         </ConfirmDialog>
       )}
+      {/* Звук выключен или браузер ждёт касания — круглый значок в правом нижнем углу, не поверх игры. */}
       {muted ? (
-        <button type="button" className="screen-tap" onClick={() => setMuted(false)}>
-          🔇 Звук выключен на этом экране — включить
+        <button type="button" className="screen-tap" onClick={() => setMuted(false)} title="Звук выключен на этом экране — включить" aria-label="Звук выключен на этом экране — включить">
+          <SoundOffIcon />
         </button>
       ) : (
         (!soundReady || musicBlocked) && (
-          <button type="button" className="screen-tap" onClick={unlockSound}>
-            {musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}
-            {IS_APPLE_TOUCH && <span className="screen-tap__hint">Нет звука — выключите беззвучный режим</span>}
+          <button
+            type="button"
+            className="screen-tap is-waiting"
+            onClick={unlockSound}
+            title={`${musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}${IS_APPLE_TOUCH ? ". Нет звука — выключите беззвучный режим" : ""}`}
+            aria-label={musicBlocked ? "Коснитесь, чтобы включить музыку" : "Коснитесь, чтобы включить звук"}
+          >
+            <SoundOffIcon />
           </button>
         )
       )}
@@ -358,8 +374,8 @@ function Playing({ session }: { session: Session }) {
   const ScreenView = mechanic?.ScreenView;
   const { stage } = session.state;
   const peek = session.state.peek ?? null;
-  // QR для опоздавших — между вопросами (на заставке и таблице), чтобы не закрывать варианты.
-  const joinBadge = !peek && (stage === "ready" || stage === "board");
+  // QR для опоздавших сам больше не всплывает (закрывал поле игры): его показывает и убирает ведущий —
+  // «QR для опоздавших на экран» на пульте. Внизу остаётся только строка с адресом и кодом.
   return (
     <main className="quiz-stage">
       <Logo kind="monogram" className="logo--corner" title="" />
@@ -381,20 +397,9 @@ function Playing({ session }: { session: Session }) {
           <h1 className="screen-title">Игра идёт</h1>
         </div>
       )}
-      {joinBadge ? (
-        <div className="join-badge">
-          <QrCode value={playUrl(session.code)} label={`QR-код для входа: ${formatSessionCode(session.code)}`} />
-          <p>
-            Опоздали? {joinHint()}
-            <br />
-            код <strong>{formatSessionCode(session.code)}</strong>
-          </p>
-        </div>
-      ) : (
-        <p className="stage-code">
-          Вход: {joinHint()} · код {formatSessionCode(session.code)}
-        </p>
-      )}
+      <p className="stage-code">
+        Вход: {joinHint()} · код {formatSessionCode(session.code)}
+      </p>
     </main>
   );
 }

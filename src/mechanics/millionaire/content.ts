@@ -8,11 +8,11 @@ export type LifelineId = "fifty" | "audience" | "call" | "mistake" | "swap" | "h
 
 export const LIFELINES: Array<{ id: LifelineId; title: string; short: string; icon: string; hint: string }> = [
   { id: "fifty", title: "50 на 50", short: "50:50", icon: "½", hint: "Убираются два неверных варианта" },
-  { id: "audience", title: "Помощь зала", short: "Зал", icon: "👥", hint: "Гости голосуют телефонами, на экране — проценты" },
+  { id: "audience", title: "Помощь зала", short: "Зал", icon: "👥", hint: "Гости голосуют телефонами и по QR на экране зала, проценты растут на глазах" },
   { id: "call", title: "Звонок другу", short: "Звонок", icon: "📞", hint: "Минута на разговор наедине с одним из команды" },
   { id: "mistake", title: "Право на ошибку", short: "Ошибка", icon: "🛡", hint: "Первая ошибка на этом вопросе не роняет вниз" },
   { id: "swap", title: "Замена вопроса", short: "Замена", icon: "🔄", hint: "Вопрос той же ступени меняется на запасной" },
-  { id: "host", title: "Совет ведущего", short: "Совет", icon: "💡", hint: "Ведущий подсказывает вслух" },
+  { id: "host", title: "Совет ведущего", short: "Совет", icon: "💡", hint: "Ведущий наводит на верные размышления — вслух или наводкой на экране" },
 ];
 
 export const LIFELINE_IDS = LIFELINES.map((l) => l.id);
@@ -31,6 +31,8 @@ export interface MillionaireQuestion {
   correct: number;
   /** Пояснение для ведущего (видит только пульт). */
   note: string;
+  /** Наводка для «Совета ведущего»: ведущий читает её вслух или показывает на экране. */
+  hint?: string;
 }
 
 export interface MillionaireContent {
@@ -50,7 +52,7 @@ export interface MillionaireContent {
 
 export const DEFAULT_LADDER = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 300000, 500000, 1000000];
 
-export const MILLIONAIRE_LIMITS = { text: 300, option: 120, note: 200, maxQuestions: 240, maxPoints: 10_000_000, minSeconds: 10, maxSeconds: 180 } as const;
+export const MILLIONAIRE_LIMITS = { text: 300, option: 120, note: 200, hint: 200, maxQuestions: 240, maxPoints: 10_000_000, minSeconds: 10, maxSeconds: 180 } as const;
 
 function id(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -58,7 +60,7 @@ function id(): string {
 }
 
 export function newMillionaireQuestion(level = 1): MillionaireQuestion {
-  return { id: id(), level, text: "", options: ["", "", "", ""], correct: 0, note: "" };
+  return { id: id(), level, text: "", options: ["", "", "", ""], correct: 0, note: "", hint: "" };
 }
 
 export function createMillionaire(): MillionaireContent {
@@ -86,7 +88,7 @@ export function parseMillionaire(raw: unknown): MillionaireContent {
     while (seen.has(qid)) qid += "_";
     seen.add(qid);
     const options = Array.from({ length: 4 }, (_, k) => str(Array.isArray(q.options) ? q.options[k] : "", MILLIONAIRE_LIMITS.option));
-    return { id: qid, level: int(q.level, 1, 1, LEVELS), text: str(q.text, MILLIONAIRE_LIMITS.text), options, correct: int(q.correct, 0, 0, 3), note: str(q.note, MILLIONAIRE_LIMITS.note) };
+    return { id: qid, level: int(q.level, 1, 1, LEVELS), text: str(q.text, MILLIONAIRE_LIMITS.text), options, correct: int(q.correct, 0, 0, 3), note: str(q.note, MILLIONAIRE_LIMITS.note), hint: str(q.hint, MILLIONAIRE_LIMITS.hint) };
   });
   const rawLadder = Array.isArray(d.ladder) ? d.ladder : [];
   const ladder = DEFAULT_LADDER.map((def, i) => int(rawLadder[i], def, 0, MILLIONAIRE_LIMITS.maxPoints));

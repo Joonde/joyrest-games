@@ -46,6 +46,9 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
   useEffect(() => {
     if (!builtinKey || hostPlaying) {
       stopBuiltinMusic();
+      // Встроенная музыка кончилась (лобби → игра): прежний отказ браузера больше ни при чём — иначе
+      // плашка «Коснитесь, чтобы включить музыку» висела до конца игры, а касание ничего не включало.
+      if (!hostPlaying) setBlocked(false);
       return;
     }
     let cancelled = false;
@@ -111,22 +114,25 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
     if (!blocked) return;
     const retry = () => {
       unlockSound();
-      // Браузер включает звук не мгновенно — пробуем чуть позже.
-      window.setTimeout(() => {
-        const own = trackId && rev && playing ? urls.current.get(trackId) : undefined;
-        if (!own && builtinKey) {
-          void playBuiltinMusic(builtinKey, builtinUrls.current, builtinVolume.current).then((ok) => ok && setBlocked(false));
-          return;
+      // Запуск — прямо в касании (Safari и телевизоры пускают плеер только так) и ещё раз чуть позже,
+      // когда звук браузера точно проснулся.
+      attempt();
+      window.setTimeout(attempt, 300);
+    };
+    const attempt = () => {
+      const own = trackId && rev && playing ? urls.current.get(trackId) : undefined;
+      if (!own && builtinKey) {
+        void playBuiltinMusic(builtinKey, builtinUrls.current, builtinVolume.current).then((ok) => ok && setBlocked(false));
+        return;
+      }
+      if (!own) return;
+      const key = `${trackId}:${rev}`;
+      void playMusic(own, started.current !== key).then((ok) => {
+        if (ok) {
+          started.current = key;
+          setBlocked(false);
         }
-        if (!own) return;
-        const key = `${trackId}:${rev}`;
-        void playMusic(own, started.current !== key).then((ok) => {
-          if (ok) {
-            started.current = key;
-            setBlocked(false);
-          }
-        });
-      }, 200);
+      });
     };
     // Браузер разрешает звук на отпускание пальца или клик, не на нажатие.
     const events = ["pointerup", "click", "keydown"] as const;

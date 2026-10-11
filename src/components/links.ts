@@ -22,3 +22,8 @@ export function resultsUrl(resultId: string): string {
 export function joinHost(): string {
   return window.location.host;
 }
+
+/** «Помощь зала» по QR: голос без входа в игру (`/vote/:code`). */
+export function voteUrl(code: string): string {
+  return `${window.location.origin}/vote/${code}`;
+}

@@ -213,6 +213,17 @@ export interface ScreenStatusRepository {
   get(sessionId: string): Promise<ScreenStatus | null>;
 }
 
+/**
+ * «Помощь зала» по QR: гость голосует, не входя в игру; пульт забирает счёт и пишет проценты на
+ * экран. Только свой сервер; у Firebase — null (QR не показывается, голосуют только телефоны игры).
+ */
+export interface AudienceRepository {
+  /** "rejected" — голосование уже закрыто или шаг сменился. */
+  vote(sessionId: string, step: number, choice: number): Promise<"ok" | "rejected">;
+  /** Только ведущий сессии: голоса текущего голосования по вариантам. */
+  counts(sessionId: string): Promise<{ step: number | null; counts: number[] }>;
+}
+
 /** «Команда JoyRest»: карточки ведущих — только свой сервер (CLAUDE.md, раздел 3). */
 export interface TeamRepository {
   list(): Promise<TeamMember[]>;

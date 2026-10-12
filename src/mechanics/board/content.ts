@@ -4,6 +4,7 @@
 // (решение владельца 11 октября 2026: как в передаче, минимум два): у каждой категории свой `round`,
 // поле раунда — его категории; во втором раунде стоимость по умолчанию вдвое выше.
 import { clipFields, parseClip, type Clip } from "../../core/clip";
+import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
 
 export type CellKind = "question" | "track" | "picture" | "cat" | "auction";
 
@@ -46,6 +47,8 @@ export interface BoardContent {
   betTime: number;
   /** Сколько секунд жать кнопку после «Запустить отсчёт» (ведущий сначала читает вопрос). */
   buzzTime: number;
+  /** Оформление экрана зала (`../showLook.ts`). Старые игры без поля — «Классика». */
+  look: ShowLook;
 }
 
 /** Время на вопрос после «Запустить отсчёт» — выбор ведущего в конструкторе. */
@@ -128,6 +131,7 @@ export function createBoard(): BoardContent {
     penalty: false,
     betTime: 30,
     buzzTime: 15,
+    look: DEFAULT_SHOW_LOOK,
   };
 }
 
@@ -216,6 +220,7 @@ export function parseBoard(raw: unknown): BoardContent {
     penalty: d.penalty === true,
     betTime: int(d.betTime, 30, BOARD_LIMITS.minBetTime, BOARD_LIMITS.maxBetTime),
     buzzTime: (BUZZ_TIMES as readonly number[]).includes(d.buzzTime as number) ? (d.buzzTime as number) : 15,
+    look: parseShowLook(d.look),
   };
 }
 

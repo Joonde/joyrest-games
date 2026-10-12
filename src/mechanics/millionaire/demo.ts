@@ -195,4 +195,4 @@ const LIST = `# Ступень 1
 - 100
 - 120`;
 
-export const DEMO_MILLIONAIRE: MillionaireContent = { ...createMillionaire(), questions: parseMillionaireList(LIST) };
+export const DEMO_MILLIONAIRE: MillionaireContent = { ...createMillionaire(), questions: parseMillionaireList(LIST), look: "studio" };

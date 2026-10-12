@@ -13427,3 +13427,446 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-size: 0.7em;
   opacity: 0.85;
 }
+
+/* ---------- Оформление телешоу: «Своя игра» и «Миллионер» (content.look) ----------
+   «Студия» и «Вечер JoyRest»: фон-картинка из public/shows/art/web/ на весь кадр экрана зала (под игрой,
+   с лёгким затемнением под текстом) и «телевизионные» плашки. Цвета — только переменные ниже; переменные
+   темы (--color-*) внутри экрана переопределены, чтобы светлая тема сессии не дала тёмный текст на тёмном фоне.
+   Размеры — в единицах контейнера (cqw/cqh): предпросмотр в студии совпадает с телевизором. */
+.show-stage {
+  --show-hex: polygon(var(--show-hx) 0, calc(100% - var(--show-hx)) 0, 100% 50%, calc(100% - var(--show-hx)) 100%, var(--show-hx) 100%, 0 50%);
+  --show-hx: 2.6cqh;
+  position: relative;
+  isolation: isolate;
+  color: var(--color-text);
+  /* Cormorant по умолчанию рисует «старинные» цифры разной высоты — на табло нужны ровные. */
+  font-variant-numeric: lining-nums;
+}
+
+.show-stage .board-screen__count,
+.show-stage .mil-bar__points {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.show-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--show-shade), var(--show-art) center / cover no-repeat, var(--show-bg);
+}
+
+.show-stage--studio {
+  --color-text: #f4f6ff;
+  --color-text-muted: #c6ccef;
+  --color-surface: #121a5a;
+  --color-surface-alt: #1d2675;
+  --color-border: rgba(150, 170, 255, 0.4);
+  --color-highlight: #f2c66d;
+  --show-bg: #070a24;
+  --show-ink: #f4f6ff;
+  --show-letter: #f2c66d;
+  --show-price: #f6d58a;
+  --show-price-glow: rgba(246, 190, 90, 0.55);
+  --show-frame: linear-gradient(180deg, #dfe6ff 0%, #7f8ff0 48%, #c4cfff 100%);
+  --show-frame-solid: #8fa0ff;
+  --show-plate: linear-gradient(180deg, #1f2b86 0%, #111862 52%, #0a0f40 100%);
+  --show-cell: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 46%), linear-gradient(170deg, #2539c2 0%, #17228a 55%, #0d1456 100%);
+  --show-cell-line: rgba(170, 188, 255, 0.75);
+  --show-cell-glow: rgba(120, 150, 255, 0.45);
+  --show-cell-halo: rgba(90, 120, 255, 0.35);
+  --show-cell-off: rgba(14, 20, 70, 0.55);
+  --show-title: linear-gradient(180deg, rgba(20, 28, 96, 0.92), rgba(9, 13, 56, 0.92));
+  --show-title-ink: #e6eaff;
+  --show-current: #f2c66d;
+  --show-ladder: rgba(8, 12, 48, 0.82);
+  --show-step: rgba(70, 90, 200, 0.28);
+  --show-safe: #f2c66d;
+}
+
+.show-stage--evening {
+  --color-text: #fbf6f1;
+  --color-text-muted: #cfc4b6;
+  --color-surface: #241e19;
+  --color-surface-alt: #30281f;
+  --color-border: rgba(227, 198, 140, 0.35);
+  --color-highlight: #e3c68c;
+  --show-bg: #1a1714;
+  --show-ink: #fbf6f1;
+  --show-letter: #e3c68c;
+  --show-price: #f3dfae;
+  --show-price-glow: rgba(227, 198, 140, 0.45);
+  --show-frame: linear-gradient(180deg, #f3dfae 0%, #b8955a 50%, #e9cf93 100%);
+  --show-frame-solid: #c7a768;
+  --show-plate: linear-gradient(180deg, #2e2620 0%, #1f1a15 55%, #15110e 100%);
+  --show-cell: linear-gradient(180deg, rgba(255, 240, 210, 0.12), rgba(255, 240, 210, 0) 46%), linear-gradient(170deg, #3b3027 0%, #2a221c 55%, #1a1511 100%);
+  --show-cell-line: rgba(227, 198, 140, 0.75);
+  --show-cell-glow: rgba(227, 198, 140, 0.22);
+  --show-cell-halo: rgba(199, 167, 104, 0.3);
+  --show-cell-off: rgba(30, 25, 21, 0.55);
+  --show-title: linear-gradient(180deg, rgba(42, 34, 28, 0.94), rgba(26, 22, 18, 0.94));
+  --show-title-ink: #f3dfae;
+  --show-current: #c49e96;
+  --show-ladder: rgba(22, 18, 15, 0.85);
+  --show-step: rgba(199, 167, 104, 0.18);
+  --show-safe: #e3c68c;
+}
+
+/* Фоны: на телевизоре — 1920 px, в предпросмотре и на небольших экранах — 1280 px. */
+.board-screen.show-stage--studio {
+  --show-art: url("/shows/art/web/board-studio-1280.webp");
+  --show-shade: radial-gradient(ellipse 62% 60% at 50% 46%, rgba(5, 7, 30, 0.5), rgba(5, 7, 30, 0.12) 75%, transparent);
+}
+
+.board-screen.show-stage--evening {
+  --show-art: url("/shows/art/web/board-evening-1280.webp");
+  --show-shade: radial-gradient(ellipse 62% 60% at 50% 46%, rgba(16, 13, 10, 0.5), rgba(16, 13, 10, 0.12) 75%, transparent);
+}
+
+.mil-screen.show-stage--studio {
+  --show-art: url("/shows/art/web/millionaire-studio-1280.webp");
+  --show-shade: linear-gradient(90deg, rgba(4, 6, 26, 0.62) 0%, rgba(4, 6, 26, 0.45) 58%, rgba(4, 6, 26, 0.2) 100%);
+}
+
+.mil-screen.show-stage--evening {
+  --show-art: url("/shows/art/web/millionaire-evening-1280.webp");
+  --show-shade: linear-gradient(90deg, rgba(16, 13, 10, 0.66) 0%, rgba(16, 13, 10, 0.48) 58%, rgba(16, 13, 10, 0.22) 100%);
+}
+
+@media (min-width: 1400px) {
+  .board-screen.show-stage--studio {
+    --show-art: url("/shows/art/web/board-studio.webp");
+  }
+  .board-screen.show-stage--evening {
+    --show-art: url("/shows/art/web/board-evening.webp");
+  }
+  .mil-screen.show-stage--studio {
+    --show-art: url("/shows/art/web/millionaire-studio.webp");
+  }
+  .mil-screen.show-stage--evening {
+    --show-art: url("/shows/art/web/millionaire-evening.webp");
+  }
+}
+
+/* Строка «Вход: адрес · код» под игрой — светлая на тёмном фоне (браузеры без :has оставят цвет темы). */
+.quiz-stage:has(> .show-stage) .stage-code {
+  color: #d8dcf0;
+  text-shadow: 0 0 1cqh rgba(0, 0, 0, 0.8);
+}
+
+/* «Своя игра»: поле на сцене — отступы от колонн и пола картинки. */
+.board-screen.show-stage {
+  padding: 5cqh 8.5cqw 8cqh;
+  gap: 2.4cqh;
+}
+
+.show-stage .board-grid,
+.show-stage .board-grid__row {
+  gap: 1cqh 0.9cqw;
+}
+
+.show-stage .board-grid__title {
+  justify-items: center;
+  text-align: center;
+  padding: 0 1.2cqw;
+  border: 0.2cqh solid var(--show-cell-line);
+  border-radius: 1cqh;
+  background: var(--show-title);
+  color: var(--show-title-ink);
+  font-size: 2.7cqh;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 1.4cqh var(--show-cell-halo);
+}
+
+/* Клетка — светящаяся панель с золотой ценой. */
+.show-stage .board-grid__cell {
+  border: 0.25cqh solid var(--show-cell-line);
+  border-radius: 1cqh;
+  background: var(--show-cell);
+  color: var(--show-price);
+  font-size: 7.2cqh;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 2cqh var(--show-price-glow), 0 0.3cqh 0 rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 2.4cqh var(--show-cell-glow), 0 0 1.6cqh var(--show-cell-halo);
+  font-variant-numeric: lining-nums;
+}
+
+/* Сыгранная клетка гаснет: пустая тёмная ячейка. */
+.show-stage .board-grid__cell.is-opened {
+  background: var(--show-cell-off);
+  border-color: color-mix(in srgb, var(--show-cell-line) 30%, transparent);
+  box-shadow: none;
+  filter: none;
+  opacity: 0.5;
+}
+
+.show-stage .board-grid__cell.is-current {
+  outline-color: var(--show-current);
+}
+
+.show-stage .board-screen__question {
+  text-shadow: 0 0.4cqh 2cqh rgba(0, 0, 0, 0.6);
+}
+
+.show-stage.board-screen--question:not(.board-screen--image) .board-screen__question {
+  margin: 0 2cqw;
+  padding: 4cqh 6cqw;
+  border: 0.25cqh solid var(--show-cell-line);
+  border-radius: 2cqh;
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  box-shadow: inset 0 0 6cqh var(--show-cell-glow), 0 0 3cqh var(--show-cell-halo);
+}
+
+.show-stage .board-screen__answer {
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  box-shadow: 0 0 3cqh var(--show-cell-halo);
+}
+
+.show-stage .board-screen__answer strong {
+  color: var(--show-price);
+}
+
+/* «Миллионер»: вопрос и варианты — вытянутые шестиугольные плашки с тонкой светящейся рамкой.
+   Рамка — ::before (шестиугольник во всю плашку), внутренняя часть — ::after у вопроса и
+   .mil-option__plate у варианта; бегущая радуга верного ответа — между ними. */
+.mil-screen.show-stage {
+  padding: 5cqh 3.5cqw 7cqh;
+}
+
+/* Лестницы — до строки «Вход: …», а не на фиксированные 92% кадра. */
+.mil-screen.show-stage .mil-screen__bars {
+  height: auto;
+}
+
+.show-stage .mil-question__text {
+  position: relative;
+  isolation: isolate;
+  margin: 0 0 1.2cqh;
+  padding: 3cqh calc(var(--show-hx) + 2.4cqw);
+  color: var(--show-ink);
+  font-size: 4.2cqh;
+  line-height: 1.22;
+  filter: drop-shadow(0 0 1.4cqh var(--show-cell-halo));
+}
+
+.show-stage .mil-question__text::before,
+.show-stage .mil-question__text::after,
+.show-stage .mil-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: var(--show-hex);
+  background: var(--opt-frame, var(--show-frame));
+}
+
+.show-stage .mil-question__text::after {
+  inset: 0.35cqh;
+  background: var(--show-plate);
+}
+
+.show-stage .mil-options {
+  gap: 1.6cqh 1.4cqw;
+}
+
+.show-stage .mil-option {
+  isolation: isolate;
+  overflow: visible;
+  min-height: 8.6cqh;
+  padding: 1cqh calc(var(--show-hx) + 1cqw);
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--opt-ink, var(--show-ink));
+  font-size: 3.4cqh;
+}
+
+.mil-option__plate {
+  display: none;
+}
+
+.show-stage .mil-option__plate {
+  display: block;
+  position: absolute;
+  inset: 0.35cqh;
+  z-index: -1;
+  clip-path: var(--show-hex);
+  background: var(--opt-plate, var(--show-plate));
+}
+
+.show-stage .mil-option .mil-option__letter {
+  color: var(--opt-letter, var(--show-letter));
+}
+
+.show-stage .mil-option.is-wrong::after {
+  color: var(--opt-letter, var(--color-danger));
+}
+
+.show-stage .mil-option__letter::before {
+  content: "◆ ";
+  font-size: 0.6em;
+  vertical-align: 0.2em;
+}
+
+.show-stage .mil-option__letter::after {
+  content: ":";
+}
+
+.show-stage .mil-option__bar {
+  inset: 0.35cqh auto 0.35cqh 0.35cqh;
+  clip-path: var(--show-hex);
+}
+
+.show-stage .mil-option::after {
+  position: relative;
+}
+
+/* Выбор команды — оранжевая рамка «дышит» (только прозрачность). */
+.show-stage .mil-option.is-chosen {
+  --opt-frame: linear-gradient(180deg, #ffd59a, #f0a64a 50%, #ffcf8a);
+  box-shadow: none;
+  animation: none;
+  filter: drop-shadow(0 0 1.4cqh rgba(240, 166, 74, 0.7));
+}
+
+.show-stage .mil-option.is-chosen::before {
+  animation: show-breathe 1.2s ease-in-out infinite;
+}
+
+@keyframes show-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* «Окончательный ответ» — оранжевая заливка, тёмный текст (контраст ≥ 4.5). */
+.show-stage .mil-option.is-locked {
+  --opt-frame: linear-gradient(180deg, #ffe0b0, #f0a64a);
+  --opt-plate: linear-gradient(180deg, #f6c27a, #e8913a);
+  --opt-ink: #221e1b;
+  --opt-letter: #3a210c;
+  box-shadow: none;
+  filter: drop-shadow(0 0 1.8cqh rgba(240, 166, 74, 0.65));
+}
+
+/* Верный — зелёная заливка, по рамке бежит радуга зелёных (тот же .mil-option__glow). */
+.show-stage .mil-option.is-right {
+  --opt-frame: transparent;
+  --opt-plate: linear-gradient(180deg, #8fe3a8, #3fb26a);
+  --opt-ink: #10251a;
+  --opt-letter: #0c3a20;
+  box-shadow: none;
+  filter: drop-shadow(0 0 2.4cqh rgba(80, 220, 130, 0.7));
+}
+
+.show-stage .mil-option__glow {
+  inset: 0;
+  z-index: -1;
+  padding: 0;
+  border-radius: 0;
+  clip-path: var(--show-hex);
+  -webkit-mask: none;
+  mask: none;
+}
+
+.show-stage .mil-option.is-wrong {
+  --opt-frame: linear-gradient(180deg, #ffb3a8, #e0533f);
+}
+
+.show-stage .mil-option.is-wrong .mil-option__plate {
+  inset: 0.6cqh;
+}
+
+/* Лестницы команд — тёмное стекло с рамкой оформления, несгораемые ступени — золотой каймой. */
+.show-stage .mil-bar__steps {
+  border: 0.25cqh solid var(--show-frame-solid);
+  border-radius: 1.2cqh;
+  background: var(--show-ladder);
+  box-shadow: inset 0 0 2cqh var(--show-cell-glow);
+}
+
+.show-stage .mil-step {
+  border-radius: 0;
+  clip-path: polygon(0.9cqh 0, calc(100% - 0.9cqh) 0, 100% 50%, calc(100% - 0.9cqh) 100%, 0.9cqh 100%, 0 50%);
+  background: var(--show-step);
+}
+
+.show-stage .mil-step.is-on {
+  background: var(--team);
+}
+
+.show-stage .mil-step.is-safe {
+  outline: none;
+  box-shadow: inset 0 0 0 0.4cqh var(--show-safe);
+}
+
+.show-stage .mil-bar__points {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 3cqh;
+  color: var(--show-price);
+  text-shadow: 0 0 1.4cqh var(--show-price-glow);
+}
+
+.show-stage .mil-bar__name {
+  text-shadow: 0 0.2cqh 1cqh rgba(0, 0, 0, 0.7);
+}
+
+.show-stage .mil-tray__item {
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  border-color: var(--show-frame-solid);
+}
+
+.show-stage .mil-screen__who,
+.show-stage .mil-screen__title,
+.show-stage .mil-outcome {
+  text-shadow: 0 0.3cqh 1.6cqh rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-stage .mil-option.is-chosen::before {
+    animation: none;
+  }
+}
+
+/* Выбор оформления в конструкторе: миниатюра фона справа. */
+.show-look .choice__text {
+  flex: 1 1 auto;
+}
+
+.show-look__thumb {
+  flex: none;
+  width: 72px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-position: center;
+  background-size: cover;
+}
+
+.show-look__thumb--classic {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(var(--color-border) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-border) 1.5px, transparent 1.5px);
+  background-size: 12px 10px;
+  background-position: 6px 5px;
+}
+
+.show-look__thumb--board-studio {
+  background-image: url("/shows/art/web/board-studio-1280.webp");
+}
+
+.show-look__thumb--board-evening {
+  background-image: url("/shows/art/web/board-evening-1280.webp");
+}
+
+.show-look__thumb--millionaire-studio {
+  background-image: url("/shows/art/web/millionaire-studio-1280.webp");
+}
+
+.show-look__thumb--millionaire-evening {
+  background-image: url("/shows/art/web/millionaire-evening-1280.webp");
+}

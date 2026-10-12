@@ -16,6 +16,7 @@ import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { allCells, findCell, roundCategories, roundsOf, type BoardCell, type BoardContent } from "./content";
 import { maxBet, parseBoardResult, type BoardResult } from "./logic";
+import { showStageClass } from "../showLook";
 
 /** Ответ гостя: нажатие кнопки или ставка в «Коте в мешке». */
 export type BoardAnswerValue = { buzz: true } | { bet: number } | { give: string };
@@ -144,11 +145,13 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const auctionNow = useServerNow(250, stage === "question" && result.mode === "auction");
   const auctionLeft = stage === "question" && result.mode === "auction" ? secondsLeft(session.state, auctionNow) : null;
   const name = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? null) : null);
+  // Оформление «Студия» / «Вечер JoyRest» — фон-картинка и плашки телешоу (только вид, src/styles.css).
+  const look = showStageClass(content.look);
 
   if (stage === "ready" || !cell) {
     const picker = name(result.picker);
     return (
-      <div className="board-screen">
+      <div className={`board-screen${look}`}>
         <div className="board-screen__top">
           <span className="quiz-screen__badge">{roundsOf(content) > 1 ? `Своя игра · раунд ${result.round}` : "Своя игра"}</span>
           {picker ? (
@@ -178,7 +181,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   if (stage === "question" && result.mode === "auction") {
     // Сколько ставок сделано — пишет пульт (`answered`): экран ставок не видит.
     return (
-      <div className="board-screen board-screen--cat">
+      <div className={`board-screen board-screen--cat${look}`}>
         {head}
         <h2 className="board-screen__cat-title" data-shine="on">
           Аукцион!
@@ -197,7 +200,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   if (stage === "question" && result.mode === "bet") {
     const to = name(result.catTo);
     return (
-      <div className="board-screen board-screen--cat">
+      <div className={`board-screen board-screen--cat${look}`}>
         {head}
         <CatInBag />
         <h2 className="board-screen__cat-title" data-shine="on">
@@ -221,7 +224,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const revealed = stage === "reveal";
   const confetti = revealed && winner && cell.confetti ? <Confetti burst={`board:${step}`} /> : null;
   return (
-    <div className={cell.imageId ? "board-screen board-screen--question board-screen--image" : "board-screen board-screen--question"}>
+    <div className={`board-screen board-screen--question${cell.imageId ? " board-screen--image" : ""}${look}`}>
       {confetti}
       {head}
       <h2 className="board-screen__question">

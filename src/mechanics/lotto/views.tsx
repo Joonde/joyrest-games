@@ -1,12 +1,67 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { NameText } from "../../components/NameText";
 import { preloadTrack, useFragment } from "../../components/music/useFragment";
 import { playSound } from "../../components/live/sound";
 import { placeOf } from "../../core/leaderboard";
 import { pointsLabel } from "../../core/results";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { cardCells, RULE_TITLES, type LottoContent } from "./content";
+import { cardCells, cellFit, RULE_TITLES, type CardStyle, type LottoContent, type LottoSong } from "./content";
 import { cardFor, isWin, parseLottoResult } from "./logic";
+
+/**
+ * Рисованная карточка «Вечер» / «День»: фон-картинка 3:4, заголовок и правило сверху, сетка — в пустой
+ * середине рисунка. Цвета и места — переменные `.lotto-ticket--evening|day` в src/styles.css.
+ * «Классика» — только сетка, как раньше.
+ */
+function LottoTicket({ style, rule, size, children }: { style: CardStyle; rule: LottoContent["rule"]; size: LottoContent["size"]; children: ReactNode }) {
+  if (style === "classic") return <>{children}</>;
+  return (
+    <div className={`lotto-ticket lotto-ticket--${style} lotto-ticket--s${size}`}>
+      <div className="lotto-ticket__head">
+        <p className="lotto-ticket__title">Музыкальное лото</p>
+        <p className="lotto-ticket__rule">{RULE_TITLES[rule]}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function cellClass(on: boolean): string {
+  return on ? "lotto-card__cell is-marked" : "lotto-card__cell";
+}
+
+function CellText({ song, size, styled }: { song: LottoSong | undefined; size: LottoContent["size"]; styled: boolean }) {
+  const title = song?.title ?? "";
+  // Рисованная карточка: шрифт названия подстраивается под клетку, у длинных названий исполнителя нет.
+  const fit = styled ? cellFit(title, size) : { fit: 1, artist: size < 5 };
+  return (
+    <>
+      <span className="lotto-card__title" style={styled ? ({ "--fit": fit.fit } as CSSProperties) : undefined}>
+        {title}
+      </span>
+      {song?.artist && fit.artist && <span className="lotto-card__artist">{song.artist}</span>}
+    </>
+  );
+}
+
+/** Пример карточки для заставки экрана зала: первые песни игры, несколько отмечено. */
+function SampleTicket({ content }: { content: LottoContent }) {
+  const cells = content.songs.slice(0, cardCells(content));
+  const marked = new Set([0, content.size + 1, content.size * 2 + 2]);
+  return (
+    <div className="lotto-sample" aria-hidden="true">
+      <LottoTicket style={content.cardStyle} rule={content.rule} size={content.size}>
+        <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }}>
+          {cells.map((song, i) => (
+            <span key={song.id} className={cellClass(marked.has(i))}>
+              <CellText song={song} size={content.size} styled />
+            </span>
+          ))}
+        </div>
+      </LottoTicket>
+    </div>
+  );
+}
 
 /** Названия последних прозвучавших песен (после показа названия). */
 function history(content: LottoContent, step: number, revealed: boolean, count: number) {
@@ -44,11 +99,15 @@ export function LottoScreenView({ session, content }: ViewProps<LottoContent>) {
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? "";
 
   if (stage === "ready") {
+    const styled = content.cardStyle !== "classic" && content.songs.length >= cardCells(content);
     return (
-      <div className="quiz-screen quiz-screen--intro">
-        <span className="quiz-screen__badge">Музыкальное лото · {RULE_TITLES[content.rule].toLowerCase()}</span>
-        <h2 className="quiz-screen__intro">Откройте карточки</h2>
-        <p className="quiz-screen__hint">Услышали песню с карточки — отметьте её. Собрали — жмите «Лото!»</p>
+      <div className={styled ? "quiz-screen quiz-screen--intro lotto-intro" : "quiz-screen quiz-screen--intro"}>
+        <div className="lotto-intro__text">
+          <span className="quiz-screen__badge">Музыкальное лото · {RULE_TITLES[content.rule].toLowerCase()}</span>
+          <h2 className="quiz-screen__intro">Откройте карточки</h2>
+          <p className="quiz-screen__hint">Услышали песню с карточки — отметьте её. Собрали — жмите «Лото!»</p>
+        </div>
+        {styled && <SampleTicket content={content} />}
       </div>
     );
   }
@@ -173,18 +232,18 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
           {song.artist ? ` — ${song.artist}` : ""}
         </p>
       )}
-      <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
-        {card.map((id, i) => {
-          const s = titles.get(id);
-          const on = marked.has(id);
-          return (
-            <button key={`${id}-${i}`} type="button" className={on ? "lotto-card__cell is-marked" : "lotto-card__cell"} aria-pressed={on} onClick={() => toggle(id)}>
-              <span className="lotto-card__title">{s?.title ?? ""}</span>
-              {s?.artist && content.size < 5 && <span className="lotto-card__artist">{s.artist}</span>}
-            </button>
-          );
-        })}
-      </div>
+      <LottoTicket style={content.cardStyle} rule={content.rule} size={content.size}>
+        <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
+          {card.map((id, i) => {
+            const on = marked.has(id);
+            return (
+              <button key={`${id}-${i}`} type="button" className={cellClass(on)} aria-pressed={on} onClick={() => toggle(id)}>
+                <CellText song={titles.get(id)} size={content.size} styled={content.cardStyle !== "classic"} />
+              </button>
+            );
+          })}
+        </div>
+      </LottoTicket>
       {card.length < cardCells(content) && <p className="error small">В игре мало песен для карточки — скажите ведущему.</p>}
       {role !== "member" && won < 0 && (
         <button type="button" className="btn btn--block lotto-phone__claim" disabled={!canClaim} onClick={() => onAnswer({ marks })}>

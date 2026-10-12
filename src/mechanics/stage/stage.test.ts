@@ -20,7 +20,7 @@ const content = parseStage({
 });
 const teams: Participant[] = ["A", "B", "C"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
 // Телефоны команд: каждый дарит и голосует своим игроком.
-const phones: Participant[] = ["A", "B", "C"].flatMap((team, i) => [1, 2].map((n) => ({ id: `${team}${n}`, name: `${team}${n}`, kind: "player" as const, teamId: team, captainUid: null, joinedAt: 10 + i * 2 + n })));
+const phones: Participant[] = ["A", "B", "C"].flatMap((team, i) => [1, 2].map((n) => ({ id: `${team}${n}`, name: `${team}${n}`, kind: "player" as const, teamId: team, captainUid: `u${team}${n}`, joinedAt: 10 + i * 2 + n })));
 const everyone = [...teams, ...phones];
 const session = (): Session => ({ id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "", mechanic: "stage", gameSnapshot: null, themeId: "joyrest", playMode: "teams", screenMode: "laptop", state: startState(), leaderboard: {}, createdAt: 0 });
 let t = 0;

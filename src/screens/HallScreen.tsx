@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { setHallBusy } from "../components/UpdateBanner";
+import { EVENING_MECHANIC } from "../core/program";
 import { EveningTable } from "../mechanics/evening/views";
 import { useNavigate, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
@@ -184,6 +186,13 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   // Видел ли этот экран игру: финальные фанфары — только при переходе к финалу, не при открытии.
   const sawGame = useRef(phase === "playing");
   if (phase === "playing") sawGame.current = true;
+  // Идёт игра — экран не перезагружается сам при обновлении платформы (иначе снова просит коснуться для звука);
+  // обновится в лобби, в перерыве вечера или после финала.
+  const playingNow = phase === "playing" && session.mechanic !== EVENING_MECHANIC;
+  useEffect(() => {
+    setHallBusy(playingNow);
+    return () => setHallBusy(false);
+  }, [playingNow]);
   // Пульт видит, что экран на связи и звук разрешён.
   useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.

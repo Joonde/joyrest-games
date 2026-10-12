@@ -311,6 +311,10 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       await sql.begin(async (tx) => {
         await tx`delete from media where game_id = ${game.id}`;
         await tx`delete from games where id = ${game.id}`;
+        // Ждущее предложение удалённой игры закрывается само; уже принятая копия в библиотеке остаётся.
+        await tx`
+          update library_proposals set status = 'rejected', reason = 'Игра удалена автором', decided_at = now()
+          where game_id = ${game.id} and status = 'pending'`;
       });
       return { ok: true };
     });

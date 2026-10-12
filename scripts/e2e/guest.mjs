@@ -182,6 +182,8 @@ async function guestJoin(browser, code, { name, emoji, teamName, teamEmoji, join
     await page.getByRole("button", { name: "Обновить список команд" }).click();
     await page.getByLabel(joinTeam).check({ timeout: WAIT });
   } else if (teamName) {
+    // Команда заранее не выбрана — касаемся «Новая команда».
+    await page.getByLabel("Новая команда (вы станете капитаном)").check({ timeout: WAIT });
     await page.getByLabel("Название команды").fill(teamName);
   }
   const pick = teamName ? teamEmoji : emoji;

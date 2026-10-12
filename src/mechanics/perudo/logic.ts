@@ -132,7 +132,7 @@ export function emptyResult(): PerudoResult {
 
 function printsOf(raw: unknown): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [pid, v] of Object.entries(rec(raw)).slice(0, PERUDO_LIMITS.maxCups)) if (typeof v === "string" && /^[0-9a-f]{1,16}$/.test(v)) out[pid] = v;
+  for (const [pid, v] of Object.entries(rec(raw)).slice(0, PERUDO_LIMITS.maxCups)) if (typeof v === "string" && /^h?[0-9a-f]{1,16}$/.test(v)) out[pid] = v;
   return out;
 }
 

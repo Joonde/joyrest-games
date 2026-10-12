@@ -14136,3 +14136,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .mil-phone-bars .mil-step > span {
   display: none;
 }
+
+/* Экран зала во время игры: обновление ждёт паузы — плашка тихая, не отвлекает от вопроса. */
+.update-banner--quiet {
+  opacity: 0.7;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+}

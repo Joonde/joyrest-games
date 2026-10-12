@@ -1,5 +1,6 @@
 /** База площадок на своём сервере: `/api/venue-forms`, `/api/venues`, `/api/venue-requests`, `/api/offers`. */
 import { isRequestStatus, isVenueStatus, parseRequest, parseVenue, type OfferItem } from "../../core/venues";
+import { errorCodeOf } from "../retry";
 import type { VenuesRepository } from "../contracts";
 import type { OfferSummary, PublicOffer, VenueFileInfo, VenueRecord, VenueRequestRecord, VenueUpload } from "../types";
 import { api, ApiError, asRecord, asText, newId, putFile } from "./api";
@@ -149,8 +150,10 @@ export const serverVenuesRepository: VenuesRepository = {
     for (const [index, file] of input.files.entries()) {
       try {
         await retrying(() => putFile(`/api/venue-forms/venue/${enc(input.id)}/files/${file.kind}`, file.blob, contentType(file), { "X-Upload-Token": token, ...fileHeaders(file) }));
-      } catch {
-        failed += 1;
+      } catch (error) {
+        // «Уже есть»: место под файл занято — значит, прошлая попытка дошла, а потерялся только ответ
+        // (телефон шлёт не больше файлов, чем заявил в анкете).
+        if (errorCodeOf(error) !== "already-exists") failed += 1;
       }
       onProgress?.(index + 1, input.files.length);
     }

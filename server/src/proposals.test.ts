@@ -166,6 +166,10 @@ describe.skipIf(!url)("предложения в библиотеку на Postg
     expect((await game("annaGame2", annaId, "Вторая")).statusCode).toBe(200);
     await post("/api/proposals", anna, { id: "p8", gameId: "annaGame2" });
     await app.inject({ method: "DELETE", url: "/api/games/annaGame2", headers: headers(anna) });
-    expect((await post("/api/proposals/p8/accept", owner)).statusCode).toBe(404);
+    // Предложение закрылось само и пропало из ожидающих; принять — нельзя.
+    expect((await post("/api/proposals/p8/accept", owner)).statusCode).toBe(409);
+    const pending = (await get("/api/proposals?status=pending", owner)).json() as Array<{ id: string }>;
+    expect(pending.map((p) => p.id)).not.toContain("p8");
+    expect(((await get("/api/proposals?mine=1", anna)).json() as Array<{ id: string; status: string; reason: string }>).find((p) => p.id === "p8")).toMatchObject({ status: "rejected", reason: "Игра удалена автором" });
   });
 });

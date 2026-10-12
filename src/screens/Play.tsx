@@ -138,7 +138,9 @@ function JoinForm({
   const [emoji, setEmoji] = useState<string | null>(() => remembered.emoji ?? randomEmoji());
   const [teamEmoji, setTeamEmoji] = useState<string | null>(() => randomEmoji());
   const [teams, setTeams] = useState<Participant[]>([]);
-  const [teamId, setTeamId] = useState<string>("new");
+  // Команду гость выбирает сам (решение владельца 12 октября 2026): заранее не выбрано ничего — одним касанием
+  // «Играть» в чужую команду не попасть. Команд ещё нет — сразу «Новая команда».
+  const [teamId, setTeamId] = useState<string>("");
   const [teamName, setTeamName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,7 +187,7 @@ function JoinForm({
       .listTeams(session.id)
       .then((list) => {
         setTeams(list);
-        setTeamId((current) => (current === "new" && list[0] ? list[0].id : current));
+        setTeamId((current) => (current === "" && list.length === 0 ? "new" : current));
       })
       .catch(() => setError("Не удалось загрузить команды."));
   }, [session.id, teamsMode]);
@@ -203,6 +205,10 @@ function JoinForm({
     }
     const plainTeam = cleanName(teamName);
     const cleanTeam = withEmoji(teamEmoji, plainTeam);
+    if (teamsMode && teamId === "") {
+      setError("Выберите свою команду или создайте новую.");
+      return;
+    }
     if (teamsMode && teamId === "new" && !isValidName(plainTeam)) {
       setError("Придумайте название команды.");
       return;
@@ -299,7 +305,8 @@ function JoinForm({
             {error}
           </p>
         )}
-        <button className="btn btn--block" type="submit" disabled={busy}>
+        {teamsMode && teamId === "" && <p className="muted small">Коснитесь своей команды или «Новая команда».</p>}
+        <button className="btn btn--block" type="submit" disabled={busy || (teamsMode && teamId === "")}>
           {busy ? "Входим…" : "Играть"}
         </button>
       </form>

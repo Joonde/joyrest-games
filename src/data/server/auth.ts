@@ -60,6 +60,41 @@ async function fetchMe(): Promise<Me> {
   return last;
 }
 
+/**
+ * «Выйти» без связи: сеанс в cookie (httpOnly) браузер сам не сотрёт, поэтому телефон помнит, что ведущий вышел,
+ * и считает его вышедшим, пока сервер не закроет сеанс (при следующей связи). Новый вход снимает отметку.
+ */
+const LOGOUT_KEY = "joyrest.logout";
+
+function logoutPending(): boolean {
+  try {
+    return localStorage.getItem(LOGOUT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markLogout(pending: boolean): void {
+  try {
+    if (pending) localStorage.setItem(LOGOUT_KEY, "1");
+    else localStorage.removeItem(LOGOUT_KEY);
+  } catch {
+    // Нет хранилища — выход только до перезагрузки.
+  }
+}
+
+async function finishLogout(): Promise<boolean> {
+  try {
+    await api("POST", "/api/auth/logout");
+    markLogout(false);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (typeof window !== "undefined") window.addEventListener("online", () => void (logoutPending() && finishLogout()));
+
 function emit(user: AuthUser | null): void {
   listeners.forEach((listener) => listener(user));
 }
@@ -78,6 +113,16 @@ export const serverAuthService: AuthService = {
       if (!cancelled) callback(user);
     };
     listeners.add(listener);
+    // Вышли без связи — для этого телефона ведущий вышел; сеанс на сервере закроем, как появится связь.
+    if (logoutPending()) {
+      last = { user: null, profile: null };
+      void finishLogout();
+      queueMicrotask(() => listener(null));
+      return () => {
+        cancelled = true;
+        listeners.delete(listener);
+      };
+    }
     // Каждый экран спрашивает сервер заново: профиль свежий (например, после смены пароля).
     withRetry(fetchMe, () => cancelled)
       .then((me) => listener(me.user))
@@ -92,6 +137,7 @@ export const serverAuthService: AuthService = {
 
   async signInHost(email, password) {
     last = parseMe(await api("POST", "/api/auth/login", { email: email.trim(), password }));
+    markLogout(false);
     emit(last.user);
   },
 
@@ -104,9 +150,11 @@ export const serverAuthService: AuthService = {
   },
 
   async signOut() {
-    await api("POST", "/api/auth/logout");
+    // Выходим сразу на этом телефоне, даже без связи; сервер закроет сеанс сейчас или при следующей связи.
+    markLogout(true);
     last = { user: null, profile: null };
     emit(null);
+    await finishLogout();
   },
 
   async changePassword(currentPassword, newPassword) {

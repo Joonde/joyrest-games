@@ -65,17 +65,30 @@ export function PerudoHostControls({ session, content, answers, participants, co
     // eslint-disable-next-line react-hooks/exhaustive-deps -- на новую партию и каждый раунд
   }, [r.keysStep, r.party, r.round]);
 
-  /** Кости всех стаканов этого раунда (стакан без телефона — ключом ведущего). */
-  function allDice(k: Record<string, string>): Record<string, number[]> {
+  /**
+   * Кости всех стаканов этого раунда (стакан без телефона — ключом ведущего). Ключ ведущего живёт на устройстве
+   * пульта: если бросали с другого пульта, кости стаканов без телефона здесь не знаем (`foreign`) — их не
+   * показываем и вскрытие не делаем, чтобы не открыть на столе не те кости.
+   */
+  function allDice(k: Record<string, string>): { dice: Record<string, number[]>; foreign: string[] } {
     const out: Record<string, number[]> = {};
+    const foreign: string[] = [];
     const printed = Object.keys(r.prints).length > 0;
     for (const p of aliveCups(r)) {
       const own = k[p];
       // Бросали без ключа этого стакана (не дошёл) — его кости и дальше от ключа ведущего.
-      const use = own && (!printed || r.prints[p] === keyPrint(own)) ? own : hostCupKey(host, p);
-      out[p] = diceOf(use, r.nonce, r.dice[p] ?? 0);
+      if (own && (!printed || r.prints[p] === keyPrint(own))) {
+        out[p] = diceOf(own, r.nonce, r.dice[p] ?? 0);
+        continue;
+      }
+      const hk = hostCupKey(host, p);
+      if (printed && r.prints[p] !== undefined && r.prints[p] !== `h${keyPrint(hk)}`) {
+        foreign.push(p);
+        continue;
+      }
+      out[p] = diceOf(hk, r.nonce, r.dice[p] ?? 0);
     }
-    return out;
+    return { dice: out, foreign };
   }
 
   function nextSession(): Promise<void> {
@@ -106,7 +119,9 @@ export function PerudoHostControls({ session, content, answers, participants, co
       await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: atResult } });
       await arrived;
     } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
+      const code = typeof e === "object" && e !== null && "code" in e ? e.code : null;
+      if (code === "foreign-pult") setError("Кости стаканов без телефона знает пульт, с которого бросали, — вскрывайте с него.");
+      else if (code !== "failed-precondition") setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
     } finally {
       setBusy(false);
     }
@@ -122,7 +137,8 @@ export function PerudoHostControls({ session, content, answers, participants, co
       const k = { ...keys, ...keysFrom(list, r.keysStep) };
       setKeys(k);
       const prints: Record<string, string> = {};
-      for (const p of r.seats) if (k[p]) prints[p] = keyPrint(k[p] as string);
+      // Стаканы без телефона — отпечаток ключа ведущего этого пульта («h…»): другой пульт поймёт, что их кости не знает.
+      for (const p of r.seats) prints[p] = k[p] ? keyPrint(k[p] as string) : `h${keyPrint(hostCupKey(host, p))}`;
       return startRound(latest.current, newNonce(), prints);
     });
 
@@ -131,7 +147,9 @@ export function PerudoHostControls({ session, content, answers, participants, co
     run(async () => {
       const list = r.keysStep !== null ? await control.freshAnswers(r.keysStep).catch(() => []) : [];
       const k = { ...keys, ...keysFrom(list, r.keysStep) };
-      return resolveCall(latest.current, content, kind, allDice(k));
+      const all = allDice(k);
+      if (all.foreign.length > 0) throw Object.assign(new Error("foreign"), { code: "foreign-pult" });
+      return resolveCall(latest.current, content, kind, all.dice);
     });
 
   // Ход с телефона того, чья очередь, — сразу на стол.
@@ -154,7 +172,9 @@ export function PerudoHostControls({ session, content, answers, participants, co
   const faceMin = minQty(r.bid, face, r.palifico);
   const q = Math.min(total, Math.max(faceMin ?? 1, qty));
   const hostBid: Bid = { q, f: face };
-  const dice = r.mode === "bid" || r.mode === "reveal" ? (r.shown ?? allDice(keys)) : null;
+  const live = r.mode === "bid" || r.mode === "reveal" ? allDice(keys) : null;
+  const dice = r.mode === "bid" || r.mode === "reveal" ? (r.shown ?? live?.dice ?? null) : null;
+  const foreignCups = r.shown ? [] : (live?.foreign ?? []);
   const keyless = r.seats.filter((p) => !keys[p]);
 
   return (
@@ -214,7 +234,11 @@ export function PerudoHostControls({ session, content, answers, participants, co
                       <NameText name={name(p)} />
                       {!keys[p] ? " · без телефона" : ""}
                     </span>
-                    <span className="pr-host__row">{(dice[p] ?? []).map((d, i) => <Die key={i} face={d} />)}</span>
+                    {foreignCups.includes(p) ? (
+                      <span className="muted small">кости — на первом пульте</span>
+                    ) : (
+                      <span className="pr-host__row">{(dice[p] ?? []).map((d, i) => <Die key={i} face={d} />)}</span>
+                    )}
                   </li>
                 ))}
               </ul>

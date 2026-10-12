@@ -23,6 +23,9 @@ import {
   startCatQuestion,
   toBoard,
 } from "./logic";
+import { DEMO_BOARD } from "./demo";
+import { validateBoard } from "./validate";
+import { parseShowLook, SHOW_LOOK_TITLES, SHOW_LOOKS, showStageClass } from "../showLook";
 
 function content(): BoardContent {
   const board = resizeBoard(setRounds(createBoard(), 1), 2, 2);
@@ -281,5 +284,31 @@ describe("Своя игра: ход", () => {
     // Ставок нет — отвечает выбиравший клетку за её стоимость; некому — нельзя.
     const empty = apply(session(), openCell(session(), c, "a1"));
     expect(startAuction(empty, c, [])).toBeNull();
+  });
+});
+
+describe("оформление экрана зала «Своей игры»", () => {
+  it("старые игры без поля и неизвестные значения — «Классика», шаблон и новые игры — «Студия»", () => {
+    const old: Record<string, unknown> = { ...createBoard() };
+    delete old.look;
+    expect(parseBoard(old).look).toBe("classic");
+    expect(parseBoard({ ...old, look: "neon" }).look).toBe("classic");
+    expect(parseBoard({ ...old, look: 3 }).look).toBe("classic");
+    expect(parseBoard(null).look).toBe("classic");
+    expect(parseBoard({ ...old, look: "studio" }).look).toBe("studio");
+    expect(parseBoard({ ...old, look: "evening" }).look).toBe("evening");
+    expect(createBoard().look).toBe("studio");
+    const demo = parseBoard(DEMO_BOARD.content);
+    expect(demo.look).toBe("studio");
+    expect(validateBoard(demo)).toEqual([]);
+    for (const look of SHOW_LOOKS) expect(validateBoard({ ...demo, look })).toEqual([]);
+  });
+
+  it("класс экрана: «Классика» — без изменений, остальные — фон и плашки телешоу", () => {
+    expect(showStageClass("classic")).toBe("");
+    expect(showStageClass("studio")).toBe(" show-stage show-stage--studio");
+    expect(showStageClass("evening")).toBe(" show-stage show-stage--evening");
+    expect(SHOW_LOOKS.map((l) => SHOW_LOOK_TITLES[l])).toEqual(["Классика", "Студия", "Вечер JoyRest"]);
+    expect(parseShowLook(undefined)).toBe("classic");
   });
 });

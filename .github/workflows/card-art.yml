@@ -1,5 +1,5 @@
-# Картинки карточного стола и «Олимпа»: скачивает файлы из public/cards/art/manifest.json
-# и public/olymp/art/manifest.json в репозиторий,
+# Картинки карточного стола, «Олимпа» и телешоу: скачивает файлы из public/cards/art/manifest.json,
+# public/olymp/art/manifest.json и public/shows/art/manifest.json в репозиторий,
 # чтобы они хранились в GitHub, попадали в образ и на сервер (и в его резервные копии).
 # Ссылки Figma AI живут 7 дней, поэтому запуск — сразу при изменении manifest в ветке
 # claude/* (~1 минута) и кнопкой Run workflow. Уже скачанные файлы не перекачиваются.
@@ -8,7 +8,7 @@ name: Картинки карт
 on:
   push:
     branches: ["claude/**"]
-    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json]
+    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           added=0
-          for dir in public/cards/art public/olymp/art; do
+          for dir in public/cards/art public/olymp/art public/shows/art; do
             [ -f "$dir/manifest.json" ] || continue
             while IFS=$'\t' read -r file url; do
               case "$file" in (*/*|.*|"") echo "Плохое имя файла: $file"; exit 1;; esac
@@ -47,6 +47,6 @@ jobs:
         run: |
           git config user.name "joyrest-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/cards/art public/olymp/art
+          git add public/cards/art public/olymp/art public/shows/art
           git commit -m "Картинки: скачано $ADDED [no-test]"
           git push

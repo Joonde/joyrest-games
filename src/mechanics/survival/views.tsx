@@ -11,7 +11,8 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { isWar, KIND_TITLES, LETTERS, taskWordFor, taskWords, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
-import { auctionPending, isWarRound, minBet, parseSurvivalResult, roundNumber, roundOf, type SurvivalResult } from "./logic";
+import { auctionPending, isWarRound, minBet, parseSurvivalResult, roundNumber, roundOf, TASK_MS, type SurvivalResult } from "./logic";
+import { showStageClass } from "../showLook";
 
 export type SurvivalAnswerValue = { choice: number } | { text: string } | { bet: number } | { ticket: true } | { bid: number };
 
@@ -52,6 +53,39 @@ function carOf(name: string): string {
   return /\p{Extended_Pictographic}/u.test(first) ? first : first.toUpperCase();
 }
 
+/**
+ * Болид оформления «Трасса» / «Вечер JoyRest»: вид сбоку, едет вправо. Цвета — классы (`.sv-car__*` в
+ * src/styles.css, корпус — цвет команды `--team`), в кабине — «шлем» со смайликом или буквой команды.
+ */
+function RaceCar({ name }: { name: string }) {
+  return (
+    <span className="sv-car">
+      <svg className="sv-car__body" viewBox="0 0 96 36" aria-hidden="true">
+        <path className="sv-car__shadow" d="M8 31h84" />
+        <path className="sv-car__paint" d="M5 27V11l11 1 2 4 13-2 10-7h17l7 7 18 3c6 1 10 4 11 9v1z" />
+        <path className="sv-car__wing" d="M3 9l14 1v4L4 13z" />
+        <path className="sv-car__stripe" d="M10 21h80" />
+        <path className="sv-car__glass" d="M45 13l5-4h9l4 4z" />
+        <path className="sv-car__nose" d="M84 21l10 3v3h-14z" />
+        <circle className="sv-car__tyre" cx="23" cy="27" r="7" />
+        <circle className="sv-car__rim" cx="23" cy="27" r="2.6" />
+        <circle className="sv-car__tyre" cx="74" cy="27" r="7" />
+        <circle className="sv-car__rim" cx="74" cy="27" r="2.6" />
+      </svg>
+      <span className="sv-car__helmet">{carOf(name)}</span>
+    </span>
+  );
+}
+
+/** Фишка казино с суммой (ставки и банк войнушки в оформлении телешоу). */
+function Chip({ amount, big = false }: { amount: number; big?: boolean }) {
+  return (
+    <span className={big ? "sv-chip sv-chip--big" : "sv-chip"}>
+      <span className="sv-chip__n">{amount.toLocaleString("ru-RU")}</span>
+    </span>
+  );
+}
+
 export function RaceLanes({ session, content, result, size = "screen" }: { session: Session; content: SurvivalContent; result: SurvivalResult; size?: "screen" | "phone" }) {
   const scores = result.order.map((p) => session.leaderboard[p]?.score ?? 0);
   const top = Math.max(1, ...scores);
@@ -61,26 +95,40 @@ export function RaceLanes({ session, content, result, size = "screen" }: { sessi
   // Много команд — дорожки в две-три колонки.
   const cols = size === "phone" ? 1 : ranked.length > 12 ? 3 : ranked.length > 6 ? 2 : 1;
   const segs = Math.max(1, Math.min(30, content.rounds.length));
+  // Оформление телешоу («Трасса», «Вечер JoyRest»): болиды, фишки ставок; телефон — всегда простой вид.
+  const show = size === "screen" && content.look !== "classic";
+  const betsOn = show && isWarRound(content, result) && (result.phase === "war" || result.phase === "reveal");
+  // Лидер — единственный с наибольшим счётом больше нуля (лёгкое свечение дорожки).
+  const first = ranked[0] ? (session.leaderboard[ranked[0]]?.score ?? 0) : 0;
+  const second = ranked[1] ? (session.leaderboard[ranked[1]]?.score ?? 0) : -1;
+  const leader = ranked[0] && first > 0 && first > second ? ranked[0] : null;
   return (
-    <ol className={`sv-lanes sv-lanes--${size}${cols > 1 ? " sv-lanes--multi" : ""}`} aria-label="Гонка по очкам" style={{ ["--cols" as string]: String(cols), ["--segs" as string]: String(segs), ["--war" as string]: String(Math.max(1, content.warEvery)) }}>
+    <ol className={`sv-lanes sv-lanes--${size}${cols > 1 ? " sv-lanes--multi" : ""}${cols > 2 ? " sv-lanes--three" : ""}`} aria-label="Гонка по очкам" style={{ ["--cols" as string]: String(cols), ["--segs" as string]: String(segs), ["--war" as string]: String(Math.max(1, content.warEvery)) }}>
       {ranked.map((p) => {
         const score = session.leaderboard[p]?.score ?? 0;
         const share = Math.max(0, Math.min(1, score / goal));
         const tickets = result.tickets[p] ?? 0;
         return (
-          <li key={p} className={`sv-lane${p === result.winner ? " is-winner" : ""}`} style={{ ["--team" as string]: colorOf(session, result, p), ["--share" as string]: String(share) }}>
+          <li key={p} className={`sv-lane${p === result.winner ? " is-winner" : ""}${p === leader ? " is-leader" : ""}`} style={{ ["--team" as string]: colorOf(session, result, p), ["--share" as string]: String(share) }}>
             <span className="sv-lane__who">
               <span className="sv-lane__name">
                 <NameText name={nameOf(session, p)} />
               </span>
               {tickets > 0 ? <span className="sv-lane__ticket" aria-label={`Билетов: ${tickets}`}>{"🎟".repeat(tickets)}</span> : null}
+              {betsOn && p in result.bets ? <Chip amount={result.bets[p] ?? 0} /> : null}
             </span>
             <span className="sv-lane__track">
               <span className="sv-lane__marks" aria-hidden="true" />
               <span className="sv-lane__runner" />
-              <span className="sv-lane__car" aria-hidden="true">
-                {carOf(nameOf(session, p))}
-              </span>
+              {show ? (
+                <span className="sv-lane__pos" aria-hidden="true">
+                  <RaceCar name={nameOf(session, p)} />
+                </span>
+              ) : (
+                <span className="sv-lane__car" aria-hidden="true">
+                  {carOf(nameOf(session, p))}
+                </span>
+              )}
             </span>
             <span className="sv-lane__score">{pointsLabel(score)}</span>
           </li>
@@ -98,6 +146,8 @@ function RoundCard({ round, result, reveal, size = "screen" }: { round: Survival
         <ol className="mil-options sv-options">
           {round.options.map((text, i) => (
             <li key={i} className={`mil-option${reveal && i === round.correct ? " is-right" : ""}`}>
+              {/* Плашка оформления телешоу (в «Классике» и на телефоне скрыта). */}
+              <span className="mil-option__plate" aria-hidden="true" />
               <span className="mil-option__letter">{LETTERS[i]}</span>
               <span className="mil-option__text">{text}</span>
             </li>
@@ -115,12 +165,32 @@ function TaskTimer({ session, timer }: { session: Session; timer: { pid: string;
   const now = useServerNow(200, true);
   const left = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
   useCountdownSounds(left);
+  // Доля оставшегося времени — кольцо круглого таймера в оформлении телешоу.
+  const frac = Math.max(0, Math.min(1, (timer.endsAt - now) / TASK_MS));
   return (
-    <div className={left === 0 ? "sv-task-timer is-over" : "sv-task-timer"} role="timer">
+    <div className={left === 0 ? "sv-task-timer is-over" : "sv-task-timer"} role="timer" style={{ ["--frac" as string]: String(frac) }}>
       <span className="sv-task-timer__who">
         Показывает <NameText name={nameOf(session, timer.pid)} />
       </span>
       <span className="sv-task-timer__n">{left === 0 ? "Время!" : left}</span>
+    </div>
+  );
+}
+
+/** Билет освобождения купоном (оформление телешоу); `price` — за сколько продан. */
+function Ticket({ price = null }: { price?: number | null }) {
+  return (
+    <div className="sv-ticket">
+      <div className="sv-ticket__paper">
+        <span className="sv-ticket__stub" aria-hidden="true">
+          🎟
+        </span>
+        <span className="sv-ticket__body">
+          <span className="sv-ticket__kicker">{price === null ? "Аукцион" : "Продан"}</span>
+          <strong className="sv-ticket__title">Билет освобождения</strong>
+          <span className="sv-ticket__note">{price === null ? "пропуск одной войнушки" : `за ${pointsLabel(price)}`}</span>
+        </span>
+      </div>
     </div>
   );
 }
@@ -133,6 +203,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
   useCountdownSounds(left);
   const war = isWarRound(content, r);
+  const show = content.look !== "classic";
   const prev = useRef(`${step}:${r.phase}`);
   useEffect(() => {
     const key = `${step}:${r.phase}`;
@@ -159,7 +230,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
     main = auctionPending(content, r) ? (
       <>
         <span className="quiz-screen__badge">Аукцион</span>
-        <h2 className="sv-title">🎟 Билет освобождения</h2>
+        {show ? <Ticket /> : <h2 className="sv-title">🎟 Билет освобождения</h2>}
         <p className="sv-note">Освобождает от одной войнушки: не нужно ставить очки.</p>
       </>
     ) : (
@@ -185,7 +256,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
     main = (
       <>
         <span className="quiz-screen__badge">Аукцион{left !== null && r.phase === "auction" ? ` · ${left} с` : ""}</span>
-        <h2 className="sv-title">🎟 Билет освобождения</h2>
+        {show ? <Ticket price={r.phase === "auctionDone" && r.bid ? r.bid.amount : null} /> : <h2 className="sv-title">🎟 Билет освобождения</h2>}
         {r.phase === "auction" ? (
           <p className="sv-note">Капитаны, ставьте очки на телефонах! Кто больше — тот и забирает.</p>
         ) : r.bid ? (
@@ -202,6 +273,12 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
       <>
         <span className="quiz-screen__badge">⚔️ Войнушка · ставки{left !== null ? ` · ${left} с` : ""}</span>
         <h2 className="sv-title">Делайте ставки!</h2>
+        {show && (
+          <div className="sv-bank">
+            <Chip amount={r.prize} big />
+            <span className="sv-bank__label">приз войнушки</span>
+          </div>
+        )}
         <p className="sv-note">Не меньше половины своих очков. Приз войнушки — {pointsLabel(r.prize)}. С билетом можно пропустить.</p>
       </>
     );
@@ -213,6 +290,12 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
           {left !== null && stage === "question" ? ` · ${left} с` : ""}
         </span>
         {round.kind === "task" && <p className="sv-kind">Задание</p>}
+        {show && war && (
+          <div className="sv-bank sv-bank--row">
+            <Chip amount={r.bank} big />
+            <span className="sv-bank__label">банк</span>
+          </div>
+        )}
         <RoundCard round={round} result={r} reveal={stage === "reveal"} />
         {round.kind === "task" && taskWords(round).length > 0 && stage === "question" && <p className="sv-note">Капитаны видят своё слово на телефоне — показывают по очереди, без слов</p>}
         {round.kind === "task" && stage === "question" && r.taskTimer && <TaskTimer session={session} timer={r.taskTimer} />}
@@ -237,9 +320,10 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
   }
 
   return (
-    <div className="sv-screen">
+    <div className={`sv-screen${show && war && r.phase !== "over" ? " sv-screen--war" : ""}${showStageClass(content.look)}`}>
       {war && r.phase === "reveal" && r.winner && <Confetti burst={`sv:${step}`} />}
-      <section className="sv-screen__main">{main}</section>
+      {/* В оформлении телешоу банк войнушки и отсчёт задания стоят в правом верхнем углу — вопросу нужны поля. */}
+      <section className={`sv-screen__main${show && ((war && round && (r.phase === "war" || r.phase === "reveal")) || (r.taskTimer && stage === "question" && round?.kind === "task")) ? " sv-screen__main--corner" : ""}`}>{main}</section>
       <section className="sv-screen__side" aria-label="Гонка">
         <p className="sv-counter">
           Раунд {Math.min(roundNumber(r), content.rounds.length)}/{content.rounds.length} · {warNote(content, r)}

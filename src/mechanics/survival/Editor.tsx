@@ -8,8 +8,16 @@ import type { EditorProps } from "../types";
 import { isWar, KIND_TITLES, LETTERS, newSurvivalRound, parseSurvivalList, SURVIVAL_LIMITS, ticketAllowed, warIndex, type SurvivalContent, type SurvivalKind, type SurvivalRound } from "./content";
 import { DEMO_SURVIVAL } from "./demo";
 import { validateSurvival } from "./validate";
+import { ShowLookPicker } from "../ShowLookPicker";
+import { SURVIVAL_LOOKS, type ShowLook } from "../showLook";
 
 const KINDS: SurvivalKind[] = ["choice", "open", "task"];
+
+const LOOK_HINTS: Partial<Record<ShowLook, string>> = {
+  classic: "Простые дорожки в цветах оформления игры.",
+  track: "Ночной автодром: неоновая разметка, болиды команд, фишки казино в войнушке.",
+  evening: "Тёплая вечерняя трасса в стиле ар-деко: золото и свет JoyRest.",
+};
 
 export function SurvivalEditor({ content, onChange, editable }: EditorProps<SurvivalContent>) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -79,6 +87,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
         <p className="muted small">
           Призы войнушек растут: {Array.from({ length: Math.floor(content.rounds.length / content.warEvery) }, (_, i) => pointsLabel(content.warPrize * (i + 1))).join(", ") || "—"}. Аукционы: {content.tickets.length > 0 ? content.tickets.map((n) => `перед раундом ${n}`).join(", ") : "не поставлены"} (до {SURVIVAL_LIMITS.maxTickets}, отметка «🎟» у раунда).
         </p>
+        <ShowLookPicker game="survival" looks={SURVIVAL_LOOKS} value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
         {editable && (
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replace(DEMO_SURVIVAL.rounds, "Заполнить шаблоном")}>

@@ -4,6 +4,7 @@
  * картинки — те же файлы) или отклоняет с причиной. Права — src/data/permissions.ts.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { promoteGameTracks } from "./libraryTracks";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
 import { actorOf, apiGuard, newUserId, sessionUser, type SessionRow } from "./auth";
@@ -161,7 +162,10 @@ export function registerProposals(app: FastifyInstance, options: ProposalsOption
           select g.id from library_proposals p join games g on g.id = p.library_game_id and g.scope = 'agency'
           where p.game_id = ${proposal.game_id} and p.status = 'accepted'
           order by p.decided_at desc limit 1`;
-        const content = tx.json((source.content ?? null) as Parameters<typeof tx.json>[0]);
+        // Треки игры ведущего — в общую музыку, ссылки в игре библиотеки — на общие копии: ведущий может удалить
+        // свой трек, а музыка в библиотеке и в копиях у других ведущих останется.
+        const promoted = await promoteGameTracks(tx, source.content ?? null, user.id);
+        const content = tx.json(promoted.content as Parameters<typeof tx.json>[0]);
         let target: string;
         if (previous) {
           target = previous.id;

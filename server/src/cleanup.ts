@@ -10,6 +10,7 @@
  * Сессии старше 30 дней убирает admin при входе в /admin (`POST /api/sessions/cleanup`).
  */
 import { readdir, stat, unlink } from "node:fs/promises";
+import { promoteLibraryTracks } from "./libraryTracks";
 import { join } from "node:path";
 import type { Sql } from "postgres";
 import { retentionCutoff } from "../../src/core/retention";
@@ -94,6 +95,8 @@ interface Log {
 export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, intervalMs = DAY_MS): () => void {
   const run = async () => {
     try {
+      // Треки игр библиотеки — в общую музыку (до уборки файлов: файл остаётся у общей копии).
+      const libraryGames = await promoteLibraryTracks(sql);
       const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       // Старые сессии (30 дней) — каждую ночь, не дожидаясь входа владельца; итоги остаются в истории.
@@ -103,7 +106,7 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
         sessions += report.deleted;
         if (!report.more) break;
       }
-      log.info({ files, devices, sessions }, "cleanup");
+      log.info({ files, devices, sessions, libraryGames }, "cleanup");
     } catch (error) {
       // Таблиц ещё нет (миграции не прошли) или нет папки — попробуем завтра.
       log.warn({ reason: error instanceof Error ? error.name : "unknown" }, "cleanup failed");

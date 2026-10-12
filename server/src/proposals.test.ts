@@ -122,6 +122,38 @@ describe.skipIf(!url)("предложения в библиотеку на Postg
     expect((await sql`select 1 from games where scope = 'agency'`).length).toBe(1);
   });
 
+  it("треки игры ведущего уходят в общую музыку: в библиотеке — ссылки на общие копии, удаление трека автором не ломает игру", async () => {
+    // Трек Анны (уже с файлом) и её лото с этим треком.
+    await sql`insert into tracks (id, owner_id, scope, title, category, sha256, mime, size, duration_ms)
+              values ('annaTrack1', ${annaId}, 'personal', 'Песня Анны', 'music', ${"c".repeat(64)}, 'audio/mpeg', 2000, 61000)`;
+    const content = { songs: [{ id: "s1", trackId: "annaTrack1", title: "Песня" }], other: "q1" };
+    expect((await post("/api/games", anna, { id: "annaLotto", scope: "personal", ownerId: annaId, title: "Лото Анны", mechanic: "lotto", themeId: "joyrest", ageRating: "0+", playMode: "solo", content })).statusCode).toBe(200);
+    await post("/api/proposals", anna, { id: "pt1", gameId: "annaLotto" });
+    const accepted = (await post("/api/proposals/pt1/accept", owner)).json();
+    const [lib] = await sql<{ content: { songs: Array<{ trackId: string }>; other: string } }[]>`select content from games where id = ${accepted.libraryGameId as string}`;
+    const libTrack = lib?.content.songs[0]?.trackId ?? "";
+    expect(libTrack).not.toBe("annaTrack1");
+    expect(lib?.content.other).toBe("q1");
+    const [copy] = await sql<{ scope: string; sha256: string; owner_id: string }[]>`select scope, sha256, owner_id from tracks where id = ${libTrack}`;
+    expect(copy).toEqual({ scope: "agency", sha256: "c".repeat(64), owner_id: ADMIN_UID });
+    // У автора — «принят в общую», повторное принятие не плодит копий.
+    expect((await sql`select share_status from tracks where id = 'annaTrack1'`)[0]?.share_status).toBe("accepted");
+    await post("/api/proposals", anna, { id: "pt2", gameId: "annaLotto" });
+    await post("/api/proposals/pt2/accept", owner);
+    expect((await sql`select 1 from tracks where scope = 'agency' and sha256 = ${"c".repeat(64)}`).length).toBe(1);
+    // Анна удалила свой трек — общая копия и игра библиотеки на месте.
+    expect((await app.inject({ method: "DELETE", url: "/api/tracks/annaTrack1", headers: headers(anna) })).statusCode).toBe(200);
+    expect((await sql`select 1 from tracks where id = ${libTrack}`).length).toBe(1);
+    // Владелец сам вставил личный трек в игру библиотеки — при сохранении ссылка тоже уходит в общую музыку.
+    await sql`insert into tracks (id, owner_id, scope, title, category, sha256, mime, size)
+              values ('ownerTrack1', ${ADMIN_UID}, 'personal', 'Трек владельца', 'music', ${"d".repeat(64)}, 'audio/mpeg', 2000)`;
+    await app.inject({ method: "PATCH", url: `/api/games/${accepted.libraryGameId as string}`, headers: headers(owner), payload: { content: { songs: [{ id: "s1", trackId: "ownerTrack1" }] } } });
+    const [after] = await sql<{ content: { songs: Array<{ trackId: string }> } }[]>`select content from games where id = ${accepted.libraryGameId as string}`;
+    const ownerCopy = after?.content.songs[0]?.trackId ?? "";
+    expect(ownerCopy).not.toBe("ownerTrack1");
+    expect((await sql`select scope from tracks where id = ${ownerCopy}`)[0]?.scope).toBe("agency");
+  });
+
   it("отклонить с причиной; решённое второй раз не меняется", async () => {
     await post("/api/proposals", anna, { id: "p7", gameId: "annaGame" });
     const res = await post("/api/proposals/p7/reject", owner, { reason: "Добавьте\u0007 картинки" });

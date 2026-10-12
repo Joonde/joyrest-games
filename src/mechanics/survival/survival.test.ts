@@ -21,6 +21,7 @@ import {
   toggleMark,
 } from "./logic";
 import { validateSurvival } from "./validate";
+import { parseShowLook, SHOW_LOOK_TITLES, SHOW_LOOKS, showStageClass, SURVIVAL_LOOKS } from "../showLook";
 
 const teams: Participant[] = ["A", "B", "C"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
 const session = (): Session => ({ id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "", mechanic: "survival", gameSnapshot: null, themeId: "joyrest", playMode: "teams", screenMode: "laptop", state: { ...startState(), stage: "ready" }, leaderboard: {}, createdAt: 0 });
@@ -191,5 +192,33 @@ describe("задание с тайными словами", () => {
     expect(taskWordFor(task!, ["a", "b", "c"], "c")).toBe("слон");
     expect(taskWordFor(task!, ["a"], "z")).toBeNull();
     expect(taskWordFor(plain!, ["a"], "a")).toBeNull();
+  });
+});
+
+describe("оформление экрана зала «Гонки на выживание»", () => {
+  it("старые игры без поля и неизвестные значения — «Классика», шаблон и новые игры — «Трасса»", () => {
+    const old: Record<string, unknown> = { ...createSurvival() };
+    delete old.look;
+    expect(parseSurvival(old).look).toBe("classic");
+    expect(parseSurvival({ ...old, look: "neon" }).look).toBe("classic");
+    expect(parseSurvival({ ...old, look: 7 }).look).toBe("classic");
+    expect(parseSurvival(null).look).toBe("classic");
+    // Виды «Своей игры» и «Миллионера» гонке не подходят.
+    expect(parseSurvival({ ...old, look: "studio" }).look).toBe("classic");
+    expect(parseSurvival({ ...old, look: "track" }).look).toBe("track");
+    expect(parseSurvival({ ...old, look: "evening" }).look).toBe("evening");
+    expect(createSurvival().look).toBe("track");
+    const demo = parseSurvival(DEMO_SURVIVAL);
+    expect(demo.look).toBe("track");
+    expect(validateSurvival(demo)).toEqual([]);
+    for (const look of SURVIVAL_LOOKS) expect(validateSurvival({ ...demo, look })).toEqual([]);
+  });
+
+  it("свой список видов: «Классика», «Трасса», «Вечер JoyRest»; у «Своей игры» «Трассы» нет", () => {
+    expect(SURVIVAL_LOOKS.map((l) => SHOW_LOOK_TITLES[l])).toEqual(["Классика", "Трасса", "Вечер JoyRest"]);
+    expect(SHOW_LOOKS).not.toContain("track");
+    expect(parseShowLook("track")).toBe("classic");
+    expect(parseShowLook("track", SURVIVAL_LOOKS)).toBe("track");
+    expect(showStageClass("track")).toBe(" show-stage show-stage--track");
   });
 });

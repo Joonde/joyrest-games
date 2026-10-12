@@ -11,7 +11,7 @@ import { teamsCovered, validateMillionaire } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
 import type { ShowLook } from "../showLook";
 
-const LOOK_HINTS: Record<ShowLook, string> = {
+const LOOK_HINTS: Partial<Record<ShowLook, string>> = {
   classic: "Простые плашки в цветах оформления игры.",
   studio: "Круглая студия с синими лучами, вопрос и ответы — шестиугольными плашками, как в передаче.",
   evening: "Тёмный зал с золотыми кольцами и светом JoyRest, золотые плашки.",

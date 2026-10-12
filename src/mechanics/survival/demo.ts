@@ -94,4 +94,4 @@ const LIST = `Сколько цветов у радуги?
 * 64
 - 81`;
 
-export const DEMO_SURVIVAL: SurvivalContent = { ...createSurvival(), rounds: parseSurvivalList(LIST) };
+export const DEMO_SURVIVAL: SurvivalContent = { ...createSurvival(), rounds: parseSurvivalList(LIST), look: "track" };

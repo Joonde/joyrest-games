@@ -23,7 +23,7 @@ const KIND_HINTS: Record<CellKind, string> = {
   auction: "Все ставят очки на телефонах, кто больше — отвечает на сложный вопрос. Верно — ставка его, неверно — минус ставка.",
 };
 
-const LOOK_HINTS: Record<ShowLook, string> = {
+const LOOK_HINTS: Partial<Record<ShowLook, string>> = {
   classic: "Простое поле в цветах оформления игры.",
   studio: "Телестудия: синие прожекторы, светящиеся клетки, золотые цены.",
   evening: "Тёмный зал в стиле ар-деко: золото и тёплый свет JoyRest.",

@@ -3,6 +3,7 @@
 // победитель забирает банк (ставки + приз, растущий 100, 200, 300…). После второй войнушки в раундах,
 // которые отметил ведущий (до 3), — аукцион «билета освобождения»: билет позволяет один раз пропустить
 // войнушку без ставки.
+import { DEFAULT_SURVIVAL_LOOK, parseShowLook, SURVIVAL_LOOKS, type ShowLook } from "../showLook";
 
 export type SurvivalKind = "choice" | "open" | "task";
 
@@ -31,6 +32,8 @@ export interface SurvivalContent {
   tickets: number[];
   betSeconds: number;
   auctionSeconds: number;
+  /** Оформление экрана зала (`../showLook.ts`: «Классика», «Трасса», «Вечер JoyRest»). Старые игры без поля — «Классика». */
+  look: ShowLook;
 }
 
 export const SURVIVAL_LIMITS = { minRounds: 5, maxRounds: 30, text: 300, option: 120, answer: 200, maxPoints: 10_000, maxTickets: 3, minSeconds: 5, maxSeconds: 180 } as const;
@@ -65,7 +68,7 @@ export function ticketAllowed(content: Pick<SurvivalContent, "warEvery" | "round
 
 export function createSurvival(): SurvivalContent {
   const rounds = Array.from({ length: 30 }, (_, i) => newSurvivalRound((i + 1) % 5 === 0 ? "choice" : i % 3 === 2 ? "task" : "choice"));
-  return { rounds, warEvery: 5, warPrize: 100, tickets: [13, 18, 23], betSeconds: 30, auctionSeconds: 30 };
+  return { rounds, warEvery: 5, warPrize: 100, tickets: [13, 18, 23], betSeconds: 30, auctionSeconds: 30, look: DEFAULT_SURVIVAL_LOOK };
 }
 
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -104,6 +107,7 @@ export function parseSurvival(raw: unknown): SurvivalContent {
     tickets,
     betSeconds: int(d.betSeconds, 30, SURVIVAL_LIMITS.minSeconds, SURVIVAL_LIMITS.maxSeconds),
     auctionSeconds: int(d.auctionSeconds, 30, SURVIVAL_LIMITS.minSeconds, SURVIVAL_LIMITS.maxSeconds),
+    look: parseShowLook(d.look, SURVIVAL_LOOKS),
   };
 }
 

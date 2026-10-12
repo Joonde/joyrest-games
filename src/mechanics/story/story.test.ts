@@ -149,4 +149,18 @@ describe("разделы по порядку", () => {
     expect(s.state.step).toBe(before);
     expect(parseStoryResult(s.state.result).part).toBe(0);
   });
+
+  it("раздел можно пропустить, пока гости пишут; «Назад» возвращает к письму", () => {
+    const content = { ...createStory(), sections: ["author" as const, "lies" as const] };
+    let s = session();
+    s = applyChange(s, startWriting(s, players), 1);
+    const writeStep = s.state.step;
+    s = applyChange(s, nextPart(s), 2);
+    expect(parseStoryResult(s.state.result).part).toBe(1);
+    s = applyChange(s, storyBack(s, content)?.change ?? {}, 3);
+    expect(s.state.step).toBe(writeStep);
+    expect(s.state.stage).toBe("question");
+    expect(storyPrimary(s, content)).toBe("start");
+    expect(parseStoryResult(s.state.result).mode).toBe("write");
+  });
 });

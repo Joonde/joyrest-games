@@ -5760,6 +5760,238 @@ ul.chips {
   opacity: 0.8;
 }
 
+/* Рисованные карточки лото «Вечер» и «День» (content.cardStyle): фон 3:4 из public/cards/art/web/,
+   заголовок сверху, сетка — в пустой середине рисунка. Цвета и места — переменные оформления. */
+.lotto-ticket {
+  --lotto-head-top: 21.5%;
+  --lotto-grid-top: 31.5%;
+  --lotto-grid-bottom: 17.5%;
+  --lotto-grid-side: 8.5%;
+  --lotto-gap: 1.7cqw;
+  --lotto-title-size: 4.4cqw;
+  --lotto-artist-size: max(10px, 2.9cqw);
+  position: relative;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  aspect-ratio: 3 / 4;
+  border-radius: 5% / 3.75%;
+  overflow: hidden;
+  background: var(--lotto-art) center / cover no-repeat, var(--lotto-paper);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.lotto-ticket--evening {
+  --lotto-art: url("/cards/art/web/loto-evening.webp");
+  --lotto-paper: #1c1712;
+  --lotto-heading: #e3c68c;
+  --lotto-rule: #c7bcac;
+  --lotto-cell: rgba(42, 38, 33, 0.82);
+  --lotto-cell-line: rgba(227, 198, 140, 0.55);
+  --lotto-ink: #f3ece3;
+  --lotto-ink-soft: #c7bcac;
+  --lotto-mark: #c49e96;
+  --lotto-mark-ink: #221e1b;
+}
+
+.lotto-ticket--day {
+  --lotto-art: url("/cards/art/web/loto-day.webp");
+  --lotto-paper: #f6efe4;
+  --lotto-head-top: 22.5%;
+  --lotto-grid-top: 32.5%;
+  --lotto-heading: #8a5148;
+  --lotto-rule: #6b6256;
+  --lotto-cell: rgba(255, 255, 255, 0.78);
+  --lotto-cell-line: rgba(154, 116, 68, 0.55);
+  --lotto-ink: #322d28;
+  --lotto-ink-soft: #6b6256;
+  --lotto-mark: #a3c2aa;
+  --lotto-mark-ink: #221e1b;
+}
+
+.lotto-ticket--s3 {
+  --lotto-gap: 2.4cqw;
+  --lotto-title-size: 5.6cqw;
+  --lotto-artist-size: max(11px, 3.5cqw);
+}
+
+.lotto-ticket--s5 {
+  --lotto-grid-bottom: 16.5%;
+  --lotto-gap: 1.1cqw;
+  --lotto-title-size: max(11px, 3.6cqw);
+}
+
+.lotto-ticket__head {
+  position: absolute;
+  top: var(--lotto-head-top);
+  left: 12%;
+  right: 12%;
+  text-align: center;
+}
+
+.lotto-ticket__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 7cqw;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--lotto-heading);
+  white-space: nowrap;
+}
+
+.lotto-ticket__rule {
+  margin: 1.2cqw 0 0;
+  font-size: max(10px, 2.3cqw);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lotto-rule);
+  white-space: nowrap;
+}
+
+.lotto-ticket > .lotto-card {
+  position: absolute;
+  top: var(--lotto-grid-top);
+  bottom: var(--lotto-grid-bottom);
+  left: var(--lotto-grid-side);
+  right: var(--lotto-grid-side);
+  gap: var(--lotto-gap);
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+.lotto-ticket .lotto-card__cell {
+  position: relative;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 0.8cqw 0.9cqw;
+  border-radius: 16px;
+  border-radius: min(16px, 3.4cqw);
+  border-color: var(--lotto-cell-line);
+  background: var(--lotto-cell);
+  color: var(--lotto-ink);
+  gap: 0.6cqw;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.lotto-ticket .lotto-card__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: max(10px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.lotto-ticket .lotto-card__artist {
+  font-size: var(--lotto-artist-size);
+  line-height: 1.15;
+  color: var(--lotto-ink-soft);
+  opacity: 1;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lotto-ticket .lotto-card__cell.is-marked {
+  background: var(--lotto-mark);
+  border-color: var(--lotto-mark);
+  color: var(--lotto-mark-ink);
+}
+
+.lotto-ticket .lotto-card__cell.is-marked .lotto-card__artist {
+  color: var(--lotto-mark-ink);
+}
+
+/* Отмеченная песня — нота в углу клетки. */
+.lotto-ticket .lotto-card__cell.is-marked::after {
+  content: "♪";
+  position: absolute;
+  top: 0.3cqw;
+  right: 0.8cqw;
+  font-size: max(10px, 2.3cqw);
+  line-height: 1;
+  color: var(--lotto-mark-ink);
+}
+
+.lotto-ticket--s5 .lotto-card__cell.is-marked::after {
+  content: none;
+}
+
+.lotto-ticket--s5 .lotto-card__cell {
+  padding-inline: 0.4cqw;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-ticket .lotto-card__cell {
+    transition: none;
+  }
+}
+
+/* Заставка экрана зала: пример карточки в выбранном оформлении. */
+.lotto-intro {
+  flex-direction: row;
+  gap: 5cqw;
+}
+
+.lotto-intro__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4cqh;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.lotto-intro .quiz-screen__intro {
+  font-size: 12cqh;
+  text-wrap: balance;
+}
+
+.lotto-sample {
+  flex: none;
+  width: min(40cqw, 60cqh);
+  transform: rotate(-3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-sample {
+    transform: none;
+  }
+}
+
+/* Выбор оформления в конструкторе: маленький образец справа. */
+.lotto-style .choice__text {
+  flex: 1 1 auto;
+}
+
+.lotto-style__thumb {
+  flex: none;
+  width: 48px;
+  aspect-ratio: 3 / 4;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-position: center;
+  background-size: cover;
+}
+
+.lotto-style__thumb--classic {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(var(--color-border) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-border) 1.5px, transparent 1.5px);
+  background-size: 12px 12px;
+  background-position: 6px 8px;
+}
+
+.lotto-style__thumb--evening {
+  background-image: url("/cards/art/web/loto-evening.webp");
+}
+
+.lotto-style__thumb--day {
+  background-image: url("/cards/art/web/loto-day.webp");
+}
+
 .lotto-phone__claim {
   font-family: var(--font-display);
   font-size: 26px;

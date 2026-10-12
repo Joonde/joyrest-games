@@ -85,7 +85,7 @@ const SERVICE_FIELDS = new Set(["type", "consent", "rating", "website", "terms",
 /** Формат ведущего в заявке: опытный или стартовые форматы с молодыми ведущими (скидка на работу ведущего). */
 export const HOST_LEVELS = {
   standard: "опытный",
-  new: "Новые лица (−25%)",
+  new: "Новые лица (−20%)",
   first: "Первый старт (−35%)",
 } as const;
 export type HostLevel = keyof typeof HOST_LEVELS;
@@ -204,7 +204,7 @@ export function formatLead(lead: LeadData, label?: string): string {
         `${head}📩 Заявка с сайта JoyRest\n\n` +
         `Имя: ${f.name}\nТелефон: ${f.phone}\nТип мероприятия: ${or(f.eventType)}\n` +
         (lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}\n` : "") +
-        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\nКомментарий: ${or(f.message)}\nУсловия работы и залога: приняты`
+        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\nКомментарий: ${or(f.message)}\nУсловия брони и работы: приняты`
       );
     }
   }

@@ -139,19 +139,20 @@ describe("исходники сайта (site/)", () => {
   const root = resolve(import.meta.dirname, "../../site");
   const html = readFileSync(join(root, "index.html"), "utf8");
   const css = readFileSync(join(root, "css/style.css"), "utf8") + readFileSync(join(root, "css/fonts.css"), "utf8");
-  const js = readFileSync(join(root, "js/script.js"), "utf8");
+  const js = ["js/script.js", "js/pricing.js", "js/theme.js"].map((f) => readFileSync(join(root, f), "utf8")).join("\n");
 
-  it("без внешних шрифтов и картинок", () => {
+  it("без внешних шрифтов, картинок и скриптов", () => {
     for (const text of [html, css, js]) {
-      expect(text).not.toMatch(/fonts\.googleapis|fonts\.gstatic|images\.unsplash/);
+      expect(text).not.toMatch(/fonts\.googleapis|fonts\.gstatic|images\.unsplash|cdn\./);
     }
+    expect(html).not.toMatch(/<script[^>]+src="https?:/);
+    expect(html).not.toMatch(/<link[^>]+href="https?:/);
   });
 
   it("Telegram: своя карточка канала без внешних скриптов, старого поста нет", () => {
     for (const text of [html, css, js]) {
       expect(text).not.toMatch(/telegram-widget|telegram\.org\/js|data-telegram-post|JoyRest\/3/);
     }
-    expect(html).not.toMatch(/<script[^>]+src="https?:/);
     expect(html).toContain("<h3>JoyRest в Telegram</h3>");
     expect(html).toContain("Анонсы, идеи для праздников и закулисье наших мероприятий.");
     expect(html).toContain('<a class="hbtn hbtn--primary" href="https://t.me/JoyRest" target="_blank" rel="noopener">Открыть канал</a>');
@@ -174,32 +175,33 @@ describe("исходники сайта (site/)", () => {
     for (const id of ["askError", "reviewError", "formError"]) expect(html).toContain(`id="${id}"`);
   });
 
-  it("доп. услуги — без кнопок без действия, пожелания — в комментарии к заявке", () => {
-    for (const text of [html, css, js]) expect(text).not.toContain("show-pick");
-    expect(html).toContain("Напишите о пожеланиях в комментарии к заявке.");
-  });
-
-  it("шапка: «Оставить заявку» ведёт к форме с фокусом, «Услуги» раскрывает раздел", () => {
+  it("шапка: «Оставить заявку» ведёт к форме с фокусом, переключатель темы, кнопки не ниже 44px", () => {
     expect(html).toMatch(/<a href="#contact" class="hbtn hbtn--primary" data-focus-target="name">Оставить заявку<\/a>/);
-    expect(html).toMatch(/<a href="#services" class="hbtn hbtn--secondary" data-open-section="services">Услуги<\/a>/);
+    expect(html).toContain('<a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>');
     expect(html).toContain('<input type="text" id="name"');
     expect(js).toContain("[data-focus-target]");
-    expect(js).toContain("[data-open-section]");
-    // Кнопки для пальца — не ниже 44px.
+    expect(html).toContain('id="themeToggle"');
     expect(css).toMatch(/\.hbtn\{[^}]*min-height: 44px/);
+    expect(css).toMatch(/\.theme-toggle\{[^}]*width: 44px; height: 44px/);
+    expect(css).toMatch(/\.chip\{[^}]*min-height: 44px/);
+    expect(css).toMatch(/\.filter\{[^}]*min-height: 44px/);
+    expect(css).toMatch(/\.info\{[^}]*width: 44px/);
   });
 
-  it("полосы с фоном не шире страницы, пятна первого экрана — не ячейки сетки", () => {
+  it("тема: вечерняя по умолчанию, выбор запоминается и применяется до отрисовки", () => {
+    expect(html).toContain('<html lang="ru" data-theme="dark">');
+    // theme.js — в <head>, до <body>: тема ставится до отрисовки.
+    expect(html.indexOf('<script src="js/theme.js"></script>')).toBeLessThan(html.indexOf("<body"));
+    expect(js).toContain("localStorage.getItem('jr-theme')");
+    expect(js).toContain("localStorage.setItem('jr-theme', next)");
+    // localStorage может быть недоступен — без него страница работает.
+    expect(js.match(/try\s*\{[^}]*localStorage/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("полосы с фоном и первый экран не шире страницы", () => {
     expect(html).not.toMatch(/margin: 0 -32px/);
-    expect(css).toMatch(/\.band\{ margin-left: calc\(-1 \* var\(--wrap-pad\)\)/);
-    expect(css).toContain(".hero > *:not(.blob){ position: relative;");
-  });
-
-  it("свёрнутые разделы компактные, на телефоне между секциями не больше 64px", () => {
-    expect(css).toMatch(/section\.is-collapsible:not\(\.is-open\) \.section-head\{ margin-bottom: 0; padding-bottom: 0; border-bottom: none; \}/);
-    const phone = css.slice(css.indexOf("@media (max-width: 760px){\n    .nav-links"));
-    expect(phone).toMatch(/section\{ padding: 32px 0; \}/);
-    expect(html.match(/class="[^"]*is-collapsible[^"]*"/g)).toHaveLength(3);
+    expect(css).toMatch(/body\{[^}]*overflow-x: hidden/);
+    expect(css).toContain(".hero{ position: relative; overflow: hidden;");
   });
 
   it("в политике домен joy-rest.ru", () => {
@@ -208,57 +210,58 @@ describe("исходники сайта (site/)", () => {
   });
 });
 
-describe("контраст сайта в светлой и тёмной теме (WCAG AA, как у платформы)", () => {
+describe("контраст сайта в вечерней и дневной теме (WCAG AA, как у платформы)", () => {
   const root = resolve(import.meta.dirname, "../..");
   const css = readFileSync(join(root, "site/css/style.css"), "utf8");
   const html = readFileSync(join(root, "site/index.html"), "utf8");
 
-  /** Переменные блока :root{…}: светлая тема — первый, тёмная — внутри prefers-color-scheme: dark. */
+  /** Переменные блока: вечерняя тема — :root{…}, дневная — :root[data-theme="light"]{…} поверх неё. */
   function tokens(block: string): Record<string, string> {
     return Object.fromEntries([...block.matchAll(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})\b/g)].map((m) => [m[1] ?? "", m[2] ?? ""]));
   }
-  const lightBlock = css.slice(css.indexOf(":root{"), css.indexOf("}", css.indexOf(":root{")));
-  const darkStart = css.search(/@media \(prefers-color-scheme: dark\)\{\s*:root\{/);
-  const darkBlock = css.slice(darkStart, css.indexOf("}", darkStart));
-  const light = tokens(lightBlock);
-  const dark = { ...light, ...tokens(darkBlock) };
-  const EMBLEM = /\.emblem\{[^}]*?--emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6}); --emb-4: (#\w{6})/;
-  const dark2 = EMBLEM.exec(css.slice(darkStart));
+  const block = (start: string) => css.slice(css.indexOf(start), css.indexOf("}", css.indexOf(start)));
+  const dark = tokens(block(":root{"));
+  const light = { ...dark, ...tokens(block(':root[data-theme="light"]{')) };
+  const EMBLEM = /--emb-1: (#\w{6}); --emb-2: (#\w{6}); --emb-3: (#\w{6}); --emb-4: (#\w{6})/;
 
-  // [текст, фон, норма]: 4.5 — текст, 3 — крупный текст, рамки и графика.
-  const pairs = (t: Record<string, string>, surfaces: string[]): [string, string, number][] => [
-    ...surfaces.flatMap((bg): [string, string, number][] => [
-      [t.ink ?? "", bg, 4.5],
-      [t["ink-soft"] ?? "", bg, 4.5],
-      [t["accent-text"] ?? "", bg, 4.5],
-      [t["green-text"] ?? "", bg, 4.5],
-      [t["btn-outline-text"] ?? "", bg, 4.5],
-      [t["btn-outline"] ?? "", bg, 3],
+  // [текст, фон, норма]: 4.5 — текст, 3 — рамки и графика.
+  const pairs = (t: Record<string, string>): [string, string, number][] => [
+    ...[t.bg, t["bg-alt"], t.card].flatMap((bg): [string, string, number][] => [
+      [t.ink ?? "", bg ?? "", 4.5],
+      [t["ink-soft"] ?? "", bg ?? "", 4.5],
+      [t["accent-text"] ?? "", bg ?? "", 4.5],
+      [t["green-text"] ?? "", bg ?? "", 4.5],
+      [t.total ?? "", bg ?? "", 4.5],
+      [t["error-text"] ?? "", bg ?? "", 4.5],
+      [t["btn-outline-text"] ?? "", bg ?? "", 4.5],
+      [t["btn-outline"] ?? "", bg ?? "", 3],
     ]),
     // Текст на цветных заливках кнопок и плашек.
     ...["coral", "emerald", "gold", "wine", "btn-primary-bg"].map((fill): [string, string, number] => [t["on-accent"] ?? "", t[fill] ?? "", 4.5]),
     [t["btn-primary-text"] ?? "", t["btn-primary-bg"] ?? "", 4.5],
-    // «Задать вопрос» и тёмная кнопка меню: фон --ink, текст --bg.
+    // Выбранные кнопки, «Задать вопрос»: фон --ink, текст --bg.
     [t.bg ?? "", t.ink ?? "", 4.5],
+    // Логотип на подложке.
+    [t["logo-color"] ?? "", t["logo-bg"] ?? "", 3],
   ];
 
   it.each([
-    ["светлая", light, ["#FFFFFF"]],
-    ["тёмная", dark, []],
-  ] as const)("%s тема: текст, кнопки и рамки", (_name, t, extra) => {
-    const surfaces = [t.bg ?? "", t["bg-alt"] ?? "", ...extra];
-    for (const [fg, bg, need] of pairs(t, surfaces)) {
+    ["вечерняя", dark],
+    ["дневная", light],
+  ] as const)("%s тема: текст, кнопки и рамки", (_name, t) => {
+    for (const [fg, bg, need] of pairs(t)) {
       expect(fg, "нет цвета в токенах").toMatch(/^#/);
       expect(bg, "нет цвета в токенах").toMatch(/^#/);
       expect(contrastRatio(fg, bg), `${fg} на ${bg}`).toBeGreaterThanOrEqual(need);
     }
+    expect(light["logo-color"]).not.toBe(dark["logo-color"]);
   });
 
-  it("эмблема и её надписи: каждый цвет градиента с фоном ≥ 4.5 в обеих темах", () => {
-    const lightEmblem = EMBLEM.exec(css);
-    for (const [colors, bg] of [[lightEmblem, light.bg], [dark2, dark.bg]] as const) {
+  it("эмблема и «без хлопот»: каждый цвет градиента с фоном ≥ 4.5 в обеих темах", () => {
+    const darkEmblem = EMBLEM.exec(css.slice(css.indexOf(".emblem{")));
+    const lightEmblem = EMBLEM.exec(css.slice(css.indexOf(':root[data-theme="light"] .emblem{')));
+    for (const [colors, bg] of [[darkEmblem, dark.bg], [lightEmblem, light.bg]] as const) {
       expect(colors).not.toBeNull();
-      expect(colors?.slice(1)).toHaveLength(4);
       for (const c of colors?.slice(1) ?? []) expect(contrastRatio(c ?? "", bg ?? ""), `${c} на ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
   });
@@ -275,37 +278,36 @@ describe("тексты и устройство страницы", () => {
   const css = readFileSync(join(root, "site/css/style.css"), "utf8");
   const html = readFileSync(join(root, "site/index.html"), "utf8");
   const js = readFileSync(join(root, "site/js/script.js"), "utf8");
+  const pricing = readFileSync(join(root, "site/js/pricing.js"), "utf8");
+  const plain = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
-  it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, пост Telegram на месте", () => {
+  it("резервная копия прежнего сайта лежит вне site/ и не выкладывается", () => {
+    const archive = join(root, "site-archive/v1-2026-10-12");
+    expect(readFileSync(join(archive, "README.md"), "utf8")).toContain("Сайт JoyRest v1 — до редизайна");
+    expect(readFileSync(join(archive, "index.html"), "utf8")).toContain("Пакеты услуг");
+    expect(readFileSync(join(root, "scripts/build-site.ts"), "utf8")).toContain('const SOURCE = join(ROOT, "site");');
+  });
+
+  it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, карточка Telegram на месте", () => {
     expect(html).toContain("<h2>Следите за нами</h2>");
     expect(html).toContain("Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.");
-    expect(html).toContain('<section id="reviews" data-review-form="off">');
+    expect(html).toMatch(/<section id="reviews" [^>]*data-review-form="off">/);
     expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
     expect(html).toContain('class="tg-card');
   });
 
-  it("свадьбы — «скоро»: в форме заявки варианта нет, на первом экране приглушённо", () => {
+  it("свадьбы — только «скоро» на первом экране: ни варианта в заявке, ни карточки", () => {
     expect(html).not.toMatch(/<option>Свадьба/);
-    expect(html).toContain('<li class="dir-soon">💍 Свадьбы — скоро</li>');
-    expect(html).toContain("Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.");
-    expect(html).not.toContain("Условие бронирования");
+    expect(html).toContain('<div class="tile tile--soon" aria-label="Свадьбы — скоро"><span class="soon-badge">Скоро</span>');
+    expect(html).not.toContain("<h3>Свадьбы</h3>");
+    expect(html).not.toContain('data-event-type="Свадьба"');
   });
 
-  it("«Форматы программ» внутри сворачиваемых «Услуг», в меню — «Оставить заявку»", () => {
-    const start = html.indexOf('id="servicesList"');
-    const end = html.indexOf("/servicesList");
-    expect(html.indexOf('class="formats-block"')).toBeGreaterThan(start);
-    expect(html.indexOf('class="formats-block"')).toBeLessThan(end);
-    expect(html).toContain('<a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>');
-    expect(html).not.toContain("Обсудить мероприятие");
-  });
-
-  it("стартовые форматы: тексты владельца дословно, бейджи, общая строка, внутри «Пакетов»", () => {
-    const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  it("форматы ведущего: тексты владельца дословно, −20% и −35%, одни и те же значения в заявке", () => {
     for (const phrase of [
       "Новые лица — для тех, кто любит пробовать новое",
       "Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.",
-      "Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 25% — мы честно делим с вами возможные шероховатости.",
+      "Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 20% — мы честно делим с вами возможные шероховатости.",
       "сценарий и программу готовим вместе с опытным ведущим JoyRest;",
       "на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.",
       "Первый старт — для самых смелых",
@@ -314,25 +316,19 @@ describe("тексты и устройство страницы", () => {
       "сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;",
       "на празднике ведущий работает самостоятельно — для него это настоящий первый выход.",
       "Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.",
-    ]) expect(text, phrase).toContain(phrase);
-    expect(text.match(/игры, реквизит и оборудование — как в обычном формате;/g)).toHaveLength(2);
-    expect(html).toContain('<span class="pkg-badge">−25%</span>');
-    expect(html).toContain('<span class="pkg-badge">−35%</span>');
-    const list = html.slice(html.indexOf('id="packagesList"'), html.indexOf("</section>", html.indexOf('id="packagesList"')));
-    expect(list).toContain("packages--start");
-    expect(html.slice(html.indexOf('id="mobilePanel"'), html.indexOf("</header>"))).not.toMatch(/Новые лица|Первый старт/);
-  });
-
-  it("формат ведущего: калькулятор, поле заявки, кнопки карточек — одни и те же значения", () => {
-    const opts = (id: string) => [...(html.slice(html.indexOf(`id="${id}"`), html.indexOf("</select>", html.indexOf(`id="${id}"`))).matchAll(/value="(\w+)"/g))].map((m) => m[1]);
-    expect(opts("calcHostLevel")).toEqual(["standard", "new", "first"]);
-    expect(opts("hostLevel")).toEqual(["standard", "new", "first"]);
-    expect(html).toContain('data-host-level="new">Выбрать этот формат');
-    expect(html).toContain('data-host-level="first">Выбрать этот формат');
+    ]) expect(plain, phrase).toContain(phrase);
+    expect(plain.match(/игры, реквизит и оборудование — как в обычном формате;/g)).toHaveLength(2);
+    expect(html).toContain('<span class="host__badge">−20%</span>');
+    expect(html).toContain('<span class="host__badge">−35%</span>');
+    expect(html).not.toMatch(/25%/);
+    const opts = [...html.slice(html.indexOf('id="hostLevel"'), html.indexOf("</select>", html.indexOf('id="hostLevel"'))).matchAll(/value="(\w+)"/g)].map((m) => m[1]);
+    expect(opts).toEqual(["standard", "new", "first"]);
+    expect(html).toContain("<option value=\"new\">Новые лица (−20%)</option>");
+    for (const level of ["standard", "new", "first"]) expect(html).toContain(`data-host-level="${level}">Выбрать этот формат`);
+    expect(pricing).toContain("{ id: 'new', name: 'Новые лица', badge: '−20%', discount: 0.2 }");
+    expect(pricing).toContain("{ id: 'first', name: 'Первый старт', badge: '−35%', discount: 0.35 }");
     expect(js).toContain("hostLevel: hostLevelField.value");
-    // Скидка за формат — последней, после скидки за длительность.
-    expect(js.indexOf("runningTotal -= hostDiscountAmount")).toBeGreaterThan(js.indexOf("runningTotal -= hoursDiscountAmount"));
-    expect(js).toContain("hostLevelField.value = calcHostLevel.value");
+    expect(html.slice(html.indexOf('id="mobilePanel"'), html.indexOf("</header>"))).not.toMatch(/Новые лица|Первый старт/);
   });
 
   /** Видимый текст страницы при текущих data-service-*: без элементов data-needs с выключенным
@@ -360,21 +356,15 @@ describe("тексты и устройство страницы", () => {
 
   it("диджеи, музыканты и площадки пока скрыты одним переключателем на направление", () => {
     expect(html).toContain('<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">');
-    // Единственное разрешённое упоминание (решение владельца 9 октября 2026): диджей и «под ключ» — индивидуально.
-    const EXTRA = "Диджей, мероприятие под ключ и другие услуги — обсуждаем индивидуально.";
-    expect(visibleText()).toContain(EXTRA);
-    const text = visibleText().replace(EXTRA, "");
-    expect(text).not.toMatch(/дидже|площадк|музыкант|подрядчик|под ключ|кавер|квартет/i);
+    // Единственное разрешённое упоминание диджея — индивидуально, в комментарии к заявке.
+    const EXTRA = "Диджей и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.";
+    const text = visibleText();
+    expect(text).toContain(EXTRA);
+    expect(text.replace(EXTRA, "")).not.toMatch(/дидже|площадк|музыкант|подрядчик|кавер|квартет/i);
     expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.");
     // Старый текст первого экрана сохранён рядом — вернётся вместе с услугами.
     expect(html).toContain("площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет");
-    expect(text).toContain("Ведущие");
-    // Шоу и фокусника пока нет — нигде на странице.
-    expect(html).not.toMatch(/фокусник|шоу-блок|<h3>Шоу<\/h3>|value="show"/i);
-    expect(js).not.toContain("calcPackage");
-    // Включили всё — старые тексты видны, замен нет.
-    const allOn = html.replace(/data-service-(\w+)="off"/g, 'data-service-$1="on"');
-    expect(allOn).toContain('data-service-dj="on" data-service-music="on" data-service-venue="on"');
+    expect(html).not.toMatch(/фокусник|шоу-блок/i);
     // Каждая комбинация замен data-unless покрыта правилом скрытия в CSS.
     for (const combo of new Set([...html.matchAll(/data-unless="([^"]*)"/g)].map((m) => m[1]))) {
       const selector = (combo ?? "").split(" ").map((n) => `[data-service-${n}="on"]`).join("") + ` [data-unless="${combo}"]`;
@@ -385,98 +375,93 @@ describe("тексты и устройство страницы", () => {
     expect(js).toContain("option[data-needs], option[data-unless]");
   });
 
-  it("география — строкой в контактах, без карты", () => {
-    expect(html).not.toContain("coverage-map");
-    expect(html).not.toContain('href="#coverage"');
-    expect(html).toContain("Москва и Московская область, другие города — по договорённости");
-  });
-
-  it("свадьбы — только строкой «скоро» на первом экране: ни плитки повода, ни карточки", () => {
-    expect(html).not.toContain('data-event="wedding"');
-    expect(html).not.toContain("<h3>Свадьбы</h3>");
-    expect(js).not.toContain("wedding:");
-  });
-
-  it("«Мероприятия» и «Пакеты» открыты сразу, «Услуги» — свёрнуты", () => {
-    expect(html).toContain('<section class="events band is-collapsible is-open" id="events">');
-    expect(html).toContain('<section class="is-collapsible is-open" id="packages">');
-    expect(html).toContain('<section class="is-collapsible" id="services">');
-    expect(html).toContain('<div class="collapsible-wrap open is-done" id="eventsList">');
-    expect(html).toContain('<div class="collapsible-wrap open is-done" id="packagesList">');
-    expect(html).toMatch(/id="eventsToggleBtn" aria-expanded="true">Скрыть /);
-  });
-
-  it("игры платформы: блок со снимками, плитки 📱, правила, заявка", () => {
-    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "game-board", "game-millionaire", "game-dragon", "game-checkers"]) {
-      expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
+  it("смягчённые условия: без почасовой ставки, штрафов и залога; бронь, продление, договор", () => {
+    for (const bad of ["₽/час", "штраф", "Штраф", "каждые начатые", "доплата за размер группы", "Доплата за размер группы", "Квиз, любой формат", "МКАД", "залог", "Залог", "8 500", "7 000 ₽/"]) {
+      expect(html, bad).not.toContain(bad);
+      expect(js, bad).not.toContain(bad);
     }
-    const games: [string, string][] = [
-      ["board", "Своя игра"], ["millionaire", "Кто хочет стать миллионером"], ["survival", "Гонка на выживание"],
-      ["dragon", "Бой с драконом"], ["story", "Давайте знакомиться"], ["checkers", "Шашки"],
-    ];
-    for (const [key, title] of games) {
-      expect(html, title).toContain(`</span>${title}<span class="format-phone">📱 с телефонов</span>`);
-      expect(html, key).toContain(`data-rule-key="${key}"`);
-      expect(js, key).toContain(`'${key}': { title: '${title}'`);
-      expect(html, title).toContain(`<option>${title}</option>`);
+    for (const word of [/комисси/i, /маржа/i, /наценк/i, /агентству/i]) {
+      for (const text of [html, js, pricing, css]) expect(text).not.toMatch(word);
     }
-    // У каждой кнопки «Полные правила» есть текст правил.
-    for (const m of html.matchAll(/data-rule-key="([\w-]+)"/g)) expect(js, m[1]).toContain(`'${m[1]}': { title:`);
-    // «+N» под кнопкой считает скрипт, в разметке — текущее число плиток.
-    const more = html.slice(html.indexOf('id="moreFormatsWrap"'), html.indexOf("/servicesList"));
-    expect(html).toContain(`Показать другие форматы (+${(more.match(/class="format-tile"/g) ?? []).length})`);
-    expect(js).toContain("function updateMoreCount()");
+    const terms = html.slice(html.indexOf('<section id="terms"'), html.indexOf("</section>", html.indexOf('<section id="terms"')));
+    const t = terms.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    expect(t).toContain("Время программы считаем целиком, вместе с перерывами.");
+    expect(t).toContain("Продление — 3 900 ₽ за 30 минут.");
+    expect(t).toContain("Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость. Отмена за 2 дня и раньше — возвращаем.");
+    expect(t).toContain("Москва и Подмосковье — выезд включён, другие города — по договорённости.");
+    expect(t).toContain("Подробные условия — в договоре.");
+    expect(plain).toContain("Утверждаем программу и тайминг. Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость.");
+    expect(plain).toContain("Пакеты рассчитаны на 1,5–2 часа. Нужно дольше — добавьте продление");
   });
 
-  it("условия работы: время с перерывами, штрафы за неуважение к ведущему, обязательная галочка в заявке", () => {
-    const terms = html.slice(html.indexOf('<section id="terms">'), html.indexOf("</section>", html.indexOf('<section id="terms">')));
-    const plain = terms.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-    expect(plain).toContain("вместе с перерывами");
-    expect(plain).toContain("каждые начатые 30 минут сверх него оплачиваются по ставке ведущего");
-    expect(plain).toContain("Штраф 5 000 ₽");
-    expect(plain).toContain("ведущий вправе завершить мероприятие и уехать");
-    expect(plain).toContain("Штраф от 20 000 ₽");
-    expect(plain).toContain("залог 2 000 ₽");
-    expect(plain).toContain("за 2 дня и раньше , залог возвращаем");
-    expect(plain).toContain("за день или в день проведения — залог не возвращается");
-    const form = html.slice(html.indexOf('<form id="leadForm">'), html.indexOf("</form>", html.indexOf('<form id="leadForm">')));
+  it("заявка: обязательные галочки данных, брони и условий; необязательное — в «Дополнительно»", () => {
+    const form = html.slice(html.indexOf('<form id="leadForm"'), html.indexOf("</form>", html.indexOf('<form id="leadForm"')));
     expect(form).toContain('<input type="checkbox" id="termsAccept" required>');
     expect(form).toContain('<input type="checkbox" id="depositAccept" required>');
-    expect(js).toContain("deposit: document.getElementById('depositAccept').checked");
-    // Галочка согласия на данные — первая в форме (её читает sendLead), условия — вторая.
+    expect(form.replace(/<[^>]+>/g, "")).toContain("Согласен(на) с условиями брони: предоплата 2 000 ₽ в счёт стоимости");
+    expect(form.replace(/<[^>]+>/g, "")).toContain("Согласен(на) с условиями работы (подробно — в договоре)");
+    // Галочка согласия на данные — первая в форме (её читает sendLead), условия — после.
     expect(form.indexOf("consent-row")).toBeLessThan(form.indexOf("terms-row"));
+    expect(js).toContain("deposit: document.getElementById('depositAccept').checked");
     expect(js).toContain("terms: document.getElementById('termsAccept').checked");
-    // Ставка выходного дня — 8 500 ₽/час.
-    expect(js).toContain("isWeekend ? 8500 : 7000");
-    expect(html).toContain("8 500 ₽/час в выходные");
-  });
-
-  it("частые вопросы — только факты, без условий бронирования и предоплаты", () => {
-    const faq = html.slice(html.indexOf('<section id="faq">'), html.indexOf('<section id="contact">'));
-    expect(faq.match(/<details class="faq-item">/g)?.length).toBeGreaterThanOrEqual(5);
-    expect(faq).not.toMatch(/предоплат|бронирован|аванс|договор/i);
-  });
-
-  it("заявка: необязательные поля в «Дополнительно», раскрываются при выборе формата ведущего", () => {
     const more = html.slice(html.indexOf('<details class="form-more" id="formMore">'), html.indexOf("</details>", html.indexOf('id="formMore"')));
     for (const id of ["hostLevel", "contactMethod", "contactLink"]) expect(more).toContain(`id="${id}"`);
     for (const id of ["name", "phone", "type", "guests", "message"]) expect(more).not.toContain(`id="${id}"`);
     expect(js).toContain("formMore.open = true");
   });
 
-  it("честные формулировки: калькулятор вместо конструктора, «хорошо подходят»", () => {
-    expect(html).toContain("<h3>Рассчитать стоимость онлайн</h3>");
-    expect(html).toContain("Посчитайте примерную стоимость праздника за минуту — без звонков и ожидания.");
-    expect(html).toMatch(/<a href="#calculator" class="hbtn hbtn--secondary event-link">/);
-    expect(html).not.toContain("Конструктор мероприятия");
-    expect(js).toContain("Для корпоративов хорошо подходят:");
-    expect(js).not.toContain("чаще всего");
-    expect(html).not.toContain("Самые популярные");
-    expect(html).toContain("свяжемся в течение дня");
+  it("частые вопросы — только факты о платформе и сроках, без брони и предоплаты", () => {
+    const faq = html.slice(html.indexOf('<section id="faq"'), html.indexOf('<section id="reviews"'));
+    expect(faq.match(/<details class="faq__item">/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(faq).not.toMatch(/предоплат|бронирован|бронь|аванс|договор/i);
   });
 
-  it("карточки, которые не нажимаются, не реагируют на наведение", () => {
-    expect(css).not.toMatch(/\.(event|package|step|service-row):hover/);
+  it("калькулятор: шесть шагов, три цены сразу, длительность, полоска итога на телефоне", () => {
+    for (const id of ["calcPacks", "calcTiers", "calcDays", "calcExtras", "calcExt", "calcAddons", "calcLevels", "calcDuration", "calcLines", "calcSubmit", "calcBar"]) {
+      expect(html, id).toContain(`id="${id}"`);
+    }
+    expect(html.indexOf('<script src="js/pricing.js"></script>')).toBeLessThan(html.indexOf('<script src="js/script.js"></script>'));
+    expect(plain).toContain("Больше двух дополнительных игр — индивидуальный заказ:");
+    expect(plain).toContain("Каждые следующие 30 минут — 3 900 ₽.");
+    expect(plain).toContain("Это итог за весь вечер — без скрытых доплат. Отдельно только такси при выезде за область.");
+    expect(plain).toContain("Выезд по Москве и Подмосковью");
+    expect(js).toContain("window.JoyPricing");
+    // Старого почасового калькулятора нет.
+    for (const old of ["calcHours", "calcGuests", "calcCustom", "calcComplexity", "calcQuiz", "calcHostLevel", "isWeekend ? 8500"]) {
+      expect(html + js, old).not.toContain(old);
+    }
+  });
+
+  it("обзор игр: 33 игры без «Олимпа», фильтр со счётчиками, правила у каждой", () => {
+    const games = [...html.matchAll(/<article class="game" data-cat="(\w+)"( data-phone)?>/g)];
+    expect(games).toHaveLength(33);
+    expect(games.filter((g) => g[2])).toHaveLength(17);
+    expect(plain + js).not.toMatch(/олимп/i);
+    const counts: Record<string, number> = { all: 33, phone: 17, quiz: 5, tv: 2, music: 3, dance: 3, cards: 5, active: 5, party: 6, out: 3, custom: 1 };
+    for (const [key, n] of Object.entries(counts)) {
+      expect(html, key).toMatch(new RegExp(`data-filter="${key}"[^>]*>[^<]+<span class="filter__n">${n}</span>`));
+    }
+    const keys = [...html.matchAll(/class="game__rules" data-rule-key="([\w-]+)"/g)].map((m) => m[1]);
+    expect(keys).toHaveLength(33);
+    for (const key of keys) expect(js, key).toContain(`'${key}': { title:`);
+    // Снимки — настоящие экраны и карточки платформы, с понятным описанием.
+    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "cards-durak", "cards-loto", "game-board", "game-millionaire", "game-dragon", "game-checkers"]) {
+      expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
+    }
+    // Каждая игра есть в списке «Тип мероприятия» заявки.
+    for (const m of html.matchAll(/<article class="game"[\s\S]*?<h3>([^<]+)<\/h3>/g)) expect(html, m[1]).toContain(`<option>${m[1]}</option>`);
+  });
+
+  it("география — строкой в контактах, без карты", () => {
+    expect(html).not.toContain("coverage-map");
+    expect(plain).toContain("Москва и Подмосковье — выезд включён, другие города — по договорённости");
+  });
+
+  it("окна правил и политики: закрываются кнопкой, фоном и Escape, фокус возвращается", () => {
+    expect(js).toContain("e.key === 'Escape'");
+    expect(js).toContain("lastFocus.focus");
+    expect(html).toMatch(/id="ruleModalOverlay" role="dialog" aria-modal="true"/);
+    expect(html).toMatch(/id="privacyModalOverlay" role="dialog" aria-modal="true"/);
   });
 
   it("эмблема: из public/brand, статична при «уменьшить движение», датчик — без запроса разрешения", () => {
@@ -487,16 +472,14 @@ describe("тексты и устройство страницы", () => {
     expect(reduced).toMatch(/\.emblem-glint\{ animation: none; display: none; \}/);
     // Анимируются только transform и opacity.
     for (const name of ["emblemTilt", "emblemFlow", "emblemGlint", "emblemGlow"]) {
-      const body = css.slice(css.indexOf(`@keyframes ${name}{`), css.indexOf("\n  }", css.indexOf(`@keyframes ${name}{`)));
+      const body = css.slice(css.indexOf(`@keyframes ${name}{`), css.indexOf("\n}", css.indexOf(`@keyframes ${name}{`)));
       const props = [...body.matchAll(/([a-z-]+):/g)].map((m) => m[1]);
       expect(props.every((p) => p === "transform" || p === "opacity"), `${name}: ${props.join(",")}`).toBe(true);
     }
-    // Наклон ±8° и без вращения по кругу.
     const tilt = css.slice(css.indexOf("@keyframes emblemTilt{"), css.indexOf("@keyframes emblemFlow{"));
     for (const deg of tilt.match(/rotate[XY]\((-?\d+)deg\)/g) ?? []) expect(Math.abs(Number(/(-?\d+)/.exec(deg)?.[1]))).toBeLessThanOrEqual(12);
     expect(tilt).not.toMatch(/rotateZ|rotate\(/);
     expect(js).toContain("DeviceOrientationEvent.requestPermission === 'function'");
-    // Блик раз в ~5 с, свечение «дышит» в такт.
     expect(css).toMatch(/\.emblem-glint\{[^}]*animation: emblemGlint 5s/);
     expect(css).toMatch(/\.emblem-glow\{[^}]*animation: emblemGlow 5s/);
     // Пока эмблема видна — логотип в шапке скрыт, место сохраняется (opacity/visibility, не display).
@@ -521,28 +504,9 @@ describe("логотип сайта", () => {
     expect(readdirSync(join(root, "site"), { recursive: true })).not.toContain("img/logo.png");
   });
 
-  it("цвет логотипа и подложки: контраст ≥ 3 в светлой и тёмной теме", () => {
-    const darkStart = css.search(/@media \(prefers-color-scheme: dark\)\{\s*:root\{/);
-    expect(darkStart).toBeGreaterThan(0);
-    const dark = css.slice(darkStart);
-    const value = (text: string, name: string) => {
-      const m = new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`).exec(text);
-      if (!m?.[1]) throw new Error(`нет --${name}`);
-      return m[1];
-    };
-    for (const part of [css, dark]) {
-      expect(contrastRatio(value(part, "logo-color"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(3);
-      // Контур вторичной кнопки шапки — с фоном шапки ≥ 3, её текст ≥ 4.5.
-      expect(contrastRatio(value(part, "btn-outline"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(3);
-      expect(contrastRatio(value(part, "btn-outline-text"), value(part, "logo-bg"))).toBeGreaterThanOrEqual(4.5);
-    }
-    // Основная кнопка: тёмный текст на пыльной розе.
-    expect(contrastRatio(value(css, "btn-primary-text"), value(css, "btn-primary-bg"))).toBeGreaterThanOrEqual(4.5);
-    expect(value(dark, "logo-color")).not.toBe(value(css, "logo-color"));
-  });
-
-  it("анимация рамки отключается при «уменьшить движение»", () => {
+  it("анимации рамки и сцены отключаются при «уменьшить движение»", () => {
     expect(css).toMatch(/prefers-reduced-motion: reduce\)\{[\s\S]*?\.logo-frame\{ animation: none; \}/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce\)\{[\s\S]*?\.spot, \.blob, \.dust, \.ticker__in/);
   });
 
   it("сборка встраивает SVG без метаданных, с уникальными id, и делает PNG-иконки", () => {
@@ -572,6 +536,11 @@ describe("логотип сайта", () => {
     expect(size("favicon-32.png")).toEqual([32, 32]);
     expect(size("apple-touch-icon.png")).toEqual([180, 180]);
     expect(built).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png"');
-    expect(readdirSync(join(out, "css")).every((name) => /\.[0-9a-f]{10}\.css$/.test(name))).toBe(true);
+    for (const dir of ["css", "js", "img"]) {
+      expect(readdirSync(join(out, dir)).every((name) => /\.[0-9a-f]{10}\.\w+$/.test(name)), dir).toBe(true);
+    }
+    // Все три скрипта и снимки игр — с отпечатком в именах.
+    for (const name of ["theme", "pricing", "script"]) expect(built).toMatch(new RegExp(`<script src="js/${name}\\.[0-9a-f]{10}\\.js"></script>`));
+    expect(built).toMatch(/<img src="img\/cards-loto\.[0-9a-f]{10}\.webp"/);
   }, 30_000);
 });

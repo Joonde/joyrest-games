@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#FBF6F1">
+<title>JoyRest — организация мероприятий в Москве</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!-- Свои шрифты (css/fonts.css), без Google Fonts. Основные начертания — заранее. -->
+<link rel="preload" href="/fonts/jost-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/cormorant-garamond-cyrillic-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<!-- Направления, которых пока нет (скоро появятся). Включить — поставить "on":
+     всё с атрибутом data-needs появится, замены с data-unless скроются (css/style.css, js/script.js).
+     Список скрытого — CLAUDE.md, «Сайт агентства». -->
+<body id="top" data-service-dj="off" data-service-music="off" data-service-venue="off">
+
+<div class="ripple-layer" id="rippleLayer"></div>
+
+<button type="button" class="ask-fab" id="askFabBtn">💬 <span class="ask-fab-text">Задать вопрос</span></button>
+<div class="ask-panel" id="askPanel">
+  <h4>Есть вопрос?</h4>
+  <p>Спросите что угодно про мероприятие — ответим без звонков и заявок.</p>
+  <form id="askForm">
+    <input type="text" id="askContact" placeholder="Телефон или Telegram (по желанию)">
+    <textarea id="askText" placeholder="Ваш вопрос" required></textarea>
+    <label class="consent-row">
+      <input type="checkbox" required>
+      <span>Согласен(на) на обработку персональных данных в соответствии с <button type="button" class="privacy-link">политикой конфиденциальности</button></span>
+    </label>
+    <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+    <button type="submit">Отправить</button>
+    <p class="form-note" id="askNote" role="status">Спасибо! Ответим в ближайшее время.</p>
+    <p class="form-error" id="askError" role="alert"></p>
+  </form>
+</div>
+
+<div class="rule-modal-overlay" id="ruleModalOverlay">
+  <div class="rule-modal">
+    <button type="button" class="rule-modal-close" id="ruleModalClose" aria-label="Закрыть">✕</button>
+    <h3 id="ruleModalTitle">Название</h3>
+    <p id="ruleModalText">Текст правил.</p>
+  </div>
+</div>
+
+<div class="rule-modal-overlay" id="privacyModalOverlay">
+  <div class="rule-modal" style="max-width:560px; max-height:80vh; overflow-y:auto;">
+    <button type="button" class="rule-modal-close" id="privacyModalClose" aria-label="Закрыть">✕</button>
+    <h3>Политика обработки персональных данных</h3>
+    <p style="margin-bottom:12px;">Оператор персональных данных — организатор мероприятий JoyRest (ФИО, ИНН — и ОГРНИП, если применимо — будут указаны после завершения регистрации в качестве самозанятого или ИП). Настоящая политика определяет порядок обработки персональных данных посетителей сайта joy-rest.ru в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
+    <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Какие данные собираются:</strong> имя, номер телефона, способ и ссылка для связи (Telegram/WhatsApp/ВК/MAX), количество гостей, комментарий к заявке, текст отзыва — то есть только то, что вы сами вводите в формы на сайте.</p>
+    <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Цель обработки:</strong> связь с вами по поводу заявки на организацию мероприятия, ответ на вопрос, публикация отзыва (по вашему желанию и после согласования).</p>
+    <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Передача третьим лицам:</strong> данные не передаются третьим лицам и не используются в рекламных целях. Заявки поступают напрямую организатору через мессенджер.</p>
+    <p style="margin-bottom:12px;"><strong style="color:var(--ink);">Хранение:</strong> данные хранятся до момента отзыва согласия или до истечения необходимости их обработки.</p>
+    <p style="margin-bottom:0;"><strong style="color:var(--ink);">Ваши права:</strong> вы можете в любой момент отозвать согласие на обработку данных и потребовать их удаления, написав на контакты, указанные в разделе «Контакты» на сайте.</p>
+  </div>
+</div>
+
+<header id="siteHeader">
+  <div class="nav">
+    <!-- Логотип из public/brand/: сборка (scripts/build-site.ts) встраивает SVG в data-brand-svg. -->
+    <a href="#top" class="logo" aria-label="JoyRest — Events &amp; Experiences, на начало страницы">
+      <span class="logo-frame"><span class="logo-tile">
+        <span class="logo-svg logo-svg--full" data-brand-svg="joyrest-logo"></span>
+        <span class="logo-svg logo-svg--monogram" data-brand-svg="joyrest-monogram"></span>
+      </span></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#events">Мероприятия</a>
+      <a href="#platform">Платформа</a>
+      <a href="#gallery">Игры</a>
+      <a href="#services" data-open-section="services">Форматы</a>
+      <a href="#calculator">Калькулятор</a>
+      <a href="#packages" data-open-section="packages">Пакеты</a>
+      <a href="#faq">Вопросы</a>
+    </nav>
+    <!-- Действия шапки: «Оставить заявку» ведёт к форме и ставит фокус в первое поле,
+         «Услуги» раскрывает раздел (на узких экранах — только в меню ☰). js/script.js -->
+    <div class="header-actions">
+      <a href="#contact" class="hbtn hbtn--primary" data-focus-target="name">Оставить заявку</a>
+      <a href="#services" class="hbtn hbtn--secondary" data-open-section="services">Услуги</a>
+    </div>
+    <button class="burger" id="burgerBtn" aria-label="Открыть меню" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-panel" id="mobilePanel">
+    <a href="#events">Мероприятия</a>
+    <a href="#platform">Игры с телефонов</a>
+    <a href="#gallery">Как выглядят игры</a>
+    <a href="#services" data-open-section="services">Услуги и форматы</a>
+    <a href="#packages" data-open-section="packages">Пакеты</a>
+    <a href="#calculator">Калькулятор</a>
+    <a href="#terms">Условия работы</a>
+    <a href="#process">Как это работает</a>
+    <a href="#faq">Частые вопросы</a>
+    <a href="#reviews">Telegram</a>
+    <a href="#contact">Контакты</a>
+    <a href="#contact" class="nav-cta" data-focus-target="name">Оставить заявку</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero band">
+    <span class="blob blob1"></span>
+    <span class="blob blob2"></span>
+    <div class="reveal">
+      <!-- Эмблема из public/brand (встраивает сборка). Цвет — фирменный градиент под маской
+           формы эмблемы (--emblem-mask, файл делает scripts/build-site.ts), блик и наклон —
+           только transform/opacity; «уменьшить движение» — статично (css/style.css, js/script.js). -->
+      <div class="emblem" aria-hidden="true" style="--emblem-mask: url(/img/joyrest-emblem-mask.svg)">
+        <span class="emblem-glow"></span>
+        <div class="emblem-tilt">
+          <span class="emblem-svg" data-brand-svg="joyrest-emblem"></span>
+          <span class="emblem-paint"><span class="emblem-gradient"></span><span class="emblem-glint"></span></span>
+        </div>
+      </div>
+      <h1>Радость <span class="accent">без хлопот</span></h1>
+      <p data-needs="dj music venue"><strong style="color:var(--accent-text); font-weight:500;">JoyRest</strong> берёт на себя организацию праздника целиком, если это вам необходимо: площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет — вам остаётся только прийти и радоваться.</p>
+      <p data-unless="dj music venue"><strong style="color:var(--accent-text); font-weight:500;">JoyRest</strong> берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.</p>
+      <a href="#contact" class="hero-cta">Оставить заявку</a>
+    </div>
+    <div class="hero-side reveal">
+      <div class="stat">
+        <div class="stat-label" style="margin-bottom:10px;">Организуем</div>
+        <ul class="dir-list">
+          <li>🎉 Корпоративы</li>
+          <li>🎂 Дни рождения</li>
+          <li>✨ Частные события</li>
+          <li class="dir-soon">💍 Свадьбы — скоро</li>
+          <li>🎲 Квизы, «Своя игра», Мафия, Бункер, танцы и другие игры</li>
+        </ul>
+      </div>
+      <div class="stat">
+        <div class="stat-num">В течение дня</div>
+        <div class="stat-label" data-needs="venue">ответим на заявку и пришлём варианты площадки и подрядчиков</div>
+        <div class="stat-label" data-unless="venue">ответим на заявку и предложим программу под ваш формат</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="picker-wrap reveal">
+    <div class="section-head" style="margin-bottom:20px;">
+      <h2 style="font-size:26px;">Что у вас за повод?</h2>
+      <p>Выберите — покажем только то, что вам подходит. Можно и не выбирать, тогда видно всё.</p>
+    </div>
+    <div class="picker-grid">
+      <button type="button" class="picker-btn" data-event="corporate"><span class="picker-emoji">🎉</span>Корпоратив</button>
+      <button type="button" class="picker-btn" data-event="birthday"><span class="picker-emoji">🎂</span>День рождения</button>
+      <button type="button" class="picker-btn" data-event="other"><span class="picker-emoji">✨</span>Другой повод</button>
+    </div>
+    <div class="picker-info" id="pickerInfo">
+      <div class="picker-info-inner" id="pickerInfoInner"></div>
+    </div>
+  </section>
+
+  <section class="events band is-collapsible is-open" id="events">
+    <div class="section-head reveal">
+      <div>
+        <h2 style="display:flex; align-items:center; gap:14px;">
+          Мероприятия
+          <button type="button" class="section-toggle-btn open" id="eventsToggleBtn" aria-expanded="true">Скрыть <span class="toggle-arrow">↓</span></button>
+        </h2>
+        <p>Под каждый повод — своя программа, а не универсальный шаблон.</p>
+      </div>
+    </div>
+    <div class="collapsible-wrap open is-done" id="eventsList">
+      <div class="event-list">
+        <div class="event e2 reveal">
+          <h3>Корпоративы</h3>
+          <p>Новогодние вечера, тимбилдинги, юбилеи компании — программы строим вокруг задач бизнеса: от нейтрального формата до вечеринки <span data-needs="dj">с диджеем и конкурсами</span><span data-unless="dj">с играми и конкурсами</span>. Для новых команд — игра на знакомство «Давайте знакомиться».</p>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin-top:10px;">Будем благодарны за согласие на фото и отзыв для нашего портфолио — это по желанию.</p>
+        </div>
+        <div class="event e3 reveal">
+          <h3>Дни рождения</h3>
+          <p data-needs="dj venue">Взрослые и детские праздники с ведущим, аниматорами или диджеем — формат и площадку подбираем под возраст и число гостей.</p>
+          <p data-unless="dj venue">Взрослые и детские праздники с ведущим — формат и программу подбираем под возраст и число гостей.</p>
+        </div>
+        <div class="event e4 reveal">
+          <h3>Частные события</h3>
+          <p>Юбилеи, выпускные, тематические вечеринки — если повод не вписывается в привычные категории, соберём программу с нуля.</p>
+        </div>
+        <div class="event e3 reveal">
+          <h3>Рассчитать стоимость онлайн</h3>
+          <p>Посчитайте примерную стоимость праздника за минуту — без звонков и ожидания.</p>
+          <a href="#calculator" class="hbtn hbtn--secondary event-link">Открыть калькулятор</a>
+        </div>
+      </div>
+      <p class="event-note reveal">Помимо этого проводим и другие форматы событий по индивидуальному запросу — напишите нам, обсудим повод.</p>
+    </div>
+  </section>
+
+  <!-- Игровая платформа JoyRest Games: снимки — настоящие экраны демо-квиза (img/platform-*.webp). -->
+  <section id="platform">
+    <div class="section-head reveal">
+      <h2>Игры с ваших телефонов</h2>
+      <p>Наша игровая платформа: вопросы — на большом экране, гости отвечают со своих телефонов, ведущий ведёт игру с пульта.</p>
+    </div>
+    <div class="platform-shots reveal">
+      <figure class="platform-shot platform-shot--hall">
+        <img src="img/platform-hall.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран зала: вопрос квиза и четыре варианта ответа, таймер и сколько команд ответили">
+        <figcaption><strong>Экран зала</strong> — телевизор, проектор или ноутбук: вопрос, таймер, таблица очков и награждение.</figcaption>
+      </figure>
+      <figure class="platform-shot">
+        <img src="img/platform-phone.webp" width="720" height="872" loading="lazy" decoding="async" alt="Телефон гостя: варианты ответа, выбранный ответ и надпись «Ответ принят»">
+        <figcaption><strong>Телефон гостя</strong> — вход по QR-коду, без приложений и регистрации.</figcaption>
+      </figure>
+    </div>
+    <ul class="platform-points reveal">
+      <li><strong>Без приложений.</strong> Гость сканирует QR-код или вводит код игры из шести цифр.</li>
+      <li><strong>Каждый сам или командами.</strong> К команде можно подключить несколько телефонов, отвечает капитан.</li>
+      <li><strong>Очки считаются сами.</strong> Скорость ответа, таблица после вопроса, пьедестал в конце и ссылка на итоги.</li>
+      <li><strong>Можно и без экрана.</strong> Тогда вопросы и варианты появятся прямо на телефонах гостей.</li>
+    </ul>
+    <p class="platform-games reveal">На платформе: классический и авторский квиз, квиз под компанию, «Угадай мелодию», музыкальное лото, «Своя игра», «Кто хочет стать миллионером», «Гонка на выживание», «Бой с драконом», «Давайте знакомиться», Мафия, Бункер, «Правда или действие», танцевальный баттл и шашки. В списке форматов они отмечены 📱.</p>
+    <a href="#services" class="hbtn hbtn--secondary platform-link reveal" data-open-section="services">Смотреть форматы</a>
+  </section>
+
+  <!-- «Как выглядят наши игры»: настоящие карточки и экраны зала платформы (site/img/cards-*, game-*). -->
+  <section id="gallery">
+    <div class="section-head reveal">
+      <h2>Как выглядят наши игры</h2>
+      <p>Карточки и экраны — из нашей платформы: их видят гости на телефонах и на большом экране.</p>
+    </div>
+    <div class="gallery-cards reveal">
+      <figure class="gallery-item gallery-item--wide">
+        <div class="gallery-scroll" tabindex="0" role="group" aria-label="Карточки — листайте вбок"><img src="img/cards-mafia.webp" width="1400" height="518" loading="lazy" decoding="async" alt="Карточки «Мафии»: рубашка с логотипом JoyRest и роли Мафия, Комиссар и Доктор с иллюстрациями"></div>
+        <figcaption><strong>Мафия</strong> — роль тайно приходит на телефон: рубашка JoyRest и свой персонаж у каждой роли.</figcaption>
+      </figure>
+      <figure class="gallery-item gallery-item--wide">
+        <div class="gallery-scroll" tabindex="0" role="group" aria-label="Карточки — листайте вбок"><img src="img/cards-bunker.webp" width="1400" height="467" loading="lazy" decoding="async" alt="Карточки «Бункера»: катастрофа «Ядерная зима», профессия, особое условие, карта бункера и рубашка"></div>
+        <figcaption><strong>Бункер</strong> — катастрофа, карты персонажа, особые условия и чертежи бункера.</figcaption>
+      </figure>
+      <figure class="gallery-item gallery-item--wide">
+        <div class="gallery-scroll" tabindex="0" role="group" aria-label="Карточки — листайте вбок"><img src="img/cards-truth.webp" width="1400" height="613" loading="lazy" decoding="async" alt="Карточки «Правды или действия»: рубашка с выбором и лицевые стороны «Правда» и «Действие»"></div>
+        <figcaption><strong>Правда или действие</strong> — гость касается половины карты на телефоне, карточка открывается на экране.</figcaption>
+      </figure>
+    </div>
+    <div class="gallery-grid reveal">
+      <figure class="gallery-item">
+        <img src="img/game-board.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Своей игры»: поле категорий Кино, География, Праздники, Еда со стоимостями вопросов">
+        <figcaption><strong>Своя игра</strong> — поле категорий, «Кот в мешке» и кнопка «кто первый» на телефоне.</figcaption>
+      </figure>
+      <figure class="gallery-item">
+        <img src="img/game-millionaire.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Кто хочет стать миллионером»: вопрос с вариантами и лестницы трёх команд">
+        <figcaption><strong>Кто хочет стать миллионером</strong> — у каждой команды своя лестница и подсказки.</figcaption>
+      </figure>
+      <figure class="gallery-item">
+        <img src="img/game-dragon.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Боя с драконом»: дракон со шкалой здоровья, вопрос и герои команд">
+        <figcaption><strong>Бой с драконом</strong> — герои команд против дракона: вопросы, задания и кубик.</figcaption>
+      </figure>
+      <figure class="gallery-item">
+        <img src="img/game-checkers.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Шашек»: доска, счёт команд и вопрос команде, потерявшей шашку">
+        <figcaption><strong>Шашки</strong> — команда на команду, съели шашку — вопрос этой команде.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="is-collapsible" id="services">
+    <div class="section-head reveal">
+      <div>
+        <h2 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          Услуги
+          <button type="button" class="section-toggle-btn" id="servicesToggleBtn" aria-expanded="false">Показать <span class="toggle-arrow">↓</span></button>
+        </h2>
+        <p data-needs="dj music venue">Можно заказать всё сразу или только то, чего не хватает.</p>
+        <p data-unless="dj music venue">Ведущие и игровые программы под ваш формат.</p>
+      </div>
+    </div>
+    <div class="collapsible-wrap" id="servicesList">
+    <div class="services-list">
+      <div class="service-row reveal">
+        <h3>Ведущие</h3>
+        <p>Подбор ведущего под формат и аудиторию — от камерного тона до энергичной программы.</p>
+      </div>
+      <div class="service-row reveal" data-needs="dj">
+        <h3>Диджеи</h3>
+        <p>Музыкальное сопровождение под возраст и настроение гостей, с оборудованием под площадку.</p>
+      </div>
+      <div class="service-row reveal" data-needs="music">
+        <h3>Музыканты</h3>
+        <p>Живой звук — от струнного квартета на церемонии до кавер-группы на банкете.</p>
+      </div>
+      <div class="service-row reveal" data-needs="venue">
+        <h3>Площадки</h3>
+        <p>Подбор зала или локации по метражу, вместимости и техническому оснащению под ваш сценарий.</p>
+      </div>
+    </div>
+
+    <div class="formats-block">
+      <h3 style="font-size:24px; font-weight:600; margin-bottom:6px;">Форматы программ</h3>
+      <p style="font-size:14px; color:var(--ink-soft); margin:0 0 20px;">Основные форматы — остальные под кнопкой ниже. 📱 — гости играют со своих телефонов.</p>
+      <button type="button" class="filter-reset" id="filterResetBtn">← Показать все форматы, сбросить выбор повода</button>
+      <div class="format-grid reveal">
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Мафия<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Вычисляем мафию среди мирных — роли тайно приходят на телефоны, партий за вечер несколько.</p>
+              <button type="button" class="format-more-btn" data-rule-key="mafia">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Бункер<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>У каждого карточка персонажа на телефоне — решаете, кто останется в бункере.</p>
+              <button type="button" class="format-more-btn" data-rule-key="bunker">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Телешоу</span>Своя игра<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Поле категорий и стоимостей, кнопка «кто первый» на телефоне и «Кот в мешке».</p>
+              <button type="button" class="format-more-btn" data-rule-key="board">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Телешоу</span>Кто хочет стать миллионером<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>12 ступеней, несгораемые суммы и подсказки: 50 на 50, помощь зала, звонок другу.</p>
+              <button type="button" class="format-more-btn" data-rule-key="millionaire">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Квизы</span>Классический квиз<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Туры на эрудицию: кино, музыка, история, логика.</p>
+              <button type="button" class="format-more-btn" data-rule-key="quiz-classic">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Квизы</span>Квиз под компанию<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Вопросы под сферу деятельности именно вашей команды.</p>
+              <button type="button" class="format-more-btn" data-rule-key="quiz-company">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Музыкальные игры</span>Угадай мелодию<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Узнаём треки по коротким отрывкам — кто быстрее, тот в плюсе.</p>
+              <button type="button" class="format-more-btn" data-rule-key="melody">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Знакомство</span>Давайте знакомиться<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Угадываем, чья история, ищем ложь среди правд и сочиняем историю всем залом.</p>
+              <button type="button" class="format-more-btn" data-rule-key="story">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Шпион</div>
+            <div class="format-back">
+              <p>Один не знает секрет — вычисляем его наводящими вопросами.</p>
+              <button type="button" class="format-more-btn" data-rule-key="spy">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Танцевальные форматы</span>Just Dance Battle<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Открываете карточку — танцуете или поёте под клип командой, зал ставит оценки с телефонов.</p>
+              <button type="button" class="format-more-btn" data-rule-key="justdance">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Алкоразвлечения</span>Алкогольные приключения</div>
+            <div class="format-back">
+              <p>Ходилка на 60 клеток с фишками-рюмками. Версии Lite и Intense.</p>
+              <button type="button" class="format-more-btn" data-rule-key="alcohol">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Под заказ</span>Игра под ваш запрос</div>
+            <div class="format-back">
+              <p>Придумываем формат специально под вашу компанию и повод.</p>
+              <button type="button" class="format-more-btn" data-rule-key="custom">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="write-review-btn reveal" id="toggleMoreFormats" style="margin-top:24px;">Показать другие форматы (+19)</button>
+
+      <div class="more-formats-wrap" id="moreFormatsWrap">
+      <h4 class="other-format-cat">Классические игры</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Правда или действие<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Честный ответ или смешное задание — свои задания гости предлагают с телефонов.</p>
+              <button type="button" class="format-more-btn" data-rule-key="truth">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Большой переполох</div>
+            <div class="format-back">
+              <p>Смешные фанты по кругу под музыку — кому достанется, тот тянет.</p>
+              <button type="button" class="format-more-btn" data-rule-key="chaos">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Битва тостов</div>
+            <div class="format-back">
+              <p>Тост на две случайные несочетаемые темы за полминуты.</p>
+              <button type="button" class="format-more-btn" data-rule-key="toasts">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Замри! Живые скульптуры</div>
+            <div class="format-back">
+              <p>Застываем в позе на заданную тему всего за 5 секунд.</p>
+              <button type="button" class="format-more-btn" data-rule-key="freeze">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Немая история</div>
+            <div class="format-back">
+              <p>Показываем историю по карточкам жестами, без единого слова.</p>
+              <button type="button" class="format-more-btn" data-rule-key="mute">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Живой оркестр</div>
+            <div class="format-back">
+              <p>Каждый гость — «инструмент» в импровизированном оркестре зала.</p>
+              <button type="button" class="format-more-btn" data-rule-key="orchestra">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Классические игры</span>Казаки-разбойники: Допрос</div>
+            <div class="format-back">
+              <p>Прячем фразу по кусочкам на природе — ищем и разгадываем тайники.</p>
+              <button type="button" class="format-more-btn" data-rule-key="kazaki">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h4 class="other-format-cat">Игры на большом экране</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="corporate,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Игры на большом экране</span>Гонка на выживание<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>30 раундов гонки по очкам, каждый пятый — «Войнушка» со ставками.</p>
+              <button type="button" class="format-more-btn" data-rule-key="survival">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Игры на большом экране</span>Бой с драконом<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Команды выбирают героев и вместе бьют дракона: вопросы, задания и кубик.</p>
+              <button type="button" class="format-more-btn" data-rule-key="dragon">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Игры на большом экране</span>Шашки<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Русские шашки команда на команду: съели шашку — вопрос этой команде.</p>
+              <button type="button" class="format-more-btn" data-rule-key="checkers">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h4 class="other-format-cat">Музыкальные игры</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="corporate,birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Музыкальные игры</span>Музыкальное лото<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Музыкальное бинго — закрываем клетки по звучащим трекам.</p>
+              <button type="button" class="format-more-btn" data-rule-key="musicloto">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h4 class="other-format-cat">Квизы</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Квизы</span>Авторский квиз<span class="format-phone">📱 с телефонов</span></div>
+            <div class="format-back">
+              <p>Нестандартные вопросы и темы для тех, кто хочет удивить гостей.</p>
+              <button type="button" class="format-more-btn" data-rule-key="quiz-unusual">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Квизы</span>Квиз с элементами игр</div>
+            <div class="format-back">
+              <p>Викторина вперемешку с мини-играми между турами.</p>
+              <button type="button" class="format-more-btn" data-rule-key="quiz-games">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="corporate,birthday-adult,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Квизы</span>Квиз с музыкой и танцами</div>
+            <div class="format-back">
+              <p>Вопросы чередуются с музыкальными и танцевальными раундами.</p>
+              <button type="button" class="format-more-btn" data-rule-key="quiz-dance">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h4 class="other-format-cat">Танцевальные форматы</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Танцевальные форматы</span>Танцевальное лото</div>
+            <div class="format-back">
+              <p>Танцевальное бинго — чтобы закрыть клетку, нужно станцевать движение.</p>
+              <button type="button" class="format-more-btn" data-rule-key="danceloto">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="birthday-kids,birthday-adult">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Танцевальные форматы</span>Танцевальный кураж</div>
+            <div class="format-back">
+              <p>Баттл команд: под трек нужно точно повторить заготовленную связку движений.</p>
+              <button type="button" class="format-more-btn" data-rule-key="dancekuraj">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h4 class="other-format-cat">Игры-ходилки</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="corporate,birthday-kids">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Игры-ходилки</span>Сладкие приключения</div>
+            <div class="format-back">
+              <p>Ходилка без градуса: фишки — стаканчики сока. Для детей и семей.</p>
+              <button type="button" class="format-more-btn" data-rule-key="sweet-adventure">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h4 class="other-format-cat">Сезонные игры</h4>
+      <div class="format-grid">
+        <div class="format-tile" data-events="birthday-kids,corporate">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Сезонные игры</span>Снежный десант</div>
+            <div class="format-back">
+              <p>Бросаем снежки по мишеням на скорость и точность.</p>
+              <button type="button" class="format-more-btn" data-rule-key="snowball">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+        <div class="format-tile" data-events="birthday-kids,corporate">
+          <div class="format-tile-inner">
+            <div class="format-front"><span class="format-tag-chip">Сезонные игры</span>Не урони каплю</div>
+            <div class="format-back">
+              <p>Перебрасываем шарик с водой, отступая шаг за шагом.</p>
+              <button type="button" class="format-more-btn" data-rule-key="waterballoon">+ Полные правила</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+    </div><!-- /servicesList: «Форматы программ» тоже сворачиваются вместе с «Услугами» -->
+  </section>
+
+  <section class="is-collapsible is-open" id="packages">
+    <div class="section-head reveal">
+      <div>
+        <h2 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          Пакеты услуг
+          <button type="button" class="section-toggle-btn open" id="packagesToggleBtn" aria-expanded="true">Скрыть <span class="toggle-arrow">↓</span></button>
+        </h2>
+        <p data-needs="venue">Берите по частям или всё сразу под ключ.</p>
+        <p data-unless="venue">Работа ведущего — почасово, остальное обсуждаем индивидуально.</p>
+      </div>
+    </div>
+    <div class="collapsible-wrap open is-done" id="packagesList">
+    <div class="packages">
+      <div class="package reveal">
+        <div class="pkg-num"></div>
+        <h3>Ведущий</h3>
+        <p>Почасовая работа ведущего: 7 000 ₽/час в будни и 8 500 ₽/час в выходные (на расчёт выходного дня — скидка −10%), минимум 1,5 часа. Время считается целиком, вместе с перерывами. Точный расчёт — в калькуляторе ниже.</p>
+      </div>
+      <div class="package reveal" data-needs="dj">
+        <div class="pkg-num"></div>
+        <h3>Диджей</h3>
+        <p>Цена договорная и зависит от дня недели — обсуждаем отдельно от работы ведущего.</p>
+      </div>
+      <div class="package reveal">
+        <div class="pkg-num"></div>
+        <h3>Дополнительно</h3>
+        <p>Диджей, мероприятие под ключ и другие услуги — обсуждаем индивидуально. Напишите о пожеланиях в комментарии к заявке.</p>
+      </div>
+      <div class="package featured reveal" data-needs="venue">
+        <div class="pkg-num"></div>
+        <h3>Под ключ</h3>
+        <p>Ведущий, подбор площадки, составление программы — берём на себя ответственность за всё мероприятие целиком.</p>
+      </div>
+    </div>
+
+    <!-- Стартовые форматы с молодыми ведущими. Скидка — на работу ведущего (калькулятор,
+         поле «Формат ведущего» в заявке, hostLevel в /api/lead). Тексты согласованы с владельцем. -->
+    <div class="packages packages--start">
+      <div class="package package--start reveal">
+        <span class="pkg-badge">−25%</span>
+        <h3>Новые лица <span class="pkg-sub">— для тех, кто любит пробовать новое</span></h3>
+        <p>Ведущие, которые уже провели свои первые праздники и сейчас набирают опыт. Много энергии, свежие идеи и большое желание сделать ваш вечер особенным.</p>
+        <p>Опыта у них меньше, чем у наших основных ведущих, поэтому цена ниже на 25% — мы честно делим с вами возможные шероховатости.</p>
+        <p class="pkg-how">Как это устроено:</p>
+        <ul class="pkg-list">
+          <li>сценарий и программу готовим вместе с опытным ведущим JoyRest;</li>
+          <li>игры, реквизит и оборудование — как в обычном формате;</li>
+          <li>на празднике ведущий работает самостоятельно и сам справляется с неожиданностями — именно так растёт настоящее мастерство.</li>
+        </ul>
+        <a href="#contact" class="hbtn hbtn--secondary pkg-choose" data-host-level="new">Выбрать этот формат</a>
+      </div>
+      <div class="package package--start reveal">
+        <span class="pkg-badge">−35%</span>
+        <h3>Первый старт <span class="pkg-sub">— для самых смелых</span></h3>
+        <p>Ведущие, для которых ваш праздник станет одним из первых. Волнение, искренность и стремление выложиться на все сто — такого вы больше нигде не увидите.</p>
+        <p>Это максимальный эксперимент, поэтому и скидка максимальная — 35%.</p>
+        <p class="pkg-how">Как это устроено:</p>
+        <ul class="pkg-list">
+          <li>сценарий готовим вместе с опытным ведущим JoyRest и заранее репетируем;</li>
+          <li>игры, реквизит и оборудование — как в обычном формате;</li>
+          <li>на празднике ведущий работает самостоятельно — для него это настоящий первый выход.</li>
+        </ul>
+        <a href="#contact" class="hbtn hbtn--secondary pkg-choose" data-host-level="first">Выбрать этот формат</a>
+      </div>
+    </div>
+    <p class="start-note reveal">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
+    </div>
+  </section>
+
+  <section id="calculator">
+    <div class="section-head reveal">
+      <h2>Калькулятор стоимости</h2>
+      <p>Ориентировочный расчёт работы ведущего — точную сумму уточним на созвоне.</p>
+    </div>
+    <div class="calc-box reveal">
+      <div class="calc-inputs">
+      <div class="calc-row">
+        <div class="calc-row-top">
+          <label for="calcHostLevel">Ведущий</label>
+        </div>
+        <select id="calcHostLevel">
+          <option value="standard">Опытный</option>
+          <option value="new">Новые лица (−25%)</option>
+          <option value="first">Первый старт (−35%)</option>
+        </select>
+      </div>
+
+      <div class="calc-row">
+        <div class="calc-row-top">
+          <label>День проведения</label>
+        </div>
+        <div class="calc-daytoggle">
+          <label><input type="radio" name="calcDay" value="weekday" checked> Будний день</label>
+          <label><input type="radio" name="calcDay" value="weekend"> Выходной день</label>
+        </div>
+        <p class="calc-hint">Ставка ведущего: в будни 7 000 ₽/час, в выходные 8 500 ₽/час, но на расчёт действует скидка выходного дня −10%.</p>
+      </div>
+
+      <div class="calc-row">
+        <div class="calc-row-top">
+          <label for="calcHours">Часы работы ведущего</label>
+          <span class="calc-value" id="calcHoursValue">1.5 ч</span>
+        </div>
+        <input type="range" id="calcHours" min="1.5" max="5" step="0.5" value="1.5">
+        <p class="calc-hint">Минимальный заказ — 1,5 часа, от 3 часов — скидка 5%. Больше 5 часов — обсуждаем цену индивидуально.</p>
+      </div>
+
+      <div class="calc-row">
+        <div class="calc-row-top">
+          <label for="calcGuests">Количество гостей</label>
+          <span class="calc-value" id="calcGuestsValue">20</span>
+        </div>
+        <input type="range" id="calcGuests" min="5" max="100" step="5" value="20">
+        <p class="calc-hint">От 20 гостей — доплата за размер группы: 3 000 ₽ и ещё 3 000 ₽ за каждые следующие 5 гостей. От 25 гостей часть доплаты возвращаем скидкой: 5% за каждые 5 гостей, до 20%.</p>
+      </div>
+
+      <div class="calc-row">
+        <div class="calc-row-top">
+          <label>Дополнительные форматы</label>
+        </div>
+        <p class="calc-hint" style="margin: 0 0 12px;">Классические игры — Мафия, Бункер, Шпион и другие — входят в работу ведущего, доплаты нет.</p>
+        <label class="calc-toggle"><input type="checkbox" id="calcQuiz" data-fee="5000"><span>Квиз, любой формат (+5 000 ₽)</span></label>
+        <label class="calc-toggle"><input type="checkbox" id="calcDance" data-fee="3000"><span>Танцевальный формат (+3 000 ₽)</span></label>
+        <label class="calc-toggle"><input type="checkbox" id="calcOutdoor" data-fee="2500"><span>Игра на открытом воздухе (+2 500 ₽)</span></label>
+        <p class="calc-hint" style="margin: -6px 0 14px 28px;">Доплата за формат на улице — это доп. оборудование и реквизит для конкурсов на открытом воздухе.</p>
+        <label class="calc-toggle"><input type="checkbox" id="calcOutOfTown" data-fee="2000"><span>Выезд за пределы города/области (+2 000 ₽ + такси)</span></label>
+      </div>
+
+      <label class="calc-toggle">
+        <input type="checkbox" id="calcCustom">
+        <span>Мероприятие по индивидуальному сценарию (под заказ)</span>
+      </label>
+
+      <div class="calc-row" id="calcComplexityRow" style="display:none;">
+        <div class="calc-row-top">
+          <label for="calcComplexity">Сложность программы</label>
+        </div>
+        <select id="calcComplexity">
+          <option value="3000">Простая (+3 000 ₽)</option>
+          <option value="6000">Средняя (+6 000 ₽)</option>
+          <option value="10000">Сложная (+10 000 ₽)</option>
+        </select>
+      </div>
+
+      </div>
+      <div class="calc-result">
+      <div class="calc-breakdown">
+        <div><span>Работа ведущего</span><span id="calcBase">10 500 ₽</span></div>
+        <div id="calcExtraRow" style="display:none;"><span>Индивидуальный сценарий</span><span id="calcExtra">0 ₽</span></div>
+        <div id="calcFormatsRow" style="display:none;"><span>Доп. форматы</span><span id="calcFormats">0 ₽</span></div>
+        <div id="calcSurchargeRow" style="display:none;"><span>Доплата за размер группы</span><span id="calcSurcharge">0 ₽</span></div>
+        <div id="calcDiscountRow" style="display:none;"><span>Скидка за количество гостей</span><span id="calcDiscount">−0 ₽</span></div>
+        <div id="calcWeekendDiscountRow" style="display:none;"><span>Скидка выходного дня (−10%)</span><span id="calcWeekendDiscount">−0 ₽</span></div>
+        <div id="calcHoursDiscountRow" style="display:none;"><span>Скидка за длительность 3+ часа (−5%)</span><span id="calcHoursDiscount">−0 ₽</span></div>
+        <div id="calcHostDiscountRow" style="display:none;"><span id="calcHostDiscountLabel">Скидка «Новые лица» (−25%)</span><span id="calcHostDiscount">−0 ₽</span></div>
+      </div>
+      <p class="calc-hint" id="calcTaxiNote" style="display:none;">+ такси ведущему по факту, отдельно от расчёта выше.</p>
+      <div class="calc-total">
+        <span>Итого</span>
+        <span id="calcTotal">10 500 ₽</span>
+      </div>
+      <button type="button" class="calc-submit" id="calcSubmit">Отправить расчёт в заявку</button>
+      <p class="calc-hint">Расчёт ориентировочный: точную сумму уточним на созвоне. Время считается целиком, с перерывами; если мероприятие идёт дольше оплаченного, каждые начатые 30 минут сверх него оплачиваются по ставке ведущего. После согласования даты — залог 2 000 ₽, он входит в оплату.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Условия работы ведущего (решение владельца 9 октября 2026): время вечера целиком, с перерывами;
+       штрафы за неуважение к ведущему. Галочка «Принимаю условия» в заявке — обязательная (terms в /api/lead). -->
+  <section id="terms">
+    <div class="section-head reveal">
+      <h2>Условия работы</h2>
+      <p>Коротко и честно — чтобы праздник прошёл спокойно для всех.</p>
+    </div>
+    <div class="terms-grid">
+      <div class="terms-card reveal">
+        <h3>Время работы ведущего</h3>
+        <p>Считаем всё время мероприятия — от начала программы до её конца, <strong>вместе с перерывами</strong>: ведущий в это время на месте и работает на ваш праздник, поэтому отдых гостей и работу ведущего мы не разделяем.</p>
+        <p>В конце игры у ведущего на экране видно, сколько шло мероприятие. Если оно длилось дольше оплаченного времени (минимум — 1,5 часа), каждые начатые 30 минут сверх него оплачиваются по ставке ведущего.</p>
+      </div>
+      <div class="terms-card terms-card--important reveal" role="note" aria-label="Важно: залог и отмена">
+        <span class="terms-badge">Важно</span>
+        <h3>Залог и отмена</h3>
+        <p>Когда мы согласовали дату и условия, ведущий бронирует это время под вас — и в этот момент вносится <strong>залог 2 000 ₽</strong>.</p>
+        <p>Мероприятие прошло — залог входит в оплату. Если вы отменяете мероприятие <strong>за 2 дня и раньше</strong>, залог возвращаем. Если <strong>за день или в день проведения</strong> — залог не возвращается: время ведущего уже занято, работа команды проделана.</p>
+      </div>
+      <div class="terms-card terms-card--important terms-card--wide reveal" role="note" aria-label="Важно: уважение к ведущему">
+        <span class="terms-badge">Важно</span>
+        <h3>Уважение к ведущему</h3>
+        <p>Ведущий — работающий человек. Оскорблять его честь и достоинство, применять силу или как-либо ещё посягать на его комфорт и безопасность нельзя. За нарушение взимается штраф:</p>
+        <table class="terms-table">
+          <thead><tr><th scope="col">Нарушение</th><th scope="col">Последствия</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Оскорбление ведущего</th><td>Штраф <strong>5 000 ₽</strong>. При грубых оскорблениях ведущий вправе завершить мероприятие и уехать.</td></tr>
+            <tr><th scope="row">Применение силы — удар и т.п.</th><td>Штраф <strong>от 20 000 ₽</strong>. Как ведущий поступит дальше, решается с ним индивидуально.</td></tr>
+          </tbody>
+        </table>
+        <p class="terms-note">Заказчик отвечает за поведение своих гостей и принимает эти условия, отправляя заявку.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- data-review-form="off" прячет кнопку «Написать отзыв» и форму отзыва (css/style.css).
+       Вернуть — data-review-form="on". Тип review в /api/lead не трогаем. -->
+  <section id="reviews" data-review-form="off">
+    <div class="section-head reveal">
+      <h2>Следите за нами</h2>
+      <p>Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.</p>
+    </div>
+
+    <button type="button" class="write-review-btn reveal" id="openReviewForm">✍️ Написать отзыв</button>
+
+    <!-- Карточка канала вместо виджета поста Telegram (внешних скриптов нет).
+         «Беседа»: впишите ссылку в href у кнопки с data-tg-chat — пустая ссылка = кнопки нет.
+         QR-код (от 760px) встраивает сборка тем же генератором, что QrCode платформы. -->
+    <div class="tg-card reveal">
+      <div class="tg-card__body">
+        <div class="tg-card__head">
+          <svg class="tg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="12" fill="currentColor"/><path class="tg-icon__plane" d="M5.6 11.7l10.9-4.3c.6-.2 1 .1.9.8l-1.9 8.9c-.1.6-.6.8-1.1.5l-2.9-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3 5.5-5c.2-.2 0-.3-.3-.1l-6.8 4.3-2.9-.9c-.6-.2-.6-.6.1-.9z"/></svg>
+          <h3>JoyRest в Telegram</h3>
+        </div>
+        <p>Анонсы, идеи для праздников и закулисье наших мероприятий.</p>
+        <div class="tg-card__actions">
+          <a class="hbtn hbtn--primary" href="https://t.me/JoyRest" target="_blank" rel="noopener">Открыть канал</a>
+          <a class="hbtn hbtn--secondary" data-tg-chat href="" target="_blank" rel="noopener">Беседа</a>
+        </div>
+      </div>
+      <div class="tg-card__qr" role="img" aria-label="QR-код канала t.me/JoyRest" data-brand-qr="https://t.me/JoyRest"></div>
+    </div>
+
+    <div class="review-form-wrap" id="reviewFormWrap">
+      <form id="reviewForm">
+        <div class="rating-stars" id="ratingStars">
+          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+        </div>
+        <input type="hidden" id="reviewRating" value="5">
+        <div>
+          <label for="reviewName">Ваше имя</label>
+          <input type="text" id="reviewName" required>
+        </div>
+        <div>
+          <label for="reviewText">Отзыв</label>
+          <textarea id="reviewText" placeholder="Расскажите, как прошло мероприятие" required></textarea>
+        </div>
+        <label class="consent-row">
+          <input type="checkbox" required>
+          <span>Согласен(на) на обработку персональных данных в соответствии с <button type="button" class="privacy-link">политикой конфиденциальности</button></span>
+        </label>
+        <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <button type="submit">Отправить отзыв</button>
+        <p class="form-note" id="reviewNote" role="status">Спасибо! Отзыв отправлен нам на модерацию — регистрация не нужна.</p>
+        <p class="form-error" id="reviewError" role="alert"></p>
+      </form>
+    </div>
+  </section>
+
+  <section class="process band" id="process">
+    <div class="section-head reveal">
+      <h2>Как это работает</h2>
+      <p>Четыре шага от заявки до праздника.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-index">01</div>
+        <h3>Расскажите о мероприятии</h3>
+        <p>Дата, число гостей, бюджет и формат — через заявку или сообщение.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-index">02</div>
+        <h3>Подбираем варианты</h3>
+        <p><span data-needs="venue">Присылаем 2–3 варианта площадки и подрядчиков под ваш запрос.</span><span data-unless="venue">Предлагаем программу и ведущего под ваш запрос.</span> Для заказных мероприятий — см. про сроки ниже.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-index">03</div>
+        <h3>Согласовываем детали</h3>
+        <p>Утверждаем программу, тайминг и всех участников события, вы вносите залог 2 000 ₽ — он входит в оплату.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-index">04</div>
+        <h3>Проводим мероприятие</h3>
+        <p>Координируем всё в день события — вы гость на своём празднике.</p>
+      </div>
+    </div>
+    <div class="reveal" style="margin-top:28px; background:var(--bg-alt); border-left:3px solid var(--coral); border-radius:12px; padding:18px 22px; font-size:14px; color:var(--ink-soft); max-width:640px;">
+      ⏱ <strong style="color:var(--ink);">Про сроки:</strong> на мероприятия под заказ (<span data-needs="venue">особенно с большой площадкой или форматом «под ключ»</span><span data-unless="venue">особенно по индивидуальному сценарию</span>) пишите минимум за 2 недели, а лучше за месяц. При более срочном обращении может взиматься доплата за срочность — зависит от сложности запроса.
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="section-head reveal">
+      <h2>Частые вопросы</h2>
+      <p>Не нашли ответ — нажмите «Задать вопрос» внизу экрана или напишите в Telegram.</p>
+    </div>
+    <div class="faq-list reveal">
+      <details class="faq-item">
+        <summary>Нужно ли гостям что-то скачивать?</summary>
+        <p>Нет. Гость сканирует QR-код на экране или вводит код игры из шести цифр — игра открывается в браузере телефона, без приложений и регистрации.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Что нужно на месте праздника?</summary>
+        <p>Для игр, где вопросы на большом экране, — телевизор, проектор или ноутбук: экран зала открывается в обычном браузере. Если экрана нет, играем без него — вопросы и варианты появятся прямо на телефонах гостей, ведущий читает их вслух.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Сколько гостей могут играть одновременно?</summary>
+        <p>Игры с телефонов рассчитаны на компанию до 500 человек. Можно играть каждый сам за себя или командами — к команде подключается несколько телефонов, отвечает капитан.</p>
+      </details>
+      <details class="faq-item">
+        <summary>А если у гостя нет телефона или плохой интернет?</summary>
+        <p>Гостя без телефона ведущий добавит в таблицу и начислит очки сам. Если связь пропала или погас экран, телефон сам вернётся в игру на текущий вопрос. Иногда мешает VPN — его лучше выключить на время игры.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Сколько длится программа?</summary>
+        <p>Минимальный заказ — 1,5 часа работы ведущего. В калькуляторе можно посчитать до 5 часов, больше — обсуждаем индивидуально. Время считается целиком, вместе с перерывами: в конце игры у ведущего видно, сколько шло мероприятие, и если дольше оплаченного — каждые начатые 30 минут сверх него оплачиваются по ставке ведущего. В Мафии и Бункере за вечер можно сыграть несколько партий.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Есть ли программы для детей?</summary>
+        <p>Да. Выберите выше «День рождения» → «Детский» — покажем подходящие форматы. Например, «Сладкие приключения» — ходилка с фишками-стаканчиками сока, а у «Боя с драконом» есть вариант для детей.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Когда лучше написать?</summary>
+        <p>Чем раньше, тем лучше. На мероприятия под заказ — минимум за 2 недели, а лучше за месяц: подробнее — в «Про сроки» выше.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <h2>Обсудим ваше событие</h2>
+        <p>Оставьте контакты — свяжемся в течение дня и предложим варианты под ваш формат и бюджет.</p>
+        <div class="contact-detail">
+          <div>Телефон: <a href="tel:+79857822689" style="color:inherit;">+7 (985) 782-26-89</a></div>
+          <div>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" style="color:var(--accent-text); text-decoration:underline;">t.me/JoyRest</a></div>
+          <div>Почта: joyrest@mail.ru</div>
+          <div>Москва и Московская область, другие города — по договорённости</div>
+        </div>
+      </div>
+      <div class="reveal">
+        <form id="leadForm">
+          <div>
+            <label for="name">Имя</label>
+            <input type="text" id="name" required>
+          </div>
+          <div>
+            <label for="phone">Телефон</label>
+            <input type="tel" id="phone" required>
+          </div>
+          <div>
+            <label for="type">Тип мероприятия</label>
+            <select id="type">
+              <optgroup label="Повод">
+                <option>Корпоратив</option>
+                <option>День рождения</option>
+                <option>Частное событие</option>
+              </optgroup>
+              <optgroup label="Формат программы">
+                <option>Классический квиз</option>
+                <option>Авторский квиз</option>
+                <option>Квиз под компанию</option>
+                <option>Квиз с элементами игр</option>
+                <option>Квиз с музыкой и танцами</option>
+                <option>Мафия</option>
+                <option>Бункер</option>
+                <option>Угадай мелодию</option>
+                <option>Правда или действие</option>
+                <option>Шпион</option>
+                <option>Казаки-разбойники: Допрос</option>
+                <option>Большой переполох</option>
+                <option>Битва тостов</option>
+                <option>Замри! Живые скульптуры</option>
+                <option>Немая история</option>
+                <option>Живой оркестр</option>
+                <option>Музыкальное лото</option>
+                <option>Just Dance Battle</option>
+                <option>Танцевальное лото</option>
+                <option>Танцевальный кураж</option>
+                <option>Своя игра</option>
+                <option>Кто хочет стать миллионером</option>
+                <option>Гонка на выживание</option>
+                <option>Бой с драконом</option>
+                <option>Давайте знакомиться</option>
+                <option>Шашки</option>
+                <option>Сладкие приключения</option>
+                <option>Игра под ваш запрос</option>
+              </optgroup>
+              <optgroup label="Алкоразвлечения (18+)">
+                <option>Алкогольные приключения</option>
+              </optgroup>
+              <optgroup label="Сезонные игры">
+                <option>Снежный десант (зима)</option>
+                <option>Не урони каплю (лето)</option>
+              </optgroup>
+              <option>Другое</option>
+            </select>
+          </div>
+          <div>
+            <label for="guests">Количество гостей</label>
+            <input type="number" id="guests" min="1" placeholder="Например, 20">
+          </div>
+          <div>
+            <label for="message">Комментарий</label>
+            <textarea id="message" placeholder="Дата, бюджет, пожелания"></textarea>
+          </div>
+          <details class="form-more" id="formMore">
+            <summary>
+              <span class="form-more__text"><span class="form-more__title">Формат ведущего и способ связи</span><span class="form-more__hint">Нажмите, чтобы выбрать</span></span>
+              <span class="form-more__arrow" aria-hidden="true">▾</span>
+            </summary>
+            <div class="form-more__body">
+          <div>
+            <label for="hostLevel">Формат ведущего</label>
+            <select id="hostLevel">
+              <option value="standard">Опытный ведущий</option>
+              <option value="new">Новые лица (−25%)</option>
+              <option value="first">Первый старт (−35%)</option>
+            </select>
+          </div>
+          <div>
+            <label for="contactMethod">Как удобнее связаться</label>
+            <select id="contactMethod">
+              <option>Telegram</option>
+              <option>WhatsApp</option>
+              <option>ВКонтакте</option>
+              <option>MAX</option>
+              <option>Звонок по телефону</option>
+            </select>
+          </div>
+          <div>
+            <label for="contactLink">Ник или ссылка для связи</label>
+            <input type="text" id="contactLink" placeholder="@username или ссылка на профиль">
+          </div>
+            </div>
+          </details>
+          <label class="consent-row">
+            <input type="checkbox" required>
+            <span>Согласен(на) на обработку персональных данных в соответствии с <button type="button" class="privacy-link">политикой конфиденциальности</button></span>
+          </label>
+          <label class="consent-row terms-row">
+            <input type="checkbox" id="depositAccept" required>
+            <span>Принимаю <a href="#terms">условия залога</a>: 2 000 ₽ вносятся, когда согласованы дата и условия, и входят в оплату; при отмене за 2 дня и раньше залог возвращается, за день или в день мероприятия — нет.</span>
+          </label>
+          <label class="consent-row terms-row">
+            <input type="checkbox" id="termsAccept" required>
+            <span>Принимаю <a href="#terms">условия работы</a>: время ведущего считается вместе с перерывами, каждые начатые 30 минут сверх оплаченного оплачиваются; за оскорбление ведущего — штраф 5 000 ₽, за применение силы — от 20 000 ₽.</span>
+          </label>
+          <div class="hp-field" aria-hidden="true"><label>Сайт <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+          <button type="submit">Отправить заявку</button>
+          <p class="form-note" id="formNote" role="status">Спасибо! Заявка отправлена — свяжемся с вами в ближайшее время.</p>
+          <p class="form-error" id="formError" role="alert"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>© 2026 JoyRest — организация мероприятий в Москве</div>
+    <div><a href="https://t.me/JoyRest" target="_blank" rel="noopener" style="color:inherit; text-decoration:underline;">Telegram-канал</a> · <button type="button" class="privacy-link" style="color:inherit;">Политика конфиденциальности</button> · Радость без хлопот</div>
+  </footer>
+
+</div>
+
+<script src="js/script.js"></script>
+
+</body>
+</html>

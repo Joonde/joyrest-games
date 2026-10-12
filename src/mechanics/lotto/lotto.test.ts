@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
-import { cardCells, parseLotto, parseSongList, type LottoContent } from "./content";
+import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
 import { cardFor, cardLines, isWin, lottoBack, lottoPrimary, lottoSteps, nextSong, parseLottoResult, playedUpTo, playSong, revealSong, score } from "./logic";
 import { validateLotto } from "./validate";
 
 const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0 }));
-const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], ...patch });
+const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", ...patch });
 const claim = (step: number, pid: string, at: number | null = 1): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { marks: [] }, submittedAt: at });
 
 describe("содержимое лото", () => {
@@ -19,6 +19,39 @@ describe("содержимое лото", () => {
     expect(c.prizes).toEqual([0, 0]);
     expect(new Set(c.songs.map((s) => s.id)).size).toBe(2);
     expect(() => parseLotto(null)).not.toThrow();
+  });
+
+  it("оформление карточки: старые игры и неизвестные значения — «Классика»", () => {
+    expect(parseLotto({ songs: [], size: 4 }).cardStyle).toBe("classic");
+    expect(parseLotto({ cardStyle: "neon" }).cardStyle).toBe("classic");
+    expect(parseLotto({ cardStyle: 5 }).cardStyle).toBe("classic");
+    expect(parseLotto({ cardStyle: "evening" }).cardStyle).toBe("evening");
+    expect(parseLotto({ cardStyle: "day" }).cardStyle).toBe("day");
+    expect(parseLotto(createLotto()).cardStyle).toBe(createLotto().cardStyle);
+    expect(CARD_STYLES.map((s) => CARD_STYLE_TITLES[s])).toEqual(["Классика", "Вечер", "День"]);
+  });
+
+  it("клетка рисованной карточки: длинные слова и названия — шрифт меньше, исполнитель убирается", () => {
+    expect(cellFit("Вика", 4)).toEqual({ fit: 1, artist: true });
+    expect(cellFit("", 4)).toEqual({ fit: 1, artist: true });
+    const long = cellFit("Владивосток 2000", 4);
+    expect(long.fit).toBeLessThan(1);
+    expect(long.fit).toBeGreaterThanOrEqual(0.6);
+    expect(long.artist).toBe(true);
+    expect(cellFit("Полковнику никто не пишет", 4).artist).toBe(false);
+    expect(cellFit("Районы-кварталы", 3).fit).toBe(1);
+    expect(cellFit("Оченьоченьоченьдлинноеслово", 5).fit).toBe(0.6);
+    for (const size of [3, 4, 5] as const) {
+      expect(cellFit("Звезда по имени Солнце", size).artist).toBe(false);
+      expect(cellFit("Вика", size).artist).toBe(size < 5);
+    }
+  });
+
+  it("шаблон библиотеки — карточка «Вечер», проверка проходит", () => {
+    const demo = parseLotto(DEMO_LOTTO.content);
+    expect(demo.cardStyle).toBe("evening");
+    expect(validateLotto(demo)).toEqual([]);
+    for (const cardStyle of CARD_STYLES) expect(validateLotto(game({ cardStyle }))).toEqual([]);
   });
 
   it("список «Исполнитель — Песня» разбирается", () => {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { TrackPicker } from "../../components/music/TrackPicker";
 import type { EditorProps } from "../types";
-import { cardCells, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, type LottoContent, type LottoSong, type WinRule } from "./content";
+import { CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, type LottoContent, type LottoSong, type WinRule } from "./content";
 import { validateLotto } from "./validate";
 import { ClampedNumber } from "../../components/ClampedNumber";
 
@@ -47,6 +47,19 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
               </button>
             ))}
           </div>
+        </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Оформление карточки</legend>
+          {CARD_STYLES.map((style) => (
+            <label key={style} className="choice lotto-style">
+              <input type="radio" name="lotto-style" checked={content.cardStyle === style} onChange={() => set({ cardStyle: style })} />
+              <span className="choice__text">
+                <span className="choice__title">{CARD_STYLE_TITLES[style]}</span>
+                <span className="choice__hint">{CARD_STYLE_HINTS[style]}</span>
+              </span>
+              <span className={`lotto-style__thumb lotto-style__thumb--${style}`} aria-hidden="true" />
+            </label>
+          ))}
         </fieldset>
         <fieldset disabled={!editable}>
           <legend>Победа</legend>

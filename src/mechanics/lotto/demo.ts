@@ -31,7 +31,7 @@ const LIST: Array<[string, string]> = [
   ["Мираж", "Музыка нас связала"],
 ];
 
-/** Шаблон для «Библиотеки JoyRest»: 28 песен, карточка 4×4, одна линия. Треки ведущий добавляет сам. */
+/** Шаблон для «Библиотеки JoyRest»: 28 песен, карточка 4×4 «Вечер», одна линия. Треки ведущий добавляет сам. */
 export const DEMO_LOTTO: { title: string; content: LottoContent } = {
   title: "Музыкальное лото: хиты на русском",
   content: {
@@ -40,5 +40,6 @@ export const DEMO_LOTTO: { title: string; content: LottoContent } = {
     rule: "line",
     fragment: 30,
     prizes: [300, 200, 100],
+    cardStyle: "evening",
   },
 };

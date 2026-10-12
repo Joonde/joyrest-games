@@ -50,6 +50,8 @@ export interface StageResult {
   winner: string | null;
   /** Голос в батле можно поменять, пока идёт голосование. */
   changeable: boolean;
+  /** Фраза перед голосованием батла («Это было жарко!»), номер в `HYPE`; −1 — нет. */
+  hype: number;
   prev: Prev | null;
 }
 
@@ -64,6 +66,18 @@ function nums(v: unknown): Record<string, number> {
 }
 const outcomeOf = (v: unknown): StageOutcome | null => (v === "done" || v === "skip" || v === "win" || v === "tie" ? v : null);
 const CMDS: VideoCmd[] = ["play", "pause", "back", "fwd", "stop"];
+
+/** Батл закончился — на экране сначала фраза (решение владельца 12 октября 2026), потом голосование. */
+export const HYPE_MS = 3000;
+export const HYPE = {
+  dance: ["Это было жарко!", "Фантастика!", "Разрыв танцпола!", "Звезда в шоке!", "Танцпол горит!", "Вот это энергия!", "Зал в восторге!", "Огонь!", "Это надо повторить!", "Легенды танцпола!"],
+  karaoke: ["Это было жарко!", "Фантастика!", "Вот это голос!", "Мурашки по коже!", "Звезда в шоке!", "Зал поёт вместе!", "Браво!", "Это надо повторить!", "Легенды сцены!"],
+} as const;
+
+export function hypeText(variant: "dance" | "karaoke", n: number): string {
+  const list = HYPE[variant];
+  return list[((n % list.length) + list.length) % list.length] ?? list[0];
+}
 
 export function parseStageResult(raw: unknown): StageResult {
   const d = rec(raw);
@@ -85,6 +99,7 @@ export function parseStageResult(raw: unknown): StageResult {
     outcome: outcomeOf(d.outcome),
     winner: pid(d.winner),
     changeable: d.changeable === true,
+    hype: typeof d.hype === "number" && Number.isInteger(d.hype) && d.hype >= 0 ? d.hype : -1,
     prev:
       typeof p.tile === "string"
         ? { tile: p.tile, performer: pid(p.performer), opponent: pid(p.opponent), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores), outcome: outcomeOf(p.outcome), winner: pid(p.winner), gifts: ids(p.gifts) }
@@ -141,7 +156,7 @@ export function stagePrimary(session: Session, content: StageContent): StageActi
 }
 
 function fresh(r: StageResult): StageResult {
-  return { ...r, full: false, video: { n: 0, cmd: "play", paused: false }, gifts: [], votes: {}, scores: {}, outcome: null, winner: null, changeable: false };
+  return { ...r, full: false, video: { n: 0, cmd: "play", paused: false }, gifts: [], votes: {}, scores: {}, outcome: null, winner: null, changeable: false, hype: -1 };
 }
 
 /** «Начать игру»: очередь команд, выбор первой плитки. */
@@ -233,11 +248,12 @@ export function finishPerform(session: Session, content: StageContent, answers: 
   return change;
 }
 
-/** Батл станцевали — голосует зал. */
-export function startVote(session: Session, content: StageContent): SessionChange {
+/** Батл станцевали — на экране фраза (`hype` — случайный номер от пульта), потом голосует зал. */
+export function startVote(session: Session, content: StageContent, hype = 0): SessionChange {
   const r = parseStageResult(session.state.result);
+  const timeLimit = content.voteTime + HYPE_MS / 1000;
   return {
-    state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: content.voteTime, revealed: false, answered: 0, result: write({ ...r, mode: "vote", votes: {}, changeable: true, full: false, video: { ...r.video, n: r.video.n + 1, cmd: "pause", paused: true } }) },
+    state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit, revealed: false, answered: 0, result: write({ ...r, mode: "vote", votes: {}, changeable: true, hype: Math.max(0, Math.floor(hype)), full: false, video: { ...r.video, n: r.video.n + 1, cmd: "pause", paused: true } }) },
   };
 }
 

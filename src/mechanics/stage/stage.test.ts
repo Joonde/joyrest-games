@@ -3,7 +3,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import { createStage, parseStage } from "./content";
 import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./demo";
-import { countVotes, finishPerform, giftGivers, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand } from "./logic";
+import { countVotes, hypeText, HYPE, finishPerform, giftGivers, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand } from "./logic";
 import { validateStage } from "./validate";
 import { videoTarget } from "./video";
 import { VERSUS, WHO, whoOf } from "./who";
@@ -103,9 +103,13 @@ describe("Just Dance и Караоке на поле", () => {
     let r = parseStageResult(s.state.result);
     expect([r.performer, r.opponent]).toEqual(["A", "C"]);
     expect(stagePrimary(s, content)).toBe("vote");
-    s = apply(s, startVote(s, content));
+    s = apply(s, startVote(s, content, 12));
     r = parseStageResult(s.state.result);
     expect(r.changeable).toBe(true);
+    // Сначала фраза на экране (3 с), потом голосование — таймер с запасом на фразу.
+    expect(s.state.timeLimit).toBe(23);
+    expect(hypeText("dance", r.hype)).toBe(HYPE.dance[12 % HYPE.dance.length]);
+    expect(hypeText("karaoke", -1)).toBe(HYPE.karaoke[HYPE.karaoke.length - 1]);
     const step = s.state.step;
     // Голоса сторон батла не считаются, голос «за команду» (капитан) тоже.
     const votes = [ans("B1", step, { vote: "A" }), ans("B2", step, { vote: "C" }), ans("A1", step, { vote: "A" }), ans("B", step, { vote: "A" })];

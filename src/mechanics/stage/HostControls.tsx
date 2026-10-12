@@ -133,7 +133,7 @@ export function StageHostControls({ session, content, answers, participants, con
   function perform() {
     if (action === "start") void run(startGame(session, participants));
     if (action === "done") void run(async () => finishPerform(latest.current, content, await fresh(), participants, true));
-    if (action === "vote") void run(startVote(session, content));
+    if (action === "vote") void run(startVote(session, content, Math.floor(Math.random() * 1000)));
     if (action === "count") void run(async () => countVotes(latest.current, content, await fresh(), participants));
     if (action === "next") void run(nextTurn(session, participants));
     if (action === "podium") void run(awardNow(session));

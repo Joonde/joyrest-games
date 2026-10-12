@@ -12,7 +12,7 @@ import { teamColorVar } from "../../themes/registry";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { tileOf, tilesOf, VARIANT_TITLES, type StageContent, type StageTile } from "./content";
 import { Dancer, Dancers } from "./figures";
-import { parseStageResult, turnPid, type StageResult } from "./logic";
+import { HYPE_MS, hypeText, parseStageResult, turnPid, type StageResult } from "./logic";
 import { StageVideo } from "./video";
 import { versusOf, whoOf } from "./who";
 import "./stage.css";
@@ -240,6 +240,7 @@ export function StageScreenView({ session, content }: ViewProps<StageContent>) {
     if (ps === String(step) && pm === r.mode && Number(pg) < r.gifts.length) playSound("sparkle");
     if (previous.current !== key && pm !== r.mode) {
       if (r.mode === "perform") playSound("drumroll");
+      if (r.mode === "vote") playSound("applause");
       if (r.mode === "result" && Object.values(r.scores).some((n) => n > 0)) playSound("applause");
     }
     previous.current = key;
@@ -271,6 +272,20 @@ export function StageScreenView({ session, content }: ViewProps<StageContent>) {
         </div>
         <StageField content={content} result={r} />
         <TeamsStrip session={session} />
+      </div>
+    );
+  }
+
+  // Батл закончился: сначала фраза («Разрыв танцпола!»), через 3 секунды — голосование.
+  if (tile.kind === "battle" && r.mode === "vote" && stage === "question" && session.state.startedAt !== null && now < session.state.startedAt + HYPE_MS) {
+    return (
+      <div className={`stage-screen stage-screen--hype${karaoke ? " is-karaoke" : ""}`}>
+        <Confetti burst={`hype:${step}`} />
+        <Equalizer />
+        <p className="stage-hype__text" key={step}>
+          {hypeText(content.variant, r.hype)}
+        </p>
+        <p className="stage-hype__next">Сейчас голосует зал!</p>
       </div>
     );
   }
@@ -499,6 +514,15 @@ export function StagePlayerView({ session, content, pid, role, myAnswer, sending
             <strong>Голосует зал</strong>
             <span>Смотрите на экран — канат тянут голоса</span>
           </div>
+        </div>
+      );
+    }
+    if (session.state.startedAt !== null && now < session.state.startedAt + HYPE_MS) {
+      return (
+        <div className="quiz-phone quiz-phone--center stage-phone">
+          {head}
+          <h2 className="stage-phone__hype">{hypeText(content.variant, r.hype)}</h2>
+          <p className="muted">Сейчас откроется голосование…</p>
         </div>
       );
     }

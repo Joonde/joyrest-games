@@ -951,6 +951,63 @@
   border-bottom: 0.5cqh solid var(--team-color, transparent);
 }
 
+/* Фраза перед голосованием батла */
+.stage-screen--hype {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.stage-hype__text {
+  margin: 0;
+  position: relative;
+  font-size: 15cqh;
+  font-weight: 800;
+  line-height: 1;
+  text-wrap: balance;
+  background: linear-gradient(90deg, var(--neon-pink, #ff5fa8), var(--neon-gold, #f3c969) 50%, var(--neon-cyan, #45e3dc));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 3cqh rgba(255, 95, 168, 0.55));
+  animation: stage-hype 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.stage-hype__next {
+  margin: 0;
+  position: relative;
+  font-size: 3.6cqh;
+  color: var(--stage-soft, #c9bfd6);
+  animation: stage-hype-in 0.6s 1.2s both;
+}
+
+@keyframes stage-hype {
+  from {
+    transform: scale(0.3) rotate(-6deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes stage-hype-in {
+  from {
+    opacity: 0;
+    transform: translateY(2cqh);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stage-phone__hype {
+  font-size: 30px;
+  text-align: center;
+}
+
 /* Телефон */
 .stage-phone .stage-phone__dancers {
   height: 180px;
@@ -1262,7 +1319,9 @@
   .stage-tug__puller--left,
   .stage-tug__puller--right,
   .stage-heart__btn,
-  .stage-heart__burst {
+  .stage-heart__burst,
+  .stage-hype__text,
+  .stage-hype__next {
     animation: none;
   }
   .stage-tug__knot,

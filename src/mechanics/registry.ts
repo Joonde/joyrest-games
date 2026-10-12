@@ -4,6 +4,8 @@ import { checkers } from "./checkers";
 import { DEMO_CHECKERS } from "./checkers/demo";
 import { dance } from "./dance";
 import { DEMO_DANCE } from "./dance/demo";
+import { stage } from "./stage";
+import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./stage/demo";
 import { quest } from "./quest";
 import { millionaire } from "./millionaire";
 import { survival } from "./survival";
@@ -43,7 +45,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -53,6 +55,7 @@ const HINTS: Record<string, string> = {
   quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
   lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
   quest: "Поле 40–100 клеток на экране, кубик на телефоне капитана, в клетках — задания, вопросы, танцы, бонусы и ловушки.",
+  stage: "Поле как в «Своей игре»: плитка переворачивается и показывает, кто выходит танцевать или петь (до 5 человек, пары, вся команда, батлы). Видео Just Dance или караоке — с пульта: пауза, перемотка, на весь экран. Зрители дарят очки, батл решает зал.",
   dance: "Команды по очереди выбирают батл, танец или караоке; оценивают другие команды. Видео — ссылка или файл на экране зала.",
   checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
   olymp: "Ролевая история про греческих богов: команда — бог, ведущий читает сцены, d100 решает исход, голосование за путь, бои с боссом, три концовки.",
@@ -140,6 +143,22 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     title: DEMO_DANCE.title,
     hint: "9 карточек: танцы, караоке и батлы. Музыку включаете сами или добавляете ссылки на ролики в копии игры.",
     content: DEMO_DANCE.content,
+    playMode: "teams",
+    themeId: "dancefloor",
+  },
+  {
+    mechanic: stage.id,
+    title: DEMO_STAGE_DANCE.title,
+    hint: "4 категории по 5 плиток: активные, медленные, джаз-дэнс и батлы. Видео Just Dance добавьте ссылками или файлами в копии игры.",
+    content: DEMO_STAGE_DANCE.content,
+    playMode: "teams",
+    themeId: "dancefloor",
+  },
+  {
+    mechanic: stage.id,
+    title: DEMO_STAGE_KARAOKE.title,
+    hint: "4 категории по 5 плиток: соло, дуэты, хором и вокальные батлы. Видео караоке добавьте ссылками или файлами в копии игры.",
+    content: DEMO_STAGE_KARAOKE.content,
     playMode: "teams",
     themeId: "dancefloor",
   },

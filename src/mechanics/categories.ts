@@ -22,7 +22,7 @@ export const CATEGORIES: Category[] = [
   { id: "olymp", title: "Олимп", icon: "⚡", hint: "Ролевые истории про греческих богов: «Вечная зима», «Метка Тёмного мира»" },
   { id: "cards", title: "Карточные и кости", icon: "🃏", hint: "«Мафия», «Бункер», «Дурак», «Перудо», «Правда или действие»" },
   { id: "social", title: "Знакомство и общение", icon: "🤝", hint: "«Давайте знакомиться» — игры, чтобы узнать друг друга" },
-  { id: "active", title: "Танцы и активные", icon: "💃", hint: "Танцевальный батл, караоке" },
+  { id: "active", title: "Танцы и активные", icon: "💃", hint: "Just Dance и караоке на поле, танцевальный батл" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
 ];
 
@@ -37,6 +37,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   dragon: "adventure",
   olymp: "olymp",
   dance: "active",
+  stage: "active",
   mafia: "cards",
   durak: "cards",
   truth: "cards",

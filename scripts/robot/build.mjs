@@ -9,7 +9,7 @@ fs.mkdirSync(out, { recursive: true });
 const dataIndex = path.join(root, "src/data/index.ts");
 
 const result = await build({
-  entryPoints: [path.join(import.meta.dirname, "entry.tsx")],
+  entryPoints: [process.env.ROBOT_ENTRY ? path.resolve(process.env.ROBOT_ENTRY) : path.join(import.meta.dirname, "entry.tsx")],
   bundle: true,
   outfile: path.join(out, "robot.js"),
   format: "esm",

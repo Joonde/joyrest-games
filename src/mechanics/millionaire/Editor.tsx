@@ -9,6 +9,14 @@ import type { EditorProps } from "../types";
 import { LETTERS, LEVELS, LIFELINES, MILLIONAIRE_LIMITS, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { DEMO_MILLIONAIRE } from "./demo";
 import { teamsCovered, validateMillionaire } from "./validate";
+import { ShowLookPicker } from "../ShowLookPicker";
+import type { ShowLook } from "../showLook";
+
+const LOOK_HINTS: Partial<Record<ShowLook, string>> = {
+  classic: "Простые плашки в цветах оформления игры.",
+  studio: "Круглая студия с синими лучами, вопрос и ответы — шестиугольными плашками, как в передаче.",
+  evening: "Тёмный зал с золотыми кольцами и светом JoyRest, золотые плашки.",
+};
 
 export function MillionaireEditor({ content, onChange, editable }: EditorProps<MillionaireContent>) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -71,6 +79,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
         <p className={covered >= 2 || content.players === "one" ? "muted small" : "error small"}>
           Вопросов хватит на {covered} {content.players === "one" ? "игру" : "команд"} (на каждой ступени по столько вопросов). Для «Замены вопроса» добавьте по одному запасному.
         </p>
+        <ShowLookPicker game="millionaire" value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
         <fieldset>
           <legend>Подсказки в игре</legend>
           <div className="row profession-chips">

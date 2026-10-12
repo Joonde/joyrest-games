@@ -5760,6 +5760,238 @@ ul.chips {
   opacity: 0.8;
 }
 
+/* Рисованные карточки лото «Вечер» и «День» (content.cardStyle): фон 3:4 из public/cards/art/web/,
+   заголовок сверху, сетка — в пустой середине рисунка. Цвета и места — переменные оформления. */
+.lotto-ticket {
+  --lotto-head-top: 21.5%;
+  --lotto-grid-top: 31.5%;
+  --lotto-grid-bottom: 17.5%;
+  --lotto-grid-side: 8.5%;
+  --lotto-gap: 1.7cqw;
+  --lotto-title-size: 4.4cqw;
+  --lotto-artist-size: max(10px, 2.9cqw);
+  position: relative;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  aspect-ratio: 3 / 4;
+  border-radius: 5% / 3.75%;
+  overflow: hidden;
+  background: var(--lotto-art) center / cover no-repeat, var(--lotto-paper);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.lotto-ticket--evening {
+  --lotto-art: url("/cards/art/web/loto-evening.webp");
+  --lotto-paper: #1c1712;
+  --lotto-heading: #e3c68c;
+  --lotto-rule: #c7bcac;
+  --lotto-cell: rgba(42, 38, 33, 0.82);
+  --lotto-cell-line: rgba(227, 198, 140, 0.55);
+  --lotto-ink: #f3ece3;
+  --lotto-ink-soft: #c7bcac;
+  --lotto-mark: #c49e96;
+  --lotto-mark-ink: #221e1b;
+}
+
+.lotto-ticket--day {
+  --lotto-art: url("/cards/art/web/loto-day.webp");
+  --lotto-paper: #f6efe4;
+  --lotto-head-top: 22.5%;
+  --lotto-grid-top: 32.5%;
+  --lotto-heading: #8a5148;
+  --lotto-rule: #6b6256;
+  --lotto-cell: rgba(255, 255, 255, 0.78);
+  --lotto-cell-line: rgba(154, 116, 68, 0.55);
+  --lotto-ink: #322d28;
+  --lotto-ink-soft: #6b6256;
+  --lotto-mark: #a3c2aa;
+  --lotto-mark-ink: #221e1b;
+}
+
+.lotto-ticket--s3 {
+  --lotto-gap: 2.4cqw;
+  --lotto-title-size: 5.6cqw;
+  --lotto-artist-size: max(11px, 3.5cqw);
+}
+
+.lotto-ticket--s5 {
+  --lotto-grid-bottom: 16.5%;
+  --lotto-gap: 1.1cqw;
+  --lotto-title-size: max(11px, 3.6cqw);
+}
+
+.lotto-ticket__head {
+  position: absolute;
+  top: var(--lotto-head-top);
+  left: 12%;
+  right: 12%;
+  text-align: center;
+}
+
+.lotto-ticket__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 7cqw;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--lotto-heading);
+  white-space: nowrap;
+}
+
+.lotto-ticket__rule {
+  margin: 1.2cqw 0 0;
+  font-size: max(10px, 2.3cqw);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lotto-rule);
+  white-space: nowrap;
+}
+
+.lotto-ticket > .lotto-card {
+  position: absolute;
+  top: var(--lotto-grid-top);
+  bottom: var(--lotto-grid-bottom);
+  left: var(--lotto-grid-side);
+  right: var(--lotto-grid-side);
+  gap: var(--lotto-gap);
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+.lotto-ticket .lotto-card__cell {
+  position: relative;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 0.8cqw 0.9cqw;
+  border-radius: 16px;
+  border-radius: min(16px, 3.4cqw);
+  border-color: var(--lotto-cell-line);
+  background: var(--lotto-cell);
+  color: var(--lotto-ink);
+  gap: 0.6cqw;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.lotto-ticket .lotto-card__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: max(10px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.lotto-ticket .lotto-card__artist {
+  font-size: var(--lotto-artist-size);
+  line-height: 1.15;
+  color: var(--lotto-ink-soft);
+  opacity: 1;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lotto-ticket .lotto-card__cell.is-marked {
+  background: var(--lotto-mark);
+  border-color: var(--lotto-mark);
+  color: var(--lotto-mark-ink);
+}
+
+.lotto-ticket .lotto-card__cell.is-marked .lotto-card__artist {
+  color: var(--lotto-mark-ink);
+}
+
+/* Отмеченная песня — нота в углу клетки. */
+.lotto-ticket .lotto-card__cell.is-marked::after {
+  content: "♪";
+  position: absolute;
+  top: 0.3cqw;
+  right: 0.8cqw;
+  font-size: max(10px, 2.3cqw);
+  line-height: 1;
+  color: var(--lotto-mark-ink);
+}
+
+.lotto-ticket--s5 .lotto-card__cell.is-marked::after {
+  content: none;
+}
+
+.lotto-ticket--s5 .lotto-card__cell {
+  padding-inline: 0.4cqw;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-ticket .lotto-card__cell {
+    transition: none;
+  }
+}
+
+/* Заставка экрана зала: пример карточки в выбранном оформлении. */
+.lotto-intro {
+  flex-direction: row;
+  gap: 5cqw;
+}
+
+.lotto-intro__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4cqh;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.lotto-intro .quiz-screen__intro {
+  font-size: 12cqh;
+  text-wrap: balance;
+}
+
+.lotto-sample {
+  flex: none;
+  width: min(40cqw, 60cqh);
+  transform: rotate(-3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-sample {
+    transform: none;
+  }
+}
+
+/* Выбор оформления в конструкторе: маленький образец справа. */
+.lotto-style .choice__text {
+  flex: 1 1 auto;
+}
+
+.lotto-style__thumb {
+  flex: none;
+  width: 48px;
+  aspect-ratio: 3 / 4;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-position: center;
+  background-size: cover;
+}
+
+.lotto-style__thumb--classic {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(var(--color-border) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-border) 1.5px, transparent 1.5px);
+  background-size: 12px 12px;
+  background-position: 6px 8px;
+}
+
+.lotto-style__thumb--evening {
+  background-image: url("/cards/art/web/loto-evening.webp");
+}
+
+.lotto-style__thumb--day {
+  background-image: url("/cards/art/web/loto-day.webp");
+}
+
 .lotto-phone__claim {
   font-family: var(--font-display);
   font-size: 26px;
@@ -14142,4 +14374,1020 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   opacity: 0.7;
   font-size: 0.85rem;
   padding: 6px 14px;
+}
+
+/* ---------- Оформление телешоу: «Своя игра» и «Миллионер» (content.look) ----------
+   «Студия» и «Вечер JoyRest»: фон-картинка из public/shows/art/web/ на весь кадр экрана зала (под игрой,
+   с лёгким затемнением под текстом) и «телевизионные» плашки. Цвета — только переменные ниже; переменные
+   темы (--color-*) внутри экрана переопределены, чтобы светлая тема сессии не дала тёмный текст на тёмном фоне.
+   Размеры — в единицах контейнера (cqw/cqh): предпросмотр в студии совпадает с телевизором. */
+.show-stage {
+  --show-hex: polygon(var(--show-hx) 0, calc(100% - var(--show-hx)) 0, 100% 50%, calc(100% - var(--show-hx)) 100%, var(--show-hx) 100%, 0 50%);
+  --show-hx: 2.6cqh;
+  position: relative;
+  isolation: isolate;
+  color: var(--color-text);
+  /* Cormorant по умолчанию рисует «старинные» цифры разной высоты — на табло нужны ровные. */
+  font-variant-numeric: lining-nums;
+}
+
+.show-stage .board-screen__count,
+.show-stage .mil-bar__points {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.show-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--show-shade), var(--show-art) center / cover no-repeat, var(--show-bg);
+}
+
+.show-stage--studio {
+  --color-text: #f4f6ff;
+  --color-text-muted: #c6ccef;
+  --color-surface: #121a5a;
+  --color-surface-alt: #1d2675;
+  --color-border: rgba(150, 170, 255, 0.4);
+  --color-highlight: #f2c66d;
+  --show-bg: #070a24;
+  --show-ink: #f4f6ff;
+  --show-letter: #f2c66d;
+  --show-price: #f6d58a;
+  --show-price-glow: rgba(246, 190, 90, 0.55);
+  --show-frame: linear-gradient(180deg, #dfe6ff 0%, #7f8ff0 48%, #c4cfff 100%);
+  --show-frame-solid: #8fa0ff;
+  --show-plate: linear-gradient(180deg, #1f2b86 0%, #111862 52%, #0a0f40 100%);
+  --show-cell: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 46%), linear-gradient(170deg, #2539c2 0%, #17228a 55%, #0d1456 100%);
+  --show-cell-line: rgba(170, 188, 255, 0.75);
+  --show-cell-glow: rgba(120, 150, 255, 0.45);
+  --show-cell-halo: rgba(90, 120, 255, 0.35);
+  --show-cell-off: rgba(14, 20, 70, 0.55);
+  --show-title: linear-gradient(180deg, rgba(20, 28, 96, 0.92), rgba(9, 13, 56, 0.92));
+  --show-title-ink: #e6eaff;
+  --show-current: #f2c66d;
+  --show-ladder: rgba(8, 12, 48, 0.82);
+  --show-step: rgba(70, 90, 200, 0.28);
+  --show-safe: #f2c66d;
+}
+
+.show-stage--evening {
+  --color-text: #fbf6f1;
+  --color-text-muted: #cfc4b6;
+  --color-surface: #241e19;
+  --color-surface-alt: #30281f;
+  --color-border: rgba(227, 198, 140, 0.35);
+  --color-highlight: #e3c68c;
+  --show-bg: #1a1714;
+  --show-ink: #fbf6f1;
+  --show-letter: #e3c68c;
+  --show-price: #f3dfae;
+  --show-price-glow: rgba(227, 198, 140, 0.45);
+  --show-frame: linear-gradient(180deg, #f3dfae 0%, #b8955a 50%, #e9cf93 100%);
+  --show-frame-solid: #c7a768;
+  --show-plate: linear-gradient(180deg, #2e2620 0%, #1f1a15 55%, #15110e 100%);
+  --show-cell: linear-gradient(180deg, rgba(255, 240, 210, 0.12), rgba(255, 240, 210, 0) 46%), linear-gradient(170deg, #3b3027 0%, #2a221c 55%, #1a1511 100%);
+  --show-cell-line: rgba(227, 198, 140, 0.75);
+  --show-cell-glow: rgba(227, 198, 140, 0.22);
+  --show-cell-halo: rgba(199, 167, 104, 0.3);
+  --show-cell-off: rgba(30, 25, 21, 0.55);
+  --show-title: linear-gradient(180deg, rgba(42, 34, 28, 0.94), rgba(26, 22, 18, 0.94));
+  --show-title-ink: #f3dfae;
+  --show-current: #c49e96;
+  --show-ladder: rgba(22, 18, 15, 0.85);
+  --show-step: rgba(199, 167, 104, 0.18);
+  --show-safe: #e3c68c;
+}
+
+/* Фоны: на телевизоре — 1920 px, в предпросмотре и на небольших экранах — 1280 px. */
+.board-screen.show-stage--studio {
+  --show-art: url("/shows/art/web/board-studio-1280.webp");
+  --show-shade: radial-gradient(ellipse 62% 60% at 50% 46%, rgba(5, 7, 30, 0.5), rgba(5, 7, 30, 0.12) 75%, transparent);
+}
+
+.board-screen.show-stage--evening {
+  --show-art: url("/shows/art/web/board-evening-1280.webp");
+  --show-shade: radial-gradient(ellipse 62% 60% at 50% 46%, rgba(16, 13, 10, 0.5), rgba(16, 13, 10, 0.12) 75%, transparent);
+}
+
+.mil-screen.show-stage--studio {
+  --show-art: url("/shows/art/web/millionaire-studio-1280.webp");
+  --show-shade: linear-gradient(90deg, rgba(4, 6, 26, 0.62) 0%, rgba(4, 6, 26, 0.45) 58%, rgba(4, 6, 26, 0.2) 100%);
+}
+
+.mil-screen.show-stage--evening {
+  --show-art: url("/shows/art/web/millionaire-evening-1280.webp");
+  --show-shade: linear-gradient(90deg, rgba(16, 13, 10, 0.66) 0%, rgba(16, 13, 10, 0.48) 58%, rgba(16, 13, 10, 0.22) 100%);
+}
+
+@media (min-width: 1400px) {
+  .board-screen.show-stage--studio {
+    --show-art: url("/shows/art/web/board-studio.webp");
+  }
+  .board-screen.show-stage--evening {
+    --show-art: url("/shows/art/web/board-evening.webp");
+  }
+  .mil-screen.show-stage--studio {
+    --show-art: url("/shows/art/web/millionaire-studio.webp");
+  }
+  .mil-screen.show-stage--evening {
+    --show-art: url("/shows/art/web/millionaire-evening.webp");
+  }
+}
+
+/* Строка «Вход: адрес · код» под игрой — светлая на тёмном фоне (браузеры без :has оставят цвет темы). */
+.quiz-stage:has(> .show-stage) .stage-code {
+  color: #d8dcf0;
+  text-shadow: 0 0 1cqh rgba(0, 0, 0, 0.8);
+}
+
+/* «Своя игра»: поле на сцене — отступы от колонн и пола картинки. */
+.board-screen.show-stage {
+  padding: 5cqh 8.5cqw 8cqh;
+  gap: 2.4cqh;
+}
+
+.show-stage .board-grid,
+.show-stage .board-grid__row {
+  gap: 1cqh 0.9cqw;
+}
+
+.show-stage .board-grid__title {
+  justify-items: center;
+  text-align: center;
+  padding: 0 1.2cqw;
+  border: 0.2cqh solid var(--show-cell-line);
+  border-radius: 1cqh;
+  background: var(--show-title);
+  color: var(--show-title-ink);
+  font-size: 2.7cqh;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 1.4cqh var(--show-cell-halo);
+}
+
+/* Клетка — светящаяся панель с золотой ценой. */
+.show-stage .board-grid__cell {
+  border: 0.25cqh solid var(--show-cell-line);
+  border-radius: 1cqh;
+  background: var(--show-cell);
+  color: var(--show-price);
+  font-size: 7.2cqh;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 2cqh var(--show-price-glow), 0 0.3cqh 0 rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 2.4cqh var(--show-cell-glow), 0 0 1.6cqh var(--show-cell-halo);
+  font-variant-numeric: lining-nums;
+}
+
+/* Сыгранная клетка гаснет: пустая тёмная ячейка. */
+.show-stage .board-grid__cell.is-opened {
+  background: var(--show-cell-off);
+  border-color: color-mix(in srgb, var(--show-cell-line) 30%, transparent);
+  box-shadow: none;
+  filter: none;
+  opacity: 0.5;
+}
+
+.show-stage .board-grid__cell.is-current {
+  outline-color: var(--show-current);
+}
+
+.show-stage .board-screen__question {
+  text-shadow: 0 0.4cqh 2cqh rgba(0, 0, 0, 0.6);
+}
+
+.show-stage.board-screen--question:not(.board-screen--image) .board-screen__question {
+  margin: 0 2cqw;
+  padding: 4cqh 6cqw;
+  border: 0.25cqh solid var(--show-cell-line);
+  border-radius: 2cqh;
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  box-shadow: inset 0 0 6cqh var(--show-cell-glow), 0 0 3cqh var(--show-cell-halo);
+}
+
+.show-stage .board-screen__answer {
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  box-shadow: 0 0 3cqh var(--show-cell-halo);
+}
+
+.show-stage .board-screen__answer strong {
+  color: var(--show-price);
+}
+
+/* «Миллионер»: вопрос и варианты — вытянутые шестиугольные плашки с тонкой светящейся рамкой.
+   Рамка — ::before (шестиугольник во всю плашку), внутренняя часть — ::after у вопроса и
+   .mil-option__plate у варианта; бегущая радуга верного ответа — между ними. */
+.mil-screen.show-stage {
+  padding: 5cqh 3.5cqw 7cqh;
+}
+
+/* Лестницы — до строки «Вход: …», а не на фиксированные 92% кадра. */
+.mil-screen.show-stage .mil-screen__bars {
+  height: auto;
+}
+
+.show-stage .mil-question__text {
+  position: relative;
+  isolation: isolate;
+  margin: 0 0 1.2cqh;
+  padding: 3cqh calc(var(--show-hx) + 2.4cqw);
+  color: var(--show-ink);
+  font-size: 4.2cqh;
+  line-height: 1.22;
+  filter: drop-shadow(0 0 1.4cqh var(--show-cell-halo));
+}
+
+.show-stage .mil-question__text::before,
+.show-stage .mil-question__text::after,
+.show-stage .mil-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: var(--show-hex);
+  background: var(--opt-frame, var(--show-frame));
+}
+
+.show-stage .mil-question__text::after {
+  inset: 0.35cqh;
+  background: var(--show-plate);
+}
+
+.show-stage .mil-options {
+  gap: 1.6cqh 1.4cqw;
+}
+
+.show-stage .mil-option {
+  isolation: isolate;
+  overflow: visible;
+  min-height: 8.6cqh;
+  padding: 1cqh calc(var(--show-hx) + 1cqw);
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--opt-ink, var(--show-ink));
+  font-size: 3.4cqh;
+}
+
+.mil-option__plate {
+  display: none;
+}
+
+.show-stage .mil-option__plate {
+  display: block;
+  position: absolute;
+  inset: 0.35cqh;
+  z-index: -1;
+  clip-path: var(--show-hex);
+  background: var(--opt-plate, var(--show-plate));
+}
+
+.show-stage .mil-option .mil-option__letter {
+  color: var(--opt-letter, var(--show-letter));
+}
+
+.show-stage .mil-option.is-wrong::after {
+  color: var(--opt-letter, var(--color-danger));
+}
+
+.show-stage .mil-option__letter::before {
+  content: "◆ ";
+  font-size: 0.6em;
+  vertical-align: 0.2em;
+}
+
+.show-stage .mil-option__letter::after {
+  content: ":";
+}
+
+.show-stage .mil-option__bar {
+  inset: 0.35cqh auto 0.35cqh 0.35cqh;
+  clip-path: var(--show-hex);
+}
+
+.show-stage .mil-option::after {
+  position: relative;
+}
+
+/* Выбор команды — оранжевая рамка «дышит» (только прозрачность). */
+.show-stage .mil-option.is-chosen {
+  --opt-frame: linear-gradient(180deg, #ffd59a, #f0a64a 50%, #ffcf8a);
+  box-shadow: none;
+  animation: none;
+  filter: drop-shadow(0 0 1.4cqh rgba(240, 166, 74, 0.7));
+}
+
+.show-stage .mil-option.is-chosen::before {
+  animation: show-breathe 1.2s ease-in-out infinite;
+}
+
+@keyframes show-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* «Окончательный ответ» — оранжевая заливка, тёмный текст (контраст ≥ 4.5). */
+.show-stage .mil-option.is-locked {
+  --opt-frame: linear-gradient(180deg, #ffe0b0, #f0a64a);
+  --opt-plate: linear-gradient(180deg, #f6c27a, #e8913a);
+  --opt-ink: #221e1b;
+  --opt-letter: #3a210c;
+  box-shadow: none;
+  filter: drop-shadow(0 0 1.8cqh rgba(240, 166, 74, 0.65));
+}
+
+/* Верный — зелёная заливка, по рамке бежит радуга зелёных (тот же .mil-option__glow). */
+.show-stage .mil-option.is-right {
+  --opt-frame: transparent;
+  --opt-plate: linear-gradient(180deg, #8fe3a8, #3fb26a);
+  --opt-ink: #10251a;
+  --opt-letter: #0c3a20;
+  box-shadow: none;
+  filter: drop-shadow(0 0 2.4cqh rgba(80, 220, 130, 0.7));
+}
+
+.show-stage .mil-option__glow {
+  inset: 0;
+  z-index: -1;
+  padding: 0;
+  border-radius: 0;
+  clip-path: var(--show-hex);
+  -webkit-mask: none;
+  mask: none;
+}
+
+.show-stage .mil-option.is-wrong {
+  --opt-frame: linear-gradient(180deg, #ffb3a8, #e0533f);
+}
+
+.show-stage .mil-option.is-wrong .mil-option__plate {
+  inset: 0.6cqh;
+}
+
+/* Лестницы команд — тёмное стекло с рамкой оформления, несгораемые ступени — золотой каймой. */
+.show-stage .mil-bar__steps {
+  border: 0.25cqh solid var(--show-frame-solid);
+  border-radius: 1.2cqh;
+  background: var(--show-ladder);
+  box-shadow: inset 0 0 2cqh var(--show-cell-glow);
+}
+
+.show-stage .mil-step {
+  border-radius: 0;
+  clip-path: polygon(0.9cqh 0, calc(100% - 0.9cqh) 0, 100% 50%, calc(100% - 0.9cqh) 100%, 0.9cqh 100%, 0 50%);
+  background: var(--show-step);
+}
+
+.show-stage .mil-step.is-on {
+  background: var(--team);
+}
+
+.show-stage .mil-step.is-safe {
+  outline: none;
+  box-shadow: inset 0 0 0 0.4cqh var(--show-safe);
+}
+
+.show-stage .mil-bar__points {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 3cqh;
+  color: var(--show-price);
+  text-shadow: 0 0 1.4cqh var(--show-price-glow);
+}
+
+.show-stage .mil-bar__name {
+  text-shadow: 0 0.2cqh 1cqh rgba(0, 0, 0, 0.7);
+}
+
+.show-stage .mil-tray__item {
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  border-color: var(--show-frame-solid);
+}
+
+.show-stage .mil-screen__who,
+.show-stage .mil-screen__title,
+.show-stage .mil-outcome {
+  text-shadow: 0 0.3cqh 1.6cqh rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .show-stage .mil-option.is-chosen::before {
+    animation: none;
+  }
+}
+
+/* Выбор оформления в конструкторе: миниатюра фона справа. */
+.show-look .choice__text {
+  flex: 1 1 auto;
+}
+
+.show-look__thumb {
+  flex: none;
+  width: 72px;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-position: center;
+  background-size: cover;
+}
+
+.show-look__thumb--classic {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(var(--color-border) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-border) 1.5px, transparent 1.5px);
+  background-size: 12px 10px;
+  background-position: 6px 5px;
+}
+
+.show-look__thumb--board-studio {
+  background-image: url("/shows/art/web/board-studio-1280.webp");
+}
+
+.show-look__thumb--board-evening {
+  background-image: url("/shows/art/web/board-evening-1280.webp");
+}
+
+.show-look__thumb--millionaire-studio {
+  background-image: url("/shows/art/web/millionaire-studio-1280.webp");
+}
+
+.show-look__thumb--millionaire-evening {
+  background-image: url("/shows/art/web/millionaire-evening-1280.webp");
+}
+
+/* ---------- Оформление телешоу: «Гонка на выживание» (content.look: «Трасса», «Вечер JoyRest») ----------
+   Фон — ночная трасса из public/shows/art/web/survival-*.webp, вопрос — стеклянная плашка, варианты — скошенные
+   плашки (как табло гонки), дорожки — полосы асфальта с разметкой, делениями раундов, красно-золотыми метками
+   войнушек и клетчатым финишем; фишка команды — болид её цвета. Цвета — только переменные ниже. */
+.sv-screen.show-stage--track {
+  --color-text: #f4f6ff;
+  --color-text-muted: #c3cbe8;
+  --color-surface: #0f1638;
+  --color-surface-alt: #18214a;
+  --color-border: rgba(120, 200, 255, 0.35);
+  --color-highlight: #7fe6ff;
+  --color-success: #8ef3b0;
+  --color-danger: #ffa596;
+  --show-bg: #05081a;
+  --show-ink: #f4f6ff;
+  --show-letter: #7fe6ff;
+  --show-price: #ffd27a;
+  --show-price-glow: rgba(255, 190, 90, 0.5);
+  --show-frame: linear-gradient(90deg, #7fe6ff 0%, #b48cff 50%, #ff74d9 100%);
+  --show-frame-solid: #7fe6ff;
+  --show-plate: linear-gradient(180deg, #1a2468 0%, #0e1544 55%, #080c2c 100%);
+  --show-cell-line: rgba(127, 230, 255, 0.7);
+  --show-cell-glow: rgba(90, 200, 255, 0.22);
+  --show-cell-halo: rgba(90, 200, 255, 0.35);
+  --show-glass: linear-gradient(180deg, rgba(20, 28, 74, 0.74), rgba(7, 10, 32, 0.78));
+  --show-line: rgba(127, 230, 255, 0.85);
+  --show-halo: rgba(80, 200, 255, 0.38);
+  --show-panel: rgba(4, 7, 24, 0.66);
+  --show-panel-line: rgba(127, 230, 255, 0.3);
+  --show-asphalt: linear-gradient(180deg, #262a3e 0%, #171a2c 100%);
+  --show-dash: rgba(255, 255, 255, 0.34);
+  --show-tick: rgba(170, 225, 255, 0.32);
+  --show-war-a: #e5483b;
+  --show-war-b: #f5c76a;
+  --show-alarm: rgba(229, 72, 59, 0.55);
+  --show-chip: #b8282a;
+  --show-chip-edge: #f7efe2;
+  --show-chip-ink: #fff8ec;
+  --show-ticket: linear-gradient(135deg, #ffe7ad 0%, #f5c76a 55%, #e0a24a 100%);
+  --show-ticket-ink: #2a1a06;
+  --show-timer: #0b1030;
+  --show-art: url("/shows/art/web/survival-track-1280.webp");
+  --show-shade: linear-gradient(180deg, rgba(3, 5, 18, 0.5) 0%, rgba(3, 5, 18, 0.28) 48%, rgba(3, 5, 18, 0.2) 100%);
+}
+
+.sv-screen.show-stage--evening {
+  --color-success: #b4e3c0;
+  --color-danger: #f2a79c;
+  --show-glass: linear-gradient(180deg, rgba(44, 36, 29, 0.8), rgba(22, 18, 15, 0.82));
+  --show-line: rgba(227, 198, 140, 0.85);
+  --show-halo: rgba(227, 198, 140, 0.28);
+  --show-panel: rgba(20, 16, 13, 0.72);
+  --show-panel-line: rgba(227, 198, 140, 0.32);
+  --show-asphalt: linear-gradient(180deg, #2e2722 0%, #1a1612 100%);
+  --show-dash: rgba(243, 223, 174, 0.4);
+  --show-tick: rgba(243, 223, 174, 0.26);
+  --show-war-a: #d2584a;
+  --show-war-b: #e3c68c;
+  --show-alarm: rgba(210, 88, 74, 0.5);
+  --show-chip: #7d2633;
+  --show-chip-edge: #f3dfae;
+  --show-chip-ink: #fff6ea;
+  --show-ticket: linear-gradient(135deg, #f8e7bd 0%, #e3c68c 55%, #c49e96 100%);
+  --show-ticket-ink: #2a1c10;
+  --show-timer: #1d1814;
+  --show-art: url("/shows/art/web/survival-evening-1280.webp");
+  --show-shade: linear-gradient(180deg, rgba(16, 13, 10, 0.45) 0%, rgba(16, 13, 10, 0.3) 48%, rgba(16, 13, 10, 0.22) 100%);
+}
+
+@media (min-width: 1400px) {
+  .sv-screen.show-stage--track {
+    --show-art: url("/shows/art/web/survival-track.webp");
+  }
+  .sv-screen.show-stage--evening {
+    --show-art: url("/shows/art/web/survival-evening.webp");
+  }
+}
+
+.sv-screen.show-stage {
+  /* Плашки вариантов — скошенные, как табло гонки (вместо шестиугольника «Миллионера»). */
+  --show-hx: 2.2cqh;
+  --show-hex: polygon(var(--show-hx) 0, 100% 0, calc(100% - var(--show-hx)) 100%, 0 100%);
+  padding: 3.5cqh 3.5cqw 7cqh;
+  gap: 2cqh;
+}
+
+.show-stage .sv-screen__main {
+  gap: 2cqh;
+}
+
+.show-stage .sv-screen__main--corner {
+  padding-inline: 13cqw;
+}
+
+.show-stage .sv-title,
+.show-stage .sv-note,
+.show-stage .sv-who,
+.show-stage .sv-kind {
+  text-shadow: 0 0.3cqh 1.6cqh rgba(0, 0, 0, 0.75);
+}
+
+.show-stage .sv-kind {
+  color: var(--show-price);
+}
+
+/* Вопрос — стеклянная плашка с тонкой светящейся рамкой. */
+.show-stage .sv-screen__main .sv-round__text {
+  padding: 2.6cqh 4cqw;
+  border: 0.25cqh solid var(--show-line);
+  border-radius: 2cqh;
+  background: var(--show-glass);
+  box-shadow: 0 0 3cqh var(--show-halo), inset 0 0 4cqh rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(0.8cqh);
+  backdrop-filter: blur(0.8cqh);
+  color: var(--show-ink);
+  font-size: 5cqh;
+  line-height: 1.2;
+}
+
+.show-stage .sv-options {
+  gap: 1.3cqh 1.4cqw;
+}
+
+.show-stage .sv-options .mil-option {
+  min-height: 7cqh;
+  font-size: 3.2cqh;
+  text-align: left;
+}
+
+.show-stage .sv-round__answer {
+  justify-self: center;
+  padding: 1cqh 3cqw;
+  border-radius: 999px;
+  background: var(--show-panel);
+  text-shadow: none;
+}
+
+/* Дорожки — на тёмном стекле, чтобы трасса картинки не спорила с полосами. */
+.show-stage .sv-screen__side {
+  max-height: 50cqh;
+  padding: 1.4cqh 1.6cqw 1.6cqh;
+  border: 0.2cqh solid var(--show-panel-line);
+  border-radius: 1.6cqh;
+  background: var(--show-panel);
+  -webkit-backdrop-filter: blur(0.6cqh);
+  backdrop-filter: blur(0.6cqh);
+  box-shadow: 0 1cqh 4cqh rgba(0, 0, 0, 0.45);
+}
+
+.show-stage .sv-counter {
+  color: var(--color-highlight);
+  font-size: 2.2cqh;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.show-stage .sv-lanes {
+  --car-w: 13cqh;
+  --fin-w: 2.4cqh;
+  --flag: 0.5cqh;
+  gap: 0.9cqh 2.4cqw;
+}
+
+.show-stage .sv-lanes--multi {
+  --car-w: 10cqh;
+  --flag: 0.32cqh;
+}
+
+/* Колонка счёта — постоянной ширины: все дорожки начинаются и кончаются на одной линии. */
+.show-stage .sv-lane {
+  grid-template-columns: minmax(0, 0.6fr) minmax(0, 2.6fr) 9.5cqw;
+  gap: 1.2cqw;
+}
+
+.show-stage .sv-lanes--multi .sv-lane {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.7fr) 8.5cqw;
+}
+
+/* Больше 12 команд — три колонки: имя шире, болид и счёт мельче. */
+.show-stage .sv-lanes--three {
+  --car-w: 8cqh;
+}
+
+.show-stage .sv-lanes--three .sv-lane {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 6.5cqw;
+  gap: 0.8cqw;
+}
+
+.show-stage .sv-lanes--three .sv-lane__name {
+  font-size: 2.4cqh;
+}
+
+.show-stage .sv-lanes--three .sv-lane__score {
+  font-size: 2.4cqh;
+}
+
+.show-stage .sv-lane__name {
+  font-size: 2.9cqh;
+  text-shadow: 0 0.2cqh 1cqh rgba(0, 0, 0, 0.8);
+}
+
+.show-stage .sv-lane__score {
+  justify-self: end;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 3.2cqh;
+  color: var(--show-price);
+  text-shadow: 0 0 1.4cqh var(--show-price-glow);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Полоса трассы: асфальт, кромки цвета команды, прерывистая осевая. */
+.show-stage .sv-lane__track {
+  height: 5.6cqh;
+  border-radius: 0.6cqh;
+  background:
+    repeating-linear-gradient(90deg, var(--show-dash) 0 3.4cqh, transparent 3.4cqh 6.8cqh) center / 100% 0.3cqh no-repeat,
+    var(--show-asphalt);
+  box-shadow:
+    inset 0 0.3cqh 0 color-mix(in srgb, var(--team) 75%, transparent),
+    inset 0 -0.3cqh 0 color-mix(in srgb, var(--team) 40%, transparent);
+}
+
+.show-stage .sv-lane__track::after {
+  width: var(--fin-w);
+  border-radius: 0 0.6cqh 0.6cqh 0;
+  background: repeating-conic-gradient(#fbf6f1 0 25%, #15161c 0 50%) 0 0 / 1.2cqh 1.2cqh;
+}
+
+/* Деления: поперечная черта на каждый раунд, красно-золотой флажок-полоса — на каждую войнушку. */
+.show-stage .sv-lane__marks {
+  inset: 0 calc(var(--fin-w) + var(--car-w) / 2) 0 calc(var(--car-w) / 2);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(100% * var(--war) / var(--segs) - 2 * var(--flag)),
+      var(--show-war-a) calc(100% * var(--war) / var(--segs) - 2 * var(--flag)) calc(100% * var(--war) / var(--segs) - var(--flag)),
+      var(--show-war-b) calc(100% * var(--war) / var(--segs) - var(--flag)) calc(100% * var(--war) / var(--segs))
+    ),
+    repeating-linear-gradient(90deg, var(--show-tick) 0 0.2cqh, transparent 0.2cqh calc(100% / var(--segs)));
+}
+
+/* След болида: растёт только transform-ом. */
+.show-stage .sv-lane__runner {
+  inset: 1.7cqh auto 1.7cqh 0;
+  width: calc(100% - var(--fin-w) - var(--car-w));
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--team) 80%, transparent));
+  opacity: 0.75;
+  transform-origin: left center;
+  transform: scaleX(var(--share));
+  transition: transform 1s cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+
+/* Болид едет transform-ом: слой во всю длину пути, сдвиг — доля трассы от его же ширины. */
+.sv-lane__pos {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(100% - var(--fin-w) - var(--car-w));
+  transform: translateX(calc(var(--share) * 100%));
+  transition: transform 1s cubic-bezier(0.3, 0.7, 0.3, 1);
+  pointer-events: none;
+}
+
+.sv-car {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--car-w);
+  aspect-ratio: 96 / 36;
+  margin-top: calc(var(--car-w) * -0.21);
+}
+
+.sv-car__body {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0.4cqh 0.5cqh rgba(0, 0, 0, 0.6));
+  animation: sv-car-idle 0.4s ease-in-out infinite alternate;
+}
+
+.sv-car__shadow {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.sv-car__paint {
+  fill: var(--team);
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 1;
+}
+
+.sv-car__nose {
+  fill: color-mix(in srgb, var(--team) 65%, #000);
+}
+
+.sv-car__wing {
+  fill: #15161d;
+  stroke: color-mix(in srgb, var(--team) 70%, #fff);
+  stroke-width: 1;
+}
+
+.sv-car__stripe {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 1.6;
+}
+
+.sv-car__glass {
+  fill: #10131f;
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 1;
+}
+
+.sv-car__tyre {
+  fill: #0c0c11;
+  stroke: #33343f;
+  stroke-width: 1.5;
+}
+
+.sv-car__rim {
+  fill: #c9ccd6;
+}
+
+/* Шлем пилота — смайлик или буква команды. */
+.sv-car__helmet {
+  position: absolute;
+  left: 54%;
+  top: 12%;
+  width: calc(var(--car-w) * 0.26);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 0.25cqh solid var(--team);
+  background: #fbf6f1;
+  color: #221e1b;
+  font-size: calc(var(--car-w) * 0.17);
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0.3cqh 0.6cqh rgba(0, 0, 0, 0.5);
+}
+
+@keyframes sv-car-idle {
+  to {
+    transform: translateY(-0.15cqh);
+  }
+}
+
+/* Лидер — лёгкое свечение дорожки и болида. */
+.show-stage .sv-lane.is-leader .sv-lane__track {
+  box-shadow:
+    inset 0 0.3cqh 0 color-mix(in srgb, var(--team) 75%, transparent),
+    inset 0 -0.3cqh 0 color-mix(in srgb, var(--team) 40%, transparent),
+    0 0 2.2cqh color-mix(in srgb, var(--team) 55%, transparent);
+}
+
+.show-stage .sv-lane.is-leader .sv-car__body {
+  filter: drop-shadow(0 0 1cqh var(--team)) drop-shadow(0 0.4cqh 0.5cqh rgba(0, 0, 0, 0.6));
+}
+
+/* Войнушка: красно-золотая «тревожная» рамка кадра (дышит прозрачностью). */
+.sv-screen.show-stage.sv-screen--war::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 0.7cqh solid transparent;
+  border-image: repeating-linear-gradient(45deg, var(--show-war-a) 0 2cqh, var(--show-war-b) 2cqh 4cqh) 1;
+  box-shadow: inset 0 0 9cqh var(--show-alarm);
+  animation: sv-alarm 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes sv-alarm {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Фишка казино с суммой: ставки команд на дорожках, банк и приз — крупно. */
+.show-stage .sv-chip {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 4.6cqh;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--show-chip) 0 55%, var(--show-chip-edge) 56% 59%, transparent 60%),
+    repeating-conic-gradient(from 7.5deg, var(--show-chip-edge) 0 15deg, var(--show-chip) 15deg 45deg);
+  box-shadow: 0 0.4cqh 1cqh rgba(0, 0, 0, 0.55), inset 0 0 0 0.3cqh rgba(0, 0, 0, 0.25);
+  color: var(--show-chip-ink);
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 1.5cqh;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.show-stage .sv-chip--big {
+  width: 17cqh;
+  font-size: 3.8cqh;
+  box-shadow: 0 1cqh 3cqh rgba(0, 0, 0, 0.6), 0 0 4cqh var(--show-alarm), inset 0 0 0 0.6cqh rgba(0, 0, 0, 0.25);
+  animation: sv-chip-float 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes sv-chip-float {
+  to {
+    transform: translateY(-0.8cqh) rotate(8deg);
+  }
+}
+
+.show-stage .sv-bank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8cqh;
+}
+
+.show-stage .sv-bank__label {
+  color: var(--show-price);
+  font-size: 2.2cqh;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-shadow: 0 0.2cqh 1cqh rgba(0, 0, 0, 0.8);
+}
+
+/* Банк войнушки во время вопроса — в правом верхнем углу кадра. */
+.show-stage .sv-bank--row {
+  position: absolute;
+  z-index: 1;
+  top: 3cqh;
+  right: 3cqw;
+}
+
+.show-stage .sv-bank--row .sv-chip--big {
+  width: 15cqh;
+  font-size: 3.4cqh;
+}
+
+/* Отсчёт задания — крупный круглый таймер в углу: кольцо — доля оставшихся 30 секунд. */
+.show-stage .sv-task-timer {
+  position: absolute;
+  top: 3cqh;
+  right: 3cqw;
+  flex-direction: column;
+  gap: 1cqh;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+.show-stage .sv-task-timer__who {
+  max-width: 22cqh;
+  font-size: 2.4cqh;
+  text-align: center;
+  text-shadow: 0 0.2cqh 1cqh rgba(0, 0, 0, 0.8);
+}
+
+.show-stage .sv-task-timer__n {
+  display: grid;
+  place-items: center;
+  width: 18cqh;
+  min-width: 0;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--show-timer) 0 63%, transparent 64%),
+    conic-gradient(var(--show-line) calc(var(--frac, 1) * 360deg), rgba(255, 255, 255, 0.12) 0);
+  box-shadow: 0 0 3cqh var(--show-halo);
+  color: var(--show-ink);
+  font-size: 8cqh;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.show-stage .sv-task-timer.is-over .sv-task-timer__n {
+  color: var(--color-danger);
+  font-size: 4.2cqh;
+  box-shadow: 0 0 3cqh var(--show-alarm);
+}
+
+/* Аукцион: билет освобождения — купон с отрывным корешком. */
+.show-stage .sv-ticket {
+  filter: drop-shadow(0 1.2cqh 2.4cqh rgba(0, 0, 0, 0.55));
+  transform: rotate(-2deg);
+  animation: sv-ticket-float 3s ease-in-out infinite alternate;
+}
+
+@keyframes sv-ticket-float {
+  to {
+    transform: rotate(1deg) translateY(-0.8cqh);
+  }
+}
+
+.show-stage .sv-ticket__paper {
+  --cut: 15cqh;
+  display: flex;
+  align-items: stretch;
+  border-radius: 1.6cqh;
+  background: var(--show-ticket);
+  color: var(--show-ticket-ink);
+  -webkit-mask:
+    radial-gradient(circle 1.8cqh at var(--cut) 0, transparent 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle 1.8cqh at var(--cut) 100%, transparent 97%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle 1.8cqh at var(--cut) 0, transparent 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle 1.8cqh at var(--cut) 100%, transparent 97%, #000) bottom / 100% 51% no-repeat;
+}
+
+.show-stage .sv-ticket__stub {
+  display: grid;
+  place-items: center;
+  width: var(--cut);
+  border-right: 0.4cqh dashed color-mix(in srgb, var(--show-ticket-ink) 45%, transparent);
+  font-size: 7cqh;
+}
+
+.show-stage .sv-ticket__body {
+  display: grid;
+  gap: 0.6cqh;
+  padding: 2.6cqh 4cqw 2.6cqh 3cqw;
+  text-align: left;
+}
+
+.show-stage .sv-ticket__kicker {
+  font-size: 2.2cqh;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.show-stage .sv-ticket__title {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 7cqh;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.show-stage .sv-ticket__note {
+  font-size: 2.6cqh;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-car__body,
+  .sv-screen.show-stage.sv-screen--war::after,
+  .show-stage .sv-chip--big,
+  .show-stage .sv-ticket {
+    animation: none;
+  }
+
+  .sv-lane__pos,
+  .show-stage .sv-lane__runner {
+    transition: none;
+  }
+}
+
+.show-look__thumb--survival-track {
+  background-image: url("/shows/art/web/survival-track-1280.webp");
+}
+
+.show-look__thumb--survival-evening {
+  background-image: url("/shows/art/web/survival-evening-1280.webp");
 }

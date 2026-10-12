@@ -10,6 +10,8 @@ import { mediaRepo } from "../../data";
 import type { EditorProps } from "../types";
 import { allCells, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, MAX_ROUNDS, resizeBoard, roundCategories, roundsOf, setRounds, type BoardCell, type BoardContent, type CellKind } from "./content";
 import { validateBoard } from "./validate";
+import { ShowLookPicker } from "../ShowLookPicker";
+import type { ShowLook } from "../showLook";
 
 const KINDS: CellKind[] = ["question", "track", "picture", "cat", "auction"];
 
@@ -19,6 +21,12 @@ const KIND_HINTS: Record<CellKind, string> = {
   picture: "Картинка на экране — что на ней? Отвечают кнопкой.",
   cat: "Ведущий отдаёт вопрос одному игроку и ставит цену — отвечать обязательно. Верно — плюс цена, неверно — минус.",
   auction: "Все ставят очки на телефонах, кто больше — отвечает на сложный вопрос. Верно — ставка его, неверно — минус ставка.",
+};
+
+const LOOK_HINTS: Partial<Record<ShowLook, string>> = {
+  classic: "Простое поле в цветах оформления игры.",
+  studio: "Телестудия: синие прожекторы, светящиеся клетки, золотые цены.",
+  evening: "Тёмный зал в стиле ар-деко: золото и тёплый свет JoyRest.",
 };
 
 export function BoardEditor({ gameId, content, onChange, editable }: EditorProps<BoardContent>) {
@@ -114,6 +122,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
             ))}
           </div>
         </fieldset>
+        <ShowLookPicker game="board" value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
         {editable && (
           <button type="button" className="btn btn--quiet btn--block" onClick={resetPoints}>
             Стоимость по колонкам: 100, 200, 300… (во 2-м раунде — вдвое)

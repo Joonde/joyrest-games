@@ -1,0 +1,10 @@
+{
+  "files": [
+    {"file": "board-studio.png", "what": "«Своя игра»: фон экрана зала «Студия» (телестудия, индиго и фиолетовый, прожекторы, середина пустая под поле)", "url": "https://www.figma.com/api/mcp/asset/3d18af1c-c49a-4185-a658-f828ce0a49fd.png", "expires": "2026-10-19"},
+    {"file": "millionaire-studio.png", "what": "«Кто хочет стать миллионером»: фон экрана зала «Студия» (круглая студия, сине-фиолетовые лучи, кольца на полу)", "url": "https://www.figma.com/api/mcp/asset/9fe9d45d-ca6c-43ec-88c2-a6d2253bf616.png", "expires": "2026-10-19"},
+    {"file": "board-evening.png", "what": "«Своя игра»: фон экрана зала «Вечер JoyRest» (тёплый тёмный, золото ар-деко по углам)", "url": "https://www.figma.com/api/mcp/asset/bf57d20e-5c58-4af7-a1d5-d8f18140f79c.png", "expires": "2026-10-19"},
+    {"file": "millionaire-evening.png", "what": "«Кто хочет стать миллионером»: фон экрана зала «Вечер JoyRest» (тёплый тёмный, золотые лучи и кольца)", "url": "https://www.figma.com/api/mcp/asset/c333d767-fbc4-4a77-bd39-4bda4afcf950.png", "expires": "2026-10-19"},
+    {"file": "survival-track.png", "what": "«Гонка на выживание»: фон экрана зала «Трасса» (ночной автодром, неоновая разметка, прожекторы, верх тёмный под вопрос)", "url": "https://www.figma.com/api/mcp/asset/f0134fee-1b87-45fc-83fd-ac1d90549be3.png", "expires": "2026-10-19"},
+    {"file": "survival-evening.png", "what": "«Гонка на выживание»: фон экрана зала «Вечер JoyRest» (тёплая тёмная трасса, золотая разметка, веера ар-деко по углам)", "url": "https://www.figma.com/api/mcp/asset/1c5c5d1a-66d9-48ad-90ca-e77c1d34f3a6.png", "expires": "2026-10-19"}
+  ]
+}

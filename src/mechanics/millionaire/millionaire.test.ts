@@ -302,3 +302,20 @@ describe("Кто хочет стать миллионером: подсказк�
     expect(canUseLifeline(s, content, [], "fifty")).toMatchObject({ ok: false, reason: "Ответ уже зафиксирован" });
   });
 });
+
+describe("оформление экрана зала «Миллионера»", () => {
+  it("старые игры без поля и неизвестные значения — «Классика», шаблон и новые игры — «Студия»", () => {
+    const old: Record<string, unknown> = { ...createMillionaire() };
+    delete old.look;
+    expect(parseMillionaire(old).look).toBe("classic");
+    expect(parseMillionaire({ ...old, look: "gold" }).look).toBe("classic");
+    expect(parseMillionaire(undefined).look).toBe("classic");
+    expect(parseMillionaire({ ...old, look: "studio" }).look).toBe("studio");
+    expect(parseMillionaire({ ...old, look: "evening" }).look).toBe("evening");
+    expect(createMillionaire().look).toBe("studio");
+    const demo = parseMillionaire(DEMO_MILLIONAIRE);
+    expect(demo.look).toBe("studio");
+    expect(validateMillionaire(demo)).toEqual([]);
+    expect(validateMillionaire({ ...demo, look: "evening" })).toEqual([]);
+  });
+});

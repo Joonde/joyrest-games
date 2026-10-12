@@ -10,6 +10,8 @@
     { "file": "wedding-queen.png", "what": "Колода «Свадьба»: дама (невеста, кружевная фата, тиара, букет пионов)", "url": "https://www.figma.com/api/mcp/asset/620b8a57-6a2a-48bb-b29c-c82c39685bf1.png", "expires": "2026-10-18" },
     { "file": "anime-jack.png", "what": "Колода «Аниме»: валет (юный ниндзя-страж, луна и сакура)", "url": "https://www.figma.com/api/mcp/asset/4b25cdae-3fec-402a-993e-41c880f4c14f.png", "expires": "2026-10-18" },
     { "file": "wedding-jack.png", "what": "Колода «Свадьба»: валет (шафер в тёмно-синем костюме с бокалом шампанского)", "url": "https://www.figma.com/api/mcp/asset/baab5fac-9509-4397-a3fa-3cd154a7302c.png", "expires": "2026-10-18" },
-    { "file": "classic-king.png", "what": "Колода «Классика JoyRest»: король (ар-деко, бордо и золото)", "url": "https://www.figma.com/api/mcp/asset/345e0390-9ec1-438d-a232-5070f9ff07ed.png", "expires": "2026-10-18" }
+    { "file": "classic-king.png", "what": "Колода «Классика JoyRest»: король (ар-деко, бордо и золото)", "url": "https://www.figma.com/api/mcp/asset/345e0390-9ec1-438d-a232-5070f9ff07ed.png", "expires": "2026-10-18" },
+    { "file": "loto-evening.png", "what": "Музыкальное лото: карточка «Вечер» (ар-деко, золотая пластинка, тёмный фон, середина пустая под сетку)", "url": "https://www.figma.com/api/mcp/asset/37f97b4f-7f94-4541-bd3d-21137d59e9f3.png", "expires": "2026-10-19" },
+    { "file": "loto-day.png", "what": "Музыкальное лото: карточка «День» (кремовая, пионы, микрофон и граммофон, середина пустая под сетку)", "url": "https://www.figma.com/api/mcp/asset/c281442b-b63a-45d8-9be8-16602cdc6d4d.png", "expires": "2026-10-19" }
   ]
 }

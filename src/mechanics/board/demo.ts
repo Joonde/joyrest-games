@@ -105,6 +105,7 @@ const content: BoardContent = {
   penalty: false,
   betTime: 30,
   buzzTime: 15,
+  look: "studio",
 };
 
 export const DEMO_BOARD = { title: "Своя игра: кино, география, праздники, еда", content };

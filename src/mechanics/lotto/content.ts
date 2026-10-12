@@ -15,6 +15,12 @@ export interface LottoSong {
 /** Что считается победой: одна линия, две линии или вся карточка. */
 export type WinRule = "line" | "twoLines" | "full";
 
+/**
+ * Оформление карточки на телефоне гостя: «Классика» — простая сетка в цветах темы, «Вечер» и
+ * «День» — сетка на рисованном фоне (`public/cards/art/web/loto-*.webp`, стили — src/styles.css).
+ */
+export type CardStyle = "classic" | "evening" | "day";
+
 export interface LottoContent {
   songs: LottoSong[];
   /** Карточка size × size. */
@@ -24,6 +30,8 @@ export interface LottoContent {
   fragment: number;
   /** Очки первым победителям по порядку; дальше — последнее число. */
   prizes: number[];
+  /** Оформление карточки гостя. Старые игры без поля — «Классика». */
+  cardStyle: CardStyle;
 }
 
 export const LOTTO_LIMITS = {
@@ -48,6 +56,20 @@ export const RULE_HINTS: Record<WinRule, string> = {
   full: "Все песни карточки — для долгого вечера.",
 };
 
+export const CARD_STYLES: CardStyle[] = ["classic", "evening", "day"];
+
+export const CARD_STYLE_TITLES: Record<CardStyle, string> = {
+  classic: "Классика",
+  evening: "Вечер",
+  day: "День",
+};
+
+export const CARD_STYLE_HINTS: Record<CardStyle, string> = {
+  classic: "Простая сетка в цветах оформления игры.",
+  evening: "Тёмная карточка в стиле ар-деко: золотая пластинка и веер.",
+  day: "Светлая карточка: пионы, микрофон и граммофон.",
+};
+
 export function newSongId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   return "s" + Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
@@ -58,7 +80,7 @@ export function newSong(title = "", artist = ""): LottoSong {
 }
 
 export function createLotto(): LottoContent {
-  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100] };
+  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening" };
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -102,7 +124,56 @@ export function parseLotto(raw: unknown): LottoContent {
     rule,
     fragment: int(d.fragment, 30, LOTTO_LIMITS.minFragment, LOTTO_LIMITS.maxFragment),
     prizes: prizes.length > 0 ? prizes : [300, 200, 100],
+    cardStyle: d.cardStyle === "evening" || d.cardStyle === "day" ? d.cardStyle : "classic",
   };
+}
+
+/** Сколько букв помещается в строку клетки рисованной карточки при обычном размере шрифта. */
+const FIT_LETTERS: Record<LottoContent["size"], number> = { 3: 8.5, 4: 7, 5: 6 };
+/** Сколько строк названия помещается в клетку вместе с исполнителем (5×5 — без исполнителя). */
+const FIT_LINES: Record<LottoContent["size"], number> = { 3: 2, 4: 2, 5: 3 };
+const MIN_FIT = 0.6;
+const MIN_WRAP_FIT = 0.72;
+
+/** Сколько строк займёт название, если в строку помещается perLine букв (переносы — по словам). */
+function lineCount(words: string[], perLine: number): number {
+  let lines = 1;
+  let used = 0;
+  for (const word of words) {
+    if (used === 0) used = word.length;
+    else if (used + 1 + word.length <= perLine) used += 1 + word.length;
+    else {
+      lines += 1;
+      used = word.length;
+    }
+    while (used > perLine) {
+      lines += 1;
+      used -= perLine;
+    }
+  }
+  return lines;
+}
+
+/**
+ * Как показать название песни в клетке рисованной карточки: `fit` — во сколько раз уменьшить шрифт
+ * (от 0,6 до 1), чтобы самое длинное слово влезло целиком, а строк было не больше, чем помещается;
+ * `artist` — помещается ли ещё строка исполнителя (у длинных названий её нет, на 5×5 — никогда).
+ */
+export function cellFit(title: string, size: LottoContent["size"]): { fit: number; artist: boolean } {
+  const words = title.split(/\s+/).filter(Boolean);
+  const longest = Math.max(0, ...words.flatMap((w) => w.split(/[-‐–]/).map((part) => part.length)));
+  const room = FIT_LETTERS[size];
+  const wordFit = longest <= room ? 1 : Math.max(MIN_FIT, Math.floor((room / longest) * 100) / 100);
+  const fits = (lines: number) => {
+    for (let fit = wordFit; fit >= Math.min(wordFit, MIN_WRAP_FIT) - 1e-9; fit = Math.round((fit - 0.04) * 100) / 100) {
+      if (lineCount(words, room / fit) <= lines) return fit;
+    }
+    return null;
+  };
+  const withArtist = size < 5 ? fits(FIT_LINES[size]) : null;
+  if (withArtist !== null) return { fit: withArtist, artist: true };
+  const alone = fits(FIT_LINES[size] + (size < 5 ? 1 : 0));
+  return { fit: alone ?? Math.min(wordFit, MIN_WRAP_FIT), artist: false };
 }
 
 /** Сколько песен нужно на карточку. */

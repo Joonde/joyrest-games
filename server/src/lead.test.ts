@@ -78,7 +78,7 @@ describe("/api/lead: поля", () => {
     expect(sent[1]).toContain("Оценка: ★★★★★");
     expect(sent[2]).toContain("Телефон: +7 (900) 123-45-67");
     expect(sent[2]).toContain("Связь: Telegram — @anna");
-    expect(sent[2]).toContain("Условия работы и залога: приняты");
+    expect(sent[2]).toContain("Условия брони и работы: приняты");
     await app.close();
   });
 
@@ -143,7 +143,7 @@ describe("/api/lead: поля", () => {
   it("формат ведущего (hostLevel): необязательный, только три значения, строка в Telegram", async () => {
     const { app, post, sent } = setup();
     expect((await post({ ...VALID.lead, hostLevel: "new" })).statusCode).toBe(200);
-    expect(sent.at(-1)).toContain("Ведущий: Новые лица (−25%)");
+    expect(sent.at(-1)).toContain("Ведущий: Новые лица (−20%)");
     expect((await post({ ...VALID.lead, hostLevel: "first" })).statusCode).toBe(200);
     expect(sent.at(-1)).toContain("Ведущий: Первый старт (−35%)");
     expect((await post({ ...VALID.lead, hostLevel: "standard" })).statusCode).toBe(200);

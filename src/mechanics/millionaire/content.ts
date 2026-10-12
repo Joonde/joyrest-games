@@ -1,6 +1,7 @@
 // «Кто хочет стать миллионером»: лестница из 12 вопросов (4 варианта, один верный), у каждой команды
 // своя полоска на экране зала. Несгораемые ступени (по умолчанию 4-я и 8-я): ошибка роняет до
 // последней пройденной. Подсказки — по одной каждого вида на команду за игру.
+import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
 
 export const LEVELS = 12;
 
@@ -48,6 +49,8 @@ export interface MillionaireContent {
   audienceSeconds: number;
   /** Играют все команды по очереди или одна (её выбирает ведущий перед началом). */
   players: "all" | "one";
+  /** Оформление экрана зала (`../showLook.ts`). Старые игры без поля — «Классика». */
+  look: ShowLook;
 }
 
 export const DEFAULT_LADDER = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 300000, 500000, 1000000];
@@ -72,6 +75,7 @@ export function createMillionaire(): MillionaireContent {
     callSeconds: 60,
     audienceSeconds: 20,
     players: "all",
+    look: DEFAULT_SHOW_LOOK,
   };
 }
 
@@ -102,6 +106,7 @@ export function parseMillionaire(raw: unknown): MillionaireContent {
     callSeconds: int(d.callSeconds, 60, MILLIONAIRE_LIMITS.minSeconds, MILLIONAIRE_LIMITS.maxSeconds),
     audienceSeconds: int(d.audienceSeconds, 20, MILLIONAIRE_LIMITS.minSeconds, MILLIONAIRE_LIMITS.maxSeconds),
     players: d.players === "one" ? "one" : "all",
+    look: parseShowLook(d.look),
   };
 }
 

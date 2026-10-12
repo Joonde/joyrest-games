@@ -18,6 +18,7 @@ import { audienceRepo, type Session } from "../../data";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { LETTERS, LEVELS, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { LifelineIcon } from "./icons";
+import { showStageClass } from "../showLook";
 import { levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
 
 export type MillionaireAnswerValue = { choice: number } | { vote: number } | { lifeline: LifelineId; n: string };
@@ -132,6 +133,8 @@ function QuestionCard({ question, result, reveal, size = "screen", mine = null }
               style={pct !== null ? ({ "--pct": `${pct}%` } as CSSProperties) : undefined}
             >
               {right && <span className="mil-option__glow" aria-hidden="true" />}
+              {/* Плашка-шестиугольник оформления «Студия» / «Вечер JoyRest» (в «Классике» скрыта). */}
+              <span className="mil-option__plate" aria-hidden="true" />
               {pct !== null && <span className="mil-option__bar" aria-hidden="true" />}
               <span className="mil-option__letter">{LETTERS[i]}</span>
               <span className="mil-option__text">{gone ? "" : text}</span>
@@ -191,7 +194,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   const used = r.turn ? (r.used[r.turn] ?? []) : [];
 
   return (
-    <div className={`mil-screen${audience ? " mil-screen--audience" : ""}`}>
+    <div className={`mil-screen${audience ? " mil-screen--audience" : ""}${showStageClass(content.look)}`}>
       {stage === "reveal" && r.outcome === "right" && <Confetti burst={`mil:${step}:${r.q}`} count={top ? 120 : 70} />}
       {stage === "reveal" && r.outcome === "right" && <span key={`glow:${step}`} className="mil-burst" aria-hidden="true" />}
       <section className="mil-screen__main">

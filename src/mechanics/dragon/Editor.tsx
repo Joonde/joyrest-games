@@ -1,5 +1,6 @@
 // Конструктор «Боя с драконом»: бои (имя и здоровье дракона), задания полосками со свойством (Ум, Ловкость —
 // вопрос; Сила, Харизма — задание; Удача — кубик), жизни команд, бонусы; шаблоны «Классика» и «Для детей».
+import { Fold } from "../../components/Fold";
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -76,6 +77,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
           </label>
         </div>
         {editable && (
+          <Fold title="Шаблоны и вставка списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replace(DEMO_DRAGON.battles, "Заполнить шаблоном «Классика»", "classic", DEMO_DRAGON.lives)}>
               Шаблон «Классика»
@@ -87,8 +89,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
-        )}
-        {importing && editable && (
+        {importing && (
           <div className="stack stack--tight">
             <p className="muted small">«# Бой: Огненный дракон 2000» — новый бой и его здоровье. Задание — «Ум: вопрос?» с вариантами «- …» и верным «* …»; «Сила: …» и «Харизма: …» — задание; «Удача» — кубик. «(150)» в конце — урон.</p>
             <textarea value={text} rows={10} placeholder={"# Бой: Огненный дракон 2000\nУм: Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nСила: 10 приседаний всей командой (150)\nУдача: бросок!"} onChange={(e) => setText(e.target.value)} />
@@ -96,6 +97,8 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
               Заменить бои
             </button>
           </div>
+        )}
+          </Fold>
         )}
       </section>
 

@@ -3,6 +3,18 @@ import { useLocation } from "react-router-dom";
 
 const CHECK_MS = 60_000;
 
+/**
+ * Экран зала во время игры не перезагружается сам (иначе браузер снова просит коснуться для звука): он
+ * сообщает, что сейчас идёт игра, и обновится в паузе — в лобби, перерыве вечера или после финала.
+ */
+let hallBusy = false;
+const busyListeners = new Set<() => void>();
+export function setHallBusy(busy: boolean): void {
+  if (hallBusy === busy) return;
+  hallBusy = busy;
+  busyListeners.forEach((l) => l());
+}
+
 /** Версия сервера (`/health`); нет ответа (Netlify, нет сети) — null. */
 async function serverVersion(): Promise<string | null> {
   try {
@@ -23,6 +35,14 @@ async function serverVersion(): Promise<string | null> {
  */
 export function UpdateBanner() {
   const [fresh, setFresh] = useState(false);
+  const [busy, setBusy] = useState(hallBusy);
+  useEffect(() => {
+    const listener = () => setBusy(hallBusy);
+    busyListeners.add(listener);
+    return () => {
+      busyListeners.delete(listener);
+    };
+  }, []);
   const { pathname } = useLocation();
   const hall = pathname.startsWith("/screen/") || pathname === "/s";
 
@@ -48,15 +68,15 @@ export function UpdateBanner() {
   }, []);
 
   useEffect(() => {
-    if (!fresh || !hall) return;
+    if (!fresh || !hall || busy) return;
     const timer = window.setTimeout(() => window.location.reload(), 3000);
     return () => window.clearTimeout(timer);
-  }, [fresh, hall]);
+  }, [fresh, hall, busy]);
 
   if (!fresh) return null;
   return (
-    <div className="update-banner" role="status">
-      <span>{hall ? "Вышло обновление — экран обновится через пару секунд" : "Вышло обновление платформы"}</span>
+    <div className={hall && busy ? "update-banner update-banner--quiet" : "update-banner"} role="status">
+      <span>{hall ? (busy ? "Есть обновление — экран обновится в паузе" : "Вышло обновление — экран обновится через пару секунд") : "Вышло обновление платформы"}</span>
       {!hall && (
         <button type="button" className="update-banner__btn" onClick={() => window.location.reload()}>
           Обновить

@@ -4,6 +4,7 @@
  * на свой сервер (Node.js + WebSocket) пишется новая реализация тех же интерфейсов,
  * а остальной код не меняется. Firebase-типы сюда не попадают.
  */
+import type { ProgramAction } from "../core/program";
 import type {
   SessionSummary,
   OfflinePlayer,
@@ -149,6 +150,12 @@ export interface SessionsRepository {
   apply(sessionId: string, change: SessionChange): Promise<void>;
   /** Завершает игру и одной записью сохраняет компактные итоги для истории. */
   finish(session: Session, participantsCount: number): Promise<void>;
+  /**
+   * Мероприятие из блоков: «Завершить блок» (`break`), «Начать следующий блок» (`next`), «Итоги вечера»
+   * (`final`); `from` — номер блока, который видит пульт (повтор и второй пульт не сдвинут вечер дважды).
+   * Только свой сервер.
+   */
+  program?(sessionId: string, action: ProgramAction, from: number): Promise<void>;
   /**
    * Только admin: удаляет сессии старше `cutoff` вместе с участниками и ответами.
    * Итоги, которых ещё нет в истории, сохраняются перед удалением.

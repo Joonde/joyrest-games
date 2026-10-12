@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { storeScope } from "../../core/program";
 import { NameText } from "../../components/NameText";
 import { preloadTrack, useFragment } from "../../components/music/useFragment";
 import { playSound } from "../../components/live/sound";
@@ -187,7 +188,7 @@ function saveMarks(key: string, marks: string[]): void {
  */
 export function LottoPlayerView({ session, content, pid, role, myAnswer, sending, onAnswer }: PlayerViewProps<LottoContent, { marks: string[] }>) {
   const card = useMemo(() => cardFor(content, pid), [content, pid]);
-  const key = `${MARKS_KEY}.${session.id}.${pid}`;
+  const key = `${MARKS_KEY}.${storeScope(session)}.${pid}`;
   const [marks, setMarks] = useState<string[]>(() => loadMarks(key));
   const titles = useMemo(() => new Map(content.songs.map((s) => [s.id, s])), [content.songs]);
   const result = parseLottoResult(session.state.result);

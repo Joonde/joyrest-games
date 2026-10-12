@@ -176,7 +176,7 @@ export function storyPrimary(session: Session, content: StoryContent): StoryActi
 /** Следующий раздел: заставка раздела (`ready`). */
 export function nextPart(session: Session): SessionChange {
   const r = parseStoryResult(session.state.result);
-  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: { ...emptyFlat(), people: r.people, names: r.names, part: r.part + 1, prevPart: { ...r, prevPart: null } } } };
+  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: { ...emptyFlat(), people: r.people, names: r.names, part: r.part + 1, prevPart: { ...r, prevPart: null, ...(session.state.stage === "question" ? { fromStage: "question" } : {}) } } } };
 }
 
 /** Гости с телефонами и их имена: в одиночной игре — игроки таблицы, в командах — телефоны команд. */
@@ -338,7 +338,14 @@ export function storyBack(session: Session, content: StoryContent): StoryBack | 
   const r = parseStoryResult(session.state.result);
   if (stage === "podium") return { change: podiumBack(session) };
   const prevPart = rec(rec(session.state.result).prevPart);
-  const toPrevPart = (): StoryBack | null => ("part" in prevPart ? { change: { state: { step: step - 1, stage: "reveal", revealed: true, result: prevPart } } } : null);
+  // Раздел пропустили, пока гости писали, — «Назад» возвращает к письму, а не к итогу.
+  const toPrevPart = (): StoryBack | null => {
+    if (!("part" in prevPart)) return null;
+    const { fromStage, ...result } = prevPart;
+    return fromStage === "question"
+      ? { change: { state: { step: step - 1, stage: "question", startedAt: "server", revealed: false, result } } }
+      : { change: { state: { step: step - 1, stage: "reveal", revealed: true, result } } };
+  };
   if (kindOf(content, r.part) === "lies") {
     if (!r.lies) return toPrevPart();
     const b = liesBack(session, r.lies);

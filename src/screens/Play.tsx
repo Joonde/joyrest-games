@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { EveningTable } from "../mechanics/evening/views";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
@@ -137,7 +138,9 @@ function JoinForm({
   const [emoji, setEmoji] = useState<string | null>(() => remembered.emoji ?? randomEmoji());
   const [teamEmoji, setTeamEmoji] = useState<string | null>(() => randomEmoji());
   const [teams, setTeams] = useState<Participant[]>([]);
-  const [teamId, setTeamId] = useState<string>("new");
+  // Команду гость выбирает сам (решение владельца 12 октября 2026): заранее не выбрано ничего — одним касанием
+  // «Играть» в чужую команду не попасть. Команд ещё нет — сразу «Новая команда».
+  const [teamId, setTeamId] = useState<string>("");
   const [teamName, setTeamName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,7 +187,7 @@ function JoinForm({
       .listTeams(session.id)
       .then((list) => {
         setTeams(list);
-        setTeamId((current) => (current === "new" && list[0] ? list[0].id : current));
+        setTeamId((current) => (current === "" && list.length === 0 ? "new" : current));
       })
       .catch(() => setError("Не удалось загрузить команды."));
   }, [session.id, teamsMode]);
@@ -202,6 +205,10 @@ function JoinForm({
     }
     const plainTeam = cleanName(teamName);
     const cleanTeam = withEmoji(teamEmoji, plainTeam);
+    if (teamsMode && teamId === "") {
+      setError("Выберите свою команду или создайте новую.");
+      return;
+    }
     if (teamsMode && teamId === "new" && !isValidName(plainTeam)) {
       setError("Придумайте название команды.");
       return;
@@ -298,7 +305,8 @@ function JoinForm({
             {error}
           </p>
         )}
-        <button className="btn btn--block" type="submit" disabled={busy}>
+        {teamsMode && teamId === "" && <p className="muted small">Коснитесь своей команды или «Новая команда».</p>}
+        <button className="btn btn--block" type="submit" disabled={busy || (teamsMode && teamId === "")}>
           {busy ? "Входим…" : "Играть"}
         </button>
       </form>
@@ -329,8 +337,11 @@ async function createOrFindTeam(sessionId: string, uid: string, name: string): P
  * Попытка ответа: шаг и время показа вопроса. «Назад» с вопроса и новый показ дают новую попытку —
  * телефон снова даёт ответить (старый ответ сервер уже удалил).
  */
-function answerSlot(state: Session["state"], personal = false): string {
-  return `${state.step}.${state.startedAt ?? 0}${personal ? ".me" : ""}`;
+function answerSlot(session: Session, personal = false): string {
+  const { state } = session;
+  // Мероприятие из блоков: у каждого блока шаги с нуля — ответ прошлого блока не считается ответом нового.
+  const block = session.program && session.program.index > 0 ? `b${session.program.index}.` : "";
+  return `${block}${state.step}.${state.startedAt ?? 0}${personal ? ".me" : ""}`;
 }
 
 /** Ответ на шаг запоминается на телефоне: после перезагрузки гость видит, что ответил. */
@@ -359,7 +370,7 @@ function rememberAnswer(sessionId: string, slot: string, value: unknown): void {
 /** Ответ на текущий шаг: с телефона, а если его нет — с сервера (после перезагрузки, у участника команды). */
 function useMyAnswer(session: Session, pid: string, ask: boolean, personal = false) {
   const { step } = session.state;
-  const slot = answerSlot(session.state, personal);
+  const slot = answerSlot(session, personal);
   const [answer, setAnswer] = useState<{ slot: string; value: { value: unknown } | null } | null>(null);
 
   useEffect(() => {
@@ -456,7 +467,7 @@ function InGame({
 
   async function answer(value: unknown) {
     const step = session.state.step;
-    const slot = answerSlot(session.state);
+    const slot = answerSlot(session);
     setSending(true);
     setError(null);
     rememberAnswer(session.id, slot, value);
@@ -485,7 +496,7 @@ function InGame({
 
   async function sendPersonal(value: unknown) {
     const step = session.state.step;
-    const slot = answerSlot(session.state, true);
+    const slot = answerSlot(session, true);
     setPersonalSending(true);
     setError(null);
     rememberAnswer(session.id, slot, value);
@@ -574,7 +585,13 @@ function InGame({
 
       {phase === "playing" && session.state.stage !== "podium" && PlayerView && content !== null && (
         <div className="card">
+          {session.program?.at === "block" && (
+            <p className="eyebrow">
+              Блок {session.program.index + 1} из {session.program.blocks.length} · {session.program.blocks[session.program.index]?.title}
+            </p>
+          )}
           <PlayerView
+            key={session.program ? `${session.program.at}-${session.program.index}` : "game"}
             session={session}
             content={content}
             participant={me}
@@ -623,6 +640,7 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
       ) : (
         <p>Спасибо, что были с нами!</p>
       )}
+      {session.program && <EveningTable program={session.program} board={session.leaderboard} limit={5} me={pid} />}
       <div className="actions">
         <Link className="btn btn--secondary btn--block" to={`/results/${session.id}`}>
           Итоги игры

@@ -472,6 +472,17 @@ export function StoryHostControls({ session, content, answers, participants, con
             Закончить и наградить
           </button>
         )}
+        {writing && (
+          // Гости не пишут (или написали слишком мало) — ведущий не застревает: раздел можно пропустить.
+          <button
+            type="button"
+            className="btn btn--quiet btn--block"
+            disabled={busy}
+            onClick={() => void run(r.part + 1 < content.sections.length ? nextPart(session) : awardNow(session))}
+          >
+            {r.part + 1 < content.sections.length ? "Пропустить раздел — мало ответов" : "Пропустить раздел и наградить"}
+          </button>
+        )}
         <button type="button" className="btn btn--secondary btn--block" disabled={busy || back === null} onClick={() => back && void run(back.change, back.clearAnswers)}>
           Назад
         </button>

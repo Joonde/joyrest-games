@@ -1,5 +1,6 @@
 // Конструктор «Гонки на выживание»: раунды полосками (вопрос с вариантами, открытый вопрос, задание),
 // каждый 5-й — войнушка; аукционы билета (до 3, после второй войнушки) — отметкой у раунда.
+import { Fold } from "../../components/Fold";
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -89,6 +90,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
         </p>
         <ShowLookPicker game="survival" looks={SURVIVAL_LOOKS} value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
         {editable && (
+          <Fold title="Шаблоны и вставка списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replace(DEMO_SURVIVAL.rounds, "Заполнить шаблоном")}>
               Заполнить шаблоном (30 раундов)
@@ -97,8 +99,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
             </button>
           </div>
-        )}
-        {importing && editable && (
+        {importing && (
           <div className="stack stack--tight">
             <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …». «(150)» в конце — очки.</p>
             <textarea value={text} rows={10} placeholder={"Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nЗадание: спойте гимн команды (200)"} onChange={(e) => setText(e.target.value)} />
@@ -106,6 +107,8 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
               Заменить раунды
             </button>
           </div>
+        )}
+          </Fold>
         )}
       </section>
 

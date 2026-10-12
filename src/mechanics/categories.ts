@@ -3,7 +3,7 @@
 // ничего не хранится: новая игра сама попадает в свой раздел.
 import { trackIds, parseContent as parseQuiz } from "./quiz/content";
 
-export type CategoryId = "quiz" | "music" | "tv" | "adventure" | "olymp" | "cards" | "social" | "active" | "other";
+export type CategoryId = "evening" | "quiz" | "music" | "tv" | "adventure" | "olymp" | "cards" | "social" | "active" | "other";
 
 export interface Category {
   id: CategoryId;
@@ -14,14 +14,15 @@ export interface Category {
 
 /** Порядок разделов на экране. */
 export const CATEGORIES: Category[] = [
+  { id: "evening", title: "Мероприятия из блоков", icon: "🎉", hint: "Несколько игр подряд по одному коду: общий счёт вечера и победители блоков" },
   { id: "quiz", title: "Квизы", icon: "🧠", hint: "Вопросы на экране, ответы на телефонах" },
   { id: "music", title: "Музыкальные", icon: "🎵", hint: "«Угадай мелодию», музыкальное лото" },
   { id: "tv", title: "Телешоу", icon: "📺", hint: "«Своя игра», «Миллионер», «Гонка на выживание»" },
   { id: "adventure", title: "Приключения и настолки", icon: "🎲", hint: "Настолка, шашки, «Бой с драконом»" },
   { id: "olymp", title: "Олимп", icon: "⚡", hint: "Ролевые истории про греческих богов: «Вечная зима», «Метка Тёмного мира»" },
-  { id: "cards", title: "Карточные игры", icon: "🃏", hint: "«Мафия», «Бункер», «Дурак», «Правда или действие»" },
+  { id: "cards", title: "Карточные и кости", icon: "🃏", hint: "«Мафия», «Бункер», «Дурак», «Перудо», «Правда или действие»" },
   { id: "social", title: "Знакомство и общение", icon: "🤝", hint: "«Давайте знакомиться» — игры, чтобы узнать друг друга" },
-  { id: "active", title: "Танцы и активные", icon: "💃", hint: "Танцевальный батл, караоке" },
+  { id: "active", title: "Танцы и активные", icon: "💃", hint: "Just Dance и караоке на поле, танцевальный батл" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
 ];
 
@@ -36,11 +37,14 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   dragon: "adventure",
   olymp: "olymp",
   dance: "active",
+  stage: "active",
   mafia: "cards",
   durak: "cards",
   truth: "cards",
+  perudo: "cards",
   bunker: "cards",
   story: "social",
+  evening: "evening",
 };
 
 /** Квиз про музыку: в названии мелодия, песни, музыка (шаблон «Угадай мелодию» — ещё без треков). */

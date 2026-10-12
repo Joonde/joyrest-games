@@ -354,7 +354,10 @@ async function main() {
   // ------------------------------------------------ музыка
   say("\n— Музыка: свои треки, общая библиотека —");
   const trackId = uid();
-  check((await host.status("POST", "/api/tracks", { id: trackId, title: "Проверка: лобби", category: "lobby", license: "other" })) === 400, "«другое» без пояснения — нельзя");
+  // Решение владельца 11 октября 2026: откуда права — не спрашиваем, «другое» без пояснения можно.
+  const plainId = uid();
+  check((await host.status("POST", "/api/tracks", { id: plainId, title: "Проверка: без пояснения", category: "music", license: "other" })) === 200, "трек без пояснения «откуда» — можно");
+  check((await host.status("DELETE", `/api/tracks/${plainId}`)) === 200, "трек без файла удаляется");
   check((await host.status("POST", "/api/tracks", { id: trackId, title: "Проверка: лобби", category: "lobby", license: "pixabay" })) === 200, "трек описан");
   const put = await host.raw("PUT", `/api/tracks/${trackId}/file`, mp3(1), { "Content-Type": "audio/mpeg", "X-Duration": "61000" });
   await put.text();
@@ -396,6 +399,44 @@ async function main() {
   const cleanup = await admin.call<{ deleted: number }>("POST", "/api/sessions/cleanup", { cutoff: Date.now() });
   check(typeof cleanup.deleted === "number", "автоочистка владельца работает");
   check((await host.status("GET", `/api/results/${sessionId}`)) === 200, "автоочистка не тронула свежую игру");
+
+  // ------------------------------------------------ мероприятие из блоков
+  say("\n— Мероприятие из блоков: один код, перерыв, следующий блок, общий счёт —");
+  {
+    const snap = (mechanic: string) => ({ title: mechanic, mechanic, themeId: "joyrest", content: last });
+    const eveningId = uid();
+    const created = await host.call<{ code: string }>("POST", "/api/sessions", {
+      id: eveningId,
+      gameId,
+      gameTitle: "Проверка: вечер",
+      mechanic: "evening",
+      gameSnapshot: snap("evening"),
+      themeId: "joyrest",
+      playMode: "solo",
+      screenMode: "laptop",
+      program: { title: "Проверка: вечер", blocks: [{ title: "Квиз 1", mechanic: "quiz", gameId, snapshot: snap("quiz") }, { title: "Квиз 2", mechanic: "quiz", gameId, snapshot: snap("quiz") }] },
+    });
+    const phone = new Device("гость вечера");
+    const me = await phone.call<{ uid: string }>("POST", "/api/auth/device");
+    const found = await phone.call<Session & { program?: { at: string; index: number } }>("GET", `/api/sessions/by-code/${created.code}`);
+    check(found.mechanic === "quiz" && found.program?.at === "block" && found.program.index === 0, "вечер начинается с первого блока");
+    await phone.call("POST", `/api/sessions/${eveningId}/participants/${me.uid}/join`, { name: "🎉 Гость вечера", teamId: null });
+    await host.call("POST", `/api/sessions/${eveningId}/leaderboard`, { entries: { [me.uid]: { name: "🎉 Гость вечера", kind: "player", score: 0 } } });
+    await host.call("POST", `/api/sessions/${eveningId}/apply`, { state: { phase: "playing", step: 0, stage: "ready" }, expect: { phase: "lobby" } });
+    await host.call("POST", `/api/sessions/${eveningId}/apply`, { addScore: { [me.uid]: 40 } });
+    check((await phone.status("POST", `/api/sessions/${eveningId}/program`, { action: "break", from: 0 })) === 403, "гость не переключает блоки");
+    check((await host.status("POST", `/api/sessions/${eveningId}/program`, { action: "break", from: 0 })) === 200, "«Завершить блок» — перерыв");
+    check((await host.status("POST", `/api/sessions/${eveningId}/program`, { action: "break", from: 0 })) === 409, "повтор с второго пульта не сдвигает вечер");
+    const pause = await phone.call<Session & { program?: { at: string } }>("GET", `/api/sessions/${eveningId}`);
+    check(pause.mechanic === "evening" && pause.program?.at === "break" && pause.leaderboard[me.uid]?.score === 40, "в перерыве — общий счёт вечера");
+    check((await host.status("POST", `/api/sessions/${eveningId}/program`, { action: "next", from: 0 })) === 200, "«Начать блок 2»");
+    const second = await phone.call<Session & { program?: { index: number } }>("GET", `/api/sessions/by-code/${created.code}`);
+    check(second.id === eveningId && second.program?.index === 1 && second.leaderboard[me.uid]?.score === 0, "тот же код, блок 2, очки блока с нуля");
+    await host.call("POST", `/api/sessions/${eveningId}/apply`, { addScore: { [me.uid]: 15 } });
+    await host.call("POST", `/api/sessions/${eveningId}/finish`, { participantsCount: 1 });
+    const result = await phone.call<{ mechanic: string; board: Array<{ score: number }> }>("GET", `/api/results/${eveningId}`);
+    check(result.mechanic === "evening" && result.board[0]?.score === 55, "закрыли посреди блока — в истории общий счёт (40 + 15)");
+  }
 
   // ------------------------------------------------ база площадок
   say("\n— База площадок —");

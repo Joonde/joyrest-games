@@ -5,7 +5,7 @@ import { rulesFor } from "./rules";
 
 describe("правила для слайда", () => {
   it("у каждого формата свои правила, влезают в слайд", () => {
-    for (const id of ["quiz", "lotto", "board", "checkers", "dance", "quest", "millionaire", "survival", "dragon"]) {
+    for (const id of ["quiz", "lotto", "board", "checkers", "dance", "quest", "millionaire", "survival", "dragon", "olymp", "truth", "bunker", "story", "durak", "mafia", "perudo", "evening", "stage"]) {
       for (const mode of ["solo", "teams"] as const) {
         const r = rulesFor(id, mode);
         expect(r.title).not.toBe("Правила игры");

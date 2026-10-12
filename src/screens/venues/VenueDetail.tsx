@@ -167,7 +167,20 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
 
   function setStatus(status: VenueStatus) {
     const repo = venuesRepo;
-    if (!repo || status === venue.status) return;
+    if (!repo) return;
+    if (status === venue.status) {
+      // Анкету по QR принял ведущий с доступом (баллы тогда не начисляются) — владелец подтверждает статус ещё
+      // раз, и ведущий, который привёл площадку, получает баллы (один раз на площадку).
+      if (owner && venue.source === "form" && venue.hostName && (status === "checked" || status === "worked")) {
+        confirm({
+          title: "Подтвердить и начислить баллы?",
+          text: `Статус останется «${venueStatusInfo(status).label}». ${venue.hostName} получит баллы за площадку, если ещё не получал.`,
+          confirmLabel: "Подтвердить",
+          run: () => act(() => repo.update(venue.id, { status }), "Статус подтверждён"),
+        });
+      }
+      return;
+    }
     const label = venueStatusInfo(status).label;
     confirm({
       title: `Статус «${label}»?`,
@@ -330,6 +343,11 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
       {!archived && (
       <section className="card">
         <StatusPicker label="Статус" options={VENUE_STATUSES} value={venue.status} disabled={busy} onChange={setStatus} />
+        {owner && venue.source === "form" && venue.hostName && (venue.status === "checked" || venue.status === "worked") && (
+          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => setStatus(venue.status)}>
+            Начислить баллы ведущему за площадку
+          </button>
+        )}
         <div className="stack stack--tight">
           <span className="field__label">Наша оценка</span>
           <div className="rating" role="radiogroup" aria-label="Наша оценка">

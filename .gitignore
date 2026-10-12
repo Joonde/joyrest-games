@@ -9,3 +9,5 @@ firestore-debug.log
 ui-debug.log
 .netlify
 build
+scripts/robot/*.tmp.mjs
+scripts/robot/*.tmp.tsx

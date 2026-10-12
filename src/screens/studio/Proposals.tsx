@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../core/format";
-import { proposalsRepo, useLoad, type LibraryProposal } from "../../data";
+import { errorCodeOf, proposalsRepo, useLoad, type LibraryProposal } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 interface Props {
@@ -37,7 +37,11 @@ export function ProposalsBlock({ onAccepted, onToast }: Props) {
       onAccepted();
       onToast(`«${proposal.title}» в библиотеке`);
     } catch (error) {
-      onToast(isGone(error) ? "Ведущий удалил эту игру — принять нельзя." : "Не удалось принять. Проверьте интернет.");
+      if (isGone(error) || errorCodeOf(error) === "failed-precondition") {
+        // Игру удалили или предложение уже решено — убираем его из списка.
+        remove(proposal.id);
+        onToast("Ведущий удалил эту игру — предложение закрыто.");
+      } else onToast("Не удалось принять. Проверьте интернет.");
     } finally {
       setBusyId(null);
     }

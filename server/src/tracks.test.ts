@@ -6,11 +6,22 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
-import { audioMime, cleanLine } from "./tracks";
+import { audioMime, byteRange, cleanLine } from "./tracks";
 
 const mp3 = (fill: number) => Buffer.concat([Buffer.from("ID3"), Buffer.alloc(2000, fill)]);
 
 describe("музыка: проверки без базы", () => {
+  it("части файла по Range: отрезок, хвост, весь файл, за пределами — 416", () => {
+    expect(byteRange(undefined, 1000)).toBeNull();
+    expect(byteRange("bytes=0-", 1000)).toEqual({ start: 0, end: 999 });
+    expect(byteRange("bytes=100-199", 1000)).toEqual({ start: 100, end: 199 });
+    expect(byteRange("bytes=900-5000", 1000)).toEqual({ start: 900, end: 999 });
+    expect(byteRange("bytes=-100", 1000)).toEqual({ start: 900, end: 999 });
+    expect(byteRange("bytes=1000-", 1000)).toBe("invalid");
+    expect(byteRange("bytes=5-1", 1000)).toBe("invalid");
+    expect(byteRange("items=0-1", 1000)).toBeNull();
+  });
+
   it("тип звука по первым байтам", () => {
     expect(audioMime(mp3(1))).toBe("audio/mpeg");
     expect(audioMime(Buffer.from([0xff, 0xfb, 0x90, 0x00]))).toBe("audio/mpeg");

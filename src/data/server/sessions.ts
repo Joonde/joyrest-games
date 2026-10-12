@@ -5,6 +5,7 @@
 import type { SessionsRepository } from "../contracts";
 import { parseCue, parseMix, parseMusic, parsePeek, parseSlide, parseTeams } from "../cues";
 import { errorCodeOf } from "../retry";
+import { parseProgram } from "../../core/program";
 import type { Leaderboard, LeaderboardEntry, ScreenMode, Session, SessionPhase, SessionState, SessionSummary, StepStage } from "../types";
 import { api, asRecord, asText, newId } from "./api";
 import { openStream } from "./stream";
@@ -82,6 +83,7 @@ export function parseSession(value: unknown): Versioned | null {
     leaderboard: parseBoard(d.leaderboard),
     createdAt: typeof d.createdAt === "number" ? d.createdAt : null,
     eventStartedAt: typeof d.eventStartedAt === "number" ? d.eventStartedAt : null,
+    program: parseProgram(d.program ?? null),
     version: num(d.version),
   };
 }
@@ -231,6 +233,10 @@ export const serverSessionsRepository: SessionsRepository = {
 
   async finish(session, participantsCount) {
     await api("POST", `${base(session.id)}/finish`, { participantsCount });
+  },
+
+  async program(sessionId, action, from) {
+    await api("POST", `${base(sessionId)}/program`, { action, from });
   },
 
   // Автоочистка при входе admin: сервер не удалит сессии свежее 30 дней, даже если попросить.

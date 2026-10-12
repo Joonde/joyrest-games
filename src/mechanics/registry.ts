@@ -4,6 +4,8 @@ import { checkers } from "./checkers";
 import { DEMO_CHECKERS } from "./checkers/demo";
 import { dance } from "./dance";
 import { DEMO_DANCE } from "./dance/demo";
+import { stage } from "./stage";
+import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./stage/demo";
 import { quest } from "./quest";
 import { millionaire } from "./millionaire";
 import { survival } from "./survival";
@@ -19,6 +21,8 @@ import { mafia } from "./mafia";
 import { durak } from "./durak";
 import { createDurak } from "./durak/content";
 import { truth } from "./truth";
+import { perudo } from "./perudo";
+import { createPerudo } from "./perudo/content";
 import { DEMO_TRUTH, DEMO_TRUTH_ADULT } from "./truth/demo";
 import { story } from "./story";
 import { bunker } from "./bunker";
@@ -27,6 +31,7 @@ import { createStory } from "./story/content";
 import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
+import { evening } from "./evening";
 import { DEMO_MELODY, DEMO_QUIZ } from "./quiz/demo";
 import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
@@ -40,7 +45,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(story), register(bunker)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -50,6 +55,7 @@ const HINTS: Record<string, string> = {
   quiz: "Варианты ответа, открытый ответ, на скорость, картинки и музыка («Угадай мелодию»).",
   lotto: "Карточки песен у гостей, музыка на экране зала, «Лото!» — кто первым соберёт линию.",
   quest: "Поле 40–100 клеток на экране, кубик на телефоне капитана, в клетках — задания, вопросы, танцы, бонусы и ловушки.",
+  stage: "Поле как в «Своей игре»: плитка переворачивается и показывает, кто выходит танцевать или петь (до 5 человек, пары, вся команда, батлы). Видео Just Dance или караоке — с пульта: пауза, перемотка, на весь экран. Зрители дарят очки, батл решает зал.",
   dance: "Команды по очереди выбирают батл, танец или караоке; оценивают другие команды. Видео — ссылка или файл на экране зала.",
   checkers: "Две команды, доска на экране: верный и быстрый ответ — ход, взятые шашки — очки.",
   olymp: "Ролевая история про греческих богов: команда — бог, ведущий читает сцены, d100 решает исход, голосование за путь, бои с боссом, три концовки.",
@@ -58,10 +64,12 @@ const HINTS: Record<string, string> = {
   millionaire: "12 вопросов с вариантами, у каждой команды своя лестница на экране, несгораемые ступени и 6 подсказок.",
   bunker: "Катастрофа: мест в бункере — на половину игроков. Тайные карты персонажей на телефонах, особые условия, голосование, финал с угрозами.",
   story: "Игра на знакомство: пять разделов — чья история, сочиняем историю со словами с бумажек, что было дальше, две правды и ложь, кто это сказал. Гости пишут о себе на телефонах, угадывают друг друга.",
+  perudo: "Кости лжеца из «Пиратов Карибского моря»: свои кости тайно на телефоне, ставки по кругу, «Не верю!» и вскрытие на экране. Игроки или команды, до 10 стаканов.",
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
-  board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки и «Кот в мешке» со ставками.",
+  board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
+  evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
 
 /** Механики, которые можно выбрать при создании игры. */
@@ -138,6 +146,22 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     playMode: "teams",
     themeId: "dancefloor",
   },
+  {
+    mechanic: stage.id,
+    title: DEMO_STAGE_DANCE.title,
+    hint: "4 категории по 5 плиток: активные, медленные, джаз-дэнс и батлы. Видео Just Dance добавьте ссылками или файлами в копии игры.",
+    content: DEMO_STAGE_DANCE.content,
+    playMode: "teams",
+    themeId: "dancefloor",
+  },
+  {
+    mechanic: stage.id,
+    title: DEMO_STAGE_KARAOKE.title,
+    hint: "4 категории по 5 плиток: соло, дуэты, хором и вокальные батлы. Видео караоке добавьте ссылками или файлами в копии игры.",
+    content: DEMO_STAGE_KARAOKE.content,
+    playMode: "teams",
+    themeId: "dancefloor",
+  },
   { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
   { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "36 вопросов на 12 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
@@ -148,6 +172,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: truth.id, title: "Правда или действие", hint: "40 карточек для любой компании: 20 вопросов и 20 заданий, 3 круга, задания от гостей.", content: DEMO_TRUTH, playMode: "solo" },
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },
   { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: 3 партии подряд, роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
+  { mechanic: perudo.id, title: "Перудо — кости лжеца", hint: "Как в «Пиратах Карибского моря»: 5 костей у каждого, единицы — джокеры, «Не верю!», «Ровно!» и «Палифико». 2–10 игроков или команд.", content: createPerudo(), playMode: "solo" },
   { mechanic: durak.id, title: "Дурак подкидной", hint: "2–6 игроков за столом с крупье: 3 партии, таймер хода 30 с, колода «Классика JoyRest» (гости могут выбрать другую голосованием).", content: createDurak(), playMode: "solo" },
   { mechanic: durak.id, title: "Дурак переводной", hint: "Переводной на 2–6 игроков, первый отбой без перевода, погоны, колода «Готика».", content: { ...createDurak(), variant: "perevodnoy", deckStyle: "gothic", table: "graphite" }, playMode: "solo" },
   { mechanic: bunker.id, title: "Бункер", hint: "Классика: 3 партии по 5 раундов, 6 карт персонажа и особое условие, 2 угрозы в финале. 4–16 игроков.", content: createBunker(), playMode: "solo", ageRating: "12+" },

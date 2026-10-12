@@ -81,6 +81,27 @@ export function cleanLine(value: unknown, max: number): string {
 }
 
 /** Тип звука по первым байтам: MP3 (ID3 или кадр), M4A/MP4 (ftyp), OGG. Иначе null. */
+/** Заголовок Range «bytes=начало-конец» (один отрезок): null — весь файл, invalid — за пределами файла. */
+export function byteRange(header: string | undefined, size: number): { start: number; end: number } | null | "invalid" {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === "" && m[2] === "")) return null;
+  let start: number;
+  let end: number;
+  if (m[1] === "") {
+    // «bytes=-500» — последние 500 байт.
+    const tail = Number(m[2]);
+    if (tail <= 0) return "invalid";
+    start = Math.max(0, size - tail);
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (!Number.isFinite(start) || start >= size || end < start) return "invalid";
+  return { start, end };
+}
+
 export function audioMime(bytes: Buffer): "audio/mpeg" | "audio/mp4" | "audio/ogg" | null {
   if (bytes.length >= 3 && bytes.toString("latin1", 0, 3) === "ID3") return "audio/mpeg";
   if (bytes.length >= 2 && bytes[0] === 0xff && ((bytes[1] ?? 0) & 0xe0) === 0xe0) return "audio/mpeg";
@@ -231,7 +252,11 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       if (!track) return { ok: true };
       if (!permissions.canEditTrack(actorOf(user), ref(track))) return fail(reply, 403, "permission-denied");
       // Файл остаётся, пока на него ссылается другой трек (копия в библиотеке); без ссылок — уберёт уборка.
-      await sql`delete from tracks where id = ${track.id}`;
+      await sql.begin(async (tx) => {
+        await tx`delete from tracks where id = ${track.id}`;
+        // Убрали копию из общей музыки — у исходного трека ведущего снова можно «Предложить в общую».
+        await tx`update tracks set share_status = 'none', share_reason = null, library_track_id = null, updated_at = now() where library_track_id = ${track.id}`;
+      });
       request.log.info({ track: "delete" }, "track");
       return { ok: true };
     });
@@ -257,7 +282,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         return fail(reply, 507, "resource-exhausted");
       }
       const [{ used }] = await sql<{ used: string }[]>`
-        select coalesce(sum(size), 0)::text as used from tracks where owner_id = ${track.owner_id} and sha256 is not null`;
+        select coalesce(sum(size), 0)::text as used from tracks where owner_id = ${track.owner_id} and sha256 is not null and scope = 'personal'`;
       if (Number(used) + bytes.length > limits.perHostBytes) return fail(reply, 413, "resource-exhausted");
 
       await mkdir(audioDir, { recursive: true });
@@ -294,6 +319,18 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       } catch {
         reply.header("Cache-Control", "no-store");
         return fail(reply, 404, "not-found");
+      }
+      // Отдаём частями по запросу браузера (Range): Safari на iPhone иначе не перематывает прослушивание
+      // к началу отрезка, а длинный трек играет только после полной загрузки.
+      reply.header("Accept-Ranges", "bytes");
+      const range = byteRange(request.headers.range, file.length);
+      if (range === "invalid") return reply.code(416).header("Content-Range", `bytes */${file.length}`).send();
+      if (range) {
+        return reply
+          .code(206)
+          .type(track.mime)
+          .header("Content-Range", `bytes ${range.start}-${range.end}/${file.length}`)
+          .send(file.subarray(range.start, range.end + 1));
       }
       return reply.type(track.mime).send(file);
     });

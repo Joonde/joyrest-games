@@ -8,6 +8,7 @@
  * сжимает устройство ведущего, сервер проверяет тип по первым байтам и размер.
  */
 import { createHash, randomBytes } from "node:crypto";
+import { promoteGameTracks } from "./libraryTracks";
 import { existsSync } from "node:fs";
 import { readFile, rename, statfs, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -218,11 +219,15 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       const input = parseGameInput(body);
       if (!id || !ID.test(id) || !input) return fail(reply, 400, "invalid-argument");
       if (!permissions.canCreateGame(actorOf(user), input.scope, input.ownerId)) return fail(reply, 403, "permission-denied");
-      const created = await sql`
-        insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
-        values (${id}, ${input.scope}, ${input.ownerId}, ${input.title}, ${input.mechanic}, ${input.themeId},
-                ${input.ageRating}, ${input.playMode}, ${sql.json(input.content as Parameters<typeof sql.json>[0])})
-        on conflict (id) do nothing returning id`;
+      const created = await sql.begin(async (tx) => {
+        // Игра библиотеки: личные треки — в общую музыку, ссылки — на общие копии.
+        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id)).content : input.content;
+        return tx`
+          insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
+          values (${id}, ${input.scope}, ${input.ownerId}, ${input.title}, ${input.mechanic}, ${input.themeId},
+                  ${input.ageRating}, ${input.playMode}, ${tx.json(content as Parameters<typeof tx.json>[0])})
+          on conflict (id) do nothing returning id`;
+      });
       if (created.length === 0) {
         // Повтор после обрыва связи — та же игра того же владельца; иначе id занят.
         const existing = await findGame(id);
@@ -247,10 +252,11 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         return fail(reply, 403, "permission-denied");
       }
       const done = await sql.begin(async (tx) => {
+        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id)).content : input.content;
         const created = await tx`
           insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
           values (${id}, ${input.scope}, ${input.ownerId}, ${input.title}, ${input.mechanic}, ${input.themeId},
-                  ${input.ageRating}, ${input.playMode}, ${tx.json(input.content as Parameters<typeof tx.json>[0])})
+                  ${input.ageRating}, ${input.playMode}, ${tx.json(content as Parameters<typeof tx.json>[0])})
           on conflict (id) do nothing returning id`;
         if (created.length === 0) return false;
         // Картинки копии — те же файлы: копируются только ссылки.
@@ -287,7 +293,9 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         if (patch.ageRating !== undefined) await tx`update games set age_rating = ${parseAge(patch.ageRating)} where id = ${game.id}`;
         if (patch.playMode !== undefined) await tx`update games set play_mode = ${parsePlay(patch.playMode)} where id = ${game.id}`;
         if ("content" in patch) {
-          await tx`update games set content = ${tx.json((patch.content ?? null) as Parameters<typeof tx.json>[0])} where id = ${game.id}`;
+          // Игра библиотеки: личные треки — в общую музыку (их автор мог бы удалить), ссылки — на общие копии.
+          const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id)).content : (patch.content ?? null);
+          await tx`update games set content = ${tx.json(content as Parameters<typeof tx.json>[0])} where id = ${game.id}`;
         }
         await tx`update games set updated_at = now() where id = ${game.id}`;
       });
@@ -303,6 +311,10 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       await sql.begin(async (tx) => {
         await tx`delete from media where game_id = ${game.id}`;
         await tx`delete from games where id = ${game.id}`;
+        // Ждущее предложение удалённой игры закрывается само; уже принятая копия в библиотеке остаётся.
+        await tx`
+          update library_proposals set status = 'rejected', reason = 'Игра удалена автором', decided_at = now()
+          where game_id = ${game.id} and status = 'pending'`;
       });
       return { ok: true };
     });

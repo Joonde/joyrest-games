@@ -561,29 +561,32 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       if (body.status !== undefined && !isVenueStatus(body.status)) return fail(reply, 400, "invalid-argument");
       const rating = body.rating === undefined ? undefined : body.rating === null ? null : Number(body.rating);
       if (rating !== undefined && rating !== null && !(Number.isInteger(rating) && rating >= 1 && rating <= 5)) return fail(reply, 400, "invalid-argument");
-      if (body.data !== undefined) {
-        const data = parseVenue(body.data);
-        if (!data.name) return fail(reply, 400, "invalid-argument", { missing: ["название"] });
-        await sql`update venues set data = ${sql.json(JSON.parse(JSON.stringify(data)))}, updated_at = now() where id = ${id}`;
-      }
-      if (body.status !== undefined) {
-        const to = String(body.status);
-        await sql`update venues set status = ${to}, updated_at = now() where id = ${id}`;
-        // Ведущий привёл площадку по своему QR, её приняли в базу — баллы ему (один раз на площадку).
-        // Баллы начисляет только владелец агентства (ведущие с доступом к базе — нет).
-        // Если площадку раньше принял ведущий с доступом (баллов тогда не было), владелец начислит их,
-        // подтвердив статус ещё раз: повторно запись не появится (id venue-<площадка>).
-        if (permissions.isAdmin(actorOf(user)) && venueEarnsPoints({ source: current.source, hostId: current.host_id, from: "new", to, actorId: user.id }) && current.host_id) {
-          const name = parseVenue(current.data).name.slice(0, 80) || "без названия";
-          await sql`
-            insert into host_points (id, host_id, points, kind, reason, created_by)
-            values (${`venue-${id}`}, ${current.host_id}, ${VENUE_POINTS}, 'manual', ${`Привёл площадку «${name}»`}, ${user.id})
-            on conflict (id) do nothing`;
-          log(request, "venue-points", "ok");
+      const data = body.data === undefined ? undefined : parseVenue(body.data);
+      if (data && !data.name) return fail(reply, 400, "invalid-argument", { missing: ["название"] });
+      // Анкета, статус, баллы, оценка и заметки — одной записью: либо всё сохранилось, либо ничего.
+      await sql.begin(async (tx) => {
+        if (data) {
+          await tx`update venues set data = ${tx.json(JSON.parse(JSON.stringify(data)))}, updated_at = now() where id = ${id}`;
         }
-      }
-      if (rating !== undefined) await sql`update venues set rating = ${rating}, updated_at = now() where id = ${id}`;
-      if (body.notes !== undefined) await sql`update venues set notes = ${cleanText(body.notes, TEXT_LIMITS.notes, true)}, updated_at = now() where id = ${id}`;
+        if (body.status !== undefined) {
+          const to = String(body.status);
+          await tx`update venues set status = ${to}, updated_at = now() where id = ${id}`;
+          // Ведущий привёл площадку по своему QR, её приняли в базу — баллы ему (один раз на площадку).
+          // Баллы начисляет только владелец агентства (ведущие с доступом к базе — нет).
+          // Если площадку раньше принял ведущий с доступом (баллов тогда не было), владелец начислит их,
+          // подтвердив статус ещё раз: повторно запись не появится (id venue-<площадка>).
+          if (permissions.isAdmin(actorOf(user)) && venueEarnsPoints({ source: current.source, hostId: current.host_id, from: "new", to, actorId: user.id }) && current.host_id) {
+            const name = parseVenue(current.data).name.slice(0, 80) || "без названия";
+            await tx`
+              insert into host_points (id, host_id, points, kind, reason, created_by)
+              values (${`venue-${id}`}, ${current.host_id}, ${VENUE_POINTS}, 'manual', ${`Привёл площадку «${name}»`}, ${user.id})
+              on conflict (id) do nothing`;
+            log(request, "venue-points", "ok");
+          }
+        }
+        if (rating !== undefined) await tx`update venues set rating = ${rating}, updated_at = now() where id = ${id}`;
+        if (body.notes !== undefined) await tx`update venues set notes = ${cleanText(body.notes, TEXT_LIMITS.notes, true)}, updated_at = now() where id = ${id}`;
+      });
       const [row] = await sql<VenueRow[]>`${venueSelect()} where v.id = ${id}`;
       log(request, "venue-edit", "ok");
       return row ? venueOut(row) : fail(reply, 404, "not-found");

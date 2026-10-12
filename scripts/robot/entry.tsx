@@ -1,0 +1,532 @@
+// Робот-ведущий: настоящая игра целиком в памяти страницы — тот же пульт механики, тот же экран зала и
+// настоящие телефоны гостей (PlayerView), только вместо сервера — сессия в памяти с правилами сервера
+// (expect → отказ, ответ только на открытый шаг, капитан за команду, после финиша — только музыка и слайды).
+// Робот жмёт кнопки пульта и телефонов как человек: вперёд, «Назад», двойные касания, таблица и QR поверх
+// игры, перерывы, «+10 секунд», «Наградить сейчас», опоздавшие, ушедшие, перезагрузка телефона, пульта и
+// экрана. Каждая ошибка экрана, зависание и нарушение правил попадают в отчёт (window.robotReport).
+import { Component, Suspense, useSyncExternalStore, type ReactNode } from "react";
+import { createRoot } from "react-dom/client";
+import { BoardView } from "../../src/components/live/BoardView";
+import { Podium, PodiumPhone } from "../../src/components/live/Podium";
+import { SlideView } from "../../src/components/live/SlideView";
+import { drawSlide } from "../../src/core/draw";
+import { leaderboardAdditions } from "../../src/core/leaderboard";
+import { awardNow, canAwardNow, podiumBack } from "../../src/core/podium";
+import { roundLeaderboard } from "../../src/core/rounds";
+import { addTimeChange, applyChange, meetsExpect, resultKey, startState } from "../../src/core/session";
+import { joinSlide, techSlide } from "../../src/core/slides";
+import { canSubmitAnswer } from "../../src/data/permissions";
+import type { Answer, Participant, PlayMode, Session, SessionChange } from "../../src/data/types";
+import { demoGames, getMechanic, newContent, validateGame } from "../../src/mechanics/registry";
+import type { PhoneRole, SessionControl } from "../../src/mechanics/types";
+import { applyTheme, getTheme } from "../../src/themes/registry";
+import "../../src/fonts.css";
+import "../../src/styles.css";
+
+// ------------------------------------------------------------------ параметры
+
+const q = new URLSearchParams(location.search);
+const MECHANIC = q.get("m") ?? "quiz";
+const MODE: PlayMode = q.get("mode") === "teams" ? "teams" : "solo";
+const PLAYERS = Math.max(1, Number(q.get("n") ?? "4"));
+const SEED = Number(q.get("seed") ?? "1");
+const DEMO = Number(q.get("demo") ?? "0");
+const BUDGET = Number(q.get("budget") ?? "500");
+
+let rnd = SEED * 2654435761;
+function random(): number {
+  rnd ^= rnd << 13;
+  rnd ^= rnd >>> 17;
+  rnd ^= rnd << 5;
+  return ((rnd >>> 0) % 100000) / 100000;
+}
+const chance = (p: number) => random() < p;
+const pick = <T,>(list: T[]): T | undefined => list[Math.floor(random() * list.length)];
+
+// ------------------------------------------------------------------ отчёт
+
+interface Report {
+  mechanic: string;
+  mode: PlayMode;
+  players: number;
+  seed: number;
+  demo: string;
+  ticks: number;
+  finished: boolean;
+  errors: Array<{ where: string; message: string; at: string }>;
+  stuck: string | null;
+  edges: Record<string, number>;
+  actions: Record<string, number>;
+  log: string[];
+}
+
+const mechanic = getMechanic(MECHANIC);
+const demos = demoGames.filter((d) => d.mechanic === MECHANIC);
+const demo = demos[DEMO] ?? null;
+const report: Report = {
+  mechanic: MECHANIC,
+  mode: MODE,
+  players: PLAYERS,
+  seed: SEED,
+  demo: demo?.title ?? "новая игра",
+  ticks: 0,
+  finished: false,
+  errors: [],
+  stuck: null,
+  edges: {},
+  actions: {},
+  log: [],
+};
+(window as unknown as { robotReport: Report }).robotReport = report;
+
+function where(): string {
+  const s = store.session;
+  return `${s.state.phase}/${s.state.step}/${s.state.stage}/${modeOf(s)}`;
+}
+function fail(area: string, message: string) {
+  if (report.errors.length < 40) report.errors.push({ where: area, message: message.slice(0, 400), at: where() });
+}
+window.addEventListener("error", (e) => fail("страница", String(e.message)));
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e.reason as { code?: string; message?: string } | undefined;
+  // Отказ «игра ушла вперёд» — нормальное поведение сервера, пульт его ждёт.
+  if (reason?.code === "failed-precondition") return;
+  fail("обещание", String(reason?.message ?? reason));
+});
+
+// ------------------------------------------------------------------ сессия в памяти (как сервер)
+
+const content = mechanic ? mechanic.parse(demo ? demo.content : newContent(MECHANIC)) : null;
+const participants: Participant[] = [];
+let joinCounter = 0;
+function addGuest(late = false): void {
+  const n = ++joinCounter;
+  const at = Date.now() + n;
+  if (MODE === "teams") {
+    const team: Participant = { id: `team${n}`, name: `${late ? "Опоздавшие" : "Команда"} ${n}`, kind: "team", teamId: null, captainUid: `cap${n}`, joinedAt: at };
+    participants.push(team);
+    participants.push({ id: `cap${n}`, name: `Капитан ${n}`, kind: "player", teamId: team.id, captainUid: `cap${n}`, joinedAt: at });
+    participants.push({ id: `mem${n}`, name: `Игрок ${n}`, kind: "player", teamId: team.id, captainUid: `mem${n}`, joinedAt: at + 1 });
+  } else {
+    participants.push({ id: `p${n}`, name: `${late ? "Опоздал" : "Гость"} ${n}`, kind: "player", teamId: null, captainUid: `p${n}`, joinedAt: at });
+  }
+}
+for (let i = 0; i < PLAYERS; i++) addGuest();
+
+const store = {
+  session: {
+    id: "robot",
+    code: "123456",
+    hostId: "host",
+    gameId: "robot-game",
+    gameTitle: demo?.title ?? "Робот",
+    mechanic: MECHANIC,
+    gameSnapshot: { content: demo ? demo.content : newContent(MECHANIC) },
+    themeId: demo?.themeId ?? "joyrest",
+    playMode: MODE,
+    screenMode: "laptop",
+    state: { ...startState(), phase: "lobby" },
+    leaderboard: {},
+    createdAt: Date.now(),
+  } as Session,
+  answers: [] as Answer[],
+  version: 0,
+  keys: { hall: 0, host: 0 } as Record<string, number>,
+};
+const listeners = new Set<() => void>();
+function bump() {
+  store.version++;
+  listeners.forEach((l) => l());
+}
+function useStore() {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => store.version,
+  );
+}
+
+const AFTER_FINISH = new Set(["cue", "music", "mix", "slide", "peek"]);
+function serverApply(change: SessionChange): void {
+  const s = store.session;
+  if (change.expect && !meetsExpect(s.state, change.expect)) throw Object.assign(new Error("ушла вперёд"), { code: "failed-precondition" });
+  if (s.state.phase === "finished") {
+    const keys = Object.keys(change.state ?? {});
+    const ok = keys.every((k) => AFTER_FINISH.has(k)) && !change.leaderboard && !change.addScore && !change.rename;
+    if (!ok) throw Object.assign(new Error("после финиша"), { code: "failed-precondition" });
+  }
+  const before = s.state;
+  store.session = applyChange(s, change, Date.now());
+  const next = store.session.state;
+  // Проверки состояния, как у сервера.
+  for (const [pid, e] of Object.entries(store.session.leaderboard)) {
+    if (!Number.isFinite(e.score)) fail("таблица", `счёт ${pid} = ${e.score}`);
+  }
+  if (!Number.isInteger(next.step) || next.step < 0) fail("состояние", `шаг ${next.step}`);
+  if (next.step !== before.step || next.stage !== before.stage) {
+    const edge = `${label(before)} → ${label(next)}`;
+    report.edges[edge] = (report.edges[edge] ?? 0) + 1;
+  }
+  bump();
+}
+
+function modeOf(s: Session): string {
+  const r = s.state.result;
+  if (r && typeof r === "object" && typeof (r as { mode?: unknown }).mode === "string") return (r as { mode: string }).mode;
+  return "";
+}
+function label(state: Session["state"]): string {
+  const m = modeOf({ ...store.session, state });
+  return `${state.phase === "playing" ? "" : `${state.phase}:`}${state.stage}${m ? `/${m}` : ""}`;
+}
+
+function submit(pid: string, uid: string, value: unknown, personal = false): Promise<"sent" | "rejected"> {
+  const s = store.session;
+  const step = s.state.step;
+  const now = Date.now();
+  if (!canSubmitAnswer(s.state, step, now)) return Promise.resolve("rejected");
+  const owner = participants.find((p) => p.id === pid);
+  // Отвечает сам игрок или капитан своей команды (свой ответ телефона — от себя).
+  const captain = personal ? uid === pid : (s.leaderboard[pid]?.captainUid ?? owner?.captainUid) === uid;
+  if (!owner || !captain) return Promise.resolve("rejected");
+  const id = `${step}_${pid}`;
+  const at = store.answers.findIndex((a) => a.id === id);
+  const changeable = !!(s.state.result && typeof s.state.result === "object" && (s.state.result as { changeable?: unknown }).changeable === true);
+  const stale = at >= 0 && (store.answers[at]?.submittedAt ?? 0) < (s.state.startedAt ?? 0);
+  if (at >= 0 && !changeable && !stale) return Promise.resolve("rejected");
+  const answer: Answer = { id, step, pid, uid, value: JSON.parse(JSON.stringify(value ?? null)), submittedAt: now };
+  if (at >= 0) store.answers.splice(at, 1, answer);
+  else store.answers.push(answer);
+  bump();
+  return Promise.resolve("sent");
+}
+
+const control: SessionControl = {
+  apply: async (change) => serverApply(change),
+  clearAnswers: async (step) => {
+    store.answers = store.answers.filter((a) => a.step !== step);
+    bump();
+  },
+  freshAnswers: async (step) => store.answers.filter((a) => a.step === step),
+  requestFinish: () => {
+    finishWanted = true;
+  },
+};
+let finishWanted = false;
+
+function syncBoard(): void {
+  const additions = leaderboardAdditions(store.session.leaderboard, participants, MODE);
+  if (Object.keys(additions).length > 0) serverApply({ leaderboard: additions });
+}
+
+// ------------------------------------------------------------------ экраны
+
+class Guard extends Component<{ area: string; children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(error: unknown) {
+    return { error: String((error as Error)?.message ?? error) };
+  }
+  componentDidCatch(error: unknown) {
+    fail(this.props.area, String((error as Error)?.stack ?? error));
+  }
+  render() {
+    return this.state.error ? <p className="error">Ошибка: {this.state.error}</p> : this.props.children;
+  }
+}
+
+function Hall() {
+  useStore();
+  const s = store.session;
+  if (!mechanic || content === null) return null;
+  const { ScreenView } = mechanic;
+  const slide = s.state.slide ?? null;
+  let body: ReactNode;
+  if (mechanic.standalone) body = <ScreenView session={s} content={content} />;
+  else if (slide) body = <SlideView slide={slide} code={s.code} />;
+  else if (s.state.phase === "finished") body = <Podium session={s} final />;
+  else if (s.state.phase === "lobby") body = <p>Лобби</p>;
+  else if (s.state.peek)
+    body = <BoardView leaderboard={s.state.peek === "round" ? roundLeaderboard(s.leaderboard) : s.leaderboard} title="Таблица" showLast={false} />;
+  else if (s.state.stage === "podium") body = <Podium session={s} />;
+  else body = <ScreenView session={s} content={content} />;
+  return (
+    <div className="preview-screen" style={{ width: 960, height: 540 }}>
+      {body}
+    </div>
+  );
+}
+
+function Host() {
+  useStore();
+  const s = store.session;
+  if (!mechanic || content === null) return null;
+  const { HostControls } = mechanic;
+  if (s.state.phase !== "playing") return <p>Пульт: {s.state.phase}</p>;
+  return (
+    <Suspense fallback={null}>
+      <HostControls session={s} content={content} answers={store.answers.filter((a) => a.step === s.state.step)} participants={participants} control={control} rehearsal={false} />
+    </Suspense>
+  );
+}
+
+function Phone({ me }: { me: Participant }) {
+  useStore();
+  const s = store.session;
+  if (!mechanic || content === null) return null;
+  const teams = MODE === "teams";
+  const pid = teams ? (me.teamId ?? me.id) : me.id;
+  const captainUid = teams ? (s.leaderboard[pid]?.captainUid ?? participants.find((p) => p.id === pid)?.captainUid ?? "") : me.id;
+  const role: PhoneRole = !teams ? "player" : captainUid === me.id ? "captain" : "member";
+  const { PlayerView } = mechanic;
+  const own = store.answers.find((a) => a.step === s.state.step && a.pid === pid && (a.submittedAt ?? 0) >= (s.state.startedAt ?? 0));
+  const mine = store.answers.find((a) => a.step === s.state.step && a.pid === me.id && (a.submittedAt ?? 0) >= (s.state.startedAt ?? 0));
+  if (s.state.phase === "lobby") return <p>Ждём начала</p>;
+  if (!mechanic.standalone && s.state.phase === "playing" && s.state.stage === "podium") return <PodiumPhone session={s} pid={pid} />;
+  if (!mechanic.standalone && s.state.phase === "finished") return <p>Игра завершена</p>;
+  return (
+    <PlayerView
+      session={s}
+      content={content}
+      participant={me}
+      pid={pid}
+      role={role}
+      myAnswer={own ? { value: own.value } : null}
+      sending={false}
+      onAnswer={(value) => void submit(pid, me.id, value)}
+      personal={teams ? { value: mine ? { value: mine.value } : null, sending: false, send: (value) => void submit(me.id, me.id, value, true) } : undefined}
+    />
+  );
+}
+
+function Phones() {
+  useStore();
+  const phones = participants.filter((p) => p.kind === "player");
+  return (
+    <div className="robot-phones">
+      {phones.map((p) => (
+        <section key={`${p.id}-${store.keys[p.id] ?? 0}`} className="robot-phone" data-phone={p.id} style={{ width: 360 }}>
+          <Guard area={`телефон ${p.id}`}>
+            <Phone me={p} />
+          </Guard>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function App() {
+  useStore();
+  return (
+    <div className="page page--wide" style={{ maxWidth: "none" }}>
+      <section data-hall key={`hall-${store.keys.hall}`}>
+        <Guard area="экран зала">
+          <Hall />
+        </Guard>
+      </section>
+      <section data-host className="card" key={`host-${store.keys.host}`} style={{ width: 720 }}>
+        <Guard area="пульт">
+          <Host />
+        </Guard>
+      </section>
+      <Phones />
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ робот
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const visible = (el: Element) => (el as HTMLElement).offsetParent !== null || (el as HTMLElement).getClientRects().length > 0;
+function buttons(root: Element | null): HTMLButtonElement[] {
+  if (!root) return [];
+  return [...root.querySelectorAll("button")].filter((b) => !b.disabled && visible(b)) as HTMLButtonElement[];
+}
+const text = (el: Element) => (el.textContent ?? "").replace(/\s+/g, " ").trim();
+function setValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(el, value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function count(name: string) {
+  report.actions[name] = (report.actions[name] ?? 0) + 1;
+}
+function note(line: string) {
+  if (report.log.length < 400) report.log.push(`${report.ticks}: ${line} [${where()}]`);
+}
+
+/** Окно подтверждения на экране — соглашаемся (иногда сначала отказываемся). */
+async function confirmDialogs(): Promise<void> {
+  for (let i = 0; i < 3; i++) {
+    const dialog = document.querySelector("dialog[open], [role=dialog], [role=alertdialog]");
+    if (!dialog) return;
+    const all = buttons(dialog);
+    const yes = all.find((b) => b.classList.contains("btn") && !b.classList.contains("btn--secondary") && !b.classList.contains("btn--quiet")) ?? all[0];
+    if (!yes) return;
+    yes.click();
+    await sleep(30);
+  }
+}
+
+/** Телефоны: заполнить поля и нажать что-то из доступного. */
+async function phonesAct(): Promise<void> {
+  for (const root of document.querySelectorAll("[data-phone]")) {
+    if (!chance(0.7)) continue;
+    for (const field of root.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea")) {
+      const f = field as HTMLInputElement;
+      if (f.disabled || f.value) continue;
+      setValue(f, f.type === "number" ? String(1 + Math.floor(random() * 5)) : `Робот пишет ответ ${Math.floor(random() * 90) + 10}`);
+    }
+    for (const sel of root.querySelectorAll("select")) {
+      const options = [...(sel as HTMLSelectElement).options].filter((o) => !o.disabled && o.value);
+      const o = pick(options);
+      if (o) {
+        (sel as HTMLSelectElement).value = o.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    const list = buttons(root);
+    const b = pick(list);
+    if (b) {
+      count("телефон: кнопка");
+      b.click();
+      await sleep(10);
+    }
+  }
+}
+
+const RISKY = /досрочно|Закончить|Без голосования|Завершить партию|Завершить сессию|Убрать|Отклонить|Не брать/i;
+
+async function hostAct(): Promise<void> {
+  const root = document.querySelector("[data-host]");
+  const list = buttons(root);
+  if (list.length === 0) return;
+  const primary = list.find((b) => b.classList.contains("host-quiz__primary")) ?? list.find((b) => b.classList.contains("btn") && !b.classList.contains("btn--secondary") && !b.classList.contains("btn--quiet"));
+  const back = list.find((b) => /^(←\s*)?Назад/.test(text(b)));
+  const late = report.ticks > BUDGET * 0.7;
+  const others = list.filter((b) => b !== primary && b !== back && (late || !RISKY.test(text(b))));
+  let chosen: HTMLButtonElement | undefined;
+  const r = random();
+  if (back && r < 0.12) chosen = back;
+  else if (r < 0.3) chosen = pick(others) ?? primary;
+  else chosen = primary ?? pick(others);
+  if (!chosen) return;
+  const name = text(chosen).slice(0, 40);
+  count(`пульт: ${chosen === back ? "Назад" : chosen === primary ? "главная" : "другая"}`);
+  note(`пульт «${name}»`);
+  chosen.click();
+  // Двойное касание иногда: второй раз — пока пульт ещё не получил своё изменение.
+  if (chance(0.05)) chosen.click();
+  await sleep(20);
+  await confirmDialogs();
+}
+
+/** Вмешательства ведущего поверх любой игры (общие кнопки пульта) и жизнь зала. */
+async function overlay(): Promise<void> {
+  const s = store.session;
+  const st = s.state;
+  const r = random();
+  const safe = (name: string, change: SessionChange | null) => {
+    if (!change) return;
+    try {
+      count(name);
+      note(name);
+      serverApply(change);
+    } catch (e) {
+      if ((e as { code?: string }).code !== "failed-precondition") fail(name, String(e));
+    }
+  };
+  if (st.phase !== "playing" || mechanic?.standalone) return;
+  if (r < 0.04) safe("таблица на экран", { state: { peek: chance(0.5) ? "total" : "round" } });
+  else if (r < 0.08 && st.peek) safe("убрать таблицу", { state: { peek: null } });
+  else if (r < 0.11) safe("QR для опоздавших", { state: { slide: joinSlide(`j${report.ticks}`) } });
+  else if (r < 0.15 && st.slide) safe("убрать слайд", { state: { slide: null } });
+  else if (r < 0.17) safe("технический перерыв", { state: { slide: techSlide(`t${report.ticks}`) } });
+  else if (r < 0.19) {
+    const names = Object.values(s.leaderboard).map((e) => e.name);
+    if (names.length >= 2) safe("жеребьёвка", { state: { slide: drawSlide(`d${report.ticks}`, names, names[0] ?? "", Date.now()) } });
+  } else if (r < 0.21) safe("+10 секунд", addTimeChange(st, Date.now()));
+  else if (r < 0.23 && canAwardNow(st) && Object.values(s.leaderboard).some((e) => e.score > 0)) {
+    // «Наградить сейчас» и сразу «Назад» — игра должна вернуться туда же.
+    const before = { step: st.step, stage: st.stage, key: resultKey(st.result) };
+    safe("наградить сейчас", { ...awardNow(s), expect: { phase: "playing", step: st.step, stage: st.stage } });
+    safe("назад с награждения", podiumBack(store.session));
+    const after = store.session.state;
+    if (after.step !== before.step || after.stage !== before.stage) fail("наградить сейчас", `«Назад» вернул не туда: ${before.stage} → ${after.stage}`);
+  } else if (r < 0.25 && joinCounter < PLAYERS + 3) {
+    count("опоздавший гость");
+    note("опоздавший гость");
+    addGuest(true);
+    syncBoard();
+  } else if (r < 0.27) {
+    // Телефон уснул и вернулся / перезагрузили страницу.
+    const phone = pick(participants.filter((p) => p.kind === "player"));
+    if (phone) {
+      count("телефон переподключился");
+      store.keys[phone.id] = (store.keys[phone.id] ?? 0) + 1;
+      bump();
+    }
+  } else if (r < 0.285) {
+    count("пульт открыли заново");
+    note("пульт открыли заново");
+    store.keys.host = (store.keys.host ?? 0) + 1;
+    bump();
+  } else if (r < 0.3) {
+    count("экран зала перезагрузили");
+    store.keys.hall = (store.keys.hall ?? 0) + 1;
+    bump();
+  }
+}
+
+async function run(): Promise<void> {
+  if (!mechanic || content === null) {
+    fail("подготовка", `нет механики ${MECHANIC}`);
+    (window as unknown as { robotDone: boolean }).robotDone = true;
+    return;
+  }
+  const errors = validateGame(MECHANIC, demo ? demo.content : newContent(MECHANIC));
+  if (errors.length > 0) note(`игра с замечаниями: ${errors[0]?.message}`);
+  applyTheme(getTheme(store.session.themeId));
+  // Лобби → пульт добавляет гостей в таблицу → «Начать игру».
+  syncBoard();
+  serverApply({ state: { ...startState(), startedAt: null }, expect: { phase: "lobby" } });
+  let lastSig = "";
+  let still = 0;
+  for (report.ticks = 0; report.ticks < BUDGET; report.ticks++) {
+    await sleep(15);
+    await phonesAct();
+    await sleep(15);
+    await overlay();
+    await sleep(15);
+    await hostAct();
+    if (finishWanted) {
+      finishWanted = false;
+      count("завершить игру");
+      note("завершить игру");
+      serverApply({ state: { phase: "finished", peek: null } });
+    }
+    if (store.session.state.phase === "finished") {
+      report.finished = true;
+      await sleep(50);
+      break;
+    }
+    const st = store.session.state;
+    const sig = `${st.step}|${st.stage}|${resultKey(st.result)}|${store.answers.length}|${JSON.stringify(store.session.leaderboard)}`;
+    if (sig === lastSig) still++;
+    else {
+      still = 0;
+      lastSig = sig;
+    }
+    if (still > 40) {
+      const host = document.querySelector("[data-host]");
+      report.stuck = `пульт: ${text(host ?? document.body).slice(0, 300)} | кнопки: ${buttons(host).map(text).join(" / ").slice(0, 200)}`;
+      break;
+    }
+  }
+  (window as unknown as { robotDone: boolean }).robotDone = true;
+}
+
+createRoot(document.getElementById("root") as HTMLElement).render(<App />);
+void sleep(200).then(run);

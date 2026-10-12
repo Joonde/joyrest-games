@@ -3,6 +3,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSPr
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
+import { EVENING_MECHANIC } from "../core/program";
 import { captainChanges, leaderboardAdditions, rankedLeaderboard } from "../core/leaderboard";
 import { cleanName, isValidName, NAME_MAX_LENGTH } from "../core/names";
 import { startState } from "../core/session";
@@ -58,6 +59,9 @@ const CAPTAIN_CHECK_MS = 15_000;
 /** Шаг ручной корректировки очков. */
 const SCORE_STEP = 10;
 
+/** Убранные ведущим участники (когда): 15 с таблица их не возвращает, пока не придёт удаление из списка. */
+const removedRecently = new Map<string, number>();
+
 export function HostConsole() {
   const { code = "" } = useParams();
   return (
@@ -104,6 +108,10 @@ function Console({ session }: { session: Session }) {
   const [error, setError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmAward, setConfirmAward] = useState(false);
+  // Мероприятие из блоков: «Завершить игру» в блоке — конец блока (перерыв), а не конец вечера.
+  const [confirmBlock, setConfirmBlock] = useState(false);
+  const program = session.program ?? null;
+  const inBlock = program?.at === "block" && session.state.phase === "playing";
   const [toast, showToast] = useToast();
   const [params, setParams] = useSearchParams();
   const [picking, setPickingState] = useState(params.get("pick") === "1");
@@ -132,6 +140,8 @@ function Console({ session }: { session: Session }) {
   useEffect(() => {
     if (session.state.phase === "finished") return;
     const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
+    // Только что убранного ведущим не возвращаем: событие «участник удалён» может прийти позже таблицы.
+    for (const pid of Object.keys(additions)) if (Date.now() - (removedRecently.get(pid) ?? 0) < 15_000) delete additions[pid];
     if (Object.keys(additions).length > 0) {
       sessionsRepo.upsertLeaderboard(session.id, additions).catch(() => setError("Не удалось обновить список игроков."));
     }
@@ -196,7 +206,11 @@ function Console({ session }: { session: Session }) {
       apply: (change: SessionChange) => sessionsRepo.apply(session.id, change),
       clearAnswers: (step: number) => answersRepo.clearStep(session.id, step),
       freshAnswers: (step: number) => answersRepo.list(session.id, step),
-      requestFinish: () => setConfirmFinish(true),
+      requestFinish: () => {
+        const p = latest.current.program;
+        if (p?.at === "block" && latest.current.state.phase === "playing") setConfirmBlock(true);
+        else setConfirmFinish(true);
+      },
     }),
     [session.id],
   );
@@ -225,6 +239,23 @@ function Console({ session }: { session: Session }) {
       setConfirmFinish(false);
     } catch {
       setError("Не удалось завершить игру. Проверьте интернет.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Конец блока вечера: итоги блока, общий счёт, перерыв (после последнего — итоги вечера). */
+  async function endBlock() {
+    const p = latest.current.program;
+    if (!p || !sessionsRepo.program) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await sessionsRepo.program(session.id, "break", p.index);
+      setConfirmBlock(false);
+    } catch (e) {
+      if (errorCodeOf(e) === "failed-precondition") setConfirmBlock(false);
+      else setError("Не удалось завершить блок. Проверьте интернет.");
     } finally {
       setBusy(false);
     }
@@ -302,6 +333,9 @@ function Console({ session }: { session: Session }) {
         <span className="pult-status__code">{formatSessionCode(session.code)}</span>
         <span>{session.playMode === "teams" ? `телефонов: ${phones}` : `игроков: ${phones}`}</span>
         <span>{phase === "lobby" ? "ждём гостей" : phase === "playing" ? "идёт игра" : "завершена"}</span>
+        {program && phase === "playing" && (
+          <span>{program.at === "block" ? `блок ${program.index + 1} из ${program.blocks.length}` : program.at === "break" ? "перерыв" : "итоги вечера"}</span>
+        )}
         {phase !== "finished" && eventStart !== null && <span title="Сколько идёт вечер (с первого гостя)">вечер {elapsedClock(clockNow - eventStart)}</span>}
         {screenLabel && <span className={screenLabel.ok ? "pult-status__screen is-ok" : "pult-status__screen"}>{screenLabel.text}</span>}
       </p>
@@ -336,8 +370,13 @@ function Console({ session }: { session: Session }) {
                 <JoinCard session={session} link={link} compact={false} onCopy={() => void copyLink()} />
                 {session.playMode === "teams" && <TeamsCard session={session} onApply={apply} onStart={() => void start()} starting={busy || !mechanic} />}
                 <LobbyNames session={session} onMore={() => setTab("people")} />
+                {program && (
+                  <p className="muted small">
+                    Вечер из {program.blocks.length} {program.blocks.length === 1 ? "блока" : "блоков"}: {program.blocks.map((b, i) => `${i + 1}. ${b.title}`).join(" · ")}
+                  </p>
+                )}
                 <button className="btn btn--block" disabled={busy || !mechanic} onClick={() => void start()}>
-                  Начать игру
+                  {program ? `Начать вечер: «${program.blocks[0]?.title ?? ""}»` : "Начать игру"}
                 </button>
                 {/* Передумали или сессия создана по ошибке — закрыть, не начиная игру. */}
                 <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
@@ -349,6 +388,7 @@ function Console({ session }: { session: Session }) {
               <section className="card">
                 <Suspense fallback={null}>
                   <HostControls
+                    key={program ? `${program.at}-${program.index}` : "game"}
                     session={session}
                     content={content}
                     answers={answers}
@@ -361,7 +401,8 @@ function Console({ session }: { session: Session }) {
             )}
             {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
             {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}
-            {phase === "playing" && !standalone && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
+            {/* Перерыв и итоги вечера ведёт своя карточка («Награждение вечера»). */}
+            {phase === "playing" && !standalone && session.mechanic !== EVENING_MECHANIC && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
                   Наградить сейчас
@@ -384,7 +425,8 @@ function Console({ session }: { session: Session }) {
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
             )}
             {/* Жеребьёвка: монетка на экране выбирает среди подключившихся, кто ходит первым. */}
-            {phase !== "finished" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
+            {/* В лобби жребий потерялся бы при «Начать игру» (право первого хода ставится в идущей игре). */}
+            {phase === "playing" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
               <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void runDraw()}>
                 Жеребьёвка — кто ходит первым
               </button>
@@ -403,19 +445,22 @@ function Console({ session }: { session: Session }) {
             {phase === "playing" && (
               <>
                 <JoinCard session={session} link={link} compact onCopy={() => void copyLink()} />
-                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => setConfirmFinish(true)}>
-                  Завершить игру досрочно
+                <button className="btn btn--quiet btn--block" disabled={busy} onClick={() => (inBlock ? setConfirmBlock(true) : setConfirmFinish(true))}>
+                  {inBlock ? "Завершить блок досрочно" : program ? "Завершить вечер досрочно" : "Завершить игру досрочно"}
                 </button>
               </>
             )}
             {phase === "finished" && (
               <section className="card">
-                <h2>Игра завершена</h2>
-                <p>Итоги сохранены в «Истории игр».</p>
+                <h2>{Object.keys(session.leaderboard).length === 0 ? "Сессия закрыта" : "Игра завершена"}</h2>
+                {/* Закрыли в лобби без игроков — итогов нет, ссылка вела бы на «Итоги не найдены». */}
+                <p>{Object.keys(session.leaderboard).length === 0 ? "Игра не начиналась — в «Историю игр» она не попала." : "Итоги сохранены в «Истории игр»."}</p>
                 <div className="actions">
-                  <Link className="btn btn--block" to={`/results/${session.id}`}>
-                    Открыть итоги
-                  </Link>
+                  {Object.keys(session.leaderboard).length > 0 && (
+                    <Link className="btn btn--block" to={`/results/${session.id}`}>
+                      Открыть итоги
+                    </Link>
+                  )}
                   <Link className="btn btn--secondary btn--block" to="/studio">
                     В студию
                   </Link>
@@ -465,6 +510,21 @@ function Console({ session }: { session: Session }) {
           {session.state.phase === "lobby"
             ? "Игра так и не начнётся: гости увидят, что она закончена, код перестанет работать. Вернуть сессию нельзя — для новой игры создайте новую."
             : "Гости увидят финал и итоговую таблицу. Продолжить эту игру после завершения нельзя."}
+        </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmBlock}
+        title={program ? `Завершить блок ${program.index + 1} «${program.blocks[program.index]?.title ?? ""}»?` : "Завершить блок?"}
+        confirmLabel="Завершить блок"
+        busy={busy}
+        error={error}
+        onConfirm={() => void endBlock()}
+        onCancel={() => setConfirmBlock(false)}
+      >
+        <p>
+          {program && program.index < program.blocks.length - 1
+            ? `На экране — победители блока и общий счёт вечера. Дальше — «${program.blocks[program.index + 1]?.title ?? ""}»: начнёте кнопкой, когда гости будут готовы.`
+            : "Это последний блок: дальше итоги вечера и награждение по сумме всех блоков."}
         </p>
       </ConfirmDialog>
       <ConfirmDialog
@@ -755,6 +815,7 @@ function PeopleCard({
         await sessionsRepo.apply(session.id, { addScore: { [edit.pid]: sign * amount } });
         onToast(`${sign > 0 ? "+" : "−"}${amount} — ${edit.name}`);
       } else {
+        removedRecently.set(edit.pid, Date.now());
         if (participants.some((p) => p.id === edit.pid)) await participantsRepo.remove(session.id, edit.pid);
         if (session.leaderboard[edit.pid]) await sessionsRepo.apply(session.id, { leaderboard: { [edit.pid]: null } });
         onToast(edit.team ? "Команда убрана" : "Игрок убран");

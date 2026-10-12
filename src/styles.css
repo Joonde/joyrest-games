@@ -8577,6 +8577,16 @@ button.dance-card:active {
 }
 
 .mil-step {
+  /* Номер ступени 1–12 — видно, на какой стадии команда (решение владельца 12 октября 2026). */
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  font-size: min(2.6cqh, 2cqw);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
   border-radius: 0.6cqh;
   background: var(--color-surface-alt);
   transition: background-color 0.5s ease, transform 0.5s ease;
@@ -8589,6 +8599,7 @@ button.dance-card:active {
 
 .mil-step.is-on {
   background: var(--team);
+  color: var(--color-team-text);
 }
 
 .mil-step.is-next {
@@ -13658,6 +13669,711 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .slide__text--small {
   font-size: 0.7em;
   opacity: 0.85;
+}
+
+/* ---------- «Перудо»: стол со стаканами, кости, ставка ---------- */
+
+.pr-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 3cqh 3cqw;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 2.4cqh;
+  font-size: 3cqh;
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+.pr-screen__main {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  text-align: center;
+}
+
+.pr-intro,
+.pr-bid {
+  display: grid;
+  justify-items: center;
+  gap: 2cqh;
+  max-width: 80cqw;
+}
+
+.pr-title {
+  margin: 0;
+  font-size: 8cqh;
+  text-wrap: balance;
+}
+
+.pr-note {
+  margin: 0;
+  font-size: 2.8cqh;
+  color: var(--color-text-muted);
+  text-wrap: balance;
+}
+
+.pr-bid__now {
+  display: grid;
+  justify-items: center;
+  gap: 1cqh;
+  animation: pr-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.pr-bid__who {
+  font-size: 3.2cqh;
+  color: var(--color-text-muted);
+}
+
+.pr-bid__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  font-family: var(--font-display);
+  font-size: 16cqh;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-bid__value b {
+  font-weight: 700;
+}
+
+.pr-turn {
+  margin: 0;
+  font-size: 3.4cqh;
+  text-wrap: balance;
+}
+
+.pr-verdict {
+  margin: 0;
+  padding: 1cqh 2.4cqw;
+  border-radius: 999px;
+  font-size: 3.6cqh;
+  font-weight: 600;
+  border: 2px solid var(--color-highlight);
+}
+
+.pr-verdict.is-ok {
+  border-color: var(--color-success);
+}
+
+.pr-verdict.is-no {
+  border-color: var(--color-danger);
+}
+
+.pr-winner {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 7cqh;
+}
+
+.pr-cups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17cqw, 1fr));
+  gap: 1.4cqh 1.4cqw;
+}
+
+.pr-cup {
+  display: grid;
+  gap: 0.8cqh;
+  padding: 1.2cqh 1.2cqw;
+  border-radius: 1.6cqh;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  transition: transform 0.3s, border-color 0.3s;
+}
+
+.pr-cup.is-turn {
+  border-color: var(--color-highlight);
+  transform: translateY(-0.6cqh);
+  box-shadow: 0 0 0 0.4cqh color-mix(in srgb, var(--color-highlight) 35%, transparent);
+}
+
+.pr-cup.is-out {
+  opacity: 0.45;
+}
+
+.pr-cup.is-lost {
+  border-color: var(--color-danger);
+}
+
+.pr-cup.is-gained {
+  border-color: var(--color-success);
+}
+
+.pr-cup__name {
+  font-size: 2.4cqh;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pr-cup__dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5cqh;
+  min-height: 4cqh;
+}
+
+.pr-cup__dice .pr-die {
+  width: 4cqh;
+  height: 4cqh;
+}
+
+.pr-cup__out,
+.pr-cup__mark {
+  font-size: 2cqh;
+  color: var(--color-text-muted);
+}
+
+.pr-cup.is-lost .pr-cup__mark {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.pr-die {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  vertical-align: middle;
+}
+
+.pr-die__body {
+  fill: #fbf6f1;
+  stroke: #221e1b;
+  stroke-width: 4;
+}
+
+.pr-die__pip {
+  fill: #221e1b;
+}
+
+.pr-die__paco {
+  fill: #c9a15f;
+}
+
+.pr-die__star {
+  fill: #fbf6f1;
+}
+
+.pr-die.is-hidden .pr-die__body {
+  fill: #5a3d2e;
+  stroke: #c9a15f;
+}
+
+.pr-die__q {
+  fill: #e3c68c;
+  font: 700 44px var(--font-display);
+}
+
+.pr-die.is-hit .pr-die__body {
+  fill: #a3c2aa;
+}
+
+.pr-mine {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.pr-mine .pr-die {
+  width: 56px;
+  height: 56px;
+}
+
+.pr-phone__bid {
+  margin: 0;
+  text-align: center;
+}
+
+.pr-faces {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pr-face {
+  display: grid;
+  place-items: center;
+  min-height: 56px;
+  padding: 4px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.pr-face .pr-die {
+  width: 100%;
+  max-width: 44px;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.pr-face.is-on {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.pr-face:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pr-qty {
+  display: grid;
+  grid-template-columns: var(--control-height) 1fr var(--control-height);
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-qty .btn {
+  padding: 0;
+  font-size: 24px;
+}
+
+.pr-qty__value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-host__dice {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pr-host__dice li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-host__row {
+  display: flex;
+  gap: 4px;
+}
+
+.pr-host__row .pr-die {
+  width: 26px;
+  height: 26px;
+}
+
+@keyframes pr-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-bid__now {
+    animation: none;
+  }
+
+  .pr-cup {
+    transition: none;
+  }
+}
+
+/* ---------- Сворачиваемый блок: шаблоны, оформление, механики, импорт ---------- */
+
+.fold {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.fold + .fold {
+  margin-top: 8px;
+}
+
+.fold__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--control-height);
+  padding: 8px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+
+.fold__head::-webkit-details-marker {
+  display: none;
+}
+
+.fold__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fold__value {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.fold__chev {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.2s;
+}
+
+.fold[open] > .fold__head .fold__chev {
+  transform: rotate(-135deg) translateY(-2px);
+}
+
+.fold__body {
+  display: grid;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.fold__head:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold__chev {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Мероприятие из блоков */
+
+.ev-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: max(8cqh, var(--safe-top)) 4cqw 9cqh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 4cqw;
+  align-items: center;
+  color: var(--color-text);
+}
+
+.ev-screen__program {
+  display: flex;
+  flex-direction: column;
+  gap: 2.4cqh;
+  min-width: 0;
+}
+
+.ev-screen__eyebrow {
+  margin: 0;
+  font-size: 3cqh;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ev-screen__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 7.5cqh;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.ev-screen__board {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.ev-screen__board .board-view {
+  width: 100%;
+  font-size: 3.4cqh;
+}
+
+.ev-screen__board .board-view__title {
+  font-size: 4.6cqh;
+}
+
+.ev-blocks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6cqh;
+  font-size: 3.2cqh;
+}
+
+.ev-block {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.6cqh;
+  align-items: start;
+}
+
+.ev-block__num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.ev-block--done .ev-block__num {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.ev-block--next .ev-block__num {
+  border-color: var(--color-highlight);
+}
+
+.ev-block__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  min-width: 0;
+}
+
+.ev-block__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ev-block--later .ev-block__title {
+  color: var(--color-text-muted);
+}
+
+.ev-block__win {
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+}
+
+.ev-block__name {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Телефон гостя: тот же список, обычные размеры. */
+.ev-blocks--compact {
+  font-size: 1rem;
+  gap: 12px;
+}
+
+.ev-blocks--compact .ev-block {
+  gap: 12px;
+}
+
+.ev-phone__me {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* Конструктор и запуск. */
+.ev-edit {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ev-edit__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ev-edit__num {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.ev-edit__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ev-edit__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ev-edit__tools {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ev-template {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ev-launch {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media (max-aspect-ratio: 4/3) {
+  .ev-screen {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+  }
+}
+
+.ev-final {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2cqh;
+}
+
+.ev-final .board-view__title {
+  font-size: 4.6cqh;
+  margin: 0;
+}
+
+.ev-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.ev-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.ev-table th,
+.ev-table td {
+  padding: 0.35em 0.5em;
+  text-align: right;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.ev-table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+}
+
+.ev-table .ev-table__name,
+.ev-table th:nth-child(2) {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  width: 100%;
+}
+
+.ev-phone .ev-table {
+  font-size: 0.9rem;
+}
+
+.ev-phone .ev-table th,
+.ev-phone .ev-table td {
+  padding: 0.4em 0.3em;
+}
+
+.ev-table td:first-child {
+  border-left: 4px solid var(--team, transparent);
+}
+
+.ev-table__total {
+  font-weight: 700;
+}
+
+.ev-table tr.is-me td {
+  background: var(--color-surface-alt);
+}
+
+.ev-table__legend {
+  margin: 0.6em 0 0;
+  font-size: 0.8em;
+  color: var(--color-text-muted);
+}
+
+.ev-screen .ev-table {
+  font-size: 3cqh;
+}
+
+.final__board .ev-table {
+  font-size: 3cqh;
+}
+
+.card--center .ev-table-wrap {
+  width: 100%;
+  text-align: left;
+}
+
+/* Вечер из блоков: номер и название блока в строке входа — одной строкой, не задевая углы экрана. */
+.stage-code:has(.stage-code__block) {
+  left: 8cqw;
+  right: 8cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Номера ступеней «Миллионера»: в узких колонках (много команд) и на телефоне не помещаются — прячем. */
+.mil-bars.is-many .mil-step > span,
+.mil-phone-bars .mil-step > span {
+  display: none;
+}
+
+/* Экран зала во время игры: обновление ждёт паузы — плашка тихая, не отвлекает от вопроса. */
+.update-banner--quiet {
+  opacity: 0.7;
+  font-size: 0.85rem;
+  padding: 6px 14px;
 }
 
 /* ---------- Оформление телешоу: «Своя игра» и «Миллионер» (content.look) ----------

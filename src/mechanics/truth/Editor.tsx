@@ -1,5 +1,6 @@
 // Конструктор «Правды или действия»: колода (правда и действие, пометка 18+), импорт списком, шаблоны,
 // очки, круги, задания от гостей.
+import { Fold } from "../../components/Fold";
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -69,6 +70,7 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
           </span>
         </label>
         {editable && (
+          <Fold title="Готовые колоды">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replace(DEMO_TRUTH.cards, "Заполнить колодой «Для любой компании»", false)}>
               Колода «Для любой компании»
@@ -77,6 +79,7 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
               Колода «18+»
             </button>
           </div>
+          </Fold>
         )}
       </section>
 

@@ -24,6 +24,8 @@ interface Draft {
   text: string;
   lines: string;
   minutes: number;
+  /** Правила формата, от которых ведущий правил текст: изменились в новой версии — подскажем вернуть. */
+  base?: string;
 }
 
 export function slideId(): string {
@@ -36,9 +38,15 @@ function defaultDraft(kind: SlideKind, session?: Pick<Session, "mechanic" | "pla
   // Правила — свои у каждого формата игры и режима (каждый сам за себя или команды).
   if (kind === "rules" && session) {
     const rules = rulesFor(session.mechanic, session.playMode);
-    return { title: rules.title, text: "", lines: rules.lines.join("\n"), minutes: 10 };
+    return { title: rules.title, text: "", lines: rules.lines.join("\n"), minutes: 10, base: rulesBase(session) };
   }
   return { title: d.title, text: d.text, lines: d.lines.join("\n"), minutes: d.minutes ?? 10 };
+}
+
+/** Отпечаток правил формата по умолчанию (заголовок и пункты). */
+function rulesBase(session: Pick<Session, "mechanic" | "playMode">): string {
+  const rules = rulesFor(session.mechanic, session.playMode);
+  return [rules.title, ...rules.lines].join("\n");
 }
 
 /** Где на устройстве лежит текст шаблона: правила — отдельно для каждого формата игры. */
@@ -76,10 +84,12 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
   const [error, setError] = useState(false);
   const template = slideTemplate(kind);
   const key = draftKey(kind, session);
-  const draft = drafts[key] ?? defaultDraft(kind, session);
+  // Правила формата обновились в новой версии — прежняя правка ведущего не показывается, сразу новые правила.
+  const stored = drafts[key];
+  const draft = stored && (kind !== "rules" || stored.base === rulesBase(session)) ? stored : defaultDraft(kind, session);
 
   function edit(patch: Partial<Draft>) {
-    const next = { ...drafts, [key]: { ...draft, ...patch } };
+    const next = { ...drafts, [key]: { ...draft, ...(kind === "rules" ? { base: rulesBase(session) } : {}), ...patch } };
     setDrafts(next);
     saveDrafts(next);
   }

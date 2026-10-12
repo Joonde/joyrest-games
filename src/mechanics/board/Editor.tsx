@@ -52,10 +52,14 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
     });
   }
 
+  // Сразу удаляем только картинки, загруженные в этот раз (как в квизе): на старые может ссылаться идущая
+  // игра или «Не сохранять — вернуть как было».
+  const uploadedHere = useRef(new Set<string>());
+
   function releaseImage(mediaId: string | null) {
-    if (!mediaId) return;
-    // Картинку, на которую больше никто не ссылается, удаляем сразу (как в квизе).
+    if (!mediaId || !uploadedHere.current.has(mediaId)) return;
     if (allCells(latest.current).some(({ cell }) => cell.imageId === mediaId)) return;
+    uploadedHere.current.delete(mediaId);
     void mediaRepo.remove(gameId, mediaId).catch(() => undefined);
   }
 
@@ -63,6 +67,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
     try {
       const image = await compressImage(file);
       const { mediaId, saved } = mediaRepo.upload(gameId, image);
+      uploadedHere.current.add(mediaId);
       const previous = findCell(latest.current, cell.id)?.cell.imageId ?? null;
       updateCell(cell.id, { imageId: mediaId });
       releaseImage(previous);

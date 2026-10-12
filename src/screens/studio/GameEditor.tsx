@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { GamePreview } from "./GamePreview";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
@@ -17,10 +17,11 @@ import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
-import { useAutosave, type SaveStatus } from "../../components/useAutosave";
+import { dropDraft, readDraft, useAutosave, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
-import { THEME_HINTS, themesForRating } from "../../themes/registry";
+import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
 const AGE_HINTS: Record<AgeRating, string> = {
   "0+": "Для всех, в том числе детские праздники.",
@@ -71,21 +72,44 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const navigate = useNavigate();
   const mechanic = getMechanic(initial.mechanic);
   // Содержимое сразу приводим к формату механики: дальше с ним работает только она.
-  const [game, setGame] = useState<Game>(() => ({ ...initial, content: mechanic ? mechanic.parse(initial.content) : initial.content }));
-  const [titleInput, setTitleInput] = useState(initial.title);
+  // Правки, которые в прошлый раз не дошли до сервера (вкладку закрыли без связи), возвращаются и уходят снова —
+  // если игра на сервере с тех пор не менялась (иначе свежее — на сервере).
+  const [draft] = useState(() => {
+    const d = readDraft<GamePatch>(`game.${initial.id}`);
+    if (d && (initial.updatedAt === null || d.at > initial.updatedAt)) return d.patch;
+    if (d) dropDraft(`game.${initial.id}`);
+    return null;
+  });
+  const [game, setGame] = useState<Game>(() => {
+    const merged = { ...initial, ...(draft ?? {}) };
+    return { ...merged, content: mechanic ? mechanic.parse(merged.content) : merged.content };
+  });
+  const [titleInput, setTitleInput] = useState(game.title);
   const [copying, setCopying] = useState(false);
   const [toast, showToast] = useToast();
   const editable = permissions.canEditGame(profile, game);
   // Роли без профессии ведущего (создатель игр, тестировщик) игры не проводят — только репетиция.
   const launchable = permissions.canLaunchGame(profile, game);
   const copyable = permissions.canCopyToPersonal(profile, game);
-  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch));
+  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch), `game.${initial.id}`);
+  useEffect(() => {
+    if (!draft) return;
+    edited.current = true;
+    change(draft);
+    showToast("Вернули правки, которые не успели сохраниться");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз при открытии
+  }, []);
   // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
-  const original = useRef<GamePatch>({ title: initial.title, content: game.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
+  const original = useRef<GamePatch>({ title: initial.title, content: mechanic ? mechanic.parse(initial.content) : initial.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
   const edited = useRef(false);
   const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [leaveError, setLeaveError] = useState(false);
+  /** «Сохранить игру»: сначала «Точно сохранить?», потом — своё название. */
+  const [saveStep, setSaveStep] = useState<"confirm" | "name" | null>(null);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -93,7 +117,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   async function settled(): Promise<void> {
     const end = Date.now() + 6000;
     await new Promise((r) => setTimeout(r, 50));
-    while (statusRef.current !== "saved" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
+    while (statusRef.current !== "saved" && statusRef.current !== "error" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
   }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
@@ -149,6 +173,33 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       showToast("Не удалось скопировать. Проверьте интернет.");
       setCopying(false);
     }
+  }
+
+  /** Сохранить под своим названием и вернуться к своим играм. */
+  async function saveGame() {
+    const clean = cleanGameTitle(saveName);
+    if (!isValidGameTitle(clean)) {
+      setSaveError("Введите название — так игра будет называться в ваших играх.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    setTitleInput(clean);
+    edit({ title: clean });
+    flush(true);
+    await settled();
+    if (statusRef.current === "error") {
+      setSaving(false);
+      setSaveError("Сервер не принял изменения. Проверьте интернет и нажмите ещё раз.");
+      return;
+    }
+    edited.current = false;
+    setSaving(false);
+    setSaveStep(null);
+    // Нет связи: правка ждёт в очереди устройства и уйдёт сама — честно об этом и говорим.
+    const where = game.scope === "agency" ? "библиотеке" : "ваших играх";
+    const toast = statusRef.current === "saved" ? `Игра «${clean}» сохранена в ${where}` : `Игра «${clean}» сохранится в ${where}, когда появится связь`;
+    navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", { state: { toast } });
   }
 
   const launchBlocked = errors.length > 0;
@@ -255,6 +306,12 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={game.playMode} themeId={game.themeId} />
         </section>
       )}
+      {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}
+      {!(canPreview && mechanic) && (
+        <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
+          Как проводить эту игру
+        </Link>
+      )}
 
       {MechanicEditor ? (
         <Suspense fallback={<section className="card" aria-busy="true"><span className="skeleton skeleton--choice" /></section>}>
@@ -263,6 +320,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
             themeId={game.themeId}
             content={game.content}
             editable={editable}
+            scope={game.scope}
             onChange={(content) => edit({ content })}
           />
         </Suspense>
@@ -277,8 +335,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <h2>Настройки</h2>
           {/* Самостоятельная игра («Олимп») — со своим видом, оформление не выбирается. */}
           {!mechanic?.standalone && (
+          <Fold title="Оформление по умолчанию" value={getTheme(game.themeId).title}>
           <fieldset>
-            <legend>Оформление по умолчанию</legend>
+            <legend className="visually-hidden">Оформление по умолчанию</legend>
             {themesForRating(game.ageRating).map((theme) => (
               <label key={theme.id} className="choice">
                 <input
@@ -294,6 +353,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </label>
             ))}
           </fieldset>
+          </Fold>
           )}
           <fieldset>
             <legend>Участники по умолчанию</legend>
@@ -334,10 +394,61 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       )}
 
       <div className="actions">
+        {editable && (
+          <button
+            type="button"
+            className="btn btn--block"
+            onClick={() => {
+              setSaveName(cleanGameTitle(titleInput) || game.title);
+              setSaveError(null);
+              setSaveStep("confirm");
+            }}
+          >
+            Сохранить игру
+          </button>
+        )}
         <button type="button" className="btn btn--secondary btn--block" onClick={() => goBack()}>
           ← К играм
         </button>
       </div>
+      <ConfirmDialog
+        open={saveStep === "confirm"}
+        title="Сохранить игру?"
+        confirmLabel="Да, сохранить"
+        cancelLabel="Ещё поправлю"
+        onConfirm={() => setSaveStep("name")}
+        onCancel={() => setSaveStep(null)}
+      >
+        <p>Вопросы, блоки и настройки сохранятся такими, как сейчас. Дальше можно назвать игру по-своему.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={saveStep === "name"}
+        title="Как назовём игру?"
+        confirmLabel={saving ? "Сохраняем…" : "Сохранить"}
+        cancelLabel="Отмена"
+        busy={saving}
+        onConfirm={() => void saveGame()}
+        onCancel={() => setSaveStep(null)}
+      >
+        <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти в своих играх (например, «Квиз на свадьбу Ани и Димы»).</p>
+        {/* «Готово» на клавиатуре телефона сохраняет. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!saving) void saveGame();
+          }}
+        >
+          <label className="field">
+            Название
+            <input maxLength={GAME_TITLE_MAX_LENGTH} autoComplete="off" autoFocus enterKeyHint="done" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
+          </label>
+        </form>
+        {saveError && (
+          <p className="error" role="alert">
+            {saveError}
+          </p>
+        )}
+      </ConfirmDialog>
       <ConfirmDialog
         open={leaving}
         title="Сохранить изменения?"

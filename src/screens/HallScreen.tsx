@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { setHallBusy } from "../components/UpdateBanner";
+import { EVENING_MECHANIC } from "../core/program";
+import { EveningTable } from "../mechanics/evening/views";
 import { useNavigate, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { snapshotContent } from "../core/games";
@@ -183,6 +186,13 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   // Видел ли этот экран игру: финальные фанфары — только при переходе к финалу, не при открытии.
   const sawGame = useRef(phase === "playing");
   if (phase === "playing") sawGame.current = true;
+  // Идёт игра — экран не перезагружается сам при обновлении платформы (иначе снова просит коснуться для звука);
+  // обновится в лобби, в перерыве вечера или после финала.
+  const playingNow = phase === "playing" && session.mechanic !== EVENING_MECHANIC;
+  useEffect(() => {
+    setHallBusy(playingNow);
+    return () => setHallBusy(false);
+  }, [playingNow]);
   // Пульт видит, что экран на связи и звук разрешён.
   useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
@@ -421,7 +431,7 @@ function Playing({ session }: { session: Session }) {
       ) : stage === "podium" ? (
         <Podium session={session} />
       ) : ScreenView && content !== null ? (
-        <ScreenView session={session} content={content} />
+        <ScreenView key={programKey(session)} session={session} content={content} />
       ) : (
         <div className="screen-center">
           <h1 className="screen-title">Игра идёт</h1>
@@ -429,6 +439,9 @@ function Playing({ session }: { session: Session }) {
       )}
       <p className="stage-code">
         Вход: {joinHint()} · код {formatSessionCode(session.code)}
+        {session.program?.at === "block" && (
+          <span className="stage-code__block"> · блок {session.program.index + 1} из {session.program.blocks.length}: {session.program.blocks[session.program.index]?.title ?? ""}</span>
+        )}
       </p>
     </main>
   );
@@ -461,9 +474,22 @@ function Final({ session, sawGame }: { session: Session; sawGame: boolean }) {
         <p className="final__eyebrow">{winners.length > 1 ? "Победители" : winners.length === 1 ? "Победитель" : "Игра завершена"}</p>
         {winners.length > 0 && <Podium session={session} final />}
         <div className="final__board">
-          <BoardView leaderboard={session.leaderboard} title="Итоговая таблица" showLast={false} limit={winners.length > 0 ? Math.min(ranked.length, 4) : 7} />
+          {session.program ? (
+            // Вечер из блоков: в конце — очки каждого по блокам и «Всего».
+            <div className="ev-final">
+              <h2 className="board-view__title">Очки по блокам</h2>
+              <EveningTable program={session.program} board={session.leaderboard} limit={winners.length > 0 ? 4 : 7} />
+            </div>
+          ) : (
+            <BoardView leaderboard={session.leaderboard} title="Итоговая таблица" showLast={false} limit={winners.length > 0 ? Math.min(ranked.length, 4) : 7} />
+          )}
         </div>
       </div>
     </main>
   );
+}
+
+/** Мероприятие из блоков: новый блок — вид игры с чистого листа, даже если механика та же. */
+function programKey(session: Session): string {
+  return session.program ? `${session.program.at}-${session.program.index}` : "game";
 }

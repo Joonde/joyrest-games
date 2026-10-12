@@ -168,4 +168,19 @@ describe("Just Dance и Караоке на поле", () => {
     expect(parsed.gift).toBe(0);
     expect(validateStage(parseStage({ categories: [{ id: "x", title: "А" }], tiles: [{ cat: "x", video: { source: "link", url: "https://example.com" } }] }))).toHaveLength(1);
   });
+
+  it("репетиция без команд: кнопки ведут игру дальше без очков", () => {
+    let s = session();
+    s = apply(s, startGame(s, []));
+    s = apply(s, pickTile(s, content, "t1", []));
+    expect(parseStageResult(s.state.result).performer).toBeNull();
+    s = apply(s, finishPerform(s, content, [], [], true));
+    expect(parseStageResult(s.state.result).mode).toBe("result");
+    s = apply(s, nextTurn(s, []));
+    s = apply(s, pickTile(s, content, "t2", []));
+    s = apply(s, startVote(s, content));
+    s = apply(s, countVotes(s, content, [], []));
+    expect(parseStageResult(s.state.result).mode).toBe("result");
+    expect(stagePrimary(s, content)).toBe("finish");
+  });
 });

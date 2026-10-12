@@ -160,6 +160,7 @@ export function StageHostControls({ session, content, answers, participants, con
             <p>
               Батл: <strong><NameText name={name(turn)} /></strong> против кого?
             </p>
+            {sides.filter((p) => p !== turn).length === 0 && <p className="muted small">Команд пока нет (репетиция) — батл откроется без соперников, очков не будет.</p>}
             {sides
               .filter((p) => p !== turn)
               .map((p) => (
@@ -170,7 +171,7 @@ export function StageHostControls({ session, content, answers, participants, con
             <button
               type="button"
               className="btn btn--block host-quiz__primary"
-              disabled={busy || !battle.opponent}
+              disabled={busy || (sides.filter((p) => p !== turn).length > 0 && !battle.opponent)}
               onClick={() => {
                 const b = battle;
                 setBattle(null);

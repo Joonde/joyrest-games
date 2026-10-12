@@ -361,7 +361,7 @@ export function StageScreenView({ session, content }: ViewProps<StageContent>) {
     <div className={`stage-screen stage-screen--perform${karaoke ? " is-karaoke" : ""}`}>
       <div className="stage-perform__side">
         <TileCard content={content} tile={tile} session={session} r={r} />
-        {tile.kind !== "battle" && (
+        {tile.kind !== "battle" && r.performer && (
           <span className="stage-perform__on" style={sideStyle(session, r.performer)}>
             На сцене: <NameText name={performer} />
           </span>

@@ -228,10 +228,11 @@ export function liveGifts(session: Session, answers: Answer[], participants: Par
 export function finishPerform(session: Session, content: StageContent, answers: Answer[], participants: Participant[], performed: boolean): SessionChange {
   const r = parseStageResult(session.state.result);
   const tile = tileOf(content, r.tile);
-  if (!tile || r.mode !== "perform" || !r.performer) return {};
+  if (!tile || r.mode !== "perform") return {};
   const scores: Record<string, number> = {};
   const gifts: string[] = [];
-  if (performed) {
+  // Репетиция и игра без команд: выступать некому — итог без очков, игра идёт дальше.
+  if (performed && r.performer) {
     scores[r.performer] = tile.points;
     if (content.gift > 0) {
       for (const giver of giftGivers(session, answers, participants)) {
@@ -299,7 +300,9 @@ function battleScores(tile: StageTile, r: StageResult, winner: string | "tie"): 
 export function countVotes(session: Session, content: StageContent, answers: Answer[], participants: Participant[]): SessionChange {
   const r = parseStageResult(session.state.result);
   const tile = tileOf(content, r.tile);
-  if (!tile || r.mode !== "vote" || !r.performer || !r.opponent) return {};
+  if (!tile || r.mode !== "vote") return {};
+  // Без сторон батла (репетиция, одна команда) — итог без очков.
+  if (!r.performer || !r.opponent) return { state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "result", votes: {}, scores: {}, outcome: "tie", winner: null, changeable: false }) } };
   const votes = battleVotes(session, answers, participants);
   const a = votes[r.performer] ?? 0;
   const b = votes[r.opponent] ?? 0;

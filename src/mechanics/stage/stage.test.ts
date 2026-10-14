@@ -56,11 +56,11 @@ describe("Just Dance и Караоке на поле", () => {
     // Выступающие себе не дарят, команда — один раз.
     expect(giftGivers(s, answers, everyone)).toEqual(["B", "C"]);
     s = apply(s, finishPerform(s, content, answers, everyone, true));
-    // C без 50 очков подарить не может.
-    expect(s.leaderboard.A?.score).toBe(350);
+    // C ещё без очков — дарит, но в минус не уходит; выступающим — оба подарка целиком.
+    expect(s.leaderboard.A?.score).toBe(400);
     expect(s.leaderboard.B?.score).toBe(70);
     expect(s.leaderboard.C?.score ?? 0).toBe(0);
-    expect(parseStageResult(s.state.result).gifts).toEqual(["B"]);
+    expect(parseStageResult(s.state.result).gifts).toEqual(["B", "C"]);
     // «Назад» с итога — очки и подарки возвращаются.
     const back = stageBack(s, content);
     s = apply(s, back?.change ?? {});

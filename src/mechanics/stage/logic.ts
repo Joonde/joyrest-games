@@ -236,10 +236,12 @@ export function finishPerform(session: Session, content: StageContent, answers: 
     scores[r.performer] = tile.points;
     if (content.gift > 0) {
       for (const giver of giftGivers(session, answers, participants)) {
-        // Дарят только заработанные очки: меньше суммы подарка — подарок не уходит.
-        if ((session.leaderboard[giver]?.score ?? 0) < content.gift) continue;
+        // Дарить могут все, кто не на сцене, — и те, кто ещё не выступал (решение владельца 14 октября 2026):
+        // выступающим — подарок целиком, у дарителя списывается только то, что у него есть (в минус не уходит).
         gifts.push(giver);
-        scores[giver] = (scores[giver] ?? 0) - content.gift;
+        const has = Math.max(0, session.leaderboard[giver]?.score ?? 0);
+        const pay = Math.min(has, content.gift);
+        if (pay > 0) scores[giver] = (scores[giver] ?? 0) - pay;
         scores[r.performer] = (scores[r.performer] ?? 0) + content.gift;
       }
     }

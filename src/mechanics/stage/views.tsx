@@ -474,7 +474,7 @@ export function StagePlayerView({ session, content, pid, role, myAnswer, sending
     }
     const gave = mine !== null && mine !== undefined && (mine.value as Record<string, unknown> | null)?.gift === true;
     const teamGave = r.gifts.includes(pid);
-    const enough = (me?.score ?? 0) >= content.gift;
+    const has = Math.max(0, me?.score ?? 0);
     return (
       <div className="quiz-phone quiz-phone--center stage-phone">
         {head}
@@ -494,11 +494,17 @@ export function StagePlayerView({ session, content, pid, role, myAnswer, sending
             </div>
           ) : (
             <div className="stage-heart">
-              <button type="button" className="stage-heart__btn" disabled={busy || !open || !enough} onClick={() => send({ gift: true })} aria-label={`Подарить ${content.gift} очков`}>
+              <button type="button" className="stage-heart__btn" disabled={busy || !open} onClick={() => send({ gift: true })} aria-label={`Подарить ${content.gift} очков`}>
                 <Heart />
               </button>
               <strong>Подарить {content.gift}</strong>
-              <span className="muted small">{enough ? (teams ? `Понравилось? Отдайте ${content.gift} очков своей команды выступающим` : `Понравилось? Отдайте ${content.gift} своих очков выступающим`) : `Подарить можно, когда наберёте ${content.gift} очков`}</span>
+              <span className="muted small">
+                {has >= content.gift
+                  ? teams
+                    ? `Понравилось? Отдайте ${content.gift} очков своей команды выступающим`
+                    : `Понравилось? Отдайте ${content.gift} своих очков выступающим`
+                  : `Выступающим — +${content.gift}. У ${teams ? "команды" : "вас"} ${has > 0 ? `спишется только ${has}` : "пока нет очков — ничего не спишется"}, в минус не уйдёте`}
+              </span>
             </div>
           ))}
       </div>

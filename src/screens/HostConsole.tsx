@@ -41,7 +41,8 @@ import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
-import { joinSlide, techSlide } from "../core/slides";
+import { joinSlide } from "../core/slides";
+import { TechBreak } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
@@ -411,21 +412,9 @@ function Console({ session }: { session: Session }) {
               </>
             )}
             {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
-            {/* Та же кнопка и убирает перерыв: игра продолжается с того же места (слайд лежит поверх игры). */}
+            {/* Перерыв без времени или на 3–20 минут; та же кнопка заканчивает его — игра с того же места. */}
             {phase !== "finished" && tools && (
-              <button
-                type="button"
-                className={slide?.kind === "tech" ? "btn btn--block" : "btn btn--secondary btn--block"}
-                disabled={busy}
-                aria-pressed={slide?.kind === "tech"}
-                onClick={() =>
-                  void apply({ state: { slide: slide?.kind === "tech" ? null : techSlide(slideId()) } }).catch(() =>
-                    setError(slide?.kind === "tech" ? "Не получилось убрать перерыв. Проверьте интернет." : "Не получилось показать перерыв. Проверьте интернет."),
-                  )
-                }
-              >
-                {slide?.kind === "tech" ? "▶ Продолжить игру — убрать перерыв" : "Технический перерыв"}
-              </button>
+              <TechBreak slide={slide} busy={busy} newId={slideId} onApply={async (change) => void (await apply(change))} onError={setError} />
             )}
             {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>

@@ -582,6 +582,10 @@ try {
   check(csv.status === 200 && (await csv.text()).includes("Клиент Проверка"), "Владелец: выгрузка таблицы клиентов работает");
   await shot(ap, "владелец-клиенты");
   await noSideScroll(ap, "Владелец, клиенты");
+  // Настоящий бот на test: читает ли сообщения (тогда ведущие могут подключиться).
+  const health = (await api("GET", "/api/telegram/health", admin.cookie)).data ?? {};
+  say(`ℹ️ Бот: ${health.username ? "@" + health.username : "—"}, состояние ${health.state}, подключили Telegram: ${health.linkedPeople}`);
+  check(health.configured === true && health.state === "ok", "Telegram: бот на test на связи — получает сообщения (ведущие могут подключиться)", `Telegram: бот на test — ${JSON.stringify(health)}`);
   const tgButton = ap.getByRole("button", { name: "Подключить Telegram" });
   if ((await tgButton.count()) > 0) {
     await tgButton.click();

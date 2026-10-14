@@ -32,7 +32,7 @@ function parseDetails(value: unknown): ClientDetails {
   const history = Array.isArray(d.history)
     ? d.history.map((h): ClientContact => {
         const r = asRecord(h);
-        return { id: asText(r.id), source: asText(r.source), summary: asText(r.summary), at: num(r.at) };
+        return { id: asText(r.id), source: asText(r.source), summary: asText(r.summary), at: num(r.at), ref: typeof r.ref === "string" ? r.ref : null };
       })
     : [];
   return { ...parseClient(value), history };

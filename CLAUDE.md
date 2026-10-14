@@ -549,7 +549,10 @@ null у Firebase): клиенты попадают сами — заявка и 
 ставится. «Выгрузить для рассылки» — CSV (Excel, `;`, BOM, защита от формул — `clientsCsv`) только согласившихся, «всех» —
 для своей работы. Права — `permissions.canManageClients` (только владелец). API: `GET /api/clients[?archived=1]`,
 `GET /api/clients/:id` (с историей), `POST /api/clients` (id от браузера; тот же телефон у другого — 409),
-`POST /api/clients/:id/archive|restore`, `GET /api/clients/export[?all=1]`. В журнал — только действие.
+`POST /api/clients/:id/archive|restore`, `GET /api/clients/export[?all=1]`. В журнал — только действие. База клиентов —
+отдельный раздел владельца, а не вкладка базы площадок: кабинет площадок открыт и ведущим с доступом, а клиенты — только
+владельцу; связь — ссылки: в истории клиента «Подбор площадки →» (`/venues/r/<id>` запроса по QR), во «Заявках клиентов» —
+«открыть «Клиенты»».
 
 Telegram команды (решение владельца 14 октября 2026; `server/src/telegram.ts`): тот же бот, что у заявок
 (`LEAD_TELEGRAM_TOKEN`) — новых ключей и команд сервера нет. «Уведомления в Telegram» (`TelegramConnect`: «Мой профиль»,
@@ -560,7 +563,10 @@ Telegram команды (решение владельца 14 октября 202
 и адреса клиента** (Telegram — не в России; `noticeText`), только что, когда и ссылка в студию. Владелец пересылает боту
 сообщение клиента или текст заявки — клиент в базу (`parseLeadText` + `parseLinks` + ник отправителя). Сообщения бот читает
 через getUpdates (без вебхука и открытых адресов, `tg_state` — offset), читать может только одно окружение:
-`TELEGRAM_UPDATES` в compose — основная `on`, тестовая `off`; без переменной — только test.* (`telegramPolling`). Где не
+`TELEGRAM_UPDATES` в compose — основная `on`, тестовая `off`; без переменной — только test.* (`telegramPolling`). Бот один,
+но переписка у каждого своя: ведущий видит только свои уведомления, заявки сайта уходят только в чат владельца
+(`LEAD_TELEGRAM_CHAT_ID`). Владельцу — «Бот @… : на связи» и сколько людей подключили (`GET /api/telegram/health`);
+проверка с «Telegram понарошку» — `server/src/telegram.test.ts`, настоящего бота на test — проверка календаря. Где не
 читает — «Подключение Telegram на этой версии пока недоступно». API: `GET|DELETE /api/telegram/me`, `POST /api/telegram/link`
 (`permissions.canLinkTelegram`). Адрес ссылок — `PLATFORM_URL` или по адресам сайта.
 

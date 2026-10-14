@@ -4,6 +4,7 @@
  * боту в Telegram. Один человек — одна карточка (по телефону). Выгрузка для рассылки — только согласившиеся.
  */
 import { useMemo, useState, type CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import {
   CLIENT_LIMITS,
   CLIENT_STATUS_TITLES,
@@ -119,7 +120,8 @@ function ClientBase() {
     <>
       <p className="muted">
         Сюда сами попадают все, кто оставил заявку или вопрос на сайте, запрос по QR-анкете, записан в планировщик мероприятий или кого вы переслали
-        боту в Telegram — даже если мероприятия не было. Один человек — одна карточка (по телефону).
+        боту в Telegram — даже если мероприятия не было. Один человек — одна карточка (по телефону). Подбор площадок по запросу клиента — в{" "}
+        <Link to="/venues">базе площадок</Link> («Заявки клиентов»), из истории клиента — одним касанием.
       </p>
       <div className="actions">
         <button type="button" className="btn btn--block" onClick={() => setForm("new")}>
@@ -235,6 +237,18 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
                 <li key={h.id}>
                   <b>{dateLabel(h.at)}</b> · {sourceTitle(h.source)}
                   {h.summary ? ` — ${h.summary}` : ""}
+                  {h.source === "venue" && h.ref && (
+                    <>
+                      {" "}
+                      <Link to={`/venues/r/${encodeURIComponent(h.ref)}`}>Подбор площадки →</Link>
+                    </>
+                  )}
+                  {h.source === "event" && (
+                    <>
+                      {" "}
+                      <Link to="/studio/calendar?tab=events">В планировщик →</Link>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

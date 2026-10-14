@@ -35,9 +35,22 @@ export function telegramPolling(value: string | undefined, siteHosts: string[]):
   return siteHosts.some((h) => h.startsWith("test."));
 }
 
+/** Состояние бота для владельца: читает ли он сообщения на самом деле. */
+export interface BotHealth {
+  polling: boolean;
+  username: string | null;
+  /** Когда последний раз Telegram ответил на чтение сообщений. */
+  lastPollAt: number | null;
+  /** ok — читает; conflict — сообщения читает другая программа (вебхук, другое окружение); error — нет ответа. */
+  state: "ok" | "conflict" | "error" | "starting" | "off";
+}
+
 export interface Bot {
   /** Бот читает сообщения на этой версии (подключение Telegram работает). */
   polling: boolean;
+  health(): Promise<BotHealth>;
+  /** Напоминания сейчас (раз в минуту — само; для проверок). */
+  remindNow(): Promise<void>;
   username(): Promise<string | null>;
   sendTo(userId: string, text: string): Promise<boolean>;
   /** Уведомить ведущего о мероприятии и отметить уже наступившие напоминания, чтобы они не пришли следом. */
@@ -88,6 +101,8 @@ export function startBot(options: BotOptions): Bot {
   const base = `https://api.telegram.org/bot${token}`;
   let stopped = false;
   let me: string | null = null;
+  let lastPollAt: number | null = null;
+  let pollState: BotHealth["state"] = options.polling ? "starting" : "off";
 
   async function call(method: string, body: object, timeoutMs = 10_000): Promise<{ ok: boolean; status: number; result?: unknown }> {
     const res = await f(`${base}/${method}`, {
@@ -243,6 +258,11 @@ export function startBot(options: BotOptions): Bot {
     while (!stopped) {
       try {
         const r = await call("getUpdates", { offset, timeout: POLL_TIMEOUT_S, allowed_updates: ["message"] }, (POLL_TIMEOUT_S + 10) * 1000);
+        if (r.status === 409) pollState = "conflict";
+        else if (r.ok) {
+          pollState = "ok";
+          lastPollAt = now();
+        } else pollState = "error";
         if (r.status === 409) {
           // Сообщения бота читает кто-то ещё (другое окружение или вебхук) — не мешаем.
           log.warn({ telegram: "poll", result: 409 }, "telegram: сообщения бота читает другая программа");
@@ -262,6 +282,7 @@ export function startBot(options: BotOptions): Bot {
           await sql`insert into tg_state (key, value) values ('offset', ${String(offset)}) on conflict (key) do update set value = excluded.value`;
         }
       } catch {
+        pollState = "error";
         if (!stopped) await sleep(5_000);
       }
     }
@@ -270,6 +291,10 @@ export function startBot(options: BotOptions): Bot {
 
   return {
     polling: options.polling,
+    async health() {
+      return { polling: options.polling, username: await username(), lastPollAt, state: pollState };
+    },
+    remindNow: remind,
     username,
     sendTo,
     eventNotice,
@@ -310,6 +335,16 @@ export function registerTelegram(app: FastifyInstance, options: TelegramRoutesOp
       if (!uid) return reply;
       const [link] = await sql<{ username: string }[]>`select username from tg_links where user_id = ${uid}`;
       return { available: Boolean(bot?.polling), linked: Boolean(link), username: link?.username ?? "" };
+    });
+
+    // Владельцу: бот на связи? (имя бота, читает ли сообщения, когда последний раз).
+    api.get("/api/telegram/health", async (request, reply) => {
+      const user = await sessionUser(sql, request, reply);
+      if (!user) return reply.code(401).send({ error: "unauthenticated" });
+      if (!permissions.canManageClients(actorOf(user))) return reply.code(403).send({ error: "permission-denied" });
+      const [links] = await sql<{ count: number }[]>`select count(*)::int as count from tg_links`;
+      const health: BotHealth = bot ? await bot.health() : { polling: false, username: null, lastPollAt: null, state: "off" };
+      return { ...health, configured: Boolean(bot), linkedPeople: links?.count ?? 0 };
     });
 
     api.post("/api/telegram/link", { bodyLimit: 1024 }, async (request, reply) => {

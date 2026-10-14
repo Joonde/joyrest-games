@@ -4,7 +4,7 @@
  * карточка сама видит подключение (проверка раз в 3 секунды, до 3 минут).
  */
 import { useEffect, useState } from "react";
-import { telegramRepo, useLoad, type TelegramStatus } from "../data";
+import { telegramRepo, useLoad, type TelegramHealth, type TelegramStatus } from "../data";
 import { useConfirm } from "./ConfirmDialog";
 
 export function TelegramConnect({ owner = false }: { owner?: boolean }) {
@@ -115,7 +115,29 @@ export function TelegramConnect({ owner = false }: { owner?: boolean }) {
           {error}
         </p>
       )}
+      {owner && <BotHealthLine />}
       {confirm}
     </section>
+  );
+}
+
+const HEALTH_TEXT: Record<TelegramHealth["state"], string> = {
+  ok: "на связи — получает сообщения",
+  starting: "запускается…",
+  conflict: "не получает сообщения: их забирает другая программа (вебхук или другая версия платформы)",
+  error: "не отвечает Telegram — проверьте позже",
+  off: "на этой версии сообщения не читает (только отправляет)",
+};
+
+/** Владельцу: бот на связи? Сколько человек подключили Telegram. */
+function BotHealthLine() {
+  const [state] = useLoad(() => (telegramRepo ? telegramRepo.health() : Promise.resolve(null)), []);
+  if (state.status !== "ready" || !state.data) return null;
+  const h = state.data;
+  if (!h.configured) return <p className="muted small">Бот не настроен на сервере (sudo joyrest lead-bot).</p>;
+  return (
+    <p className="small tg-health" role="status">
+      Бот{h.username ? ` @${h.username}` : ""}: {HEALTH_TEXT[h.state]}. Подключили Telegram: {h.linkedPeople}.
+    </p>
   );
 }

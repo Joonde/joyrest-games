@@ -165,11 +165,11 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     async function details(id: string): Promise<ClientDetails | null> {
       const [row] = await sql<Row[]>`${select} where c.id = ${id}`;
       if (!row) return null;
-      const history = await sql<{ id: string; source: string; summary: string; created_at: Date }[]>`
-        select id, source, summary, created_at from client_contacts where client_id = ${id} order by created_at desc limit 100`;
+      const history = await sql<{ id: string; source: string; summary: string; created_at: Date; ref: string | null }[]>`
+        select id, source, summary, created_at, ref from client_contacts where client_id = ${id} order by created_at desc limit 100`;
       return {
         ...recordOf(row),
-        history: history.map((h): ClientContact => ({ id: h.id, source: h.source, summary: h.summary, at: h.created_at.getTime() })),
+        history: history.map((h): ClientContact => ({ id: h.id, source: h.source, summary: h.summary, at: h.created_at.getTime(), ref: h.source === "venue" || h.source === "event" ? h.ref : null })),
       };
     }
 

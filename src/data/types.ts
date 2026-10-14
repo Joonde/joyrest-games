@@ -477,10 +477,22 @@ export interface ClientContact {
   source: string;
   summary: string;
   at: number;
+  /** id заявки по QR или мероприятия — ссылка из истории. */
+  ref: string | null;
 }
 
 export interface ClientDetails extends ClientRecord {
   history: ClientContact[];
+}
+
+/** Бот уведомлений глазами владельца: настроен ли, читает ли сообщения, сколько людей подключено. */
+export interface TelegramHealth {
+  configured: boolean;
+  polling: boolean;
+  username: string | null;
+  lastPollAt: number | null;
+  state: "ok" | "conflict" | "error" | "starting" | "off";
+  linkedPeople: number;
 }
 
 /** Telegram человека команды: подключён ли бот уведомлений. */

@@ -12,6 +12,7 @@ import type {
   ClientDetails,
   ClientRecord,
   TelegramStatus,
+  TelegramHealth,
   SessionSummary,
   OfflinePlayer,
   OfferSummary,
@@ -303,6 +304,8 @@ export interface TelegramRepository {
   /** Одноразовая ссылка на бота: открыть в Telegram и нажать «Старт». */
   link(): Promise<{ url: string }>;
   unlink(): Promise<void>;
+  /** Только владелец: бот на связи? */
+  health(): Promise<TelegramHealth>;
 }
 
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */

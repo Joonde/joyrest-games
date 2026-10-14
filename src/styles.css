@@ -15773,6 +15773,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-left: 6px solid var(--plan-color);
 }
 
+.plan-card .cal-person__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .plan-facts {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

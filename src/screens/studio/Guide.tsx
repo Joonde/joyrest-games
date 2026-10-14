@@ -3,9 +3,13 @@ import { Link, useLocation } from "react-router-dom";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { TopBar } from "../../components/TopBar";
-import { GAME_GUIDES, GUIDE_INTRO, GUIDE_TROUBLE, type GameGuide, type GuideFlow } from "../../core/guide";
+import { GAME_GUIDES as ALL_GUIDES, GUIDE_INTRO, GUIDE_TROUBLE, type GameGuide, type GuideFlow } from "../../core/guide";
+import { HIDDEN_MECHANICS } from "../../mechanics/hidden";
 import type { UserProfile } from "../../data";
 import { studioActions } from "./Studio";
+
+/** Скрытые пока форматы (`HIDDEN_MECHANICS`) в инструкции не показываем. */
+const GAME_GUIDES = ALL_GUIDES.filter((g) => !HIDDEN_MECHANICS.has(g.mechanic));
 
 /**
  * «Как проводить игры» (`/studio/guide`): инструкция для ведущих из `src/core/guide.ts` — схема каждой игры

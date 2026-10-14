@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import postgres from "postgres";
 import { buildApp, parseDataBackend } from "./app";
 import { scheduleCleanup } from "./cleanup";
+import { startBot, telegramPolling, type BotLog } from "./telegram";
 import { isOn } from "./site";
 import { venueFormsOpen } from "./venues";
 
@@ -24,7 +25,16 @@ const leadChat = env("LEAD_TELEGRAM_CHAT_ID");
 
 const mediaDir = env("MEDIA_DIR") ? resolve(env("MEDIA_DIR") ?? "") : null;
 
+// Адрес платформы для ссылок в Telegram: тестовая версия — test.games.joy-rest.ru.
+const platformUrl = env("PLATFORM_URL") ?? (siteHosts.some((h) => h.startsWith("test.")) ? "https://test.games.joy-rest.ru" : "https://games.joy-rest.ru");
+// Журнал бота: до запуска приложения — console, потом — журнал приложения.
+let logTarget: BotLog = { info: () => undefined, warn: (details, message) => console.warn(message, details) };
+const botLog: BotLog = { info: (d, m) => logTarget.info(d, m), warn: (d, m) => logTarget.warn(d, m) };
+// Бот уведомлений команды — тот же токен, что у заявок. Сообщения читает только одно окружение (TELEGRAM_UPDATES).
+const bot = sql && leadToken ? startBot({ sql, token: leadToken, log: botLog, polling: telegramPolling(process.env.TELEGRAM_UPDATES, siteHosts), platformUrl }) : null;
+
 const app = buildApp({
+  bot,
   version: process.env.APP_VERSION ?? "dev",
   publicDir: process.env.PUBLIC_DIR ?? null,
   trustedProxies: env("TRUSTED_PROXIES")?.split(",").map((p) => p.trim()) ?? undefined,
@@ -62,11 +72,14 @@ if (siteDir && siteHosts.length > 0 && isOn(process.env.SITE_ENABLED) && !(leadT
   app.log.warn("Заявки с сайта выключены: нет LEAD_TELEGRAM_TOKEN или LEAD_TELEGRAM_CHAT_ID (sudo joyrest lead-bot)");
 }
 
+logTarget = { info: (d, m) => app.log.info(d, m), warn: (d, m) => app.log.warn(d, m) };
+
 // Ночная уборка: картинки без ссылок, недописанные файлы, старые устройства гостей.
 const stopCleanup = sql ? scheduleCleanup(sql, mediaDir, app.log) : () => undefined;
 
 async function shutdown(): Promise<void> {
   stopCleanup();
+  bot?.stop();
   await app.close();
   await sql?.end({ timeout: 5 });
   process.exit(0);

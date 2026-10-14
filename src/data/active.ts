@@ -13,6 +13,10 @@ import type {
   ProposalsRepository,
   ScreenStatusRepository,
   AudienceRepository,
+  CalendarRepository,
+  EventsRepository,
+  ClientsRepository,
+  TelegramRepository,
   TeamRepository,
   TracksRepository,
   StaffRepository,
@@ -30,6 +34,10 @@ import { mediaRepository } from "./media";
 import { participantsRepository } from "./participants";
 import { resultsRepository } from "./results";
 import { serverAuthService } from "./server/auth";
+import { serverCalendarRepository } from "./server/calendar";
+import { serverEventsRepository } from "./server/events";
+import { serverClientsRepository } from "./server/clients";
+import { serverTelegramRepository } from "./server/telegram";
 import { serverGamesRepository } from "./server/games";
 import { serverMediaRepository } from "./server/media";
 import { serverAnswersRepository } from "./server/answers";
@@ -75,3 +83,11 @@ export const screenRepo: ScreenStatusRepository | null = server ? serverScreenSt
 export const audienceRepo: AudienceRepository | null = server ? serverAudienceRepository : null;
 /** База площадок, анкеты и предложения клиентам — только свой сервер. */
 export const venuesRepo: VenuesRepository | null = server ? serverVenuesRepository : null;
+/** Календарь команды — только свой сервер. */
+export const calendarRepo: CalendarRepository | null = server ? serverCalendarRepository : null;
+/** Планировщик мероприятий — только свой сервер. */
+export const eventsRepo: EventsRepository | null = server ? serverEventsRepository : null;
+/** База клиентов — только свой сервер. */
+export const clientsRepo: ClientsRepository | null = server ? serverClientsRepository : null;
+/** Свой Telegram для уведомлений — только свой сервер. */
+export const telegramRepo: TelegramRepository | null = server ? serverTelegramRepository : null;

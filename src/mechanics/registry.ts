@@ -3,7 +3,7 @@ import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
 import { DEMO_CHECKERS } from "./checkers/demo";
 import { dance } from "./dance";
-import { DEMO_DANCE } from "./dance/demo";
+import { DEMO_DANCE, DEMO_DANCE_STYLES } from "./dance/demo";
 import { stage } from "./stage";
 import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./stage/demo";
 import { quest } from "./quest";
@@ -22,6 +22,11 @@ import { durak } from "./durak";
 import { createDurak } from "./durak/content";
 import { truth } from "./truth";
 import { perudo } from "./perudo";
+import { HIDDEN_MECHANICS } from "./hidden";
+import { wager } from "./wager";
+import { DEMO_WAGER } from "./wager/demo";
+import { wine } from "./wine";
+import { DEMO_WINE } from "./wine/demo";
 import { createPerudo } from "./perudo/content";
 import { DEMO_TRUTH, DEMO_TRUTH_ADULT } from "./truth/demo";
 import { story } from "./story";
@@ -45,7 +50,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -65,6 +70,8 @@ const HINTS: Record<string, string> = {
   bunker: "Катастрофа: мест в бункере — на половину игроков. Тайные карты персонажей на телефонах, особые условия, голосование, финал с угрозами.",
   story: "Игра на знакомство: пять разделов — чья история, сочиняем историю со словами с бумажек, что было дальше, две правды и ложь, кто это сказал. Гости пишут о себе на телефонах, угадывают друг друга.",
   perudo: "Кости лжеца из «Пиратов Карибского моря»: свои кости тайно на телефоне, ставки по кругу, «Не верю!» и вскрытие на экране. Игроки или команды, до 10 стаканов.",
+  wager: "Ответ — число: команды пишут догадки, на экране они выстраиваются по возрастанию с коэффициентами, все ставят фишки на самую точную. Можно выиграть, даже не зная ответа.",
+  wine: "18+. Дегустация как казино: гости пробуют вино и ставят фишки на телефоне — цвет, Свет, сладость, страна, сорт, год. «Открыть бутылку» — паспорт на экране и выигрыши по коэффициентам.",
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
@@ -72,8 +79,10 @@ const HINTS: Record<string, string> = {
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
 
-/** Механики, которые можно выбрать при создании игры. */
-export const selectableMechanics: Array<{ id: string; title: string; hint: string }> = mechanics.map((m) => ({
+export { HIDDEN_MECHANICS };
+
+/** Механики, которые можно выбрать при создании игры (без скрытых — `hidden.ts`). */
+export const selectableMechanics: Array<{ id: string; title: string; hint: string }> = mechanics.filter((m) => !HIDDEN_MECHANICS.has(m.id)).map((m) => ({
   id: m.id,
   title: m.title,
   hint: HINTS[m.id] ?? "",
@@ -109,8 +118,8 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
   return mechanic ? mechanic.mediaIds(mechanic.parse(content)) : [];
 }
 
-/** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
-export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
+/** Все готовые игры, включая скрытые форматы (робот-ведущий проверяет и их). */
+export const allDemoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
   {
     mechanic: quiz.id,
@@ -146,6 +155,14 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     playMode: "teams",
     themeId: "dancefloor",
   },
+  ...DEMO_DANCE_STYLES.map((d) => ({
+    mechanic: dance.id,
+    title: d.title,
+    hint: `${d.content.cards.length} карточек одного стиля — блок «Танцевального вечера». Ссылки на ролики добавьте в копии игры.`,
+    content: d.content,
+    playMode: "teams" as const,
+    themeId: "dancefloor",
+  })),
   {
     mechanic: stage.id,
     title: DEMO_STAGE_DANCE.title,
@@ -172,6 +189,8 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: truth.id, title: "Правда или действие", hint: "40 карточек для любой компании: 20 вопросов и 20 заданий, 3 круга, задания от гостей.", content: DEMO_TRUTH, playMode: "solo" },
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },
   { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: 3 партии подряд, роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
+  { mechanic: wager.id, title: DEMO_WAGER.title, hint: "7 вопросов с ответом-числом: Эйфелева башня, Эльбрус, Байкал и другие. 3–7 команд.", content: DEMO_WAGER.content, playMode: "teams" },
+  { mechanic: wine.id, title: DEMO_WINE.title, hint: "Образец вечера на 4 бутылки: скопируйте и впишите свои вина. Фишки — на телефонах гостей.", content: DEMO_WINE.content, ageRating: "18+", playMode: "solo" },
   { mechanic: perudo.id, title: "Перудо — кости лжеца", hint: "Как в «Пиратах Карибского моря»: 5 костей у каждого, единицы — джокеры, «Не верю!», «Ровно!» и «Палифико». 2–10 игроков или команд.", content: createPerudo(), playMode: "solo" },
   { mechanic: durak.id, title: "Дурак подкидной", hint: "2–6 игроков за столом с крупье: 3 партии, таймер хода 30 с, колода «Классика JoyRest» (гости могут выбрать другую голосованием).", content: createDurak(), playMode: "solo" },
   { mechanic: durak.id, title: "Дурак переводной", hint: "Переводной на 2–6 игроков, первый отбой без перевода, погоны, колода «Готика».", content: { ...createDurak(), variant: "perevodnoy", deckStyle: "gothic", table: "graphite" }, playMode: "solo" },
@@ -180,6 +199,9 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: story.id, title: "Давайте знакомиться", hint: "5 разделов на знакомство: истории гостей, смешные предложения со словами с бумажек, «что было дальше», две правды и ложь, 8 вопросов «кто это сказал».", content: createStory(), playMode: "teams" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
+
+/** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой (без скрытых форматов). */
+export const demoGames = allDemoGames.filter((d) => !HIDDEN_MECHANICS.has(d.mechanic));
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */
 export function stepsLabel(mechanicId: string, content: unknown): string {

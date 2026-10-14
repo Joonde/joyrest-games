@@ -677,6 +677,7 @@
       hostLevel: hostLevelField.value,
       terms: document.getElementById('termsAccept').checked,
       deposit: document.getElementById('depositAccept').checked,
+      marketing: document.getElementById('marketingAccept').checked,
     }, $('formNote'), $('formError'));
     if(ok){ this.reset(); clearCalcCard(); update(); markHosts(); }
   });

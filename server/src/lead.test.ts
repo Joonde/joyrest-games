@@ -340,3 +340,17 @@ describe("/api/lead: Telegram", () => {
     expect(log).not.toContain("Пятница");
   });
 });
+
+describe("заявка: согласие на рассылку", () => {
+  it("необязательное: без галочки заявка проходит, с галочкой — строка в сообщении", () => {
+    const without = checkLead(VALID.lead);
+    expect(without.ok).toBe(true);
+    if (without.ok) expect(formatLead(without.lead)).not.toContain("Рассылка");
+    const withIt = checkLead({ ...VALID.lead, marketing: true });
+    expect(withIt.ok).toBe(true);
+    if (withIt.ok) expect(formatLead(withIt.lead)).toContain("Рассылка: согласен(на)");
+    // Только точное true.
+    const text = checkLead({ ...VALID.lead, marketing: "true" });
+    expect(text.ok && text.lead.type === "lead" && text.lead.marketing).toBeFalsy();
+  });
+});

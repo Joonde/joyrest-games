@@ -16,7 +16,7 @@ import {
   type StatusTone,
   type VenueData,
 } from "../../core/venues";
-import { permissions, useLoad, venuesRepo, type UserProfile, type VenueRecord, type VenueRequestRecord } from "../../data";
+import { clientsRepo, permissions, useLoad, venuesRepo, type UserProfile, type VenueRecord, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
@@ -96,7 +96,7 @@ export function VenuesHome() {
           <div id={`venues-panel-${tab}`} role="tabpanel" aria-labelledby={`venues-tab-${tab}`} className="stack">
             {tab === "venues" && <VenuesTab mode="base" owner={permissions.isAdmin(profile)} />}
             {tab === "forms" && <VenuesTab mode="forms" owner={permissions.isAdmin(profile)} />}
-            {tab === "requests" && <RequestsTab />}
+            {tab === "requests" && <RequestsTab owner={permissions.canManageClients(profile)} />}
             {tab === "archive" && permissions.canArchiveVenues(profile) && <ArchiveTab />}
             {tab === "qr" && <VenueQr uid={uid} />}
           </div>
@@ -461,7 +461,7 @@ const REQUEST_SORTS = [
   { id: "date", label: "По дате праздника" },
 ] as const;
 
-function RequestsTab() {
+function RequestsTab({ owner }: { owner: boolean }) {
   const [state, retry] = useLoad(() => (venuesRepo ? venuesRepo.listRequests() : Promise.resolve([] as VenueRequestRecord[])), []);
   const [status, setStatus] = useParam("status", ["all", ...REQUEST_STATUSES.map((s) => s.id)] as const, "all");
   const [sort, setSort] = useParam("sort", REQUEST_SORTS.map((s) => s.id), "new");
@@ -493,6 +493,12 @@ function RequestsTab() {
 
   return (
     <>
+      {owner && clientsRepo && (
+        <p className="muted small">
+          Каждый, кто оставил заявку по QR, сам попадает и в общую базу клиентов вместе с заявками с сайта и мероприятиями —{" "}
+          <Link to="/studio/clients">открыть «Клиенты»</Link>.
+        </p>
+      )}
       <section className="card venues-filters" aria-label="Поиск и фильтры">
       <div className="venues-toolbar">
         <div className="venues-search">

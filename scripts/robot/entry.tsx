@@ -17,7 +17,7 @@ import { addTimeChange, applyChange, meetsExpect, resultKey, startState } from "
 import { joinSlide, techSlide } from "../../src/core/slides";
 import { canSubmitAnswer } from "../../src/data/permissions";
 import type { Answer, Participant, PlayMode, Session, SessionChange } from "../../src/data/types";
-import { demoGames, getMechanic, newContent, validateGame } from "../../src/mechanics/registry";
+import { allDemoGames as demoGames, getMechanic, newContent, validateGame } from "../../src/mechanics/registry";
 import type { PhoneRole, SessionControl } from "../../src/mechanics/types";
 import { applyTheme, getTheme } from "../../src/themes/registry";
 import "../../src/fonts.css";

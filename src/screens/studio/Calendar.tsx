@@ -109,7 +109,7 @@ function TimeSelects({ start, end, onChange, disabled }: { start: number; end: n
     <div className="cal-times">
       <label className="field">
         <span className="field__label">С</span>
-        <select value={start} disabled={disabled} onChange={(e) => {
+        <select value={start} aria-label="С" disabled={disabled} onChange={(e) => {
           const s = Number(e.target.value);
           onChange(s, endAfter(s, endValue));
         }}>
@@ -120,7 +120,7 @@ function TimeSelects({ start, end, onChange, disabled }: { start: number; end: n
       </label>
       <label className="field">
         <span className="field__label">До</span>
-        <select value={endValue} disabled={disabled} onChange={(e) => onChange(start, Math.min(endAfter(start, Number(e.target.value)), DAY_MINUTES + 6 * 60))}>
+        <select value={endValue} aria-label="До" disabled={disabled} onChange={(e) => onChange(start, Math.min(endAfter(start, Number(e.target.value)), DAY_MINUTES + 6 * 60))}>
           {TIME_OPTIONS.map((t) => (
             <option key={t} value={t} disabled={endAfter(start, t) > DAY_MINUTES + 6 * 60}>
               {endOptionLabel(start, t)}
@@ -543,7 +543,7 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
         </label>
         <label className="field">
           <span className="field__label">Повторять</span>
-          <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
+          <select value={weeks} aria-label="Повторять" onChange={(e) => setWeeks(Number(e.target.value))}>
             {REPEATS.map((r) => (
               <option key={r.weeks} value={r.weeks}>{r.label}</option>
             ))}

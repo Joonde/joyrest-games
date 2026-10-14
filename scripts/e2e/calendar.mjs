@@ -129,6 +129,7 @@ async function newPage(browser, token, who) {
   const context = await browser.newContext(PHONE);
   await context.addCookies([{ name: "__Host-jr_s", value: token, url: BASE }]);
   const page = await context.newPage();
+  pages.push([who, page]);
   page.on("pageerror", (error) => bad(`${who}: ошибка на странице — ${String(error.message).slice(0, 160)}`));
   page.on("console", (msg) => {
     if (msg.type() === "error" && !/favicon|ERR_ABORTED|net::|status of 404/.test(msg.text())) bad(`${who}: ошибка в консоли — ${msg.text().slice(0, 160)}`);
@@ -184,6 +185,7 @@ mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch();
 let host;
 let admin;
+const pages = [];
 try {
   host = await login(HOST_EMAIL, HOST_PASSWORD);
   admin = await login(ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -313,6 +315,7 @@ try {
   check((await ap.locator("li.cal-person").count()) >= before, "Владелец: «Вся команда» добавляет остальные профессии");
 } catch (e) {
   bad(`Проверка остановилась: ${String(e?.message ?? e).slice(0, 300)}`);
+  for (const [who, page] of pages) await shot(page, `ошибка-${who}`).catch(() => undefined);
 } finally {
   if (host && admin) await cleanup(host, admin).catch(() => undefined);
   await browser.close();

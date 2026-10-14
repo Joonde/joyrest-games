@@ -214,15 +214,10 @@ export function formatLead(lead: LeadData, label?: string): string {
         `${head}📩 Заявка с сайта JoyRest\n\n` +
         `Имя: ${f.name}\nТелефон: ${f.phone}\nТип мероприятия: ${or(f.eventType)}\n` +
         (lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}\n` : "") +
-        `Гостей: ${or(f.guests)}
-Связь: ${contact}
-` +
-        (f.calc ? `🧮 Расчёт: ${f.calc}
-` : "") +
-        `Комментарий: ${or(f.message)}
-Условия брони и работы: приняты` +
-        (lead.marketing ? "
-Рассылка: согласен(на)" : "")
+        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\n` +
+        (f.calc ? `🧮 Расчёт: ${f.calc}\n` : "") +
+        `Комментарий: ${or(f.message)}\nУсловия брони и работы: приняты` +
+        (lead.marketing ? "\nРассылка: согласен(на)" : "")
       );
     }
   }

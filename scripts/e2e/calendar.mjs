@@ -486,6 +486,9 @@ try {
   await ap.getByRole("button", { name: "День", exact: true }).click();
   await ap.locator('input[type="date"]').fill(TODAY);
   await until(async () => (await ap.locator(".plan-now").count()) === 1, WAIT, "линия «сейчас»").catch(() => undefined);
+  await until(async () => (await ap.locator(".plan-timeline:not(.is-stale) .plan-event", { hasText: "Сейчас, проверка" }).count()) === 1, WAIT, "мероприятие «сейчас» на таймлайне").catch(() =>
+    bad("Сверка времени: мероприятие на сегодня не появилось на таймлайне"),
+  );
   const lineOk = await ap.evaluate(() => {
     const line = document.querySelector(".plan-now")?.getBoundingClientRect();
     const block = [...document.querySelectorAll(".plan-event")].find((b) => b.textContent?.includes("Сейчас, проверка"))?.getBoundingClientRect();

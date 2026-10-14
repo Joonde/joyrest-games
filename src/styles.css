@@ -15430,6 +15430,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   list-style: none;
 }
 
+.cal-people.is-stale {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .cal-person {
   display: grid;
   gap: 8px;

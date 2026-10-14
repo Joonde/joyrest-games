@@ -503,7 +503,10 @@ Firebase-версия не меняется); остальные входят, �
 `GET /api/calendar?from&to` (свои), `GET /api/calendar/team?from&to` (владелец: люди без почт и записи, окно до 62 дней),
 `POST /api/calendar` (`{ id, day, start, end, kind: free|busy, note }`, id от браузера — повтор та же запись),
 `POST /api/calendar/book` (`{ id, uid, … }`), `DELETE /api/calendar/:id`; в день — не больше 12 записей на человека.
-Firebase-версия календаря не показывает (`calendarRepo` — null).
+Firebase-версия календаря не показывает (`calendarRepo` — null). Пока грузится другой месяц, форма и прежний список
+остаются на месте (список тусклый). Проверка в браузере — `scripts/e2e/calendar.mjs`, workflow «Проверка календаря»
+(`calendar-e2e.yml`: Run workflow или коммит с `[calendar]`): ведущий `load@joy-rest.ru` и владелец (`TEST_ADMIN_*`) на test,
+даты через 40+ дней, всё созданное убирается; снимки экранов — в служебную ветку `e2e-shots` (папка `calendar/`).
 
 Библиотеки игр: общую (`scope: "agency"`) правит только admin, ведущие запускают её игры
 как есть или копируют в «Мои игры» (`scope: "personal"`, видит только владелец).

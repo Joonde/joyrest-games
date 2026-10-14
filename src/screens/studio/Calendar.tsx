@@ -4,7 +4,7 @@
  * и время мероприятия и сразу видит, кто свободен, кто занят и кто ничего не отметил; закрепляет
  * время за ведущим («Мероприятие JoyRest» — у ведущего это время становится занятым).
  */
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   addDays,
@@ -32,7 +32,7 @@ import {
   type MemberStatus,
 } from "../../core/calendar";
 import { professionOf, professionTitle } from "../../core/professions";
-import { calendarRepo, permissions, useLoad, type AvailabilityEntry, type AvailabilityKind, type CalendarMember, type UserProfile } from "../../data";
+import { calendarRepo, permissions, useLoad, type AvailabilityEntry, type LoadState, type AvailabilityKind, type CalendarMember, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
@@ -140,6 +140,13 @@ function Pill({ color, children }: { color: string; children: string }) {
   );
 }
 
+/** Последние загруженные данные: пока грузится другой месяц, экран показывает прежние, а не заглушку. */
+function useLastReady<T>(state: LoadState<T>): T | null {
+  const last = useRef<T | null>(null);
+  if (state.status === "ready") last.current = state.data;
+  return last.current;
+}
+
 /** Месяц для загрузки: с первого по последнее число (сервер добавит прошлый день сам). */
 function monthRange(day: string): { from: string; to: string; year: number; month: number } {
   const year = Number(day.slice(0, 4));
@@ -171,10 +178,11 @@ function WhoCan({ onToast }: { onToast: (text: string) => void }) {
     [range.from, range.to],
   );
   const [confirm, ask] = useConfirm();
+  // Другой месяц грузится — форма и прошлые данные остаются на месте (поле даты не пропадает из-под пальца).
+  const shown = useLastReady(state);
 
-  if (state.status === "loading") return <ListSkeleton />;
-  if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
-  const { members, entries } = state.data;
+  if (!shown) return state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />;
+  const { members, entries } = shown;
   const people = members.filter((m) => everyone || m.owner || professionOf(m.profession) === "host");
   const rows = people
     .map((m) => ({ member: m, info: availabilityOf(entries.filter((e) => e.uid === m.uid), day, start, end) }))
@@ -220,11 +228,13 @@ function WhoCan({ onToast }: { onToast: (text: string) => void }) {
         </label>
       </section>
 
+      {state.status === "loading" && <p className="muted small">Загружаем {monthTitle(range.year, range.month).toLowerCase()}…</p>}
+      {state.status === "error" && <LoadFailedInline onRetry={retry} />}
       <p className="cal-summary" aria-live="polite">
         Могут: <b>{counts("free")}</b> · частично: <b>{counts("partial")}</b> · не отметили: <b>{counts("unknown")}</b> · заняты: <b>{counts("busy")}</b>
       </p>
 
-      <ul className="cal-people">
+      <ul className={state.status === "ready" ? "cal-people" : "cal-people is-stale"} aria-busy={state.status !== "ready"}>
         {rows.map(({ member, info }) => (
           <PersonRow key={member.uid} member={member} info={info} showProfession={everyone} onBook={book} onUnbook={unbook} />
         ))}
@@ -375,10 +385,10 @@ function MyCalendar({ onToast }: { onToast: (text: string) => void }) {
   const range = monthRange(day);
   const [state, retry, update] = useLoad(() => (calendarRepo ? calendarRepo.mine(range.from, range.to) : Promise.resolve([] as AvailabilityEntry[])), [range.from, range.to]);
   const [confirm, ask] = useConfirm();
+  const shown = useLastReady(state);
 
-  if (state.status === "loading") return <ListSkeleton />;
-  if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
-  const entries = state.data;
+  if (!shown) return state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />;
+  const entries = shown;
   const ofDay = entriesOfDay(entries, day);
 
   function remove(entry: AvailabilityEntry) {
@@ -399,6 +409,8 @@ function MyCalendar({ onToast }: { onToast: (text: string) => void }) {
       <p className="muted">Отмечайте, когда вы свободны и когда заняты — владелец видит это, когда договаривается с клиентом.</p>
       <section className="card stack" aria-label="Месяц">
         <MonthHeader year={range.year} month={range.month} onPrev={() => setDay(shiftMonth(day, -1))} onNext={() => setDay(shiftMonth(day, 1))} />
+        {state.status === "loading" && <p className="muted small">Загружаем месяц…</p>}
+        {state.status === "error" && <LoadFailedInline onRetry={retry} />}
         <MonthGrid
           year={range.year}
           month={range.month}
@@ -435,7 +447,7 @@ function MyCalendar({ onToast }: { onToast: (text: string) => void }) {
               <li key={e.id} className="cal-entry">
                 <Pill color={KIND_COLORS[e.kind]}>{KIND_TITLES[e.kind]}</Pill>
                 <span className="cal-entry__time">
-                  {e.day !== day ? `с вечера ${dayTitle(e.day).split(",")[0]}: до ${timeLabel(e.end)}` : rangeLabel(e.start, e.end)}
+                  {e.day !== day ? `продолжение вечера: до ${timeLabel(e.end)}` : rangeLabel(e.start, e.end)}
                 </span>
                 {e.note && <span className="muted small cal-entry__note">{e.note}</span>}
                 {e.kind === "booked" ? (

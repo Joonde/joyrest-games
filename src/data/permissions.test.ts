@@ -89,6 +89,25 @@ describe("команда", () => {
   });
 });
 
+describe("календарь", () => {
+  it("свой календарь — активные; команду видит и закрепляет время только владелец", () => {
+    expect(p.canEditOwnCalendar(host)).toBe(true);
+    expect(p.canEditOwnCalendar(off)).toBe(false);
+    expect(p.canEditOwnCalendar(guest)).toBe(false);
+    expect(p.canViewTeamCalendar(owner)).toBe(true);
+    expect(p.canViewTeamCalendar(host)).toBe(false);
+    expect(p.canViewTeamCalendar(offAdmin)).toBe(false);
+  });
+
+  it("закреплённое мероприятие снимает только владелец, свои отметки — сам человек", () => {
+    expect(p.canRemoveCalendarEntry(host, { uid: "host-1", kind: "free" })).toBe(true);
+    expect(p.canRemoveCalendarEntry(host, { uid: "host-1", kind: "booked" })).toBe(false);
+    expect(p.canRemoveCalendarEntry(other, { uid: "host-1", kind: "busy" })).toBe(false);
+    expect(p.canRemoveCalendarEntry(off, { uid: "off", kind: "free" })).toBe(false);
+    expect(p.canRemoveCalendarEntry(owner, { uid: "host-1", kind: "booked" })).toBe(true);
+  });
+});
+
 describe("музыка", () => {
   const mine = { scope: "personal" as const, ownerId: "host-1" };
   const lib = { scope: "agency" as const, ownerId: ADMIN_UID };

@@ -10,6 +10,7 @@ import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import type { Sql } from "postgres";
 import { registerAuth, type AuthOptions } from "./auth";
+import { registerCalendar } from "./calendar";
 import { registerGames, type GamesOptions } from "./games";
 import { registerLead, type LeadOptions } from "./lead";
 import { registerLive, type LiveOptions } from "./live";
@@ -113,6 +114,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerStaff(app, { sql: options.sql, isSite });
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerCalendar(app, { sql: options.sql, isSite });
     registerVenues(app, {
       formsOpen: false,
       ...options.venues,

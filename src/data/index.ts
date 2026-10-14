@@ -10,6 +10,7 @@ export {
   answersRepo,
   audienceRepo,
   authService,
+  calendarRepo,
   clock,
   gamesRepo,
   mediaRepo,

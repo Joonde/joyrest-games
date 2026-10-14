@@ -15391,3 +15391,195 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .show-look__thumb--survival-evening {
   background-image: url("/shows/art/web/survival-evening-1280.webp");
 }
+
+/* ---------- Календарь команды: кто может, мой календарь ---------- */
+
+.cal-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cal-summary {
+  margin: 0;
+  font-size: 17px;
+}
+
+.cal-people,
+.cal-entries {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cal-person {
+  display: grid;
+  gap: 8px;
+}
+
+.cal-person__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cal-person__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.cal-person p,
+.cal-busy p {
+  margin: 0;
+}
+
+.cal-busy {
+  display: grid;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 3px solid var(--color-border);
+}
+
+.cal-busy .btn--quiet,
+.cal-entry .btn--quiet {
+  justify-self: start;
+  min-height: 44px;
+  padding-inline: 0;
+}
+
+.cal-month {
+  display: grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items: center;
+  text-align: center;
+}
+
+.cal-month__title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cal-grid__week {
+  padding-bottom: 4px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.cal-day {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 0;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cal-day--empty {
+  background: none;
+  cursor: default;
+}
+
+.cal-day.is-today {
+  border-color: var(--color-border);
+}
+
+.cal-day.is-selected {
+  border-color: var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface-alt));
+}
+
+.cal-day:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.cal-day__n {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--count-color);
+  color: var(--color-team-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-count--none {
+  background: none;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.cal-dots {
+  display: flex;
+  gap: 3px;
+  min-height: 8px;
+}
+
+.cal-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.cal-entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cal-entry__time {
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-entry__note,
+.cal-entry > .btn--quiet,
+.cal-entry > .muted:last-child {
+  grid-column: 1 / -1;
+}
+
+.cal-add {
+  padding-top: 8px;
+}

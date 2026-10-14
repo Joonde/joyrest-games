@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, calendarRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -55,6 +55,10 @@ export function Studio() {
 export function studioActions(profile: UserProfile): TopBarAction[] {
   return [
     { label: "Как проводить игры", to: "/studio/guide" },
+    // Календарь — только свой сервер: владелец видит, кто может в дату мероприятия; остальные отмечают свободные дни.
+    ...(calendarRepo && permissions.canEditOwnCalendar(profile)
+      ? [{ label: permissions.canViewTeamCalendar(profile) ? "Календарь: кто может" : "Мой календарь", to: "/studio/calendar" }]
+      : []),
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.

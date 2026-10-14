@@ -6,6 +6,8 @@
  */
 import type { ProgramAction } from "../core/program";
 import type {
+  AvailabilityEntry,
+  CalendarMember,
   SessionSummary,
   OfflinePlayer,
   OfferSummary,
@@ -240,6 +242,22 @@ export interface TeamRepository {
   remove(kind: "avatar" | "cover"): Promise<void>;
   /** Адрес картинки карточки (с отпечатком — кэш браузера на год). */
   imageUrl(uid: string, kind: "avatar" | "cover", sha: string): string;
+}
+
+/**
+ * Календарь команды (CLAUDE.md, раздел 3, «Календарь») — только свой сервер; у Firebase — null.
+ * Записи с id от браузера: повтор после обрыва — та же запись.
+ */
+export interface CalendarRepository {
+  /** Свои записи за период (с прошлым днём — вечер за полночь). */
+  mine(from: string, to: string): Promise<AvailabilityEntry[]>;
+  /** Только владелец: вся команда и её записи. */
+  team(from: string, to: string): Promise<{ members: CalendarMember[]; entries: AvailabilityEntry[] }>;
+  /** Своя отметка «свободен» или «занят» (новая или правка). */
+  save(entry: { id: string; day: string; start: number; end: number; kind: "free" | "busy"; note: string }): Promise<AvailabilityEntry>;
+  /** Владелец закрепляет время за человеком. */
+  book(entry: { id: string; uid: string; day: string; start: number; end: number; note: string }): Promise<AvailabilityEntry>;
+  remove(id: string): Promise<void>;
 }
 
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */

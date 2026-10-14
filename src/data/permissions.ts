@@ -177,6 +177,25 @@ export function canViewTeam(actor: Actor): boolean {
   return isActiveHost(actor);
 }
 
+/** Свой календарь (когда свободен и занят) — каждый активный человек команды. Только свой сервер. */
+export function canEditOwnCalendar(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
+/** Календарь всей команды («Кто может в эту дату») и закрепить время за человеком — только владелец. */
+export function canViewTeamCalendar(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/**
+ * Убрать запись календаря: свою «свободен»/«занят» — сам человек; закреплённое владельцем
+ * мероприятие — только владелец (ведущий не снимет его случайно).
+ */
+export function canRemoveCalendarEntry(actor: Actor, entry: { uid: string; kind: string }): boolean {
+  if (isAdmin(actor)) return true;
+  return isActiveHost(actor) && actor?.uid === entry.uid && entry.kind !== "booked";
+}
+
 /**
  * База площадок и заявки клиентов (CLAUDE.md, «База площадок»; только свой сервер): владелец и
  * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.

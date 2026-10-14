@@ -406,6 +406,33 @@ export interface LibraryProposal {
   decidedAt: number | null;
 }
 
+/**
+ * Календарь команды (CLAUDE.md, раздел 3, «Календарь»): «свободен», «занят» — отмечает сам человек;
+ * «мероприятие» — время, закреплённое за ним владельцем. Время — минуты от полуночи дня `day`
+ * (конец до 06:00 следующего дня — до 1800).
+ */
+export type AvailabilityKind = "free" | "busy" | "booked";
+
+export interface AvailabilityEntry {
+  id: string;
+  uid: string;
+  /** «ГГГГ-ММ-ДД». */
+  day: string;
+  start: number;
+  end: number;
+  kind: AvailabilityKind;
+  /** Заметка: «своё мероприятие», у закреплённого — что за мероприятие. */
+  note: string;
+}
+
+/** Человек в календаре владельца: имя и профессия, без почты. */
+export interface CalendarMember {
+  uid: string;
+  name: string;
+  profession?: string;
+  owner: boolean;
+}
+
 /** Карточка ведущего в «Команде JoyRest» — без почты, квалификации и баллов. */
 export interface TeamMember {
   uid: string;

@@ -8840,7 +8840,7 @@ button.dance-card:active {
 .mil-lifeboard__name {
   min-width: 0;
   font-weight: 600;
-  font-size: 2.2cqh;
+  font-size: 2.6cqh;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -8890,7 +8890,7 @@ button.dance-card:active {
   margin: 0;
   padding: 0.6cqh;
   display: grid;
-  grid-template-rows: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--levels, 12), minmax(0, 1fr));
   gap: 0.5cqh;
   border-radius: 1.2cqh;
   border: 2px solid var(--color-border);

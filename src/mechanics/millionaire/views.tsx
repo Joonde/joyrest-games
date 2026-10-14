@@ -70,7 +70,7 @@ function Bar({ session, content, result, pid, style }: { session: Session; conte
   return (
     <div style={{ ["--team" as string]: colorOf(session, result, pid), ...style }} className={`mil-bar${active ? " is-turn" : ""}${level >= levelsOf(content) ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`}>
       <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
-      <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${levelsOf(content)}`}>
+      <ol className="mil-bar__steps" style={{ ["--levels" as string]: levelsOf(content) } as CSSProperties} aria-label={`${nameOf(session, pid)}: ступень ${level} из ${levelsOf(content)}`}>
         {Array.from({ length: levelsOf(content) }, (_, i) => levelsOf(content) - i).map((n) => (
           <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`}>
             <span aria-hidden="true">{n}</span>

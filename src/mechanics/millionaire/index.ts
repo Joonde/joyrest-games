@@ -29,6 +29,8 @@ export const millionaire: Mechanic<MillionaireContent, MillionaireAnswerValue> =
   music: (session) => {
     const r = parseMillionaireResult(session.state.result);
     if (session.state.phase !== "playing" || session.state.stage !== "question" || (r.mode !== "question" && r.mode !== "audience")) return null;
+    // «Звонок другу»: музыка уходит, чтобы команде было слышно разговор (решение владельца 14 октября 2026).
+    if (r.callEndsAt !== null && Date.now() < r.callEndsAt) return null;
     return levelToPlay(r, r.turn) >= 7 ? "thinkHigh" : "thinkLow";
   },
 };

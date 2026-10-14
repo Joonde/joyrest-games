@@ -8661,6 +8661,42 @@ button.dance-card:active {
   align-self: center;
 }
 
+/* Пульт «Миллионера»: что выбрала команда — крупно сверху. */
+.mil-host-live {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px solid #f0a040;
+  background: color-mix(in srgb, #f0a040 16%, transparent);
+  font-size: 1.05rem;
+}
+
+.mil-host-live.is-locked {
+  background: #f0a040;
+  color: #221e1b;
+}
+
+.mil-host-live__letter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f0a040;
+  color: #221e1b;
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.mil-host-live.is-locked .mil-host-live__letter {
+  background: #221e1b;
+  color: #f0a040;
+}
+
 .mil-host-hint {
   margin: 0;
   padding: 10px 14px;

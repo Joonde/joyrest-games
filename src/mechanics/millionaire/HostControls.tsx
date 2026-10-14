@@ -155,6 +155,15 @@ export function MillionaireHostControls({ session, content, answers, participant
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
   const teams = millionaireTeams(session, participants);
   const pick = teamPick(session, answers);
+  // Телефон ведущего коротко вибрирует, когда игрок просит подсказку или выбирает ответ (Android; iPhone молчит).
+  const buzzKey = `${asked ? `ask:${asked.n}` : ""}|${stage === "question" && pick !== null && r.hostPick === null ? `pick:${step}:${pick}` : ""}`;
+  const lastBuzz = useRef(buzzKey);
+  useEffect(() => {
+    if (buzzKey === lastBuzz.current) return;
+    const fresh = buzzKey.split("|").some((part) => part && !lastBuzz.current.includes(part));
+    lastBuzz.current = buzzKey;
+    if (fresh && typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(asked ? [120, 80, 120] : 80);
+  }, [buzzKey, asked]);
   const level = levelToPlay(r, r.turn);
   const used = r.turn ? (r.used[r.turn] ?? []) : [];
   const votes = r.mode === "audience" ? audienceVotes(session, answers, participants).map((n, i) => n + (qrVotes[i] ?? 0)) : [0, 0, 0, 0];
@@ -205,6 +214,48 @@ export function MillionaireHostControls({ session, content, answers, participant
             Ход: <strong><NameText name={name(r.turn)} /></strong> · вопрос {level} — {pointsLabel(pointsAt(content, level))}
             {content.safe.includes(level) ? " · несгораемая" : ""}
           </p>
+          {/* Что прислал телефон — сразу сверху, не надо листать: просьба подсказки и выбранный ответ. */}
+          {asked && askedCheck && (
+            <section className="card stack stack--tight mil-ask" role="status">
+              <p className="mil-ask__title">
+                <span className="mil-ask__icon">
+                  <LifelineIcon id={asked.id} />
+                </span>
+                <span>
+                  <NameText name={name(r.turn)} /> просит «{lifelineTitle(asked.id)}»
+                </span>
+              </p>
+              {askedCheck.ok ? (
+                <>
+                  <p className="muted small">Переспросите: «Точно берёте „{lifelineTitle(asked.id)}“?» — и подтвердите.</p>
+                  <div className="actions">
+                    <button type="button" className="btn" disabled={busy} onClick={() => void run(() => Promise.resolve(applyLifeline(latest.current, content, answers, asked.id, now)))}>
+                      Да, включить подсказку
+                    </button>
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
+                      Передумали — не включать
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="error small">Нельзя: {askedCheck.reason?.toLowerCase()}.</p>
+                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
+                    Понятно, убрать просьбу
+                  </button>
+                </>
+              )}
+            </section>
+          )}
+          {!asked && q && stage === "question" && r.mode === "question" && pick !== null && (
+            <p className={r.locked ? "mil-host-live is-locked" : "mil-host-live"} role="status">
+              <span className="mil-host-live__letter">{LETTERS[pick]}</span>
+              <span>
+                {r.locked ? "Окончательный ответ" : r.hostPick === null ? "Команда выбрала на телефоне" : "Вы отметили ответ"}: <strong>{q.options[pick]}</strong>
+                {pick === q.correct ? " ★ верно" : " — неверно"}
+              </span>
+            </p>
+          )}
           {q && stage !== "ready" && (
             <div className="card stack stack--tight">
               <p className="host-quiz__question">{q.text}</p>
@@ -264,38 +315,6 @@ export function MillionaireHostControls({ session, content, answers, participant
                 </div>
               )}
             </div>
-          )}
-          {asked && askedCheck && (
-            <section className="card stack stack--tight mil-ask" role="status">
-              <p className="mil-ask__title">
-                <span className="mil-ask__icon">
-                  <LifelineIcon id={asked.id} />
-                </span>
-                <span>
-                  <NameText name={name(r.turn)} /> просит «{lifelineTitle(asked.id)}»
-                </span>
-              </p>
-              {askedCheck.ok ? (
-                <>
-                  <p className="muted small">Переспросите: «Точно берёте „{lifelineTitle(asked.id)}“?» — и подтвердите.</p>
-                  <div className="actions">
-                    <button type="button" className="btn" disabled={busy} onClick={() => void run(() => Promise.resolve(applyLifeline(latest.current, content, answers, asked.id, now)))}>
-                      Да, включить подсказку
-                    </button>
-                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
-                      Передумали — не включать
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="error small">Нельзя: {askedCheck.reason?.toLowerCase()}.</p>
-                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
-                    Понятно, убрать просьбу
-                  </button>
-                </>
-              )}
-            </section>
           )}
           {r.tip && stage === "question" && q && (
             <section className="card stack stack--tight">

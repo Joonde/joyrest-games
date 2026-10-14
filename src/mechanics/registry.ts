@@ -3,7 +3,7 @@ import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
 import { DEMO_CHECKERS } from "./checkers/demo";
 import { dance } from "./dance";
-import { DEMO_DANCE } from "./dance/demo";
+import { DEMO_DANCE, DEMO_DANCE_STYLES } from "./dance/demo";
 import { stage } from "./stage";
 import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./stage/demo";
 import { quest } from "./quest";
@@ -146,6 +146,14 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
     playMode: "teams",
     themeId: "dancefloor",
   },
+  ...DEMO_DANCE_STYLES.map((d) => ({
+    mechanic: dance.id,
+    title: d.title,
+    hint: `${d.content.cards.length} карточек одного стиля — блок «Танцевального вечера». Ссылки на ролики добавьте в копии игры.`,
+    content: d.content,
+    playMode: "teams" as const,
+    themeId: "dancefloor",
+  })),
   {
     mechanic: stage.id,
     title: DEMO_STAGE_DANCE.title,

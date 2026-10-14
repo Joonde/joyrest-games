@@ -7,13 +7,27 @@ import { categoryOf, groupByCategory, type CategoryId } from "../categories";
 import { mechanicTitle } from "../registry";
 import type { EditorProps } from "../types";
 import { NOT_IN_EVENING, type EveningContent } from "./content";
+import { parseDance } from "../dance/content";
+import { mainStyle, styleById } from "../dance/styles";
 
 interface Template {
   id: string;
   title: string;
   hint: string;
   /** Какие игры по порядку: механика или раздел («music» — музыкальный квиз). */
-  slots: Array<{ mechanic: string; category?: CategoryId }>;
+  slots: Array<{ mechanic: string; category?: CategoryId; style?: string; variant?: string }>;
+}
+
+/** Слот программы подходит игре: механика, раздел, стиль танца (у батла), вариант («Just Dance» или «Караоке» на поле). */
+function fits(game: Game, slot: Template["slots"][number]): boolean {
+  if (game.mechanic !== slot.mechanic) return false;
+  if (slot.category && categoryOf(game) !== slot.category) return false;
+  if (slot.style && mainStyle(parseDance(game.content).cards) !== slot.style) return false;
+  if (slot.variant) {
+    const raw = game.content as { variant?: unknown } | null;
+    if ((raw?.variant ?? "dance") !== slot.variant) return false;
+  }
+  return true;
 }
 
 const TEMPLATES: Template[] = [
@@ -21,6 +35,12 @@ const TEMPLATES: Template[] = [
   { id: "birthday", title: "День рождения", hint: "«Давайте знакомиться» → квиз → «Правда или действие»", slots: [{ mechanic: "story" }, { mechanic: "quiz", category: "quiz" }, { mechanic: "truth" }] },
   { id: "music", title: "Музыкальный вечер", hint: "«Угадай мелодию» → музыкальное лото → танцевальный батл", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
   { id: "table", title: "Вечер настолок", hint: "«Перудо» → «Мафия»", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
+  {
+    id: "dance",
+    title: "Танцевальный вечер",
+    hint: "Джаз-фанк → диско → латина → Just Dance на поле",
+    slots: [{ mechanic: "dance", style: "jazz" }, { mechanic: "dance", style: "disco" }, { mechanic: "dance", style: "latin" }, { mechanic: "stage", variant: "dance" }],
+  },
   { id: "show", title: "Телешоу", hint: "«Своя игра» → «Гонка на выживание» → «Миллионер»", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
 ];
 
@@ -75,9 +95,9 @@ export function EveningEditor({ content, onChange, editable, scope }: EditorProp
     for (const slot of t.slots) {
       // Сначала свои игры (их ведущий уже подготовил), потом библиотека.
       const sorted = [...games].sort((a, b) => Number(mineIds.has(b.id)) - Number(mineIds.has(a.id)));
-      const game = sorted.find((g) => g.mechanic === slot.mechanic && (!slot.category || categoryOf(g) === slot.category) && !picked.some((p) => p.gameId === g.id));
+      const game = sorted.find((g) => fits(g, slot) && !picked.some((p) => p.gameId === g.id));
       if (game) picked.push(refOf(game));
-      else missing.push(mechanicTitle(slot.mechanic));
+      else missing.push(slot.style ? `${mechanicTitle(slot.mechanic)} (${styleById(slot.style)?.title ?? slot.style})` : mechanicTitle(slot.mechanic));
     }
     set(picked);
     setNote(missing.length > 0 ? `Не нашлось игр: ${missing.join(", ")}. Добавьте их ниже или скопируйте из библиотеки.` : `Программа «${t.title}» собрана — поменяйте игры и порядок, как нужно.`);

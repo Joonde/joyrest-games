@@ -8,6 +8,7 @@ import { secondsLeft } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { KIND_EMOJI, KIND_TITLES, type DanceContent } from "./content";
+import { styleById } from "./styles";
 import { canVote, cardOf, control as videoControl, danceBack, dancePrimary, nextTurn, parseDanceResult, pickCard, pickFromAnswers, resolveTie, showResult, startPick, startVote, turnPid } from "./logic";
 import { CardGrid } from "./views";
 
@@ -144,6 +145,7 @@ export function DanceHostControls({ session, content, answers, participants, con
         <div className="stack stack--tight">
           <p className="eyebrow">
             {KIND_EMOJI[card.kind]} {KIND_TITLES[card.kind]}
+            {styleById(card.style) ? ` · ${styleById(card.style)?.title}` : ""}
             {card.title ? ` · ${card.title}` : ""}
           </p>
           <p>{card.kind === "battle" ? "Выступают все команды по очереди" : <>Выступает <NameText name={name(r.performer)} /></>}</p>

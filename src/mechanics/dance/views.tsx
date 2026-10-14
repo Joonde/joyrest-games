@@ -11,6 +11,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { embedUrl, KIND_EMOJI, KIND_TITLES, type DanceCard, type DanceContent } from "./content";
+import { styleById } from "./styles";
 import { canVote, cardOf, parseDanceResult, turnPid, type DanceResult } from "./logic";
 
 /** Ответ: выбор карточки, оценка или голос за команду в батле. */
@@ -182,6 +183,11 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
       <span className={`quiz-screen__badge dance-badge--${card.kind}`}>
         {KIND_EMOJI[card.kind]} {KIND_TITLES[card.kind]}
       </span>
+      {styleById(card.style) && (
+        <span className="quiz-screen__badge dance-style-badge">
+          {styleById(card.style)?.emoji} {styleById(card.style)?.title}
+        </span>
+      )}
       <span className="dance-screen__who">{card.kind === "battle" ? "Выступают все команды" : <NameText name={performer} />}</span>
     </div>
   );
@@ -326,6 +332,7 @@ export function DancePlayerView({ session, content, pid, role, myAnswer, sending
         {head}
         <p className="eyebrow">
           {KIND_EMOJI[card.kind]} {KIND_TITLES[card.kind]}
+          {styleById(card.style) ? ` · ${styleById(card.style)?.title}` : ""}
         </p>
         <div className={ours ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
           <strong>{ours ? "Ваш выход! Смотрите на экран" : <>Выступает <NameText name={nameOf(session, r.performer)} /></>}</strong>

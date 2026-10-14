@@ -7719,6 +7719,13 @@ button.dance-card:active {
   flex-wrap: wrap;
 }
 
+/* Стиль танца — контурная плашка рядом с видом карточки. */
+.dance-style-badge {
+  background: none;
+  border: 2px solid var(--color-highlight);
+  color: var(--color-text);
+}
+
 .dance-screen__who {
   font-weight: 600;
   font-size: 4.6cqh;

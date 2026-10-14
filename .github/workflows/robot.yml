@@ -12,6 +12,10 @@ on:
         description: "Игры через запятую (пусто — все, кроме Олимпа)"
         required: false
         default: ""
+      budget:
+        description: "Ходов на прогон (по умолчанию 450)"
+        required: false
+        default: "450"
   push:
     branches: ["claude/**"]
 
@@ -50,8 +54,9 @@ jobs:
       - name: Робот проводит игры
         env:
           PAR: "6"
-          BUDGET: "450"
-          TIMEOUT: "300000"
+          BUDGET: ${{ github.event.inputs.budget || '450' }}
+          # Длинные прогоны (большой бюджет) — больше времени на каждый.
+          TIMEOUT: ${{ (github.event.inputs.budget && github.event.inputs.budget != '450') && '1200000' || '300000' }}
         run: |
           GAMES="${{ github.event.inputs.games }}"
           [ -n "$GAMES" ] || GAMES="quiz,lotto,board,checkers,dance,stage,quest,millionaire,survival,dragon,mafia,bunker,durak,truth,perudo,wager,wine,story"

@@ -347,6 +347,10 @@ try {
   await row.getByRole("button", { name: "45", exact: true }).click();
   await row.getByLabel("Комментарий (программа, пожелания)").fill("Квиз и танцы, проверка");
   await shot(ap, "владелец-форма-мероприятия");
+  await noSideScroll(ap, "Владелец, форма в «Кто может»");
+  await row.locator("summary", { hasText: "Заполнить из заявки" }).click();
+  await noSideScroll(ap, "Владелец, форма в «Кто может», «Заполнить из заявки» открыто");
+  await row.locator("summary", { hasText: "Заполнить из заявки" }).click();
   await row.getByRole("button", { name: "Записать мероприятие" }).click();
   await expectStatus(ap, hostName, "Занят", "Владелец: после «Записать мероприятие» ведущий занят");
   const booked = await statusOf(ap, hostName);

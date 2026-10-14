@@ -15446,6 +15446,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .cal-person {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -15653,6 +15654,27 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-left: 3px solid var(--color-highlight);
   border-radius: 8px;
   background: var(--color-surface-alt);
+}
+
+/* Форма внутри строки «Кто может» (ячейка сетки) не растягивает страницу вбок. */
+.cal-person > *,
+.plan-form,
+.plan-form > *,
+.plan-form fieldset > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.plan-form input,
+.plan-form select,
+.plan-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.plan-form .fold__value {
+  white-space: normal;
 }
 
 .plan-form fieldset {

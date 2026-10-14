@@ -198,15 +198,28 @@
   document.querySelectorAll('[data-event-type]').forEach((link) => {
     link.addEventListener('click', (e) => { e.preventDefault(); selectType(link.dataset.eventType); goToForm(); });
   });
-  // «Выбрать этот формат» у ведущих: вариант в заявке, «Дополнительно» раскрыто.
+  // «Выбрать этот формат» у ведущих: формат — в заявку (#hostLevel), карточка ведущего подсвечена; страница ведёт к итогу
+  // калькулятора с ценой этого ведущего, а если расчёт уже в заявке — к нему (chooseLevel ниже, в калькуляторе).
   document.querySelectorAll('[data-host-level]').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      hostLevelField.value = link.dataset.hostLevel;
       if(link.dataset.hostLevel !== 'standard') formMore.open = true;
-      goToForm();
+      chooseLevel(link.dataset.hostLevel);
+      closeMobileMenu();
+      if(sentCalc) goToCard();
+      else $('calcSummary').scrollIntoView({ behavior: smooth, block: 'center' });
     });
   });
+  // Подсветка выбранного формата у карточек ведущих.
+  function markHosts(){
+    document.querySelectorAll('[data-host-level]').forEach((link) => {
+      const on = link.dataset.hostLevel === (hostLevelField.value || 'standard');
+      link.closest('.host').classList.toggle('host--main', on);
+      link.textContent = on ? 'Выбран ✓' : 'Выбрать этот формат';
+      link.setAttribute('aria-pressed', on);
+    });
+  }
+  markHosts();
 
   // ---------- Калькулятор ----------
   const P = window.JoyPricing;
@@ -333,8 +346,10 @@
     $('calcIndiv').hidden = !r.individual;
     $('calcLevels').hidden = r.individual;
     $('calcDuration').hidden = r.individual;
-    $('calcLevels').innerHTML = r.totals.map((t, i) =>
-      `<div class="level${i === 0 ? ' level--top' : ''}"><span class="level__name">${esc(t.name)}</span><span class="level__badge">${esc(t.badge)}</span><span class="level__price">${money(t.price)}</span></div>`).join('');
+    // Три цены — кнопки: касание выбирает формат ведущего (то же поле, что в заявке), выбранный подсвечен.
+    const level = hostLevelField.value || 'standard';
+    $('calcLevels').innerHTML = r.totals.map((t) =>
+      `<button type="button" class="level${t.id === level ? ' level--top' : ''}" data-level="${esc(t.id)}" aria-pressed="${t.id === level}"><span class="level__name">${esc(t.name)}</span><span class="level__badge">${esc(t.badge)}</span><span class="level__price">${money(t.price)}</span></button>`).join('');
     let text;
     if(r.reason === 'turnkey') text = 'Под ключ — соберём программу под ваш повод';
     else if(r.reason === 'guests') text = 'Больше 90 гостей — подберём ведущих и программу';
@@ -354,7 +369,7 @@
     $('calcBarSum').innerHTML = r.individual
       ? '<span class="mbar__dur">Итог расчёта</span><span class="mbar__indiv">Обсудим индивидуально</span>'
       : `<span class="mbar__dur">Вечер ${esc(durationText(r.hours).replace(' часа', ' ч').replace(' часов', ' ч'))} · итог с каким ведущим</span>` +
-        r.totals.map((t) => `<span class="mbar__lv"><span class="mbar__name">${esc(t.name)}</span><span class="mbar__price">${money(t.price)}</span></span>`).join('');
+        r.totals.map((t) => `<span class="mbar__lv${t.id === level ? ' is-on' : ''}"><span class="mbar__name">${esc(t.name)}</span><span class="mbar__price">${money(t.price)}</span></span>`).join('');
     // Расчёт уже в заявке — обновляем его вместе с калькулятором, чтобы в заявку не ушла старая цена.
     if(sentCalc) attachCalc(calcOpts(), false);
   }
@@ -416,11 +431,7 @@
         const price = el('strong');
         price.textContent = money(s.totals[i].price);
         b.append(name, price);
-        b.addEventListener('click', () => {
-          hostLevelField.value = l.id;
-          markLevel();
-          topToast('Формат ведущего: ' + l.name + (l.badge ? ' ' + l.badge : ''));
-        });
+        b.addEventListener('click', () => chooseLevel(l.id));
         li.append(b);
         list.append(li);
       });
@@ -484,7 +495,22 @@
     clearCalcCard();
     topToast('Расчёт убран из заявки', 'Вернуть', () => { if(was){ attachCalc(was, false); topToast('Расчёт снова в заявке ✓'); } }, 6000);
   });
-  hostLevelField.addEventListener('change', markLevel);
+  // Формат ведущего: касание цены в итоге калькулятора или в карточке, выбор в заявке, «Выбрать этот формат» у ведущих —
+  // одно поле #hostLevel; калькулятор и карточка подсвечивают выбранный.
+  function chooseLevel(id){
+    const l = P.LEVELS.find((x) => x.id === id);
+    if(!l) return;
+    hostLevelField.value = id;
+    update();
+    markLevel();
+    markHosts();
+    topToast('Ведущий: ' + l.name + (l.badge ? ' ' + l.badge : '') + (sentCalc ? ' — в заявке' : ''));
+  }
+  $('calcLevels').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-level]');
+    if(b) chooseLevel(b.dataset.level);
+  });
+  hostLevelField.addEventListener('change', () => { update(); markLevel(); markHosts(); });
   // Сохранённый расчёт: вернуть выбор калькулятора и карточку (неизвестные пакеты и допы отбрасываются).
   (() => {
     let saved = null;
@@ -652,6 +678,6 @@
       terms: document.getElementById('termsAccept').checked,
       deposit: document.getElementById('depositAccept').checked,
     }, $('formNote'), $('formError'));
-    if(ok){ this.reset(); clearCalcCard(); }
+    if(ok){ this.reset(); clearCalcCard(); update(); markHosts(); }
   });
 })();

@@ -43,6 +43,7 @@ const MECHANICS = {
   truth: { modes: ["solo", "teams"], demos: 2 },
   perudo: { modes: ["solo", "teams"], demos: 1, players: [2, 4] },
   wager: { modes: ["teams", "solo"], demos: 1 },
+  wine: { modes: ["solo", "teams"], demos: 1 },
   story: { modes: ["solo", "teams"], demos: 1, players: [4, 6] },
   olymp: { modes: ["teams"], demos: 2, players: [1, 3] },
 };

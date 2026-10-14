@@ -24,6 +24,8 @@ import { truth } from "./truth";
 import { perudo } from "./perudo";
 import { wager } from "./wager";
 import { DEMO_WAGER } from "./wager/demo";
+import { wine } from "./wine";
+import { DEMO_WINE } from "./wine/demo";
 import { createPerudo } from "./perudo/content";
 import { DEMO_TRUTH, DEMO_TRUTH_ADULT } from "./truth/demo";
 import { story } from "./story";
@@ -47,7 +49,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(wager), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -68,6 +70,7 @@ const HINTS: Record<string, string> = {
   story: "Игра на знакомство: пять разделов — чья история, сочиняем историю со словами с бумажек, что было дальше, две правды и ложь, кто это сказал. Гости пишут о себе на телефонах, угадывают друг друга.",
   perudo: "Кости лжеца из «Пиратов Карибского моря»: свои кости тайно на телефоне, ставки по кругу, «Не верю!» и вскрытие на экране. Игроки или команды, до 10 стаканов.",
   wager: "Ответ — число: команды пишут догадки, на экране они выстраиваются по возрастанию с коэффициентами, все ставят фишки на самую точную. Можно выиграть, даже не зная ответа.",
+  wine: "18+. Дегустация как казино: гости пробуют вино и ставят фишки на телефоне — цвет, Свет, сладость, страна, сорт, год. «Открыть бутылку» — паспорт на экране и выигрыши по коэффициентам.",
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
@@ -184,6 +187,7 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },
   { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: 3 партии подряд, роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
   { mechanic: wager.id, title: DEMO_WAGER.title, hint: "7 вопросов с ответом-числом: Эйфелева башня, Эльбрус, Байкал и другие. 3–7 команд.", content: DEMO_WAGER.content, playMode: "teams" },
+  { mechanic: wine.id, title: DEMO_WINE.title, hint: "Образец вечера на 4 бутылки: скопируйте и впишите свои вина. Фишки — на телефонах гостей.", content: DEMO_WINE.content, ageRating: "18+", playMode: "solo" },
   { mechanic: perudo.id, title: "Перудо — кости лжеца", hint: "Как в «Пиратах Карибского моря»: 5 костей у каждого, единицы — джокеры, «Не верю!», «Ровно!» и «Палифико». 2–10 игроков или команд.", content: createPerudo(), playMode: "solo" },
   { mechanic: durak.id, title: "Дурак подкидной", hint: "2–6 игроков за столом с крупье: 3 партии, таймер хода 30 с, колода «Классика JoyRest» (гости могут выбрать другую голосованием).", content: createDurak(), playMode: "solo" },
   { mechanic: durak.id, title: "Дурак переводной", hint: "Переводной на 2–6 игроков, первый отбой без перевода, погоны, колода «Готика».", content: { ...createDurak(), variant: "perevodnoy", deckStyle: "gothic", table: "graphite" }, playMode: "solo" },

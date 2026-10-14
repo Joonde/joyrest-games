@@ -16006,3 +16006,390 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     transition: none;
   }
 }
+
+/* ---------- «Винное казино»: сукно рулетки, фишки, паспорт вина ----------
+   Свои цвета — только переменные ниже (сукно, вина); текст и рамки — из темы. */
+
+.wine-screen,
+.wine-table {
+  --wine-felt: color-mix(in srgb, #1f5a3f 82%, var(--color-bg));
+  --wine-felt-line: color-mix(in srgb, #f3dfae 45%, transparent);
+  --wine-felt-text: #fbf6f1;
+  --wine-red: #8e1f35;
+  --wine-white: #e9d98a;
+  --wine-rose: #e7a0a8;
+  --wine-orange: #d98a3d;
+}
+
+.wine-screen {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 2cqh;
+  width: 100%;
+  height: 100%;
+  padding: 3cqh 3cqw;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: 3cqh;
+  color: var(--color-text);
+}
+
+.wine-screen--intro {
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.wine-screen__brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 5cqh;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.wine-screen__title {
+  margin: 0;
+  font-size: 10cqh;
+}
+
+.wine-screen__lead {
+  margin: 0;
+  max-width: 70cqw;
+  font-size: 3.2cqh;
+  color: var(--color-text-muted);
+  text-wrap: balance;
+}
+
+.wine-screen__top {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+}
+
+.wine-screen__top .quiz-screen__timer {
+  margin-left: auto;
+}
+
+.wine-screen__count {
+  font-size: 3cqh;
+}
+
+.wine-glass {
+  width: 9cqh;
+  height: 15cqh;
+}
+
+.wine-screen--intro .wine-glass {
+  width: 14cqh;
+  height: 23cqh;
+  animation: wine-swirl 3s ease-in-out infinite;
+}
+
+.wine-glass__bowl,
+.wine-glass__stem {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.wine-glass__wine {
+  fill: var(--wine-red);
+}
+
+.wine-glass.is-white .wine-glass__wine { fill: var(--wine-white); }
+.wine-glass.is-rose .wine-glass__wine { fill: var(--wine-rose); }
+.wine-glass.is-orange .wine-glass__wine { fill: var(--wine-orange); }
+.wine-glass.is-unknown .wine-glass__wine { fill: color-mix(in srgb, var(--color-text) 30%, transparent); }
+
+.wine-table {
+  display: grid;
+  gap: 0.8cqh;
+  padding: 1.6cqh 1.4cqw;
+  border-radius: 2cqh;
+  background: var(--wine-felt);
+  color: var(--wine-felt-text);
+  box-shadow: inset 0 0 0 0.4cqh var(--wine-felt-line);
+}
+
+.wine-row {
+  display: grid;
+  grid-template-columns: 14cqw 1fr;
+  align-items: stretch;
+  gap: 1cqw;
+}
+
+.wine-row__head {
+  display: grid;
+  align-content: center;
+  gap: 0.2cqh;
+}
+
+.wine-row__title {
+  font-size: 2.4cqh;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.wine-row__odds {
+  font-family: var(--font-display);
+  font-size: 3.6cqh;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.wine-row__cells {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0.5cqw;
+}
+
+.wine-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 6cqh;
+  padding: 0.4cqh 0.3cqw;
+  border: 1px solid var(--wine-felt-line);
+  border-radius: 0.8cqh;
+  text-align: center;
+  transition: transform 0.4s ease, opacity 0.4s ease, background-color 0.4s ease;
+}
+
+.wine-cell__label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 1.9cqh;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.wine-cell__chips {
+  position: absolute;
+  top: -1cqh;
+  right: -0.4cqw;
+  display: grid;
+  place-items: center;
+  min-width: 3.4cqh;
+  height: 3.4cqh;
+  padding: 0 0.6cqh;
+  border-radius: 999px;
+  background: var(--color-highlight);
+  color: var(--color-team-text);
+  font-size: 1.9cqh;
+  font-weight: 700;
+  box-shadow: 0 0 0 0.3cqh var(--wine-felt);
+  animation: wager-chip-in 0.35s ease-out;
+}
+
+.wine-cell.is-win {
+  background: color-mix(in srgb, var(--color-highlight) 30%, transparent);
+  border-color: var(--color-highlight);
+  transform: scale(1.06);
+}
+
+.wine-cell.is-lost {
+  opacity: 0.35;
+}
+
+.wine-passport {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding: 1.4cqh 2cqw;
+  border-radius: 2cqh;
+  background: var(--color-surface);
+  border: 2px solid var(--color-highlight);
+  animation: wager-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.wine-passport__text p {
+  margin: 0;
+}
+
+.wine-passport__name {
+  font-family: var(--font-display);
+  font-size: 5.4cqh;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.wine-passport__facts {
+  font-size: 2.8cqh;
+}
+
+.wine-passport__note {
+  font-size: 2.4cqh;
+  color: var(--color-text-muted);
+}
+
+.wine-gains {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1cqh 1.2cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wine-gains li {
+  padding: 0.5cqh 1.2cqw;
+  border-radius: 999px;
+  background: var(--color-highlight);
+  color: var(--color-team-text);
+  font-size: 2.6cqh;
+}
+
+/* Пульт и телефон — компактное сукно, прокрутка вбок внутри. */
+.wine-table--compact {
+  gap: 4px;
+  padding: 8px;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.wine-table--compact .wine-row {
+  grid-template-columns: 72px 1fr;
+  gap: 6px;
+}
+
+.wine-table--compact .wine-row__title {
+  font-size: 11px;
+}
+
+.wine-table--compact .wine-row__odds {
+  font-size: 16px;
+}
+
+.wine-table--compact .wine-row__cells {
+  grid-auto-columns: minmax(48px, 1fr);
+  gap: 3px;
+}
+
+.wine-table--compact .wine-cell {
+  min-height: 32px;
+  border-radius: 6px;
+}
+
+.wine-table--compact .wine-cell__label {
+  font-size: 10px;
+}
+
+.wine-table--compact .wine-cell__chips {
+  top: -6px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+
+.wine-phone__left {
+  margin: 0;
+}
+
+.wine-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.wine-tab {
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wine-tab.is-on {
+  border-color: var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 16%, var(--color-surface-alt));
+  font-weight: 600;
+}
+
+.wine-tab:focus-visible,
+.wine-option__main:focus-visible,
+.wine-option__minus:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.wine-options {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wine-option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.wine-option__main,
+.wine-option__minus {
+  min-height: 52px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.wine-option__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  text-align: left;
+}
+
+.wine-option.is-on .wine-option__main {
+  border-color: var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface-alt));
+  font-weight: 600;
+}
+
+.wine-option__chips {
+  color: var(--color-highlight);
+  letter-spacing: 2px;
+}
+
+.wine-option__minus {
+  width: 52px;
+  font-size: 24px;
+}
+
+@keyframes wine-swirl {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wine-screen--intro .wine-glass,
+  .wine-cell__chips,
+  .wine-passport {
+    animation: none;
+  }
+
+  .wine-cell {
+    transition: none;
+  }
+}

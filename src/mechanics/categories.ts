@@ -43,6 +43,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   durak: "cards",
   truth: "cards",
   perudo: "cards",
+  wine: "cards",
   bunker: "cards",
   story: "social",
   evening: "evening",

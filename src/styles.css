@@ -15599,3 +15599,410 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .cal-add {
   padding-top: 8px;
 }
+
+/* ---------- «Держи пари»: вопрос, поле догадок с коэффициентами, фишки ---------- */
+
+.wager-screen {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 2.4cqh;
+  width: 100%;
+  height: 100%;
+  padding: 4cqh 4cqw;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-size: 3cqh;
+  color: var(--color-text);
+}
+
+.wager-screen--intro {
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.wager-screen__brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 5cqh;
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wager-screen__title {
+  margin: 0;
+  font-size: 11cqh;
+  text-wrap: balance;
+}
+
+.wager-screen__lead {
+  margin: 0;
+  font-size: 3.4cqh;
+  color: var(--color-text-muted);
+  text-wrap: balance;
+}
+
+.wager-screen__top {
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+}
+
+.wager-screen__top .quiz-screen__timer {
+  margin-left: auto;
+}
+
+.wager-screen__hint {
+  font-size: 2.8cqh;
+  color: var(--color-text-muted);
+}
+
+.wager-screen__question {
+  margin: 0;
+  font-size: 7cqh;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.wager-screen__question--small {
+  font-size: 4.4cqh;
+}
+
+.wager-screen__count {
+  margin: 0;
+  font-size: 4cqh;
+}
+
+.wager-guessed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2cqh 1.2cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wager-guessed li {
+  padding: 0.6cqh 1.6cqw;
+  border-radius: 999px;
+  border: 2px solid var(--team-color, var(--color-border));
+  color: var(--color-text-muted);
+  font-size: 3cqh;
+}
+
+.wager-guessed li.is-done {
+  background: var(--team-color, var(--color-highlight));
+  color: var(--color-team-text);
+  font-weight: 600;
+}
+
+.wager-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 1cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wager-slot {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  justify-items: center;
+  gap: 1cqh;
+  min-width: 0;
+  min-height: 34cqh;
+  padding: 1.6cqh 0.6cqw;
+  border-radius: 1.6cqh;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface-alt);
+  text-align: center;
+  transition: transform 0.5s ease, opacity 0.5s ease, border-color 0.5s ease;
+}
+
+.wager-slot--low {
+  border-style: dashed;
+}
+
+.wager-slot__odds {
+  font-family: var(--font-display);
+  font-size: 5cqh;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--gradient-secondary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.wager-slot__value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 3.4cqh;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wager-slot--low .wager-slot__value {
+  font-size: 2.6cqh;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.wager-slot__authors {
+  display: grid;
+  align-content: start;
+  gap: 0.6cqh;
+  max-width: 100%;
+}
+
+.wager-slot__author {
+  padding: 0.3cqh 0.6cqw;
+  border-radius: 999px;
+  background: var(--team-color, var(--color-border));
+  color: var(--color-team-text);
+  font-size: 2cqh;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wager-slot__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4cqh;
+  min-height: 2.4cqh;
+}
+
+.wager-chip {
+  width: 2.2cqh;
+  height: 2.2cqh;
+  border-radius: 50%;
+  background: var(--color-highlight);
+  box-shadow: inset 0 0 0 0.4cqh color-mix(in srgb, var(--color-bg) 35%, transparent);
+  animation: wager-chip-in 0.35s ease-out;
+}
+
+.wager-slot__more {
+  font-size: 2cqh;
+  color: var(--color-text-muted);
+}
+
+.wager-slot.is-win {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 3cqh color-mix(in srgb, var(--color-highlight) 55%, transparent);
+  transform: translateY(-1.4cqh) scale(1.04);
+}
+
+.wager-slot.is-lost {
+  opacity: 0.4;
+}
+
+.wager-answer {
+  display: grid;
+  justify-items: center;
+  gap: 0.8cqh;
+  text-align: center;
+  animation: wager-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.wager-answer__label {
+  font-size: 2.6cqh;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wager-answer__value {
+  font-family: var(--font-display);
+  font-size: 10cqh;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.wager-answer__win {
+  font-size: 3cqh;
+  font-weight: 600;
+}
+
+.wager-answer__note {
+  font-size: 2.6cqh;
+  color: var(--color-text-muted);
+}
+
+.wager-gains {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1cqh 1.4cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wager-gains li {
+  padding: 0.6cqh 1.4cqw;
+  border-radius: 999px;
+  border: 2px solid var(--team-color, var(--color-border));
+  font-size: 2.8cqh;
+}
+
+.wager-gains li.is-plus {
+  background: var(--team-color, var(--color-highlight));
+  color: var(--color-team-text);
+}
+
+.wager-board--compact .wager-slot {
+  min-height: 0;
+  padding: 8px 4px;
+  border-radius: 10px;
+}
+
+.wager-board--compact .wager-slot__odds {
+  font-size: 18px;
+}
+
+.wager-board--compact .wager-slot__value {
+  font-size: 14px;
+}
+
+.wager-board--compact .wager-slot--low .wager-slot__value {
+  font-size: 11px;
+}
+
+.wager-board--compact .wager-chip {
+  width: 8px;
+  height: 8px;
+  box-shadow: none;
+}
+
+.wager-board--compact {
+  gap: 4px;
+  overflow-x: auto;
+  grid-auto-columns: minmax(56px, 1fr);
+}
+
+.wager-phone__question {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.wager-phone__answer {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-variant-numeric: lining-nums;
+}
+
+.wager-pick {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wager-pick__btn {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wager-pick__btn.is-on {
+  border-color: var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 14%, var(--color-surface-alt));
+}
+
+.wager-pick__btn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.wager-pick__odds {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.wager-pick__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wager-pick__chips {
+  color: var(--color-highlight);
+  letter-spacing: 2px;
+}
+
+.wager-bet {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-highlight);
+}
+
+.wager-bet .btn--quiet {
+  justify-self: start;
+  min-height: 44px;
+  padding-inline: 0;
+}
+
+.wager-host-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wager-host-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wager-host-list li > span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes wager-chip-in {
+  from { transform: translateY(-1.5cqh) scale(0.4); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes wager-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wager-chip,
+  .wager-answer {
+    animation: none;
+  }
+
+  .wager-slot {
+    transition: none;
+  }
+}

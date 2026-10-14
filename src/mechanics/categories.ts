@@ -28,6 +28,7 @@ export const CATEGORIES: Category[] = [
 
 const BY_MECHANIC: Record<string, CategoryId> = {
   quiz: "quiz",
+  wager: "quiz",
   lotto: "music",
   board: "tv",
   millionaire: "tv",

@@ -58,7 +58,7 @@ export function useHallMusic(music: MusicState | null | undefined, mix: MixState
     return () => {
       cancelled = true;
     };
-  }, [builtinKey, hostPlaying, attempt]);
+  }, [builtinKey, builtinVolume, hostPlaying, attempt]);
 
   useEffect(() => {
     let cancelled = false;

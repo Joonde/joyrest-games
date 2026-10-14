@@ -25,4 +25,10 @@ export const dragon: Mechanic<DragonContent, DragonAnswerValue> = {
   score,
   validate: validateDragon,
   preview: { driver: dragonPreview, teams: 3, limit: 70 },
+  // Своя музыка боя: громко, пока на экране QR и ждём гостей, и тихим фоном всего боя (без награждения).
+  music: (session) => {
+    if (session.state.phase === "lobby") return "dragonLobby";
+    if (session.state.phase === "playing" && session.state.stage !== "podium") return "dragonBattle";
+    return null;
+  },
 };

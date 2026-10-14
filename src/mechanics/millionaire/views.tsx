@@ -16,7 +16,7 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import { audienceRepo, type Session } from "../../data";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { LETTERS, LEVELS, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
+import { LETTERS, levelsOf, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { LifelineIcon, MillionaireEmblem } from "./icons";
 import { showStageClass } from "../showLook";
 import { levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
@@ -90,17 +90,17 @@ export function LadderBars({ session, content, result, compact = false }: { sess
         const level = result.levels[pid] ?? 0;
         const active = pid === result.turn && result.mode !== "over";
         return (
-          <div key={pid} className={`mil-bar${active ? " is-turn" : ""}${level >= LEVELS ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`} style={{ ["--team" as string]: colorOf(session, result, pid) }}>
+          <div key={pid} className={`mil-bar${active ? " is-turn" : ""}${level >= levelsOf(content) ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`} style={{ ["--team" as string]: colorOf(session, result, pid) }}>
             <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
-            <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${LEVELS}`}>
-              {Array.from({ length: LEVELS }, (_, i) => LEVELS - i).map((n) => (
+            <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${levelsOf(content)}`}>
+              {Array.from({ length: levelsOf(content) }, (_, i) => levelsOf(content) - i).map((n) => (
                 <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`}>
                   <span aria-hidden="true">{n}</span>
                 </li>
               ))}
             </ol>
             <span className="mil-bar__name">
-              {level >= LEVELS ? "👑 " : ""}
+              {level >= levelsOf(content) ? "👑 " : ""}
               <NameText name={nameOf(session, pid)} />
               {result.out.includes(pid) && <span className="mil-bar__tag"> · выбыл</span>}
               {result.skip.includes(pid) && <span className="mil-bar__tag"> · пропуск хода</span>}
@@ -164,7 +164,7 @@ function useMillionaireSounds(session: Session, r: MillionaireResult) {
     if (r.outcome !== was.outcome && r.outcome) {
       if (r.outcome === "right") {
         playSample("milRight", "correct");
-        if ((r.levels[r.turn ?? ""] ?? 0) >= LEVELS) playSound("fanfare");
+        if ((r.levels[r.turn ?? ""] ?? 0) >= levelsOf(content)) playSound("fanfare");
       } else if (r.outcome === "wrong") playSample("milWrong", "wrong");
       else playSound("gong");
       return;
@@ -193,7 +193,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   useMillionaireSounds(session, r);
 
   const flash = r.flash ? LIFELINES.find((l) => l.id === r.flash) : null;
-  const top = r.outcome === "right" && (r.levels[r.turn ?? ""] ?? 0) >= LEVELS;
+  const top = r.outcome === "right" && (r.levels[r.turn ?? ""] ?? 0) >= levelsOf(content);
   const audience = r.mode === "audience" && stage === "question";
   const used = r.turn ? (r.used[r.turn] ?? []) : [];
 
@@ -207,7 +207,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
             <MillionaireEmblem className="mil-emblem" />
             <span className="quiz-screen__badge mil-screen__badge">Кто хочет стать миллионером</span>
             <h2 className="mil-screen__title">Скоро начнём!</h2>
-            <p className="mil-screen__note">12 вопросов, у каждой команды своя лестница. Несгораемые ступени: {content.safe.join(" и ")}.</p>
+            <p className="mil-screen__note">{levelsOf(content)} вопросов, у каждой команды своя лестница. Несгораемые ступени: {content.safe.join(" и ")}.</p>
           </>
         ) : r.mode === "over" ? (
           <h2 className="mil-screen__title">Игра окончена!</h2>
@@ -319,7 +319,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
   const teams = session.playMode === "teams";
   const head = (
     <p className="eyebrow">
-      Миллионер{r.order.includes(pid) ? ` · ступень ${myLevel} из ${LEVELS} · ${pointsLabel(pointsAt(content, myLevel))}` : ""}
+      Миллионер{r.order.includes(pid) ? ` · ступень ${myLevel} из ${levelsOf(content)} · ${pointsLabel(pointsAt(content, myLevel))}` : ""}
     </p>
   );
   const used = r.used[pid] ?? [];

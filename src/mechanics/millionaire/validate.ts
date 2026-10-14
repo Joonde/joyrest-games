@@ -1,9 +1,9 @@
 import type { ValidationError } from "../types";
-import { LEVELS, questionsOf, type MillionaireContent } from "./content";
+import { levelsOf, questionsOf, type MillionaireContent } from "./content";
 
 export function validateMillionaire(content: MillionaireContent): ValidationError[] {
   const errors: ValidationError[] = [];
-  for (let level = 1; level <= LEVELS; level++) {
+  for (let level = 1; level <= levelsOf(content); level++) {
     if (questionsOf(content, level).length === 0) errors.push({ path: "questions", message: `Ступень ${level}: добавьте хотя бы один вопрос.` });
   }
   content.questions.forEach((q) => {
@@ -24,6 +24,6 @@ export function validateMillionaire(content: MillionaireContent): ValidationErro
 /** На сколько команд хватит вопросов (без замен): самая «бедная» ступень. */
 export function teamsCovered(content: MillionaireContent): number {
   let min = Infinity;
-  for (let level = 1; level <= LEVELS; level++) min = Math.min(min, questionsOf(content, level).filter((q) => q.text.trim()).length);
+  for (let level = 1; level <= levelsOf(content); level++) min = Math.min(min, questionsOf(content, level).filter((q) => q.text.trim()).length);
   return Number.isFinite(min) ? min : 0;
 }

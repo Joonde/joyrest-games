@@ -6,7 +6,7 @@ import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { pointsLabel } from "../../core/results";
 import type { EditorProps } from "../types";
-import { LETTERS, LEVELS, LIFELINES, MILLIONAIRE_LIMITS, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
+import { ATTEMPT_CHOICES, LETTERS, LIFELINES, levelsOf, MILLIONAIRE_LIMITS, resizeLadder, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { DEMO_MILLIONAIRE } from "./demo";
 import { teamsCovered, validateMillionaire } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
@@ -63,7 +63,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
       <section className="card stack">
         <h2>Как играем</h2>
         <p className="muted small">
-          12 вопросов с четырьмя вариантами. Команды ходят по очереди, у каждой на экране своя полоска-лестница: верный ответ — ступенью выше, ошибка — вниз до несгораемой. Капитан отвечает с телефона, подсказку просит там же или у ведущего; каждая подсказка — один раз за игру.
+          {levelsOf(content)} вопросов с четырьмя вариантами. Команды ходят по очереди, у каждой на экране своя полоска-лестница: верный ответ — ступенью выше, ошибка — вниз до несгораемой. Капитан отвечает с телефона, подсказку просит там же или у ведущего; каждая подсказка — один раз за игру.
         </p>
         <fieldset>
           <legend>Кто играет</legend>
@@ -101,6 +101,34 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
             })}
           </div>
         </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Вопросов в лестнице</legend>
+          <div className="pick-chips">
+            {([12, 15] as const).map((size) => (
+              <button key={size} type="button" className="pick-chip" aria-pressed={levelsOf(content) === size} onClick={() => onChange(resizeLadder(latest.current, size))}>
+                {size} вопросов
+              </button>
+            ))}
+          </div>
+          <p className="muted small">15 — как в телеигре (несгораемые 5 и 10), 12 — короче (4 и 8). Очки ступеней можно поменять ниже.</p>
+        </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Попыток после ошибки</legend>
+          <div className="pick-chips">
+            {ATTEMPT_CHOICES.map((n) => (
+              <button key={n} type="button" className="pick-chip" aria-pressed={content.attempts === n} onClick={() => onChange({ ...latest.current, attempts: n })}>
+                {n}
+              </button>
+            ))}
+            <button type="button" className="pick-chip" aria-pressed={content.attempts === null} onClick={() => onChange({ ...latest.current, attempts: null })}>
+              Без ограничения
+            </button>
+          </div>
+          <p className="muted small">
+            Сколько раз команда может продолжить после неверного ответа. 0 — первая ошибка, и команда выбывает. Попытки кончились у всех — награждение: побеждает
+            тот, кто выше забрался.
+          </p>
+        </fieldset>
         <div className="row board-editor__size">
           <label className="field">
             Звонок другу, секунд
@@ -121,7 +149,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                 <li key={level} className="row">
                   <span className="mil-ladder-editor__n">{level}</span>
                   <ClampedNumber value={points} min={0} max={MILLIONAIRE_LIMITS.maxPoints} fallback={points} disabled={!editable} onChange={(n) => onChange({ ...content, ladder: content.ladder.map((p, k) => (k === i ? n : p)) })} />
-                  {level < LEVELS && (
+                  {level < levelsOf(content) && (
                     <button type="button" className="pick-chip" aria-pressed={safe} disabled={!editable} onClick={() => onChange({ ...content, safe: safe ? content.safe.filter((s) => s !== level) : [...content.safe, level].sort((a, b) => a - b) })}>
                       Несгораемая
                     </button>
@@ -150,7 +178,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           <div className="stack stack--tight">
             <p className="muted small">Вопрос с новой строки, варианты — «- …», верный — «* …». «# Ступень 5» — следующие вопросы на 5-ю ступень; без неё вопросы идут по ступеням 1, 2, 3…</p>
             <textarea value={text} rows={10} placeholder={"# Ступень 1\nСтолица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид"} onChange={(e) => setText(e.target.value)} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replaceAll(parseMillionaireList(text), "Заменить вопросы списком")}>
+            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replaceAll(parseMillionaireList(text, levelsOf(content)), "Заменить вопросы списком")}>
               Заменить вопросы
             </button>
           </div>
@@ -159,7 +187,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
         )}
       </section>
 
-      {Array.from({ length: LEVELS }, (_, i) => i + 1).map((level) => {
+      {Array.from({ length: levelsOf(content) }, (_, i) => i + 1).map((level) => {
         const list = questionsOf(content, level);
         return (
           <section key={level} className="stack stack--tight">
@@ -205,7 +233,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                         </label>
                         <label className="field">
                           Ступень
-                          <ClampedNumber value={q.level} min={1} max={LEVELS} fallback={level} disabled={!editable} onChange={(n) => update(q.id, { level: n })} />
+                          <ClampedNumber value={q.level} min={1} max={levelsOf(content)} fallback={level} disabled={!editable} onChange={(n) => update(q.id, { level: n })} />
                         </label>
                         <label className="field">
                           Комментарий для себя (видит только пульт)

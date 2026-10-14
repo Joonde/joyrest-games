@@ -1,9 +1,16 @@
-// «Кто хочет стать миллионером»: лестница из 12 вопросов (4 варианта, один верный), у каждой команды
+// «Кто хочет стать миллионером»: лестница из 12 или 15 вопросов (4 варианта, один верный), у каждой команды
 // своя полоска на экране зала. Несгораемые ступени (по умолчанию 4-я и 8-я): ошибка роняет до
 // последней пройденной. Подсказки — по одной каждого вида на команду за игру.
 import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
 
-export const LEVELS = 12;
+/** Сколько ступеней может быть в лестнице: 12 (прежние игры) или 15 (новые и шаблон, решение владельца 14 октября 2026). */
+export const LEVELS = 15;
+export type LadderSize = 12 | 15;
+
+/** Ступеней в этой игре. */
+export function levelsOf(content: Pick<MillionaireContent, "ladder">): number {
+  return content.ladder.length >= 15 ? 15 : 12;
+}
 
 export type LifelineId = "fifty" | "audience" | "call" | "mistake" | "swap" | "host";
 
@@ -51,9 +58,17 @@ export interface MillionaireContent {
   players: "all" | "one";
   /** Оформление экрана зала (`../showLook.ts`). Старые игры без поля — «Классика». */
   look: ShowLook;
+  /**
+   * Сколько раз команда может продолжить после ошибки (0–3); null — без ограничения (прежние игры). Попытки кончились —
+   * выбывает (ведущий может всё равно дать ещё попытку).
+   */
+  attempts: number | null;
 }
 
 export const DEFAULT_LADDER = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 300000, 500000, 1000000];
+export const DEFAULT_LADDER_15 = [500, 1000, 2000, 3000, 5000, 10000, 15000, 25000, 50000, 100000, 150000, 250000, 400000, 600000, 1000000];
+export const DEFAULT_SAFE: Record<LadderSize, number[]> = { 12: [4, 8], 15: [5, 10] };
+export const ATTEMPT_CHOICES = [0, 1, 2, 3] as const;
 
 export const MILLIONAIRE_LIMITS = { text: 300, option: 120, note: 200, hint: 200, maxQuestions: 240, maxPoints: 10_000_000, minSeconds: 10, maxSeconds: 180, minAudience: 90, maxAudience: 300 } as const;
 
@@ -69,14 +84,21 @@ export function newMillionaireQuestion(level = 1): MillionaireQuestion {
 export function createMillionaire(): MillionaireContent {
   return {
     questions: Array.from({ length: LEVELS }, (_, i) => newMillionaireQuestion(i + 1)),
-    ladder: [...DEFAULT_LADDER],
-    safe: [4, 8],
+    ladder: [...DEFAULT_LADDER_15],
+    safe: [...DEFAULT_SAFE[15]],
     lifelines: [...LIFELINE_IDS],
     callSeconds: 60,
     audienceSeconds: 90,
     players: "all",
     look: DEFAULT_SHOW_LOOK,
+    attempts: 2,
   };
+}
+
+/** Лестница на 12 или 15 ступеней: очки — по умолчанию для размера, несгораемые — 4 и 8 или 5 и 10. */
+export function resizeLadder(content: MillionaireContent, size: LadderSize): MillionaireContent {
+  if (levelsOf(content) === size) return content;
+  return { ...content, ladder: [...(size === 15 ? DEFAULT_LADDER_15 : DEFAULT_LADDER)], safe: [...DEFAULT_SAFE[size]], questions: content.questions.map((q) => (q.level > size ? { ...q, level: size } : q)) };
 }
 
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -92,11 +114,13 @@ export function parseMillionaire(raw: unknown): MillionaireContent {
     while (seen.has(qid)) qid += "_";
     seen.add(qid);
     const options = Array.from({ length: 4 }, (_, k) => str(Array.isArray(q.options) ? q.options[k] : "", MILLIONAIRE_LIMITS.option));
-    return { id: qid, level: int(q.level, 1, 1, LEVELS), text: str(q.text, MILLIONAIRE_LIMITS.text), options, correct: int(q.correct, 0, 0, 3), note: str(q.note, MILLIONAIRE_LIMITS.note), hint: str(q.hint, MILLIONAIRE_LIMITS.hint) };
+    return { id: qid, level: int(q.level, 1, 1, Array.isArray(d.ladder) && d.ladder.length >= 15 ? 15 : 12), text: str(q.text, MILLIONAIRE_LIMITS.text), options, correct: int(q.correct, 0, 0, 3), note: str(q.note, MILLIONAIRE_LIMITS.note), hint: str(q.hint, MILLIONAIRE_LIMITS.hint) };
   });
   const rawLadder = Array.isArray(d.ladder) ? d.ladder : [];
-  const ladder = DEFAULT_LADDER.map((def, i) => int(rawLadder[i], def, 0, MILLIONAIRE_LIMITS.maxPoints));
-  const safe = Array.isArray(d.safe) ? [...new Set(d.safe.filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n >= 1 && n < LEVELS))].sort((a, b) => a - b) : [4, 8];
+  // Старые игры — 12 ступеней; лестница из 15 значений — 15.
+  const size: LadderSize = rawLadder.length >= 15 ? 15 : 12;
+  const ladder = (size === 15 ? DEFAULT_LADDER_15 : DEFAULT_LADDER).map((def, i) => int(rawLadder[i], def, 0, MILLIONAIRE_LIMITS.maxPoints));
+  const safe = Array.isArray(d.safe) ? [...new Set(d.safe.filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n >= 1 && n < size))].sort((a, b) => a - b) : [...DEFAULT_SAFE[size]];
   const lifelines = Array.isArray(d.lifelines) ? LIFELINE_IDS.filter((l) => (d.lifelines as unknown[]).includes(l)) : [...LIFELINE_IDS];
   return {
     questions,
@@ -108,12 +132,13 @@ export function parseMillionaire(raw: unknown): MillionaireContent {
     audienceSeconds: int(d.audienceSeconds, 90, MILLIONAIRE_LIMITS.minAudience, MILLIONAIRE_LIMITS.maxAudience),
     players: d.players === "one" ? "one" : "all",
     look: parseShowLook(d.look),
+    attempts: typeof d.attempts === "number" && Number.isInteger(d.attempts) && d.attempts >= 0 && d.attempts <= 3 ? d.attempts : null,
   };
 }
 
 /** Очки за пройденную ступень (0 — ничего не пройдено). */
 export function pointsAt(content: MillionaireContent, level: number): number {
-  return level <= 0 ? 0 : (content.ladder[Math.min(LEVELS, level) - 1] ?? 0);
+  return level <= 0 ? 0 : (content.ladder[Math.min(levelsOf(content), level) - 1] ?? 0);
 }
 
 /** Куда падает ошибившийся: последняя несгораемая ступень ниже текущей (или ноль). */
@@ -132,7 +157,7 @@ export const LETTERS = ["A", "B", "C", "D"];
  * Список: «Вопрос?» с новой строки, варианты «- …», верный — «* …», «# Ступень 5» — с какой ступени
  * дальше (по умолчанию каждая новая строка-вопрос — следующая ступень по кругу 1–12).
  */
-export function parseMillionaireList(text: string): MillionaireQuestion[] {
+export function parseMillionaireList(text: string, size: number = 12): MillionaireQuestion[] {
   const out: MillionaireQuestion[] = [];
   let level = 0;
   let current: MillionaireQuestion | null = null;
@@ -147,7 +172,7 @@ export function parseMillionaireList(text: string): MillionaireQuestion[] {
     const head = line.match(/^#\s*ступень\s*(\d{1,2})/i);
     if (head) {
       flush();
-      fixed = Math.min(LEVELS, Math.max(1, Number(head[1])));
+      fixed = Math.min(size, Math.max(1, Number(head[1])));
       continue;
     }
     const opt = line.match(/^([-*•])\s*(.+)$/);
@@ -161,7 +186,7 @@ export function parseMillionaireList(text: string): MillionaireQuestion[] {
       continue;
     }
     flush();
-    level = fixed ?? (level % LEVELS) + 1;
+    level = fixed ?? (level % size) + 1;
     current = { ...newMillionaireQuestion(level), text: line.slice(0, MILLIONAIRE_LIMITS.text) };
   }
   flush();

@@ -9,7 +9,7 @@ import { resultKey, secondsLeft } from "../../core/session";
 import { audienceRepo } from "../../data";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { LETTERS, LEVELS, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent } from "./content";
+import { LETTERS, levelsOf, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent } from "./content";
 import { LifelineIcon } from "./icons";
 import {
   applyLifeline,
@@ -27,6 +27,7 @@ import {
   nextTurn,
   wrongChoice,
   toggleAudienceQr,
+  attemptsLeft,
   parseMillionaireResult,
   questionOf,
   refuseLifeline,
@@ -376,7 +377,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                 .sort((a, b) => (r.levels[b] ?? 0) - (r.levels[a] ?? 0))
                 .map((p) => (
                   <li key={p}>
-                    <NameText name={name(p)} /> — ступень {r.levels[p] ?? 0} из {LEVELS} · подсказок осталось {content.lifelines.filter((l) => !(r.used[p] ?? []).includes(l)).length}
+                    <NameText name={name(p)} /> — ступень {r.levels[p] ?? 0} из {levelsOf(content)} · подсказок осталось {content.lifelines.filter((l) => !(r.used[p] ?? []).includes(l)).length}
                     {r.done.includes(p) ? " · закончила" : ""}
                   </li>
                 ))}
@@ -442,54 +443,85 @@ export function MillionaireHostControls({ session, content, answers, participant
             {content.players === "one" ? "Следующий вопрос" : "Следующая команда"}
           </button>
         )}
-        {action === "wrongChoice" && (
-          <section className="stack stack--tight mil-wrong" aria-label="Что дальше с командой">
-            <p className="host-quiz__subtitle">
-              Ошибка. Что дальше с <NameText name={name(r.turn)} />?
-            </p>
+        {action === "wrongChoice" && (() => {
+          const team = r.turn ?? "";
+          const left = attemptsLeft(content, r, team);
+          const spent = left !== null && left < 0;
+          const keep = (
+            <>
+              <button
+                type="button"
+                className={spent ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"}
+                disabled={busy}
+                onClick={() => void run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "skip")))}
+              >
+                {content.players === "one" ? "Дальше — следующий вопрос" : "Дальше со следующего вопроса, пропустив ход"}
+                <span className="mil-wrong__hint">Ступень {r.levels[team] ?? 0} (по несгораемой){content.players === "one" ? "" : ", свой следующий ход пропускает"}</span>
+              </button>
+              <button
+                type="button"
+                className={spent ? "btn btn--quiet btn--block" : "btn btn--secondary btn--block"}
+                disabled={busy}
+                onClick={() =>
+                  confirm({
+                    title: "Начать с самого начала?",
+                    text: `«${name(r.turn)}» — снова на нулевой ступени, очки обнуляются.`,
+                    confirmLabel: "Начать сначала",
+                    run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "restart"))),
+                  })
+                }
+              >
+                Начать с самого начала
+                <span className="mil-wrong__hint">Ступень 0, очки — 0</span>
+              </button>
+            </>
+          );
+          const out = (
             <button
               type="button"
-              className="btn btn--block host-quiz__primary"
-              disabled={busy}
-              onClick={() => void run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "skip")))}
-            >
-              {content.players === "one" ? "Дальше — следующий вопрос" : "Дальше со следующего вопроса, пропустив ход"}
-              <span className="mil-wrong__hint">Ступень {r.levels[r.turn ?? ""] ?? 0} (по несгораемой){content.players === "one" ? "" : ", свой следующий ход пропускает"}</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn--secondary btn--block"
+              className={spent ? "btn btn--block host-quiz__primary" : "btn btn--secondary btn--block"}
               disabled={busy}
               onClick={() =>
-                confirm({
-                  title: "Начать с самого начала?",
-                  text: `«${name(r.turn)}» — снова на нулевой ступени, очки обнуляются.`,
-                  confirmLabel: "Начать сначала",
-                  run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "restart"))),
-                })
+                spent
+                  ? void run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "out")))
+                  : confirm({
+                      title: "Выбывает из игры?",
+                      text: `«${name(r.turn)}» больше не ходит. Набранные очки (${pointsLabel(pointsAt(content, r.levels[team] ?? 0))}) остаются в таблице.`,
+                      confirmLabel: "Выбывает",
+                      run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "out"))),
+                    })
               }
             >
-              Начать с самого начала
-              <span className="mil-wrong__hint">Ступень 0, очки — 0</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn--secondary btn--block"
-              disabled={busy}
-              onClick={() =>
-                confirm({
-                  title: "Выбывает из игры?",
-                  text: `«${name(r.turn)}» больше не ходит. Набранные очки (${pointsLabel(pointsAt(content, r.levels[r.turn ?? ""] ?? 0))}) остаются в таблице.`,
-                  confirmLabel: "Выбывает",
-                  run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "out"))),
-                })
-              }
-            >
-              Выбывает окончательно
+              {spent ? "Выбывает — попытки закончились" : "Выбывает окончательно"}
               <span className="mil-wrong__hint">Больше не ходит, очки остаются</span>
             </button>
-          </section>
-        )}
+          );
+          return (
+            <section className="stack stack--tight mil-wrong" aria-label="Что дальше с командой">
+              <p className="host-quiz__subtitle">
+                Ошибка. Что дальше с <NameText name={name(r.turn)} />?
+              </p>
+              <p className="muted small">
+                {left === null
+                  ? "Попыток после ошибки — без ограничения."
+                  : spent
+                    ? `Попытки после ошибки закончились (в игре — ${content.attempts}). По правилам — выбывает; можно всё равно дать ещё попытку.`
+                    : `Продолжить можно: это попытка ${r.misses[team] ?? 1} из ${content.attempts}.`}
+              </p>
+              {spent ? (
+                <>
+                  {out}
+                  {keep}
+                </>
+              ) : (
+                <>
+                  {keep}
+                  {out}
+                </>
+              )}
+            </section>
+          );
+        })()}
         {(action === "podium" || action === "podiumNext") && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}

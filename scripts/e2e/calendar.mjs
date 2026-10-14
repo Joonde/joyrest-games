@@ -127,7 +127,9 @@ async function fits(page, where) {
     const visible = (el) => {
       const r = el.getBoundingClientRect();
       const st = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none";
+      // Содержимое свёрнутого <details> скрыто, хотя Chrome отдаёт ему координаты.
+      const folded = el.closest("details:not([open])") && !el.closest("summary");
+      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !folded;
     };
     const label = (el) => (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().replace(/\s+/g, " ").slice(0, 28);
     const controls = [...document.querySelectorAll("main button, main a.btn, main [role=tab], main .status-pill, main select, main input:not([type=hidden]):not([type=radio]):not([type=checkbox])")].filter(visible);
@@ -337,7 +339,7 @@ try {
   const hostRadio = row.getByRole("radio", { name: new RegExp(hostName) });
   await until(async () => (await hostRadio.count()) > 0, WAIT, "ведущие в форме").catch(() => undefined);
   check((await hostRadio.isChecked().catch(() => false)) === true, "Владелец: в форме уже выбран этот ведущий", "Владелец: в форме ведущий не выбран");
-  const hostOption = ((await row.locator("label.plan-host", { has: hostRadio }).textContent()) ?? "").replace(/\s+/g, " ");
+  const hostOption = ((await row.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? "").replace(/\s+/g, " ");
   check(hostOption.includes("Может"), "Владелец: у ведущего в форме — «Может»", `Владелец: в форме у ведущего «${hostOption}»`);
   await row.locator('input[list="event-titles"]').fill("Корпоратив, проверка");
   await row.getByLabel("Клиент — имя").fill("Клиент Проверка");
@@ -400,7 +402,7 @@ try {
   await ap.getByRole("button", { name: "19:00–00:00", exact: true }).click();
   await ap.getByRole("button", { name: "3 ч", exact: true }).click();
   const busyRadio = ap.getByRole("radio", { name: new RegExp(hostName) });
-  await until(async () => /Занят/.test((await ap.locator("label.plan-host", { has: busyRadio }).textContent()) ?? ""), WAIT, "ведущий занят в списке");
+  await until(async () => /Занят/.test((await ap.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? ""), WAIT, "ведущий занят в списке");
   await busyRadio.check();
   check((await ap.locator(".plan-warn").count()) === 1, "Владелец: форма предупреждает, что у ведущего время занято");
   await ap.getByRole("button", { name: "Корпоратив", exact: true }).click();

@@ -351,7 +351,9 @@ async function overlapCheck(page, who) {
     const visible = (el) => {
       const r = el.getBoundingClientRect();
       const st = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !el.closest("[inert], [hidden], .scene");
+      // Содержимое свёрнутого <details> скрыто, хотя Chrome отдаёт ему координаты.
+      const folded = el.closest("details:not([open])") && !el.closest("summary");
+      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !el.closest("[inert], [hidden], .scene") && !folded;
     };
     // Закреплённые панели (вкладки пульта внизу, шапка) лежат поверх прокручиваемого содержимого — это не наезд.
     const pinned = (el) => {

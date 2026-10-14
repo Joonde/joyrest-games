@@ -55,7 +55,7 @@ export interface MillionaireContent {
 
 export const DEFAULT_LADDER = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 300000, 500000, 1000000];
 
-export const MILLIONAIRE_LIMITS = { text: 300, option: 120, note: 200, hint: 200, maxQuestions: 240, maxPoints: 10_000_000, minSeconds: 10, maxSeconds: 180 } as const;
+export const MILLIONAIRE_LIMITS = { text: 300, option: 120, note: 200, hint: 200, maxQuestions: 240, maxPoints: 10_000_000, minSeconds: 10, maxSeconds: 180, minAudience: 90, maxAudience: 300 } as const;
 
 function id(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -73,7 +73,7 @@ export function createMillionaire(): MillionaireContent {
     safe: [4, 8],
     lifelines: [...LIFELINE_IDS],
     callSeconds: 60,
-    audienceSeconds: 20,
+    audienceSeconds: 90,
     players: "all",
     look: DEFAULT_SHOW_LOOK,
   };
@@ -104,7 +104,8 @@ export function parseMillionaire(raw: unknown): MillionaireContent {
     safe,
     lifelines,
     callSeconds: int(d.callSeconds, 60, MILLIONAIRE_LIMITS.minSeconds, MILLIONAIRE_LIMITS.maxSeconds),
-    audienceSeconds: int(d.audienceSeconds, 20, MILLIONAIRE_LIMITS.minSeconds, MILLIONAIRE_LIMITS.maxSeconds),
+    // Помощь зала — не меньше полутора минут: гостям нужно время навести камеру и проголосовать (14 октября 2026).
+    audienceSeconds: int(d.audienceSeconds, 90, MILLIONAIRE_LIMITS.minAudience, MILLIONAIRE_LIMITS.maxAudience),
     players: d.players === "one" ? "one" : "all",
     look: parseShowLook(d.look),
   };

@@ -108,7 +108,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           </label>
           <label className="field">
             Голосование зала, секунд
-            <ClampedNumber value={content.audienceSeconds} min={MILLIONAIRE_LIMITS.minSeconds} max={MILLIONAIRE_LIMITS.maxSeconds} fallback={20} disabled={!editable} onChange={(audienceSeconds) => onChange({ ...content, audienceSeconds })} />
+            <ClampedNumber value={content.audienceSeconds} min={MILLIONAIRE_LIMITS.minAudience} max={MILLIONAIRE_LIMITS.maxAudience} fallback={90} disabled={!editable} onChange={(audienceSeconds) => onChange({ ...content, audienceSeconds })} />
           </label>
         </div>
         <details>

@@ -62,7 +62,16 @@ export interface MillionaireResult {
   audienceVote: boolean;
   /** Ответ на шаге можно поменять до фиксации (сервер перезаписывает ответ телефона). */
   changeable: boolean;
+  /** Выбыли из игры (решение ведущего после ошибки). */
+  out: string[];
+  /** Пропускают свой следующий ход (решение ведущего после ошибки). */
+  skip: string[];
+  /** QR помощи зала крупно на весь экран (ведущий открывает и убирает). */
+  qrBig: boolean;
 }
+
+/** Что делать с командой после неверного ответа (решение владельца 14 октября 2026, выбирает ведущий). */
+export type WrongChoice = "out" | "restart" | "skip";
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -109,6 +118,9 @@ export function parseMillionaireResult(raw: unknown): MillionaireResult {
     tipText: typeof d.tipText === "string" && d.tipText.trim() !== "" ? d.tipText.slice(0, 300) : null,
     audienceVote: d.audienceVote === true,
     changeable: d.changeable === true,
+    out: ids(d.out),
+    skip: ids(d.skip),
+    qrBig: d.qrBig === true,
   };
 }
 
@@ -157,7 +169,7 @@ function scoreChange(session: Session, participants: Participant[], content: Mil
   return board;
 }
 
-export type MillionaireAction = "start" | "show" | "lock" | "reveal" | "retry" | "audienceDone" | "next" | "podium" | "podiumNext" | "finish";
+export type MillionaireAction = "start" | "show" | "lock" | "reveal" | "retry" | "audienceDone" | "next" | "wrongChoice" | "podium" | "podiumNext" | "finish";
 
 export function millionairePrimary(session: Session): MillionaireAction {
   const { stage } = session.state;
@@ -168,6 +180,7 @@ export function millionairePrimary(session: Session): MillionaireAction {
   if (r.mode === "audience") return "audienceDone";
   if (r.mode === "question") return r.locked ? "reveal" : "lock";
   if (r.outcome === "saved") return "retry";
+  if (r.outcome === "wrong") return "wrongChoice";
   return "next";
 }
 
@@ -175,18 +188,28 @@ export function millionairePrimary(session: Session): MillionaireAction {
 const fresh = { chosen: null, locked: false, refused: null, audienceVote: false, changeable: true } as const;
 
 function base(r: MillionaireResult): MillionaireResult {
-  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null, ...fresh };
+  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null, qrBig: false, ...fresh };
 }
 
-/** Кто ходит следующим после `from` (по кругу, мимо закончивших). null — играть некому. */
-function nextPlayer(order: string[], done: string[], from: string | null): string | null {
-  if (order.length === 0) return null;
+/**
+ * Кто ходит следующим после `from` (по кругу, мимо закончивших и выбывших). Пропускающий ход — один раз
+ * пропускается и снимается с пропуска. null — играть некому.
+ */
+export function nextPlayer(order: string[], done: string[], from: string | null, skip: string[] = []): { who: string | null; skip: string[] } {
+  if (order.length === 0) return { who: null, skip };
   const at = from ? order.indexOf(from) : -1;
-  for (let i = 1; i <= order.length; i++) {
-    const who = order[(at + i + order.length) % order.length];
-    if (who && !done.includes(who)) return who;
+  let left = [...skip];
+  // Два круга: на первом пропускающие уступают ход, на втором (если ходить больше некому) — ходят.
+  for (let i = 1; i <= order.length * 2; i++) {
+    const who = order[(at + i + order.length * 2) % order.length];
+    if (!who || done.includes(who)) continue;
+    if (left.includes(who)) {
+      left = left.filter((p) => p !== who);
+      continue;
+    }
+    return { who, skip: left };
   }
-  return null;
+  return { who: null, skip: left };
 }
 
 /** «Начать игру»: очередь по подключению (или одна выбранная команда), все на нуле. */
@@ -195,7 +218,7 @@ export function startMillionaire(session: Session, participants: Participant[], 
   const all = orderOf(session, participants, r);
   const order = content.players === "one" && only && all.includes(only) ? [only] : content.players === "one" ? all.slice(0, 1) : all;
   const levels = Object.fromEntries(order.map((p) => [p, 0]));
-  const next: MillionaireResult = { ...base(r), order, levels, used: {}, seen: [], done: [], mode: "turn", turn: order[0] ?? null, from: 0 };
+  const next: MillionaireResult = { ...base(r), order, levels, used: {}, seen: [], done: [], out: [], skip: [], mode: "turn", turn: order[0] ?? null, from: 0 };
   return {
     state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write(next) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
@@ -294,12 +317,43 @@ export function nextTurn(session: Session, content: MillionaireContent, particip
   // Команда, которой нечем играть (вопросы её ступени кончились), тоже закончила.
   const done = [...r.done];
   for (const p of order) if (!done.includes(p) && !freshQuestion(content, levelToPlay({ ...r, levels }, p), r.seen)) done.push(p);
-  const turn = nextPlayer(order, done, r.turn);
-  const next: MillionaireResult = { ...base(r), order, levels, done, turn, mode: turn ? "turn" : "over", from: 0 };
+  // Одна команда в игре («одна выбранная»): после ошибки она же и ходит дальше.
+  const picked = nextPlayer(order, done, content.players === "one" ? null : r.turn, r.skip);
+  const turn = picked.who;
+  const next: MillionaireResult = { ...base(r), order, levels, done, skip: picked.skip, turn, mode: turn ? "turn" : "over", from: 0 };
   return {
     state: { step: session.state.step + 1, stage: turn ? "ready" : "reveal", startedAt: null, timeLimit: null, revealed: !turn, answered: 0, result: write(next) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
+}
+
+/**
+ * После неверного ответа ведущий решает (решение владельца 14 октября 2026):
+ * `out` — команда выбывает (ступень и счёт остаются, больше не ходит);
+ * `restart` — начинает с самого начала (ступень 0, счёт 0);
+ * `skip` — продолжает со следующего вопроса (ступень — по несгораемой, как уже показано), но пропускает свой следующий ход.
+ * Дальше — ход следующей команды.
+ */
+export function wrongChoice(session: Session, content: MillionaireContent, participants: Participant[], choice: WrongChoice): SessionChange | null {
+  const r = parseMillionaireResult(session.state.result);
+  const team = r.turn;
+  if (!team || session.state.stage !== "reveal" || r.outcome !== "wrong") return null;
+  let after: MillionaireResult = r;
+  let board: SessionChange["leaderboard"];
+  if (choice === "out") after = { ...r, out: [...new Set([...r.out, team])], done: [...new Set([...r.done, team])] };
+  if (choice === "restart") {
+    after = { ...r, levels: { ...r.levels, [team]: 0 } };
+    board = scoreChange(session, participants, content, team, 0, r.levels[team] ?? 0);
+  }
+  if (choice === "skip") after = { ...r, skip: [...new Set([...r.skip, team])] };
+  const moved = nextTurn({ ...session, state: { ...session.state, result: write(after) } }, content, participants);
+  return { ...moved, leaderboard: { ...(moved.leaderboard ?? {}), ...(board ?? {}) } };
+}
+
+/** QR помощи зала на весь экран зала — открыть или убрать. */
+export function toggleAudienceQr(session: Session): SessionChange {
+  const r = parseMillionaireResult(session.state.result);
+  return { state: { result: write({ ...r, qrBig: !r.qrBig }) } };
 }
 
 export interface LifelineCheck {
@@ -412,7 +466,7 @@ export function liveAudience(session: Session, answers: Answer[], participants: 
 export function finishAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = []): SessionChange {
   const r = parseMillionaireResult(session.state.result);
   const { audience, votes } = tally(session, answers, participants, extra);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, ...fresh }) } };
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, qrBig: false, ...fresh }) } };
 }
 
 /** «Совет ведущего»: наводка на экран зала (пусто — убрать). */

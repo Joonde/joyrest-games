@@ -1,6 +1,6 @@
 import type { PreviewDriver } from "../preview";
 import type { MillionaireContent } from "./content";
-import { applyLifeline, millionairePrimary, nextTurn, parseMillionaireResult, questionOf, retryQuestion, revealAnswer, showQuestion, startMillionaire } from "./logic";
+import { wrongChoice, applyLifeline, millionairePrimary, nextTurn, parseMillionaireResult, questionOf, retryQuestion, revealAnswer, showQuestion, startMillionaire } from "./logic";
 
 export const millionairePreview: PreviewDriver<MillionaireContent> = ({ session, content, participants, answers }) => {
   const r = parseMillionaireResult(session.state.result);
@@ -34,6 +34,8 @@ export const millionairePreview: PreviewDriver<MillionaireContent> = ({ session,
       return { label: "Пульт: «Ответить ещё раз»", change: retryQuestion(session) };
     case "next":
       return { label: "Пульт: «Следующая команда»", change: nextTurn(session, content, participants) };
+    case "wrongChoice":
+      return { label: "Пульт: «Дальше, пропустив ход»", change: wrongChoice(session, content, participants, "skip") };
     default:
       return null;
   }

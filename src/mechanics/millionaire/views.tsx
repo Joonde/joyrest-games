@@ -90,7 +90,7 @@ export function LadderBars({ session, content, result, compact = false }: { sess
         const level = result.levels[pid] ?? 0;
         const active = pid === result.turn && result.mode !== "over";
         return (
-          <div key={pid} className={`mil-bar${active ? " is-turn" : ""}${level >= LEVELS ? " is-top" : ""}`} style={{ ["--team" as string]: colorOf(session, result, pid) }}>
+          <div key={pid} className={`mil-bar${active ? " is-turn" : ""}${level >= LEVELS ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`} style={{ ["--team" as string]: colorOf(session, result, pid) }}>
             <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
             <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${LEVELS}`}>
               {Array.from({ length: LEVELS }, (_, i) => LEVELS - i).map((n) => (
@@ -102,6 +102,8 @@ export function LadderBars({ session, content, result, compact = false }: { sess
             <span className="mil-bar__name">
               {level >= LEVELS ? "👑 " : ""}
               <NameText name={nameOf(session, pid)} />
+              {result.out.includes(pid) && <span className="mil-bar__tag"> · выбыл</span>}
+              {result.skip.includes(pid) && <span className="mil-bar__tag"> · пропуск хода</span>}
             </span>
             {!compact && <LifelineRow content={content} used={result.used[pid] ?? []} />}
           </div>
@@ -227,6 +229,19 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
               <p key={`${step}:${flash.id}`} className="mil-flash" role="status">
                 <LifelineIcon id={flash.id} /> {flash.title}
               </p>
+            )}
+            {audience && r.qrBig && audienceRepo && (
+              <div className="mil-qr-big" role="dialog" aria-label="QR-код для голосования зала">
+                <QrCode value={voteUrl(session.code)} label="QR-код: голосовать в помощи зала" />
+                <div className="mil-qr-big__text">
+                  <p className="mil-audience__title">Помощь зала</p>
+                  <p>Наведите камеру и выберите ответ</p>
+                  <p className="mil-audience__count">
+                    {r.votes} {votesWord(r.votes)}
+                    {left !== null ? ` · ${left} с` : ""}
+                  </p>
+                </div>
+              </div>
             )}
             <div className={audience ? "mil-audience" : undefined}>
               <QuestionCard question={q} result={r} reveal={stage === "reveal"} />
@@ -384,6 +399,34 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
     if (teams) personal?.send(value);
     else onAnswer(value);
   };
+
+  // Ходит другая команда: телефон только наблюдает — ни одной кнопки, понятно, что нажимать ничего не надо
+  // (решение владельца 14 октября 2026).
+  if (!mine) {
+    const out = r.out.includes(pid);
+    return (
+      <div className="quiz-phone mil-watch">
+        {head}
+        <div className="mil-watch__plate" role="status">
+          <span className="mil-watch__eye" aria-hidden="true">
+            👀
+          </span>
+          <strong>
+            Отвечает <NameText name={nameOf(session, r.turn)} />
+          </strong>
+          <span>{out ? "Вы выбыли из игры — болейте за других!" : "Сейчас не ваш ход — вы наблюдаете. Нажимать ничего не нужно, смотрите на экран."}</span>
+        </div>
+        <p className="muted small mil-watch__level">
+          Вопрос {levelToPlay(r, r.turn)} — {pointsLabel(pointsAt(content, levelToPlay(r, r.turn)))}
+        </p>
+        <div className="mil-watch__question" aria-label="Вопрос другой команды">
+          <QuestionCard question={q} result={r} reveal={stage === "reveal"} size="phone" />
+        </div>
+        {stage === "reveal" && <p className={r.outcome === "right" ? "success" : "muted"}>{r.outcome === "right" ? "Они ответили верно!" : r.outcome === "saved" ? "Ошибка, но их спасло право на ошибку" : "Они ошиблись"}</p>}
+        {r.order.includes(pid) && !out && <p className="muted small">Ваш ход — когда ведущий передаст его вам: телефон покажет «Ваш вопрос».</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="quiz-phone">

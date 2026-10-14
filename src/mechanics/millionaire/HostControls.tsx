@@ -25,6 +25,8 @@ import {
   millionairePrimary,
   millionaireTeams,
   nextTurn,
+  wrongChoice,
+  toggleAudienceQr,
   parseMillionaireResult,
   questionOf,
   refuseLifeline,
@@ -306,6 +308,11 @@ export function MillionaireHostControls({ session, content, answers, participant
                   {voteLeft !== null ? ` · ${voteLeft} с` : ""}
                 </p>
               )}
+              {r.mode === "audience" && stage === "question" && audienceRepo && (
+                <button type="button" className={r.qrBig ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={r.qrBig} disabled={busy} onClick={() => void run(toggleAudienceQr(session))}>
+                  {r.qrBig ? "▶ Убрать QR — вернуть вопрос на экран" : "QR для голосования — на весь экран"}
+                </button>
+              )}
               {callLeft > 0 && stage === "question" && (
                 <div className="row">
                   <span>📞 Звонок другу: {callLeft} с</span>
@@ -434,6 +441,54 @@ export function MillionaireHostControls({ session, content, answers, participant
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTurn(session, content, participants))}>
             {content.players === "one" ? "Следующий вопрос" : "Следующая команда"}
           </button>
+        )}
+        {action === "wrongChoice" && (
+          <section className="stack stack--tight mil-wrong" aria-label="Что дальше с командой">
+            <p className="host-quiz__subtitle">
+              Ошибка. Что дальше с <NameText name={name(r.turn)} />?
+            </p>
+            <button
+              type="button"
+              className="btn btn--block host-quiz__primary"
+              disabled={busy}
+              onClick={() => void run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "skip")))}
+            >
+              {content.players === "one" ? "Дальше — следующий вопрос" : "Дальше со следующего вопроса, пропустив ход"}
+              <span className="mil-wrong__hint">Ступень {r.levels[r.turn ?? ""] ?? 0} (по несгораемой){content.players === "one" ? "" : ", свой следующий ход пропускает"}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--block"
+              disabled={busy}
+              onClick={() =>
+                confirm({
+                  title: "Начать с самого начала?",
+                  text: `«${name(r.turn)}» — снова на нулевой ступени, очки обнуляются.`,
+                  confirmLabel: "Начать сначала",
+                  run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "restart"))),
+                })
+              }
+            >
+              Начать с самого начала
+              <span className="mil-wrong__hint">Ступень 0, очки — 0</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary btn--block"
+              disabled={busy}
+              onClick={() =>
+                confirm({
+                  title: "Выбывает из игры?",
+                  text: `«${name(r.turn)}» больше не ходит. Набранные очки (${pointsLabel(pointsAt(content, r.levels[r.turn ?? ""] ?? 0))}) остаются в таблице.`,
+                  confirmLabel: "Выбывает",
+                  run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "out"))),
+                })
+              }
+            >
+              Выбывает окончательно
+              <span className="mil-wrong__hint">Больше не ходит, очки остаются</span>
+            </button>
+          </section>
         )}
         {(action === "podium" || action === "podiumNext") && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>

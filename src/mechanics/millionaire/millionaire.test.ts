@@ -23,6 +23,8 @@ import {
   showQuestion,
   startMillionaire,
   syncChosen,
+  wrongChoice,
+  nextPlayer,
 } from "./logic";
 import { validateMillionaire } from "./validate";
 
@@ -317,5 +319,71 @@ describe("оформление экрана зала «Миллионера»", 
     expect(demo.look).toBe("studio");
     expect(validateMillionaire(demo)).toEqual([]);
     expect(validateMillionaire({ ...demo, look: "evening" })).toEqual([]);
+  });
+});
+
+describe("Кто хочет стать миллионером: после ошибки решает ведущий", () => {
+  function wrongAt(level: number) {
+    let { s, content } = started();
+    const r0 = parseMillionaireResult(s.state.result);
+    s = { ...s, state: { ...s.state, result: { ...r0, levels: { A: level, B: 0, C: 0 } } } };
+    s = apply(s, showQuestion(s, content));
+    s = apply(s, markPick(s, 3));
+    s = apply(s, revealAnswer(s, content, [], everyone));
+    expect(millionairePrimary(s)).toBe("wrongChoice");
+    return { s, content };
+  }
+
+  it("«Выбывает»: больше не ходит, очки остаются; последние выбыли — конец игры", () => {
+    let { s, content } = wrongAt(6);
+    s = apply(s, wrongChoice(s, content, everyone, "out"));
+    let r = parseMillionaireResult(s.state.result);
+    expect(r.out).toEqual(["A"]);
+    expect(r.turn).toBe("B");
+    expect(s.leaderboard.A?.score).toBe(5000);
+    // Круг: B → C → снова B (A выбыла).
+    s = apply(s, nextTurn(s, content, everyone));
+    s = apply(s, nextTurn(s, content, everyone));
+    r = parseMillionaireResult(s.state.result);
+    expect(r.turn).toBe("B");
+  });
+
+  it("«Сначала»: ступень 0 и счёт 0, ход следующей команды", () => {
+    let { s, content } = wrongAt(6);
+    s = apply(s, wrongChoice(s, content, everyone, "restart"));
+    const r = parseMillionaireResult(s.state.result);
+    expect(r.levels.A).toBe(0);
+    expect(s.leaderboard.A?.score ?? 0).toBe(0);
+    expect(r.turn).toBe("B");
+  });
+
+  it("«Дальше, пропустив ход»: ступень по несгораемой, свой следующий ход пропускает", () => {
+    let { s, content } = wrongAt(6);
+    s = apply(s, wrongChoice(s, content, everyone, "skip"));
+    let r = parseMillionaireResult(s.state.result);
+    expect(r.levels.A).toBe(4);
+    expect(r.turn).toBe("B");
+    expect(r.skip).toEqual(["A"]);
+    s = apply(s, nextTurn(s, content, everyone));
+    expect(parseMillionaireResult(s.state.result).turn).toBe("C");
+    // После C очередь A — пропуск, ходит B; пропуск снят.
+    s = apply(s, nextTurn(s, content, everyone));
+    r = parseMillionaireResult(s.state.result);
+    expect(r.turn).toBe("B");
+    expect(r.skip).toEqual([]);
+    s = apply(s, nextTurn(s, content, everyone));
+    s = apply(s, nextTurn(s, content, everyone));
+    expect(parseMillionaireResult(s.state.result).turn).toBe("A");
+  });
+
+  it("решать можно только после неверного ответа", () => {
+    const { s, content } = started();
+    expect(wrongChoice(s, content, everyone, "out")).toBeNull();
+  });
+
+  it("очередь: пропускающий уступает ход, а если ходить больше некому — ходит", () => {
+    expect(nextPlayer(["A", "B"], [], "B", ["A"])).toEqual({ who: "B", skip: [] });
+    expect(nextPlayer(["A", "B"], ["B"], "A", ["A"])).toEqual({ who: "A", skip: [] });
+    expect(nextPlayer(["A", "B"], ["A", "B"], "A", [])).toEqual({ who: null, skip: [] });
   });
 });

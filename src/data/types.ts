@@ -79,12 +79,14 @@ export interface Game {
   content: unknown;
   createdAt: number | null;
   updatedAt: number | null;
+  /** Папка в «Моих играх» ('' или нет — без папки; только свой сервер). */
+  folder?: string;
 }
 
 export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt">;
 
 /** Что можно менять в игре после создания. Область и владелец не меняются. */
-export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content">>;
+export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content" | "folder">>;
 
 export type PlayMode = "solo" | "teams";
 

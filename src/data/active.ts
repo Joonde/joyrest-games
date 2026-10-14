@@ -38,7 +38,7 @@ import { serverCalendarRepository } from "./server/calendar";
 import { serverEventsRepository } from "./server/events";
 import { serverClientsRepository } from "./server/clients";
 import { serverTelegramRepository } from "./server/telegram";
-import { serverGamesRepository } from "./server/games";
+import { serverGameFolders, serverGamesRepository } from "./server/games";
 import { serverMediaRepository } from "./server/media";
 import { serverAnswersRepository } from "./server/answers";
 import { serverClock } from "./server/clock";
@@ -73,6 +73,8 @@ export const proposalsRepo: ProposalsRepository | null = server ? serverProposal
 
 /** Квалификация, стаж и баллы ведущих — только на своём сервере. */
 export const staffRepo: StaffRepository | null = server ? serverStaffRepository : null;
+/** Папки «Моих игр» — только свой сервер. */
+export const gameFoldersRepo: typeof serverGameFolders | null = server ? serverGameFolders : null;
 /** Музыка — только свой сервер. */
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
 /** «Команда JoyRest» — только свой сервер. */

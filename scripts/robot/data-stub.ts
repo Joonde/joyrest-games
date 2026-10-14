@@ -32,3 +32,4 @@ export function useAuth(): [{ status: "signedOut" }, () => void] {
 export function useLoad(): [{ status: "loading" }, () => void] {
   return [{ status: "loading" }, () => undefined];
 }
+export const gameFoldersRepo = null;

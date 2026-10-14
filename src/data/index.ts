@@ -21,6 +21,7 @@ export {
   proposalsRepo,
   staffRepo,
   tracksRepo,
+  gameFoldersRepo,
   teamRepo,
   screenRepo,
   resultsRepo,

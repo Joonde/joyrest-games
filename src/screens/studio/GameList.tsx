@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { copyOfGame } from "../../core/games";
-import { gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
+import { gameFoldersRepo, gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { Fold } from "../../components/Fold";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
 import { demoGames, gameMediaIds } from "../../mechanics/registry";
@@ -12,6 +13,7 @@ import { GameCard } from "./GameCard";
 import { ProposalsBlock } from "./Proposals";
 
 const NO_PROPOSALS: LibraryProposal[] = [];
+const NO_FOLDERS: string[] = [];
 
 /** Разделы показываем в библиотеке всегда, в «Моих играх» — когда игр много. */
 const GROUP_FROM = 7;
@@ -67,6 +69,59 @@ export function GameList({ scope, profile, onToast }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const intro = INTRO[scope];
   const canCreate = permissions.canCreateGame(profile, scope, profile.uid);
+
+  // Папки «Моих игр» (решение владельца 15 октября 2026, только свой сервер).
+  const foldersOn = scope === "personal" && gameFoldersRepo !== null;
+  const [folderList, retryFolders] = useLoad(() => (foldersOn && gameFoldersRepo ? gameFoldersRepo.list() : Promise.resolve(NO_FOLDERS)), [foldersOn, profile.uid]);
+  const [moveFor, setMoveFor] = useState<Game | null>(null);
+  const [folderDraft, setFolderDraft] = useState("");
+  const [folderDialog, setFolderDialog] = useState<{ kind: "create" } | { kind: "rename"; from: string } | { kind: "delete"; name: string; count: number } | null>(null);
+  const [folderBusy, setFolderBusy] = useState(false);
+  const [folderError, setFolderError] = useState<string | null>(null);
+  const games = state.status === "ready" ? state.data : [];
+  const folderNamesAll = foldersOn
+    ? [...new Set([...(folderList.status === "ready" ? folderList.data : []), ...games.map((g) => (g.folder ?? "").trim()).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "ru"))
+    : [];
+  const loose = foldersOn ? games.filter((g) => !(g.folder ?? "").trim()) : games;
+
+  async function saveMove() {
+    if (!moveFor) return;
+    setFolderBusy(true);
+    setFolderError(null);
+    try {
+      const folder = folderDraft.trim();
+      await gamesRepo.update(moveFor.id, { folder });
+      const id = moveFor.id;
+      update((list) => list.map((g) => (g.id === id ? { ...g, folder } : g)));
+      setMoveFor(null);
+      onToast(folder ? `Игра в папке «${folder}»` : "Игра без папки");
+    } catch {
+      setFolderError("Не удалось сохранить. Проверьте интернет.");
+    } finally {
+      setFolderBusy(false);
+    }
+  }
+
+  async function runFolderDialog() {
+    if (!gameFoldersRepo || !folderDialog) return;
+    const name = folderDraft.trim();
+    if (folderDialog.kind !== "delete" && !name) return setFolderError("Напишите название папки.");
+    setFolderBusy(true);
+    setFolderError(null);
+    try {
+      if (folderDialog.kind === "create") await gameFoldersRepo.create(name);
+      if (folderDialog.kind === "rename") await gameFoldersRepo.rename(folderDialog.from, name);
+      if (folderDialog.kind === "delete") await gameFoldersRepo.remove(folderDialog.name);
+      setFolderDialog(null);
+      retry();
+      retryFolders();
+      onToast(folderDialog.kind === "create" ? `Папка «${name}» создана` : folderDialog.kind === "rename" ? `Папка теперь «${name}»` : "Папка удалена, игры остались");
+    } catch {
+      setFolderError("Не удалось сохранить. Проверьте интернет.");
+    } finally {
+      setFolderBusy(false);
+    }
+  }
 
   // Предложения в библиотеку: ведущему — статусы своих игр, владельцу — блок на вкладке библиотеки.
   const proposing = proposalsRepo !== null && scope === "personal" && !permissions.canReviewProposals(profile);
@@ -198,6 +253,15 @@ export function GameList({ scope, profile, onToast }: Props) {
       }}
       proposal={latest.get(game.id) ?? null}
       onPropose={proposing ? () => void propose(game) : undefined}
+      onFolder={
+        foldersOn
+          ? () => {
+              setFolderDraft(game.folder ?? "");
+              setFolderError(null);
+              setMoveFor(game);
+            }
+          : undefined
+      }
     />
   );
 
@@ -263,9 +327,63 @@ export function GameList({ scope, profile, onToast }: Props) {
       {state.status === "loading" && <ListSkeleton />}
       {state.status === "error" && <LoadFailedInline onRetry={retry} text={state.notYet ? NOT_YET_TEXT : undefined} />}
       {state.status === "ready" && state.data.length === 0 && <p className="muted empty">{intro.empty}</p>}
-      {state.status === "ready" && state.data.length > 0 && (scope === "agency" || state.data.length >= GROUP_FROM) && (
+      {foldersOn && state.status === "ready" && (
+        <section className="card stack stack--tight" aria-label="Папки">
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            onClick={() => {
+              setFolderDraft("");
+              setFolderError(null);
+              setFolderDialog({ kind: "create" });
+            }}
+          >
+            + Новая папка
+          </button>
+          {folderNamesAll.map((name) => {
+            const inside = games.filter((g) => (g.folder ?? "").trim() === name);
+            return (
+              <Fold key={name} title={`📁 ${name}`} value={`${inside.length}`}>
+                {inside.length === 0 ? (
+                  <p className="muted small">Пустая папка. Положите игру: у игры «⋯ → В папку».</p>
+                ) : (
+                  <ul className="cards">
+                    {inside.map((game) => (
+                      <li key={game.id}>{card(game)}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--block"
+                    onClick={() => {
+                      setFolderDraft(name);
+                      setFolderError(null);
+                      setFolderDialog({ kind: "rename", from: name });
+                    }}
+                  >
+                    Переименовать папку
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--block"
+                    onClick={() => {
+                      setFolderError(null);
+                      setFolderDialog({ kind: "delete", name, count: inside.length });
+                    }}
+                  >
+                    Удалить папку
+                  </button>
+                </div>
+              </Fold>
+            );
+          })}
+        </section>
+      )}
+      {state.status === "ready" && loose.length > 0 && (scope === "agency" || loose.length >= GROUP_FROM) && (
         <div className="categories" aria-label={`${intro.title}: разделы`}>
-          {groupByCategory(state.data).map(({ category, games }) => {
+          {groupByCategory(loose).map(({ category, games }) => {
             const expanded = open === category.id;
             return (
               <section key={category.id} className={expanded ? "card category is-open" : "card category"}>
@@ -294,9 +412,9 @@ export function GameList({ scope, profile, onToast }: Props) {
           })}
         </div>
       )}
-      {state.status === "ready" && state.data.length > 0 && scope !== "agency" && state.data.length < GROUP_FROM && (
+      {state.status === "ready" && loose.length > 0 && scope !== "agency" && loose.length < GROUP_FROM && (
         <ul className="cards" aria-label={intro.title}>
-          {state.data.map((game) => (
+          {loose.map((game) => (
             <li key={game.id}>{card(game)}</li>
           ))}
         </ul>
@@ -316,6 +434,55 @@ export function GameList({ scope, profile, onToast }: Props) {
           {missingDemos.length > 0 ? `, ещё ${missingDemos.length} новых шаблонов добавятся в библиотеку` : ""}. Ваши правки в этих играх библиотеки
           заменятся шаблоном. Копии у ведущих («Мои игры») и уже идущие игры не изменятся.
         </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={moveFor !== null}
+        title="В какую папку?"
+        confirmLabel="Положить"
+        busy={folderBusy}
+        error={folderError}
+        onConfirm={() => void saveMove()}
+        onCancel={() => setMoveFor(null)}
+      >
+        <div className="stack stack--tight">
+          <div className="pick-chips">
+            {folderNamesAll.map((name) => (
+              <button key={name} type="button" className="pick-chip" aria-pressed={folderDraft.trim() === name} onClick={() => setFolderDraft(name)}>
+                📁 {name}
+              </button>
+            ))}
+            <button type="button" className="pick-chip" aria-pressed={folderDraft.trim() === ""} onClick={() => setFolderDraft("")}>
+              Без папки
+            </button>
+          </div>
+          <label className="field">
+            Или новая папка
+            <input maxLength={40} placeholder="Например: Свадьбы, Корпоративы, Дети" value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)} />
+          </label>
+        </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={folderDialog !== null}
+        title={folderDialog?.kind === "create" ? "Новая папка" : folderDialog?.kind === "rename" ? "Переименовать папку" : "Удалить папку?"}
+        confirmLabel={folderDialog?.kind === "create" ? "Создать" : folderDialog?.kind === "rename" ? "Сохранить" : "Удалить папку"}
+        busy={folderBusy}
+        error={folderError}
+        onConfirm={() => void runFolderDialog()}
+        onCancel={() => setFolderDialog(null)}
+      >
+        {folderDialog?.kind === "delete" ? (
+          <p>
+            Папка «{folderDialog.name}» пропадёт.{" "}
+            {folderDialog.count > 0 ? `Игры из неё (${folderDialog.count}) не удалятся — останутся без папки.` : "Она пустая."}
+          </p>
+        ) : (
+          <label className="field">
+            Название папки
+            <input maxLength={40} placeholder="Например: Свадьбы, Корпоративы, Дети" value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)} />
+          </label>
+        )}
       </ConfirmDialog>
 
       <ConfirmDialog

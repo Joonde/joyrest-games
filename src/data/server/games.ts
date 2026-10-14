@@ -36,6 +36,7 @@ export function parseGame(value: unknown): Game | null {
     content: data.content ?? null,
     createdAt: millis(data.createdAt),
     updatedAt: millis(data.updatedAt),
+    folder: asText(data.folder),
   };
 }
 
@@ -83,3 +84,23 @@ export const serverGamesRepository: GamesRepository = {
     await api("DELETE", path(gameId));
   },
 };
+
+/** Папки «Моих игр» (решение владельца 15 октября 2026) — только свой сервер. */
+export const serverGameFolders = {
+  async list(): Promise<string[]> {
+    return names(await api("GET", "/api/game-folders"));
+  },
+  async create(name: string): Promise<string[]> {
+    return names(await api("POST", "/api/game-folders", { name }));
+  },
+  async rename(from: string, to: string): Promise<string[]> {
+    return names(await api("POST", "/api/game-folders/rename", { from, to }));
+  },
+  async remove(name: string): Promise<string[]> {
+    return names(await api("POST", "/api/game-folders/delete", { name }));
+  },
+};
+
+function names(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
+}

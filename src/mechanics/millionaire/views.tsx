@@ -19,7 +19,7 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { LETTERS, levelsOf, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { LifelineIcon, MillionaireEmblem } from "./icons";
 import { showStageClass } from "../showLook";
-import { levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
+import { ladderWindow, levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
 
 export type MillionaireAnswerValue = { choice: number } | { vote: number } | { lifeline: LifelineId; n: string };
 
@@ -83,14 +83,18 @@ function LifelineTray({ content, used, active }: { content: MillionaireContent; 
 }
 
 /** Полоски команд: 12 делений, несгораемые отмечены, у той, чей ход, — подсветка. */
-export function LadderBars({ session, content, result, compact = false }: { session: Session; content: MillionaireContent; result: MillionaireResult; compact?: boolean }) {
-  return (
-    <div className={result.order.length > 8 ? "mil-bars is-many" : "mil-bars"} style={{ gridTemplateColumns: `repeat(${Math.max(1, result.order.length)}, minmax(0, 1fr))` }}>
-      {result.order.map((pid) => {
+export const SCREEN_LADDERS = 3;
+
+export function LadderBars({ session, content, result, compact = false, window: size }: { session: Session; content: MillionaireContent; result: MillionaireResult; compact?: boolean; window?: number }) {
+  const shown = size ? ladderWindow(result, size) : result.order;
+  const rest = result.order.length - shown.length;
+  const bars = (
+    <div key={size ? shown.join("|") : "all"} className={`${shown.length > 8 ? "mil-bars is-many" : "mil-bars"}${size && rest > 0 ? " is-window" : ""}`} style={{ gridTemplateColumns: `repeat(${Math.max(1, shown.length)}, minmax(0, 1fr))` }}>
+      {shown.map((pid, i) => {
         const level = result.levels[pid] ?? 0;
         const active = pid === result.turn && result.mode !== "over";
         return (
-          <div key={pid} className={`mil-bar${active ? " is-turn" : ""}${level >= levelsOf(content) ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`} style={{ ["--team" as string]: colorOf(session, result, pid) }}>
+          <div key={pid} style={{ ["--team" as string]: colorOf(session, result, pid), ["--i" as string]: i }} className={`mil-bar${active ? " is-turn" : ""}${level >= levelsOf(content) ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`}>
             <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
             <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${levelsOf(content)}`}>
               {Array.from({ length: levelsOf(content) }, (_, i) => levelsOf(content) - i).map((n) => (
@@ -109,6 +113,28 @@ export function LadderBars({ session, content, result, compact = false }: { sess
           </div>
         );
       })}
+    </div>
+  );
+  if (!size || rest <= 0) return bars;
+  const waiting = result.order.filter((p) => !shown.includes(p) && !result.out.includes(p));
+  return (
+    <div className="mil-bars-window">
+      {bars}
+      <p className="mil-bars-window__more">
+        {waiting.length > 0 ? (
+          <>
+            Дальше:{" "}
+            {waiting.map((p, i) => (
+              <span key={p}>
+                {i > 0 ? ", " : ""}
+                <NameText name={nameOf(session, p)} />
+              </span>
+            ))}
+          </>
+        ) : (
+          `Выбыли: ${rest}`
+        )}
+      </p>
     </div>
   );
 }
@@ -282,7 +308,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
       </section>
       {r.order.length > 0 && (
         <section className="mil-screen__bars" aria-label="Лестницы команд">
-          <LadderBars session={session} content={content} result={r} />
+          <LadderBars session={session} content={content} result={r} window={SCREEN_LADDERS} />
         </section>
       )}
     </div>

@@ -566,3 +566,16 @@ export function millionaireBack(session: Session, content: MillionaireContent, p
   }
   return null;
 }
+
+/**
+ * Какие полоски на экране зала: команд больше `size` — окно по кругу, с той, чья очередь (решение владельца
+ * 14 октября 2026): «Лисы, Медведи, Совы» → Лисы отходили → «Медведи, Совы, Козы». Выбывшие в окно не попадают.
+ */
+export function ladderWindow(result: MillionaireResult, size: number): string[] {
+  const { order } = result;
+  if (order.length <= size) return order;
+  const at = Math.max(0, result.turn ? order.indexOf(result.turn) : 0);
+  const ring = [...order.slice(at), ...order.slice(0, at)];
+  const live = ring.filter((p) => !result.out.includes(p));
+  return (live.length > 0 ? live : ring).slice(0, size);
+}

@@ -8749,6 +8749,43 @@ button.dance-card:active {
   height: 100%;
 }
 
+/* Больше трёх команд — на экране зала окно из трёх полосок по кругу: сменилась очередь — ленты «проезжают». */
+.mil-bars-window {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 1cqh;
+  height: 100%;
+  min-width: 0;
+}
+
+.mil-bars.is-window .mil-bar {
+  animation: mil-bar-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+}
+
+@keyframes mil-bar-in {
+  from {
+    opacity: 0;
+    transform: translateX(40%);
+  }
+}
+
+.mil-bars-window__more {
+  margin: 0;
+  font-size: 1.9cqh;
+  text-align: center;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mil-bars.is-window .mil-bar {
+    animation: none;
+  }
+}
+
 .mil-bar {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;

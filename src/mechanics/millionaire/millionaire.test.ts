@@ -28,6 +28,7 @@ import {
   wrongChoice,
   nextPlayer,
   attemptsLeft,
+  ladderWindow,
 } from "./logic";
 import { validateMillionaire } from "./validate";
 
@@ -470,5 +471,16 @@ describe("Кто хочет стать миллионером: попытки п
     expect(r.levels.A).toBe(15);
     expect(r.done).toContain("A");
     expect(s.leaderboard.A?.score).toBe(1_000_000);
+  });
+});
+
+describe("полоски на экране зала", () => {
+  it("больше трёх команд — окно из трёх по кругу с той, чья очередь; выбывшие пропускаются", () => {
+    const base = parseMillionaireResult({ order: ["fox", "bear", "owl", "goat", "dog"], turn: "fox" });
+    expect(ladderWindow(base, 3)).toEqual(["fox", "bear", "owl"]);
+    expect(ladderWindow({ ...base, turn: "bear" }, 3)).toEqual(["bear", "owl", "goat"]);
+    expect(ladderWindow({ ...base, turn: "dog" }, 3)).toEqual(["dog", "fox", "bear"]);
+    expect(ladderWindow({ ...base, turn: "owl", out: ["goat"] }, 3)).toEqual(["owl", "dog", "fox"]);
+    expect(ladderWindow(parseMillionaireResult({ order: ["a", "b"], turn: "b" }), 3)).toEqual(["a", "b"]);
   });
 });

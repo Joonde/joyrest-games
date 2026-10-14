@@ -152,7 +152,7 @@ function QuestionCard({ question, result, reveal, size = "screen", mine = null }
 }
 
 /** Звуки экрана: вопрос, «окончательный ответ», верно / неверно, подсказка — свои файлы, иначе синтез. */
-function useMillionaireSounds(session: Session, r: MillionaireResult) {
+function useMillionaireSounds(session: Session, r: MillionaireResult, top: number) {
   const { step, stage } = session.state;
   const prev = useRef<{ step: number; mode: string; outcome: string | null; flash: string | null; locked: boolean } | null>(null);
   useEffect(() => {
@@ -164,7 +164,7 @@ function useMillionaireSounds(session: Session, r: MillionaireResult) {
     if (r.outcome !== was.outcome && r.outcome) {
       if (r.outcome === "right") {
         playSample("milRight", "correct");
-        if ((r.levels[r.turn ?? ""] ?? 0) >= levelsOf(content)) playSound("fanfare");
+        if ((r.levels[r.turn ?? ""] ?? 0) >= top) playSound("fanfare");
       } else if (r.outcome === "wrong") playSample("milWrong", "wrong");
       else playSound("gong");
       return;
@@ -178,7 +178,7 @@ function useMillionaireSounds(session: Session, r: MillionaireResult) {
       return;
     }
     if (stage === "question" && r.mode === "question" && step !== was.step && !r.flash) playSample("milQuestion", "drumroll");
-  }, [step, stage, r.mode, r.outcome, r.flash, r.locked, r.levels, r.turn]);
+  }, [step, stage, r.mode, r.outcome, r.flash, r.locked, r.levels, r.turn, top]);
 }
 
 export function MillionaireScreenView({ session, content }: ViewProps<MillionaireContent>) {
@@ -190,7 +190,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   const level = levelToPlay(r, r.turn);
   const left = r.mode === "audience" ? secondsLeft(session.state, now) : null;
   useCountdownSounds(left);
-  useMillionaireSounds(session, r);
+  useMillionaireSounds(session, r, levelsOf(content));
 
   const flash = r.flash ? LIFELINES.find((l) => l.id === r.flash) : null;
   const top = r.outcome === "right" && (r.levels[r.turn ?? ""] ?? 0) >= levelsOf(content);

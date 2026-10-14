@@ -217,6 +217,11 @@ export function MillionaireHostControls({ session, content, answers, participant
                   </li>
                 ))}
               </ol>
+              {q.hint?.trim() && (
+                <p className="mil-host-hint">
+                  💡 <strong>Подсказка:</strong> {q.hint}
+                </p>
+              )}
               {q.note && <p className="muted small">{q.note}</p>}
               {stage === "question" && r.mode === "question" && r.locked && (
                 <p className="mil-host-locked">Окончательный ответ — {LETTERS[r.chosen ?? 0]}. «Назад» снимет фиксацию.</p>

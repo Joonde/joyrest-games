@@ -17,7 +17,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import { audienceRepo, type Session } from "../../data";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { LETTERS, LEVELS, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
-import { LifelineIcon } from "./icons";
+import { LifelineIcon, MillionaireEmblem } from "./icons";
 import { showStageClass } from "../showLook";
 import { levelToPlay, lifelineState, parseMillionaireResult, questionOf, type MillionaireResult } from "./logic";
 
@@ -196,13 +196,14 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   const used = r.turn ? (r.used[r.turn] ?? []) : [];
 
   return (
-    <div className={`mil-screen${audience ? " mil-screen--audience" : ""}${showStageClass(content.look)}`}>
+    <div className={`mil-screen${audience ? " mil-screen--audience" : ""}${r.order.length === 0 ? " mil-screen--intro" : ""}${showStageClass(content.look)}`}>
       {stage === "reveal" && r.outcome === "right" && <Confetti burst={`mil:${step}:${r.q}`} count={top ? 120 : 70} />}
       {stage === "reveal" && r.outcome === "right" && <span key={`glow:${step}`} className="mil-burst" aria-hidden="true" />}
       <section className="mil-screen__main">
         {r.order.length === 0 ? (
           <>
-            <span className="quiz-screen__badge">Кто хочет стать миллионером</span>
+            <MillionaireEmblem className="mil-emblem" />
+            <span className="quiz-screen__badge mil-screen__badge">Кто хочет стать миллионером</span>
             <h2 className="mil-screen__title">Скоро начнём!</h2>
             <p className="mil-screen__note">12 вопросов, у каждой команды своя лестница. Несгораемые ступени: {content.safe.join(" и ")}.</p>
           </>
@@ -264,9 +265,11 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
           </>
         ) : null}
       </section>
-      <section className="mil-screen__bars" aria-label="Лестницы команд">
-        <LadderBars session={session} content={content} result={r} />
-      </section>
+      {r.order.length > 0 && (
+        <section className="mil-screen__bars" aria-label="Лестницы команд">
+          <LadderBars session={session} content={content} result={r} />
+        </section>
+      )}
     </div>
   );
 }

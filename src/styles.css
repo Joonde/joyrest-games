@@ -8640,6 +8640,35 @@ button.dance-card:active {
   font-size: 3.2cqh;
 }
 
+/* Заставка до начала: лестниц ещё нет — всё по центру кадра. */
+.mil-screen--intro {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+}
+
+.mil-screen--intro .mil-screen__main {
+  max-width: 70cqw;
+  align-items: center;
+}
+
+.mil-emblem {
+  width: 34cqh;
+  height: 34cqh;
+  filter: drop-shadow(0 0 3cqh rgba(143, 180, 242, 0.45));
+}
+
+.mil-screen__badge {
+  align-self: center;
+}
+
+.mil-host-hint {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 12%, transparent);
+}
+
 .mil-screen__main {
   display: flex;
   flex-direction: column;
@@ -8863,13 +8892,15 @@ button.dance-card:active {
 
 .mil-tray__label {
   color: var(--color-text);
-  font-size: 2cqh;
+  font-size: 1.9cqh;
   font-weight: 600;
   line-height: 1.15;
   text-align: center;
   text-wrap: balance;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  /* Слова не рвём («Со-вет ведущего» — нельзя): переносим только между словами. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
 }
 
 .mil-tray__item.is-used {

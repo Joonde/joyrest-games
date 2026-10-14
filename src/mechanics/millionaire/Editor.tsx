@@ -175,7 +175,10 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                   <li key={q.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error" : ""}`}>
                     <button type="button" className="quest-strip__head" aria-expanded={open} onClick={() => setOpenId(open ? null : q.id)}>
                       <span className="quest-strip__n">{level}</span>
-                      <span className="quest-strip__text line-clamp">{q.text || <span className="muted">Вопрос — заполните</span>}</span>
+                      <span className="quest-strip__text line-clamp">
+                        {q.text || <span className="muted">Вопрос — заполните</span>}
+                        {q.hint?.trim() ? <span title="Есть подсказка ведущему"> 💡</span> : null}
+                      </span>
                     </button>
                     {open && (
                       <div className="stack stack--tight quest-strip__body">
@@ -196,16 +199,17 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                         ))}
                         <p className="muted small">Кружок — верный вариант (сейчас {LETTERS[q.correct]}).</p>
                         <label className="field">
+                          💡 Подсказка ведущему — для «Совета ведущего»
+                          <textarea rows={2} maxLength={MILLIONAIRE_LIMITS.hint} value={q.hint ?? ""} disabled={!editable} placeholder="Не ответ, а направление мысли. Например: вспомните, где проходила Олимпиада-80" onChange={(e) => update(q.id, { hint: e.target.value })} />
+                          <span className="muted small">Видна только на пульте под этим вопросом. Возьмут «Совет ведущего» — прочитайте или покажите на экране.</span>
+                        </label>
+                        <label className="field">
                           Ступень
                           <ClampedNumber value={q.level} min={1} max={LEVELS} fallback={level} disabled={!editable} onChange={(n) => update(q.id, { level: n })} />
                         </label>
                         <label className="field">
-                          Пояснение для ведущего (видит только пульт)
+                          Комментарий для себя (видит только пульт)
                           <input maxLength={MILLIONAIRE_LIMITS.note} value={q.note} disabled={!editable} onChange={(e) => update(q.id, { note: e.target.value })} />
-                        </label>
-                        <label className="field">
-                          Наводка для «Совета ведущего» (не ответ, а направление мысли)
-                          <input maxLength={MILLIONAIRE_LIMITS.hint} value={q.hint ?? ""} disabled={!editable} placeholder="Например: вспомните, где проходит Олимпиада-80" onChange={(e) => update(q.id, { hint: e.target.value })} />
                         </label>
                         {mine.map((e) => (
                           <p key={e.message} className="error small">

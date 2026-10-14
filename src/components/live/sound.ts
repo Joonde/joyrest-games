@@ -529,7 +529,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -548,6 +548,8 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   lobby: "/sounds/lobby-1.mp3",
   /** «Дурак»: тихий фон за столом всю партию. */
   durakTable: "/sounds/durak-table-1.mp3",
+  /** «Бой с драконом»: громко в лобби (QR, ждём гостей), тихо фоном во время боя. */
+  dragonBattle: "/sounds/dragon-battle-1.mp3",
   /** «Представить команды». */
   teamsIntro: "/sounds/teams-intro-1.mp3",
   /** Напряжение, пока открыт вопрос («Миллионер», «Своя игра»): своя музыка, создана кодом (`scripts/sounds/millionaire.py`). */
@@ -574,10 +576,12 @@ export const BUILTIN_MUSIC = {
   durakTable: [SAMPLES.durakTable, SAMPLES.durakTable].filter((u): u is string => Boolean(u)),
   thinkLow: [SAMPLES.thinkLow, SAMPLES.thinkLow].filter((u): u is string => Boolean(u)),
   thinkHigh: [SAMPLES.thinkHigh, SAMPLES.thinkHigh].filter((u): u is string => Boolean(u)),
+  dragonLobby: [SAMPLES.dragonBattle, SAMPLES.dragonBattle].filter((u): u is string => Boolean(u)),
+  dragonBattle: [SAMPLES.dragonBattle, SAMPLES.dragonBattle].filter((u): u is string => Boolean(u)),
 } as const;
 
-/** Громкость встроенной музыки момента (1 — как обычно); фон за столом — тихо, под разговор. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6 };
+/** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.28 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
@@ -864,13 +868,31 @@ async function startBuiltinTrack(fade: number): Promise<boolean> {
 export async function playBuiltinMusic(key: string, urls: string[], volume = 1): Promise<boolean> {
   // Как у playMusic: звук создан — пробуем; в касании плеер запускается сразу.
   if (!ctx || urls.length === 0) return false;
-  builtinVolume = Math.max(0, Math.min(1, volume));
-  if (builtinKey === key && decks.some((d) => !d.el.paused)) return true;
+  const level = Math.max(0, Math.min(1, volume));
+  if (builtinKey === key && decks.some((d) => !d.el.paused)) {
+    if (level !== builtinVolume) {
+      builtinVolume = level;
+      const cur = decks[builtinDeck];
+      if (cur && !cur.el.paused) rampDeck(cur, level, FADE_OUT);
+    }
+    return true;
+  }
+  // Тот же трек, другой момент (лобби → бой): музыка не обрывается, меняется только громкость.
+  const same = builtinKey !== null && urls.length === builtinList.length && urls.every((u, i) => u === builtinList[i]);
+  if (same && decks.some((d) => !d.el.paused)) {
+    builtinKey = key;
+    builtinVolume = level;
+    // Меняем громкость только у звучащего сейчас плеера (второй может затихать в наплыве).
+    const cur = decks[builtinDeck];
+    if (cur && !cur.el.paused) rampDeck(cur, level, FADE_IN);
+    return true;
+  }
   stopBuiltinMusic(1);
   // Музыка ведущего на паузе, пока звучит встроенная.
   player?.pause();
   builtinKey = key;
   builtinList = urls;
+  builtinVolume = level;
   builtinIndex = 0;
   const free = decks.findIndex((d) => d.el.paused);
   builtinDeck = free >= 0 ? free : decks.length < 2 ? decks.length : 0;

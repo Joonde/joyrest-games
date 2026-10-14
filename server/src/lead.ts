@@ -75,6 +75,8 @@ const LEAD = {
   contactMethod: { label: "Связь", max: 40, required: false, kind: "line" },
   contactLink: { label: "Контакт для связи", max: 120, required: false, kind: "line" },
   message: { label: "Комментарий", max: 2000, required: false, kind: "text" },
+  // Расчёт с калькулятора сайта (карточка «Ваш расчёт» в заявке) — отдельно от комментария.
+  calc: { label: "Расчёт", max: 1000, required: false, kind: "text" },
 } satisfies Record<string, FieldRule>;
 
 const RULES = { question: QUESTION, review: REVIEW, lead: LEAD } as const;
@@ -212,7 +214,9 @@ export function formatLead(lead: LeadData, label?: string): string {
         `${head}📩 Заявка с сайта JoyRest\n\n` +
         `Имя: ${f.name}\nТелефон: ${f.phone}\nТип мероприятия: ${or(f.eventType)}\n` +
         (lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}\n` : "") +
-        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\nКомментарий: ${or(f.message)}\nУсловия брони и работы: приняты` +
+        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\n` +
+        (f.calc ? `🧮 Расчёт: ${f.calc}\n` : "") +
+        `Комментарий: ${or(f.message)}\nУсловия брони и работы: приняты` +
         (lead.marketing ? "\nРассылка: согласен(на)" : "")
       );
     }

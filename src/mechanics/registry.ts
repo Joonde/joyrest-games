@@ -22,6 +22,7 @@ import { durak } from "./durak";
 import { createDurak } from "./durak/content";
 import { truth } from "./truth";
 import { perudo } from "./perudo";
+import { HIDDEN_MECHANICS } from "./hidden";
 import { wager } from "./wager";
 import { DEMO_WAGER } from "./wager/demo";
 import { wine } from "./wine";
@@ -78,8 +79,10 @@ const HINTS: Record<string, string> = {
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
 
-/** Механики, которые можно выбрать при создании игры. */
-export const selectableMechanics: Array<{ id: string; title: string; hint: string }> = mechanics.map((m) => ({
+export { HIDDEN_MECHANICS };
+
+/** Механики, которые можно выбрать при создании игры (без скрытых — `hidden.ts`). */
+export const selectableMechanics: Array<{ id: string; title: string; hint: string }> = mechanics.filter((m) => !HIDDEN_MECHANICS.has(m.id)).map((m) => ({
   id: m.id,
   title: m.title,
   hint: HINTS[m.id] ?? "",
@@ -115,8 +118,8 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
   return mechanic ? mechanic.mediaIds(mechanic.parse(content)) : [];
 }
 
-/** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой. */
-export const demoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
+/** Все готовые игры, включая скрытые форматы (робот-ведущий проверяет и их). */
+export const allDemoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
   {
     mechanic: quiz.id,
@@ -196,6 +199,9 @@ export const demoGames: Array<{ mechanic: string; title: string; hint: string; c
   { mechanic: story.id, title: "Давайте знакомиться", hint: "5 разделов на знакомство: истории гостей, смешные предложения со словами с бумажек, «что было дальше», две правды и ложь, 8 вопросов «кто это сказал».", content: createStory(), playMode: "teams" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
+
+/** Готовые игры для «Библиотеки JoyRest»: admin добавляет их одной кнопкой (без скрытых форматов). */
+export const demoGames = allDemoGames.filter((d) => !HIDDEN_MECHANICS.has(d.mechanic));
 
 /** «8 вопросов» или «28 песен» — смотря какая игра. */
 export function stepsLabel(mechanicId: string, content: unknown): string {

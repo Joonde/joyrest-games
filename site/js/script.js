@@ -198,15 +198,28 @@
   document.querySelectorAll('[data-event-type]').forEach((link) => {
     link.addEventListener('click', (e) => { e.preventDefault(); selectType(link.dataset.eventType); goToForm(); });
   });
-  // «Выбрать этот формат» у ведущих: вариант в заявке, «Дополнительно» раскрыто.
+  // «Выбрать этот формат» у ведущих: формат — в заявку (#hostLevel), карточка ведущего подсвечена; страница ведёт к итогу
+  // калькулятора с ценой этого ведущего, а если расчёт уже в заявке — к нему (chooseLevel ниже, в калькуляторе).
   document.querySelectorAll('[data-host-level]').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      hostLevelField.value = link.dataset.hostLevel;
       if(link.dataset.hostLevel !== 'standard') formMore.open = true;
-      goToForm();
+      chooseLevel(link.dataset.hostLevel);
+      closeMobileMenu();
+      if(sentCalc) goToCard();
+      else $('calcSummary').scrollIntoView({ behavior: smooth, block: 'center' });
     });
   });
+  // Подсветка выбранного формата у карточек ведущих.
+  function markHosts(){
+    document.querySelectorAll('[data-host-level]').forEach((link) => {
+      const on = link.dataset.hostLevel === (hostLevelField.value || 'standard');
+      link.closest('.host').classList.toggle('host--main', on);
+      link.textContent = on ? 'Выбран ✓' : 'Выбрать этот формат';
+      link.setAttribute('aria-pressed', on);
+    });
+  }
+  markHosts();
 
   // ---------- Калькулятор ----------
   const P = window.JoyPricing;
@@ -302,6 +315,9 @@
   const DAY_LABEL = (wk) => wk ? 'пятница–воскресенье' : 'будни';
   function durationText(h){ return `≈ ${P.hh(h.min)}–${P.hh(h.max)} ${P.hoursWord(h.max)}`; }
   let lastResult = null;
+  // Расчёт в заявке (карточка «Ваш расчёт»): { opts, text } или null. Пока он есть — карточка обновляется сама.
+  let sentCalc = null;
+  let autoGuests = ''; // число гостей, которое вписал калькулятор
 
   function update(){
     const ti = tierIndex();
@@ -330,8 +346,10 @@
     $('calcIndiv').hidden = !r.individual;
     $('calcLevels').hidden = r.individual;
     $('calcDuration').hidden = r.individual;
-    $('calcLevels').innerHTML = r.totals.map((t, i) =>
-      `<div class="level${i === 0 ? ' level--top' : ''}"><span class="level__name">${esc(t.name)}</span><span class="level__badge">${esc(t.badge)}</span><span class="level__price">${money(t.price)}</span></div>`).join('');
+    // Три цены — кнопки: касание выбирает формат ведущего (то же поле, что в заявке), выбранный подсвечен.
+    const level = hostLevelField.value || 'standard';
+    $('calcLevels').innerHTML = r.totals.map((t) =>
+      `<button type="button" class="level${t.id === level ? ' level--top' : ''}" data-level="${esc(t.id)}" aria-pressed="${t.id === level}"><span class="level__name">${esc(t.name)}</span><span class="level__badge">${esc(t.badge)}</span><span class="level__price">${money(t.price)}</span></button>`).join('');
     let text;
     if(r.reason === 'turnkey') text = 'Под ключ — соберём программу под ваш повод';
     else if(r.reason === 'guests') text = 'Больше 90 гостей — подберём ведущих и программу';
@@ -348,10 +366,12 @@
     r.lines.filter((l) => l.fixed).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
     $('calcLines').innerHTML = lines.map(([k, v]) => `<li><span>${esc(k)}</span><span>${v}</span></li>`).join('');
     // Полоска итога внизу экрана телефона
-    $('calcBar').innerHTML = r.individual
+    $('calcBarSum').innerHTML = r.individual
       ? '<span class="mbar__dur">Итог расчёта</span><span class="mbar__indiv">Обсудим индивидуально</span>'
       : `<span class="mbar__dur">Вечер ${esc(durationText(r.hours).replace(' часа', ' ч').replace(' часов', ' ч'))} · итог с каким ведущим</span>` +
-        r.totals.map((t) => `<span class="mbar__lv"><span class="mbar__name">${esc(t.name)}</span><span class="mbar__price">${money(t.price)}</span></span>`).join('');
+        r.totals.map((t) => `<span class="mbar__lv${t.id === level ? ' is-on' : ''}"><span class="mbar__name">${esc(t.name)}</span><span class="mbar__price">${money(t.price)}</span></span>`).join('');
+    // Расчёт уже в заявке — обновляем его вместе с калькулятором, чтобы в заявку не ушла старая цена.
+    if(sentCalc) attachCalc(calcOpts(), false);
   }
   update();
   // Полоска итога на телефоне и планшете: видна, пока калькулятор на экране, а полный итог — нет.
@@ -363,26 +383,150 @@
     new IntersectionObserver((e) => { sumVisible = e[0].isIntersecting; sync(); }, { threshold: 0.15 }).observe($('calcSummary'));
   }
 
-  // «Отправить расчёт в заявку»: всё выбранное и три итога — в комментарий, пакет — в «Тип мероприятия».
-  $('calcSubmit').addEventListener('click', () => {
-    const r = lastResult;
-    const pkg = P.pkgById(calc.pkg);
-    const parts = [calc.pkg === P.TURNKEY.id ? 'Под ключ' : `Пакет «${pkg.name}»`,
-      calc.tier < P.TIERS.length ? `до ${P.TIERS[calc.tier]} гостей` : 'больше 90 гостей', DAY_LABEL(calc.weekend)];
-    const ex = extrasList().map((id) => P.pkgById(id).name);
-    if(ex.length) parts.push('ещё в этот вечер: ' + ex.join(', '));
-    if(calc.ext > 0) parts.push('продление ' + P.EXTENSIONS[calc.ext].label.replace('+', ''));
-    const ad = P.ADDONS.filter((a) => calc.addons[a.id]).map((a) => a.label);
-    if(ad.length) parts.push('допы: ' + ad.join(', '));
-    const total = r.individual ? 'обсудим индивидуально'
-      : r.totals.map((t) => `${t.name} — ${money(t.price)}`).join(', ') + `; вечер ${durationText(r.hours)}`;
-    const summary = `Расчёт с калькулятора: ${parts.join(', ')}. Итого: ${total}.`.replace(/ /g, ' ');
-    const messageField = $('message');
-    messageField.value = (messageField.value ? messageField.value + '\n' : '') + summary;
-    selectType(calc.pkg === P.TURNKEY.id ? 'Под ключ' : `Пакет «${pkg.name}»`);
-    if(calc.tier < P.TIERS.length && !$('guests').value) $('guests').value = P.TIERS[calc.tier];
-    goToForm();
+  // «Отправить расчёт в заявку» (кнопка итога и «В заявку» в полоске телефона): карточка «Ваш расчёт» над
+  // комментарием, пакет — в «Тип мероприятия», гости — в поле. Пока расчёт в заявке, он обновляется вместе с
+  // калькулятором. Касание цены в карточке выбирает формат ведущего. Расчёт помнит телефон (jr-calc), после
+  // отправки заявки — забывает. В /api/lead уходит полем calc.
+  const CALC_KEY = 'jr-calc';
+  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
+  function saveCalc(opts){
+    try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
+  }
+
+  // Уведомление сверху экрана (под шапкой), с необязательной кнопкой.
+  let toastTimer = 0;
+  function topToast(text, action, onAction, ms){
+    const box = $('topToast');
+    const btn = $('topToastAction');
+    $('topToastText').textContent = text;
+    btn.hidden = !action;
+    btn.textContent = action || '';
+    btn.onclick = action ? () => { hideToast(); onAction(); } : null;
+    box.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, ms || 3500);
+  }
+  function hideToast(){ clearTimeout(toastTimer); $('topToast').hidden = true; }
+
+  function markLevel(){
+    $('calcCardTotals').querySelectorAll('.calc-card__lv').forEach((b) => {
+      const on = b.dataset.level === hostLevelField.value;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', on);
+    });
+  }
+  function renderCalcCard(s){
+    $('calcCardType').textContent = s.type;
+    $('calcCardParts').textContent = s.parts.join(' · ');
+    const list = $('calcCardTotals');
+    list.textContent = '';
+    if(s.totals){
+      P.LEVELS.forEach((l, i) => {
+        const li = el('li', 'calc-card__row');
+        const b = el('button', 'calc-card__lv');
+        b.type = 'button';
+        b.dataset.level = l.id;
+        const name = el('span');
+        name.textContent = l.name + (l.badge ? ' ' + l.badge : '');
+        const price = el('strong');
+        price.textContent = money(s.totals[i].price);
+        b.append(name, price);
+        b.addEventListener('click', () => chooseLevel(l.id));
+        li.append(b);
+        list.append(li);
+      });
+      markLevel();
+    }else{
+      const li = el('li');
+      li.textContent = 'Стоимость обсудим индивидуально';
+      list.append(li);
+    }
+    $('calcCardHint').hidden = !s.totals;
+    $('calcCardDur').textContent = 'Вечер ' + s.duration;
+  }
+  function setLinked(on){
+    $('calcCard').hidden = !on;
+    $('calcLink').hidden = on;
+    $('calcLinked').hidden = !on;
+    $('calcSubmit').textContent = on ? 'Перейти к заявке' : 'Отправить расчёт в заявку';
+    $('calcBar').classList.toggle('is-linked', on);
+    $('calcBarSend').textContent = on ? 'В заявке ✓ · открыть' : 'В заявку';
+  }
+  // Поставить расчёт в заявку (или обновить его); fill — заодно тип мероприятия и гости.
+  function attachCalc(opts, fill){
+    const s = P.calcSummary(opts);
+    sentCalc = { opts, text: s.text };
+    renderCalcCard(s);
+    setLinked(true);
+    saveCalc(opts);
+    selectType(s.type);
+    // Гостей вписываем, если поле пустое или там число от прошлого расчёта (своё число человека не трогаем).
+    const guestsField = $('guests');
+    if(s.guests && (fill || guestsField.value === autoGuests) && (!guestsField.value || guestsField.value === autoGuests)){
+      guestsField.value = s.guests;
+      autoGuests = String(s.guests);
+    }
+    return s;
+  }
+  function clearCalcCard(){
+    sentCalc = null;
+    setLinked(false);
+    saveCalc(null);
+  }
+  // К карточке в заявке: видно расчёт, клавиатура не открывается и не закрывает его.
+  function goToCard(){
+    closeMobileMenu();
+    $('calcCard').scrollIntoView({ behavior: smooth, block: 'center' });
+  }
+  function sendCalc(){
+    if(sentCalc){ goToCard(); return; }
+    attachCalc(calcOpts(), true);
+    goToCard();
+    topToast('Расчёт добавлен в заявку ✓');
+  }
+  $('calcSubmit').addEventListener('click', sendCalc);
+  $('calcBarSend').addEventListener('click', sendCalc);
+  $('calcCardEdit').addEventListener('click', () => {
+    $('calculator').scrollIntoView({ behavior: smooth, block: 'start' });
+    topToast('Меняйте выбор — расчёт в заявке обновится сам');
   });
+  $('calcCardRemove').addEventListener('click', () => {
+    const was = sentCalc && sentCalc.opts;
+    clearCalcCard();
+    topToast('Расчёт убран из заявки', 'Вернуть', () => { if(was){ attachCalc(was, false); topToast('Расчёт снова в заявке ✓'); } }, 6000);
+  });
+  // Формат ведущего: касание цены в итоге калькулятора или в карточке, выбор в заявке, «Выбрать этот формат» у ведущих —
+  // одно поле #hostLevel; калькулятор и карточка подсвечивают выбранный.
+  function chooseLevel(id){
+    const l = P.LEVELS.find((x) => x.id === id);
+    if(!l) return;
+    hostLevelField.value = id;
+    update();
+    markLevel();
+    markHosts();
+    topToast('Ведущий: ' + l.name + (l.badge ? ' ' + l.badge : '') + (sentCalc ? ' — в заявке' : ''));
+  }
+  $('calcLevels').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-level]');
+    if(b) chooseLevel(b.dataset.level);
+  });
+  hostLevelField.addEventListener('change', () => { update(); markLevel(); markHosts(); });
+  // Сохранённый расчёт: вернуть выбор калькулятора и карточку (неизвестные пакеты и допы отбрасываются).
+  (() => {
+    let saved = null;
+    try{ saved = JSON.parse(localStorage.getItem(CALC_KEY) || 'null'); }catch(_){ saved = null; }
+    if(!saved || typeof saved !== 'object') return;
+    const known = (id) => id === P.TURNKEY.id || !!P.pkgById(id);
+    if(typeof saved.pkg !== 'string' || !known(saved.pkg)) return;
+    const tier = Number.isInteger(saved.tier) && saved.tier >= 0 && saved.tier <= P.TIERS.length ? saved.tier : 0;
+    const ext = Number.isInteger(saved.ext) && P.EXTENSIONS[saved.ext] ? saved.ext : 0;
+    calc.pkg = saved.pkg; calc.tier = tier; calc.weekend = saved.weekend === true; calc.ext = ext;
+    calc.extras = {}; calc.addons = {};
+    (Array.isArray(saved.extras) ? saved.extras : []).forEach((id) => { if(typeof id === 'string' && P.pkgById(id) && id !== calc.pkg) calc.extras[id] = true; });
+    (Array.isArray(saved.addons) ? saved.addons : []).forEach((id) => { if(P.ADDONS.some((a) => a.id === id)) calc.addons[id] = true; });
+    attachCalc(calcOpts(), false);
+    update();
+  })();
 
   // ---------- Обзор игр: фильтр разделов и «Показать ещё» ----------
   const LIMIT = 9;
@@ -529,11 +673,34 @@
       contactMethod: $('contactMethod').value,
       contactLink: $('contactLink').value.trim(),
       message: $('message').value.trim(),
+      calc: sentCalc ? sentCalc.text : '',
       hostLevel: hostLevelField.value,
       terms: document.getElementById('termsAccept').checked,
       deposit: document.getElementById('depositAccept').checked,
       marketing: document.getElementById('marketingAccept').checked,
     }, $('formNote'), $('formError'));
-    if(ok) this.reset();
+    if(ok){ this.reset(); clearCalcCard(); update(); markHosts(); }
   });
+
+  /* Промо-ролик: превью в «Обзоре игр» открывает плеер поверх страницы. Видео грузится только сейчас
+     (preload="none"); обложка — та же картинка превью (атрибут poster сборка не переписывает). */
+  const promoOpen = $('promoOpen'), promoModal = $('promoModal'), promoVideo = $('promoVideo');
+  if(promoOpen && promoModal && promoVideo){
+    const closePromo = () => {
+      if(promoModal.hidden) return;
+      promoVideo.pause(); promoModal.hidden = true; document.body.style.overflow = ''; promoOpen.focus();
+    };
+    promoOpen.addEventListener('click', () => {
+      const poster = $('promoPoster');
+      if(poster && !promoVideo.poster) promoVideo.poster = poster.currentSrc || poster.src;
+      promoModal.hidden = false; document.body.style.overflow = 'hidden';
+      try{ promoVideo.currentTime = 0; }catch(e){}
+      const p = promoVideo.play(); if(p && p.catch) p.catch(() => {});
+      $('promoClose').focus();
+    });
+    $('promoClose').addEventListener('click', closePromo);
+    promoModal.addEventListener('click', (e) => { if(e.target === promoModal) closePromo(); });
+    promoVideo.addEventListener('ended', closePromo);
+    document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closePromo(); });
+  }
 })();

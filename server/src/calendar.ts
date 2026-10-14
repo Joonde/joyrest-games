@@ -150,9 +150,12 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
         values (${input.id}, ${user.id}, ${input.day}, ${input.start}, ${input.end}, ${kind}, ${input.note}, ${user.id})
         on conflict (id) do update set day = excluded.day, start_min = excluded.start_min, end_min = excluded.end_min,
           kind = excluded.kind, note = excluded.note, updated_at = now()
+          where availability.user_id = excluded.user_id and availability.kind <> 'booked'
         returning id, user_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, kind, note`;
+      // Строки нет — запись с этим id успела стать чужой или закреплённой (одновременный запрос).
+      if (!row) return fail(reply, 403, "permission-denied");
       request.log.info({ calendar: "save" }, "calendar");
-      return row ? entryOf(row) : fail(reply, 500, "internal");
+      return entryOf(row);
     });
 
     // Владелец закрепляет время за человеком: у того это время становится занятым.
@@ -172,9 +175,11 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
         values (${input.id}, ${uid}, ${input.day}, ${input.start}, ${input.end}, 'booked', ${input.note}, ${user.id})
         on conflict (id) do update set day = excluded.day, start_min = excluded.start_min, end_min = excluded.end_min,
           note = excluded.note, updated_at = now()
+          where availability.kind = 'booked' and availability.user_id = excluded.user_id
         returning id, user_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, kind, note`;
+      if (!row) return fail(reply, 409, "already-exists");
       request.log.info({ calendar: "book" }, "calendar");
-      return row ? entryOf(row) : fail(reply, 500, "internal");
+      return entryOf(row);
     });
 
     api.delete<{ Params: { id: string } }>("/api/calendar/:id", { bodyLimit: 1024 }, async (request, reply) => {

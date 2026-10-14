@@ -4,7 +4,7 @@
 // гость (в командах — капитан) раскладывает свои фишки `{ chips: { "country:Италия": 2, ... } }` → пульт пишет на
 // экран, сколько фишек на каждой ячейке → «Открыть бутылку»: паспорт вина на экране, фишка на верной ячейке —
 // цена фишки × коэффициент категории → «Следующая бутылка» … → награждение. «Назад» — с каждого этапа.
-import { leaderboardAdditions } from "../../core/leaderboard";
+import { leaderboardAdditions, scoreChange } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
@@ -169,8 +169,7 @@ export function openBottle(session: Session, content: WineContent, answers: Answ
   const change: SessionChange = {
     state: { stage: "reveal", revealed: true, timeLimit: null, result: write({ ...r, mode: "open", chips: totalChips(bets), bettors: Object.keys(bets), payouts, changeable: false }) },
   };
-  if (Object.keys(payouts).length > 0) change.addScore = payouts;
-  return change;
+  return { ...change, ...scoreChange(session.leaderboard, payouts) };
 }
 
 /** «Следующая бутылка» — её заставка. */
@@ -199,6 +198,5 @@ export function wineBack(session: Session): WineBack | null {
   if (r.mode === "bet") return { change: { state: { step: step - 1, stage: "ready", revealed: false, startedAt: null, timeLimit: null, answered: 0, result: write(fresh(r.w, r.prev, r.year)) } }, clear: [step] };
   const minus = Object.fromEntries(Object.entries(r.payouts).map(([p, n]) => [p, -n]));
   const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "bet", payouts: {}, changeable: true }) } };
-  if (Object.keys(minus).length > 0) change.addScore = minus;
-  return { change };
+  return { change: { ...change, ...scoreChange(session.leaderboard, minus) } };
 }

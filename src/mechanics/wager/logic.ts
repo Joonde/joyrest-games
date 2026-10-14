@@ -7,7 +7,7 @@
 // выигрывает догадка ближе всех, но не больше правды (все больше — «меньше всех» 6:1); фишка на ней — chipPoints ×
 // коэффициент, свои очки на ней — ×коэффициент, на других ячейках свои очки сгорают; автору верной догадки —
 // authorBonus → «Следующий вопрос» … → награждение. «Назад» — с каждого этапа (очки снимаются).
-import { leaderboardAdditions } from "../../core/leaderboard";
+import { leaderboardAdditions, scoreChange } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
@@ -254,8 +254,7 @@ export function revealAnswer(session: Session, content: WagerContent, answers: A
   const change: SessionChange = {
     state: { stage: "reveal", revealed: true, timeLimit: null, result: write({ ...r, mode: "answer", bets, chips: chipCounts(bets), win, payouts, changeable: false }) },
   };
-  if (Object.keys(payouts).length > 0) change.addScore = payouts;
-  return change;
+  return { ...change, ...scoreChange(session.leaderboard, payouts) };
 }
 
 /** «Следующий вопрос»: заставка следующего (шаг тот же — новый шаг даст «Показать вопрос»). */
@@ -290,6 +289,5 @@ export function wagerBack(session: Session, content: WagerContent): WagerBack | 
   }
   const minus = Object.fromEntries(Object.entries(r.payouts).map(([p, n]) => [p, -n]));
   const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...r, mode: "bet", win: null, payouts: {}, bets: {}, changeable: true }) } };
-  if (Object.keys(minus).length > 0) change.addScore = minus;
-  return { change };
+  return { change: { ...change, ...scoreChange(session.leaderboard, minus) } };
 }

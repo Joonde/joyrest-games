@@ -1,5 +1,6 @@
-import type { Leaderboard, LeaderboardEntry, Participant, PlayMode } from "../data/types";
+import type { Leaderboard, LeaderboardEntry, Participant, PlayMode, SessionChange } from "../data/types";
 import { NAME_MAX_LENGTH } from "./names";
+import { MAX_SCORE_DELTA } from "./session";
 
 /**
  * Кто должен быть в таблице лидеров: в режиме solo — игроки, в режиме teams — команды.
@@ -128,4 +129,20 @@ export function captainChanges(participants: Participant[], now: number): Record
     if (next && next.id !== team.captainUid) changes[team.id] = next.id;
   }
   return changes;
+}
+
+/**
+ * Изменение очков для `SessionChange`: прибавкой (`addScore`), а если хоть одна сумма больше лимита
+ * прибавки сервера (`MAX_SCORE_DELTA`) — записью таблицы целиком (иначе сервер отклонит всё изменение).
+ */
+export function scoreChange(leaderboard: Leaderboard, deltas: Record<string, number>): Pick<SessionChange, "addScore" | "leaderboard"> {
+  const nonzero = Object.fromEntries(Object.entries(deltas).filter(([, n]) => n !== 0 && Number.isFinite(n)));
+  if (Object.keys(nonzero).length === 0) return {};
+  if (Object.values(nonzero).every((n) => Math.abs(n) <= MAX_SCORE_DELTA)) return { addScore: nonzero };
+  const board: Record<string, LeaderboardEntry> = {};
+  for (const [p, n] of Object.entries(nonzero)) {
+    const entry = leaderboard[p];
+    if (entry) board[p] = { ...entry, score: entry.score + n, last: n };
+  }
+  return { leaderboard: board };
 }

@@ -6,6 +6,7 @@ import {
   leaderboardAdditions,
   placeOf,
   rankedLeaderboard,
+  scoreChange,
   scoringParticipants,
   sortedLeaderboard,
   uniqueName,
@@ -130,5 +131,19 @@ describe("смена капитана", () => {
 
   it("в команде один капитан — менять не на кого", () => {
     expect(captainChanges([t, phone("c1", 1, 0)], now)).toEqual({});
+  });
+});
+
+describe("scoreChange", () => {
+  const board = { a: { name: "А", kind: "team" as const, score: 500_000 }, b: { name: "Б", kind: "team" as const, score: 10 } };
+  it("обычные суммы — прибавкой, нули отбрасываются", () => {
+    expect(scoreChange(board, { a: 100, b: 0 })).toEqual({ addScore: { a: 100 } });
+    expect(scoreChange(board, {})).toEqual({});
+  });
+  it("сумма больше лимита сервера — записью таблицы целиком", () => {
+    expect(scoreChange(board, { a: 150_000, b: 5 })).toEqual({
+      leaderboard: { a: { name: "А", kind: "team", score: 650_000, last: 150_000 }, b: { name: "Б", kind: "team", score: 15, last: 5 } },
+    });
+    expect(scoreChange(board, { a: -150_000 }).leaderboard?.a?.score).toBe(350_000);
   });
 });

@@ -680,4 +680,26 @@
     }, $('formNote'), $('formError'));
     if(ok){ this.reset(); clearCalcCard(); update(); markHosts(); }
   });
+
+  /* Промо-ролик: превью в «Обзоре игр» открывает плеер поверх страницы. Видео грузится только сейчас
+     (preload="none"); обложка — та же картинка превью (атрибут poster сборка не переписывает). */
+  const promoOpen = $('promoOpen'), promoModal = $('promoModal'), promoVideo = $('promoVideo');
+  if(promoOpen && promoModal && promoVideo){
+    const closePromo = () => {
+      if(promoModal.hidden) return;
+      promoVideo.pause(); promoModal.hidden = true; document.body.style.overflow = ''; promoOpen.focus();
+    };
+    promoOpen.addEventListener('click', () => {
+      const poster = $('promoPoster');
+      if(poster && !promoVideo.poster) promoVideo.poster = poster.currentSrc || poster.src;
+      promoModal.hidden = false; document.body.style.overflow = 'hidden';
+      try{ promoVideo.currentTime = 0; }catch(e){}
+      const p = promoVideo.play(); if(p && p.catch) p.catch(() => {});
+      $('promoClose').focus();
+    });
+    $('promoClose').addEventListener('click', closePromo);
+    promoModal.addEventListener('click', (e) => { if(e.target === promoModal) closePromo(); });
+    promoVideo.addEventListener('ended', closePromo);
+    document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closePromo(); });
+  }
 })();

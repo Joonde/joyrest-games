@@ -43,6 +43,12 @@
   </form>
 </div>
 
+<div class="vmodal" id="promoModal" role="dialog" aria-modal="true" aria-label="Ролик ДжойРест: все форматы за 30 секунд" hidden>
+  <div class="vmodal__box">
+    <video id="promoVideo" playsinline controls preload="none"><source src="img/promo.mp4" type="video/mp4"></video>
+    <button type="button" class="vmodal__close" id="promoClose" aria-label="Закрыть ролик">✕</button>
+  </div>
+</div>
 <div class="modal" id="ruleModalOverlay" role="dialog" aria-modal="true" aria-labelledby="ruleModalTitle">
   <div class="modal__box">
     <button type="button" class="modal__close" id="ruleModalClose" aria-label="Закрыть">✕</button>
@@ -305,6 +311,11 @@
       <p class="eyebrow">Обзор игр</p>
       <h2>Выберите, во что играть</h2>
       <p class="sub">33 игры JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
+      <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
+      <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
+        <span class="promo__thumb"><img src="img/promo-poster.webp" width="360" height="640" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
+        <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
+      </button>
       <div class="filters" role="group" aria-label="Фильтр игр">
         <button type="button" class="filter is-on" data-filter="all" aria-pressed="true">Все игры<span class="filter__n">33</span></button>
         <button type="button" class="filter" data-filter="phone" aria-pressed="false">С телефонов<span class="filter__n">17</span></button>

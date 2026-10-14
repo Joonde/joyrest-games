@@ -177,6 +177,10 @@ body[data-service-venue="on"] [data-unless="venue"]{ display: none !important; }
 .lead{ margin: 22px 0 0; max-width: 46ch; color: var(--ink-soft); }
 .lead b{ color: var(--accent-text); font-weight: 500; }
 .hero__ctas{ display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+/* Короткая строка под кнопками: два главных отличия от других (решение владельца 14 октября 2026). */
+.hero__points{ display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 18px 0 0; padding: 0; list-style: none; font-size: 15px; color: var(--ink-soft); }
+.hero__points li{ display: flex; align-items: center; gap: 8px; }
+.hero__points li::before{ content: "✦"; font-size: 11px; color: var(--accent-text); }
 .glass{ padding: 8px 28px; border-radius: 24px; border: 1px solid var(--line); background: var(--glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--shadow); }
 .hero__side{ animation: rise .9s cubic-bezier(.22,1,.36,1) .4s both; }
 .side-label{ color: var(--ink-soft); font-size: 14px; margin: 0; }

@@ -5,7 +5,7 @@
  * У ведущего время мероприятия занято в календаре. Чистые функции: их же проверяет сервер.
  */
 import type { AgencyEvent } from "../data/types";
-import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, todayMoscow, validTime } from "./calendar";
+import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, endAfter, MAX_END, TIME_STEP, todayMoscow, validTime } from "./calendar";
 
 export const EVENT_LIMITS = { client: 100, phone: 40, title: 100, place: 200, note: 500, guestsMax: 10_000 } as const;
 
@@ -126,6 +126,8 @@ export interface TimelineItem {
   bottom: number;
   lane: number;
   lanes: number;
+  /** Номер группы пересекающихся мероприятий (в одной группе — общая высота колонок). */
+  group: number;
 }
 
 /**
@@ -136,15 +138,20 @@ export function timelineOf(events: AgencyEvent[], day: string): TimelineItem[] {
   const d = dayIndex(day) ?? 0;
   const items = eventsOfDay(events, day).map((event) => {
     const shift = (dayIndex(event.day) ?? d) === d ? 0 : -DAY_MINUTES;
-    return { event, top: Math.max(0, event.start + shift), bottom: event.end + shift, lane: 0, lanes: 1 };
+    return { event, top: Math.max(0, event.start + shift), bottom: event.end + shift, lane: 0, lanes: 1, group: 0 };
   });
   items.sort((a, b) => a.top - b.top || b.bottom - a.bottom);
   // Группы пересекающихся: внутри группы — жадно по колонкам.
   let group: TimelineItem[] = [];
   let groupEnd = -1;
+  let groupNo = 0;
   const flush = () => {
     const n = Math.max(1, ...group.map((g) => g.lane + 1));
-    for (const g of group) g.lanes = n;
+    for (const g of group) {
+      g.lanes = n;
+      g.group = groupNo;
+    }
+    groupNo += 1;
     group = [];
   };
   for (const item of items) {
@@ -184,4 +191,177 @@ export function weekStart(day: string): string {
 export function sortEvents(events: AgencyEvent[], newestFirst: boolean): AgencyEvent[] {
   const key = (e: AgencyEvent) => (dayIndex(e.day) ?? 0) * DAY_MINUTES + e.start;
   return [...events].sort((a, b) => (newestFirst ? key(b) - key(a) : key(a) - key(b)));
+}
+
+export interface TimelineCluster {
+  group: number;
+  top: number;
+  bottom: number;
+  items: TimelineItem[];
+}
+
+/**
+ * Группы, где одновременно больше `maxLanes` мероприятий: на узком экране колонки стали бы нечитаемыми,
+ * поэтому такая группа рисуется одной плашкой «5 мероприятий» со списком (касание — все карточки).
+ */
+export function crowdedClusters(items: TimelineItem[], maxLanes: number): TimelineCluster[] {
+  const byGroup = new Map<number, TimelineItem[]>();
+  for (const it of items) byGroup.set(it.group, [...(byGroup.get(it.group) ?? []), it]);
+  const out: TimelineCluster[] = [];
+  for (const [group, list] of byGroup) {
+    if ((list[0]?.lanes ?? 1) <= maxLanes) continue;
+    out.push({ group, top: Math.min(...list.map((i) => i.top)), bottom: Math.max(...list.map((i) => i.bottom)), items: list });
+  }
+  return out.sort((a, b) => a.top - b.top);
+}
+
+// ───────────── Быстрое заполнение формы ─────────────
+
+/** Готовое время одним касанием. */
+export const TIME_PRESETS: Array<{ start: number; end: number }> = [
+  { start: 18 * 60, end: 23 * 60 },
+  { start: 19 * 60, end: 24 * 60 },
+  { start: 17 * 60, end: 22 * 60 },
+  { start: 12 * 60, end: 16 * 60 },
+  { start: 15 * 60, end: 20 * 60 },
+];
+
+/** Длительность от начала (часы). */
+export const DURATIONS = [2, 3, 4, 5, 6];
+
+/** Число гостей одним касанием — ступени пакетов сайта. */
+export const GUEST_PRESETS = [15, 25, 45, 60, 90];
+
+/** Конец через `hours` часов от начала (не позже 06:00 следующего дня). */
+export function endIn(start: number, hours: number): number {
+  return Math.min(start + hours * 60, MAX_END);
+}
+
+export interface LeadFill {
+  clientName?: string;
+  clientPhone?: string;
+  title?: string;
+  day?: string;
+  start?: number;
+  end?: number;
+  guests?: number;
+  place?: string;
+  note?: string;
+}
+
+const MONTH_STEMS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+function field(text: string, names: string[]): string {
+  for (const name of names) {
+    const m = new RegExp(`(?:^|\\n)\\s*${name}\\s*[:：]\\s*(.+)`, "i").exec(text);
+    const v = m?.[1]?.trim();
+    if (v && v !== "—" && v !== "-") return v;
+  }
+  return "";
+}
+
+/** Ближайшая дата с этим днём и месяцем (сегодня или позже), если год не указан. */
+function upcoming(day: number, month: number, year: number | null, today: string): string | null {
+  const ty = Number(today.slice(0, 4));
+  for (const y of year !== null ? [year < 100 ? 2000 + year : year] : [ty, ty + 1]) {
+    const iso = `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    if (dayIndex(iso) === null) continue;
+    if (year !== null || iso >= today) return iso;
+  }
+  return null;
+}
+
+const round15 = (m: number) => Math.round(m / TIME_STEP) * TIME_STEP;
+
+/**
+ * Разбор текста заявки (сообщение с сайта в Telegram, переписка, заметка): имя, телефон, что за
+ * мероприятие, дата, время, гости, место, комментарий. Всё, что не нашлось, остаётся пустым.
+ */
+export function parseLeadText(text: string, today: string): LeadFill {
+  const t = text.replace(/\r/g, "");
+  const out: LeadFill = {};
+  const name = field(t, ["Имя", "Клиент", "Заказчик", "Контакт"]);
+  if (name) out.clientName = cleanText(name, EVENT_LIMITS.client);
+  const phone = /(?:\+7|8)[\s\-()]*\d{3}[\s\-()]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}/.exec(t)?.[0];
+  if (phone) out.clientPhone = cleanPhone(phone);
+  const type = field(t, ["Тип мероприятия", "Мероприятие", "Повод", "Формат"]);
+  const known = EVENT_TITLES.find((title) => new RegExp(title.slice(0, Math.max(5, title.length - 2)), "i").test(type || t));
+  if (type) out.title = cleanText(type, EVENT_LIMITS.title);
+  else if (known) out.title = known;
+  else if (/(?:^|[^а-яё])др(?:[^а-яё]|$)|день рожд/i.test(t)) out.title = "День рождения";
+  const guests = field(t, ["Гостей", "Гости", "Количество гостей"]);
+  const g = /(\d{1,4})/.exec(guests)?.[1] ?? /(\d{1,4})\s*(?:гост|чел)/i.exec(t)?.[1] ?? /(?:гост[а-я]*|человек|чел\.?)\s*(\d{1,4})/i.exec(t)?.[1];
+  if (g && Number(g) > 0 && Number(g) <= EVENT_LIMITS.guestsMax) out.guests = Number(g);
+  const place = field(t, ["Где", "Место", "Адрес", "Площадка", "Район"]);
+  if (place) out.place = cleanText(place, EVENT_LIMITS.place);
+  const note = field(t, ["Комментарий", "Пожелания", "Заметка"]);
+  if (note) out.note = cleanText(note, EVENT_LIMITS.note);
+  // Дата: 2026-10-15, 15.10.2026, 15.10, «15 октября».
+  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  // «15.10» и «15.10.2026», но не время «18.00» и не часть другого числа.
+  let dotted: RegExpExecArray | null = null;
+  for (const m of t.matchAll(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g)) {
+    const before = t[(m.index ?? 0) - 1] ?? "";
+    const after = t[(m.index ?? 0) + m[0].length] ?? "";
+    const month = Number(m[2]);
+    if (/[\d:.]/.test(before) || /[\d:]/.test(after) || month < 1 || month > 12 || Number(m[1]) < 1 || Number(m[1]) > 31) continue;
+    dotted = m as RegExpExecArray;
+    break;
+  }
+  const worded = /(\d{1,2})\s+(янв|фев|мар|апр|ма[яй]|июн|июл|авг|сен|окт|ноя|дек)[а-я]*(?:\s+(\d{4}))?/i.exec(t);
+  let day: string | null = null;
+  if (iso && dayIndex(iso[0]) !== null) day = iso[0];
+  else if (worded) {
+    const stem = worded[2]!.toLowerCase().replace("май", "мая");
+    const month = MONTH_STEMS.findIndex((m) => stem.startsWith(m.slice(0, 3))) + 1;
+    if (month > 0) day = upcoming(Number(worded[1]), month, worded[3] ? Number(worded[3]) : null, today);
+  } else if (dotted) day = upcoming(Number(dotted[1]), Number(dotted[2]), dotted[3] ? Number(dotted[3]) : null, today);
+  if (day) out.day = day;
+  // Время: 18:00–23:00, 18.00-23.00, «с 18 до 23».
+  const range = /(\d{1,2})[:.](\d{2})\s*(?:[–—-]|до)\s*(\d{1,2})[:.](\d{2})/.exec(t) ?? null;
+  const words = /с\s*(\d{1,2})(?:[:.](\d{2}))?\s*до\s*(\d{1,2})(?:[:.](\d{2}))?/i.exec(t);
+  const r = range ?? words;
+  if (r) {
+    const s = Number(r[1]) * 60 + Number(r[2] ?? 0);
+    const e = Number(r[3]) * 60 + Number(r[4] ?? 0);
+    if (Number(r[1]) < 24 && Number(r[3]) <= 24) {
+      const start = round15(s) % DAY_MINUTES;
+      const end = Math.min(MAX_END, endAfter(start, round15(e) % DAY_MINUTES || 0));
+      if (validTime(start, end)) {
+        out.start = start;
+        out.end = end;
+      }
+    }
+  } else {
+    const single = /(?:в|начало|с)\s*(\d{1,2})[:.](\d{2})/i.exec(t);
+    if (single && Number(single[1]) < 24) {
+      const start = round15(Number(single[1]) * 60 + Number(single[2])) % DAY_MINUTES;
+      out.start = start;
+      out.end = endIn(start, 4);
+    }
+  }
+  return out;
+}
+
+/** Заявка клиента из базы площадок → поля мероприятия. */
+export function fillFromRequest(r: { name: string; phone: string; eventType: string; date: string; from: string; to: string; guests: number | null; district: string; comment: string }): LeadFill {
+  const out: LeadFill = {};
+  if (r.name) out.clientName = cleanText(r.name, EVENT_LIMITS.client);
+  if (r.phone) out.clientPhone = cleanPhone(r.phone);
+  if (r.eventType) out.title = cleanText(r.eventType, EVENT_LIMITS.title);
+  if (dayIndex(r.date) !== null) out.day = r.date;
+  const s = /^(\d{2}):(\d{2})$/.exec(r.from);
+  const e = /^(\d{2}):(\d{2})$/.exec(r.to);
+  if (s) {
+    const start = round15(Number(s[1]) * 60 + Number(s[2])) % DAY_MINUTES;
+    const end = e ? Math.min(MAX_END, endAfter(start, round15(Number(e[1]) * 60 + Number(e[2])) % DAY_MINUTES)) : endIn(start, 4);
+    if (validTime(start, end)) {
+      out.start = start;
+      out.end = end;
+    }
+  }
+  if (r.guests) out.guests = r.guests;
+  if (r.district) out.place = cleanText(r.district, EVENT_LIMITS.place);
+  if (r.comment) out.note = cleanText(r.comment, EVENT_LIMITS.note);
+  return out;
 }

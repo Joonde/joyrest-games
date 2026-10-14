@@ -412,6 +412,9 @@ async function studioPages(browser, token) {
       ["/studio/team", "Ведущие JoyRest", "Команда JoyRest"],
       ["/studio/team?tab=pros", "Профессии JoyRest", "Профессии JoyRest"],
       ["/studio/qr", "QR", "QR-анкеты"],
+      ["/studio/calendar", "Мой календарь", "Мой календарь"],
+      ["/studio/calendar?tab=events", "Мои мероприятия", "Мои мероприятия"],
+      ["/studio/guide", "Как проводить", "Как проводить игры"],
       [`/host/${lobby.code}`, "Начать игру", "Пульт в лобби"],
     ]) {
       step(`${device}: ${what} открывается`, page);

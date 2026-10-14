@@ -6703,6 +6703,15 @@ ul.chips {
   cursor: pointer;
 }
 
+/* Длинная подпись переносится внутри кнопки, а не вылезает за рамку (узкие телефоны, крупный шрифт). */
+.seg__btn {
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  min-width: 0;
+}
+
 .seg__btn.is-on {
   border-color: var(--color-highlight);
   background: color-mix(in srgb, var(--color-highlight) 14%, transparent);
@@ -15607,8 +15616,92 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 /* ---------- Планировщик мероприятий: день по часам, 7 дней, списки ---------- */
 
-.plan-views {
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+.plan-seg--views {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.plan-seg--filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 700px) {
+  .plan-seg--filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.plan-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plan-quick .seg__btn {
+  padding: 4px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-when {
+  margin: 0;
+  font-weight: 600;
+}
+
+.plan-filled,
+.plan-warn {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-highlight);
+  border-radius: 8px;
+  background: var(--color-surface-alt);
+}
+
+.plan-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.plan-form legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.plan-hosts {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-host .choice__hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.plan-requests {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-request {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .plan-day-tools {
@@ -15773,9 +15866,65 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-left: 6px solid var(--plan-color);
 }
 
-.plan-card .cal-person__name {
-  white-space: normal;
+.plan-card {
+  display: grid;
+  gap: 12px;
+}
+
+.plan-card__head {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-card__title {
+  min-width: 0;
+  font-size: 19px;
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.plan-card__top .status-pill {
+  flex: none;
+}
+
+.plan-card__more {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.plan-event--group {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  border-left-color: var(--color-highlight);
+}
+
+.plan-event__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--plan-color);
 }
 
 .plan-facts {

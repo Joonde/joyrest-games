@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyEvent } from "../data/types";
-import { bookingId, bookingNote, cleanPhone, eventSpan, eventStatus, parseEventInput, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
+import { bookingId, bookingNote, cleanPhone, crowdedClusters, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
 
 const ev = (id: string, day: string, start: number, end: number, extra: Partial<AgencyEvent> = {}): AgencyEvent => ({
   id,
@@ -91,5 +91,48 @@ describe("планировщик: неделя и сортировка", () => {
     const list = [ev("a", "2026-10-01", 600, 700), ev("b", "2026-10-03", 600, 700), ev("c", "2026-10-03", 500, 700)];
     expect(sortEvents(list, false).map((e) => e.id)).toEqual(["a", "c", "b"]);
     expect(sortEvents(list, true).map((e) => e.id)).toEqual(["b", "c", "a"]);
+  });
+});
+
+describe("планировщик: пять мероприятий в одно время", () => {
+  const five = [1, 2, 3, 4, 5].map((i) => ev(`e${i}`, "2026-10-20", 1080, 1380, { hostId: `h${i}` }));
+  it("пять колонок — на телефоне одной плашкой «5 мероприятий», отдельное утреннее — само по себе", () => {
+    const items = timelineOf([...five, ev("m", "2026-10-20", 600, 700)], "2026-10-20");
+    expect(items.filter((i) => i.lanes === 5)).toHaveLength(5);
+    const crowded = crowdedClusters(items, 2);
+    expect(crowded).toHaveLength(1);
+    expect(crowded[0]).toMatchObject({ top: 1080, bottom: 1380 });
+    expect(crowded[0]?.items).toHaveLength(5);
+    expect(crowdedClusters(items, 5)).toHaveLength(0);
+  });
+});
+
+describe("планировщик: заполнение из заявки", () => {
+  const today = "2026-10-14";
+  it("сообщение с сайта в Telegram", () => {
+    const text = "📩 Заявка с сайта JoyRest\n\nИмя: Софья\nТелефон: +7 915 241-59-99\nТип мероприятия: Корпоратив\nГостей: 25\nСвязь: Telegram\nКомментарий: Нужен квиз на 2 часа";
+    expect(parseLeadText(text, today)).toEqual({ clientName: "Софья", clientPhone: "+7 915 241-59-99", title: "Корпоратив", guests: 25, note: "Нужен квиз на 2 часа" });
+  });
+  it("переписка: дата словами или точками, время, гости, место", () => {
+    expect(parseLeadText("Свадьба 20 июня, с 16 до 23, человек 60.\nГде: Лофт на Китай-городе\n89152415999", today)).toEqual({
+      title: "Свадьба",
+      day: "2027-06-20",
+      start: 960,
+      end: 1380,
+      guests: 60,
+      place: "Лофт на Китай-городе",
+      clientPhone: "89152415999",
+    });
+    const p = parseLeadText("ДР 15.10 18:00-23:00, гостей 30", today);
+    expect(p).toMatchObject({ title: "День рождения", day: "2026-10-15", start: 1080, end: 1380, guests: 30 });
+    // Время после даты не путается с датой; вечер за полночь.
+    expect(parseLeadText("18.00–02.00 25.12.2026", today)).toMatchObject({ day: "2026-12-25", start: 1080, end: 1560 });
+    expect(parseLeadText("просто текст", today)).toEqual({});
+  });
+  it("заявка клиента из базы площадок", () => {
+    expect(
+      fillFromRequest({ name: "Ольга", phone: "8 900 000 00 00", eventType: "Юбилей", date: "2026-11-01", from: "19:00", to: "", guests: 40, district: "ЦАО", comment: "" }),
+    ).toEqual({ clientName: "Ольга", clientPhone: "8 900 000 00 00", title: "Юбилей", day: "2026-11-01", start: 1140, end: 1380, guests: 40, place: "ЦАО" });
+    expect(endIn(1320, 10)).toBe(1800);
   });
 });

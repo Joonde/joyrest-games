@@ -103,7 +103,7 @@ async function cleanup(host, admin) {
     await api("DELETE", `/api/calendar/${e.id}`, e.kind === "booked" ? admin.cookie : host.cookie);
   }
   // Мероприятия проверки: отменить и удалить навсегда.
-  const events = await api("GET", `/api/events?from=${D1}&to=${D3}`, admin.cookie);
+  const events = await api("GET", `/api/events?from=${TODAY}&to=${D3}`, admin.cookie);
   for (const e of events.data?.events ?? []) {
     if (!/проверка/.test(e.title)) continue;
     if (!e.cancelled) await api("POST", `/api/events/${e.id}/cancel`, admin.cookie, {});
@@ -118,6 +118,41 @@ let shotN = 0;
 async function shot(page, name) {
   shotN += 1;
   await page.screenshot({ path: join(SHOTS, `${String(shotN).padStart(2, "0")}-${name}.png`), fullPage: true });
+  await fits(page, name);
+}
+
+/** Текст не вылезает за кнопки, вкладки и плашки; кнопки не наезжают друг на друга. */
+async function fits(page, where) {
+  const found = await page.evaluate(() => {
+    const visible = (el) => {
+      const r = el.getBoundingClientRect();
+      const st = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none";
+    };
+    const label = (el) => (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().replace(/\s+/g, " ").slice(0, 28);
+    const controls = [...document.querySelectorAll("main button, main a.btn, main [role=tab], main .status-pill, main select, main input:not([type=hidden]):not([type=radio]):not([type=checkbox])")].filter(visible);
+    const clipped = controls
+      .filter((el) => !["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName))
+      .filter((el) => getComputedStyle(el).textOverflow !== "ellipsis" && getComputedStyle(el).overflowX === "visible")
+      .filter((el) => el.scrollWidth > el.clientWidth + 2)
+      .map(label);
+    const overlaps = [];
+    const boxes = controls.filter((el) => el.tagName !== "SPAN");
+    for (let i = 0; i < boxes.length; i++) {
+      const a = boxes[i].getBoundingClientRect();
+      for (let j = i + 1; j < boxes.length; j++) {
+        if (boxes[i].contains(boxes[j]) || boxes[j].contains(boxes[i])) continue;
+        // Плашки таймлайна стоят на сетке часов по задумке; сравниваем их только между собой.
+        const b = boxes[j].getBoundingClientRect();
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 3 && h > 3) overlaps.push(`${label(boxes[i])} × ${label(boxes[j])}`);
+      }
+    }
+    return { clipped: [...new Set(clipped)].slice(0, 6), overlaps: [...new Set(overlaps)].slice(0, 6) };
+  });
+  if (found.clipped.length) bad(`${where}: текст не помещается: ${found.clipped.join(", ")}`);
+  if (found.overlaps.length) bad(`${where}: наезжают: ${found.overlaps.join("; ")}`);
 }
 
 async function until(fn, ms = WAIT, label = "условие") {
@@ -299,23 +334,28 @@ try {
   // Закрепить время за ведущим — форма мероприятия (клиент, телефон, что за мероприятие).
   const { row } = await statusOf(ap, hostName);
   await row.getByRole("button", { name: /Закрепить это время/ }).click();
-  const hostSelect = row.getByRole("combobox", { name: "Ведущий" });
-  await until(async () => ((await hostSelect.locator("option:checked").textContent()) ?? "").includes(" — "), WAIT, "список ведущих в форме").catch(() => undefined);
-  const hostChosen = (await hostSelect.locator("option:checked").textContent()) ?? "";
-  check(hostChosen.startsWith(hostName), "Владелец: в форме уже выбран этот ведущий", `Владелец: в форме выбран «${hostChosen}»`);
-  check(hostChosen.includes("может"), "Владелец: рядом с ведущим — «может»", `Владелец: в списке ведущих «${hostChosen}»`);
-  await row.getByLabel(/Что за мероприятие/).fill("Корпоратив, проверка");
+  const hostRadio = row.getByRole("radio", { name: new RegExp(hostName) });
+  await until(async () => (await hostRadio.count()) > 0, WAIT, "ведущие в форме").catch(() => undefined);
+  check((await hostRadio.isChecked().catch(() => false)) === true, "Владелец: в форме уже выбран этот ведущий", "Владелец: в форме ведущий не выбран");
+  const hostOption = ((await row.locator("label.plan-host", { has: hostRadio }).textContent()) ?? "").replace(/\s+/g, " ");
+  check(hostOption.includes("Может"), "Владелец: у ведущего в форме — «Может»", `Владелец: в форме у ведущего «${hostOption}»`);
+  await row.locator('input[list="event-titles"]').fill("Корпоратив, проверка");
   await row.getByLabel("Клиент — имя").fill("Клиент Проверка");
   await row.getByLabel("Телефон клиента").fill("+7 900 000-00-00");
-  await row.getByLabel("Гостей").fill("40");
+  await row.getByRole("button", { name: "45", exact: true }).click();
+  await row.getByLabel("Комментарий (программа, пожелания)").fill("Квиз и танцы, проверка");
   await shot(ap, "владелец-форма-мероприятия");
   await row.getByRole("button", { name: "Записать мероприятие" }).click();
   await expectStatus(ap, hostName, "Занят", "Владелец: после «Записать мероприятие» ведущий занят");
   const booked = await statusOf(ap, hostName);
-  check(booked.text.includes("Мероприятие JoyRest") && booked.text.includes("Корпоратив, проверка, 40 гостей"), "Владелец: в строке «Мероприятие JoyRest» и что за мероприятие", `Владелец: в строке «${booked.text.slice(0, 120)}»`);
+  check(booked.text.includes("Мероприятие JoyRest") && booked.text.includes("Корпоратив, проверка, 45 гостей"), "Владелец: в строке «Мероприятие JoyRest» и что за мероприятие", `Владелец: в строке «${booked.text.slice(0, 120)}»`);
   await shot(ap, "владелец-закрепил");
   const saved = ((await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []).find((e) => e.title === "Корпоратив, проверка");
-  check(saved?.clientName === "Клиент Проверка" && saved?.clientPhone === "+7 900 000-00-00" && saved?.guests === 40 && saved?.hostName === hostName, "API: мероприятие сохранено с клиентом, телефоном, гостями и ведущим", `API: сохранено ${JSON.stringify(saved ?? null).slice(0, 160)}`);
+  check(
+    saved?.clientName === "Клиент Проверка" && saved?.clientPhone === "+7 900 000-00-00" && saved?.guests === 45 && saved?.hostName === hostName && saved?.start === 1080 && saved?.end === 1380,
+    "API: сохранено с клиентом, телефоном, гостями, ведущим и временем 18:00–23:00",
+    `API: сохранено ${JSON.stringify(saved ?? null).slice(0, 200)}`,
+  );
   check(!booked.text.includes("Клиент Проверка"), "Владелец: в календаре ведущего имени клиента нет (только в мероприятии)");
 
   // Ведущий видит мероприятие в календаре и не может его снять.
@@ -340,29 +380,56 @@ try {
   await until(async () => (await evBlock.count()) === 1, WAIT, "мероприятие на таймлайне");
   const blockText = ((await evBlock.textContent()) ?? "").replace(/\s+/g, " ");
   check(blockText.includes("18:00–23:00") && blockText.includes(`Ведёт: ${hostName}`), "Владелец: на таймлайне — время и кто ведёт", `Владелец: на плашке «${blockText}»`);
+  // Плашка стоит на сетке часов там, где её время: верх — на линии 18:00.
+  const geo = await ap.evaluate(() => {
+    const block = document.querySelector(".plan-event")?.getBoundingClientRect();
+    const hour = [...document.querySelectorAll(".plan-hour")].find((h) => h.textContent?.trim() === "18:00")?.getBoundingClientRect();
+    return block && hour ? Math.abs(block.top - hour.top) : -1;
+  });
+  check(geo >= 0 && geo <= 3, "Владелец: плашка начинается ровно на линии 18:00", `Владелец: плашка смещена от 18:00 на ${geo}px`);
   await evBlock.click();
   const card = ap.locator(".plan-card").first();
   await card.waitFor({ timeout: WAIT });
   const cardText = ((await card.textContent()) ?? "").replace(/\s+/g, " ");
-  check(cardText.includes("Клиент Проверка") && cardText.includes("+7 900 000-00-00") && cardText.includes("Предстоит"), "Владелец: в карточке клиент, телефон и «Предстоит»", `Владелец: карточка «${cardText.slice(0, 160)}»`);
+  check(cardText.includes("Клиент Проверка") && cardText.includes("+7 900 000-00-00") && cardText.includes("Квиз и танцы") && cardText.includes("Предстоит"), "Владелец: касание плашки — карточка раскрыта: клиент, телефон, комментарий, «Предстоит»", `Владелец: карточка «${cardText.slice(0, 160)}»`);
   await shot(ap, "владелец-день-по-часам");
   await noSideScroll(ap, "Владелец, день по часам");
 
-  // Второе мероприятие в то же время — предупреждение «занят» и две колонки на таймлайне.
+  // Второе мероприятие в то же время — предупреждение «занято» и две колонки на таймлайне.
   await ap.getByRole("button", { name: "+ Мероприятие в этот день" }).click();
-  await ap.getByLabel("С", { exact: true }).selectOption("1140");
-  await ap.getByLabel("До", { exact: true }).selectOption("1320");
-  const opt = ap.getByRole("combobox", { name: "Ведущий" }).locator("option", { hasText: hostName }).first();
-  await until(async () => /занят/.test((await opt.textContent()) ?? ""), WAIT, "ведущий занят в списке");
-  await ap.getByRole("combobox", { name: "Ведущий" }).selectOption({ label: ((await opt.textContent()) ?? "").trim() });
-  check((await ap.locator("#event-form").locator("..").textContent())?.includes("Записать всё равно можно"), "Владелец: форма предупреждает, что ведущий занят");
-  await ap.getByLabel(/Что за мероприятие/).fill("Квиз-вечер, проверка");
+  await ap.getByRole("button", { name: "19:00–00:00", exact: true }).click();
+  await ap.getByRole("button", { name: "3 ч", exact: true }).click();
+  const busyRadio = ap.getByRole("radio", { name: new RegExp(hostName) });
+  await until(async () => /Занят/.test((await ap.locator("label.plan-host", { has: busyRadio }).textContent()) ?? ""), WAIT, "ведущий занят в списке");
+  await busyRadio.check();
+  check((await ap.locator(".plan-warn").count()) === 1, "Владелец: форма предупреждает, что у ведущего время занято");
+  await ap.getByRole("button", { name: "Корпоратив", exact: true }).click();
+  await ap.locator('input[list="event-titles"]').fill("Квиз-вечер, проверка");
   await ap.getByRole("button", { name: "Записать мероприятие" }).click();
   await until(async () => (await ap.locator(".plan-event").count()) === 2, WAIT, "два мероприятия на таймлайне");
+  const quizSaved = ((await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []).find((e) => e.title === "Квиз-вечер, проверка");
+  check(quizSaved?.start === 1140 && quizSaved?.end === 1320, "Владелец: «19:00–00:00» и «3 ч» — сохранилось 19:00–22:00", `API: время ${quizSaved?.start}–${quizSaved?.end}`);
   const widths = await ap.locator(".plan-event").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
   const lanesW = await ap.locator(".plan-lanes").evaluate((el) => el.getBoundingClientRect().width);
-  check(widths.every((w) => w < lanesW * 0.6), "Владелец: пересекающиеся мероприятия — в две колонки", `Владелец: ширины ${widths.map(Math.round).join(", ")} из ${Math.round(lanesW)}`);
+  check(widths.every((w) => w < lanesW * 0.6), "Владелец: два пересекающихся — в две колонки", `Владелец: ширины ${widths.map(Math.round).join(", ")} из ${Math.round(lanesW)}`);
   await shot(ap, "владелец-два-мероприятия");
+
+  // Пять и больше в одно время: на телефоне — одна плашка «Одновременно: N», касание — все карточки.
+  for (let i = 1; i <= 4; i++) {
+    await api("POST", "/api/events", admin.cookie, { id: `e2emany${i}${Date.now() % 100000}`, hostId: host.profile.uid, day: D1, start: 1080 + i * 15, end: 1380, title: `Банкет ${i}, проверка` });
+  }
+  await ap.reload();
+  await until(async () => (await ap.locator(".plan-timeline").count()) > 0, WAIT, "таймлайн после перезагрузки");
+  await ap.locator('input[type="date"]').fill(D1);
+  const group = ap.locator(".plan-event--group");
+  await until(async () => (await group.count()) === 1, WAIT, "общая плашка одновременных");
+  const groupText = ((await group.textContent()) ?? "").replace(/\s+/g, " ");
+  check(groupText.includes("Одновременно: 6 мероприятий"), "Владелец: 6 мероприятий в одно время — одна читаемая плашка «Одновременно: 6»", `Владелец: плашка «${groupText.slice(0, 120)}»`);
+  check((await ap.locator(".plan-event:not(.plan-event--group)").count()) === 0, "Владелец: узкие колонки по 1/6 ширины не рисуются");
+  await group.click();
+  await until(async () => (await ap.locator(".plan-card").count()) === 6, WAIT, "6 карточек под таймлайном");
+  ok("Владелец: касание общей плашки — все 6 мероприятий карточками");
+  await shot(ap, "владелец-шесть-сразу");
 
   // 7 дней и месяц.
   await ap.getByRole("button", { name: "7 дней", exact: true }).click();
@@ -372,14 +439,21 @@ try {
   await noSideScroll(ap, "Владелец, 7 дней");
   await ap.getByRole("button", { name: "Месяц", exact: true }).click();
   const n = Number((await ap.locator(`.cal-grid button[aria-label="${dayTitle(D1)}"] .cal-count`).textContent())?.trim() || "0");
-  check(n === 2, "Владелец: в месяце у дня — 2 мероприятия", `Владелец: в месяце у дня ${n}`);
+  check(n === 6, "Владелец: в месяце у дня — 6 мероприятий", `Владелец: в месяце у дня ${n}`);
   await shot(ap, "владелец-месяц");
 
-  // Списком: предстоящие → отменить квиз → отменённые → удалить навсегда.
+  // Списком: карточки свёрнуты; поиск; отменить квиз → отменённые → удалить навсегда.
   await ap.getByRole("button", { name: "Списком", exact: true }).click();
   const quizCard = ap.locator(".plan-card", { hasText: "Квиз-вечер, проверка" });
   await until(async () => (await quizCard.count()) === 1, WAIT, "квиз в «Предстоящих»");
-  ok("Владелец: «Предстоящие» — оба мероприятия в списке");
+  const collapsed = ((await quizCard.textContent()) ?? "").replace(/\s+/g, " ");
+  check(collapsed.includes("19:00–22:00") && collapsed.includes(`Ведёт: ${hostName}`) && collapsed.includes("Подробнее") && (await quizCard.getByRole("button", { name: "Изменить" }).count()) === 0, "Владелец: в списке карточка свёрнута — что, когда, кто ведёт", `Владелец: свёрнутая карточка «${collapsed.slice(0, 140)}»`);
+  await ap.getByRole("combobox", { name: "Поиск" }).fill("Клиент Проверка");
+  await until(async () => (await ap.locator(".plan-card").count()) === 1, WAIT, "поиск по клиенту");
+  ok("Владелец: поиск по имени клиента оставляет одно мероприятие");
+  await ap.getByRole("combobox", { name: "Поиск" }).fill("");
+  await shot(ap, "владелец-списки");
+  await quizCard.locator(".plan-card__head").click();
   await quizCard.getByRole("button", { name: "Отменить мероприятие" }).click();
   await ap.getByRole("dialog").getByRole("button", { name: "Отменить мероприятие" }).click();
   await until(async () => (await quizCard.count()) === 0, WAIT, "квиз ушёл из «Предстоящих»");
@@ -390,25 +464,89 @@ try {
   await ap.waitForTimeout(800);
   check((await ap.locator(".plan-card", { hasText: "проверка" }).count()) === 0, "Владелец: будущие мероприятия в архив не попадают");
   await ap.getByRole("button", { name: "Отменённые", exact: true }).click();
+  await quizCard.locator(".plan-card__head").click();
   await quizCard.getByRole("button", { name: "Удалить навсегда" }).click();
   await ap.getByRole("dialog").getByRole("button", { name: "Удалить навсегда" }).click();
   await until(async () => (await quizCard.count()) === 0, WAIT, "квиз удалён");
   ok("Владелец: «Удалить навсегда» — запись исчезла");
-  await shot(ap, "владелец-списки");
+
+  // Сверка времени: мероприятие, которое идёт прямо сейчас (по московскому времени сервера).
+  const nowMin = Math.floor((Date.now() + 3 * 3_600_000) / 60_000) % 1440;
+  const nowStart = Math.max(0, Math.floor((nowMin - 60) / 15) * 15);
+  const nowEnd = Math.min(1800, Math.ceil((nowMin + 120) / 15) * 15);
+  const nowId = `e2enow${Date.now() % 100000}`;
+  await api("POST", "/api/events", admin.cookie, { id: nowId, hostId: host.profile.uid, day: TODAY, start: nowStart, end: nowEnd, title: "Сейчас, проверка" });
+  await ap.getByRole("button", { name: "Идут сейчас", exact: true }).click();
+  const nowCard = ap.locator(".plan-card", { hasText: "Сейчас, проверка" });
+  await until(async () => (await nowCard.count()) === 1, WAIT, "мероприятие в «Идут сейчас»").catch(() => undefined);
+  const nowText = ((await nowCard.textContent().catch(() => "")) ?? "").replace(/\s+/g, " ");
+  check(nowText.includes("Идёт сейчас"), "Сверка времени: мероприятие на текущий час — в «Идут сейчас» с плашкой «Идёт сейчас»", `Сверка времени: в «Идут сейчас» — «${nowText.slice(0, 100)}»`);
+  await ap.getByRole("button", { name: "День", exact: true }).click();
+  await ap.locator('input[type="date"]').fill(TODAY);
+  await until(async () => (await ap.locator(".plan-now").count()) === 1, WAIT, "линия «сейчас»").catch(() => undefined);
+  const lineOk = await ap.evaluate(() => {
+    const line = document.querySelector(".plan-now")?.getBoundingClientRect();
+    const block = [...document.querySelectorAll(".plan-event")].find((b) => b.textContent?.includes("Сейчас, проверка"))?.getBoundingClientRect();
+    return Boolean(line && block && line.top > block.top && line.top < block.bottom);
+  });
+  check(lineOk, "Сверка времени: линия «сейчас» проходит через это мероприятие", "Сверка времени: линия «сейчас» не там, где мероприятие");
+  await shot(ap, "владелец-сейчас");
+  await api("POST", `/api/events/${nowId}/cancel`, admin.cookie, {});
+  await api("DELETE", `/api/events/${nowId}`, admin.cookie);
+
+  // Заполнить из текста заявки.
+  await ap.getByRole("button", { name: "+ Новое мероприятие" }).click();
+  await ap.locator("summary", { hasText: "Заполнить из заявки" }).click();
+  await ap.getByLabel("Текст заявки").fill("📩 Заявка с сайта JoyRest\n\nИмя: Софья\nТелефон: +7 915 241-59-99\nТип мероприятия: Корпоратив\nГостей: 25\nКомментарий: Нужен квиз\n15.12 18:00–23:00");
+  await ap.getByRole("button", { name: "Заполнить из текста" }).click();
+  const filledOk =
+    (await ap.getByLabel("Клиент — имя").inputValue()) === "Софья" &&
+    (await ap.getByLabel("Телефон клиента").inputValue()) === "+7 915 241-59-99" &&
+    (await ap.locator('input[list="event-titles"]').inputValue()) === "Корпоратив" &&
+    (await ap.getByLabel("Гостей", { exact: true }).inputValue()) === "25" &&
+    ((await ap.locator(".plan-when").textContent()) ?? "").includes("15 декабря") &&
+    ((await ap.locator(".plan-when").textContent()) ?? "").includes("18:00–23:00");
+  check(filledOk, "Владелец: «Заполнить из текста» — имя, телефон, вид, гости, дата и время подставились", "Владелец: из текста заявки заполнилось не всё");
+  await shot(ap, "владелец-из-текста");
+  await ap.getByRole("button", { name: "Отмена", exact: true }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Не сохранять" }).click();
+  await until(async () => (await ap.locator(".plan-seg--views").count()) === 1, WAIT, "форма закрыта");
+  ok("Владелец: «Отмена» с введёнными данными — спрашивает «Не сохранять?»");
+
+  // Узкий телефон (360 px): текст в кнопках и вкладках не вылезает.
+  await ap.setViewportSize({ width: 360, height: 780 });
+  await ap.getByRole("button", { name: "Списком", exact: true }).click();
+  await ap.waitForTimeout(500);
+  await fits(ap, "Владелец, 360 px, списки");
+  await ap.getByRole("button", { name: "+ Новое мероприятие" }).click();
+  await ap.waitForTimeout(500);
+  await fits(ap, "Владелец, 360 px, форма");
+  await noSideScroll(ap, "Владелец, 360 px, форма");
+  await ap.getByRole("button", { name: "Отмена", exact: true }).click();
+  await ap.setViewportSize({ width: 390, height: 844 });
 
   // Ведущий: «Мои мероприятия» — видит своё, без правки.
   await hp.goto(`${BASE}/studio/calendar?tab=events`);
   await until(async () => (await hp.getByRole("tab", { name: "Мои мероприятия" }).count()) > 0, WAIT, "вкладка «Мои мероприятия»");
   await hp.locator('input[type="date"]').fill(D1);
-  const hostBlock = hp.locator(".plan-event", { hasText: "Корпоратив, проверка" });
-  await until(async () => (await hostBlock.count()) === 1, WAIT, "мероприятие у ведущего");
-  await hostBlock.click();
-  const hostCard = hp.locator(".plan-card").first();
+  const hostGroup = hp.locator(".plan-event--group");
+  await until(async () => (await hostGroup.count()) === 1, WAIT, "мероприятия у ведущего");
+  await hostGroup.click();
+  const hostCard = hp.locator(".plan-card", { hasText: "Корпоратив, проверка" });
   await hostCard.waitFor({ timeout: WAIT });
+  await hostCard.locator(".plan-card__head").click();
   check(((await hostCard.textContent()) ?? "").includes("Клиент Проверка"), "Ведущий: видит своё мероприятие с клиентом");
   check((await hostCard.getByRole("button", { name: "Изменить" }).count()) === 0 && (await hp.getByRole("button", { name: "+ Новое мероприятие" }).count()) === 0, "Ведущий: без «Изменить» и «Новое мероприятие»");
   await shot(hp, "ведущий-мои-мероприятия");
   await noSideScroll(hp, "Ведущий, мои мероприятия");
+
+  // Убираем «банкеты», чтобы «Кто может» проверял одно мероприятие.
+  for (const e of (await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []) {
+    if (/^Банкет/.test(e.title)) {
+      await api("POST", `/api/events/${e.id}/cancel`, admin.cookie, {});
+      await api("DELETE", `/api/events/${e.id}`, admin.cookie);
+    }
+  }
 
   // Владелец снимает мероприятие в «Кто может» — оно уходит в «Отменённые».
   await ap.goto(`${BASE}/studio/calendar`);

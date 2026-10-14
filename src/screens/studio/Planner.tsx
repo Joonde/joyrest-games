@@ -3,25 +3,40 @@
  * Владелец записывает мероприятие: клиент, телефон, дата, время, что за мероприятие, ведущий — и видит
  * все мероприятия: день по часам (таймлайн — что идёт и кто ведёт), 7 дней, месяц и списки «Предстоящие»,
  * «Идут сейчас», «Архив», «Отменённые». Ведущий видит свои мероприятия без правки.
+ * Карточки свёрнуты: что, когда, кто ведёт; касание — клиент, телефон, место, гости, комментарий.
+ * Время «идёт сейчас» — по часам сервера (часы телефона могут спешить).
  */
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { addDays, availabilityOf, dayIndex, dayTitle, DEFAULT_QUERY, rangeLabel, STATUS_TITLES, timeLabel, todayMoscow, type MemberStatus } from "../../core/calendar";
+import { addDays, availabilityOf, dayIndex, dayTitle, DEFAULT_QUERY, rangeLabel, STATUS_ORDER, STATUS_TITLES, timeLabel, todayMoscow, type MemberStatus } from "../../core/calendar";
 import {
   bookingId,
+  crowdedClusters,
+  DURATIONS,
+  endIn,
   EVENT_LIMITS,
   EVENT_STATUS_TITLES,
   EVENT_TITLES,
   eventsOfDay,
   eventStatus,
+  fillFromRequest,
+  GUEST_PRESETS,
+  parseLeadText,
   sortEvents,
+  TIME_PRESETS,
   timelineHours,
   timelineOf,
   weekStart,
   type EventStatus,
+  type LeadFill,
+  type TimelineCluster,
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
-import { calendarRepo, eventsRepo, useLoad, type AgencyEvent, type AvailabilityEntry, type CalendarMember } from "../../data";
+import { matchesSearch } from "../../core/search";
+import { calendarRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
+import { Fold } from "../../components/Fold";
+import { useServerNow } from "../../components/live/useServerNow";
+import { SearchField } from "../../components/SearchField";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { brand, teamColors } from "../../themes/brand";
@@ -42,7 +57,7 @@ function hostColor(hostId: string): string {
   return teamColors[h % teamColors.length] ?? brand.gold;
 }
 
-const eventName = (e: AgencyEvent) => e.title || "Мероприятие";
+const eventName = (e: Pick<AgencyEvent, "title">) => e.title || "Мероприятие";
 
 /** Окно загрузки для дня, недели и месяца выбранной даты (до 62 дней). */
 function loadRange(day: string): { from: string; to: string } {
@@ -53,12 +68,36 @@ function loadRange(day: string): { from: string; to: string } {
   return { from, to: weekEnd > month.to ? weekEnd : month.to };
 }
 
+/** Сколько мероприятий рядом помещается на таймлайне: телефон — 2, планшет и компьютер — 4. */
+function useMaxLanes(): number {
+  const query = "(min-width: 700px)";
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia?.(query).matches === true);
+  useEffect(() => {
+    const m = window.matchMedia?.(query);
+    if (!m) return;
+    const on = () => setWide(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return wide ? 4 : 2;
+}
+
+/** Время по часам сервера (раз в 30 с): «Идёт сейчас» и линия «сейчас» не зависят от часов телефона. */
+function usePlannerNow(): number {
+  useEffect(() => {
+    if (dataBackend() === "server") void clock.sync().catch(() => 0);
+  }, []);
+  return useServerNow(30_000);
+}
+
+type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string };
+
 export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: string) => void }) {
   const today = todayMoscow();
   const [view, setView] = useState<View>("day");
   const [day, setDay] = useState(today);
   const [filter, setFilter] = useState<ListFilter>("upcoming");
-  const [form, setForm] = useState<{ event?: AgencyEvent; day: string } | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   // Удалённые и изменённые здесь — чтобы списки не показывали устаревшее до перезагрузки.
   const [removed, setRemoved] = useState<string[]>([]);
@@ -67,12 +106,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
   const [state, retry, update] = useLoad(() => (eventsRepo ? eventsRepo.range(range.from, range.to) : Promise.resolve([] as AgencyEvent[])), [range.from, range.to]);
   const shown = useLastReady(state);
   const [confirm, ask] = useConfirm();
-  // Раз в минуту — перерисовка: «Идёт сейчас» и линия «сейчас» на таймлайне.
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(t);
-  }, []);
+  const now = usePlannerNow();
 
   function replace(saved: AgencyEvent) {
     update((data) => [...data.filter((e) => e.id !== saved.id), saved]);
@@ -124,6 +158,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
     return (
       <EventForm
         initial={form.event}
+        template={form.template}
         day={form.day}
         onCancel={() => setForm(null)}
         onSaved={(saved) => {
@@ -131,20 +166,22 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
           setForm(null);
           setDay(saved.day);
           setOpenId(saved.id);
-          if (view === "list") setView("day");
+          setView("day");
           onToast(form.event ? "Мероприятие сохранено" : `Мероприятие записано: ${saved.hostName}`);
         }}
       />
     );
   }
 
-  const card = (e: AgencyEvent) => (
+  const card = (e: AgencyEvent, open = false) => (
     <EventCard
       key={e.id}
       event={e}
       now={now}
       owner={owner}
+      defaultOpen={open}
       onEdit={() => setForm({ event: e, day: e.day })}
+      onCopy={() => setForm({ template: e, day: e.day < today ? today : e.day })}
       onCancel={() => cancel(e)}
       onRestore={() => restore(e)}
       onRemove={() => remove(e)}
@@ -165,7 +202,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
           </button>
         </div>
       )}
-      <div className="seg plan-views" role="group" aria-label="Вид">
+      <div className="seg plan-seg plan-seg--views" role="group" aria-label="Вид">
         {(Object.keys(VIEW_TITLES) as View[]).map((v) => (
           <button key={v} type="button" className={view === v ? "seg__btn is-on" : "seg__btn"} aria-pressed={view === v} onClick={() => setView(v)}>
             {VIEW_TITLES[v]}
@@ -174,7 +211,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
       </div>
 
       {view === "list" ? (
-        <EventList filter={filter} onFilter={setFilter} now={now} removed={removed} changed={changed} render={card} />
+        <EventList filter={filter} onFilter={setFilter} now={now} removed={removed} changed={changed} render={(e) => card(e)} />
       ) : !shown ? (
         state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />
       ) : (
@@ -189,7 +226,10 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
               stale={state.status !== "ready"}
               openId={openId}
               onOpen={setOpenId}
-              onDay={setDay}
+              onDay={(d) => {
+                setDay(d);
+                setOpenId(null);
+              }}
               owner={owner}
               onAdd={() => setForm({ day })}
               render={card}
@@ -228,6 +268,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
                 }}
                 onPick={(d) => {
                   setDay(d);
+                  setOpenId(null);
                   setView("day");
                 }}
               />
@@ -269,15 +310,20 @@ function DayView({
   onDay: (day: string) => void;
   owner: boolean;
   onAdd: () => void;
-  render: (e: AgencyEvent) => ReactNode;
+  render: (e: AgencyEvent, open?: boolean) => ReactNode;
 }) {
+  const maxLanes = useMaxLanes();
   const items = timelineOf(events, day);
+  const crowded = crowdedClusters(items, maxLanes);
+  const crowdedGroups = new Set(crowded.map((c) => c.group));
   const { from, to } = timelineHours(items);
   const hours: number[] = [];
   for (let m = from; m <= to; m += 60) hours.push(m);
-  // Линия «сейчас» — только в сегодняшнем дне (московское время).
+  // Линия «сейчас» — только в сегодняшнем дне (московское время по часам сервера).
   const nowMin = Math.floor((now + 3 * 3_600_000) / 60_000) % 1440;
-  const opened = items.find((i) => i.event.id === openId)?.event ?? null;
+  const groupKey = (c: TimelineCluster) => `group-${c.group}`;
+  const openCluster = crowded.find((c) => groupKey(c) === openId) ?? null;
+  const opened = openCluster ? null : (items.find((i) => i.event.id === openId)?.event ?? null);
   return (
     <section className="card stack" aria-labelledby="plan-day">
       <div className="cal-month">
@@ -303,7 +349,7 @@ function DayView({
         )}
       </div>
       <p className="muted small" aria-live="polite">
-        {items.length === 0 ? "В этот день мероприятий нет." : `Мероприятий: ${items.length}`}
+        {items.length === 0 ? "В этот день мероприятий нет." : `Мероприятий: ${items.length}. Коснитесь плашки — подробности.`}
       </p>
       <div className={stale ? "plan-timeline is-stale" : "plan-timeline"} style={{ height: `${(to - from) * PX}px` }} aria-label={`День по часам: ${dayTitle(day)}`}>
         {hours.map((m) => (
@@ -313,36 +359,73 @@ function DayView({
         ))}
         {day === today && nowMin >= from && nowMin <= to && <div className="plan-now" style={{ top: `${(nowMin - from) * PX}px` }} aria-label={`Сейчас ${timeLabel(nowMin)}`} />}
         <div className="plan-lanes">
-          {items.map((it) => {
-            const e = it.event;
-            const height = Math.max(44, (it.bottom - it.top) * PX - 2);
+          {items
+            .filter((it) => !crowdedGroups.has(it.group))
+            .map((it) => {
+              const e = it.event;
+              const height = Math.max(44, (it.bottom - it.top) * PX - 2);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={`plan-event${openId === e.id ? " is-open" : ""}`}
+                  style={
+                    {
+                      top: `${(it.top - from) * PX}px`,
+                      height: `${height}px`,
+                      left: `${(it.lane / it.lanes) * 100}%`,
+                      width: `calc(${100 / it.lanes}% - 4px)`,
+                      "--plan-color": hostColor(e.hostId),
+                    } as CSSProperties
+                  }
+                  aria-expanded={openId === e.id}
+                  onClick={() => onOpen(openId === e.id ? null : e.id)}
+                >
+                  <span className="plan-event__time">{e.day === day ? rangeLabel(e.start, e.end) : `до ${timeLabel(e.end)}`}</span>
+                  <span className="plan-event__title">{eventName(e)}</span>
+                  <span className="plan-event__host">Ведёт: {e.hostName}</span>
+                  {e.clientName && <span className="plan-event__client">{e.clientName}</span>}
+                </button>
+              );
+            })}
+          {crowded.map((c) => {
+            const key = groupKey(c);
+            const height = Math.max(88, (c.bottom - c.top) * PX - 2);
+            const lines = Math.max(1, Math.floor((height - 48) / 20));
             return (
               <button
-                key={e.id}
+                key={key}
                 type="button"
-                className={`plan-event${openId === e.id ? " is-open" : ""}`}
-                style={
-                  {
-                    top: `${(it.top - from) * PX}px`,
-                    height: `${height}px`,
-                    left: `${(it.lane / it.lanes) * 100}%`,
-                    width: `calc(${100 / it.lanes}% - 4px)`,
-                    "--plan-color": hostColor(e.hostId),
-                  } as CSSProperties
-                }
-                aria-expanded={openId === e.id}
-                onClick={() => onOpen(openId === e.id ? null : e.id)}
+                className={`plan-event plan-event--group${openId === key ? " is-open" : ""}`}
+                style={{ top: `${(c.top - from) * PX}px`, height: `${height}px`, left: 0, width: "calc(100% - 4px)" } as CSSProperties}
+                aria-expanded={openId === key}
+                onClick={() => onOpen(openId === key ? null : key)}
               >
-                <span className="plan-event__time">{e.day === day ? rangeLabel(e.start, e.end) : `до ${timeLabel(e.end)}`}</span>
-                <span className="plan-event__title">{eventName(e)}</span>
-                <span className="plan-event__host">Ведёт: {e.hostName}</span>
-                {e.clientName && <span className="plan-event__client">{e.clientName}</span>}
+                <span className="plan-event__time">
+                  {timeLabel(c.top)}–{timeLabel(c.bottom)}
+                </span>
+                <span className="plan-event__title">Одновременно: {c.items.length} мероприятий</span>
+                {c.items.slice(0, lines).map((it) => (
+                  <span key={it.event.id} className="plan-event__row">
+                    <span className="plan-dot" style={{ "--plan-color": hostColor(it.event.hostId) } as CSSProperties} aria-hidden="true" />
+                    {timeLabel(it.event.start)} {eventName(it.event)} · {it.event.hostName}
+                  </span>
+                ))}
+                {c.items.length > lines && <span className="plan-event__row">и ещё {c.items.length - lines} — коснитесь</span>}
               </button>
             );
           })}
         </div>
       </div>
-      {opened && render(opened)}
+      {openCluster && (
+        <div className="stack" aria-label="Мероприятия в одно время">
+          <p className="small">
+            <b>Одновременно {openCluster.items.length}</b> · {timeLabel(openCluster.top)}–{timeLabel(openCluster.bottom)}
+          </p>
+          {openCluster.items.map((it) => render(it.event))}
+        </div>
+      )}
+      {opened && render(opened, true)}
       {owner && (
         <div className="actions">
           <button type="button" className="btn btn--secondary btn--block" onClick={onAdd}>
@@ -435,29 +518,44 @@ function EventList({
   const scope = filter === "now" ? "upcoming" : filter;
   const [state, retry] = useLoad(() => (eventsRepo ? eventsRepo.list(scope) : Promise.resolve([] as AgencyEvent[])), [scope]);
   const shown = useLastReady(state);
+  const [query, setQuery] = useState("");
   const events = useMemo(() => {
     // Правки на этом экране (отмена, возврат, удаление) — сразу, без перезагрузки списка.
     const all = [...(shown ?? []).filter((e) => !removed.includes(e.id) && !changed.some((c) => c.id === e.id)), ...changed.filter((c) => !removed.includes(c.id))];
-    if (filter === "cancelled") return sortEvents(all.filter((e) => e.cancelled), true);
-    if (filter === "past") return sortEvents(all.filter((e) => eventStatus(e, now) === "past"), true);
-    if (filter === "upcoming") return sortEvents(all.filter((e) => eventStatus(e, now) === "upcoming"), false);
-    if (filter === "now") return sortEvents(all.filter((e) => eventStatus(e, now) === "now"), false);
-    return [];
-  }, [shown, filter, now, removed, changed]);
+    const found = query.trim() ? all.filter((e) => matchesSearch([e.title, e.clientName, e.clientPhone, e.hostName, e.place, e.note], query)) : all;
+    if (filter === "cancelled") return sortEvents(found.filter((e) => e.cancelled), true);
+    if (filter === "past") return sortEvents(found.filter((e) => eventStatus(e, now) === "past"), true);
+    if (filter === "upcoming") return sortEvents(found.filter((e) => eventStatus(e, now) === "upcoming"), false);
+    return sortEvents(found.filter((e) => eventStatus(e, now) === "now"), false);
+  }, [shown, filter, now, removed, changed, query]);
+  const candidates = useMemo(() => [...new Set((shown ?? []).flatMap((e) => [e.clientName, e.title, e.hostName]).filter(Boolean))], [shown]);
   return (
     <>
-      <div className="seg plan-views" role="group" aria-label="Какие мероприятия">
+      <div className="seg plan-seg plan-seg--filters" role="group" aria-label="Какие мероприятия">
         {(Object.keys(FILTER_TITLES) as ListFilter[]).map((f) => (
           <button key={f} type="button" className={filter === f ? "seg__btn is-on" : "seg__btn"} aria-pressed={filter === f} onClick={() => onFilter(f)}>
             {FILTER_TITLES[f]}
           </button>
         ))}
       </div>
+      <SearchField label="Поиск" value={query} placeholder="Клиент, телефон, ведущий, место" candidates={candidates} onChange={setQuery} />
       {!shown ? (
         state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />
       ) : (
         <div className={state.status === "ready" ? "stack" : "stack is-stale"}>
-          {events.length === 0 && <p className="muted">{filter === "past" ? "В архиве пока пусто." : filter === "cancelled" ? "Отменённых нет." : filter === "now" ? "Сейчас ничего не идёт." : "Предстоящих мероприятий нет."}</p>}
+          {events.length === 0 && (
+            <p className="muted">
+              {query.trim()
+                ? "Ничего не нашлось."
+                : filter === "past"
+                  ? "В архиве пока пусто."
+                  : filter === "cancelled"
+                    ? "Отменённых нет."
+                    : filter === "now"
+                      ? "Сейчас ничего не идёт."
+                      : "Предстоящих мероприятий нет."}
+            </p>
+          )}
           {events.map(render)}
         </div>
       )}
@@ -471,7 +569,9 @@ function EventCard({
   event,
   now,
   owner,
+  defaultOpen,
   onEdit,
+  onCopy,
   onCancel,
   onRestore,
   onRemove,
@@ -479,77 +579,95 @@ function EventCard({
   event: AgencyEvent;
   now: number;
   owner: boolean;
+  defaultOpen: boolean;
   onEdit: () => void;
+  onCopy: () => void;
   onCancel: () => void;
   onRestore: () => void;
   onRemove: () => void;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   const status = eventStatus(event, now);
+  const detailsId = `plan-card-${event.id}`;
   return (
-    <article className="card stack stack--tight plan-card" style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}>
-      <div className="cal-person__head">
-        <span className="cal-person__name">{eventName(event)}</span>
-        <Pill color={EVENT_STATUS_COLORS[status]}>{EVENT_STATUS_TITLES[status]}</Pill>
-      </div>
-      <p>
-        <b>{dayTitle(event.day)}</b>, {rangeLabel(event.start, event.end)}
-      </p>
-      <dl className="plan-facts">
-        <dt>Ведёт</dt>
-        <dd>{event.hostName || "—"}</dd>
-        {event.clientName && (
-          <>
-            <dt>Клиент</dt>
-            <dd>{event.clientName}</dd>
-          </>
-        )}
-        {event.clientPhone && (
-          <>
-            <dt>Телефон</dt>
-            <dd>
-              <a href={`tel:${event.clientPhone.replace(/[^\d+]/g, "")}`}>{event.clientPhone}</a>
-            </dd>
-          </>
-        )}
-        {event.place && (
-          <>
-            <dt>Где</dt>
-            <dd>{event.place}</dd>
-          </>
-        )}
-        {event.guests !== null && (
-          <>
-            <dt>Гостей</dt>
-            <dd>{event.guests}</dd>
-          </>
-        )}
-        {event.note && (
-          <>
-            <dt>Заметка</dt>
-            <dd className="plan-facts__note">{event.note}</dd>
-          </>
-        )}
-      </dl>
-      {owner && (
-        <div className="actions">
-          {event.cancelled ? (
-            <>
-              <button type="button" className="btn btn--secondary btn--block" onClick={onRestore}>
-                Вернуть мероприятие
-              </button>
-              <button type="button" className="btn btn--quiet btn--block" onClick={onRemove}>
-                Удалить навсегда
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
-                Изменить
-              </button>
-              <button type="button" className="btn btn--quiet btn--block" onClick={onCancel}>
-                Отменить мероприятие
-              </button>
-            </>
+    <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}>
+      <button type="button" className="plan-card__head" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
+        <span className="plan-card__top">
+          <span className="plan-card__title">{eventName(event)}</span>
+          <Pill color={EVENT_STATUS_COLORS[status]}>{EVENT_STATUS_TITLES[status]}</Pill>
+        </span>
+        <span className="plan-card__when">
+          {dayTitle(event.day)}, {rangeLabel(event.start, event.end)}
+        </span>
+        <span className="plan-card__host">
+          Ведёт: <b>{event.hostName || "—"}</b>
+        </span>
+        <span className="plan-card__more" aria-hidden="true">
+          {open ? "Свернуть ▲" : "Подробнее ▼"}
+        </span>
+      </button>
+      {open && (
+        <div id={detailsId} className="stack stack--tight">
+          <dl className="plan-facts">
+            {event.clientName && (
+              <>
+                <dt>Клиент</dt>
+                <dd>{event.clientName}</dd>
+              </>
+            )}
+            {event.clientPhone && (
+              <>
+                <dt>Телефон</dt>
+                <dd>
+                  <a href={`tel:${event.clientPhone.replace(/[^\d+]/g, "")}`}>{event.clientPhone}</a>
+                </dd>
+              </>
+            )}
+            {event.place && (
+              <>
+                <dt>Где</dt>
+                <dd>{event.place}</dd>
+              </>
+            )}
+            {event.guests !== null && (
+              <>
+                <dt>Гостей</dt>
+                <dd>{event.guests}</dd>
+              </>
+            )}
+            {event.note && (
+              <>
+                <dt>Комментарий</dt>
+                <dd className="plan-facts__note">{event.note}</dd>
+              </>
+            )}
+          </dl>
+          {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && <p className="muted small">Подробностей нет.</p>}
+          {owner && (
+            <div className="actions">
+              {event.cancelled ? (
+                <>
+                  <button type="button" className="btn btn--secondary btn--block" onClick={onRestore}>
+                    Вернуть мероприятие
+                  </button>
+                  <button type="button" className="btn btn--quiet btn--block" onClick={onRemove}>
+                    Удалить навсегда
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
+                    Изменить
+                  </button>
+                  <button type="button" className="btn btn--quiet btn--block" onClick={onCopy}>
+                    Создать похожее
+                  </button>
+                  <button type="button" className="btn btn--quiet btn--block" onClick={onCancel}>
+                    Отменить мероприятие
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -566,45 +684,105 @@ export interface EventDraft {
   hostId?: string;
 }
 
+const FILLED_TITLES: Record<keyof LeadFill, string> = {
+  clientName: "имя",
+  clientPhone: "телефон",
+  title: "что за мероприятие",
+  day: "дата",
+  start: "время",
+  end: "",
+  guests: "гости",
+  place: "место",
+  note: "комментарий",
+};
+
+/** Ближайшие дни для быстрого выбора: сегодня, завтра, пятница, суббота, воскресенье. */
+function quickDays(today: string): Array<{ day: string; label: string }> {
+  const out = [
+    { day: today, label: "Сегодня" },
+    { day: addDays(today, 1), label: "Завтра" },
+  ];
+  const weekday = ((dayIndex(today) ?? 0) + 3) % 7; // 0 — понедельник
+  for (const [target, label] of [
+    [4, "Пт"],
+    [5, "Сб"],
+    [6, "Вс"],
+  ] as const) {
+    const delta = (target - weekday + 7) % 7 || 7;
+    const d = addDays(today, delta);
+    if (!out.some((o) => o.day === d)) out.push({ day: d, label: `${label} ${Number(d.slice(8))}` });
+  }
+  return out;
+}
+
+function errorText(e: unknown): string {
+  const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  if (code === "invalid-argument") return "Проверьте дату и время: записать можно не раньше чем за месяц назад и не дальше двух лет вперёд.";
+  if (code === "not-found") return "Этот человек отключён — выберите другого ведущего.";
+  if (code === "failed-precondition") return "Мероприятие уже отменено — сначала верните его во вкладке «Отменённые».";
+  return "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.";
+}
+
 /**
- * Новое мероприятие или правка (только владелец). Рядом с каждым ведущим — может ли он в это время
- * (по его календарю); занятого выбрать можно, но форма предупреждает.
+ * Новое мероприятие, правка или «похожее» (только владелец). Быстро: заполнить из текста заявки или из
+ * заявки клиента базы площадок, дни, время, гости и вид мероприятия — одним касанием. Ведущие — карточками,
+ * сначала те, кто может; занятого записать можно, форма предупреждает.
  */
 export function EventForm({
   initial,
+  template,
   day: initialDay,
   draft,
   onSaved,
   onCancel,
 }: {
   initial?: AgencyEvent;
+  template?: AgencyEvent;
   day: string;
   draft?: EventDraft;
   onSaved: (event: AgencyEvent) => void;
   onCancel: () => void;
 }) {
+  const base = initial ?? template;
   const [id] = useState(() => initial?.id ?? newId());
   const [day, setDay] = useState(initial?.day ?? draft?.day ?? initialDay);
-  const [start, setStart] = useState(initial?.start ?? draft?.start ?? DEFAULT_QUERY.start);
-  const [end, setEnd] = useState(initial?.end ?? draft?.end ?? DEFAULT_QUERY.end);
-  const [hostId, setHostId] = useState(initial?.hostId ?? draft?.hostId ?? "");
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [clientName, setClientName] = useState(initial?.clientName ?? "");
-  const [clientPhone, setClientPhone] = useState(initial?.clientPhone ?? "");
-  const [place, setPlace] = useState(initial?.place ?? "");
-  const [guests, setGuests] = useState(initial?.guests != null ? String(initial.guests) : "");
-  const [note, setNote] = useState(initial?.note ?? "");
+  const [start, setStart] = useState(base?.start ?? draft?.start ?? DEFAULT_QUERY.start);
+  const [end, setEnd] = useState(base?.end ?? draft?.end ?? DEFAULT_QUERY.end);
+  const [hostId, setHostId] = useState(base?.hostId ?? draft?.hostId ?? "");
+  const [title, setTitle] = useState(base?.title ?? "");
+  const [clientName, setClientName] = useState(base?.clientName ?? "");
+  const [clientPhone, setClientPhone] = useState(base?.clientPhone ?? "");
+  const [place, setPlace] = useState(base?.place ?? "");
+  const [guests, setGuests] = useState(base?.guests != null ? String(base.guests) : "");
+  const [note, setNote] = useState(base?.note ?? "");
   const [allTeam, setAllTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filled, setFilled] = useState<string | null>(null);
+  const [confirm, ask] = useConfirm();
   const [team, retryTeam] = useLoad(
     () => (calendarRepo ? calendarRepo.team(day, addDays(day, 1)) : Promise.resolve({ members: [] as CalendarMember[], entries: [] as AvailabilityEntry[] })),
     [day],
   );
   const teamData = useLastReady(team);
+  // Прежние клиенты и места — подсказки при вводе (имя клиента подставит его телефон).
+  const [known] = useLoad(async () => {
+    if (!eventsRepo) return [] as AgencyEvent[];
+    const [a, b] = await Promise.all([eventsRepo.list("upcoming"), eventsRepo.list("past")]);
+    return [...a, ...b];
+  }, []);
   const today = todayMoscow();
+  const pastEvents = known.status === "ready" ? known.data : [];
+  const clientPhones = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of pastEvents) if (e.clientName && e.clientPhone && !map.has(e.clientName)) map.set(e.clientName, e.clientPhone);
+    return map;
+  }, [pastEvents]);
+  const places = useMemo(() => [...new Set(pastEvents.map((e) => e.place).filter(Boolean))].slice(0, 30), [pastEvents]);
 
-  const members = (teamData?.members ?? []).filter((m) => allTeam || m.owner || professionOf(m.profession) === "host" || m.uid === hostId);
+  const initialSnapshot = useState(() => JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note]))[0];
+  const dirty = JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note]) !== initialSnapshot;
+
   const statusOf = (uid: string) =>
     availabilityOf(
       (teamData?.entries ?? []).filter((e) => e.uid === uid && e.id !== bookingId(id)),
@@ -612,10 +790,32 @@ export function EventForm({
       start,
       end,
     );
-  const chosen = hostId ? statusOf(hostId) : null;
+  const members = (teamData?.members ?? [])
+    .filter((m) => allTeam || m.owner || professionOf(m.profession) === "host" || m.uid === hostId)
+    .map((m) => ({ member: m, info: statusOf(m.uid) }))
+    .sort((a, b) => STATUS_ORDER[a.info.status] - STATUS_ORDER[b.info.status] || a.member.name.localeCompare(b.member.name, "ru"));
+  const hostGone = Boolean(hostId) && team.status === "ready" && !teamData?.members.some((m) => m.uid === hostId);
+  const chosen = hostId && !hostGone ? statusOf(hostId) : null;
   const guestsNum = guests.trim() === "" ? null : Number(guests);
   const guestsOk = guestsNum === null || (Number.isInteger(guestsNum) && guestsNum >= 0 && guestsNum <= EVENT_LIMITS.guestsMax);
-  const ready = Boolean(hostId) && (title.trim() !== "" || clientName.trim() !== "") && guestsOk;
+  const missing = [!hostId || hostGone ? "ведущий" : "", !title.trim() && !clientName.trim() ? "что за мероприятие или имя клиента" : "", guestsOk ? "" : "число гостей"].filter(Boolean);
+  const ready = missing.length === 0;
+
+  function apply(fill: LeadFill) {
+    if (fill.clientName) setClientName(fill.clientName);
+    if (fill.clientPhone) setClientPhone(fill.clientPhone);
+    if (fill.title) setTitle(fill.title);
+    if (fill.day) setDay(fill.day);
+    if (fill.start !== undefined && fill.end !== undefined) {
+      setStart(fill.start);
+      setEnd(fill.end);
+    }
+    if (fill.guests) setGuests(String(fill.guests));
+    if (fill.place) setPlace(fill.place);
+    if (fill.note) setNote(fill.note);
+    const got = (Object.keys(fill) as Array<keyof LeadFill>).map((k) => FILLED_TITLES[k]).filter(Boolean);
+    setFilled(got.length ? `Заполнено: ${got.join(", ")}. Проверьте и выберите ведущего.` : "В тексте не нашлось ни имени, ни телефона, ни даты — заполните вручную.");
+  }
 
   async function save() {
     if (!eventsRepo || !ready) return;
@@ -637,87 +837,175 @@ export function EventForm({
           note: note.trim(),
         }),
       );
-    } catch {
-      setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
+    } catch (e) {
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <section className="card stack" aria-labelledby="event-form">
-      <h2 id="event-form">{initial ? "Изменить мероприятие" : "Новое мероприятие"}</h2>
-      <label className="field">
-        <span className="field__label">Дата</span>
-        <input type="date" value={day} min={addDays(today, -31)} onChange={(e) => dayIndex(e.target.value) !== null && setDay(e.target.value)} />
-      </label>
-      <TimeSelects start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
-      <p className="muted small">{dayTitle(day)}, {rangeLabel(start, end)}</p>
+  function close() {
+    if (!dirty) return onCancel();
+    ask({ title: "Не сохранять мероприятие?", text: "Введённое пропадёт.", confirmLabel: "Не сохранять", run: async () => onCancel() });
+  }
 
-      <label className="field">
-        <span className="field__label">Ведущий</span>
-        <select value={hostId} aria-label="Ведущий" onChange={(e) => setHostId(e.target.value)}>
-          <option value="">Выберите…</option>
-          {hostId && !members.some((m) => m.uid === hostId) && <option value={hostId}>Загружаем…</option>}
-          {members.map((m) => (
-            <option key={m.uid} value={m.uid}>
-              {m.name} — {STATUS_TITLES[statusOf(m.uid).status].toLowerCase()}
-            </option>
-          ))}
-        </select>
-      </label>
-      {team.status === "error" && <LoadFailedInline onRetry={retryTeam} />}
-      <label className="choice">
-        <input type="checkbox" checked={allTeam} onChange={(e) => setAllTeam(e.target.checked)} />
-        <span className="choice__text">
-          <span className="choice__title">Показать всю команду</span>
-          <span className="choice__hint">Не только ведущие: диджеи, музыканты, фокусники и другие.</span>
-        </span>
-      </label>
-      {chosen && (
-        <p className="small">
-          <Pill color={MEMBER_COLORS[chosen.status]}>{STATUS_TITLES[chosen.status]}</Pill>{" "}
-          {chosen.status === "busy"
-            ? `Занят: ${chosen.busy.map((b) => `${rangeLabel(b.start, b.end)}${b.note ? ` — ${b.note}` : ""}`).join("; ")}. Записать всё равно можно.`
-            : chosen.status === "partial"
-              ? `Свободен только ${chosen.free.map((f) => `${timeLabel(f.start)}–${timeLabel(f.end)}`).join(", ")}.`
-              : chosen.status === "unknown"
-                ? "Этот день не отмечен — уточните у человека."
-                : "В это время свободен."}
+  return (
+    <section className="card stack plan-form" aria-labelledby="event-form">
+      <h2 id="event-form">{initial ? "Изменить мероприятие" : template ? "Похожее мероприятие" : "Новое мероприятие"}</h2>
+
+      {!initial && <ImportFromLead today={today} onFill={apply} />}
+      {filled && (
+        <p className="small plan-filled" role="status">
+          {filled}
         </p>
       )}
 
-      <label className="field">
-        <span className="field__label">Что за мероприятие</span>
-        <input type="text" list="event-titles" maxLength={EVENT_LIMITS.title} value={title} placeholder="Свадьба, корпоратив…" onChange={(e) => setTitle(e.target.value)} />
-      </label>
-      <datalist id="event-titles">
-        {EVENT_TITLES.map((t) => (
-          <option key={t} value={t} />
-        ))}
-      </datalist>
-      <label className="field">
-        <span className="field__label">Клиент — имя</span>
-        <input type="text" autoComplete="off" maxLength={EVENT_LIMITS.client} value={clientName} onChange={(e) => setClientName(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="field__label">Телефон клиента</span>
-        <input type="tel" inputMode="tel" autoComplete="off" maxLength={EVENT_LIMITS.phone} value={clientPhone} placeholder="+7 …" onChange={(e) => setClientPhone(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="field__label">Где (адрес или площадка)</span>
-        <input type="text" maxLength={EVENT_LIMITS.place} value={place} onChange={(e) => setPlace(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="field__label">Гостей</span>
-        <input type="number" inputMode="numeric" min={0} max={EVENT_LIMITS.guestsMax} value={guests} onChange={(e) => setGuests(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="field__label">Заметка (программа, пожелания)</span>
-        <textarea rows={3} maxLength={EVENT_LIMITS.note} value={note} onChange={(e) => setNote(e.target.value)} />
-      </label>
-      <p className="muted small">Имя и телефон клиента видят только вы и ведущий этого мероприятия.</p>
-      {!ready && <p className="muted small">Нужны ведущий и что за мероприятие или имя клиента.</p>}
+      <fieldset className="stack stack--tight">
+        <legend>Когда</legend>
+        <div className="plan-quick" role="group" aria-label="Быстрый выбор дня">
+          {quickDays(today).map((q) => (
+            <button key={q.day} type="button" className={day === q.day ? "seg__btn is-on" : "seg__btn"} aria-pressed={day === q.day} onClick={() => setDay(q.day)}>
+              {q.label}
+            </button>
+          ))}
+        </div>
+        <label className="field">
+          <span className="field__label">Дата</span>
+          <input type="date" value={day} min={addDays(today, -31)} onChange={(e) => dayIndex(e.target.value) !== null && setDay(e.target.value)} />
+        </label>
+        <div className="plan-quick" role="group" aria-label="Готовое время">
+          {TIME_PRESETS.map((p) => (
+            <button
+              key={`${p.start}-${p.end}`}
+              type="button"
+              className={start === p.start && end === p.end ? "seg__btn is-on" : "seg__btn"}
+              aria-pressed={start === p.start && end === p.end}
+              onClick={() => {
+                setStart(p.start);
+                setEnd(p.end);
+              }}
+            >
+              {timeLabel(p.start)}–{timeLabel(p.end)}
+            </button>
+          ))}
+        </div>
+        <TimeSelects start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+        <div className="plan-quick" role="group" aria-label="Сколько часов">
+          {DURATIONS.map((h) => (
+            <button key={h} type="button" className={end === endIn(start, h) ? "seg__btn is-on" : "seg__btn"} aria-pressed={end === endIn(start, h)} onClick={() => setEnd(endIn(start, h))}>
+              {h} ч
+            </button>
+          ))}
+        </div>
+        <p className="plan-when">
+          {dayTitle(day)}, {rangeLabel(start, end)}
+        </p>
+      </fieldset>
+
+      <fieldset className="stack stack--tight">
+        <legend>Кто ведёт</legend>
+        {team.status === "error" && <LoadFailedInline onRetry={retryTeam} />}
+        {!teamData && team.status !== "error" && <p className="muted small">Загружаем команду…</p>}
+        {hostGone && <p className="error small">{initial?.hostName || "Этот ведущий"} сейчас отключён — выберите другого.</p>}
+        <div className="plan-hosts" role="radiogroup" aria-label="Ведущий">
+          {members.map(({ member, info }) => (
+            <label key={member.uid} className="choice plan-host">
+              <input type="radio" name={`host-${id}`} checked={hostId === member.uid} onChange={() => setHostId(member.uid)} />
+              <span className="choice__text">
+                <span className="choice__title">{member.name}</span>
+                <span className="choice__hint">
+                  <Pill color={MEMBER_COLORS[info.status]}>{STATUS_TITLES[info.status]}</Pill>
+                  {info.status === "partial" && ` свободен ${info.free.map((f) => `${timeLabel(f.start)}–${timeLabel(f.end)}`).join(", ")}`}
+                  {info.status === "busy" && ` ${info.busy.map((b) => `${rangeLabel(b.start, b.end)}${b.note ? ` — ${b.note}` : ""}`).join("; ")}`}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <label className="choice">
+          <input type="checkbox" checked={allTeam} onChange={(e) => setAllTeam(e.target.checked)} />
+          <span className="choice__text">
+            <span className="choice__title">Показать всю команду</span>
+            <span className="choice__hint">Не только ведущие: диджеи, музыканты, фокусники и другие.</span>
+          </span>
+        </label>
+        {chosen?.status === "busy" && <p className="small plan-warn">У выбранного ведущего это время занято. Записать всё равно можно.</p>}
+      </fieldset>
+
+      <fieldset className="stack stack--tight">
+        <legend>Что за мероприятие</legend>
+        <div className="plan-quick" role="group" aria-label="Вид мероприятия">
+          {EVENT_TITLES.slice(0, 6).map((t) => (
+            <button key={t} type="button" className={title === t ? "seg__btn is-on" : "seg__btn"} aria-pressed={title === t} onClick={() => setTitle(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
+        <label className="field">
+          <span className="field__label">Что за мероприятие</span>
+          <input type="text" list="event-titles" maxLength={EVENT_LIMITS.title} value={title} placeholder="Свадьба, корпоратив…" onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <datalist id="event-titles">
+          {EVENT_TITLES.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+        <div className="plan-quick" role="group" aria-label="Быстрый выбор гостей">
+          {GUEST_PRESETS.map((g) => (
+            <button key={g} type="button" className={guests === String(g) ? "seg__btn is-on" : "seg__btn"} aria-pressed={guests === String(g)} onClick={() => setGuests(String(g))}>
+              {g}
+            </button>
+          ))}
+        </div>
+        <label className="field">
+          <span className="field__label">Гостей</span>
+          <input type="number" inputMode="numeric" min={0} max={EVENT_LIMITS.guestsMax} value={guests} onChange={(e) => setGuests(e.target.value)} />
+        </label>
+      </fieldset>
+
+      <fieldset className="stack stack--tight">
+        <legend>Клиент и место</legend>
+        <label className="field">
+          <span className="field__label">Клиент — имя</span>
+          <input
+            type="text"
+            autoComplete="off"
+            list="event-clients"
+            maxLength={EVENT_LIMITS.client}
+            value={clientName}
+            onChange={(e) => {
+              setClientName(e.target.value);
+              const phone = clientPhones.get(e.target.value);
+              if (phone && !clientPhone.trim()) setClientPhone(phone);
+            }}
+          />
+        </label>
+        <datalist id="event-clients">
+          {[...clientPhones.keys()].slice(0, 50).map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+        <label className="field">
+          <span className="field__label">Телефон клиента</span>
+          <input type="tel" inputMode="tel" autoComplete="off" maxLength={EVENT_LIMITS.phone} value={clientPhone} placeholder="+7 …" onChange={(e) => setClientPhone(e.target.value)} />
+        </label>
+        <label className="field">
+          <span className="field__label">Где (адрес или площадка)</span>
+          <input type="text" list="event-places" maxLength={EVENT_LIMITS.place} value={place} onChange={(e) => setPlace(e.target.value)} />
+        </label>
+        <datalist id="event-places">
+          {places.map((p) => (
+            <option key={p} value={p} />
+          ))}
+        </datalist>
+        <label className="field">
+          <span className="field__label">Комментарий (программа, пожелания)</span>
+          <textarea rows={3} maxLength={EVENT_LIMITS.note} value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        <p className="muted small">Имя и телефон клиента видят только вы и ведущий этого мероприятия.</p>
+      </fieldset>
+
+      {!ready && <p className="muted small">Осталось указать: {missing.join(", ")}.</p>}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -727,10 +1015,63 @@ export function EventForm({
         <button type="button" className="btn btn--block" disabled={busy || !ready} onClick={() => void save()}>
           {busy ? "Сохраняем…" : initial ? "Сохранить" : "Записать мероприятие"}
         </button>
-        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={onCancel}>
+        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={close}>
           Отмена
         </button>
       </div>
+      {confirm}
     </section>
+  );
+}
+
+/** «Заполнить из заявки»: вставить текст (сообщение с сайта, переписка) или взять заявку клиента из базы площадок. */
+function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadFill) => void }) {
+  const [text, setText] = useState("");
+  const [showRequests, setShowRequests] = useState(false);
+  return (
+    <Fold title="Заполнить из заявки" value="вставить текст или выбрать заявку">
+      <div className="stack stack--tight">
+        <label className="field">
+          <span className="field__label">Текст заявки</span>
+          <textarea rows={4} value={text} placeholder="Вставьте сообщение с сайта или из переписки: имя, телефон, дата, время, гости" onChange={(e) => setText(e.target.value)} />
+        </label>
+        <div className="actions">
+          <button type="button" className="btn btn--secondary btn--block" disabled={!text.trim()} onClick={() => onFill(parseLeadText(text, today))}>
+            Заполнить из текста
+          </button>
+          {venuesRepo && (
+            <button type="button" className="btn btn--quiet btn--block" aria-expanded={showRequests} onClick={() => setShowRequests(!showRequests)}>
+              {showRequests ? "Скрыть заявки клиентов" : "Взять из заявок клиентов"}
+            </button>
+          )}
+        </div>
+        {showRequests && <RequestPicker onPick={(r) => onFill(fillFromRequest(r.data))} />}
+      </div>
+    </Fold>
+  );
+}
+
+function RequestPicker({ onPick }: { onPick: (r: VenueRequestRecord) => void }) {
+  const [state, retry] = useLoad(() => (venuesRepo ? venuesRepo.listRequests() : Promise.resolve([] as VenueRequestRecord[])), []);
+  if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
+  if (state.status !== "ready") return <p className="muted small">Загружаем заявки…</p>;
+  const list = state.data
+    .filter((r) => r.archivedAt === null)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 20);
+  if (list.length === 0) return <p className="muted small">Заявок клиентов пока нет.</p>;
+  return (
+    <ul className="plan-requests">
+      {list.map((r) => (
+        <li key={r.id}>
+          <button type="button" className="plan-request" onClick={() => onPick(r)}>
+            <b>№{r.number}</b> {r.data.name || "без имени"}
+            <span className="muted small">
+              {[r.data.eventType, r.data.date ? dayTitle(r.data.date).replace(/^[^,]+, /, "") : "", r.data.guests ? `${r.data.guests} гостей` : ""].filter(Boolean).join(" · ")}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

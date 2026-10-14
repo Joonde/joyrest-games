@@ -16,6 +16,7 @@ const ev = (id: string, day: string, start: number, end: number, extra: Partial<
   guests: null,
   note: "",
   cancelled: false,
+  held: null,
   ...extra,
 });
 

@@ -43,7 +43,7 @@ import { TopBar } from "../../components/TopBar";
 import { brand } from "../../themes/brand";
 import { studioActions } from "./Studio";
 
-const KIND_COLORS: Record<AvailabilityKind, string> = { free: brand.sage, busy: brand.coral, booked: brand.wine };
+const KIND_COLORS: Record<AvailabilityKind, string> = { free: brand.sage, busy: brand.coral, booked: brand.gold };
 const STATUS_COLORS: Record<MemberStatus, string> = { free: brand.sage, partial: brand.gold, unknown: brand.taupe, busy: brand.coral };
 
 /** id записи создаёт браузер: повтор после обрыва — та же запись. */
@@ -311,8 +311,8 @@ function PersonRow({
             </div>
           </div>
         ) : (
-          <button type="button" className="btn btn--secondary btn--block" onClick={() => setOpen(true)}>
-            Закрепить за {member.name}
+          <button type="button" className="btn btn--secondary btn--block" aria-label={`Закрепить это время за: ${member.name}`} onClick={() => setOpen(true)}>
+            Закрепить это время
           </button>
         ))}
     </li>
@@ -346,8 +346,8 @@ function MonthFree({
   const freeOn = (d: string) => people.filter((p) => availabilityOf(byUser.get(p.uid) ?? [], d, start, end).status === "free").length;
   return (
     <section className="card stack" aria-labelledby="who-month">
-      <h2 id="who-month">Свободные дни · {rangeLabel(start, end)}</h2>
-      <p className="muted small">Число в дне — сколько человек могут в это время. Удобно предложить клиенту другую дату.</p>
+      <h2 id="who-month">Свободные дни</h2>
+      <p className="muted small">Число в дне — сколько человек могут {rangeLabel(start, end)}. Удобно предложить клиенту другую дату.</p>
       <MonthHeader year={year} month={month} onPrev={() => onMonth(shiftMonth(day, -1))} onNext={() => onMonth(shiftMonth(day, 1))} />
       <MonthGrid
         year={year}
@@ -357,7 +357,7 @@ function MonthFree({
           const n = freeOn(d);
           return (
             <span className={n > 0 ? "cal-count" : "cal-count cal-count--none"} style={{ "--count-color": brand.sage } as CSSProperties}>
-              {n}
+              {n > 0 ? n : ""}
             </span>
           );
         }}

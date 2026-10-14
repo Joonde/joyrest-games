@@ -15396,8 +15396,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .cal-times {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
+}
+
+.cal-times .field {
+  min-width: 0;
+}
+
+.cal-times select {
+  width: 100%;
+  min-width: 0;
 }
 
 .cal-summary {

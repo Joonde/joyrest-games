@@ -167,5 +167,17 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     expect(((await get("/api/tracks", anna)).json().mine as Array<{ id: string; folder: string }>).find((t) => t.id === annaTrack.id)?.folder).toBe("Лото");
     expect((await post("/api/track-folders/delete", anna, { scope: "personal", name: "Лото" })).json()).toEqual({ mine: [], library: [] });
     expect(((await get("/api/tracks", anna)).json().mine as Array<{ id: string; folder: string }>).find((t) => t.id === annaTrack.id)?.folder).toBe("");
+    // Папку целиком — в общую (через проверку), общую папку — себе (личные копии того же файла).
+    await app.inject({ method: "PATCH", url: "/api/tracks/b1", headers: headers(boris), payload: { folder: "Борис" } });
+    expect((await post("/api/track-folders/share", boris, { name: "Борис" })).json()).toEqual({ shared: 1 });
+    await post("/api/tracks/b1/accept", owner);
+    const shared = ((await get("/api/tracks", anna)).json().library as Array<{ title: string; folder: string }>).find((t) => t.title === "Мой трек");
+    expect(shared?.folder).toBe("Борис");
+    expect((await post("/api/track-folders/take", anna, { name: "Борис" })).json().mine).toContain("Борис");
+    const taken = ((await get("/api/tracks", anna)).json().mine as Array<{ title: string; folder: string; scope: string }>).filter((t) => t.folder === "Борис");
+    expect(taken.map((t) => [t.title, t.scope])).toEqual([["Мой трек", "personal"]]);
+    // Повтор — та же копия, не дубль.
+    await post("/api/track-folders/take", anna, { name: "Борис" });
+    expect(((await get("/api/tracks", anna)).json().mine as Array<{ folder: string }>).filter((t) => t.folder === "Борис")).toHaveLength(1);
   });
 });

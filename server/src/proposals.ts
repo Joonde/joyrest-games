@@ -164,7 +164,7 @@ export function registerProposals(app: FastifyInstance, options: ProposalsOption
           order by p.decided_at desc limit 1`;
         // Треки игры ведущего — в общую музыку, ссылки в игре библиотеки — на общие копии: ведущий может удалить
         // свой трек, а музыка в библиотеке и в копиях у других ведущих останется.
-        const promoted = await promoteGameTracks(tx, source.content ?? null, user.id);
+        const promoted = await promoteGameTracks(tx, source.content ?? null, user.id, source.title);
         const content = tx.json(promoted.content as Parameters<typeof tx.json>[0]);
         let target: string;
         if (previous) {

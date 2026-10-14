@@ -55,6 +55,13 @@ export const serverTracksRepository: TracksRepository = {
   async renameFolder(scope, from, to) {
     return folderLists(await api("POST", "/api/track-folders/rename", { scope, from, to }));
   },
+  async shareFolder(name) {
+    const d = asRecord(await api("POST", "/api/track-folders/share", { name }));
+    return typeof d.shared === "number" ? d.shared : 0;
+  },
+  async takeFolder(name) {
+    return folderLists(await api("POST", "/api/track-folders/take", { name }));
+  },
   async deleteFolder(scope, name) {
     return folderLists(await api("POST", "/api/track-folders/delete", { scope, name }));
   },

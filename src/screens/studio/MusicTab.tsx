@@ -138,6 +138,23 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
     }
   }
 
+  async function acceptAll(list: Track[]) {
+    if (!repo) return;
+    setBusy(true);
+    try {
+      for (const t of list) {
+        await repo.accept(t.id);
+        updatePending((rest) => rest.filter((x) => x.id !== t.id));
+      }
+      retry();
+      onToast(`Папка «${list[0]?.folder ?? ""}» в общей музыке`);
+    } catch {
+      onToast("Приняты не все треки. Проверьте интернет и нажмите ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function reject() {
     if (!repo || !toReject) return;
     setBusy(true);
@@ -269,6 +286,33 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
               ) : (
                 <ul className="tracks">{items.map((t) => row(t, actionsFor(t)))}</ul>
               )}
+              {scope === "agency" && items.length > 0 && permissions.canUploadTrack(profile, "personal") && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--block"
+                  disabled={busy}
+                  onClick={() => void folderAction(() => (repo ? repo.takeFolder(name) : Promise.resolve()), () => undefined, `Папка «${name}» теперь и в ваших треках`)}
+                >
+                  Взять папку себе
+                </button>
+              )}
+              {scope === "personal" &&
+                items.some((t) => t.ready && permissions.canShareTrack(profile, t) && (t.shareStatus === "none" || t.shareStatus === "rejected")) && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--block"
+                    disabled={busy}
+                    onClick={() =>
+                      void folderAction(
+                        () => (repo ? repo.shareFolder(name) : Promise.resolve()),
+                        () => undefined,
+                        "Папка отправлена владельцу JoyRest на проверку — после проверки она появится у всех",
+                      )
+                    }
+                  >
+                    Предложить папку в общую
+                  </button>
+                )}
               {editable && (
                 <div className="actions">
                   <button
@@ -396,6 +440,24 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
         <section className="card" aria-labelledby="tracks-pending">
           <h2 id="tracks-pending">Треки на проверку: {pending.data.length}</h2>
           <p className="muted">Послушайте и проверьте, откуда права. Принятый трек увидят все ведущие.</p>
+          {(() => {
+            // Предложенные папкой — принять всю папку одним касанием (решение владельца 15 октября 2026).
+            const groups = new Map<string, Track[]>();
+            for (const t of pending.data) if (t.folder) groups.set(`${t.ownerId}\u0000${t.folder}`, [...(groups.get(`${t.ownerId}\u0000${t.folder}`) ?? []), t]);
+            return [...groups.values()]
+              .filter((list) => list.length > 1)
+              .map((list) => (
+                <button
+                  key={`${list[0]?.ownerId}:${list[0]?.folder}`}
+                  type="button"
+                  className="btn btn--secondary btn--block"
+                  disabled={busy}
+                  onClick={() => void acceptAll(list)}
+                >
+                  Принять всю папку «{list[0]?.folder}» ({list.length}) · {list[0]?.ownerName}
+                </button>
+              ));
+          })()}
           <ul className="tracks">
             {pending.data.map((t) =>
               row(

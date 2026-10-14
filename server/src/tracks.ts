@@ -17,6 +17,7 @@ import { parseTrackClip } from "../../src/data/trackClip";
 import type { Track, TrackCategory, TrackLicense, TrackShareStatus } from "../../src/data/types";
 import { actorOf, apiGuard, identityOf, newUserId, sessionUser, type SessionRow, uploadGuard } from "./auth";
 import { cleanReason } from "./proposals";
+import { takeTracks } from "./libraryTracks";
 
 export interface TracksOptions {
   sql: Sql;
@@ -250,6 +251,34 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       return folderLists(user.id);
     });
 
+    // Ведущий предлагает в общую всю папку: все её готовые треки — на проверку владельцу (он принимает их папкой).
+    api.post<{ Body: unknown }>("/api/track-folders/share", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const name = cleanLine(body.name, FOLDER_MAX);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      const rows = await sql<TrackRow[]>`${select()} where t.owner_id = ${user.id} and t.scope = 'personal' and t.folder = ${name} and t.sha256 is not null`;
+      const ids = rows.filter((t) => permissions.canShareTrack(actorOf(user), ref(t)) && (t.share_status === "none" || t.share_status === "rejected")).map((t) => t.id);
+      if (ids.length > 0) await sql`update tracks set share_status = 'pending', share_reason = null, updated_at = now() where id = any(${ids})`;
+      request.log.info({ track: "share-folder", count: ids.length }, "track");
+      return { shared: ids.length };
+    });
+
+    // «Взять папку себе»: общая папка со всеми треками — личной папкой ведущего (тот же файл, место не тратится).
+    api.post<{ Body: unknown }>("/api/track-folders/take", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      if (!permissions.canUploadTrack(actorOf(user), "personal")) return fail(reply, 403, "permission-denied");
+      const body = isRecord(request.body) ? request.body : {};
+      const name = cleanLine(body.name, FOLDER_MAX);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      const rows = await sql<{ id: string }[]>`select id from tracks where scope = 'agency' and folder = ${name} and sha256 is not null limit ${LIST_LIMIT}`;
+      const map = await sql.begin((tx) => takeTracks(tx, rows.map((r) => r.id), user.id, name));
+      request.log.info({ track: "take-folder", count: map.size }, "track");
+      return folderLists(user.id);
+    });
+
     api.post<{ Body: unknown }>("/api/track-folders/delete", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
@@ -349,7 +378,8 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         return fail(reply, 507, "resource-exhausted");
       }
       const [{ used }] = await sql<{ used: string }[]>`
-        select coalesce(sum(size), 0)::text as used from tracks where owner_id = ${track.owner_id} and sha256 is not null and scope = 'personal'`;
+        select coalesce(sum(t.size), 0)::text as used from tracks t where t.owner_id = ${track.owner_id} and t.sha256 is not null and t.scope = 'personal'
+          and not exists (select 1 from tracks a where a.scope = 'agency' and a.sha256 = t.sha256)`;
       if (Number(used) + bytes.length > limits.perHostBytes) return fail(reply, 413, "resource-exhausted");
 
       await mkdir(audioDir, { recursive: true });
@@ -437,10 +467,13 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
               duration_ms = ${track.duration_ms}, clip = ${sql.json(parseTrackClip(track.clip) as never)}, updated_at = now()
             where id = ${target}`;
         } else {
+          // Трек из папки ведущего — в общую папку с тем же названием (решение владельца 15 октября 2026).
+          const folder = track.folder ?? "";
+          if (folder) await tx`insert into track_folders (owner_id, scope, name) values ('agency', 'agency', ${folder}) on conflict do nothing`;
           await tx`
-            insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms, clip)
+            insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms, clip, folder)
             values (${target}, ${user.id}, 'agency', ${track.title}, ${track.category}, ${track.license},
-                    ${track.license_note}, ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms}, ${sql.json(parseTrackClip(track.clip) as never)})`;
+                    ${track.license_note}, ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms}, ${sql.json(parseTrackClip(track.clip) as never)}, ${folder})`;
         }
         await tx`
           update tracks set share_status = 'accepted', share_reason = null, library_track_id = ${target}, updated_at = now()

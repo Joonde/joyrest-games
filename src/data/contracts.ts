@@ -322,6 +322,10 @@ export interface TracksRepository {
   createFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
   renameFolder(scope: "personal" | "agency", from: string, to: string): Promise<TrackFolders>;
   deleteFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
+  /** Своя папка целиком — на проверку в общую (сколько треков отправлено). */
+  shareFolder(name: string): Promise<number>;
+  /** Общая папка целиком — себе: личные копии треков в папке с тем же названием. */
+  takeFolder(name: string): Promise<TrackFolders>;
   /** Предложенные в общую, ждут проверки (admin). */
   listPending(): Promise<Track[]>;
   /** Описание трека; файл — следующим шагом (`upload`). id создаёт браузер. */

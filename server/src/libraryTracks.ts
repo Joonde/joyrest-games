@@ -51,7 +51,12 @@ interface TrackRow {
  * Личные треки, на которые ссылается игра, — в общую музыку; возвращает содержимое со ссылками на общие копии
  * (то же самое, если менять нечего). `ownerId` — владелец общих копий (владелец агентства).
  */
-export async function promoteGameTracks(db: Sql | TransactionSql, content: unknown, ownerId: string): Promise<{ content: unknown; changed: boolean }> {
+/** Название папки для треков игры: название игры, до 40 символов (как у папок «Музыки»). */
+export function gameFolder(title: unknown): string {
+  return typeof title === "string" ? title.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40) : "";
+}
+
+export async function promoteGameTracks(db: Sql | TransactionSql, content: unknown, ownerId: string, title?: string): Promise<{ content: unknown; changed: boolean }> {
   const ids = new Set<string>();
   collectIds(content, ids);
   if (ids.size === 0) return { content, changed: false };
@@ -61,6 +66,9 @@ export async function promoteGameTracks(db: Sql | TransactionSql, content: unkno
     from tracks where id = any(${[...ids]}) and scope = 'personal' and sha256 is not null`;
   if (personal.length === 0) return { content, changed: false };
   const map = new Map<string, string>();
+  // Музыка игры в общей музыке лежит в папке с названием игры (решение владельца 15 октября 2026).
+  const folder = gameFolder(title);
+  if (folder) await sql`insert into track_folders (owner_id, scope, name) values ('agency', 'agency', ${folder}) on conflict do nothing`;
   for (const track of personal) {
     // Уже копировали (принят в общую раньше) — та же копия, если её не удалили.
     const [existing] = track.library_track_id
@@ -70,9 +78,9 @@ export async function promoteGameTracks(db: Sql | TransactionSql, content: unkno
     if (!target) {
       target = newUserId();
       await sql`
-        insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms, clip)
+        insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms, clip, folder)
         values (${target}, ${ownerId}, 'agency', ${track.title}, ${track.category}, ${track.license}, ${track.license_note},
-                ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms}, ${sql.json(parseTrackClip(track.clip) as never)})`;
+                ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms}, ${sql.json(parseTrackClip(track.clip) as never)}, ${folder})`;
       await sql`
         update tracks set share_status = 'accepted', share_reason = null, library_track_id = ${target}, updated_at = now()
         where id = ${track.id}`;
@@ -101,4 +109,59 @@ export async function promoteLibraryTracks(sql: Sql): Promise<number> {
     if (changed) fixed += 1;
   }
   return fixed;
+}
+
+interface AgencyRow {
+  id: string;
+  title: string;
+  category: string;
+  license: string;
+  license_note: string;
+  sha256: string;
+  mime: string | null;
+  size: number;
+  duration_ms: number | null;
+  clip: unknown;
+}
+
+/**
+ * Взять общие треки себе (решение владельца 15 октября 2026): у ведущего появляются личные копии в папке `folder`
+ * (тот же файл — место на диске не тратится; если копия этого файла у него уже есть — берётся она). Возвращает
+ * таблицу «общий id → личный id». Используется «Взять папку себе» и копирование игры библиотеки в «Мои игры».
+ */
+export async function takeTracks(db: Sql | TransactionSql, agencyIds: string[], userId: string, folder: string): Promise<Map<string, string>> {
+  const sql = db as Sql;
+  const map = new Map<string, string>();
+  if (agencyIds.length === 0) return map;
+  const rows = await sql<AgencyRow[]>`
+    select id, title, category, license, license_note, sha256, mime, size, duration_ms, clip
+    from tracks where id = any(${agencyIds}) and scope = 'agency' and sha256 is not null`;
+  if (rows.length === 0) return map;
+  if (folder) await sql`insert into track_folders (owner_id, scope, name) values (${userId}, 'personal', ${folder}) on conflict do nothing`;
+  for (const track of rows) {
+    const [mine] = await sql<{ id: string }[]>`
+      select id from tracks where owner_id = ${userId} and scope = 'personal' and sha256 = ${track.sha256} order by created_at limit 1`;
+    let target = mine?.id;
+    if (!target) {
+      target = newUserId();
+      await sql`
+        insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms, clip, folder)
+        values (${target}, ${userId}, 'personal', ${track.title}, ${track.category}, ${track.license}, ${track.license_note},
+                ${track.sha256}, ${track.mime}, ${track.size}, ${track.duration_ms}, ${sql.json(parseTrackClip(track.clip) as never)}, ${folder})`;
+    } else if (folder) {
+      await sql`update tracks set folder = ${folder}, updated_at = now() where id = ${target} and folder = ''`;
+    }
+    map.set(track.id, target);
+  }
+  return map;
+}
+
+/** Общие треки, на которые ссылается содержимое игры. */
+export async function agencyTrackIds(db: Sql | TransactionSql, content: unknown): Promise<string[]> {
+  const ids = new Set<string>();
+  collectIds(content, ids);
+  if (ids.size === 0) return [];
+  const sql = db as Sql;
+  const rows = await sql<{ id: string }[]>`select id from tracks where id = any(${[...ids]}) and scope = 'agency' and sha256 is not null`;
+  return rows.map((r) => r.id);
 }

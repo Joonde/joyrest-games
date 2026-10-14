@@ -406,6 +406,111 @@ export interface LibraryProposal {
   decidedAt: number | null;
 }
 
+/**
+ * Календарь команды (CLAUDE.md, раздел 3, «Календарь»): «свободен», «занят» — отмечает сам человек;
+ * «мероприятие» — время, закреплённое за ним владельцем. Время — минуты от полуночи дня `day`
+ * (конец до 06:00 следующего дня — до 1800).
+ */
+export type AvailabilityKind = "free" | "busy" | "booked";
+
+export interface AvailabilityEntry {
+  id: string;
+  uid: string;
+  /** «ГГГГ-ММ-ДД». */
+  day: string;
+  start: number;
+  end: number;
+  kind: AvailabilityKind;
+  /** Заметка: «своё мероприятие», у закреплённого — что за мероприятие. */
+  note: string;
+}
+
+/**
+ * Мероприятие агентства (планировщик в календаре; только свой сервер). Имя и телефон клиента видят
+ * владелец и ведущий этого мероприятия; в Telegram они не уходят.
+ */
+export interface AgencyEvent {
+  id: string;
+  hostId: string;
+  hostName: string;
+  /** «ГГГГ-ММ-ДД», время — минуты от полуночи (конец до 06:00 следующего дня). */
+  day: string;
+  start: number;
+  end: number;
+  clientName: string;
+  clientPhone: string;
+  /** Что за мероприятие: «Свадьба», «Корпоратив»… */
+  title: string;
+  place: string;
+  guests: number | null;
+  note: string;
+  cancelled: boolean;
+  /** После начала: true — проведено, false — не состоялось, null — не отмечено. */
+  held: boolean | null;
+}
+
+/** Клиент агентства (база клиентов владельца; только свой сервер). Данные — только на сервере в России. */
+export interface ClientRecord {
+  id: string;
+  name: string;
+  phone: string;
+  /** Ссылки на соцсети: https://t.me/…, https://vk.com/…, https://instagram.com/…, https://wa.me/… */
+  links: string[];
+  status: "new" | "work" | "client" | "lost";
+  /** Согласие на рассылку: yes — сам отметил или подтвердил; no — отказался. */
+  marketing: "yes" | "no" | "unknown";
+  marketingAt: number | null;
+  /** Откуда согласие: «сайт», «вручную: …». */
+  marketingSource: string;
+  notes: string;
+  createdAt: number;
+  lastContactAt: number;
+  /** Сколько обращений (заявки, мероприятия). */
+  contacts: number;
+  /** Откуда последнее обращение: site, question, venue, event, telegram, manual. */
+  lastSource: string;
+  archived: boolean;
+}
+
+export interface ClientContact {
+  id: string;
+  source: string;
+  summary: string;
+  at: number;
+  /** id заявки по QR или мероприятия — ссылка из истории. */
+  ref: string | null;
+}
+
+export interface ClientDetails extends ClientRecord {
+  history: ClientContact[];
+}
+
+/** Бот уведомлений глазами владельца: настроен ли, читает ли сообщения, сколько людей подключено. */
+export interface TelegramHealth {
+  configured: boolean;
+  polling: boolean;
+  username: string | null;
+  lastPollAt: number | null;
+  state: "ok" | "conflict" | "error" | "starting" | "off";
+  linkedPeople: number;
+}
+
+/** Telegram человека команды: подключён ли бот уведомлений. */
+export interface TelegramStatus {
+  /** Подключение работает на этой версии платформы (бот настроен и слушает сообщения). */
+  available: boolean;
+  linked: boolean;
+  username: string;
+}
+
+/** Человек в календаре владельца: имя и профессия, без почты. */
+export interface CalendarMember {
+  uid: string;
+  name: string;
+  profession?: string;
+  owner: boolean;
+}
+
 /** Карточка ведущего в «Команде JoyRest» — без почты, квалификации и баллов. */
 export interface TeamMember {
   uid: string;

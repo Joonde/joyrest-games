@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
+import { permissions, teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
+import { TelegramConnect } from "../../components/TelegramConnect";
 import { HostGate } from "../../components/HostGate";
 import { cropImage, ImageError } from "../../components/media/compressImage";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -23,6 +24,7 @@ export function Profile() {
         <main className="page">
           <TopBar title="Мой профиль" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
           <ProfileEditor profile={profile} />
+          <TelegramConnect owner={permissions.canManageClients(profile)} />
         </main>
       )}
     </HostGate>

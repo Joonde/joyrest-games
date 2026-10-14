@@ -1,0 +1,61 @@
+/** База клиентов на своём сервере: `/api/clients...` (CLAUDE.md, раздел 3, «База клиентов»). */
+import type { ClientsRepository } from "../contracts";
+import type { ClientContact, ClientDetails, ClientRecord } from "../types";
+import { api, asRecord, asText } from "./api";
+
+const num = (v: unknown) => (typeof v === "number" ? v : 0);
+
+function parseClient(value: unknown): ClientRecord {
+  const d = asRecord(value);
+  const status = d.status === "work" || d.status === "client" || d.status === "lost" ? d.status : "new";
+  const marketing = d.marketing === "yes" || d.marketing === "no" ? d.marketing : "unknown";
+  return {
+    id: asText(d.id),
+    name: asText(d.name),
+    phone: asText(d.phone),
+    links: Array.isArray(d.links) ? d.links.filter((l): l is string => typeof l === "string") : [],
+    status,
+    marketing,
+    marketingAt: typeof d.marketingAt === "number" ? d.marketingAt : null,
+    marketingSource: asText(d.marketingSource),
+    notes: asText(d.notes),
+    createdAt: num(d.createdAt),
+    lastContactAt: num(d.lastContactAt),
+    contacts: num(d.contacts),
+    lastSource: asText(d.lastSource),
+    archived: d.archived === true,
+  };
+}
+
+function parseDetails(value: unknown): ClientDetails {
+  const d = asRecord(value);
+  const history = Array.isArray(d.history)
+    ? d.history.map((h): ClientContact => {
+        const r = asRecord(h);
+        return { id: asText(r.id), source: asText(r.source), summary: asText(r.summary), at: num(r.at), ref: typeof r.ref === "string" ? r.ref : null };
+      })
+    : [];
+  return { ...parseClient(value), history };
+}
+
+export const serverClientsRepository: ClientsRepository = {
+  async list(archived) {
+    const data = asRecord(await api("GET", `/api/clients${archived ? "?archived=1" : ""}`));
+    return (Array.isArray(data.clients) ? data.clients : []).map(parseClient);
+  },
+  async get(id) {
+    return parseDetails(await api("GET", `/api/clients/${encodeURIComponent(id)}`));
+  },
+  async save(client) {
+    return parseDetails(await api("POST", "/api/clients", client));
+  },
+  async archive(id) {
+    await api("POST", `/api/clients/${encodeURIComponent(id)}/archive`, {});
+  },
+  async restore(id) {
+    await api("POST", `/api/clients/${encodeURIComponent(id)}/restore`, {});
+  },
+  exportUrl(all) {
+    return `/api/clients/export${all ? "?all=1" : ""}`;
+  },
+};

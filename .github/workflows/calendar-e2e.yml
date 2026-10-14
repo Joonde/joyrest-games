@@ -1,0 +1,63 @@
+# Проверка календаря команды (CLAUDE.md, раздел 3, «Календарь»): настоящий браузер на test.games.joy-rest.ru
+# под входом ведущего и владельца — отметки, «Кто может», закрепление и снятие мероприятия, права.
+# Только вручную (Run workflow) или коммитом с [calendar] в ветке claude/* (~3 минуты).
+# Итог — аннотацией; снимки экранов — в ветку e2e-shots (папка calendar/), чтобы их можно было посмотреть.
+name: Проверка календаря
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  calendar:
+    name: Календарь на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[calendar]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/calendar.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 40); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Ведущий и владелец
+        working-directory: /tmp/e2e
+        run: node calendar.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          E2E_SHOTS: /tmp/e2e/shots
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+          TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
+          TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/e2e/shots ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || git checkout --orphan e2e-shots
+          git rm -rq --cached . 2>/dev/null || true
+          rm -rf calendar && mkdir -p calendar && cp /tmp/e2e/shots/*.png calendar/ 2>/dev/null || true
+          git add calendar
+          git commit -qm "Снимки проверки календаря ${GITHUB_SHA::7}" && git push -qf origin e2e-shots || echo "Снимков нет"

@@ -6,6 +6,13 @@
  */
 import type { ProgramAction } from "../core/program";
 import type {
+  AvailabilityEntry,
+  CalendarMember,
+  AgencyEvent,
+  ClientDetails,
+  ClientRecord,
+  TelegramStatus,
+  TelegramHealth,
   SessionSummary,
   OfflinePlayer,
   OfferSummary,
@@ -240,6 +247,65 @@ export interface TeamRepository {
   remove(kind: "avatar" | "cover"): Promise<void>;
   /** Адрес картинки карточки (с отпечатком — кэш браузера на год). */
   imageUrl(uid: string, kind: "avatar" | "cover", sha: string): string;
+}
+
+/**
+ * Календарь команды (CLAUDE.md, раздел 3, «Календарь») — только свой сервер; у Firebase — null.
+ * Записи с id от браузера: повтор после обрыва — та же запись.
+ */
+export interface CalendarRepository {
+  /** Свои записи за период (с прошлым днём — вечер за полночь). */
+  mine(from: string, to: string): Promise<AvailabilityEntry[]>;
+  /** Только владелец: вся команда и её записи. */
+  team(from: string, to: string): Promise<{ members: CalendarMember[]; entries: AvailabilityEntry[] }>;
+  /** Своя отметка «свободен» или «занят» (новая или правка). */
+  save(entry: { id: string; day: string; start: number; end: number; kind: "free" | "busy"; note: string }): Promise<AvailabilityEntry>;
+  /** Владелец закрепляет время за человеком. */
+  book(entry: { id: string; uid: string; day: string; start: number; end: number; note: string }): Promise<AvailabilityEntry>;
+  remove(id: string): Promise<void>;
+}
+
+/**
+ * Планировщик мероприятий (CLAUDE.md, раздел 3, «Календарь») — только свой сервер; у Firebase — null.
+ * Владелец видит и правит все, ведущий — только свои (без правки).
+ */
+export interface EventsRepository {
+  /** Мероприятия за период (окно до 62 дней, с прошлым днём), вместе с отменёнными. */
+  range(from: string, to: string): Promise<AgencyEvent[]>;
+  /** Списки: предстоящие и идущие, архив (прошедшие), отменённые — до 300 последних. */
+  list(scope: "upcoming" | "past" | "cancelled"): Promise<AgencyEvent[]>;
+  /** Владелец: новое мероприятие или правка (id от браузера — повтор та же запись). */
+  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held">): Promise<AgencyEvent>;
+  /** Итоги: все мероприятия периода до 370 дней (только владелец). */
+  period(from: string, to: string): Promise<AgencyEvent[]>;
+  /** «Проведено» (true), «Не состоялось» (false), снять отметку (null) — после начала. */
+  setHeld(id: string, held: boolean | null): Promise<AgencyEvent>;
+  cancel(id: string): Promise<AgencyEvent>;
+  restore(id: string): Promise<AgencyEvent>;
+  /** Удалить навсегда — только отменённое. */
+  remove(id: string): Promise<void>;
+}
+
+/** База клиентов — только свой сервер и только владелец; у Firebase — null. */
+export interface ClientsRepository {
+  list(archived: boolean): Promise<ClientRecord[]>;
+  get(id: string): Promise<ClientDetails>;
+  /** Новый клиент вручную или правка (id от браузера). Тот же телефон у другого клиента — 409. */
+  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string }): Promise<ClientDetails>;
+  archive(id: string): Promise<void>;
+  restore(id: string): Promise<void>;
+  /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */
+  exportUrl(all: boolean): string;
+}
+
+/** Telegram для уведомлений о мероприятиях — только свой сервер; у Firebase — null. */
+export interface TelegramRepository {
+  status(): Promise<TelegramStatus>;
+  /** Одноразовая ссылка на бота: открыть в Telegram и нажать «Старт». */
+  link(): Promise<{ url: string }>;
+  unlink(): Promise<void>;
+  /** Только владелец: бот на связи? */
+  health(): Promise<TelegramHealth>;
 }
 
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */

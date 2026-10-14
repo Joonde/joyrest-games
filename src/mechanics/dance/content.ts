@@ -2,6 +2,7 @@
 // выступают, другие команды оценивают (танец, караоке — от 10 до 100) или голосуют (батл).
 // Видео на сервер не загружается: файл на устройстве экрана зала или ссылка (YouTube, VK, Rutube).
 import { clipFields, parseClip, type Clip } from "../../core/clip";
+import { isStyleId } from "./styles";
 
 export type DanceKind = "battle" | "dance" | "karaoke";
 export type VideoSource = "none" | "file" | "link";
@@ -9,6 +10,8 @@ export type VideoSource = "none" | "file" | "link";
 export interface DanceCard {
   id: string;
   kind: DanceKind;
+  /** Стиль танца (styles.ts): «jazz», «disco»…; пусто — без стиля. */
+  style: string;
   title: string;
   /** Подсказка ведущему и на экран: «повторяйте движения», «поёт один участник». */
   note: string;
@@ -48,8 +51,8 @@ function id(): string {
 
 const CLIP = () => clipFields(parseClip({})) as Pick<DanceCard, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">;
 
-export function newCard(kind: DanceKind): DanceCard {
-  return { id: id(), kind, title: "", note: "", video: { source: kind === "battle" ? "none" : "link", url: "", name: "" }, ...CLIP() };
+export function newCard(kind: DanceKind, style = ""): DanceCard {
+  return { id: id(), kind, style, title: "", note: "", video: { source: kind === "battle" ? "none" : "link", url: "", name: "" }, ...CLIP() };
 }
 
 export function createDance(): DanceContent {
@@ -76,6 +79,7 @@ export function parseDance(raw: unknown): DanceContent {
     return {
       id: cid,
       kind,
+      style: isStyleId(c.style) ? c.style : "",
       title: str(c.title, DANCE_LIMITS.title),
       note: str(c.note, DANCE_LIMITS.note),
       video: { source, url: source === "link" ? str(v.url, DANCE_LIMITS.url) : "", name: str(v.name, 120) },

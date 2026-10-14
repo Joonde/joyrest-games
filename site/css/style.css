@@ -353,19 +353,8 @@ button.level:not(.level--top):hover{ border-color: var(--btn-outline); }
 .game__media{ position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; padding: 14px; overflow: hidden; background: radial-gradient(ellipse at center, #2A2621, #0F0D0C 80%); }
 .game__media img{ display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; border-radius: 6px; transition: transform .9s cubic-bezier(.22,1,.36,1); }
 .game:hover .game__media img{ transform: scale(1.05); }
-.game__media--cover{ grid-template-rows: auto auto; align-content: center; gap: 10px; padding: 20px; text-align: center; color: #E3C68C; }
-.game__media--quiz{ background: radial-gradient(ellipse at 30% 20%, #5A4A2E, #2A2218 75%); }
-.game__media--tv{ background: radial-gradient(ellipse at 30% 20%, #4A3550, #221A26 75%); }
-.game__media--music{ background: radial-gradient(ellipse at 30% 20%, #5A3840, #26181C 75%); }
-.game__media--dance{ background: radial-gradient(ellipse at 30% 20%, #5A3A30, #271A16 75%); }
-.game__media--cards{ background: radial-gradient(ellipse at 30% 20%, #3E2A2A, #1E1616 75%); }
-.game__media--active{ background: radial-gradient(ellipse at 30% 20%, #2F4636, #18221B 75%); }
-.game__media--party{ background: radial-gradient(ellipse at 30% 20%, #4A3A2A, #221A13 75%); }
-.game__media--out{ background: radial-gradient(ellipse at 30% 20%, #2E4048, #161E22 75%); }
-.game__media--custom{ background: radial-gradient(ellipse at 30% 20%, #56462A, #261F12 75%); }
-.game__media--cover svg{ justify-self: center; opacity: .9; }
-.game__cover-name{ font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600; line-height: 1.1; color: #F3ECE3; }
-.game__cover-mark{ position: absolute; bottom: 12px; right: 14px; font-size: 10px; letter-spacing: .3em; color: rgba(243,236,227,.45); }
+.game__media--art{ padding: 0; background: #14100D; }
+.game__media--art img{ width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; border-radius: 0; }
 .game__new{ position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 999px; background: #E3C68C; color: #221E1B; font-size: 12px; font-weight: 600; }
 .game__body{ display: flex; flex-direction: column; flex: 1; padding: 18px 20px 20px; }
 .game__cat{ margin: 0; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-text); }

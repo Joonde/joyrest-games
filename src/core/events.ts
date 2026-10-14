@@ -395,11 +395,18 @@ export function reminderDue(startsAt: number, now: number): "day" | "hours" | nu
  * Текст уведомления ведущему. Без имени и телефона клиента и без адреса: Telegram — не в России, а это
  * персональные данные; подробности — в студии по ссылке.
  */
-export function noticeText(kind: NoticeKind, e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">, platformUrl: string, now = Date.now()): string {
+export function noticeText(
+  kind: NoticeKind,
+  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">,
+  platformUrl: string,
+  now = Date.now(),
+  /** Время начала из базы (по нему срабатывают напоминания); нет — по дате и времени мероприятия. */
+  startsAt?: number,
+): string {
   const what = `${e.title || "Мероприятие"}${e.guests ? ` · ${e.guests} гостей` : ""}`;
   const when = `${dayTitle(e.day)}, ${rangeLabel(e.start, e.end)}`;
-  const span = eventSpan(e);
-  const head = kind === "hours" && span ? `⏰ Через ${Math.max(1, Math.round((span.from - now) / 3_600_000))} ч начало мероприятия` : NOTICE_HEADS[kind];
+  const from = startsAt ?? eventSpan(e)?.from;
+  const head = kind === "hours" && from !== undefined ? `⏰ Через ${Math.max(1, Math.round((from - now) / 3_600_000))} ч начало мероприятия` : NOTICE_HEADS[kind];
   const tail = kind === "removed" || kind === "cancelled" ? "" : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
   return `${head}\n\n${what}\n${when}${tail}`;
 }

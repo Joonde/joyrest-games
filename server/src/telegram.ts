@@ -153,7 +153,7 @@ export function startBot(options: BotOptions): Bot {
       const kinds = due === "hours" ? ["day", "hours"] : due === "day" ? ["day"] : [];
       for (const k of kinds) await sql`insert into event_notices (event_id, kind, starts_at) values (${event.id}, ${k}, ${startsAt}) on conflict do nothing`;
     }
-    await sendTo(userId, noticeText(kind, event, platformUrl, now()));
+    await sendTo(userId, noticeText(kind, event, platformUrl, now(), startsAt.getTime()));
   }
 
   // ───── напоминания ─────
@@ -168,7 +168,7 @@ export function startBot(options: BotOptions): Bot {
       const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${kind}, ${r.starts_at})
         on conflict do nothing returning 1`;
       if (fresh.length === 0) continue;
-      await sendTo(r.host_id, noticeText(kind, { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, platformUrl, now()));
+      await sendTo(r.host_id, noticeText(kind, { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, platformUrl, now(), r.starts_at.getTime()));
     }
   }
   const remindTimer = setInterval(() => void remind().catch(() => log.warn({ telegram: "remind" }, "telegram: напоминания не отправились")), REMIND_EVERY_MS);

@@ -9,7 +9,7 @@ import { validateLotto } from "./validate";
 
 const NO_VIDEO = { source: "none" as const, url: "", name: "" };
 const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0 }));
-const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", videoHide: false, ...patch });
+const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", videoHide: false, hint: true, ...patch });
 const claim = (step: number, pid: string, at: number | null = 1): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { marks: [] }, submittedAt: at });
 
 describe("содержимое лото", () => {

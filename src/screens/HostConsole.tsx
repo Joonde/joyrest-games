@@ -411,14 +411,20 @@ function Console({ session }: { session: Session }) {
               </>
             )}
             {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
-            {phase !== "finished" && tools && slide?.kind !== "tech" && (
+            {/* Та же кнопка и убирает перерыв: игра продолжается с того же места (слайд лежит поверх игры). */}
+            {phase !== "finished" && tools && (
               <button
                 type="button"
-                className="btn btn--secondary btn--block"
+                className={slide?.kind === "tech" ? "btn btn--block" : "btn btn--secondary btn--block"}
                 disabled={busy}
-                onClick={() => void apply({ state: { slide: techSlide(slideId()) } }).catch(() => setError("Не получилось показать перерыв. Проверьте интернет."))}
+                aria-pressed={slide?.kind === "tech"}
+                onClick={() =>
+                  void apply({ state: { slide: slide?.kind === "tech" ? null : techSlide(slideId()) } }).catch(() =>
+                    setError(slide?.kind === "tech" ? "Не получилось убрать перерыв. Проверьте интернет." : "Не получилось показать перерыв. Проверьте интернет."),
+                  )
+                }
               >
-                Технический перерыв
+                {slide?.kind === "tech" ? "▶ Продолжить игру — убрать перерыв" : "Технический перерыв"}
               </button>
             )}
             {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
@@ -426,20 +432,33 @@ function Console({ session }: { session: Session }) {
             )}
             {/* Жеребьёвка: монетка на экране выбирает среди подключившихся, кто ходит первым. */}
             {/* В лобби жребий потерялся бы при «Начать игру» (право первого хода ставится в идущей игре). */}
-            {phase === "playing" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
-              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void runDraw()}>
-                Жеребьёвка — кто ходит первым
+            {phase === "playing" && tools && Object.keys(session.leaderboard).length >= 2 && (
+              <button
+                type="button"
+                className={slide?.kind === "draw" ? "btn btn--block" : "btn btn--secondary btn--block"}
+                disabled={busy}
+                aria-pressed={slide?.kind === "draw"}
+                onClick={() =>
+                  slide?.kind === "draw" ? void apply({ state: { slide: null } }).catch(() => setError("Не получилось убрать жеребьёвку. Проверьте интернет.")) : void runDraw()
+                }
+              >
+                {slide?.kind === "draw" ? "▶ Убрать монетку — вернуться к игре" : "Жеребьёвка — кто ходит первым"}
               </button>
             )}
             {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
-            {phase === "playing" && tools && slide?.kind !== "join" && (
+            {phase === "playing" && tools && (
               <button
                 type="button"
-                className="btn btn--secondary btn--block"
+                className={slide?.kind === "join" ? "btn btn--block" : "btn btn--secondary btn--block"}
                 disabled={busy}
-                onClick={() => void apply({ state: { slide: joinSlide(slideId()) } }).catch(() => setError("Не получилось показать QR. Проверьте интернет."))}
+                aria-pressed={slide?.kind === "join"}
+                onClick={() =>
+                  void apply({ state: { slide: slide?.kind === "join" ? null : joinSlide(slideId()) } }).catch(() =>
+                    setError(slide?.kind === "join" ? "Не получилось убрать QR. Проверьте интернет." : "Не получилось показать QR. Проверьте интернет."),
+                  )
+                }
               >
-                QR для опоздавших на экран
+                {slide?.kind === "join" ? "▶ Убрать QR — вернуться к игре" : "QR для опоздавших на экран"}
               </button>
             )}
             {phase === "playing" && (

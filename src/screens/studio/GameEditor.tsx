@@ -35,7 +35,7 @@ const PLAY_MODES: Array<{ id: PlayMode; title: string; hint: string }> = [
 ];
 
 const SAVE_TEXT: Record<SaveStatus, string> = {
-  saved: "Сохранено",
+  saved: "Все изменения сохранены автоматически",
   saving: "Сохраняется…",
   offline: "Нет связи — правки сохранятся, когда появится интернет",
   error: "Не удалось сохранить — пробуем ещё раз",
@@ -105,8 +105,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [leaveError, setLeaveError] = useState(false);
-  /** «Сохранить игру»: сначала «Точно сохранить?», потом — своё название. */
-  const [saveStep, setSaveStep] = useState<"confirm" | "name" | null>(null);
+  /** «Готово — назвать игру»: своё название (сама игра уже сохранена автоматически). */
+  const [saveStep, setSaveStep] = useState<"name" | null>(null);
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -130,12 +130,20 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
     change(patch);
   }
 
-  /** «← К играм»: без правок — сразу; с правками — спросить, сохранить их или вернуть как было. */
+  /**
+   * «← К играм»: правки сохраняются сами (решение владельца 14 октября 2026 — не нужно листать вниз и нажимать
+   * «Сохранить»). Уходим, как только последние правки дошли до сервера; сервер отказал — остаёмся и говорим.
+   */
   function goBack(to: string = back) {
     leaveTo.current = to;
     if (!editable || !edited.current) return navigate(to);
     setLeaving(true);
+    setRestoring(true);
+    flush(true);
+    leaveWhenSettled();
   }
+  /** «Отменить правки»: вернуть игру к виду на момент открытия (с подтверждением). */
+  const [undoAsk, setUndoAsk] = useState(false);
   const leaveTo = useRef(back);
 
   /** Уйти, когда правки дошли (или лежат в очереди без связи); сервер отказал — остаться и сказать. */
@@ -147,7 +155,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         setLeaveError(true);
         return;
       }
-      navigate(leaveTo.current);
+      setLeaving(false);
+      setRestoring(false);
+      navigate(leaveTo.current, edited.current ? { state: { toast: "Изменения сохранены" } } : undefined);
     });
   }
 
@@ -214,10 +224,17 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         ← К играм
       </button>
       {editable ? (
-        <p className={`save-status save-status--${status}`} role="status" aria-live="polite">
-          <span className="save-status__dot" aria-hidden="true" />
-          {SAVE_TEXT[status]}
-        </p>
+        <>
+          <p className={`save-status save-status--${status}`} role="status" aria-live="polite">
+            <span className="save-status__dot" aria-hidden="true" />
+            {SAVE_TEXT[status]}
+          </p>
+          {edited.current && (
+            <button type="button" className="btn btn--quiet back-link" onClick={() => setUndoAsk(true)}>
+              ↶ Отменить правки — вернуть, как было при открытии
+            </button>
+          )}
+        </>
       ) : (
         <p className="muted small">Игра из библиотеки JoyRest. Чтобы изменить её, скопируйте в «Мои игры».</p>
       )}
@@ -401,26 +418,16 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
             onClick={() => {
               setSaveName(cleanGameTitle(titleInput) || game.title);
               setSaveError(null);
-              setSaveStep("confirm");
+              setSaveStep("name");
             }}
           >
-            Сохранить игру
+            Готово — назвать игру
           </button>
         )}
         <button type="button" className="btn btn--secondary btn--block" onClick={() => goBack()}>
           ← К играм
         </button>
       </div>
-      <ConfirmDialog
-        open={saveStep === "confirm"}
-        title="Сохранить игру?"
-        confirmLabel="Да, сохранить"
-        cancelLabel="Ещё поправлю"
-        onConfirm={() => setSaveStep("name")}
-        onCancel={() => setSaveStep(null)}
-      >
-        <p>Вопросы, блоки и настройки сохранятся такими, как сейчас. Дальше можно назвать игру по-своему.</p>
-      </ConfirmDialog>
       <ConfirmDialog
         open={saveStep === "name"}
         title="Как назовём игру?"
@@ -450,9 +457,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         )}
       </ConfirmDialog>
       <ConfirmDialog
-        open={leaving}
-        title="Сохранить изменения?"
-        confirmLabel="Сохранить и выйти"
+        open={leaving && leaveError}
+        title="Изменения не сохранились"
+        confirmLabel="Попробовать ещё раз"
         cancelLabel="Остаться в игре"
         busy={restoring}
         onConfirm={() => {
@@ -465,28 +472,29 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           setLeaveError(false);
         }}
       >
-        <p>Вы меняли эту игру. Сохранить изменения или вернуть игру такой, какой она была, когда вы её открыли?</p>
-        {leaveError && (
-          <p className="error" role="alert">
-            Сервер не принял изменения. Проверьте интернет и нажмите ещё раз.
-          </p>
-        )}
-        <button
-          type="button"
-          className="btn btn--quiet btn--block"
-          disabled={restoring}
-          onClick={() => {
-            const before = original.current;
-            setRestoring(true);
-            setGame((g) => ({ ...g, ...before }));
-            change(before);
-            flush(true);
-            // Уходим, только когда игра на сервере уже вернулась к прежнему виду.
-            leaveWhenSettled();
-          }}
-        >
-          {restoring ? "Возвращаем…" : "Не сохранять — вернуть как было"}
-        </button>
+        <p className="error" role="alert">
+          Сервер не принял изменения. Проверьте интернет и нажмите ещё раз — правки не потеряются, пока вы в игре.
+        </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={undoAsk}
+        title="Отменить правки?"
+        confirmLabel={restoring ? "Возвращаем…" : "Вернуть как было"}
+        cancelLabel="Оставить правки"
+        busy={restoring}
+        onConfirm={() => {
+          const before = original.current;
+          setGame((g) => ({ ...g, ...before }));
+          setTitleInput(typeof before.title === "string" ? before.title : titleInput);
+          change(before);
+          flush(true);
+          edited.current = false;
+          setUndoAsk(false);
+          showToast("Игра возвращена к виду на момент открытия");
+        }}
+        onCancel={() => setUndoAsk(false)}
+      >
+        <p>Все изменения с момента, как вы открыли игру, пропадут — игра станет такой, какой была.</p>
       </ConfirmDialog>
       <Toast text={toast} />
     </main>

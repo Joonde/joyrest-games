@@ -3576,6 +3576,11 @@ kbd {
 }
 
 .pult-banner {
+  /* Плашка «На экране слайд — Убрать» видна всегда, даже когда пульт пролистан вниз. */
+  position: sticky;
+  top: calc(8px + var(--safe-top, 0px));
+  z-index: 6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5827,6 +5832,50 @@ ul.chips {
   background: var(--color-primary);
   border-color: var(--color-highlight);
   color: var(--color-primary-text);
+}
+
+/* Подсказка: звучащая песня есть на карточке — клетка светится и пульсирует, пока её не отметили. */
+.lotto-card__cell.is-now {
+  outline: 3px solid var(--color-highlight);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-highlight) 35%, transparent), 0 0 18px color-mix(in srgb, var(--color-highlight) 70%, transparent);
+  position: relative;
+  z-index: 1;
+}
+
+.lotto-card__cell.is-now:not(.is-marked) {
+  animation: lotto-now 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes lotto-now {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-card__cell.is-now:not(.is-marked) {
+    animation: none;
+  }
+}
+
+.lotto-hint {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-highlight);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  text-align: center;
+}
+
+.lotto-hint.is-done {
+  border-color: var(--color-border);
+  font-weight: 500;
 }
 
 .lotto-card__title {

@@ -28,8 +28,8 @@ function LottoTicket({ style, rule, size, children }: { style: CardStyle; rule: 
   );
 }
 
-function cellClass(on: boolean): string {
-  return on ? "lotto-card__cell is-marked" : "lotto-card__cell";
+function cellClass(on: boolean, now = false): string {
+  return `lotto-card__cell${on ? " is-marked" : ""}${now ? " is-now" : ""}`;
 }
 
 function CellText({ song, size, styled }: { song: LottoSong | undefined; size: LottoContent["size"]; styled: boolean }) {
@@ -233,6 +233,9 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
   const canClaim = role !== "member" && stage === "question" && won < 0 && !claimed && !sending && ready;
   const noScreen = session.screenMode === "none";
   const song = content.songs[step];
+  // Подсказка: звучащая (или только что звучавшая) песня есть на карточке — клетка светится.
+  const nowId = content.hint && (stage === "question" || stage === "reveal") && song && card.includes(song.id) ? song.id : null;
+  const nowMarked = nowId !== null && marked.has(nowId);
 
   useEffect(() => setMarks(loadMarks(key)), [key]);
 
@@ -251,6 +254,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
   else if (role === "member") status = "«Лото!» нажимает капитан команды";
   else if (stage === "ready") status = "Ждём первую песню";
   else status = ready ? "Собрали? Жмите «Лото!»" : `Отмечайте песни · ${RULE_TITLES[content.rule].toLowerCase()}`;
+  const hint = won < 0 && nowId !== null ? (nowMarked ? "✓ Эта песня у вас отмечена" : "🎵 Эта песня у вас есть! Нажмите на светящуюся клетку") : null;
 
   return (
     <div className="quiz-phone lotto-phone">
@@ -264,12 +268,17 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
           {song.artist ? ` — ${song.artist}` : ""}
         </p>
       )}
+      {hint && (
+        <p className={nowMarked ? "lotto-hint is-done" : "lotto-hint"} role="status">
+          {hint}
+        </p>
+      )}
       <LottoTicket style={content.cardStyle} rule={content.rule} size={content.size}>
         <div className="lotto-card" style={{ gridTemplateColumns: `repeat(${content.size}, minmax(0, 1fr))` }} role="group" aria-label="Ваша карточка">
           {card.map((id, i) => {
             const on = marked.has(id);
             return (
-              <button key={`${id}-${i}`} type="button" className={cellClass(on)} aria-pressed={on} onClick={() => toggle(id)}>
+              <button key={`${id}-${i}`} type="button" className={cellClass(on, id === nowId)} aria-pressed={on} aria-current={id === nowId ? "true" : undefined} onClick={() => toggle(id)}>
                 <CellText song={titles.get(id)} size={content.size} styled={content.cardStyle !== "classic"} />
               </button>
             );

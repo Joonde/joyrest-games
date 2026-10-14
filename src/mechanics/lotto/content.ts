@@ -43,6 +43,8 @@ export interface LottoContent {
   cardStyle: CardStyle;
   /** Прятать картинку видео, пока не показали название (звучит только звук — угадывают на слух). */
   videoHide: boolean;
+  /** Подсказка гостю: звучащая песня есть на его карточке — клетка светится, «Эта песня у вас есть!». */
+  hint: boolean;
 }
 
 export const LOTTO_LIMITS = {
@@ -105,7 +107,7 @@ export function newSong(title = "", artist = ""): LottoSong {
 }
 
 export function createLotto(): LottoContent {
-  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening", videoHide: false };
+  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening", videoHide: false, hint: true };
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -155,6 +157,7 @@ export function parseLotto(raw: unknown): LottoContent {
     prizes: prizes.length > 0 ? prizes : [300, 200, 100],
     cardStyle: d.cardStyle === "evening" || d.cardStyle === "day" ? d.cardStyle : "classic",
     videoHide: d.videoHide === true,
+    hint: d.hint !== false,
   };
 }
 

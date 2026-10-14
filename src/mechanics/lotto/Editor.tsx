@@ -115,6 +115,13 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           </div>
           <p className="muted small">Следующим победителям — очки третьего.</p>
         </fieldset>
+        <label className="choice">
+          <input type="checkbox" checked={content.hint} disabled={!editable} onChange={(e) => set({ hint: e.target.checked })} />
+          <span className="choice__text">
+            <span className="choice__title">Подсказывать гостям песню на карточке</span>
+            <span className="choice__hint">Звучит песня, которая есть у гостя, — её клетка светится и на телефоне «Эта песня у вас есть!». Выключите для игры на знатоков.</span>
+          </span>
+        </label>
         <fieldset disabled={!editable}>
           <legend>Видео песен</legend>
           <label className="choice">

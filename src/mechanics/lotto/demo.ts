@@ -42,5 +42,6 @@ export const DEMO_LOTTO: { title: string; content: LottoContent } = {
     prizes: [300, 200, 100],
     cardStyle: "evening",
     videoHide: false,
+    hint: true,
   },
 };

@@ -74,8 +74,10 @@ describe("планировщик: таймлайн дня", () => {
   it("вчерашний вечер за полночь — с 00:00, часы расширяются до конца ночного", () => {
     const items = timelineOf([ev("n", "2026-10-19", 1320, 1620), ev("m", "2026-10-20", 1260, 1560)], "2026-10-20");
     expect(items.find((i) => i.event.id === "n")).toMatchObject({ top: 0, bottom: 180 });
-    expect(timelineHours(items)).toEqual({ from: 0, to: 1560 });
+    expect(timelineHours(items)).toEqual({ from: 0, to: 1620 });
     expect(timelineHours([])).toEqual({ from: 480, to: 1440 });
+    // Вечернее мероприятие — таймлайн с 17:00, без пустого утра.
+    expect(timelineHours(timelineOf([ev("e", "2026-10-20", 1080, 1380)], "2026-10-20"))).toEqual({ from: 1020, to: 1440 });
   });
 });
 

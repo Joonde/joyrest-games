@@ -161,11 +161,15 @@ export function timelineOf(events: AgencyEvent[], day: string): TimelineItem[] {
   return items;
 }
 
-/** Часы таймлайна: с 08:00 (или раньше, если есть мероприятие) до 24:00 (или до конца ночного). */
+/**
+ * Часы таймлайна: пустой день — 08:00–24:00; с мероприятиями — за час до первого (без пустого утра)
+ * и до 24:00 или на час позже конца ночного.
+ */
 export function timelineHours(items: TimelineItem[]): { from: number; to: number } {
-  const from = Math.min(8 * 60, ...items.map((i) => Math.floor(i.top / 60) * 60));
-  const to = Math.max(DAY_MINUTES, ...items.map((i) => Math.ceil(i.bottom / 60) * 60));
-  return { from, to };
+  if (items.length === 0) return { from: 8 * 60, to: DAY_MINUTES };
+  const first = Math.min(...items.map((i) => Math.floor(i.top / 60) * 60));
+  const last = Math.max(...items.map((i) => Math.ceil(i.bottom / 60) * 60));
+  return { from: Math.max(0, first - 60), to: Math.max(DAY_MINUTES, last + (last < DAY_MINUTES ? 0 : 60)) };
 }
 
 /** Понедельник недели этого дня. */

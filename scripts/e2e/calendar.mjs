@@ -300,6 +300,7 @@ try {
   const { row } = await statusOf(ap, hostName);
   await row.getByRole("button", { name: /Закрепить это время/ }).click();
   const hostSelect = row.getByRole("combobox", { name: "Ведущий" });
+  await until(async () => ((await hostSelect.locator("option:checked").textContent()) ?? "").includes(" — "), WAIT, "список ведущих в форме").catch(() => undefined);
   const hostChosen = (await hostSelect.locator("option:checked").textContent()) ?? "";
   check(hostChosen.startsWith(hostName), "Владелец: в форме уже выбран этот ведущий", `Владелец: в форме выбран «${hostChosen}»`);
   check(hostChosen.includes("может"), "Владелец: рядом с ведущим — «может»", `Владелец: в списке ведущих «${hostChosen}»`);

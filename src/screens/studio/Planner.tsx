@@ -658,6 +658,7 @@ export function EventForm({
         <span className="field__label">Ведущий</span>
         <select value={hostId} aria-label="Ведущий" onChange={(e) => setHostId(e.target.value)}>
           <option value="">Выберите…</option>
+          {hostId && !members.some((m) => m.uid === hostId) && <option value={hostId}>Загружаем…</option>}
           {members.map((m) => (
             <option key={m.uid} value={m.uid}>
               {m.name} — {STATUS_TITLES[statusOf(m.uid).status].toLowerCase()}

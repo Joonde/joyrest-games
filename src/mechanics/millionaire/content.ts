@@ -9,7 +9,7 @@ export type LadderSize = 12 | 15;
 
 /** Ступеней в этой игре. */
 export function levelsOf(content: Pick<MillionaireContent, "ladder">): number {
-  return content.ladder.length >= 15 ? 15 : 12;
+  return (content.ladder?.length ?? 0) >= 15 ? 15 : 12;
 }
 
 export type LifelineId = "fifty" | "audience" | "call" | "mistake" | "swap" | "host";

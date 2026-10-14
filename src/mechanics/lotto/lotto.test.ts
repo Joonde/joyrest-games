@@ -3,11 +3,13 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { CARD_STYLES, CARD_STYLE_TITLES, cardCells, cellFit, createLotto, parseLotto, parseSongList, type LottoContent } from "./content";
 import { DEMO_LOTTO } from "./demo";
-import { cardFor, cardLines, isWin, lottoBack, lottoPrimary, lottoSteps, nextSong, parseLottoResult, playedUpTo, playSong, revealSong, score } from "./logic";
+import { cardFor, cardLines, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, nextSong, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, score } from "./logic";
+import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
 
-const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0 }));
-const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", ...patch });
+const NO_VIDEO = { source: "none" as const, url: "", name: "" };
+const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0 }));
+const game = (patch: Partial<LottoContent> = {}): LottoContent => ({ songs: songs(12), size: 3, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "classic", videoHide: false, ...patch });
 const claim = (step: number, pid: string, at: number | null = 1): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { marks: [] }, submittedAt: at });
 
 describe("содержимое лото", () => {
@@ -66,7 +68,7 @@ describe("содержимое лото", () => {
   it("проверка: песен на карточку, названия, повторы", () => {
     expect(validateLotto(game({ songs: songs(8) }))[0]?.message).toMatch(/хотя бы 9 песен/);
     expect(validateLotto(game())).toEqual([]);
-    const dup = game({ songs: [...songs(9), { id: "x", title: "Песня 1", artist: "", trackId: null, trackStart: 0 }] });
+    const dup = game({ songs: [...songs(9), { id: "x", title: "Песня 1", artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0 }] });
     expect(validateLotto(dup).some((e) => e.path === "songs/x/title")).toBe(true);
     expect(validateLotto(parseLotto(DEMO_LOTTO.content))).toEqual([]);
   });
@@ -213,5 +215,66 @@ describe("ход лото на пульте", () => {
     const undone = applyChange(atReveal, back2.change, 7);
     expect(undone.leaderboard.a?.score).toBe(0);
     expect(parseLottoResult(undone.state.result).winners).toEqual([]);
+  });
+});
+
+describe("видео песни (клип, караоке)", () => {
+  it("из базы: ссылка, файл, мусор — без видео; старые игры — без видео и с показом сразу", () => {
+    const c = parseLotto({
+      songs: [
+        { id: "a", title: "А", video: { source: "link", url: " https://youtu.be/dQw4w9WgXcQ ", name: "x" }, videoStart: 12.4 },
+        { id: "b", title: "Б", video: { source: "file", url: "https://x", name: "клип.mp4" }, videoStart: -5 },
+        { id: "c", title: "В", video: { source: "zzz" } },
+        { id: "d", title: "Г" },
+      ],
+    });
+    expect(c.songs[0]?.video).toEqual({ source: "link", url: "https://youtu.be/dQw4w9WgXcQ", name: "x" });
+    expect(c.songs[0]?.videoStart).toBe(12);
+    expect(c.songs[1]?.video).toEqual({ source: "file", url: "", name: "клип.mp4" });
+    expect(c.songs[1]?.videoStart).toBe(0);
+    expect(c.songs[2]?.video.source).toBe("none");
+    expect(c.songs[3]?.video.source).toBe("none");
+    expect(c.videoHide).toBe(false);
+    expect(parseLotto({ videoHide: true }).videoHide).toBe(true);
+    expect(hasVideo(c.songs[0])).toBe(true);
+    expect(hasVideo(c.songs[1])).toBe(true);
+    expect(hasVideo(c.songs[2])).toBe(false);
+    expect(hasVideo({ video: { source: "link", url: " ", name: "" } })).toBe(false);
+  });
+
+  it("чужая ссылка — ошибка проверки, правильная — нет", () => {
+    const bad = game({ songs: songs(12).map((s, i) => (i === 0 ? { ...s, video: { source: "link" as const, url: "https://example.com/a.mp4", name: "" } } : s)) });
+    expect(badVideoLink(bad.songs[0] ?? { video: NO_VIDEO })).toBe(true);
+    expect(validateLotto(bad).some((e) => e.path.endsWith("/video"))).toBe(true);
+    const ok = game({ songs: songs(12).map((s, i) => (i === 0 ? { ...s, video: { source: "link" as const, url: "https://rutube.ru/video/0123456789abcdef0123456789abcdef/", name: "" } } : s)) });
+    expect(validateLotto(ok)).toEqual([]);
+  });
+
+  it("команды пульта: пауза, дальше, перемотка; новая песня — видео с начала; показ названия видео не трогает", () => {
+    const content = game();
+    let s: Session = { id: "v", code: "111111", hostId: "h", gameId: "g", gameTitle: "", mechanic: "lotto", gameSnapshot: null, themeId: "joyrest", playMode: "solo", screenMode: "laptop", state: startState(), leaderboard: {}, createdAt: 0 };
+    s = applyChange(s, playSong(s), 1);
+    expect(parseLottoResult(s.state.result).video).toEqual({ n: 0, cmd: "play", paused: false });
+    s = applyChange(s, lottoVideoCommand(s, "pause"), 1);
+    expect(parseLottoResult(s.state.result).video).toEqual({ n: 1, cmd: "pause", paused: true });
+    s = applyChange(s, lottoVideoCommand(s, "fwd"), 1);
+    expect(parseLottoResult(s.state.result).video).toEqual({ n: 2, cmd: "fwd", paused: true });
+    s = applyChange(s, lottoVideoCommand(s, "play"), 1);
+    expect(parseLottoResult(s.state.result).video.paused).toBe(false);
+    s = applyChange(s, revealSong(s, content, [], []), 1);
+    expect(parseLottoResult(s.state.result).video).toEqual({ n: 3, cmd: "play", paused: false });
+    const back = lottoBack(s);
+    expect(back).not.toBeNull();
+    if (back) expect(parseLottoResult(applyChange(s, back.change, 1).state.result).video.n).toBe(3);
+    s = applyChange(s, lottoVideoCommand(s, "stop"), 1);
+    s = applyChange(s, nextSong(s), 1);
+    expect(parseLottoResult(s.state.result).video).toEqual({ n: 0, cmd: "play", paused: false });
+    s = applyChange(s, lottoVideoCommand(s, "pause"), 1);
+    s = applyChange(s, replaySong(s), 1);
+    const r = parseLottoResult(s.state.result);
+    expect(r.replay).toBe(1);
+    expect(r.video.paused).toBe(false);
+    const toPrev = lottoBack(s);
+    if (toPrev) expect(parseLottoResult(applyChange(s, toPrev.change, 1).state.result).video.paused).toBe(true);
   });
 });

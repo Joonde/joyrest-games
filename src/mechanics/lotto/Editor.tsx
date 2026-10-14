@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackPicker } from "../../components/music/TrackPicker";
+import type { VideoSource } from "../dance/content";
 import type { EditorProps } from "../types";
-import { CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, type LottoContent, type LottoSong, type WinRule } from "./content";
+import { badVideoLink, CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, hasVideo, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, type LottoContent, type LottoSong, type WinRule } from "./content";
 import { validateLotto } from "./validate";
 import { ClampedNumber } from "../../components/ClampedNumber";
 
@@ -110,13 +112,31 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           </div>
           <p className="muted small">Следующим победителям — очки третьего.</p>
         </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Видео песен</legend>
+          <label className="choice">
+            <input type="radio" name="lotto-video" checked={!content.videoHide} onChange={() => set({ videoHide: false })} />
+            <span className="choice__text">
+              <span className="choice__title">Показывать видео сразу</span>
+              <span className="choice__hint">Клип или караоке с текстом — зал подпевает. Название песни видео может подсказать.</span>
+            </span>
+          </label>
+          <label className="choice">
+            <input type="radio" name="lotto-video" checked={content.videoHide} onChange={() => set({ videoHide: true })} />
+            <span className="choice__text">
+              <span className="choice__title">Прятать картинку до названия</span>
+              <span className="choice__hint">Пока песня звучит — только звук, угадывают на слух. «Показать название» открывает видео.</span>
+            </span>
+          </label>
+        </fieldset>
       </section>
 
       <section className="card">
         <h2>Песни · {content.songs.length}</h2>
         <p className="muted">
           На карточке {cardCells(content)} песен из списка, у каждого гостя — своя. Звучат по порядку списка. Трек можно выбрать из своей или общей
-          музыки — тогда песня играет на экране зала; без трека ведущий включает её сам.
+          музыки — тогда песня играет на экране зала; без трека ведущий включает её сам. К песне можно добавить видео — клип или караоке:
+          ссылкой на YouTube, VK Видео или Rutube или файлом на устройстве экрана зала (на сервер видео не загружается).
         </p>
         {content.songs.length >= cardCells(content) && content.songs.length < cardCells(content) * 2 && (
           <p className="notice small">
@@ -172,6 +192,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                       {song.title || "Без названия"}
                       {song.artist ? <span className="muted"> — {song.artist}</span> : null}
                       {song.trackId ? " ♪" : ""}
+                      {hasVideo(song) ? " ▶" : ""}
                     </span>
                   </button>
                 </div>
@@ -203,6 +224,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                         })
                       }
                     />
+                    <SongVideo song={song} editable={editable} onChange={(patch) => setSong(song.id, patch)} />
                     {editable && (
                       <button type="button" className="btn btn--quiet btn--block" onClick={() => set({ songs: content.songs.filter((s) => s.id !== song.id) })}>
                         Убрать песню
@@ -216,5 +238,66 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
         </ol>
       )}
     </>
+  );
+}
+
+/** Видео песни: ссылка (YouTube, VK Видео, Rutube) или файл только на этом устройстве (IndexedDB, ключ — id песни). */
+function SongVideo({ song, editable, onChange }: { song: LottoSong; editable: boolean; onChange: (patch: Partial<LottoSong>) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const setSource = (source: VideoSource) => onChange({ video: { ...song.video, source } });
+  return (
+    <fieldset className="stack stack--tight">
+      <legend>Видео: клип или караоке (по желанию)</legend>
+      <div className="seg" role="group" aria-label="Откуда видео">
+        {(["none", "link", "file"] as const).map((s) => (
+          <button key={s} type="button" className={song.video.source === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={song.video.source === s} disabled={!editable} onClick={() => setSource(s)}>
+            {s === "link" ? "Ссылка" : s === "file" ? "Файл" : "Без видео"}
+          </button>
+        ))}
+      </div>
+      {song.video.source === "link" && (
+        <label className="field">
+          Ссылка на YouTube, VK Видео или Rutube
+          <input value={song.video.url} inputMode="url" maxLength={LOTTO_LIMITS.url} disabled={!editable} placeholder="https://youtu.be/…" onChange={(e) => onChange({ video: { ...song.video, url: e.target.value.trim() } })} />
+          {badVideoLink(song) && <span className="error small">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
+          <span className="muted small">Проверьте ролик на репетиции: некоторые запрещают показ на других сайтах. Пауза и перемотка с пульта — у YouTube и Rutube.</span>
+        </label>
+      )}
+      {song.video.source === "file" && (
+        <div className="stack stack--tight">
+          <p className="muted small">Видео на сервер не загружается: оно хранится только на устройстве, где открыт экран зала. Выберите файл здесь, если это тот же ноутбук, — или экран сам попросит его, когда дойдёт до песни.</p>
+          {song.video.name && <p className="small">Файл: {song.video.name}</p>}
+          {saved && <p className="success small">{saved}</p>}
+          {editable && (
+            <button type="button" className="btn btn--secondary btn--block" onClick={() => fileRef.current?.click()}>
+              Выбрать видео на этом устройстве
+            </button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="video/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              void saveLocalVideo(song.id, file)
+                .then(() => setSaved("Видео сохранено на этом устройстве"))
+                .catch(() => setSaved("Не получилось сохранить видео в браузере"));
+              onChange({ video: { ...song.video, name: file.name.slice(0, 120) } });
+            }}
+          />
+        </div>
+      )}
+      {song.video.source !== "none" && (
+        <label className="field">
+          С какой секунды
+          <ClampedNumber value={song.videoStart} min={0} max={LOTTO_LIMITS.maxVideoStart} fallback={0} disabled={!editable} onChange={(videoStart) => onChange({ videoStart })} />
+          <span className="muted small">Звук — из видео: трек песни, если выбран, тогда не играет.</span>
+        </label>
+      )}
+    </fieldset>
   );
 }

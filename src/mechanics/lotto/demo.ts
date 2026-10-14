@@ -35,11 +35,12 @@ const LIST: Array<[string, string]> = [
 export const DEMO_LOTTO: { title: string; content: LottoContent } = {
   title: "Музыкальное лото: хиты на русском",
   content: {
-    songs: LIST.map(([artist, title], i) => ({ id: `lotto${i + 1}`, title, artist, trackId: null, trackStart: 0 })),
+    songs: LIST.map(([artist, title], i) => ({ id: `lotto${i + 1}`, title, artist, trackId: null, trackStart: 0, video: { source: "none", url: "", name: "" }, videoStart: 0 })),
     size: 4,
     rule: "line",
     fragment: 30,
     prizes: [300, 200, 100],
     cardStyle: "evening",
+    videoHide: false,
   },
 };

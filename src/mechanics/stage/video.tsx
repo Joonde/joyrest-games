@@ -1,41 +1,51 @@
 // Видео плитки на экране зала с управлением с пульта (решение владельца 12 октября 2026): пауза, дальше, −10 с,
 // +10 с, остановить (в начало). Файл с устройства экрана — полностью; ролик YouTube и Rutube — через их
 // postMessage-API встроенного плеера; у VK Видео API нет — «Остановить» убирает ролик, «Дальше» запускает заново.
+// Тот же плеер — у музыкального лото (клип или караоке к песне; `start` — с какой секунды).
 import { useEffect, useRef, useState } from "react";
 import { loadLocalVideo, saveLocalVideo } from "../../components/media/localVideo";
 import { embedUrl } from "../dance/content";
-import type { StageTile } from "./content";
+import type { VideoSource } from "../dance/content";
 import type { VideoCmd } from "./logic";
+
+/** Что показать: id (ключ файла на устройстве экрана), название и видео; `start` — с какой секунды. */
+export interface VideoItem {
+  id: string;
+  title: string;
+  video: { source: VideoSource; url: string; name: string };
+  start?: number;
+}
 
 export type VideoHost = "youtube" | "rutube" | "vk";
 
 /** Ссылка → встраиваемый плеер с включённым API управления; null — ссылку экран не откроет. */
-export function videoTarget(raw: string, origin = typeof window !== "undefined" ? window.location.origin : ""): { host: VideoHost; src: string } | null {
+export function videoTarget(raw: string, origin = typeof window !== "undefined" ? window.location.origin : "", start = 0): { host: VideoHost; src: string } | null {
   const src = embedUrl(raw);
   if (!src) return null;
-  if (src.includes("youtube")) return { host: "youtube", src: `${src}&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}` };
-  if (src.includes("rutube.ru")) return { host: "rutube", src };
-  return { host: "vk", src };
+  const from = Math.max(0, Math.floor(start));
+  if (src.includes("youtube")) return { host: "youtube", src: `${src}&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}${from ? `&start=${from}` : ""}` };
+  if (src.includes("rutube.ru")) return { host: "rutube", src: `${src}${from ? `&t=${from}` : ""}` };
+  return { host: "vk", src: `${src}${from ? `&t=${from}s` : ""}` };
 }
 
 /** Что умеет плеер этой плитки: у VK — только «остановить» и «запустить заново». */
-export function canSeek(tile: StageTile): boolean {
+export function canSeek(tile: VideoItem): boolean {
   if (tile.video.source === "file") return true;
   if (tile.video.source !== "link") return false;
   return videoTarget(tile.video.url)?.host !== "vk";
 }
 
 interface Props {
-  tile: StageTile;
+  tile: VideoItem;
   video: { n: number; cmd: VideoCmd; paused: boolean };
 }
 
 export function StageVideo({ tile, video }: Props) {
   if (tile.video.source === "file") return <FileVideo tile={tile} video={video} />;
   if (tile.video.source === "link") {
-    const target = videoTarget(tile.video.url);
+    const target = videoTarget(tile.video.url, undefined, tile.start ?? 0);
     if (!target) return <p className="stage-video__note">Ссылку на видео не открыть. Проверьте её в конструкторе: подходят YouTube, VK Видео и Rutube.</p>;
-    return <LinkVideo key={target.src} target={target} title={tile.title} video={video} />;
+    return <LinkVideo key={target.src} target={target} title={tile.title} video={video} start={tile.start ?? 0} />;
   }
   return null;
 }
@@ -53,6 +63,7 @@ function useCommands(video: Props["video"], apply: (cmd: VideoCmd) => void) {
 }
 
 function FileVideo({ tile, video }: Props) {
+  const start = Math.max(0, tile.start ?? 0);
   const [url, setUrl] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
@@ -92,7 +103,7 @@ function FileVideo({ tile, video }: Props) {
     if (cmd === "fwd") el.currentTime = Math.min(el.duration || el.currentTime + 10, el.currentTime + 10);
     if (cmd === "stop") {
       el.pause();
-      el.currentTime = 0;
+      el.currentTime = start;
     }
   });
 
@@ -120,10 +131,22 @@ function FileVideo({ tile, video }: Props) {
       </div>
     );
   }
-  return url ? <video ref={ref} className="stage-video__frame" src={url} playsInline autoPlay={!video.paused} controls={false} /> : null;
+  return url ? (
+    <video
+      ref={ref}
+      className="stage-video__frame"
+      src={url}
+      playsInline
+      autoPlay={!video.paused}
+      controls={false}
+      onLoadedMetadata={(e) => {
+        if (start > 0 && start < (e.currentTarget.duration || Infinity)) e.currentTarget.currentTime = start;
+      }}
+    />
+  ) : null;
 }
 
-function LinkVideo({ target, title, video }: { target: { host: VideoHost; src: string }; title: string; video: Props["video"] }) {
+function LinkVideo({ target, title, video, start }: { target: { host: VideoHost; src: string }; title: string; video: Props["video"]; start: number }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const time = useRef(0);
   const ready = useRef(false);
@@ -197,7 +220,7 @@ function LinkVideo({ target, title, video }: { target: { host: VideoHost; src: s
         if (cmd === "back") yt("seekTo", [Math.max(0, time.current - 10), true]);
         if (cmd === "fwd") yt("seekTo", [time.current + 10, true]);
         if (cmd === "stop") {
-          yt("seekTo", [0, true]);
+          yt("seekTo", [start, true]);
           yt("pauseVideo");
         }
         return;
@@ -207,7 +230,7 @@ function LinkVideo({ target, title, video }: { target: { host: VideoHost; src: s
       if (cmd === "back") rt("player:relativelySeek", { time: -10 });
       if (cmd === "fwd") rt("player:relativelySeek", { time: 10 });
       if (cmd === "stop") {
-        rt("player:setCurrentTime", { time: 0 });
+        rt("player:setCurrentTime", { time: start });
         rt("player:pause");
       }
     });

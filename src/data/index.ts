@@ -11,6 +11,8 @@ export {
   audienceRepo,
   authService,
   calendarRepo,
+  clientsRepo,
+  telegramRepo,
   clock,
   eventsRepo,
   gamesRepo,

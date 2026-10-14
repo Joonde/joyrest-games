@@ -102,6 +102,11 @@ async function cleanup(host, admin) {
     if (e.day < D1) continue;
     await api("DELETE", `/api/calendar/${e.id}`, e.kind === "booked" ? admin.cookie : host.cookie);
   }
+  // Клиенты проверки — в архив (из базы клиентов ничего не стирается).
+  const clients = await api("GET", "/api/clients", admin.cookie);
+  for (const c of clients.data?.clients ?? []) {
+    if (/Проверка/.test(c.name)) await api("POST", `/api/clients/${c.id}/archive`, admin.cookie, {});
+  }
   // Мероприятия проверки: отменить и удалить навсегда.
   const events = await api("GET", `/api/events?from=${TODAY}&to=${D3}`, admin.cookie);
   for (const e of events.data?.events ?? []) {
@@ -344,7 +349,7 @@ try {
   await row.locator('input[list="event-titles"]').fill("Корпоратив, проверка");
   await row.getByLabel("Клиент — имя").fill("Клиент Проверка");
   await row.getByLabel("Телефон клиента").fill("+7 900 000-00-00");
-  await row.getByRole("button", { name: "45", exact: true }).click();
+  await row.getByLabel("Гостей (точное число)").fill("45");
   await row.getByLabel("Комментарий (программа, пожелания)").fill("Квиз и танцы, проверка");
   await shot(ap, "владелец-форма-мероприятия");
   await noSideScroll(ap, "Владелец, форма в «Кто может»");
@@ -512,7 +517,7 @@ try {
     (await ap.getByLabel("Клиент — имя").inputValue()) === "Софья" &&
     (await ap.getByLabel("Телефон клиента").inputValue()) === "+7 915 241-59-99" &&
     (await ap.locator('input[list="event-titles"]').inputValue()) === "Корпоратив" &&
-    (await ap.getByLabel("Гостей", { exact: true }).inputValue()) === "25" &&
+    (await ap.getByLabel("Гостей (точное число)").inputValue()) === "25" &&
     ((await ap.locator(".plan-when").textContent()) ?? "").includes("15 декабря") &&
     ((await ap.locator(".plan-when").textContent()) ?? "").includes("18:00–23:00");
   check(filledOk, "Владелец: «Заполнить из текста» — имя, телефон, вид, гости, дата и время подставились", "Владелец: из текста заявки заполнилось не всё");
@@ -533,6 +538,60 @@ try {
   await noSideScroll(ap, "Владелец, 360 px, форма");
   await ap.getByRole("button", { name: "Отмена", exact: true }).click();
   await ap.setViewportSize({ width: 390, height: 844 });
+
+  // Итоги: прошедшее мероприятие → «Не отмечено» → владелец отмечает «Проведено» → гости в итогах.
+  const pastDay = addDays(TODAY, -1);
+  const pastId = `e2epast${Date.now() % 100000}`;
+  await api("POST", "/api/events", admin.cookie, { id: pastId, hostId: host.profile.uid, day: pastDay, start: 600, end: 720, title: "Итоги, проверка", guests: 37 });
+  await ap.getByRole("button", { name: "Итоги", exact: true }).click();
+  await ap.getByRole("button", { name: "Неделя", exact: true }).click();
+  const pastCard = ap.locator(".plan-card", { hasText: "Итоги, проверка" });
+  // Вчера может быть в прошлой неделе (понедельник) — листаем назад, пока не найдём.
+  for (let i = 0; i < 2 && (await pastCard.count()) === 0; i++) {
+    await ap.waitForTimeout(1500);
+    if ((await pastCard.count()) === 0) await ap.getByRole("button", { name: "Прошлый период" }).click();
+  }
+  await until(async () => (await pastCard.count()) === 1, WAIT, "прошедшее в «Отметьте, состоялись ли»");
+  ok("Владелец: «Итоги» — прошедшее без отметки в списке «Отметьте, состоялись ли»");
+  const tileText = async (title) => Number(((await ap.locator(".plan-tile", { hasText: title }).first().locator(".plan-tile__n").textContent()) ?? "0").trim());
+  const heldBefore = await tileText("Проведено");
+  const guestsBefore = await tileText("Гостей");
+  await pastCard.locator(".plan-card__head").click();
+  await pastCard.getByRole("button", { name: "Проведено", exact: true }).click();
+  await until(async () => (await tileText("Проведено")) === heldBefore + 1, WAIT, "«Проведено» +1");
+  check((await tileText("Гостей")) === guestsBefore + 37, "Владелец: «Проведено» — в итогах +1 мероприятие и +37 гостей (точное число)", `Владелец: гостей ${guestsBefore} → ${await tileText("Гостей")}`);
+  check((await ap.locator(".plan-table", { hasText: hostName }).count()) > 0, "Владелец: в итогах — таблица по ведущим");
+  await shot(ap, "владелец-итоги");
+  await ap.getByRole("button", { name: "Год", exact: true }).click();
+  await until(async () => (await ap.locator("#plan-stats").textContent())?.trim() === TODAY.slice(0, 4), WAIT, "итоги за год");
+  ok("Владелец: итоги переключаются на год");
+  for (const k of ["Месяц", "Квартал"]) await ap.getByRole("button", { name: k, exact: true }).click();
+  await fits(ap, "Владелец, итоги за квартал");
+
+  // База клиентов: клиент из мероприятия уже там; выгрузка — только владельцу.
+  await ap.goto(`${BASE}/studio/clients`);
+  const clientCard = ap.locator(".plan-card", { hasText: "Клиент Проверка" });
+  await until(async () => (await clientCard.count()) === 1, WAIT, "клиент из мероприятия в базе");
+  ok("Владелец: «Клиенты» — клиент из мероприятия сам попал в базу");
+  await clientCard.locator(".plan-card__head").click();
+  await until(async () => ((await clientCard.textContent()) ?? "").includes("Мероприятие"), WAIT, "история обращений");
+  ok("Владелец: в карточке клиента — история обращений");
+  check((await api("GET", "/api/clients", host.cookie)).status === 403, "API: ведущему база клиентов закрыта (403)");
+  const csv = await fetch(`${BASE}/api/clients/export?all=1`, { headers: { Cookie: admin.cookie } });
+  check(csv.status === 200 && (await csv.text()).includes("Клиент Проверка"), "Владелец: выгрузка таблицы клиентов работает");
+  await shot(ap, "владелец-клиенты");
+  await noSideScroll(ap, "Владелец, клиенты");
+  const tgButton = ap.getByRole("button", { name: "Подключить Telegram" });
+  if ((await tgButton.count()) > 0) {
+    await tgButton.click();
+    const tgLink = ap.getByRole("link", { name: "Открыть бота в Telegram" });
+    await until(async () => (await tgLink.count()) === 1, WAIT, "ссылка на бота");
+    check(/^https:\/\/t\.me\/[A-Za-z0-9_]+\?start=[A-Za-z0-9_-]{20,}$/.test((await tgLink.getAttribute("href")) ?? ""), "Telegram: «Подключить» даёт одноразовую ссылку на бота", `Telegram: ссылка ${await tgLink.getAttribute("href")}`);
+  } else {
+    say(`ℹ️ Telegram: ${((await ap.locator("#tg-connect").locator("..").textContent()) ?? "").replace(/\s+/g, " ").slice(0, 160)}`);
+  }
+  await api("POST", `/api/events/${pastId}/cancel`, admin.cookie, {});
+  await api("DELETE", `/api/events/${pastId}`, admin.cookie);
 
   // Ведущий: «Мои мероприятия» — видит своё, без правки.
   await hp.goto(`${BASE}/studio/calendar?tab=events`);

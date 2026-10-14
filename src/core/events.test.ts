@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyEvent } from "../data/types";
-import { bookingId, bookingNote, cleanPhone, crowdedClusters, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
+import { bookingId, bookingNote, cleanPhone, crowdedClusters, noticeText, periodOf, reminderDue, shiftPeriod, statsOf, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
 
 const ev = (id: string, day: string, start: number, end: number, extra: Partial<AgencyEvent> = {}): AgencyEvent => ({
   id,
@@ -134,5 +134,58 @@ describe("планировщик: заполнение из заявки", () =>
       fillFromRequest({ name: "Ольга", phone: "8 900 000 00 00", eventType: "Юбилей", date: "2026-11-01", from: "19:00", to: "", guests: 40, district: "ЦАО", comment: "" }),
     ).toEqual({ clientName: "Ольга", clientPhone: "8 900 000 00 00", title: "Юбилей", day: "2026-11-01", start: 1140, end: 1380, guests: 40, place: "ЦАО" });
     expect(endIn(1320, 10)).toBe(1800);
+  });
+});
+
+describe("планировщик: уведомления ведущему в Telegram", () => {
+  const e = ev("e1", "2026-10-20", 1080, 1380, { guests: 40, clientName: "Ольга", clientPhone: "+7 900 000-00-00", place: "ул. Ленина, 1" });
+  const start = Date.parse("2026-10-20T15:00:00Z");
+  it("напоминания — за сутки и за 3 часа, после начала — нет", () => {
+    expect(reminderDue(start, start - 25 * 3_600_000)).toBeNull();
+    expect(reminderDue(start, start - 20 * 3_600_000)).toBe("day");
+    expect(reminderDue(start, start - 2 * 3_600_000)).toBe("hours");
+    expect(reminderDue(start, start + 1)).toBeNull();
+  });
+  it("текст — что, когда и ссылка; без имени, телефона и адреса клиента", () => {
+    const text = noticeText("created", e, "https://games.joy-rest.ru");
+    expect(text).toContain("Вам назначено мероприятие");
+    expect(text).toContain("Свадьба · 40 гостей");
+    expect(text).toContain("вторник, 20 октября 2026, 18:00–23:00");
+    expect(text).toContain("https://games.joy-rest.ru/studio/calendar?tab=events");
+    for (const secret of ["Ольга", "900", "Ленина"]) expect(text).not.toContain(secret);
+    expect(noticeText("hours", e, "u", start - 2 * 3_600_000)).toContain("Через 2 ч");
+    expect(noticeText("cancelled", e, "u")).not.toContain("студии");
+  });
+});
+
+describe("планировщик: итоги", () => {
+  it("периоды: неделя, месяц, квартал, год и соседние", () => {
+    expect(periodOf("week", "2026-10-14")).toEqual({ from: "2026-10-12", to: "2026-10-18", title: "12–18 октября 2026" });
+    expect(periodOf("week", "2026-10-29").title).toBe("26 октября – 1 ноября 2026");
+    expect(periodOf("month", "2026-10-14")).toEqual({ from: "2026-10-01", to: "2026-10-31", title: "Октябрь 2026" });
+    expect(periodOf("quarter", "2026-11-14")).toEqual({ from: "2026-10-01", to: "2026-12-31", title: "IV квартал 2026" });
+    expect(periodOf("year", "2026-11-14")).toEqual({ from: "2026-01-01", to: "2026-12-31", title: "2026" });
+    expect(shiftPeriod("month", "2026-12-14", 1)).toBe("2027-01-01");
+    expect(shiftPeriod("quarter", "2026-02-10", -1)).toBe("2025-10-01");
+    expect(shiftPeriod("week", "2026-10-14", -1)).toBe("2026-10-05");
+  });
+  it("записано, проведено, не состоялось, не отмечено, впереди, отменено; гости — только проведённых", () => {
+    const now = Date.parse("2026-10-20T12:00:00Z");
+    const list = [
+      ev("a", "2026-10-01", 1080, 1380, { held: true, guests: 40, hostId: "h1", hostName: "Анна", title: "Свадьба" }),
+      ev("b", "2026-10-05", 1080, 1380, { held: true, guests: null, hostId: "h1", hostName: "Анна", title: "свадьба" }),
+      ev("c", "2026-10-06", 1080, 1380, { held: false, hostId: "h2", hostName: "Борис", title: "Корпоратив" }),
+      ev("d", "2026-10-07", 1080, 1380, { hostId: "h2", hostName: "Борис", title: "Корпоратив" }),
+      ev("e", "2026-10-25", 1080, 1380, { hostId: "h2", hostName: "Борис", title: "Корпоратив", guests: 99 }),
+      ev("f", "2026-10-26", 1080, 1380, { cancelled: true }),
+      ev("g", "2026-11-02", 1080, 1380, { held: true, guests: 10 }),
+    ];
+    const s = statsOf(list, "2026-10-01", "2026-10-31", now);
+    expect(s).toMatchObject({ planned: 5, held: 2, failed: 1, unmarked: 1, upcoming: 1, cancelled: 1, guests: 40, guestsMissing: 1 });
+    expect(s.byHost[0]).toMatchObject({ hostName: "Анна", planned: 2, held: 2, guests: 40 });
+    expect(s.byTitle).toEqual([
+      { title: "Корпоратив", planned: 3, held: 0 },
+      { title: "Свадьба", planned: 2, held: 2 },
+    ]);
   });
 });

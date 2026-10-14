@@ -9,6 +9,9 @@ import type {
   AvailabilityEntry,
   CalendarMember,
   AgencyEvent,
+  ClientDetails,
+  ClientRecord,
+  TelegramStatus,
   SessionSummary,
   OfflinePlayer,
   OfferSummary,
@@ -271,11 +274,35 @@ export interface EventsRepository {
   /** Списки: предстоящие и идущие, архив (прошедшие), отменённые — до 300 последних. */
   list(scope: "upcoming" | "past" | "cancelled"): Promise<AgencyEvent[]>;
   /** Владелец: новое мероприятие или правка (id от браузера — повтор та же запись). */
-  save(event: Omit<AgencyEvent, "hostName" | "cancelled">): Promise<AgencyEvent>;
+  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held">): Promise<AgencyEvent>;
+  /** Итоги: все мероприятия периода до 370 дней (только владелец). */
+  period(from: string, to: string): Promise<AgencyEvent[]>;
+  /** «Проведено» (true), «Не состоялось» (false), снять отметку (null) — после начала. */
+  setHeld(id: string, held: boolean | null): Promise<AgencyEvent>;
   cancel(id: string): Promise<AgencyEvent>;
   restore(id: string): Promise<AgencyEvent>;
   /** Удалить навсегда — только отменённое. */
   remove(id: string): Promise<void>;
+}
+
+/** База клиентов — только свой сервер и только владелец; у Firebase — null. */
+export interface ClientsRepository {
+  list(archived: boolean): Promise<ClientRecord[]>;
+  get(id: string): Promise<ClientDetails>;
+  /** Новый клиент вручную или правка (id от браузера). Тот же телефон у другого клиента — 409. */
+  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string }): Promise<ClientDetails>;
+  archive(id: string): Promise<void>;
+  restore(id: string): Promise<void>;
+  /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */
+  exportUrl(all: boolean): string;
+}
+
+/** Telegram для уведомлений о мероприятиях — только свой сервер; у Firebase — null. */
+export interface TelegramRepository {
+  status(): Promise<TelegramStatus>;
+  /** Одноразовая ссылка на бота: открыть в Telegram и нажать «Старт». */
+  link(): Promise<{ url: string }>;
+  unlink(): Promise<void>;
 }
 
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */

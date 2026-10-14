@@ -5,7 +5,7 @@
  * У ведущего время мероприятия занято в календаре. Чистые функции: их же проверяет сервер.
  */
 import type { AgencyEvent } from "../data/types";
-import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, endAfter, MAX_END, TIME_STEP, todayMoscow, validTime } from "./calendar";
+import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, dayTitle, endAfter, MAX_END, rangeLabel, TIME_STEP, todayMoscow, validTime } from "./calendar";
 
 export const EVENT_LIMITS = { client: 100, phone: 40, title: 100, place: 200, note: 500, guestsMax: 10_000 } as const;
 
@@ -364,4 +364,148 @@ export function fillFromRequest(r: { name: string; phone: string; eventType: str
   if (r.district) out.place = cleanText(r.district, EVENT_LIMITS.place);
   if (r.comment) out.note = cleanText(r.comment, EVENT_LIMITS.note);
   return out;
+}
+
+// ───────────── Уведомления ведущему в Telegram ─────────────
+
+export type NoticeKind = "created" | "changed" | "removed" | "cancelled" | "day" | "hours";
+
+const NOTICE_HEADS: Record<NoticeKind, string> = {
+  created: "📅 Вам назначено мероприятие JoyRest",
+  changed: "✏️ Мероприятие изменено",
+  removed: "↩️ Это мероприятие больше не за вами",
+  cancelled: "❌ Мероприятие отменено",
+  day: "⏰ Напоминание: мероприятие через сутки",
+  hours: "⏰ Скоро начало мероприятия",
+};
+
+/** Напоминания: за сутки и за 3 часа до начала. */
+export const REMIND_DAY_MS = 24 * 3_600_000;
+export const REMIND_HOURS_MS = 3 * 3_600_000;
+
+/** Какое напоминание пора отправить: за 3 часа (и ближе) — «hours», за сутки — «day», раньше — никакого. */
+export function reminderDue(startsAt: number, now: number): "day" | "hours" | null {
+  const left = startsAt - now;
+  if (left <= 0) return null;
+  if (left <= REMIND_HOURS_MS) return "hours";
+  return left <= REMIND_DAY_MS ? "day" : null;
+}
+
+/**
+ * Текст уведомления ведущему. Без имени и телефона клиента и без адреса: Telegram — не в России, а это
+ * персональные данные; подробности — в студии по ссылке.
+ */
+export function noticeText(kind: NoticeKind, e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">, platformUrl: string, now = Date.now()): string {
+  const what = `${e.title || "Мероприятие"}${e.guests ? ` · ${e.guests} гостей` : ""}`;
+  const when = `${dayTitle(e.day)}, ${rangeLabel(e.start, e.end)}`;
+  const span = eventSpan(e);
+  const head = kind === "hours" && span ? `⏰ Через ${Math.max(1, Math.round((span.from - now) / 3_600_000))} ч начало мероприятия` : NOTICE_HEADS[kind];
+  const tail = kind === "removed" || kind === "cancelled" ? "" : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
+  return `${head}\n\n${what}\n${when}${tail}`;
+}
+
+// ───────────── Итоги: неделя, месяц, квартал, год ─────────────
+
+export type PeriodKind = "week" | "month" | "quarter" | "year";
+export const PERIOD_TITLES: Record<PeriodKind, string> = { week: "Неделя", month: "Месяц", quarter: "Квартал", year: "Год" };
+
+const MONTHS_NOM = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const QUARTERS = ["I", "II", "III", "IV"];
+
+const iso = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10);
+
+/** Период, в который входит день: первый и последний день и подпись («Октябрь 2026», «IV квартал 2026»). */
+export function periodOf(kind: PeriodKind, day: string): { from: string; to: string; title: string } {
+  const y = Number(day.slice(0, 4));
+  const m = Number(day.slice(5, 7)) - 1;
+  if (kind === "week") {
+    const from = weekStart(day);
+    const to = new Date(Date.parse(`${from}T00:00:00Z`) + 6 * 86_400_000).toISOString().slice(0, 10);
+    const [fm, fd, tm, td, ty] = [Number(from.slice(5, 7)) - 1, Number(from.slice(8)), Number(to.slice(5, 7)) - 1, Number(to.slice(8)), to.slice(0, 4)];
+    const title = fm === tm ? `${fd}–${td} ${MONTHS_GEN[tm]} ${ty}` : `${fd} ${MONTHS_GEN[fm]} – ${td} ${MONTHS_GEN[tm]} ${ty}`;
+    return { from, to, title };
+  }
+  if (kind === "month") return { from: iso(y, m, 1), to: iso(y, m + 1, 0), title: `${MONTHS_NOM[m]} ${y}` };
+  if (kind === "quarter") {
+    const q = Math.floor(m / 3);
+    return { from: iso(y, q * 3, 1), to: iso(y, q * 3 + 3, 0), title: `${QUARTERS[q]} квартал ${y}` };
+  }
+  return { from: iso(y, 0, 1), to: iso(y, 11, 31), title: String(y) };
+}
+
+/** День в соседнем периоде (назад −1, вперёд +1). */
+export function shiftPeriod(kind: PeriodKind, day: string, delta: number): string {
+  const y = Number(day.slice(0, 4));
+  const m = Number(day.slice(5, 7)) - 1;
+  if (kind === "week") return new Date(Date.parse(`${weekStart(day)}T00:00:00Z`) + delta * 7 * 86_400_000).toISOString().slice(0, 10);
+  if (kind === "month") return iso(y, m + delta, 1);
+  if (kind === "quarter") return iso(y, Math.floor(m / 3) * 3 + delta * 3, 1);
+  return iso(y + delta, 0, 1);
+}
+
+export interface HostStats {
+  hostId: string;
+  hostName: string;
+  planned: number;
+  held: number;
+  guests: number;
+}
+
+export interface EventStats {
+  /** Записано (без отменённых). */
+  planned: number;
+  /** Отмечено «Проведено». */
+  held: number;
+  /** Отмечено «Не состоялось». */
+  failed: number;
+  /** Прошло, но никто не отметил. */
+  unmarked: number;
+  /** Ещё впереди (и идут сейчас). */
+  upcoming: number;
+  cancelled: number;
+  /** Гостей на проведённых (точные числа из мероприятий). */
+  guests: number;
+  /** Сколько проведённых без числа гостей. */
+  guestsMissing: number;
+  byHost: HostStats[];
+  byTitle: Array<{ title: string; planned: number; held: number }>;
+}
+
+/** Итоги по мероприятиям периода (мероприятие относится к дню начала). */
+export function statsOf(events: AgencyEvent[], from: string, to: string, now = Date.now()): EventStats {
+  const list = events.filter((e) => e.day >= from && e.day <= to);
+  const s: EventStats = { planned: 0, held: 0, failed: 0, unmarked: 0, upcoming: 0, cancelled: 0, guests: 0, guestsMissing: 0, byHost: [], byTitle: [] };
+  const hosts = new Map<string, HostStats>();
+  const titles = new Map<string, { title: string; planned: number; held: number }>();
+  for (const e of list) {
+    if (e.cancelled) {
+      s.cancelled += 1;
+      continue;
+    }
+    s.planned += 1;
+    const status = eventStatus(e, now);
+    const host = hosts.get(e.hostId) ?? { hostId: e.hostId, hostName: e.hostName, planned: 0, held: 0, guests: 0 };
+    host.planned += 1;
+    const key = (e.title || "Мероприятие").trim();
+    const t = titles.get(key.toLowerCase()) ?? { title: key, planned: 0, held: 0 };
+    t.planned += 1;
+    if (e.held === true) {
+      s.held += 1;
+      host.held += 1;
+      t.held += 1;
+      if (e.guests === null) s.guestsMissing += 1;
+      else {
+        s.guests += e.guests;
+        host.guests += e.guests;
+      }
+    } else if (e.held === false) s.failed += 1;
+    else if (status === "past") s.unmarked += 1;
+    else s.upcoming += 1;
+    hosts.set(e.hostId, host);
+    titles.set(key.toLowerCase(), t);
+  }
+  s.byHost = [...hosts.values()].sort((a, b) => b.held - a.held || b.planned - a.planned || a.hostName.localeCompare(b.hostName, "ru"));
+  s.byTitle = [...titles.values()].sort((a, b) => b.planned - a.planned || a.title.localeCompare(b.title, "ru"));
+  return s;
 }

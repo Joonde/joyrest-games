@@ -196,6 +196,22 @@ export function canRemoveCalendarEntry(actor: Actor, entry: { uid: string; kind:
   return isActiveHost(actor) && actor?.uid === entry.uid && entry.kind !== "booked";
 }
 
+/** Отметить «Проведено» / «Не состоялось» — владелец или ведущий этого мероприятия. */
+export function canMarkEventHeld(actor: Actor, event: { hostId: string }): boolean {
+  if (isAdmin(actor)) return true;
+  return isActiveHost(actor) && actor?.uid === event.hostId;
+}
+
+/** База клиентов (заявки, телефоны, согласия на рассылку) — только владелец. */
+export function canManageClients(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Подключить свой Telegram для уведомлений о мероприятиях — любой активный человек команды. */
+export function canLinkTelegram(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
 /** Планировщик: записать, изменить и отменить мероприятие — только владелец. */
 export function canManageEvents(actor: Actor): boolean {
   return isAdmin(actor);

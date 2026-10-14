@@ -15618,7 +15618,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 /* ---------- Планировщик мероприятий: день по часам, 7 дней, списки ---------- */
 
 .plan-seg--views {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
 }
 
 .plan-seg--filters {
@@ -15963,6 +15963,89 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .plan-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.plan-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 700px) {
+  .plan-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.plan-tile {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 12px 14px;
+}
+
+.plan-tile__n {
+  font-family: var(--font-display, inherit);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-tile__title {
+  font-weight: 600;
+}
+
+.plan-tile__hint {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-table th,
+.plan-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.plan-table th:first-child {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.plan-table thead th {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.clients-link {
+  display: contents;
+}
+
+.clients-filters {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+
+.clients-history {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.tg-status {
+  margin: 0;
+  font-weight: 600;
 }
 
 .plan-facts__note {

@@ -19,8 +19,11 @@ import {
   eventsOfDay,
   eventStatus,
   fillFromRequest,
-  GUEST_PRESETS,
   parseLeadText,
+  PERIOD_TITLES,
+  periodOf,
+  shiftPeriod,
+  statsOf,
   sortEvents,
   TIME_PRESETS,
   timelineHours,
@@ -28,6 +31,7 @@ import {
   weekStart,
   type EventStatus,
   type LeadFill,
+  type PeriodKind,
   type TimelineCluster,
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
@@ -37,15 +41,16 @@ import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { useServerNow } from "../../components/live/useServerNow";
 import { SearchField } from "../../components/SearchField";
+import { TelegramConnect } from "../../components/TelegramConnect";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { brand, teamColors } from "../../themes/brand";
 import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
 
-type View = "day" | "week" | "month" | "list";
+type View = "day" | "week" | "month" | "list" | "stats";
 type ListFilter = "upcoming" | "now" | "past" | "cancelled";
 
-const VIEW_TITLES: Record<View, string> = { day: "День", week: "7 дней", month: "Месяц", list: "Списком" };
+const VIEW_TITLES: Record<View, string> = { day: "День", week: "7 дней", month: "Месяц", list: "Списком", stats: "Итоги" };
 const FILTER_TITLES: Record<ListFilter, string> = { upcoming: "Предстоящие", now: "Идут сейчас", past: "Архив", cancelled: "Отменённые" };
 const EVENT_STATUS_COLORS: Record<EventStatus, string> = { upcoming: brand.gold, now: brand.sage, past: brand.taupe, cancelled: brand.coral };
 const MEMBER_COLORS: Record<MemberStatus, string> = { free: brand.sage, partial: brand.gold, unknown: brand.taupe, busy: brand.coral };
@@ -58,6 +63,15 @@ function hostColor(hostId: string): string {
 }
 
 const eventName = (e: Pick<AgencyEvent, "title">) => e.title || "Мероприятие";
+
+/** Плашка статуса: после окончания — «Проведено», «Не состоялось» или «Прошло — отметьте». */
+function statusPill(e: AgencyEvent, now: number): { title: string; color: string } {
+  const status = eventStatus(e, now);
+  if (e.held === true && !e.cancelled) return { title: "Проведено", color: brand.sage };
+  if (e.held === false && !e.cancelled) return { title: "Не состоялось", color: brand.coral };
+  if (status === "past") return { title: "Прошло — отметьте", color: brand.gold };
+  return { title: EVENT_STATUS_TITLES[status], color: EVENT_STATUS_COLORS[status] };
+}
 
 /** Окно загрузки для дня, недели и месяца выбранной даты (до 62 дней). */
 function loadRange(day: string): { from: string; to: string } {
@@ -154,6 +168,16 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
     });
   }
 
+  async function markHeld(event: AgencyEvent, held: boolean | null) {
+    if (!eventsRepo) return;
+    try {
+      replace(await eventsRepo.setHeld(event.id, held));
+      onToast(held === true ? "Отмечено: проведено" : held === false ? "Отмечено: не состоялось" : "Отметка снята");
+    } catch {
+      onToast("Не получилось отметить. Проверьте интернет.");
+    }
+  }
+
   if (form) {
     return (
       <EventForm
@@ -185,6 +209,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
       onCancel={() => cancel(e)}
       onRestore={() => restore(e)}
       onRemove={() => remove(e)}
+      onHeld={(held) => void markHeld(e, held)}
     />
   );
 
@@ -203,14 +228,16 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
         </div>
       )}
       <div className="seg plan-seg plan-seg--views" role="group" aria-label="Вид">
-        {(Object.keys(VIEW_TITLES) as View[]).map((v) => (
+        {(Object.keys(VIEW_TITLES) as View[]).filter((v) => owner || v !== "stats").map((v) => (
           <button key={v} type="button" className={view === v ? "seg__btn is-on" : "seg__btn"} aria-pressed={view === v} onClick={() => setView(v)}>
             {VIEW_TITLES[v]}
           </button>
         ))}
       </div>
 
-      {view === "list" ? (
+      {view === "stats" && owner ? (
+        <StatsView now={now} changed={changed} render={(e) => card(e)} />
+      ) : view === "list" ? (
         <EventList filter={filter} onFilter={setFilter} now={now} removed={removed} changed={changed} render={(e) => card(e)} />
       ) : !shown ? (
         state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />
@@ -277,8 +304,131 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
           )}
         </>
       )}
+      {!owner && <TelegramConnect />}
       {confirm}
     </>
+  );
+}
+
+// ───────────────────────────── Итоги ─────────────────────────────
+
+function StatsView({ now, changed, render }: { now: number; changed: AgencyEvent[]; render: (e: AgencyEvent) => ReactNode }) {
+  const [kind, setKind] = useState<PeriodKind>("month");
+  const [anchor, setAnchor] = useState(todayMoscow());
+  const period = periodOf(kind, anchor);
+  const [state, retry] = useLoad(() => (eventsRepo ? eventsRepo.period(period.from, period.to) : Promise.resolve([] as AgencyEvent[])), [period.from, period.to]);
+  const shown = useLastReady(state);
+  const events = useMemo(() => {
+    const base = (shown ?? []).filter((e) => !changed.some((c) => c.id === e.id));
+    return [...base, ...changed];
+  }, [shown, changed]);
+  const stats = statsOf(events, period.from, period.to, now);
+  const unmarked = sortEvents(
+    events.filter((e) => e.day >= period.from && e.day <= period.to && !e.cancelled && e.held === null && eventStatus(e, now) === "past"),
+    false,
+  );
+  const tiles: Array<[string, number, string]> = [
+    ["Записано", stats.planned, "без отменённых"],
+    ["Проведено", stats.held, "отмечено ведущим или вами"],
+    ["Впереди", stats.upcoming, "ещё не начались или идут"],
+    ["Не отмечено", stats.unmarked, "прошли, но без отметки"],
+    ["Не состоялось", stats.failed, ""],
+    ["Отменено", stats.cancelled, ""],
+    ["Гостей", stats.guests, stats.guestsMissing ? `на проведённых; без числа гостей: ${stats.guestsMissing}` : "на проведённых"],
+  ];
+  return (
+    <section className="stack" aria-labelledby="plan-stats">
+      <div className="seg plan-seg plan-seg--views" role="group" aria-label="Период">
+        {(Object.keys(PERIOD_TITLES) as PeriodKind[]).map((k) => (
+          <button key={k} type="button" className={kind === k ? "seg__btn is-on" : "seg__btn"} aria-pressed={kind === k} onClick={() => setKind(k)}>
+            {PERIOD_TITLES[k]}
+          </button>
+        ))}
+      </div>
+      <div className="cal-month">
+        <button type="button" className="btn btn--quiet" aria-label="Прошлый период" onClick={() => setAnchor(shiftPeriod(kind, anchor, -1))}>
+          ←
+        </button>
+        <span className="cal-month__title" id="plan-stats">
+          {period.title}
+        </span>
+        <button type="button" className="btn btn--quiet" aria-label="Следующий период" onClick={() => setAnchor(shiftPeriod(kind, anchor, 1))}>
+          →
+        </button>
+      </div>
+      {state.status === "error" && <LoadFailedInline onRetry={retry} />}
+      {!shown ? (
+        state.status !== "error" && <ListSkeleton />
+      ) : (
+        <div className={state.status === "ready" ? "stack" : "stack is-stale"}>
+          <div className="plan-tiles">
+            {tiles.map(([title, n, hint]) => (
+              <div key={title} className="card plan-tile">
+                <span className="plan-tile__n">{n}</span>
+                <span className="plan-tile__title">{title}</span>
+                {hint && <span className="plan-tile__hint">{hint}</span>}
+              </div>
+            ))}
+          </div>
+          {stats.byHost.length > 0 && (
+            <section className="card stack stack--tight" aria-label="По ведущим">
+              <h2>По ведущим</h2>
+              <table className="plan-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Ведущий</th>
+                    <th scope="col">Записано</th>
+                    <th scope="col">Проведено</th>
+                    <th scope="col">Гостей</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.byHost.map((h) => (
+                    <tr key={h.hostId}>
+                      <th scope="row">{h.hostName || "—"}</th>
+                      <td>{h.planned}</td>
+                      <td>{h.held}</td>
+                      <td>{h.guests}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+          {stats.byTitle.length > 0 && (
+            <section className="card stack stack--tight" aria-label="По видам">
+              <h2>По видам мероприятий</h2>
+              <table className="plan-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Что</th>
+                    <th scope="col">Записано</th>
+                    <th scope="col">Проведено</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.byTitle.map((t) => (
+                    <tr key={t.title}>
+                      <th scope="row">{t.title}</th>
+                      <td>{t.planned}</td>
+                      <td>{t.held}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+          {unmarked.length > 0 && (
+            <section className="stack stack--tight" aria-label="Отметьте, состоялись ли">
+              <h2>Отметьте, состоялись ли ({unmarked.length})</h2>
+              <p className="muted small">Ведущий может отметить сам в «Моих мероприятиях»; вы — здесь.</p>
+              {unmarked.map(render)}
+            </section>
+          )}
+          {stats.planned === 0 && stats.cancelled === 0 && <p className="muted">За этот период мероприятий нет.</p>}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -575,6 +725,7 @@ function EventCard({
   onCancel,
   onRestore,
   onRemove,
+  onHeld,
 }: {
   event: AgencyEvent;
   now: number;
@@ -585,16 +736,19 @@ function EventCard({
   onCancel: () => void;
   onRestore: () => void;
   onRemove: () => void;
+  onHeld: (held: boolean | null) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const status = eventStatus(event, now);
+  const pill = statusPill(event, now);
+  const started = !event.cancelled && (status === "now" || status === "past");
   const detailsId = `plan-card-${event.id}`;
   return (
     <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}>
       <button type="button" className="plan-card__head" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
         <span className="plan-card__top">
           <span className="plan-card__title">{eventName(event)}</span>
-          <Pill color={EVENT_STATUS_COLORS[status]}>{EVENT_STATUS_TITLES[status]}</Pill>
+          <Pill color={pill.color}>{pill.title}</Pill>
         </span>
         <span className="plan-card__when">
           {dayTitle(event.day)}, {rangeLabel(event.start, event.end)}
@@ -643,6 +797,22 @@ function EventCard({
             )}
           </dl>
           {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && <p className="muted small">Подробностей нет.</p>}
+          {started && (
+            <div className="stack stack--tight">
+              <p className="small">
+                <b>{event.held === null ? "Мероприятие состоялось?" : event.held ? "Отмечено: проведено" : "Отмечено: не состоялось"}</b>
+              </p>
+              <div className="plan-quick" role="group" aria-label="Состоялось ли">
+                <button type="button" className={event.held === true ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.held === true} onClick={() => onHeld(event.held === true ? null : true)}>
+                  Проведено
+                </button>
+                <button type="button" className={event.held === false ? "seg__btn is-on" : "seg__btn"} aria-pressed={event.held === false} onClick={() => onHeld(event.held === false ? null : false)}>
+                  Не состоялось
+                </button>
+              </div>
+              {event.held === true && event.guests === null && owner && <p className="muted small">Впишите точное число гостей («Изменить») — оно попадёт в итоги.</p>}
+            </div>
+          )}
           {owner && (
             <div className="actions">
               {event.cancelled ? (
@@ -950,16 +1120,9 @@ export function EventForm({
             <option key={t} value={t} />
           ))}
         </datalist>
-        <div className="plan-quick" role="group" aria-label="Быстрый выбор гостей">
-          {GUEST_PRESETS.map((g) => (
-            <button key={g} type="button" className={guests === String(g) ? "seg__btn is-on" : "seg__btn"} aria-pressed={guests === String(g)} onClick={() => setGuests(String(g))}>
-              {g}
-            </button>
-          ))}
-        </div>
         <label className="field">
-          <span className="field__label">Гостей</span>
-          <input type="number" inputMode="numeric" min={0} max={EVENT_LIMITS.guestsMax} value={guests} onChange={(e) => setGuests(e.target.value)} />
+          <span className="field__label">Гостей (точное число)</span>
+          <input type="number" inputMode="numeric" min={0} max={EVENT_LIMITS.guestsMax} step={1} value={guests} placeholder="Например, 37" onChange={(e) => setGuests(e.target.value.replace(/\D/g, ""))} />
         </label>
       </fieldset>
 

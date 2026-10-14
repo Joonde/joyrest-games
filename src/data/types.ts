@@ -445,6 +445,50 @@ export interface AgencyEvent {
   guests: number | null;
   note: string;
   cancelled: boolean;
+  /** После начала: true — проведено, false — не состоялось, null — не отмечено. */
+  held: boolean | null;
+}
+
+/** Клиент агентства (база клиентов владельца; только свой сервер). Данные — только на сервере в России. */
+export interface ClientRecord {
+  id: string;
+  name: string;
+  phone: string;
+  /** Ссылки на соцсети: https://t.me/…, https://vk.com/…, https://instagram.com/…, https://wa.me/… */
+  links: string[];
+  status: "new" | "work" | "client" | "lost";
+  /** Согласие на рассылку: yes — сам отметил или подтвердил; no — отказался. */
+  marketing: "yes" | "no" | "unknown";
+  marketingAt: number | null;
+  /** Откуда согласие: «сайт», «вручную: …». */
+  marketingSource: string;
+  notes: string;
+  createdAt: number;
+  lastContactAt: number;
+  /** Сколько обращений (заявки, мероприятия). */
+  contacts: number;
+  /** Откуда последнее обращение: site, question, venue, event, telegram, manual. */
+  lastSource: string;
+  archived: boolean;
+}
+
+export interface ClientContact {
+  id: string;
+  source: string;
+  summary: string;
+  at: number;
+}
+
+export interface ClientDetails extends ClientRecord {
+  history: ClientContact[];
+}
+
+/** Telegram человека команды: подключён ли бот уведомлений. */
+export interface TelegramStatus {
+  /** Подключение работает на этой версии платформы (бот настроен и слушает сообщения). */
+  available: boolean;
+  linked: boolean;
+  username: string;
 }
 
 /** Человек в календаре владельца: имя и профессия, без почты. */

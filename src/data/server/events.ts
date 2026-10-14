@@ -20,6 +20,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     guests: typeof d.guests === "number" ? d.guests : null,
     note: asText(d.note),
     cancelled: d.cancelled === true,
+    held: d.held === true ? true : d.held === false ? false : null,
   };
 }
 
@@ -40,6 +41,12 @@ export const serverEventsRepository: EventsRepository = {
   },
   async restore(id) {
     return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/restore`, {}));
+  },
+  async period(from, to) {
+    return list(await api("GET", `/api/events?stats=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`));
+  },
+  async setHeld(id, held) {
+    return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/held`, { held }));
   },
   async remove(id) {
     await api("DELETE", `/api/events/${encodeURIComponent(id)}`);

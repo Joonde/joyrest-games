@@ -404,6 +404,9 @@ describe("тексты и устройство страницы", () => {
     expect(form.indexOf("consent-row")).toBeLessThan(form.indexOf("terms-row"));
     expect(js).toContain("deposit: document.getElementById('depositAccept').checked");
     expect(js).toContain("terms: document.getElementById('termsAccept').checked");
+    // Согласие на рассылку — необязательное и не отмечено заранее.
+    expect(form).toContain('<input type="checkbox" id="marketingAccept">');
+    expect(js).toContain("marketing: document.getElementById('marketingAccept').checked");
     const more = html.slice(html.indexOf('<details class="form-more" id="formMore">'), html.indexOf("</details>", html.indexOf('id="formMore"')));
     for (const id of ["hostLevel", "contactMethod", "contactLink"]) expect(more).toContain(`id="${id}"`);
     for (const id of ["name", "phone", "type", "guests", "message"]) expect(more).not.toContain(`id="${id}"`);

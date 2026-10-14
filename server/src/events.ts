@@ -10,11 +10,17 @@ import type { Sql } from "postgres";
 import { bookingId, bookingNote, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
+import { dayTitle } from "../../src/core/calendar";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
 import { rangeOf } from "./calendar";
+import { dayIndex as dayIdx, dayOf } from "../../src/core/calendar";
+import { upsertClient } from "./clients";
+import type { Bot } from "./telegram";
 
 export interface EventsOptions {
   sql: Sql;
+  /** Бот уведомлений: ведущему — назначение, изменения, отмена (null — бота нет). */
+  bot?: Bot | null;
   isSite?: (request: FastifyRequest) => boolean;
   now?: () => number;
 }
@@ -36,6 +42,16 @@ interface Row {
   guests: number | null;
   note: string;
   cancelled: boolean;
+  held: boolean | null;
+}
+
+/** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
+export function statsRangeOf(query: unknown): { from: string; to: string } | null {
+  const q = (typeof query === "object" && query !== null ? query : {}) as Record<string, unknown>;
+  const a = dayIdx(typeof q.from === "string" ? q.from : "");
+  const b = dayIdx(typeof q.to === "string" ? q.to : "");
+  if (a === null || b === null || b < a || b - a > 370) return null;
+  return { from: dayOf(a - 1), to: dayOf(b) };
 }
 
 export function eventOf(row: Row): AgencyEvent {
@@ -53,12 +69,22 @@ export function eventOf(row: Row): AgencyEvent {
     guests: row.guests,
     note: row.note,
     cancelled: row.cancelled,
+    held: row.held,
   };
 }
 
 export function registerEvents(app: FastifyInstance, options: EventsOptions): void {
   const { sql } = options;
   const now = options.now ?? Date.now;
+  const bot = options.bot ?? null;
+
+  /** Уведомление в Telegram — не задерживает ответ и не ломает запись, если Telegram недоступен. */
+  function notice(request: FastifyRequest, kind: Parameters<Bot["eventNotice"]>[0], userId: string, event: AgencyEvent) {
+    if (!bot) return;
+    const span = eventSpan(event);
+    if (!span) return;
+    void bot.eventNotice(kind, userId, event, new Date(span.from)).catch(() => request.log.warn({ events: "notice" }, "events: уведомление не отправилось"));
+  }
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -82,7 +108,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
 
     const select = sql`
       select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
-        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled
+        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held
       from events e left join users u on u.id = e.host_id`;
 
     async function one(id: string): Promise<AgencyEvent | null> {
@@ -115,7 +141,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           order by e.starts_at desc limit ${LIST_MAX}`;
         return { events: rows.map(eventOf) };
       }
-      const range = rangeOf(q);
+      // Итоги за квартал и год (только владелец): окно до 370 дней.
+      const range = q.stats === "1" && permissions.canManageEvents(actorOf(user)) ? statsRangeOf(q) : rangeOf(q);
       if (!range) return fail(reply, 400, "invalid-argument");
       const rows = await sql<Row[]>`${select} where ${own(user)} and e.day between ${range.from} and ${range.to}
         order by e.day, e.start_min`;
@@ -142,7 +169,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean }[]>`select (cancelled_at is not null) as cancelled from events where id = ${input.id}`;
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests
+        from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
       await sql.begin(async (tx) => {
         await tx`
@@ -157,7 +186,31 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       });
       request.log.info({ events: existing ? "edit" : "create" }, "events");
       const saved = await one(input.id);
-      return saved ?? fail(reply, 500, "internal");
+      if (!saved) return fail(reply, 500, "internal");
+      if (!existing) notice(request, "created", saved.hostId, saved);
+      else if (existing.host_id !== saved.hostId) {
+        notice(request, "removed", existing.host_id, { ...saved, day: existing.day, start: existing.start_min, end: existing.end_min });
+        notice(request, "created", saved.hostId, saved);
+      } else if (
+        existing.day !== saved.day ||
+        existing.start_min !== saved.start ||
+        existing.end_min !== saved.end ||
+        existing.title !== saved.title ||
+        existing.guests !== saved.guests
+      ) {
+        notice(request, "changed", saved.hostId, saved);
+      }
+      // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю).
+      if (saved.clientName || saved.clientPhone) {
+        void upsertClient(sql, {
+          name: saved.clientName,
+          phone: saved.clientPhone,
+          source: "event",
+          summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
+          ref: saved.id,
+        }).catch(() => request.log.warn({ events: "client" }, "events: клиент не записан"));
+      }
+      return saved;
     });
 
     // Отменить: мероприятие остаётся в «Отменённых», у ведущего время освобождается. Повтор — успех.
@@ -166,6 +219,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!user) return reply;
       const id = request.params.id;
       if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const before = await one(id);
       await sql.begin(async (tx) => {
         await tx`update events set cancelled_at = coalesce(cancelled_at, now()), updated_at = now() where id = ${id}`;
         await tx`delete from availability where id = ${bookingId(id)}`;
@@ -173,6 +227,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const event = await one(id);
       if (!event) return fail(reply, 404, "not-found");
       request.log.info({ events: "cancel" }, "events");
+      if (before && !before.cancelled) notice(request, "cancelled", event.hostId, event);
       return event;
     });
 
@@ -191,7 +246,30 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         await book(tx as unknown as Sql, { ...event, id, guests: event.guests }, user.id);
       });
       request.log.info({ events: "restore" }, "events");
-      return (await one(id)) ?? fail(reply, 500, "internal");
+      const restored = await one(id);
+      if (!restored) return fail(reply, 500, "internal");
+      if (event.cancelled) notice(request, "created", restored.hostId, restored);
+      return restored;
+    });
+
+    // «Проведено» / «Не состоялось» (или снять отметку) — после начала мероприятия, владелец или ведущий.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/held", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const body = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      const held = body.held === true ? true : body.held === false ? false : body.held === null ? null : undefined;
+      if (held === undefined) return fail(reply, 400, "invalid-argument");
+      const [row] = await sql<{ host_id: string; started: boolean; cancelled: boolean }[]>`
+        select host_id, starts_at <= ${new Date(now())} as started, (cancelled_at is not null) as cancelled from events where id = ${id}`;
+      if (!row) return fail(reply, 404, "not-found");
+      if (!permissions.canMarkEventHeld(actorOf(user), { hostId: row.host_id })) return fail(reply, 403, "permission-denied");
+      if (!row.started || row.cancelled) return fail(reply, 409, "failed-precondition");
+      await sql`update events set held = ${held}, held_at = ${held === null ? null : new Date(now())}, held_by = ${held === null ? null : user.id}, updated_at = now()
+        where id = ${id}`;
+      request.log.info({ events: "held", held }, "events");
+      return (await one(id)) ?? fail(reply, 404, "not-found");
     });
 
     // Удалить навсегда — только отменённое (ошибочная запись). Повтор — успех.

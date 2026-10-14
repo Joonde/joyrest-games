@@ -9,13 +9,17 @@ import { cleanNote, dayIndex, dayInWindow, dayOf, isKind, PER_DAY_MAX, RANGE_MAX
 import { professionOf } from "../../src/core/professions";
 import * as permissions from "../../src/data/permissions";
 import type { AvailabilityEntry, CalendarMember } from "../../src/data/types";
+import { eventSpan, noticeText } from "../../src/core/events";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
+import type { Bot } from "./telegram";
 
 export interface CalendarOptions {
   sql: Sql;
   isSite?: (request: FastifyRequest) => boolean;
   /** Часы (тесты). */
   now?: () => number;
+  /** Бот уведомлений: «Снять мероприятие» отменяет его — ведущему сообщение. */
+  bot?: Bot | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -189,6 +193,14 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
         // Запись мероприятия планировщика: снять время — значит отменить мероприятие (оно уходит в «Отменённые»).
         if (id.startsWith("ev-")) await tx`update events set cancelled_at = coalesce(cancelled_at, now()), updated_at = now() where id = ${id.slice(3)}`;
       });
+      if (id.startsWith("ev-") && options.bot) {
+        const [e] = await sql<{ host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number }[]>`
+          select host_id, title, guests, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min from events where id = ${id.slice(3)}`;
+        if (e) {
+          const ev = { title: e.title, guests: e.guests, day: e.day, start: e.start_min, end: e.end_min };
+          if (eventSpan(ev)) void options.bot.sendTo(e.host_id, noticeText("cancelled", ev, "")).catch(() => undefined);
+        }
+      }
       request.log.info({ calendar: "remove" }, "calendar");
       return { ok: true };
     });

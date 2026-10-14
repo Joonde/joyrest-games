@@ -106,6 +106,22 @@ describe("календарь", () => {
     expect(p.canRemoveCalendarEntry(off, { uid: "off", kind: "free" })).toBe(false);
     expect(p.canRemoveCalendarEntry(owner, { uid: "host-1", kind: "booked" })).toBe(true);
   });
+  it("«Проведено» отмечает владелец или ведущий этого мероприятия", () => {
+    expect(p.canMarkEventHeld(owner, { hostId: "host-1" })).toBe(true);
+    expect(p.canMarkEventHeld(host, { hostId: "host-1" })).toBe(true);
+    expect(p.canMarkEventHeld(other, { hostId: "host-1" })).toBe(false);
+    expect(p.canMarkEventHeld(off, { hostId: "off" })).toBe(false);
+  });
+
+  it("база клиентов — только владелец; Telegram подключает любой активный", () => {
+    expect(p.canManageClients(owner)).toBe(true);
+    expect(p.canManageClients(host)).toBe(false);
+    expect(p.canManageClients(offAdmin)).toBe(false);
+    expect(p.canLinkTelegram(host)).toBe(true);
+    expect(p.canLinkTelegram(off)).toBe(false);
+    expect(p.canLinkTelegram(guest)).toBe(false);
+  });
+
   it("мероприятия планировщика записывает владелец, ведущий видит только свои", () => {
     expect(p.canManageEvents(owner)).toBe(true);
     expect(p.canManageEvents(host)).toBe(false);

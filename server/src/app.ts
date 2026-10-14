@@ -13,7 +13,10 @@ import { registerAuth, type AuthOptions } from "./auth";
 import { registerCalendar } from "./calendar";
 import { registerEvents } from "./events";
 import { registerGames, type GamesOptions } from "./games";
-import { registerLead, type LeadOptions } from "./lead";
+import { registerClients, upsertClient } from "./clients";
+import { registerLead, type LeadData, type LeadOptions } from "./lead";
+import { registerTelegram, type Bot } from "./telegram";
+import { parseLinks } from "../../src/core/clients";
 import { registerLive, type LiveOptions } from "./live";
 import { registerProposals } from "./proposals";
 import { registerStaff } from "./staff";
@@ -60,6 +63,8 @@ export interface AppOptions {
    * Уведомления — бот заявок сайта (`lead.telegram`).
    */
   venues?: Omit<VenuesOptions, "sql" | "isSite" | "mediaDir" | "telegram" | "label" | "send">;
+  /** Бот уведомлений команды (тот же, что у заявок); null — нет токена. */
+  bot?: Bot | null;
   /** Куда писать журнал (тесты); по умолчанию stdout. */
   logStream?: { write: (line: string) => void };
 }
@@ -103,7 +108,27 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const site = options.site ? registerSite(app, options.site) : null;
   // Заявки — только у включённого сайта: при `joyrest site off` /api/lead отвечает 404.
   if (options.site?.enabled && options.lead) {
-    registerLead(app, { ...options.lead, hosts: options.site.hosts }, { constraints: { host: hostPattern(options.site.hosts) } });
+    const sql = options.sql;
+    // Заявка и вопрос с сайта — клиент в базу клиентов (CLAUDE.md, «База клиентов»).
+    const onLead = sql
+      ? async (lead: LeadData) => {
+          if (lead.type === "lead") {
+            const f = lead.fields;
+            await upsertClient(sql, {
+              name: f.name,
+              phone: f.phone,
+              links: parseLinks(`${f.contactLink} ${f.contactMethod}`),
+              marketing: lead.marketing === true,
+              source: "site",
+              summary: [f.eventType || "Заявка", f.guests ? `${f.guests} гостей` : ""].filter(Boolean).join(", "),
+            });
+          } else if (lead.type === "question") {
+            const contact = lead.fields.contact;
+            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: lead.fields.text.slice(0, 200) });
+          }
+        }
+      : undefined;
+    registerLead(app, { ...options.lead, hosts: options.site.hosts, onLead }, { constraints: { host: hostPattern(options.site.hosts) } });
   }
   // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.
   if (options.sql) {
@@ -115,8 +140,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerStaff(app, { sql: options.sql, isSite });
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerCalendar(app, { sql: options.sql, isSite });
-    registerEvents(app, { sql: options.sql, isSite });
+    registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
+    registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });
+    registerClients(app, { sql: options.sql, isSite });
+    registerTelegram(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerVenues(app, {
       formsOpen: false,
       ...options.venues,

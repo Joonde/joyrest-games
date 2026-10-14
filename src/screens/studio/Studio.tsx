@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, calendarRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -59,6 +59,8 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     ...(calendarRepo && permissions.canEditOwnCalendar(profile)
       ? [{ label: permissions.canViewTeamCalendar(profile) ? "Календарь и мероприятия" : "Мой календарь", to: "/studio/calendar" }]
       : []),
+    // База клиентов — только свой сервер и только владелец: все, кто оставлял заявки.
+    ...(clientsRepo && permissions.canManageClients(profile) ? [{ label: "Клиенты", to: "/studio/clients" }] : []),
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.

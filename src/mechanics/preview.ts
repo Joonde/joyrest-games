@@ -85,7 +85,7 @@ export interface PreviewOptions<Content> {
 }
 
 /** Прогон: сцены от начала игры до награждения и итогов. */
-export function runPreview<Content>({ mechanic, content, playMode, themeId, driver, teams, limit }: PreviewOptions<Content>): { scenes: PreviewScene[]; phones: PreviewPhone[] } {
+export function runPreview<Content>({ mechanic, content, playMode, themeId, driver, teams, limit }: PreviewOptions<Content>): { scenes: PreviewScene[]; phones: PreviewPhone[]; participants: Participant[] } {
   const { participants, phones } = previewParticipants(playMode, teams);
   // Часы — сейчас: таймеры вопросов в предпросмотре идут как в игре.
   let clock = Date.now();
@@ -145,5 +145,5 @@ export function runPreview<Content>({ mechanic, content, playMode, themeId, driv
   }
   apply({ state: { phase: "finished" } });
   push("Пульт: «Завершить игру» — итоги");
-  return { scenes, phones };
+  return { scenes, phones, participants };
 }

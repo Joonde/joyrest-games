@@ -2015,6 +2015,15 @@ kbd {
 
 /* ---------- Вопрос квиза: телефон гостя ---------- */
 
+.preview-host__inert {
+  display: grid;
+  gap: 16px;
+}
+
+.preview-host > .muted.small {
+  margin-top: 16px;
+}
+
 .preview-phone {
   width: min(100%, 380px);
   min-height: 520px;

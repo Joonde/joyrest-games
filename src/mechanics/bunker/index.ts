@@ -2,6 +2,7 @@ import { lazy } from "react";
 import type { Mechanic } from "../types";
 import { createBunker, parseBunker, type BunkerContent } from "./content";
 import { BunkerHostControls } from "./HostControls";
+import { bunkerPreview } from "./preview";
 import { bunkerSteps, score } from "./logic";
 import { validateBunker } from "./validate";
 import { BunkerPlayerView, BunkerScreenView, type BunkerAnswerValue } from "./views";
@@ -23,5 +24,7 @@ export const bunker: Mechanic<BunkerContent, BunkerAnswerValue> = {
   steps: bunkerSteps,
   score,
   validate: validateBunker,
+  // Бункер — от 4 игроков; 5 раундов круга открытия — длинный предпросмотр.
+  preview: { driver: bunkerPreview, teams: 4, limit: 64 },
   ownPeek: true,
 };

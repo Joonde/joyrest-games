@@ -1,6 +1,6 @@
 /**
  * Бот уведомлений на PostgreSQL с «Telegram понарошку»: два ведущих нажимают «Старт» каждый в своём чате — каждому
- * приходят только его мероприятия, без имени, телефона и адреса клиента; напоминание за сутки — один раз; /stop
+ * приходят только его мероприятия, без имени, телефона и адреса клиента; напоминания за день и за 2 часа — по одному разу; /stop
  * отключает; владелец пересылает сообщение клиента — клиент в базе; чужой чат получает подсказку.
  */
 import { resolve } from "node:path";
@@ -170,11 +170,20 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     await bot.remindNow();
     await bot.remindNow();
     expect(to(ANNA)).toHaveLength(n + 1);
-    expect(to(ANNA).at(-1)).toContain("Напоминание: мероприятие через сутки");
+    expect(to(ANNA).at(-1)).toContain("Напоминание: мероприятие завтра");
     expect(to(BORIS).some((t) => t.includes("Корпоратив"))).toBe(false);
+    // Наступили последние 2 часа — второе напоминание «через 2 ч», тоже один раз.
+    const near = new Date(Date.now() + 2 * 3_600_000 - 5 * 60_000);
+    await sql`update events set starts_at = ${near} where id = 'ev2'`;
+    await sql`delete from event_notices where event_id = 'ev2'`;
+    await sql`insert into event_notices (event_id, kind, starts_at) values ('ev2', 'day', ${near})`;
+    await bot.remindNow();
+    await bot.remindNow();
+    expect(to(ANNA)).toHaveLength(n + 2);
+    expect(to(ANNA).at(-1)).toContain("Через 2 ч начало мероприятия");
 
     // Назначено за 2 часа до начала: приходит «назначено», напоминания следом не дублируют.
-    const soon = new Date(Date.now() + 2 * 3_600_000 + 10 * 60_000);
+    const soon = new Date(Date.now() + 90 * 60_000);
     const sm = new Date(soon.getTime() + 3 * 3_600_000);
     const sMin = Math.ceil((sm.getUTCHours() * 60 + sm.getUTCMinutes()) / 15) * 15;
     if (sMin < 1440 - 60) {

@@ -141,10 +141,12 @@ describe("планировщик: заполнение из заявки", () =>
 describe("планировщик: уведомления ведущему в Telegram", () => {
   const e = ev("e1", "2026-10-20", 1080, 1380, { guests: 40, clientName: "Ольга", clientPhone: "+7 900 000-00-00", place: "ул. Ленина, 1" });
   const start = Date.parse("2026-10-20T15:00:00Z");
-  it("напоминания — за сутки и за 3 часа, после начала — нет", () => {
+  it("напоминания — за день (24 часа) и за 2 часа, после начала — нет", () => {
     expect(reminderDue(start, start - 25 * 3_600_000)).toBeNull();
     expect(reminderDue(start, start - 20 * 3_600_000)).toBe("day");
+    expect(reminderDue(start, start - 3 * 3_600_000)).toBe("day");
     expect(reminderDue(start, start - 2 * 3_600_000)).toBe("hours");
+    expect(reminderDue(start, start - 30 * 60_000)).toBe("hours");
     expect(reminderDue(start, start + 1)).toBeNull();
   });
   it("текст — что, когда и ссылка; без имени, телефона и адреса клиента", () => {

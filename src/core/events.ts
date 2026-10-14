@@ -375,15 +375,15 @@ const NOTICE_HEADS: Record<NoticeKind, string> = {
   changed: "✏️ Мероприятие изменено",
   removed: "↩️ Это мероприятие больше не за вами",
   cancelled: "❌ Мероприятие отменено",
-  day: "⏰ Напоминание: мероприятие через сутки",
+  day: "⏰ Напоминание: мероприятие завтра — через сутки",
   hours: "⏰ Скоро начало мероприятия",
 };
 
-/** Напоминания: за сутки и за 3 часа до начала. */
+/** Напоминания: за день (за сутки) и за 2 часа до начала. */
 export const REMIND_DAY_MS = 24 * 3_600_000;
-export const REMIND_HOURS_MS = 3 * 3_600_000;
+export const REMIND_HOURS_MS = 2 * 3_600_000;
 
-/** Какое напоминание пора отправить: за 3 часа (и ближе) — «hours», за сутки — «day», раньше — никакого. */
+/** Какое напоминание пора отправить: за 2 часа (и ближе) — «hours», за сутки — «day», раньше — никакого. */
 export function reminderDue(startsAt: number, now: number): "day" | "hours" | null {
   const left = startsAt - now;
   if (left <= 0) return null;

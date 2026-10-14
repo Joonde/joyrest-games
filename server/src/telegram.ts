@@ -4,7 +4,7 @@
  *
  * - Ведущий в студии жмёт «Подключить Telegram» → одноразовая ссылка t.me/<бот>?start=<код> → «Старт» в Telegram:
  *   сервер связывает чат с человеком (`tg_links`). /stop — отключить.
- * - Мероприятие назначено, изменено, снято или отменено — сообщение ведущему; напоминания за сутки и за 3 часа
+ * - Мероприятие назначено, изменено, снято или отменено — сообщение ведущему; напоминания за день (за сутки) и за 2 часа
  *   (`event_notices` — по одному на мероприятие, вид и время начала). Без имени, телефона и адреса клиента.
  * - Владелец пересылает боту сообщение клиента или текст заявки — клиент попадает в базу клиентов.
  *
@@ -148,7 +148,7 @@ export function startBot(options: BotOptions): Bot {
 
   async function eventNotice(kind: NoticeKind, userId: string, event: Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end">, startsAt: Date): Promise<void> {
     if (kind === "created" || kind === "changed") {
-      // Сутки или 3 часа уже наступили — отдельное напоминание следом не нужно.
+      // Сутки или 2 часа уже наступили — отдельное напоминание следом не нужно.
       const due = reminderDue(startsAt.getTime(), now());
       const kinds = due === "hours" ? ["day", "hours"] : due === "day" ? ["day"] : [];
       for (const k of kinds) await sql`insert into event_notices (event_id, kind, starts_at) values (${event.id}, ${k}, ${startsAt}) on conflict do nothing`;
@@ -204,7 +204,7 @@ export function startBot(options: BotOptions): Bot {
       const ownerHint = permissions.isAdmin({ uid: row.user_id, role: u?.role === "admin" ? "admin" : "host", active: true })
         ? "\n\nВладельцу: перешлите сюда сообщение клиента или текст заявки — клиент попадёт в базу клиентов."
         : "";
-      await sendChat(chatId, `✅ Telegram подключён. Сюда будут приходить ваши мероприятия JoyRest: назначение, изменения, отмена и напоминания за сутки и за 3 часа.\n\nОтключить — /stop${ownerHint}`);
+      await sendChat(chatId, `✅ Telegram подключён. Сюда будут приходить ваши мероприятия JoyRest: назначение, изменения, отмена и напоминания за день (за сутки) и за 2 часа.\n\nОтключить — /stop${ownerHint}`);
       return;
     }
     const [link] = await sql<{ user_id: string; role: string; active: boolean }[]>`

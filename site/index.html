@@ -224,10 +224,11 @@
           <ul class="summary__lines" id="calcLines"></ul>
           <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве и Подмосковью</span></div>
           <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
+          <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
           <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси при выезде за область. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
         </aside>
       </div>
-      <a href="#calcSummary" class="mbar" id="calcBar" aria-label="Итог расчёта"></a>
+      <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
       <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
     </div>
   </section>
@@ -848,6 +849,7 @@
             </div>
             <p class="calc-card__parts" id="calcCardParts"></p>
             <ul class="calc-card__totals" id="calcCardTotals"></ul>
+            <p class="calc-card__hint" id="calcCardHint">Коснитесь цены, чтобы выбрать формат ведущего</p>
             <p class="calc-card__dur" id="calcCardDur"></p>
             <div class="calc-card__actions">
               <button type="button" class="btn btn--outline" id="calcCardEdit">Изменить</button>
@@ -922,5 +924,7 @@
 <script src="js/pricing.js"></script>
 <script src="js/script.js"></script>
 
+<!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
+<div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>
 </body>
 </html>

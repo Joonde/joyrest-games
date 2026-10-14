@@ -302,6 +302,9 @@
   const DAY_LABEL = (wk) => wk ? 'пятница–воскресенье' : 'будни';
   function durationText(h){ return `≈ ${P.hh(h.min)}–${P.hh(h.max)} ${P.hoursWord(h.max)}`; }
   let lastResult = null;
+  // Расчёт в заявке (карточка «Ваш расчёт»): { opts, text } или null. Пока он есть — карточка обновляется сама.
+  let sentCalc = null;
+  let autoGuests = ''; // число гостей, которое вписал калькулятор
 
   function update(){
     const ti = tierIndex();
@@ -348,10 +351,12 @@
     r.lines.filter((l) => l.fixed).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
     $('calcLines').innerHTML = lines.map(([k, v]) => `<li><span>${esc(k)}</span><span>${v}</span></li>`).join('');
     // Полоска итога внизу экрана телефона
-    $('calcBar').innerHTML = r.individual
+    $('calcBarSum').innerHTML = r.individual
       ? '<span class="mbar__dur">Итог расчёта</span><span class="mbar__indiv">Обсудим индивидуально</span>'
       : `<span class="mbar__dur">Вечер ${esc(durationText(r.hours).replace(' часа', ' ч').replace(' часов', ' ч'))} · итог с каким ведущим</span>` +
         r.totals.map((t) => `<span class="mbar__lv"><span class="mbar__name">${esc(t.name)}</span><span class="mbar__price">${money(t.price)}</span></span>`).join('');
+    // Расчёт уже в заявке — обновляем его вместе с калькулятором, чтобы в заявку не ушла старая цена.
+    if(sentCalc) attachCalc(calcOpts(), false);
   }
   update();
   // Полоска итога на телефоне и планшете: видна, пока калькулятор на экране, а полный итог — нет.
@@ -363,63 +368,123 @@
     new IntersectionObserver((e) => { sumVisible = e[0].isIntersecting; sync(); }, { threshold: 0.15 }).observe($('calcSummary'));
   }
 
-  // «Отправить расчёт в заявку»: карточка «Ваш расчёт» над комментарием (не текст в комментарии),
-  // пакет — в «Тип мероприятия», гости — в «Количество гостей». Расчёт помнит телефон (jr-calc),
-  // после отправки заявки — забывает. В /api/lead уходит полем calc.
+  // «Отправить расчёт в заявку» (кнопка итога и «В заявку» в полоске телефона): карточка «Ваш расчёт» над
+  // комментарием, пакет — в «Тип мероприятия», гости — в поле. Пока расчёт в заявке, он обновляется вместе с
+  // калькулятором. Касание цены в карточке выбирает формат ведущего. Расчёт помнит телефон (jr-calc), после
+  // отправки заявки — забывает. В /api/lead уходит полем calc.
   const CALC_KEY = 'jr-calc';
-  let sentCalc = null; // { opts, text } — что уйдёт в заявку
-  let autoGuests = ''; // число гостей, которое вписал калькулятор
-  const calcOpts = () => ({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, extras: extrasList(), ext: calc.ext, addons: addonsList() });
+  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
   function saveCalc(opts){
     try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
   }
-  function showCalcCard(opts){
-    const s = P.calcSummary(opts);
-    sentCalc = { opts, text: s.text };
+
+  // Уведомление сверху экрана (под шапкой), с необязательной кнопкой.
+  let toastTimer = 0;
+  function topToast(text, action, onAction, ms){
+    const box = $('topToast');
+    const btn = $('topToastAction');
+    $('topToastText').textContent = text;
+    btn.hidden = !action;
+    btn.textContent = action || '';
+    btn.onclick = action ? () => { hideToast(); onAction(); } : null;
+    box.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, ms || 3500);
+  }
+  function hideToast(){ clearTimeout(toastTimer); $('topToast').hidden = true; }
+
+  function markLevel(){
+    $('calcCardTotals').querySelectorAll('.calc-card__lv').forEach((b) => {
+      const on = b.dataset.level === hostLevelField.value;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', on);
+    });
+  }
+  function renderCalcCard(s){
     $('calcCardType').textContent = s.type;
     $('calcCardParts').textContent = s.parts.join(' · ');
     const list = $('calcCardTotals');
     list.textContent = '';
     if(s.totals){
       P.LEVELS.forEach((l, i) => {
-        const li = el('li');
+        const li = el('li', 'calc-card__row');
+        const b = el('button', 'calc-card__lv');
+        b.type = 'button';
+        b.dataset.level = l.id;
         const name = el('span');
         name.textContent = l.name + (l.badge ? ' ' + l.badge : '');
         const price = el('strong');
         price.textContent = money(s.totals[i].price);
-        li.append(name, price);
+        b.append(name, price);
+        b.addEventListener('click', () => {
+          hostLevelField.value = l.id;
+          markLevel();
+          topToast('Формат ведущего: ' + l.name + (l.badge ? ' ' + l.badge : ''));
+        });
+        li.append(b);
         list.append(li);
       });
+      markLevel();
     }else{
       const li = el('li');
       li.textContent = 'Стоимость обсудим индивидуально';
       list.append(li);
     }
+    $('calcCardHint').hidden = !s.totals;
     $('calcCardDur').textContent = 'Вечер ' + s.duration;
-    $('calcCard').hidden = false;
-    $('calcLink').hidden = true;
-    return s;
   }
-  function clearCalcCard(){
-    sentCalc = null;
-    $('calcCard').hidden = true;
-    $('calcLink').hidden = false;
-    saveCalc(null);
+  function setLinked(on){
+    $('calcCard').hidden = !on;
+    $('calcLink').hidden = on;
+    $('calcLinked').hidden = !on;
+    $('calcSubmit').textContent = on ? 'Перейти к заявке' : 'Отправить расчёт в заявку';
+    $('calcBar').classList.toggle('is-linked', on);
+    $('calcBarSend').textContent = on ? 'В заявке ✓ · открыть' : 'В заявку';
   }
-  $('calcSubmit').addEventListener('click', () => {
-    const opts = calcOpts();
-    const s = showCalcCard(opts);
+  // Поставить расчёт в заявку (или обновить его); fill — заодно тип мероприятия и гости.
+  function attachCalc(opts, fill){
+    const s = P.calcSummary(opts);
+    sentCalc = { opts, text: s.text };
+    renderCalcCard(s);
+    setLinked(true);
     saveCalc(opts);
     selectType(s.type);
     // Гостей вписываем, если поле пустое или там число от прошлого расчёта (своё число человека не трогаем).
     const guestsField = $('guests');
-    if(s.guests && (!guestsField.value || guestsField.value === autoGuests)){ guestsField.value = s.guests; autoGuests = String(s.guests); }
-    goToForm();
-  });
+    if(s.guests && (fill || guestsField.value === autoGuests) && (!guestsField.value || guestsField.value === autoGuests)){
+      guestsField.value = s.guests;
+      autoGuests = String(s.guests);
+    }
+    return s;
+  }
+  function clearCalcCard(){
+    sentCalc = null;
+    setLinked(false);
+    saveCalc(null);
+  }
+  // К карточке в заявке: видно расчёт, клавиатура не открывается и не закрывает его.
+  function goToCard(){
+    closeMobileMenu();
+    $('calcCard').scrollIntoView({ behavior: smooth, block: 'center' });
+  }
+  function sendCalc(){
+    if(sentCalc){ goToCard(); return; }
+    attachCalc(calcOpts(), true);
+    goToCard();
+    topToast('Расчёт добавлен в заявку ✓');
+  }
+  $('calcSubmit').addEventListener('click', sendCalc);
+  $('calcBarSend').addEventListener('click', sendCalc);
   $('calcCardEdit').addEventListener('click', () => {
     $('calculator').scrollIntoView({ behavior: smooth, block: 'start' });
+    topToast('Меняйте выбор — расчёт в заявке обновится сам');
   });
-  $('calcCardRemove').addEventListener('click', clearCalcCard);
+  $('calcCardRemove').addEventListener('click', () => {
+    const was = sentCalc && sentCalc.opts;
+    clearCalcCard();
+    topToast('Расчёт убран из заявки', 'Вернуть', () => { if(was){ attachCalc(was, false); topToast('Расчёт снова в заявке ✓'); } }, 6000);
+  });
+  hostLevelField.addEventListener('change', markLevel);
   // Сохранённый расчёт: вернуть выбор калькулятора и карточку (неизвестные пакеты и допы отбрасываются).
   (() => {
     let saved = null;
@@ -433,8 +498,8 @@
     calc.extras = {}; calc.addons = {};
     (Array.isArray(saved.extras) ? saved.extras : []).forEach((id) => { if(typeof id === 'string' && P.pkgById(id) && id !== calc.pkg) calc.extras[id] = true; });
     (Array.isArray(saved.addons) ? saved.addons : []).forEach((id) => { if(P.ADDONS.some((a) => a.id === id)) calc.addons[id] = true; });
+    attachCalc(calcOpts(), false);
     update();
-    showCalcCard(calcOpts());
   })();
 
   // ---------- Обзор игр: фильтр разделов и «Показать ещё» ----------

@@ -363,26 +363,79 @@
     new IntersectionObserver((e) => { sumVisible = e[0].isIntersecting; sync(); }, { threshold: 0.15 }).observe($('calcSummary'));
   }
 
-  // «Отправить расчёт в заявку»: всё выбранное и три итога — в комментарий, пакет — в «Тип мероприятия».
+  // «Отправить расчёт в заявку»: карточка «Ваш расчёт» над комментарием (не текст в комментарии),
+  // пакет — в «Тип мероприятия», гости — в «Количество гостей». Расчёт помнит телефон (jr-calc),
+  // после отправки заявки — забывает. В /api/lead уходит полем calc.
+  const CALC_KEY = 'jr-calc';
+  let sentCalc = null; // { opts, text } — что уйдёт в заявку
+  let autoGuests = ''; // число гостей, которое вписал калькулятор
+  const calcOpts = () => ({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, extras: extrasList(), ext: calc.ext, addons: addonsList() });
+  function saveCalc(opts){
+    try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
+  }
+  function showCalcCard(opts){
+    const s = P.calcSummary(opts);
+    sentCalc = { opts, text: s.text };
+    $('calcCardType').textContent = s.type;
+    $('calcCardParts').textContent = s.parts.join(' · ');
+    const list = $('calcCardTotals');
+    list.textContent = '';
+    if(s.totals){
+      P.LEVELS.forEach((l, i) => {
+        const li = el('li');
+        const name = el('span');
+        name.textContent = l.name + (l.badge ? ' ' + l.badge : '');
+        const price = el('strong');
+        price.textContent = money(s.totals[i].price);
+        li.append(name, price);
+        list.append(li);
+      });
+    }else{
+      const li = el('li');
+      li.textContent = 'Стоимость обсудим индивидуально';
+      list.append(li);
+    }
+    $('calcCardDur').textContent = 'Вечер ' + s.duration;
+    $('calcCard').hidden = false;
+    $('calcLink').hidden = true;
+    return s;
+  }
+  function clearCalcCard(){
+    sentCalc = null;
+    $('calcCard').hidden = true;
+    $('calcLink').hidden = false;
+    saveCalc(null);
+  }
   $('calcSubmit').addEventListener('click', () => {
-    const r = lastResult;
-    const pkg = P.pkgById(calc.pkg);
-    const parts = [calc.pkg === P.TURNKEY.id ? 'Под ключ' : `Пакет «${pkg.name}»`,
-      calc.tier < P.TIERS.length ? `до ${P.TIERS[calc.tier]} гостей` : 'больше 90 гостей', DAY_LABEL(calc.weekend)];
-    const ex = extrasList().map((id) => P.pkgById(id).name);
-    if(ex.length) parts.push('ещё в этот вечер: ' + ex.join(', '));
-    if(calc.ext > 0) parts.push('продление ' + P.EXTENSIONS[calc.ext].label.replace('+', ''));
-    const ad = P.ADDONS.filter((a) => calc.addons[a.id]).map((a) => a.label);
-    if(ad.length) parts.push('допы: ' + ad.join(', '));
-    const total = r.individual ? 'обсудим индивидуально'
-      : r.totals.map((t) => `${t.name} — ${money(t.price)}`).join(', ') + `; вечер ${durationText(r.hours)}`;
-    const summary = `Расчёт с калькулятора: ${parts.join(', ')}. Итого: ${total}.`.replace(/ /g, ' ');
-    const messageField = $('message');
-    messageField.value = (messageField.value ? messageField.value + '\n' : '') + summary;
-    selectType(calc.pkg === P.TURNKEY.id ? 'Под ключ' : `Пакет «${pkg.name}»`);
-    if(calc.tier < P.TIERS.length && !$('guests').value) $('guests').value = P.TIERS[calc.tier];
+    const opts = calcOpts();
+    const s = showCalcCard(opts);
+    saveCalc(opts);
+    selectType(s.type);
+    // Гостей вписываем, если поле пустое или там число от прошлого расчёта (своё число человека не трогаем).
+    const guestsField = $('guests');
+    if(s.guests && (!guestsField.value || guestsField.value === autoGuests)){ guestsField.value = s.guests; autoGuests = String(s.guests); }
     goToForm();
   });
+  $('calcCardEdit').addEventListener('click', () => {
+    $('calculator').scrollIntoView({ behavior: smooth, block: 'start' });
+  });
+  $('calcCardRemove').addEventListener('click', clearCalcCard);
+  // Сохранённый расчёт: вернуть выбор калькулятора и карточку (неизвестные пакеты и допы отбрасываются).
+  (() => {
+    let saved = null;
+    try{ saved = JSON.parse(localStorage.getItem(CALC_KEY) || 'null'); }catch(_){ saved = null; }
+    if(!saved || typeof saved !== 'object') return;
+    const known = (id) => id === P.TURNKEY.id || !!P.pkgById(id);
+    if(typeof saved.pkg !== 'string' || !known(saved.pkg)) return;
+    const tier = Number.isInteger(saved.tier) && saved.tier >= 0 && saved.tier <= P.TIERS.length ? saved.tier : 0;
+    const ext = Number.isInteger(saved.ext) && P.EXTENSIONS[saved.ext] ? saved.ext : 0;
+    calc.pkg = saved.pkg; calc.tier = tier; calc.weekend = saved.weekend === true; calc.ext = ext;
+    calc.extras = {}; calc.addons = {};
+    (Array.isArray(saved.extras) ? saved.extras : []).forEach((id) => { if(typeof id === 'string' && P.pkgById(id) && id !== calc.pkg) calc.extras[id] = true; });
+    (Array.isArray(saved.addons) ? saved.addons : []).forEach((id) => { if(P.ADDONS.some((a) => a.id === id)) calc.addons[id] = true; });
+    update();
+    showCalcCard(calcOpts());
+  })();
 
   // ---------- Обзор игр: фильтр разделов и «Показать ещё» ----------
   const LIMIT = 9;
@@ -529,10 +582,11 @@
       contactMethod: $('contactMethod').value,
       contactLink: $('contactLink').value.trim(),
       message: $('message').value.trim(),
+      calc: sentCalc ? sentCalc.text : '',
       hostLevel: hostLevelField.value,
       terms: document.getElementById('termsAccept').checked,
       deposit: document.getElementById('depositAccept').checked,
     }, $('formNote'), $('formError'));
-    if(ok) this.reset();
+    if(ok){ this.reset(); clearCalcCard(); }
   });
 })();

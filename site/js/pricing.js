@@ -116,9 +116,42 @@
     return { individual: false, reason: '', totals: totals, lines: lines.concat(fixedLines), weekend: weekend, hours: hours, extrasCount: nEx };
   }
 
+  /**
+   * Расчёт для заявки (карточка «Ваш расчёт» и поле calc в /api/lead): тот же выбор, что у calcPrice.
+   * Ответ: { type: «Пакет «…»» | «Под ключ», guests: число | null, parts: [строки выбора],
+   *          totals: [{ name, price }] | null (индивидуально), duration, text — одной строкой для Telegram }.
+   */
+  function calcSummary(opts) {
+    var r = calcPrice(opts);
+    var pkgId = opts.pkg || 'quiz';
+    var pkg = pkgById(pkgId);
+    var tier = typeof opts.tier === 'number' ? opts.tier : 0;
+    var turnkey = pkgId === TURNKEY.id || !pkg;
+    var type = turnkey ? 'Под ключ' : 'Пакет «' + pkg.name + '»';
+    var parts = [tier < TIERS.length ? 'до ' + TIERS[tier] + ' гостей' : 'больше 90 гостей', opts.weekend ? 'пятница–воскресенье' : 'будни'];
+    var extras = (opts.extras || []).filter(function (id) { return id !== pkgId && pkgById(id); });
+    if (extras.length) parts.push('ещё в этот вечер: ' + extras.map(function (id) { return pkgById(id).name; }).join(', '));
+    var ext = EXTENSIONS[opts.ext || 0] ? (opts.ext || 0) : 0;
+    if (ext > 0) parts.push('продление ' + EXTENSIONS[ext].label.replace('+', ''));
+    var addons = ADDONS.filter(function (a) { return (opts.addons || []).indexOf(a.id) >= 0; }).map(function (a) { return a.label; });
+    if (addons.length) parts.push('допы: ' + addons.join(', '));
+    var duration = '≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max);
+    var totals = r.individual ? null : r.totals.map(function (t) { return { name: t.name, price: t.price }; });
+    var totalText = totals ? totals.map(function (t) { return t.name + ' — ' + money(t.price); }).join(', ') : 'обсудим индивидуально';
+    var text = type + ', ' + parts.join(', ') + '. Вечер ' + duration + '. Итого: ' + totalText + '.';
+    return {
+      type: type,
+      guests: tier < TIERS.length ? TIERS[tier] : null,
+      parts: parts,
+      totals: totals,
+      duration: duration,
+      text: text.replace(/\u00a0/g, ' ')
+    };
+  }
+
   var api = {
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
-    MAX_EXTRAS: MAX_EXTRAS, calcPrice: calcPrice, extraPrice: extraPrice, pkgById: pkgById,
+    MAX_EXTRAS: MAX_EXTRAS, calcPrice: calcPrice, calcSummary: calcSummary, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

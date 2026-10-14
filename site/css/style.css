@@ -451,6 +451,22 @@ input[type="text"], input[type="tel"], input[type="number"], select, textarea{
 }
 textarea{ min-height: 110px; resize: vertical; }
 input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--btn-outline); box-shadow: 0 0 0 3px rgba(227,198,140,.25); }
+/* «Ваш расчёт» в заявке: выбор калькулятора и три цены; без расчёта — ссылка на калькулятор. */
+.calc-card{ margin: 0 0 18px; padding: 18px; border-radius: 16px; border: 1px solid var(--total); background: linear-gradient(135deg, var(--spot), transparent 70%), var(--card); }
+.calc-card[hidden], .calc-link[hidden]{ display: none; }
+.calc-card__head{ display: flex; flex-direction: column; gap: 2px; }
+.calc-card__label{ margin: 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.calc-card__type{ margin: 0; font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600; line-height: 1.15; color: var(--ink); overflow-wrap: anywhere; }
+.calc-card__parts{ margin: 8px 0 0; font-size: 15px; line-height: 1.45; color: var(--ink-soft); overflow-wrap: anywhere; }
+.calc-card__totals{ list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.calc-card__totals li{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; color: var(--ink-soft); }
+.calc-card__totals li strong{ white-space: nowrap; font-size: 17px; color: var(--total); }
+.calc-card__dur{ margin: 10px 0 0; font-size: 14px; color: var(--green-text); }
+.calc-card__actions{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 16px; }
+.calc-card__actions .btn{ min-height: 48px; padding: 0 22px; }
+.calc-card__remove{ min-height: 48px; padding: 0 8px; border: 0; background: none; font: inherit; font-size: 15px; color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.calc-link{ margin: 0 0 18px; font-size: 15px; }
+.calc-link a{ display: inline-flex; align-items: center; min-height: 44px; color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
 .form-more{ border: 1px solid var(--line); border-radius: 14px; }
 .form-more summary{ display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 10px 16px; list-style: none; cursor: pointer; }
 .form-more summary::-webkit-details-marker{ display: none; }

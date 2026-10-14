@@ -840,9 +840,24 @@
             <label for="guests">Количество гостей</label>
             <input type="number" id="guests" min="1" inputmode="numeric" placeholder="Например, 20">
           </div>
+          <!-- «Ваш расчёт»: заполняет «Отправить расчёт в заявку» калькулятора (js/script.js), в /api/lead — поле calc. -->
+          <div class="calc-card" id="calcCard" hidden>
+            <div class="calc-card__head">
+              <p class="calc-card__label">Ваш расчёт</p>
+              <p class="calc-card__type" id="calcCardType"></p>
+            </div>
+            <p class="calc-card__parts" id="calcCardParts"></p>
+            <ul class="calc-card__totals" id="calcCardTotals"></ul>
+            <p class="calc-card__dur" id="calcCardDur"></p>
+            <div class="calc-card__actions">
+              <button type="button" class="btn btn--outline" id="calcCardEdit">Изменить</button>
+              <button type="button" class="calc-card__remove" id="calcCardRemove">Убрать</button>
+            </div>
+          </div>
+          <p class="calc-link" id="calcLink"><a href="#calculator">Хотите знать цену? Посчитать в калькуляторе&nbsp;→</a></p>
           <div class="field">
             <label for="message">Комментарий</label>
-            <textarea id="message" placeholder="Дата, пожелания, расчёт из калькулятора"></textarea>
+            <textarea id="message" placeholder="Дата, время, пожелания"></textarea>
           </div>
           <details class="form-more" id="formMore">
             <summary>

@@ -417,7 +417,7 @@ describe("тексты и устройство страницы", () => {
   });
 
   it("калькулятор: шесть шагов, три цены сразу, длительность, полоска итога на телефоне", () => {
-    for (const id of ["calcPacks", "calcTiers", "calcDays", "calcExtras", "calcExt", "calcAddons", "calcLevels", "calcDuration", "calcLines", "calcSubmit", "calcBar"]) {
+    for (const id of ["calcPacks", "calcTiers", "calcDays", "calcExtras", "calcExt", "calcAddons", "calcLevels", "calcDuration", "calcLines", "calcSubmit", "calcBar", "calcCard", "calcCardTotals", "calcCardEdit", "calcCardRemove", "calcLink"]) {
       expect(html, id).toContain(`id="${id}"`);
     }
     expect(html.indexOf('<script src="js/pricing.js"></script>')).toBeLessThan(html.indexOf('<script src="js/script.js"></script>'));

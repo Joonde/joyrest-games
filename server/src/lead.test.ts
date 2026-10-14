@@ -161,6 +161,25 @@ describe("/api/lead: поля", () => {
     await app.close();
   });
 
+  it("расчёт с калькулятора — отдельным блоком перед комментарием, без него — как раньше", async () => {
+    const calc = "Пакет «Квиз», до 25 гостей, будни. Итого: Опытный — 27 900 ₽";
+    const withCalc = checkLead({ ...VALID.lead, calc });
+    if (!withCalc.ok) throw new Error("ожидалась верная заявка");
+    const text = formatLead(withCalc.lead);
+    expect(text).toContain(`🧮 Расчёт: ${calc}\nКомментарий: Пятница, вечер`);
+    const without = checkLead(VALID.lead);
+    if (!without.ok) throw new Error("ожидалась верная заявка");
+    expect(formatLead(without.lead)).not.toContain("Расчёт");
+    expect(checkLead({ ...VALID.lead, calc: "" }).ok).toBe(true);
+    const long = checkLead({ ...VALID.lead, calc: "а".repeat(1001) });
+    expect(long.ok).toBe(false);
+    if (!long.ok) expect(long.message).toContain("не больше 1000");
+    const { app, post, sent } = setup();
+    expect((await post({ ...VALID.lead, calc })).statusCode).toBe(200);
+    expect(sent[0]).toContain("🧮 Расчёт:");
+    await app.close();
+  });
+
   it("сообщение с меткой тестового окружения", () => {
     const checked = checkLead(VALID.question);
     if (!checked.ok) throw new Error("ожидалась верная заявка");

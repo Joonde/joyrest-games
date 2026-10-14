@@ -484,3 +484,20 @@ describe("полоски на экране зала", () => {
     expect(ladderWindow(parseMillionaireResult({ order: ["a", "b"], turn: "b" }), 3)).toEqual(["a", "b"]);
   });
 });
+
+describe("время на ответ", () => {
+  it("таймер вопроса: новые игры — 30 с, старые — без таймера; «окончательный ответ» останавливает часы, звонок добавляет своё время", () => {
+    expect(createMillionaire().answerSeconds).toBe(30);
+    expect(parseMillionaire({}).answerSeconds).toBe(0);
+    expect(parseMillionaire({ answerSeconds: 17 }).answerSeconds).toBe(0);
+    let { s, content } = started();
+    s = apply(s, showQuestion(s, content));
+    expect(s.state.timeLimit).toBe(30);
+    s = apply(s, applyLifeline(s, content, [], "call", 0));
+    expect(s.state.timeLimit).toBe(30 + content.callSeconds);
+    s = apply(s, lockAnswer(s, [ans(s, "A", "uA", { choice: 1 })]));
+    expect(s.state.timeLimit).toBeNull();
+    const old = started({ ...game(), answerSeconds: 0 });
+    expect(apply(old.s, showQuestion(old.s, old.content)).state.timeLimit).toBeNull();
+  });
+});

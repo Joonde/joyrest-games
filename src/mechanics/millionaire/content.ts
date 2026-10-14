@@ -54,6 +54,8 @@ export interface MillionaireContent {
   /** Сколько секунд на «Звонок другу» и на голосование зала. */
   callSeconds: number;
   audienceSeconds: number;
+  /** Время на ответ, секунд (0 — без таймера, как раньше); последние 10 с тикают на экране зала (14 октября 2026). */
+  answerSeconds: number;
   /** Играют все команды по очереди или одна (её выбирает ведущий перед началом). */
   players: "all" | "one";
   /** Оформление экрана зала (`../showLook.ts`). Старые игры без поля — «Классика». */
@@ -69,6 +71,9 @@ export const DEFAULT_LADDER = [1000, 2000, 3000, 5000, 10000, 20000, 50000, 1000
 export const DEFAULT_LADDER_15 = [500, 1000, 2000, 3000, 5000, 10000, 15000, 25000, 50000, 100000, 150000, 250000, 400000, 600000, 1000000];
 export const DEFAULT_SAFE: Record<LadderSize, number[]> = { 12: [4, 8], 15: [5, 10] };
 export const ATTEMPT_CHOICES = [0, 1, 2, 3] as const;
+
+/** Время на ответ: 0 — без таймера. */
+export const ANSWER_TIME_CHOICES = [0, 15, 30, 45, 60, 90, 120] as const;
 
 export const MILLIONAIRE_LIMITS = { text: 300, option: 120, note: 200, hint: 200, maxQuestions: 240, maxPoints: 10_000_000, minSeconds: 10, maxSeconds: 180, minAudience: 90, maxAudience: 300 } as const;
 
@@ -89,6 +94,7 @@ export function createMillionaire(): MillionaireContent {
     lifelines: [...LIFELINE_IDS],
     callSeconds: 60,
     audienceSeconds: 90,
+    answerSeconds: 30,
     players: "all",
     look: DEFAULT_SHOW_LOOK,
     attempts: 2,
@@ -130,6 +136,7 @@ export function parseMillionaire(raw: unknown): MillionaireContent {
     callSeconds: int(d.callSeconds, 60, MILLIONAIRE_LIMITS.minSeconds, MILLIONAIRE_LIMITS.maxSeconds),
     // Помощь зала — не меньше полутора минут: гостям нужно время навести камеру и проголосовать (14 октября 2026).
     audienceSeconds: int(d.audienceSeconds, 90, MILLIONAIRE_LIMITS.minAudience, MILLIONAIRE_LIMITS.maxAudience),
+    answerSeconds: typeof d.answerSeconds === "number" && (ANSWER_TIME_CHOICES as readonly number[]).includes(d.answerSeconds) ? d.answerSeconds : 0,
     players: d.players === "one" ? "one" : "all",
     look: parseShowLook(d.look),
     attempts: typeof d.attempts === "number" && Number.isInteger(d.attempts) && d.attempts >= 0 && d.attempts <= 3 ? d.attempts : null,

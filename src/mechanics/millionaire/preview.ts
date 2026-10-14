@@ -34,7 +34,7 @@ export const millionairePreview: PreviewDriver<MillionaireContent> = ({ session,
     case "reveal":
       return { label: "Пульт: «Показать ответ»", change: revealAnswer(session, content, answers, participants) };
     case "retry":
-      return { label: "Пульт: «Ответить ещё раз»", change: retryQuestion(session) };
+      return { label: "Пульт: «Ответить ещё раз»", change: retryQuestion(session, content) };
     case "next":
       return { label: "Пульт: «Следующая команда»", change: nextTurn(session, content, participants) };
     case "wrongChoice":

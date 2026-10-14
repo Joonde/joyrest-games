@@ -6,7 +6,7 @@ import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { pointsLabel } from "../../core/results";
 import type { EditorProps } from "../types";
-import { ATTEMPT_CHOICES, LETTERS, LIFELINES, levelsOf, MILLIONAIRE_LIMITS, resizeLadder, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
+import { ANSWER_TIME_CHOICES, ATTEMPT_CHOICES, LETTERS, LIFELINES, levelsOf, MILLIONAIRE_LIMITS, resizeLadder, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { DEMO_MILLIONAIRE } from "./demo";
 import { teamsCovered, validateMillionaire } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
@@ -127,6 +127,20 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           <p className="muted small">
             Сколько раз команда может продолжить после неверного ответа. 0 — первая ошибка, и команда выбывает. Попытки кончились у всех — награждение: побеждает
             тот, кто выше забрался.
+          </p>
+        </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Время на ответ</legend>
+          <div className="pick-chips">
+            {ANSWER_TIME_CHOICES.map((n) => (
+              <button key={n} type="button" className="pick-chip" aria-pressed={content.answerSeconds === n} onClick={() => onChange({ ...latest.current, answerSeconds: n })}>
+                {n === 0 ? "Без таймера" : `${n} с`}
+              </button>
+            ))}
+          </div>
+          <p className="muted small">
+            Таймер на экране зала, последние 10 секунд тикают, на нуле — «Время вышло» и телефоны больше не отвечают (ведущий может отметить ответ сам).
+            «Окончательный ответ» останавливает часы, подсказка запускает их заново.
           </p>
         </fieldset>
         <div className="row board-editor__size">

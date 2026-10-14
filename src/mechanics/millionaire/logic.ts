@@ -238,6 +238,9 @@ export function startMillionaire(session: Session, participants: Participant[], 
   };
 }
 
+/** Время на ответ (null — без таймера). */
+const answerLimit = (content: MillionaireContent | undefined): number | null => (content && content.answerSeconds > 0 ? content.answerSeconds : null);
+
 /** «Показать вопрос»: вопрос ступени команды (тот же, если его уже показывали в этом ходе). */
 export function showQuestion(session: Session, content: MillionaireContent): SessionChange | null {
   const r = parseMillionaireResult(session.state.result);
@@ -246,7 +249,7 @@ export function showQuestion(session: Session, content: MillionaireContent): Ses
   const q = (r.q ? questionOf(content, r) : null) ?? freshQuestion(content, level, r.seen);
   if (!q) return null;
   const seen = r.seen.includes(q.id) ? r.seen : [...r.seen, q.id];
-  return { state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, q: q.id, seen, mode: "question", ...fresh, hostPick: null }) } };
+  return { state: { stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, q: q.id, seen, mode: "question", ...fresh, hostPick: null }) } };
 }
 
 /** Ответ команды на шаг: капитан с телефона (после времени показа) или отметка ведущего. */
@@ -285,7 +288,8 @@ export function lockAnswer(session: Session, answers: Answer[]): SessionChange |
   if (session.state.stage !== "question" || r.mode !== "question" || r.locked) return null;
   const pick = teamPick(session, answers);
   if (pick === null) return null;
-  return { state: { result: write({ ...r, chosen: pick, hostPick: pick, locked: true, changeable: false, refused: null }) } };
+  // «Окончательный ответ» останавливает часы (как в телеигре): таймер с экрана уходит.
+  return { state: { timeLimit: null, result: write({ ...r, chosen: pick, hostPick: pick, locked: true, changeable: false, refused: null }) } };
 }
 
 /** «Показать ответ». */
@@ -318,9 +322,9 @@ export function revealAnswer(session: Session, content: MillionaireContent, answ
 }
 
 /** После «Права на ошибку»: тот же вопрос заново, новый шаг (прежний выбор не считается). */
-export function retryQuestion(session: Session): SessionChange {
+export function retryQuestion(session: Session, content?: MillionaireContent): SessionChange {
   const r = parseMillionaireResult(session.state.result);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null, ...fresh }) } };
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null, ...fresh }) } };
 }
 
 /** «Следующая команда»; некому ходить — конец игры. */
@@ -419,7 +423,8 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
   const used = { ...r.used, [team]: [...(r.used[team] ?? []), id] };
   // Подсказка — новый шаг: прежний выбор не считается, капитан выбирает заново.
   let next: MillionaireResult = { ...r, used, flash: id, hostPick: null, ...fresh };
-  let timeLimit: number | null = null;
+  // Подсказка — часы заново (в телеигре они стоят, пока берут подсказку); на звонок — ещё и время звонка.
+  let timeLimit: number | null = answerLimit(content);
   if (id === "fifty") {
     const wrong = wrongLeft(content, r);
     const keep = wrong[Math.floor(random() * wrong.length) % wrong.length];
@@ -433,6 +438,7 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
     timeLimit = content.audienceSeconds;
   } else if (id === "call") {
     next.callEndsAt = now + content.callSeconds * 1000;
+    if (timeLimit !== null) timeLimit += content.callSeconds;
   } else if (id === "mistake") {
     next.shield = true;
   } else if (id === "host") {
@@ -478,10 +484,10 @@ export function liveAudience(session: Session, answers: Answer[], participants: 
 }
 
 /** Итоги голосования: проценты на экран, вопрос снова открыт для капитана. */
-export function finishAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = []): SessionChange {
+export function finishAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = [], content?: MillionaireContent): SessionChange {
   const r = parseMillionaireResult(session.state.result);
   const { audience, votes } = tally(session, answers, participants, extra);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, qrBig: false, ...fresh }) } };
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, qrBig: false, ...fresh }) } };
 }
 
 /** «Совет ведущего»: наводка на экран зала (пусто — убрать). */

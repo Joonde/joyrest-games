@@ -8809,6 +8809,39 @@ button.dance-card:active {
   text-overflow: ellipsis;
 }
 
+/* Время на ответ: последние 10 секунд — красным и пульсирует. */
+.mil-timer {
+  display: inline-block;
+  margin-left: 1.2cqw;
+  padding: 0.2cqh 1.2cqw;
+  border-radius: 999px;
+  border: 2px solid var(--color-highlight);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.mil-timer.is-low {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  animation: mil-timer-pulse 1s ease-in-out infinite;
+}
+
+.mil-timer.is-out {
+  animation: none;
+}
+
+@keyframes mil-timer-pulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mil-timer.is-low {
+    animation: none;
+  }
+}
+
 /* Подсказки всех команд над вопросом. */
 .mil-lifeboard {
   list-style: none;

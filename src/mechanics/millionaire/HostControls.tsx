@@ -426,7 +426,7 @@ export function MillionaireHostControls({ session, content, answers, participant
               void run(async () => {
                 const [fresh, qr] = await Promise.all([control.freshAnswers(step), !rehearsal && audienceRepo ? audienceRepo.counts(session.id).catch(() => null) : Promise.resolve(null)]);
                 const extra = qr && qr.step === latest.current.state.step ? qr.counts : qrVotes;
-                return finishAudience(latest.current, fresh.length > 0 ? fresh : answers, participants, extra);
+                return finishAudience(latest.current, fresh.length > 0 ? fresh : answers, participants, extra, content);
               })
             }
           >
@@ -434,7 +434,7 @@ export function MillionaireHostControls({ session, content, answers, participant
           </button>
         )}
         {action === "retry" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(retryQuestion(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(retryQuestion(session, content))}>
             Ответить ещё раз
           </button>
         )}

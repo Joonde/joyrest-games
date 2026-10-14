@@ -232,11 +232,13 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   const r = parseMillionaireResult(session.state.result);
   const { stage, step } = session.state;
   const q = questionOf(content, r);
-  const now = useServerNow(250, r.callEndsAt !== null || (r.mode === "audience" && stage === "question"));
+  const now = useServerNow(250, r.callEndsAt !== null || (stage === "question" && session.state.timeLimit !== null));
   const team = nameOf(session, r.turn);
   const level = levelToPlay(r, r.turn);
-  const left = r.mode === "audience" ? secondsLeft(session.state, now) : null;
-  useCountdownSounds(left);
+  const left = stage === "question" && session.state.timeLimit !== null ? secondsLeft(session.state, now) : null;
+  // Время на ответ — тикают последние 10 секунд; голосование зала — последние 5.
+  useCountdownSounds(left, r.mode === "audience" ? 5 : 10);
+  const answerLeft = r.mode === "question" && !r.locked ? left : null;
   useMillionaireSounds(session, r, levelsOf(content));
 
   const flash = r.flash ? LIFELINES.find((l) => l.id === r.flash) : null;
@@ -270,6 +272,11 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
           <>
             <p className="mil-screen__who">
               <NameText name={team} /> · вопрос {level} — {pointsLabel(pointsAt(content, level))}
+              {answerLeft !== null && (
+                <span className={`mil-timer${answerLeft <= 10 ? " is-low" : ""}${answerLeft === 0 ? " is-out" : ""}`} role="timer" aria-label={`Осталось ${answerLeft} с`}>
+                  {answerLeft === 0 ? "Время вышло" : `${answerLeft} с`}
+                </span>
+              )}
             </p>
             {!audience && <LifelineBoard session={session} content={content} result={r} />}
             {flash && (

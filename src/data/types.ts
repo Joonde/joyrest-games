@@ -215,6 +215,8 @@ export interface Track {
   createdAt: number;
   /** Отрезок, громкость и затухание на экране зала. */
   clip: TrackClip;
+  /** Папка в «Музыке» ('' — без папки). */
+  folder: string;
 }
 
 export interface TrackInput {
@@ -224,6 +226,8 @@ export interface TrackInput {
   category: TrackCategory;
   license: TrackLicense;
   licenseNote: string;
+  /** Папка, в которую сразу кладём трек. */
+  folder?: string;
 }
 
 /** Звуки кнопок пульта; "stop" — заглушить всё, что звучит. */

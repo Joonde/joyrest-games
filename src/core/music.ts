@@ -44,3 +44,22 @@ export function nextInCategory<T extends { id: string; category: TrackCategory }
   const index = same.findIndex((t) => t.id === currentId);
   return same[(index + 1) % same.length] ?? null;
 }
+
+/**
+ * Папки «Музыки» (решение владельца 15 октября 2026): сначала треки без папки, дальше папки по алфавиту.
+ * Папка — просто название у трека: пустых папок не бывает, переименовать — перенести её треки.
+ */
+export function groupByFolder<T extends { folder: string }>(list: readonly T[]): Array<{ folder: string; items: T[] }> {
+  const map = new Map<string, T[]>();
+  for (const item of list) {
+    const key = item.folder.trim();
+    map.set(key, [...(map.get(key) ?? []), item]);
+  }
+  const named = [...map.keys()].filter((k) => k !== "").sort((a, b) => a.localeCompare(b, "ru"));
+  return [...(map.has("") ? [{ folder: "", items: map.get("") ?? [] }] : []), ...named.map((folder) => ({ folder, items: map.get(folder) ?? [] }))];
+}
+
+/** Названия папок (без пустого), по алфавиту. */
+export function folderNames(list: readonly { folder: string }[]): string[] {
+  return [...new Set(list.map((t) => t.folder.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"));
+}

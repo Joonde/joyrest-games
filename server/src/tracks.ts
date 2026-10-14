@@ -48,6 +48,8 @@ export const TRACK_LICENSES: readonly TrackLicense[] = ["pixabay", "bought", "ow
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const TITLE_MAX = 120;
 const NOTE_MAX = 200;
+/** Название папки трека (решение владельца 15 октября 2026). */
+export const FOLDER_MAX = 40;
 const LIST_LIMIT = 300;
 
 interface TrackRow {
@@ -68,6 +70,7 @@ interface TrackRow {
   library_track_id: string | null;
   created_at: Date;
   clip: unknown;
+  folder: string | null;
 }
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -127,6 +130,7 @@ export function trackOf(row: TrackRow): Track {
     shareReason: row.share_reason,
     createdAt: row.created_at.getTime(),
     clip: parseTrackClip(row.clip),
+    folder: row.folder ?? "",
   };
 }
 
@@ -146,7 +150,7 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
   const freeBytes = options.freeBytes ?? diskFree;
   const select = () => sql`
     select t.id, t.owner_id, u.name as owner_name, t.scope, t.title, t.category, t.license, t.license_note,
-           t.sha256, t.mime, t.size, t.duration_ms, t.share_status, t.share_reason, t.library_track_id, t.created_at, t.clip
+           t.sha256, t.mime, t.size, t.duration_ms, t.share_status, t.share_reason, t.library_track_id, t.created_at, t.clip, t.folder
     from tracks t left join users u on u.id = t.owner_id`;
 
   app.register(async (api) => {
@@ -219,8 +223,8 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       const existing = await findTrack(id);
       if (existing) return existing.owner_id === user.id ? trackOf(existing) : fail(reply, 409, "already-exists");
       await sql`
-        insert into tracks (id, owner_id, scope, title, category, license, license_note)
-        values (${id}, ${user.id}, ${scope}, ${title}, ${pick(body.category, TRACK_CATEGORIES, "background")}, ${license}, ${note})
+        insert into tracks (id, owner_id, scope, title, category, license, license_note, folder)
+        values (${id}, ${user.id}, ${scope}, ${title}, ${pick(body.category, TRACK_CATEGORIES, "background")}, ${license}, ${note}, ${cleanLine(body.folder, FOLDER_MAX)})
         on conflict (id) do nothing`;
       const created = await findTrack(id);
       request.log.info({ track: "create" }, "track");
@@ -240,7 +244,9 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
       const clip = body.clip === undefined ? parseTrackClip(track.clip) : parseTrackClip(body.clip);
       // «Откуда трек» — ссылка или пара слов (сайт, канал, купил); хранится в license_note.
       const note = body.licenseNote === undefined ? track.license_note : cleanLine(body.licenseNote, NOTE_MAX);
-      await sql`update tracks set title = ${title}, category = ${category}, clip = ${sql.json(clip as never)}, license_note = ${note}, updated_at = now() where id = ${track.id}`;
+      // Папка: '' — без папки; переименовать папку — браузер переносит её треки по одному.
+      const folder = body.folder === undefined ? (track.folder ?? "") : cleanLine(body.folder, FOLDER_MAX);
+      await sql`update tracks set title = ${title}, category = ${category}, clip = ${sql.json(clip as never)}, license_note = ${note}, folder = ${folder}, updated_at = now() where id = ${track.id}`;
       const updated = await findTrack(track.id);
       return updated ? trackOf(updated) : fail(reply, 404, "not-found");
     });

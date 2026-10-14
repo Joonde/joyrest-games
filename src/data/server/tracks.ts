@@ -31,6 +31,7 @@ export function parseTrack(value: unknown): Track {
     shareReason: typeof d.shareReason === "string" ? d.shareReason : null,
     createdAt: num(d.createdAt) ?? 0,
     clip: parseTrackClip(d.clip),
+    folder: asText(d.folder),
   };
 }
 

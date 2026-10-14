@@ -6,6 +6,7 @@ import { ClampedNumber } from "../ClampedNumber";
 import { useEffect, useState } from "react";
 import { tracksRepo, type Track } from "../../data";
 import { UploadTrackButton } from "./uploadTrack";
+import { groupByFolder } from "../../core/music";
 
 /**
  * Общий список треков для всех выборов трека в студии (один запрос на конструктор). Список свежий:
@@ -115,13 +116,23 @@ export function TrackPicker({
       ) : (
         <select value={trackId ?? ""} disabled={disabled || tracks === null} onChange={(e) => onChange({ trackId: e.target.value || null })}>
           <option value="">{tracks === null ? "Загружаем треки…" : "Без музыки"}</option>
-          {(tracks ?? []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-              {t.scope === "agency" ? " · общая" : ""}
-              {t.durationMs ? ` · ${seconds(t.durationMs)}` : ""}
-            </option>
-          ))}
+          {/* Папки «Музыки» — группами списка (решение владельца 15 октября 2026). */}
+          {groupByFolder(tracks ?? []).map(({ folder, items }) => {
+            const options = items.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+                {t.scope === "agency" ? " · общая" : ""}
+                {t.durationMs ? ` · ${seconds(t.durationMs)}` : ""}
+              </option>
+            ));
+            return folder ? (
+              <optgroup key={folder} label={`📁 ${folder}`}>
+                {options}
+              </optgroup>
+            ) : (
+              options
+            );
+          })}
           {trackId && tracks !== null && !chosen && <option value={trackId}>Трек недоступен</option>}
         </select>
       )}

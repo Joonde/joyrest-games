@@ -150,5 +150,12 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
       await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { licenseNote: "https://vk.com/audio1" } })
     ).json();
     expect(sourced).toMatchObject({ title: "Лобби JoyRest", licenseNote: "https://vk.com/audio1" });
+    // Папка: кладём, длинное название обрезается, пустое — «без папки»; остальное не трогается.
+    const foldered = (await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "  Лото  " } })).json();
+    expect(foldered).toMatchObject({ folder: "Лото", title: "Лобби JoyRest", licenseNote: "https://vk.com/audio1" });
+    expect((await get("/api/tracks", anna)).json().library[0]).toMatchObject({ folder: "Лото" });
+    const long = (await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "х".repeat(80) } })).json();
+    expect(long.folder).toHaveLength(40);
+    expect((await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "" } })).json().folder).toBe("");
   });
 });

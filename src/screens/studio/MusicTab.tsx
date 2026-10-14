@@ -1,7 +1,8 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { categoryTitle, durationLabel, LICENSE_TITLES, titleFromFile, TRACK_CATEGORIES } from "../../core/music";
 import { isClipped, permissions, tracksRepo, useLoad, type Track, type TrackCategory, type TrackClip, type UserProfile } from "../../data";
 import { TrackClipEditor } from "../../components/music/TrackClipEditor";
+import { forgetTracks } from "../../components/music/TrackPicker";
 
 function clipLabel(clip: TrackClip): string {
   const t = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -69,6 +70,11 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
   /** Трек, у которого правят «Откуда трек». */
   const [sourceFor, setSourceFor] = useState<Track | null>(null);
   const [sourceDraft, setSourceDraft] = useState("");
+
+  // Музыка изменилась (загрузили, удалили, переименовали) — выборы трека в играх возьмут свежий список.
+  useEffect(() => {
+    if (state.status === "ready") forgetTracks();
+  }, [state]);
 
   if (!repo) return <p className="muted">Музыка доступна на своём сервере JoyRest.</p>;
 

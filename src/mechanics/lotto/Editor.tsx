@@ -16,8 +16,11 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
   const [openId, setOpenId] = useState<string | null>(null);
   const errors = useMemo(() => validateLotto(content), [content]);
   const general = errors.filter((e) => !e.path.startsWith("songs/"));
-  const set = (patch: Partial<LottoContent>) => onChange({ ...content, ...patch });
-  const setSong = (id: string, patch: Partial<LottoSong>) => set({ songs: content.songs.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  // Трек грузится несколько секунд: правим игру, какой она стала, а не какой была при касании.
+  const latest = useRef(content);
+  latest.current = content;
+  const set = (patch: Partial<LottoContent>) => onChange({ ...latest.current, ...patch });
+  const setSong = (id: string, patch: Partial<LottoSong>) => set({ songs: latest.current.songs.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const room = LOTTO_LIMITS.songs - content.songs.length;
 
   function addBulk() {

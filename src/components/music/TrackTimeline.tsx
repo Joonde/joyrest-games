@@ -5,9 +5,9 @@
  */
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { CHORUS_LENGTHS, clock, FADE_IN, FADE_OUT, moveHandle, type Clip, type ClipJoin } from "../../core/clip";
-import { tracksRepo, type Track } from "../../data";
+import { tracksRepo } from "../../data";
 import { ClampedNumber } from "../ClampedNumber";
-import { forgetTracks, loadTracks } from "./TrackPicker";
+import { addTrack, useTrackList } from "./TrackPicker";
 import { UploadTrackButton } from "./uploadTrack";
 
 const BARS = 72;
@@ -58,8 +58,7 @@ const JOIN_LABELS: Record<ClipJoin, string> = { cut: "Сразу", cross: "Ск�
 type Handle = "start" | "end" | "chorus";
 
 export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChange: (clip: Clip) => void; disabled?: boolean }) {
-  const [tracks, setTracks] = useState<Track[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const { tracks, failed } = useTrackList();
   const [peaks, setPeaks] = useState<number[] | null>(null);
   const [drag, setDrag] = useState<Handle | null>(null);
   const [listening, setListening] = useState<"guess" | "chorus" | null>(null);
@@ -68,16 +67,6 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
   const stopAt = useRef(0);
   const latest = useRef(clip);
   latest.current = clip;
-
-  useEffect(() => {
-    let cancelled = false;
-    loadTracks()
-      .then((list) => !cancelled && setTracks(list))
-      .catch(() => !cancelled && setFailed(true));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     setPeaks(null);
@@ -171,9 +160,9 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
       <UploadTrackButton
         disabled={disabled}
         onUploaded={(t) => {
-          forgetTracks();
-          setTracks((list) => [t, ...(list ?? [])]);
-          set({ trackId: t.id });
+          addTrack(t);
+          // Загрузка шла несколько секунд — берём вопрос, какой он сейчас, а не каким был при касании.
+          onChange({ ...latest.current, trackId: t.id });
         }}
       />
 

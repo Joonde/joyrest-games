@@ -7,26 +7,77 @@ import { useEffect, useState } from "react";
 import { tracksRepo, type Track } from "../../data";
 import { UploadTrackButton } from "./uploadTrack";
 
-let cached: Promise<Track[]> | null = null;
+/**
+ * Общий список треков для всех выборов трека в студии (один запрос на конструктор). Список свежий:
+ * загрузили трек в игре или на вкладке «Музыка», удалили, переименовали — все открытые выборы
+ * обновляются сразу (`forgetTracks`, `addTrack`), а старше минуты список перечитывается при открытии
+ * и при возврате на вкладку.
+ */
+const FRESH_MS = 60_000;
+let cached: { at: number; list: Promise<Track[]> } | null = null;
+const listeners = new Set<() => void>();
 
-/** Загрузили новый трек прямо из игры — список перечитается. */
-export function forgetTracks(): void {
-  cached = null;
+function notify(): void {
+  for (const listener of [...listeners]) listener();
 }
 
-/** Треки ведущего и общей библиотеки (один запрос на весь конструктор). */
+/** Музыка изменилась — все выборы трека перечитают список. */
+export function forgetTracks(): void {
+  cached = null;
+  notify();
+}
+
+/** Новый трек сразу виден во всех выборах трека, без нового запроса. */
+export function addTrack(track: Track): void {
+  if (!cached || !track.ready) return forgetTracks();
+  const prev = cached.list;
+  cached = { at: cached.at, list: prev.then((list) => [track, ...list.filter((t) => t.id !== track.id)]) };
+  notify();
+}
+
+/** Треки ведущего и общей библиотеки. */
 export function loadTracks(): Promise<Track[]> {
   if (!tracksRepo) return Promise.resolve([]);
-  if (!cached) {
-    cached = tracksRepo
+  if (!cached || Date.now() - cached.at > FRESH_MS) {
+    const list = tracksRepo
       .list()
       .then(({ mine, library }) => [...mine, ...library].filter((t) => t.ready))
       .catch((error: unknown) => {
-        cached = null;
+        if (cached?.list === list) cached = null;
         throw error;
       });
+    cached = { at: Date.now(), list };
   }
-  return cached;
+  return cached.list;
+}
+
+/** Список треков для выбора: `null` — загружается; обновляется сам, когда музыка меняется. */
+export function useTrackList(): { tracks: Track[] | null; failed: boolean } {
+  const [tracks, setTracks] = useState<Track[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      loadTracks()
+        .then((list) => {
+          if (!alive) return;
+          setTracks(list);
+          setFailed(false);
+        })
+        .catch(() => alive && setFailed(true));
+    };
+    load();
+    listeners.add(load);
+    // Вернулись на вкладку (например, загрузили трек в другой вкладке) — проверим, не устарел ли список.
+    const onVisible = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      listeners.delete(load);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+  return { tracks, failed };
 }
 
 function seconds(ms: number | null): string {
@@ -51,18 +102,7 @@ export function TrackPicker({
   /** Длительность задаётся для всей игры (лото) — поле не нужно. */
   showLength?: boolean;
 }) {
-  const [tracks, setTracks] = useState<Track[] | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadTracks()
-      .then((list) => !cancelled && setTracks(list))
-      .catch(() => !cancelled && setFailed(true));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { tracks, failed } = useTrackList();
 
   if (!tracksRepo) return null;
   const chosen = tracks?.find((t) => t.id === trackId) ?? null;
@@ -89,8 +129,8 @@ export function TrackPicker({
       <UploadTrackButton
         disabled={disabled}
         onUploaded={(t) => {
-          forgetTracks();
-          setTracks((list) => [t, ...(list ?? [])]);
+          // Сразу выбран в этой песне и виден во всех остальных выборах трека.
+          addTrack(t);
           onChange({ trackId: t.id });
         }}
       />

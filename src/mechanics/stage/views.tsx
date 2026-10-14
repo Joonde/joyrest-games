@@ -12,7 +12,7 @@ import { teamColorVar } from "../../themes/registry";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { tileOf, tilesOf, VARIANT_TITLES, type StageContent, type StageTile } from "./content";
 import { Dancer, Dancers } from "./figures";
-import { HYPE_MS, hypeText, parseStageResult, turnPid, type StageResult } from "./logic";
+import { battlesLocked, HYPE_MS, hypeText, parseStageResult, turnPid, type StageResult } from "./logic";
 import { StageVideo } from "./video";
 import { versusOf, whoOf } from "./who";
 import "./stage.css";
@@ -37,6 +37,7 @@ export function tileShort(tile: StageTile): string {
 /** Поле: строки-категории, плитки по возрастанию очков. На пульте плитки можно коснуться. */
 export function StageField({ content, result, onPick, disabled, compact }: { content: StageContent; result: StageResult; onPick?: (id: string) => void; disabled?: boolean; compact?: boolean }) {
   const cols = Math.max(1, ...content.categories.map((c) => tilesOf(content, c.id).length));
+  const locked = battlesLocked(content, result);
   return (
     <div className={compact ? "stage-field stage-field--compact" : "stage-field"} style={{ "--cols": cols } as CSSProperties} role="table" aria-label="Поле">
       {content.categories.map((cat, ci) => (
@@ -47,17 +48,18 @@ export function StageField({ content, result, onPick, disabled, compact }: { con
           {tilesOf(content, cat.id).map((tile) => {
             const played = result.played.includes(tile.id);
             const current = result.tile === tile.id;
-            const cls = `stage-tile${played ? " is-played" : ""}${current ? " is-current" : ""}${tile.kind === "battle" ? " is-battle" : ""}`;
+            const shut = locked && tile.kind === "battle" && !played && !current;
+            const cls = `stage-tile${played ? " is-played" : ""}${current ? " is-current" : ""}${tile.kind === "battle" ? " is-battle" : ""}${shut ? " is-locked" : ""}`;
             const body = played ? (
               <span className="stage-tile__who">{tileShort(tile)}</span>
             ) : (
               <>
                 <span className="stage-tile__points">{tile.points}</span>
-                {tile.kind === "battle" && <span className="stage-tile__tag">батл</span>}
+                {tile.kind === "battle" && <span className="stage-tile__tag">{shut ? "🔒 батл" : "батл"}</span>}
               </>
             );
             return onPick && !played ? (
-              <button key={tile.id} type="button" role="cell" className={cls} disabled={disabled} onClick={() => onPick(tile.id)} aria-label={`${cat.title}: ${tile.points}${tile.kind === "battle" ? ", батл" : ""}`}>
+              <button key={tile.id} type="button" role="cell" className={cls} disabled={disabled || shut} onClick={() => onPick(tile.id)} aria-label={`${cat.title}: ${tile.points}${tile.kind === "battle" ? (shut ? ", батл — пока закрыт" : ", батл") : ""}`}>
                 {body}
               </button>
             ) : (

@@ -47,7 +47,14 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
             <ClampedNumber value={content.voteTime} min={STAGE_LIMITS.minVote} max={STAGE_LIMITS.maxVote} fallback={20} disabled={!editable} onChange={(voteTime) => set({ voteTime })} />
           </label>
         </div>
-        <p className="muted small">Симпатия: зрители других команд дарят выступающим свои заработанные очки — у дарителя столько же снимается.</p>
+        <p className="muted small">Симпатия: зрители других команд дарят выступающим свои заработанные очки — у дарителя столько же снимается (в минус никто не уходит).</p>
+        <label className="choice">
+          <input type="checkbox" checked={content.battleLock} disabled={!editable} onChange={(e) => set({ battleLock: e.target.checked })} />
+          <span className="choice__text">
+            <span className="choice__title">Батлы — после того, как каждая команда выступила</span>
+            <span className="choice__hint">Пока не выступили все, плитки батлов закрыты замком: в начале у команд нет очков на симпатию. Обычные плитки кончились — батлы открываются сами; на пульте можно открыть раньше.</span>
+          </span>
+        </label>
       </section>
 
       {editable && (
@@ -69,6 +76,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
                     tiles: tpl.tiles.map((t) => ({ ...t, id: newTile(t.cat, t.points).id, cat: cats.get(t.cat)?.id ?? t.cat })),
                     gift: content.gift,
                     voteTime: content.voteTime,
+                    battleLock: content.battleLock,
                   });
                 }}
               >

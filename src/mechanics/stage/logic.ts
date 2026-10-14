@@ -26,6 +26,7 @@ interface Prev {
   outcome: StageOutcome | null;
   winner: string | null;
   gifts: string[];
+  done: string[];
 }
 
 export interface StageResult {
@@ -52,6 +53,10 @@ export interface StageResult {
   changeable: boolean;
   /** Фраза перед голосованием батла («Это было жарко!»), номер в `HYPE`; −1 — нет. */
   hype: number;
+  /** Кто уже хотя бы раз выступил («Выступили») — пока выступили не все, батлы закрыты. */
+  done: string[];
+  /** Ведущий открыл батлы раньше. */
+  battlesOpen: boolean;
   prev: Prev | null;
 }
 
@@ -100,9 +105,11 @@ export function parseStageResult(raw: unknown): StageResult {
     winner: pid(d.winner),
     changeable: d.changeable === true,
     hype: typeof d.hype === "number" && Number.isInteger(d.hype) && d.hype >= 0 ? d.hype : -1,
+    done: ids(d.done),
+    battlesOpen: d.battlesOpen === true,
     prev:
       typeof p.tile === "string"
-        ? { tile: p.tile, performer: pid(p.performer), opponent: pid(p.opponent), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores), outcome: outcomeOf(p.outcome), winner: pid(p.winner), gifts: ids(p.gifts) }
+        ? { tile: p.tile, performer: pid(p.performer), opponent: pid(p.opponent), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores), outcome: outcomeOf(p.outcome), winner: pid(p.winner), gifts: ids(p.gifts), done: ids(p.done) }
         : null,
   };
 }
@@ -134,6 +141,24 @@ export function defaultOpponent(r: StageResult, performer: string | null): strin
   if (r.order.length < 2 || !performer) return null;
   const at = r.order.indexOf(performer);
   return r.order[(at + 1) % r.order.length] ?? null;
+}
+
+/** Кто ещё не выступил, пока батлы закрыты (пусто — батлы открыты). */
+export function battleWaiting(content: StageContent, r: StageResult): string[] {
+  if (!content.battleLock || r.battlesOpen) return [];
+  // Обычных плиток не осталось — ждать нечего, батлы открываются сами.
+  if (!content.tiles.some((t) => t.kind !== "battle" && !r.played.includes(t.id) && t.id !== r.tile)) return [];
+  return r.order.filter((p) => !r.done.includes(p));
+}
+
+export function battlesLocked(content: StageContent, r: StageResult): boolean {
+  return battleWaiting(content, r).length > 0;
+}
+
+/** Ведущий открывает батлы раньше, чем выступили все. */
+export function openBattles(session: Session): SessionChange {
+  const r = parseStageResult(session.state.result);
+  return { state: { result: write({ ...r, battlesOpen: true }) } };
 }
 
 export type StageAction = "start" | "pickTile" | "done" | "vote" | "count" | "next" | "podium" | "podiumNext" | "finish";
@@ -174,6 +199,7 @@ export function pickTile(session: Session, content: StageContent, tileId: string
   const tile = tileOf(content, tileId);
   if (!tile || r.played.includes(tileId) || r.mode !== "pick") return {};
   const order = r.order.length > 0 ? r.order : orderOf(session, participants, r);
+  if (tile.kind === "battle" && battlesLocked(content, { ...r, order })) return {};
   const performer = turnPid({ ...r, order });
   const rival = tile.kind === "battle" ? (opponent && opponent !== performer && order.includes(opponent) ? opponent : defaultOpponent({ ...r, order }, performer)) : null;
   return {
@@ -340,7 +366,10 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
   const order = orderOf(session, participants, r);
   const at = r.performer ? order.indexOf(r.performer) : -1;
   const turn = at >= 0 ? at + 1 : r.turn + 1;
-  const prev: Prev = { tile: r.tile, performer: r.performer, opponent: r.opponent, turn: r.turn, scores: r.scores, outcome: r.outcome, winner: r.winner, gifts: r.gifts };
+  const prev: Prev = { tile: r.tile, performer: r.performer, opponent: r.opponent, turn: r.turn, scores: r.scores, outcome: r.outcome, winner: r.winner, gifts: r.gifts, done: r.done };
+  // «Выступили» (и батл) — команда отметилась; «Не вышли» — нет.
+  const sides = r.outcome === null || r.outcome === "skip" ? [] : [r.performer, r.opponent].filter((p): p is string => p !== null);
+  const done = [...new Set([...r.done, ...sides])];
   return {
     state: {
       step: session.state.step + 1,
@@ -349,7 +378,7 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...fresh(r), order, played: [...r.played, r.tile], prev, tile: null, performer: null, opponent: null, mode: "pick", turn }),
+      result: write({ ...fresh(r), order, done, played: [...r.played, r.tile], prev, tile: null, performer: null, opponent: null, mode: "pick", turn }),
     },
   };
 }
@@ -412,7 +441,7 @@ export function stageBack(session: Session, content: StageContent): StageBack | 
         revealed: true,
         startedAt: null,
         timeLimit: null,
-        result: write({ ...r, played: r.played.filter((t) => t !== prev.tile), tile: prev.tile, performer: prev.performer, opponent: prev.opponent, turn: prev.turn, scores: prev.scores, outcome: prev.outcome, winner: prev.winner, gifts: prev.gifts, mode: "result", prev: null }),
+        result: write({ ...r, played: r.played.filter((t) => t !== prev.tile), tile: prev.tile, performer: prev.performer, opponent: prev.opponent, turn: prev.turn, scores: prev.scores, outcome: prev.outcome, winner: prev.winner, gifts: prev.gifts, done: prev.done, mode: "result", prev: null }),
       },
     },
     clear: [step],

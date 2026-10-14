@@ -7,7 +7,7 @@ import { resultKey, secondsLeft } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { tileOf, VARIANT_TITLES, type StageContent } from "./content";
-import { countVotes, defaultOpponent, finishPerform, liveGifts, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand, type VideoCmd } from "./logic";
+import { battleWaiting, countVotes, defaultOpponent, openBattles, finishPerform, liveGifts, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand, type VideoCmd } from "./logic";
 import { canSeek } from "./video";
 import { StageField, tileLabel } from "./views";
 import "./stage.css";
@@ -108,6 +108,7 @@ export function StageHostControls({ session, content, answers, participants, con
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
   const turn = turnPid(r);
   const sides = r.order.length > 0 ? r.order : Object.keys(session.leaderboard);
+  const waiting = battleWaiting(content, r);
 
   function onPickTile(id: string) {
     const t = tileOf(content, id);
@@ -190,6 +191,16 @@ export function StageHostControls({ session, content, answers, participants, con
               Выбирают: <strong><NameText name={name(turn)} /></strong> — коснитесь плитки, которую назвали.
             </p>
             <StageField content={content} result={r} onPick={onPickTile} disabled={busy} compact />
+            {waiting.length > 0 && content.tiles.some((t) => t.kind === "battle" && !r.played.includes(t.id)) && (
+              <div className="stack stack--tight">
+                <p className="muted small">
+                  🔒 Батлы откроются, когда каждая команда хотя бы раз выступит (чтобы у всех были очки на зрительскую симпатию). Ещё не выступили: {waiting.map((p) => name(p)).join(", ")}.
+                </p>
+                <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(openBattles(session))}>
+                  Открыть батлы сейчас
+                </button>
+              </div>
+            )}
           </>
         )
       ) : tile ? (

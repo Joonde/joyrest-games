@@ -37,6 +37,8 @@ export interface StageContent {
   gift: number;
   /** Секунд на голосование в батле. */
   voteTime: number;
+  /** Батлы открываются, только когда каждая команда хотя бы раз выступила (решение владельца 14 октября 2026). */
+  battleLock: boolean;
 }
 
 export const STAGE_LIMITS = { categories: 6, perCategory: 8, title: 80, catTitle: 40, note: 200, url: 500, minPoints: 10, maxPoints: 5000, maxGift: 500, minVote: 10, maxVote: 120 } as const;
@@ -59,7 +61,7 @@ export function newTile(cat: string, points: number, kind: TileKind = "perform")
 export function createStage(variant: StageVariant = "dance"): StageContent {
   const cats = [newCategory(variant === "karaoke" ? "Хиты" : "Активные"), newCategory(variant === "karaoke" ? "Дуэты" : "Медленные"), newCategory("Батлы")];
   const tiles = cats.flatMap((c, ci) => [100, 200, 300].map((p) => newTile(c.id, p, ci === 2 ? "battle" : "perform")));
-  return { variant, categories: cats, tiles, gift: 50, voteTime: 20 };
+  return { variant, categories: cats, tiles, gift: 50, voteTime: 20, battleLock: true };
 }
 
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -112,6 +114,7 @@ export function parseStage(raw: unknown): StageContent {
     tiles,
     gift: int(d.gift, 50, 0, STAGE_LIMITS.maxGift),
     voteTime: int(d.voteTime, 20, STAGE_LIMITS.minVote, STAGE_LIMITS.maxVote),
+    battleLock: d.battleLock !== false,
   };
 }
 

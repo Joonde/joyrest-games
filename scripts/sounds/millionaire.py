@@ -6,7 +6,7 @@
 #   question   — вопрос на экране: взлёт и удар;   lock — «окончательный ответ»: низкий удар с эхом;
 #   right      — верно: светлый мажорный перелив;  wrong — неверно: падающий минорный аккорд;
 #   lifeline   — подсказка: искристый вихрь.
-# Версия 2 (14 октября 2026, просьба владельца — «драматичнее, как в телешоу»): приёмы жанра телевикторины —
+# Версия 3 (14 октября 2026, после отзыва владельца на версию 2 — чистый синтез без щелчков; версия 2, просьба владельца — «драматичнее, как в телешоу»): приёмы жанра телевикторины —
 # тянущийся струнный фон с напряжённым полутоном, пульсирующая на одной ноте синтезаторная «нить» восьмыми,
 # глухой удар сердца на каждую долю, медленное открытие фильтра к концу круга; верно — яркий мажорный аккорд-удар
 # с литаврой и блёстками, неверно — низкий сползающий минорный удар с гулом, «окончательный ответ» — удар и
@@ -241,119 +241,170 @@ def lifeline():
     return m
 
 
-def stab(notes, sec, bright=5000, a=0.004, r=None):
-    """Аккорд-удар: плотная стопка «медных» пил с быстрой атакой и затуханием."""
+# ---- Версия 3: чистый синтез без щелчков и «пилы» в верхах ----
+# Все тоны — сумма гармоник не выше 9 кГц (без алиасинга), яркость меняется затуханием верхних гармоник,
+# а не фильтром по кускам; громкость — мягкий ограничитель. Жанровые приёмы те же, ноты свои.
+
+
+def tone(m, sec, harm=12, tilt=1.0, decay=0.0, hdecay=0.0, detune=0.0, vib=0.0, vibhz=5.0):
+    """Гармонический тон: амплитуда k-й гармоники 1/k^tilt, верхние гаснут быстрее (hdecay)."""
     tt = t_(sec)
-    x = sum(saw(f(m), tt, 0.006) for m in notes) / len(notes)
-    sweep = bright * (0.35 + 0.65 * np.exp(-tt * 3))
-    out = np.zeros_like(x)
-    seg = 512
-    for i in range(0, len(x), seg):
-        out[i:i + seg] = lp(x[max(0, i - 2048):i + seg], float(sweep[i]))[-len(x[i:i + seg]):]
-    return out * env(len(tt), a, 0.25, 0.55, r if r is not None else sec * 0.7)
+    fr = f(m) * (1 + detune)
+    out = np.zeros_like(tt)
+    mod = 1 + vib * np.sin(2 * np.pi * vibhz * tt + m)
+    ph = 2 * np.pi * np.cumsum(fr * mod) / SR
+    for k in range(1, harm + 1):
+        if fr * k > 9000:
+            break
+        a = 1 / k ** tilt
+        if hdecay:
+            a = a * np.exp(-tt * hdecay * (k - 1))
+        out += a * np.sin(k * ph)
+    if decay:
+        out *= np.exp(-tt * decay)
+    return out
 
 
-def timpani(m, sec=1.6, gain=1.0):
-    tt = t_(sec)
-    fr = f(m) * (1 + 0.04 * np.exp(-tt * 20))
-    ph = 2 * np.pi * np.cumsum(fr) / SR
-    body = np.sin(ph) + 0.5 * np.sin(1.5 * ph) + 0.25 * np.sin(2 * ph)
-    hit = hp(rng.standard_normal(len(tt)), 200) * np.exp(-tt * 60) * 0.4
-    return lp(body * np.exp(-tt * 2.4) + hit, 1800) * gain
-
-
-def strings(notes, sec, cutoff=1400, a=2.0, r=2.0, vib=5.0):
+def ens(notes, sec, harm=8, tilt=1.2, a=1.5, r=1.5, s=0.9, vib=0.003, spread=0.004):
+    """Струнный ансамбль: по три чуть расстроенных голоса на ноту."""
     tt = t_(sec)
     x = np.zeros_like(tt)
     for m in notes:
-        for d in (-0.003, 0.0, 0.0035):
-            fr = f(m) * (1 + d) * (1 + 0.0025 * np.sin(2 * np.pi * vib * tt + m))
-            ph = 2 * np.pi * np.cumsum(fr) / SR
-            x += 2 * ((ph / (2 * np.pi)) % 1.0) - 1
-    x = lp(x / (3 * len(notes)), cutoff)
-    return x * env(len(tt), a, 0.5, 0.9, r)
+        for d in (-spread, 0.0, spread):
+            x += tone(m, sec, harm, tilt, detune=d, vib=vib, vibhz=4.6 + 3 * d * 100)
+    x /= 3 * len(notes)
+    return x * env(len(tt), a, 0.6, s, r)
 
 
-def drama(bpm, bars, root, tier):
-    """Фон вопроса: tier 0 — ступени первой половины, 1 — второй (быстрее, выше, плотнее)."""
+def brass(notes, sec, bright=0.6, a=0.012):
+    """Аккорд-удар «медью»: яркая атака, верхние гармоники быстро гаснут."""
+    tt = t_(sec)
+    x = np.zeros_like(tt)
+    for m in notes:
+        for d in (-0.003, 0.003):
+            x += tone(m, sec, 14, 1.0, hdecay=3.5 / bright, detune=d)
+    x /= 2 * len(notes)
+    return x * env(len(tt), a, 0.35, 0.5, sec * 0.6)
+
+
+def timp(m, sec=2.0, gain=1.0):
+    tt = t_(sec)
+    fr = f(m) * (1 + 0.03 * np.exp(-tt * 25))
+    ph = 2 * np.pi * np.cumsum(fr) / SR
+    body = np.sin(ph) + 0.45 * np.sin(1.5 * ph) * np.exp(-tt * 3) + 0.2 * np.sin(2.0 * ph) * np.exp(-tt * 4)
+    stick = lp(hp(rng.standard_normal(len(tt)), 300), 3000) * np.exp(-tt * 70) * 0.25
+    return (body * np.exp(-tt * 1.8) + stick) * gain
+
+
+def sub(m, sec, gain=1.0):
+    """Мягкий удар-пульс снизу (сердце)."""
+    tt = t_(sec)
+    fr = f(m) * (1 + 0.8 * np.exp(-tt * 30))
+    ph = 2 * np.pi * np.cumsum(fr) / SR
+    return np.sin(ph) * np.exp(-tt * 9) * env(len(tt), 0.004, 0.05, 1.0, 0.05) * gain
+
+
+def glass(m, sec=1.2):
+    """Короткий стеклянный тон для пульсирующей «нити»."""
+    x = tone(m, sec, 4, 2.0, decay=7.0)
+    return x * env(len(x), 0.006, 0.0, 1.0, 0.03)
+
+
+def limiter(x, drive=1.4):
+    return np.tanh(x * drive) / np.tanh(drive)
+
+
+def bed(bpm, bars, root, tier):
+    """Фон вопроса. tier 0 — первая половина лестницы, 1 — вторая (быстрее, выше, тревожнее)."""
     beat = 60 / bpm
     bar = 4 * beat
     sec = bars * bar
     m = Mix(sec)
-    # Тянущиеся струны: тоника с напряжённым полутоном сверху, раз в 4 такта — сдвиг на полутон и обратно.
-    shapes = [[0, 7, 12, 15], [1, 8, 13, 16], [0, 7, 12, 15], [-2, 5, 10, 15]]
+    # Струны: минорное трезвучие и «тревожный» полутон, раз в 4 такта — сдвиг вверх на полутон и назад.
+    shapes = [[0, 7, 12, 15], [1, 8, 13, 16], [0, 7, 12, 15], [-1, 6, 11, 14]]
     for b in range(0, bars, 4):
-        sh = shapes[(b // 4) % len(shapes)]
-        m.add(strings([root + c for c in sh], 4 * bar + 2.0, 1100 + 700 * tier, 1.2, 1.8), b * bar, 0.0, 0.32)
-        # Высокая тянущаяся нота-«струна» — напряжение.
-        m.add(strings([root + 24 + sh[1]], 4 * bar + 2.0, 3000, 2.5, 2.0, 6.0), b * bar, 0.4, 0.06 + 0.03 * tier)
-    # Пульсирующая «нить» восьмыми на одной ноте (в tier 1 — шестнадцатыми), фильтр открывается к концу круга.
+        sh = shapes[(b // 4) % 4]
+        m.add(ens([root + c for c in sh], 4 * bar + 1.5, 7, 1.4, 1.8, 1.5), b * bar, 0.0, 0.5)
+    # Низкий тянущийся бас — тоника, без атаки.
+    tt = t_(sec)
+    drone = tone(root - 12, sec, 5, 1.6) * 0.5
+    m.add(drone * env(len(tt), 0.01, 0.1, 1.0, 0.01), 0.0, 0.0, 0.5)
+    # Пульсирующая «нить» на одной высокой ноте: восьмые (tier 1 — шестнадцатые), к концу круга громче.
     step = beat / (2 + 2 * tier)
-    n = int(sec / step)
+    n = int(round(sec / step))
+    hi = root + 36 + (3 if tier else 0)
     for k in range(n):
         p = k / n
-        note = root + 24 + (12 if tier and k % 4 == 3 else 0)
-        tt = t_(step * 0.8)
-        x = saw(f(note), tt, 0.003)
-        x = lp(x, 900 + 2600 * p ** 1.5) * env(len(tt), 0.003, 0.04, 0.4, 0.05)
-        m.add(x, k * step, -0.35 if k % 2 else 0.35, 0.09 if k % 2 else 0.12)
-    # Глухой бас-удар «сердца» на каждую долю, сильнее на первую; в tier 1 — двойной.
-    for k in range(bars * 4):
-        g = 0.9 if k % 4 == 0 else 0.6
-        m.add(kick(0.5, 75, 34, 1.0), k * beat, 0.0, g)
-        if tier and k % 2 == 1:
-            m.add(kick(0.35, 70, 34, 0.6), k * beat + beat * 0.5, 0.0, 0.4)
-    # Тихая литавра в начале каждых 4 тактов.
+        g = (0.10 + 0.10 * p) * (1.0 if k % 2 == 0 else 0.7)
+        m.add(glass(hi + (12 if tier and k % 8 == 7 else 0), 0.6), k * step, -0.4 if k % 2 else 0.4, g)
+    # Сердце: каждый такт «тук-тук» (tier 1 — каждые полтакта).
+    every = bar / (2 if tier else 1)
+    for k in range(int(round(sec / every))):
+        m.add(sub(root - 24, 0.4, 1.0), k * every, 0.0, 0.9)
+        m.add(sub(root - 24, 0.4, 0.6), k * every + 0.22, 0.0, 0.7)
+    # Литавра каждые 4 такта — «ступенька» напряжения.
     for b in range(0, bars, 4):
-        m.add(timpani(root - 12, 2.0, 1.0), b * bar, 0.0, 0.35)
-    L, R = reverb(m.L, 2.4, 0.25), reverb(m.R, 2.5, 0.25)
-    return L, R
+        m.add(timp(root - 12, 2.4), b * bar, 0.0, 0.45)
+    L, R = reverb(m.L, 2.6, 0.28), reverb(m.R, 2.7, 0.28)
+    return limiter(L), limiter(R)
 
 
-def question2():
-    m = oneshot(3.6)
-    m.add(whoosh(1.1, True), 0.0, -0.3, 0.4)
-    m.add(timpani(38, 2.2, 1.0), 1.1, 0.0, 0.9)
-    m.add(kick(0.9, 110, 34, 1.0), 1.1, 0.0, 0.8)
-    m.add(stab([50, 57, 62, 65, 69], 2.4, 5000), 1.1, 0.0, 0.5)
-    m.add(strings([74, 81], 2.4, 3500, 0.02, 1.8), 1.1, 0.3, 0.12)
+def question3():
+    m = oneshot(4.0)
+    m.add(whoosh(1.0, True), 0.0, -0.2, 0.25)
+    m.add(timp(38, 2.6), 1.0, 0.0, 1.0)
+    m.add(brass([50, 57, 62, 65, 69], 2.8, 0.7), 1.0, 0.0, 0.8)
+    m.add(ens([74, 77, 81], 2.8, 6, 1.6, 0.02, 2.0), 1.0, 0.2, 0.25)
     return m
 
 
-def lock2():
-    m = oneshot(4.2)
-    m.add(kick(1.4, 65, 28, 1.0), 0.0, 0.0, 1.0)
-    m.add(timpani(33, 2.6, 1.0), 0.0, 0.0, 0.8)
-    m.add(stab([38, 45, 50, 53, 56], 1.2, 2500, 0.003, 1.0), 0.0, 0.0, 0.45)
-    # Зловещее нарастание после удара.
-    m.add(strings([50, 51, 57, 62], 3.4, 1600, 1.6, 1.0), 0.4, 0.0, 0.32)
-    return m
-
-
-def right2():
+def lock3():
     m = oneshot(4.6)
-    m.add(timpani(43, 2.0, 1.0), 0.0, 0.0, 0.8)
-    m.add(kick(0.7, 130, 46, 0.8), 0.0, 0.0, 0.6)
-    # Яркий мажорный удар (ре мажор), через долю — выше (соль мажор над ре), как раскрытие.
-    m.add(stab([50, 57, 62, 66, 69, 74], 1.6, 7000), 0.0, 0.0, 0.55)
-    m.add(stab([55, 62, 67, 71, 74, 79], 3.0, 8000, 0.004, 2.4), 0.42, 0.0, 0.55)
-    m.add(strings([74, 78, 81, 86], 3.4, 6000, 0.05, 2.4), 0.42, 0.0, 0.18)
-    for i, n in enumerate([79, 83, 86, 91, 95, 98]):
-        m.add(bell(n, 2.0), 0.42 + i * 0.06, -0.6 + i * 0.24, 0.1)
+    m.add(timp(31, 3.0), 0.0, 0.0, 1.0)
+    m.add(sub(26, 1.0, 1.0), 0.0, 0.0, 0.9)
+    m.add(brass([38, 45, 50, 53], 1.6, 0.5, 0.006), 0.0, 0.0, 0.7)
+    # Зловещее нарастание: тремоло струн с полутоном.
+    tt = t_(3.8)
+    swell = ens([62, 63, 69], 3.8, 6, 1.4, 2.5, 0.6) * (0.75 + 0.25 * np.sin(2 * np.pi * 9 * tt))
+    m.add(swell, 0.5, 0.0, 0.45)
     return m
 
 
-def wrong2():
-    m = oneshot(4.2)
-    m.add(kick(1.4, 70, 26, 1.0), 0.0, 0.0, 1.0)
-    m.add(timpani(31, 2.4, 1.0), 0.0, 0.0, 0.8)
-    for i, n in enumerate([41, 44, 47, 50, 53]):
-        tt = t_(3.6)
-        glide = f(n) * (1 - 0.09 * np.clip(tt / 3.0, 0, 1) ** 1.3)
-        ph = 2 * np.pi * np.cumsum(glide) / SR
-        tone = sum((2 * ((ph * (1 + d) / (2 * np.pi)) % 1.0) - 1) for d in (-0.004, 0.0, 0.004)) / 3
-        m.add(lp(tone, 1400) * env(len(tt), 0.004, 0.3, 0.6, 2.4), 0.0, -0.4 + i * 0.2, 0.14)
-    m.add(whoosh(1.6, False), 0.1, 0.0, 0.18)
+def right3():
+    m = oneshot(5.0)
+    m.add(timp(45, 2.2), 0.0, 0.0, 0.9)
+    # Восходящий мотив медью (ре — фа# — ля — ре), затем полный мажорный аккорд с блёстками.
+    for i, n in enumerate([62, 66, 69]):
+        m.add(brass([n, n + 12], 0.5, 0.8), i * 0.13, -0.3 + i * 0.3, 0.5)
+    m.add(brass([50, 57, 62, 66, 69, 74], 4.0, 0.9), 0.39, 0.0, 0.9)
+    m.add(ens([74, 78, 81, 86], 4.0, 6, 1.5, 0.05, 2.6), 0.39, 0.0, 0.3)
+    for i, n in enumerate([86, 90, 93, 98, 102]):
+        m.add(bell(n, 1.8), 0.39 + i * 0.07, -0.6 + i * 0.3, 0.06)
+    return m
+
+
+def wrong3():
+    m = oneshot(4.6)
+    m.add(timp(29, 3.0), 0.0, 0.0, 1.0)
+    m.add(sub(24, 1.2, 1.0), 0.0, 0.0, 0.9)
+    # Низкий уменьшённый аккорд, медленно сползающий вниз на полтона.
+    tt = t_(4.0)
+    x = np.zeros_like(tt)
+    for n in (38, 41, 44, 47):
+        fr = f(n) * (1 - 0.055 * np.clip(tt / 3.2, 0, 1) ** 1.4)
+        ph = 2 * np.pi * np.cumsum(fr) / SR
+        for k in range(1, 9):
+            x += np.sin(k * ph) / k ** 1.3 * np.exp(-tt * 0.6 * (k - 1))
+    m.add(x / 4 * env(len(tt), 0.01, 0.4, 0.75, 2.6), 0.0, 0.0, 0.55)
+    return m
+
+
+def lifeline3():
+    m = oneshot(2.4)
+    m.add(whoosh(0.6, True), 0.0, -0.3, 0.18)
+    for i, n in enumerate([79, 83, 86, 91, 95]):
+        m.add(bell(n, 1.4), 0.2 + i * 0.06, 0.6 - i * 0.3, 0.08)
+    m.add(ens([67, 74, 79], 2.0, 5, 1.6, 0.05, 1.6), 0.2, 0.0, 0.2)
     return m
 
 
@@ -377,11 +428,11 @@ def write(path, L, R, fade_in=0.0, fade_out=0.0):
 
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "."
-    L, R = drama(92, 16, 38, 0)
+    L, R = bed(88, 16, 50, 0)
     write(f"{out}/think-low.wav", L, R)
-    L, R = drama(108, 16, 41, 1)
+    L, R = bed(104, 16, 53, 1)
     write(f"{out}/think-high.wav", L, R)
-    for name, make in (("question", question2), ("lock", lock2), ("right", right2), ("wrong", wrong2), ("lifeline", lifeline)):
+    for name, make in (("question", question3), ("lock", lock3), ("right", right3), ("wrong", wrong3), ("lifeline", lifeline3)):
         m = make()
         L, R = reverb(m.L, 2.4, 0.3), reverb(m.R, 2.5, 0.3)
-        write(f"{out}/{name}.wav", L, R, 0.0, 0.3)
+        write(f"{out}/{name}.wav", limiter(L), limiter(R), 0.0, 0.3)

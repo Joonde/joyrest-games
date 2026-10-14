@@ -4,7 +4,7 @@
  * и время мероприятия и сразу видит, кто свободен, кто занят и кто ничего не отметил; закрепляет
  * время за ведущим («Мероприятие JoyRest» — у ведущего это время становится занятым).
  */
-import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   addDays,
@@ -13,26 +13,23 @@ import {
   dayIndex,
   dayTitle,
   DEFAULT_QUERY,
-  endAfter,
   entriesOfDay,
   isWholeDay,
   KIND_TITLES,
-  monthGrid,
   monthTitle,
   NOTE_MAX,
   rangeLabel,
   STATUS_ORDER,
   STATUS_TITLES,
   timeLabel,
-  TIME_OPTIONS,
   todayMoscow,
-  WEEK_SHORT,
   weeklyDays,
   type MemberAvailability,
   type MemberStatus,
 } from "../../core/calendar";
 import { professionOf, professionTitle } from "../../core/professions";
-import { calendarRepo, permissions, useLoad, type AvailabilityEntry, type LoadState, type AvailabilityKind, type CalendarMember, type UserProfile } from "../../data";
+import { bookingId, bookingNote } from "../../core/events";
+import { calendarRepo, eventsRepo, permissions, useLoad, type AgencyEvent, type AvailabilityEntry, type AvailabilityKind, type CalendarMember, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
@@ -41,16 +38,12 @@ import { Tabs } from "../../components/Tabs";
 import { Toast, useToast } from "../../components/Toast";
 import { TopBar } from "../../components/TopBar";
 import { brand } from "../../themes/brand";
+import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
+import { EventForm, Planner, type EventDraft } from "./Planner";
 import { studioActions } from "./Studio";
 
 const KIND_COLORS: Record<AvailabilityKind, string> = { free: brand.sage, busy: brand.coral, booked: brand.gold };
 const STATUS_COLORS: Record<MemberStatus, string> = { free: brand.sage, partial: brand.gold, unknown: brand.taupe, busy: brand.coral };
-
-/** id записи создаёт браузер: повтор после обрыва — та же запись. */
-function newId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  return "c" + Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 20);
-}
 
 export function Calendar() {
   return (
@@ -60,14 +53,20 @@ export function Calendar() {
   );
 }
 
-type Tab = "who" | "mine";
+type Tab = "who" | "events" | "mine";
 
 function CalendarPage({ profile }: { profile: UserProfile }) {
   const [params, setParams] = useSearchParams();
   const owner = permissions.canViewTeamCalendar(profile);
-  const tab: Tab = owner && params.get("tab") !== "mine" ? "who" : "mine";
+  const asked = params.get("tab");
+  const tab: Tab = asked === "events" && eventsRepo ? "events" : asked === "mine" || !owner ? "mine" : "who";
   const [toast, showToast] = useToast();
   const actions = [{ label: "В студию", to: "/studio" }, ...studioActions(profile)];
+  const items: Array<{ id: Tab; label: string }> = [
+    ...(owner ? [{ id: "who" as const, label: "Кто может" }] : []),
+    ...(eventsRepo ? [{ id: "events" as const, label: owner ? "Мероприятия" : "Мои мероприятия" }] : []),
+    { id: "mine", label: "Мой календарь" },
+  ];
   return (
     <main className="page">
       <TopBar title="Календарь" actions={actions} />
@@ -75,93 +74,23 @@ function CalendarPage({ profile }: { profile: UserProfile }) {
         <p className="muted">Календарь доступен на своём сервере JoyRest.</p>
       ) : (
         <>
-          {owner && (
-            <Tabs
-              idPrefix="calendar"
-              label="Календарь"
-              value={tab}
-              onChange={(next) => setParams({ tab: next }, { replace: true })}
-              items={[
-                { id: "who", label: "Кто может" },
-                { id: "mine", label: "Мой календарь" },
-              ]}
-            />
+          {items.length > 1 && (
+            <Tabs idPrefix="calendar" label="Календарь" value={tab} onChange={(next) => setParams({ tab: next }, { replace: true })} items={items} />
           )}
-          <div id={`calendar-panel-${tab}`} role={owner ? "tabpanel" : undefined} className="stack">
-            {tab === "who" ? <WhoCan onToast={showToast} /> : <MyCalendar onToast={showToast} />}
+          <div id={`calendar-panel-${tab}`} role={items.length > 1 ? "tabpanel" : undefined} className="stack">
+            {tab === "who" ? (
+              <WhoCan onToast={showToast} />
+            ) : tab === "events" ? (
+              <Planner owner={permissions.canManageEvents(profile)} onToast={showToast} />
+            ) : (
+              <MyCalendar onToast={showToast} />
+            )}
           </div>
         </>
       )}
       <Toast text={toast} />
     </main>
   );
-}
-
-/** Подпись времени в списке: «02:00 (след. день)» для конца после полуночи. */
-function endOptionLabel(start: number, value: number): string {
-  return endAfter(start, value) > DAY_MINUTES ? `${timeLabel(value)} (след. день)` : timeLabel(value);
-}
-
-function TimeSelects({ start, end, onChange, disabled }: { start: number; end: number; onChange: (start: number, end: number) => void; disabled?: boolean }) {
-  // В списке «до» — время дня; меньше «с» — значит после полуночи.
-  const endValue = end % DAY_MINUTES;
-  return (
-    <div className="cal-times">
-      <label className="field">
-        <span className="field__label">С</span>
-        <select value={start} aria-label="С" disabled={disabled} onChange={(e) => {
-          const s = Number(e.target.value);
-          onChange(s, endAfter(s, endValue));
-        }}>
-          {TIME_OPTIONS.map((t) => (
-            <option key={t} value={t}>{timeLabel(t)}</option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span className="field__label">До</span>
-        <select value={endValue} aria-label="До" disabled={disabled} onChange={(e) => onChange(start, Math.min(endAfter(start, Number(e.target.value)), DAY_MINUTES + 6 * 60))}>
-          {TIME_OPTIONS.map((t) => (
-            <option key={t} value={t} disabled={endAfter(start, t) > DAY_MINUTES + 6 * 60}>
-              {endOptionLabel(start, t)}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
-  );
-}
-
-function Pill({ color, children }: { color: string; children: string }) {
-  return (
-    <span className="status-pill" style={{ "--status-color": color } as CSSProperties}>
-      {children}
-    </span>
-  );
-}
-
-/** Последние загруженные данные: пока грузится другой месяц, экран показывает прежние, а не заглушку. */
-function useLastReady<T>(state: LoadState<T>): T | null {
-  const last = useRef<T | null>(null);
-  if (state.status === "ready") last.current = state.data;
-  return last.current;
-}
-
-/** Месяц для загрузки: с первого по последнее число (сервер добавит прошлый день сам). */
-function monthRange(day: string): { from: string; to: string; year: number; month: number } {
-  const year = Number(day.slice(0, 4));
-  const month = Number(day.slice(5, 7));
-  const from = `${day.slice(0, 7)}-01`;
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  // Ночь последнего дня месяца задевает первое число следующего.
-  return { from, to: addDays(`${day.slice(0, 7)}-${String(last).padStart(2, "0")}`, 1), year, month };
-}
-
-function shiftMonth(day: string, delta: number): string {
-  const year = Number(day.slice(0, 4));
-  const month = Number(day.slice(5, 7)) - 1 + delta;
-  const d = new Date(Date.UTC(year, month, 1));
-  return d.toISOString().slice(0, 10);
 }
 
 // ───────────────────────────── Кто может (владелец) ─────────────────────────────
@@ -189,17 +118,16 @@ function WhoCan({ onToast }: { onToast: (text: string) => void }) {
     .sort((a, b) => STATUS_ORDER[a.info.status] - STATUS_ORDER[b.info.status] || a.member.name.localeCompare(b.member.name, "ru"));
   const counts = (status: MemberStatus) => rows.filter((r) => r.info.status === status).length;
 
-  async function book(member: CalendarMember, note: string) {
-    if (!calendarRepo) return;
-    const entry = await calendarRepo.book({ id: newId(), uid: member.uid, day, start, end, note });
-    update((data) => ({ ...data, entries: [...data.entries, entry] }));
-    onToast(`Время закреплено за: ${member.name}`);
+  function booked(event: AgencyEvent) {
+    const entry: AvailabilityEntry = { id: bookingId(event.id), uid: event.hostId, day: event.day, start: event.start, end: event.end, kind: "booked", note: bookingNote(event) };
+    update((data) => ({ ...data, entries: [...data.entries.filter((e) => e.id !== entry.id), entry] }));
+    onToast(`Мероприятие записано: ${event.hostName}. Оно во вкладке «Мероприятия».`);
   }
 
   function unbook(member: CalendarMember, entry: AvailabilityEntry) {
     ask({
       title: `Снять мероприятие у ${member.name}?`,
-      text: `${dayTitle(entry.day)}, ${rangeLabel(entry.start, entry.end)}${entry.note ? ` — ${entry.note}` : ""}. Время снова станет незанятым.`,
+      text: `${dayTitle(entry.day)}, ${rangeLabel(entry.start, entry.end)}${entry.note ? ` — ${entry.note}` : ""}. Время снова станет незанятым${entry.id.startsWith("ev-") ? ", мероприятие уйдёт в «Отменённые»" : ""}.`,
       confirmLabel: "Снять",
       run: async () => {
         await calendarRepo?.remove(entry.id);
@@ -236,7 +164,7 @@ function WhoCan({ onToast }: { onToast: (text: string) => void }) {
 
       <ul className={state.status === "ready" ? "cal-people" : "cal-people is-stale"} aria-busy={state.status !== "ready"}>
         {rows.map(({ member, info }) => (
-          <PersonRow key={member.uid} member={member} info={info} showProfession={everyone} onBook={book} onUnbook={unbook} />
+          <PersonRow key={member.uid} member={member} info={info} showProfession={everyone} draft={{ day, start, end, hostId: member.uid }} onBooked={booked} onUnbook={unbook} />
         ))}
       </ul>
       {rows.length === 0 && <p className="muted">В команде пока никого — добавьте людей в «Команда JoyRest → Управление».</p>}
@@ -251,33 +179,18 @@ function PersonRow({
   member,
   info,
   showProfession,
-  onBook,
+  draft,
+  onBooked,
   onUnbook,
 }: {
   member: CalendarMember;
   info: MemberAvailability;
   showProfession: boolean;
-  onBook: (member: CalendarMember, note: string) => Promise<void>;
+  draft: EventDraft;
+  onBooked: (event: AgencyEvent) => void;
   onUnbook: (member: CalendarMember, entry: AvailabilityEntry) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit() {
-    setBusy(true);
-    setError(null);
-    try {
-      await onBook(member, note.trim());
-      setOpen(false);
-      setNote("");
-    } catch {
-      setError("Не получилось закрепить. Проверьте интернет и попробуйте ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <li className="card cal-person">
@@ -304,22 +217,16 @@ function PersonRow({
         </div>
       ))}
       {info.status !== "busy" &&
-        (open ? (
-          <div className="stack">
-            <label className="field">
-              <span className="field__label">Что за мероприятие (увидит ведущий)</span>
-              <input type="text" maxLength={NOTE_MAX} value={note} placeholder="Например: корпоратив, 40 гостей" onChange={(e) => setNote(e.target.value)} />
-            </label>
-            {error && <p className="error" role="alert">{error}</p>}
-            <div className="actions">
-              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void submit()}>
-                {busy ? "Закрепляем…" : "Закрепить время"}
-              </button>
-              <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => setOpen(false)}>
-                Отмена
-              </button>
-            </div>
-          </div>
+        (open && eventsRepo ? (
+          <EventForm
+            day={draft.day}
+            draft={draft}
+            onCancel={() => setOpen(false)}
+            onSaved={(event) => {
+              setOpen(false);
+              onBooked(event);
+            }}
+          />
         ) : (
           <button type="button" className="btn btn--secondary btn--block" aria-label={`Закрепить это время за: ${member.name}`} onClick={() => setOpen(true)}>
             Закрепить это время
@@ -565,62 +472,3 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
   );
 }
 
-// ───────────────────────────── Сетка месяца ─────────────────────────────
-
-function MonthHeader({ year, month, onPrev, onNext }: { year: number; month: number; onPrev: () => void; onNext: () => void }) {
-  return (
-    <div className="cal-month">
-      <button type="button" className="btn btn--quiet" aria-label="Прошлый месяц" onClick={onPrev}>
-        ←
-      </button>
-      <span className="cal-month__title">{monthTitle(year, month)}</span>
-      <button type="button" className="btn btn--quiet" aria-label="Следующий месяц" onClick={onNext}>
-        →
-      </button>
-    </div>
-  );
-}
-
-function MonthGrid({
-  year,
-  month,
-  selected,
-  today,
-  render,
-  onPick,
-}: {
-  year: number;
-  month: number;
-  selected: string;
-  today?: string;
-  render: (day: string) => ReactNode;
-  onPick: (day: string) => void;
-}) {
-  const cells = monthGrid(year, month);
-  return (
-    <div className="cal-grid" role="grid" aria-label={monthTitle(year, month)}>
-      {WEEK_SHORT.map((w) => (
-        <span key={w} className="cal-grid__week" role="columnheader">
-          {w}
-        </span>
-      ))}
-      {cells.map((d, i) =>
-        d ? (
-          <button
-            key={d}
-            type="button"
-            className={`cal-day${d === selected ? " is-selected" : ""}${d === today ? " is-today" : ""}`}
-            aria-pressed={d === selected}
-            aria-label={dayTitle(d)}
-            onClick={() => onPick(d)}
-          >
-            <span className="cal-day__n">{Number(d.slice(8, 10))}</span>
-            {render(d)}
-          </button>
-        ) : (
-          <span key={`e${i}`} className="cal-day cal-day--empty" />
-        ),
-      )}
-    </div>
-  );
-}

@@ -8,6 +8,7 @@ import type { ProgramAction } from "../core/program";
 import type {
   AvailabilityEntry,
   CalendarMember,
+  AgencyEvent,
   SessionSummary,
   OfflinePlayer,
   OfferSummary,
@@ -257,6 +258,23 @@ export interface CalendarRepository {
   save(entry: { id: string; day: string; start: number; end: number; kind: "free" | "busy"; note: string }): Promise<AvailabilityEntry>;
   /** Владелец закрепляет время за человеком. */
   book(entry: { id: string; uid: string; day: string; start: number; end: number; note: string }): Promise<AvailabilityEntry>;
+  remove(id: string): Promise<void>;
+}
+
+/**
+ * Планировщик мероприятий (CLAUDE.md, раздел 3, «Календарь») — только свой сервер; у Firebase — null.
+ * Владелец видит и правит все, ведущий — только свои (без правки).
+ */
+export interface EventsRepository {
+  /** Мероприятия за период (окно до 62 дней, с прошлым днём), вместе с отменёнными. */
+  range(from: string, to: string): Promise<AgencyEvent[]>;
+  /** Списки: предстоящие и идущие, архив (прошедшие), отменённые — до 300 последних. */
+  list(scope: "upcoming" | "past" | "cancelled"): Promise<AgencyEvent[]>;
+  /** Владелец: новое мероприятие или правка (id от браузера — повтор та же запись). */
+  save(event: Omit<AgencyEvent, "hostName" | "cancelled">): Promise<AgencyEvent>;
+  cancel(id: string): Promise<AgencyEvent>;
+  restore(id: string): Promise<AgencyEvent>;
+  /** Удалить навсегда — только отменённое. */
   remove(id: string): Promise<void>;
 }
 

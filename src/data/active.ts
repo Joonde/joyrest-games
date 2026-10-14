@@ -14,6 +14,7 @@ import type {
   ScreenStatusRepository,
   AudienceRepository,
   CalendarRepository,
+  EventsRepository,
   TeamRepository,
   TracksRepository,
   StaffRepository,
@@ -32,6 +33,7 @@ import { participantsRepository } from "./participants";
 import { resultsRepository } from "./results";
 import { serverAuthService } from "./server/auth";
 import { serverCalendarRepository } from "./server/calendar";
+import { serverEventsRepository } from "./server/events";
 import { serverGamesRepository } from "./server/games";
 import { serverMediaRepository } from "./server/media";
 import { serverAnswersRepository } from "./server/answers";
@@ -79,3 +81,5 @@ export const audienceRepo: AudienceRepository | null = server ? serverAudienceRe
 export const venuesRepo: VenuesRepository | null = server ? serverVenuesRepository : null;
 /** Календарь команды — только свой сервер. */
 export const calendarRepo: CalendarRepository | null = server ? serverCalendarRepository : null;
+/** Планировщик мероприятий — только свой сервер. */
+export const eventsRepo: EventsRepository | null = server ? serverEventsRepository : null;

@@ -425,6 +425,28 @@ export interface AvailabilityEntry {
   note: string;
 }
 
+/**
+ * Мероприятие агентства (планировщик в календаре; только свой сервер). Имя и телефон клиента видят
+ * владелец и ведущий этого мероприятия; в Telegram они не уходят.
+ */
+export interface AgencyEvent {
+  id: string;
+  hostId: string;
+  hostName: string;
+  /** «ГГГГ-ММ-ДД», время — минуты от полуночи (конец до 06:00 следующего дня). */
+  day: string;
+  start: number;
+  end: number;
+  clientName: string;
+  clientPhone: string;
+  /** Что за мероприятие: «Свадьба», «Корпоратив»… */
+  title: string;
+  place: string;
+  guests: number | null;
+  note: string;
+  cancelled: boolean;
+}
+
 /** Человек в календаре владельца: имя и профессия, без почты. */
 export interface CalendarMember {
   uid: string;

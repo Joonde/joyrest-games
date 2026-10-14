@@ -123,6 +123,55 @@ describe.skipIf(!url)("календарь на PostgreSQL", () => {
     expect((await del("/api/calendar/a2", anna)).statusCode).toBe(200);
   });
 
+  it("планировщик: мероприятие занимает время ведущего, ведущий видит только свои, отмена и возврат", async () => {
+    const event = { id: "ev1", hostId: annaId, day, start: 1140, end: 1380, title: "Свадьба", clientName: "Ольга", clientPhone: "+7 999 000-00-00", place: "Лофт", guests: 60, note: "" };
+    expect((await post("/api/events", anna, event)).statusCode).toBe(403);
+    expect((await post("/api/events", owner, { ...event, title: "", clientName: "" })).statusCode).toBe(400);
+    const saved = await post("/api/events", owner, event);
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toMatchObject({ id: "ev1", hostName: "Анна", clientName: "Ольга", cancelled: false });
+    // Повтор с тем же id — правка, не дубль.
+    expect((await post("/api/events", owner, { ...event, guests: 70 })).json()).toMatchObject({ guests: 70 });
+    let data = await team();
+    const of = (uid: string) => data.entries.filter((e) => e.uid === uid);
+    expect(availabilityOf(of(annaId), day, 1140, 1380).status).toBe("busy");
+    // В календаре ведущего — без имени и телефона клиента.
+    const booked = data.entries.find((e) => e.id === "ev-ev1");
+    expect(booked).toMatchObject({ kind: "booked", note: "Свадьба, 70 гостей" });
+    // Ведущий видит своё мероприятие (за период и в «Предстоящих»), Борис — нет.
+    const annaRange = (await get(`/api/events?from=${day}&to=${day}`, anna)).json().events as Array<{ id: string }>;
+    expect(annaRange.map((e) => e.id)).toEqual(["ev1"]);
+    expect(((await get("/api/events?scope=upcoming", anna)).json().events as Array<{ id: string }>).map((e) => e.id)).toEqual(["ev1"]);
+    expect((await get(`/api/events?from=${day}&to=${day}`, boris)).json().events).toEqual([]);
+    expect((await post("/api/events/ev1/cancel", anna)).statusCode).toBe(403);
+    // Отмена: время освобождается, мероприятие — в «Отменённых».
+    expect((await post("/api/events/ev1/cancel", owner)).json()).toMatchObject({ cancelled: true });
+    expect((await post("/api/events/ev1/cancel", owner)).statusCode).toBe(200);
+    data = await team();
+    expect(data.entries.some((e) => e.id === "ev-ev1")).toBe(false);
+    expect(((await get("/api/events?scope=cancelled", owner)).json().events as Array<{ id: string }>).map((e) => e.id)).toContain("ev1");
+    expect(((await get("/api/events?scope=upcoming", owner)).json().events as Array<{ id: string }>).map((e) => e.id)).not.toContain("ev1");
+    // Отменённое не правится, только возвращается.
+    expect((await post("/api/events", owner, event)).statusCode).toBe(409);
+    expect((await post("/api/events/ev1/restore", owner)).json()).toMatchObject({ cancelled: false });
+    data = await team();
+    expect(data.entries.some((e) => e.id === "ev-ev1")).toBe(true);
+    // «Снять мероприятие» в «Кто может» — отменяет его.
+    expect((await del("/api/calendar/ev-ev1", owner)).statusCode).toBe(200);
+    expect((await get(`/api/events?from=${day}&to=${day}`, owner)).json().events[0]).toMatchObject({ id: "ev1", cancelled: true });
+    // Перенос на другого ведущего: запись календаря переезжает.
+    await post("/api/events/ev1/restore", owner);
+    await post("/api/events", owner, { ...event, hostId: borisId });
+    data = await team();
+    expect(data.entries.find((e) => e.id === "ev-ev1")?.uid).toBe(borisId);
+    // Удалить навсегда — только отменённое.
+    expect((await del("/api/events/ev1", owner)).statusCode).toBe(409);
+    await post("/api/events/ev1/cancel", owner);
+    expect((await del("/api/events/ev1", anna)).statusCode).toBe(403);
+    expect((await del("/api/events/ev1", owner)).statusCode).toBe(200);
+    expect((await get("/api/events?scope=cancelled", owner)).json().events).toEqual([]);
+  });
+
   it("отключённого человека нет в календаре команды, и за ним не закрепить время", async () => {
     await post(`/api/users/${borisId}/active`, owner, { active: false });
     const data = await team();

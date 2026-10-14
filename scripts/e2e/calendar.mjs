@@ -2,7 +2,8 @@
 // (Playwright, телефон 390 px) под двумя входами — ведущий (load@joy-rest.ru) и владелец (TEST_ADMIN_*).
 // Ведущий отмечает свободное и занятое время (весь день, часы, за полночь, повтор по неделям), убирает отметку;
 // владелец видит «Может / Свободен частично / Не отметил / Занят», закрепляет время за ведущим, ведущий видит
-// мероприятие и не может его снять, владелец снимает. Права проверяются и через API. Даты — через 40+ дней
+// мероприятие и не может его снять, владелец снимает. Планировщик: мероприятие с клиентом и телефоном, день по
+// часам, 7 дней, месяц, списки, отмена и удаление; ведущий видит свои мероприятия без правки. Права проверяются и через API. Даты — через 40+ дней
 // от сегодня, всё созданное в конце убирается. Снимки — в папку E2E_SHOTS (workflow кладёт их в ветку e2e-shots).
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -100,6 +101,13 @@ async function cleanup(host, admin) {
   for (const e of mine.data?.entries ?? []) {
     if (e.day < D1) continue;
     await api("DELETE", `/api/calendar/${e.id}`, e.kind === "booked" ? admin.cookie : host.cookie);
+  }
+  // Мероприятия проверки: отменить и удалить навсегда.
+  const events = await api("GET", `/api/events?from=${D1}&to=${D3}`, admin.cookie);
+  for (const e of events.data?.events ?? []) {
+    if (!/проверка/.test(e.title)) continue;
+    if (!e.cancelled) await api("POST", `/api/events/${e.id}/cancel`, admin.cookie, {});
+    await api("DELETE", `/api/events/${e.id}`, admin.cookie);
   }
 }
 
@@ -262,7 +270,7 @@ try {
   const ap = await newPage(browser, admin.token, "Владелец");
   await ap.goto(`${BASE}/studio/calendar`);
   await until(async () => (await ap.getByRole("tab", { name: "Кто может" }).count()) > 0, WAIT, "вкладка «Кто может»");
-  ok("Владелец: вкладки «Кто может» и «Мой календарь»");
+  ok("Владелец: вкладки «Кто может», «Мероприятия» и «Мой календарь»");
   await query(ap, D1, 1080, 1380);
   await expectStatus(ap, hostName, "Может", `Владелец, ${D1} 18:00–23:00`);
   await shot(ap, "владелец-может");
@@ -288,18 +296,29 @@ try {
   const count = Number((await ap.locator(`.cal-grid button[aria-label="${dayTitle(D1)}"] .cal-count`).textContent())?.trim() || "0");
   check(count >= 1, `Владелец: в месяце у ${D1} число свободных — ${count}`, `Владелец: у ${D1} в месяце 0 свободных`);
 
-  // Закрепить время за ведущим.
+  // Закрепить время за ведущим — форма мероприятия (клиент, телефон, что за мероприятие).
   const { row } = await statusOf(ap, hostName);
   await row.getByRole("button", { name: /Закрепить это время/ }).click();
+  const hostSelect = row.getByRole("combobox", { name: "Ведущий" });
+  const hostChosen = (await hostSelect.locator("option:checked").textContent()) ?? "";
+  check(hostChosen.startsWith(hostName), "Владелец: в форме уже выбран этот ведущий", `Владелец: в форме выбран «${hostChosen}»`);
+  check(hostChosen.includes("может"), "Владелец: рядом с ведущим — «может»", `Владелец: в списке ведущих «${hostChosen}»`);
   await row.getByLabel(/Что за мероприятие/).fill("Корпоратив, проверка");
-  await row.getByRole("button", { name: "Закрепить время" }).click();
-  await expectStatus(ap, hostName, "Занят", "Владелец: после «Закрепить» ведущий занят");
+  await row.getByLabel("Клиент — имя").fill("Клиент Проверка");
+  await row.getByLabel("Телефон клиента").fill("+7 900 000-00-00");
+  await row.getByLabel("Гостей").fill("40");
+  await shot(ap, "владелец-форма-мероприятия");
+  await row.getByRole("button", { name: "Записать мероприятие" }).click();
+  await expectStatus(ap, hostName, "Занят", "Владелец: после «Записать мероприятие» ведущий занят");
   const booked = await statusOf(ap, hostName);
-  check(booked.text.includes("Мероприятие JoyRest") && booked.text.includes("Корпоратив, проверка"), "Владелец: в строке «Мероприятие JoyRest» и заметка", `Владелец: в строке «${booked.text.slice(0, 120)}»`);
+  check(booked.text.includes("Мероприятие JoyRest") && booked.text.includes("Корпоратив, проверка, 40 гостей"), "Владелец: в строке «Мероприятие JoyRest» и что за мероприятие", `Владелец: в строке «${booked.text.slice(0, 120)}»`);
   await shot(ap, "владелец-закрепил");
+  const saved = ((await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []).find((e) => e.title === "Корпоратив, проверка");
+  check(saved?.clientName === "Клиент Проверка" && saved?.clientPhone === "+7 900 000-00-00" && saved?.guests === 40 && saved?.hostName === hostName, "API: мероприятие сохранено с клиентом, телефоном, гостями и ведущим", `API: сохранено ${JSON.stringify(saved ?? null).slice(0, 160)}`);
+  check(!booked.text.includes("Клиент Проверка"), "Владелец: в календаре ведущего имени клиента нет (только в мероприятии)");
 
-  // Ведущий видит мероприятие и не может его снять.
-  await hp.goto(`${BASE}/studio/calendar`);
+  // Ведущий видит мероприятие в календаре и не может его снять.
+  await hp.goto(`${BASE}/studio/calendar?tab=mine`);
   await until(async () => (await hp.locator(".cal-grid").count()) > 0, WAIT, "сетка после перезагрузки");
   await openDay(hp, D1);
   const t1 = await entryTexts(hp);
@@ -308,13 +327,98 @@ try {
   check(removeBooked === 0, "Ведущий: у мероприятия нет кнопки «Убрать»", "Ведущий может убрать мероприятие владельца");
   const bookedEntry = ((await api("GET", `/api/calendar?from=${D1}&to=${D1}`, host.cookie)).data?.entries ?? []).find((e) => e.kind === "booked");
   check(bookedEntry && (await api("DELETE", `/api/calendar/${bookedEntry.id}`, host.cookie)).status === 403, "API: ведущий не может удалить мероприятие (403)");
+  check((await api("POST", "/api/events", host.cookie, { id: "e2eev0", hostId: host.profile.uid, day: D1, start: 600, end: 700, title: "проверка" })).status === 403, "API: ведущий не может записывать мероприятия (403)");
   await shot(hp, "ведущий-видит-мероприятие");
 
-  // Владелец снимает мероприятие.
+  // ===== Владелец: вкладка «Мероприятия» — день по часам, 7 дней, месяц, списки =====
+  await ap.goto(`${BASE}/studio/calendar?tab=events`);
+  await until(async () => (await ap.locator(".plan-timeline").count()) > 0, WAIT, "таймлайн дня");
+  ok("Владелец: вкладка «Мероприятия» открывается днём по часам");
+  await ap.locator('input[type="date"]').fill(D1);
+  const evBlock = ap.locator(".plan-event", { hasText: "Корпоратив, проверка" });
+  await until(async () => (await evBlock.count()) === 1, WAIT, "мероприятие на таймлайне");
+  const blockText = ((await evBlock.textContent()) ?? "").replace(/\s+/g, " ");
+  check(blockText.includes("18:00–23:00") && blockText.includes(`Ведёт: ${hostName}`), "Владелец: на таймлайне — время и кто ведёт", `Владелец: на плашке «${blockText}»`);
+  await evBlock.click();
+  const card = ap.locator(".plan-card").first();
+  await card.waitFor({ timeout: WAIT });
+  const cardText = ((await card.textContent()) ?? "").replace(/\s+/g, " ");
+  check(cardText.includes("Клиент Проверка") && cardText.includes("+7 900 000-00-00") && cardText.includes("Предстоит"), "Владелец: в карточке клиент, телефон и «Предстоит»", `Владелец: карточка «${cardText.slice(0, 160)}»`);
+  await shot(ap, "владелец-день-по-часам");
+  await noSideScroll(ap, "Владелец, день по часам");
+
+  // Второе мероприятие в то же время — предупреждение «занят» и две колонки на таймлайне.
+  await ap.getByRole("button", { name: "+ Мероприятие в этот день" }).click();
+  await ap.getByLabel("С", { exact: true }).selectOption("1140");
+  await ap.getByLabel("До", { exact: true }).selectOption("1320");
+  const opt = ap.getByRole("combobox", { name: "Ведущий" }).locator("option", { hasText: hostName }).first();
+  await until(async () => /занят/.test((await opt.textContent()) ?? ""), WAIT, "ведущий занят в списке");
+  await ap.getByRole("combobox", { name: "Ведущий" }).selectOption({ label: ((await opt.textContent()) ?? "").trim() });
+  check((await ap.locator("#event-form").locator("..").textContent())?.includes("Записать всё равно можно"), "Владелец: форма предупреждает, что ведущий занят");
+  await ap.getByLabel(/Что за мероприятие/).fill("Квиз-вечер, проверка");
+  await ap.getByRole("button", { name: "Записать мероприятие" }).click();
+  await until(async () => (await ap.locator(".plan-event").count()) === 2, WAIT, "два мероприятия на таймлайне");
+  const widths = await ap.locator(".plan-event").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+  const lanesW = await ap.locator(".plan-lanes").evaluate((el) => el.getBoundingClientRect().width);
+  check(widths.every((w) => w < lanesW * 0.6), "Владелец: пересекающиеся мероприятия — в две колонки", `Владелец: ширины ${widths.map(Math.round).join(", ")} из ${Math.round(lanesW)}`);
+  await shot(ap, "владелец-два-мероприятия");
+
+  // 7 дней и месяц.
+  await ap.getByRole("button", { name: "7 дней", exact: true }).click();
+  await until(async () => (await ap.locator(".plan-chip", { hasText: "Корпоратив, проверка" }).count()) === 1, WAIT, "мероприятие в 7 днях");
+  ok("Владелец: «7 дней» — мероприятие в своём дне");
+  await shot(ap, "владелец-7-дней");
+  await noSideScroll(ap, "Владелец, 7 дней");
+  await ap.getByRole("button", { name: "Месяц", exact: true }).click();
+  const n = Number((await ap.locator(`.cal-grid button[aria-label="${dayTitle(D1)}"] .cal-count`).textContent())?.trim() || "0");
+  check(n === 2, "Владелец: в месяце у дня — 2 мероприятия", `Владелец: в месяце у дня ${n}`);
+  await shot(ap, "владелец-месяц");
+
+  // Списком: предстоящие → отменить квиз → отменённые → удалить навсегда.
+  await ap.getByRole("button", { name: "Списком", exact: true }).click();
+  const quizCard = ap.locator(".plan-card", { hasText: "Квиз-вечер, проверка" });
+  await until(async () => (await quizCard.count()) === 1, WAIT, "квиз в «Предстоящих»");
+  ok("Владелец: «Предстоящие» — оба мероприятия в списке");
+  await quizCard.getByRole("button", { name: "Отменить мероприятие" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Отменить мероприятие" }).click();
+  await until(async () => (await quizCard.count()) === 0, WAIT, "квиз ушёл из «Предстоящих»");
+  await ap.getByRole("button", { name: "Отменённые", exact: true }).click();
+  await until(async () => (await quizCard.count()) === 1, WAIT, "квиз в «Отменённых»");
+  ok("Владелец: отменённое — в «Отменённых»");
+  await ap.getByRole("button", { name: "Архив", exact: true }).click();
+  await ap.waitForTimeout(800);
+  check((await ap.locator(".plan-card", { hasText: "проверка" }).count()) === 0, "Владелец: будущие мероприятия в архив не попадают");
+  await ap.getByRole("button", { name: "Отменённые", exact: true }).click();
+  await quizCard.getByRole("button", { name: "Удалить навсегда" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Удалить навсегда" }).click();
+  await until(async () => (await quizCard.count()) === 0, WAIT, "квиз удалён");
+  ok("Владелец: «Удалить навсегда» — запись исчезла");
+  await shot(ap, "владелец-списки");
+
+  // Ведущий: «Мои мероприятия» — видит своё, без правки.
+  await hp.goto(`${BASE}/studio/calendar?tab=events`);
+  await until(async () => (await hp.getByRole("tab", { name: "Мои мероприятия" }).count()) > 0, WAIT, "вкладка «Мои мероприятия»");
+  await hp.locator('input[type="date"]').fill(D1);
+  const hostBlock = hp.locator(".plan-event", { hasText: "Корпоратив, проверка" });
+  await until(async () => (await hostBlock.count()) === 1, WAIT, "мероприятие у ведущего");
+  await hostBlock.click();
+  const hostCard = hp.locator(".plan-card").first();
+  await hostCard.waitFor({ timeout: WAIT });
+  check(((await hostCard.textContent()) ?? "").includes("Клиент Проверка"), "Ведущий: видит своё мероприятие с клиентом");
+  check((await hostCard.getByRole("button", { name: "Изменить" }).count()) === 0 && (await hp.getByRole("button", { name: "+ Новое мероприятие" }).count()) === 0, "Ведущий: без «Изменить» и «Новое мероприятие»");
+  await shot(hp, "ведущий-мои-мероприятия");
+  await noSideScroll(hp, "Ведущий, мои мероприятия");
+
+  // Владелец снимает мероприятие в «Кто может» — оно уходит в «Отменённые».
+  await ap.goto(`${BASE}/studio/calendar`);
+  await until(async () => (await ap.getByRole("tab", { name: "Кто может" }).count()) > 0, WAIT, "вкладка «Кто может»");
+  await query(ap, D1, 1080, 1380);
   const { row: row2 } = await statusOf(ap, hostName);
   await row2.getByRole("button", { name: "Снять мероприятие" }).click();
   await ap.getByRole("dialog").getByRole("button", { name: "Снять" }).click();
   await expectStatus(ap, hostName, "Может", "Владелец: после «Снять мероприятие» ведущий снова может");
+  const after = ((await api("GET", `/api/events?from=${D1}&to=${D1}`, admin.cookie)).data?.events ?? []).find((e) => e.title === "Корпоратив, проверка");
+  check(after?.cancelled === true, "Владелец: снятое мероприятие ушло в «Отменённые»", `API: мероприятие ${JSON.stringify(after ?? null).slice(0, 100)}`);
 
   // «Вся команда» — список не меньше.
   const before = await ap.locator("li.cal-person").count();

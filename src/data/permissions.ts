@@ -196,6 +196,17 @@ export function canRemoveCalendarEntry(actor: Actor, entry: { uid: string; kind:
   return isActiveHost(actor) && actor?.uid === entry.uid && entry.kind !== "booked";
 }
 
+/** Планировщик: записать, изменить и отменить мероприятие — только владелец. */
+export function canManageEvents(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Свои мероприятия (кто клиент, где, когда) видит ведущий, за которым они закреплены. */
+export function canViewEvent(actor: Actor, event: { hostId: string }): boolean {
+  if (isAdmin(actor)) return true;
+  return isActiveHost(actor) && actor?.uid === event.hostId;
+}
+
 /**
  * База площадок и заявки клиентов (CLAUDE.md, «База площадок»; только свой сервер): владелец и
  * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.

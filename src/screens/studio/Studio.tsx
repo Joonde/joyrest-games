@@ -57,7 +57,7 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     { label: "Как проводить игры", to: "/studio/guide" },
     // Календарь — только свой сервер: владелец видит, кто может в дату мероприятия; остальные отмечают свободные дни.
     ...(calendarRepo && permissions.canEditOwnCalendar(profile)
-      ? [{ label: permissions.canViewTeamCalendar(profile) ? "Календарь: кто может" : "Мой календарь", to: "/studio/calendar" }]
+      ? [{ label: permissions.canViewTeamCalendar(profile) ? "Календарь и мероприятия" : "Мой календарь", to: "/studio/calendar" }]
       : []),
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),

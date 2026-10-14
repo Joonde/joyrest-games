@@ -106,6 +106,15 @@ describe("календарь", () => {
     expect(p.canRemoveCalendarEntry(off, { uid: "off", kind: "free" })).toBe(false);
     expect(p.canRemoveCalendarEntry(owner, { uid: "host-1", kind: "booked" })).toBe(true);
   });
+  it("мероприятия планировщика записывает владелец, ведущий видит только свои", () => {
+    expect(p.canManageEvents(owner)).toBe(true);
+    expect(p.canManageEvents(host)).toBe(false);
+    expect(p.canViewEvent(host, { hostId: "host-1" })).toBe(true);
+    expect(p.canViewEvent(other, { hostId: "host-1" })).toBe(false);
+    expect(p.canViewEvent(off, { hostId: "off" })).toBe(false);
+    expect(p.canViewEvent(guest, { hostId: "host-1" })).toBe(false);
+    expect(p.canViewEvent(owner, { hostId: "host-1" })).toBe(true);
+  });
 });
 
 describe("музыка", () => {

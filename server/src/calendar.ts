@@ -184,7 +184,11 @@ export function registerCalendar(app: FastifyInstance, options: CalendarOptions)
       if (!permissions.canRemoveCalendarEntry(actorOf(user), { uid: existing.user_id, kind: existing.kind })) {
         return fail(reply, 403, "permission-denied");
       }
-      await sql`delete from availability where id = ${id}`;
+      await sql.begin(async (tx) => {
+        await tx`delete from availability where id = ${id}`;
+        // Запись мероприятия планировщика: снять время — значит отменить мероприятие (оно уходит в «Отменённые»).
+        if (id.startsWith("ev-")) await tx`update events set cancelled_at = coalesce(cancelled_at, now()), updated_at = now() where id = ${id.slice(3)}`;
+      });
       request.log.info({ calendar: "remove" }, "calendar");
       return { ok: true };
     });

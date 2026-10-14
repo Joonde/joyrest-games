@@ -71,7 +71,8 @@ const D3 = addDays(TODAY, 42); // ничего не отмечено
 async function api(method, path, cookie, body) {
   const res = await fetch(BASE + path, {
     method,
-    headers: { "Content-Type": "application/json", "X-JoyRest": "1", Origin: BASE, Cookie: cookie },
+    // Без тела — без Content-Type (иначе сервер отвечает 400 «пустое тело»).
+    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), "X-JoyRest": "1", Origin: BASE, Cookie: cookie },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => null);
@@ -216,10 +217,17 @@ try {
   await hp.getByRole("radio", { name: /^Занят/ }).check();
   await hp.getByLabel("С", { exact: true }).selectOption("720");
   await hp.getByLabel("До", { exact: true }).selectOption("840");
-  await hp.getByLabel(/Заметка/).fill("Своё мероприятие (проверка)");
+  const noteInput = hp.getByLabel(/Заметка/);
+  await noteInput.click();
+  await noteInput.fill("Своё мероприятие (проверка)");
+  const typed = await noteInput.inputValue();
+  check(typed === "Своё мероприятие (проверка)", "Ведущий: заметка набрана в поле", `Ведущий: в поле заметки «${typed}»`);
   await hp.getByRole("button", { name: /^Добавить:/ }).click();
   await until(async () => (await entryTexts(hp)).some((t) => t.includes("Занят") && t.includes("12:00–14:00")), WAIT, "запись «занят 12–14»");
-  ok("Ведущий: «Занят 12:00–14:00» с заметкой — запись появилась");
+  ok("Ведущий: «Занят 12:00–14:00» — запись появилась");
+  const busySaved = ((await api("GET", `/api/calendar?from=${D1}&to=${D1}`, host.cookie)).data?.entries ?? []).find((e) => e.kind === "busy");
+  check(busySaved?.note === "Своё мероприятие (проверка)", "Ведущий: заметка сохранилась на сервере", `Ведущий: на сервере заметка «${busySaved?.note ?? "нет записи"}»`);
+  check((await entryTexts(hp)).some((t) => t.includes("Своё мероприятие (проверка)")), "Ведущий: заметка видна в списке дня", "Ведущий: заметки нет в списке дня");
   const dots = await hp.locator(`button[aria-label="${dayTitle(D1)}"] .cal-dot`).count();
   check(dots === 2, "Ведущий: на дне две точки — свободен и занят", `Ведущий: точек на дне ${dots}, ждали 2`);
   await shot(hp, "ведущий-день-1");

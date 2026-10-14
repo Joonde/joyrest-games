@@ -387,9 +387,12 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
             </div>
           )
         ) : (
-          <p className="muted">
-            Ходит <NameText name={nameOf(session, r.turn)} />
-          </p>
+          <div className="buzz__plate" role="status">
+            <strong>
+              Ходит <NameText name={nameOf(session, r.turn)} />
+            </strong>
+            <span>{r.turn === pid ? "Ставку делает ваш капитан" : "Вы наблюдаете — ждите своей очереди, нажимать ничего не нужно"}</span>
+          </div>
         )}
       </div>
     );

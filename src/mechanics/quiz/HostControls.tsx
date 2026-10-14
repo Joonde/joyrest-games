@@ -178,13 +178,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
     return buzzRightAnswer(latest.current, content, all, participants);
   }
 
-  const buttons = (
+  // Кто отвечает голосом — первым делом сверху пульта, а не под текстом вопроса (14 октября 2026).
+  const speakingBlock = (
     <>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
       {speaking && (
         <div className="host-buzz" role="status" aria-live="assertive">
           <span className="host-buzz__label">Отвечает</span>
@@ -200,6 +196,15 @@ export function QuizHostControls({ session, content, answers, participants, cont
             </button>
           </div>
         </div>
+      )}
+    </>
+  );
+  const buttons = (
+    <>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
       )}
       <div className="actions">
         <button type="button" className={speaking ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"} disabled={busy} onClick={onPrimary}>
@@ -242,6 +247,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
 
   return (
     <div className="stack host-quiz">
+      {speakingBlock}
       <div className="stack stack--tight">
         {round && <p className="eyebrow">{roundTitle(round)}</p>}
         <p className="eyebrow">

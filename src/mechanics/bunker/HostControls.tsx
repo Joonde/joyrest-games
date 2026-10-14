@@ -458,7 +458,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
           <p>Ничья! Каждому — оправдательная речь {content.justifySeconds} с, потом переголосование только между ними. Снова ничья — жребий.</p>
           {r.candidates.map((p) => (
             <button key={p} type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(giveWord(session, r.speaker === p ? null : p, content.justifySeconds, now))}>
-              {r.speaker === p && r.speakEndsAt !== null ? `Говорит ${nm(p)} · ${clock(r.speakEndsAt - now)}` : `Слово: ${nm(p)}`}
+              {r.speaker === p && r.speakEndsAt !== null ? `⏹ Стоп · говорит ${nm(p)} · ${clock(r.speakEndsAt - now)}` : `Слово: ${nm(p)}`}
             </button>
           ))}
         </div>

@@ -92,6 +92,11 @@ export function TruthHostControls({ session, content, answers, participants, con
           <p>
             {r.mode === "done" ? "Ходил(а)" : "Ходит"}: <strong><NameText name={name(who)} /></strong>
           </p>
+          {pending.length > 0 && (
+            <a className="mil-host-live" href="#td-inbox" role="status">
+              📨 Гости прислали задания: <strong>{pending.length}</strong> — ниже «В колоду» / «Не брать»
+            </a>
+          )}
           {r.mode === "pick" && <p className="muted small">Ждём выбор на телефоне — или выберите за игрока:</p>}
           {r.mode === "pick" && (
             <div className="td-host__pick">
@@ -120,7 +125,7 @@ export function TruthHostControls({ session, content, answers, participants, con
       )}
 
       {pending.length > 0 && (
-        <section className="stack stack--tight">
+        <section className="stack stack--tight" id="td-inbox">
           <p className="eyebrow">Прислали гости · {pending.length}</p>
           <ul className="td-host__inbox">
             {pending.map((s) => (

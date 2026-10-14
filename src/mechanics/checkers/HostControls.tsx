@@ -155,20 +155,23 @@ export function CheckersHostControls({ session, content, answers, participants, 
               <p className="muted small">
                 Отвечает <NameText name={name(r.victim)} /> — потеряли шашку. Верно — +20.
               </p>
+              {/* Ответ с телефона — над текстом вопроса, сразу на виду. */}
+              {stage === "question" && (
+                <div className="host-quiz__live" aria-live="polite">
+                  <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
+                    {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
+                  </span>
+                  <span>
+                    Ответ с телефона: <strong>{victimAnswer ? (isRight(q, victimAnswer.value) ? "верно" : "неверно") : "ещё нет"}</strong>
+                  </span>
+                </div>
+              )}
               <p className="host-quiz__question">{q.text}</p>
               <p className="muted small">
                 Верный ответ: <strong className="host-quiz__answer">{q.kind === "choice" ? q.options[q.correct] : q.answers.join(" / ")}</strong>
               </p>
               {stage === "question" && (
                 <>
-                  <div className="host-quiz__live" aria-live="polite">
-                    <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
-                      {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
-                    </span>
-                    <span>
-                      Ответ с телефона: <strong>{victimAnswer ? (isRight(q, victimAnswer.value) ? "верно" : "неверно") : "ещё нет"}</strong>
-                    </span>
-                  </div>
                   <p className="muted small">Ответили вслух или это задание — засчитайте сами:</p>
                   <div className="row checkers-host__movers">
                     <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === true} disabled={busy} onClick={() => void run(markTask(session, r.taskOk === true ? null : true))}>

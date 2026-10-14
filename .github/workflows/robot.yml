@@ -40,7 +40,13 @@ jobs:
           npm i --no-save --no-audit --no-fund playwright@1.48.2
           npx playwright install --with-deps chromium
       - name: Сборка страницы робота
-        run: node scripts/robot/build.mjs /tmp/robot
+        run: |
+          set +e
+          node scripts/robot/build.mjs /tmp/robot > /tmp/robot-build.log 2>&1
+          st=$?
+          cat /tmp/robot-build.log
+          # Журнал Actions недоступен с телефона и из сессии — ошибки сборки дублируем аннотациями.
+          if [ $st -ne 0 ]; then grep -iE "error|✘|could not|no matching" /tmp/robot-build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
       - name: Робот проводит игры
         env:
           PAR: "6"

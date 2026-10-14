@@ -175,8 +175,15 @@ export function SurvivalHostControls({ session, content, answers, participants, 
                       </span>
                     </button>
                     {round.kind === "task" && r.phase === "play" && (
-                      <button type="button" className="btn btn--secondary sv-mark-row__timer" disabled={busy} onClick={() => void run(startTaskTimer(session, p, Date.now() + clock.offset()))}>
-                        ▶ 30 с
+                      // Та же кнопка убирает отсчёт с экрана (решение владельца 14 октября 2026: «открыл — закрыл той же кнопкой»).
+                      <button
+                        type="button"
+                        className={r.taskTimer?.pid === p ? "btn sv-mark-row__timer" : "btn btn--secondary sv-mark-row__timer"}
+                        aria-pressed={r.taskTimer?.pid === p}
+                        disabled={busy}
+                        onClick={() => void run(startTaskTimer(session, r.taskTimer?.pid === p ? null : p, Date.now() + clock.offset()))}
+                      >
+                        {r.taskTimer?.pid === p ? "⏹ Убрать" : "▶ 30 с"}
                       </button>
                     )}
                     </div>

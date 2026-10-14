@@ -470,7 +470,7 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
             ))}
           </div>
         </>
-      ) : stage === "question" && round.kind === "open" && canAct ? (
+      ) : stage === "question" && round.kind === "open" && canAct && inWar ? (
         <form
           className="stack stack--tight"
           onSubmit={(e) => {
@@ -488,6 +488,12 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
         <>
           {round.kind === "task" && <p className="eyebrow">Задание · {pointsLabel(round.points)}</p>}
           <RoundCard round={round} result={r} reveal={stage === "reveal"} size="phone" />
+          {stage === "question" && round.kind === "task" && r.taskTimer && (
+            <div className={r.taskTimer.pid === pid ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
+              <strong>{r.taskTimer.pid === pid ? "Ваша очередь — показывайте!" : <>Сейчас показывает <NameText name={session.leaderboard[r.taskTimer.pid]?.name ?? "команда"} /></>}</strong>
+              {r.taskTimer.pid !== pid && <span>Вы наблюдаете — ждите, когда ведущий позовёт вас</span>}
+            </div>
+          )}
           {stage === "question" && round.kind === "task" && taskWordFor(round, r.order, pid) && role !== "member" && (
             <div className="buzz__plate buzz__plate--glow sv-secret" role="status">
               <span>Ваше слово — видите только вы:</span>

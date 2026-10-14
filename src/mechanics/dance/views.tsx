@@ -318,7 +318,8 @@ export function DancePlayerView({ session, content, pid, role, myAnswer, sending
     return (
       <div className="quiz-phone quiz-phone--center">
         {head}
-        <h2>{mine ? (captain ? "Выбор отправлен" : "Выбирает ваш капитан") : <>Выбирает <NameText name={nameOf(session, turnPid(r))} /></>}</h2>
+        <h2>{mine ? (captain ? (myAnswer ? "Выбор отправлен" : "Время выбора вышло — назовите карточку ведущему") : "Выбирает ваш капитан") : <>Выбирает <NameText name={nameOf(session, turnPid(r))} /></>}</h2>
+        {!mine && <p className="muted">Вы наблюдаете — нажимать ничего не нужно, ваша очередь будет позже.</p>}
       </div>
     );
   }

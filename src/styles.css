@@ -15631,6 +15631,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   }
 }
 
+.plan-seg .seg__btn {
+  hyphens: manual;
+}
+
 .plan-quick {
   display: flex;
   flex-wrap: wrap;
@@ -16017,7 +16021,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .plan-table th:first-child {
   text-align: left;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .plan-table thead th {

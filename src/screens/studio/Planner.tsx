@@ -50,7 +50,7 @@ import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelect
 type View = "day" | "week" | "month" | "list" | "stats";
 type ListFilter = "upcoming" | "now" | "past" | "cancelled";
 
-const VIEW_TITLES: Record<View, string> = { day: "День", week: "7 дней", month: "Месяц", list: "Списком", stats: "Итоги" };
+const VIEW_TITLES: Record<View, string> = { day: "День", week: "7 дней", month: "Месяц", list: "Список", stats: "Итоги" };
 const FILTER_TITLES: Record<ListFilter, string> = { upcoming: "Предстоящие", now: "Идут сейчас", past: "Архив", cancelled: "Отменённые" };
 const EVENT_STATUS_COLORS: Record<EventStatus, string> = { upcoming: brand.gold, now: brand.sage, past: brand.taupe, cancelled: brand.coral };
 const MEMBER_COLORS: Record<MemberStatus, string> = { free: brand.sage, partial: brand.gold, unknown: brand.taupe, busy: brand.coral };

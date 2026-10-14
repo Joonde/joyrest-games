@@ -454,7 +454,7 @@ try {
   await shot(ap, "владелец-месяц");
 
   // Списком: карточки свёрнуты; поиск; отменить квиз → отменённые → удалить навсегда.
-  await ap.getByRole("button", { name: "Списком", exact: true }).click();
+  await ap.getByRole("button", { name: "Список", exact: true }).click();
   const quizCard = ap.locator(".plan-card", { hasText: "Квиз-вечер, проверка" });
   await until(async () => (await quizCard.count()) === 1, WAIT, "квиз в «Предстоящих»");
   const collapsed = ((await quizCard.textContent()) ?? "").replace(/\s+/g, " ");
@@ -529,7 +529,7 @@ try {
 
   // Узкий телефон (360 px): текст в кнопках и вкладках не вылезает.
   await ap.setViewportSize({ width: 360, height: 780 });
-  await ap.getByRole("button", { name: "Списком", exact: true }).click();
+  await ap.getByRole("button", { name: "Список", exact: true }).click();
   await ap.waitForTimeout(500);
   await fits(ap, "Владелец, 360 px, списки");
   await ap.getByRole("button", { name: "+ Новое мероприятие" }).click();

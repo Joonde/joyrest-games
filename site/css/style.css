@@ -202,15 +202,20 @@ a.tile:hover::after{ transform: translateX(100%); }
   --emb-1: #F3DFAE; --emb-2: #E3C68C; --emb-3: #A3C2AA; --emb-4: #E3AA9C;
   --emb-glint: rgba(255,251,240,1); --emb-glow: rgba(227,198,140,0.5);
   position: relative; isolation: isolate;
-  width: clamp(210px, 58vw, 300px); aspect-ratio: 1000 / 723; margin: 0 0 10px; perspective: 800px;
+  width: clamp(210px, 58vw, 300px); aspect-ratio: 1000 / 723; margin: 0; perspective: 800px;
   animation: rise .9s cubic-bezier(.22,1,.36,1) both;
 }
 :root[data-theme="light"] .emblem{ --emb-1: #8A5148; --emb-2: #6B4038; --emb-3: #7A5A2C; --emb-4: #362E29; --emb-glint: rgba(243,223,174,0.95); --emb-glow: rgba(227,198,140,0.55); }
-/* Русская подпись под эмблемой — та же ширина, что у JOYREST, буквы не мельче латинских. */
-.emblem-ru{ --w: clamp(210px, 58vw, 300px); width: var(--w); display: grid; justify-items: center; gap: 6px; margin: 0 0 24px; text-align: center; line-height: 1; color: #F3DFAE; animation: rise .9s cubic-bezier(.22,1,.36,1) .1s both; }
-:root[data-theme="light"] .emblem-ru{ color: #8A5148; }
-.emblem-ru__name{ font-family: 'Jost', sans-serif; font-weight: 400; font-size: calc(var(--w) * .074); letter-spacing: .42em; margin-right: -.42em; text-transform: uppercase; }
-.emblem-ru__sub{ font-family: 'Jost', sans-serif; font-size: max(10px, calc(var(--w) * .036)); letter-spacing: .3em; margin-right: -.3em; text-transform: uppercase; }
+/* «Медальон»: русская подпись под эмблемой в её же координатах — ширина строк как у JOYREST и EVENTS & EXPERIENCES,
+   цвета — тот же градиент темы, что у эмблемы. Без наклона и блика (они только у самой эмблемы). */
+.emblem-ru{ --emb-1: #F3DFAE; --emb-2: #E3C68C; --emb-3: #A3C2AA; --emb-4: #E3AA9C;
+  display: block; width: clamp(210px, 58vw, 300px); height: auto; margin: 0 0 24px; overflow: visible;
+  animation: rise .9s cubic-bezier(.22,1,.36,1) .1s both; }
+:root[data-theme="light"] .emblem-ru{ --emb-1: #8A5148; --emb-2: #6B4038; --emb-3: #7A5A2C; --emb-4: #362E29; }
+.emblem-ru__s1{ stop-color: var(--emb-1); } .emblem-ru__s2{ stop-color: var(--emb-2); }
+.emblem-ru__s3{ stop-color: var(--emb-3); } .emblem-ru__s4{ stop-color: var(--emb-4); }
+.emblem-ru__name{ font-family: 'Jost', sans-serif; font-weight: 400; font-size: 74px; }
+.emblem-ru__sub{ font-family: 'Jost', sans-serif; font-size: 24px; }
 /* Заголовок «без хлопот» — тот же градиент, что у эмблемы. */
 .hero h1{ --emb-1: #F3DFAE; --emb-2: #E3C68C; --emb-3: #A3C2AA; --emb-4: #E3AA9C; }
 :root[data-theme="light"] .hero h1{ --emb-1: #8A5148; --emb-2: #6B4038; --emb-3: #7A5A2C; --emb-4: #362E29; }

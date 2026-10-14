@@ -203,7 +203,68 @@ export function registerTracks(app: FastifyInstance, options: TracksOptions): vo
         ${select()} where t.owner_id = ${user.id} and t.scope = 'personal' order by t.created_at desc limit ${LIST_LIMIT}`;
       const library = await sql<TrackRow[]>`
         ${select()} where t.scope = 'agency' and t.sha256 is not null order by t.category, t.title limit ${LIST_LIMIT}`;
-      return { mine: mine.map(trackOf), library: library.map(trackOf) };
+      return { mine: mine.map(trackOf), library: library.map(trackOf), folders: await folderLists(user.id) };
+    });
+
+    // Папки «Музыки»: создать (можно пустую), переименовать (треки переезжают), удалить (треки остаются без папки).
+    const folderOwner = (scope: "personal" | "agency", userId: string) => (scope === "agency" ? "agency" : userId);
+    async function folderLists(userId: string): Promise<{ mine: string[]; library: string[] }> {
+      const rows = await sql<{ scope: string; name: string }[]>`
+        select scope, name from track_folders where (owner_id = ${userId} and scope = 'personal') or (owner_id = 'agency' and scope = 'agency')
+        order by name limit ${LIST_LIMIT}`;
+      return { mine: rows.filter((r) => r.scope === "personal").map((r) => r.name), library: rows.filter((r) => r.scope === "agency").map((r) => r.name) };
+    }
+    function folderScope(body: Record<string, unknown>): "personal" | "agency" {
+      return body.scope === "agency" ? "agency" : "personal";
+    }
+
+    api.post<{ Body: unknown }>("/api/track-folders", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const scope = folderScope(body);
+      if (!permissions.canUploadTrack(actorOf(user), scope)) return fail(reply, 403, "permission-denied");
+      const name = cleanLine(body.name, FOLDER_MAX);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      await sql`insert into track_folders (owner_id, scope, name) values (${folderOwner(scope, user.id)}, ${scope}, ${name}) on conflict do nothing`;
+      return folderLists(user.id);
+    });
+
+    api.post<{ Body: unknown }>("/api/track-folders/rename", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const scope = folderScope(body);
+      if (!permissions.canUploadTrack(actorOf(user), scope)) return fail(reply, 403, "permission-denied");
+      const from = cleanLine(body.from, FOLDER_MAX);
+      const to = cleanLine(body.to, FOLDER_MAX);
+      // Пустое название — не «удалить»: для этого отдельная кнопка.
+      if (!from || !to) return fail(reply, 400, "invalid-argument");
+      const owner = folderOwner(scope, user.id);
+      await sql.begin(async (tx) => {
+        await tx`delete from track_folders where owner_id = ${owner} and scope = ${scope} and name = ${from}`;
+        await tx`insert into track_folders (owner_id, scope, name) values (${owner}, ${scope}, ${to}) on conflict do nothing`;
+        if (scope === "agency") await tx`update tracks set folder = ${to}, updated_at = now() where scope = 'agency' and folder = ${from}`;
+        else await tx`update tracks set folder = ${to}, updated_at = now() where scope = 'personal' and owner_id = ${user.id} and folder = ${from}`;
+      });
+      return folderLists(user.id);
+    });
+
+    api.post<{ Body: unknown }>("/api/track-folders/delete", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const scope = folderScope(body);
+      if (!permissions.canUploadTrack(actorOf(user), scope)) return fail(reply, 403, "permission-denied");
+      const name = cleanLine(body.name, FOLDER_MAX);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      const owner = folderOwner(scope, user.id);
+      await sql.begin(async (tx) => {
+        await tx`delete from track_folders where owner_id = ${owner} and scope = ${scope} and name = ${name}`;
+        if (scope === "agency") await tx`update tracks set folder = '', updated_at = now() where scope = 'agency' and folder = ${name}`;
+        else await tx`update tracks set folder = '', updated_at = now() where scope = 'personal' and owner_id = ${user.id} and folder = ${name}`;
+      });
+      return folderLists(user.id);
     });
 
     // Описание трека (id от браузера: повтор после обрыва — тот же трек). Файл — следующим запросом.

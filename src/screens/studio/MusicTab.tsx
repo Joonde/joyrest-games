@@ -38,8 +38,10 @@ function TrackSource({ text }: { text: string }) {
     </p>
   );
 }
-const EMPTY = { mine: [] as Track[], library: [] as Track[] };
+const EMPTY = { mine: [] as Track[], library: [] as Track[], folders: { mine: [] as string[], library: [] as string[] } };
 const NONE: Track[] = [];
+
+type Scope = "personal" | "agency";
 
 function newTrackId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -78,8 +80,10 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
   /** Трек, который кладём в папку. */
   const [moveFor, setMoveFor] = useState<Track | null>(null);
   const [folderDraft, setFolderDraft] = useState("");
-  /** Папка, которую переименовываем: её треки переносятся в новое название. */
-  const [renaming, setRenaming] = useState<{ tracks: Track[]; from: string } | null>(null);
+  /** Папка, которую переименовываем (треки переезжают на сервере), удаляем или создаём. */
+  const [renaming, setRenaming] = useState<{ scope: Scope; from: string } | null>(null);
+  const [removingFolder, setRemovingFolder] = useState<{ scope: Scope; name: string; count: number } | null>(null);
+  const [creating, setCreating] = useState<Scope | null>(null);
 
   // Музыка изменилась (загрузили, удалили, переименовали) — выборы трека в играх возьмут свежий список.
   useEffect(() => {
@@ -90,6 +94,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
 
   const replace = (track: Track) =>
     update((data) => ({
+      ...data,
       mine: data.mine.map((t) => (t.id === track.id ? track : t)),
       library: data.library.map((t) => (t.id === track.id ? track : t)),
     }));
@@ -111,7 +116,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
     try {
       await repo.remove(toDelete.id);
       const id = toDelete.id;
-      update((data) => ({ mine: data.mine.filter((t) => t.id !== id), library: data.library.filter((t) => t.id !== id) }));
+      update((data) => ({ ...data, mine: data.mine.filter((t) => t.id !== id), library: data.library.filter((t) => t.id !== id) }));
       setToDelete(null);
       onToast("Трек удалён");
     } catch {
@@ -193,48 +198,107 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
     }
   }
 
-  async function renameFolder() {
-    if (!repo || !renaming) return;
-    const to = folderDraft.trim();
+  /** Создать, переименовать или удалить папку: сервер сам переносит её треки, список перечитываем. */
+  async function folderAction(run: () => Promise<unknown>, done: () => void, toast: string) {
+    if (!repo) return;
     setBusy(true);
     setDialogError(null);
     try {
-      // Папка — название у треков: переносим их по одному (повтор после обрыва доделает остальные).
-      for (const t of renaming.tracks) replace(await repo.update(t.id, { folder: to }));
-      setRenaming(null);
-      onToast(to ? `Папка теперь «${to}»` : "Папка убрана — треки остались без папки");
+      await run();
+      done();
+      retry();
+      onToast(toast);
     } catch {
-      setDialogError("Переименовались не все треки. Проверьте интернет и нажмите ещё раз.");
+      setDialogError("Не удалось сохранить. Проверьте интернет.");
     } finally {
       setBusy(false);
     }
   }
 
-  /** Треки разложены по папкам: сначала без папки, дальше папки (свёрнуты, в заголовке — сколько треков). */
-  function folders(list: Track[], actionsFor: (t: Track) => MenuAction[], editable: boolean) {
-    return groupByFolder(list).map(({ folder, items }) =>
-      folder === "" ? (
-        <ul key="" className="tracks">
-          {items.map((t) => row(t, actionsFor(t)))}
-        </ul>
-      ) : (
-        <Fold key={folder} title={`📁 ${folder}`} value={`${items.length}`}>
-          <ul className="tracks">{items.map((t) => row(t, actionsFor(t)))}</ul>
-          {editable && (
-            <button
-              type="button"
-              className="btn btn--quiet btn--block"
-              onClick={() => {
-                setFolderDraft(folder);
-                setDialogError(null);
-                setRenaming({ tracks: items, from: folder });
-              }}
-            >
-              Переименовать папку
-            </button>
-          )}
-        </Fold>
-      ),
+  function renameFolder() {
+    if (!repo || !renaming) return;
+    const to = folderDraft.trim();
+    if (!to) return setDialogError("Напишите название. Чтобы убрать папку — «Удалить папку».");
+    const { scope, from } = renaming;
+    void folderAction(() => repo.renameFolder(scope, from, to), () => setRenaming(null), `Папка теперь «${to}»`);
+  }
+
+  function createFolder() {
+    if (!repo || !creating) return;
+    const name = folderDraft.trim();
+    if (!name) return setDialogError("Напишите название папки.");
+    const scope = creating;
+    void folderAction(() => repo.createFolder(scope, name), () => setCreating(null), `Папка «${name}» создана`);
+  }
+
+  function deleteFolder() {
+    if (!repo || !removingFolder) return;
+    const { scope, name } = removingFolder;
+    void folderAction(() => repo.deleteFolder(scope, name), () => setRemovingFolder(null), `Папка «${name}» удалена, треки остались`);
+  }
+
+  /**
+   * Треки по папкам: сначала без папки, дальше папки по алфавиту — и пустые созданные (свёрнуты, в заголовке —
+   * сколько треков); у папки — «Переименовать» и «Удалить папку» (треки остаются без папки).
+   */
+  function folders(scope: Scope, list: Track[], created: string[], actionsFor: (t: Track) => MenuAction[], editable: boolean) {
+    const groups = groupByFolder(list);
+    const loose = groups.find((g) => g.folder === "")?.items ?? [];
+    const names = [...new Set([...groups.map((g) => g.folder).filter(Boolean), ...created])].sort((a, b) => a.localeCompare(b, "ru"));
+    return (
+      <>
+        {editable && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            onClick={() => {
+              setFolderDraft("");
+              setDialogError(null);
+              setCreating(scope);
+            }}
+          >
+            + Новая папка
+          </button>
+        )}
+        {names.map((name) => {
+          const items = groups.find((g) => g.folder === name)?.items ?? [];
+          return (
+            <Fold key={name} title={`📁 ${name}`} value={`${items.length}`}>
+              {items.length === 0 ? (
+                <p className="muted small">Пустая папка. Положите трек: у трека «⋯ → В папку».</p>
+              ) : (
+                <ul className="tracks">{items.map((t) => row(t, actionsFor(t)))}</ul>
+              )}
+              {editable && (
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--block"
+                    onClick={() => {
+                      setFolderDraft(name);
+                      setDialogError(null);
+                      setRenaming({ scope, from: name });
+                    }}
+                  >
+                    Переименовать папку
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--block"
+                    onClick={() => {
+                      setDialogError(null);
+                      setRemovingFolder({ scope, name, count: items.length });
+                    }}
+                  >
+                    Удалить папку
+                  </button>
+                </div>
+              )}
+            </Fold>
+          );
+        })}
+        {loose.length > 0 && <ul className="tracks">{loose.map((t) => row(t, actionsFor(t)))}</ul>}
+      </>
     );
   }
 
@@ -316,7 +380,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
     <>
       {(permissions.canUploadTrack(profile, "personal") || permissions.canUploadTrack(profile, "agency")) && <UploadCard
         profile={profile}
-        folders={data ? folderNames([...data.mine, ...data.library]) : []}
+        folders={data ? [...new Set([...folderNames([...data.mine, ...data.library]), ...(data.folders?.mine ?? []), ...(data.folders?.library ?? [])])].sort((a, b) => a.localeCompare(b, "ru")) : []}
         onUploaded={(track) => {
           update((d) => (track.scope === "agency" ? { ...d, library: [track, ...d.library] } : { ...d, mine: [track, ...d.mine] }));
           onToast("Трек загружен");
@@ -399,8 +463,8 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
                   <p className="muted">Пока пусто. Загрузите трек — он появится на пульте в плеере.</p>
                 ) : (
                   <>
-                    <p className="muted small">Разложите треки по папкам: «⋯ → В папку». Новая папка появится, как только положите в неё трек.</p>
-                    {folders(data.mine, mineActions, true)}
+                    <p className="muted small">Разложите треки по папкам: «+ Новая папка», потом у трека «⋯ → В папку».</p>
+                    {folders("personal", data.mine, data.folders?.mine ?? [], mineActions, true)}
                   </>
                 )}
               </section>
@@ -410,7 +474,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
                 {data.library.length === 0 ? (
                   <p className="muted">Здесь появятся треки, которые одобрил владелец JoyRest.</p>
                 ) : (
-                  folders(data.library, libraryActions, data.library.some((t) => permissions.canEditTrack(profile, t)))
+                  folders("agency", data.library, data.folders?.library ?? [], libraryActions, permissions.canUploadTrack(profile, "agency"))
                 )}
               </section>
             </>
@@ -465,7 +529,7 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
         {moveFor && data && (
           <div className="stack stack--tight">
             <div className="pick-chips">
-              {folderNames(moveFor.scope === "agency" ? data.library : data.mine).map((name) => (
+              {[...new Set([...folderNames(moveFor.scope === "agency" ? data.library : data.mine), ...((moveFor.scope === "agency" ? data.folders?.library : data.folders?.mine) ?? [])])].sort((a, b) => a.localeCompare(b, "ru")).map((name) => (
                 <button key={name} type="button" className="pick-chip" aria-pressed={folderDraft.trim() === name} onClick={() => setFolderDraft(name)}>
                   📁 {name}
                 </button>
@@ -488,13 +552,43 @@ export function MusicTab({ profile, onToast }: { profile: UserProfile; onToast: 
         confirmLabel="Сохранить"
         busy={busy}
         error={dialogError}
-        onConfirm={() => void renameFolder()}
+        onConfirm={renameFolder}
         onCancel={() => setRenaming(null)}
       >
         <label className="field">
-          Новое название (пусто — убрать папку, треки останутся)
+          Новое название
           <input maxLength={40} value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)} />
         </label>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={creating !== null}
+        title={creating === "agency" ? "Новая папка в общей музыке" : "Новая папка"}
+        confirmLabel="Создать"
+        busy={busy}
+        error={dialogError}
+        onConfirm={createFolder}
+        onCancel={() => setCreating(null)}
+      >
+        <label className="field">
+          Название папки
+          <input maxLength={40} placeholder="Например: Лото, Квизы, Перерыв" value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)} />
+        </label>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={removingFolder !== null}
+        title="Удалить папку?"
+        confirmLabel="Удалить папку"
+        busy={busy}
+        error={dialogError}
+        onConfirm={deleteFolder}
+        onCancel={() => setRemovingFolder(null)}
+      >
+        <p>
+          Папка «{removingFolder?.name}» пропадёт.{" "}
+          {removingFolder && removingFolder.count > 0 ? `Её треки (${removingFolder.count}) не удалятся — останутся без папки.` : "Она пустая."}
+        </p>
       </ConfirmDialog>
 
       <ConfirmDialog

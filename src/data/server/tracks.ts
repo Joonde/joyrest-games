@@ -35,13 +35,28 @@ export function parseTrack(value: unknown): Track {
   };
 }
 
+function folderLists(value: unknown): { mine: string[]; library: string[] } {
+  const d = asRecord(value);
+  const names = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : []);
+  return { mine: names(d.mine), library: names(d.library) };
+}
+
 const list = (value: unknown) => (Array.isArray(value) ? value : []).map(parseTrack).filter((t) => t.id !== "");
 const path = (id: string) => `/api/tracks/${encodeURIComponent(id)}`;
 
 export const serverTracksRepository: TracksRepository = {
   async list() {
     const data = asRecord(await api("GET", "/api/tracks"));
-    return { mine: list(data.mine), library: list(data.library) };
+    return { mine: list(data.mine), library: list(data.library), folders: folderLists(data.folders) };
+  },
+  async createFolder(scope, name) {
+    return folderLists(await api("POST", "/api/track-folders", { scope, name }));
+  },
+  async renameFolder(scope, from, to) {
+    return folderLists(await api("POST", "/api/track-folders/rename", { scope, from, to }));
+  },
+  async deleteFolder(scope, name) {
+    return folderLists(await api("POST", "/api/track-folders/delete", { scope, name }));
   },
   async listPending() {
     return list(await api("GET", "/api/tracks?status=pending"));

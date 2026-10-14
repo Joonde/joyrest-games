@@ -309,9 +309,19 @@ export interface TelegramRepository {
 }
 
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */
+/** Созданные папки «Музыки»: свои и общие (папки, где уже лежат треки, видны и по самим трекам). */
+export interface TrackFolders {
+  mine: string[];
+  library: string[];
+}
+
 export interface TracksRepository {
   /** Свои треки и общая библиотека (только загруженные). */
-  list(): Promise<{ mine: Track[]; library: Track[] }>;
+  list(): Promise<{ mine: Track[]; library: Track[]; folders?: TrackFolders }>;
+  /** Папки «Музыки»: создать (можно пустую), переименовать (треки переезжают), удалить (треки остаются без папки). */
+  createFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
+  renameFolder(scope: "personal" | "agency", from: string, to: string): Promise<TrackFolders>;
+  deleteFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
   /** Предложенные в общую, ждут проверки (admin). */
   listPending(): Promise<Track[]>;
   /** Описание трека; файл — следующим шагом (`upload`). id создаёт браузер. */

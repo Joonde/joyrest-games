@@ -157,5 +157,15 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
     const long = (await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "х".repeat(80) } })).json();
     expect(long.folder).toHaveLength(40);
     expect((await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "" } })).json().folder).toBe("");
+    // Папки как записи: пустая папка, переименовать (треки переезжают), удалить (треки остаются без папки).
+    expect((await post("/api/track-folders", anna, { scope: "personal", name: "Пустая" })).json()).toMatchObject({ mine: ["Пустая"] });
+    expect((await post("/api/track-folders", anna, { scope: "agency", name: "Общая" })).statusCode).toBe(403);
+    const annaTrack = (await get("/api/tracks", anna)).json().mine[0] as { id: string };
+    await app.inject({ method: "PATCH", url: `/api/tracks/${annaTrack.id}`, headers: headers(anna), payload: { folder: "Пустая" } });
+    expect((await post("/api/track-folders/rename", anna, { scope: "personal", from: "Пустая", to: "" })).statusCode).toBe(400);
+    expect((await post("/api/track-folders/rename", anna, { scope: "personal", from: "Пустая", to: "Лото" })).json()).toEqual({ mine: ["Лото"], library: [] });
+    expect(((await get("/api/tracks", anna)).json().mine as Array<{ id: string; folder: string }>).find((t) => t.id === annaTrack.id)?.folder).toBe("Лото");
+    expect((await post("/api/track-folders/delete", anna, { scope: "personal", name: "Лото" })).json()).toEqual({ mine: [], library: [] });
+    expect(((await get("/api/tracks", anna)).json().mine as Array<{ id: string; folder: string }>).find((t) => t.id === annaTrack.id)?.folder).toBe("");
   });
 });

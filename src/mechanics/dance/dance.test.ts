@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import { embedUrl, newCard, parseDance } from "./content";
-import { DEMO_DANCE } from "./demo";
+import { DEMO_DANCE, DEMO_DANCE_STYLES } from "./demo";
+import { DANCE_STYLES, mainStyle } from "./styles";
 import { validateDance } from "./validate";
 import { danceBack, dancePrimary, resolveTie, nextTurn, parseDanceResult, pickCard, pickFromAnswers, showResult, startPick, startVote, turnPid } from "./logic";
 
@@ -77,5 +78,21 @@ describe("шаблон батла", () => {
   it("готов к запуску", () => {
     expect(DEMO_DANCE.content.cards).toHaveLength(9);
     expect(validateDance(DEMO_DANCE.content)).toEqual([]);
+  });
+});
+
+describe("стили танца", () => {
+  it("у каждого стиля есть готовые карточки, id стилей не повторяются, неизвестный стиль — без стиля", () => {
+    expect(new Set(DANCE_STYLES.map((s) => s.id)).size).toBe(DANCE_STYLES.length);
+    for (const style of DANCE_STYLES) expect(style.cards.length).toBeGreaterThanOrEqual(4);
+    const parsed = parseDance({ cards: [{ ...newCard("dance"), id: "x1", style: "jazz" }, { ...newCard("dance"), id: "x2", style: "космос" }] });
+    expect(parsed.cards.map((c) => c.style)).toEqual(["jazz", ""]);
+  });
+
+  it("батлы по стилям для «Танцевального вечера»: проходят проверку, главный стиль — свой", () => {
+    expect(DEMO_DANCE_STYLES.map((d) => mainStyle(d.content.cards))).toEqual(["jazz", "disco", "latin"]);
+    for (const d of DEMO_DANCE_STYLES) expect(validateDance(d.content)).toEqual([]);
+    expect(validateDance(DEMO_DANCE.content)).toEqual([]);
+    expect(mainStyle([{ style: "" }])).toBeNull();
   });
 });

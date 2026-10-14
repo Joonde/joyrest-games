@@ -43,6 +43,7 @@ import {
 } from "../../src/core/venues";
 import { actorOf, apiGuard, sessionUser, type SessionRow, takeUploadSlot } from "./auth";
 import { imageMime } from "./games";
+import { upsertClient } from "./clients";
 import { sendTelegram, type TelegramTarget, WindowLimiter } from "./lead";
 
 export interface VenuesOptions {
@@ -463,6 +464,16 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       const number = rows[0]?.number ?? 0;
       // Два одновременных повтора: сообщение в Telegram — только от того, кто записал заявку.
       if (rows[0]?.inserted) notify(request, requestNotice(number, data, host?.name ?? null, `${origin(request)}/venues/r/${id}`, options.label));
+      // Клиент — в базу клиентов (по телефону; повтор не дублирует историю).
+      if (rows[0]?.inserted) {
+        await upsertClient(sql, {
+          name: data.name,
+          phone: data.phone,
+          source: "venue",
+          summary: [`Запрос №${number}`, data.eventType, data.guests ? `${data.guests} гостей` : "", data.date].filter(Boolean).join(", "),
+          ref: id,
+        }).catch(() => log(request, "request-form", "client-failed"));
+      }
       log(request, "request-form", "ok");
       return { ok: true, number };
     });

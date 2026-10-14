@@ -24,6 +24,8 @@ export interface LeadOptions {
   /** Часы (подменяются в тестах). */
   now?: () => number;
   limits?: Partial<LeadLimits>;
+  /** Заявка принята (до отправки в Telegram): клиент — в базу клиентов. Ошибка не мешает заявке. */
+  onLead?: (lead: LeadData) => Promise<void>;
 }
 
 export interface LeadLimits {
@@ -82,7 +84,7 @@ export type LeadType = keyof typeof RULES;
 
 /** Служебные поля формы: тип, согласие, оценка отзыва и ловушка. */
 /** terms и deposit — согласие с условиями работы ведущего и залога (только заявка). */
-const SERVICE_FIELDS = new Set(["type", "consent", "rating", "website", "terms", "deposit"]);
+const SERVICE_FIELDS = new Set(["type", "consent", "rating", "website", "terms", "deposit", "marketing"]);
 
 /** Формат ведущего в заявке: опытный или стартовые форматы с молодыми ведущими (скидка на работу ведущего). */
 export const HOST_LEVELS = {
@@ -99,7 +101,7 @@ function isHostLevel(value: unknown): value is HostLevel {
 export type LeadData =
   | { type: "question"; fields: Record<keyof typeof QUESTION, string> }
   | { type: "review"; fields: Record<keyof typeof REVIEW, string>; rating: number }
-  | { type: "lead"; fields: Record<keyof typeof LEAD, string>; hostLevel?: HostLevel };
+  | { type: "lead"; fields: Record<keyof typeof LEAD, string>; hostLevel?: HostLevel; marketing?: boolean };
 
 export type Checked =
   | { ok: true; lead: LeadData; trap: boolean }
@@ -174,7 +176,13 @@ export function checkLead(body: unknown): Checked {
     return {
       ok: true,
       trap,
-      lead: { type, fields: fields as Record<keyof typeof LEAD, string>, ...(isHostLevel(hostLevel) ? { hostLevel } : {}) },
+      lead: {
+        type,
+        fields: fields as Record<keyof typeof LEAD, string>,
+        ...(isHostLevel(hostLevel) ? { hostLevel } : {}),
+        // Согласие на рассылку — необязательная галочка; только точное true.
+        ...(body.marketing === true ? { marketing: true } : {}),
+      },
     };
   }
   if (type === "review") {
@@ -206,9 +214,15 @@ export function formatLead(lead: LeadData, label?: string): string {
         `${head}📩 Заявка с сайта JoyRest\n\n` +
         `Имя: ${f.name}\nТелефон: ${f.phone}\nТип мероприятия: ${or(f.eventType)}\n` +
         (lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}\n` : "") +
-        `Гостей: ${or(f.guests)}\nСвязь: ${contact}\n` +
-        (f.calc ? `🧮 Расчёт: ${f.calc}\n` : "") +
-        `Комментарий: ${or(f.message)}\nУсловия брони и работы: приняты`
+        `Гостей: ${or(f.guests)}
+Связь: ${contact}
+` +
+        (f.calc ? `🧮 Расчёт: ${f.calc}
+` : "") +
+        `Комментарий: ${or(f.message)}
+Условия брони и работы: приняты` +
+        (lead.marketing ? "
+Рассылка: согласен(на)" : "")
       );
     }
   }
@@ -373,6 +387,8 @@ export function registerLead(app: FastifyInstance, options: LeadOptions, routeOp
         }, type);
       }
 
+      // Клиент — в базу клиентов (даже если Telegram сейчас не ответит).
+      if (options.onLead) await options.onLead(checked.lead).catch(() => request.log.warn({ lead: type }, "lead: клиент не записан"));
       try {
         await send(options.telegram, formatLead(checked.lead, options.label));
       } catch (error) {

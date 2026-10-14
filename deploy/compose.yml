@@ -92,6 +92,9 @@ services:
       # Анкеты площадок и заявки клиентов без входа (База площадок). По умолчанию ВЫКЛЮЧЕНЫ:
       # включает только владелец — sudo joyrest venues on (settings.env).
       VENUE_FORMS: ${VENUE_FORMS:-off}
+      # Бот уведомлений команды (тот же, что у заявок) читает сообщения — подключение Telegram ведущих и
+      # пересланные владельцем заявки. Читать может только одно окружение — основное.
+      TELEGRAM_UPDATES: "on"
     volumes:
       - /srv/joyrest/media/prod:/app/media
     depends_on:
@@ -129,6 +132,8 @@ services:
       LEAD_TELEGRAM_CHAT_ID: ${LEAD_TELEGRAM_CHAT_ID:-}
       # Анкеты площадок на test открыты всегда (проверка).
       VENUE_FORMS: "on"
+      # Сообщения бота читает основная версия; тестовая только отправляет уведомления.
+      TELEGRAM_UPDATES: "off"
     volumes:
       - /srv/joyrest/media/test:/app/media
     depends_on:

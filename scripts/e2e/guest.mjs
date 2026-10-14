@@ -351,7 +351,9 @@ async function overlapCheck(page, who) {
     const visible = (el) => {
       const r = el.getBoundingClientRect();
       const st = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !el.closest("[inert], [hidden], .scene");
+      // Содержимое свёрнутого <details> скрыто, хотя Chrome отдаёт ему координаты.
+      const folded = el.closest("details:not([open])") && !el.closest("summary");
+      return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none" && !el.closest("[inert], [hidden], .scene") && !folded;
     };
     // Закреплённые панели (вкладки пульта внизу, шапка) лежат поверх прокручиваемого содержимого — это не наезд.
     const pinned = (el) => {
@@ -412,6 +414,9 @@ async function studioPages(browser, token) {
       ["/studio/team", "Ведущие JoyRest", "Команда JoyRest"],
       ["/studio/team?tab=pros", "Профессии JoyRest", "Профессии JoyRest"],
       ["/studio/qr", "QR", "QR-анкеты"],
+      ["/studio/calendar", "Мой календарь", "Мой календарь"],
+      ["/studio/calendar?tab=events", "Мои мероприятия", "Мои мероприятия"],
+      ["/studio/guide", "Как проводить", "Как проводить игры"],
       [`/host/${lobby.code}`, "Начать игру", "Пульт в лобби"],
     ]) {
       step(`${device}: ${what} открывается`, page);

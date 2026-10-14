@@ -177,6 +177,52 @@ export function canViewTeam(actor: Actor): boolean {
   return isActiveHost(actor);
 }
 
+/** Свой календарь (когда свободен и занят) — каждый активный человек команды. Только свой сервер. */
+export function canEditOwnCalendar(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
+/** Календарь всей команды («Кто может в эту дату») и закрепить время за человеком — только владелец. */
+export function canViewTeamCalendar(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/**
+ * Убрать запись календаря: свою «свободен»/«занят» — сам человек; закреплённое владельцем
+ * мероприятие — только владелец (ведущий не снимет его случайно).
+ */
+export function canRemoveCalendarEntry(actor: Actor, entry: { uid: string; kind: string }): boolean {
+  if (isAdmin(actor)) return true;
+  return isActiveHost(actor) && actor?.uid === entry.uid && entry.kind !== "booked";
+}
+
+/** Отметить «Проведено» / «Не состоялось» — владелец или ведущий этого мероприятия. */
+export function canMarkEventHeld(actor: Actor, event: { hostId: string }): boolean {
+  if (isAdmin(actor)) return true;
+  return isActiveHost(actor) && actor?.uid === event.hostId;
+}
+
+/** База клиентов (заявки, телефоны, согласия на рассылку) — только владелец. */
+export function canManageClients(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Подключить свой Telegram для уведомлений о мероприятиях — любой активный человек команды. */
+export function canLinkTelegram(actor: Actor): boolean {
+  return isActiveHost(actor);
+}
+
+/** Планировщик: записать, изменить и отменить мероприятие — только владелец. */
+export function canManageEvents(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Свои мероприятия (кто клиент, где, когда) видит ведущий, за которым они закреплены. */
+export function canViewEvent(actor: Actor, event: { hostId: string }): boolean {
+  if (isAdmin(actor)) return true;
+  return isActiveHost(actor) && actor?.uid === event.hostId;
+}
+
 /**
  * База площадок и заявки клиентов (CLAUDE.md, «База площадок»; только свой сервер): владелец и
  * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.

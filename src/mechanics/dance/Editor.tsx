@@ -7,6 +7,8 @@ import { clipFields, parseClip } from "../../core/clip";
 import type { EditorProps } from "../types";
 import { DANCE_LIMITS, embedUrl, KIND_EMOJI, KIND_TITLES, newCard, type DanceCard, type DanceContent, type DanceKind, type VideoSource } from "./content";
 import { validateDance } from "./validate";
+import { Fold } from "../../components/Fold";
+import { DANCE_STYLES, styleById } from "./styles";
 
 const KINDS: DanceKind[] = ["dance", "karaoke", "battle"];
 
@@ -59,13 +61,44 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
                 <strong>
                   {i + 1}. {KIND_TITLES[card.kind]}
                 </strong>
-                <span className="muted line-clamp">{card.title || "без названия"}</span>
+                <span className="muted line-clamp">
+                  {styleById(card.style) ? `${styleById(card.style)?.emoji} ` : ""}
+                  {card.title || "без названия"}
+                </span>
               </button>
               {open && <CardForm card={card} editable={editable} errors={cardErrors.map((e) => e.message)} onChange={(p) => update(card.id, p)} onRemove={content.cards.length > 1 ? () => onChange({ ...content, cards: content.cards.filter((c) => c.id !== card.id) }) : undefined} />}
             </article>
           );
         })}
       </section>
+
+      {editable && (
+        <Fold title="Готовые карточки по стилям" value={`${DANCE_STYLES.length} стилей`}>
+          <div className="stack stack--tight">
+            <p className="muted small">Карточки добавятся в конец списка. Видео к ним — ссылкой на ролик или файлом на ноутбуке экрана.</p>
+            {DANCE_STYLES.map((style) => (
+              <button
+                key={style.id}
+                type="button"
+                className="choice"
+                disabled={content.cards.length + style.cards.length > DANCE_LIMITS.cards}
+                onClick={() => {
+                  const added = style.cards.map(([kind, title, note]) => ({ ...newCard(kind, style.id), title, note, video: { source: "none" as const, url: "", name: "" } }));
+                  onChange({ ...latest.current, cards: [...latest.current.cards, ...added] });
+                  setOpenId(null);
+                }}
+              >
+                <span className="choice__text">
+                  <span className="choice__title">
+                    {style.emoji} {style.title} · {style.cards.length} карточек
+                  </span>
+                  <span className="choice__hint">{style.hint}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Fold>
+      )}
 
       {editable && (
         <div className="row dance-editor__add">
@@ -106,6 +139,17 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
           </button>
         ))}
       </div>
+      <label className="field">
+        Стиль (видно на экране)
+        <select value={card.style} disabled={!editable} onChange={(e) => onChange({ style: e.target.value })}>
+          <option value="">Без стиля</option>
+          {DANCE_STYLES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.emoji} {s.title}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="field">
         Название (видно на экране)
         <input value={card.title} maxLength={DANCE_LIMITS.title} disabled={!editable} placeholder={card.kind === "karaoke" ? "Песня — исполнитель" : card.kind === "dance" ? "Название танца" : "Тема батла"} onChange={(e) => onChange({ title: e.target.value })} />

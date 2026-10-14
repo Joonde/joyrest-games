@@ -43,6 +43,12 @@
   </form>
 </div>
 
+<div class="vmodal" id="promoModal" role="dialog" aria-modal="true" aria-label="Ролик ДжойРест: все форматы за 30 секунд" hidden>
+  <div class="vmodal__box">
+    <video id="promoVideo" playsinline controls preload="none"><source src="img/promo.mp4" type="video/mp4"></video>
+    <button type="button" class="vmodal__close" id="promoClose" aria-label="Закрыть ролик">✕</button>
+  </div>
+</div>
 <div class="modal" id="ruleModalOverlay" role="dialog" aria-modal="true" aria-labelledby="ruleModalTitle">
   <div class="modal__box">
     <button type="button" class="modal__close" id="ruleModalClose" aria-label="Закрыть">✕</button>
@@ -68,10 +74,11 @@
 <header id="siteHeader">
   <div class="wrap nav">
     <!-- Логотип из public/brand/: сборка (scripts/build-site.ts) встраивает SVG в data-brand-svg. -->
-    <a href="#top" class="logo" aria-label="JoyRest — Events &amp; Experiences, на начало страницы">
+    <a href="#top" class="logo" aria-label="ДжойРест (JoyRest) — праздники и впечатления, на начало страницы">
       <span class="logo-frame"><span class="logo-tile">
         <span class="logo-svg logo-svg--full" data-brand-svg="joyrest-logo"></span>
         <span class="logo-svg logo-svg--monogram" data-brand-svg="joyrest-monogram"></span>
+        <span class="logo-ru" aria-hidden="true"><span class="logo-ru__name">ДжойРест</span><span class="logo-ru__sub">праздники и впечатления</span></span>
       </span></span>
     </a>
     <nav class="nav-links" aria-label="Разделы сайта">
@@ -131,6 +138,21 @@
             <span class="emblem-paint"><span class="emblem-gradient"></span><span class="emblem-glint"></span></span>
           </div>
         </div>
+        <!-- «Медальон» (решение владельца 14 октября 2026): русская пара строк под JOYREST · EVENTS & EXPERIENCES — та же
+             ширина и высота букв (координаты эмблемы, viewBox 1000), черта со звёздочкой и нижняя дуга замыкают арку в круг. -->
+        <svg class="emblem-ru" viewBox="0 0 1000 287" role="img" aria-label="ДжойРест — праздники и впечатления">
+          <defs><linearGradient id="emblemRuGrad" gradientUnits="userSpaceOnUse" x1="150" y1="0" x2="850" y2="287">
+            <stop offset="0" class="emblem-ru__s1"/><stop offset=".35" class="emblem-ru__s2"/><stop offset=".65" class="emblem-ru__s3"/><stop offset="1" class="emblem-ru__s4"/>
+          </linearGradient></defs>
+          <g fill="url(#emblemRuGrad)" stroke="url(#emblemRuGrad)">
+            <path d="M300 12H468M532 12H700" fill="none" stroke-width="3"/>
+            <path d="M500 -2Q500 12 514 12Q500 12 500 26Q500 12 486 12Q500 12 500 -2Z" stroke="none"/>
+            <text x="203" y="105" textLength="594" lengthAdjust="spacing" stroke="none" class="emblem-ru__name">ДЖОЙРЕСТ</text>
+            <text x="245" y="163" textLength="507" lengthAdjust="spacing" stroke="none" class="emblem-ru__sub">ПРАЗДНИКИ И ВПЕЧАТЛЕНИЯ</text>
+            <path d="M215 202Q500 312 785 202" fill="none" stroke-width="4" stroke-linecap="round"/>
+            <path d="M500 239Q500 255 516 255Q500 255 500 271Q500 255 484 255Q500 255 500 239Z" stroke="none"/>
+          </g>
+        </svg>
         <h1><span class="word">Радость</span> <span class="word word--2 shine">без хлопот</span></h1>
         <div class="ornament" aria-hidden="true"><span>✦</span></div>
         <p class="lead" data-needs="dj music venue"><b>JoyRest</b> берёт на себя организацию праздника целиком, если это вам необходимо: площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет — вам остаётся только прийти и радоваться.</p>
@@ -139,6 +161,10 @@
           <a href="#contact" class="btn btn--primary" data-focus-target="name">Оставить заявку</a>
           <a href="#calculator" class="btn btn--outline">Рассчитать за минуту</a>
         </div>
+        <ul class="hero__points">
+          <li>Цена — сразу, без звонка менеджеру</li>
+          <li>Гости играют со своих телефонов, без бланков</li>
+        </ul>
       </div>
       <div class="hero__side glass">
         <p class="side-label">Организуем</p>
@@ -206,7 +232,7 @@
           </div>
         </div>
         <aside class="summary" id="calcSummary" aria-live="polite">
-          <p class="summary__label">Итого за вечер — с каким ведущим</p>
+          <p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p>
           <div class="summary__indiv" id="calcIndiv" hidden>
             <p class="summary__indiv-title">Обсудим индивидуально</p>
             <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>
@@ -224,10 +250,11 @@
           <ul class="summary__lines" id="calcLines"></ul>
           <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве и Подмосковью</span></div>
           <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
+          <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
           <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси при выезде за область. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
         </aside>
       </div>
-      <a href="#calcSummary" class="mbar" id="calcBar" aria-label="Итог расчёта"></a>
+      <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
       <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
     </div>
   </section>
@@ -284,6 +311,11 @@
       <p class="eyebrow">Обзор игр</p>
       <h2>Выберите, во что играть</h2>
       <p class="sub">33 игры JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
+      <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
+      <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
+        <span class="promo__thumb"><img src="img/promo-poster.webp" width="360" height="640" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
+        <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
+      </button>
       <div class="filters" role="group" aria-label="Фильтр игр">
         <button type="button" class="filter is-on" data-filter="all" aria-pressed="true">Все игры<span class="filter__n">33</span></button>
         <button type="button" class="filter" data-filter="phone" aria-pressed="false">С телефонов<span class="filter__n">17</span></button>
@@ -308,7 +340,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz" data-phone>
-          <div class="game__media game__media--cover game__media--quiz"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4zM10 8.5a2 2 0 113 1.7c-.6.4-1 .8-1 1.5M12 13.5v.01"/></svg><span class="game__cover-name">Авторский квиз</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-quiz-author.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Квизы<span class="game__phone"> · с телефонов</span></p>
             <h3>Авторский квиз</h3>
@@ -317,7 +349,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz" data-phone>
-          <div class="game__media game__media--cover game__media--quiz"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4zM10 8.5a2 2 0 113 1.7c-.6.4-1 .8-1 1.5M12 13.5v.01"/></svg><span class="game__cover-name">Квиз под компанию</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-quiz-company.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Квизы<span class="game__phone"> · с телефонов</span></p>
             <h3>Квиз под компанию</h3>
@@ -326,7 +358,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz">
-          <div class="game__media game__media--cover game__media--quiz"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4zM10 8.5a2 2 0 113 1.7c-.6.4-1 .8-1 1.5M12 13.5v.01"/></svg><span class="game__cover-name">Квиз с элементами игр</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-quiz-games.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Квизы</p>
             <h3>Квиз с элементами игр</h3>
@@ -335,7 +367,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz">
-          <div class="game__media game__media--cover game__media--quiz"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4zM10 8.5a2 2 0 113 1.7c-.6.4-1 .8-1 1.5M12 13.5v.01"/></svg><span class="game__cover-name">Квиз с музыкой и танцами</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-quiz-musicdance.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Квизы</p>
             <h3>Квиз с музыкой и танцами</h3>
@@ -362,7 +394,7 @@
           </div>
         </article>
         <article class="game" data-cat="music" data-phone>
-          <div class="game__media game__media--cover game__media--music"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM20 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="game__cover-name">Угадай мелодию</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-melody.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Музыкальные<span class="game__phone"> · с телефонов</span></p>
             <h3>Угадай мелодию</h3>
@@ -380,7 +412,7 @@
           </div>
         </article>
         <article class="game" data-cat="music" data-phone>
-          <div class="game__media game__media--cover game__media--music"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM20 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg><span class="game__cover-name">«Спой лучше всех»</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-sing.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Музыкальные<span class="game__phone"> · с телефонов</span></p>
             <h3>«Спой лучше всех»</h3>
@@ -389,7 +421,7 @@
           </div>
         </article>
         <article class="game" data-cat="dance" data-phone>
-          <div class="game__media game__media--cover game__media--dance"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a1.8 1.8 0 100 .01M9 22l3-7 3 3v4M6 10l6-2 5 3M12 8l-1 7"/></svg><span class="game__cover-name">Just Dance Battle</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-justdance.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Танцевальные<span class="game__phone"> · с телефонов</span></p>
             <h3>Just Dance Battle</h3>
@@ -398,7 +430,7 @@
           </div>
         </article>
         <article class="game" data-cat="dance">
-          <div class="game__media game__media--cover game__media--dance"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a1.8 1.8 0 100 .01M9 22l3-7 3 3v4M6 10l6-2 5 3M12 8l-1 7"/></svg><span class="game__cover-name">Танцевальное лото</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-dancelotto.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Танцевальные</p>
             <h3>Танцевальное лото</h3>
@@ -407,7 +439,7 @@
           </div>
         </article>
         <article class="game" data-cat="dance">
-          <div class="game__media game__media--cover game__media--dance"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a1.8 1.8 0 100 .01M9 22l3-7 3 3v4M6 10l6-2 5 3M12 8l-1 7"/></svg><span class="game__cover-name">Танцевальный кураж</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-dancecourage.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Танцевальные</p>
             <h3>Танцевальный кураж</h3>
@@ -452,7 +484,7 @@
           </div>
         </article>
         <article class="game" data-cat="cards">
-          <div class="game__media game__media--cover game__media--cards"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l7-2.5 3.5 13L7.5 20zM14.5 4.5H20v15h-4"/></svg><span class="game__cover-name">Шпион</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-spy.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Карточные</p>
             <h3>Шпион</h3>
@@ -470,7 +502,7 @@
           </div>
         </article>
         <article class="game" data-cat="active" data-phone>
-          <div class="game__media game__media--cover game__media--active"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM8.5 8.5h.01M15.5 15.5h.01M15.5 8.5h.01M8.5 15.5h.01M12 12h.01"/></svg><span class="game__cover-name">Гонка на выживание</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-survival.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки<span class="game__phone"> · с телефонов</span></p>
             <h3>Гонка на выживание</h3>
@@ -488,7 +520,7 @@
           </div>
         </article>
         <article class="game" data-cat="active">
-          <div class="game__media game__media--cover game__media--active"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM8.5 8.5h.01M15.5 15.5h.01M15.5 8.5h.01M8.5 15.5h.01M12 12h.01"/></svg><span class="game__cover-name">Сладкие приключения</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-sweet.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки</p>
             <h3>Сладкие приключения</h3>
@@ -497,7 +529,7 @@
           </div>
         </article>
         <article class="game" data-cat="active">
-          <div class="game__media game__media--cover game__media--active"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM8.5 8.5h.01M15.5 15.5h.01M15.5 8.5h.01M8.5 15.5h.01M12 12h.01"/></svg><span class="game__cover-name">Алкогольные приключения · 18+</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-alco.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки</p>
             <h3>Алкогольные приключения · 18+</h3>
@@ -506,7 +538,7 @@
           </div>
         </article>
         <article class="game" data-cat="party" data-phone>
-          <div class="game__media game__media--cover game__media--party"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8a3 3 0 100-.01M16.5 9a2.5 2.5 0 100-.01M2.5 20c.8-3.6 3-5.5 5.5-5.5s4.7 1.9 5.5 5.5M14 15c2.6.1 4.6 1.8 5.4 5"/></svg><span class="game__cover-name">Давайте знакомиться</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-meet.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка<span class="game__phone"> · с телефонов</span></p>
             <h3>Давайте знакомиться</h3>
@@ -515,7 +547,7 @@
           </div>
         </article>
         <article class="game" data-cat="party">
-          <div class="game__media game__media--cover game__media--party"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8a3 3 0 100-.01M16.5 9a2.5 2.5 0 100-.01M2.5 20c.8-3.6 3-5.5 5.5-5.5s4.7 1.9 5.5 5.5M14 15c2.6.1 4.6 1.8 5.4 5"/></svg><span class="game__cover-name">Большой переполох</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-commotion.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка</p>
             <h3>Большой переполох</h3>
@@ -524,7 +556,7 @@
           </div>
         </article>
         <article class="game" data-cat="party">
-          <div class="game__media game__media--cover game__media--party"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8a3 3 0 100-.01M16.5 9a2.5 2.5 0 100-.01M2.5 20c.8-3.6 3-5.5 5.5-5.5s4.7 1.9 5.5 5.5M14 15c2.6.1 4.6 1.8 5.4 5"/></svg><span class="game__cover-name">Битва тостов</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-toasts.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка</p>
             <h3>Битва тостов</h3>
@@ -533,7 +565,7 @@
           </div>
         </article>
         <article class="game" data-cat="party">
-          <div class="game__media game__media--cover game__media--party"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8a3 3 0 100-.01M16.5 9a2.5 2.5 0 100-.01M2.5 20c.8-3.6 3-5.5 5.5-5.5s4.7 1.9 5.5 5.5M14 15c2.6.1 4.6 1.8 5.4 5"/></svg><span class="game__cover-name">Замри! Живые скульптуры</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-freeze.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка</p>
             <h3>Замри! Живые скульптуры</h3>
@@ -542,7 +574,7 @@
           </div>
         </article>
         <article class="game" data-cat="party">
-          <div class="game__media game__media--cover game__media--party"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8a3 3 0 100-.01M16.5 9a2.5 2.5 0 100-.01M2.5 20c.8-3.6 3-5.5 5.5-5.5s4.7 1.9 5.5 5.5M14 15c2.6.1 4.6 1.8 5.4 5"/></svg><span class="game__cover-name">Немая история</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-silent.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка</p>
             <h3>Немая история</h3>
@@ -551,7 +583,7 @@
           </div>
         </article>
         <article class="game" data-cat="party">
-          <div class="game__media game__media--cover game__media--party"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8a3 3 0 100-.01M16.5 9a2.5 2.5 0 100-.01M2.5 20c.8-3.6 3-5.5 5.5-5.5s4.7 1.9 5.5 5.5M14 15c2.6.1 4.6 1.8 5.4 5"/></svg><span class="game__cover-name">Живой оркестр</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-orchestra.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка</p>
             <h3>Живой оркестр</h3>
@@ -560,7 +592,7 @@
           </div>
         </article>
         <article class="game" data-cat="out">
-          <div class="game__media game__media--cover game__media--out"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l-6 9h4l-4 6h12l-4-6h4zM12 18v3"/></svg><span class="game__cover-name">Казаки-разбойники: Допрос</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-cossacks.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">На улице</p>
             <h3>Казаки-разбойники: Допрос</h3>
@@ -569,7 +601,7 @@
           </div>
         </article>
         <article class="game" data-cat="out">
-          <div class="game__media game__media--cover game__media--out"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l-6 9h4l-4 6h12l-4-6h4zM12 18v3"/></svg><span class="game__cover-name">Снежный десант</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-snow.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">На улице</p>
             <h3>Снежный десант</h3>
@@ -578,7 +610,7 @@
           </div>
         </article>
         <article class="game" data-cat="out">
-          <div class="game__media game__media--cover game__media--out"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l-6 9h4l-4 6h12l-4-6h4zM12 18v3"/></svg><span class="game__cover-name">Не урони каплю</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-drop.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">На улице</p>
             <h3>Не урони каплю</h3>
@@ -587,7 +619,7 @@
           </div>
         </article>
         <article class="game" data-cat="custom">
-          <div class="game__media game__media--cover game__media--custom"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16l-5.1 2.7L8 13l-4.3-4 5.8-.7z"/></svg><span class="game__cover-name">Игра под ваш запрос</span><span class="game__cover-mark" aria-hidden="true">JOYREST</span></div>
+          <div class="game__media game__media--art"><img src="img/cover-custom.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
           <div class="game__body">
             <p class="game__cat">Под заказ</p>
             <h3>Игра под ваш запрос</h3>
@@ -840,9 +872,25 @@
             <label for="guests">Количество гостей</label>
             <input type="number" id="guests" min="1" inputmode="numeric" placeholder="Например, 20">
           </div>
+          <!-- «Ваш расчёт»: заполняет «Отправить расчёт в заявку» калькулятора (js/script.js), в /api/lead — поле calc. -->
+          <div class="calc-card" id="calcCard" hidden>
+            <div class="calc-card__head">
+              <p class="calc-card__label">Ваш расчёт</p>
+              <p class="calc-card__type" id="calcCardType"></p>
+            </div>
+            <p class="calc-card__parts" id="calcCardParts"></p>
+            <ul class="calc-card__totals" id="calcCardTotals"></ul>
+            <p class="calc-card__hint" id="calcCardHint">Коснитесь цены, чтобы выбрать формат ведущего</p>
+            <p class="calc-card__dur" id="calcCardDur"></p>
+            <div class="calc-card__actions">
+              <button type="button" class="btn btn--outline" id="calcCardEdit">Изменить</button>
+              <button type="button" class="calc-card__remove" id="calcCardRemove">Убрать</button>
+            </div>
+          </div>
+          <p class="calc-link" id="calcLink"><a href="#calculator">Хотите знать цену? Посчитать в калькуляторе&nbsp;→</a></p>
           <div class="field">
             <label for="message">Комментарий</label>
-            <textarea id="message" placeholder="Дата, пожелания, расчёт из калькулятора"></textarea>
+            <textarea id="message" placeholder="Дата, время, пожелания"></textarea>
           </div>
           <details class="form-more" id="formMore">
             <summary>
@@ -907,5 +955,7 @@
 <script src="js/pricing.js"></script>
 <script src="js/script.js"></script>
 
+<!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
+<div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>
 </body>
 </html>

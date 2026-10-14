@@ -19,8 +19,10 @@ interface Result {
   extrasCount: number;
 }
 interface Options { pkg: string; tier: number; weekend?: boolean; extras?: string[]; ext?: number; addons?: string[] }
+interface Summary { type: string; guests: number | null; parts: string[]; totals: { name: string; price: number }[] | null; duration: string; text: string }
 interface Pricing {
   calcPrice(o: Options): Result;
+  calcSummary(o: Options): Summary;
   hoursWord(n: number): string;
   gamesWord(n: number): string;
   TIERS: number[];
@@ -160,5 +162,35 @@ describe("калькулятор сайта: цены", () => {
     expect(prices({ pkg: "quiz", tier: 0, extras: ["quiz"] })).toEqual(prices({ pkg: "quiz", tier: 0 }));
     expect([1, 2, 4, 5].map((n) => P.gamesWord(n))).toEqual(["игра", "игры", "игры", "игр"]);
     expect([2, 2.5, 4, 5, 6].map((n) => P.hoursWord(n))).toEqual(["часа", "часа", "часа", "часов", "часов"]);
+  });
+
+  it("расчёт для заявки: выбор, три цены и длительность одной строкой", () => {
+    const s = P.calcSummary({ pkg: "quiz", tier: 1, ext: 1, addons: ["prize", "logo"] });
+    expect(s.type).toBe("Пакет «Квиз»");
+    expect(s.guests).toBe(25);
+    expect(s.parts).toEqual(["до 25 гостей", "будни", "продление 30 мин", "допы: Логотип на экранах, Призы и медали"]);
+    expect(s.totals).toEqual([
+      { name: "Опытный", price: 34300 },
+      { name: "Новые лица", price: 28000 },
+      { name: "Первый старт", price: 23200 },
+    ]);
+    expect(s.text).toBe(
+      "Пакет «Квиз», до 25 гостей, будни, продление 30 мин, допы: Логотип на экранах, Призы и медали. " +
+        "Вечер ≈ 2–2,5 часа. Итого: Опытный — 34 300 ₽, Новые лица — 28 000 ₽, Первый старт — 23 200 ₽.",
+    );
+    const totals = P.calcPrice({ pkg: "quiz", tier: 1, ext: 1, addons: ["prize", "logo"] }).totals.map((t) => t.price);
+    expect(s.totals?.map((t) => t.price)).toEqual(totals);
+  });
+
+  it("расчёт для заявки: «Под ключ», больше 90 гостей и ещё игры", () => {
+    const turnkey = P.calcSummary({ pkg: "turnkey", tier: 5, weekend: true });
+    expect(turnkey.type).toBe("Под ключ");
+    expect(turnkey.guests).toBeNull();
+    expect(turnkey.totals).toBeNull();
+    expect(turnkey.text).toContain("больше 90 гостей, пятница–воскресенье");
+    expect(turnkey.text).toContain("Итого: обсудим индивидуально.");
+    const evening = P.calcSummary({ pkg: "show", tier: 0, extras: ["dance", "show"] });
+    expect(evening.parts).toContain("ещё в этот вечер: Танцевальный");
+    expect(evening.text.length).toBeLessThanOrEqual(1000);
   });
 });

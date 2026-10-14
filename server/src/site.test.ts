@@ -417,7 +417,7 @@ describe("тексты и устройство страницы", () => {
   });
 
   it("калькулятор: шесть шагов, три цены сразу, длительность, полоска итога на телефоне", () => {
-    for (const id of ["calcPacks", "calcTiers", "calcDays", "calcExtras", "calcExt", "calcAddons", "calcLevels", "calcDuration", "calcLines", "calcSubmit", "calcBar"]) {
+    for (const id of ["calcPacks", "calcTiers", "calcDays", "calcExtras", "calcExt", "calcAddons", "calcLevels", "calcDuration", "calcLines", "calcSubmit", "calcBar", "calcCard", "calcCardTotals", "calcCardEdit", "calcCardRemove", "calcLink", "calcLinked", "calcBarSend", "topToast"]) {
       expect(html, id).toContain(`id="${id}"`);
     }
     expect(html.indexOf('<script src="js/pricing.js"></script>')).toBeLessThan(html.indexOf('<script src="js/script.js"></script>'));
@@ -448,6 +448,12 @@ describe("тексты и устройство страницы", () => {
     for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "cards-durak", "cards-loto", "game-board", "game-millionaire", "game-dragon", "game-checkers"]) {
       expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
     }
+    // У каждой игры картинка: снимок платформы или своя обложка, без латинской подписи «JOYREST».
+    for (const m of html.matchAll(/<article class="game"[\s\S]*?<\/article>/g)) {
+      expect(m[0]).toMatch(/<div class="game__media[^"]*"><img src="img\/[\w-]+\.(webp|svg)"/);
+    }
+    expect(html).not.toContain("game__cover-mark");
+    expect(html).not.toContain(">JOYREST<");
     // Каждая игра есть в списке «Тип мероприятия» заявки.
     for (const m of html.matchAll(/<article class="game"[\s\S]*?<h3>([^<]+)<\/h3>/g)) expect(html, m[1]).toContain(`<option>${m[1]}</option>`);
   });

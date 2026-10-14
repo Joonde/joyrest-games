@@ -61,81 +61,102 @@ export function LifelineRow({ content, used, size = "screen" }: { content: Milli
   );
 }
 
-/** Подсказки команды, чей ход, — крупные плитки с подписью (экран зала). Взятая сейчас — светится. */
-function LifelineTray({ content, used, active }: { content: MillionaireContent; used: LifelineId[]; active: LifelineId | null }) {
-  const list = LIFELINES.filter((l) => content.lifelines.includes(l.id));
-  if (list.length === 0) return null;
+/** Полоски команд: деления лестницы, несгораемые отмечены, у той, чей ход, — подсветка. */
+export const SCREEN_LADDERS = 3;
+
+function Bar({ session, content, result, pid, style }: { session: Session; content: MillionaireContent; result: MillionaireResult; pid: string; style?: CSSProperties }) {
+  const level = result.levels[pid] ?? 0;
+  const active = pid === result.turn && result.mode !== "over";
   return (
-    <ul className="mil-tray" aria-label="Подсказки команды">
-      {list.map((l) => {
-        const gone = used.includes(l.id);
-        return (
-          <li key={l.id} className={`mil-tray__item${gone ? " is-used" : ""}${active === l.id ? " is-active" : ""}`} aria-label={`${l.title}${gone ? " — использована" : ""}`}>
-            <span className="mil-tray__icon">
-              <LifelineIcon id={l.id} />
-            </span>
-            <span className="mil-tray__label">{l.title}</span>
+    <div style={{ ["--team" as string]: colorOf(session, result, pid), ...style }} className={`mil-bar${active ? " is-turn" : ""}${level >= levelsOf(content) ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`}>
+      <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
+      <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${levelsOf(content)}`}>
+        {Array.from({ length: levelsOf(content) }, (_, i) => levelsOf(content) - i).map((n) => (
+          <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`}>
+            <span aria-hidden="true">{n}</span>
           </li>
-        );
-      })}
-    </ul>
+        ))}
+      </ol>
+      <span className="mil-bar__name">
+        {level >= levelsOf(content) ? "👑 " : ""}
+        <NameText name={nameOf(session, pid)} />
+        {result.out.includes(pid) && <span className="mil-bar__tag"> · выбыл</span>}
+        {result.skip.includes(pid) && <span className="mil-bar__tag"> · пропуск хода</span>}
+      </span>
+    </div>
   );
 }
 
-/** Полоски команд: 12 делений, несгораемые отмечены, у той, чей ход, — подсветка. */
-export const SCREEN_LADDERS = 3;
-
-export function LadderBars({ session, content, result, compact = false, window: size }: { session: Session; content: MillionaireContent; result: MillionaireResult; compact?: boolean; window?: number }) {
-  const shown = size ? ladderWindow(result, size) : result.order;
-  const rest = result.order.length - shown.length;
-  const bars = (
-    <div key={size ? shown.join("|") : "all"} className={`${shown.length > 8 ? "mil-bars is-many" : "mil-bars"}${size && rest > 0 ? " is-window" : ""}`} style={{ gridTemplateColumns: `repeat(${Math.max(1, shown.length)}, minmax(0, 1fr))` }}>
-      {shown.map((pid, i) => {
-        const level = result.levels[pid] ?? 0;
-        const active = pid === result.turn && result.mode !== "over";
-        return (
-          <div key={pid} style={{ ["--team" as string]: colorOf(session, result, pid), ["--i" as string]: i }} className={`mil-bar${active ? " is-turn" : ""}${level >= levelsOf(content) ? " is-top" : ""}${result.out.includes(pid) ? " is-out" : ""}${result.skip.includes(pid) ? " is-skip" : ""}`}>
-            <span className="mil-bar__points">{shortPoints(pointsAt(content, level))}</span>
-            <ol className="mil-bar__steps" aria-label={`${nameOf(session, pid)}: ступень ${level} из ${levelsOf(content)}`}>
-              {Array.from({ length: levelsOf(content) }, (_, i) => levelsOf(content) - i).map((n) => (
-                <li key={n} className={`mil-step${n <= level ? " is-on" : ""}${content.safe.includes(n) ? " is-safe" : ""}${active && n === level + 1 ? " is-next" : ""}`}>
-                  <span aria-hidden="true">{n}</span>
-                </li>
-              ))}
-            </ol>
-            <span className="mil-bar__name">
-              {level >= levelsOf(content) ? "👑 " : ""}
-              <NameText name={nameOf(session, pid)} />
-              {result.out.includes(pid) && <span className="mil-bar__tag"> · выбыл</span>}
-              {result.skip.includes(pid) && <span className="mil-bar__tag"> · пропуск хода</span>}
-            </span>
-            {!compact && <LifelineRow content={content} used={result.used[pid] ?? []} />}
-          </div>
-        );
-      })}
-    </div>
-  );
-  if (!size || rest <= 0) return bars;
-  const waiting = result.order.filter((p) => !shown.includes(p) && !result.out.includes(p));
+/**
+ * Полоски. Экран зала (`carousel`): команд больше трёх — карусель (решение владельца 14 октября 2026): команда хода
+ * в центре, прошлая и следующая — по бокам вполоборота, остальные за ними; сменился ход — карусель поворачивается.
+ * Подсказки команд на экране — над вопросом (`LifelineBoard`), не под полосками.
+ */
+export function LadderBars({ session, content, result, carousel = false }: { session: Session; content: MillionaireContent; result: MillionaireResult; carousel?: boolean }) {
+  const ring = result.order.filter((p) => !result.out.includes(p));
+  if (!carousel || ring.length <= SCREEN_LADDERS) {
+    const list = carousel ? ring : result.order;
+    return (
+      <div className={list.length > 8 ? "mil-bars is-many" : "mil-bars"} style={{ gridTemplateColumns: `repeat(${Math.max(1, list.length)}, minmax(0, 1fr))` }}>
+        {list.map((pid) => (
+          <Bar key={pid} session={session} content={content} result={result} pid={pid} />
+        ))}
+      </div>
+    );
+  }
+  const n = ring.length;
+  const at = Math.max(0, result.turn ? ring.indexOf(result.turn) : 0);
+  const shown = ladderWindow(result, SCREEN_LADDERS);
+  const waiting = ring.filter((p) => !shown.includes(p));
   return (
     <div className="mil-bars-window">
-      {bars}
-      <p className="mil-bars-window__more">
-        {waiting.length > 0 ? (
-          <>
-            Дальше:{" "}
-            {waiting.map((p, i) => (
-              <span key={p}>
-                {i > 0 ? ", " : ""}
-                <NameText name={nameOf(session, p)} />
-              </span>
-            ))}
-          </>
-        ) : (
-          `Выбыли: ${rest}`
-        )}
-      </p>
+      <div className="mil-carousel" aria-label="Лестницы команд по кругу">
+        {ring.map((pid, k) => {
+          let rel = (((k - at) % n) + n) % n;
+          if (rel > n / 2) rel -= n;
+          const far = Math.abs(rel);
+          return (
+            <Bar
+              key={pid}
+              session={session}
+              content={content}
+              result={result}
+              pid={pid}
+              style={{ ["--rel" as string]: rel, ["--far" as string]: Math.min(far, 2), ["--dir" as string]: Math.sign(rel), zIndex: 10 - far, opacity: far === 0 ? 1 : far === 1 ? 0.6 : 0 }}
+            />
+          );
+        })}
+      </div>
+      {waiting.length > 0 && (
+        <p className="mil-bars-window__more">
+          Дальше:{" "}
+          {waiting.map((p, i) => (
+            <span key={p}>
+              {i > 0 ? ", " : ""}
+              <NameText name={nameOf(session, p)} />
+            </span>
+          ))}
+        </p>
+      )}
     </div>
+  );
+}
+
+/** Подсказки всех команд над вопросом: у каждой — свои значки, взятые перечёркнуты; команда хода подсвечена. */
+function LifelineBoard({ session, content, result }: { session: Session; content: MillionaireContent; result: MillionaireResult }) {
+  if (content.lifelines.length === 0 || result.order.length === 0) return null;
+  const list = result.order.filter((p) => !result.out.includes(p));
+  return (
+    <ul className={`mil-lifeboard${list.length > 4 ? " is-many" : ""}`} aria-label="Подсказки команд">
+      {list.map((pid) => (
+        <li key={pid} className={pid === result.turn ? "mil-lifeboard__team is-turn" : "mil-lifeboard__team"} style={{ ["--team" as string]: colorOf(session, result, pid) } as CSSProperties}>
+          <span className="mil-lifeboard__name">
+            <NameText name={nameOf(session, pid)} />
+          </span>
+          <LifelineRow content={content} used={result.used[pid] ?? []} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -221,7 +242,6 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
   const flash = r.flash ? LIFELINES.find((l) => l.id === r.flash) : null;
   const top = r.outcome === "right" && (r.levels[r.turn ?? ""] ?? 0) >= levelsOf(content);
   const audience = r.mode === "audience" && stage === "question";
-  const used = r.turn ? (r.used[r.turn] ?? []) : [];
 
   return (
     <div className={`mil-screen${audience ? " mil-screen--audience" : ""}${r.order.length === 0 ? " mil-screen--intro" : ""}${showStageClass(content.look)}`}>
@@ -244,13 +264,14 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
             </p>
             <h2 className="mil-screen__title">Вопрос {level} — {pointsLabel(pointsAt(content, level))}</h2>
             {content.safe.includes(level) && <p className="mil-screen__note">Несгораемая ступень</p>}
-            <LifelineTray content={content} used={used} active={null} />
+            <LifelineBoard session={session} content={content} result={r} />
           </>
         ) : q ? (
           <>
             <p className="mil-screen__who">
               <NameText name={team} /> · вопрос {level} — {pointsLabel(pointsAt(content, level))}
             </p>
+            {!audience && <LifelineBoard session={session} content={content} result={r} />}
             {flash && (
               <p key={`${step}:${flash.id}`} className="mil-flash" role="status">
                 <LifelineIcon id={flash.id} /> {flash.title}
@@ -302,13 +323,12 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
                 {r.outcome === "right" ? (top ? "Миллионер! 👑" : "Верно!") : r.outcome === "saved" ? "Неверно — но спасает право на ошибку" : "Неверно"}
               </p>
             )}
-            {stage === "question" && !audience && <LifelineTray content={content} used={used} active={r.flash} />}
           </>
         ) : null}
       </section>
       {r.order.length > 0 && (
         <section className="mil-screen__bars" aria-label="Лестницы команд">
-          <LadderBars session={session} content={content} result={r} window={SCREEN_LADDERS} />
+          <LadderBars session={session} content={content} result={r} carousel />
         </section>
       )}
     </div>
@@ -542,7 +562,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
       )}
       {session.screenMode === "none" && (
         <div className="mil-phone-bars">
-          <LadderBars session={session} content={content} result={r} compact />
+          <LadderBars session={session} content={content} result={r} />
         </div>
       )}
     </div>

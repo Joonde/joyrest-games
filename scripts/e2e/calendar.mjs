@@ -544,7 +544,8 @@ try {
   const pastId = `e2epast${Date.now() % 100000}`;
   await api("POST", "/api/events", admin.cookie, { id: pastId, hostId: host.profile.uid, day: pastDay, start: 600, end: 720, title: "Итоги, проверка", guests: 37 });
   await ap.getByRole("button", { name: "Итоги", exact: true }).click();
-  await ap.getByRole("button", { name: "Неделя", exact: true }).click();
+  const periodSeg = ap.getByRole("group", { name: "Период" });
+  await periodSeg.getByRole("button", { name: "Неделя", exact: true }).click();
   const pastCard = ap.locator(".plan-card", { hasText: "Итоги, проверка" });
   // Вчера может быть в прошлой неделе (понедельник) — листаем назад, пока не найдём.
   for (let i = 0; i < 2 && (await pastCard.count()) === 0; i++) {
@@ -562,10 +563,10 @@ try {
   check((await tileText("Гостей")) === guestsBefore + 37, "Владелец: «Проведено» — в итогах +1 мероприятие и +37 гостей (точное число)", `Владелец: гостей ${guestsBefore} → ${await tileText("Гостей")}`);
   check((await ap.locator(".plan-table", { hasText: hostName }).count()) > 0, "Владелец: в итогах — таблица по ведущим");
   await shot(ap, "владелец-итоги");
-  await ap.getByRole("button", { name: "Год", exact: true }).click();
+  await periodSeg.getByRole("button", { name: "Год", exact: true }).click();
   await until(async () => (await ap.locator("#plan-stats").textContent())?.trim() === TODAY.slice(0, 4), WAIT, "итоги за год");
   ok("Владелец: итоги переключаются на год");
-  for (const k of ["Месяц", "Квартал"]) await ap.getByRole("button", { name: k, exact: true }).click();
+  for (const k of ["Месяц", "Квартал"]) await periodSeg.getByRole("button", { name: k, exact: true }).click();
   await fits(ap, "Владелец, итоги за квартал");
 
   // База клиентов: клиент из мероприятия уже там; выгрузка — только владельцу.

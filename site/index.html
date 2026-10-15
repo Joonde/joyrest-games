@@ -737,11 +737,21 @@
 
   <!-- data-review-form="off" прячет кнопку «Написать отзыв» и форму отзыва (css/style.css).
        Вернуть — data-review-form="on". Тип review в /api/lead не трогаем. -->
-  <section id="reviews" class="section band" data-review-form="off">
+  <section id="reviews" class="section band" data-review-form="on">
     <div class="wrap">
-      <p class="eyebrow">Telegram</p>
-      <h2>Следите за нами</h2>
-      <p class="sub">Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.</p>
+      <p class="eyebrow" id="reviewsEyebrow">Telegram</p>
+      <h2 id="reviewsTitle">Следите за нами</h2>
+      <p class="sub" id="reviewsSub">Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.</p>
+
+      <!-- Лента отзывов: те, что владелец отметил «Поместить на сайт» в студии (GET /api/site/reviews).
+           Листается пальцем по кругу без конца, стрелки — на компьютере. Нет отзывов — ленты нет. -->
+      <div class="reviews" id="siteReviews" hidden>
+        <div class="reviews__track" id="reviewsTrack" role="region" aria-roledescription="карусель" aria-label="Отзывы гостей" tabindex="0"></div>
+        <div class="reviews__nav">
+          <button type="button" class="reviews__btn" id="reviewsPrev" aria-label="Предыдущий отзыв">‹</button>
+          <button type="button" class="reviews__btn" id="reviewsNext" aria-label="Следующий отзыв">›</button>
+        </div>
+      </div>
 
       <button type="button" class="btn btn--outline" id="openReviewForm">✍️ Написать отзыв</button>
 
@@ -958,6 +968,7 @@
 
 <script src="js/pricing.js"></script>
 <script src="js/script.js"></script>
+<script src="js/reviews.js"></script>
 
 <!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
 <div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>

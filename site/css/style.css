@@ -658,3 +658,19 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
   .ticker__in{ animation: none; }
   .ticker__item[aria-hidden="true"]{ display: none; }
 }
+
+/* Лента отзывов (js/reviews.js): по кругу без конца, листается пальцем, на компьютере — стрелки. */
+.reviews{ margin: 28px 0 32px; }
+.reviews__track{ display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 4px 2px 8px; overscroll-behavior-x: contain; }
+.reviews__track::-webkit-scrollbar{ display: none; }
+.reviews__track:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 4px; border-radius: 20px; }
+.review-card{ flex: 0 0 min(86%, 380px); scroll-snap-align: center; display: flex; flex-direction: column; gap: 12px; padding: 26px; border-radius: 20px; border: 1px solid var(--line); background: var(--card); }
+.review-card__stars{ margin: 0; font-size: 20px; letter-spacing: 2px; color: var(--accent-text); }
+.review-card__rest{ color: var(--line); }
+.review-card__text{ margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+.review-card__who{ margin: auto 0 0; font-size: 14px; color: var(--ink-soft); }
+.reviews__nav{ display: none; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+.reviews__btn{ width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--btn-outline); background: transparent; color: var(--ink); font-size: 26px; line-height: 1; cursor: pointer; }
+.reviews__btn:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 3px; }
+.reviews--single .reviews__nav{ display: none !important; }
+@media (min-width: 760px){ .reviews__nav{ display: flex; } .review-card{ flex-basis: 360px; } }

@@ -288,10 +288,13 @@ describe("тексты и устройство страницы", () => {
     expect(readFileSync(join(root, "scripts/build-site.ts"), "utf8")).toContain('const SOURCE = join(ROOT, "site");');
   });
 
-  it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, карточка Telegram на месте", () => {
-    expect(html).toContain("<h2>Следите за нами</h2>");
+  it("отзывы: пока нет опубликованных — «Следите за нами»; форма отзыва открыта, лента из студии, карточка Telegram на месте", () => {
+    expect(html).toContain('<h2 id="reviewsTitle">Следите за нами</h2>');
     expect(html).toContain("Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.");
-    expect(html).toMatch(/<section id="reviews" [^>]*data-review-form="off">/);
+    expect(html).toMatch(/<section id="reviews" [^>]*data-review-form="on">/);
+    expect(html).toContain('<div class="reviews" id="siteReviews" hidden>');
+    expect(html).toContain('<script src="js/reviews.js"></script>');
+    expect(readFileSync(join(root, "site/js/reviews.js"), "utf8")).toContain("/api/site/reviews");
     expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
     expect(html).toContain('class="tg-card');
   });

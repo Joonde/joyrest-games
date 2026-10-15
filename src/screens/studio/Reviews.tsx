@@ -49,7 +49,7 @@ function ReviewList({ profile }: { profile: UserProfile }) {
     try {
       await repo.setReviewStatus(review.id, status);
       update((list) => list.map((r) => (r.id === review.id ? { ...r, status } : r)));
-      showToast(status === "published" ? "Отзыв будет на сайте" : status === "hidden" ? "Отзыв скрыт" : "Отзыв снова в новых");
+      showToast(status === "published" ? "Отзыв помещён на сайт" : status === "hidden" ? "Отзыв скрыт" : review.status === "published" ? "Отзыв убран с сайта" : "Отзыв снова в новых");
     } catch {
       showToast("Не получилось. Проверьте интернет.");
     } finally {
@@ -67,7 +67,7 @@ function ReviewList({ profile }: { profile: UserProfile }) {
     <div className="stack">
       <p className="muted">
         {owner
-          ? "Гости оставляют отзывы после игры — по QR на экране зала или с телефона. Отметьте, какие показать на сайте."
+          ? "Гости оставляют отзывы после игры — по QR на экране зала или с телефона. «Поместить на сайт» — отзыв появится в ленте отзывов на joy-rest.ru (через несколько минут)."
           : "Отзывы гостей о ваших мероприятиях."}
       </p>
       {state.data.length > 0 && (
@@ -102,7 +102,12 @@ function ReviewList({ profile }: { profile: UserProfile }) {
               <div className="actions">
                 {r.status !== "published" && (
                   <button type="button" className="btn btn--secondary btn--block" disabled={busy === r.id} onClick={() => void setStatus(r, "published")}>
-                    Показать на сайте
+                    Поместить на сайт
+                  </button>
+                )}
+                {r.status === "published" && (
+                  <button type="button" className="btn btn--secondary btn--block" disabled={busy === r.id} onClick={() => void setStatus(r, "new")}>
+                    Убрать с сайта
                   </button>
                 )}
                 {r.status !== "hidden" && (

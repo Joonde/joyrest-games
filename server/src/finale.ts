@@ -7,7 +7,7 @@
  * видит отзывы о своих мероприятиях, владелец — все и отмечает, какие показать на сайте. В журнал — только действие.
  */
 import { randomBytes } from "node:crypto";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions } from "fastify";
 import type { Sql } from "postgres";
 import { ADMIN_UID } from "../../src/data/config";
 import * as permissions from "../../src/data/permissions";
@@ -201,4 +201,47 @@ export function registerFinale(app: FastifyInstance, options: FinaleOptions): vo
       return { url };
     });
   });
+}
+
+/** Отзыв на сайте: без автора-устройства, ведущего и игры — только оценка, текст, подпись и месяц. */
+export interface SiteReview {
+  id: string;
+  rating: number;
+  text: string;
+  name: string;
+  month: string;
+}
+
+/** Сколько отзывов отдаёт сайт (свежие — первыми). */
+export const SITE_REVIEWS_MAX = 100;
+
+/**
+ * Отзывы для сайта агентства (решение владельца 15 октября 2026): только те, что владелец отметил «На сайт», только на
+ * адресах сайта и только у включённого сайта (как `/api/lead`). Кэш — 5 минут.
+ */
+export function registerSiteReviews(app: FastifyInstance, sql: Sql, routeOptions: RouteShorthandOptions = {}): void {
+  app.get("/api/site/reviews", routeOptions, async (_request, reply) => {
+    const rows = await sql<{ id: string; rating: number; text: string; name: string; played_at: Date | null; created_at: Date }[]>`
+      select id, rating, text, name, played_at, created_at from reviews where status = 'published'
+      order by coalesce(played_at, created_at) desc limit ${SITE_REVIEWS_MAX}`;
+    reply.header("Cache-Control", "public, max-age=300");
+    const reviews: SiteReview[] = rows.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      text: r.text,
+      name: r.name,
+      month: (r.played_at ?? r.created_at).toLocaleDateString("ru-RU", { month: "long", year: "numeric", timeZone: "Europe/Moscow" }),
+    }));
+    return { reviews };
+  });
+}
+
+/** Отзыв из формы сайта: без игры и ведущего, статус «Новый» — его увидит владелец в «Отзывах». */
+export async function saveSiteReview(sql: Sql, review: { name: string; text: string; rating: number }): Promise<void> {
+  const rating = Number.isInteger(review.rating) && review.rating >= 1 && review.rating <= 5 ? review.rating : 5;
+  const id = randomBytes(12).toString("base64url");
+  await sql`
+    insert into reviews (id, session_id, host_id, game_title, author_uid, rating, text, name)
+    values (${id}, ${"site"}, ${""}, ${"Отзыв с сайта"}, ${"site:" + id}, ${rating},
+            ${cleanReviewText(review.text, REVIEW_TEXT_MAX, true)}, ${cleanReviewText(review.name, REVIEW_NAME_MAX, false)})`;
 }

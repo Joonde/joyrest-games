@@ -23,7 +23,7 @@ import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks } from "./tracks";
 import { registerVideos } from "./videos";
-import { registerFinale } from "./finale";
+import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
 import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -124,6 +124,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
               source: "site",
               summary: [f.eventType || "Заявка", f.guests ? `${f.guests} гостей` : ""].filter(Boolean).join(", "),
             });
+          } else if (lead.type === "review") {
+            // Отзыв с сайта — в «Отзывы» студии, на проверку владельцу (решение владельца 15 октября 2026).
+            await saveSiteReview(sql, { name: lead.fields.name, text: lead.fields.text, rating: lead.rating });
           } else if (lead.type === "question") {
             const contact = lead.fields.contact;
             await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: lead.fields.text.slice(0, 200) });
@@ -131,6 +134,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
         }
       : undefined;
     registerLead(app, { ...options.lead, hosts: options.site.hosts, onLead }, { constraints: { host: hostPattern(options.site.hosts) } });
+  }
+  // Отзывы на сайте — только у включённого сайта и только на его адресах.
+  if (options.site?.enabled && options.sql) {
+    registerSiteReviews(app, options.sql, { constraints: { host: hostPattern(options.site.hosts) } });
   }
   // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.
   if (options.sql) {

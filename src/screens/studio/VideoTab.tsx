@@ -178,7 +178,7 @@ export function VideoTab({ profile, onToast }: Props) {
               ))}
             </datalist>
           </label>
-          <input ref={fileRef} type="file" accept={VIDEO_ACCEPT} multiple className="visually-hidden" tabIndex={-1} onChange={(e) => pick(e.target.files)} />
+          <input ref={fileRef} type="file" accept={VIDEO_ACCEPT} multiple className="visually-hidden visually-hidden--pinned" tabIndex={-1} onChange={(e) => pick(e.target.files)} />
           <button type="button" className="btn btn--block" onClick={() => fileRef.current?.click()}>
             ⬆ Выбрать видео (можно сразу несколько)
           </button>

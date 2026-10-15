@@ -77,7 +77,7 @@ export function UploadTrackButton({ onUploaded, disabled }: { onUploaded: (track
 
   return (
     <div className="stack stack--tight">
-      <input ref={ref} type="file" accept={TRACK_ACCEPT} className="visually-hidden" tabIndex={-1} onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
+      <input ref={ref} type="file" accept={TRACK_ACCEPT} className="visually-hidden visually-hidden--pinned" tabIndex={-1} onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
       <button type="button" className="btn btn--secondary btn--block" disabled={disabled || busy} onClick={() => ref.current?.click()}>
         {busy ? "Загружаем трек…" : "♪ Загрузить свой трек"}
       </button>

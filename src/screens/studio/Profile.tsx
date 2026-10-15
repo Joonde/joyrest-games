@@ -119,7 +119,7 @@ function ImagePicker({
     <section className="card" aria-labelledby={`profile-${kind}`}>
       <h2 id={`profile-${kind}`}>{title}</h2>
       <p className="muted">{hint}</p>
-      <input ref={fileRef} type="file" accept="image/*" className="visually-hidden" tabIndex={-1} onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
+      <input ref={fileRef} type="file" accept="image/*" className="visually-hidden visually-hidden--pinned" tabIndex={-1} onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
       <div className="actions">
         <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => fileRef.current?.click()}>
           {busy ? "Сжимаем и загружаем…" : has ? `Сменить ${kind === "avatar" ? "аватарку" : "обложку"}` : `Выбрать ${kind === "avatar" ? "аватарку" : "обложку"}`}

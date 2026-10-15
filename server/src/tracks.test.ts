@@ -150,5 +150,34 @@ describe.skipIf(!url)("музыка на PostgreSQL", () => {
       await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { licenseNote: "https://vk.com/audio1" } })
     ).json();
     expect(sourced).toMatchObject({ title: "Лобби JoyRest", licenseNote: "https://vk.com/audio1" });
+    // Папка: кладём, длинное название обрезается, пустое — «без папки»; остальное не трогается.
+    const foldered = (await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "  Лото  " } })).json();
+    expect(foldered).toMatchObject({ folder: "Лото", title: "Лобби JoyRest", licenseNote: "https://vk.com/audio1" });
+    expect((await get("/api/tracks", anna)).json().library[0]).toMatchObject({ folder: "Лото" });
+    const long = (await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "х".repeat(80) } })).json();
+    expect(long.folder).toHaveLength(40);
+    expect((await app.inject({ method: "PATCH", url: `/api/tracks/${lib.id}`, headers: headers(owner), payload: { folder: "" } })).json().folder).toBe("");
+    // Папки как записи: пустая папка, переименовать (треки переезжают), удалить (треки остаются без папки).
+    expect((await post("/api/track-folders", anna, { scope: "personal", name: "Пустая" })).json()).toMatchObject({ mine: ["Пустая"] });
+    expect((await post("/api/track-folders", anna, { scope: "agency", name: "Общая" })).statusCode).toBe(403);
+    const annaTrack = (await get("/api/tracks", anna)).json().mine[0] as { id: string };
+    await app.inject({ method: "PATCH", url: `/api/tracks/${annaTrack.id}`, headers: headers(anna), payload: { folder: "Пустая" } });
+    expect((await post("/api/track-folders/rename", anna, { scope: "personal", from: "Пустая", to: "" })).statusCode).toBe(400);
+    expect((await post("/api/track-folders/rename", anna, { scope: "personal", from: "Пустая", to: "Лото" })).json()).toEqual({ mine: ["Лото"], library: [] });
+    expect(((await get("/api/tracks", anna)).json().mine as Array<{ id: string; folder: string }>).find((t) => t.id === annaTrack.id)?.folder).toBe("Лото");
+    expect((await post("/api/track-folders/delete", anna, { scope: "personal", name: "Лото" })).json()).toEqual({ mine: [], library: [] });
+    expect(((await get("/api/tracks", anna)).json().mine as Array<{ id: string; folder: string }>).find((t) => t.id === annaTrack.id)?.folder).toBe("");
+    // Папку целиком — в общую (через проверку), общую папку — себе (личные копии того же файла).
+    await app.inject({ method: "PATCH", url: "/api/tracks/b1", headers: headers(boris), payload: { folder: "Борис" } });
+    expect((await post("/api/track-folders/share", boris, { name: "Борис" })).json()).toEqual({ shared: 1 });
+    await post("/api/tracks/b1/accept", owner);
+    const shared = ((await get("/api/tracks", anna)).json().library as Array<{ title: string; folder: string }>).find((t) => t.title === "Мой трек");
+    expect(shared?.folder).toBe("Борис");
+    expect((await post("/api/track-folders/take", anna, { name: "Борис" })).json().mine).toContain("Борис");
+    const taken = ((await get("/api/tracks", anna)).json().mine as Array<{ title: string; folder: string; scope: string }>).filter((t) => t.folder === "Борис");
+    expect(taken.map((t) => [t.title, t.scope])).toEqual([["Мой трек", "personal"]]);
+    // Повтор — та же копия, не дубль.
+    await post("/api/track-folders/take", anna, { name: "Борис" });
+    expect(((await get("/api/tracks", anna)).json().mine as Array<{ folder: string }>).filter((t) => t.folder === "Борис")).toHaveLength(1);
   });
 });

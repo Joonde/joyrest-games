@@ -11,7 +11,8 @@ export function validateStage(content: StageContent): ValidationError[] {
   });
   for (const t of content.tiles) {
     const where = `Плитка ${t.points}`;
-    if (t.video.source === "link" && !t.video.url.trim()) errors.push({ path: `tiles/${t.id}/video`, message: `${where}: вставьте ссылку на видео или выберите «Без видео».` });
+    if (t.video.source === "server" && !t.video.url) errors.push({ path: `tiles/${t.id}/video`, message: `${where}: выберите видео JoyRest или «Без видео».` });
+    else if (t.video.source === "link" && !t.video.url.trim()) errors.push({ path: `tiles/${t.id}/video`, message: `${where}: вставьте ссылку на видео или выберите «Без видео».` });
     else if (t.video.source === "link" && !embedUrl(t.video.url)) errors.push({ path: `tiles/${t.id}/video`, message: `${where}: ссылка должна вести на ролик YouTube, VK Видео или Rutube.` });
   }
   return errors;

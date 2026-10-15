@@ -6,15 +6,24 @@ import { Sheet } from "../../components/Sheet";
 import { Tabs } from "../../components/Tabs";
 import type { PlayMode } from "../../data";
 import { runPreview } from "../../mechanics/preview";
-import type { AnyMechanic } from "../../mechanics/types";
+import type { AnyMechanic, SessionControl } from "../../mechanics/types";
 import { getTheme, themeStyle } from "../../themes/registry";
 
-type View = "screen" | "phone";
+type View = "screen" | "phone" | "host";
 
 const VIEWS: Array<{ id: View; label: string }> = [
   { id: "screen", label: "Экран зала" },
   { id: "phone", label: "Телефон" },
+  { id: "host", label: "Пульт" },
 ];
+
+/** Пульт в предпросмотре только показывает кнопки: игра идёт сама, нажатия ничего не меняют. */
+const IDLE_CONTROL: SessionControl = {
+  apply: async () => undefined,
+  clearAnswers: async () => undefined,
+  freshAnswers: async () => [],
+  requestFinish: () => undefined,
+};
 
 interface Props {
   open: boolean;
@@ -27,7 +36,7 @@ interface Props {
 
 /**
  * Предпросмотр игры: она проходит сама с тестовыми командами, ведущий листает моменты «Назад / Дальше»
- * и смотрит, что в этот момент на экране зала и на телефоне любой команды.
+ * и смотрит, что в этот момент на экране зала, на телефоне любой команды и на пульте.
  */
 export function GamePreview({ open, onClose, mechanic, content, playMode, themeId }: Props) {
   const [view, setView] = useState<View>("screen");
@@ -42,7 +51,7 @@ export function GamePreview({ open, onClose, mechanic, content, playMode, themeI
     return { parsed, ...runPreview({ mechanic: mechanic.id, content: parsed, playMode, themeId, driver, teams, limit }) };
   }, [open, mechanic, content, playMode, themeId]);
   if (!run) return null;
-  const { scenes, phones, parsed } = run;
+  const { scenes, phones, parsed, participants } = run;
   const at = Math.min(index, scenes.length - 1);
   const scene = scenes[at];
   const phone = phones[Math.min(phoneAt, phones.length - 1)];
@@ -52,7 +61,8 @@ export function GamePreview({ open, onClose, mechanic, content, playMode, themeI
   const finished = session.state.phase === "finished";
   const podium = session.state.stage === "podium";
   const mine = scene.answers.find((a) => a.step === scene.session.state.step && a.pid === phone.pid && (a.submittedAt ?? 0) >= (scene.session.state.startedAt ?? 0));
-  const { ScreenView, PlayerView } = mechanic;
+  const { ScreenView, PlayerView, HostControls } = mechanic;
+  const stepAnswers = scene.answers.filter((a) => a.step === session.state.step && (a.submittedAt ?? 0) >= (scene.session.state.startedAt ?? 0));
 
   return (
     <Sheet
@@ -86,7 +96,26 @@ export function GamePreview({ open, onClose, mechanic, content, playMode, themeI
       </p>
       <Tabs items={VIEWS} value={view} onChange={setView} label="Что показать" idPrefix="game-preview" />
       <div role="tabpanel" id={`game-preview-panel-${view}`} aria-labelledby={`game-preview-tab-${view}`} className="stack">
-        {view === "screen" ? (
+        {view === "host" ? (
+          <div className="preview-phone preview-host" style={themeStyle(themeId)}>
+            {finished ? (
+              <p className="muted">Игра окончена — на пульте итоги, «История игр» и выход в студию.</p>
+            ) : (
+              <div className="preview-host__inert" inert>
+                <HostControls
+                  key={`${session.state.step}-${session.state.stage}`}
+                  session={session}
+                  content={parsed}
+                  answers={stepAnswers}
+                  participants={participants}
+                  control={IDLE_CONTROL}
+                  rehearsal
+                />
+              </div>
+            )}
+            <p className="muted small">Так выглядит пульт в этот момент. Кнопки здесь не нажимаются — нажать всё самому можно в «Репетиции».</p>
+          </div>
+        ) : view === "screen" ? (
           <div className="preview-screen" style={themeStyle(themeId)} data-shine={getTheme(themeId).effects?.shine ? "on" : undefined}>
             <Scene themeId={themeId} />
             {finished ? (

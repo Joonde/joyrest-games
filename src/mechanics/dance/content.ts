@@ -1,11 +1,24 @@
 // «Танцевальный батл»: карточки Батл / Танец / Караоке. Команды по очереди выбирают карточку,
 // выступают, другие команды оценивают (танец, караоке — от 10 до 100) или голосуют (батл).
-// Видео на сервер не загружается: файл на устройстве экрана зала или ссылка (YouTube, VK, Rutube).
+// Видео: ссылка (YouTube, VK, Rutube), файл на устройстве экрана зала или видео JoyRest на сервере (`server`: в `url` — id
+// видео, загружают владелец и заместитель — решение владельца 15 октября 2026).
 import { clipFields, parseClip, type Clip } from "../../core/clip";
 import { isStyleId } from "./styles";
 
 export type DanceKind = "battle" | "dance" | "karaoke";
-export type VideoSource = "none" | "file" | "link";
+export type VideoSource = "none" | "file" | "link" | "server";
+
+/** Видео из базы → формат механики: ссылка — как есть (до `urlMax`), видео JoyRest — id, файл — только название. */
+export function parseVideo(raw: unknown, urlMax: number): { source: VideoSource; url: string; name: string } {
+  const v = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const name = typeof v.name === "string" ? v.name.slice(0, 120) : "";
+  const url = typeof v.url === "string" ? v.url : "";
+  if (v.source === "link") return { source: "link", url: url.slice(0, urlMax).trim(), name };
+  if (v.source === "file") return { source: "file", url: "", name };
+  // Видео JoyRest ещё не выбрано — пустой id (конструктор подскажет выбрать).
+  if (v.source === "server") return { source: "server", url: /^[A-Za-z0-9_-]{1,64}$/.test(url) ? url : "", name };
+  return { source: "none", url: "", name };
+}
 
 export interface DanceCard {
   id: string;
@@ -74,15 +87,13 @@ export function parseDance(raw: unknown): DanceContent {
     while (seen.has(cid)) cid += "_";
     seen.add(cid);
     const kind: DanceKind = c.kind === "battle" || c.kind === "karaoke" ? c.kind : "dance";
-    const v = rec(c.video);
-    const source: VideoSource = v.source === "file" || v.source === "link" ? v.source : "none";
     return {
       id: cid,
       kind,
       style: isStyleId(c.style) ? c.style : "",
       title: str(c.title, DANCE_LIMITS.title),
       note: str(c.note, DANCE_LIMITS.note),
-      video: { source, url: source === "link" ? str(v.url, DANCE_LIMITS.url) : "", name: str(v.name, 120) },
+      video: parseVideo(c.video, DANCE_LIMITS.url),
       ...(clipFields(parseClip(c)) as ReturnType<typeof CLIP>),
     };
   });

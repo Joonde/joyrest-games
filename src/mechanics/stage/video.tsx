@@ -1,41 +1,58 @@
 // Видео плитки на экране зала с управлением с пульта (решение владельца 12 октября 2026): пауза, дальше, −10 с,
 // +10 с, остановить (в начало). Файл с устройства экрана — полностью; ролик YouTube и Rutube — через их
 // postMessage-API встроенного плеера; у VK Видео API нет — «Остановить» убирает ролик, «Дальше» запускает заново.
+// Видео JoyRest (`server`) — обычный <video> с файлом с сервера, команды — как у файла.
+// Тот же плеер — у музыкального лото (клип или караоке к песне; `start` — с какой секунды).
 import { useEffect, useRef, useState } from "react";
 import { loadLocalVideo, saveLocalVideo } from "../../components/media/localVideo";
+import { videosRepo } from "../../data";
 import { embedUrl } from "../dance/content";
-import type { StageTile } from "./content";
+import type { VideoSource } from "../dance/content";
 import type { VideoCmd } from "./logic";
+
+/** Что показать: id (ключ файла на устройстве экрана), название и видео; `start` — с какой секунды. */
+export interface VideoItem {
+  id: string;
+  title: string;
+  video: { source: VideoSource; url: string; name: string };
+  start?: number;
+}
 
 export type VideoHost = "youtube" | "rutube" | "vk";
 
 /** Ссылка → встраиваемый плеер с включённым API управления; null — ссылку экран не откроет. */
-export function videoTarget(raw: string, origin = typeof window !== "undefined" ? window.location.origin : ""): { host: VideoHost; src: string } | null {
+export function videoTarget(raw: string, origin = typeof window !== "undefined" ? window.location.origin : "", start = 0): { host: VideoHost; src: string } | null {
   const src = embedUrl(raw);
   if (!src) return null;
-  if (src.includes("youtube")) return { host: "youtube", src: `${src}&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}` };
-  if (src.includes("rutube.ru")) return { host: "rutube", src };
-  return { host: "vk", src };
+  const from = Math.max(0, Math.floor(start));
+  if (src.includes("youtube")) return { host: "youtube", src: `${src}&enablejsapi=1${origin ? `&origin=${encodeURIComponent(origin)}` : ""}${from ? `&start=${from}` : ""}` };
+  if (src.includes("rutube.ru")) return { host: "rutube", src: `${src}${from ? `&t=${from}` : ""}` };
+  return { host: "vk", src: `${src}${from ? `&t=${from}s` : ""}` };
 }
 
 /** Что умеет плеер этой плитки: у VK — только «остановить» и «запустить заново». */
-export function canSeek(tile: StageTile): boolean {
-  if (tile.video.source === "file") return true;
+export function canSeek(tile: VideoItem): boolean {
+  if (tile.video.source === "file" || tile.video.source === "server") return true;
   if (tile.video.source !== "link") return false;
   return videoTarget(tile.video.url)?.host !== "vk";
 }
 
 interface Props {
-  tile: StageTile;
+  tile: VideoItem;
   video: { n: number; cmd: VideoCmd; paused: boolean };
 }
 
 export function StageVideo({ tile, video }: Props) {
   if (tile.video.source === "file") return <FileVideo tile={tile} video={video} />;
+  if (tile.video.source === "server") {
+    if (!videosRepo) return <p className="stage-video__note">Видео JoyRest открывается только на платформе JoyRest (games.joy-rest.ru).</p>;
+    if (!tile.video.url) return null;
+    return <PlainVideo key={tile.video.url} src={videosRepo.fileUrl(tile.video.url)} start={Math.max(0, tile.start ?? 0)} video={video} />;
+  }
   if (tile.video.source === "link") {
-    const target = videoTarget(tile.video.url);
+    const target = videoTarget(tile.video.url, undefined, tile.start ?? 0);
     if (!target) return <p className="stage-video__note">Ссылку на видео не открыть. Проверьте её в конструкторе: подходят YouTube, VK Видео и Rutube.</p>;
-    return <LinkVideo key={target.src} target={target} title={tile.title} video={video} />;
+    return <LinkVideo key={target.src} target={target} title={tile.title} video={video} start={tile.start ?? 0} />;
   }
   return null;
 }
@@ -55,7 +72,6 @@ function useCommands(video: Props["video"], apply: (cmd: VideoCmd) => void) {
 function FileVideo({ tile, video }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
-  const ref = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -73,28 +89,6 @@ function FileVideo({ tile, video }: Props) {
       if (made) URL.revokeObjectURL(made);
     };
   }, [tile.id]);
-
-  // Открыли экран посреди выступления: пауза — так пауза.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (video.paused) el.pause();
-    else void el.play().catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при появлении видео
-  }, [url]);
-
-  useCommands(video, (cmd) => {
-    const el = ref.current;
-    if (!el) return;
-    if (cmd === "play") void el.play().catch(() => undefined);
-    if (cmd === "pause") el.pause();
-    if (cmd === "back") el.currentTime = Math.max(0, el.currentTime - 10);
-    if (cmd === "fwd") el.currentTime = Math.min(el.duration || el.currentTime + 10, el.currentTime + 10);
-    if (cmd === "stop") {
-      el.pause();
-      el.currentTime = 0;
-    }
-  });
 
   if (missing) {
     return (
@@ -120,10 +114,58 @@ function FileVideo({ tile, video }: Props) {
       </div>
     );
   }
-  return url ? <video ref={ref} className="stage-video__frame" src={url} playsInline autoPlay={!video.paused} controls={false} /> : null;
+  return url ? <PlainVideo src={url} start={Math.max(0, tile.start ?? 0)} video={video} /> : null;
 }
 
-function LinkVideo({ target, title, video }: { target: { host: VideoHost; src: string }; title: string; video: Props["video"] }) {
+/**
+ * Обычный <video>: файл с устройства экрана или видео JoyRest с сервера (браузер берёт его частями — Range,
+ * играет, не дожидаясь всего файла). Команды пульта — как у файла.
+ */
+function PlainVideo({ src, start, video }: { src: string; start: number; video: Props["video"] }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  // Открыли экран посреди выступления: пауза — так пауза.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (video.paused) el.pause();
+    else void el.play().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при появлении видео
+  }, [src]);
+
+  useCommands(video, (cmd) => {
+    const el = ref.current;
+    if (!el) return;
+    if (cmd === "play") void el.play().catch(() => undefined);
+    if (cmd === "pause") el.pause();
+    if (cmd === "back") el.currentTime = Math.max(0, el.currentTime - 10);
+    if (cmd === "fwd") el.currentTime = Math.min(el.duration || el.currentTime + 10, el.currentTime + 10);
+    if (cmd === "stop") {
+      el.pause();
+      el.currentTime = start;
+    }
+  });
+
+  if (failed) return <p className="stage-video__note">Видео не открылось: этот браузер не умеет такой формат или файл удалили. Попробуйте другой браузер (Chrome) или загрузите видео в MP4.</p>;
+  return (
+    <video
+      ref={ref}
+      className="stage-video__frame"
+      src={src}
+      playsInline
+      preload="auto"
+      autoPlay={!video.paused}
+      controls={false}
+      onError={() => setFailed(true)}
+      onLoadedMetadata={(e) => {
+        if (start > 0 && start < (e.currentTarget.duration || Infinity)) e.currentTarget.currentTime = start;
+      }}
+    />
+  );
+}
+
+function LinkVideo({ target, title, video, start }: { target: { host: VideoHost; src: string }; title: string; video: Props["video"]; start: number }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const time = useRef(0);
   const ready = useRef(false);
@@ -197,7 +239,7 @@ function LinkVideo({ target, title, video }: { target: { host: VideoHost; src: s
         if (cmd === "back") yt("seekTo", [Math.max(0, time.current - 10), true]);
         if (cmd === "fwd") yt("seekTo", [time.current + 10, true]);
         if (cmd === "stop") {
-          yt("seekTo", [0, true]);
+          yt("seekTo", [start, true]);
           yt("pauseVideo");
         }
         return;
@@ -207,7 +249,7 @@ function LinkVideo({ target, title, video }: { target: { host: VideoHost; src: s
       if (cmd === "back") rt("player:relativelySeek", { time: -10 });
       if (cmd === "fwd") rt("player:relativelySeek", { time: 10 });
       if (cmd === "stop") {
-        rt("player:setCurrentTime", { time: 0 });
+        rt("player:setCurrentTime", { time: start });
         rt("player:pause");
       }
     });

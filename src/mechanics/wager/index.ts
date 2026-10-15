@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { wagerPreview } from "./preview";
 import { createWager, parseWager, type WagerContent } from "./content";
 import { WagerHostControls } from "./HostControls";
 import { score, wagerSteps } from "./logic";
@@ -23,4 +24,5 @@ export const wager: Mechanic<WagerContent, WagerAnswerValue> = {
   steps: wagerSteps,
   score,
   validate: validateWager,
+  preview: { driver: wagerPreview, teams: 3, limit: 50 },
 };

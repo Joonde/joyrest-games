@@ -220,4 +220,31 @@ describe.skipIf(!url)("игры и картинки на PostgreSQL", () => {
     const [{ count }] = await sql<{ count: string }[]>`select count(*)::text as count from media where game_id = 'annaGame1'`;
     expect(count).toBe("0");
   });
+  it("папки «Моих игр»: пустая папка, игра в папку, переименовать (игры переезжают), удалить (игры остаются)", async () => {
+    expect((await call("POST", "/api/games", anna, { ...draft(annaId), id: "annaFolder1" })).statusCode).toBe(200);
+    expect((await call("POST", "/api/game-folders", anna, { name: "Свадьбы" })).json()).toEqual(["Свадьбы"]);
+    expect((await call("GET", "/api/game-folders", boris)).json()).toEqual([]);
+    expect((await call("PATCH", "/api/games/annaFolder1", anna, { folder: "Свадьбы" })).statusCode).toBe(200);
+    expect((await call("GET", "/api/games/annaFolder1", anna)).json().folder).toBe("Свадьбы");
+    expect((await call("POST", "/api/game-folders/rename", anna, { from: "Свадьбы", to: "" })).statusCode).toBe(400);
+    expect((await call("POST", "/api/game-folders/rename", anna, { from: "Свадьбы", to: "Свадьбы 2027" })).json()).toEqual(["Свадьбы 2027"]);
+    expect((await call("GET", "/api/games/annaFolder1", anna)).json().folder).toBe("Свадьбы 2027");
+    expect((await call("POST", "/api/game-folders/delete", anna, { name: "Свадьбы 2027" })).json()).toEqual([]);
+    expect((await call("GET", "/api/games/annaFolder1", anna)).json().folder).toBe("");
+  });
+
+  it("копия игры библиотеки к себе: её музыка приезжает личными копиями в папку с названием игры", async () => {
+    await sql`
+      insert into tracks (id, owner_id, scope, title, category, license, license_note, sha256, mime, size, duration_ms)
+      values ('libTrack01', ${ADMIN_UID}, 'agency', 'Фон квиза', 'music', 'other', '', 'abc123', 'audio/mpeg', 1000, 60000)`;
+    const game = { ...draft(ADMIN_UID, "agency"), title: "Квиз 90-х", content: { questions: [{ id: "q1", text: "?", trackId: "libTrack01" }] } };
+    expect((await call("POST", "/api/games", owner, { ...game, id: "lib90s" })).statusCode).toBe(200);
+    const copy = await call("POST", "/api/games/annaCopy90/copy", anna, { sourceId: "lib90s", mediaIds: [], game: { ...game, scope: "personal", ownerId: annaId } });
+    expect(copy.statusCode, copy.body).toBe(200);
+    const content = (await call("GET", "/api/games/annaCopy90", anna)).json().content as { questions: Array<{ trackId: string }> };
+    const trackId = content.questions[0]?.trackId ?? "";
+    expect(trackId).not.toBe("libTrack01");
+    const [mine] = await sql<{ owner_id: string; scope: string; folder: string; sha256: string }[]>`select owner_id, scope, folder, sha256 from tracks where id = ${trackId}`;
+    expect(mine).toEqual({ owner_id: annaId, scope: "personal", folder: "Квиз 90-х", sha256: "abc123" });
+  });
 });

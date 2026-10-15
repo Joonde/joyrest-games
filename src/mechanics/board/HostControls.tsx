@@ -269,6 +269,14 @@ export function BoardHostControls({ session, content, answers, participants, con
     const price = result.catPrice > 0 ? result.catPrice : cell.points;
     return (
       <div className="stack host-quiz board-host">
+        {result.catTo && (
+          <p className="mil-host-live" role="status">
+            🐱 {result.pickerBefore ? <><NameText name={nameOf(result.pickerBefore)} /> отдаёт вопрос: </> : "Вопрос достаётся: "}
+            <strong>
+              <NameText name={nameOf(result.catTo)} />
+            </strong>
+          </p>
+        )}
         {header}
         <p className="muted small">
           Кот в мешке! {result.pickerBefore ? <><NameText name={nameOf(result.pickerBefore)} /> выбирает на телефоне, кому отдать вопрос (себе нельзя) — или назовёт вам, коснитесь имени.</> : "Отдайте вопрос одному игроку."} Ставок нет: он обязан ответить, верно — плюс цена и право выбора, неверно — минус цена.
@@ -316,8 +324,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const speaking = stage === "question" ? result.buzz.current : null;
   return (
     <div className="stack host-quiz board-host">
-      {header}
-      {peekButton}
+      {/* Кто нажал первым — сразу сверху, над текстом вопроса (14 октября 2026). */}
       {speaking && (
         <div className="host-buzz" role="status" aria-live="assertive">
           <span className="host-buzz__label">Отвечает{result.catStep && result.bets[speaking] ? ` · ставка ${result.bets[speaking]}` : ""}</span>
@@ -340,6 +347,8 @@ export function BoardHostControls({ session, content, answers, participants, con
           </div>
         </div>
       )}
+      {header}
+      {peekButton}
       {stage === "question" && !result.armed && (
         <div className="board-host__arm">
           <p>Прочитайте вопрос вслух. Кнопки у гостей пока не активны — фальстарта не будет.</p>

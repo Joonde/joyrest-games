@@ -2,6 +2,7 @@ import { lazy } from "react";
 import type { Mechanic, ValidationError } from "../types";
 import { createDurak, parseDurak, type DurakContent } from "./content";
 import { DurakHostControls } from "./HostControls";
+import { durakPreview } from "./preview";
 import { durakSteps, score, type DurakAnswerValue } from "./logic";
 import { DurakPlayerView, DurakScreenView } from "./views";
 
@@ -28,6 +29,7 @@ export const durak: Mechanic<DurakContent, DurakAnswerValue> = {
   steps: durakSteps,
   score,
   validate: validateDurak,
+  preview: { driver: durakPreview, teams: 3, limit: 60 },
   // Таблица очков посреди партии не нужна: очки — по итогу каждой партии.
   ownPeek: true,
   // Тихий фон за столом всю игру (на экране зала), кроме награждения.

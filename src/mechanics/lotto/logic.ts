@@ -86,8 +86,31 @@ export interface LottoResult {
   last: string[];
   /** Заявки этой песни, которые не подтвердились. */
   rejected: string[];
-  /** «Повторить песню» — экран зала сыграет фрагмент ещё раз. */
+  /** «Повторить песню» — экран зала сыграет фрагмент (или видео) ещё раз с начала. */
   replay: number;
+  /** Видео песни на экране зала: команда пульта `n` (новая — выполнить), пауза сейчас. */
+  video: LottoVideo;
+}
+
+/** Команды видео с пульта — как у «Just Dance на поле»: пауза, дальше, −10 с, +10 с, остановить. */
+export type LottoVideoCmd = "play" | "pause" | "back" | "fwd" | "stop";
+
+export interface LottoVideo {
+  n: number;
+  cmd: LottoVideoCmd;
+  paused: boolean;
+}
+
+const VIDEO_CMDS: LottoVideoCmd[] = ["play", "pause", "back", "fwd", "stop"];
+const VIDEO_START: LottoVideo = { n: 0, cmd: "play", paused: false };
+
+function parseVideo(raw: unknown): LottoVideo {
+  const v = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  return {
+    n: typeof v.n === "number" && Number.isInteger(v.n) ? v.n : 0,
+    cmd: VIDEO_CMDS.includes(v.cmd as LottoVideoCmd) ? (v.cmd as LottoVideoCmd) : "play",
+    paused: v.paused === true,
+  };
 }
 
 function strings(value: unknown): string[] {
@@ -96,7 +119,7 @@ function strings(value: unknown): string[] {
 
 export function parseLottoResult(raw: unknown): LottoResult {
   const r = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
-  return { winners: strings(r.winners), last: strings(r.last), rejected: strings(r.rejected), replay: typeof r.replay === "number" ? r.replay : 0 };
+  return { winners: strings(r.winners), last: strings(r.last), rejected: strings(r.rejected), replay: typeof r.replay === "number" ? r.replay : 0, video: parseVideo(r.video) };
 }
 
 /** Заявка «Лото!» с телефона: отмеченные песни. */
@@ -153,14 +176,21 @@ function carryWinners(session: Session): Pick<LottoResult, "winners"> {
 /** Включить песню: заявки принимаются, пока она звучит, и до показа названия. */
 export function playSong(session: Session): SessionChange {
   return {
-    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...carryWinners(session), last: [], rejected: [], replay: 0 } },
+    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...carryWinners(session), last: [], rejected: [], replay: 0, video: VIDEO_START } },
   };
 }
 
-/** Повторить песню на экране зала. */
+/** Повторить песню на экране зала: трек или видео — заново с начала. */
 export function replaySong(session: Session): SessionChange {
   const result = parseLottoResult(session.state.result);
-  return { state: { result: { ...result, replay: result.replay + 1 } } };
+  return { state: { result: { ...result, replay: result.replay + 1, video: { ...result.video, paused: false } } } };
+}
+
+/** Команда видео песни с пульта (пауза, дальше, перемотка, остановить). */
+export function lottoVideoCommand(session: Session, cmd: LottoVideoCmd): SessionChange {
+  const result = parseLottoResult(session.state.result);
+  const paused = cmd === "pause" || cmd === "stop" ? true : cmd === "play" ? false : result.video.paused;
+  return { state: { result: { ...result, video: { n: result.video.n + 1, cmd, paused } } } };
 }
 
 /** Показать название песни и проверить заявки «Лото!»: победители получают очки. */
@@ -187,7 +217,8 @@ export function revealSong(session: Session, content: LottoContent, answers: Ans
       stage: "reveal",
       revealed: true,
       answered: own.length,
-      result: { winners: [...prior.winners, ...deltas.map((d) => d.pid)], last: deltas.map((d) => d.pid), rejected: claimed.filter((pid) => !won.has(pid) && !prior.winners.includes(pid)), replay: 0 },
+      // Видео дальше идёт как шло: название появляется поверх, караоке не обрывается.
+      result: { winners: [...prior.winners, ...deltas.map((d) => d.pid)], last: deltas.map((d) => d.pid), rejected: claimed.filter((pid) => !won.has(pid) && !prior.winners.includes(pid)), replay: prior.replay, video: prior.video },
     },
     leaderboard,
   };
@@ -203,7 +234,7 @@ export function nextSong(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: { ...carryWinners(session), last: [], rejected: [], replay: 0 },
+      result: { ...carryWinners(session), last: [], rejected: [], replay: 0, video: VIDEO_START },
     },
   };
 }
@@ -225,7 +256,7 @@ export function lottoBack(session: Session): LottoBack | null {
       if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0 };
     }
     const winners = result.winners.filter((pid) => !result.last.includes(pid));
-    return { change: { state: { stage: "question", revealed: false, result: { winners, last: [], rejected: [], replay: result.replay } }, leaderboard } };
+    return { change: { state: { stage: "question", revealed: false, result: { winners, last: [], rejected: [], replay: result.replay, video: result.video } }, leaderboard } };
   }
   if (stage === "question") {
     if (step === 0) {
@@ -238,7 +269,8 @@ export function lottoBack(session: Session): LottoBack | null {
     const last = Object.entries(session.leaderboard)
       .filter(([pid, e]) => (e.last ?? 0) > 0 && winners.includes(pid))
       .map(([pid]) => pid);
-    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, answered: 0, result: { winners, last, rejected: [], replay: 0 } } }, clearAnswers: step };
+    // Видео прошлой песни — на паузе: ведущий сам решит, включать ли его снова.
+    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, answered: 0, result: { winners, last, rejected: [], replay: 0, video: { n: 0, cmd: "pause", paused: true } } } }, clearAnswers: step };
   }
   // «ready» бывает только перед первой песней.
   return null;

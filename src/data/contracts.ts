@@ -34,6 +34,7 @@ import type {
   HostLevel,
   LeaderboardEntry,
   LibraryProposal,
+  LibraryVideo,
   MediaUpload,
   MediaVariant,
   NewGame,
@@ -309,15 +310,29 @@ export interface TelegramRepository {
 }
 
 /** Музыка ведущих и общая музыкальная библиотека — только свой сервер (CLAUDE.md, раздел 7). */
+/** Созданные папки «Музыки»: свои и общие (папки, где уже лежат треки, видны и по самим трекам). */
+export interface TrackFolders {
+  mine: string[];
+  library: string[];
+}
+
 export interface TracksRepository {
   /** Свои треки и общая библиотека (только загруженные). */
-  list(): Promise<{ mine: Track[]; library: Track[] }>;
+  list(): Promise<{ mine: Track[]; library: Track[]; folders?: TrackFolders }>;
+  /** Папки «Музыки»: создать (можно пустую), переименовать (треки переезжают), удалить (треки остаются без папки). */
+  createFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
+  renameFolder(scope: "personal" | "agency", from: string, to: string): Promise<TrackFolders>;
+  deleteFolder(scope: "personal" | "agency", name: string): Promise<TrackFolders>;
+  /** Своя папка целиком — на проверку в общую (сколько треков отправлено). */
+  shareFolder(name: string): Promise<number>;
+  /** Общая папка целиком — себе: личные копии треков в папке с тем же названием. */
+  takeFolder(name: string): Promise<TrackFolders>;
   /** Предложенные в общую, ждут проверки (admin). */
   listPending(): Promise<Track[]>;
   /** Описание трека; файл — следующим шагом (`upload`). id создаёт браузер. */
   create(input: TrackInput): Promise<Track>;
   upload(id: string, file: Blob, durationMs: number | null): Promise<Track>;
-  update(id: string, patch: { title?: string; category?: TrackCategory; clip?: TrackClip; licenseNote?: string }): Promise<Track>;
+  update(id: string, patch: { title?: string; category?: TrackCategory; clip?: TrackClip; licenseNote?: string; folder?: string }): Promise<Track>;
   remove(id: string): Promise<void>;
   share(id: string): Promise<Track>;
   accept(id: string): Promise<Track>;
@@ -328,6 +343,20 @@ export interface TracksRepository {
    * Адрес файла для `<audio src>`: прослушивание в студии начинается сразу по касанию (iPhone
    * не даёт включить звук, если между касанием и play() было ожидание загрузки).
    */
+  fileUrl(id: string): string;
+}
+
+export interface VideosRepository {
+  /** Все видео JoyRest (загруженные; у загружающих — и недогруженные), сколько места заняли все видео. */
+  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number }>;
+  /**
+   * Загрузить файл частями (видео большое, связь на площадке плохая): обрыв — повтор с того же места; тот же id
+   * и тот же файл после закрытия вкладки — дозагрузка. `onProgress` — сколько байт уже на сервере.
+   */
+  upload(input: { id: string; title: string; folder: string; file: Blob; durationMs: number | null }, onProgress?: (received: number, size: number) => void, signal?: AbortSignal): Promise<LibraryVideo>;
+  update(id: string, patch: { title?: string; folder?: string }): Promise<LibraryVideo>;
+  remove(id: string): Promise<void>;
+  /** Адрес файла для `<video src>` (браузер берёт его частями). */
   fileUrl(id: string): string;
 }
 

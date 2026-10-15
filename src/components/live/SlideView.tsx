@@ -67,7 +67,7 @@ function DrawSlide({ slide, preview }: { slide: SlideState; preview: boolean }) 
 }
 
 function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: boolean; code?: string }) {
-  const now = useServerNow(500, slide.kind === "break" && slide.endsAt !== null);
+  const now = useServerNow(500, (slide.kind === "break" || slide.kind === "tech") && slide.endsAt !== null);
   const last = useRef(slide.id);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: b
     if (sound) playSound(sound);
   }, [slide.id, slide.kind, preview]);
 
-  const timer = slide.kind === "break" ? countdownLabel(slide, now) : null;
+  const timer = slide.kind === "break" || slide.kind === "tech" ? countdownLabel(slide, now) : null;
 
   return (
     <div className={`slide slide--${slide.kind}`}>

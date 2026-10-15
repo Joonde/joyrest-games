@@ -13,7 +13,7 @@ import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboar
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
-import { LEVELS, LIFELINE_IDS, pointsAt, questionsOf, safeFloor, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
+import { LEVELS, levelsOf, LIFELINE_IDS, pointsAt, questionsOf, safeFloor, type LifelineId, type MillionaireContent, type MillionaireQuestion } from "./content";
 
 export type MillionaireMode = "turn" | "question" | "audience" | "reveal" | "over";
 
@@ -62,7 +62,18 @@ export interface MillionaireResult {
   audienceVote: boolean;
   /** Ответ на шаге можно поменять до фиксации (сервер перезаписывает ответ телефона). */
   changeable: boolean;
+  /** Выбыли из игры (решение ведущего после ошибки). */
+  out: string[];
+  /** Пропускают свой следующий ход (решение ведущего после ошибки). */
+  skip: string[];
+  /** QR помощи зала крупно на весь экран (ведущий открывает и убирает). */
+  qrBig: boolean;
+  /** Сколько раз команда ошиблась (для «Попыток после ошибки»). */
+  misses: Record<string, number>;
 }
+
+/** Что делать с командой после неверного ответа (решение владельца 14 октября 2026, выбирает ведущий). */
+export type WrongChoice = "out" | "restart" | "skip";
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -109,6 +120,14 @@ export function parseMillionaireResult(raw: unknown): MillionaireResult {
     tipText: typeof d.tipText === "string" && d.tipText.trim() !== "" ? d.tipText.slice(0, 300) : null,
     audienceVote: d.audienceVote === true,
     changeable: d.changeable === true,
+    out: ids(d.out),
+    skip: ids(d.skip),
+    qrBig: d.qrBig === true,
+    misses: (() => {
+      const out: Record<string, number> = {};
+      for (const [k, n] of Object.entries(rec(d.misses))) if (ID.test(k) && typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 100) out[k] = n;
+      return out;
+    })(),
   };
 }
 
@@ -131,9 +150,15 @@ function freshQuestion(content: MillionaireContent, level: number, seen: string[
   return questionsOf(content, level).find((q) => q.id !== except && !seen.includes(q.id) && q.text.trim() !== "") ?? null;
 }
 
-/** Какую ступень команда играет сейчас (1–12). */
-export function levelToPlay(r: MillionaireResult, team: string | null): number {
-  return Math.min(LEVELS, (team ? (r.levels[team] ?? 0) : 0) + 1);
+/** Какую ступень команда играет сейчас (1–12 или 1–15). */
+export function levelToPlay(r: MillionaireResult, team: string | null, max: number = LEVELS): number {
+  return Math.min(max, (team ? (r.levels[team] ?? 0) : 0) + 1);
+}
+
+/** Сколько попыток после ошибки у команды осталось; null — без ограничения. */
+export function attemptsLeft(content: MillionaireContent, r: MillionaireResult, team: string): number | null {
+  if (content.attempts === null) return null;
+  return content.attempts - (r.misses[team] ?? 0);
 }
 
 function orderOf(session: Session, participants: Participant[], r: MillionaireResult): string[] {
@@ -157,7 +182,7 @@ function scoreChange(session: Session, participants: Participant[], content: Mil
   return board;
 }
 
-export type MillionaireAction = "start" | "show" | "lock" | "reveal" | "retry" | "audienceDone" | "next" | "podium" | "podiumNext" | "finish";
+export type MillionaireAction = "start" | "show" | "lock" | "reveal" | "retry" | "audienceDone" | "next" | "wrongChoice" | "podium" | "podiumNext" | "finish";
 
 export function millionairePrimary(session: Session): MillionaireAction {
   const { stage } = session.state;
@@ -168,6 +193,7 @@ export function millionairePrimary(session: Session): MillionaireAction {
   if (r.mode === "audience") return "audienceDone";
   if (r.mode === "question") return r.locked ? "reveal" : "lock";
   if (r.outcome === "saved") return "retry";
+  if (r.outcome === "wrong") return "wrongChoice";
   return "next";
 }
 
@@ -175,18 +201,28 @@ export function millionairePrimary(session: Session): MillionaireAction {
 const fresh = { chosen: null, locked: false, refused: null, audienceVote: false, changeable: true } as const;
 
 function base(r: MillionaireResult): MillionaireResult {
-  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null, ...fresh };
+  return { ...r, q: null, removed: [], audience: null, votes: 0, callEndsAt: null, shield: false, tip: false, hostPick: null, pick: null, outcome: null, flash: null, qrBig: false, ...fresh };
 }
 
-/** Кто ходит следующим после `from` (по кругу, мимо закончивших). null — играть некому. */
-function nextPlayer(order: string[], done: string[], from: string | null): string | null {
-  if (order.length === 0) return null;
+/**
+ * Кто ходит следующим после `from` (по кругу, мимо закончивших и выбывших). Пропускающий ход — один раз
+ * пропускается и снимается с пропуска. null — играть некому.
+ */
+export function nextPlayer(order: string[], done: string[], from: string | null, skip: string[] = []): { who: string | null; skip: string[] } {
+  if (order.length === 0) return { who: null, skip };
   const at = from ? order.indexOf(from) : -1;
-  for (let i = 1; i <= order.length; i++) {
-    const who = order[(at + i + order.length) % order.length];
-    if (who && !done.includes(who)) return who;
+  let left = [...skip];
+  // Два круга: на первом пропускающие уступают ход, на втором (если ходить больше некому) — ходят.
+  for (let i = 1; i <= order.length * 2; i++) {
+    const who = order[(at + i + order.length * 2) % order.length];
+    if (!who || done.includes(who)) continue;
+    if (left.includes(who)) {
+      left = left.filter((p) => p !== who);
+      continue;
+    }
+    return { who, skip: left };
   }
-  return null;
+  return { who: null, skip: left };
 }
 
 /** «Начать игру»: очередь по подключению (или одна выбранная команда), все на нуле. */
@@ -195,22 +231,25 @@ export function startMillionaire(session: Session, participants: Participant[], 
   const all = orderOf(session, participants, r);
   const order = content.players === "one" && only && all.includes(only) ? [only] : content.players === "one" ? all.slice(0, 1) : all;
   const levels = Object.fromEntries(order.map((p) => [p, 0]));
-  const next: MillionaireResult = { ...base(r), order, levels, used: {}, seen: [], done: [], mode: "turn", turn: order[0] ?? null, from: 0 };
+  const next: MillionaireResult = { ...base(r), order, levels, used: {}, seen: [], done: [], out: [], skip: [], misses: {}, mode: "turn", turn: order[0] ?? null, from: 0 };
   return {
     state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write(next) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
 
+/** Время на ответ (null — без таймера). */
+const answerLimit = (content: MillionaireContent | undefined): number | null => (content && content.answerSeconds > 0 ? content.answerSeconds : null);
+
 /** «Показать вопрос»: вопрос ступени команды (тот же, если его уже показывали в этом ходе). */
 export function showQuestion(session: Session, content: MillionaireContent): SessionChange | null {
   const r = parseMillionaireResult(session.state.result);
   if (!r.turn) return null;
-  const level = levelToPlay(r, r.turn);
+  const level = levelToPlay(r, r.turn, levelsOf(content));
   const q = (r.q ? questionOf(content, r) : null) ?? freshQuestion(content, level, r.seen);
   if (!q) return null;
   const seen = r.seen.includes(q.id) ? r.seen : [...r.seen, q.id];
-  return { state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, q: q.id, seen, mode: "question", ...fresh, hostPick: null }) } };
+  return { state: { stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, q: q.id, seen, mode: "question", ...fresh, hostPick: null }) } };
 }
 
 /** Ответ команды на шаг: капитан с телефона (после времени показа) или отметка ведущего. */
@@ -249,7 +288,8 @@ export function lockAnswer(session: Session, answers: Answer[]): SessionChange |
   if (session.state.stage !== "question" || r.mode !== "question" || r.locked) return null;
   const pick = teamPick(session, answers);
   if (pick === null) return null;
-  return { state: { result: write({ ...r, chosen: pick, hostPick: pick, locked: true, changeable: false, refused: null }) } };
+  // «Окончательный ответ» останавливает часы (как в телеигре): таймер с экрана уходит.
+  return { state: { timeLimit: null, result: write({ ...r, chosen: pick, hostPick: pick, locked: true, changeable: false, refused: null }) } };
 }
 
 /** «Показать ответ». */
@@ -261,8 +301,8 @@ export function revealAnswer(session: Session, content: MillionaireContent, answ
   if (!q || !team || pick === null) return null;
   const from = r.levels[team] ?? 0;
   if (pick === q.correct) {
-    const level = Math.min(LEVELS, from + 1);
-    const done = level >= LEVELS && !r.done.includes(team) ? [...r.done, team] : r.done;
+    const level = Math.min(levelsOf(content), from + 1);
+    const done = level >= levelsOf(content) && !r.done.includes(team) ? [...r.done, team] : r.done;
     return {
       state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "reveal", pick, outcome: "right", from, levels: { ...r.levels, [team]: level }, done, flash: null }) },
       leaderboard: scoreChange(session, participants, content, team, level, from),
@@ -273,16 +313,18 @@ export function revealAnswer(session: Session, content: MillionaireContent, answ
     return { state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "reveal", pick, outcome: "saved", from, shield: false, removed: [...new Set([...r.removed, pick])].sort(), flash: null }) } };
   }
   const level = safeFloor(content, from);
+  // Ошибка считается в «Попытках после ошибки» («Назад» вернёт её обратно).
+  const misses = { ...r.misses, [team]: (r.misses[team] ?? 0) + 1 };
   return {
-    state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "reveal", pick, outcome: "wrong", from, levels: { ...r.levels, [team]: level }, flash: null }) },
+    state: { stage: "reveal", revealed: true, result: write({ ...r, mode: "reveal", pick, outcome: "wrong", from, misses, levels: { ...r.levels, [team]: level }, flash: null }) },
     leaderboard: scoreChange(session, participants, content, team, level, from),
   };
 }
 
 /** После «Права на ошибку»: тот же вопрос заново, новый шаг (прежний выбор не считается). */
-export function retryQuestion(session: Session): SessionChange {
+export function retryQuestion(session: Session, content?: MillionaireContent): SessionChange {
   const r = parseMillionaireResult(session.state.result);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null, ...fresh }) } };
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, mode: "question", pick: null, outcome: null, hostPick: null, ...fresh }) } };
 }
 
 /** «Следующая команда»; некому ходить — конец игры. */
@@ -293,13 +335,44 @@ export function nextTurn(session: Session, content: MillionaireContent, particip
   const levels = { ...Object.fromEntries(order.map((p) => [p, 0])), ...r.levels };
   // Команда, которой нечем играть (вопросы её ступени кончились), тоже закончила.
   const done = [...r.done];
-  for (const p of order) if (!done.includes(p) && !freshQuestion(content, levelToPlay({ ...r, levels }, p), r.seen)) done.push(p);
-  const turn = nextPlayer(order, done, r.turn);
-  const next: MillionaireResult = { ...base(r), order, levels, done, turn, mode: turn ? "turn" : "over", from: 0 };
+  for (const p of order) if (!done.includes(p) && !freshQuestion(content, levelToPlay({ ...r, levels }, p, levelsOf(content)), r.seen)) done.push(p);
+  // Одна команда в игре («одна выбранная»): после ошибки она же и ходит дальше.
+  const picked = nextPlayer(order, done, content.players === "one" ? null : r.turn, r.skip);
+  const turn = picked.who;
+  const next: MillionaireResult = { ...base(r), order, levels, done, skip: picked.skip, turn, mode: turn ? "turn" : "over", from: 0 };
   return {
     state: { step: session.state.step + 1, stage: turn ? "ready" : "reveal", startedAt: null, timeLimit: null, revealed: !turn, answered: 0, result: write(next) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
+}
+
+/**
+ * После неверного ответа ведущий решает (решение владельца 14 октября 2026):
+ * `out` — команда выбывает (ступень и счёт остаются, больше не ходит);
+ * `restart` — начинает с самого начала (ступень 0, счёт 0);
+ * `skip` — продолжает со следующего вопроса (ступень — по несгораемой, как уже показано), но пропускает свой следующий ход.
+ * Дальше — ход следующей команды.
+ */
+export function wrongChoice(session: Session, content: MillionaireContent, participants: Participant[], choice: WrongChoice): SessionChange | null {
+  const r = parseMillionaireResult(session.state.result);
+  const team = r.turn;
+  if (!team || session.state.stage !== "reveal" || r.outcome !== "wrong") return null;
+  let after: MillionaireResult = r;
+  let board: SessionChange["leaderboard"];
+  if (choice === "out") after = { ...r, out: [...new Set([...r.out, team])], done: [...new Set([...r.done, team])] };
+  if (choice === "restart") {
+    after = { ...r, levels: { ...r.levels, [team]: 0 } };
+    board = scoreChange(session, participants, content, team, 0, r.levels[team] ?? 0);
+  }
+  if (choice === "skip") after = { ...r, skip: [...new Set([...r.skip, team])] };
+  const moved = nextTurn({ ...session, state: { ...session.state, result: write(after) } }, content, participants);
+  return { ...moved, leaderboard: { ...(moved.leaderboard ?? {}), ...(board ?? {}) } };
+}
+
+/** QR помощи зала на весь экран зала — открыть или убрать. */
+export function toggleAudienceQr(session: Session): SessionChange {
+  const r = parseMillionaireResult(session.state.result);
+  return { state: { result: write({ ...r, qrBig: !r.qrBig }) } };
 }
 
 export interface LifelineCheck {
@@ -316,7 +389,7 @@ export function lifelineState(session: Session, content: MillionaireContent, id:
   if ((r.used[r.turn] ?? []).includes(id)) return { ok: false, reason: "Уже использована" };
   if (r.locked) return { ok: false, reason: "Ответ уже зафиксирован" };
   if (id === "fifty" && wrongLeft(content, r).length < 2) return { ok: false, reason: "Неверных вариантов осталось меньше двух" };
-  if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
+  if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn, levelsOf(content)), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
   return { ok: true };
 }
 
@@ -329,7 +402,7 @@ export function canUseLifeline(session: Session, content: MillionaireContent, an
   if (r.locked) return { ok: false, reason: "Ответ уже зафиксирован" };
   void answers;
   if (id === "fifty" && wrongLeft(content, r).length < 2) return { ok: false, reason: "Неверных вариантов осталось меньше двух" };
-  if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
+  if (id === "swap" && !freshQuestion(content, levelToPlay(r, r.turn, levelsOf(content)), r.seen, r.q)) return { ok: false, reason: "Нет запасного вопроса этой ступени" };
   return { ok: true };
 }
 
@@ -350,13 +423,14 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
   const used = { ...r.used, [team]: [...(r.used[team] ?? []), id] };
   // Подсказка — новый шаг: прежний выбор не считается, капитан выбирает заново.
   let next: MillionaireResult = { ...r, used, flash: id, hostPick: null, ...fresh };
-  let timeLimit: number | null = null;
+  // Подсказка — часы заново (в телеигре они стоят, пока берут подсказку); на звонок — ещё и время звонка.
+  let timeLimit: number | null = answerLimit(content);
   if (id === "fifty") {
     const wrong = wrongLeft(content, r);
     const keep = wrong[Math.floor(random() * wrong.length) % wrong.length];
     next.removed = [...new Set([...r.removed, ...wrong.filter((i) => i !== keep).slice(0, 2)])].sort();
   } else if (id === "swap") {
-    const q = freshQuestion(content, levelToPlay(r, team), r.seen, r.q);
+    const q = freshQuestion(content, levelToPlay(r, team, levelsOf(content)), r.seen, r.q);
     if (!q) return null;
     next = { ...next, q: q.id, seen: [...r.seen, q.id], removed: [], audience: null, votes: 0, tip: false, callEndsAt: null };
   } else if (id === "audience") {
@@ -364,6 +438,7 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
     timeLimit = content.audienceSeconds;
   } else if (id === "call") {
     next.callEndsAt = now + content.callSeconds * 1000;
+    if (timeLimit !== null) timeLimit += content.callSeconds;
   } else if (id === "mistake") {
     next.shield = true;
   } else if (id === "host") {
@@ -409,10 +484,10 @@ export function liveAudience(session: Session, answers: Answer[], participants: 
 }
 
 /** Итоги голосования: проценты на экран, вопрос снова открыт для капитана. */
-export function finishAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = []): SessionChange {
+export function finishAudience(session: Session, answers: Answer[], participants: Participant[], extra: number[] = [], content?: MillionaireContent): SessionChange {
   const r = parseMillionaireResult(session.state.result);
   const { audience, votes } = tally(session, answers, participants, extra);
-  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, ...fresh }) } };
+  return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: answerLimit(content), revealed: false, answered: 0, result: write({ ...r, mode: "question", audience, votes, flash: null, qrBig: false, ...fresh }) } };
 }
 
 /** «Совет ведущего»: наводка на экран зала (пусто — убрать). */
@@ -479,9 +554,10 @@ export function millionaireBack(session: Session, content: MillionaireContent, p
   if (stage === "reveal" && r.outcome) {
     const team = r.turn;
     const removed = r.outcome === "saved" && r.pick !== null ? r.removed.filter((i) => i !== r.pick) : r.removed;
-    const done = r.outcome === "right" && r.from + 1 >= LEVELS ? r.done.filter((p) => p !== team) : r.done;
+    const done = r.outcome === "right" && r.from + 1 >= levelsOf(content) ? r.done.filter((p) => p !== team) : r.done;
+    const misses = r.outcome === "wrong" ? { ...r.misses, [team]: Math.max(0, (r.misses[team] ?? 0) - 1) } : r.misses;
     const change: SessionChange = {
-      state: { stage: "question", revealed: false, result: write({ ...r, mode: "question", outcome: null, pick: null, shield: r.outcome === "saved" ? true : r.shield, removed, done, levels: { ...r.levels, [team]: r.from }, locked: true, changeable: false }) },
+      state: { stage: "question", revealed: false, result: write({ ...r, mode: "question", outcome: null, pick: null, shield: r.outcome === "saved" ? true : r.shield, removed, done, misses, levels: { ...r.levels, [team]: r.from }, locked: true, changeable: false }) },
     };
     if (r.outcome !== "saved") change.leaderboard = scoreChange(session, participants, content, team, r.from, r.levels[team] ?? 0);
     return { change };
@@ -495,4 +571,17 @@ export function millionaireBack(session: Session, content: MillionaireContent, p
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mode: "turn", hostPick: null, chosen: null }) } }, clear: [step] };
   }
   return null;
+}
+
+/**
+ * Какие полоски на экране зала: команд больше `size` — окно по кругу, с той, чья очередь (решение владельца
+ * 14 октября 2026): «Лисы, Медведи, Совы» → Лисы отходили → «Медведи, Совы, Козы». Выбывшие в окно не попадают.
+ */
+export function ladderWindow(result: MillionaireResult, size: number): string[] {
+  const { order } = result;
+  if (order.length <= size) return order;
+  const at = Math.max(0, result.turn ? order.indexOf(result.turn) : 0);
+  const ring = [...order.slice(at), ...order.slice(0, at)];
+  const live = ring.filter((p) => !result.out.includes(p));
+  return (live.length > 0 ? live : ring).slice(0, size);
 }

@@ -79,12 +79,14 @@ export interface Game {
   content: unknown;
   createdAt: number | null;
   updatedAt: number | null;
+  /** Папка в «Моих играх» ('' или нет — без папки; только свой сервер). */
+  folder?: string;
 }
 
 export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt">;
 
 /** Что можно менять в игре после создания. Область и владелец не меняются. */
-export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content">>;
+export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content" | "folder">>;
 
 export type PlayMode = "solo" | "teams";
 
@@ -196,6 +198,25 @@ export type TrackCategory = "music" | "lobby" | "background" | "contest" | "boar
 export type TrackLicense = "pixabay" | "bought" | "own" | "other";
 export type TrackShareStatus = "none" | "pending" | "accepted" | "rejected";
 
+/**
+ * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают владелец и заместитель, видят все,
+ * ставят в игры с видео («Just Dance и Караоке на поле», «Танцевальный батл», музыкальное лото). Файл грузится
+ * частями (`received` из `size`), `ready` — файл целиком на сервере.
+ */
+export interface LibraryVideo {
+  id: string;
+  title: string;
+  folder: string;
+  ownerId: string;
+  ownerName: string;
+  size: number;
+  received: number;
+  ready: boolean;
+  durationMs: number | null;
+  mime: string | null;
+  createdAt: number;
+}
+
 export interface Track {
   id: string;
   ownerId: string;
@@ -215,6 +236,8 @@ export interface Track {
   createdAt: number;
   /** Отрезок, громкость и затухание на экране зала. */
   clip: TrackClip;
+  /** Папка в «Музыке» ('' — без папки). */
+  folder: string;
 }
 
 export interface TrackInput {
@@ -224,6 +247,8 @@ export interface TrackInput {
   category: TrackCategory;
   license: TrackLicense;
   licenseNote: string;
+  /** Папка, в которую сразу кладём трек. */
+  folder?: string;
 }
 
 /** Звуки кнопок пульта; "stop" — заглушить всё, что звучит. */

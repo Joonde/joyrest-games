@@ -41,7 +41,8 @@ import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
-import { joinSlide, techSlide } from "../core/slides";
+import { joinSlide } from "../core/slides";
+import { TechBreak } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
@@ -411,35 +412,42 @@ function Console({ session }: { session: Session }) {
               </>
             )}
             {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
-            {phase !== "finished" && tools && slide?.kind !== "tech" && (
-              <button
-                type="button"
-                className="btn btn--secondary btn--block"
-                disabled={busy}
-                onClick={() => void apply({ state: { slide: techSlide(slideId()) } }).catch(() => setError("Не получилось показать перерыв. Проверьте интернет."))}
-              >
-                Технический перерыв
-              </button>
+            {/* Перерыв без времени или на 3–20 минут; та же кнопка заканчивает его — игра с того же места. */}
+            {phase !== "finished" && tools && (
+              <TechBreak slide={slide} busy={busy} newId={slideId} onApply={async (change) => void (await apply(change))} onError={setError} />
             )}
             {phase === "playing" && withScreen && session.state.stage === "question" && session.state.timeLimit !== null && slide?.kind === "tech" && (
               <p className="muted small">Таймер вопроса идёт и во время паузы — после неё нажмите «+10 секунд», если гости не успели.</p>
             )}
             {/* Жеребьёвка: монетка на экране выбирает среди подключившихся, кто ходит первым. */}
             {/* В лобби жребий потерялся бы при «Начать игру» (право первого хода ставится в идущей игре). */}
-            {phase === "playing" && tools && Object.keys(session.leaderboard).length >= 2 && slide?.kind !== "draw" && (
-              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void runDraw()}>
-                Жеребьёвка — кто ходит первым
+            {phase === "playing" && tools && Object.keys(session.leaderboard).length >= 2 && (
+              <button
+                type="button"
+                className={slide?.kind === "draw" ? "btn btn--block" : "btn btn--secondary btn--block"}
+                disabled={busy}
+                aria-pressed={slide?.kind === "draw"}
+                onClick={() =>
+                  slide?.kind === "draw" ? void apply({ state: { slide: null } }).catch(() => setError("Не получилось убрать жеребьёвку. Проверьте интернет.")) : void runDraw()
+                }
+              >
+                {slide?.kind === "draw" ? "▶ Убрать монетку — вернуться к игре" : "Жеребьёвка — кто ходит первым"}
               </button>
             )}
             {/* Опоздавшие: крупный QR входа поверх игры, пока ведущий не уберёт. */}
-            {phase === "playing" && tools && slide?.kind !== "join" && (
+            {phase === "playing" && tools && (
               <button
                 type="button"
-                className="btn btn--secondary btn--block"
+                className={slide?.kind === "join" ? "btn btn--block" : "btn btn--secondary btn--block"}
                 disabled={busy}
-                onClick={() => void apply({ state: { slide: joinSlide(slideId()) } }).catch(() => setError("Не получилось показать QR. Проверьте интернет."))}
+                aria-pressed={slide?.kind === "join"}
+                onClick={() =>
+                  void apply({ state: { slide: slide?.kind === "join" ? null : joinSlide(slideId()) } }).catch(() =>
+                    setError(slide?.kind === "join" ? "Не получилось убрать QR. Проверьте интернет." : "Не получилось показать QR. Проверьте интернет."),
+                  )
+                }
               >
-                QR для опоздавших на экран
+                {slide?.kind === "join" ? "▶ Убрать QR — вернуться к игре" : "QR для опоздавших на экран"}
               </button>
             )}
             {phase === "playing" && (

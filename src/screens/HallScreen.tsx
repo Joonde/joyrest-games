@@ -13,6 +13,7 @@ import { BoardView } from "../components/live/BoardView";
 import { Podium } from "../components/live/Podium";
 import { Scene } from "../components/live/Scene";
 import { SlideView } from "../components/live/SlideView";
+import { useServerNow } from "../components/live/useServerNow";
 import { useHallMusic } from "../components/music/useHallMusic";
 import { builtinMusicOf } from "../components/music/builtinMusic";
 import { useScreenReport } from "../components/live/screenStatus";
@@ -169,6 +170,8 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   // Встроенная музыка момента (если ведущий не включил свою): перерыв и представление команд.
   const mechanic = getMechanic(session.mechanic);
   const content = useMemo(() => (mechanic?.music ? mechanic.parse(snapshotContent(session.gameSnapshot)) : null), [mechanic, session.gameSnapshot]);
+  // Пока идёт таймер вопроса — раз в секунду пересчитать музыку момента («Миллионер» стихает за 10 секунд до конца).
+  useServerNow(1000, session.state.stage === "question" && session.state.timeLimit !== null);
   const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
   const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session, moment));
   const soundReady = useSoundReady();

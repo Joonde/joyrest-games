@@ -538,7 +538,9 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
               : `Вы вышли ${v.out.indexOf(pid) + 1}-м`
           : bot
             ? "За вас играет компьютер — скажите ведущему, если вернулись"
-            : isDefender
+            : isDefender && v.table.length === 0
+              ? `Под вас ходит ${nameOf(session, v.attacker)} — ждите карту на столе`
+              : isDefender
               ? openPairs.length > 1
                 ? "Перетащите свою карту на ту, которую бьёте — или берите"
                 : "Отбивайтесь: перетащите карту на стол — или берите"
@@ -548,7 +550,7 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
                   ? v.taking
                     ? "Защитник берёт — можно подкинуть вдогонку"
                     : "Всё покрыто — подкиньте или «Бито»"
-                  : me.text || "Ждём ход"}
+                  : me.text || `Ходит ${nameOf(session, v.attacker)} под ${nameOf(session, v.defender)} — вы наблюдаете`}
         {left !== null && !v.over && (me.kind === "turn" || me.kind === "defend" || canPass) ? ` · ${left} с` : ""}
       </p>
       {(rejected || hint) && (

@@ -1,6 +1,7 @@
 // Конструктор «Танцевального батла»: карточки Батл / Танец / Караоке, видео (файл или ссылка), трек.
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
+import { LibraryVideoPicker, videoSourceLabel, videoSources } from "../../components/media/libraryVideo";
 import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { clipFields, parseClip } from "../../core/clip";
@@ -129,7 +130,8 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
 function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceCard; editable: boolean; errors: string[]; onChange: (p: Partial<DanceCard> | ((c: DanceCard) => DanceCard)) => void; onRemove?: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const setSource = (source: VideoSource) => onChange({ video: { ...card.video, source } });
+  // В «Видео JoyRest» поле url — id видео: при переходе к нему или от него ссылка и id не смешиваются.
+  const setSource = (source: VideoSource) => onChange({ video: (source === "server") === (card.video.source === "server") ? { ...card.video, source } : { source, url: "", name: "" } });
   return (
     <div className="stack stack--tight">
       <div className="seg" role="group" aria-label="Что это">
@@ -162,12 +164,15 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
       <fieldset className="stack stack--tight">
         <legend>Видео {card.kind === "battle" ? "(для батла не обязательно)" : ""}</legend>
         <div className="seg" role="group" aria-label="Откуда видео">
-          {(["link", "file", "none"] as const).map((s) => (
+          {videoSources().map((s) => (
             <button key={s} type="button" className={card.video.source === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={card.video.source === s} disabled={!editable} onClick={() => setSource(s)}>
-              {s === "link" ? "Ссылка" : s === "file" ? "Файл" : "Без видео"}
+              {videoSourceLabel(s)}
             </button>
           ))}
         </div>
+        {card.video.source === "server" && (
+          <LibraryVideoPicker value={card.video.url} editable={editable} onPick={(v) => onChange({ video: { source: "server", url: v.id, name: v.title.slice(0, 120) } })} />
+        )}
         {card.video.source === "link" && (
           <label className="field">
             Ссылка на YouTube, VK Видео или Rutube

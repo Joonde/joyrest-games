@@ -14,6 +14,8 @@ interface Props {
   proposal?: LibraryProposal | null;
   /** Есть — можно предложить игру в библиотеку. */
   onPropose?: () => void;
+  /** Есть — «В папку» (папки «Моих игр», только свой сервер). */
+  onFolder?: () => void;
 }
 
 const PROPOSAL_LABEL: Record<LibraryProposal["status"], string> = {
@@ -23,7 +25,7 @@ const PROPOSAL_LABEL: Record<LibraryProposal["status"], string> = {
 };
 
 /** Карточка игры: название, механика, тема, число вопросов, дата и действия. */
-export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPropose }: Props) {
+export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPropose, onFolder }: Props) {
   const editable = permissions.canEditGame(profile, game);
   const date = game.updatedAt ?? game.createdAt;
   const ready = validateGame(game.mechanic, game.content).length === 0;
@@ -45,6 +47,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
   if (onPropose && permissions.canProposeGame(profile, game) && proposal?.status !== "pending") {
     menu.push({ label: proposal?.status === "accepted" ? "Предложить обновление в библиотеку" : "Предложить в библиотеку", onClick: onPropose });
   }
+  if (onFolder && game.scope === "personal") menu.push({ label: game.folder ? "Другая папка" : "В папку", onClick: onFolder });
   if (permissions.canDeleteGame(profile, game)) menu.push({ label: "Удалить", onClick: onDelete });
 
   return (

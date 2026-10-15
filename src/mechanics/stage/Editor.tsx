@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
+import { LibraryVideoPicker, videoSourceLabel, videoSources } from "../../components/media/libraryVideo";
 import { saveLocalVideo } from "../../components/media/localVideo";
 import type { EditorProps } from "../types";
 import { embedUrl, type VideoSource } from "../dance/content";
@@ -47,7 +48,14 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
             <ClampedNumber value={content.voteTime} min={STAGE_LIMITS.minVote} max={STAGE_LIMITS.maxVote} fallback={20} disabled={!editable} onChange={(voteTime) => set({ voteTime })} />
           </label>
         </div>
-        <p className="muted small">Симпатия: зрители других команд дарят выступающим свои заработанные очки — у дарителя столько же снимается.</p>
+        <p className="muted small">Симпатия: зрители других команд дарят выступающим свои заработанные очки — у дарителя столько же снимается (в минус никто не уходит).</p>
+        <label className="choice">
+          <input type="checkbox" checked={content.battleLock} disabled={!editable} onChange={(e) => set({ battleLock: e.target.checked })} />
+          <span className="choice__text">
+            <span className="choice__title">Батлы — после того, как каждая команда выступила</span>
+            <span className="choice__hint">Пока не выступили все, плитки батлов закрыты замком: в начале у команд нет очков на симпатию. Обычные плитки кончились — батлы открываются сами; на пульте можно открыть раньше.</span>
+          </span>
+        </label>
       </section>
 
       {editable && (
@@ -69,6 +77,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
                     tiles: tpl.tiles.map((t) => ({ ...t, id: newTile(t.cat, t.points).id, cat: cats.get(t.cat)?.id ?? t.cat })),
                     gift: content.gift,
                     voteTime: content.voteTime,
+                    battleLock: content.battleLock,
                   });
                 }}
               >
@@ -177,7 +186,8 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
 function TileForm({ tile, karaoke, editable, errors, onChange, onRemove }: { tile: StageTile; karaoke: boolean; editable: boolean; errors: string[]; onChange: (p: Partial<StageTile>) => void; onRemove: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const setSource = (source: VideoSource) => onChange({ video: { ...tile.video, source } });
+  // В «Видео JoyRest» поле url — id видео: при переходе к нему или от него ссылка и id не смешиваются.
+  const setSource = (source: VideoSource) => onChange({ video: (source === "server") === (tile.video.source === "server") ? { ...tile.video, source } : { source, url: "", name: "" } });
   const chip = (on: boolean) => (on ? "stage-chip is-on" : "stage-chip");
   return (
     <div className="stack stack--tight stage-editor__form">
@@ -242,12 +252,15 @@ function TileForm({ tile, karaoke, editable, errors, onChange, onRemove }: { til
       <fieldset className="stack stack--tight">
         <legend>Видео {karaoke ? "караоке" : "Just Dance"}</legend>
         <div className="seg" role="group" aria-label="Откуда видео">
-          {(["link", "file", "none"] as const).map((s) => (
+          {videoSources().map((s) => (
             <button key={s} type="button" className={tile.video.source === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={tile.video.source === s} disabled={!editable} onClick={() => setSource(s)}>
-              {s === "link" ? "Ссылка" : s === "file" ? "Файл" : "Без видео"}
+              {videoSourceLabel(s)}
             </button>
           ))}
         </div>
+        {tile.video.source === "server" && (
+          <LibraryVideoPicker value={tile.video.url} editable={editable} onPick={(v) => onChange({ video: { source: "server", url: v.id, name: v.title.slice(0, 120) } })} />
+        )}
         {tile.video.source === "link" && (
           <label className="field">
             Ссылка на YouTube, VK Видео или Rutube

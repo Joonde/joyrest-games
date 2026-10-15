@@ -1,6 +1,11 @@
 // Музыкальное лото: у каждого игрока (команды) своя карточка из названий песен. Звучит песня —
 // гости отмечают её на карточке; собрал линию — жмёт «Лото!». Сервер и пульт проверяют заявку по
 // песням, которые уже звучали, и дают очки первым победителям.
+// У песни может быть видео — клип или караоке (решение владельца 14 октября 2026): ссылка YouTube /
+// VK Видео / Rutube или файл только на устройстве экрана зала (на сервер видео не загружается).
+import { embedUrl, parseVideo, type VideoSource } from "../dance/content";
+
+export type { VideoSource };
 
 export interface LottoSong {
   id: string;
@@ -10,6 +15,10 @@ export interface LottoSong {
   trackId: string | null;
   /** С какой секунды играть. */
   trackStart: number;
+  /** Клип или караоке на экране зала; звук — из видео (трек тогда не играет). */
+  video: { source: VideoSource; url: string; name: string };
+  /** С какой секунды видео. */
+  videoStart: number;
 }
 
 /** Что считается победой: одна линия, две линии или вся карточка. */
@@ -32,6 +41,10 @@ export interface LottoContent {
   prizes: number[];
   /** Оформление карточки гостя. Старые игры без поля — «Классика». */
   cardStyle: CardStyle;
+  /** Прятать картинку видео, пока не показали название (звучит только звук — угадывают на слух). */
+  videoHide: boolean;
+  /** Подсказка гостю: звучащая песня есть на его карточке — клетка светится, «Эта песня у вас есть!». */
+  hint: boolean;
 }
 
 export const LOTTO_LIMITS = {
@@ -42,7 +55,22 @@ export const LOTTO_LIMITS = {
   maxFragment: 180,
   maxPrize: 1000,
   prizes: 5,
+  url: 500,
+  maxVideoStart: 3600,
 } as const;
+
+/** Есть ли у песни видео, которое экран может показать (ссылка — непустая). */
+export function hasVideo(song: Pick<LottoSong, "video"> | undefined): boolean {
+  if (!song) return false;
+  if (song.video.source === "file") return true;
+  if (song.video.source === "server") return song.video.url !== "";
+  return song.video.source === "link" && song.video.url.trim() !== "";
+}
+
+/** Ссылка, которую экран не откроет (не YouTube, VK Видео или Rutube). */
+export function badVideoLink(song: Pick<LottoSong, "video">): boolean {
+  return song.video.source === "link" && song.video.url.trim() !== "" && embedUrl(song.video.url) === null;
+}
 
 export const RULE_TITLES: Record<WinRule, string> = {
   line: "Одна линия",
@@ -76,11 +104,11 @@ export function newSongId(): string {
 }
 
 export function newSong(title = "", artist = ""): LottoSong {
-  return { id: newSongId(), title, artist, trackId: null, trackStart: 0 };
+  return { id: newSongId(), title, artist, trackId: null, trackStart: 0, video: { source: "none", url: "", name: "" }, videoStart: 0 };
 }
 
 export function createLotto(): LottoContent {
-  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening" };
+  return { songs: [], size: 4, rule: "line", fragment: 30, prizes: [300, 200, 100], cardStyle: "evening", videoHide: false, hint: true };
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -111,6 +139,8 @@ export function parseLotto(raw: unknown): LottoContent {
       artist: text(s.artist, LOTTO_LIMITS.artist),
       trackId: typeof s.trackId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(s.trackId) ? s.trackId : null,
       trackStart: int(s.trackStart, 0, 0, 3600),
+      video: parseVideo(s.video, LOTTO_LIMITS.url),
+      videoStart: int(s.videoStart, 0, 0, LOTTO_LIMITS.maxVideoStart),
     };
   });
   const size = d.size === 3 || d.size === 5 ? d.size : 4;
@@ -125,6 +155,8 @@ export function parseLotto(raw: unknown): LottoContent {
     fragment: int(d.fragment, 30, LOTTO_LIMITS.minFragment, LOTTO_LIMITS.maxFragment),
     prizes: prizes.length > 0 ? prizes : [300, 200, 100],
     cardStyle: d.cardStyle === "evening" || d.cardStyle === "day" ? d.cardStyle : "classic",
+    videoHide: d.videoHide === true,
+    hint: d.hint !== false,
   };
 }
 

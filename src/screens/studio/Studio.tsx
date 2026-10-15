@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, videosRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -14,19 +14,23 @@ import { professionTitle } from "../../core/professions";
 import { accessRoleTitle } from "../../core/accessRoles";
 import { SwipePages } from "../../components/SwipePages";
 import { MusicTab } from "./MusicTab";
+import { VideoTab } from "./VideoTab";
 
-type TabId = "agency" | "mine" | "music" | "history";
+type TabId = "agency" | "mine" | "music" | "video" | "history";
 
 const TABS: Array<TabItem<TabId>> = [
   { id: "agency", label: "Библиотека JoyRest" },
   { id: "mine", label: "Мои игры" },
   // Музыка — только на своём сервере.
   ...(tracksRepo ? [{ id: "music" as const, label: "Музыка" }] : []),
+  // Видео JoyRest — только на своём сервере (решение владельца 15 октября 2026).
+  ...(videosRepo ? [{ id: "video" as const, label: "Видео" }] : []),
   { id: "history", label: "История игр" },
 ];
 
 function parseTab(value: string | null): TabId {
   if (value === "music" && tracksRepo) return "music";
+  if (value === "video" && videosRepo) return "video";
   return value === "agency" || value === "history" ? value : "mine";
 }
 
@@ -37,6 +41,7 @@ function parseTab(value: string | null): TabId {
 function tabsFor(profile: UserProfile): Array<TabItem<TabId>> {
   return TABS.filter((t) => {
     if (t.id === "music") return permissions.canUseTracks(profile);
+    if (t.id === "video") return permissions.canUseVideos(profile);
     if (t.id === "agency") return permissions.canUseGames(profile);
     if (t.id === "mine") return permissions.canCreateGame(profile, "personal", profile.uid);
     return permissions.hostsGames(profile);
@@ -139,6 +144,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         {tab === "agency" && <GameList key="agency" scope="agency" profile={profile} onToast={showToast} />}
         {tab === "mine" && <GameList key="mine" scope="personal" profile={profile} onToast={showToast} />}
         {tab === "music" && <MusicTab profile={profile} onToast={showToast} />}
+        {tab === "video" && <VideoTab profile={profile} onToast={showToast} />}
         {tab === "history" && <History profile={profile} onToast={showToast} />}
       </div>}
     </div>

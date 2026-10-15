@@ -617,6 +617,13 @@ export function QuizPlayerView({
       <p className="eyebrow">
         Вопрос {step + 1} из {total} · {KIND_TITLES[q.kind]}
       </p>
+      {/* Участник команды: отвечает капитан — сразу ясно, что нажимать не нужно. */}
+      {role === "member" && (
+        <div className="buzz__plate" role="status">
+          <strong>Отвечает ваш капитан</strong>
+          <span>Подсказывайте ему голосом — на вашем телефоне нажимать ничего не нужно</span>
+        </div>
+      )}
       {noScreen ? (
         <h2 className="quiz-phone__question">{q.text || "Текст вопроса"}</h2>
       ) : (
@@ -722,6 +729,12 @@ function PicturesForm({
         Вопрос {session.state.step + 1} из {total} · Картинки
       </p>
       <h2 className="quiz-phone__question">{q.text || "Что на картинках?"}</h2>
+      {role === "member" && (
+        <div className="buzz__plate" role="status">
+          <strong>Отвечает ваш капитан</strong>
+          <span>Подсказывайте ему голосом — на вашем телефоне писать ничего не нужно</span>
+        </div>
+      )}
       <p className="muted small">Номера — как на экране. Можно оставить пустым; очки — за каждый верный ответ.</p>
       {pics.map((p, i) => (
         <label key={i} className="quiz-phone__picture-field">

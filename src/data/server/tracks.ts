@@ -31,7 +31,14 @@ export function parseTrack(value: unknown): Track {
     shareReason: typeof d.shareReason === "string" ? d.shareReason : null,
     createdAt: num(d.createdAt) ?? 0,
     clip: parseTrackClip(d.clip),
+    folder: asText(d.folder),
   };
+}
+
+function folderLists(value: unknown): { mine: string[]; library: string[] } {
+  const d = asRecord(value);
+  const names = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : []);
+  return { mine: names(d.mine), library: names(d.library) };
 }
 
 const list = (value: unknown) => (Array.isArray(value) ? value : []).map(parseTrack).filter((t) => t.id !== "");
@@ -40,7 +47,23 @@ const path = (id: string) => `/api/tracks/${encodeURIComponent(id)}`;
 export const serverTracksRepository: TracksRepository = {
   async list() {
     const data = asRecord(await api("GET", "/api/tracks"));
-    return { mine: list(data.mine), library: list(data.library) };
+    return { mine: list(data.mine), library: list(data.library), folders: folderLists(data.folders) };
+  },
+  async createFolder(scope, name) {
+    return folderLists(await api("POST", "/api/track-folders", { scope, name }));
+  },
+  async renameFolder(scope, from, to) {
+    return folderLists(await api("POST", "/api/track-folders/rename", { scope, from, to }));
+  },
+  async shareFolder(name) {
+    const d = asRecord(await api("POST", "/api/track-folders/share", { name }));
+    return typeof d.shared === "number" ? d.shared : 0;
+  },
+  async takeFolder(name) {
+    return folderLists(await api("POST", "/api/track-folders/take", { name }));
+  },
+  async deleteFolder(scope, name) {
+    return folderLists(await api("POST", "/api/track-folders/delete", { scope, name }));
   },
   async listPending() {
     return list(await api("GET", "/api/tracks?status=pending"));

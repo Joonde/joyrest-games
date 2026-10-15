@@ -544,7 +544,17 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
     const label: Record<string, string> = { catastrophe: "Катастрофа — смотрите на экран", bunker: "Открываем карту бункера", open: `Ход: ${nameOf(session, r.speaker)}`, discuss: "Обсуждение: кого не берём в бункер?", justify: "Ничья — оправдательные речи", exile: r.tally?.out ? `Изгнан: ${nameOf(session, r.tally.out)}` : "Голосование отменено" };
     task = (
       <section className="bk-phone__task bk-phone__task--quiet">
-        <p>{label[r.mode] ?? ""}</p>
+        {r.mode === "open" && r.speaker && r.speaker !== pid ? (
+          // Говорит другой игрок: ясно, что сейчас ничего нажимать не нужно (решение владельца 14 октября 2026).
+          <div className="buzz__plate" role="status">
+            <strong>
+              Сейчас говорит <NameText name={nameOf(session, r.speaker)} />
+            </strong>
+            <span>Вы слушаете — нажимать ничего не нужно. Ваши карты ниже — для себя.</span>
+          </div>
+        ) : (
+          <p>{label[r.mode] ?? ""}</p>
+        )}
         <Timer endsAt={r.speakEndsAt} now={now} label={r.mode === "discuss" ? "Обсуждение" : "Речь"} />
       </section>
     );

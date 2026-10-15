@@ -15,6 +15,7 @@ import { join } from "node:path";
 import type { Sql } from "postgres";
 import { retentionCutoff } from "../../src/core/retention";
 import { expireSessions } from "./live";
+import { cleanupVideos } from "./videos";
 
 const DAY_MS = 24 * 60 * 60_000;
 export const MEDIA_ORPHAN_DAYS = 7;
@@ -97,7 +98,7 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
     try {
       // Треки игр библиотеки — в общую музыку (до уборки файлов: файл остаётся у общей копии).
       const libraryGames = await promoteLibraryTracks(sql);
-      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) : 0;
+      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       // Старые сессии (30 дней) — каждую ночь, не дожидаясь входа владельца; итоги остаются в истории.
       let sessions = 0;

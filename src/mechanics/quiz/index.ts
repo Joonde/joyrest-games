@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { quizPreview } from "./previewDriver";
 import { createContent, mediaIds, parseContent, type QuizContent } from "./content";
 import { score, steps, type QuizStep } from "./logic";
 import { validateContent } from "./validate";
@@ -24,6 +25,7 @@ export const quiz: Mechanic<QuizContent, QuizAnswerValue, QuizStep> = {
   steps,
   score,
   validate: validateContent,
+  preview: { driver: quizPreview, teams: 3, limit: 60 },
   // Заставка «Вопрос N» и раунда — своя музыка; суперигра — музыка, пока выбирают уровень.
   music: (session, content) => {
     const q = content.questions[session.state.step];

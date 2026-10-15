@@ -344,7 +344,7 @@ describe("роли доступа помощников", () => {
   const agencyTrack = { scope: "agency" as const, ownerId: ADMIN_UID };
 
   it("роль только добавляет: ведущий с любой ролью сохраняет всё своё", () => {
-    for (const role of ["creator", "music", "tester", "venues", "assistant", null]) {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy", null]) {
       const a = hostWith(role);
       expect(p.canCreateGame(a, "personal", "host-1")).toBe(true);
       expect(p.canEditGame(a, myGame)).toBe(true);
@@ -376,6 +376,7 @@ describe("роли доступа помощников", () => {
         expect(p.canReviewTracks(a)).toBe(false);
         expect(p.canCleanupSessions(a)).toBe(false);
         expect(p.canArchiveVenues(a)).toBe(false);
+        expect(p.canUploadVideo(a)).toBe(false);
       }
     }
   });
@@ -437,6 +438,26 @@ describe("роли доступа помощников", () => {
     expect(p.canManageVenues(a)).toBe(true);
     expect(p.canArchiveVenues(a)).toBe(false);
     expect(p.canUseGames(a)).toBe(false);
+  });
+
+  it("заместитель: правит библиотеку и загружает видео, но не удаляет и не управляет людьми", () => {
+    for (const a of [dj("deputy"), hostWith("deputy")]) {
+      expect(p.canCreateGame(a, "agency", a?.uid ?? "")).toBe(true);
+      expect(p.canEditGame(a, agencyGame)).toBe(true);
+      expect(p.canChangeMedia(a, agencyGame)).toBe(true);
+      expect(p.canDeleteGame(a, agencyGame)).toBe(false);
+      expect(p.canUploadVideo(a)).toBe(true);
+      expect(p.isAdmin(a)).toBe(false);
+      expect(p.canManageHosts(a)).toBe(false);
+      expect(p.canSetAccessRole(a, other)).toBe(false);
+      expect(p.canReviewProposals(a)).toBe(false);
+      expect(p.canCleanupSessions(a)).toBe(false);
+    }
+    expect(p.canDeleteGame(owner, agencyGame)).toBe(true);
+    expect(p.canUploadVideo(owner)).toBe(true);
+    expect(p.canUploadVideo(host)).toBe(false);
+    expect(p.canUseVideos(host)).toBe(true);
+    expect(p.canUploadVideo({ uid: "x", role: "host", active: false, profession: "host", accessRole: "deputy" })).toBe(false);
   });
 
   it("помощник владельца: видит все игры сейчас, без прав на людей и библиотеку", () => {

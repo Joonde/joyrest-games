@@ -3,8 +3,9 @@ import { PodiumHostList } from "../../components/live/Podium";
 import { podiumLabel, podiumNext, startPodium } from "../../core/podium";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { RULE_TITLES, type LottoContent } from "./content";
-import { cardFor, isClaim, isWin, lottoBack, lottoPrimary, nextSong, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, type LottoAction } from "./logic";
+import { canSeek } from "../stage/video";
+import { hasVideo, RULE_TITLES, type LottoContent } from "./content";
+import { cardFor, isClaim, isWin, lottoBack, lottoPrimary, lottoVideoCommand, nextSong, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, type LottoAction, type LottoVideoCmd } from "./logic";
 
 const LABELS: Record<LottoAction, string> = {
   play: "Включить первую песню",
@@ -93,6 +94,31 @@ export function LottoHostControls({ session, content, answers, participants, con
   }
 
   const back = lottoBack(session);
+  const screen = session.screenMode !== "none";
+  const video = screen && hasVideo(song) && song ? song : null;
+  const seek = video ? canSeek({ id: video.id, title: video.title, video: video.video }) : false;
+  const cmd = (c: LottoVideoCmd) => void run(lottoVideoCommand(latest.current, c));
+  const videoPanel = video && (stage === "question" || stage === "reveal") && (
+    <section className="stack stack--tight" aria-label="Видео на экране зала">
+      <h3 className="host-quiz__subtitle">Видео на экране зала{content.videoHide && stage === "question" ? " · картинка скрыта до названия" : ""}</h3>
+      <div className="lotto-player">
+        <button type="button" className="btn btn--secondary" disabled={busy || !seek} onClick={() => cmd("back")} aria-label="Назад на 10 секунд">
+          −10 с
+        </button>
+        <button type="button" className="btn" disabled={busy} onClick={() => cmd(result.video.paused ? "play" : "pause")}>
+          {result.video.paused ? "▶ Дальше" : "⏸ Пауза"}
+        </button>
+        <button type="button" className="btn btn--secondary" disabled={busy || !seek} onClick={() => cmd("fwd")} aria-label="Вперёд на 10 секунд">
+          +10 с
+        </button>
+      </div>
+      <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => cmd("stop")}>
+        ⏹ Остановить — видео в начало
+      </button>
+      {!seek && <p className="muted small">VK Видео не даёт управлять плеером: «Пауза» и «Остановить» убирают ролик, «Дальше» запускает его заново. Перемотка — у YouTube, Rutube и файла.</p>}
+    </section>
+  );
+
   const buttons = (
     <>
       {error && (
@@ -104,9 +130,9 @@ export function LottoHostControls({ session, content, answers, participants, con
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={onPrimary}>
           {action === "podiumNext" ? podiumLabel(session) : LABELS[action]}
         </button>
-        {song?.trackId && session.screenMode !== "none" && stage === "question" && (
+        {(song?.trackId || video) && screen && stage === "question" && (
           <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replaySong(session))}>
-            ♪ Повторить песню
+            {video ? "↺ Видео сначала" : "♪ Повторить песню"}
           </button>
         )}
         <button type="button" className="btn btn--secondary btn--block" disabled={busy || back === null} onClick={() => back && void run(back.change, back.clearAnswers)}>
@@ -139,7 +165,8 @@ export function LottoHostControls({ session, content, answers, participants, con
             {song.artist ? <span className="muted"> — {song.artist}</span> : null}
           </p>
         )}
-        {!song?.trackId && stage !== "ready" && <p className="muted small">У песни нет трека — включите её со своего плеера.</p>}
+        {!song?.trackId && !video && stage !== "ready" && <p className="muted small">У песни нет трека — включите её со своего плеера.</p>}
+        {video && stage !== "ready" && <p className="muted small">У песни видео: {video.video.source === "file" ? `файл «${video.video.name || "видео"}» на устройстве экрана` : video.video.source === "server" ? `«${video.video.name || "видео"}» из видео JoyRest` : "ролик по ссылке"}. Звук — из видео.</p>}
       </div>
 
       {stage === "question" && (
@@ -162,6 +189,8 @@ export function LottoHostControls({ session, content, answers, participants, con
           )}
         </section>
       )}
+
+      {videoPanel}
 
       {result.winners.length > 0 && (
         <section className="stack stack--tight">

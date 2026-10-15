@@ -3,6 +3,7 @@ import type { Mechanic } from "../types";
 import { createStory, parseStory, type StoryContent } from "./content";
 import { StoryHostControls } from "./HostControls";
 import { score, storySteps } from "./logic";
+import { storyPreview } from "./preview";
 import { validateStory } from "./validate";
 import { StoryPlayerView, StoryScreenView, type StoryAnswerValue } from "./views";
 
@@ -23,4 +24,5 @@ export const story: Mechanic<StoryContent, StoryAnswerValue> = {
   steps: storySteps,
   score,
   validate: validateStory,
+  preview: { driver: storyPreview, teams: 3, limit: 60 },
 };

@@ -39,12 +39,30 @@ export function hostsGames(actor: Actor): boolean {
 
 /** Игры в студии: ведущие, создатели игр и тестировщики (тестировщик только смотрит и репетирует). */
 export function canUseGames(actor: Actor): boolean {
-  return hostsGames(actor) || hasAccess(actor, "creator") || hasAccess(actor, "tester");
+  return hostsGames(actor) || hasAccess(actor, "creator") || hasAccess(actor, "tester") || hasAccess(actor, "deputy");
 }
 
 /** Создавать и править свои игры: ведущие и создатели игр. */
 function writesGames(actor: Actor): boolean {
-  return hostsGames(actor) || hasAccess(actor, "creator");
+  return hostsGames(actor) || hasAccess(actor, "creator") || hasAccess(actor, "deputy");
+}
+
+/** Правит библиотеку JoyRest: владелец и заместитель (решение владельца 15 октября 2026). */
+function writesLibrary(actor: Actor): boolean {
+  return isAdmin(actor) || hasAccess(actor, "deputy");
+}
+
+/**
+ * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают, переименовывают и убирают владелец и
+ * заместитель; смотреть и ставить в свои игры может любой, кто работает с играми; файл открывает любой вошедший
+ * (экран зала входит устройством).
+ */
+export function canUploadVideo(actor: Actor): boolean {
+  return writesLibrary(actor);
+}
+
+export function canUseVideos(actor: Actor): boolean {
+  return canUseGames(actor);
 }
 
 /** Музыка в студии: ведущие, музыкальные редакторы; слушать — ещё создатели игр и тестировщики. */
@@ -92,18 +110,20 @@ export function canReadGame(actor: Actor, game: GameRef): boolean {
   return game.scope === "agency" || game.ownerId === actor?.uid || isAdmin(actor);
 }
 
-/** Создать игру в нужной библиотеке: общую — только admin, личную — себе. */
+/** Создать игру в нужной библиотеке: общую — владелец и заместитель, личную — себе. */
 export function canCreateGame(actor: Actor, scope: GameScope, ownerId: string): boolean {
-  if (scope === "agency") return isAdmin(actor);
+  if (scope === "agency") return writesLibrary(actor);
   return writesGames(actor) && ownerId === actor?.uid;
 }
 
-/** Общую библиотеку редактирует только admin, личную игру — только её владелец. */
+/** Общую библиотеку редактируют владелец и заместитель, личную игру — только её владелец. */
 export function canEditGame(actor: Actor, game: GameRef): boolean {
   return canCreateGame(actor, game.scope, game.ownerId);
 }
 
+/** Удалить игру библиотеки может только владелец агентства (заместитель только правит). */
 export function canDeleteGame(actor: Actor, game: GameRef): boolean {
+  if (game.scope === "agency") return isAdmin(actor);
   return canEditGame(actor, game);
 }
 

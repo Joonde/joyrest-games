@@ -8,7 +8,7 @@
  * сжимает устройство ведущего, сервер проверяет тип по первым байтам и размер.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { promoteGameTracks } from "./libraryTracks";
+import { agencyTrackIds, gameFolder, promoteGameTracks, replaceIds, takeTracks } from "./libraryTracks";
 import { existsSync } from "node:fs";
 import { readFile, rename, statfs, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -53,6 +53,7 @@ interface GameRow {
   content: unknown;
   created_at: Date | null;
   updated_at: Date | null;
+  folder?: string | null;
 }
 
 interface MediaRow {
@@ -60,7 +61,12 @@ interface MediaRow {
   mime: string;
 }
 
-const GAME_COLUMNS = ["id", "scope", "owner_id", "title", "mechanic", "theme_id", "age_rating", "play_mode", "content", "created_at", "updated_at"];
+const GAME_COLUMNS = ["id", "scope", "owner_id", "title", "mechanic", "theme_id", "age_rating", "play_mode", "content", "created_at", "updated_at", "folder"];
+const FOLDER_MAX = 40;
+/** Название папки: одна строка без управляющих символов, до 40 знаков. */
+function folderName(value: unknown): string {
+  return typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, FOLDER_MAX) : "";
+}
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const MEDIA_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const VARIANTS = new Set<MediaVariant | "hd">(["hd", "full", "small"]);
@@ -93,6 +99,7 @@ export function gameOf(row: GameRow): Game {
     content: row.content ?? null,
     createdAt: row.created_at ? row.created_at.getTime() : null,
     updatedAt: row.updated_at ? row.updated_at.getTime() : null,
+    folder: row.folder ?? "",
   };
 }
 
@@ -180,6 +187,9 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       return rows[0] ?? null;
     }
 
+    /** Чьи треки игра библиотеки может перенести в общую музыку: владелец — любые, заместитель — только свои. */
+    const onlyOwn = (user: SessionRow) => (permissions.isAdmin(actorOf(user)) ? null : user.id);
+
     const ref = (row: GameRow) => ({ scope: row.scope === "agency" ? ("agency" as const) : ("personal" as const), ownerId: row.owner_id });
 
     // ------------------------------------------------------------ игры
@@ -221,7 +231,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       if (!permissions.canCreateGame(actorOf(user), input.scope, input.ownerId)) return fail(reply, 403, "permission-denied");
       const created = await sql.begin(async (tx) => {
         // Игра библиотеки: личные треки — в общую музыку, ссылки — на общие копии.
-        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id)).content : input.content;
+        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id, input.title, onlyOwn(user))).content : input.content;
         return tx`
           insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
           values (${id}, ${input.scope}, ${input.ownerId}, ${input.title}, ${input.mechanic}, ${input.themeId},
@@ -252,7 +262,13 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         return fail(reply, 403, "permission-denied");
       }
       const done = await sql.begin(async (tx) => {
-        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id)).content : input.content;
+        let content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id, input.title, onlyOwn(user))).content : input.content;
+        // Игра библиотеки → «Мои игры»: её музыка приезжает к ведущему папкой с названием игры (решение владельца
+        // 15 октября 2026), ссылки копии — на его личные копии треков (тот же файл).
+        if (source.scope === "agency" && input.scope === "personal") {
+          const map = await takeTracks(tx, await agencyTrackIds(tx, content), input.ownerId, gameFolder(source.title));
+          if (map.size > 0) content = replaceIds(content, map);
+        }
         const created = await tx`
           insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
           values (${id}, ${input.scope}, ${input.ownerId}, ${input.title}, ${input.mechanic}, ${input.themeId},
@@ -275,6 +291,50 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       return { id };
     });
 
+    // Папки «Моих игр»: список, создать (можно пустую), переименовать (игры переезжают), удалить (игры остаются без папки).
+    async function gameFolders(ownerId: string): Promise<string[]> {
+      const rows = await sql<{ name: string }[]>`select name from game_folders where owner_id = ${ownerId} order by name limit ${LIST_LIMIT}`;
+      return rows.map((r) => r.name);
+    }
+    api.get("/api/game-folders", async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      return gameFolders(user.id);
+    });
+    api.post<{ Body: unknown }>("/api/game-folders", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const name = folderName(isRecord(request.body) ? request.body.name : null);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      await sql`insert into game_folders (owner_id, name) values (${user.id}, ${name}) on conflict do nothing`;
+      return gameFolders(user.id);
+    });
+    api.post<{ Body: unknown }>("/api/game-folders/rename", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const from = folderName(body.from);
+      const to = folderName(body.to);
+      if (!from || !to) return fail(reply, 400, "invalid-argument");
+      await sql.begin(async (tx) => {
+        await tx`delete from game_folders where owner_id = ${user.id} and name = ${from}`;
+        await tx`insert into game_folders (owner_id, name) values (${user.id}, ${to}) on conflict do nothing`;
+        await tx`update games set folder = ${to} where scope = 'personal' and owner_id = ${user.id} and folder = ${from}`;
+      });
+      return gameFolders(user.id);
+    });
+    api.post<{ Body: unknown }>("/api/game-folders/delete", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireHost(request, reply);
+      if (!user) return reply;
+      const name = folderName(isRecord(request.body) ? request.body.name : null);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      await sql.begin(async (tx) => {
+        await tx`delete from game_folders where owner_id = ${user.id} and name = ${name}`;
+        await tx`update games set folder = '' where scope = 'personal' and owner_id = ${user.id} and folder = ${name}`;
+      });
+      return gameFolders(user.id);
+    });
+
     api.patch<{ Params: { id: string }; Body: unknown }>("/api/games/:id", { bodyLimit: GAME_BODY_LIMIT }, async (request, reply) => {
       const user = await requireHost(request, reply);
       if (!user) return reply;
@@ -292,9 +352,11 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         if (themeId !== undefined) await tx`update games set theme_id = ${themeId} where id = ${game.id}`;
         if (patch.ageRating !== undefined) await tx`update games set age_rating = ${parseAge(patch.ageRating)} where id = ${game.id}`;
         if (patch.playMode !== undefined) await tx`update games set play_mode = ${parsePlay(patch.playMode)} where id = ${game.id}`;
+        // Папка в «Моих играх» (решение владельца 15 октября 2026) — только личные игры.
+        if (patch.folder !== undefined && game.scope === "personal") await tx`update games set folder = ${folderName(patch.folder)} where id = ${game.id}`;
         if ("content" in patch) {
           // Игра библиотеки: личные треки — в общую музыку (их автор мог бы удалить), ссылки — на общие копии.
-          const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id)).content : (patch.content ?? null);
+          const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id, title ?? game.title, onlyOwn(user))).content : (patch.content ?? null);
           await tx`update games set content = ${tx.json(content as Parameters<typeof tx.json>[0])} where id = ${game.id}`;
         }
         await tx`update games set updated_at = now() where id = ${game.id}`;

@@ -3,6 +3,7 @@ import type { Mechanic } from "../types";
 import { createStage, parseStage, type StageContent } from "./content";
 import { StageHostControls } from "./HostControls";
 import { score, stageFirstTurn, stageSteps } from "./logic";
+import { stagePreview } from "./preview";
 import { validateStage } from "./validate";
 import { StagePlayerView, StageScreenView, type StageAnswerValue } from "./views";
 
@@ -23,5 +24,6 @@ export const stage: Mechanic<StageContent, StageAnswerValue> = {
   steps: stageSteps,
   score,
   validate: validateStage,
+  preview: { driver: stagePreview, teams: 3, limit: 40 },
   firstTurn: (session, _content, pid) => stageFirstTurn(session, pid),
 };

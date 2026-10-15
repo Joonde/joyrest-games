@@ -2,6 +2,7 @@ import { lazy } from "react";
 import type { Mechanic } from "../types";
 import { createPerudo, parsePerudo, type PerudoContent } from "./content";
 import { PerudoHostControls } from "./HostControls";
+import { perudoPreview } from "./preview";
 import { perudoSteps, score, type PerudoAnswerValue } from "./logic";
 import { validatePerudo } from "./validate";
 import { PerudoPlayerView, PerudoScreenView } from "./views";
@@ -23,4 +24,5 @@ export const perudo: Mechanic<PerudoContent, PerudoAnswerValue> = {
   steps: perudoSteps,
   score,
   validate: validatePerudo,
+  preview: { driver: perudoPreview, teams: 3, limit: 60 },
 };

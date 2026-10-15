@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { categoryTitle, durationLabel, nextInCategory, TRACK_CATEGORIES } from "../../core/music";
+import { categoryTitle, durationLabel, folderNames, nextInCategory, TRACK_CATEGORIES } from "../../core/music";
+import { matchesSearch } from "../../core/search";
 import { DEFAULT_MIX, isClipped, tracksRepo, useLoad, type MixState, type Session, type SessionChange, type Track, type TrackCategory } from "../../data";
 
 const EMPTY = { mine: [] as Track[], library: [] as Track[] };
@@ -17,6 +18,9 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
   const repo = tracksRepo;
   const [state] = useLoad(() => (repo ? repo.list() : Promise.resolve(EMPTY)), [repo]);
   const [filter, setFilter] = useState<TrackCategory | "all">("all");
+  /** Папка («all» — все) и поиск по названию — треков бывает много (решение владельца 15 октября 2026). */
+  const [folder, setFolder] = useState<string>("all");
+  const [query, setQuery] = useState("");
   const [error, setError] = useState(false);
   const music = session.state.music ?? null;
   const serverMix = session.state.mix ?? DEFAULT_MIX;
@@ -35,7 +39,10 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
   if (!repo) return null;
 
   const current = music ? tracks.find((t) => t.id === music.trackId) : undefined;
-  const shown = filter === "all" ? tracks : tracks.filter((t) => t.category === filter);
+  const folders = folderNames(tracks);
+  const shown = tracks.filter(
+    (t) => (filter === "all" || t.category === filter) && (folder === "all" || t.folder.trim() === folder) && (!query.trim() || matchesSearch([t.title, t.folder], query)),
+  );
   const categories = TRACK_CATEGORIES.filter((c) => tracks.some((t) => t.category === c.id));
 
   function send(change: SessionChange) {
@@ -100,6 +107,23 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
               </button>
             ))}
           </div>
+          {folders.length > 0 && (
+            <div className="chips-row" role="group" aria-label="Папка">
+              <button type="button" className="btn btn--quiet chip-btn" aria-pressed={folder === "all"} onClick={() => setFolder("all")}>
+                Все папки
+              </button>
+              {folders.map((f) => (
+                <button key={f} type="button" className="btn btn--quiet chip-btn" aria-pressed={folder === f} onClick={() => setFolder(f)}>
+                  📁 {f}
+                </button>
+              ))}
+            </div>
+          )}
+          <label className="field">
+            Найти трек
+            <input type="search" placeholder="Название или исполнитель" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </label>
+          {shown.length === 0 && <p className="muted">Ничего не нашлось.</p>}
           <ul className="tracks">
             {shown.map((t) => (
               <li key={t.id} className={music?.trackId === t.id ? "track is-current" : "track"}>
@@ -112,6 +136,7 @@ export function MusicPanel({ session, onApply }: { session: Session; onApply: (c
                     <li>{categoryTitle(t.category)}</li>
                     {t.durationMs ? <li>{durationLabel(t.durationMs)}</li> : null}
                     {t.scope === "agency" && <li>JoyRest</li>}
+                    {t.folder && <li>📁 {t.folder}</li>}
                   </ul>
                 </div>
               </li>

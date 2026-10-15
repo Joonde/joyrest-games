@@ -1,0 +1,82 @@
+# Робот-ведущий (CLAUDE.md, раздел 9): проводит каждую игру (кроме «Олимпа») со всеми шаблонами и режимами от лобби
+# до финала в настоящем браузере — кнопки пульта, «Назад», двойные касания, телефоны, перерывы, опоздавшие,
+# перезагрузки. Ошибки, зависания и тупики — в отчёт. Без сервера: всё в памяти страницы.
+# Только вручную (Run workflow) или коммитом с [robot] в ветке claude/* (~20–40 минут).
+# Отчёт и блок-схемы — в ветку e2e-shots (папка robot/), коротко — в итог задачи.
+name: Робот-ведущий
+
+on:
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Игры через запятую (пусто — все, кроме Олимпа)"
+        required: false
+        default: ""
+      budget:
+        description: "Ходов на прогон (по умолчанию 450)"
+        required: false
+        default: "450"
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  robot:
+    name: Все игры от лобби до финала
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[robot]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: robot
+      cancel-in-progress: true
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Зависимости
+        run: |
+          npm ci --no-audit --no-fund
+          # Playwright — только здесь: в зависимостях проекта его нет.
+          npm i --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Сборка страницы робота
+        run: |
+          set +e
+          node scripts/robot/build.mjs /tmp/robot > /tmp/robot-build.log 2>&1
+          st=$?
+          cat /tmp/robot-build.log
+          # Журнал Actions недоступен с телефона и из сессии — ошибки сборки дублируем аннотациями.
+          if [ $st -ne 0 ]; then grep -iE "error|✘|could not|no matching" /tmp/robot-build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
+      - name: Робот проводит игры
+        env:
+          PAR: "6"
+          BUDGET: ${{ github.event.inputs.budget || '450' }}
+          # Длинные прогоны (большой бюджет) — больше времени на каждый.
+          TIMEOUT: ${{ (github.event.inputs.budget && github.event.inputs.budget != '450') && '1200000' || '300000' }}
+        run: |
+          GAMES="${{ github.event.inputs.games }}"
+          [ -n "$GAMES" ] || GAMES="quiz,lotto,board,checkers,dance,stage,quest,millionaire,survival,dragon,mafia,bunker,durak,truth,perudo,wager,wine,story"
+          node scripts/robot/run.mjs /tmp/robot /tmp/robot/report.json "$GAMES" | tee /tmp/robot/log.txt
+          node scripts/robot/charts.mjs /tmp/robot/report.json > /tmp/robot/charts.json
+          node -e '
+            const g = JSON.parse(require("fs").readFileSync("/tmp/robot/charts.json", "utf8"));
+            let md = "| Игра | Прогонов | До финала | Проблем |\n|---|---|---|---|\n";
+            for (const x of g) md += `| ${x.mechanic} | ${x.runs} | ${x.finished} | ${x.problems.length} |\n`;
+            for (const x of g) for (const p of x.problems.slice(0, 5)) md += `\n- **${x.mechanic}** ${p.run}: ${p.bad.slice(0, 3).join(" · ").replace(/\n/g, " ").slice(0, 400)}`;
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + "\n");
+          '
+      - name: Отчёт в ветку e2e-shots
+        if: always()
+        run: |
+          [ -f /tmp/robot/report.json ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          # Снимки других проверок (calendar/ и т. п.) в ветке остаются.
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf robot && mkdir -p robot && cp /tmp/robot/report.json /tmp/robot/charts.json /tmp/robot/log.txt robot/ 2>/dev/null || true
+          git add robot
+          git commit -qm "Отчёт робота-ведущего ${GITHUB_SHA::7}" && git push -qf origin e2e-shots || echo "Отчёта нет"

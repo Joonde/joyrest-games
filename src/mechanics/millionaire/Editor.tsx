@@ -6,7 +6,7 @@ import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { pointsLabel } from "../../core/results";
 import type { EditorProps } from "../types";
-import { LETTERS, LEVELS, LIFELINES, MILLIONAIRE_LIMITS, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
+import { ANSWER_TIME_CHOICES, ATTEMPT_CHOICES, LETTERS, LIFELINES, levelsOf, MILLIONAIRE_LIMITS, resizeLadder, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { DEMO_MILLIONAIRE } from "./demo";
 import { teamsCovered, validateMillionaire } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
@@ -63,7 +63,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
       <section className="card stack">
         <h2>Как играем</h2>
         <p className="muted small">
-          12 вопросов с четырьмя вариантами. Команды ходят по очереди, у каждой на экране своя полоска-лестница: верный ответ — ступенью выше, ошибка — вниз до несгораемой. Капитан отвечает с телефона, подсказку просит там же или у ведущего; каждая подсказка — один раз за игру.
+          {levelsOf(content)} вопросов с четырьмя вариантами. Команды ходят по очереди, у каждой на экране своя полоска-лестница: верный ответ — ступенью выше, ошибка — вниз до несгораемой. Капитан отвечает с телефона, подсказку просит там же или у ведущего; каждая подсказка — один раз за игру.
         </p>
         <fieldset>
           <legend>Кто играет</legend>
@@ -101,6 +101,48 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
             })}
           </div>
         </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Вопросов в лестнице</legend>
+          <div className="pick-chips">
+            {([12, 15] as const).map((size) => (
+              <button key={size} type="button" className="pick-chip" aria-pressed={levelsOf(content) === size} onClick={() => onChange(resizeLadder(latest.current, size))}>
+                {size} вопросов
+              </button>
+            ))}
+          </div>
+          <p className="muted small">15 — как в телеигре (несгораемые 5 и 10), 12 — короче (4 и 8). Очки ступеней можно поменять ниже.</p>
+        </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Попыток после ошибки</legend>
+          <div className="pick-chips">
+            {ATTEMPT_CHOICES.map((n) => (
+              <button key={n} type="button" className="pick-chip" aria-pressed={content.attempts === n} onClick={() => onChange({ ...latest.current, attempts: n })}>
+                {n}
+              </button>
+            ))}
+            <button type="button" className="pick-chip" aria-pressed={content.attempts === null} onClick={() => onChange({ ...latest.current, attempts: null })}>
+              Без ограничения
+            </button>
+          </div>
+          <p className="muted small">
+            Сколько раз команда может продолжить после неверного ответа. 0 — первая ошибка, и команда выбывает. Попытки кончились у всех — награждение: побеждает
+            тот, кто выше забрался.
+          </p>
+        </fieldset>
+        <fieldset disabled={!editable}>
+          <legend>Время на ответ</legend>
+          <div className="pick-chips">
+            {ANSWER_TIME_CHOICES.map((n) => (
+              <button key={n} type="button" className="pick-chip" aria-pressed={content.answerSeconds === n} onClick={() => onChange({ ...latest.current, answerSeconds: n })}>
+                {n === 0 ? "Без таймера" : `${n} с`}
+              </button>
+            ))}
+          </div>
+          <p className="muted small">
+            Таймер на экране зала, последние 10 секунд тикают, на нуле — «Время вышло» и телефоны больше не отвечают (ведущий может отметить ответ сам).
+            «Окончательный ответ» останавливает часы, подсказка запускает их заново.
+          </p>
+        </fieldset>
         <div className="row board-editor__size">
           <label className="field">
             Звонок другу, секунд
@@ -108,7 +150,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           </label>
           <label className="field">
             Голосование зала, секунд
-            <ClampedNumber value={content.audienceSeconds} min={MILLIONAIRE_LIMITS.minSeconds} max={MILLIONAIRE_LIMITS.maxSeconds} fallback={20} disabled={!editable} onChange={(audienceSeconds) => onChange({ ...content, audienceSeconds })} />
+            <ClampedNumber value={content.audienceSeconds} min={MILLIONAIRE_LIMITS.minAudience} max={MILLIONAIRE_LIMITS.maxAudience} fallback={90} disabled={!editable} onChange={(audienceSeconds) => onChange({ ...content, audienceSeconds })} />
           </label>
         </div>
         <details>
@@ -121,7 +163,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                 <li key={level} className="row">
                   <span className="mil-ladder-editor__n">{level}</span>
                   <ClampedNumber value={points} min={0} max={MILLIONAIRE_LIMITS.maxPoints} fallback={points} disabled={!editable} onChange={(n) => onChange({ ...content, ladder: content.ladder.map((p, k) => (k === i ? n : p)) })} />
-                  {level < LEVELS && (
+                  {level < levelsOf(content) && (
                     <button type="button" className="pick-chip" aria-pressed={safe} disabled={!editable} onClick={() => onChange({ ...content, safe: safe ? content.safe.filter((s) => s !== level) : [...content.safe, level].sort((a, b) => a - b) })}>
                       Несгораемая
                     </button>
@@ -150,7 +192,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           <div className="stack stack--tight">
             <p className="muted small">Вопрос с новой строки, варианты — «- …», верный — «* …». «# Ступень 5» — следующие вопросы на 5-ю ступень; без неё вопросы идут по ступеням 1, 2, 3…</p>
             <textarea value={text} rows={10} placeholder={"# Ступень 1\nСтолица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид"} onChange={(e) => setText(e.target.value)} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replaceAll(parseMillionaireList(text), "Заменить вопросы списком")}>
+            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replaceAll(parseMillionaireList(text, levelsOf(content)), "Заменить вопросы списком")}>
               Заменить вопросы
             </button>
           </div>
@@ -159,7 +201,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
         )}
       </section>
 
-      {Array.from({ length: LEVELS }, (_, i) => i + 1).map((level) => {
+      {Array.from({ length: levelsOf(content) }, (_, i) => i + 1).map((level) => {
         const list = questionsOf(content, level);
         return (
           <section key={level} className="stack stack--tight">
@@ -175,7 +217,10 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                   <li key={q.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error" : ""}`}>
                     <button type="button" className="quest-strip__head" aria-expanded={open} onClick={() => setOpenId(open ? null : q.id)}>
                       <span className="quest-strip__n">{level}</span>
-                      <span className="quest-strip__text line-clamp">{q.text || <span className="muted">Вопрос — заполните</span>}</span>
+                      <span className="quest-strip__text line-clamp">
+                        {q.text || <span className="muted">Вопрос — заполните</span>}
+                        {q.hint?.trim() ? <span title="Есть подсказка ведущему"> 💡</span> : null}
+                      </span>
                     </button>
                     {open && (
                       <div className="stack stack--tight quest-strip__body">
@@ -196,16 +241,17 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                         ))}
                         <p className="muted small">Кружок — верный вариант (сейчас {LETTERS[q.correct]}).</p>
                         <label className="field">
+                          💡 Подсказка ведущему — для «Совета ведущего»
+                          <textarea rows={2} maxLength={MILLIONAIRE_LIMITS.hint} value={q.hint ?? ""} disabled={!editable} placeholder="Не ответ, а направление мысли. Например: вспомните, где проходила Олимпиада-80" onChange={(e) => update(q.id, { hint: e.target.value })} />
+                          <span className="muted small">Видна только на пульте под этим вопросом. Возьмут «Совет ведущего» — прочитайте или покажите на экране.</span>
+                        </label>
+                        <label className="field">
                           Ступень
-                          <ClampedNumber value={q.level} min={1} max={LEVELS} fallback={level} disabled={!editable} onChange={(n) => update(q.id, { level: n })} />
+                          <ClampedNumber value={q.level} min={1} max={levelsOf(content)} fallback={level} disabled={!editable} onChange={(n) => update(q.id, { level: n })} />
                         </label>
                         <label className="field">
-                          Пояснение для ведущего (видит только пульт)
+                          Комментарий для себя (видит только пульт)
                           <input maxLength={MILLIONAIRE_LIMITS.note} value={q.note} disabled={!editable} onChange={(e) => update(q.id, { note: e.target.value })} />
-                        </label>
-                        <label className="field">
-                          Наводка для «Совета ведущего» (не ответ, а направление мысли)
-                          <input maxLength={MILLIONAIRE_LIMITS.hint} value={q.hint ?? ""} disabled={!editable} placeholder="Например: вспомните, где проходит Олимпиада-80" onChange={(e) => update(q.id, { hint: e.target.value })} />
                         </label>
                         {mine.map((e) => (
                           <p key={e.message} className="error small">

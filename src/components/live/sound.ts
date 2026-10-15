@@ -529,7 +529,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -562,6 +562,12 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   milRight: "/sounds/millionaire-right-1.mp3",
   milWrong: "/sounds/millionaire-wrong-1.mp3",
   milLifeline: "/sounds/millionaire-lifeline-1.mp3",
+  /** «Миллионер»: гости входят и появляются поля (до первого вопроса); фон вопроса — от показа до последних 10 секунд.
+   * Файлы прислал владелец и попросил встроить (решение 14 октября 2026, `public/sounds/SOURCES.md`). */
+  milStart: "/sounds/millionaire-start-1.mp3",
+  milBed: "/sounds/millionaire-bed-1.mp3",
+  /** «Миллионер»: помощь зала — пока зал голосует (прислал владелец, 14 октября 2026). */
+  milVote: "/sounds/millionaire-vote-1.mp3",
 };
 
 /** Встроенная музыка момента: перерыв, представление команд. */
@@ -578,10 +584,13 @@ export const BUILTIN_MUSIC = {
   thinkHigh: [SAMPLES.thinkHigh, SAMPLES.thinkHigh].filter((u): u is string => Boolean(u)),
   dragonLobby: [SAMPLES.dragonBattle, SAMPLES.dragonBattle].filter((u): u is string => Boolean(u)),
   dragonBattle: [SAMPLES.dragonBattle, SAMPLES.dragonBattle].filter((u): u is string => Boolean(u)),
+  milStart: [SAMPLES.milStart, SAMPLES.milStart].filter((u): u is string => Boolean(u)),
+  milBed: [SAMPLES.milBed, SAMPLES.milBed].filter((u): u is string => Boolean(u)),
+  milVote: [SAMPLES.milVote, SAMPLES.milVote].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.28 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.28, milBed: 0.7 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();

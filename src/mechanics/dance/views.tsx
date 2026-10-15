@@ -8,6 +8,7 @@ import { useFragment } from "../../components/music/useFragment";
 import { NameText } from "../../components/NameText";
 import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
+import { videosRepo } from "../../data";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { embedUrl, KIND_EMOJI, KIND_TITLES, type DanceCard, type DanceContent } from "./content";
@@ -93,6 +94,11 @@ function CardVideo({ card, paused, replay }: { card: DanceCard; paused: boolean;
     // Пауза ролика по ссылке — кнопками самого плеера; «Сначала» перезагружает плеер.
     return <iframe key={replay} className="dance-screen__video" src={src} title={card.title || "Видео"} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen />;
   }
+  if (card.video.source === "server") {
+    if (!videosRepo) return <p className="dance-screen__note">Видео JoyRest открывается только на платформе JoyRest (games.joy-rest.ru).</p>;
+    if (!card.video.url) return null;
+    return <video ref={ref} className="dance-screen__video" src={videosRepo.fileUrl(card.video.url)} playsInline preload="auto" autoPlay={!paused} controls={false} />;
+  }
   if (card.video.source === "file") {
     if (missing) {
       return (
@@ -132,7 +138,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
   const left = r.mode === "vote" && stage === "question" ? secondsLeft(session.state, now) : null;
   const performing = r.mode === "perform";
   // Трек играет, только если видео нет (иначе звучали бы оба сразу).
-  const battleTrack = card && card.trackId && card.video.source === "none" ? card : null;
+  const battleTrack = card && card.trackId && (card.video.source === "none" || (card.video.source === "server" && !card.video.url)) ? card : null;
   useFragment(
     battleTrack?.trackId ?? null,
     battleTrack?.trackStart ?? 0,
@@ -196,7 +202,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
     return (
       <div className="dance-screen dance-screen--perform">
         {head}
-        {card.video.source === "none" || (card.video.source === "link" && !card.video.url.trim()) ? (
+        {card.video.source === "none" || ((card.video.source === "link" || card.video.source === "server") && !card.video.url.trim()) ? (
           // Без видео — сцена: крупное название, прожекторы и «эквалайзер» в такт.
           <div className={r.paused ? "dance-stage is-paused" : "dance-stage"}>
             <span className="dance-stage__emoji" aria-hidden="true">
@@ -318,7 +324,8 @@ export function DancePlayerView({ session, content, pid, role, myAnswer, sending
     return (
       <div className="quiz-phone quiz-phone--center">
         {head}
-        <h2>{mine ? (captain ? "Выбор отправлен" : "Выбирает ваш капитан") : <>Выбирает <NameText name={nameOf(session, turnPid(r))} /></>}</h2>
+        <h2>{mine ? (captain ? (myAnswer ? "Выбор отправлен" : "Время выбора вышло — назовите карточку ведущему") : "Выбирает ваш капитан") : <>Выбирает <NameText name={nameOf(session, turnPid(r))} /></>}</h2>
+        {!mine && <p className="muted">Вы наблюдаете — нажимать ничего не нужно, ваша очередь будет позже.</p>}
       </div>
     );
   }

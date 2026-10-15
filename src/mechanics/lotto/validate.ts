@@ -1,5 +1,5 @@
 import type { ValidationError } from "../types";
-import { cardCells, type LottoContent } from "./content";
+import { badVideoLink, cardCells, type LottoContent } from "./content";
 
 export function validateLotto(content: LottoContent): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -13,6 +13,7 @@ export function validateLotto(content: LottoContent): ValidationError[] {
     if (!key) errors.push({ path: `songs/${song.id}/title`, message: "Напишите название песни." });
     else if (seen.has(`${key}|${song.artist.trim().toLowerCase()}`)) errors.push({ path: `songs/${song.id}/title`, message: "Такая песня уже есть — на карточке будут две одинаковые клетки." });
     seen.add(`${key}|${song.artist.trim().toLowerCase()}`);
+    if (badVideoLink(song)) errors.push({ path: `songs/${song.id}/video`, message: "Ссылку на видео экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube." });
   }
   if ((content.prizes[0] ?? 0) <= 0) errors.push({ path: "prizes", message: "Первому победителю нужны очки." });
   return errors;

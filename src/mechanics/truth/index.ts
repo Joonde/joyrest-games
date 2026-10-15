@@ -3,6 +3,7 @@ import type { Mechanic } from "../types";
 import { createTruth, parseTruth, type TruthContent } from "./content";
 import { TruthHostControls } from "./HostControls";
 import { score, truthSteps } from "./logic";
+import { truthPreview } from "./preview";
 import { validateTruth } from "./validate";
 import { TruthPlayerView, TruthScreenView, type TruthAnswerValue } from "./views";
 
@@ -23,4 +24,5 @@ export const truth: Mechanic<TruthContent, TruthAnswerValue> = {
   steps: truthSteps,
   score,
   validate: validateTruth,
+  preview: { driver: truthPreview, teams: 3, limit: 40 },
 };

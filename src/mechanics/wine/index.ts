@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
+import { winePreview } from "./preview";
 import { createWine, parseWine, type WineContent } from "./content";
 import { WineHostControls } from "./HostControls";
 import { score, wineSteps } from "./logic";
@@ -23,4 +24,5 @@ export const wine: Mechanic<WineContent, WineAnswerValue> = {
   steps: wineSteps,
   score,
   validate: validateWine,
+  preview: { driver: winePreview, teams: 3, limit: 30 },
 };

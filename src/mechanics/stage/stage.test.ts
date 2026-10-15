@@ -3,7 +3,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import { createStage, parseStage } from "./content";
 import { DEMO_STAGE_DANCE, DEMO_STAGE_KARAOKE } from "./demo";
-import { countVotes, hypeText, HYPE, finishPerform, giftGivers, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand } from "./logic";
+import { battlesLocked, battleWaiting, countVotes, hypeText, openBattles, HYPE, finishPerform, giftGivers, liveVotes, nextTurn, parseStageResult, pickTile, setBattleWinner, stageBack, stagePrimary, startGame, startVote, toggleFull, turnPid, videoCommand } from "./logic";
 import { validateStage } from "./validate";
 import { videoTarget } from "./video";
 import { VERSUS, WHO, whoOf } from "./who";
@@ -17,6 +17,7 @@ const content = parseStage({
   ],
   gift: 50,
   voteTime: 20,
+  battleLock: false,
 });
 const teams: Participant[] = ["A", "B", "C"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
 // Телефоны команд: каждый дарит и голосует своим игроком.
@@ -56,11 +57,11 @@ describe("Just Dance и Караоке на поле", () => {
     // Выступающие себе не дарят, команда — один раз.
     expect(giftGivers(s, answers, everyone)).toEqual(["B", "C"]);
     s = apply(s, finishPerform(s, content, answers, everyone, true));
-    // C без 50 очков подарить не может.
-    expect(s.leaderboard.A?.score).toBe(350);
+    // C ещё без очков — дарит, но в минус не уходит; выступающим — оба подарка целиком.
+    expect(s.leaderboard.A?.score).toBe(400);
     expect(s.leaderboard.B?.score).toBe(70);
     expect(s.leaderboard.C?.score ?? 0).toBe(0);
-    expect(parseStageResult(s.state.result).gifts).toEqual(["B"]);
+    expect(parseStageResult(s.state.result).gifts).toEqual(["B", "C"]);
     // «Назад» с итога — очки и подарки возвращаются.
     const back = stageBack(s, content);
     s = apply(s, back?.change ?? {});
@@ -74,6 +75,47 @@ describe("Just Dance и Караоке на поле", () => {
     s = apply(s, nextTurn(s, everyone));
     expect(turnPid(parseStageResult(s.state.result))).toBe("B");
     expect(parseStageResult(s.state.result).played).toEqual(["t1"]);
+  });
+
+  it("батлы закрыты, пока каждая команда не выступила; «Не вышли» не считается; ведущий может открыть раньше", () => {
+    const locked = parseStage({
+      variant: "dance",
+      categories: [{ id: "c1", title: "Активные" }],
+      tiles: [
+        { id: "p1", cat: "c1", points: 100, kind: "perform" },
+        { id: "p2", cat: "c1", points: 200, kind: "perform" },
+        { id: "p3", cat: "c1", points: 300, kind: "perform" },
+        { id: "p4", cat: "c1", points: 400, kind: "perform" },
+        { id: "b1", cat: "c1", points: 500, kind: "battle" },
+      ],
+    });
+    expect(locked.battleLock).toBe(true);
+    let s = session();
+    s = apply(s, startGame(s, everyone));
+    const r0 = () => parseStageResult(s.state.result);
+    expect(battleWaiting(locked, r0())).toEqual(["A", "B", "C"]);
+    expect(pickTile(s, locked, "b1", everyone)).toEqual({});
+    const play = (tile: string, ok: boolean) => {
+      s = apply(s, pickTile(s, locked, tile, everyone));
+      s = apply(s, finishPerform(s, locked, [], everyone, ok));
+      s = apply(s, nextTurn(s, everyone));
+    };
+    play("p1", true); // A выступила
+    play("p2", false); // B не вышла
+    expect(battleWaiting(locked, r0())).toEqual(["B", "C"]);
+    play("p3", true); // C выступила
+    expect(battleWaiting(locked, r0())).toEqual(["B"]);
+    // «Назад» на итог C — C снова не отмечена.
+    const back = apply(s, stageBack(s, locked)?.change ?? {});
+    expect(parseStageResult(back.state.result).done).toEqual(["A"]);
+    // Ведущий открывает батлы раньше.
+    const opened = apply(s, openBattles(s));
+    expect(battlesLocked(locked, parseStageResult(opened.state.result))).toBe(false);
+    expect(parseStageResult(apply(opened, pickTile(opened, locked, "b1", everyone)).state.result).mode).toBe("perform");
+    // Обычные плитки кончились — батлы открываются сами.
+    play("p4", false);
+    expect(battlesLocked(locked, r0())).toBe(false);
+    expect(parseStageResult(apply(s, pickTile(s, locked, "b1", everyone)).state.result).mode).toBe("perform");
   });
 
   it("«Другая плитка» и «Назад» с выбора возвращают прошлый итог", () => {

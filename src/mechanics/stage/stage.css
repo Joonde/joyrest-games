@@ -190,6 +190,11 @@
   color: rgba(18, 14, 24, 0.7);
 }
 
+.stage-tile.is-locked {
+  opacity: 0.5;
+  filter: saturate(0.4);
+}
+
 .stage-tile.is-played {
   background: rgba(255, 255, 255, 0.04);
   border: 1px dashed rgba(255, 255, 255, 0.16);

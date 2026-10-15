@@ -574,6 +574,6 @@ describe("логотип сайта", () => {
     expect(calc).not.toMatch(/<script src=|<link rel="stylesheet"/);
     expect(calc).toContain("JoyPricing");
     expect(calc).toContain("@font-face");
-    expect(calc).not.toContain("/api/lead");
+    expect(calc).not.toMatch(/<form\b|fetch\(|XMLHttpRequest|sendBeacon/);
   }, 30_000);
 });

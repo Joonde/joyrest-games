@@ -1,0 +1,36 @@
+# Обновить package-lock.json после правки зависимостей в package.json (в рабочей среде Claude нет доступа к npm).
+# Только коммитом с [deps] в ветке claude/* или вручную (Run workflow); ~1 минута. Новый lock коммитится в ту же ветку
+# (такой коммит сборку сам не запускает — она пройдёт со следующим push).
+name: Зависимости
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    name: Обновить package-lock.json
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deps]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm install
+        run: npm install --no-audit --no-fund --package-lock-only
+      - name: Коммит lock
+        run: |
+          git diff --quiet package-lock.json && echo "lock не изменился" && exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git add package-lock.json
+          git commit -qm "package-lock.json: зависимости из package.json [no-test]"
+          git push -q origin HEAD:${{ github.ref_name }}

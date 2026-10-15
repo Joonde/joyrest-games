@@ -6,7 +6,7 @@ import { NameText } from "../../components/NameText";
 import { pointsLabel } from "../../core/results";
 import { acceptsAnswers } from "../../core/session";
 import type { Session } from "../../data/types";
-import type { PlayerViewProps, ViewProps } from "../types";
+import type { PlayerViewProps } from "../types";
 import { HEROES, heroOf, STAT_MAX, STAT_POINTS, STATS, statTitle, type DragonContent, type DragonTask, type Stat, type Stats } from "./content";
 import { maxLives, parseDragonResult, taskOf, type DragonResult } from "./logic";
 

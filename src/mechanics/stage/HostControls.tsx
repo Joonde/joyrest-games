@@ -142,7 +142,7 @@ export function StageHostControls({ session, content, answers, participants, con
     if (action === "finish") control.requestFinish();
   }
 
-  const hasVideo = tile ? tile.video.source !== "none" && !(tile.video.source === "link" && !tile.video.url.trim()) : false;
+  const hasVideo = tile ? tile.video.source !== "none" && !((tile.video.source === "link" || tile.video.source === "server") && !tile.video.url.trim()) : false;
   const screen = session.screenMode !== "none";
   const cmd = (c: VideoCmd) => void media(videoCommand(latest.current, c));
 

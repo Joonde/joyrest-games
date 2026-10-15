@@ -86,8 +86,8 @@ export async function putAudio<T = unknown>(path: string, file: Blob, durationMs
 }
 
 /** Файл как есть (фото или PDF анкеты площадки) с дополнительными заголовками. Ответ — JSON. */
-export async function putFile<T = unknown>(path: string, file: Blob, contentType: string, headers: Record<string, string> = {}): Promise<T> {
-  const response = await send(path, { method: "PUT", headers: { "Content-Type": contentType, "X-JoyRest": "1", ...headers }, body: file });
+export async function putFile<T = unknown>(path: string, file: Blob, contentType: string, headers: Record<string, string> = {}, signal?: AbortSignal): Promise<T> {
+  const response = await send(path, { method: "PUT", headers: { "Content-Type": contentType, "X-JoyRest": "1", ...headers }, body: file, signal });
   return (await response.json().catch(() => null)) as T;
 }
 

@@ -2,7 +2,7 @@
 // плитки с очками. Плитку выбрали — она переворачивается: кто выходит (фигурки), трек, задание, и на экране зала
 // играет видео Just Dance или караоке. Видео на сервер не загружается: ссылка (YouTube, VK Видео, Rutube) или файл
 // на устройстве экрана зала (как в «Танцевальном батле»).
-import type { VideoSource } from "../dance/content";
+import { parseVideo, type VideoSource } from "../dance/content";
 import { VERSUS, WHO } from "./who";
 
 export type StageVariant = "dance" | "karaoke";
@@ -94,8 +94,6 @@ export function parseStage(raw: unknown): StageContent {
     const n = perCat.get(cat) ?? 0;
     if (n >= STAGE_LIMITS.perCategory) continue;
     perCat.set(cat, n + 1);
-    const v = rec(t.video);
-    const source: VideoSource = v.source === "file" || v.source === "link" ? v.source : "none";
     tiles.push({
       id: uniq(t.id, `t${i + 1}`),
       cat,
@@ -105,7 +103,7 @@ export function parseStage(raw: unknown): StageContent {
       vs: typeof t.vs === "string" && VS_IDS.has(t.vs) ? t.vs : "m-w",
       title: str(t.title, STAGE_LIMITS.title),
       note: str(t.note, STAGE_LIMITS.note),
-      video: { source, url: source === "link" ? str(v.url, STAGE_LIMITS.url) : "", name: str(v.name, 120) },
+      video: parseVideo(t.video, STAGE_LIMITS.url),
     });
   }
   return {

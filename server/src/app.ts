@@ -22,6 +22,7 @@ import { registerProposals } from "./proposals";
 import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks } from "./tracks";
+import { registerVideos } from "./videos";
 import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -139,6 +140,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerProposals(app, { sql: options.sql, isSite });
     registerStaff(app, { sql: options.sql, isSite });
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });

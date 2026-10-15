@@ -34,6 +34,7 @@ import type {
   HostLevel,
   LeaderboardEntry,
   LibraryProposal,
+  LibraryVideo,
   MediaUpload,
   MediaVariant,
   NewGame,
@@ -342,6 +343,20 @@ export interface TracksRepository {
    * Адрес файла для `<audio src>`: прослушивание в студии начинается сразу по касанию (iPhone
    * не даёт включить звук, если между касанием и play() было ожидание загрузки).
    */
+  fileUrl(id: string): string;
+}
+
+export interface VideosRepository {
+  /** Все видео JoyRest (загруженные; у загружающих — и недогруженные), сколько места заняли все видео. */
+  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number }>;
+  /**
+   * Загрузить файл частями (видео большое, связь на площадке плохая): обрыв — повтор с того же места; тот же id
+   * и тот же файл после закрытия вкладки — дозагрузка. `onProgress` — сколько байт уже на сервере.
+   */
+  upload(input: { id: string; title: string; folder: string; file: Blob; durationMs: number | null }, onProgress?: (received: number, size: number) => void, signal?: AbortSignal): Promise<LibraryVideo>;
+  update(id: string, patch: { title?: string; folder?: string }): Promise<LibraryVideo>;
+  remove(id: string): Promise<void>;
+  /** Адрес файла для `<video src>` (браузер берёт его частями). */
   fileUrl(id: string): string;
 }
 

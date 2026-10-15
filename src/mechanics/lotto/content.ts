@@ -3,7 +3,7 @@
 // песням, которые уже звучали, и дают очки первым победителям.
 // У песни может быть видео — клип или караоке (решение владельца 14 октября 2026): ссылка YouTube /
 // VK Видео / Rutube или файл только на устройстве экрана зала (на сервер видео не загружается).
-import { embedUrl, type VideoSource } from "../dance/content";
+import { embedUrl, parseVideo, type VideoSource } from "../dance/content";
 
 export type { VideoSource };
 
@@ -63,6 +63,7 @@ export const LOTTO_LIMITS = {
 export function hasVideo(song: Pick<LottoSong, "video"> | undefined): boolean {
   if (!song) return false;
   if (song.video.source === "file") return true;
+  if (song.video.source === "server") return song.video.url !== "";
   return song.video.source === "link" && song.video.url.trim() !== "";
 }
 
@@ -132,15 +133,13 @@ export function parseLotto(raw: unknown): LottoContent {
     let id = typeof s.id === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(s.id) ? s.id : `s${i + 1}`;
     while (seen.has(id)) id = `${id}_`;
     seen.add(id);
-    const v = record(s.video);
-    const source: VideoSource = v.source === "file" || v.source === "link" ? v.source : "none";
     return {
       id,
       title: text(s.title, LOTTO_LIMITS.title),
       artist: text(s.artist, LOTTO_LIMITS.artist),
       trackId: typeof s.trackId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(s.trackId) ? s.trackId : null,
       trackStart: int(s.trackStart, 0, 0, 3600),
-      video: { source, url: source === "link" ? text(v.url, LOTTO_LIMITS.url).trim() : "", name: text(v.name, 120) },
+      video: parseVideo(s.video, LOTTO_LIMITS.url),
       videoStart: int(s.videoStart, 0, 0, LOTTO_LIMITS.maxVideoStart),
     };
   });

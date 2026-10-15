@@ -331,7 +331,7 @@ export function StageScreenView({ session, content }: ViewProps<StageContent>) {
     );
   }
 
-  const hasVideo = tile.video.source !== "none" && !(tile.video.source === "link" && !tile.video.url.trim());
+  const hasVideo = tile.video.source !== "none" && !((tile.video.source === "link" || tile.video.source === "server") && !tile.video.url.trim());
   const performer = nameOf(session, r.performer);
   if (r.full && hasVideo) {
     return (

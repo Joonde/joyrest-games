@@ -9,6 +9,7 @@ export const clock = { offset: () => 0, sync: async () => 0 };
 export const connection = { subscribe: () => () => undefined, online: () => true };
 export const dataBackend = () => "server";
 export const tracksRepo = null;
+export const videosRepo = null;
 export const screenRepo = null;
 export const venuesRepo = null;
 export const teamRepo = null;

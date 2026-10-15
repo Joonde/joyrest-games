@@ -198,6 +198,25 @@ export type TrackCategory = "music" | "lobby" | "background" | "contest" | "boar
 export type TrackLicense = "pixabay" | "bought" | "own" | "other";
 export type TrackShareStatus = "none" | "pending" | "accepted" | "rejected";
 
+/**
+ * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают владелец и заместитель, видят все,
+ * ставят в игры с видео («Just Dance и Караоке на поле», «Танцевальный батл», музыкальное лото). Файл грузится
+ * частями (`received` из `size`), `ready` — файл целиком на сервере.
+ */
+export interface LibraryVideo {
+  id: string;
+  title: string;
+  folder: string;
+  ownerId: string;
+  ownerName: string;
+  size: number;
+  received: number;
+  ready: boolean;
+  durationMs: number | null;
+  mime: string | null;
+  createdAt: number;
+}
+
 export interface Track {
   id: string;
   ownerId: string;

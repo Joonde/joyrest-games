@@ -19,6 +19,7 @@ import type {
   TelegramRepository,
   TeamRepository,
   TracksRepository,
+  VideosRepository,
   StaffRepository,
   ResultsRepository,
   SessionsRepository,
@@ -49,6 +50,7 @@ import { serverScreenStatusRepository } from "./server/screen";
 import { serverAudienceRepository } from "./server/audience";
 import { serverTeamRepository } from "./server/team";
 import { serverTracksRepository } from "./server/tracks";
+import { serverVideosRepository } from "./server/videos";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
@@ -77,6 +79,8 @@ export const staffRepo: StaffRepository | null = server ? serverStaffRepository 
 export const gameFoldersRepo: typeof serverGameFolders | null = server ? serverGameFolders : null;
 /** Музыка — только свой сервер. */
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
+/** Видео JoyRest — только свой сервер. */
+export const videosRepo: VideosRepository | null = server ? serverVideosRepository : null;
 /** «Команда JoyRest» — только свой сервер. */
 export const teamRepo: TeamRepository | null = server ? serverTeamRepository : null;
 /** Экран зала сообщает пульту, что он на связи и звук разрешён, — только свой сервер. */

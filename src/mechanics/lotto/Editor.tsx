@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { LibraryVideoPicker, videoSourceLabel, videoSources } from "../../components/media/libraryVideo";
 import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackPicker } from "../../components/music/TrackPicker";
 import type { VideoSource } from "../dance/content";
@@ -255,18 +256,22 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
 function SongVideo({ song, editable, onChange }: { song: LottoSong; editable: boolean; onChange: (patch: Partial<LottoSong>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const setSource = (source: VideoSource) => onChange({ video: { ...song.video, source } });
+  // В «Видео JoyRest» поле url — id видео: при переходе к нему или от него ссылка и id не смешиваются.
+  const setSource = (source: VideoSource) => onChange({ video: (source === "server") === (song.video.source === "server") ? { ...song.video, source } : { source, url: "", name: "" } });
   return (
     <fieldset className="stack stack--tight">
       <legend>Видео: клип или караоке (по желанию)</legend>
       <div className="seg" role="group" aria-label="Откуда видео">
-        {(["none", "link", "file"] as const).map((s) => (
+        {videoSources(["none", "server", "link", "file"]).map((s) => (
           <button key={s} type="button" className={song.video.source === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={song.video.source === s} disabled={!editable} onClick={() => setSource(s)}>
-            {s === "link" ? "Ссылка" : s === "file" ? "Файл" : "Без видео"}
+            {videoSourceLabel(s)}
           </button>
         ))}
       </div>
-      {song.video.source === "link" && (
+      {song.video.source === "server" && (
+          <LibraryVideoPicker value={song.video.url} editable={editable} onPick={(v) => onChange({ video: { source: "server", url: v.id, name: v.title.slice(0, 120) } })} />
+        )}
+        {song.video.source === "link" && (
         <label className="field">
           Ссылка на YouTube, VK Видео или Rutube
           <input value={song.video.url} inputMode="url" maxLength={LOTTO_LIMITS.url} disabled={!editable} placeholder="https://youtu.be/…" onChange={(e) => onChange({ video: { ...song.video, url: e.target.value.trim() } })} />

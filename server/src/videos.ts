@@ -148,7 +148,60 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
         ${select()} where v.sha256 is not null or ${uploader} order by v.folder, v.title limit ${LIST_LIMIT}`;
       const [{ used }] = await sql<{ used: string }[]>`
         select coalesce(sum(size), 0)::text as used from (select distinct sha256, size from videos where sha256 is not null) d`;
-      return { videos: rows.map(videoOf), usedBytes: Number(used) };
+      return { videos: rows.map(videoOf), usedBytes: Number(used), folders: await folderList() };
+    });
+
+    /**
+     * Папки «Видео» (решение владельца 15 октября 2026, как у «Музыки»): созданные записи `video_folders` и папки, в которых
+     * лежат видео. Пустую папку можно создать заранее; переименовать — переносит все её видео; удалить — видео остаются без папки.
+     */
+    async function folderList(): Promise<string[]> {
+      const rows = await sql<{ name: string }[]>`
+        select name from video_folders union select folder as name from videos where folder <> '' order by name limit ${LIST_LIMIT}`;
+      return rows.map((r) => r.name).sort((a, b) => a.localeCompare(b, "ru"));
+    }
+
+    async function rememberFolder(name: string) {
+      if (name) await sql`insert into video_folders (name) values (${name}) on conflict do nothing`;
+    }
+
+    api.post<{ Body: unknown }>("/api/video-folders", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, permissions.canUploadVideo);
+      if (!user) return reply;
+      const name = cleanLine(isRecord(request.body) ? request.body.name : undefined, FOLDER_MAX);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      await rememberFolder(name);
+      request.log.info({ video: "folder-create" }, "video");
+      return { folders: await folderList() };
+    });
+
+    api.post<{ Body: unknown }>("/api/video-folders/rename", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, permissions.canUploadVideo);
+      if (!user) return reply;
+      const body = isRecord(request.body) ? request.body : {};
+      const from = cleanLine(body.from, FOLDER_MAX);
+      const to = cleanLine(body.to, FOLDER_MAX);
+      if (!from || !to) return fail(reply, 400, "invalid-argument");
+      await sql.begin(async (tx) => {
+        await tx`delete from video_folders where name = ${from}`;
+        await tx`insert into video_folders (name) values (${to}) on conflict do nothing`;
+        await tx`update videos set folder = ${to}, updated_at = now() where folder = ${from}`;
+      });
+      request.log.info({ video: "folder-rename" }, "video");
+      return { folders: await folderList() };
+    });
+
+    api.post<{ Body: unknown }>("/api/video-folders/delete", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, permissions.canUploadVideo);
+      if (!user) return reply;
+      const name = cleanLine(isRecord(request.body) ? request.body.name : undefined, FOLDER_MAX);
+      if (!name) return fail(reply, 400, "invalid-argument");
+      await sql.begin(async (tx) => {
+        await tx`delete from video_folders where name = ${name}`;
+        await tx`update videos set folder = '', updated_at = now() where folder = ${name}`;
+      });
+      request.log.info({ video: "folder-delete" }, "video");
+      return { folders: await folderList() };
     });
 
     // Описание видео перед загрузкой файла. id создаёт браузер: повтор — то же видео (дозагрузка).
@@ -174,6 +227,7 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
         insert into videos (id, owner_id, title, folder, size, duration_ms)
         values (${id}, ${user.id}, ${title}, ${cleanLine(body.folder, FOLDER_MAX)}, ${size}, ${durationMs})
         on conflict (id) do nothing`;
+      await rememberFolder(cleanLine(body.folder, FOLDER_MAX));
       request.log.info({ video: "create" }, "video");
       const created = await findVideo(id);
       return created ? videoOf(created) : fail(reply, 503, "unavailable");
@@ -262,6 +316,7 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       if (!title) return fail(reply, 400, "invalid-argument");
       const folder = body.folder === undefined ? video.folder : cleanLine(body.folder, FOLDER_MAX);
       await sql`update videos set title = ${title}, folder = ${folder}, updated_at = now() where id = ${video.id}`;
+      await rememberFolder(folder);
       const updated = await findVideo(video.id);
       return updated ? videoOf(updated) : fail(reply, 404, "not-found");
     });

@@ -41,7 +41,7 @@ import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
-import { joinSlide } from "../core/slides";
+import { joinSlide, thanksSlide } from "../core/slides";
 import { TechBreak } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
@@ -238,6 +238,9 @@ function Console({ session }: { session: Session }) {
       // Завершение сразу сохраняет компактные итоги для «Истории игр».
       await sessionsRepo.finish(latest.current, phones);
       setConfirmFinish(false);
+      // После награждения — «Спасибо»: чаевые ведущему, отзыв и канал (решение владельца 15 октября 2026).
+      // Ведущий может убрать слайд — под ним итоги игры.
+      void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId()) } }).catch(() => undefined);
     } catch {
       setError("Не удалось завершить игру. Проверьте интернет.");
     } finally {

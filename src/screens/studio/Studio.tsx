@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, videosRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, videosRepo, finaleRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -66,6 +66,8 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
       : []),
     // База клиентов — только свой сервер и только владелец: все, кто оставлял заявки.
     ...(clientsRepo && permissions.canManageClients(profile) ? [{ label: "Клиенты", to: "/studio/clients" }] : []),
+    // Отзывы гостей — только свой сервер: ведущему о своих мероприятиях, владельцу — все.
+    ...(finaleRepo && permissions.canReadReviews(profile, profile.uid) ? [{ label: "Отзывы", to: "/studio/reviews" }] : []),
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.

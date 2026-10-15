@@ -18,6 +18,8 @@ const ChangePassword = lazy(() =>
 );
 const Team = lazy(() => import("./screens/studio/Team").then((m) => ({ default: m.Team })));
 const Calendar = lazy(() => import("./screens/studio/Calendar").then((m) => ({ default: m.Calendar })));
+const ReviewPage = lazy(() => import("./screens/ReviewPage").then((m) => ({ default: m.ReviewPage })));
+const Reviews = lazy(() => import("./screens/studio/Reviews").then((m) => ({ default: m.Reviews })));
 const Clients = lazy(() => import("./screens/studio/Clients").then((m) => ({ default: m.Clients })));
 const Guide = lazy(() => import("./screens/studio/Guide").then((m) => ({ default: m.Guide })));
 const Profile = lazy(() => import("./screens/studio/Profile").then((m) => ({ default: m.Profile })));
@@ -53,6 +55,7 @@ export function App() {
           <Route path="/studio/team" element={<Team />} />
           <Route path="/studio/calendar" element={<Calendar />} />
           <Route path="/studio/clients" element={<Clients />} />
+          <Route path="/studio/reviews" element={<Reviews />} />
           <Route path="/studio/guide" element={<Guide />} />
           <Route path="/studio/profile" element={<Profile />} />
           <Route path="/studio/qr" element={<VenueQrPage />} />
@@ -68,6 +71,7 @@ export function App() {
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />
           <Route path="/vote/:code" element={<AudienceVote />} />
+          <Route path="/review/:sessionId" element={<ReviewPage />} />
           <Route path="/j" element={<JoinByCode />} />
           <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />

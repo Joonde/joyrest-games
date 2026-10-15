@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { EveningTable } from "../mechanics/evening/views";
+import { FinalePhone } from "../components/live/Finale";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
@@ -646,6 +647,7 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
           Итоги игры
         </Link>
       </div>
+      <FinalePhone sessionId={session.id} />
     </div>
   );
 }

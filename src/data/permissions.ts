@@ -121,6 +121,23 @@ export function canEditGame(actor: Actor, game: GameRef): boolean {
   return canCreateGame(actor, game.scope, game.ownerId);
 }
 
+/**
+ * Отзывы гостей (решение владельца 15 октября 2026): ведущий видит отзывы о своих мероприятиях, владелец — все и
+ * решает, какие показать на сайте. Роли этого не дают.
+ */
+export function canReadReviews(actor: Actor, hostId: string): boolean {
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.uid === hostId);
+}
+
+export function canModerateReviews(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Ссылка для чаевых в своём профиле — тот, кто проводит игры. */
+export function canSetTips(actor: Actor): boolean {
+  return hostsGames(actor);
+}
+
 /** Удалить игру библиотеки может только владелец агентства (заместитель только правит). */
 export function canDeleteGame(actor: Actor, game: GameRef): boolean {
   if (game.scope === "agency") return isAdmin(actor);

@@ -244,7 +244,7 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
       )}
       {shownSlide ? (
         <main className="quiz-stage">
-          <SlideView slide={shownSlide} code={session.code} />
+          <SlideView slide={shownSlide} code={session.code} sessionId={session.id} />
         </main>
       ) : (
         <>

@@ -198,6 +198,33 @@ export type TrackCategory = "music" | "lobby" | "background" | "contest" | "boar
 export type TrackLicense = "pixabay" | "bought" | "own" | "other";
 export type TrackShareStatus = "none" | "pending" | "accepted" | "rejected";
 
+/** Конец игры: куда вести гостей — чаевые ведущему, отзыв, канал (решение владельца 15 октября 2026). */
+export interface Finale {
+  sessionId: string;
+  hostName: string;
+  gameTitle: string;
+  /** Ссылка ведущего для чаевых (или владельца агентства); пусто — чаевых нет. */
+  tipsUrl: string;
+  /** Отзыв этого телефона, если уже оставлен. */
+  myReview: { rating: number; text: string; name: string } | null;
+}
+
+export type ReviewStatus = "new" | "published" | "hidden";
+
+export interface GuestReview {
+  id: string;
+  sessionId: string;
+  hostId: string;
+  hostName: string;
+  gameTitle: string;
+  playedAt: number | null;
+  rating: number;
+  text: string;
+  name: string;
+  status: ReviewStatus;
+  createdAt: number;
+}
+
 /**
  * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают владелец и заместитель, видят все,
  * ставят в игры с видео («Just Dance и Караоке на поле», «Танцевальный батл», музыкальное лото). Файл грузится

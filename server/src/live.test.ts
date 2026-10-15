@@ -256,6 +256,33 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/teams1/participants/teamA", member.cookie)).json().captainUid).toBe(member.uid);
   });
 
+  it("конец игры: чаевые ведущего, отзыв гостя после завершения (один на телефон), владелец показывает на сайте", async () => {
+    await newSession("fz1");
+    expect((await call("POST", "/api/me/tips", host, { url: "javascript:alert(1)" })).statusCode).toBe(400);
+    expect((await call("POST", "/api/me/tips", host, { url: "https://pay.example.ru/tips/anna" })).json().url).toBe("https://pay.example.ru/tips/anna");
+    const guest = await device();
+    const finale = (await call("GET", "/api/finale/fz1", guest.cookie)).json();
+    expect(finale).toMatchObject({ gameTitle: "Квиз", tipsUrl: "https://pay.example.ru/tips/anna", myReview: null });
+    expect((await call("GET", "/api/finale/fz1", "")).statusCode).toBe(401);
+    const review = { sessionId: "fz1", rating: 5, text: "Было здорово!", name: "Аня", consent: true };
+    // До конца игры отзыв не принимается; без согласия — тоже.
+    expect((await call("POST", "/api/reviews", guest.cookie, review)).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/fz1/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("POST", "/api/reviews", guest.cookie, { ...review, consent: false })).statusCode).toBe(400);
+    expect((await call("POST", "/api/reviews", guest.cookie, { ...review, rating: 9 })).statusCode).toBe(400);
+    expect((await call("POST", "/api/reviews", guest.cookie, review)).statusCode).toBe(200);
+    expect((await call("POST", "/api/reviews", guest.cookie, { ...review, rating: 4, text: "Исправила" })).statusCode).toBe(200);
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().myReview).toEqual({ rating: 4, text: "Исправила", name: "Аня" });
+    const list = (await call("GET", "/api/reviews", host)).json() as Array<{ id: string; sessionId: string; status: string }>;
+    const mine = list.filter((r) => r.sessionId === "fz1");
+    expect(mine).toHaveLength(1);
+    expect((await call("GET", "/api/reviews", guest.cookie)).statusCode).toBe(401);
+    expect((await call("POST", `/api/reviews/${mine[0]?.id}/status`, guest.cookie, { status: "published" })).statusCode).toBe(401);
+    expect((await call("POST", `/api/reviews/${mine[0]?.id}/status`, host, { status: "published" })).json().status).toBe("published");
+    await call("POST", "/api/me/tips", host, { url: "" });
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().tipsUrl).toBe("");
+  });
+
   it("завершение: по коду сессию больше не найти, пульт находит свою; итоги по ссылке без входа", async () => {
     const code = await newSession("fin1");
     await call("POST", "/api/sessions/fin1/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 30 }, p2: { name: "Боря", kind: "player", score: 50 } } });

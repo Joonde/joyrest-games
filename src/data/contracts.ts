@@ -35,6 +35,9 @@ import type {
   LeaderboardEntry,
   LibraryProposal,
   LibraryVideo,
+  Finale,
+  GuestReview,
+  ReviewStatus,
   MediaUpload,
   MediaVariant,
   NewGame,
@@ -344,6 +347,17 @@ export interface TracksRepository {
    * не даёт включить звук, если между касанием и play() было ожидание загрузки).
    */
   fileUrl(id: string): string;
+}
+
+/** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */
+export interface FinaleRepository {
+  get(sessionId: string): Promise<Finale>;
+  review(input: { sessionId: string; rating: number; text: string; name: string; consent: boolean }): Promise<void>;
+  /** Ведущему — отзывы о своих мероприятиях, владельцу — все. */
+  listReviews(): Promise<GuestReview[]>;
+  setReviewStatus(id: string, status: ReviewStatus): Promise<void>;
+  getTips(): Promise<string>;
+  setTips(url: string): Promise<string>;
 }
 
 export interface VideosRepository {

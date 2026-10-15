@@ -17357,3 +17357,87 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     transition: none;
   }
 }
+
+/* Конец игры: «Спасибо» с чаевыми, отзывом и каналом (решение владельца 15 октября 2026). */
+.finale-qrs {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4cqw;
+  width: 100%;
+  margin-top: 2cqh;
+}
+.finale-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4cqh;
+  margin: 0;
+  width: 24cqw;
+  text-align: center;
+}
+.finale-qr__code {
+  width: 19cqw;
+  max-width: 34cqh;
+  height: auto;
+}
+.finale-qr figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6cqh;
+}
+.finale-qr figcaption strong {
+  font-size: 2.6cqw;
+  color: var(--color-text);
+}
+.finale-qr figcaption span {
+  font-size: 1.5cqw;
+  color: var(--color-text-muted);
+}
+.finale-phone h2 {
+  text-wrap: balance;
+}
+.finale-review__title {
+  font-weight: 600;
+  margin: 0;
+}
+.finale-review__rate {
+  display: flex;
+  gap: 8px;
+}
+.finale-star {
+  flex: 1;
+  min-height: var(--control-height);
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 28px;
+  cursor: pointer;
+}
+.finale-star.is-on {
+  border-color: var(--color-highlight);
+  color: var(--color-highlight);
+}
+.finale-star:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.finale-review__stars {
+  font-size: 24px;
+  letter-spacing: 2px;
+  color: var(--color-highlight);
+  margin: 0;
+}
+.review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.review-list__text {
+  white-space: pre-line;
+  margin: 0;
+}

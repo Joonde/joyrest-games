@@ -1,0 +1,218 @@
+/**
+ * Конец игры (решение владельца 15 октября 2026): после награждения — «Спасибо» с тремя делами: чаевые ведущему, отзыв
+ * о вечере и Telegram-канал JoyRest. Экран зала показывает три QR-кода (слайд «Спасибо»), телефон гостя — те же три дела
+ * кнопками, отзыв пишется прямо на телефоне. Ссылку для чаевых ведущий ставит в профиле (нет — ссылка владельца, нет и её —
+ * карточки чаевых нет). Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
+ */
+import { useEffect, useState } from "react";
+import { errorCodeOf, finaleRepo, type Finale } from "../../data";
+import { QrCode } from "../QrCode";
+
+export const CHANNEL_URL = "https://t.me/JoyRest";
+export const CHANNEL_TEXT = "Мы начали вести Telegram-канал — будем благодарны за подписку. Так вам будет легче найти нас, когда снова захотите праздник.";
+
+export function reviewUrl(sessionId: string): string {
+  return `${window.location.origin}/review/${sessionId}`;
+}
+
+/** Данные конца игры; null — ещё грузится или своего сервера нет. */
+export function useFinale(sessionId: string | null | undefined): [Finale | null, (f: Finale) => void] {
+  const [finale, setFinale] = useState<Finale | null>(null);
+  useEffect(() => {
+    if (!finaleRepo || !sessionId) return;
+    let alive = true;
+    let timer = 0;
+    const load = (attempt: number) => {
+      finaleRepo
+        ?.get(sessionId)
+        .then((f) => alive && setFinale(f))
+        .catch(() => {
+          if (alive && attempt < 5) timer = window.setTimeout(() => load(attempt + 1), 2000 * (attempt + 1));
+        });
+    };
+    load(0);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [sessionId]);
+  return [finale, setFinale];
+}
+
+/** Экран зала: три QR-кода на слайде «Спасибо». */
+export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined }) {
+  const [finale] = useFinale(sessionId);
+  if (!finaleRepo || !sessionId) {
+    return (
+      <div className="slide__channel">
+        <QrCode value={CHANNEL_URL} label="QR-код канала JoyRest в Telegram" className="slide__qr" />
+        <p className="slide__text">Фото и новые игры — в канале t.me/JoyRest</p>
+      </div>
+    );
+  }
+  return (
+    <div className="finale-qrs">
+      {finale?.tipsUrl && (
+        <figure className="finale-qr">
+          <QrCode value={finale.tipsUrl} label="QR-код: чаевые ведущему" className="finale-qr__code" />
+          <figcaption>
+            <strong>Чаевые ведущему</strong>
+            <span>Если вечер понравился{finale.hostName ? ` — ${finale.hostName} будет рад(а)` : ""}</span>
+          </figcaption>
+        </figure>
+      )}
+      <figure className="finale-qr">
+        <QrCode value={reviewUrl(sessionId)} label="QR-код: оставить отзыв" className="finale-qr__code" />
+        <figcaption>
+          <strong>Оставьте отзыв</strong>
+          <span>Пара слов о вечере — нам это очень важно</span>
+        </figcaption>
+      </figure>
+      <figure className="finale-qr">
+        <QrCode value={CHANNEL_URL} label="QR-код: Telegram-канал JoyRest" className="finale-qr__code" />
+        <figcaption>
+          <strong>Наш Telegram</strong>
+          <span>Подпишитесь — так нас будет легче найти</span>
+        </figcaption>
+      </figure>
+    </div>
+  );
+}
+
+/** Телефон гостя после игры: те же три дела кнопками, отзыв — прямо здесь. */
+export function FinalePhone({ sessionId }: { sessionId: string }) {
+  const [finale, setFinale] = useFinale(sessionId);
+  if (!finaleRepo) return null;
+  return (
+    <section className="card stack finale-phone" aria-labelledby="finale-title">
+      <h2 id="finale-title">Спасибо, что были с нами!</h2>
+      {finale?.tipsUrl && (
+        <a className="btn btn--block" href={finale.tipsUrl} target="_blank" rel="noopener noreferrer">
+          💛 Чаевые ведущему{finale.hostName ? ` · ${finale.hostName}` : ""}
+        </a>
+      )}
+      <ReviewForm sessionId={sessionId} initial={finale?.myReview ?? null} onSaved={(r) => finale && setFinale({ ...finale, myReview: r })} />
+      <div className="stack stack--tight">
+        <p className="muted small">{CHANNEL_TEXT}</p>
+        <a className="btn btn--secondary btn--block" href={CHANNEL_URL} target="_blank" rel="noopener noreferrer">
+          Подписаться на канал JoyRest
+        </a>
+      </div>
+    </section>
+  );
+}
+
+const STARS = [1, 2, 3, 4, 5] as const;
+
+/** Отзыв: звёзды, пара слов, имя по желанию, согласие. Один на телефон и игру — можно исправить. */
+export function ReviewForm({
+  sessionId,
+  initial,
+  onSaved,
+}: {
+  sessionId: string;
+  initial: { rating: number; text: string; name: string } | null;
+  onSaved?: (review: { rating: number; text: string; name: string }) => void;
+}) {
+  const [rating, setRating] = useState(initial?.rating ?? 0);
+  const [text, setText] = useState(initial?.text ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [consent, setConsent] = useState(Boolean(initial));
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(Boolean(initial));
+  const [editing, setEditing] = useState(!initial);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!initial) return;
+    setRating(initial.rating);
+    setText(initial.text);
+    setName(initial.name);
+    setConsent(true);
+    setDone(true);
+    setEditing(false);
+  }, [initial]);
+
+  if (!finaleRepo) return null;
+
+  async function send() {
+    if (!finaleRepo || rating < 1) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await finaleRepo.review({ sessionId, rating, text: text.trim(), name: name.trim(), consent });
+      setDone(true);
+      setEditing(false);
+      onSaved?.({ rating, text: text.trim(), name: name.trim() });
+    } catch (e) {
+      const code = errorCodeOf(e);
+      setError(code === "failed-precondition" ? "Отзыв можно оставить, когда игра закончится." : "Не получилось отправить. Проверьте интернет и попробуйте ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done && !editing) {
+    return (
+      <div className="stack stack--tight finale-review is-done">
+        <p className="finale-review__stars" aria-label={`Ваша оценка: ${rating} из 5`}>
+          {"★".repeat(rating)}
+          <span className="muted">{"★".repeat(5 - rating)}</span>
+        </p>
+        <p>Спасибо за отзыв! Нам очень приятно.</p>
+        <button type="button" className="btn btn--quiet" onClick={() => setEditing(true)}>
+          Исправить отзыв
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="stack stack--tight finale-review"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send();
+      }}
+    >
+      <p className="finale-review__title">Как вам вечер?</p>
+      <div className="finale-review__rate" role="radiogroup" aria-label="Оценка">
+        {STARS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={rating === n}
+            aria-label={`${n} из 5`}
+            className={n <= rating ? "finale-star is-on" : "finale-star"}
+            onClick={() => setRating(n)}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        Пара слов (по желанию)
+        <textarea rows={3} maxLength={1000} value={text} placeholder="Что понравилось больше всего?" onChange={(e) => setText(e.target.value)} />
+      </label>
+      <label className="field">
+        Как вас подписать (по желанию)
+        <input maxLength={60} value={name} placeholder="Например: Анна, свадьба 12 октября" onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label className="choice">
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+        <span className="choice__text">
+          <span className="choice__title">Согласен(на), что JoyRest покажет отзыв с подписью на сайте и в соцсетях</span>
+        </span>
+      </label>
+      {error && (
+        <p className="error small" role="alert">
+          {error}
+        </p>
+      )}
+      <button type="submit" className="btn btn--block" disabled={busy || rating < 1 || !consent}>
+        {busy ? "Отправляем…" : "Отправить отзыв"}
+      </button>
+    </form>
+  );
+}

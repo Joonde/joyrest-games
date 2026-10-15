@@ -8,6 +8,7 @@ import { formatSessionCode } from "../../core/code";
 import { VPN_HINT } from "../../core/texts";
 import { joinHint, playUrl } from "../links";
 import { Confetti } from "./Confetti";
+import { FinaleQrs } from "./Finale";
 import { playSound } from "./sound";
 import { useServerNow } from "./useServerNow";
 
@@ -18,16 +19,13 @@ const SOUNDS: Partial<Record<SlideState["kind"], Parameters<typeof playSound>[0]
   thanks: "applause",
 };
 
-/** Канал JoyRest для слайда «Спасибо». */
-const CHANNEL = "https://t.me/JoyRest";
-
 /**
  * Слайд поверх экрана зала (CLAUDE.md, раздел 7, «Слайды»): шаблон в стиле темы на её живом фоне.
  * Размеры — в единицах контейнера, как у вопросов: предпросмотр совпадает с телевизором.
  */
-export function SlideView({ slide, preview = false, code }: { slide: SlideState; preview?: boolean; code?: string }) {
+export function SlideView({ slide, preview = false, code, sessionId }: { slide: SlideState; preview?: boolean; code?: string; sessionId?: string }) {
   if (slide.kind === "draw") return <DrawSlide slide={slide} preview={preview} />;
-  return <TemplateSlide slide={slide} preview={preview} code={code} />;
+  return <TemplateSlide slide={slide} preview={preview} code={code} sessionId={sessionId} />;
 }
 
 /**
@@ -66,7 +64,7 @@ function DrawSlide({ slide, preview }: { slide: SlideState; preview: boolean }) 
   );
 }
 
-function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: boolean; code?: string }) {
+function TemplateSlide({ slide, preview, code, sessionId }: { slide: SlideState; preview: boolean; code?: string; sessionId?: string }) {
   const now = useServerNow(500, (slide.kind === "break" || slide.kind === "tech") && slide.endsAt !== null);
   const last = useRef(slide.id);
 
@@ -112,12 +110,7 @@ function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: b
           </div>
         </div>
       )}
-      {slide.kind === "thanks" && (
-        <div className="slide__channel">
-          <QrCode value={CHANNEL} label="QR-код канала JoyRest в Telegram" className="slide__qr" />
-          <p className="slide__text">Фото и новые игры — в канале t.me/JoyRest</p>
-        </div>
-      )}
+      {slide.kind === "thanks" && <FinaleQrs sessionId={preview ? null : sessionId} />}
       {slide.kind !== "intro" && <Logo kind="monogram" className="slide__mark" title="" />}
     </div>
   );

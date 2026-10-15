@@ -22,6 +22,7 @@ export {
   staffRepo,
   tracksRepo,
   videosRepo,
+  finaleRepo,
   gameFoldersRepo,
   teamRepo,
   screenRepo,

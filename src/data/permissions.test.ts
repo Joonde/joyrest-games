@@ -460,6 +460,17 @@ describe("роли доступа помощников", () => {
     expect(p.canUploadVideo({ uid: "x", role: "host", active: false, profession: "host", accessRole: "deputy" })).toBe(false);
   });
 
+  it("отзывы: ведущий — о своих, владелец — все и решает про сайт; роли этого не дают", () => {
+    expect(p.canReadReviews(host, host?.uid ?? "")).toBe(true);
+    expect(p.canReadReviews(host, "host-2")).toBe(false);
+    expect(p.canReadReviews(owner, "host-2")).toBe(true);
+    expect(p.canModerateReviews(owner)).toBe(true);
+    expect(p.canModerateReviews(host)).toBe(false);
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy"]) expect(p.canModerateReviews(dj(role))).toBe(false);
+    expect(p.canSetTips(host)).toBe(true);
+    expect(p.canSetTips(dj(null))).toBe(false);
+  });
+
   it("помощник владельца: видит все игры сейчас, без прав на людей и библиотеку", () => {
     const a = dj("assistant");
     expect(p.canSeeAllSessions(a)).toBe(true);

@@ -97,6 +97,12 @@ export function techSlide(id: string): SlideState {
   return { id, kind: "tech", title: d.title, text: d.text, lines: [], endsAt: null };
 }
 
+/** «Спасибо» после «Завершить игру»: чаевые, отзыв и канал (решение владельца 15 октября 2026). */
+export function thanksSlide(id: string): SlideState {
+  const d = slideTemplate("thanks").defaults;
+  return { id, kind: "thanks", title: d.title, text: d.text, lines: [], endsAt: null };
+}
+
 /** «QR для опоздавших» одним касанием: крупный код входа поверх игры, пока ведущий не уберёт. */
 export function joinSlide(id: string): SlideState {
   return { id, kind: "join", title: slideTemplate("join").defaults.title, text: "", lines: [], endsAt: null };

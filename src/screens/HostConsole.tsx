@@ -241,7 +241,10 @@ function Console({ session }: { session: Session }) {
       setConfirmFinish(false);
       // После награждения — «Спасибо»: чаевые ведущему, отзыв и канал (решение владельца 15 октября 2026).
       // Ведущий может убрать слайд — под ним итоги игры.
-      void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId()) } }).catch(() => undefined);
+      // Закрыли в лобби без игроков — благодарить не за что, слайда нет.
+      if (Object.keys(latest.current.leaderboard).length > 0) {
+        void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId()) } }).catch(() => undefined);
+      }
     } catch {
       setError("Не удалось завершить игру. Проверьте интернет.");
     } finally {
@@ -479,6 +482,15 @@ function Console({ session }: { session: Session }) {
                     В студию
                   </Link>
                 </div>
+                {withScreen && Object.keys(session.leaderboard).length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--block"
+                    onClick={() => void apply({ state: { slide: slide?.kind === "thanks" ? null : thanksSlide(slideId()) } }).catch(() => undefined)}
+                  >
+                    {slide?.kind === "thanks" ? "Убрать «Спасибо» — показать итоги" : "«Спасибо» с QR чаевых, отзыва и канала — на экран"}
+                  </button>
+                )}
               </section>
             )}
           </>

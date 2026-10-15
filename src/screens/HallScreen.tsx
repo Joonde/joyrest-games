@@ -243,9 +243,13 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
         )
       )}
       {shownSlide ? (
-        <main className="quiz-stage">
-          <SlideView slide={shownSlide} code={session.code} sessionId={session.id} />
-        </main>
+        <>
+          <main className="quiz-stage">
+            <SlideView slide={shownSlide} code={session.code} sessionId={session.id} />
+          </main>
+          {/* «Спасибо» после игры лежит поверх итогов — выход всё равно виден. */}
+          {phase === "finished" && <ScreenExit isHost={isHost} />}
+        </>
       ) : (
         <>
           {standalone && mechanic && (
@@ -258,18 +262,28 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
           {!standalone && phase === "playing" && <Playing session={session} />}
           {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
           {/* Игра окончена: выход сверху слева, виден всегда (не прячется вместе с кнопками экрана и не уходит под плашку звука). */}
-          {phase === "finished" && (
-            <a className="btn screen-exit" href={isHost ? "/studio" : "/"} onClick={(e) => {
-              e.preventDefault();
-              if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-              navigate(isHost ? "/studio" : "/");
-            }}>
-              {isHost ? "В студию" : "На главную"}
-            </a>
-          )}
+          {phase === "finished" && <ScreenExit isHost={isHost} />}
         </>
       )}
     </div>
+  );
+}
+
+/** Игра окончена: выход сверху слева, виден всегда (не прячется вместе с кнопками экрана и не уходит под плашку звука). */
+function ScreenExit({ isHost }: { isHost: boolean }) {
+  const navigate = useNavigate();
+  return (
+    <a
+      className="btn screen-exit"
+      href={isHost ? "/studio" : "/"}
+      onClick={(e) => {
+        e.preventDefault();
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+        navigate(isHost ? "/studio" : "/");
+      }}
+    >
+      {isHost ? "В студию" : "На главную"}
+    </a>
   );
 }
 

@@ -301,6 +301,21 @@ async function soloGame(browser, token) {
   step("пульт: завершить игру", host);
   await clickButton(host, "Завершить игру");
   await host.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
+  // После награждения — «Спасибо» с QR: отзыв и канал (чаевые — если у ведущего есть ссылка).
+  step("экран зала: «Спасибо» с QR", screen);
+  await expectText(screen, screen.locator(".finale-qr"), "Оставьте отзыв", "Экран зала, «Спасибо»: QR отзыва");
+  await expectText(screen, screen.locator(".finale-qr"), "Наш Telegram", "Экран зала, «Спасибо»: QR канала");
+  if (await screen.locator(".screen-exit").count()) ok("Экран зала: «На главную» видно и поверх «Спасибо»");
+  else bad("Экран зала: под «Спасибо» нет выхода");
+  await shot(screen, "экран-спасибо", "Экран зала: «Спасибо» после игры");
+  step("пульт: убрать «Спасибо» и вернуть", host);
+  await clickButton(host, "Убрать «Спасибо» — показать итоги");
+  await screen.locator(".finale-qrs").waitFor({ state: "detached", timeout: WAIT });
+  ok("Пульт: «Спасибо» убирается — на экране снова итоги");
+  await clickButton(host, "«Спасибо» с QR чаевых, отзыва и канала — на экран");
+  await screen.locator(".finale-qrs").waitFor({ timeout: WAIT });
+  ok("Пульт: «Спасибо» можно вернуть на экран");
+  await clickButton(host, "Убрать «Спасибо» — показать итоги");
   await expectText(screen, screen.locator(".podium--final .podium__name"), "🦊 Аня", "Экран зала, финал: пьедестал");
   await shot(screen, "экран-финал", "Экран зала: финал");
   await shot(anna.page, "аня-финал", "Телефон Ани: финал");

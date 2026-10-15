@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { photosRepo, type EventPhoto } from "../../data";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { ImageError, shrinkImage } from "../media/compressImage";
 
 export const PHOTO_SLOTS = [1, 2, 3] as const;
@@ -29,6 +30,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const target = useRef<number>(1);
 
@@ -74,6 +76,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
 
   async function remove(slot: number) {
     if (!photosRepo) return;
+    setToDelete(null);
     setBusySlot(slot);
     setError(null);
     try {
@@ -87,49 +90,61 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <details className="fold event-photos" onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className="fold__head">
-        <span className="fold__title">📷 Общее фото для фотоотчёта</span>
-        <span className="fold__value">{photos ? `${count} из ${PHOTO_SLOTS.length}` : "до 3 фото"}</span>
-        <span className="fold__chev" aria-hidden="true" />
-      </summary>
-      <div className="fold__body stack stack--tight">
-        <p className="muted small">
-          <strong>Сначала предупредите гостей:</strong> «{PHOTO_SCRIPT}»
-        </p>
-        <input ref={input} type="file" accept="image/*" capture="environment" className="visually-hidden" tabIndex={-1} onChange={(e) => void save(e.target.files?.[0] ?? null)} />
-        <div className="event-photos__grid">
-          {PHOTO_SLOTS.map((slot) => {
-            const photo = bySlot.get(slot);
-            const busy = busySlot === slot;
-            return (
-              <div key={slot} className="event-photos__slot">
-                {photo ? (
-                  <img src={photo.url} alt={`Фото ${slot}`} className="event-photos__img" loading="lazy" />
-                ) : (
-                  <div className="event-photos__empty" aria-hidden="true">
-                    {slot}
-                  </div>
-                )}
-                <button type="button" className="btn btn--secondary btn--block" disabled={busy || photos === null} onClick={() => shoot(slot)}>
-                  {busy ? "Сохраняем…" : photo ? "Переснять" : "Сделать фото"}
-                </button>
-                {photo && (
-                  <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void remove(slot)}>
-                    Удалить
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {error && (
-          <p className="error small" role="alert">
-            {error}
+    <>
+      <details className="fold event-photos" onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary className="fold__head">
+          <span className="fold__title">📷 Общее фото для фотоотчёта</span>
+          <span className="fold__value">{photos ? `${count} из ${PHOTO_SLOTS.length}` : "до 3 фото"}</span>
+          <span className="fold__chev" aria-hidden="true" />
+        </summary>
+        <div className="fold__body stack stack--tight">
+          <p className="muted small">
+            <strong>Сначала предупредите гостей:</strong> «{PHOTO_SCRIPT}»
           </p>
-        )}
-        <p className="muted small">Фото видите вы и владелец JoyRest (студия → «Фотоотчёты»). Гостям и на экран зала они не уходят.</p>
-      </div>
-    </details>
+          <input ref={input} type="file" accept="image/*" capture="environment" className="visually-hidden" tabIndex={-1} onChange={(e) => void save(e.target.files?.[0] ?? null)} />
+          <div className="event-photos__grid">
+            {PHOTO_SLOTS.map((slot) => {
+              const photo = bySlot.get(slot);
+              const busy = busySlot === slot;
+              return (
+                <div key={slot} className="event-photos__slot">
+                  {photo ? (
+                    <img src={photo.url} alt={`Фото ${slot}`} className="event-photos__img" loading="lazy" />
+                  ) : (
+                    <div className="event-photos__empty" aria-hidden="true">
+                      {slot}
+                    </div>
+                  )}
+                  <button type="button" className="btn btn--secondary btn--block" disabled={busy || photos === null} onClick={() => shoot(slot)}>
+                    {busy ? "Сохраняем…" : photo ? "Переснять" : "Сделать фото"}
+                  </button>
+                  {photo && (
+                    <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => setToDelete(slot)}>
+                      Удалить
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {error && (
+            <p className="error small" role="alert">
+              {error}
+            </p>
+          )}
+          <p className="muted small">Фото видите вы и владелец JoyRest (студия → «Фотоотчёты»). Гостям и на экран зала они не уходят.</p>
+        </div>
+      </details>
+      <ConfirmDialog
+        open={toDelete !== null}
+        title={`Удалить фото ${toDelete ?? ""}?`}
+        confirmLabel="Удалить фото"
+        cancelLabel="Оставить"
+        onConfirm={() => toDelete !== null && void remove(toDelete)}
+        onCancel={() => setToDelete(null)}
+      >
+        <p>Фото пропадёт из фотоотчёта. Вместо него можно сразу сделать новое — «Переснять».</p>
+      </ConfirmDialog>
+    </>
   );
 }

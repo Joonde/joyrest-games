@@ -1,0 +1,71 @@
+# Проверка конца игры и вокруг него (CLAUDE.md, раздел 7: «Конец игры», «Фотоотчёт», «Видео JoyRest»; сайт — «Отзывы»):
+# настоящий браузер на test.games.joy-rest.ru — чаевые в профиле, «Спасибо» с тремя QR, отзывы гостей и их модерация,
+# фотоотчёт с пульта, видео JoyRest; сайт — на своём маленьком сервере с лентой отзывов.
+# Только вручную (Run workflow) или коммитом с [finale] в ветке claude/* (~5 минут).
+# Итог — аннотацией; снимки экранов — в ветку e2e-shots (папка finale/).
+name: Проверка конца игры
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  finale:
+    name: Конец игры, отзывы, фото, видео
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[finale]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Браузер и тестовое видео
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/finale.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null)
+          # WebM (VP9): Chromium из Playwright не открывает H.264. ~4 МБ — загрузка идёт несколькими частями.
+          ffmpeg -loglevel error -y -f lavfi -i testsrc=size=1280x720:rate=30 -t 8 -c:v libvpx-vp9 -b:v 8M -deadline realtime -cpu-used 8 /tmp/e2e/clip.webm
+          ls -la /tmp/e2e/clip.webm
+      - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 40); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Ведущий, владелец, гости и сайт
+        working-directory: /tmp/e2e
+        run: node finale.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          E2E_SHOTS: /tmp/e2e/shots
+          E2E_VIDEO: /tmp/e2e/clip.webm
+          E2E_SITE_DIR: ${{ github.workspace }}/site
+          E2E_FONTS_DIR: ${{ github.workspace }}/public/fonts
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+          TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
+          TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/e2e/shots ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || git checkout --orphan e2e-shots
+          git rm -rq --cached . 2>/dev/null || true
+          rm -rf finale && mkdir -p finale && cp /tmp/e2e/shots/*.png finale/ 2>/dev/null || true
+          git add finale
+          git commit -qm "Снимки проверки конца игры ${GITHUB_SHA::7}" && git push -qf origin e2e-shots || echo "Снимков нет"

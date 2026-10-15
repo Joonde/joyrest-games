@@ -45,6 +45,9 @@ export function SalesDesk() {
         <Link className="btn btn--secondary btn--block" to="/studio/calendar?tab=events">
           Мероприятия
         </Link>
+        <a className="btn btn--secondary btn--block" href="https://joy-rest.ru/calc/" target="_blank" rel="noopener noreferrer">
+          Калькулятор для клиента
+        </a>
         <Link className="btn btn--quiet btn--block" to="/studio/sales-guide">
           Инструкция менеджера
         </Link>

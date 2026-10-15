@@ -311,7 +311,14 @@ export interface ClientsRepository {
   list(archived: boolean): Promise<ClientRecord[]>;
   get(id: string): Promise<ClientDetails>;
   /** Новый клиент вручную или правка (id от браузера). Тот же телефон у другого клиента — 409. */
-  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string }): Promise<ClientDetails>;
+  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string; expect?: number }): Promise<ClientDetails>;
+  /** Только статус (одним касанием): заметку и контакты не трогает. В историю — «В работе · имя». */
+  setStatus(id: string, status: ClientRecord["status"]): Promise<ClientDetails>;
+  /**
+   * Только заметка: `base` — текст, с которого начали править. Заметку за это время изменил другой человек —
+   * ошибка `failed-precondition`, ничего не записано.
+   */
+  saveNotes(id: string, notes: string, base: string): Promise<ClientDetails>;
   archive(id: string): Promise<void>;
   restore(id: string): Promise<void>;
   /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */

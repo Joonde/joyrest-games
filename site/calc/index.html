@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Калькулятор праздника — JoyRest</title>
+<meta name="description" content="Посчитайте стоимость праздника с ведущим JoyRest и отправьте расчёт менеджеру.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1A1714">
+<!--
+  Калькулятор JoyRest без формы заявки (решение владельца 15 октября 2026): открыт всегда — и пока сайт закрыт до ИП
+  (сервер отдаёт /calc/ и при заглушке «скоро»). Клиент собирает вечер и отправляет расчёт текстом менеджеру
+  в мессенджер. Цены и расчёт — тот же js/pricing.js, что у сайта; сборка встраивает стили и скрипты прямо в страницу.
+-->
+<link rel="stylesheet" href="../css/fonts.css" data-inline>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #1A1714;
+    --card: #2A2621;
+    --card-alt: #24201C;
+    --ink: #F3ECE3;
+    --ink-soft: #C7BCAC;
+    --line: #8C8172;
+    --accent: #C49E96;
+    --on-accent: #221E1B;
+    --gold: #E3C68C;
+    --green: #93A886;
+    --focus: #E3C68C;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 17px/1.5 "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(140px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  main { max-width: 720px; margin: 0 auto; display: grid; gap: 24px; }
+  h1, h2 { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 700; margin: 0; text-wrap: balance; }
+  h1 { font-size: 34px; line-height: 1.1; }
+  h2 { font-size: 24px; }
+  p { margin: 0; }
+  .muted { color: var(--ink-soft); }
+  .small { font-size: 15px; }
+  .brand { color: var(--gold); letter-spacing: .14em; font-size: 14px; font-weight: 600; }
+  section { display: grid; gap: 12px; }
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .grid--wide { grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid--wide { grid-template-columns: 1fr 1fr; } }
+  button { font: inherit; color: inherit; }
+  .opt {
+    min-height: 56px;
+    padding: 12px 16px;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    text-align: left;
+    cursor: pointer;
+    display: grid;
+    gap: 2px;
+    align-content: center;
+  }
+  .opt[aria-pressed="true"] { border-color: var(--gold); background: var(--card-alt); box-shadow: inset 0 0 0 1px var(--gold); }
+  .opt[aria-pressed="true"] .opt__title::before { content: "✓ "; color: var(--gold); }
+  .opt:disabled { opacity: .5; cursor: not-allowed; }
+  .opt:focus-visible, .btn:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .opt__title { font-weight: 600; }
+  .opt__hint { color: var(--ink-soft); font-size: 14px; }
+  .opt__price { color: var(--gold); font-size: 15px; font-weight: 500; }
+  details { border-top: 1px solid var(--line); padding-top: 8px; }
+  summary { cursor: pointer; color: var(--ink-soft); font-size: 15px; min-height: 44px; display: flex; align-items: center; }
+  .result {
+    background: var(--card);
+    border: 1.5px solid var(--gold);
+    border-radius: 18px;
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+  }
+  .totals { display: grid; gap: 8px; }
+  .total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    min-height: 52px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--card-alt);
+    cursor: pointer;
+    text-align: left;
+  }
+  .total[aria-pressed="true"] { border-color: var(--gold); }
+  .total__name { font-weight: 600; }
+  .total__badge { color: var(--green); font-size: 14px; margin-left: 6px; }
+  .total__price { font-family: "Cormorant Garamond", Georgia, serif; font-size: 28px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+  .duration { color: var(--green); font-weight: 600; }
+  .lines { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 15px; }
+  .btn {
+    display: block;
+    width: 100%;
+    min-height: 56px;
+    border-radius: 14px;
+    border: 0;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    font-size: 17px;
+    cursor: pointer;
+    padding: 12px 16px;
+  }
+  .btn--secondary { background: transparent; border: 1.5px solid var(--gold); color: var(--ink); }
+  .actions { display: grid; gap: 10px; }
+  .bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: rgba(26,23,20,.94);
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .bar[hidden] { display: none; }
+  .bar__sum { font-family: "Cormorant Garamond", Georgia, serif; font-size: 24px; font-weight: 700; color: var(--gold); }
+  .bar .btn { width: auto; min-width: 150px; }
+  .toast {
+    position: fixed; left: 50%; top: max(16px, env(safe-area-inset-top));
+    transform: translateX(-50%);
+    background: var(--gold); color: var(--on-accent);
+    padding: 12px 18px; border-radius: 12px; font-weight: 600;
+    max-width: calc(100% - 32px);
+  }
+  .toast[hidden] { display: none; }
+  footer { color: var(--ink-soft); font-size: 15px; display: grid; gap: 6px; }
+  a { color: var(--gold); }
+  @media (prefers-reduced-motion: no-preference) { .opt, .total { transition: border-color .15s, background-color .15s; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="stack">
+    <p class="brand">JOYREST · ДЖОЙРЕСТ</p>
+    <h1>Калькулятор праздника</h1>
+    <p class="muted">Соберите вечер, как вам нравится, и отправьте расчёт менеджеру JoyRest — он подтвердит дату и ведущего.</p>
+  </header>
+
+  <section aria-labelledby="h-pkg">
+    <h2 id="h-pkg">Что за вечер?</h2>
+    <p class="small muted">Программа на 1,5–2 часа.</p>
+    <div class="grid grid--wide" id="pkgs" role="group" aria-labelledby="h-pkg"></div>
+  </section>
+
+  <section aria-labelledby="h-guests">
+    <h2 id="h-guests">Сколько гостей?</h2>
+    <div class="grid" id="tiers" role="group" aria-labelledby="h-guests"></div>
+  </section>
+
+  <section aria-labelledby="h-day">
+    <h2 id="h-day">Какой день?</h2>
+    <div class="grid" id="days" role="group" aria-labelledby="h-day"></div>
+  </section>
+
+  <section aria-labelledby="h-extra" id="extraSection">
+    <h2 id="h-extra">Ещё игра в этот вечер</h2>
+    <p class="small muted">Каждая — примерно на час, половина цены своего пакета. Больше двух — обсудим индивидуально.</p>
+    <div class="grid grid--wide" id="extras" role="group" aria-labelledby="h-extra"></div>
+  </section>
+
+  <section aria-labelledby="h-ext" id="extSection">
+    <h2 id="h-ext">Продлить вечер</h2>
+    <div class="grid" id="exts" role="group" aria-labelledby="h-ext"></div>
+  </section>
+
+  <section aria-labelledby="h-add" id="addSection">
+    <h2 id="h-add">Дополнительно</h2>
+    <div class="grid grid--wide" id="addons" role="group" aria-labelledby="h-add"></div>
+  </section>
+
+  <section class="result" id="result" aria-live="polite" aria-labelledby="h-res">
+    <h2 id="h-res">Ваш расчёт</h2>
+    <div id="resBody"></div>
+    <div class="actions">
+      <button type="button" class="btn" id="send">Отправить расчёт менеджеру</button>
+      <button type="button" class="btn btn--secondary" id="copy">Скопировать расчёт</button>
+    </div>
+    <p class="small muted">Кнопка откроет «Поделиться»: выберите Telegram, WhatsApp или другой мессенджер, где вы общаетесь с менеджером. Если не открылось — расчёт скопируется, просто вставьте его в чат.</p>
+  </section>
+
+  <footer>
+    <p>Цены предварительные. Москва и Подмосковье — выезд включён. Ведущий приезжает со своей техникой; экран или телевизор и звук — на площадке.</p>
+    <p>Наш канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener noreferrer">t.me/JoyRest</a></p>
+  </footer>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <div>
+    <div class="small muted" id="barLabel">Опытный</div>
+    <div class="bar__sum" id="barSum"></div>
+  </div>
+  <button type="button" class="btn" id="barSend">Отправить</button>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="../js/pricing.js" data-inline></script>
+<script src="calc.js" data-inline></script>
+</body>
+</html>

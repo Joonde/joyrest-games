@@ -88,6 +88,27 @@ export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
     });
   }
 
+  // Калькулятор без заявки (/calc/, решение владельца 15 октября 2026) открыт и при заглушке «скоро»: менеджер шлёт
+  // клиенту ссылку, клиент присылает расчёт текстом. Заявок он не принимает (/api/lead при заглушке — 404), стили и
+  // скрипты встроены в страницу, отдельно нужны только шрифты.
+  if (!options.enabled && existsSync(join(options.dir, "calc", "index.html"))) {
+    for (const sub of ["calc", "fonts"]) {
+      const root = join(options.dir, sub);
+      if (!existsSync(root)) continue;
+      app.register(fastifyStatic, {
+        root,
+        prefix: `/${sub}/`,
+        wildcard: false,
+        index: ["index.html"],
+        decorateReply: false,
+        constraints: { host: pattern },
+        setHeaders(reply) {
+          reply.header("Cache-Control", sub === "fonts" ? "public, max-age=31536000, immutable" : "no-cache");
+        },
+      });
+    }
+  }
+
   return {
     isSite,
     notFound(request, reply) {

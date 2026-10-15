@@ -601,6 +601,11 @@ export interface ClientRecord {
   /** Откуда последнее обращение: site, question, venue, event, telegram, manual. */
   lastSource: string;
   archived: boolean;
+  /** Версия карточки (время последнего изменения): форма шлёт её как `expect`, чтобы не затереть чужую правку. */
+  updatedAt: number;
+  /** Последняя смена статуса — «В работе · Мария» (кто взял клиента); пусто — статус не меняли. */
+  statusLine: string;
+  statusAt: number | null;
 }
 
 export interface ClientContact {

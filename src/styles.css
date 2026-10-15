@@ -17566,6 +17566,19 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   margin: 0;
 }
 
+/* «В работе · Мария · 15 октября, 19:20» — кто взял клиента (владелец и менеджер видят друг друга). */
+.clients-who {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Заметку одновременно правили двое: обе версии на экране. */
+.clients-conflict {
+  border-color: var(--color-danger);
+  padding: 16px;
+}
+
 /* Первая строка заметки на свёрнутой карточке — следующий шаг виден без раскрытия. */
 .clients-note-line {
   color: var(--color-text-muted);

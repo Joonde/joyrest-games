@@ -24,6 +24,9 @@ function parseClient(value: unknown): ClientRecord {
     contacts: num(d.contacts),
     lastSource: asText(d.lastSource),
     archived: d.archived === true,
+    updatedAt: num(d.updatedAt),
+    statusLine: asText(d.statusLine),
+    statusAt: typeof d.statusAt === "number" ? d.statusAt : null,
   };
 }
 
@@ -63,6 +66,12 @@ export const serverClientsRepository: ClientsRepository = {
   },
   async save(client) {
     return parseDetails(await api("POST", "/api/clients", client));
+  },
+  async setStatus(id, status) {
+    return parseDetails(await api("POST", `/api/clients/${encodeURIComponent(id)}/status`, { status }));
+  },
+  async saveNotes(id, notes, base) {
+    return parseDetails(await api("POST", `/api/clients/${encodeURIComponent(id)}/notes`, { notes, base }));
   },
   async archive(id) {
     await api("POST", `/api/clients/${encodeURIComponent(id)}/archive`, {});

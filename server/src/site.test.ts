@@ -24,6 +24,7 @@ const siteDir = dir({
   "img/logo.0123456789.png": "png",
   "fonts/jost-latin-400-normal.woff2": "font",
   "favicon.svg": "<svg/>",
+  "calc/index.html": "<title>Калькулятор праздника</title>",
 });
 
 const stubDir = dir({ "index.html": "<title>Скоро</title>", "joyrest-logo.svg": "<svg/>" });
@@ -115,6 +116,19 @@ describe("сайт выключен (по умолчанию): заглушка 
     expect((await off.inject({ url: "/joyrest-logo.svg", headers: { host: "joy-rest.ru" } })).statusCode).toBe(200);
     expect((await off.inject({ url: "/css/style.0123456789.css", headers: { host: "joy-rest.ru" } })).statusCode).toBe(404);
     expect((await off.inject({ url: "/", headers: { host: "games.joy-rest.ru" } })).body).toContain("Платформа");
+  });
+
+  it("калькулятор без заявки открыт и при заглушке: /calc/ и шрифты, остальные файлы сайта — нет", async () => {
+    const calc = await off.inject({ url: "/calc/", headers: { host: "joy-rest.ru" } });
+    expect(calc.statusCode).toBe(200);
+    expect(calc.body).toContain("Калькулятор праздника");
+    expect(calc.headers["cache-control"]).toBe("no-cache");
+    expect(calc.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    const font = await off.inject({ url: "/fonts/jost-latin-400-normal.woff2", headers: { host: "joy-rest.ru" } });
+    expect(font.statusCode).toBe(200);
+    expect(font.headers["cache-control"]).toContain("immutable");
+    expect((await off.inject({ url: "/css/style.0123456789.css", headers: { host: "joy-rest.ru" } })).statusCode).toBe(404);
+    expect((await off.inject({ url: "/calc/", headers: { host: "games.joy-rest.ru" } })).body).not.toContain("Калькулятор праздника");
   });
 
   it("заявки не принимаются: /api/lead — 404", async () => {
@@ -554,5 +568,12 @@ describe("логотип сайта", () => {
     // Все три скрипта и снимки игр — с отпечатком в именах.
     for (const name of ["theme", "pricing", "script"]) expect(built).toMatch(new RegExp(`<script src="js/${name}\\.[0-9a-f]{10}\\.js"></script>`));
     expect(built).toMatch(/<img src="img\/cards-loto\.[0-9a-f]{10}\.webp"/);
+    // Калькулятор без заявки — самодостаточная страница: стили и скрипты встроены, формы заявки нет.
+    const calc = readFileSync(join(out, "calc/index.html"), "utf8");
+    expect(calc).not.toContain("data-inline");
+    expect(calc).not.toMatch(/<script src=|<link rel="stylesheet"/);
+    expect(calc).toContain("JoyPricing");
+    expect(calc).toContain("@font-face");
+    expect(calc).not.toContain("/api/lead");
   }, 30_000);
 });

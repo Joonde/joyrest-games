@@ -108,6 +108,28 @@ function ClientBase({ profile }: { profile: UserProfile }) {
   const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [form, setForm] = useState<ClientRecord | "new" | null>(null);
   const [toast, showToast] = useToast();
+
+  // Владелец и менеджер работают одновременно: список тихо обновляется раз в 30 секунд и при возврате на вкладку,
+  // без каркаса и мигания — новые анкеты и чужие смены статуса видны без перезагрузки.
+  useEffect(() => {
+    if (!clientsRepo) return;
+    const repo = clientsRepo;
+    let alive = true;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      repo
+        .list(archived)
+        .then((data) => alive && update(() => data))
+        .catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [archived, update]);
   const [confirm, ask] = useConfirm();
 
   const list = useMemo(() => {
@@ -286,22 +308,58 @@ function ClientCard({
   const [details, retry] = useLoad(() => (open && clientsRepo ? clientsRepo.get(c.id) : Promise.resolve(null as ClientDetails | null)), [open, c.id, c.lastContactAt, c.status, c.notes]);
   const full = details.status === "ready" ? details.data : null;
   const [note, setNote] = useState(c.notes);
+  // Текст, с которого начали править заметку: сервер сверяет его, чтобы не затереть чужую правку.
+  const [noteBase, setNoteBase] = useState(c.notes);
+  // Пока вы писали, заметку изменил другой человек: его текст (обе версии на экране, ничего не потеряно).
+  const [conflict, setConflict] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => setNote(c.notes), [c.notes]);
+  const dirty = note !== noteBase;
+  useEffect(() => {
+    // Карточку обновили (своё сохранение или чужая правка): без своих несохранённых правок — показываем свежий текст.
+    if (!dirty) {
+      setNote(c.notes);
+      setNoteBase(c.notes);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.notes]);
   const waiting = c.status === "new" && !c.archived ? now - c.lastContactAt : 0;
   const late = waiting > ANSWER_MS;
 
-  // Статус и заметка — одним касанием прямо в карточке (без формы); смена статуса пишется в историю с именем.
-  async function change(patch: Partial<Pick<ClientRecord, "status" | "notes">>, text: string) {
+  // Статус одним касанием: сервер меняет только статус (чужую заметку не трогает), в историю — «В работе · имя».
+  async function setStatus(status: ClientRecord["status"]) {
+    if (!clientsRepo || busy || status === c.status) return;
+    setBusy(true);
+    setError(null);
+    try {
+      onChanged(await clientsRepo.setStatus(c.id, status), `Статус: ${CLIENT_STATUS_TITLES[status]}`);
+    } catch {
+      setError("Не получилось сменить статус. Проверьте интернет и нажмите ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Заметка: сохраняется, только если с начала правки её никто не менял; иначе — обе версии на экране.
+  async function saveNote(text: string, base: string) {
     if (!clientsRepo || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const saved = await clientsRepo.save({ id: c.id, name: c.name, phone: c.phone, links: c.links, status: patch.status ?? c.status, marketing: c.marketing, notes: patch.notes ?? c.notes });
-      onChanged(saved, text);
-    } catch {
-      setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
+      const saved = await clientsRepo.saveNotes(c.id, text, base);
+      setConflict(null);
+      setNote(saved.notes);
+      setNoteBase(saved.notes);
+      onChanged(saved, "Заметка сохранена");
+    } catch (e) {
+      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      if (code === "failed-precondition" && clientsRepo) {
+        const fresh = await clientsRepo.get(c.id).catch(() => null);
+        if (fresh) {
+          setConflict(fresh.notes);
+          onChanged(fresh, "Заметку только что изменил другой человек");
+        } else setError("Заметку только что изменил другой человек. Обновите страницу.");
+      } else setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
     } finally {
       setBusy(false);
     }
@@ -330,6 +388,12 @@ function ClientCard({
           {c.contacts > 1 ? ` · обращений: ${c.contacts}` : ""}
           {c.marketing === "yes" ? " · ✉️ рассылка" : ""}
         </span>
+        {c.status !== "new" && c.statusLine && (
+          <span className="clients-who">
+            {c.statusLine}
+            {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+          </span>
+        )}
         {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа {agoLabel(waiting)}</span>}
         {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
         <span className="plan-card__more" aria-hidden="true">
@@ -349,7 +413,7 @@ function ClientCard({
                     className={c.status === st ? "seg__btn is-on" : "seg__btn"}
                     aria-pressed={c.status === st}
                     disabled={busy}
-                    onClick={() => c.status !== st && void change({ status: st }, `Статус: ${CLIENT_STATUS_TITLES[st]}`)}
+                    onClick={() => void setStatus(st)}
                   >
                     {CLIENT_STATUS_TITLES[st]}
                   </button>
@@ -385,10 +449,40 @@ function ClientCard({
               <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           )}
-          {!c.archived && note !== c.notes && (
-            <button type="button" className="btn btn--block" disabled={busy} onClick={() => void change({ notes: note }, "Заметка сохранена")}>
+          {!c.archived && conflict === null && dirty && (
+            <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(note, noteBase)}>
               {busy ? "Сохраняем…" : "Сохранить заметку"}
             </button>
+          )}
+          {!c.archived && conflict === null && dirty && c.notes !== noteBase && (
+            <p className="small clients-late">Пока вы пишете, заметку изменил другой человек — при сохранении покажем обе версии.</p>
+          )}
+          {conflict !== null && (
+            <div className="card stack stack--tight clients-conflict" role="alert">
+              <p className="small">
+                <b>Пока вы писали, заметку изменил другой человек.</b> Сейчас в карточке:
+              </p>
+              <p className="clients-history__text">{conflict || "(пусто)"}</p>
+              <p className="small muted">Ваш текст — в поле выше, он не потерян.</p>
+              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(`${conflict}\n${note}`.trim(), conflict)}>
+                Добавить мой текст в конец
+              </button>
+              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void saveNote(note, conflict)}>
+                Заменить моим текстом
+              </button>
+              <button
+                type="button"
+                className="btn btn--quiet btn--block"
+                disabled={busy}
+                onClick={() => {
+                  setNote(conflict);
+                  setNoteBase(conflict);
+                  setConflict(null);
+                }}
+              >
+                Оставить их текст, мой убрать
+              </button>
+            </div>
           )}
           {error && (
             <p className="error" role="alert">
@@ -476,10 +570,16 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
     setBusy(true);
     setError(null);
     try {
-      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes }));
+      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes, ...(initial ? { expect: initial.updatedAt } : {}) }));
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-      setError(code === "already-exists" ? "Клиент с этим телефоном уже есть — найдите его поиском." : "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
+      setError(
+        code === "already-exists"
+          ? "Клиент с этим телефоном уже есть — найдите его поиском."
+          : code === "failed-precondition"
+            ? "Пока вы правили, карточку изменил другой человек. Ваши правки не сохранены: нажмите «Отмена», откройте карточку снова и внесите их ещё раз."
+            : "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.",
+      );
     } finally {
       setBusy(false);
     }

@@ -61,6 +61,9 @@ interface Row {
   archived_at: Date | null;
   contacts: number;
   last_source: string | null;
+  updated_at: Date;
+  status_line: string | null;
+  status_at: Date | null;
 }
 
 function recordOf(row: Row): ClientRecord {
@@ -79,6 +82,9 @@ function recordOf(row: Row): ClientRecord {
     contacts: Number(row.contacts) || 0,
     lastSource: row.last_source ?? "",
     archived: row.archived_at !== null,
+    updatedAt: row.updated_at.getTime(),
+    statusLine: row.status_line ?? "",
+    statusAt: row.status_at ? row.status_at.getTime() : null,
   };
 }
 
@@ -188,7 +194,10 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
 
     const select = sql`
       select c.id, c.name, c.phone, c.links, c.status, c.marketing, c.marketing_at, c.marketing_source, c.notes,
-        c.created_at, c.last_contact_at, c.archived_at,
+        c.created_at, c.last_contact_at, c.archived_at, c.updated_at,
+        -- Кто и когда последним сменил статус («В работе · Мария»): владелец и менеджер видят, кто взял клиента.
+        (select h.summary from client_contacts h where h.client_id = c.id and h.source = 'status' order by h.created_at desc limit 1) as status_line,
+        (select h.created_at from client_contacts h where h.client_id = c.id and h.source = 'status' order by h.created_at desc limit 1) as status_at,
         (select count(*)::int from client_contacts h where h.client_id = c.id and h.source <> 'status') as contacts,
         -- Откуда пришёл — по настоящим обращениям: смена статуса обращением не считается.
         coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source
@@ -253,7 +262,12 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         const [other] = await sql<{ id: string }[]>`select id from clients where phone_key = ${key} and id <> ${id}`;
         if (other) return reply.code(409).send({ error: "already-exists", id: other.id });
       }
-      const [existing] = await sql<{ marketing: string; status: string }[]>`select marketing, status from clients where id = ${id}`;
+      const [existing] = await sql<{ marketing: string; status: string; updated_at: Date }[]>`select marketing, status, updated_at from clients where id = ${id}`;
+      // Владелец и менеджер работают одновременно: форма шлёт `expect` — версию, с которой её открыли.
+      // Карточку за это время изменили — 409, ничего не затираем (браузер покажет свежую версию).
+      if (existing && typeof b.expect === "number" && Math.floor(existing.updated_at.getTime()) !== b.expect) {
+        return fail(reply, 409, "failed-precondition");
+      }
       // Согласие «да» вручную ставит только владелец: менеджер может отметить «нет» (отказался), но не «да».
       const before = existing && isMarketing(existing.marketing) ? existing.marketing : "unknown";
       const marketing = asked === "yes" && before !== "yes" && !permissions.canSetMarketingConsent(actorOf(user)) ? before : asked;
@@ -274,6 +288,57 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       }
       request.log.info({ clients: existing ? "edit" : "create" }, "clients");
       return (await details(id)) ?? fail(reply, 500, "internal");
+    });
+
+    // Статус одним касанием: меняется только статус (заметка, имя и ссылки не трогаются — их мог править другой человек).
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/clients/:id/status", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await allowed(request, reply);
+      if (!user) return reply;
+      const id = request.params.id;
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      if (!ID.test(id) || !isClientStatus(b.status)) return fail(reply, 400, "invalid-argument");
+      const status = b.status;
+      const result = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ status: string; archived_at: Date | null }[]>`select status, archived_at from clients where id = ${id} for update`;
+        if (!row) return "not-found" as const;
+        if (row.archived_at) return "archived" as const;
+        if (row.status === status) return "same" as const;
+        await t`update clients set status = ${status}, updated_at = now() where id = ${id}`;
+        await t`insert into client_contacts (id, client_id, source, summary)
+          values (${newId("c")}, ${id}, 'status', ${`${CLIENT_STATUS_TITLES[status]} · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
+        return "ok" as const;
+      });
+      if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result === "archived") return fail(reply, 409, "failed-precondition");
+      request.log.info({ clients: "status" }, "clients");
+      return (await details(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // Заметка без формы: `base` — текст, с которого человек начал править. Заметку за это время изменил другой — 409,
+    // свою правку браузер не теряет и показывает обе версии.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/clients/:id/notes", { bodyLimit: 16384 }, async (request, reply) => {
+      const user = await allowed(request, reply);
+      if (!user) return reply;
+      const id = request.params.id;
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      if (!ID.test(id) || typeof b.notes !== "string" || typeof b.base !== "string") return fail(reply, 400, "invalid-argument");
+      const notes = cleanNotes(b.notes);
+      const base = cleanNotes(b.base);
+      const result = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ notes: string; archived_at: Date | null }[]>`select notes, archived_at from clients where id = ${id} for update`;
+        if (!row) return "not-found" as const;
+        if (row.archived_at) return "archived" as const;
+        if (row.notes === notes) return "ok" as const;
+        if (row.notes !== base) return "conflict" as const;
+        await t`update clients set notes = ${notes}, updated_at = now() where id = ${id}`;
+        return "ok" as const;
+      });
+      if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result !== "ok") return fail(reply, 409, "failed-precondition");
+      request.log.info({ clients: "notes" }, "clients");
+      return (await details(id)) ?? fail(reply, 404, "not-found");
     });
 
     for (const action of ["archive", "restore"] as const) {

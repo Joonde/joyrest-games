@@ -69,7 +69,7 @@ const app = buildApp({
 });
 
 if (siteDir && siteHosts.length > 0 && isOn(process.env.SITE_ENABLED) && !(leadToken && leadChat)) {
-  app.log.warn("Заявки с сайта выключены: нет LEAD_TELEGRAM_TOKEN или LEAD_TELEGRAM_CHAT_ID (sudo joyrest lead-bot)");
+  app.log.warn("Уведомления о заявках в Telegram выключены: нет LEAD_TELEGRAM_TOKEN или LEAD_TELEGRAM_CHAT_ID (sudo joyrest lead-bot). Заявки и вопросы сохраняются в «Клиенты»");
 }
 
 logTarget = { info: (d, m) => app.log.info(d, m), warn: (d, m) => app.log.warn(d, m) };

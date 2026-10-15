@@ -119,6 +119,57 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect((await get(`/api/events?stats=1&from=${day(-200)}&to=${day(150)}`, anna)).statusCode).toBe(400);
   });
 
+  it("«Данные по номеру»: находит человека везде и удаляет навсегда, остальное не трогает", async () => {
+    const PHONE = "+7 926 555-44-33";
+    const clientId = await upsertClient(sql, { name: "Ксения", phone: "8 926 555 44 33", links: ["@ksu_party"], source: "site", summary: "Свадьба" });
+    const otherId = await upsertClient(sql, { name: "Другой", phone: "+7 926 555-44-34", source: "site", summary: "Квиз" });
+    await sql`insert into venue_requests (id, data) values ('rq-ks', ${sql.json({ name: "Ксения", phone: "89265554433", eventType: "Свадьба", guests: 60 })}),
+      ('rq-other', ${sql.json({ name: "Другой", phone: "+79265554434" })})`;
+    const now = new Date();
+    await sql`insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, title, client_name, client_phone)
+      values ('ev-ks', ${annaId}, ${day(30)}, 1080, 1200, ${now}, ${now}, 'Свадьба', 'Ксения', ${PHONE})`;
+    await sql`insert into venues (id, data) values ('vn-ks', ${sql.json({ name: "Лофт", person: "Ксения", role: "админ", phone: "", messenger: "Telegram @ksu_party", email: "ks@example.com" })}),
+      ('vn-other', ${sql.json({ name: "Бар", person: "Олег", phone: "+79260000000" })})`;
+
+    // Только владелец; непонятный запрос — 400.
+    expect((await get(`/api/privacy?q=${encodeURIComponent(PHONE)}`, anna)).statusCode).toBe(403);
+    expect((await get("/api/privacy?q=Ксения", owner)).statusCode).toBe(400);
+    expect((await post("/api/privacy/erase", owner, { q: "12" })).statusCode).toBe(400);
+
+    const found = (await get(`/api/privacy?q=${encodeURIComponent("9265554433")}`, owner)).json();
+    expect(found.label).toBe("+7 926 555-44-33");
+    expect(found.clients.map((c: { id: string }) => c.id)).toEqual([clientId]);
+    expect(found.requests.map((r: { id: string }) => r.id)).toEqual(["rq-ks"]);
+    expect(found.events.map((e: { id: string }) => e.id)).toEqual(["ev-ks"]);
+    // У площадки телефона нет, но ник в мессенджере тот же — находится по нику.
+    expect(found.venues).toEqual([]);
+    expect((await get("/api/privacy?q=@ksu_party", owner)).json().venues.map((v: { id: string }) => v.id)).toEqual(["vn-ks"]);
+    expect((await get("/api/privacy?q=KS@example.com", owner)).json().venues.map((v: { id: string }) => v.id)).toEqual(["vn-ks"]);
+
+    // Изменение — только с заголовком X-JoyRest.
+    const bare = await app.inject({ method: "POST", url: "/api/privacy/erase", headers: { host: HOST, cookie: owner }, payload: { q: PHONE } });
+    expect(bare.statusCode).toBe(403);
+
+    expect((await post("/api/privacy/erase", owner, { q: PHONE })).json()).toEqual({ clients: 1, requests: 1, events: 1, venues: 0 });
+    expect((await post("/api/privacy/erase", owner, { q: "@ksu_party" })).json()).toEqual({ clients: 0, requests: 0, events: 0, venues: 1 });
+
+    expect(await sql`select 1 from clients where id = ${clientId}`).toHaveLength(0);
+    expect(await sql`select 1 from client_contacts where client_id = ${clientId}`).toHaveLength(0);
+    expect(await sql`select 1 from venue_requests where id = 'rq-ks'`).toHaveLength(0);
+    const [ev] = await sql<{ client_name: string; client_phone: string; title: string }[]>`select client_name, client_phone, title from events where id = 'ev-ks'`;
+    expect(ev).toEqual({ client_name: "", client_phone: "", title: "Свадьба" });
+    const [vn] = await sql<{ data: Record<string, unknown> }[]>`select data from venues where id = 'vn-ks'`;
+    expect(vn?.data).toMatchObject({ name: "Лофт", person: "", role: "", phone: "", messenger: "", email: "" });
+    // Чужое не тронуто.
+    expect(await sql`select 1 from clients where id = ${otherId}`).toHaveLength(1);
+    expect(await sql`select 1 from venue_requests where id = 'rq-other'`).toHaveLength(1);
+    const [bar] = await sql<{ data: Record<string, unknown> }[]>`select data from venues where id = 'vn-other'`;
+    expect(bar?.data).toMatchObject({ person: "Олег", phone: "+79260000000" });
+    // Повторный поиск — пусто.
+    const again = (await get(`/api/privacy?q=${encodeURIComponent(PHONE)}`, owner)).json();
+    expect([...again.clients, ...again.requests, ...again.events, ...again.venues]).toHaveLength(0);
+  });
+
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {
     expect((await get("/api/telegram/me", anna)).json()).toEqual({ available: false, linked: false, username: "" });
     expect((await post("/api/telegram/link", anna)).statusCode).toBe(503);

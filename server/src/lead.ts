@@ -13,7 +13,7 @@ export interface TelegramTarget {
 }
 
 export interface LeadOptions {
-  /** null — бот не настроен: /api/lead отвечает 503, сайт работает. */
+  /** null — бот не настроен: заявка и вопрос сохраняются в базу клиентов (`onLead`), без базы — 503. */
   telegram: TelegramTarget | null;
   /** Пометка в начале сообщения (тестовое окружение: «🧪 ТЕСТ»). */
   label?: string;
@@ -24,7 +24,11 @@ export interface LeadOptions {
   /** Часы (подменяются в тестах). */
   now?: () => number;
   limits?: Partial<LeadLimits>;
-  /** Заявка принята (до отправки в Telegram): клиент — в базу клиентов. Ошибка не мешает заявке. */
+  /**
+   * Заявка принята (до отправки в Telegram): клиент — в базу клиентов. Ошибка не мешает заявке.
+   * Записалось (заявка или вопрос) — посетитель видит «спасибо», даже если Telegram не ответил или
+   * бот не настроен: владелец увидит человека в «Клиентах». Отзывы в базу не пишутся — только Telegram.
+   */
   onLead?: (lead: LeadData) => Promise<void>;
 }
 
@@ -343,14 +347,6 @@ export function registerLead(app: FastifyInstance, options: LeadOptions, routeOp
       if (origin !== undefined && !hosts.has(hostOf(origin) ?? "")) {
         return answer(request, reply, 403, { ok: false, error: "origin", message: "Форма работает только на сайте joy-rest.ru." });
       }
-      if (!options.telegram) {
-        return answer(request, reply, 503, {
-          ok: false,
-          error: "not_configured",
-          message: `Форма временно не работает. ${FALLBACK}`,
-        });
-      }
-
       const checked = checkLead(request.body);
       if (!checked.ok) return answer(request, reply, 400, { ok: false, error: "invalid", message: checked.message });
       const type = checked.lead.type;
@@ -373,7 +369,7 @@ export function registerLead(app: FastifyInstance, options: LeadOptions, routeOp
           const warning =
             `${options.label ? options.label + "\n" : ""}⚠️ Много заявок с сайта: больше ${limits.global} за ${minutes} мин. ` +
             `Возможен спам. Новые заявки отклоняются, пока поток не спадёт.`;
-          send(options.telegram, warning).catch(() => request.log.warn("lead: предупреждение о спаме не отправилось"));
+          if (options.telegram) send(options.telegram, warning).catch(() => request.log.warn("lead: предупреждение о спаме не отправилось"));
         }
         return answer(request, reply, 429, {
           ok: false,
@@ -383,13 +379,32 @@ export function registerLead(app: FastifyInstance, options: LeadOptions, routeOp
       }
 
       // Клиент — в базу клиентов (даже если Telegram сейчас не ответит).
-      if (options.onLead) await options.onLead(checked.lead).catch(() => request.log.warn({ lead: type }, "lead: клиент не записан"));
+      let stored = false;
+      if (options.onLead && type !== "review") {
+        stored = await options.onLead(checked.lead).then(
+          () => true,
+          () => {
+            request.log.warn({ lead: type }, "lead: клиент не записан");
+            return false;
+          },
+        );
+      }
+      if (!options.telegram) {
+        if (stored) return answer(request, reply, 200, { ok: true }, type, "stored_no_bot");
+        return answer(request, reply, 503, {
+          ok: false,
+          error: "not_configured",
+          message: `Форма временно не работает. ${FALLBACK}`,
+        }, type);
+      }
       try {
         await send(options.telegram, formatLead(checked.lead, options.label));
       } catch (error) {
         // Только код ответа Telegram или вид ошибки сети — без адреса запроса (в нём токен).
         const reason = error instanceof Error && error.message.startsWith("telegram ") ? error.message : error instanceof Error ? error.name : "unknown";
         request.log.warn({ lead: type, reason }, "lead: telegram");
+        // Заявка уже в «Клиентах» — посетителю «спасибо», иначе он отправит её ещё раз или уйдёт.
+        if (stored) return answer(request, reply, 200, { ok: true }, type, "stored_telegram_failed");
         return answer(request, reply, 502, {
           ok: false,
           error: "telegram",

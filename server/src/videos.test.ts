@@ -141,8 +141,13 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     expect((await patch(host, { title: "Чужое" })).statusCode).toBe(403);
     expect((await patch(owner, { title: "Танец под диско", folder: "Диско" })).json()).toMatchObject({ title: "Танец под диско", folder: "Диско" });
     expect((await patch(deputy, { title: "  " })).statusCode).toBe(400);
-    const del = (cookie: string) => app.inject({ method: "DELETE", url: "/api/videos/v1", headers: headers(cookie) });
+    const del = (cookie: string, id = "v1") => app.inject({ method: "DELETE", url: `/api/videos/${id}`, headers: headers(cookie) });
     expect((await del(host)).statusCode).toBe(403);
+    // Видео владельца заместитель не убирает и не дописывает.
+    expect((await post("/api/videos", owner, { id: "own1", title: "Видео владельца", size: 100_000 })).statusCode).toBe(200);
+    expect((await chunk("own1", deputy, 0, mp4(CHUNK))).statusCode).toBe(403);
+    expect((await del(deputy, "own1")).statusCode).toBe(403);
+    expect((await del(owner, "own1")).statusCode).toBe(200);
     expect((await del(deputy)).statusCode).toBe(200);
     expect((await get("/api/videos/v1/file", owner)).statusCode).toBe(404);
   });

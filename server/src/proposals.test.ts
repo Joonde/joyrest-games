@@ -5,6 +5,7 @@ import { ADMIN_UID } from "../../src/data/config";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { cleanReason } from "./proposals";
+import { promoteLibraryTracks } from "./libraryTracks";
 import { migrate } from "./migrate";
 
 describe("причина отказа", () => {
@@ -152,6 +153,27 @@ describe.skipIf(!url)("предложения в библиотеку на Postg
     const ownerCopy = after?.content.songs[0]?.trackId ?? "";
     expect(ownerCopy).not.toBe("ownerTrack1");
     expect((await sql`select scope from tracks where id = ${ownerCopy}`)[0]?.scope).toBe("agency");
+  });
+
+  it("заместитель правит библиотеку: свои треки уходят в общую музыку, чужие личные — нет; удалить игру библиотеки не может", async () => {
+    const zam = await addHost("zam@example.com", "Зам");
+    expect((await post(`/api/users/${zam.uid}/access`, owner, { role: "deputy" })).statusCode).toBe(200);
+    await sql`insert into tracks (id, owner_id, scope, title, category, sha256, mime, size)
+              values ('zamTrack', ${zam.uid}, 'personal', 'Трек зама', 'music', ${"e".repeat(64)}, 'audio/mpeg', 2000),
+                     ('borisSecret', ${annaId}, 'personal', 'Чужой трек', 'music', ${"f".repeat(64)}, 'audio/mpeg', 2000)`;
+    const lotto = (trackId: string) => ({ songs: [{ id: "s1", trackId, title: "Песня" }] });
+    const create = await post("/api/games", zam.cookie, { id: "zamLib", scope: "agency", ownerId: zam.uid, title: "Лото зама", mechanic: "lotto", themeId: "joyrest", ageRating: "0+", playMode: "solo", content: lotto("zamTrack") });
+    expect(create.statusCode).toBe(200);
+    const [own] = await sql<{ content: { songs: Array<{ trackId: string }> } }[]>`select content from games where id = 'zamLib'`;
+    expect(own?.content.songs[0]?.trackId).not.toBe("zamTrack");
+    // Чужой личный трек через игру библиотеки в общую музыку не уходит — ни при сохранении, ни ночью.
+    await app.inject({ method: "PATCH", url: "/api/games/zamLib", headers: headers(zam.cookie), payload: { content: lotto("borisSecret") } });
+    await promoteLibraryTracks(sql);
+    expect((await sql`select 1 from tracks where scope = 'agency' and sha256 = ${"f".repeat(64)}`).length).toBe(0);
+    // Удалить игру библиотеки — только владелец; принять предложения — тоже.
+    expect((await app.inject({ method: "DELETE", url: "/api/games/zamLib", headers: headers(zam.cookie) })).statusCode).toBe(403);
+    expect((await get("/api/proposals?status=pending", zam.cookie)).statusCode).toBe(403);
+    expect((await app.inject({ method: "DELETE", url: "/api/games/zamLib", headers: headers(owner) })).statusCode).toBe(200);
   });
 
   it("отклонить с причиной; решённое второй раз не меняется", async () => {

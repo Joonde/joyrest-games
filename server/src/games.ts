@@ -187,6 +187,9 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       return rows[0] ?? null;
     }
 
+    /** Чьи треки игра библиотеки может перенести в общую музыку: владелец — любые, заместитель — только свои. */
+    const onlyOwn = (user: SessionRow) => (permissions.isAdmin(actorOf(user)) ? null : user.id);
+
     const ref = (row: GameRow) => ({ scope: row.scope === "agency" ? ("agency" as const) : ("personal" as const), ownerId: row.owner_id });
 
     // ------------------------------------------------------------ игры
@@ -228,7 +231,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       if (!permissions.canCreateGame(actorOf(user), input.scope, input.ownerId)) return fail(reply, 403, "permission-denied");
       const created = await sql.begin(async (tx) => {
         // Игра библиотеки: личные треки — в общую музыку, ссылки — на общие копии.
-        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id, input.title)).content : input.content;
+        const content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id, input.title, onlyOwn(user))).content : input.content;
         return tx`
           insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
           values (${id}, ${input.scope}, ${input.ownerId}, ${input.title}, ${input.mechanic}, ${input.themeId},
@@ -259,7 +262,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         return fail(reply, 403, "permission-denied");
       }
       const done = await sql.begin(async (tx) => {
-        let content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id, input.title)).content : input.content;
+        let content = input.scope === "agency" ? (await promoteGameTracks(tx, input.content, user.id, input.title, onlyOwn(user))).content : input.content;
         // Игра библиотеки → «Мои игры»: её музыка приезжает к ведущему папкой с названием игры (решение владельца
         // 15 октября 2026), ссылки копии — на его личные копии треков (тот же файл).
         if (source.scope === "agency" && input.scope === "personal") {
@@ -353,7 +356,7 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         if (patch.folder !== undefined && game.scope === "personal") await tx`update games set folder = ${folderName(patch.folder)} where id = ${game.id}`;
         if ("content" in patch) {
           // Игра библиотеки: личные треки — в общую музыку (их автор мог бы удалить), ссылки — на общие копии.
-          const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id, title ?? game.title)).content : (patch.content ?? null);
+          const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id, title ?? game.title, onlyOwn(user))).content : (patch.content ?? null);
           await tx`update games set content = ${tx.json(content as Parameters<typeof tx.json>[0])} where id = ${game.id}`;
         }
         await tx`update games set updated_at = now() where id = ${game.id}`;

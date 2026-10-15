@@ -376,6 +376,7 @@ describe("роли доступа помощников", () => {
         expect(p.canReviewTracks(a)).toBe(false);
         expect(p.canCleanupSessions(a)).toBe(false);
         expect(p.canArchiveVenues(a)).toBe(false);
+        expect(p.canUploadVideo(a)).toBe(false);
       }
     }
   });

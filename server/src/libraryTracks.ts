@@ -4,6 +4,7 @@
 // личные треки копируются в общую музыку (тот же файл, новая запись `scope = agency`), а ссылки в игре
 // переписываются на копии. Уже скопированный трек (`library_track_id`) не копируется второй раз.
 import type { Sql, TransactionSql } from "postgres";
+import { ADMIN_UID } from "../../src/data/config";
 import { parseTrackClip } from "../../src/data/trackClip";
 import { newUserId } from "./auth";
 
@@ -56,14 +57,26 @@ export function gameFolder(title: unknown): string {
   return typeof title === "string" ? title.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40) : "";
 }
 
-export async function promoteGameTracks(db: Sql | TransactionSql, content: unknown, ownerId: string, title?: string): Promise<{ content: unknown; changed: boolean }> {
+export async function promoteGameTracks(
+  db: Sql | TransactionSql,
+  content: unknown,
+  ownerId: string,
+  title?: string,
+  /**
+   * Чьи личные треки можно переносить в общую музыку: null — любые (владелец агентства: он и так принимает треки в
+   * общую); id — только треки этого человека (заместитель правит библиотеку, но чужие личные треки в общую музыку
+   * через игру не попадут — их принимает только владелец).
+   */
+  onlyOwner: string | null = null,
+): Promise<{ content: unknown; changed: boolean }> {
   const ids = new Set<string>();
   collectIds(content, ids);
   if (ids.size === 0) return { content, changed: false };
   const sql = db as Sql;
   const personal = await sql<TrackRow[]>`
     select id, title, category, license, license_note, sha256, mime, size, duration_ms, clip, library_track_id
-    from tracks where id = any(${[...ids]}) and scope = 'personal' and sha256 is not null`;
+    from tracks where id = any(${[...ids]}) and scope = 'personal' and sha256 is not null
+      and (${onlyOwner}::text is null or owner_id = ${onlyOwner})`;
   if (personal.length === 0) return { content, changed: false };
   const map = new Map<string, string>();
   // Музыка игры в общей музыке лежит в папке с названием игры (решение владельца 15 октября 2026).
@@ -95,13 +108,16 @@ export async function promoteGameTracks(db: Sql | TransactionSql, content: unkno
  * общую музыку. Возвращает, сколько игр поправлено.
  */
 export async function promoteLibraryTracks(sql: Sql): Promise<number> {
-  const games = await sql<{ id: string; owner_id: string }[]>`select id, owner_id from games where scope = 'agency' limit 2000`;
+  // Игра библиотеки владельца агентства — любые треки; игра заместителя — только его собственные.
+  const games = await sql<{ id: string; owner_id: string; admin: boolean }[]>`
+    select g.id, g.owner_id, (g.owner_id = ${ADMIN_UID} or coalesce(u.role = 'admin' and u.active, false)) as admin
+    from games g left join users u on u.id = g.owner_id where g.scope = 'agency' limit 2000`;
   let fixed = 0;
   for (const game of games) {
     const changed = await sql.begin(async (tx) => {
       const [row] = await tx<{ content: unknown }[]>`select content from games where id = ${game.id} for update`;
       if (!row) return false;
-      const promoted = await promoteGameTracks(tx, row.content, game.owner_id);
+      const promoted = await promoteGameTracks(tx, row.content, game.owner_id, undefined, game.admin ? null : game.owner_id);
       if (!promoted.changed) return false;
       await tx`update games set content = ${tx.json(promoted.content as Parameters<typeof tx.json>[0])}, updated_at = now() where id = ${game.id}`;
       return true;

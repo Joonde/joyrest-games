@@ -1,7 +1,7 @@
 /**
  * Видео JoyRest на сервере (решение владельца 15 октября 2026; CLAUDE.md, раздел 7, «Видео JoyRest»).
  *
- * Загружают владелец и заместитель (`permissions.canUploadVideo`), видят и ставят в игры все, кто работает с играми,
+ * Загружают владелец и заместитель (`permissions.canUploadVideo`; убрать чужое видео — только владелец), видят и ставят в игры все, кто работает с играми,
  * файл открывает любой вошедший (экран зала входит устройством). Видео большое, связь на площадке плохая, а Caddy
  * пускает в обычный запрос до 2 МБ — поэтому файл идёт частями (`PUT /api/videos/:id/chunk?offset=N`): сервер пишет
  * часть, только если она ровно там, где кончаются уже полученные байты, и всегда отвечает, сколько у него есть, —
@@ -200,6 +200,8 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
             from videos v where v.id = ${request.params.id} for update`;
           const video = rows[0];
           if (!video) return { error: 404 as const };
+          // Дописывает файл только тот, кто начал загрузку (владелец агентства — любой).
+          if (video.owner_id !== user.id && !permissions.isAdmin(actorOf(user))) return { error: 403 as const };
           const size = Number(video.size);
           const received = Number(video.received);
           if (video.sha256 || offset !== received) return { ok: true as const };
@@ -243,7 +245,7 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
             await unlink(join(videoDir, `${request.params.id}.tmp`)).catch(() => undefined);
             return fail(reply, 400, "invalid-argument");
           }
-          return fail(reply, 404, "not-found");
+          return outcome.error === 403 ? fail(reply, 403, "permission-denied") : fail(reply, 404, "not-found");
         }
         const video = await findVideo(request.params.id);
         return video ? videoOf(video) : fail(reply, 404, "not-found");
@@ -268,8 +270,11 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
     api.delete<{ Params: { id: string } }>("/api/videos/:id", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireUser(request, reply, permissions.canUploadVideo);
       if (!user) return reply;
-      if (!ID.test(request.params.id)) return { ok: true };
-      await sql`delete from videos where id = ${request.params.id}`;
+      const video = await findVideo(request.params.id);
+      if (!video) return { ok: true };
+      // Убрать видео у всех — владелец агентства; заместитель — только загруженные им самим.
+      if (video.owner_id !== user.id && !permissions.isAdmin(actorOf(user))) return fail(reply, 403, "permission-denied");
+      await sql`delete from videos where id = ${video.id}`;
       if (videoDir) await unlink(join(videoDir, `${request.params.id}.tmp`)).catch(() => undefined);
       request.log.info({ video: "delete" }, "video");
       return { ok: true };

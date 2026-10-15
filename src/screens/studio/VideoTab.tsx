@@ -120,7 +120,8 @@ export function VideoTab({ profile, onToast }: Props) {
     const actions: MenuAction[] = canUpload
       ? [
           { label: "Название и папка", onClick: () => { setDialogError(null); setEditing({ video, title: video.title, folder: video.folder }); } },
-          { label: "Убрать видео", onClick: () => { setDialogError(null); setToDelete(video); } },
+          // Убрать видео у всех — владелец агентства; заместитель — только своё.
+          ...(permissions.isAdmin(profile) || video.ownerId === profile.uid ? [{ label: "Убрать видео", onClick: () => { setDialogError(null); setToDelete(video); } }] : []),
         ]
       : [];
     return (

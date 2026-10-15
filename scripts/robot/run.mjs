@@ -38,6 +38,7 @@ const MECHANICS = {
   survival: { modes: ["teams"], demos: 1 },
   dragon: { modes: ["teams"], demos: 2 },
   mafia: { modes: ["solo"], demos: 1, players: [6, 9] },
+  spy: { modes: ["solo"], demos: 1, players: [5, 11] },
   bunker: { modes: ["solo"], demos: 1, players: [5, 8] },
   durak: { modes: ["solo"], demos: 1, players: [2, 4] },
   truth: { modes: ["solo", "teams"], demos: 2 },

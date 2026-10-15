@@ -57,6 +57,8 @@ export interface VenuesOptions {
   /** Пометка тестового окружения («🧪 ТЕСТ»). */
   label?: string;
   send?: (target: TelegramTarget, text: string) => Promise<void>;
+  /** Новая заявка клиента — менеджерам по продажам в Telegram (без данных клиента); null — бота нет. */
+  salesNotice?: ((kind: "venue") => Promise<unknown>) | null;
   now?: () => number;
   limits?: Partial<VenueLimits>;
   freeBytes?: (dir: string) => Promise<number>;
@@ -473,6 +475,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
           summary: [`Запрос №${number}`, data.eventType, data.guests ? `${data.guests} гостей` : "", data.date].filter(Boolean).join(", "),
           ref: id,
         }).catch(() => log(request, "request-form", "client-failed"));
+        void options.salesNotice?.("venue").catch(() => log(request, "request-form", "sales-notice-failed"));
       }
       log(request, "request-form", "ok");
       return { ok: true, number };

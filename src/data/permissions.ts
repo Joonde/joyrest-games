@@ -244,9 +244,18 @@ export function canEditOwnCalendar(actor: Actor): boolean {
   return isActiveHost(actor);
 }
 
-/** Календарь всей команды («Кто может в эту дату») и закрепить время за человеком — только владелец. */
+/**
+ * Менеджер по продажам (роль `sales`, решение владельца 15 октября 2026): принимает анкеты и заявки клиентов и продаёт
+ * мероприятия — база клиентов, заявки и подбор площадок, «Кто может», запись мероприятий. Без выгрузки и удаления
+ * данных клиентов, согласия на рассылку, итогов, удаления мероприятий навсегда.
+ */
+export function isSalesManager(actor: Actor): boolean {
+  return hasAccess(actor, "sales");
+}
+
+/** Календарь всей команды («Кто может в эту дату») и закрепить время за человеком — владелец и менеджер по продажам. */
 export function canViewTeamCalendar(actor: Actor): boolean {
-  return isAdmin(actor);
+  return isAdmin(actor) || isSalesManager(actor);
 }
 
 /**
@@ -255,17 +264,35 @@ export function canViewTeamCalendar(actor: Actor): boolean {
  */
 export function canRemoveCalendarEntry(actor: Actor, entry: { uid: string; kind: string }): boolean {
   if (isAdmin(actor)) return true;
+  // Менеджер по продажам снимает только закреплённое мероприятие (как «Отменить мероприятие»), чужие «свободен/занят» — нет.
+  if (isSalesManager(actor) && entry.kind === "booked") return true;
   return isActiveHost(actor) && actor?.uid === entry.uid && entry.kind !== "booked";
 }
 
-/** Отметить «Проведено» / «Не состоялось» — владелец или ведущий этого мероприятия. */
+/** Отметить «Проведено» / «Не состоялось» — владелец, менеджер по продажам или ведущий этого мероприятия. */
 export function canMarkEventHeld(actor: Actor, event: { hostId: string }): boolean {
-  if (isAdmin(actor)) return true;
+  if (isAdmin(actor) || isSalesManager(actor)) return true;
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
-/** База клиентов (заявки, телефоны, согласия на рассылку) — только владелец. */
+/** База клиентов (заявки, телефоны, статусы, заметки, архив) — владелец и менеджер по продажам. */
 export function canManageClients(actor: Actor): boolean {
+  return isAdmin(actor) || isSalesManager(actor);
+}
+
+/**
+ * Выгрузка клиентов (CSV), «Данные по номеру» и удаление навсегда, согласие на рассылку «да» вручную — только владелец:
+ * это персональные данные целиком и ответственность оператора.
+ */
+export function canExportClients(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+export function canErasePersonalData(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+export function canSetMarketingConsent(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
@@ -274,14 +301,28 @@ export function canLinkTelegram(actor: Actor): boolean {
   return isActiveHost(actor);
 }
 
-/** Планировщик: записать, изменить и отменить мероприятие — только владелец. */
+/** Планировщик: записать, изменить, отменить и вернуть мероприятие — владелец и менеджер по продажам. */
 export function canManageEvents(actor: Actor): boolean {
+  return isAdmin(actor) || isSalesManager(actor);
+}
+
+/** Удалить отменённое мероприятие навсегда и «Итоги» планировщика — только владелец. */
+export function canDeleteEvent(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
-/** Свои мероприятия (кто клиент, где, когда) видит ведущий, за которым они закреплены. */
+export function canViewEventStats(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Инструкция менеджера по продажам в студии — менеджеру и владельцу (проверять работу). */
+export function canReadSalesGuide(actor: Actor): boolean {
+  return isAdmin(actor) || isSalesManager(actor);
+}
+
+/** Свои мероприятия (кто клиент, где, когда) видит ведущий, за которым они закреплены; все — владелец и менеджер. */
 export function canViewEvent(actor: Actor, event: { hostId: string }): boolean {
-  if (isAdmin(actor)) return true;
+  if (isAdmin(actor) || isSalesManager(actor)) return true;
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
@@ -290,7 +331,7 @@ export function canViewEvent(actor: Actor, event: { hostId: string }): boolean {
  * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.
  */
 export function canManageVenues(actor: Actor): boolean {
-  return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true) || hasAccess(actor, "venues");
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true) || hasAccess(actor, "venues") || isSalesManager(actor);
 }
 
 /** Убрать площадку или заявку в архив: владелец и ведущие с доступом к базе (модератор — нет). */

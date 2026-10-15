@@ -13,6 +13,7 @@ export const PROFESSIONS = [
   { id: "chef", title: "Выездной повар", many: "Выездные повара" },
   { id: "tamada", title: "Тамада", many: "Тамады" },
   { id: "organizer", title: "Организатор", many: "Организаторы" },
+  { id: "sales", title: "Менеджер по продажам", many: "Менеджеры по продажам" },
   { id: "photo", title: "Фото и видео", many: "Фото и видео" },
   { id: "animator", title: "Аниматор", many: "Аниматоры" },
   { id: "other", title: "Другая профессия", many: "Другие" },

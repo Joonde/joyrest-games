@@ -102,6 +102,43 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect(((await get("/api/clients?archived=1", owner)).json().clients as Array<{ id: string }>).some((c) => c.id === "kmanual2")).toBe(true);
   });
 
+  it("менеджер по продажам: ведёт клиентов и мероприятия, но без выгрузки, удаления, согласия «да» и итогов", async () => {
+    const m = (await post("/api/users", owner, { email: "sales@example.com", name: "Мария" })).json();
+    expect((await post(`/api/users/${m.account.uid}/profession`, owner, { profession: "sales" })).statusCode).toBe(200);
+    expect((await post(`/api/users/${m.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
+    const maria = await login("sales@example.com", m.temporaryPassword);
+    expect((await get("/api/clients", maria)).statusCode).toBe(200);
+    expect((await get("/api/clients/export", maria)).statusCode).toBe(403);
+    expect((await get("/api/clients/export?all=1", maria)).statusCode).toBe(403);
+    expect((await get("/api/privacy?q=89001112233", maria)).statusCode).toBe(403);
+    expect((await post("/api/privacy/erase", maria, { q: "89001112233" })).statusCode).toBe(403);
+    // Новый клиент: «да» на рассылку менеджер не ставит — остаётся «нет согласия»; «нет» — можно.
+    const made = await post("/api/clients", maria, { id: "ksales1", name: "Вера", phone: "+7 905 123-45-67", links: [], status: "new", marketing: "yes", notes: "" });
+    expect(made.statusCode).toBe(200);
+    expect(made.json()).toMatchObject({ marketing: "unknown" });
+    expect(made.json().history[0].summary).toContain("Мария");
+    // Смена статуса — в историю с именем.
+    const worked = (await post("/api/clients", maria, { id: "ksales1", name: "Вера", phone: "+7 905 123-45-67", links: [], status: "work", marketing: "no", notes: "квиз, 20 гостей" })).json();
+    expect(worked).toMatchObject({ status: "work", marketing: "no" });
+    expect(worked.history.find((h: { source: string }) => h.source === "status")?.summary).toBe("В работе · Мария");
+    expect((await post("/api/clients/ksales1/archive", maria)).statusCode).toBe(200);
+    expect((await post("/api/clients/ksales1/restore", maria)).statusCode).toBe(200);
+    // Мероприятия: записать, отменить — да; удалить навсегда и итоги — нет; «Кто может» — да.
+    const ev = { id: "evsales", hostId: annaId, day: day(20), start: 1080, end: 1200, title: "День рождения", clientName: "Вера", clientPhone: "+7 905 123-45-67", place: "", guests: 20, note: "квиз" };
+    expect((await post("/api/events", maria, ev)).statusCode).toBe(200);
+    expect((await get(`/api/events?from=${day(19)}&to=${day(21)}`, maria)).json().events.some((e: { id: string }) => e.id === "evsales")).toBe(true);
+    expect((await get(`/api/events?stats=1&from=${day(-200)}&to=${day(150)}`, maria)).statusCode).toBe(400);
+    expect((await get(`/api/calendar/team?from=${day(19)}&to=${day(21)}`, maria)).statusCode).toBe(200);
+    expect((await post("/api/events/evsales/cancel", maria)).statusCode).toBe(200);
+    expect((await app.inject({ method: "DELETE", url: "/api/events/evsales", headers: headers(maria) })).statusCode).toBe(403);
+    expect((await post("/api/events/evsales/restore", maria)).statusCode).toBe(200);
+    // Заявки на подбор площадок — открыты.
+    expect((await get("/api/venue-requests", maria)).statusCode).toBe(200);
+    // Ведущему без роли — по-прежнему нет.
+    expect((await get("/api/clients", boris)).statusCode).toBe(403);
+    expect((await post("/api/events", boris, { ...ev, id: "evboris" })).statusCode).toBe(403);
+  });
+
   it("мероприятие с клиентом — клиент в базе; «Проведено» — после начала, владелец или ведущий; итоги за год", async () => {
     const past = { id: "evpast", hostId: annaId, day: day(-2), start: 1080, end: 1380, title: "Юбилей", clientName: "Пётр", clientPhone: "+7 999 555-44-33", place: "", guests: 37, note: "" };
     const future = { ...past, id: "evfuture", day: day(5) };

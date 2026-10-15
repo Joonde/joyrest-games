@@ -135,6 +135,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
             const contact = lead.fields.contact;
             await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: lead.fields.text.slice(0, 200) });
           }
+          // Менеджерам по продажам — «Новая заявка» в Telegram (без данных клиента); не ждём и не роняем заявку.
+          if (lead.type === "lead" || lead.type === "question") {
+            void options.bot?.salesNotice(lead.type === "lead" ? "site" : "question").catch(() => undefined);
+          }
         }
       : undefined;
     registerLead(app, { ...options.lead, hosts: options.site.hosts, onLead }, { constraints: { host: hostPattern(options.site.hosts) } });
@@ -172,6 +176,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       telegram: options.lead?.telegram ?? null,
       label: options.lead?.label,
       send: options.lead?.send,
+      salesNotice: options.bot ? (kind) => options.bot?.salesNotice(kind) ?? Promise.resolve(0) : null,
     });
   }
 

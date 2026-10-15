@@ -25,7 +25,7 @@ export const MARKETING_TITLES: Record<Marketing, string> = {
   unknown: "Согласия на рассылку нет",
 };
 
-export type ClientSource = "site" | "question" | "venue" | "event" | "telegram" | "manual";
+export type ClientSource = "site" | "question" | "venue" | "event" | "telegram" | "manual" | "status";
 export const SOURCE_TITLES: Record<ClientSource, string> = {
   site: "Заявка с сайта",
   question: "Вопрос с сайта",
@@ -33,6 +33,7 @@ export const SOURCE_TITLES: Record<ClientSource, string> = {
   event: "Мероприятие",
   telegram: "Из Telegram",
   manual: "Добавлен вручную",
+  status: "Статус",
 };
 
 export function isClientStatus(value: unknown): value is ClientStatus {

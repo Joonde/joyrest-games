@@ -1,5 +1,6 @@
 /**
- * База клиентов (CLAUDE.md, раздел 3, «База клиентов»; решение владельца 14 октября 2026) — только владелец.
+ * База клиентов (CLAUDE.md, раздел 3, «База клиентов»; решение владельца 14 октября 2026) — владелец и менеджер по
+ * продажам (роль `sales`, решение 15 октября 2026); выгрузка, «Данные по номеру» и согласие «да» — только владелец.
  * Сюда сами попадают все, кто оставил заявку или вопрос на сайте, запрос по QR, записан в планировщик или переслан
  * боту в Telegram. Один человек — одна карточка (по телефону). Выгрузка для рассылки — только согласившиеся.
  */
@@ -20,7 +21,7 @@ import {
   type Marketing,
 } from "../../core/clients";
 import { matchesSearch } from "../../core/search";
-import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord } from "../../data";
+import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { SearchField } from "../../components/SearchField";
@@ -57,9 +58,9 @@ export function Clients() {
           {!clientsRepo ? (
             <p className="muted">База клиентов доступна на своём сервере JoyRest.</p>
           ) : !permissions.canManageClients(profile) ? (
-            <p className="muted">База клиентов открыта только владельцу агентства.</p>
+            <p className="muted">База клиентов открыта владельцу агентства и менеджеру по продажам.</p>
           ) : (
-            <ClientBase />
+            <ClientBase profile={profile} />
           )}
         </main>
       )}
@@ -67,7 +68,8 @@ export function Clients() {
   );
 }
 
-function ClientBase() {
+function ClientBase({ profile }: { profile: UserProfile }) {
+  const owner = permissions.canExportClients(profile);
   const [filter, setFilter] = useState<Filter>("all");
   const archived = filter === "archive";
   const [state, retry, update] = useLoad(() => (clientsRepo ? clientsRepo.list(archived) : Promise.resolve([] as ClientRecord[])), [archived]);
@@ -111,6 +113,7 @@ function ClientBase() {
     return (
       <ClientForm
         initial={form === "new" ? null : form}
+        canConsent={permissions.canSetMarketingConsent(profile)}
         onCancel={() => setForm(null)}
         onSaved={(c) => saved(c, form === "new" ? "Клиент добавлен" : "Сохранено")}
       />
@@ -128,24 +131,34 @@ function ClientBase() {
         <button type="button" className="btn btn--block" onClick={() => setForm("new")}>
           + Клиент
         </button>
-        {clientsRepo && (
+        {owner && clientsRepo && (
           <a className="btn btn--secondary btn--block" href={clientsRepo.exportUrl(false)} download>
             Выгрузить для рассылки ({consented})
           </a>
         )}
       </div>
-      <p className="muted small">
-        В выгрузку для рассылки попадают только согласившиеся: по закону о рекламе рассылать можно только тем, кто сам дал согласие. Таблица
-        открывается в Excel и Google Таблицах.{" "}
-        {clientsRepo && (
-          <a href={clientsRepo.exportUrl(true)} download>
-            Выгрузить всех (для своей работы)
-          </a>
-        )}
-      </p>
-      <p className="muted small">
-        Человек попросил удалить свои данные? <Link to="/studio/privacy">Данные по номеру →</Link> — всё о нём в базе и удаление навсегда.
-      </p>
+      {owner ? (
+        <>
+          <p className="muted small">
+            В выгрузку для рассылки попадают только согласившиеся: по закону о рекламе рассылать можно только тем, кто сам дал согласие. Таблица
+            открывается в Excel и Google Таблицах.{" "}
+            {clientsRepo && (
+              <a href={clientsRepo.exportUrl(true)} download>
+                Выгрузить всех (для своей работы)
+              </a>
+            )}
+          </p>
+          <p className="muted small">
+            Человек попросил удалить свои данные? <Link to="/studio/privacy">Данные по номеру →</Link> — всё о нём в базе и удаление навсегда.
+          </p>
+        </>
+      ) : (
+        <p className="muted small">
+          Как вести клиента от заявки до мероприятия — <Link to="/studio/sales-guide">инструкция менеджера →</Link>. Смена статуса записывается в
+          историю клиента с вашим именем. Выгрузка базы и удаление данных — только у владельца; просьбу удалить данные человек присылает на
+          joyrest@mail.ru.
+        </p>
+      )}
 
       <div className="seg plan-seg clients-filters" role="group" aria-label="Какие клиенты">
         {(Object.keys(FILTER_TITLES) as Filter[]).map((f) => (
@@ -271,7 +284,7 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
   );
 }
 
-function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | null; onSaved: (c: ClientRecord) => void; onCancel: () => void }) {
+function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: ClientRecord | null; canConsent: boolean; onSaved: (c: ClientRecord) => void; onCancel: () => void }) {
   const [id] = useState(() => initial?.id ?? newId());
   const [name, setName] = useState(initial?.name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -326,7 +339,7 @@ function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | nu
       </fieldset>
       <fieldset className="stack stack--tight">
         <legend>Рассылка</legend>
-        {(["yes", "unknown", "no"] as const).map((m) => (
+        {(["yes", "unknown", "no"] as const).filter((m) => m !== "yes" || canConsent || initial?.marketing === "yes").map((m) => (
           <label key={m} className="choice">
             <input type="radio" name={`mkt-${id}`} checked={marketing === m} onChange={() => setMarketing(m)} />
             <span className="choice__text">
@@ -335,6 +348,9 @@ function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | nu
             </span>
           </label>
         ))}
+        {!canConsent && initial?.marketing !== "yes" && (
+          <p className="muted small">Согласие на рассылку отмечает владелец. Клиент согласился в переписке — напишите это в заметке.</p>
+        )}
       </fieldset>
       <label className="field">
         <span className="field__label">Заметка</span>

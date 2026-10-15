@@ -121,7 +121,7 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     await connect(boris, BORIS);
     expect(to(ANNA).at(-1)).toContain("Telegram подключён");
     expect(to(BORIS).at(-1)).toContain("Telegram подключён");
-    expect(to(ANNA).at(-1)).not.toContain("Владельцу");
+    expect(to(ANNA).at(-1)).not.toContain("перешлите сюда сообщение клиента");
     const health = (await get("/api/telegram/health", owner)).json();
     expect(health).toMatchObject({ configured: true, polling: true, username: "joyrest_test_bot", state: "ok", linkedPeople: 2 });
     expect((await get("/api/telegram/health", anna)).statusCode).toBe(403);
@@ -209,7 +209,7 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
 
   it("владелец пересылает боту сообщение клиента — клиент в базе; ведущему так нельзя", async () => {
     await connect(owner, OWNER);
-    expect(to(OWNER).at(-1)).toContain("Владельцу");
+    expect(to(OWNER).at(-1)).toContain("перешлите сюда сообщение клиента");
     tg.push(OWNER, "Здравствуйте! Хотим корпоратив 12.12, нас 35 человек. Мой телефон 8 901 222-33-44", {
       forward_origin: { type: "user", sender_user: { first_name: "Ира", username: "ira_party" } },
     });
@@ -220,5 +220,27 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     tg.push(BORIS, "Телефон клиента 8 902 000-00-00");
     await until(() => to(BORIS).some((t) => t.includes("Сюда приходят ваши мероприятия")), "ответ ведущему");
     expect((await get("/api/clients", owner)).json().clients).toHaveLength(n);
+  });
+
+  it("менеджер по продажам: «Новая заявка» без данных клиента только ему; пересланное сообщение — клиент в базе", async () => {
+    const SALES = 444;
+    const m = (await post("/api/users", owner, { email: "sales@example.com", name: "Мария" })).json();
+    expect((await post(`/api/users/${m.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
+    const maria = await login("sales@example.com", m.temporaryPassword);
+    await connect(maria, SALES);
+    expect(to(SALES).at(-1)).toContain("перешлите сюда сообщение клиента");
+    const others = { anna: to(ANNA).length, boris: to(BORIS).length, owner: to(OWNER).length };
+    expect(await bot.salesNotice("site")).toBe(1);
+    const notice = to(SALES).at(-1) ?? "";
+    expect(notice).toContain("Новая заявка с сайта");
+    expect(notice).toContain("https://games.test/studio/clients");
+    expect(notice).not.toMatch(/\d{3}[-\s]?\d{2}[-\s]?\d{2}/);
+    expect(await bot.salesNotice("venue")).toBe(1);
+    expect(to(SALES).at(-1)).toContain("https://games.test/venues");
+    expect({ anna: to(ANNA).length, boris: to(BORIS).length, owner: to(OWNER).length }).toEqual(others);
+    tg.push(SALES, "Добрый день, нужен квиз на день рождения 20.11, 18 человек, телефон 8 903 111-22-33");
+    await until(() => to(SALES).some((t) => t.includes("Клиент в базе")), "клиент от менеджера в базе");
+    const clients = (await get("/api/clients", maria)).json().clients as Array<{ phone: string }>;
+    expect(clients.some((c) => c.phone.includes("903"))).toBe(true);
   });
 });

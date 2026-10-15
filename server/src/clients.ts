@@ -2,8 +2,10 @@
  * База клиентов (CLAUDE.md, раздел 3, «База клиентов»; решение владельца 14 октября 2026). Клиенты попадают
  * сами: заявка и вопрос с сайта (`lead.ts`), запрос клиента по QR (`venues.ts`), мероприятие в планировщике
  * (`events.ts`), сообщение, пересланное владельцем боту (`telegram.ts`). Один человек — одна запись по телефону
- * (без телефона — по ссылке на соцсеть). Видит и правит только владелец. Согласие на рассылку — только «да»
- * с сайта или вручную владельцем; автоматически «да» не ставится никогда, «нет» не снимается заявкой.
+ * (без телефона — по ссылке на соцсеть). Видят и правят владелец и менеджер по продажам (роль `sales`); выгрузка,
+ * «Данные по номеру» и удаление навсегда — только владелец. Согласие на рассылку — только «да» с сайта или вручную
+ * владельцем; автоматически «да» не ставится никогда, «нет» не снимается заявкой. Смена статуса пишется в историю
+ * клиента с именем того, кто сменил, — владелец видит, как менеджер ведёт клиента.
  * В журнал — только действие, без имён и телефонов.
  */
 import { randomBytes } from "node:crypto";
@@ -17,13 +19,14 @@ import {
   clientsCsv,
   isClientStatus,
   isMarketing,
+  CLIENT_STATUS_TITLES,
   phoneKey,
   type ClientSource,
 } from "../../src/core/clients";
 import { contactQuery, matchesContact, queryLabel, type ContactQuery } from "../../src/core/privacy";
 import * as permissions from "../../src/data/permissions";
 import type { ClientContact, ClientDetails, ClientRecord } from "../../src/data/types";
-import { actorOf, apiGuard, sessionUser } from "./auth";
+import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const newId = (prefix: string) => `${prefix}${randomBytes(12).toString("base64url")}`;
@@ -143,18 +146,24 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       return reply.code(status).send({ error: code });
     }
 
-    async function owner(request: FastifyRequest, reply: FastifyReply): Promise<boolean> {
+    async function allowed(
+      request: FastifyRequest,
+      reply: FastifyReply,
+      check: (actor: permissions.Actor) => boolean = permissions.canManageClients,
+    ): Promise<SessionRow | null> {
       const user = await sessionUser(sql, request, reply);
       if (!user) {
         fail(reply, 401, "unauthenticated");
-        return false;
+        return null;
       }
-      if (!permissions.canManageClients(actorOf(user))) {
+      if (!check(actorOf(user))) {
         fail(reply, 403, "permission-denied");
-        return false;
+        return null;
       }
-      return true;
+      return user;
     }
+    /** Выгрузка и «Данные по номеру» — только владелец. */
+    const owner = (request: FastifyRequest, reply: FastifyReply) => allowed(request, reply, permissions.canErasePersonalData);
 
     const select = sql`
       select c.id, c.name, c.phone, c.links, c.status, c.marketing, c.marketing_at, c.marketing_source, c.notes,
@@ -175,7 +184,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     }
 
     api.get("/api/clients", async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      if (!(await allowed(request, reply))) return reply;
       const archived = (request.query as Record<string, unknown>)?.archived === "1";
       const rows = await sql<Row[]>`${select}
         where ${archived ? sql`c.archived_at is not null` : sql`c.archived_at is null`}
@@ -185,7 +194,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
 
     // Выгрузка для рассылки: по умолчанию только согласившиеся; ?all=1 — все (для своей работы, не для рассылки).
     api.get("/api/clients/export", async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      if (!(await allowed(request, reply, permissions.canExportClients))) return reply;
       const all = (request.query as Record<string, unknown>)?.all === "1";
       const rows = await sql<Row[]>`${select}
         where c.archived_at is null ${all ? sql`` : sql`and c.marketing = 'yes'`}
@@ -199,14 +208,15 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     });
 
     api.get<{ Params: { id: string } }>("/api/clients/:id", async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      if (!(await allowed(request, reply))) return reply;
       if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
       return (await details(request.params.id)) ?? fail(reply, 404, "not-found");
     });
 
     // Новый клиент вручную или правка. Тот же телефон у другого клиента — 409 (не плодим двойников).
     api.post<{ Body: unknown }>("/api/clients", { bodyLimit: 8192 }, async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      const user = await allowed(request, reply);
+      if (!user) return reply;
       const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
       const id = typeof b.id === "string" && ID.test(b.id) ? b.id : null;
       const name = cleanLine(b.name, CLIENT_LIMITS.name);
@@ -214,14 +224,17 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const key = phoneKey(phone);
       const links = cleanLinks(b.links);
       const status = isClientStatus(b.status) ? b.status : "new";
-      const marketing = isMarketing(b.marketing) ? b.marketing : "unknown";
+      const asked = isMarketing(b.marketing) ? b.marketing : "unknown";
       const notes = cleanNotes(b.notes);
       if (!id || (!key && links.length === 0 && !name)) return fail(reply, 400, "invalid-argument");
       if (key) {
         const [other] = await sql<{ id: string }[]>`select id from clients where phone_key = ${key} and id <> ${id}`;
         if (other) return reply.code(409).send({ error: "already-exists", id: other.id });
       }
-      const [existing] = await sql<{ marketing: string }[]>`select marketing from clients where id = ${id}`;
+      const [existing] = await sql<{ marketing: string; status: string }[]>`select marketing, status from clients where id = ${id}`;
+      // Согласие «да» вручную ставит только владелец: менеджер может отметить «нет» (отказался), но не «да».
+      const before = existing && isMarketing(existing.marketing) ? existing.marketing : "unknown";
+      const marketing = asked === "yes" && before !== "yes" && !permissions.canSetMarketingConsent(actorOf(user)) ? before : asked;
       const marketingChanged = existing?.marketing !== marketing;
       await sql`
         insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes)
@@ -231,7 +244,11 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
           links = excluded.links, status = excluded.status, notes = excluded.notes, updated_at = now()
           ${marketingChanged ? sql`, marketing = excluded.marketing, marketing_at = excluded.marketing_at, marketing_source = excluded.marketing_source` : sql``}`;
       if (!existing) {
-        await sql`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual', 'Добавлен вручную')`;
+        await sql`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual', ${`Добавлен вручную · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
+      } else if (existing.status !== status) {
+        // Кто и когда сменил статус — в историю клиента: владелец видит, как идёт работа с заявкой.
+        await sql`insert into client_contacts (id, client_id, source, summary)
+          values (${newId("c")}, ${id}, 'status', ${`${CLIENT_STATUS_TITLES[status]} · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
       }
       request.log.info({ clients: existing ? "edit" : "create" }, "clients");
       return (await details(id)) ?? fail(reply, 500, "internal");
@@ -239,7 +256,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
 
     for (const action of ["archive", "restore"] as const) {
       api.post<{ Params: { id: string } }>(`/api/clients/:id/${action}`, { bodyLimit: 1024 }, async (request, reply) => {
-        if (!(await owner(request, reply))) return reply;
+        if (!(await allowed(request, reply))) return reply;
         if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
         await sql`update clients set archived_at = ${action === "archive" ? sql`coalesce(archived_at, now())` : null}, updated_at = now()
           where id = ${request.params.id}`;

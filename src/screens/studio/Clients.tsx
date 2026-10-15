@@ -302,7 +302,18 @@ const STATUS_HINTS: Record<ClientStatus, string> = {
  * без анимации). «Отказ» стоит отдельно, чтобы не нажать его вместо «Клиент».
  */
 function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: boolean; onPick: (status: ClientStatus) => void }) {
+  const [confirm, ask] = useConfirm();
   const index = PATH.indexOf(c.status);
+  const name = c.name || phoneLabel(c.phone) || "клиента";
+  // Защита от случайного касания (решение владельца 15 октября 2026): «Отказ» — только после «Вы точно уверены?».
+  const askLost = () =>
+    ask({
+      title: "Вы точно уверены?",
+      text: `Перевести «${name}» в «Отказ» — значит, не договорились. После этого напишите в заметке причину. Вернуть статус можно в любой момент.`,
+      confirmLabel: "Да, отказ",
+      cancelLabel: "Нет, оставить",
+      run: () => onPick("lost"),
+    });
   const next = index >= 0 && index < PATH.length - 1 ? PATH[index + 1] : null;
   return (
     <section
@@ -349,11 +360,12 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
         className={c.status === "lost" ? "btn btn--quiet btn--block clients-status__lost is-on" : "btn btn--quiet btn--block clients-status__lost"}
         aria-pressed={c.status === "lost"}
         disabled={busy || c.status === "lost"}
-        onClick={() => onPick("lost")}
+        onClick={askLost}
       >
         {c.status === "lost" ? "Отказ" : "Не договорились — «Отказ»"}
       </button>
       {c.status === "lost" && !c.notes.trim() && <p className="small clients-late">Напишите причину отказа в заметке ниже.</p>}
+      {confirm}
     </section>
   );
 }

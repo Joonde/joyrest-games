@@ -616,6 +616,27 @@ export interface ClientDetails extends ClientRecord {
   history: ClientContact[];
 }
 
+/** «Данные по номеру»: всё, что есть в базе по телефону, нику или почте человека (только владелец). */
+export interface ContactMatches {
+  /** Как понят запрос: «+7 915 241-59-99», «@nick», почта. */
+  label: string;
+  clients: Array<{ id: string; name: string; phone: string; contacts: number; archived: boolean }>;
+  /** Заявки на подбор площадки (QR-анкета клиента). */
+  requests: Array<{ id: string; number: number; name: string; title: string; archived: boolean }>;
+  /** Мероприятия планировщика, где это клиент. */
+  events: Array<{ id: string; title: string; day: string; clientName: string; cancelled: boolean }>;
+  /** Площадки, где это контактное лицо. */
+  venues: Array<{ id: string; name: string; person: string }>;
+}
+
+/** Что удалено по запросу человека. */
+export interface EraseReport {
+  clients: number;
+  requests: number;
+  events: number;
+  venues: number;
+}
+
 /** Бот уведомлений глазами владельца: настроен ли, читает ли сообщения, сколько людей подключено. */
 export interface TelegramHealth {
   configured: boolean;

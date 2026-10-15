@@ -161,7 +161,7 @@ function RequestFormOpen() {
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span className="choice__text">
             <span className="choice__title">Согласен на обработку персональных данных</span>
-            <span className="choice__hint">Имя и телефон нужны, чтобы позвонить вам с вариантами. Площадкам их не передаём.</span>
+            <span className="choice__hint">Имя и телефон нужны, чтобы позвонить вам с вариантами. Площадкам их не передаём. <a href="/privacy.html" target="_blank" rel="noopener">Политика обработки данных</a></span>
           </span>
         </label>
 

@@ -312,6 +312,10 @@ function JoinForm({
         <button className="btn btn--block" type="submit" disabled={busy || (teamsMode && teamId === "")}>
           {busy ? "Входим…" : "Играть"}
         </button>
+        <p className="muted small">
+          Имя видно на экране зала и хранится до 30 дней. Нажимая «Играть», вы соглашаетесь с{" "}
+          <a href="/privacy.html" target="_blank" rel="noopener">политикой обработки данных</a>.
+        </p>
       </form>
     </main>
   );

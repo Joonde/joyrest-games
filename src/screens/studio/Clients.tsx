@@ -4,7 +4,7 @@
  * боту в Telegram. Один человек — одна карточка (по телефону). Выгрузка для рассылки — только согласившиеся.
  */
 import { useMemo, useState, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   CLIENT_LIMITS,
   CLIENT_STATUS_TITLES,
@@ -72,7 +72,8 @@ function ClientBase() {
   const archived = filter === "archive";
   const [state, retry, update] = useLoad(() => (clientsRepo ? clientsRepo.list(archived) : Promise.resolve([] as ClientRecord[])), [archived]);
   const shown = useLastReady(state);
-  const [query, setQuery] = useState("");
+  const [params] = useSearchParams();
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [form, setForm] = useState<ClientRecord | "new" | null>(null);
   const [toast, showToast] = useToast();
   const [confirm, ask] = useConfirm();
@@ -141,6 +142,9 @@ function ClientBase() {
             Выгрузить всех (для своей работы)
           </a>
         )}
+      </p>
+      <p className="muted small">
+        Человек попросил удалить свои данные? <Link to="/studio/privacy">Данные по номеру →</Link> — всё о нём в базе и удаление навсегда.
       </p>
 
       <div className="seg plan-seg clients-filters" role="group" aria-label="Какие клиенты">

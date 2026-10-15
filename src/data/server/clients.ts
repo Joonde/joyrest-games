@@ -1,6 +1,6 @@
 /** База клиентов на своём сервере: `/api/clients...` (CLAUDE.md, раздел 3, «База клиентов»). */
 import type { ClientsRepository } from "../contracts";
-import type { ClientContact, ClientDetails, ClientRecord } from "../types";
+import type { ClientContact, ClientDetails, ClientRecord, ContactMatches } from "../types";
 import { api, asRecord, asText } from "./api";
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
@@ -38,6 +38,21 @@ function parseDetails(value: unknown): ClientDetails {
   return { ...parseClient(value), history };
 }
 
+function list(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.map(asRecord) : [];
+}
+
+function parseMatches(value: unknown): ContactMatches {
+  const d = asRecord(value);
+  return {
+    label: asText(d.label),
+    clients: list(d.clients).map((r) => ({ id: asText(r.id), name: asText(r.name), phone: asText(r.phone), contacts: num(r.contacts), archived: r.archived === true })),
+    requests: list(d.requests).map((r) => ({ id: asText(r.id), number: num(r.number), name: asText(r.name), title: asText(r.title), archived: r.archived === true })),
+    events: list(d.events).map((r) => ({ id: asText(r.id), title: asText(r.title), day: asText(r.day), clientName: asText(r.clientName), cancelled: r.cancelled === true })),
+    venues: list(d.venues).map((r) => ({ id: asText(r.id), name: asText(r.name), person: asText(r.person) })),
+  };
+}
+
 export const serverClientsRepository: ClientsRepository = {
   async list(archived) {
     const data = asRecord(await api("GET", `/api/clients${archived ? "?archived=1" : ""}`));
@@ -57,5 +72,12 @@ export const serverClientsRepository: ClientsRepository = {
   },
   exportUrl(all) {
     return `/api/clients/export${all ? "?all=1" : ""}`;
+  },
+  async findContact(query) {
+    return parseMatches(await api("GET", `/api/privacy?q=${encodeURIComponent(query)}`));
+  },
+  async eraseContact(query) {
+    const d = asRecord(await api("POST", "/api/privacy/erase", { q: query }));
+    return { clients: num(d.clients), requests: num(d.requests), events: num(d.events), venues: num(d.venues) };
   },
 };

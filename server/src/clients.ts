@@ -20,6 +20,7 @@ import {
   phoneKey,
   type ClientSource,
 } from "../../src/core/clients";
+import { contactQuery, matchesContact, queryLabel, type ContactQuery } from "../../src/core/privacy";
 import * as permissions from "../../src/data/permissions";
 import type { ClientContact, ClientDetails, ClientRecord } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser } from "./auth";
@@ -246,5 +247,76 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         return { ok: true };
       });
     }
+
+    // «Данные по номеру» (решение владельца 15 октября 2026): человек попросил удалить свои данные.
+    // Ищем по телефону, нику или почте во всех местах, где лежат данные клиентов. Записей немного —
+    // сравниваем в памяти той же функцией, что проверяют тесты (`matchesContact`).
+    async function findMatches(q: ContactQuery) {
+      const clients = (await sql<{ id: string; name: string; phone: string; links: unknown; archived_at: Date | null; contacts: number }[]>`
+        select c.id, c.name, c.phone, c.links, c.archived_at, (select count(*)::int from client_contacts h where h.client_id = c.id) as contacts
+        from clients c`).filter((r) => matchesContact(q, { phones: [r.phone], links: Array.isArray(r.links) ? r.links.filter((l): l is string => typeof l === "string") : [] }));
+      const requests = (await sql<{ id: string; number: number; name: string | null; phone: string | null; event: string | null; date: string | null; guests: unknown; archived_at: Date | null }[]>`
+        select id, number, data->>'name' as name, data->>'phone' as phone, data->>'eventType' as event, data->>'date' as date, data->'guests' as guests, archived_at
+        from venue_requests`).filter((r) => matchesContact(q, { phones: [r.phone ?? ""], texts: [r.phone ?? ""] }));
+      const events = (await sql<{ id: string; title: string; day: string; client_name: string; client_phone: string; cancelled_at: Date | null }[]>`
+        select id, title, to_char(day, 'YYYY-MM-DD') as day, client_name, client_phone, cancelled_at from events
+        where client_phone <> '' or client_name <> ''`).filter((r) => matchesContact(q, { phones: [r.client_phone], texts: [r.client_phone] }));
+      const venues = (await sql<{ id: string; name: string | null; person: string | null; phone: string | null; messenger: string | null; email: string | null }[]>`
+        select id, data->>'name' as name, data->>'person' as person, data->>'phone' as phone, data->>'messenger' as messenger, data->>'email' as email
+        from venues`).filter((r) => matchesContact(q, { phones: [r.phone ?? ""], texts: [r.messenger ?? ""], emails: [r.email ?? ""] }));
+      return { clients, requests, events, venues };
+    }
+
+    function queryOf(raw: unknown, reply: FastifyReply): ContactQuery | null {
+      const q = typeof raw === "string" ? contactQuery(raw) : null;
+      if (!q) fail(reply, 400, "invalid-argument");
+      return q;
+    }
+
+    api.get("/api/privacy", async (request, reply) => {
+      if (!(await owner(request, reply))) return reply;
+      const q = queryOf((request.query as Record<string, unknown>)?.q, reply);
+      if (!q) return reply;
+      const m = await findMatches(q);
+      request.log.info({ privacy: "search", found: m.clients.length + m.requests.length + m.events.length + m.venues.length }, "clients");
+      return {
+        label: queryLabel(q),
+        clients: m.clients.map((r) => ({ id: r.id, name: r.name, phone: r.phone, contacts: r.contacts, archived: r.archived_at !== null })),
+        requests: m.requests.map((r) => ({
+          id: r.id,
+          number: r.number,
+          name: r.name ?? "",
+          title: [r.event || "Мероприятие", r.date ?? "", typeof r.guests === "number" ? `${r.guests} гостей` : ""].filter(Boolean).join(" · "),
+          archived: r.archived_at !== null,
+        })),
+        events: m.events.map((r) => ({ id: r.id, title: r.title, day: r.day, clientName: r.client_name, cancelled: r.cancelled_at !== null })),
+        venues: m.venues.map((r) => ({ id: r.id, name: r.name ?? "", person: r.person ?? "" })),
+      };
+    });
+
+    // Удалить навсегда. Клиент — с историей обращений (cascade), заявка на подбор — целиком (в отправленных
+    // предложениях данных клиента нет, ссылка на заявку обнуляется). В мероприятии и у площадки стираются
+    // только данные человека: мероприятие нужно ведущему и итогам, площадка — базе.
+    api.post<{ Body: unknown }>("/api/privacy/erase", { bodyLimit: 1024 }, async (request, reply) => {
+      if (!(await owner(request, reply))) return reply;
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      const q = queryOf(b.q, reply);
+      if (!q) return reply;
+      const report = await sql.begin(async (tx) => {
+        const m = await findMatches(q);
+        const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+        if (m.clients.length) await tx`delete from clients where id in ${tx(ids(m.clients))}`;
+        if (m.requests.length) await tx`delete from venue_requests where id in ${tx(ids(m.requests))}`;
+        if (m.events.length) await tx`update events set client_name = '', client_phone = '', updated_at = now() where id in ${tx(ids(m.events))}`;
+        if (m.venues.length) {
+          await tx`update venues set data = data || ${tx.json({ person: "", role: "", phone: "", messenger: "", email: "" })}, updated_at = now()
+            where id in ${tx(ids(m.venues))}`;
+        }
+        return { clients: m.clients.length, requests: m.requests.length, events: m.events.length, venues: m.venues.length };
+      });
+      // В журнал — только действие и сколько записей, без телефона.
+      request.log.info({ privacy: "erase", ...report }, "clients");
+      return report;
+    });
   });
 }

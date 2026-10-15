@@ -16,6 +16,8 @@ import type {
   AgencyEvent,
   ClientDetails,
   ClientRecord,
+  ContactMatches,
+  EraseReport,
   TelegramStatus,
   TelegramHealth,
   SessionSummary,
@@ -314,6 +316,13 @@ export interface ClientsRepository {
   restore(id: string): Promise<void>;
   /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */
   exportUrl(all: boolean): string;
+  /** «Данные по номеру»: всё по телефону, нику или почте человека. Непонятный запрос — 400 invalid-argument. */
+  findContact(query: string): Promise<ContactMatches>;
+  /**
+   * Удалить навсегда всё по этому человеку: клиента с историей, заявки на подбор; в мероприятиях —
+   * имя и телефон клиента, у площадок — контактное лицо (сами мероприятия и площадки остаются).
+   */
+  eraseContact(query: string): Promise<EraseReport>;
 }
 
 /** Telegram для уведомлений о мероприятиях — только свой сервер; у Firebase — null. */

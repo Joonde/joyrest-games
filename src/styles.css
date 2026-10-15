@@ -20158,3 +20158,119 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     animation: none;
   }
 }
+
+/* Карточка клиента: статус — отдельной заметной рамкой цвета статуса (решение владельца 15 октября 2026). */
+.clients-status {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--status-color);
+  background: color-mix(in srgb, var(--status-color) 12%, var(--color-surface));
+  transition: border-color 0.35s ease, background-color 0.35s ease;
+}
+
+.clients-status__now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clients-status__pill {
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: var(--status-color);
+  color: var(--color-team-text);
+  font-size: 18px;
+  font-weight: 600;
+  animation: clients-status-pop 0.45s ease;
+}
+
+.clients-status__who {
+  margin: -8px 0 0;
+}
+
+.clients-status__path {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 4px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.clients-status__slider {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 10px;
+  background: var(--status-color);
+  transform: translateX(calc(var(--status-index) * 100%));
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.35s ease;
+}
+
+.clients-status__path.is-off .clients-status__slider {
+  opacity: 0;
+}
+
+.clients-status__step {
+  position: relative;
+  min-height: 48px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 0.35s ease;
+}
+
+.clients-status__step.is-on {
+  color: var(--color-team-text);
+  font-weight: 600;
+}
+
+.clients-status__step.is-done {
+  color: var(--color-text-muted);
+}
+
+.clients-status__lost.is-on {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.clients-section {
+  margin: 16px 0 0;
+}
+
+@keyframes clients-status-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clients-status,
+  .clients-status__slider,
+  .clients-status__step {
+    transition: none;
+  }
+  .clients-status__pill {
+    animation: none;
+  }
+}

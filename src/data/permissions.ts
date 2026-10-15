@@ -122,6 +122,19 @@ export function canEditGame(actor: Actor, game: GameRef): boolean {
 }
 
 /**
+ * «Опрос гостей заранее» для «100 к 1» (только свой сервер, `server/src/polls.ts`): завести опрос к игре может тот,
+ * кто её правит; смотреть ответы, менять и удалять опрос — тот, кто его завёл, и владелец агентства. Гости отвечают
+ * без входа (проверок прав нет — лимиты по адресу и ловушка для ботов).
+ */
+export function canCreatePoll(actor: Actor, game: GameRef): boolean {
+  return canEditGame(actor, game);
+}
+
+export function canManagePoll(actor: Actor, poll: { ownerId: string }): boolean {
+  return isAdmin(actor) || (writesGames(actor) && actor?.uid === poll.ownerId);
+}
+
+/**
  * Отзывы гостей (решение владельца 15 октября 2026): ведущий видит отзывы о своих мероприятиях, владелец — все и
  * решает, какие показать на сайте. Роли этого не дают.
  */

@@ -19,6 +19,7 @@ const ChangePassword = lazy(() =>
 const Team = lazy(() => import("./screens/studio/Team").then((m) => ({ default: m.Team })));
 const Calendar = lazy(() => import("./screens/studio/Calendar").then((m) => ({ default: m.Calendar })));
 const ReviewPage = lazy(() => import("./screens/ReviewPage").then((m) => ({ default: m.ReviewPage })));
+const PollPage = lazy(() => import("./screens/PollPage").then((m) => ({ default: m.PollPage })));
 const Photos = lazy(() => import("./screens/studio/Photos").then((m) => ({ default: m.Photos })));
 const Decks = lazy(() => import("./screens/studio/Decks").then((m) => ({ default: m.Decks })));
 const Reviews = lazy(() => import("./screens/studio/Reviews").then((m) => ({ default: m.Reviews })));
@@ -76,6 +77,7 @@ export function App() {
           <Route path="/play/:code" element={<Play />} />
           <Route path="/vote/:code" element={<AudienceVote />} />
           <Route path="/review/:sessionId" element={<ReviewPage />} />
+          <Route path="/poll/:pollId" element={<PollPage />} />
           <Route path="/j" element={<JoinByCode />} />
           <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />

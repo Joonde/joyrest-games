@@ -8,6 +8,8 @@ import type { ProgramAction } from "../core/program";
 import type {
   Deck,
   DeckPage,
+  PollForm,
+  PollSummary,
   SavedBranding,
   AvailabilityEntry,
   CalendarMember,
@@ -391,6 +393,19 @@ export interface DecksRepository {
   /** Готовая страница (WebP/JPEG до 1920 px) — её запись для показа. */
   uploadPage(image: Blob, width: number, height: number): Promise<DeckPage>;
   pageUrl(sha: string): string;
+}
+
+/** «Опрос гостей заранее» для «100 к 1» (только свой сервер). */
+export interface PollsRepository {
+  /** Анкета для гостя без входа; null — опроса нет. */
+  form(id: string): Promise<PollForm | null>;
+  /** Ответы гостя: id ответившего создаёт браузер (повтор — та же запись), `website` — ловушка для ботов. */
+  submit(input: { pollId: string; respondentId: string; answers: Record<string, string>; website: string }): Promise<void>;
+  /** Опрос с ответами — владельцу игры и admin; null — нет такого. */
+  get(id: string): Promise<PollSummary | null>;
+  /** Новый или правка (id от браузера): вопросы, открыт ли приём, объединения и подписи групп. */
+  save(poll: { id: string; gameId: string; title: string; questions: PollForm["questions"]; open: boolean; edits: PollSummary["edits"] }): Promise<void>;
+  remove(id: string): Promise<void>;
 }
 
 /** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */

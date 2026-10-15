@@ -192,6 +192,19 @@ describe("игры", () => {
     expect(p.canEditGame({ uid: "host-1", role: "host", active: false }, myGame)).toBe(false);
   });
 
+  it("опрос гостей к «100 к 1»: заводит тот, кто правит игру; ответы видят он и владелец", () => {
+    expect(p.canCreatePoll(host, myGame)).toBe(true);
+    expect(p.canCreatePoll(other, myGame)).toBe(false);
+    expect(p.canCreatePoll(host, agencyGame)).toBe(false);
+    expect(p.canCreatePoll(owner, agencyGame)).toBe(true);
+    expect(p.canCreatePoll(guest, myGame)).toBe(false);
+    expect(p.canManagePoll(host, { ownerId: "host-1" })).toBe(true);
+    expect(p.canManagePoll(other, { ownerId: "host-1" })).toBe(false);
+    expect(p.canManagePoll(owner, { ownerId: "host-1" })).toBe(true);
+    expect(p.canManagePoll({ uid: "host-1", role: "host", active: false }, { ownerId: "host-1" })).toBe(false);
+    expect(p.canManagePoll(guest, { ownerId: "host-1" })).toBe(false);
+  });
+
   it("создать: общую — только admin, личную — только себе", () => {
     expect(p.canCreateGame(host, "agency", "host-1")).toBe(false);
     expect(p.canCreateGame(owner, "agency", ADMIN_UID)).toBe(true);

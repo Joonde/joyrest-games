@@ -35,6 +35,7 @@ const MECHANICS = {
   stage: { modes: ["teams", "solo"], demos: 2 },
   quest: { modes: ["teams"], demos: 2 },
   millionaire: { modes: ["teams", "solo"], demos: 1 },
+  hundred: { modes: ["teams", "solo"], demos: 4 },
   survival: { modes: ["teams"], demos: 1 },
   dragon: { modes: ["teams"], demos: 2 },
   mafia: { modes: ["solo"], demos: 1, players: [6, 9] },

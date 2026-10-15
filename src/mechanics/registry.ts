@@ -18,6 +18,8 @@ import { DEMO_MILLIONAIRE } from "./millionaire/demo";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
 import { lotto } from "./lotto";
 import { mafia } from "./mafia";
+import { spy } from "./spy";
+import { DEMO_SPY } from "./spy/demo";
 import { durak } from "./durak";
 import { createDurak } from "./durak/content";
 import { truth } from "./truth";
@@ -50,7 +52,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -75,6 +77,7 @@ const HINTS: Record<string, string> = {
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
+  spy: "Все знают, где мы, кроме шпиона: локация и роль — тайно на телефоне. Вопросы по кругу, шпион угадывает локацию, город голосует, кто шпион. 4–20 игроков.",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
@@ -189,6 +192,7 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: truth.id, title: "Правда или действие", hint: "40 карточек для любой компании: 20 вопросов и 20 заданий, 3 круга, задания от гостей.", content: DEMO_TRUTH, playMode: "solo" },
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },
   { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: 3 партии подряд, роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
+  { mechanic: spy.id, title: DEMO_SPY.title, hint: "24 локации для любой компании: ресторан, самолёт, цирк, космическая станция… 3 партии по 8 минут, 4–20 игроков, с 11 — два шпиона.", content: DEMO_SPY.content, playMode: "solo" },
   { mechanic: wager.id, title: DEMO_WAGER.title, hint: "7 вопросов с ответом-числом: Эйфелева башня, Эльбрус, Байкал и другие. 3–7 команд.", content: DEMO_WAGER.content, playMode: "teams" },
   { mechanic: wine.id, title: DEMO_WINE.title, hint: "Образец вечера на 4 бутылки: скопируйте и впишите свои вина. Фишки — на телефонах гостей.", content: DEMO_WINE.content, ageRating: "18+", playMode: "solo" },
   { mechanic: perudo.id, title: "Перудо — кости лжеца", hint: "Как в «Пиратах Карибского моря»: 5 костей у каждого, единицы — джокеры, «Не верю!», «Ровно!» и «Палифико». 2–10 игроков или команд.", content: createPerudo(), playMode: "solo" },

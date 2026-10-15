@@ -2665,14 +2665,21 @@ kbd {
   gap: 16px;
 }
 
+.team-card:focus-within {
+  z-index: 2;
+}
+
 .team-card {
-  overflow: hidden;
+  /* Без overflow: hidden — иначе меню «⋯» у карточки обрезается её краем. Углы обложки скругляет сама обложка. */
+  position: relative;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
 .team-card__cover {
+  overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   aspect-ratio: 3 / 1;
   background: var(--gradient-secondary);
 }

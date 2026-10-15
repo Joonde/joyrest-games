@@ -20,6 +20,8 @@ import { lotto } from "./lotto";
 import { mafia } from "./mafia";
 import { spy } from "./spy";
 import { DEMO_SPY } from "./spy/demo";
+import { hundred } from "./hundred";
+import { DEMO_HUNDRED } from "./hundred/demo";
 import { durak } from "./durak";
 import { createDurak } from "./durak/content";
 import { truth } from "./truth";
@@ -52,7 +54,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -78,6 +80,7 @@ const HINTS: Record<string, string> = {
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
   spy: "Все знают, где мы, кроме шпиона: локация и роль — тайно на телефоне. Вопросы по кругу, шпион угадывает локацию, город голосует, кто шпион. 4–20 игроков.",
+  hundred: "Табло популярных ответов, как в телешоу: розыгрыш «Жми первым!», команда отвечает, три ошибки — шанс соперника, двойная, тройная, «Игра наоборот» и «Большая игра». Режим «Весь зал»: все пишут ответы с телефона. Свои проценты — «Опрос гостей заранее».",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
@@ -188,6 +191,7 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: quest.id, title: DEMO_QUEST_DRINKS.title, hint: "Ходилка 18+: тосты, коктейли, вопросы про напитки. Пить — по желанию: сок и вода засчитываются так же.", content: DEMO_QUEST_DRINKS.content, ageRating: "18+", playMode: "teams", themeId: "disco" },
   { mechanic: quest.id, title: DEMO_QUEST_SWEET.title, hint: "Ходилка для детей и сладкоежек: конфеты, торты, мороженое, весёлые задания.", content: DEMO_QUEST_SWEET.content, playMode: "teams", themeId: "joyrest-day" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "45 вопросов на 15 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
+  ...DEMO_HUNDRED.map((d) => ({ mechanic: hundred.id, title: d.title, hint: d.hint, content: d.content, playMode: "teams" as const, themeId: "studio" })),
   { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания с тайными словами капитанам (30 секунд на команду), 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
   { mechanic: olymp.id, title: "Олимп: Вечная зима", hint: "История на 1–2 часа: 10 богов, проверки d100, развилки, Поля Асфоделей и дворец Аида, бои с волками, тенями, Цербером и Пожирателем зимы, три концовки.", content: createOlymp(), playMode: "teams", ageRating: "18+", themeId: "winter" },
   { mechanic: olymp.id, title: "Олимп: Метка Тёмного мира", hint: "Вторая история, 1–1,5 часа: кто-то крадёт огонь очага Гестии. Лемнос или Дельфы, море, Лабиринт Крита, Минотавр и Вестник Эреба, три концовки.", content: { ...createOlymp(), story: "mark" }, playMode: "teams", ageRating: "18+", themeId: "adventure" },

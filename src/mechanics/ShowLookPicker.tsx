@@ -9,7 +9,7 @@ export function ShowLookPicker({
   onChange,
   looks = SHOW_LOOKS,
 }: {
-  game: "board" | "millionaire" | "survival";
+  game: "board" | "millionaire" | "survival" | "hundred";
   value: ShowLook;
   hints: Partial<Record<ShowLook, string>>;
   editable: boolean;

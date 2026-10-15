@@ -11,9 +11,11 @@
 # здесь не должно появиться других `ports:`.
 name: joyrest
 
+# Логи контейнеров — в системный журнал (journald): там они живут не дольше 14 дней и не больше 200 МБ
+# (решение владельца 15 октября 2026 — в логах бывают IP-адреса). `joyrest logs` и `docker logs` работают как раньше.
 x-logging: &logging
-  driver: json-file
-  options: { max-size: "10m", max-file: "3" }
+  driver: journald
+  options: { tag: "joyrest/{{.Name}}" }
 
 services:
   caddy:

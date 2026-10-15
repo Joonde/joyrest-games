@@ -51,6 +51,33 @@ describe("защита выкладки", () => {
     expect(body).not.toMatch(/(?<![-\w])release(?![-\w])/);
   });
 
+  it("отложенная из-за игры основная выкладка повторяется сама — только уже разрешённый коммит, без force и не во время игры", () => {
+    const joyrest = read("deploy/bin/joyrest");
+    const start = joyrest.indexOf("\nretry_blocked_prod() {");
+    const body = joyrest.slice(start, joyrest.indexOf("\n}", start + 1));
+    // Коммит берётся только из статуса blocked основной версии (его пишет deploy_env после проверки ключа main).
+    expect(body).toContain('"$DEPLOY_DIR/status-prod"');
+    expect(body).toContain('[ "$state" = blocked ] || return 0');
+    expect(body).toContain("active=$(active_games) || return 0");
+    expect(body).toContain('[ "$active" -gt 0 ] && return 0');
+    expect(body).toContain('deploy_env prod "$sha" )');
+    expect(body).not.toContain("force");
+    expect(joyrest).toMatch(/\ncmd_auto_update\(\) \{\n[^}]*retry_blocked_prod/);
+  });
+
+  it("логи с IP — не дольше двух недель: контейнеры пишут в журнал, журнал и файлы /var/log чистятся", () => {
+    const compose = read("deploy/compose.yml");
+    expect(compose).toContain("driver: journald");
+    expect(compose).not.toContain("json-file");
+    const joyrest = read("deploy/bin/joyrest");
+    expect(joyrest).toContain("LOG_DAYS=14");
+    expect(joyrest).toContain("MaxRetentionSec=%sday");
+    expect(joyrest).toContain("logtarget = SYSTEMD-JOURNAL");
+    expect(joyrest).toContain("maxage 7");
+    const start = joyrest.indexOf("\ninstall_system() {");
+    expect(joyrest.slice(start, joyrest.indexOf("\n}", start + 1))).toContain("ensure_log_retention");
+  });
+
   it("сборка: окружение production для main, ветки — тестовый ключ, без force и без тега release", () => {
     const build = read(".github/workflows/build.yml");
     expect(build).toContain("environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}");

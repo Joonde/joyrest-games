@@ -362,6 +362,36 @@ ensure_dirs() {
 
 # Системные файлы из текущего релиза: команды, привратник, службы systemd, Caddy.
 # Возвращает 0, если Caddyfile изменился (нужен caddy reload).
+# Логи с IP-адресами хранятся не дольше двух недель (решение владельца 15 октября 2026). Повторяется при каждой
+# выкладке основной версии и ничего не трогает, если уже настроено:
+# - системный журнал (туда же пишут контейнеры, compose: driver journald) — 14 дней и не больше 200 МБ;
+# - fail2ban пишет в журнал, а не в свой файл;
+# - текстовые журналы в /var/log (auth.log, ufw.log, syslog) — после ротации не дольше 7 дней (maxage 7):
+#   файл ротируется раз в неделю, поэтому самая старая запись — не старше ~14 дней.
+LOG_DAYS=14
+write_if_changed() {
+  # $1 — файл, $2 — содержимое; 0 — файл изменён.
+  [ "$(cat "$1" 2>/dev/null)" = "$2" ] && return 1
+  mkdir -p "$(dirname "$1")"
+  printf '%s\n' "$2" > "$1"
+}
+ensure_log_retention() {
+  command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ] || return 0
+  if write_if_changed /etc/systemd/journald.conf.d/joyrest.conf "$(printf '[Journal]\nSystemMaxUse=200M\nMaxRetentionSec=%sday' "$LOG_DAYS")"; then
+    systemctl restart systemd-journald || echo "Не удалось перезапустить journald" >&2
+  fi
+  if [ -d /etc/fail2ban ] && write_if_changed /etc/fail2ban/fail2ban.d/joyrest.conf "$(printf '[Definition]\nlogtarget = SYSTEMD-JOURNAL')"; then
+    systemctl restart fail2ban >/dev/null 2>&1 || echo "Не удалось перезапустить fail2ban — проверьте: systemctl status fail2ban" >&2
+    rm -f /var/log/fail2ban.log*
+  fi
+  if [ -f /etc/logrotate.conf ] && ! grep -qx 'maxage 7' /etc/logrotate.conf; then
+    sed -i '/^maxage /d' /etc/logrotate.conf
+    printf '\n# JoyRest: журналы (там бывают IP) — не дольше двух недель\nmaxage 7\n' >> /etc/logrotate.conf
+  fi
+  # Уже повёрнутые старые файлы — сразу, не дожидаясь следующей ротации.
+  find /var/log -maxdepth 2 -type f \( -name '*.gz' -o -name '*.[0-9]' \) -mtime +"$LOG_DAYS" -delete 2>/dev/null || true
+}
+
 install_system() {
   local dir changed=1
   dir=$(readlink -f "$ROOT_DIR/current")
@@ -369,6 +399,7 @@ install_system() {
   install -m 755 "$dir/bin/joyrest-gate" /usr/local/bin/joyrest-gate
 
   ensure_dirs
+  ensure_log_retention
 
   if [ -d "$dir/systemd" ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
     local unit reload=0
@@ -1065,9 +1096,31 @@ registry_digest() {
 # Основная по тегу не выкладывается (аудит 7 октября 2026): тег в GHCR может поставить сборка любой
 # ветки, а основной релиз ставит команды и службы от root. Основная — по SSH из main (окружение
 # GitHub production) или вручную: sudo joyrest deploy <коммит>.
+# Основная версия, отложенная из-за игры, выкладывается сама, как только игра кончилась (решение владельца
+# 15 октября 2026): таймер раз в 2 минуты смотрит статус «blocked <коммит>». Пока игра идёт — молча ждём (журнал не
+# засоряется); новая выкладка из main заменяет статус, поэтому выкладывается только последний отложенный коммит.
+retry_blocked_prod() {
+  local _day _time state sha active code=0
+  read -r _day _time state sha _ < "$DEPLOY_DIR/status-prod" 2>/dev/null || return 0
+  [ "$state" = blocked ] || return 0
+  sha=${sha%:}
+  [[ "$sha" =~ $SHA_RE ]] || return 0
+  [ "$(release_value prod APP_VERSION)" = "$sha" ] && return 0
+  active=$(active_games) || return 0
+  [ "$active" -gt 0 ] && return 0
+  log "[prod] игра закончилась — выкладываю отложенный $sha"
+  ( deploy_env prod "$sha" ) || code=$?
+  if [ "$code" = 0 ]; then
+    notify "✅ Игра закончилась — основная версия выложена сама (${sha:0:7})."
+  elif [ "$code" != 3 ]; then
+    notify "⚠️ Отложенная выкладка основной версии (${sha:0:7}) не удалась — подробности: sudo joyrest status"
+  fi
+}
+
 cmd_auto_update() {
   need_root auto-update
   local env=test tag="test-release" remote deployed sha
+  retry_blocked_prod
   {
     remote=$(registry_digest "$tag" 2>/dev/null) || return 0
     [[ "$remote" =~ ^sha256:[0-9a-f]{64}$ ]] || return 0

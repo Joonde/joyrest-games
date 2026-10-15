@@ -1,18 +1,17 @@
 // «Бой с драконом»: на экране зала — дракон с полоской здоровья, задание и герои команд (жизни, урон);
 // на телефоне капитана — выбор героя и свойств, ответы, кубик.
-import { useEffect, useRef, useState } from "react";
-import { useCountdownSounds } from "../../components/live/useCountdownSounds";
-import { Confetti } from "../../components/live/Confetti";
-import { playSample, playSound, preloadSamples } from "../../components/live/sound";
-import { DragonArt, dragonKind, type DragonKind, type DragonMood } from "./DragonArt";
+import { useState } from "react";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { pointsLabel } from "../../core/results";
-import { acceptsAnswers, secondsLeft } from "../../core/session";
+import { acceptsAnswers } from "../../core/session";
 import type { Session } from "../../data/types";
-import type { PlayerViewProps, ViewProps } from "../types";
+import type { PlayerViewProps } from "../types";
 import { HEROES, heroOf, STAT_MAX, STAT_POINTS, STATS, statTitle, type DragonContent, type DragonTask, type Stat, type Stats } from "./content";
-import { battleOf, maxLives, parseDragonResult, taskOf, type DragonResult } from "./logic";
+import { maxLives, parseDragonResult, taskOf, type DragonResult } from "./logic";
+
+// Экран зала — новый вид (look/stage.tsx): взрослый и детский.
+export { DragonStage as DragonScreenView } from "./look/stage";
 
 export type DragonAnswerValue = { hero: string; stats: Stats } | { choice: number } | { roll: true };
 
@@ -90,139 +89,6 @@ export function HeroRow({ session, content, result, size = "screen" }: { session
         );
       })}
     </ul>
-  );
-}
-
-function DragonBar({ name, hp, max, kind, mood, pulse }: { name: string; hp: number; max: number; kind: DragonKind; mood: DragonMood; pulse: string }) {
-  const share = max > 0 ? Math.max(0, Math.min(1, hp / max)) : 0;
-  return (
-    <div className={`dr-dragon dr-dragon--${kind}`}>
-      <DragonArt kind={kind} mood={hp === 0 ? "down" : mood} pulse={pulse} />
-      <div className="dr-dragon__side">
-        <p className="dr-dragon__name">{name}</p>
-        <div className="dr-dragon__bar" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={hp} aria-label={`${name}: здоровье ${hp} из ${max}`}>
-          <span className="dr-dragon__fill" style={{ width: `${share * 100}%` }} />
-          <span className="dr-dragon__hp">
-            {hp.toLocaleString("ru-RU")} / {max.toLocaleString("ru-RU")}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Что делает дракон после «Удар!»: ранен (урон), бьёт сам (кто-то потерял жизнь), то и другое. */
-function moodOf(r: ReturnType<typeof parseDragonResult>): DragonMood {
-  if (r.phase === "defeat") return "attack";
-  if (r.phase !== "reveal" && r.phase !== "victory") return "idle";
-  const hits = Object.values(r.last);
-  const hurt = hits.some((h) => h.damage > 0);
-  const attack = hits.some((h) => h.lost > 0 || h.saved === "shield" || h.saved === "dodge");
-  return hurt && attack ? "hurtAttack" : hurt ? "hurt" : attack ? "attack" : "idle";
-}
-
-export function DragonScreenView({ session, content }: ViewProps<DragonContent>) {
-  const r = parseDragonResult(session.state.result);
-  const { stage, step } = session.state;
-  const battle = battleOf(content, r);
-  const task = taskOf(content, r);
-  const now = useServerNow(250, stage === "question");
-  const left = stage === "question" ? secondsLeft(session.state, now) : null;
-  useCountdownSounds(left);
-  const prev = useRef(`${step}:${r.phase}`);
-  useEffect(() => preloadSamples(["dragonAttack", "dragonHurt"]), [step]);
-  useEffect(() => {
-    const key = `${step}:${r.phase}`;
-    if (prev.current !== key) {
-      const mood = moodOf(r);
-      if (r.phase === "victory") {
-        // Предсмертный рёв, потом фанфары.
-        playSample("dragonHurt", "roar");
-        window.setTimeout(() => playSound("fanfare"), 1500);
-      } else if (r.phase === "defeat") {
-        playSample("dragonAttack", "flame");
-      } else if (r.phase === "reveal") {
-        // Ранен — рёв от боли; бьёт в ответ — атака.
-        if (mood === "hurt" || mood === "hurtAttack") playSample("dragonHurt", "roar");
-        if (mood === "attack" || mood === "hurtAttack") window.setTimeout(() => playSample("dragonAttack", "flame"), mood === "hurtAttack" ? 1400 : 0);
-        if (mood === "idle") playSound("wrong");
-      } else if (r.phase === "intro") {
-        if (r.task === 0) playSample("dragonAttack", "roar");
-        else playSound("gong");
-      }
-    }
-    prev.current = key;
-  }, [step, r.phase, r.last]);
-
-  const killer = nameOf(session, r.killer);
-  const mvp = [...r.order].sort((a, b) => (r.dmg[b] ?? 0) - (r.dmg[a] ?? 0))[0] ?? null;
-
-  return (
-    <div className="dr-screen">
-      {r.phase === "victory" && <Confetti burst={`dr:${step}`} />}
-      {r.order.length === 0 || r.phase === "heroes" ? (
-        <section className="dr-screen__main">
-          <span className="quiz-screen__badge">Бой с драконом</span>
-          {content.battles[0] && (
-            <div className="dr-screen__preview">
-              <DragonArt kind={dragonKind(content.battles[0].name, 0)} mood="idle" pulse="preview" />
-            </div>
-          )}
-          <h2 className="dr-title">{r.phase === "heroes" ? "Капитаны выбирают героев" : "Скоро в бой!"}</h2>
-          <p className="dr-note">У каждого героя своя сила. Капитан раскладывает {STAT_POINTS} очков по свойствам: Сила, Ум, Ловкость, Удача, Харизма.</p>
-          {r.phase === "heroes" && session.state.answered > 0 && <p className="dr-note">Выбрали: {session.state.answered} из {r.order.length}</p>}
-        </section>
-      ) : r.phase === "over" ? (
-        <section className="dr-screen__main">
-          <h2 className="dr-title">Битвы окончены!</h2>
-        </section>
-      ) : (
-        <section className="dr-screen__main">
-          {battle && <DragonBar name={battle.name} hp={r.hp} max={battle.hp} kind={dragonKind(battle.name, r.battle)} mood={moodOf(r)} pulse={`${step}:${r.phase}`} />}
-          {r.phase === "intro" && task ? (
-            <>
-              <span className="quiz-screen__badge">
-                Бой {r.battle + 1} · задание {r.task + 1} из {battle?.tasks.length ?? 0}
-              </span>
-              <h2 className="dr-title">
-                <StatBadge stat={task.stat} />
-              </h2>
-              <p className="dr-note">{task.kind === "dice" ? "Капитаны бросают кубик" : task.kind === "task" ? "Активное задание — засчитывает ведущий" : "Вопрос — отвечает капитан"}</p>
-            </>
-          ) : r.phase === "victory" ? (
-            <>
-              <h2 className="dr-title">Дракон повержен! 🏆</h2>
-              {killer && (
-                <p className="dr-who">
-                  Последний удар — <NameText name={killer} /> (+{content.killBonus})
-                </p>
-              )}
-            </>
-          ) : r.phase === "defeat" ? (
-            <>
-              <h2 className="dr-title">Дракон победил 🔥</h2>
-              <p className="dr-note">Очки этого боя сгорели. Следующий бой — новый шанс!</p>
-            </>
-          ) : task ? (
-            <>
-              <span className="quiz-screen__badge">
-                Задание {r.task + 1}
-                {left !== null ? ` · ${left} с` : ""}
-              </span>
-              <TaskCard task={task} reveal={stage === "reveal"} />
-            </>
-          ) : null}
-          {(r.phase === "victory" || r.phase === "defeat") && mvp && (r.dmg[mvp] ?? 0) > 0 && (
-            <p className="dr-note">
-              Больше всех урона: <NameText name={nameOf(session, mvp)} /> — {r.dmg[mvp]}
-            </p>
-          )}
-        </section>
-      )}
-      <section className="dr-screen__heroes" aria-label="Герои">
-        <HeroRow session={session} content={content} result={r} />
-      </section>
-    </div>
   );
 }
 

@@ -58,20 +58,22 @@ function writesLibrary(actor: Actor): boolean {
  * (экран зала входит устройством).
  */
 export function canUploadVideo(actor: Actor): boolean {
-  return writesLibrary(actor);
+  // Создатель игр тоже (решение владельца 15 октября 2026): делает игры с видео — загружает видео сам; убрать может только своё.
+  return writesLibrary(actor) || hasAccess(actor, "creator");
 }
 
 export function canUseVideos(actor: Actor): boolean {
   return canUseGames(actor);
 }
 
-/** Музыка в студии: ведущие, музыкальные редакторы; слушать — ещё создатели игр и тестировщики. */
+/** Музыка в студии: ведущие, музыкальные редакторы, создатели игр, заместитель; слушать — ещё тестировщики. */
 export function canUseTracks(actor: Actor): boolean {
-  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "tester");
+  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "tester") || hasAccess(actor, "deputy");
 }
 
+/** Загружать музыку себе: ведущие, музыкальные редакторы, создатели игр и заместитель (музыка нужна прямо в конструкторе игр). */
 function writesTracks(actor: Actor): boolean {
-  return hostsGames(actor) || hasAccess(actor, "music");
+  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "deputy");
 }
 
 /** «Игры сейчас» всех ведущих и завершение чужой брошенной игры: владелец и помощник владельца. */

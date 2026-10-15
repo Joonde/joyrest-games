@@ -120,7 +120,13 @@ export interface GamesRepository {
    * содержимое (их знает механика). В копии у картинок те же id.
    */
   copy(sourceGameId: string, mediaIds: string[], draft: NewGame): Promise<string>;
+  /**
+   * Свой сервер: сохранение сверяет версию игры, с которой правит этот человек. Игру за это время изменил другой —
+   * ошибка `failed-precondition` (`conflictBy` в ней — его имя), ничего не записано.
+   */
   update(gameId: string, patch: GamePatch): Promise<void>;
+  /** Свой сервер: «Сохранить мою версию поверх» — следующее сохранение без сверки версии. */
+  overwriteNext?(gameId: string): void;
   /** Удаляет игру вместе со всеми её картинками. */
   remove(gameId: string): Promise<void>;
 }
@@ -289,7 +295,8 @@ export interface EventsRepository {
   /** Списки: предстоящие и идущие, архив (прошедшие), отменённые — до 300 последних. */
   list(scope: "upcoming" | "past" | "cancelled"): Promise<AgencyEvent[]>;
   /** Владелец: новое мероприятие или правка (id от браузера — повтор та же запись). */
-  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held">): Promise<AgencyEvent>;
+  /** `expect` — версия, с которой открыли форму правки: мероприятие за это время изменил другой — ошибка `changed`. */
+  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held" | "updatedAt"> & { expect?: number }): Promise<AgencyEvent>;
   /** Итоги: все мероприятия периода до 370 дней (только владелец). */
   period(from: string, to: string): Promise<AgencyEvent[]>;
   /** «Проведено» (true), «Не состоялось» (false), снять отметку (null) — после начала. */
@@ -508,7 +515,8 @@ export interface VenuesRepository {
   get(id: string): Promise<VenueRecord>;
   /** Владелец заводит площадку сам: нужно только название. */
   create(data: VenueData): Promise<VenueRecord>;
-  update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string }): Promise<VenueRecord>;
+  /** `expect` с `data` — версия анкеты, с которой начали править: её за это время изменил другой — ошибка `changed`. */
+  update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string; expect?: number }): Promise<VenueRecord>;
   /** «Удалить» — в архив (не навсегда); `restore` возвращает из архива. */
   remove(id: string): Promise<void>;
   restore(id: string): Promise<VenueRecord>;

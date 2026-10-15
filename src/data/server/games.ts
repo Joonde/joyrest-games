@@ -8,6 +8,9 @@ import { errorCodeOf } from "../retry";
 import type { AgeRating, Game, PlayMode } from "../types";
 import { api, asRecord, asText, newId } from "./api";
 
+/** Версия каждой открытой игры, с которой правит этот человек: сервер сверяет её при сохранении (совместная работа). */
+const versions = new Map<string, number>();
+
 function parseAge(value: unknown): AgeRating {
   return value === "12+" || value === "18+" ? value : "0+";
 }
@@ -37,6 +40,8 @@ export function parseGame(value: unknown): Game | null {
     createdAt: millis(data.createdAt),
     updatedAt: millis(data.updatedAt),
     folder: asText(data.folder),
+    editedBy: asText(data.editedBy),
+    editedByName: asText(data.editedByName),
   };
 }
 
@@ -57,7 +62,10 @@ export const serverGamesRepository: GamesRepository = {
 
   async get(gameId) {
     try {
-      return parseGame(await api("GET", path(gameId)));
+      const game = parseGame(await api("GET", path(gameId)));
+      // Версия, с которой этот человек начал править (для сверки при автосохранении).
+      if (game?.updatedAt) versions.set(game.id, game.updatedAt);
+      return game;
     } catch (error) {
       if (errorCodeOf(error) === "not-found") return null;
       throw error;
@@ -77,7 +85,13 @@ export const serverGamesRepository: GamesRepository = {
   },
 
   async update(gameId, patch) {
-    await api("PATCH", path(gameId), patch);
+    const base = versions.get(gameId);
+    const result = asRecord(await api("PATCH", path(gameId), base !== undefined ? { ...patch, base } : patch));
+    if (typeof result.updatedAt === "number") versions.set(gameId, result.updatedAt);
+  },
+
+  overwriteNext(gameId) {
+    versions.delete(gameId);
   },
 
   async remove(gameId) {

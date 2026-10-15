@@ -1424,13 +1424,15 @@ legend {
 }
 
 .save-status--offline,
-.save-status--error {
+.save-status--error,
+.save-status--conflict {
   color: var(--color-text);
   border-color: var(--color-danger);
 }
 
 .save-status--offline .save-status__dot,
-.save-status--error .save-status__dot {
+.save-status--error .save-status__dot,
+.save-status--conflict .save-status__dot {
   background: var(--color-danger);
 }
 
@@ -2720,6 +2722,21 @@ kbd {
   margin: 0;
   white-space: pre-line;
   overflow-wrap: anywhere;
+}
+
+/* У владельца на карточке: роль, квалификация, статус и «⋯» — управлять, не уходя в «Управление». */
+.team-card__admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.team-card__admin .meta {
+  min-width: 0;
 }
 
 /* ---------- Живой фон тем-концепций (Scene.tsx): только transform и opacity ----------
@@ -5192,6 +5209,31 @@ ul.chips {
   body {
     background: #fff !important;
     color: #221e1b !important;
+  }
+
+  /* «Мои возможности» → «Скачать PDF»: светлый лист без шапки и кнопок. */
+  .abilities {
+    --color-text: #221e1b;
+    --color-text-muted: #5f554e;
+    --color-surface: #fff;
+    --color-surface-alt: #f6efe8;
+    --color-border: #e5dbd2;
+    --color-danger: #8f3a31;
+    --color-highlight: #7d5a2c;
+    max-width: none;
+    padding: 0;
+    color: #221e1b;
+  }
+
+  .abilities .top-bar,
+  .abilities .topbar,
+  .abilities header.top,
+  .abilities__tools {
+    display: none !important;
+  }
+
+  .abilities__group {
+    break-inside: avoid;
   }
 
   .offer {
@@ -17564,6 +17606,40 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .clients-late {
   margin: 0;
+}
+
+/* «Мои возможности»: что можно (галочка) и чего нельзя (крестик), «Где: …» под пунктом. */
+.abilities__name {
+  margin: 0;
+}
+
+.abilities__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.abilities__list li {
+  display: grid;
+  gap: 2px;
+  padding-left: 28px;
+  position: relative;
+}
+
+.abilities__list li::before {
+  content: "✓";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.abilities__list--no li::before {
+  content: "✕";
+  color: var(--color-danger);
 }
 
 /* «В работе · Мария · 15 октября, 19:20» — кто взял клиента (владелец и менеджер видят друг друга). */

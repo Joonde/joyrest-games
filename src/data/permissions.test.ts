@@ -389,7 +389,8 @@ describe("роли доступа помощников", () => {
         expect(p.canReviewTracks(a)).toBe(false);
         expect(p.canCleanupSessions(a)).toBe(false);
         expect(p.canArchiveVenues(a)).toBe(false);
-        expect(p.canUploadVideo(a)).toBe(false);
+        // Видео JoyRest загружают ещё создатель игр и заместитель (решение владельца 15 октября 2026) — остальные нет.
+        if (role !== "creator") expect(p.canUploadVideo(a)).toBe(false);
       }
     }
   });
@@ -411,7 +412,7 @@ describe("роли доступа помощников", () => {
     expect(p.canManageVenues(a)).toBe(false);
   });
 
-  it("создатель игр: свои игры и предложения, без сессий", () => {
+  it("создатель игр: свои игры с картинками, музыкой и видео, предложения, без сессий", () => {
     const a = dj("creator");
     const own = { scope: "personal" as const, ownerId: "dj-1" };
     expect(p.canCreateGame(a, "personal", "dj-1")).toBe(true);
@@ -420,7 +421,16 @@ describe("роли доступа помощников", () => {
     expect(p.canCopyToPersonal(a, agencyGame)).toBe(true);
     expect(p.canCreateSession(a)).toBe(false);
     expect(p.canLaunchGame(a, own)).toBe(false);
-    expect(p.canUploadTrack(a, "personal")).toBe(false);
+    // Решение владельца 15 октября 2026: музыка и видео загружаются прямо в конструкторе — создателю игр они нужны.
+    expect(p.canUploadTrack(a, "personal")).toBe(true);
+    expect(p.canEditTrack(a, track("dj-1"))).toBe(true);
+    expect(p.canEditTrack(a, track("host-1"))).toBe(false);
+    expect(p.canUploadTrack(a, "agency")).toBe(false);
+    expect(p.canReviewTracks(a)).toBe(false);
+    expect(p.canUploadVideo(a)).toBe(true);
+    expect(p.canUseVideos(a)).toBe(true);
+    expect(p.canChangeMedia(a, own)).toBe(true);
+    expect(p.canChangeMedia(a, agencyGame)).toBe(false);
     expect(p.canUseTrack(a, agencyTrack)).toBe(true);
     expect(p.canSeeAllSessions(a)).toBe(false);
   });
@@ -460,6 +470,8 @@ describe("роли доступа помощников", () => {
       expect(p.canChangeMedia(a, agencyGame)).toBe(true);
       expect(p.canDeleteGame(a, agencyGame)).toBe(false);
       expect(p.canUploadVideo(a)).toBe(true);
+      expect(p.canUploadTrack(a, "personal")).toBe(true);
+      expect(p.canUploadTrack(a, "agency")).toBe(false);
       expect(p.isAdmin(a)).toBe(false);
       expect(p.canManageHosts(a)).toBe(false);
       expect(p.canSetAccessRole(a, other)).toBe(false);

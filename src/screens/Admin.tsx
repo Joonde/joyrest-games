@@ -19,7 +19,8 @@ import {
   type UserProfile,
 } from "../data";
 import { ConfirmDialog, useConfirm } from "../components/ConfirmDialog";
-import { ActionMenu } from "../components/Menu";
+import { Fold } from "../components/Fold";
+import { ActionMenu, type MenuAction } from "../components/Menu";
 import { ListSkeleton } from "../components/Skeleton";
 import { LoadFailedInline } from "../components/Status";
 import { Toast, useToast } from "../components/Toast";
@@ -56,13 +57,10 @@ function useSessionCleanup(): CleanupState {
 }
 
 /**
- * «Управление ведущими» — вторая вкладка «Команды JoyRest», только у владельца (`/admin`,
- * `/studio/team?tab=manage`): добавить, отключить, квалификация, баллы, доступ к базе площадок.
- * Любое изменение — только после подтверждения.
+ * Все действия владельца с человеком команды — одно меню «⋯» и окна (решение владельца 15 октября 2026: те же действия и
+ * на вкладке «Управление», и прямо на карточках «Команды»). `update` правит список людей того экрана, где хук.
  */
-export function HostsManager({ profile }: { profile: UserProfile }) {
-  const [hosts, retry, update] = useLoad(() => usersRepo.listHosts(), []);
-  const cleanup = useSessionCleanup();
+export function useHostAdmin(profile: UserProfile, update: (fn: (list: HostAccount[]) => HostAccount[]) => void) {
   const [created, setCreated] = useState<IssuedPassword | null>(null);
   const [toDisable, setToDisable] = useState<HostAccount | null>(null);
   const [toReset, setToReset] = useState<HostAccount | null>(null);
@@ -72,7 +70,6 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, showToast] = useToast();
   const [dialog, confirm] = useConfirm();
-  const [group, setGroup] = useState<"hosts" | "pros">("hosts");
   const [toProfession, setToProfession] = useState<{ host: HostAccount; value: Profession } | null>(null);
   const [toRole, setToRole] = useState<{ host: HostAccount; value: AccessRole | null } | null>(null);
 
@@ -117,7 +114,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
   function askEnable(host: HostAccount) {
     confirm({
       title: `Включить доступ для ${host.name}?`,
-      text: "Ведущий снова сможет входить в студию и запускать игры.",
+      text: "Человек снова сможет входить в студию.",
       confirmLabel: "Включить доступ",
       run: async () => {
         setBusyUid(host.uid);
@@ -132,8 +129,13 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
     });
   }
 
-  const allHosts = hosts.status === "ready" ? hosts.data : [];
-  const shownHosts = allHosts.filter((h) => (group === "hosts" ? h.role === "admin" || professionOf(h.profession) === "host" : h.role !== "admin" && professionOf(h.profession) !== "host"));
+  /** Отключить или включить — с подтверждением. */
+  function toggleActive(host: HostAccount) {
+    if (host.active) {
+      setDialogError(null);
+      setToDisable(host);
+    } else askEnable(host);
+  }
 
   // Есть только на своём сервере: у Firebase без Cloud Functions сбросить пароль нельзя.
   const resetPassword = usersRepo.resetHostPassword?.bind(usersRepo);
@@ -154,129 +156,35 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
     }
   }
 
-  return (
+  /** Пункты меню «⋯» для человека (что владельцу можно с ним сделать). `withActive` — и «Отключить/Включить». */
+  function actionsFor(host: HostAccount, withActive = false): MenuAction[] {
+    const isHostPro = host.role !== "admin" && professionOf(host.profession) === "host";
+    return [
+      { label: "Возможности (PDF)", to: `/studio/abilities?uid=${encodeURIComponent(host.uid)}` },
+      ...(withActive && permissions.canSetHostActive(profile, host) ? [{ label: host.active ? "Отключить доступ" : "Включить доступ", onClick: () => toggleActive(host) }] : []),
+      ...(staffRepo && isHostPro
+        ? [
+            { label: "Квалификация и стаж", onClick: () => setToLevel(host) },
+            { label: "Баллы", onClick: () => setToPoints(host) },
+          ]
+        : []),
+      ...(usersRepo.setProfession && permissions.canSetHostActive(profile, host)
+        ? [{ label: "Профессия", onClick: () => { setDialogError(null); setToProfession({ host, value: professionOf(host.profession) }); } }]
+        : []),
+      ...(usersRepo.setAccessRole && permissions.canSetAccessRole(profile, host)
+        ? [{ label: "Роль доступа", onClick: () => { setDialogError(null); setToRole({ host, value: isAccessRole(host.accessRole) ? host.accessRole : null }); } }]
+        : []),
+      ...(venuesRepo && permissions.canGrantVenueAccess(profile, host)
+        ? [{ label: host.venueAccess ? "Закрыть базу площадок" : "Открыть базу площадок", onClick: () => void setVenueAccess(host, !host.venueAccess) }]
+        : []),
+      ...(resetPassword && permissions.canResetHostPassword(profile, host)
+        ? [{ label: "Новый временный пароль", onClick: () => { setDialogError(null); setToReset(host); } }]
+        : []),
+    ];
+  }
+
+  const elements = (
     <>
-      {created ? (
-        <CreatedCard created={created} onDone={() => setCreated(null)} onToast={showToast} />
-      ) : (
-        <AddHostForm
-          onCreated={(result) => {
-            setCreated({ ...result, kind: "created" });
-            update((list) => [result.account, ...list]);
-          }}
-        />
-      )}
-
-      <section className="card">
-        {usersRepo.setProfession && (
-          <div className="seg" role="group" aria-label="Кого показать">
-            <button type="button" className={group === "hosts" ? "seg__btn is-on" : "seg__btn"} aria-pressed={group === "hosts"} onClick={() => setGroup("hosts")}>
-              Ведущие
-            </button>
-            <button type="button" className={group === "pros" ? "seg__btn is-on" : "seg__btn"} aria-pressed={group === "pros"} onClick={() => setGroup("pros")}>
-              Другие профессии
-            </button>
-          </div>
-        )}
-        <h2>
-          {group === "hosts" ? "Все ведущие" : "Профессии JoyRest"}
-          {hosts.status === "ready" ? `: ${shownHosts.length}` : ""}
-        </h2>
-        <p className="muted">
-          {group === "hosts"
-            ? "Отключённый ведущий не может войти в студию и запускать игры. Его игры и история сохраняются."
-            : "Диджеи, музыканты, фокусники и другие: видят команду и свою страницу, игр у них нет. Профессию можно поменять в «⋯»."}
-        </p>
-        {hosts.status === "ready" && shownHosts.length === 0 && <p className="muted">{group === "hosts" ? "Ведущих пока нет." : "Пока никого: добавьте человека выше и выберите профессию."}</p>}
-        {hosts.status === "loading" && <ListSkeleton count={2} bare />}
-        {hosts.status === "error" && <LoadFailedInline onRetry={retry} />}
-        {hosts.status === "ready" && (
-          <ul className="people">
-            {shownHosts.map((host) => (
-              <li key={host.uid} className={host.active ? undefined : "people__item--off"}>
-                <div className="people__text">
-                  <span className="people__name line-clamp">{host.name}</span>
-                  <span className="muted small line-clamp">{host.email || "почта не указана"}</span>
-                  <span className="small">
-                    {host.role === "admin" ? "Администратор" : professionTitle(host.profession)} ·{" "}
-                    <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
-                  </span>
-                  {host.role !== "admin" && accessRoleTitle(host.accessRole) && <span className="small role-tag">Роль: {accessRoleTitle(host.accessRole)}</span>}
-                  {staffRepo && host.role !== "admin" && professionOf(host.profession) === "host" && (
-                    <ul className="meta" aria-label={`Квалификация и баллы: ${host.name}`}>
-                      <li>{levelTitle(host.level) ?? "Без квалификации"}</li>
-                      {host.experienceSince ? <li>Стаж: {experienceLabel(host.experienceSince, Date.now())}</li> : null}
-                      <li>{pointsLabel(host.points ?? 0)}</li>
-                      {venuesRepo && host.venueAccess && <li>База площадок</li>}
-                    </ul>
-                  )}
-                </div>
-                {permissions.canSetHostActive(profile, host) && (
-                  <div className="people__actions">
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      disabled={busyUid === host.uid}
-                      onClick={() => {
-                        if (host.active) {
-                          setDialogError(null);
-                          setToDisable(host);
-                        } else {
-                          askEnable(host);
-                        }
-                      }}
-                    >
-                      {host.active ? "Отключить" : "Включить"}
-                    </button>
-                    {(resetPassword || staffRepo || venuesRepo || usersRepo.setAccessRole) && (
-                      <ActionMenu
-                        icon="dots"
-                        label={`Действия: ${host.name}`}
-                        actions={[
-                          ...(staffRepo
-                            ? [
-                                { label: "Квалификация и стаж", onClick: () => setToLevel(host) },
-                                { label: "Баллы", onClick: () => setToPoints(host) },
-                              ]
-                            : []),
-                          ...(usersRepo.setProfession && permissions.canSetHostActive(profile, host)
-                            ? [{ label: "Профессия", onClick: () => setToProfession({ host, value: professionOf(host.profession) }) }]
-                            : []),
-                          ...(usersRepo.setAccessRole && permissions.canSetAccessRole(profile, host)
-                            ? [{ label: "Роль доступа", onClick: () => { setDialogError(null); setToRole({ host, value: isAccessRole(host.accessRole) ? host.accessRole : null }); } }]
-                            : []),
-                          ...(venuesRepo && permissions.canGrantVenueAccess(profile, host)
-                            ? [
-                                {
-                                  label: host.venueAccess ? "Закрыть базу площадок" : "Открыть базу площадок",
-                                  onClick: () => void setVenueAccess(host, !host.venueAccess),
-                                },
-                              ]
-                            : []),
-                          ...(resetPassword && permissions.canResetHostPassword(profile, host)
-                            ? [
-                                {
-                                  label: "Новый временный пароль",
-                                  onClick: () => {
-                                    setDialogError(null);
-                                    setToReset(host);
-                                  },
-                                },
-                              ]
-                            : []),
-                        ]}
-                      />
-                    )}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <CleanupNote state={cleanup} />
-
       <LevelDialog
         host={toLevel}
         onClose={() => setToLevel(null)}
@@ -293,7 +201,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
 
       <ConfirmDialog
         open={toDisable !== null}
-        title="Отключить ведущего?"
+        title="Отключить доступ?"
         confirmLabel="Отключить"
         busy={busyUid !== null}
         error={dialogError}
@@ -301,7 +209,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
         onCancel={() => setToDisable(null)}
       >
         <p>
-          {toDisable?.name} больше не сможет войти в студию и запускать игры. Включить доступ можно в любой момент.
+          {toDisable?.name} больше не сможет войти в студию. Включить доступ можно в любой момент — игры и история сохраняются.
         </p>
       </ConfirmDialog>
 
@@ -316,7 +224,7 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
       >
         <p>
           {toReset?.name} выйдет на всех устройствах, старый пароль перестанет действовать. Новый пароль покажем один
-          раз — при входе ведущий заменит его на свой.
+          раз — при входе человек заменит его на свой.
         </p>
       </ConfirmDialog>
 
@@ -332,25 +240,23 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
           if (!target || !usersRepo.setProfession) return;
           setBusyUid(target.host.uid);
           setDialogError(null);
+          // Стал менеджером по продажам без роли — роль «Менеджер по продажам» ставится сама, иначе он ничего не увидит.
+          const giveSalesRole = target.value === "sales" && !target.host.accessRole && usersRepo.setAccessRole && permissions.canSetAccessRole(profile, target.host);
           usersRepo
             .setProfession(target.host.uid, target.value)
+            .then(() => (giveSalesRole && usersRepo.setAccessRole ? usersRepo.setAccessRole(target.host.uid, "sales") : undefined))
             .then(() => {
-              update((list) => list.map((h) => (h.uid === target.host.uid ? { ...h, profession: target.value } : h)));
-              showToast(`${target.host.name}: ${professionTitle(target.value).toLowerCase()}`);
+              update((list) =>
+                list.map((h) => (h.uid === target.host.uid ? { ...h, profession: target.value, ...(giveSalesRole ? { accessRole: "sales" as AccessRole } : {}) } : h)),
+              );
+              showToast(`${target.host.name}: ${professionTitle(target.value).toLowerCase()}${giveSalesRole ? " — роль доступа дана" : ""}`);
               setToProfession(null);
             })
             .catch(() => setDialogError("Не получилось сохранить. Проверьте интернет."))
             .finally(() => setBusyUid(null));
         }}
       >
-        <div className="row profession-chips">
-          {PROFESSIONS.map((p) => (
-            <button key={p.id} type="button" className="pick-chip" aria-pressed={toProfession?.value === p.id} onClick={() => setToProfession((cur) => (cur ? { ...cur, value: p.id } : cur))}>
-              {p.title}
-            </button>
-          ))}
-        </div>
-        <p className="muted small">Ведущий проводит игры. Другие профессии видят команду и свою страницу, игр у них нет — их игры и история сохраняются.</p>
+        <ProfessionPicker value={toProfession?.value ?? "host"} onChange={(value) => setToProfession((cur) => (cur ? { ...cur, value } : cur))} />
       </ConfirmDialog>
       <ConfirmDialog
         open={toRole !== null}
@@ -396,6 +302,141 @@ export function HostsManager({ profile }: { profile: UserProfile }) {
       <Toast text={toast} />
     </>
   );
+
+  return { actionsFor, toggleActive, busyUid, created, setCreated, showToast, elements };
+}
+
+/**
+ * Управление командой (вкладка «Управление» в «Команде JoyRest»; `/admin` открывает её сразу,
+ * `/studio/team?tab=manage`): добавить, отключить, квалификация, баллы, доступ к базе площадок.
+ * Любое изменение — только после подтверждения.
+ */
+export function HostsManager({ profile }: { profile: UserProfile }) {
+  const [hosts, retry, update] = useLoad(() => usersRepo.listHosts(), []);
+  const cleanup = useSessionCleanup();
+  const admin = useHostAdmin(profile, update);
+  const [group, setGroup] = useState<"hosts" | "pros">("hosts");
+
+  const allHosts = hosts.status === "ready" ? hosts.data : [];
+  const shownHosts = allHosts.filter((h) => (group === "hosts" ? h.role === "admin" || professionOf(h.profession) === "host" : h.role !== "admin" && professionOf(h.profession) !== "host"));
+
+  return (
+    <>
+      {admin.created ? (
+        <CreatedCard created={admin.created} onDone={() => admin.setCreated(null)} onToast={admin.showToast} />
+      ) : (
+        <AddHostForm
+          onCreated={(result) => {
+            admin.setCreated({ ...result, kind: "created" });
+            update((list) => [result.account, ...list]);
+          }}
+        />
+      )}
+
+      <section className="card">
+        {usersRepo.setProfession && (
+          <div className="seg" role="group" aria-label="Кого показать">
+            <button type="button" className={group === "hosts" ? "seg__btn is-on" : "seg__btn"} aria-pressed={group === "hosts"} onClick={() => setGroup("hosts")}>
+              Ведущие
+            </button>
+            <button type="button" className={group === "pros" ? "seg__btn is-on" : "seg__btn"} aria-pressed={group === "pros"} onClick={() => setGroup("pros")}>
+              Другие профессии
+            </button>
+          </div>
+        )}
+        <h2>
+          {group === "hosts" ? "Все ведущие" : "Профессии JoyRest"}
+          {hosts.status === "ready" ? `: ${shownHosts.length}` : ""}
+        </h2>
+        <p className="muted">
+          {group === "hosts"
+            ? "Отключённый ведущий не может войти в студию и запускать игры. Его игры и история сохраняются."
+            : "Менеджеры по продажам, диджеи, музыканты и другие. Профессию и роль можно поменять в «⋯»."}
+        </p>
+        {hosts.status === "ready" && shownHosts.length === 0 && <p className="muted">{group === "hosts" ? "Ведущих пока нет." : "Пока никого: добавьте человека выше и выберите профессию."}</p>}
+        {hosts.status === "loading" && <ListSkeleton count={2} bare />}
+        {hosts.status === "error" && <LoadFailedInline onRetry={retry} />}
+        {hosts.status === "ready" && (
+          <ul className="people">
+            {shownHosts.map((host) => {
+              const actions = admin.actionsFor(host);
+              return (
+                <li key={host.uid} className={host.active ? undefined : "people__item--off"}>
+                  <div className="people__text">
+                    <span className="people__name line-clamp">{host.name}</span>
+                    <span className="muted small line-clamp">{host.email || "почта не указана"}</span>
+                    <span className="small">
+                      {host.role === "admin" ? "Администратор" : professionTitle(host.profession)} ·{" "}
+                      <span className={host.active ? "success" : "error"}>{host.active ? "активен" : "отключён"}</span>
+                    </span>
+                    {host.role !== "admin" && accessRoleTitle(host.accessRole) && <span className="small role-tag">Роль: {accessRoleTitle(host.accessRole)}</span>}
+                    {staffRepo && host.role !== "admin" && professionOf(host.profession) === "host" && (
+                      <ul className="meta" aria-label={`Квалификация и баллы: ${host.name}`}>
+                        <li>{levelTitle(host.level) ?? "Без квалификации"}</li>
+                        {host.experienceSince ? <li>Стаж: {experienceLabel(host.experienceSince, Date.now())}</li> : null}
+                        <li>{pointsLabel(host.points ?? 0)}</li>
+                        {venuesRepo && host.venueAccess && <li>База площадок</li>}
+                      </ul>
+                    )}
+                  </div>
+                  {permissions.canSetHostActive(profile, host) && (
+                    <div className="people__actions">
+                      <button type="button" className="btn btn--secondary" disabled={admin.busyUid === host.uid} onClick={() => admin.toggleActive(host)}>
+                        {host.active ? "Отключить" : "Включить"}
+                      </button>
+                      {actions.length > 0 && <ActionMenu icon="dots" label={`Действия: ${host.name}`} actions={actions} />}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <CleanupNote state={cleanup} />
+      {admin.elements}
+    </>
+  );
+}
+
+/**
+ * Выбор профессии (решение владельца 15 октября 2026): две главные — «Ведущий» и «Менеджер по продажам» — крупными
+ * карточками, остальные (у них пока нет своего кабинета: видят команду, свою страницу и календарь) — свёрнуто ниже.
+ */
+const MAIN_PROFESSIONS: { id: Profession; hint: string }[] = [
+  { id: "host", hint: "Проводит игры: свои игры, музыка, пульт, календарь и мероприятия." },
+  { id: "sales", hint: "Клиенты и заявки, «Кто может» в дату, запись мероприятий. Роль доступа поставится сама." },
+];
+
+export function ProfessionPicker({ value, onChange }: { value: Profession; onChange: (value: Profession) => void }) {
+  const others = PROFESSIONS.filter((p) => !MAIN_PROFESSIONS.some((m) => m.id === p.id));
+  const otherChosen = others.find((p) => p.id === value);
+  return (
+    <div className="stack stack--tight">
+      <div className="profession-main" role="radiogroup" aria-label="Основные профессии">
+        {MAIN_PROFESSIONS.map((m) => (
+          <label key={m.id} className="choice profession-main__item">
+            <input type="radio" name="profession-main" checked={value === m.id} onChange={() => onChange(m.id)} />
+            <span className="choice__text">
+              <span className="choice__title">{professionTitle(m.id)}</span>
+              <span className="choice__hint">{m.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <Fold title="Другие профессии" value={otherChosen?.title} open={Boolean(otherChosen)}>
+        <p className="muted small">Пока без своего кабинета: видят команду, свою страницу и календарь, игр и клиентов у них нет.</p>
+        <div className="row profession-chips">
+          {others.map((p) => (
+            <button key={p.id} type="button" className="pick-chip" aria-pressed={value === p.id} onClick={() => onChange(p.id)}>
+              {p.title}
+            </button>
+          ))}
+        </div>
+      </Fold>
+    </div>
+  );
 }
 
 function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void }) {
@@ -415,7 +456,12 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
     setBusy(true);
     setError(null);
     try {
-      const created = await usersRepo.createHost(email, cleanedName, usersRepo.setProfession ? profession : undefined);
+      let created = await usersRepo.createHost(email, cleanedName, usersRepo.setProfession ? profession : undefined);
+      // Менеджер по продажам сразу получает свою роль доступа — без неё он не увидит ни клиентов, ни заявок.
+      if (profession === "sales" && usersRepo.setAccessRole) {
+        const ok = await usersRepo.setAccessRole(created.account.uid, "sales").then(() => true, () => false);
+        if (ok) created = { ...created, account: { ...created.account, accessRole: "sales" } };
+      }
       setEmail("");
       setName("");
       setProfession("host");
@@ -454,14 +500,7 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
       {usersRepo.setProfession && (
         <fieldset className="stack stack--tight">
           <legend>Профессия</legend>
-          <div className="row profession-chips">
-            {PROFESSIONS.map((p) => (
-              <button key={p.id} type="button" className="pick-chip" aria-pressed={profession === p.id} onClick={() => setProfession(p.id)}>
-                {p.title}
-              </button>
-            ))}
-          </div>
-          {profession !== "host" && <p className="muted small">Не ведущий: увидит команду и свою страницу, игр у него не будет.</p>}
+          <ProfessionPicker value={profession} onChange={setProfession} />
         </fieldset>
       )}
       {error && (

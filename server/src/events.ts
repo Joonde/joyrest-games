@@ -45,6 +45,7 @@ interface Row {
   note: string;
   cancelled: boolean;
   held: boolean | null;
+  updated_at?: Date | null;
 }
 
 /** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
@@ -72,6 +73,7 @@ export function eventOf(row: Row): AgencyEvent {
     note: row.note,
     cancelled: row.cancelled,
     held: row.held,
+    updatedAt: row.updated_at ? row.updated_at.getTime() : 0,
   };
 }
 
@@ -110,7 +112,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
 
     const select = sql`
       select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
-        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held
+        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at
       from events e left join users u on u.id = e.host_id`;
 
     async function one(id: string): Promise<AgencyEvent | null> {
@@ -171,10 +173,15 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null }[]>`
-        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at
         from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
+      // Владелец и менеджер правят одно мероприятие: форма шлёт `expect` — версию, с которой её открыли.
+      const expect = (request.body as Record<string, unknown> | null)?.expect;
+      if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
+        return reply.code(409).send({ error: "changed" });
+      }
       await sql.begin(async (tx) => {
         await tx`
           insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, created_by)

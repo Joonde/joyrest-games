@@ -130,7 +130,9 @@ describe.skipIf(!url)("команда JoyRest на PostgreSQL", () => {
     expect((await post("/api/games", kim.cookie, game("kimGame1", kim.uid))).statusCode).toBe(200);
     expect((await post("/api/games", kim.cookie, { ...game("kimAgency", me), scope: "agency" })).statusCode).toBe(403);
     expect((await post("/api/sessions", kim.cookie, { id: "kim-session-1", gameTitle: "Квиз", mechanic: "quiz", playMode: "solo" })).statusCode).toBe(403);
-    expect((await post("/api/tracks", kim.cookie, { id: "kimTrack", title: "Т", license: "pixabay" })).statusCode).toBe(403);
+    // Музыка — из конструктора игр (решение владельца 15 октября 2026): себе можно, в общую сразу — нет.
+    expect((await post("/api/tracks", kim.cookie, { id: "kimCreatorTrack", title: "Т", license: "pixabay" })).statusCode).toBe(200);
+    expect((await post("/api/tracks", kim.cookie, { id: "kimCreatorTrack2", title: "Т", license: "pixabay", scope: "agency" })).statusCode).toBe(403);
 
     // Тестировщик: смотрит библиотеку, ничего не создаёт.
     expect((await access(kim.uid, owner, "tester")).statusCode).toBe(200);

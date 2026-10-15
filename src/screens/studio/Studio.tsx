@@ -80,6 +80,8 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     ...(venuesRepo && permissions.canManageVenues(profile) ? [{ label: "База площадок", to: "/venues" }] : []),
     ...(venuesRepo && permissions.canShowVenueQr(profile) ? [{ label: "QR-анкеты", to: "/studio/qr" }] : []),
     ...(teamRepo ? [{ label: "Мой профиль", to: "/studio/profile" }] : []),
+    // Что я могу в платформе — по профессии и роли, со «Скачать PDF» (решение владельца 15 октября 2026).
+    { label: "Мои возможности", to: "/studio/abilities" },
     { label: "Как проводить игры", to: "/studio/guide" },
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },

@@ -84,9 +84,12 @@ export interface Game {
   updatedAt: number | null;
   /** Папка в «Моих играх» ('' или нет — без папки; только свой сервер). */
   folder?: string;
+  /** Свой сервер: кто последним менял игру (uid) и его имя — «Эту игру сейчас правит …» в редакторе. */
+  editedBy?: string;
+  editedByName?: string;
 }
 
-export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt">;
+export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt" | "editedBy" | "editedByName">;
 
 /** Что можно менять в игре после создания. Область и владелец не меняются. */
 export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content" | "folder">>;
@@ -578,6 +581,8 @@ export interface AgencyEvent {
   cancelled: boolean;
   /** После начала: true — проведено, false — не состоялось, null — не отмечено. */
   held: boolean | null;
+  /** Версия записи (время последнего изменения): форма правки шлёт её как `expect` — чужую правку не затереть. */
+  updatedAt?: number;
 }
 
 /** Клиент агентства (база клиентов владельца; только свой сервер). Данные — только на сервере в России. */

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatDate } from "../../core/format";
 import { professionOf, professionTitle } from "../../core/professions";
 import { teamRepo, type TeamMember } from "../../data";
@@ -15,7 +16,8 @@ function initials(name: string): string {
 }
 
 /** Карточка ведущего: обложка, аватарка, имя, «о себе» (CLAUDE.md, раздел 3, «Команда JoyRest»). */
-export function TeamCard({ member }: { member: TeamMember }) {
+/** `admin` — у владельца: статус человека и меню «⋯» с его действиями прямо на карточке. */
+export function TeamCard({ member, admin }: { member: TeamMember; admin?: ReactNode }) {
   const repo = teamRepo;
   return (
     <article className="team-card">
@@ -36,6 +38,7 @@ export function TeamCard({ member }: { member: TeamMember }) {
           {member.since && <li>В JoyRest с {formatDate(member.since)}</li>}
         </ul>
         {member.bio ? <p className="team-card__bio">{member.bio}</p> : <p className="muted small">Пока ничего не рассказал о себе.</p>}
+        {admin && <div className="team-card__admin">{admin}</div>}
       </div>
     </article>
   );

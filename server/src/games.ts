@@ -54,6 +54,7 @@ interface GameRow {
   created_at: Date | null;
   updated_at: Date | null;
   folder?: string | null;
+  edited_by?: string | null;
 }
 
 interface MediaRow {
@@ -61,7 +62,7 @@ interface MediaRow {
   mime: string;
 }
 
-const GAME_COLUMNS = ["id", "scope", "owner_id", "title", "mechanic", "theme_id", "age_rating", "play_mode", "content", "created_at", "updated_at", "folder"];
+const GAME_COLUMNS = ["id", "scope", "owner_id", "title", "mechanic", "theme_id", "age_rating", "play_mode", "content", "created_at", "updated_at", "folder", "edited_by"];
 const FOLDER_MAX = 40;
 /** Название папки: одна строка без управляющих символов, до 40 знаков. */
 function folderName(value: unknown): string {
@@ -100,6 +101,7 @@ export function gameOf(row: GameRow): Game {
     createdAt: row.created_at ? row.created_at.getTime() : null,
     updatedAt: row.updated_at ? row.updated_at.getTime() : null,
     folder: row.folder ?? "",
+    editedBy: row.edited_by ?? "",
   };
 }
 
@@ -218,7 +220,9 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       const game = await findGame(request.params.id);
       if (!game) return fail(reply, 404, "not-found");
       if (!permissions.canReadGame(actorOf(user), ref(game))) return fail(reply, 403, "permission-denied");
-      return gameOf(game);
+      // Кто правил последним — имя для «Эту игру сейчас правит …» в редакторе.
+      const [editor] = game.edited_by ? await sql<{ name: string }[]>`select name from users where id = ${game.edited_by}` : [];
+      return { ...gameOf(game), editedByName: editor?.name ?? "" };
     });
 
     api.post<{ Body: unknown }>("/api/games", { bodyLimit: GAME_BODY_LIMIT }, async (request, reply) => {
@@ -347,7 +351,17 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
       const title = patch.title === undefined ? undefined : text(patch.title, 200);
       const themeId = patch.themeId === undefined ? undefined : text(patch.themeId, 40);
       if (title === null || themeId === null) return fail(reply, 400, "invalid-argument");
-      await sql.begin(async (tx) => {
+      // Совместная работа (владелец и заместитель правят библиотеку): `base` — версия, с которой правит этот человек.
+      // Игру за это время изменил кто-то другой — 409 с его именем, ничего не записано. Свои правки с другого
+      // устройства конфликтом не считаются (один человек).
+      const base = typeof patch.base === "number" ? patch.base : null;
+      const conflict = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ updated_at: Date | null; edited_by: string }[]>`select updated_at, edited_by from games where id = ${game.id} for update`;
+        if (base !== null && row && row.updated_at && Math.floor(row.updated_at.getTime()) !== base && row.edited_by && row.edited_by !== user.id) {
+          const [editor] = await t<{ name: string }[]>`select name from users where id = ${row.edited_by}`;
+          return { by: editor?.name ?? "" };
+        }
         if (title !== undefined) await tx`update games set title = ${title} where id = ${game.id}`;
         if (themeId !== undefined) await tx`update games set theme_id = ${themeId} where id = ${game.id}`;
         if (patch.ageRating !== undefined) await tx`update games set age_rating = ${parseAge(patch.ageRating)} where id = ${game.id}`;
@@ -359,9 +373,12 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
           const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id, title ?? game.title, onlyOwn(user))).content : (patch.content ?? null);
           await tx`update games set content = ${tx.json(content as Parameters<typeof tx.json>[0])} where id = ${game.id}`;
         }
-        await tx`update games set updated_at = now() where id = ${game.id}`;
+        await tx`update games set updated_at = now(), edited_by = ${user.id} where id = ${game.id}`;
+        return null;
       });
-      return { ok: true };
+      if (conflict) return reply.code(409).send({ error: "failed-precondition", by: conflict.by });
+      const [fresh] = await sql<{ updated_at: Date }[]>`select updated_at from games where id = ${game.id}`;
+      return { ok: true, updatedAt: fresh ? fresh.updated_at.getTime() : null };
     });
 
     api.delete<{ Params: { id: string } }>("/api/games/:id", async (request, reply) => {

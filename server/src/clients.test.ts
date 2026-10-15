@@ -178,6 +178,17 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await post("/api/clients/kshared/archive", owner);
     expect((await post("/api/clients/kshared/status", nika, { status: "lost" })).statusCode).toBe(409);
     expect((await post("/api/clients/kshared/status", nika, { status: "мимо" })).statusCode).toBe(400);
+    // Мероприятие: владелец и менеджер открыли форму правки одной версии — второй не затрёт первого.
+    const ev = { id: "evshared", hostId: annaId, day: day(30), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 20, note: "" };
+    const created = (await post("/api/events", owner, ev)).json();
+    expect(created.updatedAt).toBeGreaterThan(0);
+    await new Promise((r) => setTimeout(r, 5));
+    expect((await post("/api/events", nika, { ...ev, note: "Ника: перенос на 19:00", expect: created.updatedAt })).statusCode).toBe(200);
+    const staleEvent = await post("/api/events", owner, { ...ev, note: "владелец", expect: created.updatedAt });
+    expect(staleEvent.statusCode).toBe(409);
+    expect(staleEvent.json().error).toBe("changed");
+    const list = (await get(`/api/events?from=${day(29)}&to=${day(31)}`, owner)).json().events as Array<{ id: string; note: string }>;
+    expect(list.find((e) => e.id === "evshared")?.note).toBe("Ника: перенос на 19:00");
   });
 
   it("мероприятие с клиентом — клиент в базе; «Проведено» — после начала, владелец или ведущий; итоги за год", async () => {

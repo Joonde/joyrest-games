@@ -21,6 +21,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     note: asText(d.note),
     cancelled: d.cancelled === true,
     held: d.held === true ? true : d.held === false ? false : null,
+    updatedAt: typeof d.updatedAt === "number" ? d.updatedAt : 0,
   };
 }
 

@@ -1,6 +1,6 @@
 /** База клиентов на своём сервере: `/api/clients...` (CLAUDE.md, раздел 3, «База клиентов»). */
 import type { ClientsRepository } from "../contracts";
-import type { ClientContact, ClientDetails, ClientRecord, ContactMatches, EraseReport } from "../types";
+import type { ClientContact, ClientDetails, ClientRecord, ContactMatches } from "../types";
 import { api, asRecord, asText } from "./api";
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);

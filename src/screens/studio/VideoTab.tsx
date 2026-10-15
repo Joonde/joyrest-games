@@ -71,10 +71,12 @@ export function VideoTab({ profile, onToast }: Props) {
     }
   }
 
-  function pick(files: FileList | null) {
+  function pick(fileList: FileList | null) {
+    // Сначала забираем файлы: очистка поля в некоторых браузерах опустошает и сам список.
+    const files = fileList ? [...fileList] : [];
     if (fileRef.current) fileRef.current.value = "";
-    if (!files || files.length === 0) return;
-    const added: QueueItem[] = [...files].map((file) => ({
+    if (files.length === 0) return;
+    const added: QueueItem[] = files.map((file) => ({
       key: `${file.name}|${file.size}|${file.lastModified}`,
       file,
       received: 0,

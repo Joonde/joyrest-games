@@ -42,6 +42,13 @@ export function useFinale(sessionId: string | null | undefined): [Finale | null,
 /** Экран зала: три QR-кода на слайде «Спасибо». */
 export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined }) {
   const [finale] = useFinale(sessionId);
+  // Ждём ссылку для чаевых до 4 с, чтобы QR-коды не перестраивались на глазах у зала; нет ответа — без чаевых.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setWaited(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  if (finaleRepo && sessionId && !finale && !waited) return <div className="finale-qrs" aria-busy="true" />;
   if (!finaleRepo || !sessionId) {
     return (
       <div className="slide__channel">

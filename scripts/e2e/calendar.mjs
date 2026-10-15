@@ -585,7 +585,9 @@ try {
   // Настоящий бот на test: читает ли сообщения (тогда ведущие могут подключиться).
   const health = (await api("GET", "/api/telegram/health", admin.cookie)).data ?? {};
   say(`ℹ️ Бот: ${health.username ? "@" + health.username : "—"}, состояние ${health.state}, подключили Telegram: ${health.linkedPeople}`);
-  check(health.configured === true && health.state === "ok", "Telegram: бот на test на связи — получает сообщения (ведущие могут подключиться)", `Telegram: бот на test — ${JSON.stringify(health)}`);
+  // Сообщения бота читает одно окружение (TELEGRAM_UPDATES): после переключения основной версии — она, на test «off» — так и задумано.
+  if (health.state === "off") say("ℹ️ Telegram: на test бот только отправляет, сообщения читает основная версия (TELEGRAM_UPDATES) — подключение проверяется на основной");
+  else check(health.configured === true && health.state === "ok", "Telegram: бот на test на связи — получает сообщения (ведущие могут подключиться)", `Telegram: бот на test — ${JSON.stringify(health)}`);
   const tgButton = ap.getByRole("button", { name: "Подключить Telegram" });
   if ((await tgButton.count()) > 0) {
     await tgButton.click();

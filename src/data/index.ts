@@ -25,6 +25,7 @@ export {
   finaleRepo,
   photosRepo,
   brandingsRepo,
+  decksRepo,
   gameFoldersRepo,
   teamRepo,
   screenRepo,

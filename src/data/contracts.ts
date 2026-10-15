@@ -6,6 +6,8 @@
  */
 import type { ProgramAction } from "../core/program";
 import type {
+  Deck,
+  DeckPage,
   SavedBranding,
   AvailabilityEntry,
   CalendarMember,
@@ -376,6 +378,17 @@ export interface BrandingsRepository {
   uploadLogo(image: Blob): Promise<string>;
   /** Адрес картинки логотипа. */
   logoUrl(sha: string): string;
+}
+
+/** Показы ведущего: фото и страницы PDF на весь экран зала (только свой сервер). */
+export interface DecksRepository {
+  list(): Promise<Deck[]>;
+  /** Новый или правка (id от браузера): название, страницы по порядку. */
+  save(deck: Omit<Deck, "updatedAt">): Promise<Deck>;
+  remove(id: string): Promise<void>;
+  /** Готовая страница (WebP/JPEG до 1920 px) — её запись для показа. */
+  uploadPage(image: Blob, width: number, height: number): Promise<DeckPage>;
+  pageUrl(sha: string): string;
 }
 
 /** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */

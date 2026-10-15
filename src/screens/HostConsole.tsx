@@ -1,4 +1,5 @@
 import { PeekCard } from "../components/live/PeekCard";
+import { DeckStepper } from "../components/live/Decks";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
@@ -363,7 +364,8 @@ function Console({ session }: { session: Session }) {
 
       {slide && (
         <div className="pult-banner" role="status">
-          <span className="line-clamp">На экране слайд{slide.title ? ` «${slide.title}»` : ""}</span>
+          <span className="line-clamp">На экране {slide.kind === "image" ? "показ" : "слайд"}{slide.title ? ` «${slide.title}»` : ""}</span>
+          {slide.kind === "image" && <DeckStepper slide={slide} onApply={apply} />}
           <button type="button" className="btn btn--secondary" onClick={() => void apply({ state: { slide: null } }).catch(() => undefined)}>
             Убрать
           </button>

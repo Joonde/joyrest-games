@@ -182,6 +182,37 @@ async function writeReview(page, { stars, text, name }) {
   if (name !== undefined) await page.getByLabel("Как вас подписать (по желанию)").fill(name);
 }
 
+
+/** Маленький PDF (страницы — цветные прямоугольники с подписью) для проверки «Фото и PDF». */
+function makePdf(pages) {
+  const objects = [];
+  const add = (body) => {
+    objects.push(body);
+    return objects.length;
+  };
+  const catalog = add("");
+  const pagesObj = add("");
+  const font = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const kids = [];
+  pages.forEach((color, i) => {
+    const content = `${color} rg 40 40 760 520 re f 0 0 0 rg BT /F1 72 Tf 300 280 Td (Page ${i + 1}) Tj ET`;
+    const stream = add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    kids.push(add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 840 600] /Contents ${stream} 0 R /Resources << /Font << /F1 ${font} 0 R >> >> >>`));
+  });
+  objects[catalog - 1] = `<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
+  objects[pagesObj - 1] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(" ")}] /Count ${kids.length} >>`;
+  let out = "%PDF-1.4\n";
+  const offsets = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, "latin1");
+}
+
 // ---------- сайт на своём маленьком сервере ----------
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2", ".mp4": "video/mp4", ".txt": "text/plain" };
@@ -350,6 +381,7 @@ try {
   await pult.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
 
   await screen.locator(".finale-qrs").waitFor({ timeout: WAIT });
+  await until(async () => (await screen.locator(".finale-qr figcaption strong").count()) >= 3, 8000, "три QR").catch(() => undefined);
   const captions = await screen.locator(".finale-qr figcaption strong").allTextContents();
   check(captions.join("|") === "Чаевые ведущему|Оставьте отзыв|Наш Telegram", "Экран зала: после игры сам открылся «Спасибо» — три QR: чаевые, отзыв, канал", `Экран зала: подписи QR — ${captions.join(", ")}`);
   check((await screen.locator(".finale-qr svg, .finale-qr img").count()) >= 3, "Экран зала: все три QR нарисованы");
@@ -503,6 +535,69 @@ try {
   ok("Студия владельца: «Фотоотчёты» — фото ведущего видны");
   await shot(ap, "владелец-фотоотчёты");
 
+  // ===== 6б. Фото и PDF на весь экран («Показы») =====
+  await pult.locator(".pult-tabs__btn", { hasText: "Слайды" }).click();
+  const deckInput = pult.locator('label:has-text("+ Фото или PDF с телефона") input[type="file"]');
+  await deckInput.setInputFiles([
+    { name: `Меню ${MARK}.pdf`, mimeType: "application/pdf", buffer: makePdf(["0.9 0.6 0.5", "0.6 0.8 0.6"]) },
+    { name: "photo.jpg", mimeType: "image/jpeg", buffer: jpeg1 },
+  ]);
+  await screen.locator(".slide--image img.slide__image").waitFor({ timeout: 60_000 });
+  const shownSrc = () => screen.locator(".slide__image").getAttribute("src");
+  const firstSrc = await shownSrc();
+  check(await screen.locator(".slide__image").evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false), "Показ: PDF и фото загружены с телефона — первая страница на весь экран зала");
+  await shot(screen, "экран-показ");
+  const deck = ((await api("GET", "/api/decks", host.cookie)).data?.decks ?? []).find((d) => d.title.includes(MARK));
+  check(deck?.pages?.length === 3, "Показ: 2 страницы PDF + фото = 3 страницы", `Показ: страниц ${deck?.pages?.length}`);
+  check(deck?.pages?.[0]?.w === 1920, "Показ: страница PDF — картинка 1920 px по длинной стороне", `Показ: ширина ${deck?.pages?.[0]?.w}`);
+  const counter = pult.locator(".deck-stepper__count");
+  check((await textOf(counter)) === "1 / 3", "Пульт: в плашке сверху «1 / 3»");
+  await pult.getByRole("button", { name: "Следующая страница" }).click();
+  await until(async () => (await shownSrc()) !== firstSrc, WAIT, "следующая страница на экране");
+  check((await textOf(counter)) === "2 / 3", "Пульт: › — на экране вторая страница");
+  await pult.getByRole("button", { name: "Предыдущая страница" }).click();
+  await until(async () => (await shownSrc()) === firstSrc, WAIT, "снова первая");
+  ok("Пульт: ‹ — назад к первой странице");
+  check(await pult.getByRole("button", { name: "Предыдущая страница" }).isDisabled(), "Пульт: на первой странице ‹ неактивна");
+  await pult.getByRole("button", { name: "Показать страницу 3" }).click();
+  await until(async () => (await textOf(counter)) === "3 / 3", WAIT, "третья страница");
+  check(await pult.getByRole("button", { name: "Следующая страница" }).isDisabled(), "Пульт: касание миниатюры — страница 3 на экране, › на последней неактивна");
+  await layout(pult, "Пульт: фото и PDF");
+  await shot(pult, "пульт-показ");
+  await pult.locator(".pult-banner").getByRole("button", { name: "Убрать", exact: true }).click();
+  await screen.locator(".slide--image").waitFor({ state: "detached", timeout: WAIT });
+  ok("Пульт: «Убрать» — показ ушёл с экрана");
+  // Студия «Показы»: переименовать, порядок, убрать страницу (сначала «Отмена»), удалить показ.
+  await hp.goto(`${BASE}/studio/decks`);
+  const deckCard = hp.locator("section.card", { hasText: `Меню ${MARK}` });
+  await deckCard.waitFor({ timeout: WAIT });
+  await deckCard.getByRole("button", { name: "Переименовать" }).click();
+  await deckCard.getByLabel("Название показа").fill(`Программа ${MARK}`);
+  await deckCard.getByRole("button", { name: "Сохранить" }).click();
+  const renamed = hp.locator("section.card", { hasText: `Программа ${MARK}` });
+  await renamed.waitFor({ timeout: WAIT });
+  ok("Показы: «Переименовать» сохраняет название");
+  const order = async () => ((await api("GET", "/api/decks", host.cookie)).data?.decks ?? []).find((d) => d.id === deck?.id)?.pages?.map((p) => p.sha) ?? [];
+  const before3 = await order();
+  await renamed.getByRole("button", { name: "Страницу 1 — позже" }).click();
+  await until(async () => (await order())[0] === before3[1], WAIT, "порядок страниц");
+  ok("Показы: ↓ меняет порядок страниц");
+  await renamed.getByRole("button", { name: "Убрать страницу 3" }).click();
+  await hp.getByRole("dialog").getByRole("button", { name: "Отмена" }).click();
+  check((await order()).length === 3, "Показы: «Убрать страницу» → «Отмена» — страница на месте");
+  await renamed.getByRole("button", { name: "Убрать страницу 3" }).click();
+  await hp.getByRole("dialog").getByRole("button", { name: "Убрать страницу" }).click();
+  await until(async () => (await order()).length === 2, WAIT, "страница убрана");
+  ok("Показы: «Убрать страницу» с подтверждением — осталось 2");
+  await layout(hp, "Студия: показы");
+  await shot(hp, "студия-показы");
+  await renamed.getByRole("button", { name: "Удалить показ" }).click();
+  await hp.getByRole("dialog").getByRole("button", { name: "Удалить показ" }).click();
+  await renamed.waitFor({ state: "detached", timeout: WAIT });
+  check(!((await api("GET", "/api/decks", host.cookie)).data?.decks ?? []).some((d) => d.id === deck?.id), "Показы: «Удалить показ» с подтверждением — показа нет");
+  const guestDevice = annaDevice;
+  check((await api("GET", "/api/decks", guestDevice)).status === 401, "API: гостю список показов закрыт (401)");
+
   // ===== 7. Видео JoyRest =====
   if (VIDEO && existsSync(VIDEO)) {
     check((await api("POST", "/api/videos", host.cookie, { id: `v${MARK}x`, title: "x", size: 1000 })).status === 403, "API: ведущий не загружает видео (403)");
@@ -510,7 +605,8 @@ try {
     await ap.getByLabel("Папка (по желанию)").fill(`Проверка ${MARK}`);
     const [chooser] = await Promise.all([ap.waitForEvent("filechooser"), click(ap, "⬆ Выбрать видео (можно сразу несколько)")]);
     await chooser.setFiles(VIDEO);
-    await until(async () => (await ap.getByText(`📁 Проверка ${MARK}`).count()) > 0, 120_000, "видео загружено");
+    await until(async () => ((await api("GET", "/api/videos", admin.cookie)).data?.videos ?? []).some((x) => x.folder === `Проверка ${MARK}` && x.ready), 180_000, "видео загружено");
+    await until(async () => (await ap.getByText(`📁 Проверка ${MARK}`).count()) > 0, WAIT, "папка видео в списке");
     const list = (await api("GET", "/api/videos", admin.cookie)).data?.videos ?? [];
     const v = list.find((x) => x.folder === `Проверка ${MARK}`);
     videoId = v?.id ?? "";
@@ -632,6 +728,9 @@ try {
       await api("POST", `/api/sessions/${id}/finish`, host.cookie, { participantsCount: 0 }).catch(() => undefined);
     }
     if (videoId) await api("DELETE", `/api/videos/${videoId}`, admin.cookie).catch(() => undefined);
+    for (const d of (await api("GET", "/api/decks", host.cookie).catch(() => ({ data: null }))).data?.decks ?? []) {
+      if (d.title.includes(MARK)) await api("DELETE", `/api/decks/${d.id}`, host.cookie).catch(() => undefined);
+    }
     for (const b of (await api("GET", "/api/brandings", host.cookie).catch(() => ({ data: null }))).data?.brandings ?? []) {
       if (b.name.includes(MARK)) await api("DELETE", `/api/brandings/${b.id}`, host.cookie).catch(() => undefined);
     }

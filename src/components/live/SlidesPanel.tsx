@@ -2,6 +2,7 @@ import { useState } from "react";
 import { linesFromText, slideTemplate, SLIDE_TEMPLATES } from "../../core/slides";
 import { rulesFor } from "../../core/rules";
 import { Icon, type IconName } from "../Icon";
+import { DeckPanel } from "./Decks";
 import { clock, SLIDE_LIMITS, type Session, type SessionChange, type SlideKind, type SlideState } from "../../data";
 
 const DRAFT_KEY = "joyrest.slides";
@@ -17,6 +18,7 @@ const SLIDE_ICONS: Record<SlideKind, IconName> = {
   thanks: "thanks",
   custom: "custom",
   draw: "custom",
+  image: "custom",
 };
 
 interface Draft {
@@ -123,7 +125,10 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
       {current && (
         <div className="now-playing" aria-live="polite">
           <p className="eyebrow">Сейчас на экране</p>
-          <p className="now-playing__title line-clamp">{current.title || slideTemplate(current.kind).label}</p>
+          <p className="now-playing__title line-clamp">
+            {current.title || slideTemplate(current.kind).label}
+            {current.kind === "image" && current.media ? ` · страница ${current.media.page + 1} из ${current.media.count}` : ""}
+          </p>
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void send(null)}>
               Убрать слайд — вернуть игру
@@ -131,8 +136,10 @@ export function SlidesPanel({ session, onApply }: { session: Session; onApply: (
           </div>
         </div>
       )}
+      <DeckPanel current={current} onApply={onApply} />
+      <h3>Слайды-шаблоны</h3>
       <div className="tiles tiles--small" role="group" aria-label="Шаблон слайда">
-        {SLIDE_TEMPLATES.filter((t) => t.kind !== "draw").map((t) => (
+        {SLIDE_TEMPLATES.filter((t) => t.kind !== "draw" && t.kind !== "image").map((t) => (
           <button key={t.kind} type="button" className="tile" aria-pressed={kind === t.kind} onClick={() => setKind(t.kind)}>
             <Icon name={SLIDE_ICONS[t.kind]} className="tile__icon" />
             <span className="tile__label">{t.label}</span>

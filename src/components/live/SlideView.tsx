@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { SessionBranding } from "../../data";
+import { useEffect, useRef, useState } from "react";
+import { decksRepo, type SessionBranding, type SlideMedia } from "../../data";
 import { ClientLogo } from "../ClientLogo";
 import { drawFrame, drawNames } from "../../core/draw";
 import { countdownLabel } from "../../core/slides";
@@ -40,7 +40,37 @@ export function SlideView({
   branding?: SessionBranding | null;
 }) {
   if (slide.kind === "draw") return <DrawSlide slide={slide} preview={preview} />;
+  if (slide.kind === "image" && slide.media) return <ImageSlide media={slide.media} title={slide.title} />;
   return <TemplateSlide slide={slide} preview={preview} code={code} sessionId={sessionId} branding={branding ?? null} />;
+}
+
+/** Фото или страница PDF на весь экран; следующую страницу экран загружает заранее (листание без паузы). */
+function ImageSlide({ media, title }: { media: SlideMedia; title: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!media.next || !decksRepo) return;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = decksRepo.pageUrl(media.next);
+  }, [media.next]);
+  if (!decksRepo) return null;
+  return (
+    <div className="slide slide--image">
+      {failed === media.sha ? (
+        <p className="slide__text">Не загрузилась страница {media.page + 1}. Проверьте интернет — или покажите следующую.</p>
+      ) : (
+        <img
+          key={media.sha}
+          className="slide__image"
+          src={decksRepo.pageUrl(media.sha)}
+          width={media.w}
+          height={media.h}
+          alt={title ? `${title}, страница ${media.page + 1}` : `Страница ${media.page + 1}`}
+          onError={() => setFailed(media.sha)}
+        />
+      )}
+    </div>
+  );
 }
 
 /**

@@ -20,6 +20,7 @@ const Team = lazy(() => import("./screens/studio/Team").then((m) => ({ default: 
 const Calendar = lazy(() => import("./screens/studio/Calendar").then((m) => ({ default: m.Calendar })));
 const ReviewPage = lazy(() => import("./screens/ReviewPage").then((m) => ({ default: m.ReviewPage })));
 const Photos = lazy(() => import("./screens/studio/Photos").then((m) => ({ default: m.Photos })));
+const Decks = lazy(() => import("./screens/studio/Decks").then((m) => ({ default: m.Decks })));
 const Reviews = lazy(() => import("./screens/studio/Reviews").then((m) => ({ default: m.Reviews })));
 const Clients = lazy(() => import("./screens/studio/Clients").then((m) => ({ default: m.Clients })));
 const Guide = lazy(() => import("./screens/studio/Guide").then((m) => ({ default: m.Guide })));
@@ -58,6 +59,7 @@ export function App() {
           <Route path="/studio/clients" element={<Clients />} />
           <Route path="/studio/reviews" element={<Reviews />} />
           <Route path="/studio/photos" element={<Photos />} />
+          <Route path="/studio/decks" element={<Decks />} />
           <Route path="/studio/guide" element={<Guide />} />
           <Route path="/studio/profile" element={<Profile />} />
           <Route path="/studio/qr" element={<VenueQrPage />} />

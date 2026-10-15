@@ -157,7 +157,34 @@ export interface TeamsReveal {
   sizes?: Record<string, number>;
 }
 
-export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw";
+export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw" | "image";
+
+/** Показ ведущего: фото и страницы PDF по порядку (только свой сервер, `server/src/decks.ts`). */
+export interface DeckPage {
+  sha: string;
+  w: number;
+  h: number;
+  size: number;
+}
+
+export interface Deck {
+  id: string;
+  title: string;
+  pages: DeckPage[];
+  updatedAt: number;
+}
+
+/** Страница показа (фото или страница PDF) на весь экран зала: файл, следующий (экран грузит заранее), номер. */
+export interface SlideMedia {
+  deck: string;
+  /** С нуля. */
+  page: number;
+  count: number;
+  sha: string;
+  next: string | null;
+  w: number;
+  h: number;
+}
 
 export interface SlideState {
   /** Новый id — новый показ (звук заставки играет один раз). */
@@ -169,6 +196,8 @@ export interface SlideState {
   lines: string[];
   /** Конец перерыва по часам сервера; null — без обратного отсчёта. */
   endsAt: number | null;
+  /** Слайд «image»: страница показа (фото, страница PDF). */
+  media?: SlideMedia | null;
 }
 
 export interface MusicState {

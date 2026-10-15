@@ -131,7 +131,7 @@ function Console({ session }: { session: Session }) {
   );
   const latest = useRef(session);
   latest.current = session;
-  useTheme(session.themeId);
+  useTheme(session.themeId, session.branding);
 
   useEffect(() => {
     void clock.sync();

@@ -24,6 +24,7 @@ export {
   videosRepo,
   finaleRepo,
   photosRepo,
+  brandingsRepo,
   gameFoldersRepo,
   teamRepo,
   screenRepo,

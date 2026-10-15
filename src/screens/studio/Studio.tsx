@@ -171,6 +171,8 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       ) : overviewOpen ? (
         <SwipePages
           storageKey="studio-page"
+          // Ссылка на вкладку студии (?tab=…, «В студию» из отзывов, музыки, видео) — сразу экран «Студия».
+          start={params.get("tab") ? "studio" : undefined}
           pages={[
             { id: "live", label: "Игры сейчас", node: <LiveOverview adminId={profile.uid} owner={permissions.isAdmin(profile)} /> },
             { id: "studio", label: "Студия", node: body },

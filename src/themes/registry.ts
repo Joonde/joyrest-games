@@ -1,4 +1,6 @@
 import { useEffect, type CSSProperties } from "react";
+import type { SessionBranding } from "../core/branding";
+import { brandTheme } from "./branding";
 import { conceptThemes } from "./concepts";
 import { joyrest, joyrestDay } from "./joyrest";
 import type { AgeRating, Theme } from "./types";
@@ -50,8 +52,8 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
  * Тема для одного блока (предпросмотр в студии): переменные действуют только внутри,
  * а фон и цвет текста задаются явно, потому что body остаётся в теме студии.
  */
-export function themeStyle(themeId: string): CSSProperties {
-  const theme = getTheme(themeId);
+export function themeStyle(themeId: string | Theme): CSSProperties {
+  const theme = typeof themeId === "string" ? getTheme(themeId) : themeId;
   return {
     ...themeVars(theme),
     colorScheme: theme.tokens.scheme,
@@ -73,12 +75,13 @@ export const THEME_HINTS: Record<string, string> = {
   wedding: "Светлая, нежное свечение и лепестки.",
 };
 
-/** Включает тему на время показа экрана, потом возвращает базовую. */
-export function useTheme(themeId: string): void {
+/** Включает тему на время показа экрана (с цветами заказчика, если есть), потом возвращает базовую. */
+export function useTheme(themeId: string, branding?: SessionBranding | null): void {
+  const colors = branding?.colors.join(",") ?? "";
   useEffect(() => {
-    applyTheme(getTheme(themeId));
+    applyTheme(brandTheme(getTheme(themeId), colors ? { name: "", colors: colors.split(","), logo: null } : null));
     return () => applyTheme(getTheme(DEFAULT_THEME_ID));
-  }, [themeId]);
+  }, [themeId, colors]);
 }
 
 /** Номер CSS-переменной цвета команды (`--team-N`) по её порядковому номеру. */

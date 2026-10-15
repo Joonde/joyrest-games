@@ -34,7 +34,7 @@ export function AudienceVote() {
 }
 
 function VoteScreen({ session }: { session: Session }) {
-  useTheme(session.themeId);
+  useTheme(session.themeId, session.branding);
   const content = useMemo(() => parseMillionaire(snapshotContent(session.gameSnapshot)), [session.gameSnapshot]);
   const r = parseMillionaireResult(session.state.result);
   const { step, stage } = session.state;

@@ -10,11 +10,13 @@ interface Page {
  * Экраны, которые листаются пальцем вбок (как домашние экраны телефона), и переключатель сверху.
  * Последний открытый экран запоминается на этом устройстве.
  */
-export function SwipePages({ pages, storageKey }: { pages: Page[]; storageKey: string }) {
+export function SwipePages({ pages, storageKey, start }: { pages: Page[]; storageKey: string; /** Открыть этот экран (ссылка вела на него), а не запомненный. */ start?: string }) {
   const box = useRef<HTMLDivElement>(null);
   /** Идёт прокрутка по касанию переключателя: промежуточные положения не меняют вкладку. */
   const jumping = useRef<number | null>(null);
   const [index, setIndex] = useState(() => {
+    const wanted = start ? pages.findIndex((p) => p.id === start) : -1;
+    if (wanted >= 0) return wanted;
     try {
       const saved = Number(sessionStorage.getItem(storageKey));
       return Number.isInteger(saved) && saved >= 0 && saved < pages.length ? saved : 0;

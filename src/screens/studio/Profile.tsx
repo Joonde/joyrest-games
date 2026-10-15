@@ -197,6 +197,12 @@ function TipsEditor({ owner, onToast }: { owner: boolean; onToast: (text: string
 
   async function save() {
     if (!finaleRepo) return;
+    const BAD = "Нужна ссылка, которая начинается с https:// — например, со страницы чаевых в CloudTips или Т-Банке.";
+    // Явно не ссылка — говорим сразу, без запроса на сервер.
+    if (value.trim() !== "" && !/^https:\/\/[^\s]+\.[^\s]+$/i.test(value.trim())) {
+      setError(BAD);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {

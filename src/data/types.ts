@@ -3,8 +3,11 @@
  * меняется только реализация в src/data/, а эти типы остаются.
  * Время везде — миллисекунды с эпохи по часам сервера.
  */
+import type { SavedBranding, SessionBranding } from "../core/branding";
 import type { SessionProgram } from "../core/program";
 import type { OfferData, RequestData, RequestStatus, VenueData, VenueFileKind, VenueStatus } from "../core/venues";
+
+export type { SavedBranding, SessionBranding };
 
 export type Role = "admin" | "host";
 
@@ -374,6 +377,8 @@ export interface Session {
   eventStartedAt?: number | null;
   /** Свой сервер: мероприятие из блоков — один код на весь вечер (`src/core/program.ts`). */
   program?: SessionProgram | null;
+  /** Свой сервер: оформление под заказчика — логотип и цвета (`src/core/branding.ts`). */
+  branding?: SessionBranding | null;
 }
 
 export interface Participant {
@@ -408,6 +413,8 @@ export interface NewSessionOptions {
   gameSnapshot: unknown;
   /** Мероприятие из блоков: игры вечера по порядку (сессия начинается с первой). Только свой сервер. */
   program?: { title: string; blocks: Array<{ title: string; mechanic: string; gameId: string; snapshot: unknown }> };
+  /** Оформление под заказчика (только свой сервер). */
+  branding?: SessionBranding | null;
 }
 
 /** Строка итоговой таблицы: игрок (solo) или команда (teams). */

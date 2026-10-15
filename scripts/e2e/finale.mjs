@@ -102,7 +102,7 @@ async function device() {
 const question = (id, text, options, correct) => ({ id, kind: "choice", text, options, correct, answers: [], timeLimit: 30, points: 100, imageId: null });
 const CONTENT = { questions: [question("f1", "Какого цвета снег?", ["Белый", "Зелёный", "Синий"], 0)] };
 
-async function createSession(host, title) {
+async function createSession(host, title, branding = null) {
   const id = `e2f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const { status, data } = await api("POST", "/api/sessions", host.cookie, {
     id,
@@ -112,6 +112,7 @@ async function createSession(host, title) {
     themeId: "joyrest",
     playMode: "solo",
     screenMode: "laptop",
+    ...(branding ? { branding } : {}),
   });
   if (status !== 200) throw new Error(`сессия: ${status}`);
   return { id, code: data.code };
@@ -255,8 +256,59 @@ try {
   const dev0 = await device();
   check((await api("POST", "/api/reviews", dev0, { sessionId: lobby.id, rating: 5, text: "рано", name: "", consent: true })).status === 409, "API: отзыв до конца игры — отказ (409)");
 
+  // ===== 2б. Оформление под заказчика при запуске =====
+  let branding = null;
+  const games = (await api("GET", "/api/games?scope=agency", host.cookie)).data ?? [];
+  const quiz = games.find((g) => g.mechanic === "quiz");
+  const logoPng = await hp.screenshot({ type: "png", clip: { x: 0, y: 0, width: 300, height: 120 } });
+  if (quiz) {
+    await hp.goto(`${BASE}/studio/launch/${quiz.id}`);
+    const fold = hp.locator("details", { hasText: "Оформление под заказчика" });
+    await fold.locator("summary").click({ timeout: WAIT });
+    await fold.getByRole("button", { name: "+ Новое оформление" }).click();
+    await fold.getByLabel("Чьё оформление").fill(`Компания ${MARK}`);
+    await fold.locator('input[type="file"]').setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: logoPng });
+    await fold.locator(".brand-logo-preview").waitFor({ timeout: WAIT });
+    ok("Запуск: логотип заказчика загружен, виден в форме");
+    if ((await fold.locator('input[type="color"]').count()) === 0) await fold.getByRole("button", { name: "+ Цвет" }).click();
+    await fold.locator('input[type="color"]').first().fill("#1a3c8b");
+    await fold.getByRole("button", { name: "Сохранить и выбрать" }).click();
+    await until(async () => (await fold.locator(".fold__value").textContent())?.includes(`Компания ${MARK}`), WAIT, "оформление выбрано");
+    ok("Запуск: «Сохранить и выбрать» — оформление в списке и выбрано");
+    await until(async () => (await hp.locator(".preview-screen .client-logo--preview").count()) === 1, WAIT, "логотип в предпросмотре");
+    const previewPrimary = await hp.locator(".preview-screen").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-primary").trim());
+    check(previewPrimary !== "" && previewPrimary.toUpperCase() !== "#C49E96", "Запуск: предпросмотр экрана — с логотипом и цветом заказчика", `Запуск: цвет предпросмотра ${previewPrimary}`);
+    await layout(hp, "Запуск с оформлением");
+    await shot(hp, "запуск-оформление");
+    // Изменить (новое название) и «Отмена» правки; потом удалить второе (проверочное) с подтверждением.
+    const row = fold.locator(".brand-row", { hasText: `Компания ${MARK}` });
+    await row.getByRole("button", { name: "Изменить" }).click();
+    await fold.getByLabel("Чьё оформление").fill(`Компания ${MARK} (правка)`);
+    await fold.getByRole("button", { name: "Отмена" }).click();
+    check((await fold.locator(".brand-row", { hasText: "(правка)" }).count()) === 0, "Запуск: «Отмена» правки — оформление не изменилось");
+    await fold.getByRole("button", { name: "+ Новое оформление" }).click();
+    await fold.getByLabel("Чьё оформление").fill(`Удалить ${MARK}`);
+    await fold.getByRole("button", { name: "+ Цвет" }).click();
+    await fold.getByRole("button", { name: "Сохранить и выбрать" }).click();
+    const extra = fold.locator(".brand-row", { hasText: `Удалить ${MARK}` });
+    await extra.waitFor({ timeout: WAIT });
+    await extra.getByRole("button", { name: "Удалить" }).click();
+    await hp.getByRole("dialog").getByRole("button", { name: "Удалить оформление" }).click();
+    await extra.waitFor({ state: "detached", timeout: WAIT });
+    check((await fold.locator(".fold__value").textContent())?.includes("Без оформления"), "Запуск: удалённое выбранное оформление — выбор сам вернулся к «Без оформления»");
+    const saved = ((await api("GET", "/api/brandings", host.cookie)).data?.brandings ?? []).find((b) => b.name === `Компания ${MARK}`);
+    branding = saved ? { name: saved.name, colors: saved.colors, logo: saved.logo } : null;
+    check(Boolean(saved?.logo) && saved?.colors?.[0] === "#1A3C8B", "Запуск: оформление сохранено на сервере (логотип и цвет)", `Оформление: ${JSON.stringify(saved ?? null)}`);
+  } else say("ℹ️ Оформление: в библиотеке нет квиза для экрана запуска — проверяем через API");
+  if (!branding) {
+    const up = await fetch(`${BASE}/api/brandings/logo`, { method: "PUT", headers: { "Content-Type": "image/png", "X-JoyRest": "1", Origin: BASE, Cookie: host.cookie }, body: logoPng });
+    const logo = (await up.json()).logo;
+    await api("POST", "/api/brandings", host.cookie, { id: `br${MARK}`, name: `Компания ${MARK}`, colors: ["#1A3C8B"], logo });
+    branding = { name: `Компания ${MARK}`, colors: ["#1A3C8B"], logo };
+  }
+
   // ===== 3. Игра до конца: «Спасибо» с тремя QR =====
-  const game = await createSession(host, `Проверка финала ${MARK}`);
+  const game = await createSession(host, `Проверка финала ${MARK}`, branding);
   sessions.push(game.id);
   const pult = await open(browser, "Пульт", PHONE, host.token);
   await pult.goto(`${BASE}/host/${game.code}`);
@@ -264,17 +316,26 @@ try {
   const screen = await open(browser, "Экран зала", TV);
   await screen.goto(`${BASE}/screen/${game.code}`);
   await screen.getByText("Присоединяйтесь к игре").waitFor({ timeout: WAIT });
+  // Оформление заказчика: логотип в лобби, цвет — в теме экрана; знак JoyRest на месте.
+  check(await screen.locator(".client-logo--lobby").evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false), "Экран зала: логотип заказчика в лобби");
+  check((await screen.locator(".logo--lobby").count()) === 1, "Экран зала: логотип JoyRest остаётся рядом");
+  const hallPrimary = await screen.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim());
+  check(hallPrimary.toUpperCase() !== "#C49E96", "Экран зала: кнопки и акценты — в цвете заказчика", `Экран зала: --color-primary ${hallPrimary}`);
+  await shot(screen, "экран-лобби-заказчик");
 
   const anna = await open(browser, "Гость Аня");
   await anna.goto(`${BASE}/play/${game.code}`);
   await anna.getByLabel("Имя", { exact: true }).fill("Аня");
   await click(anna, "Играть");
   await anna.locator(".play-head__name").waitFor({ timeout: WAIT });
+  check((await anna.locator(".client-logo--head").count()) === 1, "Телефон гостя: логотип заказчика в шапке");
   await until(async () => (await pult.locator("main").textContent())?.includes("Аня"), WAIT, "Аня на пульте");
 
   // Фото в лобби не делают: карточки ещё нет.
   check((await pult.getByText("Общее фото для фотоотчёта").count()) === 0, "Пульт: в лобби фотоотчёта ещё нет (появится после «Начать игру»)");
   await click(pult, "Начать игру");
+  await screen.locator(".client-logo--corner").waitFor({ timeout: WAIT });
+  ok("Экран зала: во время игры логотип заказчика — в углу рядом со знаком JoyRest");
   await click(pult, "Показать вопрос");
   await anna.locator(".quiz-phone__option").first().click({ timeout: WAIT });
   await until(async () => (await pult.locator("main").textContent())?.includes("Ответили: 1"), WAIT, "ответ Ани на пульте");
@@ -368,14 +429,15 @@ try {
   await card(`Было очень весело ${MARK}`).waitFor({ timeout: WAIT });
   check((await textOf(card(`Было очень весело ${MARK}`))).includes(`Ведущий: ${host.profile?.name}`), "Студия владельца: у отзыва виден ведущий и игра");
   await card(`Было очень весело ${MARK}`).getByRole("button", { name: "Поместить на сайт" }).click();
-  await until(async () => (await textOf(card(`Было очень весело ${MARK}`))).includes("На сайте"), WAIT, "статус «На сайте»");
+  await until(async () => (await textOf(card(`Было очень весело ${MARK}`).locator(".meta"))).includes("На сайте"), WAIT, "статус «На сайте»");
   ok("Студия владельца: «Поместить на сайт» — статус «На сайте»");
   await card(`Было очень весело ${MARK}`).getByRole("button", { name: "Убрать с сайта" }).click();
-  await until(async () => (await textOf(card(`Было очень весело ${MARK}`))).includes("Новый"), WAIT, "статус «Новый»");
+  await until(async () => (await textOf(card(`Было очень весело ${MARK}`).locator(".meta"))).includes("Новый"), WAIT, "статус «Новый»");
   ok("Студия владельца: «Убрать с сайта» — отзыв снова «Новый»");
   await card(`По QR ${MARK}`).getByRole("button", { name: "Скрыть" }).click();
-  await until(async () => (await textOf(card(`По QR ${MARK}`))).includes("Скрыт"), WAIT, "статус «Скрыт»");
+  await until(async () => (await textOf(card(`По QR ${MARK}`).locator(".meta"))).includes("Скрыт"), WAIT, "статус «Скрыт»");
   await click(ap, "Скрытые");
+  await until(async () => (await card(`По QR ${MARK}`).count()) === 1, WAIT, "фильтр «Скрытые»").catch(() => undefined);
   check((await card(`По QR ${MARK}`).count()) === 1 && (await card(`Было очень весело ${MARK}`).count()) === 0, "Студия владельца: фильтр «Скрытые» показывает только скрытые");
   await card(`По QR ${MARK}`).getByRole("button", { name: "Поместить на сайт" }).click();
   await click(ap, "На сайте");
@@ -383,7 +445,7 @@ try {
   ok("Студия владельца: скрытый отзыв можно вернуть и поместить на сайт");
   await click(ap, "Все");
   await card(`Было очень весело ${MARK}`).getByRole("button", { name: "Поместить на сайт" }).click();
-  await until(async () => (await textOf(card(`Было очень весело ${MARK}`))).includes("На сайте"), WAIT, "второй на сайте");
+  await until(async () => (await textOf(card(`Было очень весело ${MARK}`).locator(".meta"))).includes("На сайте"), WAIT, "второй на сайте");
   await layout(ap, "Отзывы у владельца");
   await shot(ap, "владелец-отзывы");
 
@@ -570,6 +632,9 @@ try {
       await api("POST", `/api/sessions/${id}/finish`, host.cookie, { participantsCount: 0 }).catch(() => undefined);
     }
     if (videoId) await api("DELETE", `/api/videos/${videoId}`, admin.cookie).catch(() => undefined);
+    for (const b of (await api("GET", "/api/brandings", host.cookie).catch(() => ({ data: null }))).data?.brandings ?? []) {
+      if (b.name.includes(MARK)) await api("DELETE", `/api/brandings/${b.id}`, host.cookie).catch(() => undefined);
+    }
   }
   await browser.close();
 }

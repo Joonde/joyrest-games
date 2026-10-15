@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ClientLogo } from "../components/ClientLogo";
 import { setHallBusy } from "../components/UpdateBanner";
 import { EVENING_MECHANIC } from "../core/program";
 import { EveningTable } from "../mechanics/evening/views";
@@ -162,7 +163,7 @@ function useCueSound(cue: SoundCue | null | undefined): void {
 function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
-  useTheme(session.themeId);
+  useTheme(session.themeId, session.branding);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
   // Аплодисменты — файл: качаем заранее, чтобы на пьедестале звучали сразу.
@@ -245,7 +246,7 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
       {shownSlide ? (
         <>
           <main className="quiz-stage">
-            <SlideView slide={shownSlide} code={session.code} sessionId={session.id} />
+            <SlideView slide={shownSlide} code={session.code} sessionId={session.id} branding={session.branding} />
           </main>
           {/* «Спасибо» после игры лежит поверх итогов — выход всё равно виден. */}
           {phase === "finished" && <ScreenExit isHost={isHost} />}
@@ -329,7 +330,8 @@ function Lobby({ session }: { session: Session }) {
         <QrCode value={playUrl(session.code)} label={`QR-код для входа в игру ${formatSessionCode(session.code)}`} />
       </div>
       <div className="screen__join">
-        <Logo kind="full" className="logo--lobby" />
+        <ClientLogo branding={session.branding} className="client-logo--lobby" />
+        <Logo kind="full" className={session.branding?.logo ? "logo--lobby logo--lobby-small" : "logo--lobby"} />
         <h1 className="screen-title">Присоединяйтесь к игре</h1>
         <p className="screen-text">Наведите камеру на QR-код или откройте {joinHint()} и введите код</p>
         <div className="big-code">{formatSessionCode(session.code)}</div>
@@ -436,6 +438,7 @@ function Playing({ session }: { session: Session }) {
   return (
     <main className="quiz-stage">
       <Logo kind="monogram" className="logo--corner" title="" />
+      <ClientLogo branding={session.branding} className="client-logo--corner" />
       {peek ? (
         <div className="quiz-screen quiz-screen--board">
           <BoardView
@@ -487,6 +490,7 @@ function Final({ session, sawGame }: { session: Session; sawGame: boolean }) {
   return (
     <main className="quiz-stage">
       <Logo kind="monogram" className="logo--corner" title="" />
+      <ClientLogo branding={session.branding} className="client-logo--corner" />
       <div className="final">
         <p className="final__eyebrow">{winners.length > 1 ? "Победители" : winners.length === 1 ? "Победитель" : "Игра завершена"}</p>
         {winners.length > 0 && <Podium session={session} final />}

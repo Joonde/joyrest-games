@@ -12,6 +12,7 @@ export const tracksRepo = null;
 export const videosRepo = null;
 export const finaleRepo = null;
 export const photosRepo = null;
+export const brandingsRepo = null;
 export const screenRepo = null;
 export const venuesRepo = null;
 export const teamRepo = null;

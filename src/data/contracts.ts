@@ -6,6 +6,7 @@
  */
 import type { ProgramAction } from "../core/program";
 import type {
+  SavedBranding,
   AvailabilityEntry,
   CalendarMember,
   AgencyEvent,
@@ -363,6 +364,18 @@ export interface EventPhotosRepository {
   remove(sessionId: string, slot: number): Promise<void>;
   /** Студия: ведущему — свои мероприятия, владельцу — все. */
   all(): Promise<EventPhoto[]>;
+}
+
+/** Оформления заказчиков: логотип и цвета для запуска (только свой сервер). */
+export interface BrandingsRepository {
+  list(): Promise<SavedBranding[]>;
+  /** Новое или правка (id от браузера). */
+  save(branding: Omit<SavedBranding, "updatedAt">): Promise<SavedBranding>;
+  remove(id: string): Promise<void>;
+  /** Логотип (уже сжатый) — ответ: отпечаток файла для `logo`. */
+  uploadLogo(image: Blob): Promise<string>;
+  /** Адрес картинки логотипа. */
+  logoUrl(sha: string): string;
 }
 
 /** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */

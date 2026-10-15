@@ -101,7 +101,15 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
           <p className="muted small">
             <strong>Сначала предупредите гостей:</strong> «{PHOTO_SCRIPT}»
           </p>
-          <input ref={input} type="file" accept="image/*" capture="environment" className="visually-hidden" tabIndex={-1} onChange={(e) => void save(e.target.files?.[0] ?? null)} />
+          <input
+            ref={input}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="visually-hidden"
+            tabIndex={-1}
+            onChange={(e) => void save(e.target.files?.[0] ?? null)}
+          />
           <div className="event-photos__grid">
             {PHOTO_SLOTS.map((slot) => {
               const photo = bySlot.get(slot);

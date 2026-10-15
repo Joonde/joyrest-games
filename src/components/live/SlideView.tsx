@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import type { SessionBranding } from "../../data";
+import { ClientLogo } from "../ClientLogo";
 import { drawFrame, drawNames } from "../../core/draw";
 import { countdownLabel } from "../../core/slides";
 import type { SlideState } from "../../data";
@@ -23,9 +25,22 @@ const SOUNDS: Partial<Record<SlideState["kind"], Parameters<typeof playSound>[0]
  * Слайд поверх экрана зала (CLAUDE.md, раздел 7, «Слайды»): шаблон в стиле темы на её живом фоне.
  * Размеры — в единицах контейнера, как у вопросов: предпросмотр совпадает с телевизором.
  */
-export function SlideView({ slide, preview = false, code, sessionId }: { slide: SlideState; preview?: boolean; code?: string; sessionId?: string }) {
+export function SlideView({
+  slide,
+  preview = false,
+  code,
+  sessionId,
+  branding,
+}: {
+  slide: SlideState;
+  preview?: boolean;
+  code?: string;
+  sessionId?: string;
+  /** Оформление под заказчика: логотип над слайдом. */
+  branding?: SessionBranding | null;
+}) {
   if (slide.kind === "draw") return <DrawSlide slide={slide} preview={preview} />;
-  return <TemplateSlide slide={slide} preview={preview} code={code} sessionId={sessionId} />;
+  return <TemplateSlide slide={slide} preview={preview} code={code} sessionId={sessionId} branding={branding ?? null} />;
 }
 
 /**
@@ -64,7 +79,7 @@ function DrawSlide({ slide, preview }: { slide: SlideState; preview: boolean }) 
   );
 }
 
-function TemplateSlide({ slide, preview, code, sessionId }: { slide: SlideState; preview: boolean; code?: string; sessionId?: string }) {
+function TemplateSlide({ slide, preview, code, sessionId, branding }: { slide: SlideState; preview: boolean; code?: string; sessionId?: string; branding: SessionBranding | null }) {
   const now = useServerNow(500, (slide.kind === "break" || slide.kind === "tech") && slide.endsAt !== null);
   const last = useRef(slide.id);
 
@@ -80,7 +95,9 @@ function TemplateSlide({ slide, preview, code, sessionId }: { slide: SlideState;
 
   return (
     <div className={`slide slide--${slide.kind}`}>
-      {slide.kind === "intro" && <Logo kind="emblem" className="slide__emblem" title="" />}
+      {/* Заставка вечера с логотипом заказчика: его логотип вместо эмблемы JoyRest (знак JoyRest — в углу экрана). */}
+      {slide.kind === "intro" && (branding?.logo ? <ClientLogo branding={branding} className="client-logo--intro" /> : <Logo kind="emblem" className="slide__emblem" title="" />)}
+      {slide.kind !== "intro" && slide.kind !== "join" && <ClientLogo branding={branding} className="client-logo--slide" />}
       {slide.kind === "round" && <p className="slide__eyebrow">Следующий раунд</p>}
       {slide.kind === "tech" && <p className="slide__eyebrow">Пауза</p>}
       {slide.title && <h2 className="slide__title">{slide.title}</h2>}

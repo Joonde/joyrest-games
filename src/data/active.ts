@@ -22,6 +22,7 @@ import type {
   VideosRepository,
   FinaleRepository,
   EventPhotosRepository,
+  BrandingsRepository,
   StaffRepository,
   ResultsRepository,
   SessionsRepository,
@@ -55,6 +56,7 @@ import { serverTracksRepository } from "./server/tracks";
 import { serverVideosRepository } from "./server/videos";
 import { serverFinaleRepository } from "./server/finale";
 import { serverEventPhotosRepository } from "./server/photos";
+import { serverBrandingsRepository } from "./server/brandings";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
@@ -85,6 +87,7 @@ export const gameFoldersRepo: typeof serverGameFolders | null = server ? serverG
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
 /** Фотоотчёт мероприятия — только свой сервер. */
 export const photosRepo: EventPhotosRepository | null = server ? serverEventPhotosRepository : null;
+export const brandingsRepo: BrandingsRepository | null = server ? serverBrandingsRepository : null;
 /** Конец игры: чаевые и отзывы — только свой сервер. */
 export const finaleRepo: FinaleRepository | null = server ? serverFinaleRepository : null;
 /** Видео JoyRest — только свой сервер. */

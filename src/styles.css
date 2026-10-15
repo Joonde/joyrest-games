@@ -17499,3 +17499,145 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border-radius: 12px;
   display: block;
 }
+
+/* ───── Оформление под заказчика: логотип компании или пары (src/core/branding.ts) ───── */
+.client-logo {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.client-logo--lobby {
+  max-width: min(34vw, 420px);
+  max-height: 18vh;
+  margin-bottom: clamp(8px, 2vh, 24px);
+}
+
+.logo--lobby-small {
+  width: clamp(90px, 9vw, 170px);
+  opacity: 0.85;
+}
+
+.client-logo--corner {
+  position: fixed;
+  bottom: max(12px, var(--safe-bottom));
+  left: calc(max(16px, var(--safe-left)) + clamp(32px, 6vh, 64px) + 16px);
+  height: clamp(32px, 6vh, 64px);
+  max-width: 16vw;
+  opacity: 0.9;
+  z-index: 1;
+}
+
+.client-logo--intro {
+  max-width: min(50cqw, 520px);
+  max-height: 34cqh;
+  margin: 0 auto clamp(12px, 3cqh, 32px);
+}
+
+.client-logo--slide {
+  max-width: min(22cqw, 260px);
+  max-height: 12cqh;
+  margin: 0 auto clamp(8px, 2cqh, 20px);
+}
+
+.client-logo--form {
+  max-width: min(220px, 60vw);
+  max-height: 96px;
+  margin: 0 auto 8px;
+}
+
+.logo--form-small {
+  width: min(140px, 40vw);
+}
+
+.client-logo--head {
+  height: 40px;
+  max-width: 96px;
+}
+
+.client-logo--preview {
+  max-width: 40%;
+  max-height: 22cqh;
+  margin: 0 auto 4px;
+}
+
+.preview-button {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.brand-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-row > .choice {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.brand-row__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.brand-thumb {
+  height: 28px;
+  max-width: 72px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.brand-swatches {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.brand-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+}
+
+.brand-logo-preview {
+  max-width: 220px;
+  max-height: 120px;
+  object-fit: contain;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--color-border);
+}
+
+.brand-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.brand-color {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.brand-color input[type="color"] {
+  width: 72px;
+  height: 52px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+}

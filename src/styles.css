@@ -20274,3 +20274,31 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     animation: none;
   }
 }
+
+/* Карточка клиента: поля под именем — подпись слева, значение справа. */
+.clients-facts {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  text-align: left;
+}
+
+.clients-facts__row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.clients-facts__label {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.clients-facts__value {
+  color: var(--color-text);
+  font-size: 15px;
+}

@@ -467,17 +467,35 @@ function ClientCard({
           <Pill color={STATUS_COLORS[c.status]}>{CLIENT_STATUS_TITLES[c.status]}</Pill>
         </span>
         <span className="plan-card__when">{c.phone ? phoneLabel(c.phone) : c.links[0] ? linkTitle(c.links[0]) : "—"}</span>
-        <span className="plan-card__host">
-          {sourceTitle(c.lastSource)} · {dateTimeLabel(c.lastContactAt)}
-          {c.contacts > 1 ? ` · обращений: ${c.contacts}` : ""}
-          {c.marketing === "yes" ? " · ✉️ рассылка" : ""}
-        </span>
-        {c.status !== "new" && c.statusLine && (
-          <span className="clients-who">
-            {c.statusLine}
-            {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+        {/* Под именем — подписанные поля, а не одна строка через точки (решение владельца 15 октября 2026). */}
+        <span className="clients-facts">
+          <span className="clients-facts__row">
+            <span className="clients-facts__label">Откуда</span>
+            <span className="clients-facts__value">{sourceTitle(c.lastSource)}</span>
           </span>
-        )}
+          <span className="clients-facts__row">
+            <span className="clients-facts__label">Обращение</span>
+            <span className="clients-facts__value">
+              {dateTimeLabel(c.lastContactAt)}
+              {c.contacts > 1 ? ` · всего ${c.contacts}` : ""}
+            </span>
+          </span>
+          {c.status !== "new" && c.statusLine && (
+            <span className="clients-facts__row">
+              <span className="clients-facts__label">Ведёт</span>
+              <span className="clients-facts__value">
+                {c.statusLine.split(" · ").slice(1).join(" · ") || c.statusLine}
+                {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+              </span>
+            </span>
+          )}
+          {c.marketing === "yes" && (
+            <span className="clients-facts__row">
+              <span className="clients-facts__label">Рассылка</span>
+              <span className="clients-facts__value">✉️ согласен</span>
+            </span>
+          )}
+        </span>
         {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа {agoLabel(waiting)}</span>}
         {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
         <span className="plan-card__more" aria-hidden="true">

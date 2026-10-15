@@ -43,7 +43,6 @@ export function ArtCard({ kind, styleId = "", hint, n, className = "", style, ch
   const st = styleById(styleId);
   return (
     <span className={`db-card db-card--${kind} ${className}`.trim()} style={style}>
-      {n !== undefined && <span className="db-card__n">{n}</span>}
       <span className="db-card__label">
         <span className="db-card__name">{KIND_TITLES[kind]}</span>
         {st && (
@@ -52,6 +51,7 @@ export function ArtCard({ kind, styleId = "", hint, n, className = "", style, ch
           </span>
         )}
         {hint && <span className="db-card__hint">{hint}</span>}
+        {n !== undefined && <span className="db-card__n">№ {n}</span>}
       </span>
       {children}
     </span>
@@ -68,7 +68,6 @@ export function CardGrid({ content, result, onPick, disabled }: { content: Dance
         const st = styleById(card.style);
         const body = (
           <>
-            <span className="dance-card__n">{i + 1}</span>
             {played && (
               <span className="dance-card__done" aria-hidden="true">
                 ✓
@@ -78,6 +77,7 @@ export function CardGrid({ content, result, onPick, disabled }: { content: Dance
               {KIND_EMOJI[card.kind]} {KIND_TITLES[card.kind]}
             </span>
             {st && <span className="dance-card__style">{st.title}</span>}
+            <span className="dance-card__n">№ {i + 1}</span>
           </>
         );
         const cls = `dance-card dance-card--${card.kind}${played ? " is-played" : ""}${current ? " is-current" : ""}`;
@@ -462,7 +462,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
         <h2 className="db-h">{r.tie.length > 1 ? "Ничья! Победителя назовёт ведущий" : "Голосов нет"}</h2>
       )}
       <ResultBoard leaderboard={session.leaderboard} scores={r.scores} />
-      <p className="db-next">{leftCards === 0 ? "Карточки сыграны — дальше награждение" : nextName ? <>Дальше: <NameText name={nextName} /> выбирает карточку</> : "Дальше — следующая карточка"}</p>
+      <p className="db-next">{leftCards === 0 ? "Карточки сыграны — дальше награждение" : nextName ? <>Дальше выбирают: <NameText name={nextName} /></> : "Дальше — следующая карточка"}</p>
     </div>
   );
 }

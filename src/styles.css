@@ -7841,19 +7841,18 @@ button.dance-card:active {
 }
 
 .dance-card__n {
-  position: absolute;
-  top: 6px;
-  left: 10px;
-  font-size: 0.8em;
+  font-size: 0.75em;
+  font-weight: 500;
   color: #cfc5bb;
 }
 
+/* Галочка сыгранной — на рисунке (верх карточки), подпись снизу не перекрывает. */
 .dance-card__done {
   position: absolute;
-  inset: 0;
+  inset: 0 0 62%;
   display: grid;
   place-items: center;
-  font-size: 2.4em;
+  font-size: 1.8em;
   color: #f3dfae;
 }
 
@@ -8070,9 +8069,10 @@ button.dance-card:active {
 
 .db-card__style {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  box-sizing: border-box;
+  line-height: 1.2;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
   font-family: var(--font-body, "Jost", sans-serif);
   font-size: 0.56em;
   font-weight: 600;
@@ -8090,21 +8090,19 @@ button.dance-card:active {
 }
 
 .db-card__n {
-  position: absolute;
-  top: 5%;
-  left: 8%;
   font-family: var(--font-body, "Jost", sans-serif);
-  font-size: 0.5em;
-  font-weight: 600;
+  font-size: 0.45em;
+  font-weight: 500;
   color: #cfc5bb;
 }
 
+/* Галочка сыгранной — на рисунке (верх карточки), подпись снизу не перекрывает. */
 .db-card__done {
   position: absolute;
-  inset: 0;
+  inset: 0 0 50%;
   display: grid;
   place-items: center;
-  font-size: 2.6em;
+  font-size: 2.2em;
   color: #f3dfae;
 }
 
@@ -8296,13 +8294,14 @@ button.dance-card:active {
 
 .db-ring--big b {
   font-family: var(--font-display, "Cormorant Garamond", serif);
-  font-size: calc(9 * var(--u));
-  line-height: 0.9;
+  font-size: calc(8 * var(--u));
+  line-height: 1.1;
   color: var(--db-gold-hi);
   text-shadow: 0 0 calc(3 * var(--u)) rgba(243, 223, 174, 0.45);
 }
 
 .db-ring--big span {
+  margin-top: calc(0.8 * var(--u));
   font-size: calc(1.3 * var(--u));
   font-weight: 500;
   color: var(--db-soft);
@@ -8351,6 +8350,13 @@ button.dance-card:active {
   opacity: 0.55;
 }
 
+.db-video__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(13, 11, 10, 0.92) 0%, rgba(13, 11, 10, 0.75) 32%, transparent 62%);
+}
+
 .db-video__art--battle {
   --db-art: url("/dance/art/web/card-battle.webp");
 }
@@ -8365,6 +8371,7 @@ button.dance-card:active {
 
 .db-video__title {
   position: relative;
+  z-index: 1;
   font-family: var(--font-display, "Cormorant Garamond", serif);
   font-weight: 700;
   font-size: calc(4.4 * var(--u));
@@ -8398,6 +8405,8 @@ button.dance-card:active {
 }
 
 .db-side .db-kicker {
+  display: block;
+  margin-bottom: calc(0.8 * var(--u));
   font-size: calc(1.05 * var(--u));
 }
 
@@ -8405,7 +8414,7 @@ button.dance-card:active {
   font-family: var(--font-display, "Cormorant Garamond", serif);
   font-weight: 700;
   font-size: calc(4.2 * var(--u));
-  line-height: 1;
+  line-height: 1.2;
   overflow-wrap: anywhere;
   color: var(--db-team);
   text-shadow: 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--db-team) 40%, transparent);
@@ -8573,6 +8582,16 @@ button.dance-card:active {
   gap: calc(1.1 * var(--u));
 }
 
+/* Конфетти и лучи — под таблицей и текстом: текст всегда сверху. */
+.db-result > .confetti {
+  z-index: 0;
+}
+
+.db-result > :not(.confetti):not(.db-burst) {
+  position: relative;
+  z-index: 1;
+}
+
 .db-burst {
   position: absolute;
   left: 50%;
@@ -8592,7 +8611,7 @@ button.dance-card:active {
   font-family: var(--font-display, "Cormorant Garamond", serif);
   font-weight: 700;
   font-size: calc(9.5 * var(--u));
-  line-height: 0.85;
+  line-height: 1.1;
   color: var(--db-gold-hi);
   text-shadow: 0 0 calc(4 * var(--u)) rgba(243, 223, 174, 0.6);
   animation: db-pop 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) both;
@@ -8600,6 +8619,8 @@ button.dance-card:active {
 
 .db-for {
   margin: 0;
+  line-height: 1.35;
+  text-wrap: balance;
   font-size: calc(2 * var(--u));
   color: var(--db-soft);
 }
@@ -8645,10 +8666,11 @@ button.dance-card:active {
   color: var(--db-gold);
 }
 
+/* Длинное имя переносится, а не обрезается. */
 .db-row__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .db-row__score {
@@ -8721,6 +8743,12 @@ button.dance-card:active {
 .db-phone__title {
   margin: 0;
   text-wrap: balance;
+}
+
+/* Заголовки и плашки телефона с длинным именем команды — строки не наезжают друг на друга. */
+.db-phone h2,
+.db-phone .buzz__plate strong {
+  line-height: 1.45;
 }
 
 .db-phone-fan {
@@ -8827,6 +8855,7 @@ button.dance-card:active {
 }
 
 .db-mini-perf {
+  align-self: stretch;
   display: flex;
   gap: 16px;
   align-items: center;
@@ -8853,7 +8882,7 @@ button.dance-card:active {
 .db-mini-perf b {
   font-family: var(--font-display, "Cormorant Garamond", serif);
   font-size: 24px;
-  line-height: 1.1;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
@@ -8871,7 +8900,7 @@ button.dance-card:active {
 .db-rate__num {
   font-family: var(--font-display, "Cormorant Garamond", serif);
   font-size: clamp(88px, 30vw, 128px);
-  line-height: 0.9;
+  line-height: 1.1;
   text-align: center;
   color: var(--color-highlight);
   font-variant-numeric: lining-nums tabular-nums;
@@ -8982,6 +9011,7 @@ button.dance-card:active {
 }
 
 .db-battle__pick .db-mini-perf {
+  align-self: stretch;
   display: flex;
 }
 

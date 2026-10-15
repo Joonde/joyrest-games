@@ -524,7 +524,9 @@ input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--bt
 .consent-row{ display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.45; color: var(--ink-soft); cursor: pointer; }
 .consent-row input{ flex: none; width: 22px; height: 22px; margin: 1px 0 0; accent-color: #C49E96; }
 .consent-row a{ color: var(--accent-text); text-decoration: underline; }
-.privacy-link{ padding: 0; border: 0; background: none; color: var(--accent-text); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.privacy-link{ position: relative; padding: 0; border: 0; background: none; color: var(--accent-text); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+/* Ссылка внутри предложения: строку не раздвигаем, а пальцу даём зону касания 44 px по высоте. */
+.privacy-link::after{ content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 .footer .privacy-link{ color: inherit; }
 .form-note{ display: none; margin: 0; font-size: 14px; color: var(--green-text); }
 .form-note.show{ display: block; }

@@ -149,14 +149,26 @@ async function layout(page, where) {
     const doc = document.documentElement;
     const small = [...document.querySelectorAll("main button, main a.btn")]
       .filter((el) => {
+        // Ссылка внутри предложения (политика на сайте): зона касания 44 px — у ::after, строку не раздвигает.
+        if (el.classList.contains("privacy-link") && parseFloat(getComputedStyle(el, "::after").height) >= 44) return false;
         const b = el.getBoundingClientRect();
         const folded = el.closest("details:not([open])") && !el.closest("summary");
         return b.width > 0 && b.height > 0 && b.height < 44 && !folded && getComputedStyle(el).visibility !== "hidden";
       })
       .map((el) => (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 30));
-    return { wide: doc.scrollWidth - doc.clientWidth, small: [...new Set(small)] };
+    // Что вылезает за край: самый глубокий элемент правее экрана (для подсказки в отчёте).
+    let culprit = "";
+    if (doc.scrollWidth - doc.clientWidth > 1) {
+      const over = [...document.querySelectorAll("body *")].filter((el) => el.getBoundingClientRect().right > doc.clientWidth + 1 && !el.closest("[aria-hidden='true']"));
+      const leaf = over.filter((el) => !over.some((o) => o !== el && el.contains(o)));
+      culprit = leaf
+        .slice(0, 3)
+        .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join(".")} «${(el.textContent || "").trim().slice(0, 24)}» ${Math.round(el.getBoundingClientRect().right)}px`)
+        .join("; ");
+    }
+    return { wide: doc.scrollWidth - doc.clientWidth, small: [...new Set(small)], culprit };
   });
-  check(r.wide <= 1, `${where}: нет прокрутки вбок`, `${where}: страница шире экрана на ${r.wide}px`);
+  check(r.wide <= 1, `${where}: нет прокрутки вбок`, `${where}: страница шире экрана на ${r.wide}px${r.culprit ? ` — ${r.culprit}` : ""}`);
   if (r.small.length) bad(`${where}: мелкие кнопки (< 44 px): ${r.small.join(", ")}`);
 }
 
@@ -669,7 +681,9 @@ try {
     await sp.locator("#siteReviews:not([hidden])").waitFor({ timeout: WAIT });
     check((await textOf(sp.locator("#reviewsTitle"))) === "Что говорят гости", "Сайт: раздел стал «Отзывы · Что говорят гости»");
     const cards = sp.locator("#reviewsTrack .review-card");
-    check((await cards.count()) === siteReviews.length * 3, `Сайт: лента из ${siteReviews.length} отзывов (три копии для бесконечной прокрутки)`);
+    const nCards = await cards.count();
+    check(nCards >= siteReviews.length * 3 && nCards % siteReviews.length === 0, `Сайт: лента из ${siteReviews.length} отзывов (копии для бесконечной прокрутки)`, `Сайт: карточек в ленте ${nCards}`);
+    check((await sp.locator("#reviewsTrack .review-card:not([aria-hidden])").count()) === siteReviews.length, "Сайт: экранный диктор читает каждый отзыв один раз");
     check((await textOf(sp.locator("#reviewsTrack"))).includes(`Было очень весело ${MARK}`), "Сайт: помещённый владельцем отзыв на сайте");
     const scroll = () => sp.locator("#reviewsTrack").evaluate((el) => ({ left: el.scrollLeft, max: el.scrollWidth - el.clientWidth }));
     const inside = (s) => s.left > 0 && s.left < s.max;

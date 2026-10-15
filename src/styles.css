@@ -401,9 +401,20 @@ a {
   white-space: nowrap;
 }
 
+.meta li {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Предупреждение длинное («Загружено 40% — выберите тот же файл…») — переносится, а не вылезает за край телефона. */
 .meta li.meta__warn {
   color: var(--color-text);
   border-color: var(--color-danger);
+  white-space: normal;
+  line-height: 1.35;
+  padding-block: 6px;
+  border-radius: 16px;
 }
 
 .empty {

@@ -59,4 +59,13 @@ jobs:
           git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
           rm -rf calendar && mkdir -p calendar && cp /tmp/e2e/shots/*.png calendar/ 2>/dev/null || true
           git add -A calendar
-          git commit -qm "Снимки проверки календаря ${GITHUB_SHA::7}" && { for i in 1 2 3 4 5; do git push -q origin HEAD:e2e-shots && break; git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break; done; } || echo "Снимков нет"
+          if git commit -qm "Снимки проверки календаря ${GITHUB_SHA::7}"; then
+            sent=""
+            for i in 1 2 3 4 5; do
+              if out=$(git push -q origin HEAD:e2e-shots 2>&1); then sent=1; break; fi
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+            [ -n "$sent" ] || echo "::warning::Не отправлено в e2e-shots: $(echo "$out" | tr '\n' ' ' | cut -c1-300)"
+          else
+            echo "::notice::Нечего отправлять в e2e-shots"
+          fi

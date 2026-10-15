@@ -1,6 +1,6 @@
 // Лента отзывов на сайте (решение владельца 15 октября 2026): владелец отмечает отзывы гостей «Поместить на сайт» в
 // студии платформы, сайт берёт их с /api/site/reviews. Лента листается пальцем по кругу без конца (три копии
-// списка, незаметный перескок в середину), на компьютере — стрелки. Нет отзывов или сервер не ответил — ленты нет,
+// списка, на широком экране — больше; незаметный перескок в середину), на компьютере — стрелки. Нет отзывов или сервер не ответил — ленты нет,
 // раздел остаётся «Следите за нами».
 (function(){
   'use strict';
@@ -57,7 +57,20 @@
       var middle = track.children[reviews.length];
       setWidth = middle.offsetLeft - first.offsetLeft;
     }
-    function center(){ measure(); track.scrollLeft = setWidth; }
+    // Широкий экран и мало отзывов: трёх копий не хватает, чтобы перескок был незаметен и лента не упиралась в край, —
+    // добавляем копии, пока запас прокрутки меньше двух с половиной списков.
+    function ensureCopies(){
+      var guard = 0;
+      while(setWidth > 0 && track.scrollWidth - track.clientWidth < setWidth * 2.5 && guard < 12){
+        reviews.forEach(function(r){
+          var el = card(r);
+          el.setAttribute('aria-hidden', 'true');
+          track.appendChild(el);
+        });
+        guard++;
+      }
+    }
+    function center(){ measure(); ensureCopies(); track.scrollLeft = setWidth; }
     // Ушли в первую или третью копию — тихо перескакиваем на то же место во второй.
     var timer = 0;
     track.addEventListener('scroll', function(){

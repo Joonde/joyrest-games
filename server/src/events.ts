@@ -210,6 +210,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           source: "event",
           summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
           ref: saved.id,
+          promote: !saved.cancelled,
         }).catch(() => request.log.warn({ events: "client" }, "events: клиент не записан"));
       }
       return saved;

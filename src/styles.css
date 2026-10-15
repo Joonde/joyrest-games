@@ -17541,6 +17541,54 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   overflow-wrap: anywhere;
 }
 
+/* Заявка с сайта в истории — по строкам: повод, ведущий, расчёт, связь, комментарий. */
+.clients-history__text {
+  display: block;
+  margin-top: 2px;
+  white-space: pre-line;
+  color: var(--color-text);
+}
+
+/* «Ждёт ответа 12 мин» в заголовке карточки; дольше 30 минут — красным. */
+.clients-wait {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.clients-wait.is-late,
+.clients-late {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.clients-late {
+  margin: 0;
+}
+
+/* Первая строка заметки на свёрнутой карточке — следующий шаг виден без раскрытия. */
+.clients-note-line {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Кнопки связи: на телефоне по две в ряд, крупные. */
+.clients-contact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.clients-contact .btn {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cal-feed-url {
   margin: 0;
   padding: 8px 12px;

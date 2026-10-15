@@ -3,6 +3,7 @@
  * сколько клиентов в работе, и кнопки во все нужные разделы — «Клиенты», «Заявки клиентов», «Кто может», «Мероприятия»,
  * «Инструкция менеджера».
  */
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { clientsRepo, useLoad, type ClientRecord } from "../../data";
 
@@ -11,6 +12,9 @@ export function SalesDesk() {
   const list = state.status === "ready" ? state.data : null;
   const fresh = list?.filter((c) => c.status === "new").length ?? null;
   const work = list?.filter((c) => c.status === "work").length ?? null;
+  // Сколько новых ждут ответа дольше 30 минут (срок из инструкции) — на момент открытия студии.
+  const [opened] = useState(() => Date.now());
+  const late = list?.filter((c) => c.status === "new" && opened - c.lastContactAt > 30 * 60_000).length ?? 0;
   return (
     <section className="card stack" aria-labelledby="sales-desk">
       <p className="eyebrow">Менеджер по продажам</p>
@@ -23,13 +27,17 @@ export function SalesDesk() {
           <span className="sales-desk__count">{work ?? "…"}</span> <span className="muted">клиентов в работе</span>
         </div>
       </div>
-      {fresh !== null && fresh > 0 && <p className="small">Ответьте новым в течение 30 минут и поставьте им «В работе».</p>}
+      {late > 0 && <p className="clients-late">⏰ Ждут ответа дольше 30 минут: {late}</p>}
+      {fresh !== null && fresh > 0 && <p className="small">Ответьте новым в течение 30 минут и поставьте им «В работе» — прямо в карточке, одним касанием.</p>}
       <div className="actions">
-        <Link className="btn btn--block" to="/studio/clients">
-          Клиенты
+        <Link className="btn btn--block" to={fresh ? "/studio/clients?f=new" : "/studio/clients?f=work"}>
+          {fresh ? `Новые анкеты (${fresh})` : "Клиенты в работе"}
+        </Link>
+        <Link className="btn btn--secondary btn--block" to="/studio/clients">
+          Все клиенты
         </Link>
         <Link className="btn btn--secondary btn--block" to="/venues?tab=requests">
-          Заявки на подбор площадок
+          Подбор площадок («под ключ»)
         </Link>
         <Link className="btn btn--secondary btn--block" to="/studio/calendar">
           Кто может в дату

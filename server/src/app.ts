@@ -14,7 +14,7 @@ import { registerCalendar } from "./calendar";
 import { registerEvents } from "./events";
 import { registerGames, type GamesOptions } from "./games";
 import { registerClients, upsertClient } from "./clients";
-import { registerLead, type LeadData, type LeadOptions } from "./lead";
+import { leadSummary, registerLead, type LeadData, type LeadOptions } from "./lead";
 import { registerTelegram, type Bot } from "./telegram";
 import { parseLinks } from "../../src/core/clients";
 import { registerLive, type LiveOptions } from "./live";
@@ -126,14 +126,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
               links: parseLinks(`${f.contactLink} ${f.contactMethod}`),
               marketing: lead.marketing === true,
               source: "site",
-              summary: [f.eventType || "Заявка", f.guests ? `${f.guests} гостей` : ""].filter(Boolean).join(", "),
+              summary: leadSummary(lead),
             });
           } else if (lead.type === "review") {
             // Отзыв с сайта — в «Отзывы» студии, на проверку владельцу (решение владельца 15 октября 2026).
             await saveSiteReview(sql, { name: lead.fields.name, text: lead.fields.text, rating: lead.rating });
           } else if (lead.type === "question") {
             const contact = lead.fields.contact;
-            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: lead.fields.text.slice(0, 200) });
+            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: leadSummary(lead) });
           }
           // Менеджерам по продажам — «Новая заявка» в Telegram (без данных клиента); не ждём и не роняем заявку.
           if (lead.type === "lead" || lead.type === "question") {

@@ -6,7 +6,7 @@
  * Чистые функции: их же проверяет сервер.
  */
 
-export const CLIENT_LIMITS = { name: 100, phone: 40, link: 200, links: 5, notes: 2000, summary: 300 } as const;
+export const CLIENT_LIMITS = { name: 100, phone: 40, link: 200, links: 5, notes: 2000, summary: 3000 } as const;
 
 export type ClientStatus = "new" | "work" | "client" | "lost";
 export const CLIENT_STATUSES: ClientStatus[] = ["new", "work", "client", "lost"];

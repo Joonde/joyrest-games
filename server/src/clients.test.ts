@@ -82,6 +82,18 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect(c.history).toHaveLength(3);
   });
 
+  it("заявка с сайта по строкам в истории; записанное мероприятие делает клиента «Клиентом» один раз", async () => {
+    const id = await upsertClient(sql, { name: "Вера", phone: "+7 903 000 11 22", source: "site", summary: "Корпоратив, 25 гостей\n🧮 Расчёт: Пакет «Квиз»" });
+    const first = (await get(`/api/clients/${id}`, owner)).json();
+    expect(first.status).toBe("new");
+    expect(first.history[0].summary).toBe("Корпоратив, 25 гостей\n🧮 Расчёт: Пакет «Квиз»");
+    await upsertClient(sql, { phone: "89030001122", source: "event", summary: "Корпоратив, 20 ноября", ref: "ev-vera", promote: true });
+    await upsertClient(sql, { phone: "89030001122", source: "event", summary: "Корпоратив, 20 ноября", ref: "ev-vera", promote: true });
+    const after = (await get(`/api/clients/${id}`, owner)).json();
+    expect(after.status).toBe("client");
+    expect(after.history.filter((h: { source: string }) => h.source === "status")).toHaveLength(1);
+  });
+
   it("согласие на рассылку: «да» только с сайта или вручную; выгрузка — только согласившиеся", async () => {
     await upsertClient(sql, { name: "Ольга", phone: "89001112233", marketing: true, source: "site", summary: "Свадьба" });
     const csv = (await get("/api/clients/export", owner)).body;

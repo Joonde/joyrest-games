@@ -42,6 +42,8 @@ export interface ClientInput {
   summary: string;
   /** Откуда обращение (id заявки, мероприятия): повтор не дублирует историю. */
   ref?: string | null;
+  /** Мероприятие записано — клиент сам становится «Клиент» (менеджеру не нужно менять статус вручную). */
+  promote?: boolean;
 }
 
 interface Row {
@@ -80,6 +82,19 @@ function recordOf(row: Row): ClientRecord {
   };
 }
 
+/** Текст обращения: переводы строк сохраняются (заявка с сайта — по строкам), остальные служебные символы — пробел. */
+export function cleanSummary(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, CLIENT_LIMITS.summary);
+}
+
 /**
  * Записать обращение: найти клиента по телефону или ссылке, дополнить (имя, ссылки, согласие) или создать.
  * Без телефона и ссылок — не записываем (связаться не с кем). Возвращает id клиента или null.
@@ -90,7 +105,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
   const key = phoneKey(phone);
   const links = cleanLinks(input.links ?? []);
   if (!key && links.length === 0) return null;
-  const summary = cleanLine(input.summary, CLIENT_LIMITS.summary);
+  const summary = cleanSummary(input.summary);
   return sql.begin(async (tx) => {
     const t = tx as unknown as Sql;
     // Один и тот же человек по телефону, иначе — по любой из ссылок.
@@ -127,6 +142,12 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     await t`insert into client_contacts (id, client_id, source, summary, ref)
       values (${newId("c")}, ${id}, ${input.source}, ${summary}, ${input.ref ?? null})
       on conflict do nothing`;
+    if (input.promote) {
+      const changed = await t`update clients set status = 'client', updated_at = now() where id = ${id} and status <> 'client' returning id`;
+      if (changed.length > 0) {
+        await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status', ${"Клиент · мероприятие записано"})`;
+      }
+    }
     return id;
   });
 }
@@ -168,8 +189,9 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     const select = sql`
       select c.id, c.name, c.phone, c.links, c.status, c.marketing, c.marketing_at, c.marketing_source, c.notes,
         c.created_at, c.last_contact_at, c.archived_at,
-        (select count(*)::int from client_contacts h where h.client_id = c.id) as contacts,
-        (select h.source from client_contacts h where h.client_id = c.id order by h.created_at desc limit 1) as last_source
+        (select count(*)::int from client_contacts h where h.client_id = c.id and h.source <> 'status') as contacts,
+        -- Откуда пришёл — по настоящим обращениям: смена статуса обращением не считается.
+        coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source
       from clients c`;
 
     async function details(id: string): Promise<ClientDetails | null> {

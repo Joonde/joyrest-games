@@ -105,6 +105,8 @@ export interface MediaUpload {
   small: Blob;
   width: number;
   height: number;
+  /** Чёткая для большого экрана (до 1920 px) — только свой сервер и только если исходник больше полной. */
+  hd?: { blob: Blob; width: number; height: number };
 }
 
 /** Режимы проведения из раздела 4 CLAUDE.md. */

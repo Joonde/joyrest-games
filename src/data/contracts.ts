@@ -136,6 +136,8 @@ export interface MediaRepository {
   load(gameId: string, mediaId: string, variant: MediaVariant): Promise<Blob | null>;
   /** Удаляет оба варианта картинки. */
   remove(gameId: string, mediaId: string): Promise<void>;
+  /** Чёткая версия для большого экрана; null — её нет (тогда экран берёт полную). Только свой сервер. */
+  loadHd?(gameId: string, mediaId: string): Promise<Blob | null>;
 }
 
 export interface SessionsRepository {

@@ -1,4 +1,4 @@
-import { FULL_IMAGE, fitSize, QUALITY_STEPS, SMALL_IMAGE } from "../../core/image";
+import { FULL_IMAGE, fitSize, HD_IMAGE, QUALITY_STEPS, SMALL_IMAGE } from "../../core/image";
 import type { MediaUpload } from "../../data";
 
 export class ImageError extends Error {}
@@ -102,7 +102,11 @@ export async function compressImage(file: File): Promise<MediaUpload> {
   try {
     const full = await encode(source, FULL_IMAGE);
     const small = await encode(source, SMALL_IMAGE);
-    return { full: full.blob, small: small.blob, width: full.width, height: full.height };
+    // Большой исходник — ещё чёткая версия для телевизора и проектора (не вышла — не беда, экран возьмёт полную).
+    const original = sourceSize(source);
+    let hd: { blob: Blob; width: number; height: number } | undefined;
+    if (Math.max(original.width, original.height) > FULL_IMAGE.maxSide) hd = await encode(source, HD_IMAGE).catch(() => undefined);
+    return { full: full.blob, small: small.blob, width: full.width, height: full.height, ...(hd ? { hd } : {}) };
   } finally {
     if (!(source instanceof HTMLImageElement)) source.close();
   }

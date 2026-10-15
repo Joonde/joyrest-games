@@ -2,6 +2,8 @@
 
 /** Полная картинка для экрана зала: до 1280 px по длинной стороне и около 150 КБ. */
 export const FULL_IMAGE = { maxSide: 1280, targetBytes: 150 * 1024, maxBytes: 380 * 1024 } as const;
+/** Чёткая для большого экрана (телевизор, проектор): только если исходник больше 1280 px. */
+export const HD_IMAGE = { maxSide: 1920, targetBytes: 700 * 1024, maxBytes: 880 * 1024 } as const;
 /** Уменьшенная для телефонов в режиме «без экрана». */
 export const SMALL_IMAGE = { maxSide: 480, targetBytes: 35 * 1024, maxBytes: 120 * 1024 } as const;
 

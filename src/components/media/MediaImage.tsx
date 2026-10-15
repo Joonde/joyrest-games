@@ -8,11 +8,23 @@ function key(gameId: string, mediaId: string, variant: MediaVariant): string {
   return `${gameId}/${mediaId}/${variant}`;
 }
 
+/** Большой экран (телевизор, проектор, ноутбук во весь экран): ему нужна чёткая версия картинки. */
+function bigScreen(): boolean {
+  if (typeof window === "undefined") return false;
+  return Math.max(window.innerWidth, window.innerHeight) * (window.devicePixelRatio || 1) >= 1600 && window.innerWidth >= 900;
+}
+
+/** Чёткая версия, если она есть на сервере; нет — null (берём полную). */
+async function loadHd(gameId: string, mediaId: string): Promise<Blob | null> {
+  if (!mediaRepo.loadHd || !bigScreen()) return null;
+  return mediaRepo.loadHd(gameId, mediaId).catch(() => null);
+}
+
 async function loadUrl(gameId: string, mediaId: string, variant: MediaVariant): Promise<string | null> {
   const k = key(gameId, mediaId, variant);
   const known = urls.get(k);
   if (known) return known;
-  const blob = await mediaRepo.load(gameId, mediaId, variant);
+  const blob = (variant === "full" ? await loadHd(gameId, mediaId) : null) ?? (await mediaRepo.load(gameId, mediaId, variant));
   if (!blob) return null;
   const url = urls.get(k) ?? URL.createObjectURL(blob);
   urls.set(k, url);

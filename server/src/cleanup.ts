@@ -87,6 +87,24 @@ export async function cleanupDevices(sql: Sql, now: number = Date.now()): Promis
   return rows.length;
 }
 
+/**
+ * Сроки хранения данных людей (политика `public/privacy.html`, раздел 3; решение владельца 15 октября 2026):
+ * не дольше 3 лет. Клиенты без обращений 3 года и заявки на подбор, не менявшиеся 3 года, удаляются; в
+ * мероприятиях старше 3 лет стираются имя и телефон клиента (мероприятие остаётся для итогов); итоги игр
+ * (имена гостей и баллы) старше 3 лет удаляются.
+ */
+export const PERSONAL_DATA_DAYS = 3 * 365;
+
+export async function cleanupPersonalData(sql: Sql, now: number = Date.now()): Promise<{ clients: number; requests: number; events: number; results: number }> {
+  const cutoff = new Date(now - PERSONAL_DATA_DAYS * DAY_MS);
+  const clients = await sql`delete from clients where last_contact_at < ${cutoff} returning id`;
+  const requests = await sql`delete from venue_requests where greatest(created_at, updated_at) < ${cutoff} returning id`;
+  const events = await sql`update events set client_name = '', client_phone = '', updated_at = now()
+    where ends_at < ${cutoff} and (client_name <> '' or client_phone <> '') returning id`;
+  const results = await sql`delete from results where coalesce(played_at, saved_at) < ${cutoff} returning id`;
+  return { clients: clients.length, requests: requests.length, events: events.length, results: results.length };
+}
+
 interface Log {
   info: (data: object, message: string) => void;
   warn: (data: object, message: string) => void;
@@ -107,7 +125,8 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
         sessions += report.deleted;
         if (!report.more) break;
       }
-      log.info({ files, devices, sessions, libraryGames }, "cleanup");
+      const personal = await cleanupPersonalData(sql);
+      log.info({ files, devices, sessions, libraryGames, personal }, "cleanup");
     } catch (error) {
       // Таблиц ещё нет (миграции не прошли) или нет папки — попробуем завтра.
       log.warn({ reason: error instanceof Error ? error.name : "unknown" }, "cleanup failed");

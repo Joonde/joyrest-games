@@ -15,7 +15,7 @@ import { createOlymp } from "./olymp/content";
 import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "./dragon/demo";
 import { DEMO_SURVIVAL } from "./survival/demo";
 import { DEMO_MILLIONAIRE } from "./millionaire/demo";
-import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
+import { DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET } from "./quest/demo";
 import { lotto } from "./lotto";
 import { mafia } from "./mafia";
 import { spy } from "./spy";
@@ -184,6 +184,8 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   },
   { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
   { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
+  { mechanic: quest.id, title: DEMO_QUEST_DRINKS.title, hint: "Ходилка 18+: тосты, коктейли, вопросы про напитки. Пить — по желанию: сок и вода засчитываются так же.", content: DEMO_QUEST_DRINKS.content, ageRating: "18+", playMode: "teams", themeId: "disco" },
+  { mechanic: quest.id, title: DEMO_QUEST_SWEET.title, hint: "Ходилка для детей и сладкоежек: конфеты, торты, мороженое, весёлые задания.", content: DEMO_QUEST_SWEET.content, playMode: "teams", themeId: "joyrest-day" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "45 вопросов на 15 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
   { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания с тайными словами капитанам (30 секунд на команду), 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
   { mechanic: olymp.id, title: "Олимп: Вечная зима", hint: "История на 1–2 часа: 10 богов, проверки d100, развилки, Поля Асфоделей и дворец Аида, бои с волками, тенями, Цербером и Пожирателем зимы, три концовки.", content: createOlymp(), playMode: "teams", ageRating: "18+", themeId: "winter" },

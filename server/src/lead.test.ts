@@ -299,6 +299,64 @@ describe("/api/lead: Telegram", () => {
     await app.close();
   });
 
+  it("заявка записана в базу клиентов — посетителю «спасибо», даже если Telegram не ответил", async () => {
+    const stored: string[] = [];
+    const { default: Fastify } = await import("fastify");
+    const { registerLead } = await import("./lead");
+    const app = Fastify();
+    registerLead(app, {
+      telegram: TELEGRAM,
+      hosts: [HOST],
+      send: async () => {
+        throw new Error("telegram 502");
+      },
+      onLead: async (lead) => void stored.push(lead.type),
+    });
+    for (const body of [VALID.lead, VALID.question]) {
+      const res = await app.inject({ method: "POST", url: "/api/lead", headers: { host: HOST, "content-type": "application/json" }, payload: JSON.stringify(body) });
+      expect(res.statusCode, body.type).toBe(200);
+      expect(res.json()).toEqual({ ok: true });
+    }
+    expect(stored).toEqual(["lead", "question"]);
+    // Отзыв в базу не пишется — без Telegram он потерялся бы, посетитель видит ошибку.
+    const review = await app.inject({ method: "POST", url: "/api/lead", headers: { host: HOST, "content-type": "application/json" }, payload: JSON.stringify(VALID.review) });
+    expect(review.statusCode).toBe(502);
+    await app.close();
+  });
+
+  it("бот не настроен — заявка всё равно в базе клиентов и посетитель видит «спасибо»", async () => {
+    const stored: string[] = [];
+    const send = vi.fn(async () => undefined);
+    const { default: Fastify } = await import("fastify");
+    const { registerLead } = await import("./lead");
+    const app = Fastify();
+    registerLead(app, { telegram: null, hosts: [HOST], send, onLead: async (lead) => void stored.push(lead.type) });
+    const res = await app.inject({ method: "POST", url: "/api/lead", headers: { host: HOST, "content-type": "application/json" }, payload: JSON.stringify(VALID.lead) });
+    expect(res.statusCode).toBe(200);
+    expect(stored).toEqual(["lead"]);
+    expect(send).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("база не записала и Telegram не ответил — посетитель видит ошибку", async () => {
+    const { default: Fastify } = await import("fastify");
+    const { registerLead } = await import("./lead");
+    const app = Fastify();
+    registerLead(app, {
+      telegram: TELEGRAM,
+      hosts: [HOST],
+      send: async () => {
+        throw new Error("telegram 500");
+      },
+      onLead: async () => {
+        throw new Error("db");
+      },
+    });
+    const res = await app.inject({ method: "POST", url: "/api/lead", headers: { host: HOST, "content-type": "application/json" }, payload: JSON.stringify(VALID.lead) });
+    expect(res.statusCode).toBe(502);
+    await app.close();
+  });
+
   it("запрос в Telegram — sendMessage без parse_mode", async () => {
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

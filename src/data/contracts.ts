@@ -432,7 +432,7 @@ export interface FinaleRepository {
 
 export interface VideosRepository {
   /** Все видео JoyRest (загруженные; у загружающих — и недогруженные), сколько места заняли все видео. */
-  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number }>;
+  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number; folders?: string[] }>;
   /**
    * Загрузить файл частями (видео большое, связь на площадке плохая): обрыв — повтор с того же места; тот же id
    * и тот же файл после закрытия вкладки — дозагрузка. `onProgress` — сколько байт уже на сервере.
@@ -440,6 +440,10 @@ export interface VideosRepository {
   upload(input: { id: string; title: string; folder: string; file: Blob; durationMs: number | null }, onProgress?: (received: number, size: number) => void, signal?: AbortSignal): Promise<LibraryVideo>;
   update(id: string, patch: { title?: string; folder?: string }): Promise<LibraryVideo>;
   remove(id: string): Promise<void>;
+  /** Папки (как у «Музыки»): создать пустую, переименовать (видео переезжают), удалить (видео остаются без папки). Ответ — все папки. */
+  createFolder(name: string): Promise<string[]>;
+  renameFolder(from: string, to: string): Promise<string[]>;
+  deleteFolder(name: string): Promise<string[]>;
   /** Адрес файла для `<video src>` (браузер берёт его частями). */
   fileUrl(id: string): string;
 }

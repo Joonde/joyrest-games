@@ -309,7 +309,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, host)).statusCode).toBe(200);
     expect(((await call("GET", "/api/reviews", host)).json() as Array<{ sessionId: string }>).filter((r) => r.sessionId === "fz1")).toHaveLength(0);
     expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, host)).statusCode).toBe(404);
-    expect((await call("GET", "/api/results/fz1", "")).statusCode).toBe(200);
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().myReview).toBeNull();
     await call("POST", "/api/me/tips", host, { url: "" });
     expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().tipsUrl).toBe("");
   });

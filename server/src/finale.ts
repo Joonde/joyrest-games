@@ -180,6 +180,18 @@ export function registerFinale(app: FastifyInstance, options: FinaleOptions): vo
       return { ok: true, status };
     });
 
+    // Владелец: удалить отзыв навсегда (решение владельца 15 октября 2026) — только сам отзыв, игра и итоги остаются.
+    api.delete<{ Params: { id: string } }>("/api/reviews/:id", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await sessionUser(sql, request, reply);
+      if (!user) return fail(reply, 401, "unauthenticated");
+      if (!permissions.canModerateReviews(actorOf(user))) return fail(reply, 403, "permission-denied");
+      if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
+      const removed = await sql`delete from reviews where id = ${request.params.id} returning id`;
+      if (removed.length === 0) return fail(reply, 404, "not-found");
+      request.log.info({ review: "delete" }, "review");
+      return { ok: true };
+    });
+
     // Своя ссылка для чаевых (профиль ведущего).
     api.get("/api/me/tips", async (request, reply) => {
       const user = await sessionUser(sql, request, reply);

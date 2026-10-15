@@ -304,6 +304,12 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/reviews", guest.cookie)).statusCode).toBe(401);
     expect((await call("POST", `/api/reviews/${mine[0]?.id}/status`, guest.cookie, { status: "published" })).statusCode).toBe(401);
     expect((await call("POST", `/api/reviews/${mine[0]?.id}/status`, host, { status: "published" })).json().status).toBe("published");
+    // Удалить отзыв: только владелец, только сам отзыв; повтор — 404.
+    expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, guest.cookie)).statusCode).toBe(401);
+    expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, host)).statusCode).toBe(200);
+    expect(((await call("GET", "/api/reviews", host)).json() as Array<{ sessionId: string }>).filter((r) => r.sessionId === "fz1")).toHaveLength(0);
+    expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, host)).statusCode).toBe(404);
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().myReview).toBeNull();
     await call("POST", "/api/me/tips", host, { url: "" });
     expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().tipsUrl).toBe("");
   });

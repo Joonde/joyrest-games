@@ -415,6 +415,8 @@ export interface FinaleRepository {
   /** Ведущему — отзывы о своих мероприятиях, владельцу — все. */
   listReviews(): Promise<GuestReview[]>;
   setReviewStatus(id: string, status: ReviewStatus): Promise<void>;
+  /** Владелец: удалить отзыв навсегда (только сам отзыв). */
+  deleteReview(id: string): Promise<void>;
   getTips(): Promise<string>;
   setTips(url: string): Promise<string>;
 }

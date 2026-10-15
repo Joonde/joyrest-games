@@ -49,6 +49,9 @@ export const serverFinaleRepository: FinaleRepository = {
   async setReviewStatus(id, status) {
     await api("POST", `/api/reviews/${encodeURIComponent(id)}/status`, { status });
   },
+  async deleteReview(id) {
+    await api("DELETE", `/api/reviews/${encodeURIComponent(id)}`);
+  },
   async getTips() {
     return asText(asRecord(await api("GET", "/api/me/tips")).url);
   },

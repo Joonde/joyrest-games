@@ -10,7 +10,7 @@
 //  5. Фотоотчёт с пульта: три ячейки, «Сделать фото», «Переснять», «Удалить» (с подтверждением и «Оставить»),
 //     после перезагрузки пульта — на месте; «Фотоотчёты» у ведущего и владельца; гостю и без входа — закрыто.
 //  6. Видео JoyRest (если есть E2E_VIDEO): владелец загружает частями, ведущий видит и может проиграть, но не загрузить;
-//     «Название и папка», «Убрать видео» с подтверждением.
+//     «Название», «Убрать видео» с подтверждением.
 //  7. Сайт (если есть E2E_SITE_DIR): страница сайта на своём маленьком сервере, лента отзывов — те, что владелец
 //     только что поместил на сайт (как отдаёт /api/site/reviews), листается по кругу без конца; форма отзыва шлёт
 //     в /api/lead тип review.
@@ -621,11 +621,14 @@ try {
   if (VIDEO && existsSync(VIDEO)) {
     check((await api("POST", "/api/videos", host.cookie, { id: `v${MARK}x`, title: "x", size: 1000 })).status === 403, "API: ведущий не загружает видео (403)");
     await ap.goto(`${BASE}/studio?tab=video`);
-    await ap.getByLabel("Папка (по желанию)").fill(`Проверка ${MARK}`);
+    // Поле новой папки: «Папка (по желанию)», а если папки уже есть — «Или новая папка» (папки видео, 15 октября 2026).
+    await ap.getByLabel(/^(Папка \(по желанию\)|Или новая папка)$/).fill(`Проверка ${MARK}`);
     const [chooser] = await Promise.all([ap.waitForEvent("filechooser"), click(ap, "⬆ Выбрать видео (можно сразу несколько)")]);
     await chooser.setFiles(VIDEO);
     await until(async () => ((await api("GET", "/api/videos", admin.cookie)).data?.videos ?? []).some((x) => x.folder === `Проверка ${MARK}` && x.ready), 180_000, "видео загружено");
-    await until(async () => (await ap.getByText(`📁 Проверка ${MARK}`).count()) > 0, WAIT, "папка видео в списке");
+    // Папка — свёрнутый раздел списка (заголовок раздела; та же надпись есть и на кнопке выбора папки).
+    const folderOf = (page) => page.locator(".fold__title", { hasText: `📁 Проверка ${MARK}` });
+    await until(async () => (await folderOf(ap).count()) > 0, WAIT, "папка видео в списке");
     const list = (await api("GET", "/api/videos", admin.cookie)).data?.videos ?? [];
     const v = list.find((x) => x.folder === `Проверка ${MARK}`);
     videoId = v?.id ?? "";
@@ -635,7 +638,7 @@ try {
     await shot(ap, "владелец-видео");
     // Ведущий видит, загрузить не может; файл играет в браузере.
     await hp.goto(`${BASE}/studio?tab=video`);
-    await hp.getByText(`📁 Проверка ${MARK}`).waitFor({ timeout: WAIT });
+    await folderOf(hp).first().waitFor({ timeout: WAIT });
     check((await hp.getByRole("button", { name: /Выбрать видео/ }).count()) === 0, "Видео: ведущий видит видео, кнопки загрузки у него нет");
     const plays = await hp.evaluate(async (src) => {
       const el = document.createElement("video");
@@ -648,14 +651,14 @@ try {
       });
     }, `/api/videos/${videoId}/file`);
     check(plays > 1, "Видео: файл открывается в браузере (как на экране зала)", `Видео: браузер не открыл файл (${plays})`);
-    // Название и папка, потом «Убрать видео» — сначала «Отмена».
-    await ap.getByText(`📁 Проверка ${MARK}`).click();
+    // Название, потом «Убрать видео» — сначала «Отмена».
+    await folderOf(ap).first().click();
     await ap.getByRole("button", { name: /Действия с видео/ }).first().click();
-    await ap.getByRole("menuitem", { name: "Название и папка" }).click();
+    await ap.getByRole("menuitem", { name: "Название", exact: true }).click();
     await ap.getByRole("dialog").getByLabel("Название").fill(`Видео ${MARK}`);
     await ap.getByRole("dialog").getByRole("button", { name: "Сохранить" }).click();
     await until(async () => (await api("GET", "/api/videos", admin.cookie)).data?.videos?.some((x) => x.id === videoId && x.title === `Видео ${MARK}`), WAIT, "новое название");
-    ok("Видео: «Название и папка» сохраняет новое название");
+    ok("Видео: «Название» сохраняет новое название");
     await ap.getByRole("button", { name: `Действия с видео «Видео ${MARK}»` }).click();
     await ap.getByRole("menuitem", { name: "Убрать видео" }).click();
     await ap.getByRole("dialog").getByRole("button", { name: "Отмена" }).click();

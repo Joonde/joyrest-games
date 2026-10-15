@@ -15,6 +15,7 @@ import {
   type QuizQuestion,
 } from "./content";
 import { IMPORT_EXAMPLE, parseImport } from "./importText";
+import { DEMO_QUIZ_FORMATS } from "./demo";
 import { podiumNext, startPodium } from "../../core/podium";
 import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
@@ -804,5 +805,13 @@ describe("«Расставь по порядку» и «Угадай число�
     session = applyChange(session, plan.change, 6_000);
     expect(session.leaderboard.a?.score).toBe(0);
     expect(session.leaderboard.b?.score).toBe(0);
+  });
+});
+
+describe("шаблон «Квиз: порядок и числа»", () => {
+  it("проходит проверку и разбирается без потерь", () => {
+    const content = parseContent(DEMO_QUIZ_FORMATS.content);
+    expect(validateContent(content)).toEqual([]);
+    expect(content.questions.map((q) => q.kind)).toEqual(["order", "number", "order", "number", "order", "number"]);
   });
 });

@@ -39,7 +39,7 @@ import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
 import { evening } from "./evening";
-import { DEMO_MELODY, DEMO_QUIZ } from "./quiz/demo";
+import { DEMO_MELODY, DEMO_QUIZ, DEMO_QUIZ_FORMATS } from "./quiz/demo";
 import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
 
@@ -124,6 +124,7 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
 /** Все готовые игры, включая скрытые форматы (робот-ведущий проверяет и их). */
 export const allDemoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
+  { mechanic: quiz.id, title: DEMO_QUIZ_FORMATS.title, hint: "6 вопросов: «Расставь по порядку» и «Угадай число» — кто ближе, тот и выиграл.", content: DEMO_QUIZ_FORMATS.content },
   {
     mechanic: quiz.id,
     title: DEMO_MELODY.title,

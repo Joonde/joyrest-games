@@ -1,0 +1,28 @@
+{
+  "files": [
+    {
+      "file": "stage.png",
+      "what": "«Танцевальный батл»: фон экрана зала — сцена, золотой и розовый прожекторы, зеркальный шар, середина пустая (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0010-1884149612116951297.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T093942Z&X-Amz-Expires=25812&X-Amz-Signature=a32ad92f8d7e3f76f54e07d9bd95c2d4d7a58b87ffb3ef3b905516606e8083a2&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2016%3A49%3A54%20GMT",
+      "expires": "2026-10-15"
+    },
+    {
+      "file": "card-battle.png",
+      "what": "«Танцевальный батл»: карточка «Батл» — двое танцоров друг против друга (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0011-1182713967959429454.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T101314Z&X-Amz-Expires=20400&X-Amz-Signature=601da1c7b3ba81e8c58eb73a9e6bf598e54c2536608c406acd2f8f98f63e5559&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2015%3A53%3A14%20GMT",
+      "expires": "2026-10-15"
+    },
+    {
+      "file": "card-dance.png",
+      "what": "«Танцевальный батл»: карточка «Танец» — пятеро танцоров, золото (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0012-1182713967959429454.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261014%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261014T200652Z&X-Amz-Expires=73131&X-Amz-Signature=449ce745d1d22f6915fa62ef397113f36a77da100791af3245a08c4d5f0c601a&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2016%3A25%3A43%20GMT",
+      "expires": "2026-10-15"
+    },
+    {
+      "file": "card-karaoke.png",
+      "what": "«Танцевальный батл»: карточка «Караоке» — золотой микрофон и волны (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0013-1182713967959429454.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T024039Z&X-Amz-Expires=47875&X-Amz-Signature=e8b5565688ab15e2187624fefb0c6e1ee9b6279def93551be5228ac82ca555a9&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2015%3A58%3A34%20GMT",
+      "expires": "2026-10-15"
+    }
+  ]
+}

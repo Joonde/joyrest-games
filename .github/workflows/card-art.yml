@@ -8,7 +8,7 @@ name: Картинки карт
 on:
   push:
     branches: ["claude/**"]
-    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json]
+    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/dance/art/manifest.json]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           added=0
-          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art; do
+          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art; do
             [ -f "$dir/manifest.json" ] || continue
             while IFS=$'\t' read -r file url; do
               case "$file" in (*/*|.*|"") echo "Плохое имя файла: $file"; exit 1;; esac
@@ -42,27 +42,29 @@ jobs:
             done < <(jq -r '.files[] | [.file, .url] | @tsv' "$dir/manifest.json")
           done
           echo "ADDED=$added" >> "$GITHUB_ENV"
-      - name: Лёгкие WebP для «Шпиона»
+      - name: Лёгкие WebP для «Шпиона» и «Батла»
         if: env.ADDED != '0'
         run: |
           pip install --quiet pillow
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
-          src = Path("public/spy/art"); out = src / "web"; out.mkdir(exist_ok=True)
-          for p in sorted(src.glob("*.png")):
-              t = out / (p.stem + ".webp")
-              if t.exists(): continue
-              im = Image.open(p).convert("RGB")
-              im.thumbnail((720, 960))
-              im.save(t, "WEBP", quality=80, method=6)
-              print("WebP:", t, t.stat().st_size)
+          for folder in ("public/spy/art", "public/dance/art"):
+              src = Path(folder); out = src / "web"; out.mkdir(exist_ok=True)
+              for p in sorted(src.glob("*.png")):
+                  t = out / (p.stem + ".webp")
+                  if t.exists(): continue
+                  im = Image.open(p).convert("RGB")
+                  wide = im.width > im.height
+                  im.thumbnail((1920, 1080) if wide else (720, 960))
+                  im.save(t, "WEBP", quality=78 if wide else 80, method=6)
+                  print("WebP:", t, t.stat().st_size)
           PY
       - name: Сохраняю в ветку
         if: env.ADDED != '0'
         run: |
           git config user.name "joyrest-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art
+          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art
           git commit -m "Картинки: скачано $ADDED [no-test]"
           git push

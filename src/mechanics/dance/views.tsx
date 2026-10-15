@@ -382,12 +382,15 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
       return (
         <div className="dance-screen db-stage db-vote db-vote--battle">
           <h2 className="db-h">Батл: кто победил?</h2>
-          <div className="db-versus">
+          {/* «VS» — только когда команд ровно две; больше — сетка карточек команд. */}
+          <div className={sides.length === 2 ? "db-versus" : `db-versus db-versus--grid${sides.length === 4 ? "" : " db-versus--3"}`}>
             {sides.map((p, i) => (
               <span key={p} className="db-versus__item">
-                {i > 0 && <span className="db-vs">VS</span>}
+                {i > 0 && sides.length === 2 && <span className="db-vs">VS</span>}
                 <span className="db-side-plate" style={teamStyle(session, p)}>
-                  <NameText name={nameOf(session, p)} />
+                  <span>
+                    <NameText name={nameOf(session, p)} />
+                  </span>
                 </span>
               </span>
             ))}
@@ -577,18 +580,13 @@ function MiniPerf({ session, card, who, flip = false }: { session: Session; card
   );
 }
 
-/** Батл: «За кого вы?» — стороны через «VS», выбор и «Отдать голос» (`{ team }`). */
+/** Батл: «За кого вы?» — команды столбиком (своей среди них нет), выбор и «Голос за …» (`{ team }`). */
 function BattleVote({ session, card, others, sending, onVote }: { session: Session; card: DanceCard; others: string[]; sending: boolean; onVote?: (team: string) => void }) {
   const [sel, setSel] = useState<string | null>(null);
   return (
     <div className="db-battle">
       {others.map((p, i) => (
         <div key={p} className="db-battle__item">
-          {i > 0 && (
-            <span className="db-vs" aria-hidden="true">
-              VS
-            </span>
-          )}
           {onVote ? (
             <button type="button" className={sel === p ? "db-battle__pick is-on" : "db-battle__pick"} aria-pressed={sel === p} disabled={sending} onClick={() => setSel(p)}>
               <MiniPerf session={session} card={card} who={p} flip={i % 2 === 1} />

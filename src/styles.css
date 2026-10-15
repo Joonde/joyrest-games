@@ -8160,7 +8160,9 @@ button.dance-card:active {
   animation: db-sway3 5s ease-in-out infinite;
 }
 
+/* Очередь не доходит до углов: слева внизу — монограмма JoyRest. */
 .db-queue {
+  max-width: calc(76 * var(--u));
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -8552,6 +8554,48 @@ button.dance-card:active {
   display: inline-flex;
   align-items: center;
   gap: calc(1.6 * var(--u));
+}
+
+/* Три и больше команд — сетка карточек без «VS»: четыре — две колонки, три и пять и больше — три;
+   неполный последний ряд — по центру. */
+.db-versus--grid {
+  --db-col: calc(30 * var(--u));
+  max-width: calc(2 * var(--db-col) + 2 * var(--u));
+  align-items: stretch;
+  gap: calc(1.4 * var(--u)) calc(2 * var(--u));
+}
+
+.db-versus--3 {
+  --db-col: calc(26 * var(--u));
+  max-width: calc(3 * var(--db-col) + 4 * var(--u));
+}
+
+.db-versus--grid .db-versus__item {
+  width: var(--db-col);
+}
+
+.db-versus--grid .db-versus__item {
+  display: flex;
+  min-width: 0;
+}
+
+/* Имя — в своём span (обычный текст), плашка центрирует его по высоте ряда. */
+.db-versus--grid .db-side-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.db-versus--grid .db-side-plate {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.35;
+  font-size: calc(2.2 * var(--u));
 }
 
 .db-vs {

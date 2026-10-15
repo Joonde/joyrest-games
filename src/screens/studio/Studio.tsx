@@ -59,7 +59,8 @@ export function Studio() {
 /** Общие пункты шапки студии и её подэкранов. */
 export function studioActions(profile: UserProfile): TopBarAction[] {
   return [
-    { label: "Как проводить игры", to: "/studio/guide" },
+    // «Команда JoyRest» — первой кнопкой в шапке (решение владельца 15 октября 2026), «Как проводить игры» — в меню.
+    ...(teamRepo ? [{ label: "Команда JoyRest", to: "/studio/team" }] : []),
     // Календарь — только свой сервер: владелец видит, кто может в дату мероприятия; остальные отмечают свободные дни.
     ...(calendarRepo && permissions.canEditOwnCalendar(profile)
       ? [{ label: permissions.canViewTeamCalendar(profile) ? "Календарь и мероприятия" : "Мой календарь", to: "/studio/calendar" }]
@@ -71,12 +72,8 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.
     ...(venuesRepo && permissions.canManageVenues(profile) ? [{ label: "База площадок", to: "/venues" }] : []),
     ...(venuesRepo && permissions.canShowVenueQr(profile) ? [{ label: "QR-анкеты", to: "/studio/qr" }] : []),
-    ...(teamRepo
-      ? [
-          { label: "Команда JoyRest", to: "/studio/team" },
-          { label: "Мой профиль", to: "/studio/profile" },
-        ]
-      : []),
+    ...(teamRepo ? [{ label: "Мой профиль", to: "/studio/profile" }] : []),
+    { label: "Как проводить игры", to: "/studio/guide" },
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },
   ];

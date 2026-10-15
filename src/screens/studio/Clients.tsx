@@ -24,6 +24,7 @@ import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
 import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
+import { Fold } from "../../components/Fold";
 import { HostGate } from "../../components/HostGate";
 import { SearchField } from "../../components/SearchField";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
@@ -287,6 +288,89 @@ function occasionOf(details: ClientDetails | null): string {
   return lead ? (lead.summary.split("\n")[0] ?? "").split(",")[0] ?? "" : "";
 }
 
+/** Путь клиента: «Новый» → «В работе» → «Клиент»; «Отказ» — отдельно, в стороне. */
+const PATH: ClientStatus[] = ["new", "work", "client"];
+const STATUS_HINTS: Record<ClientStatus, string> = {
+  new: "Ответьте в течение 30 минут и переведите в «В работе».",
+  work: "Ведёте переговоры. Договорились — «Клиент», не вышло — «Отказ» с причиной в заметке.",
+  client: "Договорились — мероприятие записано в «Мероприятия».",
+  lost: "Не договорились — причина в заметке. Напишет снова — карточка вернётся.",
+};
+
+/**
+ * Статус — отдельной рамкой вверху карточки, подальше от «Позвонить» (решение владельца 15 октября 2026): рамка и
+ * плашка цвета статуса, путь клиента со сдвигающимся ползунком, при смене — короткая вспышка («уменьшить движение» —
+ * без анимации). «Отказ» стоит отдельно, чтобы не нажать его вместо «Клиент».
+ */
+function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: boolean; onPick: (status: ClientStatus) => void }) {
+  const [confirm, ask] = useConfirm();
+  const index = PATH.indexOf(c.status);
+  const name = c.name || phoneLabel(c.phone) || "клиента";
+  // Защита от случайного касания (решение владельца 15 октября 2026): «Отказ» — только после «Вы точно уверены?».
+  const askLost = () =>
+    ask({
+      title: "Вы точно уверены?",
+      text: `Перевести «${name}» в «Отказ» — значит, не договорились. После этого напишите в заметке причину. Вернуть статус можно в любой момент.`,
+      confirmLabel: "Да, отказ",
+      cancelLabel: "Нет, оставить",
+      run: () => onPick("lost"),
+    });
+  const next = index >= 0 && index < PATH.length - 1 ? PATH[index + 1] : null;
+  return (
+    <section
+      className="clients-status"
+      style={{ "--status-color": STATUS_COLORS[c.status], "--status-index": Math.max(index, 0) } as CSSProperties}
+      aria-label="Статус клиента"
+    >
+      <div className="clients-status__now">
+        <span className="small muted">Статус</span>
+        <span key={c.status} className="clients-status__pill" aria-live="polite">
+          {CLIENT_STATUS_TITLES[c.status]}
+        </span>
+      </div>
+      {c.statusLine && c.status !== "new" && (
+        <p className="small muted clients-status__who">
+          {c.statusLine}
+          {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+        </p>
+      )}
+      <p className="small">{STATUS_HINTS[c.status]}</p>
+      <div className={index >= 0 ? "clients-status__path" : "clients-status__path is-off"} role="group" aria-label="Сменить статус">
+        <span className="clients-status__slider" aria-hidden="true" />
+        {PATH.map((st, i) => (
+          <button
+            key={st}
+            type="button"
+            className={["clients-status__step", c.status === st ? "is-on" : "", index > i ? "is-done" : ""].filter(Boolean).join(" ")}
+            aria-pressed={c.status === st}
+            disabled={busy}
+            onClick={() => onPick(st)}
+          >
+            {index > i ? "✓ " : ""}
+            {CLIENT_STATUS_TITLES[st]}
+          </button>
+        ))}
+      </div>
+      {next && (
+        <button type="button" className="btn btn--block" disabled={busy} onClick={() => onPick(next)}>
+          Перевести в «{CLIENT_STATUS_TITLES[next]}» →
+        </button>
+      )}
+      <button
+        type="button"
+        className={c.status === "lost" ? "btn btn--quiet btn--block clients-status__lost is-on" : "btn btn--quiet btn--block clients-status__lost"}
+        aria-pressed={c.status === "lost"}
+        disabled={busy || c.status === "lost"}
+        onClick={askLost}
+      >
+        {c.status === "lost" ? "Отказ" : "Не договорились — «Отказ»"}
+      </button>
+      {c.status === "lost" && !c.notes.trim() && <p className="small clients-late">Напишите причину отказа в заметке ниже.</p>}
+      {confirm}
+    </section>
+  );
+}
+
 function ClientCard({
   client: c,
   now,
@@ -383,17 +467,35 @@ function ClientCard({
           <Pill color={STATUS_COLORS[c.status]}>{CLIENT_STATUS_TITLES[c.status]}</Pill>
         </span>
         <span className="plan-card__when">{c.phone ? phoneLabel(c.phone) : c.links[0] ? linkTitle(c.links[0]) : "—"}</span>
-        <span className="plan-card__host">
-          {sourceTitle(c.lastSource)} · {dateTimeLabel(c.lastContactAt)}
-          {c.contacts > 1 ? ` · обращений: ${c.contacts}` : ""}
-          {c.marketing === "yes" ? " · ✉️ рассылка" : ""}
-        </span>
-        {c.status !== "new" && c.statusLine && (
-          <span className="clients-who">
-            {c.statusLine}
-            {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+        {/* Под именем — подписанные поля, а не одна строка через точки (решение владельца 15 октября 2026). */}
+        <span className="clients-facts">
+          <span className="clients-facts__row">
+            <span className="clients-facts__label">Откуда</span>
+            <span className="clients-facts__value">{sourceTitle(c.lastSource)}</span>
           </span>
-        )}
+          <span className="clients-facts__row">
+            <span className="clients-facts__label">Обращение</span>
+            <span className="clients-facts__value">
+              {dateTimeLabel(c.lastContactAt)}
+              {c.contacts > 1 ? ` · всего ${c.contacts}` : ""}
+            </span>
+          </span>
+          {c.status !== "new" && c.statusLine && (
+            <span className="clients-facts__row">
+              <span className="clients-facts__label">Ведёт</span>
+              <span className="clients-facts__value">
+                {c.statusLine.split(" · ").slice(1).join(" · ") || c.statusLine}
+                {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+              </span>
+            </span>
+          )}
+          {c.marketing === "yes" && (
+            <span className="clients-facts__row">
+              <span className="clients-facts__label">Рассылка</span>
+              <span className="clients-facts__value">✉️ согласен</span>
+            </span>
+          )}
+        </span>
         {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа {agoLabel(waiting)}</span>}
         {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
         <span className="plan-card__more" aria-hidden="true">
@@ -402,27 +504,11 @@ function ClientCard({
       </button>
       {open && (
         <div className="stack stack--tight">
-          {!c.archived && (
-            <fieldset className="stack stack--tight">
-              <legend className="small">Статус — одним касанием</legend>
-              <div className="plan-quick" role="group" aria-label="Статус клиента">
-                {CLIENT_STATUSES.map((st) => (
-                  <button
-                    key={st}
-                    type="button"
-                    className={c.status === st ? "seg__btn is-on" : "seg__btn"}
-                    aria-pressed={c.status === st}
-                    disabled={busy}
-                    onClick={() => void setStatus(st)}
-                  >
-                    {CLIENT_STATUS_TITLES[st]}
-                  </button>
-                ))}
-              </div>
-              {c.status === "lost" && !c.notes.trim() && <p className="small clients-late">Напишите причину отказа в заметке ниже.</p>}
-            </fieldset>
-          )}
+          {!c.archived && <StatusPanel client={c} busy={busy} onPick={(st) => void setStatus(st)} />}
 
+          {(c.phone || c.links.length > 0) && (
+            <h3 className="small clients-section">Связаться</h3>
+          )}
           {(c.phone || c.links.length > 0) && (
             <div className="clients-contact" role="group" aria-label="Связаться">
               {contactLinks(c.phone).map((l) => (
@@ -513,31 +599,33 @@ function ClientCard({
               </>
             )}
           </dl>
-          <h3 className="small">Обращения и история</h3>
-          {details.status === "error" && <LoadFailedInline onRetry={retry} />}
-          {!full && details.status !== "error" && <p className="muted small">Загружаем…</p>}
-          {full && (
-            <ul className="clients-history">
-              {full.history.map((h) => (
-                <li key={h.id}>
-                  <b>{dateTimeLabel(h.at)}</b> · {sourceTitle(h.source)}
-                  {h.source === "venue" && h.ref && (
-                    <>
-                      {" "}
-                      <Link to={`/venues/r/${encodeURIComponent(h.ref)}`}>Подбор площадки →</Link>
-                    </>
-                  )}
-                  {h.source === "event" && (
-                    <>
-                      {" "}
-                      <Link to="/studio/calendar?tab=events">В планировщик →</Link>
-                    </>
-                  )}
-                  {h.summary && <span className="clients-history__text">{h.summary}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* История свёрнута (решение владельца 15 октября 2026): длинный список не растягивает карточку. */}
+          <Fold title="Обращения и история" value={full ? `${full.history.length}` : undefined}>
+            {details.status === "error" && <LoadFailedInline onRetry={retry} />}
+            {!full && details.status !== "error" && <p className="muted small">Загружаем…</p>}
+            {full && (
+              <ul className="clients-history">
+                {full.history.map((h) => (
+                  <li key={h.id}>
+                    <b>{dateTimeLabel(h.at)}</b> · {sourceTitle(h.source)}
+                    {h.source === "venue" && h.ref && (
+                      <>
+                        {" "}
+                        <Link to={`/venues/r/${encodeURIComponent(h.ref)}`}>Подбор площадки →</Link>
+                      </>
+                    )}
+                    {h.source === "event" && (
+                      <>
+                        {" "}
+                        <Link to="/studio/calendar?tab=events">В планировщик →</Link>
+                      </>
+                    )}
+                    {h.summary && <span className="clients-history__text">{h.summary}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Fold>
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
               Изменить имя, телефон, ссылки

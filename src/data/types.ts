@@ -209,6 +209,21 @@ export interface Finale {
   myReview: { rating: number; text: string; name: string } | null;
 }
 
+/** Фото фотоотчёта мероприятия: до 3 на игру, `slot` 1–3. */
+export interface EventPhoto {
+  sessionId: string;
+  slot: number;
+  hostId: string;
+  hostName: string;
+  gameTitle: string;
+  playedAt: number | null;
+  width: number | null;
+  height: number | null;
+  createdAt: number;
+  /** Адрес файла (с отпечатком — кэш на год). */
+  url: string;
+}
+
 export type ReviewStatus = "new" | "published" | "hidden";
 
 export interface GuestReview {

@@ -23,6 +23,7 @@ export {
   tracksRepo,
   videosRepo,
   finaleRepo,
+  photosRepo,
   gameFoldersRepo,
   teamRepo,
   screenRepo,

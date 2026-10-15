@@ -42,6 +42,7 @@ import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, thanksSlide } from "../core/slides";
+import { EventPhotosCard } from "../components/live/EventPhotos";
 import { TechBreak } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
@@ -414,6 +415,8 @@ function Console({ session }: { session: Session }) {
                 {!canAwardNow(session.state) && <p className="muted small">Наградить можно после того, как покажете ответ.</p>}
               </>
             )}
+            {/* Фотоотчёт: до 3 общих фото на игру — и во время игры, и после «Завершить игру». */}
+            {phase !== "lobby" && <EventPhotosCard sessionId={session.id} />}
             {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
             {/* Перерыв без времени или на 3–20 минут; та же кнопка заканчивает его — игра с того же места. */}
             {phase !== "finished" && tools && (

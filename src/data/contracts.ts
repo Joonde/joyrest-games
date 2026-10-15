@@ -35,6 +35,7 @@ import type {
   LeaderboardEntry,
   LibraryProposal,
   LibraryVideo,
+  EventPhoto,
   Finale,
   GuestReview,
   ReviewStatus,
@@ -347,6 +348,15 @@ export interface TracksRepository {
    * не даёт включить звук, если между касанием и play() было ожидание загрузки).
    */
   fileUrl(id: string): string;
+}
+
+/** Фотоотчёт мероприятия: до 3 общих фото на игру с пульта (только свой сервер). */
+export interface EventPhotosRepository {
+  list(sessionId: string): Promise<EventPhoto[]>;
+  save(sessionId: string, slot: number, image: Blob, width: number, height: number): Promise<EventPhoto>;
+  remove(sessionId: string, slot: number): Promise<void>;
+  /** Студия: ведущему — свои мероприятия, владельцу — все. */
+  all(): Promise<EventPhoto[]>;
 }
 
 /** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */

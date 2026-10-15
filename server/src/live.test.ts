@@ -256,6 +256,31 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/teams1/participants/teamA", member.cookie)).json().captainUid).toBe(member.uid);
   });
 
+  it("фотоотчёт: ведущий снимает до 3 фото, переснимает и удаляет; гость не может ни снять, ни посмотреть", async () => {
+    await newSession("ph1");
+    const webp = (fill: number) => Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4, 0), Buffer.from("WEBP"), Buffer.alloc(3000, fill)]);
+    const put = (slot: number, cookie: string, body: Buffer) =>
+      app.inject({ method: "PUT", url: `/api/sessions/ph1/photos/${slot}`, headers: { host: HOST, "x-joyrest": "1", origin: `https://${HOST}`, cookie, "content-type": "image/webp", "x-width": "1600", "x-height": "1200" }, payload: body });
+    const guest = await device();
+    expect((await put(1, guest.cookie, webp(1))).statusCode).toBe(401);
+    expect((await put(4, host, webp(1))).statusCode).toBe(404);
+    expect((await put(1, host, Buffer.from("<html>"))).statusCode).toBe(400);
+    expect((await put(1, host, webp(1))).json()).toMatchObject({ sessionId: "ph1", slot: 1, gameTitle: "Квиз", width: 1600 });
+    const first = (await call("GET", "/api/sessions/ph1/photos", host)).json() as Array<{ url: string }>;
+    expect((await put(1, host, webp(2))).statusCode).toBe(200);
+    expect((await put(2, host, webp(3))).statusCode).toBe(200);
+    const list = (await call("GET", "/api/sessions/ph1/photos", host)).json() as Array<{ slot: number; url: string }>;
+    expect(list.map((p) => p.slot)).toEqual([1, 2]);
+    expect(list[0]?.url).not.toBe(first[0]?.url);
+    const file = await call("GET", list[0]?.url ?? "", host);
+    expect(file.statusCode).toBe(200);
+    expect(file.headers["content-type"]).toContain("image/webp");
+    expect((await call("GET", list[0]?.url ?? "", guest.cookie)).statusCode).toBe(401);
+    expect((await call("GET", "/api/sessions/ph1/photos", guest.cookie)).statusCode).toBe(401);
+    expect((await call("DELETE", "/api/sessions/ph1/photos/2", host)).statusCode).toBe(200);
+    expect(((await call("GET", "/api/photos", host)).json() as Array<{ sessionId: string }>).filter((p) => p.sessionId === "ph1")).toHaveLength(1);
+  });
+
   it("конец игры: чаевые ведущего, отзыв гостя после завершения (один на телефон), владелец показывает на сайте", async () => {
     await newSession("fz1");
     expect((await call("POST", "/api/me/tips", host, { url: "javascript:alert(1)" })).statusCode).toBe(400);

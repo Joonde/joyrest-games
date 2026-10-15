@@ -460,6 +460,16 @@ describe("роли доступа помощников", () => {
     expect(p.canUploadVideo({ uid: "x", role: "host", active: false, profession: "host", accessRole: "deputy" })).toBe(false);
   });
 
+  it("фотоотчёт: снимает ведущий своей игры и владелец, смотрят ведущий — свои, владелец — все", () => {
+    expect(p.canTakeEventPhotos(host, { hostId: host?.uid ?? "" })).toBe(true);
+    expect(p.canTakeEventPhotos(host, { hostId: "host-2" })).toBe(false);
+    expect(p.canTakeEventPhotos(owner, { hostId: "host-2" })).toBe(true);
+    expect(p.canTakeEventPhotos(dj("deputy"), { hostId: "dj-1" })).toBe(false);
+    expect(p.canViewEventPhotos(host, "host-2")).toBe(false);
+    expect(p.canViewEventPhotos(owner, "host-2")).toBe(true);
+    expect(p.canTakeEventPhotos(null, { hostId: "x" })).toBe(false);
+  });
+
   it("отзывы: ведущий — о своих, владелец — все и решает про сайт; роли этого не дают", () => {
     expect(p.canReadReviews(host, host?.uid ?? "")).toBe(true);
     expect(p.canReadReviews(host, "host-2")).toBe(false);

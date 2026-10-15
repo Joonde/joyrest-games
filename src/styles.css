@@ -17441,3 +17441,50 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   white-space: pre-line;
   margin: 0;
 }
+
+/* Фотоотчёт мероприятия на пульте: три ячейки «Сделать фото / Переснять / Удалить». */
+.event-photos__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.event-photos__slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.event-photos__img,
+.event-photos__empty {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--color-surface-alt);
+}
+.event-photos__empty {
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 22px;
+}
+.event-photos__slot .btn {
+  padding-inline: 8px;
+  font-size: 14px;
+}
+.photo-report {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.photo-report a {
+  display: block;
+}
+.photo-report img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}

@@ -133,6 +133,18 @@ export function canModerateReviews(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
+/**
+ * Фотоотчёт мероприятия (решение владельца 15 октября 2026): снимает и меняет фото ведущий этой игры (и владелец), смотрят
+ * ведущий — свои мероприятия, владелец — все.
+ */
+export function canTakeEventPhotos(actor: Actor, session: Pick<Session, "hostId">): boolean {
+  return isAdmin(actor) || (hostsGames(actor) && canControlSession(actor?.uid ?? null, session));
+}
+
+export function canViewEventPhotos(actor: Actor, hostId: string): boolean {
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.uid === hostId);
+}
+
 /** Ссылка для чаевых в своём профиле — тот, кто проводит игры. */
 export function canSetTips(actor: Actor): boolean {
   return hostsGames(actor);

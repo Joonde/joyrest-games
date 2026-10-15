@@ -38,6 +38,15 @@ export async function cleanupAudio(sql: Sql, dir: string, now: number = Date.now
   return removeOrphans(audio, new Set(rows.map((r) => r.sha256)), now);
 }
 
+/** Удаляет файлы фотоотчётов мероприятий без ссылок в event_photos. */
+export async function cleanupPhotos(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const photos = join(dir, "photos");
+  const info = await stat(photos).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  const rows = await sql<{ sha256: string }[]>`select distinct sha256 from event_photos`;
+  return removeOrphans(photos, new Set(rows.map((r) => r.sha256)), now);
+}
+
 /** Удаляет аватарки и обложки, которые ведущие заменили или убрали. */
 export async function cleanupProfiles(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
   const profile = join(dir, "profile");
@@ -98,7 +107,7 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
     try {
       // Треки игр библиотеки — в общую музыку (до уборки файлов: файл остаётся у общей копии).
       const libraryGames = await promoteLibraryTracks(sql);
-      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) : 0;
+      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) + (await cleanupPhotos(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       // Старые сессии (30 дней) — каждую ночь, не дожидаясь входа владельца; итоги остаются в истории.
       let sessions = 0;

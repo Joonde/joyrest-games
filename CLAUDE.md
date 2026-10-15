@@ -1455,6 +1455,16 @@ Wits & Wagers): вопросы с ответом-числом (`answer`, `unit`,
   (`permissions.canReadReviews`), владелец — все, «Показать на сайте» / «Скрыть» (`canModerateReviews`; статусы new,
   published, hidden; на сайте опубликованные появятся, когда сайт включат). API: `GET /api/finale/:id`, `POST /api/reviews`,
   `GET /api/reviews`, `POST /api/reviews/:id/status`, `GET|POST /api/me/tips`. Проверяет `live.test.ts`.
+- **Фотоотчёт мероприятия** (решение владельца 15 октября 2026; миграция `0025_event_photos.sql`, `server/src/photos.ts`,
+  пульт — `EventPhotosCard` (`src/components/live/EventPhotos.tsx`, свёрнуто, после «Начать игру» и после завершения), студия —
+  «Фотоотчёты» `/studio/photos`; `photosRepo` — null у Firebase): до 3 общих фото на игру (ячейки 1–3: «Сделать фото» — камера
+  телефона, «Переснять», «Удалить»); перед съёмкой ведущий предупреждает гостей (`PHOTO_SCRIPT`: фото попадёт в фотоотчёт,
+  возможно в канал и на сайт, кто не хочет — отойдите). Телефон сжимает до 1600 px (~0,8 МБ, WebP/JPEG), сервер принимает до
+  1,5 МБ, тип по первым байтам, файлы — `MEDIA_DIR/photos/<sha256>` (в ночной копии), строка хранит игру, ведущего и дату (сессии
+  удаляются через 30 дней — фото остаются), лишние файлы — ночная уборка (`cleanupPhotos`). Снимает ведущий своей игры и
+  владелец (`permissions.canTakeEventPhotos`), смотрят ведущий — свои, владелец — все (`canViewEventPhotos`); гостям и на
+  экран зала фото не уходят. API: `GET /api/sessions/:id/photos`, `PUT|DELETE /api/sessions/:id/photos/:slot`,
+  `GET /api/sessions/:id/photos/:slot/file`, `GET /api/photos`. Проверяет `live.test.ts`.
 - **Слайды-шаблоны** (`src/core/slides.ts`, `SlideView`, пульт — `SlidesPanel`, если режим не «без
   экрана»): заставка вечера, правила (до 8 пунктов), раунд, перерыв (обратный отсчёт по часам
   сервера, `endsAt`), награждение, спасибо (QR канала t.me/JoyRest), свой слайд. Пульт пишет

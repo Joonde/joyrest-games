@@ -24,6 +24,7 @@ import { registerTeam } from "./team";
 import { registerTracks } from "./tracks";
 import { registerVideos } from "./videos";
 import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
+import { registerPhotos } from "./photos";
 import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -150,6 +151,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerFinale(app, { sql: options.sql, isSite });
+    registerPhotos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });

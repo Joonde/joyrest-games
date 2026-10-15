@@ -161,6 +161,32 @@ export interface TeamsReveal {
 
 export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw" | "image";
 
+/** «Опрос гостей заранее» для «100 к 1» (только свой сервер, `server/src/polls.ts`, логика — `src/core/polls.ts`). */
+export interface PollQuestionRef {
+  id: string;
+  text: string;
+}
+
+/** Анкета опроса для гостя (без входа). */
+export interface PollForm {
+  id: string;
+  title: string;
+  questions: PollQuestionRef[];
+  /** Приём ответов открыт. */
+  open: boolean;
+}
+
+/** Опрос у ведущего: вопросы, его решения по группам и ответы гостей. */
+export interface PollSummary extends PollForm {
+  gameId: string;
+  /** Сколько человек ответили (хотя бы на один вопрос). */
+  respondents: number;
+  /** Ответы гостей по вопросам (без имён: имя не спрашиваем). */
+  responses: Record<string, string[]>;
+  /** Объединения и подписи групп по вопросам. */
+  edits: Record<string, { merges: Record<string, string>; labels: Record<string, string> }>;
+}
+
 /** Показ ведущего: фото и страницы PDF по порядку (только свой сервер, `server/src/decks.ts`). */
 export interface DeckPage {
   sha: string;

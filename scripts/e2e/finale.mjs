@@ -137,6 +137,7 @@ async function open(browser, who, options = PHONE, token = "") {
   pages.push([who, page]);
   page.on("pageerror", (error) => bad(`${who}: ошибка на странице — ${String(error.message).slice(0, 160)}`));
   page.on("console", (msg) => {
+    if (msg.type() === "warning" && /pdf\.js/.test(msg.text())) say(`ℹ️ ${who}: ${msg.text().slice(0, 300)}`);
     if (msg.type() === "error" && !/favicon|ERR_ABORTED|net::|status of 40[134]|status of 409/.test(msg.text())) bad(`${who}: ошибка в консоли — ${msg.text().slice(0, 160)}`);
   });
   return page;

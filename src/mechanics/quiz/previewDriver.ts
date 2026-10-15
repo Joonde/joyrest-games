@@ -14,6 +14,17 @@ function answerFor(q: QuizQuestion, right: boolean, i: number): unknown {
     const level = Math.min(Math.max(0, levels.length - 1), i);
     return { level, text: right ? (levels[level]?.answers[0] ?? "") : "не знаю" };
   }
+  if (q.kind === "order") {
+    // Верный порядок — или с двумя переставленными карточками.
+    const order = q.options.map((_, k) => k);
+    if (!right && order.length > 1) [order[0], order[1]] = [order[1] as number, order[0] as number];
+    return { order };
+  }
+  if (q.kind === "number") {
+    const target = q.number ?? 100;
+    const spread = Math.max(1, Math.round(Math.abs(target) * 0.05));
+    return { guess: right ? target : target + spread * (i + 1) * (i % 2 === 0 ? 1 : -1) };
+  }
   const set = correctSet(q);
   const good = set[0] ?? 0;
   const bad = q.options.findIndex((_, k) => !set.includes(k));

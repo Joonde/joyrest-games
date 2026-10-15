@@ -8,7 +8,7 @@ export function questionPath(questionId: string, field: QuestionField): string {
   return `questions/${questionId}/${field}`;
 }
 
-export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points" | "pictures" | "levels";
+export type QuestionField = "text" | "options" | "correct" | "answers" | "timeLimit" | "points" | "pictures" | "levels" | "number";
 
 function duplicates(values: string[]): boolean {
   const seen = new Set<string>();
@@ -35,6 +35,12 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
     if (pics.length < LIMITS.minPictures || pics.length > LIMITS.maxPictures) add("pictures", `Нужно от ${LIMITS.minPictures} до ${LIMITS.maxPictures} картинок.`);
     if (pics.some((p) => !p.imageId)) add("pictures", "Добавьте картинку в каждое поле или удалите пустое.");
     if (pics.some((p) => !p.answers.some((a) => normalizeAnswer(a).length > 0))) add("pictures", "Напишите верный ответ к каждой картинке.");
+  } else if (q.kind === "order") {
+    if (q.options.length < LIMITS.minOrder || q.options.length > LIMITS.maxOptions) add("options", `Нужно от ${LIMITS.minOrder} до ${LIMITS.maxOptions} карточек.`);
+    if (q.options.some((o) => !o.trim())) add("options", "Заполните все карточки или удалите пустые.");
+    else if (duplicates(q.options)) add("options", "Две карточки совпадают — порядок не угадать.");
+  } else if (q.kind === "number") {
+    if (q.number === null || q.number === undefined || !Number.isFinite(q.number)) add("number", "Впишите верное число.");
   } else {
     if (q.options.length < LIMITS.minOptions) add("options", `Нужно хотя бы ${LIMITS.minOptions} варианта ответа.`);
     if (q.options.length > LIMITS.maxOptions) add("options", `Не больше ${LIMITS.maxOptions} вариантов ответа.`);

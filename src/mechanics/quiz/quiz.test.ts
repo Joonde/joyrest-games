@@ -20,7 +20,7 @@ import { applyChange, startState } from "../../core/session";
 import type { Session, SessionState } from "../../data/types";
 import { actionLabel, back, boardAfterReveal, boardView, buzzRightAnswer, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync, toggleAccepted } from "./flow";
 import { acceptKey } from "../../core/supergame";
-import { emptyResult, groupOpenAnswers, isCorrect, parseResult, resultOf, score, steps } from "./logic";
+import { emptyResult, groupOpenAnswers, isCorrect, numberDeltas, orderShown, parseResult, resultOf, score, steps } from "./logic";
 import { matchesAnswer, normalizeAnswer } from "./normalize";
 import { errorsFor, validateContent, validateQuestion } from "./validate";
 
@@ -175,7 +175,9 @@ describe("parseImport", () => {
   it("пример из интерфейса распознаётся без замечаний", () => {
     const { questions, skipped } = parseImport(IMPORT_EXAMPLE);
     expect(skipped).toEqual([]);
-    expect(questions).toHaveLength(3);
+    expect(questions).toHaveLength(5);
+    expect(questions[3]?.question).toMatchObject({ kind: "order", options: ["Бриллиантовая рука", "Ирония судьбы", "Москва слезам не верит"] });
+    expect(questions[4]?.question).toMatchObject({ kind: "number", number: 1665, unit: "ступеней" });
     expect(questions[0]?.question).toMatchObject({
       kind: "choice",
       text: "Какой город называют Северной столицей?",
@@ -703,5 +705,104 @@ describe("суперигра в квизе", () => {
     expect(parsed?.levels?.[2]?.answers).toEqual(["Булгаков"]);
     expect(parsed?.penalty).toBe("halfTop");
     expect(isCorrect(q, { level: 0, text: "париж" })).toBe(true);
+  });
+});
+
+describe("«Расставь по порядку» и «Угадай число»", () => {
+  const answer = (pid: string, value: unknown) => ({ id: pid, step: 0, pid, uid: pid, value, submittedAt: 2_000 });
+  const state = { ...startState(), stage: "question" as const, startedAt: 1_000, timeLimit: 30 };
+  const order = (patch: Partial<QuizQuestion> = {}): QuizQuestion => ({ ...newQuestion("order"), text: "По годам", options: ["1969", "1975", "1979", "1997"], ...patch });
+  const number = (patch: Partial<QuizQuestion> = {}): QuizQuestion => ({ ...newQuestion("number"), text: "Ступеней?", number: 1665, unit: "ступеней", points: 100, ...patch });
+
+  it("карточки на экране перемешаны одинаково везде и никогда не в верном порядке", () => {
+    for (let i = 0; i < 200; i++) {
+      const q = order({ id: `q${i}` });
+      const shown = orderShown(q);
+      expect([...shown].sort()).toEqual([0, 1, 2, 3]);
+      expect(shown).not.toEqual([0, 1, 2, 3]);
+      expect(orderShown(q)).toEqual(shown);
+    }
+  });
+
+  it("порядок: весь верно — все очки, частично — доля, без частичных — ноль; чужой ответ не считается", () => {
+    const q = order();
+    const [step] = steps({ questions: [q] });
+    if (!step) throw new Error("нет шага");
+    const res = score(step, [answer("a", { order: [0, 1, 2, 3] }), answer("b", { order: [0, 1, 3, 2] }), answer("c", { order: [3, 2, 1, 0] }), answer("d", { order: [0, 0, 1, 2] }), answer("e", 2)], { state });
+    expect(res).toEqual([
+      { pid: "a", delta: 100 },
+      { pid: "b", delta: 50 },
+    ]);
+    const [strict] = steps({ questions: [order({ partial: false })] });
+    if (!strict) throw new Error("нет шага");
+    expect(score(strict, [answer("a", { order: [0, 1, 2, 3] }), answer("b", { order: [0, 1, 3, 2] })], { state })).toEqual([{ pid: "a", delta: 100 }]);
+    expect(isCorrect(q, { order: [0, 1, 2, 3] })).toBe(true);
+    const result = resultOf(q, [answer("a", { order: [0, 1, 2, 3] }), answer("b", { order: [0, 1, 3, 2] })], []);
+    expect(result).toMatchObject({ correct: 1, total: 2, right: [2, 2, 1, 1] });
+  });
+
+  it("число: места по близости 100/60/30, одинаково близкие делят место, точно в цель +50%", () => {
+    const q = number();
+    const deltas = numberDeltas(q, [answer("a", { guess: 1650 }), answer("b", { guess: 1680 }), answer("c", { guess: 1710 }), answer("d", { guess: 1500 }), answer("e", { guess: 1200 }), answer("x", "много")]);
+    const by = Object.fromEntries(deltas.map((d) => [d.pid, d]));
+    expect(by.a).toMatchObject({ place: 1, delta: 100 });
+    expect(by.b).toMatchObject({ place: 1, delta: 100 });
+    expect(by.c).toMatchObject({ place: 2, delta: 60 });
+    expect(by.d).toMatchObject({ place: 3, delta: 30 });
+    expect(by.e).toMatchObject({ place: 4, delta: 0 });
+    expect(by.x).toBeUndefined();
+    expect(numberDeltas(q, [answer("a", { guess: 1665 })])[0]?.delta).toBe(150);
+    const closest = numberDeltas(number({ scoring: "closest" }), [answer("a", { guess: 1650 }), answer("c", { guess: 1710 })]);
+    expect(closest.map((d) => d.delta)).toEqual([100, 0]);
+    const [step] = steps({ questions: [q] });
+    if (!step) throw new Error("нет шага");
+    expect(score(step, [answer("a", { guess: 1650 }), answer("e", { guess: 1200 })], { state })).toEqual([
+      { pid: "a", delta: 100 },
+      { pid: "e", delta: 60 },
+    ]);
+    expect(resultOf(q, [answer("a", { guess: 1650 })], []).guesses).toEqual({ a: 1650 });
+    expect(parseResult(resultOf(q, [answer("a", { guess: 1650 })], [])).guesses).toEqual({ a: 1650 });
+  });
+
+  it("данные: разбор, проверка и смена формата", () => {
+    const parsed = parseContent({ questions: [{ id: "n", kind: "number", text: "?", number: 12.5, unit: " км ", scoring: "closest" }, { id: "o", kind: "order", text: "?", options: ["a", "b", "c"], partial: false }] });
+    expect(parsed.questions[0]).toMatchObject({ kind: "number", number: 12.5, unit: "км", scoring: "closest" });
+    expect(parsed.questions[1]).toMatchObject({ kind: "order", partial: false });
+    expect(parseContent({ questions: [{ kind: "number", number: "abc" }] }).questions[0]?.number).toBeNull();
+    expect(validateQuestion(number({ number: null })).map((e) => e.message)).toContain("Впишите верное число.");
+    expect(validateQuestion(order({ options: ["a", "b"] })).map((e) => e.message)[0]).toMatch(/от 3 до 6 карточек/);
+    expect(validateQuestion(order({ options: ["a", "A", "b"] })).map((e) => e.message)).toContain("Две карточки совпадают — порядок не угадать.");
+    expect(validateQuestion(order())).toEqual([]);
+    expect(validateQuestion(number())).toEqual([]);
+    const fromChoice = changeKind(choice({ options: ["Б", "А", "В"], correct: 1 }), "order");
+    expect(fromChoice.options).toEqual(["А", "Б", "В"]);
+    expect(changeKind({ ...newQuestion("open"), answers: ["1 665"] }, "number").number).toBe(1665);
+  });
+
+  it("ход игры: показать ответ начисляет очки и «Назад» их снимает", () => {
+    const content: QuizContent = { questions: [number()], settings: DEFAULT_SETTINGS };
+    let session = {
+      id: "s",
+      code: "123456",
+      hostId: "h",
+      gameId: null,
+      gameTitle: "t",
+      mechanic: "quiz",
+      gameSnapshot: null,
+      themeId: "joyrest",
+      playMode: "solo",
+      screenMode: "laptop",
+      state: { ...startState(), phase: "playing", stage: "question", startedAt: 1_000, timeLimit: 30 },
+      leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
+      createdAt: null,
+    } as Session;
+    session = applyChange(session, reveal(session, content, [answer("a", { guess: 1660 }), answer("b", { guess: 2000 })], []));
+    expect(session.leaderboard.a?.score).toBe(100);
+    expect(session.leaderboard.b?.score).toBe(60);
+    const plan = back(session, content);
+    if (!plan) throw new Error("нет «Назад»");
+    session = applyChange(session, plan.change);
+    expect(session.leaderboard.a?.score).toBe(0);
+    expect(session.leaderboard.b?.score).toBe(0);
   });
 });

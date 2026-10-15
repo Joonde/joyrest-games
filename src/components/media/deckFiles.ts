@@ -28,13 +28,15 @@ export const isPdf = (file: File) => file.type === "application/pdf" || /\.pdf$/
 
 /** Страницы PDF по одной (pdf.js), каждая — картинкой до 1920 px по длинной стороне. */
 async function* pdfPages(file: File, maxPages: number): AsyncGenerator<PreparedPage> {
-  const pdfjs = await import("pdfjs-dist");
-  const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+  // Сборка «legacy»: обычная сборка pdf.js 5 требует самых новых браузеров (старые iPhone и телевизоры её не тянут).
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const worker = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
   let doc: Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]>;
   try {
     doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-  } catch {
+  } catch (e) {
+    console.warn("pdf.js: не открылся PDF", e);
     throw new ImageError("Не получилось открыть PDF. Проверьте файл (без пароля) и попробуйте снова.");
   }
   try {

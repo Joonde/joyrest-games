@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from "react";
+import { formatNumber, readNumber } from "./orderNumber";
 import { questionsLabel } from "../../core/results";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
@@ -44,7 +45,7 @@ import { LETTERS } from "./views";
 import { LevelIcon } from "../../components/live/SuperGame";
 import { LEVEL_NAMES, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_LIMITS, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
-const KINDS: QuestionKind[] = ["choice", "open", "speed", "buzz", "pictures", "super"];
+const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "super"];
 
 /** Конструктор квиза: список вопросов, правка, порядок, импорт списком и предпросмотр. */
 export function QuizEditor({ gameId, themeId, content, onChange, editable }: EditorProps<QuizContent>) {
@@ -467,6 +468,8 @@ function withSlotImage(q: QuizQuestion, slot: Slot | undefined, imageId: string 
 function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRemoveImage }: FormProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
+  // Поле числа: пока ведущий печатает — как набрал («1 6»), в игру уходит уже разобранное число.
+  const [numberDraft, setNumberDraft] = useState<string | null>(null);
   const has = (field: QuestionField) => errorsFor(errors, q.id, field).length > 0;
   const describedBy = (field: QuestionField) => (has(field) ? `q-${q.id}-${field}-error` : undefined);
 
@@ -576,7 +579,80 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       </div>
       )}
 
-      {q.kind === "pictures" || q.kind === "super" ? null : hasAnswers(q.kind) ? (
+      {q.kind === "order" ? (
+        <fieldset aria-describedby={describedBy("options")}>
+          <legend>Карточки — в верном порядке</legend>
+          <p className="muted small">
+            Впишите сверху вниз так, как правильно. Гости увидят их вперемешку и расставят на телефоне. От {LIMITS.minOrder} до {LIMITS.maxOptions} карточек.
+          </p>
+          {q.options.map((option, i) => (
+            <div key={i} className="q-row">
+              <span className="q-row__num" aria-hidden="true">
+                {i + 1}
+              </span>
+              <input className="q-row__input" aria-label={`Карточка ${i + 1}`} maxLength={LIMITS.option} value={option} onChange={(e) => setOption(i, e.target.value)} />
+              <button type="button" className="btn btn--quiet" aria-label={`Карточку ${i + 1} — выше`} disabled={i === 0} onClick={() => onChange((cur) => ({ ...cur, options: moveItem(cur.options, i, i - 1) }))}>
+                ↑
+              </button>
+              <RemoveButton
+                label={`Удалить карточку ${i + 1}`}
+                disabled={q.options.length <= LIMITS.minOrder}
+                onClick={() => onChange((cur) => ({ ...cur, options: cur.options.filter((_, j) => j !== i) }))}
+              />
+            </div>
+          ))}
+          <FieldErrors errors={errors} field="options" questionId={q.id} />
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            disabled={q.options.length >= LIMITS.maxOptions}
+            onClick={() => onChange((cur) => ({ ...cur, options: [...cur.options, ""] }))}
+          >
+            Добавить карточку
+          </button>
+          <label className="choice">
+            <input type="checkbox" checked={q.partial !== false} onChange={(e) => onChange({ partial: e.target.checked })} />
+            <span className="choice__text">
+              <span className="choice__title">Частично — очки за каждую карточку на своём месте</span>
+              <span className="choice__hint">Выключите — очки только за весь порядок без ошибок.</span>
+            </span>
+          </label>
+        </fieldset>
+      ) : q.kind === "number" ? (
+        <fieldset aria-describedby={describedBy("number")}>
+          <legend>Верное число</legend>
+          <div className="q-numbers">
+            <label className="field">
+              Число
+              <input
+                inputMode="decimal"
+                value={numberDraft ?? (q.number === null || q.number === undefined ? "" : formatNumber(q.number))}
+                aria-invalid={has("number")}
+                placeholder="Например, 1 665"
+                onChange={(e) => {
+                  setNumberDraft(e.target.value);
+                  onChange({ number: readNumber(e.target.value) });
+                }}
+                onBlur={() => setNumberDraft(null)}
+              />
+            </label>
+            <label className="field">
+              Единица (по желанию)
+              <input maxLength={LIMITS.unit} value={q.unit ?? ""} placeholder="ступеней, км, лет" onChange={(e) => onChange({ unit: e.target.value })} />
+            </label>
+          </div>
+          <FieldErrors errors={errors} field="number" questionId={q.id} />
+          <div className="seg" role="group" aria-label="Как считать очки">
+            <button type="button" className={q.scoring !== "closest" ? "seg__btn is-on" : "seg__btn"} aria-pressed={q.scoring !== "closest"} onClick={() => onChange({ scoring: "places" })}>
+              По близости: 100 / 60 / 30%
+            </button>
+            <button type="button" className={q.scoring === "closest" ? "seg__btn is-on" : "seg__btn"} aria-pressed={q.scoring === "closest"} onClick={() => onChange({ scoring: "closest" })}>
+              Только ближайший
+            </button>
+          </div>
+          <p className="muted small">Одинаково близкие делят место. Точно в цель — ещё +50% очков.</p>
+        </fieldset>
+      ) : q.kind === "pictures" || q.kind === "super" ? null : hasAnswers(q.kind) ? (
         <fieldset aria-describedby={describedBy("answers")}>
           <legend>{q.kind === "buzz" ? "Правильный ответ — видит только ведущий" : "Верные ответы"}</legend>
           <p className="muted small">

@@ -24,6 +24,7 @@ import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
 import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
+import { Fold } from "../../components/Fold";
 import { HostGate } from "../../components/HostGate";
 import { SearchField } from "../../components/SearchField";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
@@ -580,31 +581,33 @@ function ClientCard({
               </>
             )}
           </dl>
-          <h3 className="small">Обращения и история</h3>
-          {details.status === "error" && <LoadFailedInline onRetry={retry} />}
-          {!full && details.status !== "error" && <p className="muted small">Загружаем…</p>}
-          {full && (
-            <ul className="clients-history">
-              {full.history.map((h) => (
-                <li key={h.id}>
-                  <b>{dateTimeLabel(h.at)}</b> · {sourceTitle(h.source)}
-                  {h.source === "venue" && h.ref && (
-                    <>
-                      {" "}
-                      <Link to={`/venues/r/${encodeURIComponent(h.ref)}`}>Подбор площадки →</Link>
-                    </>
-                  )}
-                  {h.source === "event" && (
-                    <>
-                      {" "}
-                      <Link to="/studio/calendar?tab=events">В планировщик →</Link>
-                    </>
-                  )}
-                  {h.summary && <span className="clients-history__text">{h.summary}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* История свёрнута (решение владельца 15 октября 2026): длинный список не растягивает карточку. */}
+          <Fold title="Обращения и история" value={full ? `${full.history.length}` : undefined}>
+            {details.status === "error" && <LoadFailedInline onRetry={retry} />}
+            {!full && details.status !== "error" && <p className="muted small">Загружаем…</p>}
+            {full && (
+              <ul className="clients-history">
+                {full.history.map((h) => (
+                  <li key={h.id}>
+                    <b>{dateTimeLabel(h.at)}</b> · {sourceTitle(h.source)}
+                    {h.source === "venue" && h.ref && (
+                      <>
+                        {" "}
+                        <Link to={`/venues/r/${encodeURIComponent(h.ref)}`}>Подбор площадки →</Link>
+                      </>
+                    )}
+                    {h.source === "event" && (
+                      <>
+                        {" "}
+                        <Link to="/studio/calendar?tab=events">В планировщик →</Link>
+                      </>
+                    )}
+                    {h.summary && <span className="clients-history__text">{h.summary}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Fold>
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
               Изменить имя, телефон, ссылки

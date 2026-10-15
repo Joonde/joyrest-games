@@ -796,12 +796,12 @@ describe("«Расставь по порядку» и «Угадай число�
       leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
       createdAt: null,
     } as Session;
-    session = applyChange(session, reveal(session, content, [answer("a", { guess: 1660 }), answer("b", { guess: 2000 })], []));
+    session = applyChange(session, reveal(session, content, [answer("a", { guess: 1660 }), answer("b", { guess: 2000 })], []), 5_000);
     expect(session.leaderboard.a?.score).toBe(100);
     expect(session.leaderboard.b?.score).toBe(60);
     const plan = back(session, content);
     if (!plan) throw new Error("нет «Назад»");
-    session = applyChange(session, plan.change);
+    session = applyChange(session, plan.change, 6_000);
     expect(session.leaderboard.a?.score).toBe(0);
     expect(session.leaderboard.b?.score).toBe(0);
   });

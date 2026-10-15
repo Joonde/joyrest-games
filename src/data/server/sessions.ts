@@ -2,6 +2,7 @@
  * Сессии на своём сервере: `/api/sessions/...` и поток `/api/stream/session/:id`
  * (снимок + изменения: состояние шага целиком и изменённые записи таблицы лидеров).
  */
+import { parseBranding } from "../../core/branding";
 import type { SessionsRepository } from "../contracts";
 import { parseCue, parseMix, parseMusic, parsePeek, parseSlide, parseTeams } from "../cues";
 import { errorCodeOf } from "../retry";
@@ -84,6 +85,7 @@ export function parseSession(value: unknown): Versioned | null {
     createdAt: typeof d.createdAt === "number" ? d.createdAt : null,
     eventStartedAt: typeof d.eventStartedAt === "number" ? d.eventStartedAt : null,
     program: parseProgram(d.program ?? null),
+    branding: parseBranding(d.branding ?? null),
     version: num(d.version),
   };
 }

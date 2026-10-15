@@ -88,8 +88,10 @@ describe("мафия: роли", () => {
     const names = Object.fromEntries(ids.map((i) => [i, `Игрок ${i}`]));
     expect(roleCard("b", roles, ids, names).family.map((f) => f.pid)).toEqual(["a"]);
     expect(roleCard("e", roles, ids, names).family).toEqual([]);
-    expect(JSON.stringify(padded(roleCard("b", roles, ids, names))).length).toBe(PAD_TO);
-    expect(JSON.stringify(padded(roleCard("e", roles, ids, names))).length).toBe(PAD_TO);
+    // Длина шифра — в байтах: карта с кириллицей (семья мафии) не должна быть длиннее карты мирного.
+    const bytes = (v: unknown) => new TextEncoder().encode(JSON.stringify(v)).length;
+    expect(bytes(padded(roleCard("b", roles, ids, names)))).toBe(PAD_TO);
+    expect(bytes(padded(roleCard("e", roles, ids, names)))).toBe(PAD_TO);
   });
 
   it("шифр: свой ключ открывает, чужой — нет", async () => {
@@ -184,8 +186,11 @@ describe("мафия: ночные подсказки", () => {
     expect(healHistory("d", [{ d: "e" }, { d: null }, { d: "d" }])).toEqual(["e", null, "d"]);
     expect(healHistory(null, [{ d: "e" }])).toEqual([]);
     const big = paddedAll({ x: { family: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`player-with-long-id-${i}`, `target-with-long-id-${i}`])) }, y: {} });
-    expect(JSON.stringify(big.x).length).toBe(JSON.stringify(big.y).length);
-    expect(JSON.stringify(big.x).length).toBeGreaterThan(PAD_TO);
+    const size = (v: unknown) => new TextEncoder().encode(JSON.stringify(v)).length;
+    expect(size(big.x)).toBe(size(big.y));
+    expect(size(big.x)).toBeGreaterThan(PAD_TO);
+    const cyr = paddedAll({ mafia: { family: [{ name: "Анастасия Владимировна" }] }, civ: { family: [] } });
+    expect(size(cyr.mafia)).toBe(size(cyr.civ));
   });
 });
 

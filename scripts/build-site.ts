@@ -39,6 +39,25 @@ rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 cpSync(SOURCE, OUT, { recursive: true, filter: (src) => !SKIP.has(basename(src)) });
 
+// Калькулятор без заявки (/calc/, CLAUDE.md, «Сайт агентства»): открыт и при заглушке «скоро», когда /css/ и /js/ сайта
+// не отдаются, поэтому стили и скрипты с data-inline встраиваются прямо в страницу (шрифты — /fonts/, их сервер отдаёт).
+function inlineAssets(page: string): void {
+  const file = join(OUT, page);
+  if (!existsSync(file)) return;
+  const from = posix.dirname(page);
+  const read = (ref: string) => {
+    const path = join(OUT, posix.normalize(posix.join(from, ref)));
+    if (!existsSync(path)) throw new Error(`${page}: нет файла для встраивания ${ref}`);
+    return readFileSync(path, "utf8");
+  };
+  const html = readFileSync(file, "utf8")
+    .replace(/<link rel="stylesheet" href="([^"]+)" data-inline>/g, (_m, ref: string) => `<style>\n${read(ref)}\n</style>`)
+    .replace(/<script src="([^"]+)" data-inline><\/script>/g, (_m, ref: string) => `<script>\n${read(ref).replace(/<\/script/gi, "<\\/script")}\n</script>`);
+  if (html.includes("data-inline")) throw new Error(`${page}: data-inline остался невстроенным`);
+  writeFileSync(file, html);
+}
+inlineAssets("calc/index.html");
+
 const fontsOut = join(OUT, "fonts");
 mkdirSync(fontsOut, { recursive: true });
 for (const name of readdirSync(join(ROOT, "public", "fonts"))) {

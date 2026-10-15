@@ -17,14 +17,15 @@ import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { clipOf, correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { boardView, startsRound } from "./flow";
-import { isCorrect, parseResult, picturesRight } from "./logic";
+import { isCorrect, parseGuess, parseOrder, parseResult, picturesRight } from "./logic";
 import { SuperPhone, SuperScreen } from "../../components/live/SuperGame";
+import { NumberPhone, NumberScreen, OrderNumberVerdict, OrderPhone, OrderScreenCards, orderNumberText } from "./orderNumber";
 import { parsePenalty, parseStyle, parseSuperAnswer } from "../../core/supergame";
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 /** Ответ гостя: номер варианта, текст, ответы к картинкам или нажатие кнопки «кто первый». */
-export type QuizAnswerValue = number | string | string[] | { buzz: true } | { level: number; text: string };
+export type QuizAnswerValue = number | string | string[] | { buzz: true } | { level: number; text: string } | { order: number[] } | { guess: number };
 
 function plural(n: number, one: string, few: string, many: string): string {
   const d10 = n % 10;
@@ -39,6 +40,7 @@ function currentQuestion(session: Session, content: QuizContent): QuizQuestion |
 }
 
 export function correctText(q: QuizQuestion): string {
+  if (q.kind === "order" || q.kind === "number") return orderNumberText(q);
   if (q.kind === "open" || q.kind === "buzz") return q.answers.filter((a) => a.trim()).join(" / ");
   if (q.kind === "super") return (q.levels ?? []).map((l, i) => `${["Бронза", "Серебро", "Золото", "Бриллиант"][i]}: ${l.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
   if (q.kind === "pictures") return (q.pictures ?? []).map((p, i) => `${i + 1}. ${p.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
@@ -325,10 +327,14 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
         )}
         {q.text || "Текст вопроса"}
       </h2>
-      {q.imageId && (
+      {q.imageId && q.kind !== "order" && !(q.kind === "number" && revealed) && (
         <MediaImage className="quiz-screen__image" gameId={session.gameId} mediaId={q.imageId} variant="full" alt="" />
       )}
-      {q.kind === "open" ? (
+      {q.kind === "order" ? (
+        <OrderScreenCards q={q} gameId={session.gameId} revealed={revealed} result={result} />
+      ) : q.kind === "number" ? (
+        <NumberScreen q={q} revealed={revealed} result={result} leaderboard={session.leaderboard} />
+      ) : q.kind === "open" ? (
         <div className="quiz-screen__open">
           {revealed ? (
             <>
@@ -556,6 +562,19 @@ export function QuizPlayerView({
         </div>
       );
     }
+    if (q.kind === "order" || q.kind === "number") {
+      return (
+        <div className="quiz-phone" aria-live="polite">
+          <p className="eyebrow">
+            Вопрос {step + 1} из {total} · {KIND_TITLES[q.kind]}
+          </p>
+          {myAnswer === undefined ? <p className="muted">Проверяем ответ…</p> : !answered && <p className="quiz-phone__verdict">Ответа не было</p>}
+          <OrderNumberVerdict q={q} value={myAnswer?.value} result={parseResult(session.state.result)} />
+          {me && (me.last ?? 0) > 0 && <p className="quiz-phone__plus">+{pointsLabel(me.last ?? 0)}</p>}
+          {scoreLine}
+        </div>
+      );
+    }
     return (
       <div className="quiz-phone quiz-phone--center" aria-live="polite">
         <p className="eyebrow">
@@ -634,7 +653,15 @@ export function QuizPlayerView({
         <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={q.imageId} variant="small" alt="" />
       )}
 
-      {q.kind === "open" ? (
+      {q.kind === "order" ? (
+        role === "member" ? null : (
+          <OrderPhone key={`${q.id}:${session.state.startedAt ?? 0}`} q={q} mine={answered ? parseOrder(myAnswer?.value, q.options.length) : null} canAnswer={canAnswer} onAnswer={(order) => onAnswer({ order })} />
+        )
+      ) : q.kind === "number" ? (
+        role === "member" ? null : (
+          <NumberPhone key={`${q.id}:${session.state.startedAt ?? 0}`} q={q} mine={answered ? parseGuess(myAnswer?.value) : null} canAnswer={canAnswer} onAnswer={(guess) => onAnswer({ guess })} />
+        )
+      ) : q.kind === "open" ? (
         <form className="stack" onSubmit={onSubmit}>
           <label className="field">
             Ваш ответ

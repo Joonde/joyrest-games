@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "file": "back.png",
+      "what": "«Шпион»: рубашка карты (Canva AI: ар-деко, шляпа и лупа)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0001-2450477264305527183.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T125826Z&X-Amz-Expires=10835&X-Amz-Signature=935be764cef518b06b8c87058a6725fb15f73069b1128b9f740dcfd349e93201&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2015%3A59%3A01%20GMT",
+      "expires": "2026-10-15"
+    },
+    {
+      "file": "spy.png",
+      "what": "«Шпион»: карта шпиона (Canva AI: силуэт в плаще и шляпе с лупой, низ пустой под подпись)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0002-2450477264305527183.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T071009Z&X-Amz-Expires=29777&X-Amz-Signature=4b7c38e5879208e8e6fa67d75533483469424ae2c9d2ba2706a93d32d0ad77b8&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2015%3A26%3A26%20GMT",
+      "expires": "2026-10-15"
+    },
+    {
+      "file": "place.png",
+      "what": "«Шпион»: фон карты локации (Canva AI: рамка ар-деко, значок места, середина пустая под текст)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0003-2450477264305527183.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261014%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261014T195301Z&X-Amz-Expires=70969&X-Amz-Signature=feafdf1b6c789a0838f351fd747ce76a7973892e94c59f272e7aa9a675d64af8&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2015%20Oct%202026%2015%3A35%3A50%20GMT",
+      "expires": "2026-10-15"
+    }
+  ]
+}

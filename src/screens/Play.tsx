@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { ClientLogo } from "../components/ClientLogo";
 import { EveningTable } from "../mechanics/evening/views";
+import { FinalePhone } from "../components/live/Finale";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
@@ -80,7 +82,7 @@ export function Play() {
 function PlayerScreen({ session, uid }: { session: Session; uid: string }) {
   const [me, setMe] = useState<Participant | null | undefined>(undefined);
   const [team, setTeam] = useState<Participant | null>(null);
-  useTheme(session.themeId);
+  useTheme(session.themeId, session.branding);
 
   const reload = useCallback(
     async (isCancelled: () => boolean = () => false) => {
@@ -231,7 +233,8 @@ function JoinForm({
 
   return (
     <main className="page page--center">
-      <Logo kind="full" className="logo--form" />
+      <ClientLogo branding={session.branding} className="client-logo--form" />
+      <Logo kind="full" className={session.branding?.logo ? "logo--form logo--form-small" : "logo--form"} />
       {offline.length > 0 && (
         <section className="card" aria-labelledby="rejoin-title">
           <h2 id="rejoin-title">Вы уже играли?</h2>
@@ -560,6 +563,7 @@ function InGame({
     <main className="page page--play">
       <header className="play-head">
         <Logo kind="monogram" className="logo--mark" title="JoyRest" />
+        <ClientLogo branding={session.branding} className="client-logo--head" />
         <div className="play-head__who">
           <span className="play-head__name">{name}</span>
           {team && (
@@ -650,6 +654,7 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
           Итоги игры
         </Link>
       </div>
+      <FinalePhone sessionId={session.id} />
     </div>
   );
 }

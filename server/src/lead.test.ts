@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app";
-import { checkLead, clean, formatLead, type LeadOptions, type TelegramTarget } from "./lead";
+import { checkLead, clean, formatLead, leadSummary, type LeadOptions, type TelegramTarget } from "./lead";
+import { cleanSummary } from "./clients";
 
 const HOST = "joy-rest.ru";
 const TELEGRAM: TelegramTarget = { token: "test-token", chatId: "-100123" };
@@ -410,5 +411,36 @@ describe("заявка: согласие на рассылку", () => {
     // Только точное true.
     const text = checkLead({ ...VALID.lead, marketing: "true" });
     expect(text.ok && text.lead.type === "lead" && text.lead.marketing).toBeFalsy();
+  });
+});
+
+describe("заявка в истории клиента (leadSummary)", () => {
+  it("менеджер видит расчёт, формат ведущего, связь и комментарий — по строкам", () => {
+    const checked = checkLead({
+      ...VALID.lead,
+      hostLevel: "new",
+      contactMethod: "Telegram",
+      contactLink: "@anna",
+      message: "Нужен квиз про компанию",
+      calc: "Пакет «Квиз», до 25 гостей, будни. Итого: Опытный — 24 900 ₽.",
+    });
+    expect(checked.ok).toBe(true);
+    if (!checked.ok) return;
+    const text = cleanSummary(leadSummary(checked.lead));
+    expect(text.split("\n")).toEqual([
+      "Корпоратив, 25 гостей",
+      "Ведущий: Новые лица (−20%)",
+      "🧮 Расчёт: Пакет «Квиз», до 25 гостей, будни. Итого: Опытный — 24 900 ₽.",
+      "Связь: Telegram — @anna",
+      "Комментарий: Нужен квиз про компанию",
+    ]);
+  });
+
+  it("без расчёта — подсказка менеджеру попросить его; вопрос — целиком", () => {
+    const lead = checkLead({ ...VALID.lead });
+    expect(lead.ok && leadSummary(lead.lead)).toContain("Расчёта нет — попросите прислать");
+    const long = "Сколько стоит квиз? ".repeat(30).trim();
+    const question = checkLead({ ...VALID.question, text: long });
+    expect(question.ok && cleanSummary(leadSummary(question.lead))).toBe(long);
   });
 });

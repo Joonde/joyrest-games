@@ -39,7 +39,11 @@ const SAVE_TEXT: Record<SaveStatus, string> = {
   saving: "Сохраняется…",
   offline: "Нет связи — правки сохранятся, когда появится интернет",
   error: "Не удалось сохранить — пробуем ещё раз",
+  conflict: "Игру изменил другой человек — ваши правки ждут решения",
 };
+
+/** Кто-то правил игру за последние 10 минут — предупредить, что можно столкнуться правками. */
+const RECENT_EDIT_MS = 10 * 60_000;
 
 export function GameEditor() {
   const { gameId = "" } = useParams();
@@ -91,7 +95,23 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   // Роли без профессии ведущего (создатель игр, тестировщик) игры не проводят — только репетиция.
   const launchable = permissions.canLaunchGame(profile, game);
   const copyable = permissions.canCopyToPersonal(profile, game);
-  const { status, change, flush } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch), `game.${initial.id}`);
+  const { status, change, flush, resume } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch), `game.${initial.id}`);
+  // Совместная работа (владелец и заместитель в библиотеке): кто правил игру недавно и кто изменил её, пока правили вы.
+  const [openedAt] = useState(() => Date.now());
+  const recentEditor =
+    initial.editedBy && initial.editedBy !== profile.uid && initial.updatedAt && openedAt - initial.updatedAt < RECENT_EDIT_MS ? initial.editedByName || "другой человек" : null;
+  const [conflictBy, setConflictBy] = useState<string | null>(null);
+  useEffect(() => {
+    if (status !== "conflict") return;
+    let alive = true;
+    gamesRepo
+      .get(initial.id)
+      .then((fresh) => alive && setConflictBy(fresh?.editedByName || "другой человек"))
+      .catch(() => alive && setConflictBy("другой человек"));
+    return () => {
+      alive = false;
+    };
+  }, [status, initial.id]);
   useEffect(() => {
     if (!draft) return;
     edited.current = true;
@@ -117,7 +137,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   async function settled(): Promise<void> {
     const end = Date.now() + 6000;
     await new Promise((r) => setTimeout(r, 50));
-    while (statusRef.current !== "saved" && statusRef.current !== "error" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
+    while (statusRef.current !== "saved" && statusRef.current !== "error" && statusRef.current !== "conflict" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
   }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
@@ -150,7 +170,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   function leaveWhenSettled() {
     setLeaveError(false);
     void settled().then(() => {
-      if (statusRef.current === "error") {
+      if (statusRef.current === "error" || statusRef.current === "conflict") {
         setRestoring(false);
         setLeaveError(true);
         return;
@@ -229,6 +249,40 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
             <span className="save-status__dot" aria-hidden="true" />
             {SAVE_TEXT[status]}
           </p>
+          {recentEditor && status !== "conflict" && (
+            <p className="small clients-late" role="status">
+              Эту игру недавно правил(а) {recentEditor}. Если правите одновременно — при сохранении спросим, чью версию оставить.
+            </p>
+          )}
+          {status === "conflict" && (
+            <div className="card stack stack--tight clients-conflict" role="alert">
+              <p>
+                <b>Пока вы правили, эту игру изменил(а) {conflictBy ?? "другой человек"}.</b> Ваши последние правки не потерялись — они на этом
+                устройстве и ещё не сохранены.
+              </p>
+              <button
+                type="button"
+                className="btn btn--block"
+                onClick={() => {
+                  // Свежая версия с сервера: свои несохранённые правки — убрать, иначе вернутся при открытии.
+                  dropDraft(`game.${initial.id}`);
+                  window.location.reload();
+                }}
+              >
+                Открыть свежую версию (мои правки убрать)
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary btn--block"
+                onClick={() => {
+                  gamesRepo.overwriteNext?.(initial.id);
+                  resume();
+                }}
+              >
+                Сохранить мою версию поверх
+              </button>
+            </div>
+          )}
           {edited.current && (
             <button type="button" className="btn btn--quiet back-link" onClick={() => setUndoAsk(true)}>
               ↶ Отменить правки — вернуть, как было при открытии

@@ -35,6 +35,8 @@ export interface QuizResult {
   picks?: Record<string, number>;
   /** Суперигра после «Показать ответы»: уровень, ответ, верно ли и прибавка каждого. */
   verdicts?: Record<string, SuperVerdict>;
+  /** «Угадай число» после показа ответа: чьё какое число (экран ставит фишки на шкалу). */
+  guesses?: Record<string, number>;
 }
 
 export function emptyResult(): QuizResult {
@@ -60,6 +62,11 @@ export function parseResult(raw: unknown): QuizResult {
   if (Array.isArray(r.right)) result.right = nums(r.right);
   if (r.picks !== undefined) result.picks = parsePicks(r.picks);
   if (r.verdicts !== undefined) result.verdicts = parseVerdicts(r.verdicts);
+  if (typeof r.guesses === "object" && r.guesses !== null && !Array.isArray(r.guesses)) {
+    const guesses: Record<string, number> = {};
+    for (const [pid, v] of Object.entries(r.guesses as Record<string, unknown>)) if (typeof v === "number" && Number.isFinite(v)) guesses[pid] = v;
+    result.guesses = guesses;
+  }
   return result;
 }
 
@@ -76,6 +83,78 @@ export function picturesRight(q: QuizQuestion, value: unknown, accepted: string[
   return (q.pictures ?? []).map((p, i) => textMatches(p.answers, list[i], accepted, `${i}:`));
 }
 
+// ---------------------------------------------------------------- «Расставь по порядку»
+
+/** Простое число из строки (id вопроса) — одинаковое на экране, телефонах и пульте. */
+function seedOf(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/**
+ * Как карточки лежат на экране и телефонах: перемешанные номера верного порядка (одинаково везде, зависит от id
+ * вопроса). Никогда не совпадает с верным порядком — иначе отвечать нечего.
+ */
+export function orderShown(q: Pick<QuizQuestion, "id" | "options">): number[] {
+  const n = q.options.length;
+  const list = Array.from({ length: n }, (_, i) => i);
+  let seed = seedOf(q.id) || 1;
+  for (let i = n - 1; i > 0; i--) {
+    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+    const j = seed % (i + 1);
+    [list[i], list[j]] = [list[j] as number, list[i] as number];
+  }
+  if (n > 1 && list.every((v, i) => v === i)) list.push(list.shift() as number);
+  return list;
+}
+
+/** Ответ «по порядку» от телефона: перестановка номеров карточек (номер — место в верном порядке). */
+export function parseOrder(value: unknown, n: number): number[] | null {
+  const raw = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>).order : null;
+  if (!Array.isArray(raw) || raw.length !== n) return null;
+  if (!raw.every((v) => Number.isInteger(v) && v >= 0 && v < n)) return null;
+  return new Set(raw).size === n ? (raw as number[]) : null;
+}
+
+/** Сколько карточек стоят на своём месте (0, если ответа нет). */
+export function orderHits(q: QuizQuestion, value: unknown): number {
+  const order = parseOrder(value, q.options.length);
+  return order ? order.filter((v, i) => v === i).length : 0;
+}
+
+// ---------------------------------------------------------------- «Угадай число»
+
+/** Ответ «число» от телефона. */
+export function parseGuess(value: unknown): number | null {
+  const raw = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>).guess : null;
+  return typeof raw === "number" && Number.isFinite(raw) && Math.abs(raw) <= 1e12 ? raw : null;
+}
+
+/** Доля очков по местам близости: 1-е (все одинаково близкие) — 100%, 2-е — 60%, 3-е — 30%. */
+export const NUMBER_SHARES = [1, 0.6, 0.3] as const;
+
+/**
+ * Очки «Угадай число»: места по расстоянию до верного (одинаково близкие — одно место). «Только ближайший» — очки
+ * лишь первому месту; «по близости» — 100/60/30%. Точно в цель — ещё +50%.
+ */
+export function numberDeltas(q: QuizQuestion, answers: Answer[]): Array<{ pid: string; delta: number; place: number; diff: number; guess: number }> {
+  const target = q.number;
+  if (target === null || target === undefined) return [];
+  const guesses = answers.flatMap((a) => {
+    const g = parseGuess(a.value);
+    return g === null ? [] : [{ pid: a.pid, guess: g, diff: Math.abs(g - target) }];
+  });
+  const distinct = [...new Set(guesses.map((g) => g.diff))].sort((a, b) => a - b);
+  const shares = q.scoring === "closest" ? [1] : [...NUMBER_SHARES];
+  return guesses.map((g) => {
+    const place = distinct.indexOf(g.diff);
+    const share = shares[place] ?? 0;
+    const exact = g.diff === 0 ? 1.5 : 1;
+    return { pid: g.pid, guess: g.guess, diff: g.diff, place: place + 1, delta: Math.round(q.points * share * exact) };
+  });
+}
+
 /** Верен ли ответ: номер варианта или открытый ответ (в том числе засчитанный ведущим). */
 export function isCorrect(question: QuizQuestion, value: unknown, accepted: string[] = []): boolean {
   if (question.kind === "open") return textMatches(question.answers, value, accepted);
@@ -85,6 +164,9 @@ export function isCorrect(question: QuizQuestion, value: unknown, accepted: stri
     return right.length > 0 && right.every(Boolean);
   }
   if (question.kind === "buzz") return false;
+  if (question.kind === "order") return question.options.length > 0 && orderHits(question, value) === question.options.length;
+  // Число: «верно» — точно в цель; очки по близости телефон берёт из таблицы.
+  if (question.kind === "number") return parseGuess(value) !== null && parseGuess(value) === question.number;
   if (question.kind === "super") {
     const answer = parseSuperAnswer(value);
     return answer !== null && superRight(question.levels ?? [], answer, accepted);
@@ -128,6 +210,17 @@ export function score(step: QuizStep, answers: Answer[], { state }: ScoreContext
       return k > 0 ? [{ pid: a.pid, delta: Math.round((q.points * k) / n) }] : [];
     });
   }
+  // По порядку: всё верно — очки вопроса; частично — доля за каждую карточку на своём месте.
+  if (q.kind === "order") {
+    const n = q.options.length;
+    if (n === 0) return [];
+    return answers.flatMap((a) => {
+      const k = orderHits(q, a.value);
+      const delta = k === n ? q.points : q.partial === false ? 0 : Math.round((q.points * k) / n);
+      return delta > 0 ? [{ pid: a.pid, delta }] : [];
+    });
+  }
+  if (q.kind === "number") return numberDeltas(q, answers).filter((d) => d.delta > 0).map(({ pid, delta }) => ({ pid, delta }));
   const right = answers.filter((a) => isCorrect(q, a.value, accepted));
   if (q.kind !== "speed") return right.map((a) => ({ pid: a.pid, delta: q.points }));
 
@@ -156,6 +249,19 @@ export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[],
     const per = answers.map((a) => picturesRight(q, a.value, accepted));
     const right = (q.pictures ?? []).map((_, i) => per.filter((r) => r[i]).length);
     return { counts: [], correct: per.filter((r) => r.length > 0 && r.every(Boolean)).length, total: answers.length, accepted, right };
+  }
+  if (q.kind === "order") {
+    // На экране — сколько поставили каждую карточку на своё место.
+    const right = q.options.map((_, i) => answers.filter((a) => parseOrder(a.value, q.options.length)?.[i] === i).length);
+    return { counts: [], correct: answers.filter((a) => isCorrect(q, a.value, accepted)).length, total: answers.length, accepted, right };
+  }
+  if (q.kind === "number") {
+    const guesses: Record<string, number> = {};
+    for (const a of answers) {
+      const g = parseGuess(a.value);
+      if (g !== null) guesses[a.pid] = g;
+    }
+    return { counts: [], correct: answers.filter((a) => isCorrect(q, a.value, accepted)).length, total: answers.length, accepted, guesses };
   }
   const counts = q.kind === "open" ? [] : q.options.map((_, i) => answers.filter((a) => a.value === i).length);
   return {

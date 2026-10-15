@@ -15,9 +15,13 @@ import { createOlymp } from "./olymp/content";
 import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "./dragon/demo";
 import { DEMO_SURVIVAL } from "./survival/demo";
 import { DEMO_MILLIONAIRE } from "./millionaire/demo";
-import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./quest/demo";
+import { DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET } from "./quest/demo";
 import { lotto } from "./lotto";
 import { mafia } from "./mafia";
+import { spy } from "./spy";
+import { DEMO_SPY } from "./spy/demo";
+import { hundred } from "./hundred";
+import { DEMO_HUNDRED } from "./hundred/demo";
 import { durak } from "./durak";
 import { createDurak } from "./durak/content";
 import { truth } from "./truth";
@@ -37,7 +41,7 @@ import { createMafia } from "./mafia/content";
 import { DEMO_LOTTO } from "./lotto/demo";
 import { quiz } from "./quiz";
 import { evening } from "./evening";
-import { DEMO_MELODY, DEMO_QUIZ } from "./quiz/demo";
+import { DEMO_MELODY, DEMO_QUIZ, DEMO_QUIZ_FORMATS } from "./quiz/demo";
 import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
 
@@ -50,7 +54,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(survival), register(dragon), register(olymp), register(mafia), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -75,6 +79,8 @@ const HINTS: Record<string, string> = {
   truth: "Ходы по очереди: игрок касается на телефоне «Правда» или «Действие», карточка открывается на экране. Колода обычная и 18+, задания от гостей.",
   durak: "Подкидной и переводной: стол с крупье на экране, свои карты веером на телефоне. 10 колод на выбор, голосование гостей за колоду.",
   mafia: "Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные. Тайные карты на телефонах, ночные ходы, тайное голосование.",
+  spy: "Все знают, где мы, кроме шпиона: локация и роль — тайно на телефоне. Вопросы по кругу, шпион угадывает локацию, город голосует, кто шпион. 4–20 игроков.",
+  hundred: "Табло популярных ответов, как в телешоу: розыгрыш «Жми первым!», команда отвечает, три ошибки — шанс соперника, двойная, тройная, «Игра наоборот» и «Большая игра». Режим «Весь зал»: все пишут ответы с телефона. Свои проценты — «Опрос гостей заранее».",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
@@ -121,6 +127,7 @@ export function gameMediaIds(mechanicId: string, content: unknown): string[] {
 /** Все готовые игры, включая скрытые форматы (робот-ведущий проверяет и их). */
 export const allDemoGames: Array<{ mechanic: string; title: string; hint: string; content: unknown; ageRating?: "0+" | "12+" | "18+"; playMode?: "solo" | "teams"; themeId?: string }> = [
   { mechanic: quiz.id, title: DEMO_QUIZ.title, hint: "8 вопросов всех типов: варианты, открытый ответ, на скорость.", content: DEMO_QUIZ.content },
+  { mechanic: quiz.id, title: DEMO_QUIZ_FORMATS.title, hint: "6 вопросов: «Расставь по порядку» и «Угадай число» — кто ближе, тот и выиграл.", content: DEMO_QUIZ_FORMATS.content },
   {
     mechanic: quiz.id,
     title: DEMO_MELODY.title,
@@ -181,7 +188,10 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   },
   { mechanic: quest.id, title: DEMO_QUEST.title, hint: "40 клеток: задания, вопросы, танцы, караоке, бонусы и ловушки.", content: DEMO_QUEST.content, playMode: "teams", themeId: "adventure" },
   { mechanic: quest.id, title: DEMO_QUEST_ADULT.title, hint: "40 клеток для взрослой компании: тосты, танцы, вопросы про напитки (можно безалкогольные).", content: DEMO_QUEST_ADULT.content, ageRating: "18+", playMode: "teams", themeId: "gatsby" },
+  { mechanic: quest.id, title: DEMO_QUEST_DRINKS.title, hint: "Ходилка 18+: тосты, коктейли, вопросы про напитки. Пить — по желанию: сок и вода засчитываются так же.", content: DEMO_QUEST_DRINKS.content, ageRating: "18+", playMode: "teams", themeId: "disco" },
+  { mechanic: quest.id, title: DEMO_QUEST_SWEET.title, hint: "Ходилка для детей и сладкоежек: конфеты, торты, мороженое, весёлые задания.", content: DEMO_QUEST_SWEET.content, playMode: "teams", themeId: "joyrest-day" },
   { mechanic: millionaire.id, title: "Кто хочет стать миллионером", hint: "45 вопросов на 15 ступенях: хватит на 3 команды, 6 подсказок.", content: DEMO_MILLIONAIRE, playMode: "teams", themeId: "studio" },
+  ...DEMO_HUNDRED.map((d) => ({ mechanic: hundred.id, title: d.title, hint: d.hint, content: d.content, playMode: "teams" as const, themeId: "studio" })),
   { mechanic: survival.id, title: "Гонка на выживание", hint: "30 раундов: вопросы, задания с тайными словами капитанам (30 секунд на команду), 6 войнушек и 3 аукциона билета.", content: DEMO_SURVIVAL, playMode: "teams", themeId: "adventure" },
   { mechanic: olymp.id, title: "Олимп: Вечная зима", hint: "История на 1–2 часа: 10 богов, проверки d100, развилки, Поля Асфоделей и дворец Аида, бои с волками, тенями, Цербером и Пожирателем зимы, три концовки.", content: createOlymp(), playMode: "teams", ageRating: "18+", themeId: "winter" },
   { mechanic: olymp.id, title: "Олимп: Метка Тёмного мира", hint: "Вторая история, 1–1,5 часа: кто-то крадёт огонь очага Гестии. Лемнос или Дельфы, море, Лабиринт Крита, Минотавр и Вестник Эреба, три концовки.", content: { ...createOlymp(), story: "mark" }, playMode: "teams", ageRating: "18+", themeId: "adventure" },
@@ -189,6 +199,7 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: truth.id, title: "Правда или действие", hint: "40 карточек для любой компании: 20 вопросов и 20 заданий, 3 круга, задания от гостей.", content: DEMO_TRUTH, playMode: "solo" },
   { mechanic: truth.id, title: "Правда или действие 18+", hint: "Обычная колода и 16 карточек для взрослой вечеринки.", content: DEMO_TRUTH_ADULT, playMode: "solo", ageRating: "18+" },
   { mechanic: mafia.id, title: "Мафия", hint: "Клубная классика для 5–30 игроков: 3 партии подряд, роли по числу игроков, речь 60 с, голосование 30 с.", content: createMafia(), playMode: "solo", ageRating: "12+" },
+  { mechanic: spy.id, title: DEMO_SPY.title, hint: "24 локации для любой компании: ресторан, самолёт, цирк, космическая станция… 3 партии по 8 минут, 4–20 игроков, с 11 — два шпиона.", content: DEMO_SPY.content, playMode: "solo" },
   { mechanic: wager.id, title: DEMO_WAGER.title, hint: "7 вопросов с ответом-числом: Эйфелева башня, Эльбрус, Байкал и другие. 3–7 команд.", content: DEMO_WAGER.content, playMode: "teams" },
   { mechanic: wine.id, title: DEMO_WINE.title, hint: "Образец вечера на 4 бутылки: скопируйте и впишите свои вина. Фишки — на телефонах гостей.", content: DEMO_WINE.content, ageRating: "18+", playMode: "solo" },
   { mechanic: perudo.id, title: "Перудо — кости лжеца", hint: "Как в «Пиратах Карибского моря»: 5 костей у каждого, единицы — джокеры, «Не верю!», «Ровно!» и «Палифико». 2–10 игроков или команд.", content: createPerudo(), playMode: "solo" },

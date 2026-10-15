@@ -9,6 +9,8 @@
  * - устройства гостей старше 180 дней (их cookie уже истекла).
  * Сессии старше 30 дней убирает admin при входе в /admin (`POST /api/sessions/cleanup`).
  */
+import { brandLogosInUse } from "./branding";
+import { deckPagesInUse } from "./decks";
 import { readdir, stat, unlink } from "node:fs/promises";
 import { promoteLibraryTracks } from "./libraryTracks";
 import { join } from "node:path";
@@ -36,6 +38,31 @@ export async function cleanupAudio(sql: Sql, dir: string, now: number = Date.now
   if (!info?.isDirectory()) return 0;
   const rows = await sql<{ sha256: string }[]>`select distinct sha256 from tracks where sha256 is not null`;
   return removeOrphans(audio, new Set(rows.map((r) => r.sha256)), now);
+}
+
+/** Удаляет файлы фотоотчётов мероприятий без ссылок в event_photos. */
+export async function cleanupPhotos(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const photos = join(dir, "photos");
+  const info = await stat(photos).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  const rows = await sql<{ sha256: string }[]>`select distinct sha256 from event_photos`;
+  return removeOrphans(photos, new Set(rows.map((r) => r.sha256)), now);
+}
+
+/** Логотипы заказчиков (MEDIA_DIR/brand) без ссылок в сохранённых оформлениях и сессиях. */
+export async function cleanupBrandLogos(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const brand = join(dir, "brand");
+  const info = await stat(brand).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  return removeOrphans(brand, await brandLogosInUse(sql), now);
+}
+
+/** Страницы показов (MEDIA_DIR/slides) без ссылок в показах и на слайдах сессий. */
+export async function cleanupDeckPages(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const slides = join(dir, "slides");
+  const info = await stat(slides).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  return removeOrphans(slides, await deckPagesInUse(sql), now);
 }
 
 /** Удаляет аватарки и обложки, которые ведущие заменили или убрали. */
@@ -116,7 +143,7 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
     try {
       // Треки игр библиотеки — в общую музыку (до уборки файлов: файл остаётся у общей копии).
       const libraryGames = await promoteLibraryTracks(sql);
-      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) : 0;
+      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) + (await cleanupPhotos(sql, mediaDir)) + (await cleanupBrandLogos(sql, mediaDir)) + (await cleanupDeckPages(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       // Старые сессии (30 дней) — каждую ночь, не дожидаясь входа владельца; итоги остаются в истории.
       let sessions = 0;

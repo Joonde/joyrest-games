@@ -152,6 +152,25 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     expect((await get("/api/videos/v1/file", owner)).statusCode).toBe(404);
   });
 
+  it("папки как у «Музыки»: пустая, переименование переносит видео, удаление оставляет видео без папки", async () => {
+    const folders = async (cookie: string) => (await get("/api/videos", cookie)).json().folders as string[];
+    expect((await post("/api/video-folders", host, { name: "Караоке" })).statusCode).toBe(403);
+    expect((await post("/api/video-folders", owner, { name: "  " })).statusCode).toBe(400);
+    expect((await post("/api/video-folders", owner, { name: "Пустая" })).json().folders).toContain("Пустая");
+    expect((await post("/api/videos", deputy, { id: "fold1", title: "Караоке 1", folder: "Караоке", size: 100_000 })).statusCode).toBe(200);
+    expect(await folders(host)).toEqual(expect.arrayContaining(["Караоке", "Пустая"]));
+    const renamed = (await post("/api/video-folders/rename", deputy, { from: "Караоке", to: "Караоке на поле" })).json().folders as string[];
+    expect(renamed).toContain("Караоке на поле");
+    expect(renamed).not.toContain("Караоке");
+    const list = (await get("/api/videos", owner)).json().videos as Array<{ id: string; folder: string }>;
+    expect(list.find((v) => v.id === "fold1")?.folder).toBe("Караоке на поле");
+    expect((await post("/api/video-folders/delete", host, { name: "Пустая" })).statusCode).toBe(403);
+    expect((await post("/api/video-folders/delete", owner, { name: "Караоке на поле" })).json().folders).not.toContain("Караоке на поле");
+    const after = (await get("/api/videos", owner)).json().videos as Array<{ id: string; folder: string }>;
+    expect(after.find((v) => v.id === "fold1")?.folder).toBe("");
+    expect((await app.inject({ method: "DELETE", url: "/api/videos/fold1", headers: headers(deputy) })).statusCode).toBe(200);
+  });
+
   it("ночная уборка: файл без ссылок и брошенная загрузка", async () => {
     const dir = join(mediaDir, "video");
     await post("/api/videos", owner, { id: "half", title: "Брошено", size: 200_000 });

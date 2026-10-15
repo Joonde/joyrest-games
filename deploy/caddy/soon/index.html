@@ -35,6 +35,12 @@
     text-wrap: balance;
   }
   p { margin: 0; color: #B5ABA2; font-size: 1.125rem; line-height: 1.5; }
+  .calc {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; padding: 12px 24px; border-radius: 14px;
+    background: #C49E96; color: #221E1B; font-weight: 600; text-decoration: none;
+  }
+  .calc:focus-visible { outline: 3px solid #E3C68C; outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -42,6 +48,7 @@
   <div class="logo" role="img" aria-label="JoyRest"></div>
   <h1>Радость без хлопот</h1>
   <p>Скоро здесь будет сайт агентства JoyRest.</p>
+  <a class="calc" href="/calc/">Посчитать стоимость праздника</a>
 </main>
 </body>
 </html>

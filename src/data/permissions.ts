@@ -58,20 +58,22 @@ function writesLibrary(actor: Actor): boolean {
  * (экран зала входит устройством).
  */
 export function canUploadVideo(actor: Actor): boolean {
-  return writesLibrary(actor);
+  // Создатель игр тоже (решение владельца 15 октября 2026): делает игры с видео — загружает видео сам; убрать может только своё.
+  return writesLibrary(actor) || hasAccess(actor, "creator");
 }
 
 export function canUseVideos(actor: Actor): boolean {
   return canUseGames(actor);
 }
 
-/** Музыка в студии: ведущие, музыкальные редакторы; слушать — ещё создатели игр и тестировщики. */
+/** Музыка в студии: ведущие, музыкальные редакторы, создатели игр, заместитель; слушать — ещё тестировщики. */
 export function canUseTracks(actor: Actor): boolean {
-  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "tester");
+  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "tester") || hasAccess(actor, "deputy");
 }
 
+/** Загружать музыку себе: ведущие, музыкальные редакторы, создатели игр и заместитель (музыка нужна прямо в конструкторе игр). */
 function writesTracks(actor: Actor): boolean {
-  return hostsGames(actor) || hasAccess(actor, "music");
+  return hostsGames(actor) || hasAccess(actor, "music") || hasAccess(actor, "creator") || hasAccess(actor, "deputy");
 }
 
 /** «Игры сейчас» всех ведущих и завершение чужой брошенной игры: владелец и помощник владельца. */
@@ -119,6 +121,48 @@ export function canCreateGame(actor: Actor, scope: GameScope, ownerId: string): 
 /** Общую библиотеку редактируют владелец и заместитель, личную игру — только её владелец. */
 export function canEditGame(actor: Actor, game: GameRef): boolean {
   return canCreateGame(actor, game.scope, game.ownerId);
+}
+
+/**
+ * «Опрос гостей заранее» для «100 к 1» (только свой сервер, `server/src/polls.ts`): завести опрос к игре может тот,
+ * кто её правит; смотреть ответы, менять и удалять опрос — тот, кто его завёл, и владелец агентства. Гости отвечают
+ * без входа (проверок прав нет — лимиты по адресу и ловушка для ботов).
+ */
+export function canCreatePoll(actor: Actor, game: GameRef): boolean {
+  return canEditGame(actor, game);
+}
+
+export function canManagePoll(actor: Actor, poll: { ownerId: string }): boolean {
+  return isAdmin(actor) || (writesGames(actor) && actor?.uid === poll.ownerId);
+}
+
+/**
+ * Отзывы гостей (решение владельца 15 октября 2026): ведущий видит отзывы о своих мероприятиях, владелец — все и
+ * решает, какие показать на сайте. Роли этого не дают.
+ */
+export function canReadReviews(actor: Actor, hostId: string): boolean {
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.uid === hostId);
+}
+
+export function canModerateReviews(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/**
+ * Фотоотчёт мероприятия (решение владельца 15 октября 2026): снимает и меняет фото ведущий этой игры (и владелец), смотрят
+ * ведущий — свои мероприятия, владелец — все.
+ */
+export function canTakeEventPhotos(actor: Actor, session: Pick<Session, "hostId">): boolean {
+  return isAdmin(actor) || (hostsGames(actor) && canControlSession(actor?.uid ?? null, session));
+}
+
+export function canViewEventPhotos(actor: Actor, hostId: string): boolean {
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.uid === hostId);
+}
+
+/** Ссылка для чаевых в своём профиле — тот, кто проводит игры. */
+export function canSetTips(actor: Actor): boolean {
+  return hostsGames(actor);
 }
 
 /** Удалить игру библиотеки может только владелец агентства (заместитель только правит). */
@@ -202,9 +246,18 @@ export function canEditOwnCalendar(actor: Actor): boolean {
   return isActiveHost(actor);
 }
 
-/** Календарь всей команды («Кто может в эту дату») и закрепить время за человеком — только владелец. */
+/**
+ * Менеджер по продажам (роль `sales`, решение владельца 15 октября 2026): принимает анкеты и заявки клиентов и продаёт
+ * мероприятия — база клиентов, заявки и подбор площадок, «Кто может», запись мероприятий. Без выгрузки и удаления
+ * данных клиентов, согласия на рассылку, итогов, удаления мероприятий навсегда.
+ */
+export function isSalesManager(actor: Actor): boolean {
+  return hasAccess(actor, "sales");
+}
+
+/** Календарь всей команды («Кто может в эту дату») и закрепить время за человеком — владелец и менеджер по продажам. */
 export function canViewTeamCalendar(actor: Actor): boolean {
-  return isAdmin(actor);
+  return isAdmin(actor) || isSalesManager(actor);
 }
 
 /**
@@ -213,17 +266,35 @@ export function canViewTeamCalendar(actor: Actor): boolean {
  */
 export function canRemoveCalendarEntry(actor: Actor, entry: { uid: string; kind: string }): boolean {
   if (isAdmin(actor)) return true;
+  // Менеджер по продажам снимает только закреплённое мероприятие (как «Отменить мероприятие»), чужие «свободен/занят» — нет.
+  if (isSalesManager(actor) && entry.kind === "booked") return true;
   return isActiveHost(actor) && actor?.uid === entry.uid && entry.kind !== "booked";
 }
 
-/** Отметить «Проведено» / «Не состоялось» — владелец или ведущий этого мероприятия. */
+/** Отметить «Проведено» / «Не состоялось» — владелец, менеджер по продажам или ведущий этого мероприятия. */
 export function canMarkEventHeld(actor: Actor, event: { hostId: string }): boolean {
-  if (isAdmin(actor)) return true;
+  if (isAdmin(actor) || isSalesManager(actor)) return true;
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
-/** База клиентов (заявки, телефоны, согласия на рассылку) — только владелец. */
+/** База клиентов (заявки, телефоны, статусы, заметки, архив) — владелец и менеджер по продажам. */
 export function canManageClients(actor: Actor): boolean {
+  return isAdmin(actor) || isSalesManager(actor);
+}
+
+/**
+ * Выгрузка клиентов (CSV), «Данные по номеру» и удаление навсегда, согласие на рассылку «да» вручную — только владелец:
+ * это персональные данные целиком и ответственность оператора.
+ */
+export function canExportClients(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+export function canErasePersonalData(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+export function canSetMarketingConsent(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
@@ -232,14 +303,28 @@ export function canLinkTelegram(actor: Actor): boolean {
   return isActiveHost(actor);
 }
 
-/** Планировщик: записать, изменить и отменить мероприятие — только владелец. */
+/** Планировщик: записать, изменить, отменить и вернуть мероприятие — владелец и менеджер по продажам. */
 export function canManageEvents(actor: Actor): boolean {
+  return isAdmin(actor) || isSalesManager(actor);
+}
+
+/** Удалить отменённое мероприятие навсегда и «Итоги» планировщика — только владелец. */
+export function canDeleteEvent(actor: Actor): boolean {
   return isAdmin(actor);
 }
 
-/** Свои мероприятия (кто клиент, где, когда) видит ведущий, за которым они закреплены. */
+export function canViewEventStats(actor: Actor): boolean {
+  return isAdmin(actor);
+}
+
+/** Инструкция менеджера по продажам в студии — менеджеру и владельцу (проверять работу). */
+export function canReadSalesGuide(actor: Actor): boolean {
+  return isAdmin(actor) || isSalesManager(actor);
+}
+
+/** Свои мероприятия (кто клиент, где, когда) видит ведущий, за которым они закреплены; все — владелец и менеджер. */
 export function canViewEvent(actor: Actor, event: { hostId: string }): boolean {
-  if (isAdmin(actor)) return true;
+  if (isAdmin(actor) || isSalesManager(actor)) return true;
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
@@ -248,7 +333,7 @@ export function canViewEvent(actor: Actor, event: { hostId: string }): boolean {
  * ведущие, которым он открыл доступ в /admin. QR-коды анкет показывает любой активный ведущий.
  */
 export function canManageVenues(actor: Actor): boolean {
-  return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true) || hasAccess(actor, "venues");
+  return isAdmin(actor) || (isActiveHost(actor) && actor?.venueAccess === true) || hasAccess(actor, "venues") || isSalesManager(actor);
 }
 
 /** Убрать площадку или заявку в архив: владелец и ведущие с доступом к базе (модератор — нет). */

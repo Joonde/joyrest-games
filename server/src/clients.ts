@@ -2,8 +2,10 @@
  * База клиентов (CLAUDE.md, раздел 3, «База клиентов»; решение владельца 14 октября 2026). Клиенты попадают
  * сами: заявка и вопрос с сайта (`lead.ts`), запрос клиента по QR (`venues.ts`), мероприятие в планировщике
  * (`events.ts`), сообщение, пересланное владельцем боту (`telegram.ts`). Один человек — одна запись по телефону
- * (без телефона — по ссылке на соцсеть). Видит и правит только владелец. Согласие на рассылку — только «да»
- * с сайта или вручную владельцем; автоматически «да» не ставится никогда, «нет» не снимается заявкой.
+ * (без телефона — по ссылке на соцсеть). Видят и правят владелец и менеджер по продажам (роль `sales`); выгрузка,
+ * «Данные по номеру» и удаление навсегда — только владелец. Согласие на рассылку — только «да» с сайта или вручную
+ * владельцем; автоматически «да» не ставится никогда, «нет» не снимается заявкой. Смена статуса пишется в историю
+ * клиента с именем того, кто сменил, — владелец видит, как менеджер ведёт клиента.
  * В журнал — только действие, без имён и телефонов.
  */
 import { randomBytes } from "node:crypto";
@@ -17,13 +19,14 @@ import {
   clientsCsv,
   isClientStatus,
   isMarketing,
+  CLIENT_STATUS_TITLES,
   phoneKey,
   type ClientSource,
 } from "../../src/core/clients";
 import { contactQuery, matchesContact, queryLabel, type ContactQuery } from "../../src/core/privacy";
 import * as permissions from "../../src/data/permissions";
 import type { ClientContact, ClientDetails, ClientRecord } from "../../src/data/types";
-import { actorOf, apiGuard, sessionUser } from "./auth";
+import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const newId = (prefix: string) => `${prefix}${randomBytes(12).toString("base64url")}`;
@@ -39,6 +42,8 @@ export interface ClientInput {
   summary: string;
   /** Откуда обращение (id заявки, мероприятия): повтор не дублирует историю. */
   ref?: string | null;
+  /** Мероприятие записано — клиент сам становится «Клиент» (менеджеру не нужно менять статус вручную). */
+  promote?: boolean;
 }
 
 interface Row {
@@ -56,6 +61,9 @@ interface Row {
   archived_at: Date | null;
   contacts: number;
   last_source: string | null;
+  updated_at: Date;
+  status_line: string | null;
+  status_at: Date | null;
 }
 
 function recordOf(row: Row): ClientRecord {
@@ -74,7 +82,23 @@ function recordOf(row: Row): ClientRecord {
     contacts: Number(row.contacts) || 0,
     lastSource: row.last_source ?? "",
     archived: row.archived_at !== null,
+    updatedAt: row.updated_at.getTime(),
+    statusLine: row.status_line ?? "",
+    statusAt: row.status_at ? row.status_at.getTime() : null,
   };
+}
+
+/** Текст обращения: переводы строк сохраняются (заявка с сайта — по строкам), остальные служебные символы — пробел. */
+export function cleanSummary(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, CLIENT_LIMITS.summary);
 }
 
 /**
@@ -87,7 +111,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
   const key = phoneKey(phone);
   const links = cleanLinks(input.links ?? []);
   if (!key && links.length === 0) return null;
-  const summary = cleanLine(input.summary, CLIENT_LIMITS.summary);
+  const summary = cleanSummary(input.summary);
   return sql.begin(async (tx) => {
     const t = tx as unknown as Sql;
     // Один и тот же человек по телефону, иначе — по любой из ссылок.
@@ -124,6 +148,12 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     await t`insert into client_contacts (id, client_id, source, summary, ref)
       values (${newId("c")}, ${id}, ${input.source}, ${summary}, ${input.ref ?? null})
       on conflict do nothing`;
+    if (input.promote) {
+      const changed = await t`update clients set status = 'client', updated_at = now() where id = ${id} and status <> 'client' returning id`;
+      if (changed.length > 0) {
+        await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status', ${"Клиент · мероприятие записано"})`;
+      }
+    }
     return id;
   });
 }
@@ -143,24 +173,34 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       return reply.code(status).send({ error: code });
     }
 
-    async function owner(request: FastifyRequest, reply: FastifyReply): Promise<boolean> {
+    async function allowed(
+      request: FastifyRequest,
+      reply: FastifyReply,
+      check: (actor: permissions.Actor) => boolean = permissions.canManageClients,
+    ): Promise<SessionRow | null> {
       const user = await sessionUser(sql, request, reply);
       if (!user) {
         fail(reply, 401, "unauthenticated");
-        return false;
+        return null;
       }
-      if (!permissions.canManageClients(actorOf(user))) {
+      if (!check(actorOf(user))) {
         fail(reply, 403, "permission-denied");
-        return false;
+        return null;
       }
-      return true;
+      return user;
     }
+    /** Выгрузка и «Данные по номеру» — только владелец. */
+    const owner = (request: FastifyRequest, reply: FastifyReply) => allowed(request, reply, permissions.canErasePersonalData);
 
     const select = sql`
       select c.id, c.name, c.phone, c.links, c.status, c.marketing, c.marketing_at, c.marketing_source, c.notes,
-        c.created_at, c.last_contact_at, c.archived_at,
-        (select count(*)::int from client_contacts h where h.client_id = c.id) as contacts,
-        (select h.source from client_contacts h where h.client_id = c.id order by h.created_at desc limit 1) as last_source
+        c.created_at, c.last_contact_at, c.archived_at, c.updated_at,
+        -- Кто и когда последним сменил статус («В работе · Мария»): владелец и менеджер видят, кто взял клиента.
+        (select h.summary from client_contacts h where h.client_id = c.id and h.source = 'status' order by h.created_at desc limit 1) as status_line,
+        (select h.created_at from client_contacts h where h.client_id = c.id and h.source = 'status' order by h.created_at desc limit 1) as status_at,
+        (select count(*)::int from client_contacts h where h.client_id = c.id and h.source <> 'status') as contacts,
+        -- Откуда пришёл — по настоящим обращениям: смена статуса обращением не считается.
+        coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source
       from clients c`;
 
     async function details(id: string): Promise<ClientDetails | null> {
@@ -175,7 +215,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     }
 
     api.get("/api/clients", async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      if (!(await allowed(request, reply))) return reply;
       const archived = (request.query as Record<string, unknown>)?.archived === "1";
       const rows = await sql<Row[]>`${select}
         where ${archived ? sql`c.archived_at is not null` : sql`c.archived_at is null`}
@@ -185,7 +225,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
 
     // Выгрузка для рассылки: по умолчанию только согласившиеся; ?all=1 — все (для своей работы, не для рассылки).
     api.get("/api/clients/export", async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      if (!(await allowed(request, reply, permissions.canExportClients))) return reply;
       const all = (request.query as Record<string, unknown>)?.all === "1";
       const rows = await sql<Row[]>`${select}
         where c.archived_at is null ${all ? sql`` : sql`and c.marketing = 'yes'`}
@@ -199,14 +239,15 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     });
 
     api.get<{ Params: { id: string } }>("/api/clients/:id", async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      if (!(await allowed(request, reply))) return reply;
       if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
       return (await details(request.params.id)) ?? fail(reply, 404, "not-found");
     });
 
     // Новый клиент вручную или правка. Тот же телефон у другого клиента — 409 (не плодим двойников).
     api.post<{ Body: unknown }>("/api/clients", { bodyLimit: 8192 }, async (request, reply) => {
-      if (!(await owner(request, reply))) return reply;
+      const user = await allowed(request, reply);
+      if (!user) return reply;
       const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
       const id = typeof b.id === "string" && ID.test(b.id) ? b.id : null;
       const name = cleanLine(b.name, CLIENT_LIMITS.name);
@@ -214,14 +255,22 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const key = phoneKey(phone);
       const links = cleanLinks(b.links);
       const status = isClientStatus(b.status) ? b.status : "new";
-      const marketing = isMarketing(b.marketing) ? b.marketing : "unknown";
+      const asked = isMarketing(b.marketing) ? b.marketing : "unknown";
       const notes = cleanNotes(b.notes);
       if (!id || (!key && links.length === 0 && !name)) return fail(reply, 400, "invalid-argument");
       if (key) {
         const [other] = await sql<{ id: string }[]>`select id from clients where phone_key = ${key} and id <> ${id}`;
         if (other) return reply.code(409).send({ error: "already-exists", id: other.id });
       }
-      const [existing] = await sql<{ marketing: string }[]>`select marketing from clients where id = ${id}`;
+      const [existing] = await sql<{ marketing: string; status: string; updated_at: Date }[]>`select marketing, status, updated_at from clients where id = ${id}`;
+      // Владелец и менеджер работают одновременно: форма шлёт `expect` — версию, с которой её открыли.
+      // Карточку за это время изменили — 409, ничего не затираем (браузер покажет свежую версию).
+      if (existing && typeof b.expect === "number" && Math.floor(existing.updated_at.getTime()) !== b.expect) {
+        return fail(reply, 409, "failed-precondition");
+      }
+      // Согласие «да» вручную ставит только владелец: менеджер может отметить «нет» (отказался), но не «да».
+      const before = existing && isMarketing(existing.marketing) ? existing.marketing : "unknown";
+      const marketing = asked === "yes" && before !== "yes" && !permissions.canSetMarketingConsent(actorOf(user)) ? before : asked;
       const marketingChanged = existing?.marketing !== marketing;
       await sql`
         insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes)
@@ -231,15 +280,70 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
           links = excluded.links, status = excluded.status, notes = excluded.notes, updated_at = now()
           ${marketingChanged ? sql`, marketing = excluded.marketing, marketing_at = excluded.marketing_at, marketing_source = excluded.marketing_source` : sql``}`;
       if (!existing) {
-        await sql`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual', 'Добавлен вручную')`;
+        await sql`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual', ${`Добавлен вручную · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
+      } else if (existing.status !== status) {
+        // Кто и когда сменил статус — в историю клиента: владелец видит, как идёт работа с заявкой.
+        await sql`insert into client_contacts (id, client_id, source, summary)
+          values (${newId("c")}, ${id}, 'status', ${`${CLIENT_STATUS_TITLES[status]} · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
       }
       request.log.info({ clients: existing ? "edit" : "create" }, "clients");
       return (await details(id)) ?? fail(reply, 500, "internal");
     });
 
+    // Статус одним касанием: меняется только статус (заметка, имя и ссылки не трогаются — их мог править другой человек).
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/clients/:id/status", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await allowed(request, reply);
+      if (!user) return reply;
+      const id = request.params.id;
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      if (!ID.test(id) || !isClientStatus(b.status)) return fail(reply, 400, "invalid-argument");
+      const status = b.status;
+      const result = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ status: string; archived_at: Date | null }[]>`select status, archived_at from clients where id = ${id} for update`;
+        if (!row) return "not-found" as const;
+        if (row.archived_at) return "archived" as const;
+        if (row.status === status) return "same" as const;
+        await t`update clients set status = ${status}, updated_at = now() where id = ${id}`;
+        await t`insert into client_contacts (id, client_id, source, summary)
+          values (${newId("c")}, ${id}, 'status', ${`${CLIENT_STATUS_TITLES[status]} · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
+        return "ok" as const;
+      });
+      if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result === "archived") return fail(reply, 409, "failed-precondition");
+      request.log.info({ clients: "status" }, "clients");
+      return (await details(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // Заметка без формы: `base` — текст, с которого человек начал править. Заметку за это время изменил другой — 409,
+    // свою правку браузер не теряет и показывает обе версии.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/clients/:id/notes", { bodyLimit: 16384 }, async (request, reply) => {
+      const user = await allowed(request, reply);
+      if (!user) return reply;
+      const id = request.params.id;
+      const b = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<string, unknown>;
+      if (!ID.test(id) || typeof b.notes !== "string" || typeof b.base !== "string") return fail(reply, 400, "invalid-argument");
+      const notes = cleanNotes(b.notes);
+      const base = cleanNotes(b.base);
+      const result = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ notes: string; archived_at: Date | null }[]>`select notes, archived_at from clients where id = ${id} for update`;
+        if (!row) return "not-found" as const;
+        if (row.archived_at) return "archived" as const;
+        if (row.notes === notes) return "ok" as const;
+        if (row.notes !== base) return "conflict" as const;
+        await t`update clients set notes = ${notes}, updated_at = now() where id = ${id}`;
+        return "ok" as const;
+      });
+      if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result !== "ok") return fail(reply, 409, "failed-precondition");
+      request.log.info({ clients: "notes" }, "clients");
+      return (await details(id)) ?? fail(reply, 404, "not-found");
+    });
+
     for (const action of ["archive", "restore"] as const) {
       api.post<{ Params: { id: string } }>(`/api/clients/:id/${action}`, { bodyLimit: 1024 }, async (request, reply) => {
-        if (!(await owner(request, reply))) return reply;
+        if (!(await allowed(request, reply))) return reply;
         if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
         await sql`update clients set archived_at = ${action === "archive" ? sql`coalesce(archived_at, now())` : null}, updated_at = now()
           where id = ${request.params.id}`;

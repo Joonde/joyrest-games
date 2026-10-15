@@ -18,9 +18,16 @@ const ChangePassword = lazy(() =>
 );
 const Team = lazy(() => import("./screens/studio/Team").then((m) => ({ default: m.Team })));
 const Calendar = lazy(() => import("./screens/studio/Calendar").then((m) => ({ default: m.Calendar })));
+const ReviewPage = lazy(() => import("./screens/ReviewPage").then((m) => ({ default: m.ReviewPage })));
+const PollPage = lazy(() => import("./screens/PollPage").then((m) => ({ default: m.PollPage })));
+const Photos = lazy(() => import("./screens/studio/Photos").then((m) => ({ default: m.Photos })));
+const Decks = lazy(() => import("./screens/studio/Decks").then((m) => ({ default: m.Decks })));
+const Reviews = lazy(() => import("./screens/studio/Reviews").then((m) => ({ default: m.Reviews })));
 const Clients = lazy(() => import("./screens/studio/Clients").then((m) => ({ default: m.Clients })));
 const PrivacySearch = lazy(() => import("./screens/studio/PrivacySearch").then((m) => ({ default: m.PrivacySearch })));
 const Guide = lazy(() => import("./screens/studio/Guide").then((m) => ({ default: m.Guide })));
+const SalesGuide = lazy(() => import("./screens/studio/SalesGuide").then((m) => ({ default: m.SalesGuide })));
+const Abilities = lazy(() => import("./screens/studio/Abilities").then((m) => ({ default: m.Abilities })));
 const Profile = lazy(() => import("./screens/studio/Profile").then((m) => ({ default: m.Profile })));
 const Results = lazy(() => import("./screens/Results").then((m) => ({ default: m.Results })));
 const HostConsole = lazy(() => import("./screens/HostConsole").then((m) => ({ default: m.HostConsole })));
@@ -54,8 +61,13 @@ export function App() {
           <Route path="/studio/team" element={<Team />} />
           <Route path="/studio/calendar" element={<Calendar />} />
           <Route path="/studio/clients" element={<Clients />} />
+          <Route path="/studio/reviews" element={<Reviews />} />
+          <Route path="/studio/photos" element={<Photos />} />
+          <Route path="/studio/decks" element={<Decks />} />
           <Route path="/studio/privacy" element={<PrivacySearch />} />
           <Route path="/studio/guide" element={<Guide />} />
+          <Route path="/studio/sales-guide" element={<SalesGuide />} />
+          <Route path="/studio/abilities" element={<Abilities />} />
           <Route path="/studio/profile" element={<Profile />} />
           <Route path="/studio/qr" element={<VenueQrPage />} />
           <Route path="/admin" element={<Team manage />} />
@@ -70,6 +82,8 @@ export function App() {
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />
           <Route path="/vote/:code" element={<AudienceVote />} />
+          <Route path="/review/:sessionId" element={<ReviewPage />} />
+          <Route path="/poll/:pollId" element={<PollPage />} />
           <Route path="/j" element={<JoinByCode />} />
           <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />

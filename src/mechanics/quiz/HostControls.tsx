@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { OrderNumberHost } from "./orderNumber";
 import { scoringParticipants } from "../../core/leaderboard";
 import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -404,7 +405,8 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </section>
       )}
 
-      {stage === "reveal" && q.kind !== "open" && q.kind !== "buzz" && q.kind !== "pictures" && q.kind !== "super" && (
+      {stage === "reveal" && (q.kind === "order" || q.kind === "number") && <OrderNumberHost q={q} own={own} leaderboard={session.leaderboard} />}
+      {stage === "reveal" && q.kind !== "open" && q.kind !== "buzz" && q.kind !== "pictures" && q.kind !== "super" && q.kind !== "order" && q.kind !== "number" && (
         <ul className="host-quiz__dist">
           {q.options.map((o, i) => (
             <li key={i} className={correctSet(q).includes(i) ? "is-correct" : undefined}>

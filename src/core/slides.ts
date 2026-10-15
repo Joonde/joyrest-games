@@ -1,6 +1,6 @@
 // Слайды-шаблоны экрана зала (CLAUDE.md, раздел 7, «Слайды»): что можно показать между играми
 // и какие поля у каждого шаблона. Тексты по умолчанию ведущий правит на пульте.
-import type { SlideKind, SlideState } from "../data/types";
+import type { Deck, SlideKind, SlideState } from "../data/types";
 
 export interface SlideTemplate {
   kind: SlideKind;
@@ -77,6 +77,13 @@ export const SLIDE_TEMPLATES: SlideTemplate[] = [
     defaults: { title: "", text: "", lines: [] },
   },
   {
+    // Фото и страницы PDF — из показов ведущего («Фото и PDF» на вкладке «Слайды» пульта), в списке шаблонов их нет.
+    kind: "image",
+    label: "Фото и PDF",
+    fields: { title: "Подпись" },
+    defaults: { title: "", text: "", lines: [] },
+  },
+  {
     kind: "custom",
     label: "Свой слайд",
     fields: { title: "Заголовок", text: "Текст" },
@@ -95,6 +102,12 @@ export function slideTemplate(kind: SlideKind): SlideTemplate {
 export function techSlide(id: string): SlideState {
   const d = slideTemplate("tech").defaults;
   return { id, kind: "tech", title: d.title, text: d.text, lines: [], endsAt: null };
+}
+
+/** «Спасибо» после «Завершить игру»: чаевые, отзыв и канал (решение владельца 15 октября 2026). */
+export function thanksSlide(id: string): SlideState {
+  const d = slideTemplate("thanks").defaults;
+  return { id, kind: "thanks", title: d.title, text: d.text, lines: [], endsAt: null };
 }
 
 /** «QR для опоздавших» одним касанием: крупный код входа поверх игры, пока ведущий не уберёт. */
@@ -116,4 +129,19 @@ export function countdownLabel(slide: Pick<SlideState, "endsAt">, serverNow: num
   if (slide.endsAt === null) return null;
   const left = Math.max(0, Math.ceil((slide.endsAt - serverNow) / 1000));
   return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+}
+
+/** Страница показа на весь экран: номер с нуля; следующую экран грузит заранее. Нет такой страницы — null. */
+export function imageSlide(id: string, deck: Pick<Deck, "id" | "title" | "pages">, page: number): SlideState | null {
+  const current = deck.pages[page];
+  if (!current) return null;
+  return {
+    id,
+    kind: "image",
+    title: deck.title,
+    text: "",
+    lines: [],
+    endsAt: null,
+    media: { deck: deck.id, page, count: deck.pages.length, sha: current.sha, next: deck.pages[page + 1]?.sha ?? null, w: current.w, h: current.h },
+  };
 }

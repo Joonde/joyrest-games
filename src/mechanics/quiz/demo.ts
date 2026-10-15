@@ -76,3 +76,28 @@ export const DEMO_MELODY: { title: string; content: QuizContent } = {
     ],
   },
 };
+
+/** «Порядок и числа»: новые форматы квиза — расставить по порядку и угадать число (решение владельца 15 октября 2026). */
+export const DEMO_QUIZ_FORMATS: { title: string; content: QuizContent } = {
+  title: "Квиз: порядок и числа",
+  content: {
+    questions: [
+      q("fmt1", "order", "Расставьте фильмы по году выхода — от самого раннего", {
+        options: ["«Бриллиантовая рука»", "«Ирония судьбы»", "«Москва слезам не верит»", "«Титаник»"],
+        partial: true,
+      }),
+      q("fmt2", "number", "Сколько ступеней ведёт на вершину Эйфелевой башни?", { number: 1665, unit: "ступеней", scoring: "places" }),
+      q("fmt3", "order", "Расставьте планеты от Солнца — от ближней к дальней", {
+        options: ["Меркурий", "Венера", "Земля", "Марс", "Юпитер"],
+        partial: true,
+      }),
+      q("fmt4", "number", "В каком году человек впервые полетел в космос?", { number: 1961, unit: "", scoring: "closest" }),
+      q("fmt5", "order", "Расставьте по величине — от самого маленького", {
+        options: ["Муравей", "Мышь", "Кошка", "Лошадь", "Слон"],
+        partial: true,
+      }),
+      q("fmt6", "number", "Сколько километров от Москвы до Санкт-Петербурга по прямой — примерно?", { number: 634, unit: "км", scoring: "places" }),
+    ],
+    settings: { intro: true, board: "each", phoneImages: false, raceTarget: 5 },
+  },
+};

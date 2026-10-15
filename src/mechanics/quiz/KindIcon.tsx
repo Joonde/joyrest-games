@@ -66,6 +66,26 @@ export function KindIcon({ kind, music = false, picture = false }: { kind: Quest
       </svg>
     );
   }
+  if (kind === "order") {
+    // Карточки с номерами по порядку.
+    return (
+      <svg {...common}>
+        <rect x="11" y="5" width="16" height="6" rx="2" />
+        <rect x="11" y="13" width="16" height="6" rx="2" />
+        <rect x="11" y="21" width="16" height="6" rx="2" />
+        <path d="M6 6v4M5 14h2.5l-2.5 4h2.5M5 22h2.5l-1.5 2 1.5 2H5" />
+      </svg>
+    );
+  }
+  if (kind === "number") {
+    // Шкала с отметкой.
+    return (
+      <svg {...common}>
+        <path d="M4 20h24M8 17v6M16 17v6M24 17v6" />
+        <path d="M19 6v10M16 9l3-3 3 3" />
+      </svg>
+    );
+  }
   if (kind === "speed") {
     return (
       <svg {...common}>

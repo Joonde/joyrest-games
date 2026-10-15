@@ -3,9 +3,10 @@ import { dataBackend, errorCodeOf } from "../data";
 
 /**
  * saved — всё подтверждено сервером; saving — запись в пути; offline — связи нет, правки
- * ждут в очереди на устройстве; error — сервер отказал, повторяем.
+ * ждут в очереди на устройстве; error — сервер отказал, повторяем; conflict — пока правили, это изменил
+ * другой человек: запись остановлена, правки ждут решения («Открыть свежую версию» / «Сохранить мою поверх»).
  */
-export type SaveStatus = "saved" | "saving" | "offline" | "error";
+export type SaveStatus = "saved" | "saving" | "offline" | "error" | "conflict";
 
 /** Через сколько после последней правки уходит запись. */
 const SAVE_DELAY_MS = 700;
@@ -52,7 +53,7 @@ export function useAutosave<Patch extends object>(
   save: (patch: Patch) => Promise<void>,
   /** Ключ черновика: неподтверждённые правки лежат на устройстве и переживают закрытие вкладки без связи. */
   draftKey?: string,
-): { status: SaveStatus; change: (patch: Patch) => void; flush: (force?: unknown) => void } {
+): { status: SaveStatus; change: (patch: Patch) => void; flush: (force?: unknown) => void; resume: () => void } {
   const [, rerender] = useState(0);
   const pending = useRef<Patch | null>(null);
   /** Самые свежие значения всех полей, которые меняли: для повтора после ошибки. */
@@ -61,6 +62,8 @@ export function useAutosave<Patch extends object>(
   const inFlight = useRef(0);
   const oldestSent = useRef<number | null>(null);
   const failed = useRef(false);
+  /** Сервер сказал «это изменил другой человек» — не повторяем, пока человек не решит. */
+  const conflict = useRef(false);
   const [online, setOnline] = useState(isOnline);
   const [slow, setSlow] = useState(false);
   const saveRef = useRef(save);
@@ -88,6 +91,7 @@ export function useAutosave<Patch extends object>(
     }
     const patch = pending.current;
     if (!patch) return;
+    if (conflict.current) return;
     // По одной: следующая пачка уйдёт, как только ответят на эту (и при сворачивании вкладки —
     // иначе старая пачка могла бы лечь поверх новой).
     void force;
@@ -115,6 +119,11 @@ export function useAutosave<Patch extends object>(
           retry[key] = latest.current[key] as Patch[keyof Patch];
         }
         pending.current = { ...retry, ...pending.current };
+        // Чужая правка: правки остаются в очереди и в черновике, но не уходят, пока человек не решит.
+        if (errorCodeOf(error) === "failed-precondition") {
+          conflict.current = true;
+          return;
+        }
         if (timer.current === null) timer.current = window.setTimeout(flush, RETRY_DELAY_MS);
       })
       .finally(() => {
@@ -125,7 +134,7 @@ export function useAutosave<Patch extends object>(
         }
         update();
         // Пока ждали ответа, накопились правки — отправляем их сразу.
-        if (pending.current && timer.current === null && !failed.current) flush();
+        if (pending.current && timer.current === null && !failed.current && !conflict.current) flush();
       });
   }, [update, writeDraft]);
 
@@ -174,9 +183,18 @@ export function useAutosave<Patch extends object>(
     };
   }, [flush]);
 
+  /** После «Сохранить мою поверх»: снять остановку и отправить правки. */
+  const resume = useCallback(() => {
+    conflict.current = false;
+    failed.current = false;
+    update();
+    flush();
+  }, [flush, update]);
+
   const busy = pending.current !== null || inFlight.current > 0;
   let status: SaveStatus = "saved";
-  if (busy) status = failed.current && !networkFail.current ? "error" : !online || slow || networkFail.current ? "offline" : "saving";
+  if (conflict.current) status = "conflict";
+  else if (busy) status = failed.current && !networkFail.current ? "error" : !online || slow || networkFail.current ? "offline" : "saving";
 
-  return { status, change, flush };
+  return { status, change, flush, resume };
 }

@@ -8,7 +8,10 @@ import { newLevels, parseLevels, parsePenalty, parseStyle, type SuperLevel, type
  * слово первому нажавшему, ведущий решает «Верно» или «Неверно». Картинки (`pictures`): 2–4 фото, у
  * каждого свой ответ.
  */
-export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures" | "super";
+export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures" | "super" | "order" | "number";
+
+/** «Угадай число»: только ближайший — все очки; по близости — 1-е место 100%, 2-е 60%, 3-е 30%. */
+export type NumberScoring = "closest" | "places";
 
 /** Картинка в вопросе «Несколько картинок»: верные ответы к ней. */
 export interface QuizPicture {
@@ -60,6 +63,12 @@ export interface QuizQuestion {
   round: string | null;
   /** Заметка ведущему (факт, шутка, подводка): видна только на пульте, не на экране и телефонах. */
   note?: string;
+  /** «Расставь по порядку»: варианты (`options`) записаны в верном порядке; частично — очки за каждую на своём месте. */
+  partial?: boolean;
+  /** «Угадай число»: верное число, единица («ступеней», «км») и как считать очки. */
+  number?: number | null;
+  unit?: string;
+  scoring?: NumberScoring;
 }
 
 /** Музыкальный фрагмент вопроса (трек, угадывание, припев, звучание). */
@@ -176,6 +185,10 @@ export const LIMITS = {
   maxSteps: 3,
   minRace: 1,
   maxRace: 20,
+  minOrder: 3,
+  unit: 20,
+  /** «Угадай число»: границы ответа (и верного числа). */
+  maxNumber: 1_000_000_000_000,
 } as const;
 
 /** Фрагмент по умолчанию — 15 секунд с начала. */
@@ -188,6 +201,8 @@ export const DEFAULTS: Record<QuestionKind, { timeLimit: number; points: number 
   buzz: { timeLimit: 60, points: 100 },
   pictures: { timeLimit: 60, points: 100 },
   super: { timeLimit: 90, points: 100 },
+  order: { timeLimit: 45, points: 100 },
+  number: { timeLimit: 30, points: 100 },
 };
 
 export const KIND_TITLES: Record<QuestionKind, string> = {
@@ -197,6 +212,8 @@ export const KIND_TITLES: Record<QuestionKind, string> = {
   buzz: "Гонка: кто первый",
   pictures: "Несколько картинок",
   super: "Суперигра",
+  order: "Расставь по порядку",
+  number: "Угадай число",
 };
 
 export const KIND_HINTS: Record<QuestionKind, string> = {
@@ -206,6 +223,8 @@ export const KIND_HINTS: Record<QuestionKind, string> = {
   buzz: "Красная кнопка: слово первому нажавшему, «Верно» — шаг к финишу и очки.",
   pictures: "2–4 картинки, ответ к каждой; очки — за каждую угаданную.",
   super: "4 уровня: каждый выбирает уровень и отвечает. Верно — очки уровня, ошибка — по правилу.",
+  order: "3–6 карточек: впишите их в верном порядке, гости увидят их вперемешку и расставят на телефоне.",
+  number: "Ответ — число. Ближе всех — все очки; можно дать очки и 2-му, 3-му месту по близости.",
 };
 
 /** Блоки в «Добавить вопрос»: плитка — формат, у музыкальных сразу включается трек. */
@@ -221,6 +240,8 @@ export const QUESTION_FORMATS: QuestionFormat[] = [
   { id: "choice", block: "classic", kind: "choice", title: "Варианты" },
   { id: "open", block: "classic", kind: "open", title: "Открытый ответ" },
   { id: "speed", block: "classic", kind: "speed", title: "На скорость" },
+  { id: "order", block: "classic", kind: "order", title: "Расставь по порядку" },
+  { id: "number", block: "classic", kind: "number", title: "Угадай число" },
   { id: "music-choice", block: "music", kind: "choice", title: "Трек + варианты", music: true },
   { id: "music-open", block: "music", kind: "open", title: "Трек + напишите", music: true },
   { id: "buzz", block: "music", kind: "buzz", title: "Гонка: кто первый", music: true },
@@ -256,13 +277,15 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     id: newQuestionId(),
     kind,
     text: kind === "buzz" ? "Угадайте мелодию" : kind === "super" ? "Суперигра" : "",
-    options: hasOptions(kind) ? ["", ""] : [],
+    options: hasOptions(kind) ? ["", ""] : kind === "order" ? ["", "", ""] : [],
     correct: hasOptions(kind) ? 0 : -1,
     alsoCorrect: [],
     answers: hasAnswers(kind) ? [""] : [],
     steps: 1,
     pictures: kind === "pictures" ? [newPicture(), newPicture()] : [],
     ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const } : {}),
+    ...(kind === "order" ? { partial: true } : {}),
+    ...(kind === "number" ? { number: null, unit: "", scoring: "places" as const } : {}),
     ...DEFAULTS[kind],
     imageId: null,
     trackId: null,
@@ -299,6 +322,24 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
     next.pictures = [first, ...have.slice(1), newPicture()].slice(0, Math.max(LIMITS.minPictures, have.length));
   }
   if (kind === "buzz" && !next.text.trim()) next.text = "Угадайте мелодию";
+  if (kind === "order") {
+    // Варианты становятся карточками: первый верный — первым.
+    const first = question.options[question.correct];
+    const rest = question.options.filter((_, i) => i !== question.correct);
+    const cards = first !== undefined ? [first, ...rest] : [...question.options];
+    next.options = [...cards, "", "", ""].slice(0, Math.max(LIMITS.minOrder, cards.length));
+    next.correct = -1;
+    next.alsoCorrect = [];
+    next.partial = next.partial ?? true;
+  }
+  if (kind === "number") {
+    next.scoring = next.scoring ?? "places";
+    next.unit = next.unit ?? "";
+    if (next.number === undefined) {
+      const guess = Number((question.answers[0] ?? question.options[question.correct] ?? "").replace(/\s/g, "").replace(",", "."));
+      next.number = Number.isFinite(guess) && (question.answers[0] ?? question.options[question.correct] ?? "").trim() !== "" ? guess : null;
+    }
+  }
   if (kind === "super") {
     if (!next.levels) next.levels = newLevels();
     next.superStyle = next.superStyle ?? "chests";
@@ -362,7 +403,13 @@ export function parseRound(value: unknown): string | null {
 }
 
 function parseKind(value: unknown): QuestionKind {
-  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" || value === "super" ? value : "choice";
+  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" || value === "super" || value === "order" || value === "number" ? value : "choice";
+}
+
+/** Число из данных: конечное и в разумных границах; иначе null. */
+export function parseNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || Math.abs(value) > LIMITS.maxNumber) return null;
+  return Math.round(value * 1000) / 1000;
 }
 
 function parsePictures(value: unknown): QuizPicture[] {
@@ -405,6 +452,10 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     ...(kind === "super" ? { levels: parseLevels(data.levels), superStyle: parseStyle(data.superStyle), penalty: parsePenalty(data.penalty) } : {}),
     round: parseRound(data.round),
     note: text(data.note, LIMITS.note),
+    ...(kind === "order" ? { partial: data.partial !== false } : {}),
+    ...(kind === "number"
+      ? { number: parseNumber(data.number), unit: text(data.unit, LIMITS.unit).trim(), scoring: data.scoring === "closest" ? ("closest" as const) : ("places" as const) }
+      : {}),
   };
 }
 

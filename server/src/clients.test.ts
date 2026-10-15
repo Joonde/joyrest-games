@@ -82,6 +82,18 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect(c.history).toHaveLength(3);
   });
 
+  it("заявка с сайта по строкам в истории; записанное мероприятие делает клиента «Клиентом» один раз", async () => {
+    const id = await upsertClient(sql, { name: "Вера", phone: "+7 903 000 11 22", source: "site", summary: "Корпоратив, 25 гостей\n🧮 Расчёт: Пакет «Квиз»" });
+    const first = (await get(`/api/clients/${id}`, owner)).json();
+    expect(first.status).toBe("new");
+    expect(first.history[0].summary).toBe("Корпоратив, 25 гостей\n🧮 Расчёт: Пакет «Квиз»");
+    await upsertClient(sql, { phone: "89030001122", source: "event", summary: "Корпоратив, 20 ноября", ref: "ev-vera", promote: true });
+    await upsertClient(sql, { phone: "89030001122", source: "event", summary: "Корпоратив, 20 ноября", ref: "ev-vera", promote: true });
+    const after = (await get(`/api/clients/${id}`, owner)).json();
+    expect(after.status).toBe("client");
+    expect(after.history.filter((h: { source: string }) => h.source === "status")).toHaveLength(1);
+  });
+
   it("согласие на рассылку: «да» только с сайта или вручную; выгрузка — только согласившиеся", async () => {
     await upsertClient(sql, { name: "Ольга", phone: "89001112233", marketing: true, source: "site", summary: "Свадьба" });
     const csv = (await get("/api/clients/export", owner)).body;
@@ -100,6 +112,83 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await post("/api/clients/kmanual2/archive", owner);
     expect(((await get("/api/clients", owner)).json().clients as Array<{ id: string }>).some((c) => c.id === "kmanual2")).toBe(false);
     expect(((await get("/api/clients?archived=1", owner)).json().clients as Array<{ id: string }>).some((c) => c.id === "kmanual2")).toBe(true);
+  });
+
+  it("менеджер по продажам: ведёт клиентов и мероприятия, но без выгрузки, удаления, согласия «да» и итогов", async () => {
+    const m = (await post("/api/users", owner, { email: "sales@example.com", name: "Мария" })).json();
+    expect((await post(`/api/users/${m.account.uid}/profession`, owner, { profession: "sales" })).statusCode).toBe(200);
+    expect((await post(`/api/users/${m.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
+    const maria = await login("sales@example.com", m.temporaryPassword);
+    expect((await get("/api/clients", maria)).statusCode).toBe(200);
+    expect((await get("/api/clients/export", maria)).statusCode).toBe(403);
+    expect((await get("/api/clients/export?all=1", maria)).statusCode).toBe(403);
+    expect((await get("/api/privacy?q=89001112233", maria)).statusCode).toBe(403);
+    expect((await post("/api/privacy/erase", maria, { q: "89001112233" })).statusCode).toBe(403);
+    // Новый клиент: «да» на рассылку менеджер не ставит — остаётся «нет согласия»; «нет» — можно.
+    const made = await post("/api/clients", maria, { id: "ksales1", name: "Вера", phone: "+7 905 123-45-67", links: [], status: "new", marketing: "yes", notes: "" });
+    expect(made.statusCode).toBe(200);
+    expect(made.json()).toMatchObject({ marketing: "unknown" });
+    expect(made.json().history[0].summary).toContain("Мария");
+    // Смена статуса — в историю с именем.
+    const worked = (await post("/api/clients", maria, { id: "ksales1", name: "Вера", phone: "+7 905 123-45-67", links: [], status: "work", marketing: "no", notes: "квиз, 20 гостей" })).json();
+    expect(worked).toMatchObject({ status: "work", marketing: "no" });
+    expect(worked.history.find((h: { source: string }) => h.source === "status")?.summary).toBe("В работе · Мария");
+    expect((await post("/api/clients/ksales1/archive", maria)).statusCode).toBe(200);
+    expect((await post("/api/clients/ksales1/restore", maria)).statusCode).toBe(200);
+    // Мероприятия: записать, отменить — да; удалить навсегда и итоги — нет; «Кто может» — да.
+    const ev = { id: "evsales", hostId: annaId, day: day(20), start: 1080, end: 1200, title: "День рождения", clientName: "Вера", clientPhone: "+7 905 123-45-67", place: "", guests: 20, note: "квиз" };
+    expect((await post("/api/events", maria, ev)).statusCode).toBe(200);
+    expect((await get(`/api/events?from=${day(19)}&to=${day(21)}`, maria)).json().events.some((e: { id: string }) => e.id === "evsales")).toBe(true);
+    expect((await get(`/api/events?stats=1&from=${day(-200)}&to=${day(150)}`, maria)).statusCode).toBe(400);
+    expect((await get(`/api/calendar/team?from=${day(19)}&to=${day(21)}`, maria)).statusCode).toBe(200);
+    expect((await post("/api/events/evsales/cancel", maria)).statusCode).toBe(200);
+    expect((await app.inject({ method: "DELETE", url: "/api/events/evsales", headers: headers(maria) })).statusCode).toBe(403);
+    expect((await post("/api/events/evsales/restore", maria)).statusCode).toBe(200);
+    // Заявки на подбор площадок — открыты.
+    expect((await get("/api/venue-requests", maria)).statusCode).toBe(200);
+    // Ведущему без роли — по-прежнему нет.
+    expect((await get("/api/clients", boris)).statusCode).toBe(403);
+    expect((await post("/api/events", boris, { ...ev, id: "evboris" })).statusCode).toBe(403);
+  });
+
+  it("владелец и менеджер одновременно: статус не затирает заметку, чужую правку заметки и формы не затереть", async () => {
+    const m = (await post("/api/users", owner, { email: "sales2@example.com", name: "Ника" })).json();
+    expect((await post(`/api/users/${m.account.uid}/access`, owner, { role: "sales" })).statusCode).toBe(200);
+    const nika = await login("sales2@example.com", m.temporaryPassword);
+    const made = (await post("/api/clients", owner, { id: "kshared", name: "Олег", phone: "+7 916 000 11 22", links: [], status: "new", marketing: "unknown", notes: "квиз" })).json();
+    // Менеджер открыл карточку (версия made), владелец дописал заметку.
+    const owned = await post("/api/clients/kshared/notes", owner, { notes: "квиз\nперезвонить в 18:00", base: "квиз" });
+    expect(owned.statusCode).toBe(200);
+    // Менеджер ставит «В работе» по старой карточке — заметка владельца на месте, в истории — кто взял.
+    const status = (await post("/api/clients/kshared/status", nika, { status: "work" })).json();
+    expect(status).toMatchObject({ status: "work", notes: "квиз\nперезвонить в 18:00", statusLine: "В работе · Ника" });
+    // Заметка менеджера со старой основой — 409, текст владельца не затёрт.
+    expect((await post("/api/clients/kshared/notes", nika, { notes: "квиз, 30 гостей", base: "квиз" })).statusCode).toBe(409);
+    // Полная форма по старой версии — 409.
+    const stale = await post("/api/clients", nika, { id: "kshared", name: "Олег", phone: "+7 916 000 11 22", links: [], status: "new", marketing: "unknown", notes: "квиз", expect: made.updatedAt });
+    expect(stale.statusCode).toBe(409);
+    const now = (await get("/api/clients/kshared", owner)).json();
+    expect(now).toMatchObject({ status: "work", notes: "квиз\nперезвонить в 18:00" });
+    // По свежей версии — сохраняется.
+    const fresh = await post("/api/clients", nika, { id: "kshared", name: "Олег Н.", phone: "+7 916 000 11 22", links: [], status: "work", marketing: "unknown", notes: now.notes, expect: now.updatedAt });
+    expect(fresh.statusCode).toBe(200);
+    // Тот же статус ещё раз — без новой строки истории; архивного клиента статусом не трогаем.
+    await post("/api/clients/kshared/status", owner, { status: "work" });
+    expect(((await get("/api/clients/kshared", owner)).json().history as Array<{ source: string }>).filter((h) => h.source === "status")).toHaveLength(1);
+    await post("/api/clients/kshared/archive", owner);
+    expect((await post("/api/clients/kshared/status", nika, { status: "lost" })).statusCode).toBe(409);
+    expect((await post("/api/clients/kshared/status", nika, { status: "мимо" })).statusCode).toBe(400);
+    // Мероприятие: владелец и менеджер открыли форму правки одной версии — второй не затрёт первого.
+    const ev = { id: "evshared", hostId: annaId, day: day(30), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 20, note: "" };
+    const created = (await post("/api/events", owner, ev)).json();
+    expect(created.updatedAt).toBeGreaterThan(0);
+    await new Promise((r) => setTimeout(r, 5));
+    expect((await post("/api/events", nika, { ...ev, note: "Ника: перенос на 19:00", expect: created.updatedAt })).statusCode).toBe(200);
+    const staleEvent = await post("/api/events", owner, { ...ev, note: "владелец", expect: created.updatedAt });
+    expect(staleEvent.statusCode).toBe(409);
+    expect(staleEvent.json().error).toBe("changed");
+    const list = (await get(`/api/events?from=${day(29)}&to=${day(31)}`, owner)).json().events as Array<{ id: string; note: string }>;
+    expect(list.find((e) => e.id === "evshared")?.note).toBe("Ника: перенос на 19:00");
   });
 
   it("мероприятие с клиентом — клиент в базе; «Проведено» — после начала, владелец или ведущий; итоги за год", async () => {

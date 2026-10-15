@@ -6,6 +6,11 @@
  */
 import type { ProgramAction } from "../core/program";
 import type {
+  Deck,
+  DeckPage,
+  PollForm,
+  PollSummary,
+  SavedBranding,
   AvailabilityEntry,
   CalendarMember,
   AgencyEvent,
@@ -37,6 +42,10 @@ import type {
   LeaderboardEntry,
   LibraryProposal,
   LibraryVideo,
+  EventPhoto,
+  Finale,
+  GuestReview,
+  ReviewStatus,
   MediaUpload,
   MediaVariant,
   NewGame,
@@ -111,7 +120,13 @@ export interface GamesRepository {
    * содержимое (их знает механика). В копии у картинок те же id.
    */
   copy(sourceGameId: string, mediaIds: string[], draft: NewGame): Promise<string>;
+  /**
+   * Свой сервер: сохранение сверяет версию игры, с которой правит этот человек. Игру за это время изменил другой —
+   * ошибка `failed-precondition` (`conflictBy` в ней — его имя), ничего не записано.
+   */
   update(gameId: string, patch: GamePatch): Promise<void>;
+  /** Свой сервер: «Сохранить мою версию поверх» — следующее сохранение без сверки версии. */
+  overwriteNext?(gameId: string): void;
   /** Удаляет игру вместе со всеми её картинками. */
   remove(gameId: string): Promise<void>;
 }
@@ -131,6 +146,8 @@ export interface MediaRepository {
   load(gameId: string, mediaId: string, variant: MediaVariant): Promise<Blob | null>;
   /** Удаляет оба варианта картинки. */
   remove(gameId: string, mediaId: string): Promise<void>;
+  /** Чёткая версия для большого экрана; null — её нет (тогда экран берёт полную). Только свой сервер. */
+  loadHd?(gameId: string, mediaId: string): Promise<Blob | null>;
 }
 
 export interface SessionsRepository {
@@ -278,7 +295,8 @@ export interface EventsRepository {
   /** Списки: предстоящие и идущие, архив (прошедшие), отменённые — до 300 последних. */
   list(scope: "upcoming" | "past" | "cancelled"): Promise<AgencyEvent[]>;
   /** Владелец: новое мероприятие или правка (id от браузера — повтор та же запись). */
-  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held">): Promise<AgencyEvent>;
+  /** `expect` — версия, с которой открыли форму правки: мероприятие за это время изменил другой — ошибка `changed`. */
+  save(event: Omit<AgencyEvent, "hostName" | "cancelled" | "held" | "updatedAt"> & { expect?: number }): Promise<AgencyEvent>;
   /** Итоги: все мероприятия периода до 370 дней (только владелец). */
   period(from: string, to: string): Promise<AgencyEvent[]>;
   /** «Проведено» (true), «Не состоялось» (false), снять отметку (null) — после начала. */
@@ -287,6 +305,12 @@ export interface EventsRepository {
   restore(id: string): Promise<AgencyEvent>;
   /** Удалить навсегда — только отменённое. */
   remove(id: string): Promise<void>;
+  /** Файл .ics одного мероприятия («Добавить в календарь телефона») — адрес для ссылки. */
+  icsUrl(id: string): string;
+  /** Секретная ссылка подписки на свои мероприятия (телефон обновляет календарь сам). */
+  feed(): Promise<string>;
+  /** Новая ссылка подписки — старая перестаёт работать. */
+  resetFeed(): Promise<string>;
 }
 
 /** База клиентов — только свой сервер и только владелец; у Firebase — null. */
@@ -294,7 +318,14 @@ export interface ClientsRepository {
   list(archived: boolean): Promise<ClientRecord[]>;
   get(id: string): Promise<ClientDetails>;
   /** Новый клиент вручную или правка (id от браузера). Тот же телефон у другого клиента — 409. */
-  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string }): Promise<ClientDetails>;
+  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string; expect?: number }): Promise<ClientDetails>;
+  /** Только статус (одним касанием): заметку и контакты не трогает. В историю — «В работе · имя». */
+  setStatus(id: string, status: ClientRecord["status"]): Promise<ClientDetails>;
+  /**
+   * Только заметка: `base` — текст, с которого начали править. Заметку за это время изменил другой человек —
+   * ошибка `failed-precondition`, ничего не записано.
+   */
+  saveNotes(id: string, notes: string, base: string): Promise<ClientDetails>;
   archive(id: string): Promise<void>;
   restore(id: string): Promise<void>;
   /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */
@@ -355,9 +386,67 @@ export interface TracksRepository {
   fileUrl(id: string): string;
 }
 
+/** Фотоотчёт мероприятия: до 3 общих фото на игру с пульта (только свой сервер). */
+export interface EventPhotosRepository {
+  list(sessionId: string): Promise<EventPhoto[]>;
+  save(sessionId: string, slot: number, image: Blob, width: number, height: number): Promise<EventPhoto>;
+  remove(sessionId: string, slot: number): Promise<void>;
+  /** Студия: ведущему — свои мероприятия, владельцу — все. */
+  all(): Promise<EventPhoto[]>;
+}
+
+/** Оформления заказчиков: логотип и цвета для запуска (только свой сервер). */
+export interface BrandingsRepository {
+  list(): Promise<SavedBranding[]>;
+  /** Новое или правка (id от браузера). */
+  save(branding: Omit<SavedBranding, "updatedAt">): Promise<SavedBranding>;
+  remove(id: string): Promise<void>;
+  /** Логотип (уже сжатый) — ответ: отпечаток файла для `logo`. */
+  uploadLogo(image: Blob): Promise<string>;
+  /** Адрес картинки логотипа. */
+  logoUrl(sha: string): string;
+}
+
+/** Показы ведущего: фото и страницы PDF на весь экран зала (только свой сервер). */
+export interface DecksRepository {
+  list(): Promise<Deck[]>;
+  /** Новый или правка (id от браузера): название, страницы по порядку. */
+  save(deck: Omit<Deck, "updatedAt">): Promise<Deck>;
+  remove(id: string): Promise<void>;
+  /** Готовая страница (WebP/JPEG до 1920 px) — её запись для показа. */
+  uploadPage(image: Blob, width: number, height: number): Promise<DeckPage>;
+  pageUrl(sha: string): string;
+}
+
+/** «Опрос гостей заранее» для «100 к 1» (только свой сервер). */
+export interface PollsRepository {
+  /** Анкета для гостя без входа; null — опроса нет. */
+  form(id: string): Promise<PollForm | null>;
+  /** Ответы гостя: id ответившего создаёт браузер (повтор — та же запись), `website` — ловушка для ботов. */
+  submit(input: { pollId: string; respondentId: string; answers: Record<string, string>; website: string }): Promise<void>;
+  /** Опрос с ответами — владельцу игры и admin; null — нет такого. */
+  get(id: string): Promise<PollSummary | null>;
+  /** Новый или правка (id от браузера): вопросы, открыт ли приём, объединения и подписи групп. */
+  save(poll: { id: string; gameId: string; title: string; questions: PollForm["questions"]; open: boolean; edits: PollSummary["edits"] }): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+/** Конец игры: чаевые ведущему, отзывы гостей (только свой сервер). */
+export interface FinaleRepository {
+  get(sessionId: string): Promise<Finale>;
+  review(input: { sessionId: string; rating: number; text: string; name: string; consent: boolean }): Promise<void>;
+  /** Ведущему — отзывы о своих мероприятиях, владельцу — все. */
+  listReviews(): Promise<GuestReview[]>;
+  setReviewStatus(id: string, status: ReviewStatus): Promise<void>;
+  /** Владелец: удалить отзыв навсегда (только сам отзыв). */
+  deleteReview(id: string): Promise<void>;
+  getTips(): Promise<string>;
+  setTips(url: string): Promise<string>;
+}
+
 export interface VideosRepository {
   /** Все видео JoyRest (загруженные; у загружающих — и недогруженные), сколько места заняли все видео. */
-  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number }>;
+  list(): Promise<{ videos: LibraryVideo[]; usedBytes: number; folders?: string[] }>;
   /**
    * Загрузить файл частями (видео большое, связь на площадке плохая): обрыв — повтор с того же места; тот же id
    * и тот же файл после закрытия вкладки — дозагрузка. `onProgress` — сколько байт уже на сервере.
@@ -365,6 +454,10 @@ export interface VideosRepository {
   upload(input: { id: string; title: string; folder: string; file: Blob; durationMs: number | null }, onProgress?: (received: number, size: number) => void, signal?: AbortSignal): Promise<LibraryVideo>;
   update(id: string, patch: { title?: string; folder?: string }): Promise<LibraryVideo>;
   remove(id: string): Promise<void>;
+  /** Папки (как у «Музыки»): создать пустую, переименовать (видео переезжают), удалить (видео остаются без папки). Ответ — все папки. */
+  createFolder(name: string): Promise<string[]>;
+  renameFolder(from: string, to: string): Promise<string[]>;
+  deleteFolder(name: string): Promise<string[]>;
   /** Адрес файла для `<video src>` (браузер берёт его частями). */
   fileUrl(id: string): string;
 }
@@ -422,7 +515,8 @@ export interface VenuesRepository {
   get(id: string): Promise<VenueRecord>;
   /** Владелец заводит площадку сам: нужно только название. */
   create(data: VenueData): Promise<VenueRecord>;
-  update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string }): Promise<VenueRecord>;
+  /** `expect` с `data` — версия анкеты, с которой начали править: её за это время изменил другой — ошибка `changed`. */
+  update(id: string, patch: { data?: VenueData; status?: VenueStatus; rating?: number | null; notes?: string; expect?: number }): Promise<VenueRecord>;
   /** «Удалить» — в архив (не навсегда); `restore` возвращает из архива. */
   remove(id: string): Promise<void>;
   restore(id: string): Promise<VenueRecord>;

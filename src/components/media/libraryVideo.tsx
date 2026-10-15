@@ -219,7 +219,7 @@ export function LibraryVideoPicker({ value, editable, onPick }: { value: string;
       )}
       {canUpload && editable && (
         <>
-          <input ref={ref} type="file" accept={VIDEO_ACCEPT} className="visually-hidden" tabIndex={-1} onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
+          <input ref={ref} type="file" accept={VIDEO_ACCEPT} className="visually-hidden visually-hidden--pinned" tabIndex={-1} onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
           {progress ? (
             <UploadProgress received={progress.received} size={progress.size} label="Загружаем видео" />
           ) : (

@@ -5,13 +5,15 @@
  * Ведущий видит только свои мероприятия. Отмена не стирает: мероприятие уходит в «Отменённые».
  * Имена и телефоны клиентов в журнал и Telegram не пишем.
  */
+import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { bookingId, bookingNote, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
 import { dayTitle } from "../../src/core/calendar";
-import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
+import { icsCalendar, icsFileName } from "../../src/core/ics";
+import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from "./auth";
 import { rangeOf } from "./calendar";
 import { dayIndex as dayIdx, dayOf } from "../../src/core/calendar";
 import { upsertClient } from "./clients";
@@ -43,6 +45,7 @@ interface Row {
   note: string;
   cancelled: boolean;
   held: boolean | null;
+  updated_at?: Date | null;
 }
 
 /** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
@@ -70,6 +73,7 @@ export function eventOf(row: Row): AgencyEvent {
     note: row.note,
     cancelled: row.cancelled,
     held: row.held,
+    updatedAt: row.updated_at ? row.updated_at.getTime() : 0,
   };
 }
 
@@ -108,7 +112,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
 
     const select = sql`
       select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
-        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held
+        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at
       from events e left join users u on u.id = e.host_id`;
 
     async function one(id: string): Promise<AgencyEvent | null> {
@@ -142,7 +146,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         return { events: rows.map(eventOf) };
       }
       // Итоги за квартал и год (только владелец): окно до 370 дней.
-      const range = q.stats === "1" && permissions.canManageEvents(actorOf(user)) ? statsRangeOf(q) : rangeOf(q);
+      const range = q.stats === "1" && permissions.canViewEventStats(actorOf(user)) ? statsRangeOf(q) : rangeOf(q);
       if (!range) return fail(reply, 400, "invalid-argument");
       const rows = await sql<Row[]>`${select} where ${own(user)} and e.day between ${range.from} and ${range.to}
         order by e.day, e.start_min`;
@@ -169,10 +173,15 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null }[]>`
-        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at
         from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
+      // Владелец и менеджер правят одно мероприятие: форма шлёт `expect` — версию, с которой её открыли.
+      const expect = (request.body as Record<string, unknown> | null)?.expect;
+      if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
+        return reply.code(409).send({ error: "changed" });
+      }
       await sql.begin(async (tx) => {
         await tx`
           insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, created_by)
@@ -208,6 +217,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           source: "event",
           summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
           ref: saved.id,
+          promote: !saved.cancelled,
         }).catch(() => request.log.warn({ events: "client" }, "events: клиент не записан"));
       }
       return saved;
@@ -272,9 +282,77 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       return (await one(id)) ?? fail(reply, 404, "not-found");
     });
 
-    // Удалить навсегда — только отменённое (ошибочная запись). Повтор — успех.
+    // ───── «Добавить в мой календарь» (решение владельца 15 октября 2026) ─────
+    // Без имени, телефона и адреса клиента: календари телефонов хранят Apple и Google (не в России).
+    const platformOf = (request: FastifyRequest) => `https://${String(request.headers.host ?? "games.joy-rest.ru").replace(/[^A-Za-z0-9.:-]/g, "")}`;
+    const feedUrl = (request: FastifyRequest, token: string) => `${platformOf(request)}/api/calendar/feed/${token}.ics`;
+    const newToken = () => randomBytes(24).toString("base64url");
+
+    // Одно мероприятие файлом .ics — ведущему этого мероприятия и владельцу.
+    api.get<{ Params: { id: string } }>("/api/events/:id/ics", async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const event = ID.test(request.params.id) ? await one(request.params.id) : null;
+      if (!event || !permissions.canViewEvent(actorOf(user), event)) return fail(reply, 404, "not-found");
+      reply
+        .header("Cache-Control", "no-store")
+        .header("Content-Disposition", `inline; filename="${icsFileName(event)}"`)
+        .type("text/calendar; charset=utf-8");
+      return icsCalendar([event], { platformUrl: platformOf(request), withHost: event.hostId !== user.id, now: now() });
+    });
+
+    // Ссылка подписки на свои мероприятия: создаётся при первом запросе.
+    api.get("/api/calendar/feed", async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const [row] = await sql<{ calendar_token: string | null }[]>`select calendar_token from users where id = ${user.id}`;
+      let token = row?.calendar_token ?? null;
+      if (!token) {
+        token = newToken();
+        await sql`update users set calendar_token = ${token} where id = ${user.id} and calendar_token is null`;
+        const [again] = await sql<{ calendar_token: string | null }[]>`select calendar_token from users where id = ${user.id}`;
+        token = again?.calendar_token ?? token;
+      }
+      reply.header("Cache-Control", "no-store");
+      return { url: feedUrl(request, token) };
+    });
+
+    // «Сменить ссылку»: старая перестаёт работать (ссылку кому-то переслали, телефон потерян).
+    api.post("/api/calendar/feed/reset", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const token = newToken();
+      await sql`update users set calendar_token = ${token} where id = ${user.id}`;
+      request.log.info({ events: "feed-reset" }, "events");
+      return { url: feedUrl(request, token) };
+    });
+
+    // Сам календарь по секретной ссылке — телефон забирает его без входа. Ведущему — свои, владельцу — все;
+    // за 30 дней назад и год вперёд, без отменённых (отменили — пропадёт из календаря при следующем обновлении).
+    api.get<{ Params: { file: string } }>("/api/calendar/feed/:file", async (request, reply) => {
+      const token = request.params.file.replace(/\.ics$/, "");
+      if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return fail(reply, 404, "not-found");
+      const [user] = await sql<UserRow[]>`select * from users where calendar_token = ${token} and active`;
+      const actor = user ? actorOf(user) : null;
+      if (!user || !actor || !permissions.canEditOwnCalendar(actor)) return fail(reply, 404, "not-found");
+      const all = permissions.canManageEvents(actor);
+      const at = now();
+      const rows = await sql<Row[]>`${select}
+        where (${all} or e.host_id = ${user.id}) and e.cancelled_at is null
+          and e.ends_at > ${new Date(at - 30 * 86_400_000)} and e.starts_at < ${new Date(at + 370 * 86_400_000)}
+        order by e.starts_at limit 1000`;
+      reply.header("Cache-Control", "private, no-cache").type("text/calendar; charset=utf-8");
+      return icsCalendar(rows.map(eventOf), {
+        platformUrl: platformOf(request),
+        name: all ? "JoyRest — мероприятия" : "JoyRest — мои мероприятия",
+        withHost: all,
+        now: at,
+      });
+    });
+
+    // Удалить навсегда — только отменённое (ошибочная запись), только владелец. Повтор — успех.
     api.delete<{ Params: { id: string } }>("/api/events/:id", { bodyLimit: 1024 }, async (request, reply) => {
-      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      const user = await requireUser(request, reply, (u) => permissions.canDeleteEvent(actorOf(u)));
       if (!user) return reply;
       const id = request.params.id;
       if (!ID.test(id)) return fail(reply, 404, "not-found");

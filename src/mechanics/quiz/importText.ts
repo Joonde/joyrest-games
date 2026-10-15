@@ -14,7 +14,15 @@ export const IMPORT_EXAMPLE = `# Раунд: География
 - Пермь
 
 Сколько свечей на торте у юбиляра?
-= 30 | тридцать`;
+= 30 | тридцать
+
+Расставьте фильмы по году выхода
+> Бриллиантовая рука
+> Ирония судьбы
+> Москва слезам не верит
+
+Сколько ступеней на вершину Эйфелевой башни?
+~ 1665 ступеней`;
 
 export interface ImportedQuestion {
   question: QuizQuestion;
@@ -37,6 +45,10 @@ interface Draft {
   text: string;
   options: Array<{ text: string; correct: boolean }>;
   answers: string[];
+  /** «> карточка» — «Расставь по порядку», карточки в верном порядке. */
+  cards: string[];
+  /** «~ 1665 ступеней» — «Угадай число». */
+  number: { value: number | null; unit: string } | null;
   /** Перед вопросом была строка «# Раунд: …» — с него начинается раунд. */
   round: string | null;
 }
@@ -63,7 +75,13 @@ function toQuestion(draft: Draft): ImportedQuestion {
   const hasAnswers = draft.answers.length > 0;
   let question: QuizQuestion;
 
-  if (hasAnswers && !hasOptions) {
+  if (draft.number) {
+    question = { ...newQuestion("number"), number: draft.number.value, unit: draft.number.unit.slice(0, LIMITS.unit) };
+    if (draft.number.value === null) problems.push("После «~» нужно число, например «~ 1665 ступеней».");
+  } else if (draft.cards.length > 0) {
+    question = { ...newQuestion("order"), options: draft.cards.slice(0, LIMITS.maxOptions).map((c) => c.slice(0, LIMITS.option)) };
+    if (draft.cards.length > LIMITS.maxOptions) problems.push(`Больше ${LIMITS.maxOptions} карточек — лишние не добавлены.`);
+  } else if (hasAnswers && !hasOptions) {
     question = { ...newQuestion("open"), answers: draft.answers.slice(0, LIMITS.answers) };
     if (draft.answers.length > LIMITS.answers) problems.push(`Больше ${LIMITS.answers} ответов — лишние не добавлены.`);
   } else {
@@ -96,8 +114,9 @@ function toQuestion(draft: Draft): ImportedQuestion {
 
 /**
  * Разбор вопросов, вставленных списком: каждый вопрос с новой строки, варианты — с «-»,
- * верный помечен «*», открытый ответ — «= ответ1 | ответ2», раунд — «# Раунд: Кино» перед
- * первым вопросом раунда. Пустые строки не важны.
+ * верный помечен «*», открытый ответ — «= ответ1 | ответ2», карточки «по порядку» — «> …» в верном
+ * порядке, число — «~ 1665 ступеней», раунд — «# Раунд: Кино» перед первым вопросом раунда.
+ * Пустые строки не важны.
  */
 export function parseImport(input: string): ImportResult {
   const drafts: Draft[] = [];
@@ -113,6 +132,21 @@ export function parseImport(input: string): ImportResult {
     if (line.startsWith("#")) {
       // Название раунда: «# Раунд 2: Кино». Без названия — «Раунд N».
       round = parseRound(line.replace(ROUND_LINE, "")) ?? `Раунд ${drafts.filter((d) => d.round !== null).length + 1}`;
+      return;
+    }
+
+    if (line.startsWith("~") || line.startsWith("≈")) {
+      if (!current) return skipped.push(lineNo);
+      const match = /^[~≈]\s*(-?[\d\s\u00a0]+(?:[.,]\d+)?)\s*(.*)$/.exec(line);
+      const value = match ? Number((match[1] ?? "").replace(/[\s\u00a0]/g, "").replace(",", ".")) : NaN;
+      current.number = { value: Number.isFinite(value) ? value : null, unit: (match?.[2] ?? "").trim() };
+      return;
+    }
+
+    if (line.startsWith(">")) {
+      if (!current) return skipped.push(lineNo);
+      const card = line.slice(1).trim();
+      if (card) current.cards.push(card);
       return;
     }
 
@@ -134,7 +168,7 @@ export function parseImport(input: string): ImportResult {
       return;
     }
 
-    current = { line: lineNo, text: line.replace(NUMBERING, "").trim(), options: [], answers: [], round };
+    current = { line: lineNo, text: line.replace(NUMBERING, "").trim(), options: [], answers: [], cards: [], number: null, round };
     round = null;
     drafts.push(current);
   });

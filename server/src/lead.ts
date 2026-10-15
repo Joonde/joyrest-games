@@ -227,6 +227,27 @@ export function formatLead(lead: LeadData, label?: string): string {
   }
 }
 
+/**
+ * Заявка или вопрос с сайта — строкой истории клиента (решение владельца 15 октября 2026: менеджер видит в «Клиентах» всё,
+ * что выбрал клиент, — расчёт калькулятора, формат ведущего, как связаться и комментарий, — а не только повод и гостей).
+ * Строки через перевод строки; имя и телефон — в самой карточке клиента. Отзыв в базу клиентов не пишется.
+ */
+export function leadSummary(lead: LeadData): string {
+  if (lead.type === "question") return lead.fields.text;
+  if (lead.type !== "lead") return "";
+  const f = lead.fields;
+  const contact = [f.contactMethod, f.contactLink].filter(Boolean).join(" — ");
+  return [
+    [f.eventType || "Заявка", f.guests ? `${f.guests} гостей` : ""].filter(Boolean).join(", "),
+    lead.hostLevel ? `Ведущий: ${HOST_LEVELS[lead.hostLevel]}` : "",
+    f.calc ? `🧮 Расчёт: ${f.calc}` : "Расчёта нет — попросите прислать",
+    contact ? `Связь: ${contact}` : "",
+    f.message ? `Комментарий: ${f.message}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 // ------------------------------------------------------------------ лимиты
 
 /** Скользящее окно: не больше `limit` событий за `windowMs` на ключ. Только в памяти. */

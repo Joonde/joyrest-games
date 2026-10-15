@@ -14,7 +14,7 @@ import { registerCalendar } from "./calendar";
 import { registerEvents } from "./events";
 import { registerGames, type GamesOptions } from "./games";
 import { registerClients, upsertClient } from "./clients";
-import { registerLead, type LeadData, type LeadOptions } from "./lead";
+import { leadSummary, registerLead, type LeadData, type LeadOptions } from "./lead";
 import { registerTelegram, type Bot } from "./telegram";
 import { parseLinks } from "../../src/core/clients";
 import { registerLive, type LiveOptions } from "./live";
@@ -23,6 +23,11 @@ import { registerStaff } from "./staff";
 import { registerTeam } from "./team";
 import { registerTracks } from "./tracks";
 import { registerVideos } from "./videos";
+import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
+import { registerPhotos } from "./photos";
+import { registerBranding } from "./branding";
+import { registerDecks } from "./decks";
+import { registerPolls } from "./polls";
 import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
 
@@ -121,15 +126,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
               links: parseLinks(`${f.contactLink} ${f.contactMethod}`),
               marketing: lead.marketing === true,
               source: "site",
-              summary: [f.eventType || "Заявка", f.guests ? `${f.guests} гостей` : ""].filter(Boolean).join(", "),
+              summary: leadSummary(lead),
             });
+          } else if (lead.type === "review") {
+            // Отзыв с сайта — в «Отзывы» студии, на проверку владельцу (решение владельца 15 октября 2026).
+            await saveSiteReview(sql, { name: lead.fields.name, text: lead.fields.text, rating: lead.rating });
           } else if (lead.type === "question") {
             const contact = lead.fields.contact;
-            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: lead.fields.text.slice(0, 200) });
+            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: leadSummary(lead) });
+          }
+          // Менеджерам по продажам — «Новая заявка» в Telegram (без данных клиента); не ждём и не роняем заявку.
+          if (lead.type === "lead" || lead.type === "question") {
+            void options.bot?.salesNotice(lead.type === "lead" ? "site" : "question").catch(() => undefined);
           }
         }
       : undefined;
     registerLead(app, { ...options.lead, hosts: options.site.hosts, onLead }, { constraints: { host: hostPattern(options.site.hosts) } });
+  }
+  // Отзывы на сайте — только у включённого сайта и только на его адресах.
+  if (options.site?.enabled && options.sql) {
+    registerSiteReviews(app, options.sql, { constraints: { host: hostPattern(options.site.hosts) } });
   }
   // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.
   if (options.sql) {
@@ -141,6 +157,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerStaff(app, { sql: options.sql, isSite });
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerFinale(app, { sql: options.sql, isSite });
+    registerPhotos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerBranding(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerDecks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerPolls(app, { sql: options.sql, isSite });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });
@@ -155,6 +176,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       telegram: options.lead?.telegram ?? null,
       label: options.lead?.label,
       send: options.lead?.send,
+      salesNotice: options.bot ? (kind) => options.bot?.salesNotice(kind) ?? Promise.resolve(0) : null,
     });
   }
 

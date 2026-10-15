@@ -21,6 +21,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     note: asText(d.note),
     cancelled: d.cancelled === true,
     held: d.held === true ? true : d.held === false ? false : null,
+    updatedAt: typeof d.updatedAt === "number" ? d.updatedAt : 0,
   };
 }
 
@@ -50,5 +51,14 @@ export const serverEventsRepository: EventsRepository = {
   },
   async remove(id) {
     await api("DELETE", `/api/events/${encodeURIComponent(id)}`);
+  },
+  icsUrl(id) {
+    return `/api/events/${encodeURIComponent(id)}/ics`;
+  },
+  async feed() {
+    return asText(asRecord(await api("GET", "/api/calendar/feed")).url);
+  },
+  async resetFeed() {
+    return asText(asRecord(await api("POST", "/api/calendar/feed/reset", {})).url);
   },
 };

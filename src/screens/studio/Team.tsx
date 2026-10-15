@@ -1,8 +1,12 @@
 import { useSearchParams } from "react-router-dom";
-import { permissions, teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
+import { permissions, staffRepo, teamRepo, useLoad, usersRepo, type HostAccount, type TeamMember, type UserProfile } from "../../data";
 import { Tabs } from "../../components/Tabs";
 import { PROFESSIONS, professionOf } from "../../core/professions";
-import { HostsManager } from "../Admin";
+import { HostsManager, useHostAdmin } from "../Admin";
+import { ActionMenu } from "../../components/Menu";
+import { accessRoleTitle } from "../../core/accessRoles";
+import { levelTitle } from "../../core/levels";
+import { pointsLabel } from "../../core/points";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -51,14 +55,37 @@ function TeamPage({ profile, manage }: { profile: UserProfile; manage: boolean }
         />
       )}
       <div id={`team-panel-${tab}`} role={teamRepo ? "tabpanel" : undefined} className="stack">
-        {tab === "manage" ? <HostsManager profile={profile} /> : <TeamList pros={tab === "pros"} />}
+        {tab === "manage" ? <HostsManager profile={profile} /> : <TeamList pros={tab === "pros"} profile={profile} canManage={canManage} />}
       </div>
     </main>
   );
 }
 
-function TeamList({ pros }: { pros: boolean }) {
+const NO_HOSTS: HostAccount[] = [];
+
+function TeamList({ pros, profile, canManage }: { pros: boolean; profile: UserProfile; canManage: boolean }) {
   const [state, retry] = useLoad(() => (teamRepo ? teamRepo.list() : Promise.resolve(NONE)), []);
+  // Владельцу — те же действия, что в «Управлении», прямо на карточках (решение владельца 15 октября 2026).
+  const [accounts, , updateAccounts] = useLoad(() => (canManage ? usersRepo.listHosts() : Promise.resolve(NO_HOSTS)), [canManage]);
+  const admin = useHostAdmin(profile, updateAccounts);
+  const byUid = new Map((accounts.status === "ready" ? accounts.data : NO_HOSTS).map((h) => [h.uid, h]));
+  const adminOf = (uid: string) => {
+    const host = canManage ? byUid.get(uid) : undefined;
+    if (!host || host.role === "admin") return undefined;
+    const actions = admin.actionsFor(host, true);
+    if (actions.length === 0) return undefined;
+    return (
+      <>
+        <ul className="meta" aria-label={`Статус: ${host.name}`}>
+          <li className={host.active ? undefined : "error"}>{host.active ? "активен" : "отключён"}</li>
+          {accessRoleTitle(host.accessRole) && <li>Роль: {accessRoleTitle(host.accessRole)}</li>}
+          {staffRepo && professionOf(host.profession) === "host" && <li>{levelTitle(host.level) ?? "Без квалификации"}</li>}
+          {staffRepo && professionOf(host.profession) === "host" && <li>{pointsLabel(host.points ?? 0)}</li>}
+        </ul>
+        <ActionMenu icon="dots" label={`Действия: ${host.name}`} actions={actions} />
+      </>
+    );
+  };
   if (!teamRepo) return <p className="muted">Команда доступна на своём сервере JoyRest.</p>;
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
@@ -75,10 +102,19 @@ function TeamList({ pros }: { pros: boolean }) {
       <ul className="team-grid">
         {members.map((member) => (
           <li key={member.uid}>
-            <TeamCard member={member} />
+            <TeamCard member={member} admin={adminOf(member.uid)} />
           </li>
         ))}
       </ul>
+      {canManage && admin.created && (
+        <p className="card" role="status">
+          Новый временный пароль для {admin.created.account.name}: <b className="cal-feed-url">{admin.created.temporaryPassword}</b> — покажется один раз, передайте лично.
+        </p>
+      )}
+      {canManage && (
+        <p className="muted small">Добавить человека — во вкладке «Управление».</p>
+      )}
+      {admin.elements}
     </>
   );
 }

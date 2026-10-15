@@ -42,11 +42,17 @@ function rec(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+/** Руки — одной длины шифра: карта «10♥» на байт длиннее «A♥», по длине не угадать десятки в руке. */
+const HAND_BYTES = 512;
+const jsonBytes = (v: unknown) => new TextEncoder().encode(JSON.stringify(v)).length;
+
 async function sealHands(game: Game, keys: Record<string, string>): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  for (const pid of game.seats) {
+  const hands = game.seats.map((pid) => ({ pid, hand: game.hands[pid] ?? [] }));
+  const longest = Math.max(HAND_BYTES, ...hands.map((h) => jsonBytes({ hand: h.hand, _: "" })));
+  for (const { pid, hand } of hands) {
     const key = keys[pid];
-    if (key) out[pid] = await seal(key, { hand: game.hands[pid] ?? [] });
+    if (key) out[pid] = await seal(key, { hand, _: ".".repeat(Math.max(0, longest - jsonBytes({ hand, _: "" }))) });
   }
   return out;
 }

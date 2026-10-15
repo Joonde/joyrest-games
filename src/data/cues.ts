@@ -1,7 +1,7 @@
 // Звуки по кнопке ведущего (CLAUDE.md, раздел 7, «Звуки»): пульт пишет в state.cue, экран зала
 // играет звук, когда меняется id. Чистые функции: их используют и браузер, и сервер.
 import { parseTrackClip } from "./trackClip";
-import type { CueSound, MixState, MusicState, PeekView, ScreenReport, SlideKind, SlideState, SoundCue, TeamsReveal } from "./types";
+import type { CueSound, MixState, MusicState, PeekView, ScreenReport, SlideKind, SlideMedia, SlideState, SoundCue, TeamsReveal } from "./types";
 
 export const CUE_SOUNDS: readonly CueSound[] = ["gong", "drumroll", "fanfare", "applause", "wrong", "stop"];
 
@@ -39,7 +39,25 @@ export function parseMix(value: unknown): MixState | null {
   return { music: volume(v.music, DEFAULT_MIX.music), effects: volume(v.effects, DEFAULT_MIX.effects), muted: v.muted === true };
 }
 
-export const SLIDE_KINDS: readonly SlideKind[] = ["intro", "rules", "round", "break", "tech", "join", "award", "thanks", "custom", "draw"];
+export const SLIDE_KINDS: readonly SlideKind[] = ["intro", "rules", "round", "break", "tech", "join", "award", "thanks", "custom", "draw", "image"];
+
+const SHA = /^[0-9a-f]{64}$/;
+const DECK_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Страница показа на слайде «image»; непонятное — null. */
+export function parseSlideMedia(value: unknown): SlideMedia | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  const int = (n: unknown, max: number) => (typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= max ? n : null);
+  const page = int(v.page, 999);
+  const count = int(v.count, 1000);
+  const w = int(v.w, 10_000);
+  const h = int(v.h, 10_000);
+  if (typeof v.deck !== "string" || !DECK_ID.test(v.deck) || typeof v.sha !== "string" || !SHA.test(v.sha)) return null;
+  if (page === null || count === null || page >= count || w === null || h === null) return null;
+  const next = typeof v.next === "string" && SHA.test(v.next) ? v.next : null;
+  return { deck: v.deck, page, count, sha: v.sha, next, w, h };
+}
 export const SLIDE_LIMITS = { title: 120, text: 400, lines: 8, line: 140 } as const;
 
 function slideText(value: unknown, max: number): string {
@@ -55,6 +73,9 @@ export function parseSlide(value: unknown): SlideState | null {
   const lines = Array.isArray(v.lines)
     ? v.lines.slice(0, SLIDE_LIMITS.lines).map((l) => slideText(l, SLIDE_LIMITS.line).replace(/\n/g, " ")).filter((l) => l.trim() !== "")
     : [];
+  // Страница показа без файла — не слайд.
+  const media = v.kind === "image" ? parseSlideMedia(v.media) : null;
+  if (v.kind === "image" && !media) return null;
   return {
     id: v.id,
     kind: v.kind as SlideKind,
@@ -62,6 +83,7 @@ export function parseSlide(value: unknown): SlideState | null {
     text: slideText(v.text, SLIDE_LIMITS.text),
     lines,
     endsAt: typeof v.endsAt === "number" && Number.isFinite(v.endsAt) ? v.endsAt : null,
+    ...(media ? { media } : {}),
   };
 }
 

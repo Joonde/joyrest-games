@@ -192,6 +192,19 @@ describe("игры", () => {
     expect(p.canEditGame({ uid: "host-1", role: "host", active: false }, myGame)).toBe(false);
   });
 
+  it("опрос гостей к «100 к 1»: заводит тот, кто правит игру; ответы видят он и владелец", () => {
+    expect(p.canCreatePoll(host, myGame)).toBe(true);
+    expect(p.canCreatePoll(other, myGame)).toBe(false);
+    expect(p.canCreatePoll(host, agencyGame)).toBe(false);
+    expect(p.canCreatePoll(owner, agencyGame)).toBe(true);
+    expect(p.canCreatePoll(guest, myGame)).toBe(false);
+    expect(p.canManagePoll(host, { ownerId: "host-1" })).toBe(true);
+    expect(p.canManagePoll(other, { ownerId: "host-1" })).toBe(false);
+    expect(p.canManagePoll(owner, { ownerId: "host-1" })).toBe(true);
+    expect(p.canManagePoll({ uid: "host-1", role: "host", active: false }, { ownerId: "host-1" })).toBe(false);
+    expect(p.canManagePoll(guest, { ownerId: "host-1" })).toBe(false);
+  });
+
   it("создать: общую — только admin, личную — только себе", () => {
     expect(p.canCreateGame(host, "agency", "host-1")).toBe(false);
     expect(p.canCreateGame(owner, "agency", ADMIN_UID)).toBe(true);
@@ -344,7 +357,7 @@ describe("роли доступа помощников", () => {
   const agencyTrack = { scope: "agency" as const, ownerId: ADMIN_UID };
 
   it("роль только добавляет: ведущий с любой ролью сохраняет всё своё", () => {
-    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy", null]) {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy", "sales", null]) {
       const a = hostWith(role);
       expect(p.canCreateGame(a, "personal", "host-1")).toBe(true);
       expect(p.canEditGame(a, myGame)).toBe(true);
@@ -358,7 +371,7 @@ describe("роли доступа помощников", () => {
   });
 
   it("ни одна роль не даёт прав владельца", () => {
-    for (const role of ["creator", "music", "tester", "venues", "assistant", "admin", "owner"]) {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "sales", "admin", "owner"]) {
       for (const a of [dj(role), hostWith(role)]) {
         expect(p.isAdmin(a)).toBe(false);
         expect(p.canManageHosts(a)).toBe(false);
@@ -376,7 +389,8 @@ describe("роли доступа помощников", () => {
         expect(p.canReviewTracks(a)).toBe(false);
         expect(p.canCleanupSessions(a)).toBe(false);
         expect(p.canArchiveVenues(a)).toBe(false);
-        expect(p.canUploadVideo(a)).toBe(false);
+        // Видео JoyRest загружают ещё создатель игр и заместитель (решение владельца 15 октября 2026) — остальные нет.
+        if (role !== "creator") expect(p.canUploadVideo(a)).toBe(false);
       }
     }
   });
@@ -398,7 +412,7 @@ describe("роли доступа помощников", () => {
     expect(p.canManageVenues(a)).toBe(false);
   });
 
-  it("создатель игр: свои игры и предложения, без сессий", () => {
+  it("создатель игр: свои игры с картинками, музыкой и видео, предложения, без сессий", () => {
     const a = dj("creator");
     const own = { scope: "personal" as const, ownerId: "dj-1" };
     expect(p.canCreateGame(a, "personal", "dj-1")).toBe(true);
@@ -407,7 +421,16 @@ describe("роли доступа помощников", () => {
     expect(p.canCopyToPersonal(a, agencyGame)).toBe(true);
     expect(p.canCreateSession(a)).toBe(false);
     expect(p.canLaunchGame(a, own)).toBe(false);
-    expect(p.canUploadTrack(a, "personal")).toBe(false);
+    // Решение владельца 15 октября 2026: музыка и видео загружаются прямо в конструкторе — создателю игр они нужны.
+    expect(p.canUploadTrack(a, "personal")).toBe(true);
+    expect(p.canEditTrack(a, track("dj-1"))).toBe(true);
+    expect(p.canEditTrack(a, track("host-1"))).toBe(false);
+    expect(p.canUploadTrack(a, "agency")).toBe(false);
+    expect(p.canReviewTracks(a)).toBe(false);
+    expect(p.canUploadVideo(a)).toBe(true);
+    expect(p.canUseVideos(a)).toBe(true);
+    expect(p.canChangeMedia(a, own)).toBe(true);
+    expect(p.canChangeMedia(a, agencyGame)).toBe(false);
     expect(p.canUseTrack(a, agencyTrack)).toBe(true);
     expect(p.canSeeAllSessions(a)).toBe(false);
   });
@@ -447,6 +470,8 @@ describe("роли доступа помощников", () => {
       expect(p.canChangeMedia(a, agencyGame)).toBe(true);
       expect(p.canDeleteGame(a, agencyGame)).toBe(false);
       expect(p.canUploadVideo(a)).toBe(true);
+      expect(p.canUploadTrack(a, "personal")).toBe(true);
+      expect(p.canUploadTrack(a, "agency")).toBe(false);
       expect(p.isAdmin(a)).toBe(false);
       expect(p.canManageHosts(a)).toBe(false);
       expect(p.canSetAccessRole(a, other)).toBe(false);
@@ -458,6 +483,63 @@ describe("роли доступа помощников", () => {
     expect(p.canUploadVideo(host)).toBe(false);
     expect(p.canUseVideos(host)).toBe(true);
     expect(p.canUploadVideo({ uid: "x", role: "host", active: false, profession: "host", accessRole: "deputy" })).toBe(false);
+  });
+
+  it("фотоотчёт: снимает ведущий своей игры и владелец, смотрят ведущий — свои, владелец — все", () => {
+    expect(p.canTakeEventPhotos(host, { hostId: host?.uid ?? "" })).toBe(true);
+    expect(p.canTakeEventPhotos(host, { hostId: "host-2" })).toBe(false);
+    expect(p.canTakeEventPhotos(owner, { hostId: "host-2" })).toBe(true);
+    expect(p.canTakeEventPhotos(dj("deputy"), { hostId: "dj-1" })).toBe(false);
+    expect(p.canViewEventPhotos(host, "host-2")).toBe(false);
+    expect(p.canViewEventPhotos(owner, "host-2")).toBe(true);
+    expect(p.canTakeEventPhotos(null, { hostId: "x" })).toBe(false);
+  });
+
+  it("отзывы: ведущий — о своих, владелец — все и решает про сайт; роли этого не дают", () => {
+    expect(p.canReadReviews(host, host?.uid ?? "")).toBe(true);
+    expect(p.canReadReviews(host, "host-2")).toBe(false);
+    expect(p.canReadReviews(owner, "host-2")).toBe(true);
+    expect(p.canModerateReviews(owner)).toBe(true);
+    expect(p.canModerateReviews(host)).toBe(false);
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy"]) expect(p.canModerateReviews(dj(role))).toBe(false);
+    expect(p.canSetTips(host)).toBe(true);
+    expect(p.canSetTips(dj(null))).toBe(false);
+  });
+
+  it("менеджер по продажам: клиенты, площадки, «Кто может», мероприятия — без выгрузки, удаления и прав владельца", () => {
+    for (const a of [dj("sales"), hostWith("sales"), { uid: "m-1", role: "host" as const, active: true, profession: "sales", accessRole: "sales" }]) {
+      expect(p.isSalesManager(a)).toBe(true);
+      expect(p.canManageClients(a)).toBe(true);
+      expect(p.canManageVenues(a)).toBe(true);
+      expect(p.canViewTeamCalendar(a)).toBe(true);
+      expect(p.canManageEvents(a)).toBe(true);
+      expect(p.canViewEvent(a, { hostId: "host-2" })).toBe(true);
+      expect(p.canMarkEventHeld(a, { hostId: "host-2" })).toBe(true);
+      expect(p.canRemoveCalendarEntry(a, { uid: "host-2", kind: "booked" })).toBe(true);
+      expect(p.canRemoveCalendarEntry(a, { uid: "host-2", kind: "free" })).toBe(false);
+      expect(p.canReadSalesGuide(a)).toBe(true);
+      expect(p.canExportClients(a)).toBe(false);
+      expect(p.canErasePersonalData(a)).toBe(false);
+      expect(p.canSetMarketingConsent(a)).toBe(false);
+      expect(p.canDeleteEvent(a)).toBe(false);
+      expect(p.canViewEventStats(a)).toBe(false);
+      expect(p.canArchiveVenues(a)).toBe(false);
+      expect(p.isAdmin(a)).toBe(false);
+      expect(p.canManageHosts(a)).toBe(false);
+      expect(p.canSetAccessRole(a, other)).toBe(false);
+      expect(p.canUploadVideo(a)).toBe(false);
+      expect(p.canSeeAllSessions(a)).toBe(false);
+    }
+    // Не ведущий по профессии — игр нет.
+    expect(p.canUseGames(dj("sales"))).toBe(false);
+    // У владельца всё, у ведущего без роли — ничего из этого.
+    for (const f of [p.canManageClients, p.canExportClients, p.canErasePersonalData, p.canSetMarketingConsent, p.canDeleteEvent, p.canViewEventStats, p.canReadSalesGuide]) {
+      expect(f(owner)).toBe(true);
+      expect(f(host)).toBe(false);
+    }
+    const off: Actor = { uid: "m-2", role: "host", active: false, profession: "sales", accessRole: "sales" };
+    expect(p.canManageClients(off)).toBe(false);
+    expect(p.canManageEvents(off)).toBe(false);
   });
 
   it("помощник владельца: видит все игры сейчас, без прав на людей и библиотеку", () => {

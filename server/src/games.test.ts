@@ -157,6 +157,32 @@ describe.skipIf(!url)("игры и картинки на PostgreSQL", () => {
     expect((await call("PATCH", "/api/games/agency1", anna, { title: "взлом" })).statusCode).toBe(403);
   });
 
+  it("владелец и заместитель правят одну игру библиотеки: чужую правку не затереть, «сохранить поверх» — можно", async () => {
+    const dep = await addHost("deputy@example.com", "Дина");
+    expect((await call("POST", `/api/users/${dep.uid}/access`, owner, { role: "deputy" })).statusCode).toBe(200);
+    // Оба открыли игру (версия v0).
+    const v0 = (await call("GET", "/api/games/agency1", owner)).json().updatedAt as number;
+    await new Promise((r) => setTimeout(r, 5));
+    // Заместитель сохранил первым.
+    const first = await call("PATCH", "/api/games/agency1", dep.cookie, { title: "Квиз Дины", base: v0 });
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json().updatedAt).toBeGreaterThan(v0);
+    // Владелец со старой версией — 409 с именем, его правка не записана.
+    const late = await call("PATCH", "/api/games/agency1", owner, { title: "Квиз владельца", base: v0 });
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toMatchObject({ error: "failed-precondition", by: "Дина" });
+    const now = (await call("GET", "/api/games/agency1", owner)).json();
+    expect(now).toMatchObject({ title: "Квиз Дины", editedBy: dep.uid, editedByName: "Дина" });
+    // Заместитель продолжает со своей новой версией — без конфликта; повтор своей же старой версией — тоже (один человек).
+    expect((await call("PATCH", "/api/games/agency1", dep.cookie, { title: "Квиз Дины 2", base: first.json().updatedAt })).statusCode).toBe(200);
+    expect((await call("PATCH", "/api/games/agency1", dep.cookie, { title: "Квиз Дины 3", base: v0 })).statusCode).toBe(200);
+    // «Сохранить мою версию поверх» — без base.
+    expect((await call("PATCH", "/api/games/agency1", owner, { title: "Квиз владельца" })).statusCode).toBe(200);
+    expect((await call("GET", "/api/games/agency1", dep.cookie)).json()).toMatchObject({ title: "Квиз владельца", editedByName: "Администратор" });
+    // Удалить игру библиотеки заместитель не может.
+    expect((await call("DELETE", "/api/games/agency1", dep.cookie)).statusCode).toBe(403);
+  });
+
   it("картинка: загрузка, выдача с кэшем на год и ETag, повтор — успех, другая под тем же id — нет", async () => {
     const image = webp(5000, 3);
     expect((await put("/api/media/annaGame1/img1/full", anna, image)).statusCode).toBe(200);

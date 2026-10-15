@@ -20,8 +20,8 @@ export function Guide() {
   return <HostGate skeleton={<StudioSkeleton />}>{(_user, profile) => <GuidePage profile={profile} />}</HostGate>;
 }
 
-/** «Показать вопрос» в тексте — плашкой кнопки. */
-function rich(text: string): ReactNode {
+/** «Показать вопрос» в тексте — плашкой кнопки (и в «Инструкции менеджера»). */
+export function rich(text: string): ReactNode {
   const parts = text.split(/(«[^«»]+(?:«[^«»]*»[^«»]*)*»)/g);
   return parts.map((p, i) =>
     p.startsWith("«") && p.endsWith("»") ? (

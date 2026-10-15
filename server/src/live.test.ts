@@ -256,6 +256,64 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("GET", "/api/sessions/teams1/participants/teamA", member.cookie)).json().captainUid).toBe(member.uid);
   });
 
+  it("фотоотчёт: ведущий снимает до 3 фото, переснимает и удаляет; гость не может ни снять, ни посмотреть", async () => {
+    await newSession("ph1");
+    const webp = (fill: number) => Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4, 0), Buffer.from("WEBP"), Buffer.alloc(3000, fill)]);
+    const put = (slot: number, cookie: string, body: Buffer) =>
+      app.inject({ method: "PUT", url: `/api/sessions/ph1/photos/${slot}`, headers: { host: HOST, "x-joyrest": "1", origin: `https://${HOST}`, cookie, "content-type": "image/webp", "x-width": "1600", "x-height": "1200" }, payload: body });
+    const guest = await device();
+    expect((await put(1, guest.cookie, webp(1))).statusCode).toBe(401);
+    expect((await put(4, host, webp(1))).statusCode).toBe(404);
+    expect((await put(1, host, Buffer.from("<html>"))).statusCode).toBe(400);
+    expect((await put(1, host, webp(1))).json()).toMatchObject({ sessionId: "ph1", slot: 1, gameTitle: "Квиз", width: 1600 });
+    const first = (await call("GET", "/api/sessions/ph1/photos", host)).json() as Array<{ url: string }>;
+    expect((await put(1, host, webp(2))).statusCode).toBe(200);
+    expect((await put(2, host, webp(3))).statusCode).toBe(200);
+    const list = (await call("GET", "/api/sessions/ph1/photos", host)).json() as Array<{ slot: number; url: string }>;
+    expect(list.map((p) => p.slot)).toEqual([1, 2]);
+    expect(list[0]?.url).not.toBe(first[0]?.url);
+    const file = await call("GET", list[0]?.url ?? "", host);
+    expect(file.statusCode).toBe(200);
+    expect(file.headers["content-type"]).toContain("image/webp");
+    expect((await call("GET", list[0]?.url ?? "", guest.cookie)).statusCode).toBe(401);
+    expect((await call("GET", "/api/sessions/ph1/photos", guest.cookie)).statusCode).toBe(401);
+    expect((await call("DELETE", "/api/sessions/ph1/photos/2", host)).statusCode).toBe(200);
+    expect(((await call("GET", "/api/photos", host)).json() as Array<{ sessionId: string }>).filter((p) => p.sessionId === "ph1")).toHaveLength(1);
+  });
+
+  it("конец игры: чаевые ведущего, отзыв гостя после завершения (один на телефон), владелец показывает на сайте", async () => {
+    await newSession("fz1");
+    expect((await call("POST", "/api/me/tips", host, { url: "javascript:alert(1)" })).statusCode).toBe(400);
+    expect((await call("POST", "/api/me/tips", host, { url: "https://pay.example.ru/tips/anna" })).json().url).toBe("https://pay.example.ru/tips/anna");
+    const guest = await device();
+    const finale = (await call("GET", "/api/finale/fz1", guest.cookie)).json();
+    expect(finale).toMatchObject({ gameTitle: "Квиз", tipsUrl: "https://pay.example.ru/tips/anna", myReview: null });
+    expect((await call("GET", "/api/finale/fz1", "")).statusCode).toBe(401);
+    const review = { sessionId: "fz1", rating: 5, text: "Было здорово!", name: "Аня", consent: true };
+    // До конца игры отзыв не принимается; без согласия — тоже.
+    expect((await call("POST", "/api/reviews", guest.cookie, review)).statusCode).toBe(409);
+    expect((await call("POST", "/api/sessions/fz1/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
+    expect((await call("POST", "/api/reviews", guest.cookie, { ...review, consent: false })).statusCode).toBe(400);
+    expect((await call("POST", "/api/reviews", guest.cookie, { ...review, rating: 9 })).statusCode).toBe(400);
+    expect((await call("POST", "/api/reviews", guest.cookie, review)).statusCode).toBe(200);
+    expect((await call("POST", "/api/reviews", guest.cookie, { ...review, rating: 4, text: "Исправила" })).statusCode).toBe(200);
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().myReview).toEqual({ rating: 4, text: "Исправила", name: "Аня" });
+    const list = (await call("GET", "/api/reviews", host)).json() as Array<{ id: string; sessionId: string; status: string }>;
+    const mine = list.filter((r) => r.sessionId === "fz1");
+    expect(mine).toHaveLength(1);
+    expect((await call("GET", "/api/reviews", guest.cookie)).statusCode).toBe(401);
+    expect((await call("POST", `/api/reviews/${mine[0]?.id}/status`, guest.cookie, { status: "published" })).statusCode).toBe(401);
+    expect((await call("POST", `/api/reviews/${mine[0]?.id}/status`, host, { status: "published" })).json().status).toBe("published");
+    // Удалить отзыв: только владелец, только сам отзыв; повтор — 404.
+    expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, guest.cookie)).statusCode).toBe(401);
+    expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, host)).statusCode).toBe(200);
+    expect(((await call("GET", "/api/reviews", host)).json() as Array<{ sessionId: string }>).filter((r) => r.sessionId === "fz1")).toHaveLength(0);
+    expect((await call("DELETE", `/api/reviews/${mine[0]?.id}`, host)).statusCode).toBe(404);
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().myReview).toBeNull();
+    await call("POST", "/api/me/tips", host, { url: "" });
+    expect((await call("GET", "/api/finale/fz1", guest.cookie)).json().tipsUrl).toBe("");
+  });
+
   it("завершение: по коду сессию больше не найти, пульт находит свою; итоги по ссылке без входа", async () => {
     const code = await newSession("fin1");
     await call("POST", "/api/sessions/fin1/leaderboard", host, { entries: { p1: { name: "Аня", kind: "player", score: 30 }, p2: { name: "Боря", kind: "player", score: 50 } } });

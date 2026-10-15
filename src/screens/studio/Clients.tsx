@@ -1,9 +1,10 @@
 /**
- * База клиентов (CLAUDE.md, раздел 3, «База клиентов»; решение владельца 14 октября 2026) — только владелец.
+ * База клиентов (CLAUDE.md, раздел 3, «База клиентов»; решение владельца 14 октября 2026) — владелец и менеджер по
+ * продажам (роль `sales`, решение 15 октября 2026); выгрузка, «Данные по номеру» и согласие «да» — только владелец.
  * Сюда сами попадают все, кто оставил заявку или вопрос на сайте, запрос по QR, записан в планировщик или переслан
  * боту в Telegram. Один человек — одна карточка (по телефону). Выгрузка для рассылки — только согласившиеся.
  */
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   CLIENT_LIMITS,
@@ -19,8 +20,9 @@ import {
   type ClientStatus,
   type Marketing,
 } from "../../core/clients";
+import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
-import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord } from "../../data";
+import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { SearchField } from "../../components/SearchField";
@@ -46,6 +48,30 @@ const FILTER_TITLES: Record<Filter, string> = {
 const STATUS_COLORS: Record<ClientStatus, string> = { new: brand.gold, work: brand.lavender, client: brand.sage, lost: brand.coral };
 
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow" });
+/** Дата и время по Москве — в истории видно, сколько анкета ждала до «В работе». */
+const dateTimeLabel = (ms: number) =>
+  new Date(ms).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
+const isFilter = (v: string | null): v is Filter => v !== null && v in FILTER_TITLES;
+/** Новую анкету ждут ответа не дольше 30 минут (инструкция менеджера, «Сроки»). */
+const ANSWER_MS = 30 * 60_000;
+
+/** «12 мин», «3 ч», «2 дн» — сколько прошло. */
+function agoLabel(ms: number): string {
+  const min = Math.max(0, Math.floor(ms / 60_000));
+  if (min < 60) return `${min} мин`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `${h} ч` : `${Math.floor(h / 24)} дн`;
+}
+
+/** Текущее время, обновляется раз в минуту: «ждёт ответа» растёт без перезагрузки. */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
+}
 const sourceTitle = (s: string) => SOURCE_TITLES[s as ClientSource] ?? s;
 
 export function Clients() {
@@ -57,9 +83,9 @@ export function Clients() {
           {!clientsRepo ? (
             <p className="muted">База клиентов доступна на своём сервере JoyRest.</p>
           ) : !permissions.canManageClients(profile) ? (
-            <p className="muted">База клиентов открыта только владельцу агентства.</p>
+            <p className="muted">База клиентов открыта владельцу агентства и менеджеру по продажам.</p>
           ) : (
-            <ClientBase />
+            <ClientBase profile={profile} />
           )}
         </main>
       )}
@@ -67,22 +93,61 @@ export function Clients() {
   );
 }
 
-function ClientBase() {
-  const [filter, setFilter] = useState<Filter>("all");
+function ClientBase({ profile }: { profile: UserProfile }) {
+  const owner = permissions.canExportClients(profile);
+  const [params] = useSearchParams();
+  // «Рабочее место» открывает «Клиентов» сразу на «Новых» (?f=new).
+  const [filter, setFilter] = useState<Filter>(() => {
+    const f = params.get("f");
+    return isFilter(f) ? f : "all";
+  });
   const archived = filter === "archive";
+  const now = useNow();
   const [state, retry, update] = useLoad(() => (clientsRepo ? clientsRepo.list(archived) : Promise.resolve([] as ClientRecord[])), [archived]);
   const shown = useLastReady(state);
-  const [params] = useSearchParams();
   const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [form, setForm] = useState<ClientRecord | "new" | null>(null);
   const [toast, showToast] = useToast();
+
+  // Владелец и менеджер работают одновременно: список тихо обновляется раз в 30 секунд и при возврате на вкладку,
+  // без каркаса и мигания — новые анкеты и чужие смены статуса видны без перезагрузки.
+  useEffect(() => {
+    if (!clientsRepo) return;
+    const repo = clientsRepo;
+    let alive = true;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      repo
+        .list(archived)
+        .then((data) => alive && update(() => data))
+        .catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [archived, update]);
   const [confirm, ask] = useConfirm();
 
   const list = useMemo(() => {
     const all = (shown ?? []).filter((c) => c.archived === archived);
     const byFilter = all.filter((c) => (filter === "all" || filter === "archive" ? true : filter === "mailing" ? c.marketing === "yes" : c.status === filter));
-    return query.trim() ? byFilter.filter((c) => matchesSearch([c.name, c.phone, phoneKey(c.phone), c.notes, ...c.links], query)) : byFilter;
+    const found = query.trim() ? byFilter.filter((c) => matchesSearch([c.name, c.phone, phoneKey(c.phone), c.notes, ...c.links], query)) : byFilter;
+    // «Новые» — дольше всех ждущие сверху: им отвечаем первыми.
+    return filter === "new" ? [...found].sort((a, b) => a.lastContactAt - b.lastContactAt) : found;
   }, [shown, filter, query, archived]);
+  // Счётчики у фильтров (кроме «Архива»: в архиве свой список).
+  const counts = useMemo((): Partial<Record<Filter, number>> => {
+    if (archived) return {};
+    const active = (shown ?? []).filter((c) => !c.archived);
+    const n: Partial<Record<Filter, number>> = { all: active.length, mailing: active.filter((c) => c.marketing === "yes").length };
+    for (const st of CLIENT_STATUSES) n[st] = active.filter((c) => c.status === st).length;
+    return n;
+  }, [shown, archived]);
+  const late = (shown ?? []).filter((c) => !c.archived && c.status === "new" && now - c.lastContactAt > ANSWER_MS).length;
   const candidates = useMemo(() => [...new Set((shown ?? []).map((c) => c.name).filter(Boolean))], [shown]);
   const consented = (shown ?? []).filter((c) => !c.archived && c.marketing === "yes").length;
 
@@ -111,6 +176,7 @@ function ClientBase() {
     return (
       <ClientForm
         initial={form === "new" ? null : form}
+        canConsent={permissions.canSetMarketingConsent(profile)}
         onCancel={() => setForm(null)}
         onSaved={(c) => saved(c, form === "new" ? "Клиент добавлен" : "Сохранено")}
       />
@@ -121,39 +187,55 @@ function ClientBase() {
     <>
       <p className="muted">
         Сюда сами попадают все, кто оставил заявку или вопрос на сайте, запрос по QR-анкете, записан в планировщик мероприятий или кого вы переслали
-        боту в Telegram — даже если мероприятия не было. Один человек — одна карточка (по телефону). Подбор площадок по запросу клиента — в{" "}
-        <Link to="/venues">базе площадок</Link> («Заявки клиентов»), из истории клиента — одним касанием.
+        боту в Telegram — даже если мероприятия не было. Один человек — одна карточка (по телефону). Площадку подбираем только для мероприятия «под ключ» — в{" "}
+        <Link to="/venues?tab=requests">базе площадок</Link> («Заявки клиентов»), из истории клиента — одним касанием.
       </p>
       <div className="actions">
         <button type="button" className="btn btn--block" onClick={() => setForm("new")}>
           + Клиент
         </button>
-        {clientsRepo && (
+        {owner && clientsRepo && (
           <a className="btn btn--secondary btn--block" href={clientsRepo.exportUrl(false)} download>
             Выгрузить для рассылки ({consented})
           </a>
         )}
       </div>
-      <p className="muted small">
-        В выгрузку для рассылки попадают только согласившиеся: по закону о рекламе рассылать можно только тем, кто сам дал согласие. Таблица
-        открывается в Excel и Google Таблицах.{" "}
-        {clientsRepo && (
-          <a href={clientsRepo.exportUrl(true)} download>
-            Выгрузить всех (для своей работы)
-          </a>
-        )}
-      </p>
-      <p className="muted small">
-        Человек попросил удалить свои данные? <Link to="/studio/privacy">Данные по номеру →</Link> — всё о нём в базе и удаление навсегда.
-      </p>
+      {owner ? (
+        <>
+          <p className="muted small">
+            В выгрузку для рассылки попадают только согласившиеся: по закону о рекламе рассылать можно только тем, кто сам дал согласие. Таблица
+            открывается в Excel и Google Таблицах.{" "}
+            {clientsRepo && (
+              <a href={clientsRepo.exportUrl(true)} download>
+                Выгрузить всех (для своей работы)
+              </a>
+            )}
+          </p>
+          <p className="muted small">
+            Человек попросил удалить свои данные? <Link to="/studio/privacy">Данные по номеру →</Link> — всё о нём в базе и удаление навсегда.
+          </p>
+        </>
+      ) : (
+        <p className="muted small">
+          Как вести клиента от заявки до мероприятия — <Link to="/studio/sales-guide">инструкция менеджера →</Link>. Смена статуса записывается в
+          историю клиента с вашим именем. Выгрузка базы и удаление данных — только у владельца; просьбу удалить данные человек присылает на
+          joyrest@mail.ru.
+        </p>
+      )}
 
       <div className="seg plan-seg clients-filters" role="group" aria-label="Какие клиенты">
         {(Object.keys(FILTER_TITLES) as Filter[]).map((f) => (
           <button key={f} type="button" className={filter === f ? "seg__btn is-on" : "seg__btn"} aria-pressed={filter === f} onClick={() => setFilter(f)}>
             {FILTER_TITLES[f]}
+            {counts[f] !== undefined ? ` ${counts[f]}` : ""}
           </button>
         ))}
       </div>
+      {late > 0 && (
+        <p className="clients-late" role="status">
+          ⏰ Ждут ответа дольше 30 минут: {late}. В «Новых» дольше всех ждущие — сверху.
+        </p>
+      )}
       <SearchField label="Поиск" value={query} placeholder="Имя, телефон, ссылка, заметка" candidates={candidates} onChange={setQuery} />
 
       {!shown ? (
@@ -165,7 +247,19 @@ function ClientBase() {
           </p>
           {list.length === 0 && <p className="muted">{query.trim() ? "Ничего не нашлось." : archived ? "В архиве пусто." : "Клиентов пока нет — они появятся с первыми заявками."}</p>}
           {list.map((c) => (
-            <ClientCard key={c.id} client={c} onEdit={() => setForm(c)} onArchive={() => toggleArchive(c)} />
+            <ClientCard
+              key={c.id}
+              client={c}
+              now={now}
+              manager={profile.name}
+              onEdit={() => setForm(c)}
+              onArchive={() => toggleArchive(c)}
+              onChanged={(next, text) => {
+                update((data) => data.map((x) => (x.id === next.id ? next : x)));
+                showToast(text);
+              }}
+              onToast={showToast}
+            />
           ))}
         </div>
       )}
@@ -176,10 +270,111 @@ function ClientBase() {
   );
 }
 
-function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; onEdit: () => void; onArchive: () => void }) {
+/** Как связаться: звонок, WhatsApp и Telegram по номеру (российский или международный). */
+function contactLinks(phone: string): { label: string; href: string }[] {
+  const key = phoneKey(phone);
+  if (!key) return [];
+  return [
+    { label: "📞 Позвонить", href: `tel:+${key}` },
+    { label: "WhatsApp", href: `https://wa.me/${key}` },
+    { label: "Telegram", href: `https://t.me/+${key}` },
+  ];
+}
+
+/** Повод из последней заявки: первая строка до запятой («Корпоратив, 25 гостей» → «Корпоратив»). */
+function occasionOf(details: ClientDetails | null): string {
+  const lead = details?.history.find((h) => h.source === "site" && h.summary);
+  return lead ? (lead.summary.split("\n")[0] ?? "").split(",")[0] ?? "" : "";
+}
+
+function ClientCard({
+  client: c,
+  now,
+  manager,
+  onEdit,
+  onArchive,
+  onChanged,
+  onToast,
+}: {
+  client: ClientRecord;
+  now: number;
+  manager: string;
+  onEdit: () => void;
+  onArchive: () => void;
+  onChanged: (c: ClientRecord, toast: string) => void;
+  onToast: (text: string) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [details, retry] = useLoad(() => (open && clientsRepo ? clientsRepo.get(c.id) : Promise.resolve(null as ClientDetails | null)), [open, c.id, c.lastContactAt]);
+  const [details, retry] = useLoad(() => (open && clientsRepo ? clientsRepo.get(c.id) : Promise.resolve(null as ClientDetails | null)), [open, c.id, c.lastContactAt, c.status, c.notes]);
   const full = details.status === "ready" ? details.data : null;
+  const [note, setNote] = useState(c.notes);
+  // Текст, с которого начали править заметку: сервер сверяет его, чтобы не затереть чужую правку.
+  const [noteBase, setNoteBase] = useState(c.notes);
+  // Пока вы писали, заметку изменил другой человек: его текст (обе версии на экране, ничего не потеряно).
+  const [conflict, setConflict] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const dirty = note !== noteBase;
+  useEffect(() => {
+    // Карточку обновили (своё сохранение или чужая правка): без своих несохранённых правок — показываем свежий текст.
+    if (!dirty) {
+      setNote(c.notes);
+      setNoteBase(c.notes);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.notes]);
+  const waiting = c.status === "new" && !c.archived ? now - c.lastContactAt : 0;
+  const late = waiting > ANSWER_MS;
+
+  // Статус одним касанием: сервер меняет только статус (чужую заметку не трогает), в историю — «В работе · имя».
+  async function setStatus(status: ClientRecord["status"]) {
+    if (!clientsRepo || busy || status === c.status) return;
+    setBusy(true);
+    setError(null);
+    try {
+      onChanged(await clientsRepo.setStatus(c.id, status), `Статус: ${CLIENT_STATUS_TITLES[status]}`);
+    } catch {
+      setError("Не получилось сменить статус. Проверьте интернет и нажмите ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Заметка: сохраняется, только если с начала правки её никто не менял; иначе — обе версии на экране.
+  async function saveNote(text: string, base: string) {
+    if (!clientsRepo || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await clientsRepo.saveNotes(c.id, text, base);
+      setConflict(null);
+      setNote(saved.notes);
+      setNoteBase(saved.notes);
+      onChanged(saved, "Заметка сохранена");
+    } catch (e) {
+      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      if (code === "failed-precondition" && clientsRepo) {
+        const fresh = await clientsRepo.get(c.id).catch(() => null);
+        if (fresh) {
+          setConflict(fresh.notes);
+          onChanged(fresh, "Заметку только что изменил другой человек");
+        } else setError("Заметку только что изменил другой человек. Обновите страницу.");
+      } else setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyFirst() {
+    const text = firstMessage(c.name, manager, occasionOf(full));
+    try {
+      await navigator.clipboard.writeText(text);
+      onToast("Первое сообщение скопировано — вставьте его клиенту");
+    } catch {
+      onToast("Не получилось скопировать — текст есть в инструкции менеджера");
+    }
+  }
+
   return (
     <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": STATUS_COLORS[c.status] } as CSSProperties}>
       <button type="button" className="plan-card__head" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -189,16 +384,112 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
         </span>
         <span className="plan-card__when">{c.phone ? phoneLabel(c.phone) : c.links[0] ? linkTitle(c.links[0]) : "—"}</span>
         <span className="plan-card__host">
-          {sourceTitle(c.lastSource)} · {dateLabel(c.lastContactAt)}
+          {sourceTitle(c.lastSource)} · {dateTimeLabel(c.lastContactAt)}
           {c.contacts > 1 ? ` · обращений: ${c.contacts}` : ""}
           {c.marketing === "yes" ? " · ✉️ рассылка" : ""}
         </span>
+        {c.status !== "new" && c.statusLine && (
+          <span className="clients-who">
+            {c.statusLine}
+            {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+          </span>
+        )}
+        {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа {agoLabel(waiting)}</span>}
+        {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
         </span>
       </button>
       {open && (
         <div className="stack stack--tight">
+          {!c.archived && (
+            <fieldset className="stack stack--tight">
+              <legend className="small">Статус — одним касанием</legend>
+              <div className="plan-quick" role="group" aria-label="Статус клиента">
+                {CLIENT_STATUSES.map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    className={c.status === st ? "seg__btn is-on" : "seg__btn"}
+                    aria-pressed={c.status === st}
+                    disabled={busy}
+                    onClick={() => void setStatus(st)}
+                  >
+                    {CLIENT_STATUS_TITLES[st]}
+                  </button>
+                ))}
+              </div>
+              {c.status === "lost" && !c.notes.trim() && <p className="small clients-late">Напишите причину отказа в заметке ниже.</p>}
+            </fieldset>
+          )}
+
+          {(c.phone || c.links.length > 0) && (
+            <div className="clients-contact" role="group" aria-label="Связаться">
+              {contactLinks(c.phone).map((l) => (
+                <a key={l.label} className="btn btn--secondary" href={l.href} target={l.href.startsWith("tel:") ? undefined : "_blank"} rel="noopener noreferrer">
+                  {l.label}
+                </a>
+              ))}
+              {c.links.map((l) => (
+                <a key={l} className="btn btn--secondary" href={l} target="_blank" rel="noopener noreferrer">
+                  {linkTitle(l)}
+                </a>
+              ))}
+            </div>
+          )}
+          {c.status === "new" && (
+            <button type="button" className="btn btn--quiet btn--block" onClick={() => void copyFirst()}>
+              Скопировать первое сообщение
+            </button>
+          )}
+
+          {!c.archived && (
+            <label className="field">
+              <span className="field__label">Заметка: дата, гости, расчёт, следующий шаг</span>
+              <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={note} onChange={(e) => setNote(e.target.value)} />
+            </label>
+          )}
+          {!c.archived && conflict === null && dirty && (
+            <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(note, noteBase)}>
+              {busy ? "Сохраняем…" : "Сохранить заметку"}
+            </button>
+          )}
+          {!c.archived && conflict === null && dirty && c.notes !== noteBase && (
+            <p className="small clients-late">Пока вы пишете, заметку изменил другой человек — при сохранении покажем обе версии.</p>
+          )}
+          {conflict !== null && (
+            <div className="card stack stack--tight clients-conflict" role="alert">
+              <p className="small">
+                <b>Пока вы писали, заметку изменил другой человек.</b> Сейчас в карточке:
+              </p>
+              <p className="clients-history__text">{conflict || "(пусто)"}</p>
+              <p className="small muted">Ваш текст — в поле выше, он не потерян.</p>
+              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(`${conflict}\n${note}`.trim(), conflict)}>
+                Добавить мой текст в конец
+              </button>
+              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void saveNote(note, conflict)}>
+                Заменить моим текстом
+              </button>
+              <button
+                type="button"
+                className="btn btn--quiet btn--block"
+                disabled={busy}
+                onClick={() => {
+                  setNote(conflict);
+                  setNoteBase(conflict);
+                  setConflict(null);
+                }}
+              >
+                Оставить их текст, мой убрать
+              </button>
+            </div>
+          )}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+
           <dl className="plan-facts">
             {c.phone && (
               <>
@@ -208,16 +499,6 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
                 </dd>
               </>
             )}
-            {c.links.map((l) => (
-              <div key={l} className="clients-link">
-                <dt>Ссылка</dt>
-                <dd>
-                  <a href={l} target="_blank" rel="noopener noreferrer">
-                    {linkTitle(l)}
-                  </a>
-                </dd>
-              </div>
-            ))}
             <dt>Рассылка</dt>
             <dd>
               {MARKETING_TITLES[c.marketing]}
@@ -225,22 +506,21 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
             </dd>
             <dt>В базе с</dt>
             <dd>{dateLabel(c.createdAt)}</dd>
-            {c.notes && (
+            {c.archived && c.notes && (
               <>
                 <dt>Заметка</dt>
                 <dd className="plan-facts__note">{c.notes}</dd>
               </>
             )}
           </dl>
-          <h3 className="small">Обращения</h3>
+          <h3 className="small">Обращения и история</h3>
           {details.status === "error" && <LoadFailedInline onRetry={retry} />}
           {!full && details.status !== "error" && <p className="muted small">Загружаем…</p>}
           {full && (
             <ul className="clients-history">
               {full.history.map((h) => (
                 <li key={h.id}>
-                  <b>{dateLabel(h.at)}</b> · {sourceTitle(h.source)}
-                  {h.summary ? ` — ${h.summary}` : ""}
+                  <b>{dateTimeLabel(h.at)}</b> · {sourceTitle(h.source)}
                   {h.source === "venue" && h.ref && (
                     <>
                       {" "}
@@ -253,16 +533,17 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
                       <Link to="/studio/calendar?tab=events">В планировщик →</Link>
                     </>
                   )}
+                  {h.summary && <span className="clients-history__text">{h.summary}</span>}
                 </li>
               ))}
             </ul>
           )}
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={onEdit}>
-              Изменить
+              Изменить имя, телефон, ссылки
             </button>
             <button type="button" className="btn btn--quiet btn--block" onClick={onArchive}>
-              {c.archived ? "Вернуть из архива" : "Убрать в архив"}
+              {c.archived ? "Вернуть из архива" : "Убрать в архив (спам)"}
             </button>
           </div>
         </div>
@@ -271,7 +552,7 @@ function ClientCard({ client: c, onEdit, onArchive }: { client: ClientRecord; on
   );
 }
 
-function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | null; onSaved: (c: ClientRecord) => void; onCancel: () => void }) {
+function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: ClientRecord | null; canConsent: boolean; onSaved: (c: ClientRecord) => void; onCancel: () => void }) {
   const [id] = useState(() => initial?.id ?? newId());
   const [name, setName] = useState(initial?.name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -289,10 +570,16 @@ function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | nu
     setBusy(true);
     setError(null);
     try {
-      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes }));
+      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes, ...(initial ? { expect: initial.updatedAt } : {}) }));
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-      setError(code === "already-exists" ? "Клиент с этим телефоном уже есть — найдите его поиском." : "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
+      setError(
+        code === "already-exists"
+          ? "Клиент с этим телефоном уже есть — найдите его поиском."
+          : code === "failed-precondition"
+            ? "Пока вы правили, карточку изменил другой человек. Ваши правки не сохранены: нажмите «Отмена», откройте карточку снова и внесите их ещё раз."
+            : "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.",
+      );
     } finally {
       setBusy(false);
     }
@@ -326,7 +613,7 @@ function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | nu
       </fieldset>
       <fieldset className="stack stack--tight">
         <legend>Рассылка</legend>
-        {(["yes", "unknown", "no"] as const).map((m) => (
+        {(["yes", "unknown", "no"] as const).filter((m) => m !== "yes" || canConsent || initial?.marketing === "yes").map((m) => (
           <label key={m} className="choice">
             <input type="radio" name={`mkt-${id}`} checked={marketing === m} onChange={() => setMarketing(m)} />
             <span className="choice__text">
@@ -335,6 +622,9 @@ function ClientForm({ initial, onSaved, onCancel }: { initial: ClientRecord | nu
             </span>
           </label>
         ))}
+        {!canConsent && initial?.marketing !== "yes" && (
+          <p className="muted small">Согласие на рассылку отмечает владелец. Клиент согласился в переписке — напишите это в заметке.</p>
+        )}
       </fieldset>
       <label className="field">
         <span className="field__label">Заметка</span>

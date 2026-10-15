@@ -24,6 +24,7 @@ const siteDir = dir({
   "img/logo.0123456789.png": "png",
   "fonts/jost-latin-400-normal.woff2": "font",
   "favicon.svg": "<svg/>",
+  "calc/index.html": "<title>Калькулятор праздника</title>",
 });
 
 const stubDir = dir({ "index.html": "<title>Скоро</title>", "joyrest-logo.svg": "<svg/>" });
@@ -115,6 +116,19 @@ describe("сайт выключен (по умолчанию): заглушка 
     expect((await off.inject({ url: "/joyrest-logo.svg", headers: { host: "joy-rest.ru" } })).statusCode).toBe(200);
     expect((await off.inject({ url: "/css/style.0123456789.css", headers: { host: "joy-rest.ru" } })).statusCode).toBe(404);
     expect((await off.inject({ url: "/", headers: { host: "games.joy-rest.ru" } })).body).toContain("Платформа");
+  });
+
+  it("калькулятор без заявки открыт и при заглушке: /calc/ и шрифты, остальные файлы сайта — нет", async () => {
+    const calc = await off.inject({ url: "/calc/", headers: { host: "joy-rest.ru" } });
+    expect(calc.statusCode).toBe(200);
+    expect(calc.body).toContain("Калькулятор праздника");
+    expect(calc.headers["cache-control"]).toBe("no-cache");
+    expect(calc.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    const font = await off.inject({ url: "/fonts/jost-latin-400-normal.woff2", headers: { host: "joy-rest.ru" } });
+    expect(font.statusCode).toBe(200);
+    expect(font.headers["cache-control"]).toContain("immutable");
+    expect((await off.inject({ url: "/css/style.0123456789.css", headers: { host: "joy-rest.ru" } })).statusCode).toBe(404);
+    expect((await off.inject({ url: "/calc/", headers: { host: "games.joy-rest.ru" } })).body).not.toContain("Калькулятор праздника");
   });
 
   it("заявки не принимаются: /api/lead — 404", async () => {
@@ -288,10 +302,13 @@ describe("тексты и устройство страницы", () => {
     expect(readFileSync(join(root, "scripts/build-site.ts"), "utf8")).toContain('const SOURCE = join(ROOT, "site");');
   });
 
-  it("отзывы: честный подзаголовок, кнопка и форма скрыты одной настройкой, карточка Telegram на месте", () => {
-    expect(html).toContain("<h2>Следите за нами</h2>");
+  it("отзывы: пока нет опубликованных — «Следите за нами»; форма отзыва открыта, лента из студии, карточка Telegram на месте", () => {
+    expect(html).toContain('<h2 id="reviewsTitle">Следите за нами</h2>');
     expect(html).toContain("Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.");
-    expect(html).toMatch(/<section id="reviews" [^>]*data-review-form="off">/);
+    expect(html).toMatch(/<section id="reviews" [^>]*data-review-form="on">/);
+    expect(html).toContain('<div class="reviews" id="siteReviews" hidden>');
+    expect(html).toContain('<script src="js/reviews.js"></script>');
+    expect(readFileSync(join(root, "site/js/reviews.js"), "utf8")).toContain("/api/site/reviews");
     expect(css).toMatch(/\[data-review-form="off"\] #openReviewForm,\s*\[data-review-form="off"\] #reviewFormWrap\{ display: none; \}/);
     expect(html).toContain('class="tg-card');
   });
@@ -551,5 +568,12 @@ describe("логотип сайта", () => {
     // Все три скрипта и снимки игр — с отпечатком в именах.
     for (const name of ["theme", "pricing", "script"]) expect(built).toMatch(new RegExp(`<script src="js/${name}\\.[0-9a-f]{10}\\.js"></script>`));
     expect(built).toMatch(/<img src="img\/cards-loto\.[0-9a-f]{10}\.webp"/);
+    // Калькулятор без заявки — самодостаточная страница: стили и скрипты встроены, формы заявки нет.
+    const calc = readFileSync(join(out, "calc/index.html"), "utf8");
+    expect(calc).not.toContain("data-inline");
+    expect(calc).not.toMatch(/<script src=|<link rel="stylesheet"/);
+    expect(calc).toContain("JoyPricing");
+    expect(calc).toContain("@font-face");
+    expect(calc).not.toMatch(/<form\b|fetch\(|XMLHttpRequest|sendBeacon/);
   }, 30_000);
 });

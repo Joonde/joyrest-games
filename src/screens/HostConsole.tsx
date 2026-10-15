@@ -1,4 +1,5 @@
 import { PeekCard } from "../components/live/PeekCard";
+import { DeckStepper } from "../components/live/Decks";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
@@ -41,7 +42,8 @@ import { useWakeLock } from "../components/live/useWakeLock";
 import { useServerNow } from "../components/live/useServerNow";
 import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
-import { joinSlide } from "../core/slides";
+import { joinSlide, thanksSlide } from "../core/slides";
+import { EventPhotosCard } from "../components/live/EventPhotos";
 import { TechBreak } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
@@ -130,7 +132,7 @@ function Console({ session }: { session: Session }) {
   );
   const latest = useRef(session);
   latest.current = session;
-  useTheme(session.themeId);
+  useTheme(session.themeId, session.branding);
 
   useEffect(() => {
     void clock.sync();
@@ -238,6 +240,12 @@ function Console({ session }: { session: Session }) {
       // Завершение сразу сохраняет компактные итоги для «Истории игр».
       await sessionsRepo.finish(latest.current, phones);
       setConfirmFinish(false);
+      // После награждения — «Спасибо»: чаевые ведущему, отзыв и канал (решение владельца 15 октября 2026).
+      // Ведущий может убрать слайд — под ним итоги игры.
+      // Закрыли в лобби без игроков — благодарить не за что, слайда нет.
+      if (Object.keys(latest.current.leaderboard).length > 0) {
+        void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId()) } }).catch(() => undefined);
+      }
     } catch {
       setError("Не удалось завершить игру. Проверьте интернет.");
     } finally {
@@ -356,7 +364,8 @@ function Console({ session }: { session: Session }) {
 
       {slide && (
         <div className="pult-banner" role="status">
-          <span className="line-clamp">На экране слайд{slide.title ? ` «${slide.title}»` : ""}</span>
+          <span className="line-clamp">На экране {slide.kind === "image" ? "показ" : "слайд"}{slide.title ? ` «${slide.title}»` : ""}</span>
+          {slide.kind === "image" && <DeckStepper slide={slide} onApply={apply} />}
           <button type="button" className="btn btn--secondary" onClick={() => void apply({ state: { slide: null } }).catch(() => undefined)}>
             Убрать
           </button>
@@ -411,6 +420,8 @@ function Console({ session }: { session: Session }) {
                 {!canAwardNow(session.state) && <p className="muted small">Наградить можно после того, как покажете ответ.</p>}
               </>
             )}
+            {/* Фотоотчёт: до 3 общих фото на игру — и во время игры, и после «Завершить игру». */}
+            {phase !== "lobby" && <EventPhotosCard sessionId={session.id} />}
             {/* Неполадки (звук, экран, связь): заставка с музыкой одним касанием, «Убрать» — в плашке сверху. */}
             {/* Перерыв без времени или на 3–20 минут; та же кнопка заканчивает его — игра с того же места. */}
             {phase !== "finished" && tools && (
@@ -473,6 +484,15 @@ function Console({ session }: { session: Session }) {
                     В студию
                   </Link>
                 </div>
+                {withScreen && Object.keys(session.leaderboard).length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--block"
+                    onClick={() => void apply({ state: { slide: slide?.kind === "thanks" ? null : thanksSlide(slideId()) } }).catch(() => undefined)}
+                  >
+                    {slide?.kind === "thanks" ? "Убрать «Спасибо» — показать итоги" : "«Спасибо» с QR чаевых, отзыва и канала — на экран"}
+                  </button>
+                )}
               </section>
             )}
           </>

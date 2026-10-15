@@ -3,8 +3,11 @@
  * меняется только реализация в src/data/, а эти типы остаются.
  * Время везде — миллисекунды с эпохи по часам сервера.
  */
+import type { SavedBranding, SessionBranding } from "../core/branding";
 import type { SessionProgram } from "../core/program";
 import type { OfferData, RequestData, RequestStatus, VenueData, VenueFileKind, VenueStatus } from "../core/venues";
+
+export type { SavedBranding, SessionBranding };
 
 export type Role = "admin" | "host";
 
@@ -81,9 +84,12 @@ export interface Game {
   updatedAt: number | null;
   /** Папка в «Моих играх» ('' или нет — без папки; только свой сервер). */
   folder?: string;
+  /** Свой сервер: кто последним менял игру (uid) и его имя — «Эту игру сейчас правит …» в редакторе. */
+  editedBy?: string;
+  editedByName?: string;
 }
 
-export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt">;
+export type NewGame = Omit<Game, "id" | "createdAt" | "updatedAt" | "editedBy" | "editedByName">;
 
 /** Что можно менять в игре после создания. Область и владелец не меняются. */
 export type GamePatch = Partial<Pick<Game, "title" | "themeId" | "ageRating" | "playMode" | "content" | "folder">>;
@@ -102,6 +108,8 @@ export interface MediaUpload {
   small: Blob;
   width: number;
   height: number;
+  /** Чёткая для большого экрана (до 1920 px) — только свой сервер и только если исходник больше полной. */
+  hd?: { blob: Blob; width: number; height: number };
 }
 
 /** Режимы проведения из раздела 4 CLAUDE.md. */
@@ -154,7 +162,60 @@ export interface TeamsReveal {
   sizes?: Record<string, number>;
 }
 
-export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw";
+export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw" | "image";
+
+/** «Опрос гостей заранее» для «100 к 1» (только свой сервер, `server/src/polls.ts`, логика — `src/core/polls.ts`). */
+export interface PollQuestionRef {
+  id: string;
+  text: string;
+}
+
+/** Анкета опроса для гостя (без входа). */
+export interface PollForm {
+  id: string;
+  title: string;
+  questions: PollQuestionRef[];
+  /** Приём ответов открыт. */
+  open: boolean;
+}
+
+/** Опрос у ведущего: вопросы, его решения по группам и ответы гостей. */
+export interface PollSummary extends PollForm {
+  gameId: string;
+  /** Сколько человек ответили (хотя бы на один вопрос). */
+  respondents: number;
+  /** Ответы гостей по вопросам (без имён: имя не спрашиваем). */
+  responses: Record<string, string[]>;
+  /** Объединения и подписи групп по вопросам. */
+  edits: Record<string, { merges: Record<string, string>; labels: Record<string, string> }>;
+}
+
+/** Показ ведущего: фото и страницы PDF по порядку (только свой сервер, `server/src/decks.ts`). */
+export interface DeckPage {
+  sha: string;
+  w: number;
+  h: number;
+  size: number;
+}
+
+export interface Deck {
+  id: string;
+  title: string;
+  pages: DeckPage[];
+  updatedAt: number;
+}
+
+/** Страница показа (фото или страница PDF) на весь экран зала: файл, следующий (экран грузит заранее), номер. */
+export interface SlideMedia {
+  deck: string;
+  /** С нуля. */
+  page: number;
+  count: number;
+  sha: string;
+  next: string | null;
+  w: number;
+  h: number;
+}
 
 export interface SlideState {
   /** Новый id — новый показ (звук заставки играет один раз). */
@@ -166,6 +227,8 @@ export interface SlideState {
   lines: string[];
   /** Конец перерыва по часам сервера; null — без обратного отсчёта. */
   endsAt: number | null;
+  /** Слайд «image»: страница показа (фото, страница PDF). */
+  media?: SlideMedia | null;
 }
 
 export interface MusicState {
@@ -197,6 +260,48 @@ export interface MixState {
 export type TrackCategory = "music" | "lobby" | "background" | "contest" | "board" | "break" | "award" | "holiday";
 export type TrackLicense = "pixabay" | "bought" | "own" | "other";
 export type TrackShareStatus = "none" | "pending" | "accepted" | "rejected";
+
+/** Конец игры: куда вести гостей — чаевые ведущему, отзыв, канал (решение владельца 15 октября 2026). */
+export interface Finale {
+  sessionId: string;
+  hostName: string;
+  gameTitle: string;
+  /** Ссылка ведущего для чаевых (или владельца агентства); пусто — чаевых нет. */
+  tipsUrl: string;
+  /** Отзыв этого телефона, если уже оставлен. */
+  myReview: { rating: number; text: string; name: string } | null;
+}
+
+/** Фото фотоотчёта мероприятия: до 3 на игру, `slot` 1–3. */
+export interface EventPhoto {
+  sessionId: string;
+  slot: number;
+  hostId: string;
+  hostName: string;
+  gameTitle: string;
+  playedAt: number | null;
+  width: number | null;
+  height: number | null;
+  createdAt: number;
+  /** Адрес файла (с отпечатком — кэш на год). */
+  url: string;
+}
+
+export type ReviewStatus = "new" | "published" | "hidden";
+
+export interface GuestReview {
+  id: string;
+  sessionId: string;
+  hostId: string;
+  hostName: string;
+  gameTitle: string;
+  playedAt: number | null;
+  rating: number;
+  text: string;
+  name: string;
+  status: ReviewStatus;
+  createdAt: number;
+}
 
 /**
  * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают владелец и заместитель, видят все,
@@ -332,6 +437,8 @@ export interface Session {
   eventStartedAt?: number | null;
   /** Свой сервер: мероприятие из блоков — один код на весь вечер (`src/core/program.ts`). */
   program?: SessionProgram | null;
+  /** Свой сервер: оформление под заказчика — логотип и цвета (`src/core/branding.ts`). */
+  branding?: SessionBranding | null;
 }
 
 export interface Participant {
@@ -366,6 +473,8 @@ export interface NewSessionOptions {
   gameSnapshot: unknown;
   /** Мероприятие из блоков: игры вечера по порядку (сессия начинается с первой). Только свой сервер. */
   program?: { title: string; blocks: Array<{ title: string; mechanic: string; gameId: string; snapshot: unknown }> };
+  /** Оформление под заказчика (только свой сервер). */
+  branding?: SessionBranding | null;
 }
 
 /** Строка итоговой таблицы: игрок (solo) или команда (teams). */
@@ -472,6 +581,8 @@ export interface AgencyEvent {
   cancelled: boolean;
   /** После начала: true — проведено, false — не состоялось, null — не отмечено. */
   held: boolean | null;
+  /** Версия записи (время последнего изменения): форма правки шлёт её как `expect` — чужую правку не затереть. */
+  updatedAt?: number;
 }
 
 /** Клиент агентства (база клиентов владельца; только свой сервер). Данные — только на сервере в России. */
@@ -495,6 +606,11 @@ export interface ClientRecord {
   /** Откуда последнее обращение: site, question, venue, event, telegram, manual. */
   lastSource: string;
   archived: boolean;
+  /** Версия карточки (время последнего изменения): форма шлёт её как `expect`, чтобы не затереть чужую правку. */
+  updatedAt: number;
+  /** Последняя смена статуса — «В работе · Мария» (кто взял клиента); пусто — статус не меняли. */
+  statusLine: string;
+  statusAt: number | null;
 }
 
 export interface ClientContact {

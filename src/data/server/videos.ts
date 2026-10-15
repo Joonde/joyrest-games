@@ -27,6 +27,10 @@ export function parseVideo(value: unknown): LibraryVideo {
   };
 }
 
+function folderList(d: Record<string, unknown>): string[] {
+  return (Array.isArray(d.folders) ? d.folders : []).filter((f): f is string => typeof f === "string" && f.trim() !== "");
+}
+
 const path = (id: string) => `/api/videos/${encodeURIComponent(id)}`;
 const wait = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -46,7 +50,7 @@ export const serverVideosRepository: VideosRepository = {
   async list() {
     const d = asRecord(await api("GET", "/api/videos"));
     const videos = (Array.isArray(d.videos) ? d.videos : []).map(parseVideo).filter((v) => v.id !== "");
-    return { videos, usedBytes: typeof d.usedBytes === "number" ? d.usedBytes : 0 };
+    return { videos, usedBytes: typeof d.usedBytes === "number" ? d.usedBytes : 0, folders: folderList(d) };
   },
   async upload({ id, title, folder, file, durationMs }, onProgress, signal) {
     let video = parseVideo(await api("POST", "/api/videos", { id, title, folder, size: file.size, durationMs }));
@@ -74,6 +78,15 @@ export const serverVideosRepository: VideosRepository = {
   },
   async remove(id) {
     await api("DELETE", path(id));
+  },
+  async createFolder(name) {
+    return folderList(asRecord(await api("POST", "/api/video-folders", { name })));
+  },
+  async renameFolder(from, to) {
+    return folderList(asRecord(await api("POST", "/api/video-folders/rename", { from, to })));
+  },
+  async deleteFolder(name) {
+    return folderList(asRecord(await api("POST", "/api/video-folders/delete", { name })));
   },
   fileUrl(id) {
     return `${path(id)}/file`;

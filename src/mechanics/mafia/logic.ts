@@ -228,15 +228,19 @@ export interface Whisper {
 /** Длина, до которой добиваются все карты и подсказки: по размеру шифра роль не угадать. */
 export const PAD_TO = 900;
 
-/** Добить данные точками до длины `to` (в JSON): все карты и подсказки одной длины. */
+/** Размер JSON в байтах UTF-8: шифр выдаёт байты, а не буквы (кириллица — 2 байта). */
+function jsonBytes(data: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(data)).length;
+}
+
+/** Добить данные точками до `to` байт (в JSON): все карты и подсказки одной длины шифра. */
 export function padded<T extends object>(data: T, to: number = PAD_TO): T & { _: string } {
-  const plain = JSON.stringify({ ...data, _: "" });
-  return { ...data, _: ".".repeat(Math.max(0, to - plain.length)) };
+  return { ...data, _: ".".repeat(Math.max(0, to - jsonBytes({ ...data, _: "" }))) };
 }
 
 /** Добить все записи до общей длины: не меньше PAD_TO и не меньше самой длинной (большая семья мафии). */
 export function paddedAll<T extends object>(items: Record<string, T>): Record<string, T & { _: string }> {
-  const longest = Math.max(PAD_TO, ...Object.values(items).map((d) => JSON.stringify({ ...d, _: "" }).length));
+  const longest = Math.max(PAD_TO, ...Object.values(items).map((d) => jsonBytes({ ...d, _: "" })));
   const out: Record<string, T & { _: string }> = {};
   for (const [k, d] of Object.entries(items)) out[k] = padded(d, longest);
   return out;

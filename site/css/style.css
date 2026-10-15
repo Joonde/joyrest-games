@@ -524,7 +524,9 @@ input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--bt
 .consent-row{ display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.45; color: var(--ink-soft); cursor: pointer; }
 .consent-row input{ flex: none; width: 22px; height: 22px; margin: 1px 0 0; accent-color: #C49E96; }
 .consent-row a{ color: var(--accent-text); text-decoration: underline; }
-.privacy-link{ padding: 0; border: 0; background: none; color: var(--accent-text); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.privacy-link{ position: relative; padding: 0; border: 0; background: none; color: var(--accent-text); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+/* Ссылка внутри предложения: строку не раздвигаем, а пальцу даём зону касания 44 px по высоте. */
+.privacy-link::after{ content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 .footer .privacy-link{ color: inherit; }
 .form-note{ display: none; margin: 0; font-size: 14px; color: var(--green-text); }
 .form-note.show{ display: block; }
@@ -658,3 +660,19 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
   .ticker__in{ animation: none; }
   .ticker__item[aria-hidden="true"]{ display: none; }
 }
+
+/* Лента отзывов (js/reviews.js): по кругу без конца, листается пальцем, на компьютере — стрелки. */
+.reviews{ margin: 28px 0 32px; }
+.reviews__track{ display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 4px 2px 8px; overscroll-behavior-x: contain; }
+.reviews__track::-webkit-scrollbar{ display: none; }
+.reviews__track:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 4px; border-radius: 20px; }
+.review-card{ flex: 0 0 min(86%, 380px); scroll-snap-align: center; display: flex; flex-direction: column; gap: 12px; padding: 26px; border-radius: 20px; border: 1px solid var(--line); background: var(--card); }
+.review-card__stars{ margin: 0; font-size: 20px; letter-spacing: 2px; color: var(--accent-text); }
+.review-card__rest{ color: var(--line); }
+.review-card__text{ margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+.review-card__who{ margin: auto 0 0; font-size: 14px; color: var(--ink-soft); }
+.reviews__nav{ display: none; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+.reviews__btn{ width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--btn-outline); background: transparent; color: var(--ink); font-size: 26px; line-height: 1; cursor: pointer; }
+.reviews__btn:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 3px; }
+.reviews--single .reviews__nav{ display: none !important; }
+@media (min-width: 760px){ .reviews__nav{ display: flex; } .review-card{ flex-basis: 360px; } }

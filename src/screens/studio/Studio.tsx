@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, videosRepo, type AuthUser, type UserProfile } from "../../data";
+import { authService, calendarRepo, clientsRepo, permissions, sessionsRepo, teamRepo, tracksRepo, venuesRepo, videosRepo, finaleRepo, photosRepo, decksRepo, type AuthUser, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Tabs, type TabItem } from "../../components/Tabs";
@@ -15,6 +15,7 @@ import { accessRoleTitle } from "../../core/accessRoles";
 import { SwipePages } from "../../components/SwipePages";
 import { MusicTab } from "./MusicTab";
 import { VideoTab } from "./VideoTab";
+import { SalesDesk } from "./SalesDesk";
 
 type TabId = "agency" | "mine" | "music" | "video" | "history";
 
@@ -65,14 +66,22 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     ...(calendarRepo && permissions.canEditOwnCalendar(profile)
       ? [{ label: permissions.canViewTeamCalendar(profile) ? "Календарь и мероприятия" : "Мой календарь", to: "/studio/calendar" }]
       : []),
-    // База клиентов — только свой сервер и только владелец: все, кто оставлял заявки.
+    // База клиентов — только свой сервер, владелец и менеджер по продажам: все, кто оставлял заявки.
     ...(clientsRepo && permissions.canManageClients(profile) ? [{ label: "Клиенты", to: "/studio/clients" }] : []),
+    // Отзывы гостей — только свой сервер: ведущему о своих мероприятиях, владельцу — все.
+    ...(finaleRepo && permissions.canReadReviews(profile, profile.uid) ? [{ label: "Отзывы", to: "/studio/reviews" }] : []),
+    ...(photosRepo && permissions.canViewEventPhotos(profile, profile.uid) ? [{ label: "Фотоотчёты", to: "/studio/photos" }] : []),
+    // Показы — фото и PDF на весь экран зала (только свой сервер, тем, кто проводит игры).
+    ...(decksRepo && permissions.canCreateSession(profile) ? [{ label: "Показы", to: "/studio/decks" }] : []),
+    ...(clientsRepo && permissions.canReadSalesGuide(profile) ? [{ label: "Инструкция менеджера", to: "/studio/sales-guide" }] : []),
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.
     ...(venuesRepo && permissions.canManageVenues(profile) ? [{ label: "База площадок", to: "/venues" }] : []),
     ...(venuesRepo && permissions.canShowVenueQr(profile) ? [{ label: "QR-анкеты", to: "/studio/qr" }] : []),
     ...(teamRepo ? [{ label: "Мой профиль", to: "/studio/profile" }] : []),
+    // Что я могу в платформе — по профессии и роли, со «Скачать PDF» (решение владельца 15 октября 2026).
+    { label: "Мои возможности", to: "/studio/abilities" },
     { label: "Как проводить игры", to: "/studio/guide" },
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },
@@ -107,7 +116,11 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         <section className="card stack">
           <p className="eyebrow">{professionTitle(profile.profession)} · JoyRest</p>
           <h2>Здравствуйте, {profile.name}!</h2>
-          <p className="muted">Здесь скоро появятся ваши мероприятия и задачи от агентства. Пока заполните свою карточку — её видит вся команда.</p>
+          <p className="muted">
+            {permissions.isSalesManager(profile)
+              ? "Ниже — ваше рабочее место: новые анкеты, клиенты, свободные ведущие и мероприятия. Заполните и свою карточку — её видит вся команда."
+              : "Здесь скоро появятся ваши мероприятия и задачи от агентства. Пока заполните свою карточку — её видит вся команда."}
+          </p>
           <div className="actions">
             <Link className="btn btn--block" to="/studio/profile">
               Мой профиль
@@ -117,6 +130,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
             </Link>
           </div>
         </section>
+        {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
         <Toast text={toast} />
       </main>
     );
@@ -126,6 +140,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const body = (
     <div className="stack">
       {permissions.hostsGames(profile) && <ActiveGames hostId={profile.uid} />}
+      {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
       )}
@@ -165,6 +180,8 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       ) : overviewOpen ? (
         <SwipePages
           storageKey="studio-page"
+          // Ссылка на вкладку студии (?tab=…, «В студию» из отзывов, музыки, видео) — сразу экран «Студия».
+          start={params.get("tab") ? "studio" : undefined}
           pages={[
             { id: "live", label: "Игры сейчас", node: <LiveOverview adminId={profile.uid} owner={permissions.isAdmin(profile)} /> },
             { id: "studio", label: "Студия", node: body },

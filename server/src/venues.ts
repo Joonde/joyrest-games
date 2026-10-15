@@ -57,6 +57,8 @@ export interface VenuesOptions {
   /** Пометка тестового окружения («🧪 ТЕСТ»). */
   label?: string;
   send?: (target: TelegramTarget, text: string) => Promise<void>;
+  /** Новая заявка клиента — менеджерам по продажам в Telegram (без данных клиента); null — бота нет. */
+  salesNotice?: ((kind: "venue") => Promise<unknown>) | null;
   now?: () => number;
   limits?: Partial<VenueLimits>;
   freeBytes?: (dir: string) => Promise<number>;
@@ -473,6 +475,7 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
           summary: [`Запрос №${number}`, data.eventType, data.guests ? `${data.guests} гостей` : "", data.date].filter(Boolean).join(", "),
           ref: id,
         }).catch(() => log(request, "request-form", "client-failed"));
+        void options.salesNotice?.("venue").catch(() => log(request, "request-form", "sales-notice-failed"));
       }
       log(request, "request-form", "ok");
       return { ok: true, number };
@@ -564,9 +567,13 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
       if (!user) return reply;
       const body = isRecord(request.body) ? request.body : {};
       const id = request.params.id;
-      const [current] = await sql<{ id: string; status: string; source: string; host_id: string | null; data: unknown; archived_at: Date | null }[]>`
-        select id, status, source, host_id, data, archived_at from venues where id = ${id}`;
+      const [current] = await sql<{ id: string; status: string; source: string; host_id: string | null; data: unknown; archived_at: Date | null; updated_at: Date }[]>`
+        select id, status, source, host_id, data, archived_at, updated_at from venues where id = ${id}`;
       if (!current) return fail(reply, 404, "not-found");
+      // Анкету правят владелец, менеджер и модератор: правка шлёт `expect` — версию, с которой её открыли.
+      if (body.data !== undefined && typeof body.expect === "number" && Math.floor(current.updated_at.getTime()) !== body.expect) {
+        return reply.code(409).send({ error: "changed" });
+      }
       // Из архива — только «Вернуть»: менять убранную площадку нельзя.
       if (current.archived_at) return fail(reply, 409, "failed-precondition");
       if (body.status !== undefined && !isVenueStatus(body.status)) return fail(reply, 400, "invalid-argument");

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { decksRepo, type SessionBranding, type SlideMedia } from "../../data";
+import { ClientLogo } from "../ClientLogo";
 import { drawFrame, drawNames } from "../../core/draw";
 import { countdownLabel } from "../../core/slides";
 import type { SlideState } from "../../data";
@@ -8,6 +10,7 @@ import { formatSessionCode } from "../../core/code";
 import { VPN_HINT } from "../../core/texts";
 import { joinHint, playUrl } from "../links";
 import { Confetti } from "./Confetti";
+import { FinaleQrs } from "./Finale";
 import { playSound } from "./sound";
 import { useServerNow } from "./useServerNow";
 
@@ -18,16 +21,56 @@ const SOUNDS: Partial<Record<SlideState["kind"], Parameters<typeof playSound>[0]
   thanks: "applause",
 };
 
-/** Канал JoyRest для слайда «Спасибо». */
-const CHANNEL = "https://t.me/JoyRest";
-
 /**
  * Слайд поверх экрана зала (CLAUDE.md, раздел 7, «Слайды»): шаблон в стиле темы на её живом фоне.
  * Размеры — в единицах контейнера, как у вопросов: предпросмотр совпадает с телевизором.
  */
-export function SlideView({ slide, preview = false, code }: { slide: SlideState; preview?: boolean; code?: string }) {
+export function SlideView({
+  slide,
+  preview = false,
+  code,
+  sessionId,
+  branding,
+}: {
+  slide: SlideState;
+  preview?: boolean;
+  code?: string;
+  sessionId?: string;
+  /** Оформление под заказчика: логотип над слайдом. */
+  branding?: SessionBranding | null;
+}) {
   if (slide.kind === "draw") return <DrawSlide slide={slide} preview={preview} />;
-  return <TemplateSlide slide={slide} preview={preview} code={code} />;
+  if (slide.kind === "image" && slide.media) return <ImageSlide media={slide.media} title={slide.title} />;
+  return <TemplateSlide slide={slide} preview={preview} code={code} sessionId={sessionId} branding={branding ?? null} />;
+}
+
+/** Фото или страница PDF на весь экран; следующую страницу экран загружает заранее (листание без паузы). */
+function ImageSlide({ media, title }: { media: SlideMedia; title: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!media.next || !decksRepo) return;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = decksRepo.pageUrl(media.next);
+  }, [media.next]);
+  if (!decksRepo) return null;
+  return (
+    <div className="slide slide--image">
+      {failed === media.sha ? (
+        <p className="slide__text">Не загрузилась страница {media.page + 1}. Проверьте интернет — или покажите следующую.</p>
+      ) : (
+        <img
+          key={media.sha}
+          className="slide__image"
+          src={decksRepo.pageUrl(media.sha)}
+          width={media.w}
+          height={media.h}
+          alt={title ? `${title}, страница ${media.page + 1}` : `Страница ${media.page + 1}`}
+          onError={() => setFailed(media.sha)}
+        />
+      )}
+    </div>
+  );
 }
 
 /**
@@ -66,7 +109,7 @@ function DrawSlide({ slide, preview }: { slide: SlideState; preview: boolean }) 
   );
 }
 
-function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: boolean; code?: string }) {
+function TemplateSlide({ slide, preview, code, sessionId, branding }: { slide: SlideState; preview: boolean; code?: string; sessionId?: string; branding: SessionBranding | null }) {
   const now = useServerNow(500, (slide.kind === "break" || slide.kind === "tech") && slide.endsAt !== null);
   const last = useRef(slide.id);
 
@@ -82,7 +125,9 @@ function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: b
 
   return (
     <div className={`slide slide--${slide.kind}`}>
-      {slide.kind === "intro" && <Logo kind="emblem" className="slide__emblem" title="" />}
+      {/* Заставка вечера с логотипом заказчика: его логотип вместо эмблемы JoyRest (знак JoyRest — в углу экрана). */}
+      {slide.kind === "intro" && (branding?.logo ? <ClientLogo branding={branding} className="client-logo--intro" /> : <Logo kind="emblem" className="slide__emblem" title="" />)}
+      {slide.kind !== "intro" && slide.kind !== "join" && <ClientLogo branding={branding} className="client-logo--slide" />}
       {slide.kind === "round" && <p className="slide__eyebrow">Следующий раунд</p>}
       {slide.kind === "tech" && <p className="slide__eyebrow">Пауза</p>}
       {slide.title && <h2 className="slide__title">{slide.title}</h2>}
@@ -112,12 +157,7 @@ function TemplateSlide({ slide, preview, code }: { slide: SlideState; preview: b
           </div>
         </div>
       )}
-      {slide.kind === "thanks" && (
-        <div className="slide__channel">
-          <QrCode value={CHANNEL} label="QR-код канала JoyRest в Telegram" className="slide__qr" />
-          <p className="slide__text">Фото и новые игры — в канале t.me/JoyRest</p>
-        </div>
-      )}
+      {slide.kind === "thanks" && <FinaleQrs sessionId={preview ? null : sessionId} />}
       {slide.kind !== "intro" && <Logo kind="monogram" className="slide__mark" title="" />}
     </div>
   );

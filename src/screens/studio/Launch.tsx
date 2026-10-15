@@ -1,5 +1,5 @@
 import { Fold } from "../../components/Fold";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameSnapshot } from "../../core/games";
 import {
@@ -23,6 +23,10 @@ import { EVENING_MECHANIC } from "../../core/program";
 import { NOT_IN_EVENING, parseEvening } from "../../mechanics/evening/content";
 import { getTheme, THEME_HINTS, themesForRating, themeStyle } from "../../themes/registry";
 import { Scene } from "../../components/live/Scene";
+import { BrandingPicker } from "../../components/BrandingPicker";
+import { ClientLogo } from "../../components/ClientLogo";
+import type { SessionBranding } from "../../core/branding";
+import { brandTheme } from "../../themes/branding";
 
 const AGE_ORDER = ["0+", "12+", "18+"];
 
@@ -172,6 +176,9 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
   );
   const standalone = getMechanic(game.mechanic)?.standalone ?? null;
   const [themeId, setThemeId] = useState(standalone?.themeId ?? getTheme(game.themeId).id);
+  const [branding, setBranding] = useState<SessionBranding | null>(null);
+  const pickBranding = useCallback((b: SessionBranding | null) => setBranding(b), []);
+  const previewTheme = brandTheme(getTheme(themeId), branding);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,6 +196,7 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
         themeId,
         playMode,
         screenMode,
+        ...(branding && !standalone ? { branding } : {}),
         ...(blocks
           ? { program: { title: game.title, blocks: blocks.map((g) => ({ title: g.title, mechanic: g.mechanic, gameId: g.id, snapshot: gameSnapshot(g) })) } }
           : {}),
@@ -267,17 +275,20 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
           ))}
         </fieldset>
         </Fold>
+        <BrandingPicker value={branding} onChange={pickBranding} />
         <div
           className="preview-screen"
-          style={themeStyle(themeId)}
+          style={themeStyle(previewTheme)}
           data-shine={getTheme(themeId).effects?.shine ? "on" : undefined}
           aria-label={`Так выглядит экран зала: ${getTheme(themeId).title}`}
           role="img"
         >
           <Scene themeId={themeId} />
           <div className="theme-preview__content">
+            <ClientLogo branding={branding} className="client-logo--preview" />
             <p className="eyebrow">Код игры</p>
             <div className="big-code">482 913</div>
+            {branding && branding.colors.length > 0 && <span className="preview-button">Начать игру</span>}
           </div>
         </div>
           </>

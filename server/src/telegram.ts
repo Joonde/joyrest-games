@@ -6,7 +6,9 @@
  *   сервер связывает чат с человеком (`tg_links`). /stop — отключить.
  * - Мероприятие назначено, изменено, снято или отменено — сообщение ведущему; напоминания за день (за сутки) и за 2 часа
  *   (`event_notices` — по одному на мероприятие, вид и время начала). Без имени, телефона и адреса клиента.
- * - Владелец пересылает боту сообщение клиента или текст заявки — клиент попадает в базу клиентов.
+ * - Владелец или менеджер по продажам пересылает боту сообщение клиента или текст заявки — клиент попадает в базу клиентов.
+ * - Новая заявка клиента (сайт, вопрос, запрос по QR) — менеджерам по продажам «Новая заявка» со ссылкой в студию
+ *   (`salesNotice`), без имени, телефона и адреса: их видно только в студии. Владельцу заявки приходят как раньше.
  *
  * Сообщения бот читает через getUpdates (без вебхука и без открытых адресов). Читать может только одно окружение:
  * TELEGRAM_UPDATES=on у основной версии (compose); без переменной — только на тестовой (адреса test.*).
@@ -55,6 +57,8 @@ export interface Bot {
   sendTo(userId: string, text: string): Promise<boolean>;
   /** Уведомить ведущего о мероприятии и отметить уже наступившие напоминания, чтобы они не пришли следом. */
   eventNotice(kind: NoticeKind, userId: string, event: Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end">, startsAt: Date): Promise<void>;
+  /** Менеджерам по продажам с подключённым Telegram — о новой заявке (без данных клиента). Ответ — скольким ушло. */
+  salesNotice(kind: SalesLeadKind): Promise<number>;
   stop(): void;
 }
 
@@ -90,6 +94,18 @@ interface TgMessage {
   forward_origin?: { type: string; sender_user?: TgUser; sender_user_name?: string };
   forward_from?: TgUser;
   forward_sender_name?: string;
+}
+
+/** Откуда новая заявка: с сайта, вопрос с сайта, запрос по QR-анкете. */
+export type SalesLeadKind = "site" | "question" | "venue";
+
+/** Текст «Новая заявка» для менеджера: что пришло и куда смотреть — без имени, телефона и адреса клиента. */
+export function salesNoticeText(kind: SalesLeadKind, platformUrl: string): string {
+  const what = kind === "site" ? "Новая заявка с сайта" : kind === "question" ? "Новый вопрос с сайта" : "Новый запрос клиента по QR-анкете";
+  const where = kind === "venue" ? `${platformUrl}/venues` : `${platformUrl}/studio/clients`;
+  return `🔔 ${what}.
+Свяжитесь с клиентом в течение 30 минут (в рабочее время) и поставьте статус «В работе».
+${where}`;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -156,6 +172,15 @@ export function startBot(options: BotOptions): Bot {
     await sendTo(userId, noticeText(kind, event, platformUrl, now(), startsAt.getTime()));
   }
 
+  async function salesNotice(kind: SalesLeadKind): Promise<number> {
+    const rows = await sql<{ user_id: string }[]>`
+      select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and u.access_role = 'sales'`;
+    let sent = 0;
+    for (const r of rows) if (await sendTo(r.user_id, salesNoticeText(kind, platformUrl))) sent += 1;
+    log.info({ telegram: "sales-notice", kind, sent }, "telegram");
+    return sent;
+  }
+
   // ───── напоминания ─────
   async function remind(): Promise<void> {
     const rows = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date }[]>`
@@ -200,15 +225,15 @@ export function startBot(options: BotOptions): Bot {
           on conflict (user_id) do update set chat_id = excluded.chat_id, username = excluded.username, linked_at = now()`;
       });
       log.info({ telegram: "link", result: "ok" }, "telegram");
-      const [u] = await sql<{ role: string }[]>`select role from users where id = ${row.user_id}`;
-      const ownerHint = permissions.isAdmin({ uid: row.user_id, role: u?.role === "admin" ? "admin" : "host", active: true })
-        ? "\n\nВладельцу: перешлите сюда сообщение клиента или текст заявки — клиент попадёт в базу клиентов."
+      const [u] = await sql<{ role: string; access_role: string | null }[]>`select role, access_role from users where id = ${row.user_id}`;
+      const ownerHint = permissions.canManageClients({ uid: row.user_id, role: u?.role === "admin" ? "admin" : "host", active: true, accessRole: u?.access_role ?? null })
+        ? "\n\nКлиенты: перешлите сюда сообщение клиента или текст заявки — клиент попадёт в базу клиентов."
         : "";
       await sendChat(chatId, `✅ Telegram подключён. Сюда будут приходить ваши мероприятия JoyRest: назначение, изменения, отмена и напоминания за день (за сутки) и за 2 часа.\n\nОтключить — /stop${ownerHint}`);
       return;
     }
-    const [link] = await sql<{ user_id: string; role: string; active: boolean }[]>`
-      select l.user_id, u.role, u.active from tg_links l join users u on u.id = l.user_id where l.chat_id = ${chatId}`;
+    const [link] = await sql<{ user_id: string; role: string; active: boolean; access_role: string | null }[]>`
+      select l.user_id, u.role, u.active, u.access_role from tg_links l join users u on u.id = l.user_id where l.chat_id = ${chatId}`;
     if (text === "/stop") {
       await sql`delete from tg_links where chat_id = ${chatId}`;
       await sendChat(chatId, "Telegram отключён: уведомления больше не придут. Подключить снова — в студии, «Мой профиль».");
@@ -219,7 +244,7 @@ export function startBot(options: BotOptions): Bot {
       await sendChat(chatId, "Это бот агентства JoyRest. Чтобы получать свои мероприятия и напоминания, откройте студию → «Мой профиль» → «Подключить Telegram».");
       return;
     }
-    const owner = permissions.canManageClients({ uid: link.user_id, role: link.role === "admin" ? "admin" : "host", active: link.active });
+    const owner = permissions.canManageClients({ uid: link.user_id, role: link.role === "admin" ? "admin" : "host", active: link.active, accessRole: link.access_role });
     if (!owner) {
       await sendChat(chatId, "Сюда приходят ваши мероприятия JoyRest и напоминания. Подробности — в студии. Отключить — /stop.");
       return;
@@ -298,6 +323,7 @@ export function startBot(options: BotOptions): Bot {
     username,
     sendTo,
     eventNotice,
+    salesNotice,
     stop() {
       stopped = true;
       clearInterval(remindTimer);

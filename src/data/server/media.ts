@@ -29,6 +29,13 @@ export const serverMediaRepository: MediaRepository = {
       await putImage(url(gameId, mediaId, "full"), image.full, image.width, image.height);
       await putImage(url(gameId, mediaId, "small"), image.small, small.width, small.height);
     });
+    // Чёткая версия — следом и без спешки: игра готова и без неё.
+    const hd = image.hd;
+    if (hd) {
+      const hdUrl = `/api/media/${encodeURIComponent(gameId)}/${encodeURIComponent(mediaId)}/hd`;
+      cache.set(hdUrl, Promise.resolve(hd.blob));
+      void saved.then(() => withRetry(() => putImage(hdUrl, hd.blob, hd.width, hd.height))).catch(() => cache.delete(hdUrl));
+    }
     return { mediaId, saved };
   },
 
@@ -38,6 +45,17 @@ export const serverMediaRepository: MediaRepository = {
     if (!promise) {
       promise = getImage(key);
       // Ошибку сети не запоминаем: следующий показ попробует снова.
+      promise.catch(() => cache.delete(key));
+      cache.set(key, promise);
+    }
+    return promise;
+  },
+
+  loadHd(gameId, mediaId) {
+    const key = `/api/media/${encodeURIComponent(gameId)}/${encodeURIComponent(mediaId)}/hd`;
+    let promise = cache.get(key);
+    if (!promise) {
+      promise = getImage(key);
       promise.catch(() => cache.delete(key));
       cache.set(key, promise);
     }

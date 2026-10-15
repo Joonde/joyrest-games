@@ -9,6 +9,7 @@
  * `canSubmitAnswer` проверяется по его часам. Все записи повторяемы: id создаёт браузер,
  * ответ — ключ (сессия, шаг, участник).
  */
+import { parseBranding } from "../../src/core/branding";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql, TransactionSql } from "postgres";
 import { generateSessionCode } from "../../src/core/code";
@@ -105,9 +106,11 @@ interface SessionRow {
   breaks?: unknown;
   /** Мероприятие из блоков (миграция 0016, `src/core/program.ts`). */
   program?: unknown;
+  /** Оформление под заказчика (миграция 0027, `src/core/branding.ts`). */
+  branding?: unknown;
 }
 
-const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks", "program"];
+const SESSION_COLUMNS = ["id", "code", "host_id", "game_id", "game_title", "mechanic", "game_snapshot", "theme_id", "play_mode", "screen_mode", "state", "leaderboard", "created_at", "started_at", "event_started_at", "breaks", "program", "branding"];
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE = /^\d{6}$/;
 const PHASES = new Set<SessionPhase>(["lobby", "playing", "finished"]);
@@ -213,6 +216,7 @@ function sessionOf(row: SessionRow) {
     breaks: parseBreaks(row.breaks),
     // Программа вечера без снимков игр (их знает только сервер).
     program: publicProgram(row.program ?? null),
+    branding: parseBranding(row.branding ?? null),
     version: row.version,
   };
 }
@@ -683,16 +687,17 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         mechanic = program.blocks[0]?.mechanic ?? null;
         snapshot = program.snapshots[0] ?? null;
       }
+      const branding = parseBranding(body.branding ?? null);
       for (let attempt = 0; attempt < 10; attempt++) {
         const code = generateSessionCode();
         // Код занят незавершённой сессией — уникальный индекс не даст записать, пробуем другой.
         const rows = await sql`
-          insert into sessions (id, code, host_id, game_id, game_title, mechanic, game_snapshot, theme_id, play_mode, screen_mode, state, program)
+          insert into sessions (id, code, host_id, game_id, game_title, mechanic, game_snapshot, theme_id, play_mode, screen_mode, state, program, branding)
           values (${id}, ${code}, ${who.uid}, ${typeof body.gameId === "string" ? body.gameId : null}, ${text(body.gameTitle, 200)},
                   ${mechanic}, ${sql.json(snapshot as never)},
                   ${text(body.themeId, 40) || "joyrest"}, ${body.playMode === "teams" ? "teams" : "solo"},
                   ${body.screenMode === "remote" || body.screenMode === "none" ? body.screenMode : "laptop"}, ${sql.json(state as never)},
-                  ${program ? sql.json(program as never) : null})
+                  ${program ? sql.json(program as never) : null}, ${branding ? sql.json(branding as never) : null})
           on conflict do nothing returning id`;
         if (rows.length > 0) return { id, code };
         const again = await loadSession(id);

@@ -6,7 +6,7 @@
  * Чистые функции: их же проверяет сервер.
  */
 
-export const CLIENT_LIMITS = { name: 100, phone: 40, link: 200, links: 5, notes: 2000, summary: 300 } as const;
+export const CLIENT_LIMITS = { name: 100, phone: 40, link: 200, links: 5, notes: 2000, summary: 3000 } as const;
 
 export type ClientStatus = "new" | "work" | "client" | "lost";
 export const CLIENT_STATUSES: ClientStatus[] = ["new", "work", "client", "lost"];
@@ -25,7 +25,7 @@ export const MARKETING_TITLES: Record<Marketing, string> = {
   unknown: "Согласия на рассылку нет",
 };
 
-export type ClientSource = "site" | "question" | "venue" | "event" | "telegram" | "manual";
+export type ClientSource = "site" | "question" | "venue" | "event" | "telegram" | "manual" | "status";
 export const SOURCE_TITLES: Record<ClientSource, string> = {
   site: "Заявка с сайта",
   question: "Вопрос с сайта",
@@ -33,6 +33,7 @@ export const SOURCE_TITLES: Record<ClientSource, string> = {
   event: "Мероприятие",
   telegram: "Из Telegram",
   manual: "Добавлен вручную",
+  status: "Статус",
 };
 
 export function isClientStatus(value: unknown): value is ClientStatus {

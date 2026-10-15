@@ -20,6 +20,11 @@ import type {
   TeamRepository,
   TracksRepository,
   VideosRepository,
+  FinaleRepository,
+  EventPhotosRepository,
+  BrandingsRepository,
+  DecksRepository,
+  PollsRepository,
   StaffRepository,
   ResultsRepository,
   SessionsRepository,
@@ -51,6 +56,11 @@ import { serverAudienceRepository } from "./server/audience";
 import { serverTeamRepository } from "./server/team";
 import { serverTracksRepository } from "./server/tracks";
 import { serverVideosRepository } from "./server/videos";
+import { serverFinaleRepository } from "./server/finale";
+import { serverEventPhotosRepository } from "./server/photos";
+import { serverBrandingsRepository } from "./server/brandings";
+import { serverDecksRepository } from "./server/decks";
+import { serverPollsRepository } from "./server/polls";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
 import { serverUsersRepository } from "./server/users";
@@ -79,6 +89,14 @@ export const staffRepo: StaffRepository | null = server ? serverStaffRepository 
 export const gameFoldersRepo: typeof serverGameFolders | null = server ? serverGameFolders : null;
 /** Музыка — только свой сервер. */
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
+/** Фотоотчёт мероприятия — только свой сервер. */
+export const photosRepo: EventPhotosRepository | null = server ? serverEventPhotosRepository : null;
+export const brandingsRepo: BrandingsRepository | null = server ? serverBrandingsRepository : null;
+export const decksRepo: DecksRepository | null = server ? serverDecksRepository : null;
+/** «Опрос гостей заранее» для «100 к 1» — только свой сервер. */
+export const pollsRepo: PollsRepository | null = server ? serverPollsRepository : null;
+/** Конец игры: чаевые и отзывы — только свой сервер. */
+export const finaleRepo: FinaleRepository | null = server ? serverFinaleRepository : null;
 /** Видео JoyRest — только свой сервер. */
 export const videosRepo: VideosRepository | null = server ? serverVideosRepository : null;
 /** «Команда JoyRest» — только свой сервер. */

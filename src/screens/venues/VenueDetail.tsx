@@ -220,11 +220,21 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
       confirmLabel: "Сохранить изменения",
       run: () =>
         act(async () => {
-          const saved = await repo.update(venue.id, { data: draft });
-          setEditing(false);
-          if (thenLeave) navigate(list.to);
-          return saved;
-        }, "Анкета сохранена"),
+          try {
+            const saved = await repo.update(venue.id, { data: draft, expect: venue.updatedAt });
+            setEditing(false);
+            if (thenLeave) navigate(list.to);
+            showToast("Анкета сохранена");
+            return saved;
+          } catch (e) {
+            // Анкету одновременно правил другой человек: свою правку не теряем, говорим, что делать.
+            if (typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "changed") {
+              setError("Пока вы правили, эту анкету изменил другой человек. Ваши правки на экране, но не сохранены: скопируйте нужное, выйдите из правки, откройте анкету снова и внесите их.");
+              return;
+            }
+            throw e;
+          }
+        }),
     });
   }
 

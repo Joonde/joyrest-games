@@ -349,7 +349,12 @@ try {
   await screen.goto(`${BASE}/screen/${game.code}`);
   await screen.getByText("Присоединяйтесь к игре").waitFor({ timeout: WAIT });
   // Оформление заказчика: логотип в лобби, цвет — в теме экрана; знак JoyRest на месте.
-  check(await screen.locator(".client-logo--lobby").evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false), "Экран зала: логотип заказчика в лобби");
+  check(
+    await screen
+      .waitForFunction(() => { const img = document.querySelector(".client-logo--lobby"); return !!img && img.complete && img.naturalWidth > 0; }, null, { timeout: WAIT })
+      .then(() => true, () => false),
+    "Экран зала: логотип заказчика в лобби",
+  );
   check((await screen.locator(".logo--lobby").count()) === 1, "Экран зала: логотип JoyRest остаётся рядом");
   const hallPrimary = await screen.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim());
   check(hallPrimary.toUpperCase() !== "#C49E96", "Экран зала: кнопки и акценты — в цвете заказчика", `Экран зала: --color-primary ${hallPrimary}`);
@@ -546,7 +551,7 @@ try {
   await screen.locator(".slide--image img.slide__image").waitFor({ timeout: 60_000 });
   const shownSrc = () => screen.locator(".slide__image").getAttribute("src");
   const firstSrc = await shownSrc();
-  check(await screen.locator(".slide__image").evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false), "Показ: PDF и фото загружены с телефона — первая страница на весь экран зала");
+  check(await screen.waitForFunction(() => { const img = document.querySelector(".slide__image"); return !!img && img.complete && img.naturalWidth > 0; }, null, { timeout: WAIT }).then(() => true, () => false), "Показ: PDF и фото загружены с телефона — первая страница на весь экран зала");
   await shot(screen, "экран-показ");
   const deck = ((await api("GET", "/api/decks", host.cookie)).data?.decks ?? []).find((d) => d.title.includes(MARK));
   check(deck?.pages?.length === 3, "Показ: 2 страницы PDF + фото = 3 страницы", `Показ: страниц ${deck?.pages?.length}`);
@@ -570,7 +575,8 @@ try {
   ok("Пульт: «Убрать» — показ ушёл с экрана");
   // Студия «Показы»: переименовать, порядок, убрать страницу (сначала «Отмена»), удалить показ.
   await hp.goto(`${BASE}/studio/decks`);
-  const deckCard = hp.locator("section.card", { hasText: `Меню ${MARK}` });
+  // Карточку ищем по aria-label: в режиме переименования заголовок становится полем ввода.
+  const deckCard = hp.locator(`section.card[aria-label^="Меню ${MARK}"]`);
   await deckCard.waitFor({ timeout: WAIT });
   await deckCard.getByRole("button", { name: "Переименовать" }).click();
   await deckCard.getByLabel("Название показа").fill(`Программа ${MARK}`);

@@ -56,8 +56,7 @@ jobs:
           [ -d /tmp/e2e/shots ] || exit 0
           git config user.name "joyrest-ci"
           git config user.email "ci@joy-rest.ru"
-          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || git checkout --orphan e2e-shots
-          git rm -rq --cached . 2>/dev/null || true
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
           rm -rf calendar && mkdir -p calendar && cp /tmp/e2e/shots/*.png calendar/ 2>/dev/null || true
-          git add calendar
-          git commit -qm "Снимки проверки календаря ${GITHUB_SHA::7}" && git push -qf origin e2e-shots || echo "Снимков нет"
+          git add -A calendar
+          git commit -qm "Снимки проверки календаря ${GITHUB_SHA::7}" && { for i in 1 2 3 4 5; do git push -q origin HEAD:e2e-shots && break; git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break; done; } || echo "Снимков нет"

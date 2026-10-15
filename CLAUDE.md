@@ -1550,8 +1550,11 @@ Wits & Wagers): вопросы с ответом-числом (`answer`, `unit`,
   телефон и игру (повтор — правка, снова «Новый»), не больше 500 на игру; хранит название игры, ведущего и дату (сессии
   удаляются через 30 дней, отзывы остаются). Студия → «Отзывы» (`/studio/reviews`): ведущий — о своих мероприятиях
   (`permissions.canReadReviews`), владелец — все, «Показать на сайте» / «Скрыть» (`canModerateReviews`; статусы new,
-  published, hidden; на сайте опубликованные появятся, когда сайт включат). API: `GET /api/finale/:id`, `POST /api/reviews`,
-  `GET /api/reviews`, `POST /api/reviews/:id/status`, `GET|POST /api/me/tips`. Проверяет `live.test.ts`.
+  published, hidden; на сайте опубликованные появятся, когда сайт включат). Фильтр по оценке (решение владельца 15 октября
+  2026, `src/core/reviewRating.ts`): «Любая оценка», «Отличные ★5», «Хорошие ★4», «Средние ★3», «Плохие ★1–2» — со счётчиками,
+  вместе с фильтром статуса. «Удалить отзыв» (владелец, с подтверждением) — `DELETE /api/reviews/:id`: только сам отзыв, игра и
+  итоги остаются. API: `GET /api/finale/:id`, `POST /api/reviews`,
+  `GET /api/reviews`, `POST /api/reviews/:id/status`, `DELETE /api/reviews/:id`, `GET|POST /api/me/tips`. Проверяет `live.test.ts`.
 - **Фотоотчёт мероприятия** (решение владельца 15 октября 2026; миграция `0025_event_photos.sql`, `server/src/photos.ts`,
   пульт — `EventPhotosCard` (`src/components/live/EventPhotos.tsx`, свёрнуто, после «Начать игру» и после завершения), студия —
   «Фотоотчёты» `/studio/photos`; `photosRepo` — null у Firebase): до 3 общих фото на игру (ячейки 1–3: «Сделать фото» — камера

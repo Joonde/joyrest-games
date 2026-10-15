@@ -1,8 +1,11 @@
 /**
  * Отзывы гостей (решение владельца 15 октября 2026): гости оставляют их после игры по QR на экране зала или прямо с
  * телефона. Ведущий видит отзывы о своих мероприятиях, владелец — все и отмечает «Показать на сайте» или «Скрыть».
+ * Фильтр по оценке (отличные, хорошие, средние, плохие); владелец может удалить отзыв навсегда — только сам отзыв.
  */
 import { useState } from "react";
+import { inRatingGroup, RATING_GROUPS, type RatingGroup } from "../../core/reviewRating";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -39,7 +42,9 @@ function ReviewList({ profile }: { profile: UserProfile }) {
   const repo = finaleRepo;
   const [state, retry, update] = useLoad(() => (repo ? repo.listReviews() : Promise.resolve([] as GuestReview[])), [repo]);
   const [filter, setFilter] = useState<Filter>("all");
+  const [stars, setStars] = useState<RatingGroup>("all");
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, ask] = useConfirm();
   const [toast, showToast] = useToast();
   const owner = permissions.canModerateReviews(profile);
 
@@ -57,9 +62,25 @@ function ReviewList({ profile }: { profile: UserProfile }) {
     }
   }
 
+  function remove(review: GuestReview) {
+    ask({
+      title: "Удалить отзыв навсегда?",
+      text: "Удалится только этот отзыв: с сайта и из списка. Игра, итоги и другие отзывы останутся. Вернуть нельзя.",
+      confirmLabel: "Удалить отзыв",
+      run: async () => {
+        if (!repo) return;
+        await repo.deleteReview(review.id);
+        update((list) => list.filter((r) => r.id !== review.id));
+        showToast("Отзыв удалён");
+      },
+    });
+  }
+
   if (state.status === "loading") return <ListSkeleton />;
   if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
-  const list = state.data.filter((r) => filter === "all" || r.status === filter);
+  const byStatus = state.data.filter((r) => filter === "all" || r.status === filter);
+  const list = byStatus.filter((r) => inRatingGroup(r.rating, stars));
+  const countIn = (group: RatingGroup) => byStatus.filter((r) => inRatingGroup(r.rating, group)).length;
   const rated = state.data.filter((r) => r.rating > 0);
   const average = rated.length ? rated.reduce((s, r) => s + r.rating, 0) / rated.length : 0;
 
@@ -82,7 +103,14 @@ function ReviewList({ profile }: { profile: UserProfile }) {
           </button>
         ))}
       </div>
-      {list.length === 0 && <p className="muted">Отзывов пока нет.</p>}
+      <div className="seg clients-filters" role="group" aria-label="Отзывы по оценке">
+        {RATING_GROUPS.map((g) => (
+          <button key={g.id} type="button" className={stars === g.id ? "seg__btn is-on" : "seg__btn"} aria-pressed={stars === g.id} onClick={() => setStars(g.id)}>
+            {g.label} · {countIn(g.id)}
+          </button>
+        ))}
+      </div>
+      {list.length === 0 && <p className="muted">{state.data.length === 0 ? "Отзывов пока нет." : "С такой оценкой отзывов нет."}</p>}
       <ul className="review-list">
         {list.map((r) => (
           <li key={r.id} className="card stack stack--tight">
@@ -115,11 +143,15 @@ function ReviewList({ profile }: { profile: UserProfile }) {
                     Скрыть
                   </button>
                 )}
+                <button type="button" className="btn btn--quiet" disabled={busy === r.id} onClick={() => remove(r)}>
+                  Удалить отзыв
+                </button>
               </div>
             )}
           </li>
         ))}
       </ul>
+      {confirm}
       <Toast text={toast} />
     </div>
   );

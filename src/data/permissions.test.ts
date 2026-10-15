@@ -344,7 +344,7 @@ describe("роли доступа помощников", () => {
   const agencyTrack = { scope: "agency" as const, ownerId: ADMIN_UID };
 
   it("роль только добавляет: ведущий с любой ролью сохраняет всё своё", () => {
-    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy", null]) {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "deputy", "sales", null]) {
       const a = hostWith(role);
       expect(p.canCreateGame(a, "personal", "host-1")).toBe(true);
       expect(p.canEditGame(a, myGame)).toBe(true);
@@ -358,7 +358,7 @@ describe("роли доступа помощников", () => {
   });
 
   it("ни одна роль не даёт прав владельца", () => {
-    for (const role of ["creator", "music", "tester", "venues", "assistant", "admin", "owner"]) {
+    for (const role of ["creator", "music", "tester", "venues", "assistant", "sales", "admin", "owner"]) {
       for (const a of [dj(role), hostWith(role)]) {
         expect(p.isAdmin(a)).toBe(false);
         expect(p.canManageHosts(a)).toBe(false);
@@ -458,6 +458,42 @@ describe("роли доступа помощников", () => {
     expect(p.canUploadVideo(host)).toBe(false);
     expect(p.canUseVideos(host)).toBe(true);
     expect(p.canUploadVideo({ uid: "x", role: "host", active: false, profession: "host", accessRole: "deputy" })).toBe(false);
+  });
+
+  it("менеджер по продажам: клиенты, площадки, «Кто может», мероприятия — без выгрузки, удаления и прав владельца", () => {
+    for (const a of [dj("sales"), hostWith("sales"), { uid: "m-1", role: "host" as const, active: true, profession: "sales", accessRole: "sales" }]) {
+      expect(p.isSalesManager(a)).toBe(true);
+      expect(p.canManageClients(a)).toBe(true);
+      expect(p.canManageVenues(a)).toBe(true);
+      expect(p.canViewTeamCalendar(a)).toBe(true);
+      expect(p.canManageEvents(a)).toBe(true);
+      expect(p.canViewEvent(a, { hostId: "host-2" })).toBe(true);
+      expect(p.canMarkEventHeld(a, { hostId: "host-2" })).toBe(true);
+      expect(p.canRemoveCalendarEntry(a, { uid: "host-2", kind: "booked" })).toBe(true);
+      expect(p.canRemoveCalendarEntry(a, { uid: "host-2", kind: "free" })).toBe(false);
+      expect(p.canReadSalesGuide(a)).toBe(true);
+      expect(p.canExportClients(a)).toBe(false);
+      expect(p.canErasePersonalData(a)).toBe(false);
+      expect(p.canSetMarketingConsent(a)).toBe(false);
+      expect(p.canDeleteEvent(a)).toBe(false);
+      expect(p.canViewEventStats(a)).toBe(false);
+      expect(p.canArchiveVenues(a)).toBe(false);
+      expect(p.isAdmin(a)).toBe(false);
+      expect(p.canManageHosts(a)).toBe(false);
+      expect(p.canSetAccessRole(a, other)).toBe(false);
+      expect(p.canUploadVideo(a)).toBe(false);
+      expect(p.canSeeAllSessions(a)).toBe(false);
+    }
+    // Не ведущий по профессии — игр нет.
+    expect(p.canUseGames(dj("sales"))).toBe(false);
+    // У владельца всё, у ведущего без роли — ничего из этого.
+    for (const f of [p.canManageClients, p.canExportClients, p.canErasePersonalData, p.canSetMarketingConsent, p.canDeleteEvent, p.canViewEventStats, p.canReadSalesGuide]) {
+      expect(f(owner)).toBe(true);
+      expect(f(host)).toBe(false);
+    }
+    const off: Actor = { uid: "m-2", role: "host", active: false, profession: "sales", accessRole: "sales" };
+    expect(p.canManageClients(off)).toBe(false);
+    expect(p.canManageEvents(off)).toBe(false);
   });
 
   it("помощник владельца: видит все игры сейчас, без прав на людей и библиотеку", () => {

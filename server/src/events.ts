@@ -142,7 +142,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         return { events: rows.map(eventOf) };
       }
       // Итоги за квартал и год (только владелец): окно до 370 дней.
-      const range = q.stats === "1" && permissions.canManageEvents(actorOf(user)) ? statsRangeOf(q) : rangeOf(q);
+      const range = q.stats === "1" && permissions.canViewEventStats(actorOf(user)) ? statsRangeOf(q) : rangeOf(q);
       if (!range) return fail(reply, 400, "invalid-argument");
       const rows = await sql<Row[]>`${select} where ${own(user)} and e.day between ${range.from} and ${range.to}
         order by e.day, e.start_min`;
@@ -272,9 +272,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       return (await one(id)) ?? fail(reply, 404, "not-found");
     });
 
-    // Удалить навсегда — только отменённое (ошибочная запись). Повтор — успех.
+    // Удалить навсегда — только отменённое (ошибочная запись), только владелец. Повтор — успех.
     api.delete<{ Params: { id: string } }>("/api/events/:id", { bodyLimit: 1024 }, async (request, reply) => {
-      const user = await requireUser(request, reply, (u) => permissions.canManageEvents(actorOf(u)));
+      const user = await requireUser(request, reply, (u) => permissions.canDeleteEvent(actorOf(u)));
       if (!user) return reply;
       const id = request.params.id;
       if (!ID.test(id)) return fail(reply, 404, "not-found");

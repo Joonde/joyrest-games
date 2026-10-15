@@ -17357,3 +17357,53 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
     transition: none;
   }
 }
+
+/* Инструкция менеджера по продажам (/studio/sales-guide): путь клиента по статусам. */
+.sales-path {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sales-path__step {
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border-left: 6px solid var(--sales-tone);
+  background: color-mix(in srgb, var(--sales-tone) 14%, transparent);
+}
+
+.sales-path__status {
+  justify-self: start;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--sales-tone);
+  color: var(--color-team-text);
+  font-weight: 600;
+}
+
+.sales-path__when {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+@media (min-width: 720px) {
+  .sales-path {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.sales-checks li::marker {
+  content: "☐  ";
+}
+
+/* Рабочее место менеджера в студии. */
+.sales-desk__count {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+}

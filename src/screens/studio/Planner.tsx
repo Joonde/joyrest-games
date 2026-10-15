@@ -106,7 +106,11 @@ function usePlannerNow(): number {
 
 type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string };
 
-export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: string) => void }) {
+/**
+ * `owner` — записывает и правит мероприятия (владелец и менеджер по продажам), `admin` — ещё «Итоги» и «Удалить навсегда»
+ * (только владелец).
+ */
+export function Planner({ owner, admin = owner, onToast }: { owner: boolean; admin?: boolean; onToast: (text: string) => void }) {
   const today = todayMoscow();
   const [view, setView] = useState<View>("day");
   const [day, setDay] = useState(today);
@@ -203,6 +207,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
       event={e}
       now={now}
       owner={owner}
+      admin={admin}
       defaultOpen={open}
       onEdit={() => setForm({ event: e, day: e.day })}
       onCopy={() => setForm({ template: e, day: e.day < today ? today : e.day })}
@@ -228,14 +233,14 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
         </div>
       )}
       <div className="seg plan-seg plan-seg--views" role="group" aria-label="Вид">
-        {(Object.keys(VIEW_TITLES) as View[]).filter((v) => owner || v !== "stats").map((v) => (
+        {(Object.keys(VIEW_TITLES) as View[]).filter((v) => admin || v !== "stats").map((v) => (
           <button key={v} type="button" className={view === v ? "seg__btn is-on" : "seg__btn"} aria-pressed={view === v} onClick={() => setView(v)}>
             {VIEW_TITLES[v]}
           </button>
         ))}
       </div>
 
-      {view === "stats" && owner ? (
+      {view === "stats" && admin ? (
         <StatsView now={now} changed={changed} render={(e) => card(e)} />
       ) : view === "list" ? (
         <EventList filter={filter} onFilter={setFilter} now={now} removed={removed} changed={changed} render={(e) => card(e)} />
@@ -719,6 +724,7 @@ function EventCard({
   event,
   now,
   owner,
+  admin,
   defaultOpen,
   onEdit,
   onCopy,
@@ -730,6 +736,7 @@ function EventCard({
   event: AgencyEvent;
   now: number;
   owner: boolean;
+  admin: boolean;
   defaultOpen: boolean;
   onEdit: () => void;
   onCopy: () => void;
@@ -820,9 +827,11 @@ function EventCard({
                   <button type="button" className="btn btn--secondary btn--block" onClick={onRestore}>
                     Вернуть мероприятие
                   </button>
-                  <button type="button" className="btn btn--quiet btn--block" onClick={onRemove}>
-                    Удалить навсегда
-                  </button>
+                  {admin && (
+                    <button type="button" className="btn btn--quiet btn--block" onClick={onRemove}>
+                      Удалить навсегда
+                    </button>
+                  )}
                 </>
               ) : (
                 <>

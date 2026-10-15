@@ -19,6 +19,7 @@ const ChangePassword = lazy(() =>
 const Team = lazy(() => import("./screens/studio/Team").then((m) => ({ default: m.Team })));
 const Calendar = lazy(() => import("./screens/studio/Calendar").then((m) => ({ default: m.Calendar })));
 const Clients = lazy(() => import("./screens/studio/Clients").then((m) => ({ default: m.Clients })));
+const PrivacySearch = lazy(() => import("./screens/studio/PrivacySearch").then((m) => ({ default: m.PrivacySearch })));
 const Guide = lazy(() => import("./screens/studio/Guide").then((m) => ({ default: m.Guide })));
 const Profile = lazy(() => import("./screens/studio/Profile").then((m) => ({ default: m.Profile })));
 const Results = lazy(() => import("./screens/Results").then((m) => ({ default: m.Results })));
@@ -53,6 +54,7 @@ export function App() {
           <Route path="/studio/team" element={<Team />} />
           <Route path="/studio/calendar" element={<Calendar />} />
           <Route path="/studio/clients" element={<Clients />} />
+          <Route path="/studio/privacy" element={<PrivacySearch />} />
           <Route path="/studio/guide" element={<Guide />} />
           <Route path="/studio/profile" element={<Profile />} />
           <Route path="/studio/qr" element={<VenueQrPage />} />

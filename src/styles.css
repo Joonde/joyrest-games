@@ -16467,6 +16467,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   overflow-wrap: anywhere;
 }
 
+.cal-feed-url {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+  user-select: all;
+  -webkit-user-select: all;
+  font-variant-numeric: tabular-nums;
+}
+
 .tg-status {
   margin: 0;
   font-weight: 600;

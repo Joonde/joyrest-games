@@ -610,6 +610,25 @@ try {
   await hostCard.locator(".plan-card__head").click();
   check(((await hostCard.textContent()) ?? "").includes("Клиент Проверка"), "Ведущий: видит своё мероприятие с клиентом");
   check((await hostCard.getByRole("button", { name: "Изменить" }).count()) === 0 && (await hp.getByRole("button", { name: "+ Новое мероприятие" }).count()) === 0, "Ведущий: без «Изменить» и «Новое мероприятие»");
+  // «📅 Добавить в календарь телефона»: файл .ics без клиента, с напоминаниями.
+  const icsHref = await hostCard.getByRole("link", { name: "📅 Добавить в календарь телефона" }).getAttribute("href");
+  const ics = await fetch(BASE + icsHref, { headers: { Cookie: host.cookie } });
+  const icsText = (await ics.text()).replace(/\r\n /g, "");
+  check(ics.status === 200 && /text\/calendar/.test(ics.headers.get("content-type") ?? ""), "Ведущий: «Добавить в календарь телефона» отдаёт файл календаря");
+  check(icsText.includes("SUMMARY:JoyRest: Корпоратив\\, проверка") && icsText.includes("TRIGGER:-P1D") && icsText.includes("TRIGGER:-PT2H"), "Календарь телефона: что за мероприятие и напоминания за день и за 2 часа");
+  check(!icsText.includes("Клиент Проверка") && !/\d{3}-\d{2}-\d{2}/.test(icsText.split("DESCRIPTION")[1] ?? ""), "Календарь телефона: имени и телефона клиента нет");
+  // Подписка: ссылка, календарь по ней, смена ссылки.
+  await hp.getByRole("button", { name: "Подключить календарь телефона" }).click();
+  const feedLine = hp.locator(".cal-feed-url");
+  await feedLine.waitFor({ timeout: WAIT });
+  const feedUrl = ((await feedLine.textContent()) ?? "").trim();
+  check((await hp.getByRole("link", { name: "iPhone и Mac: подписаться" }).getAttribute("href")) === feedUrl.replace("https://", "webcal://"), "Подписка: кнопка для iPhone — webcal://");
+  const feed1 = await fetch(feedUrl);
+  check(feed1.status === 200 && (await feed1.text()).replace(/\r\n /g, "").includes("Корпоратив\\, проверка"), "Подписка: календарь по ссылке открывается без входа и содержит мероприятие");
+  await hp.getByRole("button", { name: "Сменить ссылку" }).click();
+  await hp.getByRole("dialog").getByRole("button", { name: "Сменить ссылку" }).click();
+  await until(async () => ((await feedLine.textContent()) ?? "").trim() !== feedUrl, WAIT, "новая ссылка");
+  check((await fetch(feedUrl)).status === 404, "Подписка: после «Сменить ссылку» старая не работает");
   await shot(hp, "ведущий-мои-мероприятия");
   await noSideScroll(hp, "Ведущий, мои мероприятия");
 

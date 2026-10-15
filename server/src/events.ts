@@ -5,13 +5,15 @@
  * Ведущий видит только свои мероприятия. Отмена не стирает: мероприятие уходит в «Отменённые».
  * Имена и телефоны клиентов в журнал и Telegram не пишем.
  */
+import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { bookingId, bookingNote, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
 import { dayTitle } from "../../src/core/calendar";
-import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
+import { icsCalendar, icsFileName } from "../../src/core/ics";
+import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from "./auth";
 import { rangeOf } from "./calendar";
 import { dayIndex as dayIdx, dayOf } from "../../src/core/calendar";
 import { upsertClient } from "./clients";
@@ -270,6 +272,74 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         where id = ${id}`;
       request.log.info({ events: "held", held }, "events");
       return (await one(id)) ?? fail(reply, 404, "not-found");
+    });
+
+    // ───── «Добавить в мой календарь» (решение владельца 15 октября 2026) ─────
+    // Без имени, телефона и адреса клиента: календари телефонов хранят Apple и Google (не в России).
+    const platformOf = (request: FastifyRequest) => `https://${String(request.headers.host ?? "games.joy-rest.ru").replace(/[^A-Za-z0-9.:-]/g, "")}`;
+    const feedUrl = (request: FastifyRequest, token: string) => `${platformOf(request)}/api/calendar/feed/${token}.ics`;
+    const newToken = () => randomBytes(24).toString("base64url");
+
+    // Одно мероприятие файлом .ics — ведущему этого мероприятия и владельцу.
+    api.get<{ Params: { id: string } }>("/api/events/:id/ics", async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const event = ID.test(request.params.id) ? await one(request.params.id) : null;
+      if (!event || !permissions.canViewEvent(actorOf(user), event)) return fail(reply, 404, "not-found");
+      reply
+        .header("Cache-Control", "no-store")
+        .header("Content-Disposition", `inline; filename="${icsFileName(event)}"`)
+        .type("text/calendar; charset=utf-8");
+      return icsCalendar([event], { platformUrl: platformOf(request), withHost: event.hostId !== user.id, now: now() });
+    });
+
+    // Ссылка подписки на свои мероприятия: создаётся при первом запросе.
+    api.get("/api/calendar/feed", async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const [row] = await sql<{ calendar_token: string | null }[]>`select calendar_token from users where id = ${user.id}`;
+      let token = row?.calendar_token ?? null;
+      if (!token) {
+        token = newToken();
+        await sql`update users set calendar_token = ${token} where id = ${user.id} and calendar_token is null`;
+        const [again] = await sql<{ calendar_token: string | null }[]>`select calendar_token from users where id = ${user.id}`;
+        token = again?.calendar_token ?? token;
+      }
+      reply.header("Cache-Control", "no-store");
+      return { url: feedUrl(request, token) };
+    });
+
+    // «Сменить ссылку»: старая перестаёт работать (ссылку кому-то переслали, телефон потерян).
+    api.post("/api/calendar/feed/reset", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const token = newToken();
+      await sql`update users set calendar_token = ${token} where id = ${user.id}`;
+      request.log.info({ events: "feed-reset" }, "events");
+      return { url: feedUrl(request, token) };
+    });
+
+    // Сам календарь по секретной ссылке — телефон забирает его без входа. Ведущему — свои, владельцу — все;
+    // за 30 дней назад и год вперёд, без отменённых (отменили — пропадёт из календаря при следующем обновлении).
+    api.get<{ Params: { file: string } }>("/api/calendar/feed/:file", async (request, reply) => {
+      const token = request.params.file.replace(/\.ics$/, "");
+      if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return fail(reply, 404, "not-found");
+      const [user] = await sql<UserRow[]>`select * from users where calendar_token = ${token} and active`;
+      const actor = user ? actorOf(user) : null;
+      if (!user || !actor || !permissions.canEditOwnCalendar(actor)) return fail(reply, 404, "not-found");
+      const all = permissions.canManageEvents(actor);
+      const at = now();
+      const rows = await sql<Row[]>`${select}
+        where (${all} or e.host_id = ${user.id}) and e.cancelled_at is null
+          and e.ends_at > ${new Date(at - 30 * 86_400_000)} and e.starts_at < ${new Date(at + 370 * 86_400_000)}
+        order by e.starts_at limit 1000`;
+      reply.header("Cache-Control", "private, no-cache").type("text/calendar; charset=utf-8");
+      return icsCalendar(rows.map(eventOf), {
+        platformUrl: platformOf(request),
+        name: all ? "JoyRest — мероприятия" : "JoyRest — мои мероприятия",
+        withHost: all,
+        now: at,
+      });
     });
 
     // Удалить навсегда — только отменённое (ошибочная запись). Повтор — успех.

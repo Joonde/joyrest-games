@@ -289,6 +289,12 @@ export interface EventsRepository {
   restore(id: string): Promise<AgencyEvent>;
   /** Удалить навсегда — только отменённое. */
   remove(id: string): Promise<void>;
+  /** Файл .ics одного мероприятия («Добавить в календарь телефона») — адрес для ссылки. */
+  icsUrl(id: string): string;
+  /** Секретная ссылка подписки на свои мероприятия (телефон обновляет календарь сам). */
+  feed(): Promise<string>;
+  /** Новая ссылка подписки — старая перестаёт работать. */
+  resetFeed(): Promise<string>;
 }
 
 /** База клиентов — только свой сервер и только владелец; у Firebase — null. */

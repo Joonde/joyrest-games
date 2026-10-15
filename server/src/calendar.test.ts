@@ -172,6 +172,49 @@ describe.skipIf(!url)("календарь на PostgreSQL", () => {
     expect((await get("/api/events?scope=cancelled", owner)).json().events).toEqual([]);
   });
 
+  it("«Добавить в мой календарь»: файл .ics и подписка без клиента; чужое — нет; новая ссылка отключает старую", async () => {
+    const event = { id: "ics1", hostId: annaId, day, start: 1080, end: 1380, clientName: "Иван Секретов", clientPhone: "+79005554433", title: "Свадьба", place: "ул. Тайная 7", guests: 60, note: "" };
+    expect((await post("/api/events", owner, event)).statusCode).toBe(200);
+    const file = await get("/api/events/ics1/ics", anna);
+    expect(file.statusCode).toBe(200);
+    expect(file.headers["content-type"]).toContain("text/calendar");
+    expect(file.headers["content-disposition"]).toContain(`joyrest-${day}.ics`);
+    const text = file.body.replace(/\r\n /g, "");
+    expect(text).toContain("SUMMARY:JoyRest: Свадьба · 60 гостей");
+    expect(text).toContain("TRIGGER:-PT2H");
+    expect(text).not.toMatch(/Иван|5554433|Тайная/);
+    expect((await get("/api/events/ics1/ics", boris)).statusCode).toBe(404);
+    expect((await get("/api/events/ics1/ics", "")).statusCode).toBe(401);
+
+    const feed = (await get("/api/calendar/feed", anna)).json().url as string;
+    expect(feed).toMatch(/^https:\/\/games\.test\/api\/calendar\/feed\/[A-Za-z0-9_-]{20,}\.ics$/);
+    expect((await get("/api/calendar/feed", anna)).json().url).toBe(feed);
+    const path = feed.replace("https://games.test", "");
+    const sub = await get(path, "");
+    const body = (r: { body: string }) => r.body.replace(/\r\n /g, "");
+    expect(sub.statusCode).toBe(200);
+    expect(body(sub)).toContain("X-WR-CALNAME:JoyRest — мои мероприятия");
+    expect(body(sub)).toContain("UID:ics1@joy-rest.ru");
+    expect(body(sub)).not.toMatch(/Иван|5554433|Тайная/);
+    // У Бориса в подписке чужого мероприятия нет; у владельца — все, с ведущим.
+    const borisFeed = (await get("/api/calendar/feed", boris)).json().url as string;
+    expect(body(await get(borisFeed.replace("https://games.test", ""), ""))).not.toContain("UID:ics1@");
+    const ownerFeed = (await get("/api/calendar/feed", owner)).json().url as string;
+    expect(body(await get(ownerFeed.replace("https://games.test", ""), ""))).toContain("ведёт Анна");
+    // Отменили — из подписки пропало.
+    await post("/api/events/ics1/cancel", owner);
+    expect(body(await get(path, ""))).not.toContain("UID:ics1@");
+    await post("/api/events/ics1/restore", owner);
+    // «Сменить ссылку»: старая — 404, новая работает.
+    const fresh = (await post("/api/calendar/feed/reset", anna)).json().url as string;
+    expect(fresh).not.toBe(feed);
+    expect((await get(path, "")).statusCode).toBe(404);
+    expect(body(await get(fresh.replace("https://games.test", ""), ""))).toContain("UID:ics1@");
+    expect((await get("/api/calendar/feed/short.ics", "")).statusCode).toBe(404);
+    await post("/api/events/ics1/cancel", owner);
+    await del("/api/events/ics1", owner);
+  });
+
   it("отключённого человека нет в календаре команды, и за ним не закрепить время", async () => {
     await post(`/api/users/${borisId}/active`, owner, { active: false });
     const data = await team();

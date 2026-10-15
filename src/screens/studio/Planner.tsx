@@ -41,6 +41,7 @@ import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { useServerNow } from "../../components/live/useServerNow";
 import { SearchField } from "../../components/SearchField";
+import { CalendarSubscribe } from "../../components/CalendarSubscribe";
 import { TelegramConnect } from "../../components/TelegramConnect";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -304,6 +305,7 @@ export function Planner({ owner, onToast }: { owner: boolean; onToast: (text: st
           )}
         </>
       )}
+      <CalendarSubscribe owner={owner} />
       {!owner && <TelegramConnect />}
       {confirm}
     </>
@@ -797,6 +799,11 @@ function EventCard({
             )}
           </dl>
           {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && <p className="muted small">Подробностей нет.</p>}
+          {eventsRepo && !event.cancelled && !started && (
+            <a className="btn btn--secondary btn--block" href={eventsRepo.icsUrl(event.id)}>
+              📅 Добавить в календарь телефона
+            </a>
+          )}
           {started && (
             <div className="stack stack--tight">
               <p className="small">

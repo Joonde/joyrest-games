@@ -1,7 +1,6 @@
 // «Шпион»: экран зала — раздача, список возможных локаций, таймер обсуждения, голосование, последний шанс
 // шпиона, итог; телефон — своя карта (локация и роль или «Вы — шпион»), догадка шпиона, тайное голосование.
-// Карты пока нарисованы CSS и простым SVG (класс `sp-card`): настоящие рисунки будут из Figma — заменить
-// содержимое `CardBack`, `SpyFace`, `PlaceFace`, классы и разметку можно оставить.
+// Карты — рисунки Canva AI (`public/spy/art/web/*.webp`: рубашка, шпион, фон локации), текст поверх.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Confetti } from "../../components/live/Confetti";
@@ -40,16 +39,12 @@ function Who({ session, r, pid }: { session: Session; r: SpyResult; pid: string 
   );
 }
 
-// ---------------------------------------------------------------- карты (заглушка до рисунков из Figma)
+// ---------------------------------------------------------------- карты (рисунки Canva AI — public/spy/art)
 
 export function CardBack() {
   return (
     <span className="sp-card__face sp-card__face--back">
-      <svg viewBox="0 0 100 100" className="sp-card__icon" aria-hidden="true">
-        <circle cx="42" cy="42" r="22" fill="none" stroke="currentColor" strokeWidth="6" />
-        <line x1="58" y1="58" x2="82" y2="82" stroke="currentColor" strokeWidth="9" strokeLinecap="round" />
-      </svg>
-      <span className="sp-card__brand">Шпион</span>
+      <span className="visually-hidden">Шпион</span>
     </span>
   );
 }
@@ -57,13 +52,6 @@ export function CardBack() {
 function SpyFace() {
   return (
     <span className="sp-card__face sp-card__face--spy">
-      <svg viewBox="0 0 100 100" className="sp-card__icon" aria-hidden="true">
-        <path d="M20 46 Q50 30 80 46 L74 34 Q50 14 26 34 Z" fill="currentColor" />
-        <rect x="14" y="44" width="72" height="6" rx="3" fill="currentColor" />
-        <circle cx="37" cy="62" r="9" fill="none" stroke="currentColor" strokeWidth="5" />
-        <circle cx="63" cy="62" r="9" fill="none" stroke="currentColor" strokeWidth="5" />
-        <line x1="46" y1="62" x2="54" y2="62" stroke="currentColor" strokeWidth="5" />
-      </svg>
       <strong className="sp-card__title">Вы — шпион</strong>
       <span className="sp-card__hint">Вы не знаете, где все. Слушайте и угадайте локацию — или не выдайте себя.</span>
     </span>
@@ -73,12 +61,9 @@ function SpyFace() {
 function PlaceFace({ place, role }: { place: string; role: string }) {
   return (
     <span className="sp-card__face sp-card__face--place">
-      <svg viewBox="0 0 100 100" className="sp-card__icon" aria-hidden="true">
-        <path d="M50 12 C33 12 22 25 22 40 C22 60 50 88 50 88 C50 88 78 60 78 40 C78 25 67 12 50 12 Z" fill="none" stroke="currentColor" strokeWidth="6" />
-        <circle cx="50" cy="40" r="10" fill="currentColor" />
-      </svg>
       <span className="sp-card__label">Локация</span>
       <strong className="sp-card__title">{place}</strong>
+      <span className="sp-card__rule" aria-hidden="true" />
       <span className="sp-card__label">Ваша роль</span>
       <strong className="sp-card__role">{role || "Гость"}</strong>
     </span>

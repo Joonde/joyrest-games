@@ -18165,13 +18165,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .sp-reveal__item.is-spy { outline: 2px solid var(--color-danger); }
 .sp-reveal__item.is-spy .sp-reveal__role { color: var(--color-danger); font-weight: 600; }
 
-/* Карта (рубашка и лицо, переворот). */
+/* Карта (рубашка и лицо, переворот). Рисунки всегда тёмные (Canva AI, public/spy/art) — свои цвета текста, не от темы. */
 .sp-card {
+  --sp-ink: #FBF6F1;
+  --sp-ink-soft: #CFC5BB;
+  --sp-gold: #E3C68C;
+  --sp-danger: #E3AA9C;
   position: relative;
   display: block;
   container-type: inline-size;
   width: min(100%, 300px);
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 3 / 4;
   margin: 0 auto;
   padding: 0;
   border: 0;
@@ -18179,7 +18183,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   perspective: 1200px;
   cursor: pointer;
   font: inherit;
-  color: var(--color-text);
+  color: var(--sp-ink);
 }
 .sp-card--still { cursor: default; }
 .sp-card:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 4px; border-radius: 18px; }
@@ -18192,34 +18196,30 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3cqw;
-  padding: 8cqw;
+  gap: 2.5cqw;
+  padding: 14cqw 12cqw;
   box-sizing: border-box;
-  border-radius: 7cqw;
+  border-radius: 5cqw;
   backface-visibility: hidden;
-  border: 1.5px solid var(--color-border);
   text-align: center;
   overflow: hidden;
+  background: #221E1B center / cover no-repeat;
+  box-shadow: 0 2cqw 8cqw rgb(0 0 0 / 0.35);
 }
-.sp-card__face--back {
-  color: var(--color-highlight);
-  background:
-    repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-highlight) 10%, transparent) 0 2cqw, transparent 2cqw 6cqw),
-    linear-gradient(160deg, var(--color-surface-alt), var(--color-bg));
-  box-shadow: inset 0 0 0 3cqw color-mix(in srgb, var(--color-bg) 60%, transparent);
-}
+.sp-card__face--back { background-image: url("/spy/art/web/back.webp"); }
 .sp-card__face--spy,
-.sp-card__face--place { transform: rotateY(180deg); background: linear-gradient(170deg, var(--color-surface), var(--color-surface-alt)); }
-.sp-card__face--spy { color: var(--color-danger); border-color: var(--color-danger); }
-.sp-card__face--place { color: var(--color-highlight); }
-.sp-card__icon { width: 34cqw; height: 34cqw; flex: none; }
-.sp-card__brand { font-family: var(--font-display); font-size: 12cqw; letter-spacing: 0.08em; text-transform: uppercase; }
-.sp-card__title { font-family: var(--font-display); font-size: 12cqw; line-height: 1.05; color: var(--color-text); text-wrap: balance; }
-.sp-card__face--spy .sp-card__title { color: var(--color-danger); }
-.sp-card__role { font-size: 8cqw; color: var(--color-text); text-wrap: balance; }
-.sp-card__label { font-size: 5.5cqw; letter-spacing: 0.15em; text-transform: uppercase; color: var(--color-text-muted); }
-.sp-card__hint { font-size: 5.5cqw; color: var(--color-text-muted); text-wrap: balance; }
-.sp-card__seat { position: absolute; top: 4cqw; left: 6cqw; font-size: 6cqw; color: var(--color-text-muted); font-variant-numeric: tabular-nums; pointer-events: none; }
+.sp-card__face--place { transform: rotateY(180deg); }
+/* Шпион: силуэт сверху, подпись — в пустой нижней плашке рисунка. */
+.sp-card__face--spy { background-image: url("/spy/art/web/spy.webp"); justify-content: flex-end; padding: 0 13cqw 8cqw; gap: 1cqw; }
+.sp-card__face--place { background-image: url("/spy/art/web/place.webp"); padding-top: 22cqw; }
+.sp-card__title { font-family: var(--font-display); font-size: 12cqw; line-height: 1.05; color: var(--sp-ink); text-wrap: balance; }
+.sp-card__face--spy .sp-card__title { color: var(--sp-danger); font-size: 8.5cqw; }
+.sp-card__face--spy .sp-card__hint { font-size: 4.1cqw; }
+.sp-card__role { font-size: 8cqw; color: var(--sp-ink); text-wrap: balance; }
+.sp-card__label { font-size: 5cqw; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sp-gold); }
+.sp-card__hint { font-size: 4.6cqw; line-height: 1.3; color: var(--sp-ink-soft); text-wrap: balance; }
+.sp-card__rule { width: 30cqw; height: 1px; margin: 3cqw 0; background: var(--sp-gold); opacity: 0.6; }
+.sp-card__seat { position: absolute; top: 4cqw; left: 6cqw; z-index: 1; font-size: 6cqw; color: var(--sp-ink-soft); font-variant-numeric: tabular-nums; pointer-events: none; }
 
 .sp-fan { position: relative; width: min(100%, 60cqh); height: 30cqh; }
 .sp-phone .sp-fan { width: 220px; height: 150px; margin: 0 auto; }

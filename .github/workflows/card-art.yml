@@ -42,6 +42,22 @@ jobs:
             done < <(jq -r '.files[] | [.file, .url] | @tsv' "$dir/manifest.json")
           done
           echo "ADDED=$added" >> "$GITHUB_ENV"
+      - name: Лёгкие WebP для «Шпиона»
+        if: env.ADDED != '0'
+        run: |
+          pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          src = Path("public/spy/art"); out = src / "web"; out.mkdir(exist_ok=True)
+          for p in sorted(src.glob("*.png")):
+              t = out / (p.stem + ".webp")
+              if t.exists(): continue
+              im = Image.open(p).convert("RGB")
+              im.thumbnail((720, 960))
+              im.save(t, "WEBP", quality=80, method=6)
+              print("WebP:", t, t.stat().st_size)
+          PY
       - name: Сохраняю в ветку
         if: env.ADDED != '0'
         run: |

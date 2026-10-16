@@ -78,6 +78,8 @@ async function runJob({ m, demo, mode, n, seed }) {
   report.url = url;
   report.console = [...new Set(consoleErrors)].slice(0, 10);
   reports.push(report);
+  // Отчёт пишется после каждого прогона: если задачу оборвёт время, отчёт о пройденных играх останется.
+  fs.writeFileSync(out, JSON.stringify(reports, null, 1));
   const bad = (report.errors?.length ?? 0) + report.console.length + (report.stuck ? 1 : 0) + (report.timeout ? 1 : 0);
   console.log(`${bad ? "✗" : "✓"} ${m} ${report.demo ?? demo} ${mode} ×${n} #${seed}: ходов ${report.ticks}, ${report.finished ? "до финала" : "не дошла"}${bad ? ` — ошибок ${bad}` : ""}`);
   await page.close();

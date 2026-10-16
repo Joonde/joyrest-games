@@ -676,3 +676,12 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .reviews__btn:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 3px; }
 .reviews--single .reviews__nav{ display: none !important; }
 @media (min-width: 760px){ .reviews__nav{ display: flex; } .review-card{ flex-basis: 360px; } }
+
+/* Витрина до ИП (SITE_ENABLED=showcase, сборка кладёт showcase.html с data-site-mode у <html>): формы заявки,
+   вопроса и отзыва скрыты, вместо них — «Как заказать» с мессенджерами. */
+.showcase-only{ display: none !important; }
+[data-site-mode="showcase"] .showcase-only{ display: block !important; }
+[data-site-mode="showcase"] .no-showcase{ display: none !important; }
+.showcase-contact h3{ margin: 0 0 16px; }
+.showcase-steps{ margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--ink-soft); }
+.showcase-contact__actions{ display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }

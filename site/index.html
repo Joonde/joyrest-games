@@ -25,8 +25,8 @@
 
 <a class="skip" href="#calculator">К калькулятору</a>
 
-<button type="button" class="ask-fab" id="askFabBtn" aria-expanded="false" aria-controls="askPanel"><span aria-hidden="true">💬</span> <span class="ask-fab-text">Задать вопрос</span></button>
-<div class="ask-panel" id="askPanel" role="dialog" aria-label="Задать вопрос">
+<button type="button" class="ask-fab no-showcase" id="askFabBtn" aria-expanded="false" aria-controls="askPanel"><span aria-hidden="true">💬</span> <span class="ask-fab-text">Задать вопрос</span></button>
+<div class="ask-panel no-showcase" id="askPanel" role="dialog" aria-label="Задать вопрос">
   <h4>Есть вопрос?</h4>
   <p>Спросите что угодно про мероприятие — ответим без звонков и заявок.</p>
   <form id="askForm">
@@ -702,7 +702,7 @@
     <div class="wrap">
       <p class="eyebrow">Вопросы</p>
       <h2>Частые вопросы</h2>
-      <p class="sub">Не нашли ответ — нажмите «Задать вопрос» внизу экрана или напишите в Telegram.</p>
+      <p class="sub">Не нашли ответ — <span class="no-showcase">нажмите «Задать вопрос» внизу экрана или </span>напишите в Telegram.</p>
       <div class="faq">
         <details class="faq__item">
           <summary>Нужно ли гостям что-то скачивать?</summary>
@@ -807,7 +807,8 @@
         <div class="contact__info">
           <p class="eyebrow">Заявка</p>
           <h2>Обсудим ваш праздник</h2>
-          <p>Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
+          <p class="no-showcase">Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
+          <p class="showcase-only">Напишите нам в Telegram или WhatsApp — предложим программу под ваш формат и бюджет.</p>
           <ul class="contact__list">
             <li>Телефон: <a href="tel:+79857822689">+7 (985) 782-26-89</a></li>
             <li>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">t.me/JoyRest</a></li>
@@ -815,7 +816,7 @@
             <li>Москва и Подмосковье — выезд включён, другие города — по договорённости</li>
           </ul>
         </div>
-        <form id="leadForm" class="form form--card">
+        <form id="leadForm" class="form form--card no-showcase">
           <div class="field">
             <label for="name">Имя</label>
             <input type="text" id="name" autocomplete="name" required>
@@ -954,6 +955,20 @@
           <p class="form-note" id="formNote" role="status">Спасибо! Заявка отправлена — свяжемся с вами в ближайшее время.</p>
           <p class="form-error" id="formError" role="alert"></p>
         </form>
+        <!-- Витрина (SITE_ENABLED=showcase, до ИП): формы нет — клиент пишет сам, расчёт отправляет из калькулятора. -->
+        <div class="form form--card showcase-only showcase-contact" id="showcaseContact">
+          <h3>Как заказать</h3>
+          <ol class="showcase-steps">
+            <li>Соберите вечер в <a class="link" href="#calculator">калькуляторе</a> и нажмите «Отправить расчёт менеджеру».</li>
+            <li>Выберите Telegram или WhatsApp — расчёт придёт нам готовым текстом.</li>
+            <li>Ответим, предложим программу и забронируем дату.</li>
+          </ol>
+          <div class="showcase-contact__actions">
+            <a class="hbtn hbtn--primary" href="https://t.me/+79857822689" target="_blank" rel="noopener">Написать в Telegram</a>
+            <a class="hbtn hbtn--secondary" href="https://wa.me/79857822689" target="_blank" rel="noopener">Написать в WhatsApp</a>
+            <a class="hbtn hbtn--secondary" href="tel:+79857822689">Позвонить</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>

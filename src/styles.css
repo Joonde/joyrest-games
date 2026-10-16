@@ -20761,3 +20761,19 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .wager-pick__btn .wager-pick__chips {
   color: #e3c68c;
 }
+
+/* «Популярные» над разделами библиотеки (`popularGames`, решение владельца 16 октября 2026). */
+.popular {
+  display: grid;
+  gap: 8px;
+  border-color: var(--color-highlight);
+}
+
+.popular__title {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.popular .cards {
+  margin-top: 8px;
+}

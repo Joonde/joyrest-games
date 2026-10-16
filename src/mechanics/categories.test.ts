@@ -21,3 +21,29 @@ describe("категории библиотеки", () => {
     expect(groups.find((g) => g.category.id === "music")?.games.map((g) => g.mechanic).sort()).toEqual(["lotto", "quiz"]);
   });
 });
+
+describe("«Популярные» над разделами", () => {
+  it("по одной игре на слот, в порядке слотов, без караоке и музыкального квиза", async () => {
+    const { popularGames } = await import("./categories");
+    const g = (id: string, mechanic: string, content: unknown = {}, title = id) => ({ id, mechanic, content, title });
+    const list = [
+      g("board", "board"),
+      g("melody", "quiz", { questions: [] }, "Угадай мелодию"),
+      g("quiz", "quiz", { questions: [] }, "Квиз"),
+      g("karaoke", "stage", { variant: "karaoke" }),
+      g("dance", "stage", { variant: "dance" }),
+      g("lotto", "lotto"),
+      g("mafia", "mafia"),
+      g("dragon", "dragon"),
+      g("mil", "millionaire"),
+      g("hundred", "hundred"),
+      g("quiz2", "quiz", { questions: [] }, "Ещё квиз"),
+    ];
+    expect(popularGames(list).map((x) => x.id)).toEqual(["quiz", "lotto", "dragon", "dance", "mil", "board", "hundred"]);
+  });
+
+  it("нет игры формата — слот пропускается", async () => {
+    const { popularGames } = await import("./categories");
+    expect(popularGames([{ mechanic: "board", content: {}, title: "Своя" }]).map((x) => x.title)).toEqual(["Своя"]);
+  });
+});

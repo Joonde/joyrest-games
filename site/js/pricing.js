@@ -149,9 +149,46 @@
     };
   }
 
+  /**
+   * Расчёт сообщением менеджеру (решение владельца 17 октября 2026): строки «Что: значение», чтобы было видно, что
+   * напротив чего. Мессенджеры и Авито таблиц не рисуют, поэтому каждая строка — пара, без разметки (Telegram, WhatsApp,
+   * Авито, почта показывают одинаково). levelId — выбранный формат ведущего (отмечен ✓) или пусто.
+   */
+  function calcMessage(opts, levelId) {
+    var r = calcPrice(opts);
+    var pkgId = opts.pkg || 'quiz';
+    var pkg = pkgById(pkgId);
+    var tier = typeof opts.tier === 'number' ? opts.tier : 0;
+    var rows = [['Пакет', pkgId === TURNKEY.id || !pkg ? 'Под ключ' : pkg.name]];
+    rows.push(['Гостей', tier < TIERS.length ? 'до ' + TIERS[tier] : 'больше 90']);
+    rows.push(['День', opts.weekend ? 'пятница–воскресенье' : 'будни']);
+    var extras = (opts.extras || []).filter(function (id) { return id !== pkgId && pkgById(id); });
+    if (extras.length) rows.push(['Ещё игры', extras.map(function (id) { return pkgById(id).name; }).join(', ')]);
+    var ext = EXTENSIONS[opts.ext || 0] ? (opts.ext || 0) : 0;
+    rows.push(['Продление', ext > 0 ? EXTENSIONS[ext].label.replace('+', '') : 'нет']);
+    var addons = ADDONS.filter(function (a) { return (opts.addons || []).indexOf(a.id) >= 0; }).map(function (a) { return a.label; });
+    rows.push(['Допы', addons.length ? addons.join(', ') : 'нет']);
+    rows.push(['Длительность', '≈ ' + hh(r.hours.min) + '–' + hh(r.hours.max) + ' ' + hoursWord(r.hours.max)]);
+    var line = '────────────';
+    var out = ['🧮 Расчёт JoyRest', line];
+    rows.forEach(function (row) { out.push(row[0] + ': ' + row[1]); });
+    out.push(line);
+    if (r.individual) {
+      out.push('Стоимость: обсудим индивидуально');
+    } else {
+      var chosen = LEVELS.filter(function (l) { return l.id === levelId; })[0];
+      out.push('Стоимость по формату ведущего:');
+      r.totals.forEach(function (t) {
+        var pick = chosen && chosen.id === t.id;
+        out.push((pick ? '✅ ' : '▫️ ') + t.name + (t.badge ? ' (' + t.badge + ')' : '') + ': ' + money(t.price) + (pick ? ' — выбран' : ''));
+      });
+    }
+    return out.join('\n').replace(/ /g, ' ');
+  }
+
   var api = {
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
-    MAX_EXTRAS: MAX_EXTRAS, calcPrice: calcPrice, calcSummary: calcSummary, extraPrice: extraPrice, pkgById: pkgById,
+    MAX_EXTRAS: MAX_EXTRAS, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

@@ -26,20 +26,42 @@ function Timer({ left }: { left: number | null }) {
   return <span className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"}>{left}</span>;
 }
 
-/** Поле: «меньше всех» слева, дальше догадки по возрастанию. На экране зала и (компактно) на пульте. */
+/** Цвета фишек на столе по кругу (анонимные фишки — только для красоты стопки). */
+const CHIP_TONES = ["gold", "rose", "sage", "wine"] as const;
+
+/** Фишка казино: обод с насечками и медальон в центре (рисунок свой, SVG). */
+function WagerChip({ i }: { i: number }) {
+  const tone = CHIP_TONES[i % CHIP_TONES.length];
+  return (
+    <svg className={`wager-chip3 wager-chip3--${tone}`} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <circle cx="20" cy="20" r="19" className="wager-chip3__body" />
+      <circle cx="20" cy="20" r="19" className="wager-chip3__notches" pathLength="24" />
+      <circle cx="20" cy="20" r="12.5" className="wager-chip3__ring" />
+      <circle cx="20" cy="20" r="9" className="wager-chip3__face" />
+      <path d="M20 14.5l1.6 3.6 3.9.4-2.9 2.6.8 3.9-3.4-2-3.4 2 .8-3.9-2.9-2.6 3.9-.4z" className="wager-chip3__star" />
+    </svg>
+  );
+}
+
+/** Поле: «меньше всех» слева, дальше догадки по возрастанию. На экране зала — игровой стол (сукно, золотые ячейки,
+ * медальоны коэффициентов, стопки фишек); на пульте и телефоне — компактная полоска. */
 export function WagerBoard({ session, content, r, compact = false }: { session: Session; content: WagerContent; r: WagerResult; compact?: boolean }) {
   const question = content.questions[r.q];
   const unit = question?.unit ?? "";
   const cells: Array<{ slot: number; s: Slot | null }> = [{ slot: -1, s: null }, ...r.slots.map((s, i) => ({ slot: i, s }))];
-  return (
+  const board = (
     <ol className={compact ? "wager-board wager-board--compact" : "wager-board"} aria-label="Поле ставок">
       {cells.map(({ slot, s }) => {
         const chips = r.chips[String(slot)] ?? 0;
         const win = r.win === slot;
         const lost = r.win !== null && !win;
+        const odds = slot === -1 ? LOW_ODDS : s?.odds;
         return (
           <li key={slot} className={`wager-slot${slot === -1 ? " wager-slot--low" : ""}${win ? " is-win" : ""}${lost ? " is-lost" : ""}`}>
-            <span className="wager-slot__odds">{slot === -1 ? LOW_ODDS : s?.odds}:1</span>
+            <span className="wager-slot__odds">
+              <span className="wager-slot__odds-n">{odds}</span>
+              <span className="wager-slot__odds-x">:1</span>
+            </span>
             <span className="wager-slot__value">{slot === -1 ? "Меньше всех" : valueLabel(s?.value ?? 0, unit)}</span>
             {s && !compact && (
               <span className="wager-slot__authors">
@@ -50,16 +72,39 @@ export function WagerBoard({ session, content, r, compact = false }: { session: 
                 ))}
               </span>
             )}
-            <span className="wager-slot__chips" aria-label={`Фишек: ${chips}`}>
-              {Array.from({ length: Math.min(chips, 12) }, (_, i) => (
-                <span key={i} className="wager-chip" />
-              ))}
-              {chips > 12 && <span className="wager-slot__more">+{chips - 12}</span>}
-            </span>
+            {compact ? (
+              <span className="wager-slot__chips" aria-label={`Фишек: ${chips}`}>
+                {Array.from({ length: Math.min(chips, 12) }, (_, i) => (
+                  <span key={i} className="wager-chip" />
+                ))}
+                {chips > 12 && <span className="wager-slot__more">+{chips - 12}</span>}
+              </span>
+            ) : (
+              <span className="wager-slot__pile" aria-label={`Фишек: ${chips}`}>
+                <span className="wager-slot__stack">
+                  {Array.from({ length: Math.min(chips, 10) }, (_, i) => (
+                    <WagerChip key={i} i={i} />
+                  ))}
+                </span>
+                {chips > 0 && <span className="wager-slot__count">{chips}</span>}
+              </span>
+            )}
+            {win && !compact && <span className="wager-slot__flag">Ближе всех</span>}
           </li>
         );
       })}
     </ol>
+  );
+  if (compact) return board;
+  return (
+    <div className={r.win !== null ? "wager-table is-settled" : "wager-table"}>
+      <div className="wager-table__felt">
+        <p className="wager-table__rule" aria-hidden="true">
+          ✦ Ближе всех, но не больше правды ✦
+        </p>
+        {board}
+      </div>
+    </div>
   );
 }
 

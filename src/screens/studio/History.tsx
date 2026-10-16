@@ -87,7 +87,7 @@ export function History({ profile, onToast }: Props) {
   );
 }
 
-function ResultCard({ result, onCopy }: { result: GameResult; onCopy: (text: string, done: string) => Promise<void> }) {
+export function ResultCard({ result, onCopy }: { result: GameResult; onCopy: (text: string, done: string) => Promise<void> }) {
   const link = resultsUrl(result.id);
   return (
     <article className="card game-card">

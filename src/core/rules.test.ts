@@ -17,5 +17,9 @@ describe("правила для слайда", () => {
     }
     expect(rulesFor("quiz", "teams").lines[0]).toContain("капитан");
     expect(rulesFor(null, "solo").title).toBe("Правила игры");
+    // В режиме «каждый сам» капитанов нет.
+    for (const id of ["quest", "dragon", "millionaire", "hundred", "survival", "quiz"]) {
+      for (const line of rulesFor(id, "solo").lines) expect(line.toLowerCase()).not.toContain("капитан");
+    }
   });
 });

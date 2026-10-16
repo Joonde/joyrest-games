@@ -20,7 +20,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
 import { dropDraft, readDraft, useAutosave, type SaveStatus } from "../../components/useAutosave";
-import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, validateGame } from "../../mechanics/registry";
+import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, supportedPlayMode, validateGame } from "../../mechanics/registry";
 import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
 const AGE_HINTS: Record<AgeRating, string> = {
@@ -374,7 +374,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
             Как проводить эту игру
           </Link>
-          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={game.playMode} themeId={game.themeId} />
+          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
         </section>
       )}
       {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}
@@ -428,12 +428,13 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           )}
           <fieldset>
             <legend>Участники по умолчанию</legend>
-            {PLAY_MODES.map((mode) => (
+            {/* Только режимы, которые поддерживает механика: «Мафия» — каждый сам, «Шашки» — команды. */}
+            {PLAY_MODES.filter((mode) => mechanic?.supports[mode.id] ?? true).map((mode) => (
               <label key={mode.id} className="choice">
                 <input
                   type="radio"
                   name="playMode"
-                  checked={game.playMode === mode.id}
+                  checked={supportedPlayMode(game.mechanic, game.playMode) === mode.id}
                   onChange={() => edit({ playMode: mode.id })}
                 />
                 <span className="choice__text">
@@ -442,6 +443,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
                 </span>
               </label>
             ))}
+            {mechanic && !mechanic.supports.solo && <p className="muted small">Эта игра — только для команд.</p>}
+            {mechanic && !mechanic.supports.teams && <p className="muted small">Эта игра — только каждый сам за себя.</p>}
             <p className="muted small">Тему и режим можно поменять при запуске сессии.</p>
           </fieldset>
           <fieldset>

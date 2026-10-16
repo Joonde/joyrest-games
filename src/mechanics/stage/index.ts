@@ -13,7 +13,7 @@ const StageEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Stag
 export const stage: Mechanic<StageContent, StageAnswerValue> = {
   id: "stage",
   title: "Just Dance и Караоке на поле",
-  supports: { solo: true, teams: true, noScreen: false },
+  supports: { solo: false, teams: true, noScreen: false },
   create: () => createStage("dance"),
   parse: parseStage,
   mediaIds: () => [],

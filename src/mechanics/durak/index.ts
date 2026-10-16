@@ -19,6 +19,8 @@ export const durak: Mechanic<DurakContent, DurakAnswerValue> = {
   id: "durak",
   title: "Дурак",
   supports: { solo: true, teams: true, noScreen: true },
+  // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
+  ownAward: true,
   create: createDurak,
   parse: parseDurak,
   mediaIds: () => [],

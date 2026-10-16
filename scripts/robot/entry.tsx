@@ -451,7 +451,7 @@ async function overlay(): Promise<void> {
     const names = Object.values(s.leaderboard).map((e) => e.name);
     if (names.length >= 2) safe("жеребьёвка", { state: { slide: drawSlide(`d${report.ticks}`, names, names[0] ?? "", Date.now()) } });
   } else if (r < 0.21) safe("+10 секунд", addTimeChange(st, Date.now()));
-  else if (r < 0.23 && canAwardNow(st) && Object.values(s.leaderboard).some((e) => e.score > 0)) {
+  else if (r < 0.23 && !mechanic?.ownAward && canAwardNow(st) && Object.values(s.leaderboard).some((e) => e.score > 0)) {
     // «Наградить сейчас» и сразу «Назад» — игра должна вернуться туда же.
     const before = { step: st.step, stage: st.stage, key: resultKey(st.result) };
     safe("наградить сейчас", { ...awardNow(s), expect: { phase: "playing", step: st.step, stage: st.stage } });

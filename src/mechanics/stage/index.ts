@@ -14,6 +14,8 @@ export const stage: Mechanic<StageContent, StageAnswerValue> = {
   id: "stage",
   title: "Just Dance и Караоке на поле",
   supports: { solo: true, teams: true, noScreen: false },
+  // Счётчик «Ответили» пульт механики пишет сам.
+  ownAnswered: true,
   create: () => createStage("dance"),
   parse: parseStage,
   mediaIds: () => [],

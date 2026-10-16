@@ -14,6 +14,8 @@ export const checkers: Mechanic<CheckersContent, CheckersAnswerValue> = {
   id: "checkers",
   title: "Шашки",
   supports: { solo: true, teams: true, noScreen: true },
+  // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
+  ownAward: true,
   create: createCheckers,
   parse: parseCheckers,
   mediaIds: checkersMediaIds,

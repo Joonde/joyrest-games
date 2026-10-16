@@ -14,6 +14,8 @@ export const wager: Mechanic<WagerContent, WagerAnswerValue> = {
   id: "wager",
   title: "Держи пари",
   supports: { solo: true, teams: true, noScreen: false },
+  // Счётчик «Ответили» пульт механики пишет сам.
+  ownAnswered: true,
   create: createWager,
   parse: parseWager,
   mediaIds: () => [],

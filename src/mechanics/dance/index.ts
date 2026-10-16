@@ -14,6 +14,8 @@ export const dance: Mechanic<DanceContent, DanceAnswerValue> = {
   id: "dance",
   title: "Танцевальный батл",
   supports: { solo: true, teams: true, noScreen: false },
+  // Счётчик «Ответили» пульт механики пишет сам.
+  ownAnswered: true,
   create: createDance,
   parse: parseDance,
   mediaIds: () => [],

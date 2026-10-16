@@ -47,12 +47,14 @@
 <div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" hidden>
   <div class="send-sheet__box">
     <h3 id="sendSheetTitle">Куда отправить расчёт?</h3>
-    <p class="send-sheet__hint" id="sendSheetHint">Расчёт придёт нам готовым текстом — останется нажать «Отправить».</p>
+    <p class="send-sheet__hint" id="sendSheetHint">Откроется чат с нами, расчёт уже будет в сообщении — останется нажать «Отправить».</p>
     <div class="send-sheet__actions">
       <a class="hbtn hbtn--primary" id="sendWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
       <a class="hbtn hbtn--secondary" id="sendTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
-      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
       <a class="hbtn hbtn--secondary" id="sendAvito" href="" target="_blank" rel="noopener" hidden>Авито</a>
+      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
+      <button type="button" class="hbtn hbtn--secondary" id="sendImg">Картинкой расчёта</button>
+      <p class="send-sheet__hint send-sheet__hint--small">Картинка уходит через «Поделиться» телефона — выберите мессенджер и чат JoyRest. На компьютере она сохранится, её можно прикрепить в чат.</p>
       <button type="button" class="hbtn hbtn--secondary" id="sendCopy">Скопировать текст</button>
       <button type="button" class="send-sheet__close" id="sendClose">Закрыть</button>
     </div>
@@ -201,6 +203,20 @@
           <li>Цена — сразу, без звонка менеджеру</li>
           <li>Гости играют со своих телефонов, без бланков</li>
         </ul>
+        <nav class="route" aria-label="Что на этой странице">
+          <p class="route__title">Что на странице — листайте вниз по порядку</p>
+          <ol class="route__list">
+            <li><a href="#calculator"><b>1</b>Пакеты и цены</a></li>
+            <li><a href="#hosts"><b>2</b>Ведущие</a></li>
+            <li><a href="#games"><b>3</b>Игры</a></li>
+            <li><a href="#platform"><b>4</b>Как играют гости</a></li>
+            <li><a href="#terms"><b>5</b>Условия</a></li>
+            <li><a href="#process"><b>6</b>Как заказать</a></li>
+            <li><a href="#faq"><b>7</b>Вопросы</a></li>
+            <li><a href="#reviews"><b>8</b>Отзывы и Telegram</a></li>
+            <li><a href="#contact"><b>9</b>Связаться</a></li>
+          </ol>
+        </nav>
       </div>
       <div class="hero__side glass">
         <p class="side-label">Организуем</p>
@@ -232,7 +248,7 @@
        (опытный, «Новые лица», «Первый старт»). Расчёт — js/pricing.js, вывод — js/script.js. -->
   <section id="calculator" class="section">
     <div class="wrap">
-      <p class="eyebrow">Пакеты и калькулятор</p>
+      <p class="eyebrow"><span class="eyebrow__n">1</span><span class="eyebrow__t">Пакеты и цены</span></p>
       <h2>Соберите свой вечер</h2>
       <p class="sub">Выберите пакет, гостей и день — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
       <div class="calc">
@@ -292,6 +308,7 @@
       </div>
       <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
       <noscript><p class="hint">Калькулятор работает с включённым JavaScript. Цены пакетов — в бегущей строке выше, остальное подскажем в заявке.</p></noscript>
+      <a class="next" href="#hosts"><span class="next__k">Дальше · 2</span><span class="next__t">Кто проведёт ваш вечер</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -299,7 +316,7 @@
        Скидка — на весь вечер (калькулятор показывает три цены), поле «Формат ведущего» в заявке, hostLevel в /api/lead. -->
   <section id="hosts" class="section band">
     <div class="wrap">
-      <p class="eyebrow">Ведущие</p>
+      <p class="eyebrow"><span class="eyebrow__n">2</span><span class="eyebrow__t">Ведущие</span></p>
       <h2>Кто проведёт ваш вечер</h2>
       <p class="sub">Три формата — три цены в калькуляторе. Программа, игры и реквизит одинаковые, разница — в опыте ведущего.</p>
       <div class="hosts">
@@ -337,6 +354,7 @@
         </article>
       </div>
       <p class="hosts__note">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
+      <a class="next" href="#games"><span class="next__k">Дальше · 3</span><span class="next__t">Игры: выберите, во что играть</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -344,7 +362,7 @@
        экраны и карточки платформы (img/), у игр без снимка — обложка в цветах раздела. Фильтр и «Показать ещё» — js/script.js. -->
   <section id="games" class="section">
     <div class="wrap">
-      <p class="eyebrow">Обзор игр</p>
+      <p class="eyebrow"><span class="eyebrow__n">3</span><span class="eyebrow__t">Игры</span></p>
       <h2>Выберите, во что играть</h2>
       <p class="sub">37 игр JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
       <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
@@ -701,13 +719,14 @@
         </article>
       </div>
       <div class="games__more"><button type="button" class="btn btn--outline" id="gamesMore" hidden>Показать ещё</button></div>
+      <a class="next" href="#platform"><span class="next__k">Дальше · 4</span><span class="next__t">Как гости играют с телефонов</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <!-- Игровая платформа JoyRest Games: снимки — настоящие экраны демо-квиза (img/platform-*.webp). -->
   <section id="platform" class="section band">
     <div class="wrap">
-      <p class="eyebrow">Игры с ваших телефонов</p>
+      <p class="eyebrow"><span class="eyebrow__n">4</span><span class="eyebrow__t">Как играют гости</span></p>
       <h2>Три шага — и зал играет</h2>
       <div class="how">
         <div class="how__item"><p class="how__num">01</p><h3>Сканируют QR-код</h3><p>Без приложений и регистрации — камера телефона, и гость в игре. Можно ввести код из шести цифр.</p></div>
@@ -724,6 +743,7 @@
           <figcaption><strong>Телефон гостя</strong> — вход по QR-коду. Нет экрана — вопросы появятся прямо на телефонах.</figcaption>
         </figure>
       </div>
+      <a class="next" href="#terms"><span class="next__k">Дальше · 5</span><span class="next__t">Условия работы</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -731,7 +751,7 @@
        бронь даты — предоплата 2 000 ₽. Подробности — в договоре. Галочки в заявке — deposit и terms в /api/lead. -->
   <section id="terms" class="section">
     <div class="wrap">
-      <p class="eyebrow">Условия</p>
+      <p class="eyebrow"><span class="eyebrow__n">5</span><span class="eyebrow__t">Условия</span></p>
       <h2>Условия работы</h2>
       <p class="sub">Коротко и честно — чтобы праздник прошёл спокойно для всех.</p>
       <div class="terms">
@@ -752,12 +772,13 @@
         </div>
       </div>
       <p class="terms__more">Подробные условия — в договоре.</p>
+      <a class="next" href="#process"><span class="next__k">Дальше · 6</span><span class="next__t">Как заказать праздник</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section id="process" class="section band">
     <div class="wrap">
-      <p class="eyebrow">Как это работает</p>
+      <p class="eyebrow"><span class="eyebrow__n">6</span><span class="eyebrow__t">Как заказать</span></p>
       <h2>Четыре шага до праздника</h2>
       <ol class="steps">
         <li class="steps__item"><span class="steps__n">01</span><h3>Расскажите о мероприятии</h3><p>Дата, число гостей и формат — через калькулятор, заявку или сообщение.</p></li>
@@ -766,12 +787,13 @@
         <li class="steps__item"><span class="steps__n">04</span><h3>Проводим праздник</h3><p>Ведущий приезжает с реквизитом и платформой — вы гость на своём празднике.</p></li>
       </ol>
       <p class="callout">⏱ <strong>Про сроки:</strong> на мероприятия под заказ (<span data-needs="venue">особенно с большой площадкой или форматом «под ключ»</span><span data-unless="venue">особенно по индивидуальному сценарию и с квизом под компанию</span>) пишите минимум за 2 недели, а лучше за месяц.</p>
+      <a class="next" href="#faq"><span class="next__k">Дальше · 7</span><span class="next__t">Частые вопросы</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section id="faq" class="section">
     <div class="wrap">
-      <p class="eyebrow">Вопросы</p>
+      <p class="eyebrow"><span class="eyebrow__n">7</span><span class="eyebrow__t">Вопросы</span></p>
       <h2>Частые вопросы</h2>
       <p class="sub">Не нашли ответ — <span class="no-showcase">нажмите «Задать вопрос» внизу экрана или </span>напишите в Telegram.</p>
       <div class="faq">
@@ -804,6 +826,7 @@
           <p>Да. Например, «Сладкие приключения» — ходилка с фишками-стаканчиками сока, а у «Боя с драконом» есть вариант для детей. Напишите возраст гостей в заявке — подберём игры.</p>
         </details>
       </div>
+      <a class="next" href="#reviews"><span class="next__k">Дальше · 8</span><span class="next__t">Отзывы и наш Telegram</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -811,7 +834,7 @@
        Вернуть — data-review-form="on". Тип review в /api/lead не трогаем. -->
   <section id="reviews" class="section band" data-review-form="on">
     <div class="wrap">
-      <p class="eyebrow" id="reviewsEyebrow">Telegram</p>
+      <p class="eyebrow"><span class="eyebrow__n">8</span><span class="eyebrow__t" id="reviewsEyebrow">Telegram</span></p>
       <h2 id="reviewsTitle">Следите за нами</h2>
       <p class="sub" id="reviewsSub">Мы только открываемся — фото и отзывы с первых мероприятий появятся здесь. А пока заглядывайте в наш Telegram-канал.</p>
 
@@ -869,6 +892,7 @@
           <p class="form-error" id="reviewError" role="alert"></p>
         </form>
       </div>
+      <a class="next" href="#contact"><span class="next__k">Дальше · 9</span><span class="next__t">Связаться с нами</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
@@ -876,7 +900,7 @@
     <div class="wrap">
       <div class="contact">
         <div class="contact__info">
-          <p class="eyebrow">Заявка</p>
+          <p class="eyebrow"><span class="eyebrow__n">9</span><span class="eyebrow__t">Связаться</span></p>
           <h2>Обсудим ваш праздник</h2>
           <p class="no-showcase">Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
           <p class="showcase-only">Напишите нам в Telegram, WhatsApp, на почту или на Авито — предложим программу под ваш формат и бюджет.</p>
@@ -1060,6 +1084,7 @@
 </footer>
 
 <script src="js/pricing.js"></script>
+<script src="js/calc-image.js"></script>
 <script src="js/script.js"></script>
 <script src="js/reviews.js"></script>
 

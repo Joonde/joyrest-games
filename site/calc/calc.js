@@ -167,9 +167,9 @@
     toastTimer = setTimeout(function () { t.hidden = true; }, 3500);
   }
 
-  function copy() {
+  function copy(message) {
     var value = text();
-    var done = function () { toast('Расчёт скопирован — вставьте его в чат с менеджером'); };
+    var done = function () { toast(typeof message === 'string' ? message : 'Расчёт скопирован — вставьте его в чат с менеджером'); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(value).then(done, function () { fallback(value); });
     } else fallback(value);
@@ -186,16 +186,38 @@
     }
   }
 
-  function send() {
-    if (navigator.share) {
-      navigator.share({ title: 'Расчёт JoyRest', text: text() }).catch(function (e) {
-        if (!e || e.name !== 'AbortError') copy();
-      });
-    } else copy();
+  // Окно «Куда отправить расчёт?» (как на витрине сайта): WhatsApp и почта — с готовым текстом,
+  // Telegram и Авито текст подставить не дают — копируем и открываем чат.
+  var sheet = $('sheet'), sheetFrom = null;
+  function closeSheet() {
+    if (sheet.hidden) return;
+    sheet.hidden = true;
+    document.body.style.overflow = '';
+    if (sheetFrom) sheetFrom.focus();
   }
+  function send(e) {
+    var value = text();
+    sheetFrom = e && e.currentTarget;
+    $('sWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(value);
+    $('sMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(value);
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('sWa').focus();
+  }
+  function pasteHint(where) {
+    return function () { copy('Расчёт скопирован — вставьте его в чат ' + where); closeSheet(); };
+  }
+  $('sWa').addEventListener('click', function () { setTimeout(closeSheet, 0); });
+  $('sMail').addEventListener('click', function () { setTimeout(closeSheet, 0); });
+  $('sTg').addEventListener('click', pasteHint('Telegram'));
+  $('sAvito').addEventListener('click', pasteHint('на Авито'));
+  $('sCopy').addEventListener('click', function () { copy(); closeSheet(); });
+  $('sClose').addEventListener('click', closeSheet);
+  sheet.addEventListener('click', function (ev) { if (ev.target === sheet) closeSheet(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeSheet(); });
 
   $('send').addEventListener('click', send);
   $('barSend').addEventListener('click', send);
-  $('copy').addEventListener('click', copy);
+  $('copy').addEventListener('click', function () { copy(); });
   render();
 })();

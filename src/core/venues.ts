@@ -407,7 +407,6 @@ export function venueMissing(v: VenueData, menuFiles: number, manual = false): s
   if (!v.name) missing.push("название");
   if (!v.type) missing.push("тип");
   if (!v.address) missing.push("адрес");
-  if (!v.person) missing.push("имя");
   if (!v.phone || phoneDigits(v.phone).length < 10) missing.push("телефон");
   if (v.seated === null) missing.push("гостей сидя");
   if (v.standing === null) missing.push("гостей стоя");

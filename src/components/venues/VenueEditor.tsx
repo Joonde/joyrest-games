@@ -64,10 +64,10 @@ export function VenueEditor({ value: v, onChange, menuFiles }: Props) {
         />
       </Section>
 
-      <Section title="2. Кто с нами на связи" hint="Контакты видим только мы. Клиенту их не показываем.">
-        <TextField label="Имя и фамилия" required value={v.person} maxLength={TEXT_LIMITS.person} autoComplete="name" onChange={(x) => set("person", x)} />
+      <Section title="2. Кто с нами на связи" hint="Контакты видим только мы. Клиенту их не показываем. Лучше указать рабочие контакты заведения, а не личные.">
+        <TextField label="Как к вам обращаться" hint="По желанию" value={v.person} maxLength={TEXT_LIMITS.person} autoComplete="name" onChange={(x) => set("person", x)} />
         <TextField label="Должность" value={v.role} maxLength={TEXT_LIMITS.role} placeholder="администратор, банкет-менеджер…" onChange={(x) => set("role", x)} />
-        <TextField label="Телефон" required type="tel" inputMode="tel" value={v.phone} maxLength={TEXT_LIMITS.phone} placeholder="+7" autoComplete="tel" onChange={(x) => set("phone", x)} />
+        <TextField label="Рабочий телефон заведения" hint="Укажите рабочий телефон заведения" required type="tel" inputMode="tel" value={v.phone} maxLength={TEXT_LIMITS.phone} placeholder="+7" autoComplete="tel" onChange={(x) => set("phone", x)} />
         <TextField label="Telegram или WhatsApp" value={v.messenger} maxLength={TEXT_LIMITS.messenger} placeholder="@ник или номер" onChange={(x) => set("messenger", x)} />
         <TextField label="Почта" type="email" inputMode="email" value={v.email} maxLength={TEXT_LIMITS.email} onChange={(x) => set("email", x)} />
       </Section>

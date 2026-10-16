@@ -66,10 +66,12 @@ describe("анкета площадки", () => {
   });
 
   it("обязательные поля; меню — файлом или ссылкой; вручную — только название", () => {
-    expect(venueMissing(parseVenue({}), 0)).toEqual(["название", "тип", "адрес", "имя", "телефон", "гостей сидя", "гостей стоя", "меню (файл или ссылка)"]);
+    expect(venueMissing(parseVenue({}), 0)).toEqual(["название", "тип", "адрес", "телефон", "гостей сидя", "гостей стоя", "меню (файл или ссылка)"]);
     expect(venueMissing(venue({}), 1)).toEqual([]);
     expect(venueMissing(venue({ menuLink: "https://example.ru/menu" }), 0)).toEqual([]);
     expect(venueMissing(venue({ phone: "123" }), 1)).toEqual(["телефон"]);
+    // Имя контактного лица — по желанию (решение владельца 16 октября 2026): хватает рабочего телефона заведения.
+    expect(venueMissing(venue({ person: "" }), 1)).toEqual([]);
     expect(venueMissing(venue({ seated: 0 }), 1)).toEqual([]);
     expect(venueMissing(parseVenue({ name: "Лофт" }), 0, true)).toEqual([]);
   });

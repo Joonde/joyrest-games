@@ -7,7 +7,7 @@ import { Fold } from "../../components/Fold";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
 import { demoGames, gameMediaIds } from "../../mechanics/registry";
-import { groupByCategory, type CategoryId } from "../../mechanics/categories";
+import { groupByCategory, popularGames, type CategoryId } from "../../mechanics/categories";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 import { GameCard } from "./GameCard";
 import { ProposalsBlock } from "./Proposals";
@@ -379,6 +379,19 @@ export function GameList({ scope, profile, onToast }: Props) {
               </Fold>
             );
           })}
+        </section>
+      )}
+      {state.status === "ready" && scope === "agency" && popularGames(state.data).length > 0 && (
+        <section className="card popular" aria-labelledby={`popular-${scope}`}>
+          <h2 id={`popular-${scope}`} className="popular__title">
+            <span aria-hidden="true">⭐</span> Популярные
+          </h2>
+          <p className="muted small">Самые востребованные игры JoyRest — они же есть в своих разделах ниже.</p>
+          <ul className="cards">
+            {popularGames(state.data).map((game) => (
+              <li key={game.id}>{card(game)}</li>
+            ))}
+          </ul>
         </section>
       )}
       {state.status === "ready" && loose.length > 0 && (scope === "agency" || loose.length >= GROUP_FROM) && (

@@ -70,3 +70,32 @@ export function groupByCategory<T extends { mechanic: string | null; content: un
   }
   return CATEGORIES.filter((c) => groups.has(c.id)).map((c) => ({ category: c, games: groups.get(c.id) ?? [] }));
 }
+
+/**
+ * «Популярные» — над разделами библиотеки (решение владельца 16 октября 2026): самые востребованные форматы по одной
+ * игре в этом порядке. Слот берёт первую подходящую игру библиотеки; нет такой — слот пропускается. Игры остаются и в
+ * своих разделах.
+ */
+export const POPULAR_SLOTS: Array<{ title: string; match: (g: { mechanic: string | null; content: unknown; title?: string }) => boolean }> = [
+  { title: "Квиз", match: (g) => g.mechanic === "quiz" && categoryOf(g) === "quiz" },
+  { title: "Музыкальное лото", match: (g) => g.mechanic === "lotto" },
+  { title: "Бой с драконом", match: (g) => g.mechanic === "dragon" },
+  { title: "Just Dance на поле", match: (g) => g.mechanic === "stage" && variantOf(g.content) !== "karaoke" },
+  { title: "Кто хочет стать миллионером", match: (g) => g.mechanic === "millionaire" },
+  { title: "Своя игра", match: (g) => g.mechanic === "board" },
+  { title: "100 к 1", match: (g) => g.mechanic === "hundred" },
+];
+
+function variantOf(content: unknown): unknown {
+  return typeof content === "object" && content !== null ? (content as { variant?: unknown }).variant : undefined;
+}
+
+/** Игры для блока «Популярные»: по одной на слот, без повторов, в порядке слотов. */
+export function popularGames<T extends { mechanic: string | null; content: unknown; title?: string }>(games: T[]): T[] {
+  const picked: T[] = [];
+  for (const slot of POPULAR_SLOTS) {
+    const game = games.find((g) => !picked.includes(g) && slot.match(g));
+    if (game) picked.push(game);
+  }
+  return picked;
+}

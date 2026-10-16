@@ -399,10 +399,10 @@ try {
   await pult.getByRole("dialog").getByRole("button", { name: "Завершить игру" }).click({ timeout: WAIT });
 
   await screen.locator(".finale-qrs").waitFor({ timeout: WAIT });
-  await until(async () => (await screen.locator(".finale-qr figcaption strong").count()) >= 3, 8000, "три QR").catch(() => undefined);
+  await until(async () => (await screen.locator(".finale-qr figcaption strong").count()) >= 4, 8000, "четыре QR").catch(() => undefined);
   const captions = await screen.locator(".finale-qr figcaption strong").allTextContents();
-  check(captions.join("|") === "Чаевые ведущему|Оставьте отзыв|Наш Telegram", "Экран зала: после игры сам открылся «Спасибо» — три QR: чаевые, отзыв, канал", `Экран зала: подписи QR — ${captions.join(", ")}`);
-  check((await screen.locator(".finale-qr svg, .finale-qr img").count()) >= 3, "Экран зала: все три QR нарисованы");
+  check(captions.join("|") === "Чаевые ведущему|Оставьте отзыв|Отзыв на Авито|Наш Telegram", "Экран зала: после игры сам открылся «Спасибо» — четыре QR: чаевые, отзыв, Авито, канал", `Экран зала: подписи QR — ${captions.join(", ")}`);
+  check((await screen.locator(".finale-qr svg, .finale-qr img").count()) >= 4, "Экран зала: все четыре QR нарисованы");
   check((await screen.locator(".screen-exit").count()) === 1, "Экран зала: «На главную» видно и поверх «Спасибо»");
   const finale = (await api("GET", `/api/finale/${game.id}`, annaDevice)).data ?? {};
   check(finale.tipsUrl === TIPS, "Экран зала: QR чаевых ведёт на ссылку ведущего из профиля", `API финала: чаевые ${finale.tipsUrl}`);
@@ -425,6 +425,7 @@ try {
   const tipsLink = anna.getByRole("link", { name: /Чаевые ведущему/ });
   check((await tipsLink.getAttribute("href")) === TIPS, "Телефон гостя: кнопка «Чаевые ведущему» ведёт на ссылку ведущего");
   check((await anna.getByRole("link", { name: "Подписаться на канал JoyRest" }).getAttribute("href")) === "https://t.me/JoyRest", "Телефон гостя: кнопка канала ведёт в t.me/JoyRest");
+  check((await anna.getByRole("link", { name: "Наш сайт — joy-rest.ru" }).first().getAttribute("href")) === "https://joy-rest.ru/calc/", "Телефон гостя: кнопка сайта ведёт в калькулятор joy-rest.ru/calc/");
   check((await anna.getByText("Мы начали вести Telegram-канал").count()) === 1, "Телефон гостя: текст про канал на месте");
   const send = anna.getByRole("button", { name: "Отправить отзыв" });
   check(await send.isDisabled(), "Телефон гостя: без оценки и согласия «Отправить отзыв» не нажать");

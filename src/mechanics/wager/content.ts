@@ -20,11 +20,11 @@ export interface WagerContent {
   guessTime: number;
   /** Секунд на ставки. */
   betTime: number;
-  /** Сколько стоит фишка на верном ответе: очки × коэффициент. */
+  /** Устарело (до 16 октября 2026: очки за фишку). Счёт теперь — фишки, поле только читается для старых игр. */
   chipPoints: number;
-  /** Бонус автору догадки, которая оказалась верной. */
+  /** Бонус автору догадки, которая оказалась верной, — фишек. */
   authorBonus: number;
-  /** Можно ли добавлять к фишкам свои очки (угадали — ×коэффициент, нет — сгорают). */
+  /** Устарело: фишки всегда ставятся из своего запаса. */
   stakes: boolean;
 }
 
@@ -36,6 +36,8 @@ export const WAGER_LIMITS = {
   chipMin: 1,
   chipMax: 1000,
   bonusMax: 1000,
+  /** Бонус автору — не больше стольких фишек. */
+  bonusChips: 10,
   timeMin: 10,
   timeMax: 300,
   /** Догадок на поле: дальше от середины — не показываем (ставки только на поле). */
@@ -59,7 +61,7 @@ export function newQuestion(): WagerQuestion {
 }
 
 export function createWager(): WagerContent {
-  return { questions: [newQuestion()], guessTime: 60, betTime: 45, chipPoints: 10, authorBonus: 30, stakes: true };
+  return { questions: [newQuestion()], guessTime: 60, betTime: 45, chipPoints: 1, authorBonus: 1, stakes: true };
 }
 
 function rec(v: unknown): Record<string, unknown> {
@@ -95,8 +97,9 @@ export function parseWager(raw: unknown): WagerContent {
     questions,
     guessTime: int(d.guessTime, 60, WAGER_LIMITS.timeMin, WAGER_LIMITS.timeMax),
     betTime: int(d.betTime, 45, WAGER_LIMITS.timeMin, WAGER_LIMITS.timeMax),
-    chipPoints: int(d.chipPoints, 10, WAGER_LIMITS.chipMin, WAGER_LIMITS.chipMax),
-    authorBonus: int(d.authorBonus, 30, 0, WAGER_LIMITS.bonusMax),
+    chipPoints: 1,
+    // Старые игры считали бонус в очках (фишка = chipPoints очков) — переводим в фишки.
+    authorBonus: Math.min(WAGER_LIMITS.bonusChips, Math.round(int(d.authorBonus, 1, 0, WAGER_LIMITS.bonusMax) / Math.max(1, int(d.chipPoints, 1, WAGER_LIMITS.chipMin, WAGER_LIMITS.chipMax)))),
     stakes: d.stakes !== false,
   };
 }
@@ -145,3 +148,7 @@ export function winningSlot(slots: Slot[], answer: number): number {
 export function oddsOf(slots: Slot[], slot: number): number {
   return slot === -1 ? LOW_ODDS : (slots[slot]?.odds ?? 0);
 }
+
+/** Фишки (решение владельца 16 октября 2026): у каждого в начале 2, одна из них несгораемая — меньше 1 не бывает. */
+export const START_CHIPS = 2;
+export const SAFE_CHIPS = 1;

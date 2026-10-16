@@ -13,8 +13,8 @@ const content = parseWager({
   ],
   guessTime: 60,
   betTime: 45,
-  chipPoints: 10,
-  authorBonus: 30,
+  chipPoints: 1,
+  authorBonus: 1,
 });
 const teams: Participant[] = ["A", "B", "C", "D"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
 const session = (): Session => ({ id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "", mechanic: "wager", gameSnapshot: null, themeId: "joyrest", playMode: "teams", screenMode: "laptop", state: startState(), leaderboard: {}, createdAt: 0 });
@@ -55,13 +55,15 @@ describe("поле и выигрыш", () => {
 });
 
 describe("Держи пари: вопрос целиком", () => {
-  it("догадки → поле → ставки → ответ: фишки по коэффициенту, свои очки сгорают, автору бонус; «Назад» снимает очки", () => {
+  it("догадки → поле → ставки фишками → ответ: ставка × коэффициент, проигрыш сгорает (одна фишка остаётся), автору бонус; «Назад» возвращает", () => {
     let s = session();
     expect(wagerPrimary(s, content)).toBe("show");
     s = apply(s, showQuestion(s, content, teams));
     expect(s.state.timeLimit).toBe(60);
-    // У C уже есть очки — поставит сверху.
-    s = apply(s, { addScore: { C: 100 } });
+    // В начале у всех по 2 фишки.
+    expect(["A", "B", "C", "D"].map((p) => s.leaderboard[p]?.score)).toEqual([2, 2, 2, 2]);
+    // У C уже 6 фишек.
+    s = apply(s, { addScore: { C: 4 } });
     const g = s.state.step;
     const guesses = [ans("A", g, { guess: 300 }), ans("B", g, { guess: 500 }), ans("C", g, { guess: "250" }), ans("D", g, { guess: 300 })];
     expect(guessesOf(s, guesses)).toHaveLength(4);
@@ -73,27 +75,28 @@ describe("Держи пари: вопрос целиком", () => {
     expect(r.slots.map((x) => [x.value, x.odds, x.authors])).toEqual([[250, 3, ["C"]], [300, 2, ["A", "D"]], [500, 3, ["B"]]]);
     const b = s.state.step;
     const bets = [
-      ans("A", b, { bets: [{ slot: 1, stake: 0 }, { slot: 1, stake: 0 }] }),
-      ans("B", b, { bets: [{ slot: 2, stake: 0 }, { slot: -1, stake: 0 }] }),
-      // C ставит 80 своих на 300 и ещё 80 на 500 — хватает только на 20.
-      ans("C", b, { bets: [{ slot: 1, stake: 80 }, { slot: 2, stake: 80 }] }),
-      ans("D", b, { bets: [{ slot: 9, stake: 0 }] }),
+      ans("A", b, { bets: [{ slot: 1, stake: 2 }] }),
+      ans("B", b, { bets: [{ slot: 2, stake: 1 }, { slot: -1, stake: 1 }] }),
+      // C ставит 4 на 300 и ещё 4 на 500 — хватает только на 2.
+      ans("C", b, { bets: [{ slot: 1, stake: 4 }, { slot: 2, stake: 4 }] }),
+      ans("D", b, { bets: [{ slot: 9, stake: 1 }] }),
     ];
-    expect(betsFrom(s, bets, r.slots, true).C).toEqual([{ slot: 1, stake: 80 }, { slot: 2, stake: 20 }]);
+    expect(betsFrom(s, bets, r.slots).C).toEqual([{ slot: 1, stake: 4 }, { slot: 2, stake: 2 }]);
     s = apply(s, revealAnswer(s, content, bets));
     r = parseWagerResult(s.state.result);
     expect(r.win).toBe(1);
-    // A: две фишки ×2 по 10 = 40 + автор 30; B: 0; C: 10×2 + 80×2 − 20 = 160; D: автор 30 (ставка мимо поля не считается).
-    expect(s.leaderboard.A?.score).toBe(70);
-    expect(s.leaderboard.B?.score ?? 0).toBe(0);
-    expect(s.leaderboard.C?.score).toBe(260);
-    expect(s.leaderboard.D?.score).toBe(30);
+    // A: 2 фишки на 2:1 → 4 (+2) и автор +1 = 5; B: обе мимо — осталась несгораемая 1; C: 4 → 8, 2 сгорели = 8; D: автор +1 = 3.
+    expect(s.leaderboard.A?.score).toBe(5);
+    expect(s.leaderboard.B?.score).toBe(1);
+    expect(s.leaderboard.C?.score).toBe(8);
+    expect(s.leaderboard.D?.score).toBe(3);
     expect(wagerPrimary(s, content)).toBe("next");
-    // «Назад» с ответа — очки сняты, снова ставки.
+    // «Назад» с ответа — фишки как были, снова ставки.
     s = apply(s, wagerBack(s, content)?.change ?? {});
     expect(parseWagerResult(s.state.result).mode).toBe("bet");
-    expect(s.leaderboard.A?.score).toBe(0);
-    expect(s.leaderboard.C?.score).toBe(100);
+    expect(s.leaderboard.A?.score).toBe(2);
+    expect(s.leaderboard.B?.score).toBe(2);
+    expect(s.leaderboard.C?.score).toBe(6);
     // «Назад» со ставок — к догадкам, догадки на месте.
     const back = wagerBack(s, content);
     expect(back?.clear).toEqual([b]);
@@ -114,7 +117,9 @@ describe("Держи пари: вопрос целиком", () => {
 
   it("все догадки больше правды — выигрывает «меньше всех» 6:1, авторам ничего", () => {
     const slots = layoutSlots([{ pid: "A", value: 50 }]);
-    expect(payoutsOf(content, slots, { A: [{ slot: -1, stake: 10 }], B: [{ slot: 0, stake: 5 }] }, -1)).toEqual({ A: 120, B: -5 });
+    const board = { A: { name: "A", kind: "team" as const, score: 10 }, B: { name: "B", kind: "team" as const, score: 5 } };
+    // A: 10 фишек на 6:1 → 60 (+50); B: 5 сгорели, но одна остаётся (−4).
+    expect(payoutsOf(content, slots, { A: [{ slot: -1, stake: 10 }], B: [{ slot: 0, stake: 5 }] }, -1, board)).toEqual({ A: 50, B: -4 });
   });
 
   it("последний вопрос — награждение; репетиция без команд проходит до конца", () => {

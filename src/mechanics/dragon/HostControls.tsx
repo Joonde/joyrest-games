@@ -8,13 +8,13 @@ import { resultKey } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
-import { heroOf, statTitle, type DragonContent } from "./content";
+import { DICE_LUCK, heroOf, statTitle, taskText, type DragonContent } from "./content";
 import { battleOf, closeHeroes, dragonBack, dragonPrimary, maxLives, nextBattle, nextTask, parseDragonResult, revealTask, showTask, startDragon, taskOf, toggleMark } from "./logic";
 
 const LETTERS = ["A", "B", "C", "D"];
 
 /**
- * Пульт «Боя с драконом»: «Начать игру» (капитаны выбирают героев) → «Герои выбраны — в бой!» → задание
+ * Пульт «Боя с драконом»: «Выбор героев» (капитаны выбирают героев) → «Начать бой» (активна, когда все команды с телефоном выбрали) → задание
  * («Показать задание» → «Удар!») → «Следующее задание» … → итог боя → «Следующий бой» → награждение.
  */
 export function DragonHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<DragonContent>) {
@@ -73,6 +73,8 @@ export function DragonHostControls({ session, content, answers, participants, co
   const backPlan = dragonBack(session, participants);
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
   const answered = new Set(answers.filter((a) => a.step === step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).map((a) => a.pid));
+  // Ждём выбор героя только от команд с телефоном (без телефона — герой по порядку).
+  const waiting = r.phase === "heroes" ? r.order.filter((p) => participants.some((x) => x.id === p) && !answered.has(p)) : [];
 
   return (
     <div className="stack host-quiz">
@@ -85,9 +87,24 @@ export function DragonHostControls({ session, content, answers, participants, co
       ) : r.order.length === 0 ? (
         <p className="muted">Капитаны выберут героя и разложат {5} очков по свойствам. Команды в бою — в порядке подключения.</p>
       ) : r.phase === "heroes" ? (
-        <p>
-          Героев выбрали: {answered.size} из {r.order.length}. Кто не успеет — получит героя по порядку и свойства по 1.
-        </p>
+        <div className="stack stack--tight">
+          <p>
+            Героев выбрали: {r.order.filter((p) => answered.has(p)).length} из {r.order.length}.
+          </p>
+          {waiting.length > 0 ? (
+            <p className="muted small">
+              Ждём: {waiting.map((p, i) => (
+                <span key={p}>
+                  {i > 0 ? ", " : ""}
+                  <NameText name={name(p)} />
+                </span>
+              ))}
+              . «Начать бой» станет активной, когда все нажмут «В бой с героем».
+            </p>
+          ) : (
+            <p className="success">Все выбрали героев — можно начинать бой.</p>
+          )}
+        </div>
       ) : (
         task &&
         r.phase !== "over" && (
@@ -95,7 +112,7 @@ export function DragonHostControls({ session, content, answers, participants, co
             <p className="eyebrow">
               Задание {r.task + 1} из {battle?.tasks.length ?? 0} · {statTitle(task.stat)} · урон {task.power}
             </p>
-            <p className="host-quiz__question">{task.kind === "dice" ? task.text || "Бросок кубика" : task.text}</p>
+            <p className="host-quiz__question">{taskText(task, session.playMode, "Бросок кубика")}</p>
             {task.kind === "choice" && (
               <ol className="mil-host-options">
                 {task.options.map((o, i) => (
@@ -107,7 +124,7 @@ export function DragonHostControls({ session, content, answers, participants, co
               </ol>
             )}
             {r.phase === "task" && task.kind !== "task" && <p className="small">Ответили: {[...answered].filter((p) => r.order.includes(p)).length} из {r.order.length - r.dead.length}</p>}
-            {r.phase === "task" && task.kind === "dice" && <p className="muted small">Кто не бросит — за того кубик бросится сам при «Удар!».</p>}
+            {r.phase === "task" && task.kind === "dice" && <p className="muted small">{DICE_LUCK} и больше — удар по дракону, меньше {DICE_LUCK} — промах, дракон бьёт. Кто не бросит — за того кубик бросится сам при «Удар!».</p>}
           </div>
         )
       )}
@@ -159,9 +176,28 @@ export function DragonHostControls({ session, content, answers, participants, co
           </>
         )}
         {action === "heroesDone" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => closeHeroes(latest.current, content, list, participants)))}>
-            Герои выбраны — в бой!
-          </button>
+          <>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || waiting.length > 0} onClick={() => void run(fresh((list) => closeHeroes(latest.current, content, list, participants)))}>
+              Начать бой
+            </button>
+            {waiting.length > 0 && (
+              <button
+                type="button"
+                className="btn btn--quiet btn--block"
+                disabled={busy}
+                onClick={() =>
+                  confirm({
+                    title: "Начать бой без них?",
+                    text: "Кто не выбрал, получит героя по порядку и свойства по 1. Начинайте, только если телефон команды не отвечает.",
+                    confirmLabel: "Начать бой",
+                    run: () => run(fresh((list) => closeHeroes(latest.current, content, list, participants))),
+                  })
+                }
+              >
+                Начать без {waiting.length === 1 ? "одной команды" : `${waiting.length} команд`}
+              </button>
+            )}
+          </>
         )}
         {action === "show" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(showTask(session, content, participants))}>

@@ -17,7 +17,7 @@ export const dragonPreview: PreviewDriver<DragonContent> = ({ session, content, 
       return { label: "Пульт: «Выбор героев»", change: startDragon(session, participants) };
     case "heroesDone":
       if (answers.length === 0) return { label: "Капитаны выбрали героев и свойства", answers: teams.map((pid, i) => ({ pid, value: PICKS.at(i % PICKS.length) })) };
-      return { label: "Пульт: «Герои выбраны — в бой!»", change: closeHeroes(session, content, answers, participants) };
+      return { label: "Пульт: «Начать бой»", change: closeHeroes(session, content, answers, participants) };
     case "show":
       return { label: "Пульт: «Показать задание»", change: showTask(session, content, participants) };
     case "reveal": {

@@ -12,7 +12,7 @@ import { MAX_SCORE_DELTA } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import { dieOf } from "../quest/logic";
 import type { ScoreDelta, Step } from "../types";
-import { HEROES, heroOf, parseStats, type DragonBattle, type DragonContent, type DragonTask, type HeroId, type Stats } from "./content";
+import { DICE_LUCK, HEROES, heroOf, parseStats, type DragonBattle, type DragonContent, type DragonTask, type HeroId, type Stats } from "./content";
 
 export type DragonPhase = "heroes" | "intro" | "task" | "reveal" | "victory" | "defeat" | "over";
 
@@ -119,15 +119,22 @@ export function parseDragonResult(raw: unknown): DragonResult {
 const write = (r: DragonResult): Record<string, unknown> => ({ ...r });
 
 export function dragonSteps(content: DragonContent): Step[] {
-  return content.battles.flatMap((b) => b.tasks.map((t) => ({ id: t.id, answerable: true })));
+  return content.battles.flatMap((b) => playedTasks(content, b).map((t) => ({ id: t.id, answerable: true })));
 }
 
 export function score(): ScoreDelta[] {
   return [];
 }
 
+/** Задания боя, которые играем: первые `perBattle` (0 — все). */
+export function playedTasks(content: DragonContent, battle: DragonBattle): DragonTask[] {
+  return content.perBattle > 0 ? battle.tasks.slice(0, content.perBattle) : battle.tasks;
+}
+
+/** Текущий бой — только с заданиями, которые играем. */
 export function battleOf(content: DragonContent, r: DragonResult): DragonBattle | null {
-  return content.battles[r.battle] ?? null;
+  const b = content.battles[r.battle];
+  return b ? { ...b, tasks: playedTasks(content, b) } : null;
 }
 
 export function taskOf(content: DragonContent, r: DragonResult): DragonTask | null {
@@ -204,7 +211,7 @@ export function heroFromAnswer(value: unknown, index: number): TeamHero {
   return { hero, stats: parseStats(v.stats) };
 }
 
-/** «Герои выбраны — в бой!» */
+/** «Начать бой» (после выбора героев). */
 export function closeHeroes(session: Session, content: DragonContent, answers: Answer[], participants: Participant[]): SessionChange {
   const r = parseDragonResult(session.state.result);
   const order = orderOf(session, participants, r);
@@ -286,7 +293,8 @@ export function revealTask(session: Session, content: DragonContent, answers: An
       // Не бросили сами — бросок за команду тоже из времени показа (тот же при повторном «Ударе»).
       const raw = answer && rec(answer.value).roll === true ? dieOf(answer) : (hostRolls[p] ?? dieOf({ id: `${session.state.step}_${p}_host`, submittedAt: session.state.startedAt ?? 0 }));
       roll = raw === null ? null : Math.min(6, raw + (hero.hero === "thief" ? 1 : 0));
-      ok = roll !== null;
+      // 3 и больше — удача (удар), меньше — неудача (дракон бьёт).
+      ok = roll !== null && roll >= DICE_LUCK;
     }
     const damage = damageOf(task, hero, ok, roll, firstRight === p);
     const hit: Hit = { damage, ok, lost: 0, healed: false, roll, saved: null };

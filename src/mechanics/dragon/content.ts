@@ -53,6 +53,8 @@ export interface DragonTask {
   /** Свойство, от которого зависит урон. */
   stat: Stat;
   text: string;
+  /** Текст для режима «каждый сам», если задание командное («капитан», «вся команда»); '' — как `text`. */
+  solo: string;
   options: string[];
   correct: number;
   /** Базовый урон за выполненное задание (дальше — ×(1 + свойство) и силы героя). */
@@ -71,8 +73,10 @@ export interface DragonBattle {
 
 export interface DragonContent {
   battles: DragonBattle[];
-  /** Жизни команды в каждом бою. */
+  /** Жизни команды (или игрока в режиме «каждый сам») в каждом бою. */
   lives: number;
+  /** Сколько заданий играть в каждом бою: первые N из списка боя; 0 — все. Решение владельца 16 октября 2026. */
+  perBattle: number;
   /** Бонус за последний удар и каждой выжившей команде за победу. */
   killBonus: number;
   winBonus: number;
@@ -87,7 +91,7 @@ function id(prefix: string): string {
 }
 
 export function newDragonTask(kind: DragonTaskKind = "choice", stat: Stat = kind === "dice" ? "luck" : kind === "task" ? "str" : "mind"): DragonTask {
-  return { id: id("t"), kind, stat, text: kind === "dice" ? "Бросайте кубик — бейте наудачу!" : "", options: ["", "", "", ""], correct: 0, power: 100, seconds: kind === "choice" ? 30 : 0 };
+  return { id: id("t"), kind, stat, text: kind === "dice" ? "Бросайте кубик — бейте наудачу!" : "", solo: "", options: ["", "", "", ""], correct: 0, power: 100, seconds: kind === "choice" ? 30 : 0 };
 }
 
 export function newBattle(n = 1): DragonBattle {
@@ -95,7 +99,7 @@ export function newBattle(n = 1): DragonBattle {
 }
 
 export function createDragon(): DragonContent {
-  return { battles: [newBattle(1), newBattle(2)], lives: 3, killBonus: 300, winBonus: 100, style: "classic" };
+  return { battles: [newBattle(1), newBattle(2)], lives: 3, perBattle: 0, killBonus: 300, winBonus: 100, style: "classic" };
 }
 
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -114,6 +118,7 @@ function parseTask(raw: unknown, i: number, seen: Set<string>): DragonTask {
     kind,
     stat: STAT_IDS.includes(t.stat as Stat) ? (t.stat as Stat) : kind === "dice" ? "luck" : kind === "task" ? "str" : "mind",
     text: str(t.text, DRAGON_LIMITS.text),
+    solo: str(t.solo, DRAGON_LIMITS.text),
     options: Array.from({ length: 4 }, (_, k) => str(Array.isArray(t.options) ? t.options[k] : "", DRAGON_LIMITS.option)),
     correct: int(t.correct, 0, 0, 3),
     power: int(t.power, 100, 0, DRAGON_LIMITS.maxPower),
@@ -139,6 +144,7 @@ export function parseDragon(raw: unknown): DragonContent {
   return {
     battles,
     lives: int(d.lives, 3, 1, DRAGON_LIMITS.maxLives),
+    perBattle: int(d.perBattle, 0, 0, DRAGON_LIMITS.maxTasks),
     killBonus: int(d.killBonus, 300, 0, DRAGON_LIMITS.maxPower),
     winBonus: int(d.winBonus, 100, 0, DRAGON_LIMITS.maxPower),
     style: d.style === "kids" ? "kids" : "classic",
@@ -163,7 +169,7 @@ export function statTitle(s: Stat): string {
 /**
  * Список: «# Бой: Огненный дракон 2000» — новый бой (число — здоровье). Дальше задания: «Ум: вопрос?» и
  * строки «- вариант», «* верный»; «Сила: задание» / «Харизма: …» — задание (засчитывает ведущий); «Удача» —
- * кубик. «(150)» в конце — урон.
+ * кубик. «(150)» в конце — урон. «Задание для команд || задание для каждого сам» — второй текст в режиме «каждый сам».
  */
 export function parseDragonList(text: string): DragonBattle[] {
   const battles: DragonBattle[] = [];
@@ -197,11 +203,22 @@ export function parseDragonList(text: string): DragonBattle[] {
     const body = (pts ? line.slice(0, pts.index) : line).trim();
     const m = body.match(/^(сила|ум|ловкость|удача|харизма)\s*[:.]\s*(.*)$/i);
     const stat = m ? (statByWord[(m[1] ?? "").toLowerCase()] ?? "mind") : "mind";
-    const textPart = (m ? (m[2] ?? "") : body).slice(0, DRAGON_LIMITS.text);
+    // «текст для команд || текст для режима „каждый сам“».
+    const [teamPart = "", soloPart = ""] = (m ? (m[2] ?? "") : body).split(/\s*\|\|\s*/);
+    const textPart = teamPart.slice(0, DRAGON_LIMITS.text);
     const kind: DragonTaskKind = stat === "luck" ? "dice" : stat === "str" || stat === "cha" ? "task" : "choice";
-    task = { ...newDragonTask(kind, stat), text: textPart || (kind === "dice" ? "Бросайте кубик!" : ""), power: pts ? Math.min(DRAGON_LIMITS.maxPower, Number(pts[1])) : 100 };
+    task = { ...newDragonTask(kind, stat), text: textPart || (kind === "dice" ? "Бросайте кубик!" : ""), solo: soloPart.trim().slice(0, DRAGON_LIMITS.text), power: pts ? Math.min(DRAGON_LIMITS.maxPower, Number(pts[1])) : 100 };
     if (battle.tasks.length < DRAGON_LIMITS.maxTasks) battle.tasks.push(task);
   }
   return battles.filter((b) => b.tasks.length > 0).slice(0, DRAGON_LIMITS.maxBattles);
 }
 export const LETTERS_RU = ["A", "B", "C", "D"];
+
+/** Кубик: столько и больше — удача (удар по дракону), меньше — неудача (дракон бьёт). Решение владельца 16 октября 2026. */
+export const DICE_LUCK = 3;
+
+/** Текст задания для режима игры: в «каждый сам» — `solo`, если он есть. */
+export function taskText(task: DragonTask, playMode: string | undefined, dice = "Бросайте кубик!"): string {
+  if (task.kind === "dice") return task.text || dice;
+  return playMode === "solo" && task.solo ? task.solo : task.text;
+}

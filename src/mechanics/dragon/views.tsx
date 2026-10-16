@@ -7,7 +7,7 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps } from "../types";
-import { HEROES, heroOf, STAT_MAX, STAT_POINTS, STATS, statTitle, type DragonContent, type DragonTask, type Stat, type Stats } from "./content";
+import { DICE_LUCK, HEROES, heroOf, STAT_MAX, STAT_POINTS, STATS, statTitle, taskText, type DragonContent, type DragonTask, type Stat, type Stats } from "./content";
 import { maxLives, parseDragonResult, taskOf, type DragonResult } from "./logic";
 
 // Экран зала — новый вид (look/stage.tsx): взрослый и детский.
@@ -39,12 +39,13 @@ function StatBadge({ stat }: { stat: Stat }) {
   );
 }
 
-function TaskCard({ task, reveal, size = "screen" }: { task: DragonTask; reveal: boolean; size?: "screen" | "phone" }) {
+/** Задание; `options={false}` — без вариантов (на телефоне варианты — кнопки ответа, второй раз не показываем). */
+function TaskCard({ task, reveal, size = "screen", options = true, mode }: { task: DragonTask; reveal: boolean; size?: "screen" | "phone"; options?: boolean; mode?: string }) {
   return (
     <div className={`dr-task dr-task--${size}`}>
       <StatBadge stat={task.stat} />
-      <p className="dr-task__text">{task.kind === "dice" ? task.text || "Бросайте кубик!" : task.text}</p>
-      {task.kind === "choice" && (
+      <p className="dr-task__text">{taskText(task, mode)}</p>
+      {task.kind === "choice" && options && (
         <ol className="mil-options">
           {task.options.map((o, i) => (
             <li key={i} className={`mil-option${reveal && i === task.correct ? " is-right" : ""}`}>
@@ -208,7 +209,7 @@ export function DragonPlayerView({ session, content, pid, role, myAnswer, sendin
         </div>
       ) : stage === "question" && task.kind === "choice" && canAct ? (
         <>
-          <TaskCard task={task} reveal={false} size="phone" />
+          <TaskCard task={task} reveal={false} size="phone" options={false} mode={session.playMode} />
           <div className="mil-phone-options">
             {task.options.map((o, i) => (
               <button key={i} type="button" className="btn btn--secondary mil-phone-option" disabled={sending} onClick={() => onAnswer({ choice: i })}>
@@ -225,12 +226,14 @@ export function DragonPlayerView({ session, content, pid, role, myAnswer, sendin
           </button>
           <div className="buzz__plate buzz__plate--glow" role="status">
             <strong>Удача: {mine?.stats.luck ?? 0}</strong>
-            <span>Число выпадет на экране зала</span>
+            <span>
+              {DICE_LUCK} и больше — удар по дракону, меньше {DICE_LUCK} — промах. Число — на экране зала
+            </span>
           </div>
         </div>
       ) : (
         <>
-          <TaskCard task={task} reveal={stage === "reveal"} size="phone" />
+          <TaskCard task={task} reveal={stage === "reveal"} size="phone" mode={session.playMode} />
           {stage === "question" && task.kind === "task" && <p className="muted">Выполняйте — ведущий засчитает удар.</p>}
           {stage === "question" && myAnswer && <p className="success">Отправлено — смотрите на экран</p>}
           {stage === "question" && role === "member" && task.kind !== "task" && <p className="muted">Отвечает капитан — подсказывайте!</p>}

@@ -83,7 +83,7 @@ describe("встроенная музыка экрана зала", () => {
     expect(at({ phase: "playing", stage: "ready", step: 5, result: result(8, "turn") })).toBeNull();
   });
 
-  it("бой с драконом: громко в лобби, тихим фоном весь бой без перезапуска, на награждении — тишина", () => {
+  it("бой с драконом: громко в лобби, фоном весь бой без перезапуска, на награждении — тишина", () => {
     const d = (state: Partial<SessionState>) => {
       const s = { ...session(state), mechanic: "dragon" } as Session;
       return builtinMusicOf(s, dragon.music?.(s, null as never) ?? null);
@@ -94,7 +94,8 @@ describe("встроенная музыка экрана зала", () => {
     const b = d({ phase: "playing", stage: "question", step: 3, startedAt: 7 });
     expect(a?.key).toBe("dragonBattle");
     expect(b?.key).toBe("dragonBattle"); // тот же ключ на всех шагах — трек не начинается заново
-    expect(a?.volume).toBeLessThan(0.5);
+    expect(a?.volume).toBeGreaterThanOrEqual(0.6); // фон тише лобби, но слышен в зале (16 октября 2026)
+    expect(a?.volume).toBeLessThan(1);
     expect(a?.urls).toEqual(lobby?.urls);
     expect(d({ phase: "playing", stage: "podium" })).toBeNull();
     // Перерыв и «Представить команды» главнее музыки дракона.

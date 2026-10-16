@@ -13,7 +13,7 @@ import { NameText } from "../../../components/NameText";
 import { secondsLeft } from "../../../core/session";
 import type { Session } from "../../../data/types";
 import type { ViewProps } from "../../types";
-import { heroOf, STAT_POINTS, STATS, type DragonContent, type DragonTask } from "../content";
+import { DICE_LUCK, heroOf, STAT_POINTS, STATS, taskText, type DragonContent, type DragonTask } from "../content";
 import { dragonKind, type DragonKind } from "../DragonArt";
 import { battleOf, maxLives, parseDragonResult, taskOf, type DragonResult } from "../logic";
 import { AdultDragon, BROW_Y, KidDragon, MOUTH_Y } from "./dragons";
@@ -122,7 +122,7 @@ function TaskBox({ task, r, reveal, left, kids, session, content }: { task: Drag
         <div className="dg-q__text dg-q__text--big">
           {stat?.icon} {stat?.title}
         </div>
-        <p className="dg-q__note">{task.kind === "dice" ? "Капитаны бросают кубик" : task.kind === "task" ? "Активное задание — засчитывает ведущий" : "Вопрос — отвечает капитан"}</p>
+        <p className="dg-q__note">{task.kind === "dice" ? `${session.playMode === "solo" ? "Игроки бросают" : "Капитаны бросают"} кубик: ${DICE_LUCK} и больше — удар, меньше — промах` : task.kind === "task" ? "Активное задание — засчитывает ведущий" : session.playMode === "solo" ? "Вопрос — отвечает каждый" : "Вопрос — отвечает капитан"}</p>
       </div>
     );
   }
@@ -132,7 +132,7 @@ function TaskBox({ task, r, reveal, left, kids, session, content }: { task: Drag
         Задание {r.task + 1} · {stat?.icon} {stat?.title}
       </div>
       {timer}
-      <div className={`dg-q__text${timer ? " has-timer" : ""}`}>{task.kind === "dice" ? task.text || "Бросайте кубик!" : task.text}</div>
+      <div className={`dg-q__text${timer ? " has-timer" : ""}`}>{taskText(task, session.playMode)}</div>
       {task.kind === "choice" && (
         <ol className="dg-q__ans">
           {task.options.map((o, i) =>

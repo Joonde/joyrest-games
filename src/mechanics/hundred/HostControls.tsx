@@ -1,8 +1,9 @@
 // Пульт «100 к 1»: ведущий видит все ответы табло с синонимами и открывает их касанием; «✕ Нет на табло» —
 // крестик; «Играют …» после розыгрыша; «Большая игра» — ответы игроков касанием; «Весь зал» — нераспознанные
 // ответы гостей и табло по одному ответу. «Назад» — одно действие вместе с очками.
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { leaderboardAdditions } from "../../core/leaderboard";
@@ -70,17 +71,14 @@ function AnswerList({ question, kind, r, disabled, hall, onTap }: { question: Hu
   );
 }
 
+/** Момент игры для повтора касания: всё, кроме нажатий кнопки (их пишет фон пульта) — остаётся только, у кого слово. */
+function hundredMoment(s: Session): string {
+  const r = parseHundredResult(s.state.result);
+  return resultKey({ ...r, buzz: r.buzz.current });
+}
+
 export function HundredHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<HundredContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
+  const { busy, error, setError, run, quiet } = useHostRun(session, control, rehearsal, { moment: hundredMoment });
   const { stage, step } = session.state;
   const r = parseHundredResult(session.state.result);
   const round = roundOf(content, r);
@@ -93,47 +91,11 @@ export function HundredHostControls({ session, content, answers, participants, c
   const syncKey = stage === "question" && r.mode === "face" && r.armed ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
   useEffect(() => {
     if (!syncKey || busy) return;
-    const change = hundredBuzzSync(latest.current, answers);
-    if (!change) return;
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    void quiet((cur) => hundredBuzzSync(cur, answers));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт при новых нажатиях и смене слова
   }, [syncKey, r.buzz.current, r.buzz.order.length, busy]);
 
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | null | (() => Promise<SessionChange | null>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      const cur = latest.current.state;
-      if (clear && clear.length > 0 && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Свежие ответы зала с сервера перед начислением очков. */
-  const withAnswers = (make: (list: Answer[]) => SessionChange | null) => async () => make(await control.freshAnswers(step).catch(() => answers));
+  const withAnswers = (make: (s: Session, list: Answer[]) => SessionChange | null) => async (s: Session) => make(s, await control.freshAnswers(step).catch(() => answers));
 
   const nameOf = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Команда") : "");
   const peek = session.state.peek ?? null;
@@ -153,7 +115,7 @@ export function HundredHostControls({ session, content, answers, participants, c
     </button>
   );
   const backButton = (
-    <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+    <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => hundredBack(s, content, answers)?.change ?? null, backPlan.clear)}>
       Назад
     </button>
   );
@@ -164,11 +126,11 @@ export function HundredHostControls({ session, content, answers, participants, c
   );
   const nextButton = (label: string) =>
     primary === "award" ? (
-      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(hundredAward(session))}>
+      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => hundredAward(s))}>
         Все раунды сыграны — награждение
       </button>
     ) : (
-      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(nextQuestion(latest.current, content, participants)))}>
+      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextQuestion(s, content, participants))}>
         {label}
       </button>
     );
@@ -180,7 +142,7 @@ export function HundredHostControls({ session, content, answers, participants, c
         <PodiumHostList session={session} />
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "finish" ? control.requestFinish() : void run(podiumNext(session)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "finish" ? control.requestFinish() : void run((s) => podiumNext(s)))}>
             {primary === "finish" ? "Завершить игру" : "Открыть следующее место"}
           </button>
           {backButton}
@@ -194,7 +156,7 @@ export function HundredHostControls({ session, content, answers, participants, c
       <div className="stack host-quiz">
         <p className="muted">В игре нет вопросов.</p>
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(hundredAward(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => hundredAward(s))}>
             Награждение
           </button>
           {backButton}
@@ -246,7 +208,7 @@ export function HundredHostControls({ session, content, answers, participants, c
                   disabled={busy}
                   onClick={() => {
                     const next = pair.includes(p) ? pair.filter((x) => x !== p) : [...pair, p].slice(-2);
-                    void run(setPair(session, participants, next));
+                    void run((s) => setPair(s, participants, next));
                   }}
                 >
                   <NameText name={nameOf(p)} />
@@ -265,7 +227,7 @@ export function HundredHostControls({ session, content, answers, participants, c
             <legend>Кто играет «Большую игру» (по умолчанию — лидер)</legend>
             <div className="row">
               {ordered.map((p) => (
-                <button key={p} type="button" className="pick-chip" aria-pressed={team === p} disabled={busy} onClick={() => void run(setBigTeam(session, participants, p))}>
+                <button key={p} type="button" className="pick-chip" aria-pressed={team === p} disabled={busy} onClick={() => void run((s) => setBigTeam(s, participants, p))}>
                   <NameText name={nameOf(p)} /> · {session.leaderboard[p]?.score ?? 0}
                 </button>
               ))}
@@ -279,7 +241,7 @@ export function HundredHostControls({ session, content, answers, participants, c
             type="button"
             className="btn btn--block host-quiz__primary"
             disabled={busy || (!hall && !big && pair.length === 0)}
-            onClick={() => void run(() => Promise.resolve(hall ? hallOpen(latest.current, content, participants) : big ? bigStart(latest.current, content, participants) : startFace(latest.current, content, participants)))}
+            onClick={() => void run((s) => (hall ? hallOpen(s, content, participants) : big ? bigStart(s, content, participants) : startFace(s, content, participants)))}
           >
             {hall ? `Открыть вопрос · ${content.hallTime} с` : big ? `Запустить таймер первому игроку · ${content.bigTimes[0]} с` : "Показать вопрос"}
           </button>
@@ -325,11 +287,11 @@ export function HundredHostControls({ session, content, answers, participants, c
               {r.mode === "big" && (
                 <div className="row">
                   {ranked(q).map((a) => (
-                    <button key={a.id} type="button" className="pick-chip" aria-pressed={mine?.answer === a.id} disabled={busy || (p === 1 && first?.answer === a.id)} title={a.synonyms.length > 0 ? `ещё: ${a.synonyms.join(", ")}` : undefined} onClick={() => void run(bigEnter(session, content, participants, i, a.id))}>
+                    <button key={a.id} type="button" className="pick-chip" aria-pressed={mine?.answer === a.id} disabled={busy || (p === 1 && first?.answer === a.id)} title={a.synonyms.length > 0 ? `ещё: ${a.synonyms.join(", ")}` : undefined} onClick={() => void run((s) => bigEnter(s, content, participants, i, a.id))}>
                       {a.text} · {a.points}
                     </button>
                   ))}
-                  <button type="button" className="pick-chip" aria-pressed={Boolean(mine) && mine?.answer === null} disabled={busy} onClick={() => void run(bigEnter(session, content, participants, i, null))}>
+                  <button type="button" className="pick-chip" aria-pressed={Boolean(mine) && mine?.answer === null} disabled={busy} onClick={() => void run((s) => bigEnter(s, content, participants, i, null))}>
                     ✕ Нет на табло
                   </button>
                 </div>
@@ -346,17 +308,17 @@ export function HundredHostControls({ session, content, answers, participants, c
         {errorLine}
         <div className="actions">
           {primary === "bigStart" && (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(bigStart(latest.current, content, participants)))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => bigStart(s, content, participants))}>
               Запустить таймер {p === 0 ? "первому" : "второму"} игроку · {content.bigTimes[p]} с
             </button>
           )}
           {(primary === "bigSecond" || (r.mode === "big" && p === 0 && primary === "bigEnter")) && (
-            <button type="button" className={primary === "bigSecond" ? "btn btn--block host-quiz__primary" : "btn btn--quiet btn--block"} disabled={busy} onClick={() => void run(bigSecond(session, participants))}>
+            <button type="button" className={primary === "bigSecond" ? "btn btn--block host-quiz__primary" : "btn btn--quiet btn--block"} disabled={busy} onClick={() => void run((s) => bigSecond(s, participants))}>
               Первый игрок ответил — второй игрок
             </button>
           )}
           {(primary === "bigFinish" || (r.mode === "big" && p === 1 && primary === "bigEnter")) && (
-            <button type="button" className={primary === "bigFinish" ? "btn btn--block host-quiz__primary" : "btn btn--quiet btn--block"} disabled={busy} onClick={() => void run(bigFinish(session, content, participants))}>
+            <button type="button" className={primary === "bigFinish" ? "btn btn--block host-quiz__primary" : "btn btn--quiet btn--block"} disabled={busy} onClick={() => void run((s) => bigFinish(s, content, participants))}>
               Подвести итог Большой игры
             </button>
           )}
@@ -401,7 +363,7 @@ export function HundredHostControls({ session, content, answers, participants, c
                         disabled={busy}
                         onChange={(e) => {
                           const to = e.target.value;
-                          if (to) void run(withAnswers((list) => hallAccept(latest.current, content, participants, list, u.key, to === "-" ? "" : to)));
+                          if (to) void run(withAnswers((s, list) => hallAccept(s, content, participants, list, u.key, to === "-" ? "" : to)));
                         }}
                       >
                         <option value="">Засчитать как…</option>
@@ -420,17 +382,17 @@ export function HundredHostControls({ session, content, answers, participants, c
             <p className="muted small">Касание строки открывает её на табло, угадавшие сразу получают очки{mult > 1 ? ` ×${mult}` : ""}.</p>
           </>
         )}
-        {r.mode === "hallCheck" && <AnswerList question={question} kind={round.kind} r={r} disabled={busy} hall onTap={(id) => void run(withAnswers((list) => openAnswer(latest.current, content, participants, id, list)))} />}
+        {r.mode === "hallCheck" && <AnswerList question={question} kind={round.kind} r={r} disabled={busy} hall onTap={(id) => void run(withAnswers((s, list) => openAnswer(s, content, participants, id, list)))} />}
         {peekButton}
         {errorLine}
         <div className="actions">
           {r.mode === "hall" && (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(hallClose(session, participants))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => hallClose(s, participants))}>
               Закрыть ответы
             </button>
           )}
           {primary === "hallRows" && (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(withAnswers((list) => hallOpenNext(latest.current, content, participants, list)))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(withAnswers((s, list) => hallOpenNext(s, content, participants, list)))}>
               Открыть следующий ответ (от редкого)
             </button>
           )}
@@ -458,7 +420,7 @@ export function HundredHostControls({ session, content, answers, participants, c
       {r.mode === "face" && !r.armed && (
         <div className="board-host__arm">
           <p>Прочитайте вопрос вслух. Кнопки у капитанов пока не активны — фальстарта не будет.</p>
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(armFace(latest.current, content, participants)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => armFace(s, content, participants))}>
             Запустить отсчёт · {content.buzzTime} с
           </button>
         </div>
@@ -497,30 +459,30 @@ export function HundredHostControls({ session, content, answers, participants, c
           {r.mode === "face" ? "Капитан называет ответ вслух. Есть на табло — коснитесь его, нет — «Нет на табло» (слово следующему нажавшему)." : "Игрок называет ответ вслух. Есть на табло — коснитесь его, нет — «Нет на табло»."}
         </p>
       )}
-      <AnswerList question={question} kind={round.kind} r={r} disabled={busy} hall={false} onTap={(id) => void run(openAnswer(session, content, participants, id))} />
+      <AnswerList question={question} kind={round.kind} r={r} disabled={busy} hall={false} onTap={(id) => void run((s) => openAnswer(s, content, participants, id))} />
       {r.mode === "done" && <p className="muted small">Касание закрытой строки открывает её на табло без очков.</p>}
       {peekButton}
       {errorLine}
       <div className="actions">
         {(r.mode === "face" || r.mode === "play" || r.mode === "steal") && (
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(missAnswer(session, content, participants))}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => missAnswer(s, content, participants))}>
             {r.mode === "steal" ? `✕ Нет на табло — банк ${nameOf(r.playing)}` : "✕ Нет на табло"}
           </button>
         )}
         {r.mode === "face" &&
           r.pair.map((p) => (
-            <button key={p} type="button" className={p === speaking ? "btn btn--block host-quiz__primary" : "btn btn--secondary btn--block"} disabled={busy} onClick={() => void run(choosePlaying(session, participants, p))}>
+            <button key={p} type="button" className={p === speaking ? "btn btn--block host-quiz__primary" : "btn btn--secondary btn--block"} disabled={busy} onClick={() => void run((s) => choosePlaying(s, participants, p))}>
               Играют {nameOf(p)}
             </button>
           ))}
         {r.mode === "done" && primary === "rest" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(showRest(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => showRest(s, content, participants))}>
             Открыть остальные ответы
           </button>
         )}
         {r.mode === "done" && primary !== "rest" && nextButton("Следующий раунд")}
         {r.mode === "done" && primary === "rest" && (
-          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(() => Promise.resolve(nextQuestion(latest.current, content, participants) ?? hundredAward(latest.current)))}>
+          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run((s) => nextQuestion(s, content, participants) ?? hundredAward(s))}>
             Дальше без остальных ответов
           </button>
         )}

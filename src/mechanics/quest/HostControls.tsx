@@ -1,13 +1,19 @@
-import { resultKey } from "../../core/session";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
-import type { Session, SessionChange } from "../../data/types";
+import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { QUEST_EMOJI, QUEST_TITLES, type QuestContent } from "./content";
 import { applyRoll, cellAt, judge, nextTurn, parseQuestResult, questBack, questPrimary, questTeams, rollChange, startQuest } from "./logic";
+
+/** Момент игры для повтора касания: ход, клетка и решение ведущего. */
+function questMoment(s: Session): string {
+  const r = parseQuestResult(s.state.result);
+  return JSON.stringify([r.mode, r.mover, r.turn, r.at, r.outcome]);
+}
 
 /**
  * Пульт «Активной настолки»: «Начать игру» → капитан бросает кубик на телефоне (или «Бросить за
@@ -15,17 +21,8 @@ import { applyRoll, cellAt, judge, nextTurn, parseQuestResult, questBack, questP
  * «Следующая команда». Первая на финише — награждение; «Завершить досрочно» — с подтверждением.
  */
 export function QuestHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<QuestContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, run, quiet } = useHostRun(session, control, rehearsal, { moment: questMoment });
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parseQuestResult(session.state.result);
 
@@ -33,46 +30,9 @@ export function QuestHostControls({ session, content, answers, participants, con
   const rollKey = stage === "question" && r.mode === "roll" ? answers.filter((a) => a.step === step && a.pid === r.mover).map((a) => a.id).join(",") : "";
   useEffect(() => {
     if (!rollKey || busy) return;
-    const change = rollChange(latest.current, content, answers, participants);
-    if (!change) return;
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    void quiet((cur) => rollChange(cur, content, answers, participants));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при броске
   }, [rollKey, busy, session.state.startedAt]);
-
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(change: SessionChange, clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
-      // секунду, получит отказ и «вспомнит» старый ответ.
-      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      // Отпечаток итогов шага: второй пульт не повторит «Выполнено» / «Неверно» по устаревшему виду.
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const action = questPrimary(session);
   const backPlan = questBack(session);
@@ -135,7 +95,7 @@ export function QuestHostControls({ session, content, answers, participants, con
         {action === "start" && (
           <>
             {questTeams(session, participants) === 0 && <p className="muted small">Ждём, пока подключатся команды — без них ходить некому.</p>}
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || questTeams(session, participants) === 0} onClick={() => void run(startQuest(session, participants))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || questTeams(session, participants) === 0} onClick={() => void run((s) => startQuest(s, participants))}>
               Начать игру
             </button>
           </>
@@ -143,28 +103,28 @@ export function QuestHostControls({ session, content, answers, participants, con
         {action === "waitRoll" && (
           <>
             <p className="muted small">Ждём бросок капитана. Если телефона нет — бросьте за команду.</p>
-            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(applyRoll(session, content, hostRoll(), participants))}>
+            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => applyRoll(s, content, hostRoll(), participants))}>
               🎲 Бросить за команду
             </button>
           </>
         )}
         {action === "judge" && (
           <div className="host-buzz__verdict">
-            <button type="button" className="btn" disabled={busy} onClick={() => void run(judge(session, content, true))}>
+            <button type="button" className="btn" disabled={busy} onClick={() => void run((s) => judge(s, content, true))}>
               Выполнено
             </button>
-            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(judge(session, content, false))}>
+            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => judge(s, content, false))}>
               Не выполнено
             </button>
           </div>
         )}
         {action === "next" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTurn(session, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextTurn(s, participants))}>
             Следующая команда
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => (action === "podium" ? awardNow(s) : podiumNext(s)))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}
           </button>
         )}
@@ -183,14 +143,14 @@ export function QuestHostControls({ session, content, answers, participants, con
                 title: "Закончить игру досрочно?",
                 text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
                 confirmLabel: "К награждению",
-                run: () => run(awardNow(session)),
+                run: () => run((s) => awardNow(s)),
               })
             }
           >
             Закончить досрочно
           </button>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => questBack(s)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey, secondsLeft } from "../../core/session";
 import { audienceRepo } from "../../data";
-import type { Session, SessionChange } from "../../data/types";
+import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { LETTERS, levelsOf, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent } from "./content";
 import { LifelineIcon } from "./icons";
@@ -42,6 +43,11 @@ import {
 } from "./logic";
 import { teamsCovered } from "./validate";
 
+/** Момент игры для повтора касания: всё, кроме того, что пишет фон пульта (подсветка выбора, проценты зала). */
+function millionaireMoment(s: Session): string {
+  return resultKey({ ...parseMillionaireResult(s.state.result), chosen: null, audience: null, votes: 0 });
+}
+
 /**
  * Пульт «Миллионера»: «Начать игру» → «Показать вопрос» команды → капитан выбирает на телефоне (или
  * ведущий отмечает ответ команды) — выбор сразу подсвечивается на экране → ведущий переспрашивает «Это
@@ -49,18 +55,9 @@ import { teamsCovered } from "./validate";
  * у команды один раз; игрок может попросить подсказку с телефона — ведущий переспрашивает и включает.
  */
 export function MillionaireHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<MillionaireContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, latest, run, quiet } = useHostRun(session, control, rehearsal, { moment: millionaireMoment, emptyText: "Сейчас этого сделать нельзя — проверьте, что вопрос открыт." });
   const [only, setOnly] = useState<string | null>(null);
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parseMillionaireResult(session.state.result);
   const q = questionOf(content, r);
@@ -70,19 +67,11 @@ export function MillionaireHostControls({ session, content, answers, participant
   const asked = requestedLifeline(session, answers, participants);
   const askedCheck = asked ? canUseLifeline(session, content, answers, asked.id) : null;
 
-  /** Запись без кнопки (подсветка выбора, проценты зала): только поверх того же состояния. */
-  function quiet(change: SessionChange | null) {
-    if (!change) return;
-    const s = latest.current;
-    const { phase, step: atStep, stage: atStage } = s.state;
-    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(s.state.result) } }).catch(() => undefined);
-  }
-
   // Ответ пришёл с телефона или поменялся — сразу подсветить его на экране зала.
   const pickNow = teamPick(session, answers);
   useEffect(() => {
     if (busy) return;
-    quiet(syncChosen(latest.current, answers));
+    void quiet((cur) => syncChosen(cur, answers));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом ответе
   }, [pickNow, r.chosen, step, busy]);
 
@@ -113,45 +102,9 @@ export function MillionaireHostControls({ session, content, answers, participant
   const qrKey = qrVotes.join(",");
   useEffect(() => {
     if (!audienceOpen || busy) return;
-    quiet(liveAudience(latest.current, answers, participants, qrVotes));
+    void quiet((cur) => liveAudience(cur, answers, participants, qrVotes));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- по новым голосам
   }, [qrKey, answers.length, audienceOpen, busy]);
-
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | null | (() => Promise<SessionChange | null>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) {
-        setError("Сейчас этого сделать нельзя — проверьте, что вопрос открыт.");
-        return;
-      }
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const action = millionairePrimary(session);
   const backPlan = millionaireBack(session, content, participants);
@@ -179,7 +132,7 @@ export function MillionaireHostControls({ session, content, answers, participant
       title: `Подсказка «${lifelineTitle(id)}»?`,
       text: `${l?.hint ?? ""}. У команды «${name(r.turn)}» она пропадёт до конца игры.`,
       confirmLabel: "Взять подсказку",
-      run: () => run(() => Promise.resolve(applyLifeline(latest.current, content, answers, id, now))),
+      run: () => run((s) => applyLifeline(s, content, answers, id, now)),
     });
   }
 
@@ -232,10 +185,10 @@ export function MillionaireHostControls({ session, content, answers, participant
                 <>
                   <p className="muted small">Переспросите: «Точно берёте „{lifelineTitle(asked.id)}“?» — и подтвердите.</p>
                   <div className="actions">
-                    <button type="button" className="btn" disabled={busy} onClick={() => void run(() => Promise.resolve(applyLifeline(latest.current, content, answers, asked.id, now)))}>
+                    <button type="button" className="btn" disabled={busy} onClick={() => void run((s) => applyLifeline(s, content, answers, asked.id, now))}>
                       Да, включить подсказку
                     </button>
-                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => refuseLifeline(s, asked.n))}>
                       Передумали — не включать
                     </button>
                   </div>
@@ -243,7 +196,7 @@ export function MillionaireHostControls({ session, content, answers, participant
               ) : (
                 <>
                   <p className="error small">Нельзя: {askedCheck.reason?.toLowerCase()}.</p>
-                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(refuseLifeline(session, asked.n))}>
+                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => refuseLifeline(s, asked.n))}>
                     Понятно, убрать просьбу
                   </button>
                 </>
@@ -289,7 +242,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                   <div className="mil-host-pick" role="group" aria-label="Отметить ответ команды">
                     {q.options.map((_, i) =>
                       r.removed.includes(i) ? null : (
-                        <button key={i} type="button" className="btn btn--secondary" aria-pressed={r.hostPick === i} disabled={busy} onClick={() => void run(markPick(session, r.hostPick === i ? null : i))}>
+                        <button key={i} type="button" className="btn btn--secondary" aria-pressed={r.hostPick === i} disabled={busy} onClick={() => void run((s) => markPick(s, r.hostPick === i ? null : i))}>
                           {LETTERS[i]}
                         </button>
                       ),
@@ -310,14 +263,14 @@ export function MillionaireHostControls({ session, content, answers, participant
                 </p>
               )}
               {r.mode === "audience" && stage === "question" && audienceRepo && (
-                <button type="button" className={r.qrBig ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={r.qrBig} disabled={busy} onClick={() => void run(toggleAudienceQr(session))}>
+                <button type="button" className={r.qrBig ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={r.qrBig} disabled={busy} onClick={() => void run((s) => toggleAudienceQr(s))}>
                   {r.qrBig ? "▶ Убрать QR — вернуть вопрос на экран" : "QR для голосования — на весь экран"}
                 </button>
               )}
               {callLeft > 0 && stage === "question" && (
                 <div className="row">
                   <span>📞 Звонок другу: {callLeft} с</span>
-                  <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run(endCall(session, now))}>
+                  <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => endCall(s, now))}>
                     Закончить звонок
                   </button>
                 </div>
@@ -331,12 +284,12 @@ export function MillionaireHostControls({ session, content, answers, participant
               <p className="muted small">Не называйте ответ — наведите на мысль. Наводку можно показать и на экране.</p>
               <div className="actions">
                 {r.tipText ? (
-                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(showTip(session, null))}>
+                  <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => showTip(s, null))}>
                     Убрать наводку с экрана
                   </button>
                 ) : (
                   (q.hint?.trim() || q.note.trim()) && (
-                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(showTip(session, q.hint?.trim() || q.note.trim()))}>
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run((s) => showTip(s, q.hint?.trim() || q.note.trim()))}>
                       Показать наводку на экране
                     </button>
                   )
@@ -394,26 +347,26 @@ export function MillionaireHostControls({ session, content, answers, participant
         {action === "start" && (
           <>
             {teams.length === 0 && <p className="muted small">Ждём, пока подключатся команды.</p>}
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || teams.length === 0} onClick={() => void run(startMillionaire(session, participants, content, only ?? teams[0] ?? null))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || teams.length === 0} onClick={() => void run((s) => startMillionaire(s, participants, content, only ?? teams[0] ?? null))}>
               Начать игру
             </button>
           </>
         )}
         {action === "show" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(showQuestion(session, content))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => showQuestion(s, content))}>
             Показать вопрос
           </button>
         )}
         {action === "lock" && (
           <>
             {pick !== null && <p className="muted small">Спросите: «{LETTERS[pick]} — это ваш окончательный ответ?»</p>}
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run(() => control.freshAnswers(step).then((fresh) => lockAnswer(latest.current, fresh.length > 0 ? fresh : answers)))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run((s) => control.freshAnswers(step).then((fresh) => lockAnswer(s, fresh.length > 0 ? fresh : answers)))}>
               {pick === null ? "Ждём ответ команды" : `Да, окончательный — ${LETTERS[pick]}`}
             </button>
           </>
         )}
         {action === "reveal" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run(() => control.freshAnswers(step).then((fresh) => revealAnswer(latest.current, content, fresh.length > 0 ? fresh : answers, participants)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run((s) => control.freshAnswers(step).then((fresh) => revealAnswer(s, content, fresh.length > 0 ? fresh : answers, participants)))}>
             {pick === null ? "Ждём ответ команды" : `Показать ответ (${LETTERS[pick]})`}
           </button>
         )}
@@ -423,10 +376,10 @@ export function MillionaireHostControls({ session, content, answers, participant
             className="btn btn--block host-quiz__primary"
             disabled={busy}
             onClick={() =>
-              void run(async () => {
+              void run(async (s) => {
                 const [fresh, qr] = await Promise.all([control.freshAnswers(step), !rehearsal && audienceRepo ? audienceRepo.counts(session.id).catch(() => null) : Promise.resolve(null)]);
-                const extra = qr && qr.step === latest.current.state.step ? qr.counts : qrVotes;
-                return finishAudience(latest.current, fresh.length > 0 ? fresh : answers, participants, extra, content);
+                const extra = qr && qr.step === s.state.step ? qr.counts : qrVotes;
+                return finishAudience(s, fresh.length > 0 ? fresh : answers, participants, extra, content);
               })
             }
           >
@@ -434,12 +387,12 @@ export function MillionaireHostControls({ session, content, answers, participant
           </button>
         )}
         {action === "retry" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(retryQuestion(session, content))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => retryQuestion(s, content))}>
             Ответить ещё раз
           </button>
         )}
         {action === "next" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTurn(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextTurn(s, content, participants))}>
             {content.players === "one" ? "Следующий вопрос" : "Следующая команда"}
           </button>
         )}
@@ -453,7 +406,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                 type="button"
                 className={spent ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"}
                 disabled={busy}
-                onClick={() => void run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "skip")))}
+                onClick={() => void run((s) => wrongChoice(s, content, participants, "skip"))}
               >
                 {content.players === "one" ? "Дальше — следующий вопрос" : "Дальше со следующего вопроса, пропустив ход"}
                 <span className="mil-wrong__hint">Ступень {r.levels[team] ?? 0} (по несгораемой){content.players === "one" ? "" : ", свой следующий ход пропускает"}</span>
@@ -467,7 +420,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                     title: "Начать с самого начала?",
                     text: `«${name(r.turn)}» — снова на нулевой ступени, очки обнуляются.`,
                     confirmLabel: "Начать сначала",
-                    run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "restart"))),
+                    run: () => run((s) => wrongChoice(s, content, participants, "restart")),
                   })
                 }
               >
@@ -483,12 +436,12 @@ export function MillionaireHostControls({ session, content, answers, participant
               disabled={busy}
               onClick={() =>
                 spent
-                  ? void run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "out")))
+                  ? void run((s) => wrongChoice(s, content, participants, "out"))
                   : confirm({
                       title: "Выбывает из игры?",
                       text: `«${name(r.turn)}» больше не ходит. Набранные очки (${pointsLabel(pointsAt(content, r.levels[team] ?? 0))}) остаются в таблице.`,
                       confirmLabel: "Выбывает",
-                      run: () => run(() => Promise.resolve(wrongChoice(latest.current, content, participants, "out"))),
+                      run: () => run((s) => wrongChoice(s, content, participants, "out")),
                     })
               }
             >
@@ -523,7 +476,7 @@ export function MillionaireHostControls({ session, content, answers, participant
           );
         })()}
         {(action === "podium" || action === "podiumNext") && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => (action === "podium" ? awardNow(s) : podiumNext(s)))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}
           </button>
         )}
@@ -542,14 +495,14 @@ export function MillionaireHostControls({ session, content, answers, participant
                 title: "Закончить игру досрочно?",
                 text: "Побеждает команда, поднявшаяся выше всех, — сразу награждение. «Назад» на награждении вернёт к игре.",
                 confirmLabel: "К награждению",
-                run: () => run(awardNow(session)),
+                run: () => run((s) => awardNow(s)),
               })
             }
           >
             Закончить досрочно
           </button>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => millionaireBack(s, content, participants)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

@@ -1,30 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { resultKey, secondsLeft } from "../../core/session";
-import type { Answer, Session, SessionChange } from "../../data/types";
+import type { Answer, Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { formatNumber, type WagerContent } from "./content";
 import { betsFrom, guessesOf, liveProgress, nextQuestion, openBets, parseWagerResult, revealAnswer, showQuestion, wagerBack, wagerPrimary } from "./logic";
 import { WagerBoard } from "./views";
+
+/** Момент игры для повтора касания: без того, что пишет фон пульта (кто написал догадку, фишки на поле). */
+function wagerMoment(s: Session): string {
+  return resultKey({ ...parseWagerResult(s.state.result), guessed: [], chips: {} });
+}
 
 /**
  * Пульт «Держи пари»: «Показать вопрос» → догадки капитанов (видны только ведущему) → «Разложить ответы и открыть
  * ставки» → «Показать ответ» (выплаты по фишкам) → «Следующий вопрос» … → награждение. «Назад» — с каждого этапа.
  */
 export function WagerHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<WagerContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
+  const { busy, error, inFlight, run, quiet } = useHostRun(session, control, rehearsal, { moment: wagerMoment });
   const { stage, step } = session.state;
   const r = parseWagerResult(session.state.result);
   const question = content.questions[r.q];
@@ -35,47 +32,14 @@ export function WagerHostControls({ session, content, answers, participants, con
 
   // Кто написал догадку и фишки на поле — на экран (не чаще раза в 1,5 с).
   useEffect(() => {
-    if (rehearsal || stage !== "question") return;
+    if (rehearsal || busy || stage !== "question") return;
     const timer = window.setTimeout(() => {
-      const cur = latest.current;
-      const change = liveProgress(cur, content, answers);
-      if (!change) return;
-      const { phase, step: atStep, stage: atStage } = cur.state;
-      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+      if (inFlight.current) return;
+      void quiet((cur) => liveProgress(cur, content, answers));
     }, 1500);
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- при новых ответах и новых итогах шага
-  }, [answersKey, r.mode, stage, resultKey(session.state.result)]);
-
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | (() => Promise<SessionChange>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change.state && !change.addScore && !change.leaderboard) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- при новых ответах и новых итогах шага (и после записи ведущего)
+  }, [answersKey, r.mode, stage, busy, resultKey(session.state.result)]);
 
   async function fresh(): Promise<Answer[]> {
     try {
@@ -100,12 +64,12 @@ export function WagerHostControls({ session, content, answers, participants, con
     finish: "Завершить игру",
   };
   function perform() {
-    if (action === "show") void run(showQuestion(session, content, participants));
-    if (action === "bets") void run(async () => openBets(latest.current, content, await fresh()));
-    if (action === "reveal") void run(async () => revealAnswer(latest.current, content, await fresh()));
-    if (action === "next") void run(nextQuestion(session));
-    if (action === "podium") void run(awardNow(session));
-    if (action === "podiumNext") void run(podiumNext(session));
+    if (action === "show") void run((s) => showQuestion(s, content, participants));
+    if (action === "bets") void run(async (s) => openBets(s, content, await fresh()));
+    if (action === "reveal") void run(async (s) => revealAnswer(s, content, await fresh()));
+    if (action === "next") void run((s) => nextQuestion(s));
+    if (action === "podium") void run((s) => awardNow(s));
+    if (action === "podiumNext") void run((s) => podiumNext(s));
     if (action === "finish") control.requestFinish();
   }
 
@@ -178,7 +142,7 @@ export function WagerHostControls({ session, content, answers, participants, con
         <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={perform}>
           {labels[action]}
         </button>
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => wagerBack(s, content)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

@@ -2,6 +2,7 @@
 // (engine.ts), ходит за компьютерных игроков и по таймеру, шифрует руки ключами телефонов и пишет стол.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
+import { useHostRun } from "../../components/live/useHostRun";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
@@ -84,19 +85,23 @@ function cardsOf(action: DurakAction): string[] {
 }
 
 export function DurakHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<DurakContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Ходы меняют стол: касание ведущего по старому столу не повторяем — просим нажать ещё раз.
+  const { busy, error, latest, run, quiet } = useHostRun(session, control, rehearsal, { moment: (s) => resultKey(s.state.result) });
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
   const processed = useRef<Set<string>>(new Set());
   const timedOut = useRef<number | null>(null);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
+  // Фоновые записи (ходы телефонов и компьютера, таймер, голоса за колоду) — по одной, без «занято» на кнопках ведущего.
+  const [bg, setBg] = useState(false);
+  const bgRef = useRef(false);
+  function background(make: (s: Session) => SessionChange | Promise<SessionChange | null> | null) {
+    if (bgRef.current) return;
+    bgRef.current = true;
+    setBg(true);
+    void quiet(make).finally(() => {
+      bgRef.current = false;
+      setBg(false);
+    });
+  }
 
   const { stage, step } = session.state;
   const r = parseDurakResult(session.state.result);
@@ -127,48 +132,18 @@ export function DurakHostControls({ session, content, answers, participants, con
     };
   }, [r.hostSeal, host]);
 
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | (() => Promise<SessionChange | null>)) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    const seen = resultKey(latest.current.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   /** Записать партию после ходов: стол всем, руки — ключами телефонов. */
-  async function commit(g: Game, keys: Record<string, string>, patch: Partial<DurakResult>): Promise<SessionChange> {
+  async function commit(g: Game, keys: Record<string, string>, patch: Partial<DurakResult>, base?: Session): Promise<SessionChange> {
     const sealed = await sealHands(g, keys);
     const hostSeal = await seal(host, { game: g, keys });
-    return playChange(latest.current, content, viewOf(g), sealed, hostSeal, patch);
+    return playChange(base ?? latest.current, content, viewOf(g), sealed, hostSeal, patch);
   }
 
   // ---------------------------------------------------------------- раздача
 
   const keys = keysFrom(answers, r.keysStep, isKey);
 
-  async function doDeal(): Promise<SessionChange | null> {
-    const cur = latest.current;
+  async function doDeal(cur: Session): Promise<SessionChange | null> {
     const rr = parseDurakResult(cur.state.result);
     const seats = rr.seats;
     if (seats.length < 2) return null;
@@ -181,7 +156,7 @@ export function DurakHostControls({ session, content, answers, participants, con
     const auto = runBots(g, new Set(bots), cur);
     g = auto.game;
     if (auto.line) line = auto.line;
-    return commit(g, got, { bots, line, last: auto.last });
+    return commit(g, got, { bots, line, last: auto.last }, cur);
   }
 
   /** Компьютер садится за стол (репетиция или не хватает игроков). */
@@ -202,7 +177,7 @@ export function DurakHostControls({ session, content, answers, participants, con
   const answersKey = own.map((a) => `${a.pid}@${a.submittedAt ?? 0}`).join(",");
 
   useEffect(() => {
-    if (!pack || busy || r.mode !== "play" || !v || v.over || stage !== "question") return;
+    if (!pack || busy || bg || r.mode !== "play" || !v || v.over || stage !== "question") return;
     const fresh = [...own].sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0)).filter((a) => !processed.current.has(`${step}:${a.pid}@${a.submittedAt ?? 0}`));
     if (fresh.length === 0) return;
     const cur = latest.current;
@@ -234,17 +209,18 @@ export function DurakHostControls({ session, content, answers, participants, con
       const patch: Partial<DurakResult> = { last: auto.last ?? last };
       const l = auto.line ?? line;
       if (l) patch.line = l;
-      void run(() => commit(g, pack.keys, patch));
+      background((base) => commit(g, pack.keys, patch, base));
     } else if (reject) {
-      void run(rejectChange(cur, reject));
+      const rejected = reject;
+      background(() => rejectChange(cur, rejected));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- по новым ходам
-  }, [answersKey, pack, busy, r.mode, stage]);
+  }, [answersKey, pack, busy, bg, r.mode, stage]);
 
   // Компьютер ходит сам (через секунду — чтобы на экране было видно).
   const botTurn = pack && r.mode === "play" && v && !v.over && stage === "question" ? waitingFor(viewOf(pack.game), pack.game.hands).some((p) => r.bots.includes(p)) : false;
   useEffect(() => {
-    if (!botTurn || busy || !pack) return;
+    if (!botTurn || busy || bg || !pack) return;
     const t = window.setTimeout(() => {
       const cur = latest.current;
       const rr = parseDurakResult(cur.state.result);
@@ -252,15 +228,15 @@ export function DurakHostControls({ session, content, answers, participants, con
       if (!auto.moved) return;
       const patch: Partial<DurakResult> = { last: auto.last };
       if (auto.line) patch.line = auto.line;
-      void run(() => commit(auto.game, pack.keys, patch));
+      background((base) => commit(auto.game, pack.keys, patch, base));
     }, 1100);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- по ходу
-  }, [botTurn, busy, pack, r.seq]);
+  }, [botTurn, busy, bg, pack, r.seq]);
 
   // Время хода вышло: защитник берёт, атакующий кладёт младшую карту, подкидывающие пасуют.
   useEffect(() => {
-    if (left !== 0 || busy || !pack || r.mode !== "play" || !v || v.over || timedOut.current === step) return;
+    if (left !== 0 || busy || bg || !pack || r.mode !== "play" || !v || v.over || timedOut.current === step) return;
     timedOut.current = step;
     const cur = latest.current;
     const rr = parseDurakResult(cur.state.result);
@@ -280,21 +256,21 @@ export function DurakHostControls({ session, content, answers, participants, con
     const patch: Partial<DurakResult> = { last: auto.last ?? last };
     const l = auto.line ?? line;
     if (l) patch.line = `Время вышло. ${l}`;
-    void run(() => commit(g, pack.keys, patch));
+    background((base) => commit(g, pack.keys, patch, base));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- по таймеру
-  }, [left, busy, pack, step]);
+  }, [left, busy, bg, pack, step]);
 
   // ---------------------------------------------------------------- голосование за колоду
 
   const votes = r.mode === "vote" ? tallyOf(answers, step) : null;
   const voteKey = votes ? JSON.stringify(votes) : "";
   useEffect(() => {
-    if (!votes || busy || !r.vote) return;
+    if (!votes || busy || bg || !r.vote) return;
     if (votes.total === r.vote.total && JSON.stringify(votes.tally) === JSON.stringify(r.vote.tally)) return;
-    const t = window.setTimeout(() => void run(voteSync(latest.current, votes.tally, votes.total)), 700);
+    const t = window.setTimeout(() => background((base) => voteSync(base, votes.tally, votes.total)), 700);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- по голосам
-  }, [voteKey, busy]);
+  }, [voteKey, busy, bg]);
 
   // ---------------------------------------------------------------- вид
 
@@ -362,7 +338,7 @@ export function DurakHostControls({ session, content, answers, participants, con
                   {p === v.defender && !v.over ? " · отбивается" : p === v.attacker && !v.over ? " · ходит" : ""}
                 </span>
                 {r.mode === "play" && !v.over && !v.out.includes(p) && (
-                  <button type="button" className="btn btn--quiet dk-host__bot" disabled={busy} onClick={() => void run(toggleBot(session, p))}>
+                  <button type="button" className="btn btn--quiet dk-host__bot" disabled={busy} onClick={() => void run((s) => toggleBot(s, p))}>
                     {r.bots.includes(p) ? "Вернуть игроку" : "Играет компьютер"}
                   </button>
                 )}
@@ -390,12 +366,12 @@ export function DurakHostControls({ session, content, answers, participants, con
               Завершить игру
             </button>
           ) : (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(podiumNext(session))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => podiumNext(s))}>
               Открыть следующее место
             </button>
           )
         ) : !started ? (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startDeal(session, participants, content))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => startDeal(s, participants, content))}>
             Собрать игроков за стол
           </button>
         ) : r.mode === "deal" ? (
@@ -404,30 +380,30 @@ export function DurakHostControls({ session, content, answers, participants, con
               {r.seats.length < 2 ? "Нужно хотя бы 2 игрока" : "Раздать карты"}
             </button>
             {r.seats.length < maxSeats(content) && (
-              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(addBot())}>
+              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(() => addBot())}>
                 Посадить компьютер за стол
               </button>
             )}
-            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(startDeal(session, participants, content))}>
+            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => startDeal(s, participants, content))}>
               Пересадить заново (новые гости)
             </button>
           </>
         ) : r.mode === "vote" ? (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(endVote(session, content, voteWinner(r.deckStyle, votes?.tally ?? r.vote?.tally ?? {})))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => endVote(s, content, voteWinner(r.deckStyle, votes?.tally ?? r.vote?.tally ?? {})))}>
             Итог голосования — играем
           </button>
         ) : r.mode === "over" ? (
           moreParties(content, r) ? (
             <>
-              <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startDeal(session, participants, content))}>
+              <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => startDeal(s, participants, content))}>
                 Следующая партия
               </button>
-              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(awardNow(session))}>
+              <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => awardNow(s))}>
                 Закончить и наградить
               </button>
             </>
           ) : (
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(awardNow(session))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => awardNow(s))}>
               Награждение
             </button>
           )
@@ -438,14 +414,17 @@ export function DurakHostControls({ session, content, answers, participants, con
         )}
 
         {started && stage !== "podium" && r.mode !== "vote" && (
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(startVote(session))}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => startVote(s))}>
             Гости выбирают колоду (голосование)
           </button>
         )}
         {started && stage !== "podium" && (
           <label className="field dk-host__deck">
             Колода сейчас
-            <select className="input" value={r.deckStyle} disabled={busy} onChange={(e) => isDeckStyle(e.target.value) && void run(setDeck(session, e.target.value))}>
+            <select className="input" value={r.deckStyle} disabled={busy} onChange={(e) => {
+                const style = e.target.value;
+                if (isDeckStyle(style)) void run((s) => setDeck(s, style));
+              }}>
               {DECKS.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.title}
@@ -464,7 +443,7 @@ export function DurakHostControls({ session, content, answers, participants, con
                 title: "Остановить партию?",
                 text: "Очков за эту партию никто не получит. Дальше — следующая партия или награждение.",
                 confirmLabel: "Остановить партию",
-                run: () => run(abortParty(session)),
+                run: () => run((s) => abortParty(s)),
               })
             }
           >

@@ -111,7 +111,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
     });
   }
 
-  async function run(make: SessionChange | (() => Promise<SessionChange>), afterClear?: number) {
+  async function run(make: SessionChange | (() => Promise<SessionChange | null>), afterClear?: number) {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -119,6 +119,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
     const { phase, step: atStep, stage: atStage } = session.state;
     try {
       const change = typeof make === "function" ? await make() : make;
+      if (!change) return;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
       await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
       // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
@@ -179,6 +180,15 @@ export function QuizHostControls({ session, content, answers, participants, cont
     return buzzRightAnswer(latest.current, content, all, participants);
   }
 
+  /**
+   * «Неверно» — по свежей сессии (нажатия, пришедшие после отрисовки, не теряются) и только тому, кто отвечал,
+   * когда ведущий нажал: слово уже перешло (второй пульт) — ничего не делаем.
+   */
+  async function wrongChange(): Promise<SessionChange | null> {
+    const cur = latest.current;
+    return parseResult(cur.state.result).buzz?.current === speaking ? buzzWrongAnswer(cur) : null;
+  }
+
   // Кто отвечает голосом — первым делом сверху пульта, а не под текстом вопроса (14 октября 2026).
   const speakingBlock = (
     <>
@@ -192,7 +202,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
             <button type="button" className="btn" disabled={busy} onClick={() => void run(rightChange)}>
               Верно
             </button>
-            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(buzzWrongAnswer(session))}>
+            <button type="button" className="btn btn--secondary" disabled={busy} onClick={() => void run(wrongChange)}>
               Неверно
             </button>
           </div>

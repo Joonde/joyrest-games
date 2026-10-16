@@ -168,7 +168,9 @@ export function rollChange(session: Session, content: QuestContent, answers: Ans
   const since = session.state.startedAt ?? 0;
   const answer = answers.find((a) => a.step === session.state.step && a.pid === r.mover && rec(a.value).roll === true && (a.submittedAt ?? 0) >= since);
   if (!answer) return null;
-  return applyRoll(session, content, dieOf(answer), participants);
+  const change = applyRoll(session, content, dieOf(answer), participants);
+  // Пустая запись (ходить некому) — записывать нечего.
+  return change.state ? change : null;
 }
 
 /** Ведущий бросает за команду (кубик на пульте или в репетиции). */

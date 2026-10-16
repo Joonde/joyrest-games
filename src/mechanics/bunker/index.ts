@@ -14,6 +14,10 @@ export const bunker: Mechanic<BunkerContent, BunkerAnswerValue> = {
   id: "bunker",
   title: "Бункер",
   supports: { solo: true, teams: false, noScreen: true },
+  // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
+  ownAward: true,
+  // Счётчик «Ответили» пульт механики пишет сам.
+  ownAnswered: true,
   create: createBunker,
   parse: parseBunker,
   mediaIds: () => [],

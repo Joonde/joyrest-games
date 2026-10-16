@@ -1,14 +1,20 @@
-import { resultKey } from "../../core/session";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
-import type { Session, SessionChange } from "../../data/types";
+import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
 import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, startAuction, startCatQuestion, toBoard } from "./logic";
+
+/** Момент игры для повтора касания: без нажатий кнопки и выбора «Кота в мешке» (их пишет фон пульта). */
+function boardMoment(s: Session): string {
+  const r = parseBoardResult(s.state.result);
+  return JSON.stringify([r.mode, r.cell, r.opened.length, r.round, r.catStep, r.armed, r.picker]);
+}
 
 /**
  * Пульт «Своей игры»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
@@ -16,16 +22,7 @@ import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWron
  * «Таблица очков на экран» — в любой момент, потом «Убрать таблицу».
  */
 export function BoardHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<BoardContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
+  const { busy, error, setError, latest, run, quiet } = useHostRun(session, control, rehearsal, { moment: boardMoment });
   const { stage, step } = session.state;
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
@@ -38,10 +35,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const syncKey = stage === "question" && result.mode === "buzz" ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
   useEffect(() => {
     if (!syncKey || busy) return;
-    const change = boardBuzzSync(latest.current, answers);
-    if (!change) return;
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    void quiet((cur) => boardBuzzSync(cur, answers));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт при новых нажатиях и смене слова
   }, [syncKey, result.buzz.current, result.buzz.order.length, busy]);
 
@@ -50,10 +44,9 @@ export function BoardHostControls({ session, content, answers, participants, con
   useEffect(() => {
     if (!catGive || busy || catGive === result.catTo) return;
     const price = result.catPrice > 0 ? result.catPrice : (cell?.points ?? 0);
-    const { phase, step: atStep, stage: atStage } = latest.current.state;
-    void control.apply({ ...setCat(latest.current, catGive, price), expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- только новый выбор игрока
-  }, [catGive]);
+    void quiet((cur) => setCat(cur, catGive, price));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый выбор игрока (и после записи ведущего)
+  }, [catGive, busy]);
 
   // «Аукцион»: экран показывает, сколько ставок сделано, — пульт пишет счётчик не чаще раза в 2 секунды.
   const betCount = stage === "question" && result.mode === "auction" ? Object.keys(collectBets(answers, step)).length : -1;
@@ -67,41 +60,8 @@ export function BoardHostControls({ session, content, answers, participants, con
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом числе ставок
   }, [betCount]);
 
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | (() => Promise<SessionChange>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
-      // секунду, получит отказ и «вспомнит» старый ответ.
-      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      // Отпечаток итогов шага: второй пульт не повторит «Выполнено» / «Неверно» по устаревшему виду.
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  // «Верно» / «Неверно» — тому, кто отвечал, когда ведущий нажал: повтор по свежей игре не тронет следующего.
+  const sameSpeaker = (s: Session) => parseBoardResult(s.state.result).buzz.current === result.buzz.current;
   const nameOf = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок") : "");
   const peek = session.state.peek ?? null;
   const rounds = roundsOf(content);
@@ -123,7 +83,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   );
 
   const backButton = (
-    <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+    <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => boardBack(s, content)?.change ?? null, backPlan.clear)}>
       Назад
     </button>
   );
@@ -141,7 +101,7 @@ export function BoardHostControls({ session, content, answers, participants, con
         <PodiumHostList session={session} />
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "finish" ? control.requestFinish() : void run(podiumNext(session)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "finish" ? control.requestFinish() : void run((s) => podiumNext(s)))}>
             {primary === "finish" ? "Завершить игру" : "Открыть следующее место"}
           </button>
           {backButton}
@@ -152,12 +112,12 @@ export function BoardHostControls({ session, content, answers, participants, con
 
   const endButton =
     primary === "nextRound" ? (
-      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(nextRound(latest.current, content) ?? {}))}>
+      <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextRound(s, content))}>
         Раунд {result.round} сыгран — следующий раунд
       </button>
     ) : (
       (primary === "podium" || primary === "finish") && (
-        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "podium" ? void run(awardNow(session)) : control.requestFinish())}>
+        <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => (primary === "podium" ? void run((s) => awardNow(s)) : control.requestFinish())}>
           {primary === "podium" ? "Все клетки сыграны — награждение" : "Завершить игру"}
         </button>
       )
@@ -192,7 +152,7 @@ export function BoardHostControls({ session, content, answers, participants, con
                     className={`board-host__cell${opened ? " is-opened" : ""}${c.kind === "cat" || c.kind === "auction" ? " is-cat" : ""}`}
                     disabled={busy || opened}
                     aria-label={`${category.title}, ${c.points}, ${CELL_TITLES[c.kind]}${opened ? ", сыграна" : ""}`}
-                    onClick={() => void run(openCell(session, content, c.id))}
+                    onClick={() => void run((s) => openCell(s, content, c.id))}
                   >
                     <span>{opened ? "—" : c.points}</span>
                     {!opened && CELL_MARKS[c.kind] && <small>{CELL_MARKS[c.kind]}</small>}
@@ -253,7 +213,7 @@ export function BoardHostControls({ session, content, answers, participants, con
         )}
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async () => startAuction(latest.current, content, await control.freshAnswers(step).catch(() => answers)) ?? {})}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers)))}>
             Ставки сделаны — показать вопрос
           </button>
           {backButton}
@@ -285,7 +245,7 @@ export function BoardHostControls({ session, content, answers, participants, con
           <legend>Кому достаётся вопрос</legend>
           <div className="board-cat__who">
             {pool.map((pid) => (
-              <button key={pid} type="button" className="pick-chip" aria-pressed={result.catTo === pid} disabled={busy} onClick={() => void run(setCat(session, pid, price))}>
+              <button key={pid} type="button" className="pick-chip" aria-pressed={result.catTo === pid} disabled={busy} onClick={() => void run((s) => setCat(s, pid, price))}>
                 <NameText name={nameOf(pid)} />
               </button>
             ))}
@@ -295,14 +255,14 @@ export function BoardHostControls({ session, content, answers, participants, con
           <legend>Цена вопроса</legend>
           <div className="row">
             {prices.map((n) => (
-              <button key={n} type="button" className="pick-chip" aria-pressed={price === n} disabled={busy} onClick={() => void run(setCat(session, result.catTo, n))}>
+              <button key={n} type="button" className="pick-chip" aria-pressed={price === n} disabled={busy} onClick={() => void run((s) => setCat(s, result.catTo, n))}>
                 {n}
               </button>
             ))}
           </div>
           <label className="field">
             Своя цена (1–{CAT_MAX})
-            <input type="number" inputMode="numeric" min={1} max={CAT_MAX} defaultValue={price} key={price} onBlur={(e) => Number(e.target.value) !== price && void run(setCat(session, result.catTo, Number(e.target.value)))} />
+            <input type="number" inputMode="numeric" min={1} max={CAT_MAX} defaultValue={price} key={price} onBlur={(e) => Number(e.target.value) !== price && void run((s) => setCat(s, result.catTo, Number(e.target.value)))} />
           </label>
         </fieldset>
         {errorLine}
@@ -311,7 +271,7 @@ export function BoardHostControls({ session, content, answers, participants, con
             type="button"
             className="btn btn--block host-quiz__primary"
             disabled={busy || !result.catTo}
-            onClick={() => void run(() => Promise.resolve(startCatQuestion(latest.current, content) ?? {}))}
+            onClick={() => void run((s) => startCatQuestion(s, content))}
           >
             {result.catTo ? `Показать вопрос — отвечает ${nameOf(result.catTo)}, цена ${price}` : "Выберите, кому отдать вопрос"}
           </button>
@@ -332,7 +292,7 @@ export function BoardHostControls({ session, content, answers, participants, con
             <NameText name={nameOf(speaking)} />
           </span>
           <div className="host-buzz__verdict">
-            <button type="button" className="btn" disabled={busy} onClick={() => void run(() => Promise.resolve(boardReveal(latest.current, content, participants, true)))}>
+            <button type="button" className="btn" disabled={busy} onClick={() => void run((s) => (sameSpeaker(s) ? boardReveal(s, content, participants, true) : null))}>
               Верно
             </button>
             <button
@@ -340,7 +300,7 @@ export function BoardHostControls({ session, content, answers, participants, con
               className="btn btn--secondary"
               disabled={busy}
               // У «Кота в мешке» отвечает один — «Неверно» сразу показывает ответ (минус цена).
-              onClick={() => void run(result.catStep ? boardReveal(session, content, participants, false) : boardWrong(session, content))}
+              onClick={() => void run((s) => (!sameSpeaker(s) ? null : parseBoardResult(s.state.result).catStep ? boardReveal(s, content, participants, false) : boardWrong(s, content)))}
             >
               Неверно
             </button>
@@ -352,7 +312,7 @@ export function BoardHostControls({ session, content, answers, participants, con
       {stage === "question" && !result.armed && (
         <div className="board-host__arm">
           <p>Прочитайте вопрос вслух. Кнопки у гостей пока не активны — фальстарта не будет.</p>
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(armBuzz(latest.current, content) ?? {}))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => armBuzz(s, content))}>
             Запустить отсчёт · {content.buzzTime} с
           </button>
         </div>
@@ -404,18 +364,18 @@ export function BoardHostControls({ session, content, answers, participants, con
       {errorLine}
       <div className="actions">
         {stage === "question" && result.armed && (
-          <button type="button" className={speaking ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"} disabled={busy} onClick={() => void run(boardReveal(session, content, participants, false))}>
+          <button type="button" className={speaking ? "btn btn--quiet btn--block" : "btn btn--block host-quiz__primary"} disabled={busy} onClick={() => void run((s) => boardReveal(s, content, participants, false))}>
             Никто не угадал — показать ответ
           </button>
         )}
         {stage === "reveal" && primary === "toBoard" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(toBoard(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => toBoard(s))}>
             К полю
           </button>
         )}
         {stage === "reveal" && endButton}
         {cell.trackId && session.screenMode !== "none" && (
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(replayCell(session))}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => replayCell(s))}>
             ♪ Повторить фрагмент
           </button>
         )}

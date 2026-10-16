@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
-import { resultKey } from "../../core/session";
 import { clock } from "../../data";
-import type { Session, SessionChange } from "../../data/types";
+import type { Session } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
-import { KIND_TITLES, LETTERS, warIndex, type SurvivalContent, taskWordFor, taskWords } from "./content";
+import { KIND_TITLES, LETTERS, roundText, warIndex, type SurvivalContent, taskWordFor, taskWords } from "./content";
 import {
   startTaskTimer,
   afterAuction,
@@ -32,68 +31,33 @@ import {
   toggleMark,
 } from "./logic";
 
+/** Момент игры для повтора касания: раунд, его часть, отметки и итоги войнушки или аукциона. */
+function survivalMoment(s: Session): string {
+  const r = parseSurvivalResult(s.state.result);
+  return JSON.stringify([r.round, r.phase, r.marks, r.winner, r.bid, r.taskTimer?.pid ?? null]);
+}
+
 /**
  * Пульт «Гонки на выживание»: раунд → «Показать вопрос» → «Показать ответ» (задание — отметить команды и
  * «Засчитать») → «Следующий раунд». Войнушка: «Открыть ставки» → «Ставки приняты» → вопрос → банк.
  * Аукцион билета — перед раундами, которые отметил ведущий в конструкторе.
  */
 export function SurvivalHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<SurvivalContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, run } = useHostRun(session, control, rehearsal, { moment: survivalMoment });
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parseSurvivalResult(session.state.result);
   const noTeams = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
   const round = roundOf(content, r);
   const war = isWarRound(content, r);
 
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | null | (() => Promise<SessionChange | null>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   /** Свежие ответы шага с сервера (пришедшие в последнюю секунду тоже считаются). */
-  const fresh = <T,>(make: (list: typeof answers) => T) => () => control.freshAnswers(step).then((list) => make(list.length > 0 ? list : answers));
+  const fresh = <T,>(make: (s: Session, list: typeof answers) => T) => (s: Session) => control.freshAnswers(step).then((list) => make(s, list.length > 0 ? list : answers));
 
   const action = survivalPrimary(session, content);
   const backPlan = survivalBack(session, content, participants);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  const teams = session.playMode === "teams";
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (teams ? "Команда" : "Игрок")) : "—");
   const answered = new Set(answers.filter((a) => a.step === step && a.submittedAt !== undefined && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).map((a) => a.pid));
   const right = new Set(rightTeams(session, content, answers).map((a) => a.pid));
   const sorted = [...r.order].sort((a, b) => (session.leaderboard[b]?.score ?? 0) - (session.leaderboard[a]?.score ?? 0));
@@ -107,10 +71,10 @@ export function SurvivalHostControls({ session, content, answers, participants, 
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
-        <p className="muted">Команды в гонке — в порядке подключения. Никто не выбывает, после последнего раунда — награждение.</p>
+        <p className="muted">{teams ? "Команды" : "Игроки"} в гонке — в порядке подключения. Никто не выбывает, после последнего раунда — награждение.</p>
       ) : (
         <>
-          {r.phase === "intro" && auctionPending(content, r) && <p>Перед раундом — аукцион «билета освобождения». Капитаны ставят очки, платит только победитель.</p>}
+          {r.phase === "intro" && auctionPending(content, r) && <p>Перед раундом — аукцион «билета освобождения». {teams ? "Капитаны ставят" : "Игроки ставят"} очки, платит только победитель.</p>}
           {(r.phase === "auction" || r.phase === "auctionDone") && (
             <div className="card stack stack--tight">
               <p className="eyebrow">🎟 Аукцион</p>
@@ -124,7 +88,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
               <p className="eyebrow">
                 {KIND_TITLES[round.kind]} · {war ? `банк ${pointsLabel(r.bank || 0)}` : pointsLabel(round.points)}
               </p>
-              <p className="host-quiz__question">{round.text}</p>
+              <p className="host-quiz__question">{roundText(round, session.playMode)}</p>
               {round.kind === "choice" && (
                 <ol className="mil-host-options">
                   {round.options.map((o, i) => (
@@ -157,7 +121,11 @@ export function SurvivalHostControls({ session, content, answers, participants, 
             <section className="stack stack--tight">
               <p className="eyebrow">{round.kind === "task" ? "Кто выполнил задание" : "Засчитать ответ вручную"}</p>
               {round.kind === "task" && taskWords(round).length > 0 && (
-                <p className="muted small">Капитаны видят на телефоне своё слово. Зовите команды по очереди: капитан показывает, команда угадывает — отметьте угадавших.</p>
+                <p className="muted small">
+                  {teams
+                    ? "Капитаны видят на телефоне своё слово. Зовите команды по очереди: капитан показывает, команда угадывает — отметьте угадавших."
+                    : "Каждый видит на телефоне своё слово. Зовите игроков по очереди: игрок показывает, зал угадывает — отметьте тех, чьё слово угадали."}
+                </p>
               )}
               <div className="sv-marks">
                 {r.order.map((p) => {
@@ -166,7 +134,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
                   const text = round.kind === "open" ? answers.find((a) => a.step === step && a.pid === p)?.value : null;
                   return (
 <div key={p} className="sv-mark-row">
-                                        <button type="button" className="column-opt" aria-pressed={on} disabled={busy || auto || r.phase !== "play"} onClick={() => void run(toggleMark(session, p))}>
+                                        <button type="button" className="column-opt" aria-pressed={on} disabled={busy || auto || r.phase !== "play"} onClick={() => void run((s) => toggleMark(s, p))}>
                       <span className="column-opt__check" aria-hidden="true">{on ? "✓" : ""}</span>
                       <span className="line-clamp">
                         <NameText name={name(p)} />
@@ -181,7 +149,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
                         className={r.taskTimer?.pid === p ? "btn sv-mark-row__timer" : "btn btn--secondary sv-mark-row__timer"}
                         aria-pressed={r.taskTimer?.pid === p}
                         disabled={busy}
-                        onClick={() => void run(startTaskTimer(session, r.taskTimer?.pid === p ? null : p, Date.now() + clock.offset()))}
+                        onClick={() => void run((s) => startTaskTimer(s, r.taskTimer?.pid === p ? null : p, Date.now() + clock.offset()))}
                       >
                         {r.taskTimer?.pid === p ? "⏹ Убрать" : "▶ 30 с"}
                       </button>
@@ -218,54 +186,54 @@ export function SurvivalHostControls({ session, content, answers, participants, 
       <div className="actions">
         {action === "start" && (
           <>
-            {noTeams && <p className="muted small">Ждём, пока подключатся команды.</p>}
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run(startSurvival(session, participants))}>
+            {noTeams && <p className="muted small">{teams ? "Ждём, пока подключатся команды." : "Ждём, пока подключатся игроки."}</p>}
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run((s) => startSurvival(s, participants))}>
               Начать гонку
             </button>
           </>
         )}
         {action === "auction" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(openAuction(session, content))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => openAuction(s, content))}>
             Открыть аукцион билета
           </button>
         )}
         {action === "auctionDone" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => finishAuction(latest.current, list, participants)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((s, list) => finishAuction(s, list, participants)))}>
             Итоги аукциона
           </button>
         )}
         {action === "afterAuction" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(afterAuction(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => afterAuction(s))}>
             К раунду
           </button>
         )}
         {action === "bets" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(openBets(session, content))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => openBets(s, content))}>
             Открыть ставки
           </button>
         )}
         {action === "betsDone" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => closeBets(latest.current, content, list, participants)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((s, list) => closeBets(s, content, list, participants)))}>
             Ставки приняты — вопрос
           </button>
         )}
         {action === "show" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(showRound(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => showRound(s, content, participants))}>
             {round?.kind === "task" ? "Показать задание" : "Показать вопрос"}
           </button>
         )}
         {action === "reveal" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => revealRound(latest.current, content, list, participants)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((s, list) => revealRound(s, content, list, participants)))}>
             {round?.kind === "task" ? "Засчитать" : war ? "Показать ответ и банк" : "Показать ответ"}
           </button>
         )}
         {action === "next" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextRound(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextRound(s, content, participants))}>
             {roundNumber(r) >= content.rounds.length ? "Финиш гонки" : "Следующий раунд"}
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => (action === "podium" ? awardNow(s) : podiumNext(s)))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}
           </button>
         )}
@@ -282,16 +250,16 @@ export function SurvivalHostControls({ session, content, answers, participants, 
             onClick={() =>
               confirm({
                 title: "Закончить гонку досрочно?",
-                text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
+                text: `Побеждает ${teams ? "команда" : "игрок"} с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.`,
                 confirmLabel: "К награждению",
-                run: () => run(awardNow(session)),
+                run: () => run((s) => awardNow(s)),
               })
             }
           >
             Закончить досрочно
           </button>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => survivalBack(s, content, participants)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

@@ -14,7 +14,7 @@ export const questPreview: PreviewDriver<QuestContent> = ({ session, content, pa
     case "judge":
       return n % 4 === 3 ? { label: "Пульт: «Не выполнено»", change: judge(session, content, false) } : { label: "Пульт: «Выполнено»", change: judge(session, content, true) };
     case "next":
-      return { label: "Пульт: «Следующая команда»", change: nextTurn(session, participants) };
+      return { label: session.playMode === "teams" ? "Пульт: «Следующая команда»" : "Пульт: «Следующий игрок»", change: nextTurn(session, participants) };
     default:
       return null;
   }

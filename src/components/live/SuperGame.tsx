@@ -102,11 +102,13 @@ export interface SuperScreenProps {
   /** Меняется на каждом новом показе (звуки и конфетти). */
   burst: string;
   counter?: string;
+  /** Режим команд (по умолчанию): уровень выбирают капитаны; false — «каждый сам». */
+  teams?: boolean;
 }
 
 /** Экран зала: заставка, выбор уровней, ответы. */
 export function SuperScreen(props: SuperScreenProps) {
-  const { stage, gameId, title, levels, style, penalty, picks, verdicts, names, left, timeLimit, burst, counter } = props;
+  const { stage, gameId, title, levels, style, penalty, picks, verdicts, names, left, timeLimit, burst, counter, teams = true } = props;
   // Музыка заставки и звук каждого нового выбора уровня.
   useEffect(() => preloadSamples(["superChest"]), []);
   const introKey = stage === "ready" ? burst : "";
@@ -158,7 +160,9 @@ export function SuperScreen(props: SuperScreenProps) {
             </li>
           ))}
         </ol>
-        <p className="quiz-screen__hint">Капитаны выбирают уровень на телефоне · {PENALTY_TITLES[penalty].toLowerCase()}</p>
+        <p className="quiz-screen__hint">
+          {teams ? "Капитаны выбирают" : "Каждый выбирает"} уровень на телефоне · {PENALTY_TITLES[penalty].toLowerCase()}
+        </p>
       </div>
     );
   }

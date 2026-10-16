@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { ClientLogo } from "../components/ClientLogo";
 import { EveningTable } from "../mechanics/evening/views";
-import { FinalePhone } from "../components/live/Finale";
+import { FinaleLinks, FinalePhone } from "../components/live/Finale";
 import { Link, useParams } from "react-router-dom";
 import { formatSessionCode } from "../core/code";
 import { randomEmoji, splitEmoji, withEmoji } from "../core/emoji";
@@ -72,6 +72,8 @@ export function Play() {
         <Link className="btn btn--block" to="/j">
           Ввести код заново
         </Link>
+        <p className="muted">Если игра уже закончилась — спасибо, что были с нами!</p>
+        <FinaleLinks />
       </Message>
     );
   }
@@ -114,7 +116,12 @@ function PlayerScreen({ session, uid }: { session: Session; uid: string }) {
   // В режиме команд телефон без команды (или команду убрал ведущий) выбирает команду заново.
   if (!me || (session.playMode === "teams" && (!me.teamId || !team))) {
     if (session.state.phase === "finished") {
-      return <Message title="Игра уже завершена">Спасибо, что были с нами!</Message>;
+      return (
+        <Message title="Игра уже завершена">
+          <p>Спасибо, что были с нами!</p>
+          <FinaleLinks />
+        </Message>
+      );
     }
     return <JoinForm session={session} uid={uid} initialName={me?.name ?? rememberedName()} onJoined={reload} />;
   }

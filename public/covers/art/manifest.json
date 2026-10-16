@@ -1,38 +1,38 @@
 {
   "files": [
     {
-      "file": "quiz-stage.png",
-      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 8:34): сцена с золотым знаком вопроса, карточки и конверты",
+      "file": "truth.png",
+      "what": "Фон экрана зала — «Правда или действие»: сцена с золотым знаком вопроса, карты и конверты (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 8:34)",
       "url": "https://www.figma.com/api/mcp/asset/cae59924-814e-4f37-aead-69bd805fe131",
       "expires": "2026-10-24"
     },
     {
-      "file": "corporate.png",
-      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 9:34): стол с ноутбуками, кубок, карточки с вопросами",
+      "file": "quiz-office.png",
+      "what": "Фон экрана зала — квиз для корпоратива: стол с ноутбуками, кубок, карточки (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 9:34)",
       "url": "https://www.figma.com/api/mcp/asset/9f614d98-2ed9-4baa-be06-3d9eedde10ed",
       "expires": "2026-10-24"
     },
     {
-      "file": "cards-dice.png",
-      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 10:34): карты, кубики, красная кнопка, юла",
+      "file": "board.png",
+      "what": "Фон экрана зала — «Своя игра»: карты, кубики, красная кнопка, юла (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 10:34)",
       "url": "https://www.figma.com/api/mcp/asset/13991552-6b01-4957-8fd4-5339da59afc2",
       "expires": "2026-10-24"
     },
     {
-      "file": "music-vinyl.png",
-      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 11:34): пластинка, наушники, микрофон, диско-шар",
+      "file": "lotto.png",
+      "what": "Фон экрана зала — музыкальное лото: пластинка, наушники, микрофон, диско-шар (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 11:34)",
       "url": "https://www.figma.com/api/mcp/asset/d439791e-8eef-496e-9105-d2eccfd85a7f",
       "expires": "2026-10-24"
     },
     {
-      "file": "music-piano.png",
-      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 12:34): золотой микрофон, клавиши, кнопка, ноты",
+      "file": "melody.png",
+      "what": "Фон экрана зала — «Угадай мелодию»: золотой микрофон, клавиши, кнопка, ноты (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 12:34)",
       "url": "https://www.figma.com/api/mcp/asset/a628589f-8852-442b-8783-0cfb6f2f9b7b",
       "expires": "2026-10-24"
     },
     {
-      "file": "stage-mic.png",
-      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 13:34): сцена с микрофоном и звездой, бархатные шторы",
+      "file": "karaoke.png",
+      "what": "Фон экрана зала — караоке: сцена с микрофоном и звездой, бархатные шторы (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 13:34)",
       "url": "https://www.figma.com/api/mcp/asset/9392c522-446e-41c0-9f24-aee99fc18bea",
       "expires": "2026-10-24"
     }

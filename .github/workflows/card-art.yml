@@ -50,7 +50,7 @@ jobs:
           from pathlib import Path
           from PIL import Image
           # Поля «Активной настолки»: 1920 и 1280 по ширине
-          for p in sorted(Path("public/quest/art").glob("*.png")):
+          for p in sorted([*Path("public/quest/art").glob("*.png"), *Path("public/covers/art").glob("*.png")]):
               out = p.parent / "web"; out.mkdir(exist_ok=True)
               for w, sfx in ((1920, ""), (1280, "-1280")):
                   t = out / (p.stem + sfx + ".webp")

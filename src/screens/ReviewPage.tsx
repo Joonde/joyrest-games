@@ -1,7 +1,8 @@
 // Отзыв о вечере по QR с экрана зала (`/review/:sessionId`): без входа (телефон получает устройство), звёзды, пара слов,
-// подпись по желанию. Там же — чаевые ведущему и канал JoyRest. Только свой сервер (`finaleRepo`).
+// подпись по желанию. Там же — чаевые ведущему и «Мы на связи» (Авито, канал, сайт — `FinaleLinks`). Игру уже убрали
+// (сессии живут 30 дней) — «уже в архиве» и те же ссылки; сеть не ответила — «Повторить». Только свой сервер (`finaleRepo`).
 import { useParams } from "react-router-dom";
-import { CHANNEL_TEXT, CHANNEL_URL, ReviewForm, useFinale } from "../components/live/Finale";
+import { FinaleLinks, ReviewForm, useFinale } from "../components/live/Finale";
 import { Logo } from "../components/Logo";
 import { PlaySkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
@@ -13,10 +14,8 @@ export function ReviewPage() {
   if (!finaleRepo) {
     return (
       <Message title="Спасибо!">
-        <p>Оставить отзыв можно в нашем Telegram-канале.</p>
-        <a className="btn btn--block" href={CHANNEL_URL} target="_blank" rel="noopener noreferrer">
-          Открыть канал JoyRest
-        </a>
+        <p>Оставить отзыв можно на Авито или в нашем Telegram-канале.</p>
+        <FinaleLinks />
       </Message>
     );
   }
@@ -26,7 +25,18 @@ export function ReviewPage() {
 }
 
 function ReviewBody({ sessionId }: { sessionId: string }) {
-  const [finale, setFinale] = useFinale(sessionId);
+  const [finale, setFinale, load] = useFinale(sessionId);
+  if (load.status === "notFound") {
+    return (
+      <main className="page review-page">
+        <Logo kind="full" className="logo--form" />
+        <section className="card stack">
+          <h1>Эта игра уже в архиве — спасибо, что были с нами!</h1>
+          <FinaleLinks />
+        </section>
+      </main>
+    );
+  }
   return (
     <main className="page review-page">
       <Logo kind="full" className="logo--form" />
@@ -35,6 +45,13 @@ function ReviewBody({ sessionId }: { sessionId: string }) {
         {finale?.gameTitle && <p className="muted">{finale.gameTitle}{finale.hostName ? ` · ведущий — ${finale.hostName}` : ""}</p>}
         {finale ? (
           <ReviewForm sessionId={sessionId} initial={finale.myReview} onSaved={(r) => setFinale({ ...finale, myReview: r })} />
+        ) : load.status === "failed" ? (
+          <div className="stack stack--tight">
+            <p className="muted">Не получилось загрузить отзыв — проверьте интернет.</p>
+            <button type="button" className="btn btn--block" onClick={load.retry}>
+              Повторить
+            </button>
+          </div>
         ) : (
           <p className="muted">Загружаем…</p>
         )}
@@ -49,11 +66,8 @@ function ReviewBody({ sessionId }: { sessionId: string }) {
         </section>
       )}
       <section className="card stack">
-        <h2>Наш Telegram</h2>
-        <p className="muted small">{CHANNEL_TEXT}</p>
-        <a className="btn btn--secondary btn--block" href={CHANNEL_URL} target="_blank" rel="noopener noreferrer">
-          Подписаться на канал JoyRest
-        </a>
+        <h2>Мы на связи</h2>
+        <FinaleLinks avito={!finale?.myReview} />
       </section>
     </main>
   );

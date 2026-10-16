@@ -320,7 +320,7 @@ export function DurakHostControls({ session, content, answers, participants, con
         <div className="stack stack--tight">
           {unreadable && (
             <p className="error" role="alert">
-              Партию раздавали с другого устройства — управляйте ходами с него. Здесь можно голосовать за колоду и завершить игру.
+              Откройте пульт на том устройстве, где раздавали карты: этот пульт карт партии не знает, ходы ведите там. Здесь можно голосовать за колоду и завершить игру.
             </p>
           )}
           <p className="host-quiz__question">{r.line || "Игра идёт"}</p>

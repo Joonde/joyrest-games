@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Participant, Session, SessionChange } from "../../data/types";
-import { newQuestCell, parseQuest, parseQuestList, resizeQuest } from "./content";
-import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./demo";
+import { cellText, newQuestCell, parseQuest, parseQuestList, resizeQuest } from "./content";
+import { DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET } from "./demo";
 import { validateQuest } from "./validate";
 import { applyRoll, dieOf, judge, nextTurn, parseQuestResult, questBack, questPrimary, rollChange, startQuest } from "./logic";
 
@@ -28,6 +28,21 @@ describe("Активная настолка", () => {
     expect(list[0]).toMatchObject({ text: "Столица Франции?", answer: "Париж", points: 30 });
     expect(list[2]?.move).toBe(3);
     expect(list[3]?.move).toBe(-2);
+  });
+
+  it("задание для режима «каждый сам»: «текст || текст одному», в шаблонах у командных заданий он есть", () => {
+    const [cell] = parseQuestList("Фото всей командой || Селфи с соседями (20)");
+    expect(cell).toMatchObject({ kind: "task", text: "Фото всей командой", solo: "Селфи с соседями", points: 20 });
+    expect(cell && cellText(cell, "solo")).toBe("Селфи с соседями");
+    expect(cell && cellText(cell, "teams")).toBe("Фото всей командой");
+    expect(parseQuest({ cells: [{ kind: "task", text: "a" }] }).cells[0]?.solo).toBe("");
+    expect(parseQuestList("Танец: всей командой || Танец: с соседями (30)")[0]).toMatchObject({ kind: "dance", text: "всей командой", solo: "с соседями", points: 30 });
+    for (const demo of [DEMO_QUEST, DEMO_QUEST_ADULT, DEMO_QUEST_DRINKS, DEMO_QUEST_SWEET]) {
+      for (const c of demo.content.cells) {
+        if (c.kind === "question") continue;
+        expect(cellText(c, "solo"), c.text).not.toMatch(/команд|капитан/i);
+      }
+    }
   });
 
   it("кубик — из ответа сервера (1–6), не выбирается телефоном", () => {

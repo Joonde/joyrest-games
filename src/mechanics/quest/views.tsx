@@ -10,7 +10,7 @@ import { acceptsAnswers } from "../../core/session";
 import type { Session } from "../../data/types";
 import { embedUrl } from "../dance/content";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { QUEST_EMOJI, QUEST_TITLES, type QuestCell, type QuestContent } from "./content";
+import { cellText, QUEST_EMOJI, QUEST_TITLES, type QuestCell, type QuestContent } from "./content";
 import { cellAt, parseQuestResult, type QuestResult } from "./logic";
 import { QuestDie, QuestMap } from "./QuestMap";
 
@@ -30,7 +30,7 @@ function TaskCard({ cell, result, session, showAnswer = false, showVideo = false
         {cell.points > 0 && (cell.kind === "task" || cell.kind === "question" || cell.kind === "dance" || cell.kind === "karaoke") ? ` · ${cell.points} очков` : ""}
       </span>
       <p className="quest-task__text">
-        {cell.kind === "bonus" ? `Бонус! Вперёд на ${cell.move}` : cell.kind === "trap" ? `Ловушка! Назад на ${-cell.move}` : cell.kind === "skip" ? "Пропуск следующего хода" : cell.kind === "empty" ? "Отдых — заданий нет" : cell.text || "Задание от ведущего"}
+        {cell.kind === "bonus" ? `Бонус! Вперёд на ${cell.move}` : cell.kind === "trap" ? `Ловушка! Назад на ${-cell.move}` : cell.kind === "skip" ? "Пропуск следующего хода" : cell.kind === "empty" ? "Отдых — заданий нет" : cellText(cell, session.playMode) || "Задание от ведущего"}
       </p>
       {video && result.mode === "cell" && <iframe className="quest-task__video" src={video} title={cell.text || "Видео"} allow="autoplay; fullscreen; encrypted-media" allowFullScreen />}
       {showAnswer && cell.kind === "question" && cell.answer && (
@@ -80,7 +80,9 @@ export function QuestScreenView({ session, content }: ViewProps<QuestContent>) {
           <>
             <span className="quiz-screen__badge">Активная настолка</span>
             <h2 className="quest-screen__title">Начнём игру!</h2>
-            <p className="quest-screen__note">Команды по очереди бросают кубик на телефоне капитана. Каждая клетка — задание.</p>
+            <p className="quest-screen__note">
+              {session.playMode === "teams" ? "Команды по очереди бросают кубик на телефоне капитана." : "Игроки по очереди бросают кубик на своём телефоне."} Каждая клетка — задание.
+            </p>
           </>
         ) : r.mode === "finish" ? (
           <>

@@ -6,12 +6,12 @@ import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { QUEST_EMOJI, QUEST_TITLES, type QuestContent } from "./content";
+import { cellText, QUEST_EMOJI, QUEST_TITLES, type QuestContent } from "./content";
 import { applyRoll, cellAt, judge, nextTurn, parseQuestResult, questBack, questPrimary, questTeams, rollChange, startQuest } from "./logic";
 
 /**
- * Пульт «Активной настолки»: «Начать игру» → капитан бросает кубик на телефоне (или «Бросить за
- * команду» здесь) → задание клетки с ответом для ведущего → «Выполнено» / «Не выполнено» →
+ * Пульт «Активной настолки»: «Начать игру» → капитан (в «каждый сам» — игрок) бросает кубик на телефоне
+ * (или «Бросить за команду» здесь) → задание клетки с ответом для ведущего → «Выполнено» / «Не выполнено» →
  * «Следующая команда». Первая на финише — награждение; «Завершить досрочно» — с подтверждением.
  */
 export function QuestHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<QuestContent>) {
@@ -76,12 +76,13 @@ export function QuestHostControls({ session, content, answers, participants, con
 
   const action = questPrimary(session);
   const backPlan = questBack(session);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (teams ? "Команда" : "Игрок")) : "—");
   const cell = r.mode !== "roll" ? cellAt(content, r.at) : null;
   const hostRoll = () => {
     const bytes = crypto.getRandomValues(new Uint8Array(1));
     return ((bytes[0] ?? 0) % 6) + 1;
   };
+  const teams = session.playMode === "teams";
   const ranked = [...r.order].sort((a, b) => (r.pos[b] ?? 0) - (r.pos[a] ?? 0));
 
   return (
@@ -92,7 +93,7 @@ export function QuestHostControls({ session, content, answers, participants, con
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : stage === "ready" ? (
-        <p className="muted">Команды встанут на старт в порядке подключения. Ходит первая.</p>
+        <p className="muted">{teams ? "Команды встанут на старт в порядке подключения. Ходит первая." : "Игроки встанут на старт в порядке подключения. Ходит первый."}</p>
       ) : (
         <>
           <p>
@@ -104,7 +105,7 @@ export function QuestHostControls({ session, content, answers, participants, con
               <p className="eyebrow">
                 {QUEST_EMOJI[cell.kind]} {QUEST_TITLES[cell.kind]} {cell.points > 0 ? `· ${cell.points} очков` : ""}
               </p>
-              {cell.text && <p className="host-quiz__question">{cell.text}</p>}
+              {cellText(cell, session.playMode) && <p className="host-quiz__question">{cellText(cell, session.playMode)}</p>}
               {cell.kind === "question" && cell.answer && (
                 <p className="muted small">
                   Ответ: <strong className="host-quiz__answer">{cell.answer}</strong>
@@ -134,7 +135,7 @@ export function QuestHostControls({ session, content, answers, participants, con
       <div className="actions">
         {action === "start" && (
           <>
-            {questTeams(session, participants) === 0 && <p className="muted small">Ждём, пока подключатся команды — без них ходить некому.</p>}
+            {questTeams(session, participants) === 0 && <p className="muted small">{teams ? "Ждём, пока подключатся команды — без них ходить некому." : "Ждём, пока подключатся игроки — без них ходить некому."}</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || questTeams(session, participants) === 0} onClick={() => void run(startQuest(session, participants))}>
               Начать игру
             </button>
@@ -142,9 +143,9 @@ export function QuestHostControls({ session, content, answers, participants, con
         )}
         {action === "waitRoll" && (
           <>
-            <p className="muted small">Ждём бросок капитана. Если телефона нет — бросьте за команду.</p>
+            <p className="muted small">{teams ? "Ждём бросок капитана. Если телефона нет — бросьте за команду." : "Ждём бросок игрока. Если телефона нет — бросьте за него."}</p>
             <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(applyRoll(session, content, hostRoll(), participants))}>
-              🎲 Бросить за команду
+              🎲 {teams ? "Бросить за команду" : "Бросить за игрока"}
             </button>
           </>
         )}
@@ -160,7 +161,7 @@ export function QuestHostControls({ session, content, answers, participants, con
         )}
         {action === "next" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTurn(session, participants))}>
-            Следующая команда
+            {teams ? "Следующая команда" : "Следующий игрок"}
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
@@ -181,7 +182,7 @@ export function QuestHostControls({ session, content, answers, participants, con
             onClick={() =>
               confirm({
                 title: "Закончить игру досрочно?",
-                text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
+                text: `Побеждает ${teams ? "команда" : "игрок"} с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.`,
                 confirmLabel: "К награждению",
                 run: () => run(awardNow(session)),
               })

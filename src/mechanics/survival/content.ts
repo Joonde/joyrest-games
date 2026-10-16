@@ -12,6 +12,8 @@ export interface SurvivalRound {
   kind: SurvivalKind;
   /** Вопрос или задание. */
   text: string;
+  /** Задание для режима «каждый сам» (командное задание — как выполнить одному); пусто — тот же `text`. */
+  solo: string;
   /** Варианты (вопрос с вариантами и вопрос войнушки). */
   options: string[];
   correct: number;
@@ -48,7 +50,7 @@ function id(): string {
 }
 
 export function newSurvivalRound(kind: SurvivalKind = "choice"): SurvivalRound {
-  return { id: id(), kind, text: "", options: ["", "", "", ""], correct: 0, answer: "", points: 100, seconds: kind === "task" ? 0 : 30 };
+  return { id: id(), kind, text: "", solo: "", options: ["", "", "", ""], correct: 0, answer: "", points: 100, seconds: kind === "task" ? 0 : 30 };
 }
 
 /** Войнушка ли раунд (номер с 1). */
@@ -88,6 +90,7 @@ export function parseSurvival(raw: unknown): SurvivalContent {
       id: rid,
       kind,
       text: str(r.text, SURVIVAL_LIMITS.text),
+      solo: kind === "task" ? str(r.solo, SURVIVAL_LIMITS.text) : "",
       options: Array.from({ length: 4 }, (_, k) => str(Array.isArray(r.options) ? r.options[k] : "", SURVIVAL_LIMITS.option)),
       correct: int(r.correct, 0, 0, 3),
       answer: str(r.answer, SURVIVAL_LIMITS.answer),
@@ -109,6 +112,11 @@ export function parseSurvival(raw: unknown): SurvivalContent {
     auctionSeconds: int(d.auctionSeconds, 30, SURVIVAL_LIMITS.minSeconds, SURVIVAL_LIMITS.maxSeconds),
     look: parseShowLook(d.look, SURVIVAL_LOOKS),
   };
+}
+
+/** Текст раунда для режима игры: задание в «каждый сам» — `solo`, если он есть. */
+export function roundText(round: Pick<SurvivalRound, "kind" | "text" | "solo">, playMode: string | undefined): string {
+  return round.kind === "task" && playMode === "solo" && round.solo ? round.solo : round.text;
 }
 
 /** Верные ответы открытого вопроса. */
@@ -142,7 +150,7 @@ export function taskWordFor(round: Pick<SurvivalRound, "kind" | "answer">, order
 /**
  * Список: строка — раунд по порядку. «Вопрос?» и строки «- вариант», «* верный» — вопрос с вариантами;
  * «Вопрос? = ответ | ответ2» — открытый; «Задание: …» — задание («Задание: … = слон | жираф» — тайные слова
- * командам). «(150)» в конце — очки.
+ * командам; «Задание: для команд || для каждого сам = слова» — второй текст в режиме «каждый сам»). «(150)» в конце — очки.
  */
 export function parseSurvivalList(text: string): SurvivalRound[] {
   const out: SurvivalRound[] = [];
@@ -170,7 +178,8 @@ export function parseSurvivalList(text: string): SurvivalRound[] {
     const points = pts ? Math.min(SURVIVAL_LIMITS.maxPoints, Number(pts[1])) : 100;
     if (/^задание\s*[:.]/i.test(body)) {
       const [task, words] = body.replace(/^задание\s*[:.]\s*/i, "").split("=");
-      current = { ...newSurvivalRound("task"), text: (task ?? "").trim().slice(0, SURVIVAL_LIMITS.text), answer: (words ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };
+      const [teamPart = "", soloPart = ""] = (task ?? "").split(/\s*\|\|\s*/);
+      current = { ...newSurvivalRound("task"), text: teamPart.trim().slice(0, SURVIVAL_LIMITS.text), solo: soloPart.trim().slice(0, SURVIVAL_LIMITS.text), answer: (words ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };
     } else if (body.includes("=")) {
       const [q, a] = body.split("=");
       current = { ...newSurvivalRound("open"), text: (q ?? "").trim().slice(0, SURVIVAL_LIMITS.text), answer: (a ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };

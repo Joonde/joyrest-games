@@ -76,13 +76,13 @@ export function QuestHostControls({ session, content, answers, participants, con
 
   const action = questPrimary(session);
   const backPlan = questBack(session);
+  const teams = session.playMode === "teams";
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (teams ? "Команда" : "Игрок")) : "—");
   const cell = r.mode !== "roll" ? cellAt(content, r.at) : null;
   const hostRoll = () => {
     const bytes = crypto.getRandomValues(new Uint8Array(1));
     return ((bytes[0] ?? 0) % 6) + 1;
   };
-  const teams = session.playMode === "teams";
   const ranked = [...r.order].sort((a, b) => (r.pos[b] ?? 0) - (r.pos[a] ?? 0));
 
   return (

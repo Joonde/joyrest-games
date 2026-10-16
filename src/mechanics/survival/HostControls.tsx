@@ -9,7 +9,7 @@ import { clock } from "../../data";
 import type { Session, SessionChange } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
-import { KIND_TITLES, LETTERS, warIndex, type SurvivalContent, taskWordFor, taskWords } from "./content";
+import { KIND_TITLES, LETTERS, roundText, warIndex, type SurvivalContent, taskWordFor, taskWords } from "./content";
 import {
   startTaskTimer,
   afterAuction,
@@ -93,7 +93,8 @@ export function SurvivalHostControls({ session, content, answers, participants, 
 
   const action = survivalPrimary(session, content);
   const backPlan = survivalBack(session, content, participants);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  const teams = session.playMode === "teams";
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (teams ? "Команда" : "Игрок")) : "—");
   const answered = new Set(answers.filter((a) => a.step === step && a.submittedAt !== undefined && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).map((a) => a.pid));
   const right = new Set(rightTeams(session, content, answers).map((a) => a.pid));
   const sorted = [...r.order].sort((a, b) => (session.leaderboard[b]?.score ?? 0) - (session.leaderboard[a]?.score ?? 0));
@@ -107,10 +108,10 @@ export function SurvivalHostControls({ session, content, answers, participants, 
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
-        <p className="muted">Команды в гонке — в порядке подключения. Никто не выбывает, после последнего раунда — награждение.</p>
+        <p className="muted">{teams ? "Команды" : "Игроки"} в гонке — в порядке подключения. Никто не выбывает, после последнего раунда — награждение.</p>
       ) : (
         <>
-          {r.phase === "intro" && auctionPending(content, r) && <p>Перед раундом — аукцион «билета освобождения». Капитаны ставят очки, платит только победитель.</p>}
+          {r.phase === "intro" && auctionPending(content, r) && <p>Перед раундом — аукцион «билета освобождения». {teams ? "Капитаны ставят" : "Игроки ставят"} очки, платит только победитель.</p>}
           {(r.phase === "auction" || r.phase === "auctionDone") && (
             <div className="card stack stack--tight">
               <p className="eyebrow">🎟 Аукцион</p>
@@ -124,7 +125,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
               <p className="eyebrow">
                 {KIND_TITLES[round.kind]} · {war ? `банк ${pointsLabel(r.bank || 0)}` : pointsLabel(round.points)}
               </p>
-              <p className="host-quiz__question">{round.text}</p>
+              <p className="host-quiz__question">{roundText(round, session.playMode)}</p>
               {round.kind === "choice" && (
                 <ol className="mil-host-options">
                   {round.options.map((o, i) => (
@@ -157,7 +158,11 @@ export function SurvivalHostControls({ session, content, answers, participants, 
             <section className="stack stack--tight">
               <p className="eyebrow">{round.kind === "task" ? "Кто выполнил задание" : "Засчитать ответ вручную"}</p>
               {round.kind === "task" && taskWords(round).length > 0 && (
-                <p className="muted small">Капитаны видят на телефоне своё слово. Зовите команды по очереди: капитан показывает, команда угадывает — отметьте угадавших.</p>
+                <p className="muted small">
+                  {teams
+                    ? "Капитаны видят на телефоне своё слово. Зовите команды по очереди: капитан показывает, команда угадывает — отметьте угадавших."
+                    : "Каждый видит на телефоне своё слово. Зовите игроков по очереди: игрок показывает, зал угадывает — отметьте тех, чьё слово угадали."}
+                </p>
               )}
               <div className="sv-marks">
                 {r.order.map((p) => {
@@ -218,7 +223,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
       <div className="actions">
         {action === "start" && (
           <>
-            {noTeams && <p className="muted small">Ждём, пока подключатся команды.</p>}
+            {noTeams && <p className="muted small">{teams ? "Ждём, пока подключатся команды." : "Ждём, пока подключатся игроки."}</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run(startSurvival(session, participants))}>
               Начать гонку
             </button>
@@ -282,7 +287,7 @@ export function SurvivalHostControls({ session, content, answers, participants, 
             onClick={() =>
               confirm({
                 title: "Закончить гонку досрочно?",
-                text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
+                text: `Побеждает ${teams ? "команда" : "игрок"} с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.`,
                 confirmLabel: "К награждению",
                 run: () => run(awardNow(session)),
               })

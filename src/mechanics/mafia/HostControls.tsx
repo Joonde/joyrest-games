@@ -450,7 +450,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
       )}
       {started && r.mode !== "deal" && missingRoles.length > 0 && (
         <p className="muted small">
-          Этот пульт не знает роли: {missingRoles.map(nm).join(", ")} (без телефона). Их видно на устройстве, где раздавали роли. Ночь и итог ведите с него.
+          Этот пульт не знает роли: {missingRoles.map(nm).join(", ")} (без телефона). Откройте пульт на том устройстве, где раздавали карты, — ночь и итог ведите с него.
         </p>
       )}
 
@@ -517,7 +517,7 @@ export function MafiaHostControls({ session, content, answers, participants, con
           </button>
         ) : action === "morning" ? (
           <>
-            {!rolesReady && <p className="muted small">Утро считается по ролям — откройте пульт на устройстве, где раздавали роли.</p>}
+            {!rolesReady && <p className="muted small">Утро считается по ролям — откройте пульт на том устройстве, где раздавали карты.</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || !rolesReady} onClick={() => void doMorning()}>
               {ACTION_LABELS.morning}
             </button>
@@ -615,7 +615,7 @@ function NightPanel({
   nm: (pid: string | null) => string;
   seat: (pid: string) => number;
 }) {
-  if (!roles || !night) return <p className="muted">Ночь. Роли этого пульта неизвестны — откройте пульт на устройстве, где раздавали роли.</p>;
+  if (!roles || !night) return <p className="muted">Ночь. Роли этого пульта неизвестны — откройте пульт на том устройстве, где раздавали карты.</p>;
   const family = r.alive.filter((p) => isMafia(roles[p]));
   const votes = familyVotes(roles, r.alive, night.choices);
   const unanimous = night.outcome.mafiaTarget;

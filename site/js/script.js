@@ -534,38 +534,46 @@
     sheet.hidden = true; document.body.style.overflow = '';
     if(sheetFrom) sheetFrom.focus();
   }
+  let sheetFile = null;
   function shareCalc(e){
     sheetText = showcaseText();
     if(!sheet){ copyCalc(sheetText); return; }
     sheetFrom = e && e.currentTarget;
     $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
+    // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
+    $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(sheetText);
     $('sendMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(sheetText);
     const avito = $('sendAvito');
     if(avitoUrl){ avito.href = avitoUrl; avito.hidden = false; }
+    // Картинку готовим сразу: «Поделиться» телефона должно открыться прямо по касанию.
+    sheetFile = null;
+    if(window.JoyCalcImage){
+      const opts = calcOpts();
+      window.JoyCalcImage.make(P.calcSummary(opts), hostLevelField.value || 'standard', P.LEVELS.map((l) => l.id)).then((f) => { sheetFile = f; }, () => {});
+    }
+    $('sendImg').hidden = !window.JoyCalcImage;
     sheet.hidden = false; document.body.style.overflow = 'hidden';
     $('sendWa').focus();
   }
   if(sheet){
-    const pasteHint = (where) => () => { copyCalc(sheetText, 'Расчёт скопирован — вставьте его в чат ' + where); closeSheet(); };
     $('sendWa').addEventListener('click', () => setTimeout(closeSheet, 0));
     $('sendMail').addEventListener('click', () => setTimeout(closeSheet, 0));
-    $('sendTg').addEventListener('click', pasteHint('Telegram'));
-    $('sendAvito').addEventListener('click', pasteHint('на Авито'));
+    // Текст копируем и для Telegram: если приложение не подставит его, останется вставить.
+    $('sendTg').addEventListener('click', () => { copyCalc(sheetText, 'Открываем Telegram — расчёт уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
+    // Авито не даёт подставить текст: копируем его, открываем профиль — там «Написать» и вставить.
+    $('sendAvito').addEventListener('click', () => { copyCalc(sheetText, 'Расчёт скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
+    $('sendImg').addEventListener('click', () => {
+      const go = (f) => window.JoyCalcImage.share(f, sheetText).then((how) => {
+        if(how === 'saved') topToast('Картинка расчёта сохранена — прикрепите её в чат с нами', null, null, 6000);
+        if(how !== 'cancel') closeSheet();
+      });
+      if(sheetFile) go(sheetFile);
+      else window.JoyCalcImage.make(P.calcSummary(calcOpts()), hostLevelField.value || 'standard', P.LEVELS.map((l) => l.id)).then(go, () => topToast('Не получилось сделать картинку — отправьте текстом'));
+    });
     $('sendCopy').addEventListener('click', () => { copyCalc(sheetText); closeSheet(); });
     $('sendClose').addEventListener('click', closeSheet);
     sheet.addEventListener('click', (ev) => { if(ev.target === sheet) closeSheet(); });
     document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') closeSheet(); });
-  }
-  // «?» у трёх цен: чем отличаются форматы ведущих.
-  const levelsSheet = $('levelsSheet');
-  if(levelsSheet){
-    let from = null;
-    const close = () => { if(levelsSheet.hidden) return; levelsSheet.hidden = true; document.body.style.overflow = ''; if(from) from.focus(); };
-    $('levelsHelp').addEventListener('click', (e) => { from = e.currentTarget; levelsSheet.hidden = false; document.body.style.overflow = 'hidden'; $('levelsClose').focus(); });
-    $('levelsClose').addEventListener('click', close);
-    $('levelsMore').addEventListener('click', () => { from = null; close(); });
-    levelsSheet.addEventListener('click', (ev) => { if(ev.target === levelsSheet) close(); });
-    document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') close(); });
   }
   if(SHOWCASE){
     $('calcSubmit').textContent = 'Отправить расчёт менеджеру';

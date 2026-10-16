@@ -87,7 +87,23 @@ img{ max-width: 100%; height: auto; }
 /* Полоса с фоном — во всю ширину экрана: фон у секции, поля — у .wrap (прокрутки вбок нет). */
 .band{ background: var(--bg-alt); transition: background-color .5s ease; }
 .section{ padding: 104px 0; }
-.eyebrow{ font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent-text); margin: 0 0 12px; }
+.eyebrow{ display: flex; align-items: center; gap: 12px; font-size: clamp(18px, 2vw, 22px); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-text); margin: 0 0 14px; }
+.eyebrow__n{ flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--btn-outline); color: var(--ink); font-size: 18px; letter-spacing: 0; }
+/* «Дальше» в конце раздела: куда ведёт страница */
+.next{ display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; margin: 40px 0 0; padding: 18px 22px; min-height: 64px; border: 1px solid var(--line); border-radius: 18px; color: var(--ink); text-decoration: none; background: var(--card); }
+.next:hover{ border-color: var(--btn-outline); }
+.next:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 3px; }
+.next__k{ font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-text); }
+.next__t{ flex: 1 1 200px; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 26px; font-weight: 600; line-height: 1.15; }
+.next__a{ font-size: 24px; color: var(--accent-text); }
+/* Карта страницы на первом экране */
+.route{ margin: 28px 0 0; }
+.route__title{ margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--ink-soft); }
+.route__list{ display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.route__list a{ display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 14px 6px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 500; }
+.route__list a:hover{ border-color: var(--btn-outline); }
+.route__list a:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 2px; }
+.route__list b{ display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--line); font-size: 14px; }
 .sub{ margin: 14px 0 0; color: var(--ink-soft); max-width: 60ch; }
 .hint{ margin: 10px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
 .hint__hl{ color: var(--accent-text); font-weight: 600; }
@@ -696,6 +712,8 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .send-sheet__box h3{ margin: 0 0 8px; }
 .send-sheet__hint{ margin: 0 0 16px; color: var(--ink-soft); font-size: 14px; }
 .send-sheet__actions{ display: flex; flex-direction: column; gap: 12px; }
+.send-sheet__hint--small{ margin: -4px 0 4px; font-size: 13px; }
+.send-sheet__box{ max-height: calc(100vh - 32px); overflow: auto; }
 .send-sheet__actions .hbtn{ min-height: 52px; font-size: 16px; }
 .send-sheet__close{ min-height: 44px; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
 .summary__head{ display: flex; align-items: center; justify-content: space-between; gap: 12px; }

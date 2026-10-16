@@ -201,22 +201,37 @@
     document.body.style.overflow = '';
     if (sheetFrom) sheetFrom.focus();
   }
+  var sheetFile = null;
+  function levelIds() { return P.LEVELS.map(function (l) { return l.id; }); }
   function send(e) {
     var value = text();
     sheetFrom = e && e.currentTarget;
     $('sWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(value);
+    // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
+    $('sTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(value);
     $('sMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(value);
+    // Картинку готовим сразу: «Поделиться» телефона должно открыться прямо по касанию.
+    sheetFile = null;
+    if (window.JoyCalcImage) window.JoyCalcImage.make(P.calcSummary(state), state.level || 'standard', levelIds()).then(function (f) { sheetFile = f; }, function () {});
+    $('sImg').hidden = !window.JoyCalcImage;
     sheet.hidden = false;
     document.body.style.overflow = 'hidden';
     $('sWa').focus();
   }
-  function pasteHint(where) {
-    return function () { copy('Расчёт скопирован — вставьте его в чат ' + where); closeSheet(); };
-  }
   $('sWa').addEventListener('click', function () { setTimeout(closeSheet, 0); });
   $('sMail').addEventListener('click', function () { setTimeout(closeSheet, 0); });
-  $('sTg').addEventListener('click', pasteHint('Telegram'));
-  $('sAvito').addEventListener('click', pasteHint('на Авито'));
+  $('sTg').addEventListener('click', function () { copy('Открываем Telegram — расчёт уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
+  $('sAvito').addEventListener('click', function () { copy('Расчёт скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
+  $('sImg').addEventListener('click', function () {
+    var go = function (f) {
+      return window.JoyCalcImage.share(f, text()).then(function (how) {
+        if (how === 'saved') toast('Картинка расчёта сохранена — прикрепите её в чат с нами');
+        if (how !== 'cancel') closeSheet();
+      });
+    };
+    if (sheetFile) go(sheetFile);
+    else window.JoyCalcImage.make(P.calcSummary(state), state.level || 'standard', levelIds()).then(go, function () { toast('Не получилось сделать картинку — отправьте текстом'); });
+  });
   $('sCopy').addEventListener('click', function () { copy(); closeSheet(); });
   $('sClose').addEventListener('click', closeSheet);
   sheet.addEventListener('click', function (ev) { if (ev.target === sheet) closeSheet(); });

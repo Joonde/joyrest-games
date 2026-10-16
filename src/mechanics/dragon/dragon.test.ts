@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
-import { createDragon, parseDragonList, parseStats, type DragonContent } from "./content";
+import { createDragon, parseDragonList, parseStats, taskText, type DragonContent } from "./content";
 import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "./demo";
-import { closeHeroes, damageOf, dragonBack, dragonPrimary, nextBattle, nextTask, parseDragonResult, revealTask, showTask, startDragon, toggleMark } from "./logic";
+import { closeHeroes, damageOf, dragonSteps, dragonBack, dragonPrimary, nextBattle, nextTask, parseDragonResult, revealTask, showTask, startDragon, toggleMark } from "./logic";
 import { validateDragon } from "./validate";
 
 const teams: Participant[] = ["A", "B"].map((id, i) => ({ id, name: `Команда ${id}`, kind: "team", teamId: null, captainUid: `u${id}`, joinedAt: i }));
@@ -125,7 +125,7 @@ describe("Бой с драконом: бой", () => {
 
   it("кубик: число из ответа сервера, вор +1; без броска — бросает ведущий", () => {
     const c = content();
-    c.battles[0]!.tasks = [{ id: "d", kind: "dice", stat: "luck", text: "", options: ["", "", "", ""], correct: 0, power: 70, seconds: 0 }];
+    c.battles[0]!.tasks = [{ id: "d", kind: "dice", stat: "luck", text: "", solo: "", options: ["", "", "", ""], correct: 0, power: 70, seconds: 0 }];
     c.battles[0]!.hp = 100_000;
     let { s } = heroes(c, { hero: "thief", stats: { luck: 1 } }, { hero: "knight", stats: { luck: 1 } });
     s = apply(s, showTask(s, c, teams));
@@ -135,6 +135,35 @@ describe("Бой с драконом: бой", () => {
     expect(r.last.B?.roll).toBe(6);
     // 70 × 6/3,5 × 2 = 240.
     expect(r.last.B?.damage).toBe(240);
+  });
+
+  it("кубик: 3 и больше — удар, меньше 3 — промах и дракон бьёт", () => {
+    const c = content();
+    c.battles[0]!.tasks = [{ id: "d", kind: "dice", stat: "luck", text: "", solo: "", options: ["", "", "", ""], correct: 0, power: 70, seconds: 0 }];
+    c.battles[0]!.hp = 100_000;
+    let { s } = heroes(c, { hero: "bard", stats: { luck: 1 } }, { hero: "bard", stats: { luck: 1 } });
+    s = apply(s, showTask(s, c, teams));
+    s = apply(s, revealTask(s, c, [], teams, { A: 2, B: 3 }));
+    const r = parseDragonResult(s.state.result);
+    expect(r.last.A?.ok).toBe(false);
+    expect(r.last.A?.damage).toBe(0);
+    expect(r.last.A?.lost).toBe(1);
+    expect(r.last.B?.ok).toBe(true);
+    expect(r.last.B?.damage).toBeGreaterThan(0);
+  });
+
+  it("«Заданий в каждом бою»: играем первые N, дальше — итог боя", () => {
+    const c = { ...DEMO_DRAGON, perBattle: 3 };
+    expect(dragonSteps(c).length).toBe(c.battles.reduce((n, b) => n + Math.min(3, b.tasks.length), 0));
+    expect(dragonSteps({ ...c, perBattle: 0 }).length).toBe(c.battles.reduce((n, b) => n + b.tasks.length, 0));
+  });
+
+  it("командное задание в режиме «каждый сам» — свой текст", () => {
+    const [b] = parseDragonList("Харизма: Капитан произносит клич команды || Произнесите свой клич (150)");
+    const t = b!.tasks[0]!;
+    expect(taskText(t, "teams")).toBe("Капитан произносит клич команды");
+    expect(taskText(t, "solo")).toBe("Произнесите свой клич");
+    expect(t.power).toBe(150);
   });
 
   it("последний бой — конец игры и награждение", () => {
@@ -155,13 +184,11 @@ describe("Бой с драконом: «Назад» после поражени
   it("с поражения — к удару, и ещё раз назад — удар отменён; бросок без телефона один и тот же", () => {
     const c = content();
     c.battles[0]!.hp = 100_000;
-    c.battles[0]!.tasks = [{ id: "d", kind: "dice", stat: "luck", text: "", options: ["", "", "", ""], correct: 0, power: 100, seconds: 0 }];
+    c.battles[0]!.tasks = [{ id: "d", kind: "dice", stat: "luck", text: "", solo: "", options: ["", "", "", ""], correct: 0, power: 100, seconds: 0 }];
     let { s } = heroes(c, { hero: "knight", stats: { luck: 1 } }, { hero: "knight", stats: { luck: 1 } });
     s = apply(s, showTask(s, c, teams));
-    const first = revealTask(s, c, [], teams);
-    const again = revealTask(s, c, [], teams);
-    expect(first?.state?.result).toEqual(again?.state?.result);
-    s = apply(s, first);
+    expect(revealTask(s, c, [], teams)?.state?.result).toEqual(revealTask(s, c, [], teams)?.state?.result);
+    s = apply(s, revealTask(s, c, [], teams, { A: 4, B: 4 }));
     const scored = s.leaderboard.A?.score ?? 0;
     expect(scored).toBeGreaterThan(0);
     s = apply(s, nextTask(s, c, teams));

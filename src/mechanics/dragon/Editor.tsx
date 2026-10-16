@@ -64,8 +64,20 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
         </p>
         <div className="row board-editor__size">
           <label className="field">
-            Жизни команды в бою
+            Жизни в каждом бою (у команды или игрока)
             <ClampedNumber value={content.lives} min={1} max={DRAGON_LIMITS.maxLives} fallback={3} disabled={!editable} onChange={(lives) => onChange({ ...content, lives })} />
+          </label>
+          <label className="field">
+            Заданий в каждом бою
+            <select value={content.perBattle} disabled={!editable} onChange={(e) => onChange({ ...content, perBattle: Number(e.target.value) })}>
+              <option value={0}>Все задания боя</option>
+              {[3, 4, 5, 6, 7, 8, 10, 12, 15].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <span className="muted small">Играем первые задания из списка боя; если их меньше — все.</span>
           </label>
           <label className="field">
             Бонус за последний удар
@@ -139,11 +151,18 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
                           </button>
                         ))}
                       </div>
-                      <p className="muted small">{task.kind === "choice" ? "Вопрос: отвечает капитан, верно — удар." : task.kind === "task" ? "Задание: ведущий отмечает, кто выполнил." : "Кубик: капитан бросает на телефоне, урон по числу."}</p>
+                      <p className="muted small">{task.kind === "choice" ? "Вопрос: отвечает капитан, верно — удар." : task.kind === "task" ? "Задание: ведущий отмечает, кто выполнил." : "Кубик: капитан бросает на телефоне; 3 и больше — удар (урон по числу), 1–2 — промах."}</p>
                       <label className="field">
                         {task.kind === "choice" ? "Вопрос" : task.kind === "task" ? "Задание" : "Подпись (необязательно)"}
                         <textarea rows={2} maxLength={DRAGON_LIMITS.text} value={task.text} disabled={!editable} onChange={(e) => setTask(battle.id, task.id, { text: e.target.value })} />
                       </label>
+                      {task.kind === "task" && (
+                        <label className="field">
+                          Для режима «каждый сам»
+                          <span className="muted small">Если задание командное («капитан», «вся команда») — напишите, как его выполнить одному. Пусто — тот же текст.</span>
+                          <textarea rows={2} maxLength={DRAGON_LIMITS.text} value={task.solo} disabled={!editable} onChange={(e) => setTask(battle.id, task.id, { solo: e.target.value })} />
+                        </label>
+                      )}
                       {task.kind === "choice" &&
                         task.options.map((o, k) => (
                           <div key={k} className="row mil-editor-option">

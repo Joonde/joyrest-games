@@ -8,7 +8,7 @@ import { resultKey } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
-import { heroOf, statTitle, type DragonContent } from "./content";
+import { DICE_LUCK, heroOf, statTitle, taskText, type DragonContent } from "./content";
 import { battleOf, closeHeroes, dragonBack, dragonPrimary, maxLives, nextBattle, nextTask, parseDragonResult, revealTask, showTask, startDragon, taskOf, toggleMark } from "./logic";
 
 const LETTERS = ["A", "B", "C", "D"];
@@ -112,7 +112,7 @@ export function DragonHostControls({ session, content, answers, participants, co
             <p className="eyebrow">
               Задание {r.task + 1} из {battle?.tasks.length ?? 0} · {statTitle(task.stat)} · урон {task.power}
             </p>
-            <p className="host-quiz__question">{task.kind === "dice" ? task.text || "Бросок кубика" : task.text}</p>
+            <p className="host-quiz__question">{taskText(task, session.playMode, "Бросок кубика")}</p>
             {task.kind === "choice" && (
               <ol className="mil-host-options">
                 {task.options.map((o, i) => (
@@ -124,7 +124,7 @@ export function DragonHostControls({ session, content, answers, participants, co
               </ol>
             )}
             {r.phase === "task" && task.kind !== "task" && <p className="small">Ответили: {[...answered].filter((p) => r.order.includes(p)).length} из {r.order.length - r.dead.length}</p>}
-            {r.phase === "task" && task.kind === "dice" && <p className="muted small">Кто не бросит — за того кубик бросится сам при «Удар!».</p>}
+            {r.phase === "task" && task.kind === "dice" && <p className="muted small">{DICE_LUCK} и больше — удар по дракону, меньше {DICE_LUCK} — промах, дракон бьёт. Кто не бросит — за того кубик бросится сам при «Удар!».</p>}
           </div>
         )
       )}

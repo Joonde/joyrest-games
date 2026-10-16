@@ -135,7 +135,10 @@ export function HundredHostControls({ session, content, answers, participants, c
   /** Свежие ответы зала с сервера перед начислением очков. */
   const withAnswers = (make: (list: Answer[]) => SessionChange | null) => async () => make(await control.freshAnswers(step).catch(() => answers));
 
-  const nameOf = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Команда") : "");
+  // «Каждый сам»: лидер играет «Большую игру» сам в два захода (вместо двух игроков команды).
+  const solo = session.playMode === "solo";
+  const bigWho = (n: number) => (solo ? `${n === 0 ? "первый" : "второй"} заход` : `${n === 0 ? "первый" : "второй"} игрок`);
+  const nameOf = (pid: string | null) => (pid ? (session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? (solo ? "Игрок" : "Команда")) : "");
   const peek = session.state.peek ?? null;
   const backPlan = hundredBack(session, content, answers);
   const primary = hundredPrimary(session, content);
@@ -281,7 +284,7 @@ export function HundredHostControls({ session, content, answers, participants, c
             disabled={busy || (!hall && !big && pair.length === 0)}
             onClick={() => void run(() => Promise.resolve(hall ? hallOpen(latest.current, content, participants) : big ? bigStart(latest.current, content, participants) : startFace(latest.current, content, participants)))}
           >
-            {hall ? `Открыть вопрос · ${content.hallTime} с` : big ? `Запустить таймер первому игроку · ${content.bigTimes[0]} с` : "Показать вопрос"}
+            {hall ? `Открыть вопрос · ${content.hallTime} с` : big ? `${solo ? "Запустить таймер · первый заход" : "Запустить таймер первому игроку"} · ${content.bigTimes[0]} с` : "Показать вопрос"}
           </button>
           {backButton}
         </div>
@@ -296,7 +299,7 @@ export function HundredHostControls({ session, content, answers, participants, c
     return (
       <div className="stack host-quiz hd-host">
         <p className="eyebrow">
-          Большая игра · <NameText name={nameOf(r.big.team)} /> · {r.mode === "bigDone" ? "итог" : `${p === 0 ? "первый" : "второй"} игрок`}
+          Большая игра · <NameText name={nameOf(r.big.team)} /> · {r.mode === "bigDone" ? "итог" : bigWho(p)}
         </p>
         <div className="host-quiz__live" aria-live="polite">
           {timer}
@@ -306,10 +309,15 @@ export function HundredHostControls({ session, content, answers, participants, c
         </div>
         {r.big.repeat !== null && (
           <p className="mil-host-live" role="alert">
-            Повтор ответа первого игрока в вопросе {r.big.repeat + 1} — «Повтор, другой ответ!»
+            {solo ? "Повтор своего ответа из первого захода" : "Повтор ответа первого игрока"} в вопросе {r.big.repeat + 1} — «Повтор, другой ответ!»
           </p>
         )}
-        {r.mode === "big" && <p className="muted small">Игрок отвечает вслух — коснитесь его ответа под вопросом или «Нет на табло». Ответ первого игрока второму повторять нельзя.</p>}
+        {r.mode === "big" && (
+          <p className="muted small">
+            Игрок отвечает вслух — коснитесь его ответа под вопросом или «Нет на табло».{" "}
+            {solo ? "Во втором заходе свои ответы из первого повторять нельзя." : "Ответ первого игрока второму повторять нельзя."}
+          </p>
+        )}
         {round.questions.map((q, i) => {
           const mine = r.big.cells[p][i];
           const first = r.big.cells[0][i];
@@ -347,12 +355,12 @@ export function HundredHostControls({ session, content, answers, participants, c
         <div className="actions">
           {primary === "bigStart" && (
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(bigStart(latest.current, content, participants)))}>
-              Запустить таймер {p === 0 ? "первому" : "второму"} игроку · {content.bigTimes[p]} с
+              {solo ? `Запустить таймер · ${bigWho(p)}` : `Запустить таймер ${p === 0 ? "первому" : "второму"} игроку`} · {content.bigTimes[p]} с
             </button>
           )}
           {(primary === "bigSecond" || (r.mode === "big" && p === 0 && primary === "bigEnter")) && (
             <button type="button" className={primary === "bigSecond" ? "btn btn--block host-quiz__primary" : "btn btn--quiet btn--block"} disabled={busy} onClick={() => void run(bigSecond(session, participants))}>
-              Первый игрок ответил — второй игрок
+              {solo ? "Первый заход окончен — второй заход" : "Первый игрок ответил — второй игрок"}
             </button>
           )}
           {(primary === "bigFinish" || (r.mode === "big" && p === 1 && primary === "bigEnter")) && (
@@ -457,7 +465,7 @@ export function HundredHostControls({ session, content, answers, participants, c
       {head}
       {r.mode === "face" && !r.armed && (
         <div className="board-host__arm">
-          <p>Прочитайте вопрос вслух. Кнопки у капитанов пока не активны — фальстарта не будет.</p>
+          <p>Прочитайте вопрос вслух. Кнопки у {solo ? "игроков" : "капитанов"} пока не активны — фальстарта не будет.</p>
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(() => Promise.resolve(armFace(latest.current, content, participants)))}>
             Запустить отсчёт · {content.buzzTime} с
           </button>
@@ -494,7 +502,7 @@ export function HundredHostControls({ session, content, answers, participants, c
       )}
       {(r.mode === "face" || r.mode === "play" || r.mode === "steal") && (
         <p className="muted small">
-          {r.mode === "face" ? "Капитан называет ответ вслух. Есть на табло — коснитесь его, нет — «Нет на табло» (слово следующему нажавшему)." : "Игрок называет ответ вслух. Есть на табло — коснитесь его, нет — «Нет на табло»."}
+          {r.mode === "face" ? (solo ? "Игрок" : "Капитан") + " называет ответ вслух. Есть на табло — коснитесь его, нет — «Нет на табло» (слово следующему нажавшему)." : "Игрок называет ответ вслух. Есть на табло — коснитесь его, нет — «Нет на табло»."}
         </p>
       )}
       <AnswerList question={question} kind={round.kind} r={r} disabled={busy} hall={false} onTap={(id) => void run(openAnswer(session, content, participants, id))} />

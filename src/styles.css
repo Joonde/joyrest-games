@@ -12430,6 +12430,103 @@ button.dance-card:active {
   }
 }
 
+/* «Активная настолка»: стили поля (`content.style`). Классика — переменные выше; остальные переопределяют их. */
+.quest-map.qm--party {
+  --qm-ground: #2a1440;
+  --qm-ground-2: #120a1f;
+  --qm-road: #ff7ad9;
+  --qm-road-edge: #6b2a8f;
+  --qm-stone: #f3e6ff;
+  --qm-stone-edge: #7b3fb0;
+  --qm-neon-a: #ff7ad9;
+  --qm-neon-b: #6fe3ff;
+  --qm-neon-c: #ffe066;
+  --qm-ball: #c9cfe0;
+  --qm-ball-line: #6f7894;
+  --qm-glow: #ff9be6;
+}
+
+.quest-map.qm--kids {
+  --qm-ground: #cfeaff;
+  --qm-ground-2: #9fd2f5;
+  --qm-hill: #f7c6d6;
+  --qm-road: #fffaf3;
+  --qm-road-edge: #f08fae;
+  --qm-stone: #fffaf3;
+  --qm-stone-edge: #d27a97;
+  --qm-candy-a: #f59ab8;
+  --qm-candy-b: #9fd8b0;
+  --qm-candy-c: #ffd27a;
+  --qm-glow: #fff1a8;
+  box-shadow: inset 0 0 4cqh rgba(80, 120, 160, 0.25);
+}
+
+.quest-map.qm--adult {
+  --qm-ground: #1f1a2c;
+  --qm-ground-2: #0d0b14;
+  --qm-road: #e3c68c;
+  --qm-road-edge: #5a4a2c;
+  --qm-stone: #f3dfae;
+  --qm-stone-edge: #8c6d36;
+  --qm-gold: #e3c68c;
+  --qm-gold-light: #f3dfae;
+  --qm-wine: #b0546a;
+  --qm-bottle: #3f5c46;
+  --qm-glow: #f3dfae;
+}
+
+.qm--party .qm-road { opacity: 0.9; filter: drop-shadow(0 0 6px #b14bd8); }
+.qm--party .qm-road-dash { stroke-dasharray: 12 10; filter: drop-shadow(0 0 5px var(--qm-neon-a)); }
+.qm--party .qm-cell__stone { filter: drop-shadow(0 0 6px var(--qm-neon-b)); }
+.qm--party .qm-decor { opacity: 0.95; }
+.qm-beam { opacity: 0.16; }
+.qm-beam--a { fill: #ff7ad9; animation: qm-beam 6s ease-in-out infinite; transform-origin: 12% 0; }
+.qm-beam--b { fill: #6fe3ff; animation: qm-beam 7s ease-in-out infinite reverse; transform-origin: 88% 0; }
+.qm-floor { fill: #ff7ad9; opacity: 0.12; }
+.qm-floor--b { fill: #6fe3ff; opacity: 0.1; }
+.qm-stage { fill: #3a1d58; stroke: #ff7ad9; stroke-width: 2; }
+.qm-ball-spin { animation: qm-ball 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+.qm--kids .qm-road { stroke-width: 34; opacity: 0.9; }
+.qm--kids .qm-road-dash { stroke: #f59ab8; stroke-width: 26; stroke-dasharray: 10 12; opacity: 0.55; }
+.qm--kids .qm-decor { opacity: 1; }
+.qm--kids .qm-label { fill: #3b2a33; }
+.qm-sun { fill: #ffd86b; filter: drop-shadow(0 0 14px #ffe9a3); }
+.qm-hill--front { fill: #fbe0ea; }
+.qm-flame { fill: #ff9a3c; transform-box: fill-box; transform-origin: center bottom; animation: qm-flag 1s ease-in-out infinite; }
+
+.qm--adult .qm-road { opacity: 0.55; }
+.qm--adult .qm-road-dash { stroke-dasharray: 3 9; filter: drop-shadow(0 0 4px rgba(243, 223, 174, 0.7)); }
+.qm--adult .qm-start__stone { fill: #f3dfae; }
+.qm--adult .qm-flag { fill: #b0546a; }
+.qm-moon { fill: #f3dfae; opacity: 0.85; }
+.qm-city { fill: #17131f; }
+.qm-window { fill: #e3c68c; opacity: 0.55; }
+
+.qm-twinkle { transform-box: fill-box; transform-origin: center; animation: qm-twinkle 2.6s ease-in-out infinite; }
+
+@keyframes qm-twinkle {
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+@keyframes qm-beam {
+  50% { transform: rotate(6deg); }
+}
+
+@keyframes qm-ball {
+  50% { transform: rotate(14deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qm-twinkle,
+  .qm-beam--a,
+  .qm-beam--b,
+  .qm-ball-spin,
+  .qm-flame {
+    animation: none;
+  }
+}
+
 /* Гонка: войнушка — мечи скрещиваются, надпись вспыхивает красным. */
 .sv-war-title {
   display: inline-flex;

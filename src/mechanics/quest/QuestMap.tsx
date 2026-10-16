@@ -1,11 +1,12 @@
-// «Активная настолка»: поле как карта приключений — тропинка из камней-клеток змейкой, деревья, скалы,
-// озеро, флаг старта и замок финиша. Фишки команд шагают по клеткам после броска (со стуком), бонус
+// «Активная настолка»: поле — тропинка из клеток змейкой, флаг старта и финиш. Вид — по стилю поля
+// (`content.style`): «Классика» — лес, озеро и замок; «Вечеринка» — ночной танцпол, прожекторы, неон и
+// диско-шар; «Детская» — небо, сладкие холмы, леденцы и торт; «18+» — ночной город, золото и бокалы. Фишки команд шагают по клеткам после броска (со стуком), бонус
 // подбрасывает вперёд с искрами, ловушка утаскивает назад. Всё — SVG и CSS transform/opacity; при
 // «уменьшить движение» фишка сразу встаёт на место.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playSound } from "../../components/live/sound";
 import type { Session } from "../../data/types";
-import { QUEST_EMOJI, type QuestContent } from "./content";
+import { QUEST_EMOJI, type QuestContent, type QuestStyle } from "./content";
 import { cellAt, finishOf, type QuestResult } from "./logic";
 
 const TEAM_COLORS = ["#E3AA9C", "#E3C68C", "#A3C2AA", "#D2A0AC", "#B3AADD", "#9FC3D6", "#E0B3A0", "#C9C08F"];
@@ -69,60 +70,284 @@ function roadPath(points: Array<{ x: number; y: number }>): string {
   return d;
 }
 
-/** Украшения между рядами: деревья, кусты, камни, цветы — на одном и том же месте при каждом показе. */
-function decorations(l: Layout): Array<{ kind: "tree" | "pine" | "bush" | "rock" | "flowers"; x: number; y: number; s: number }> {
-  const out: Array<{ kind: "tree" | "pine" | "bush" | "rock" | "flowers"; x: number; y: number; s: number }> = [];
-  const kinds = ["pine", "tree", "bush", "rock", "flowers", "pine", "bush"] as const;
+type Decoration = { v: number; x: number; y: number; s: number };
+
+/** Украшения между рядами — на одном и том же месте при каждом показе; что именно рисовать, решает стиль поля. */
+function decorations(l: Layout): Decoration[] {
+  const out: Decoration[] = [];
   for (let row = 0; row < l.rows - 1; row++) {
     for (let col = 1; col < l.cols - 1; col++) {
       const seed = (row * 31 + col * 17) % 13;
       if (seed > 5) continue;
-      const kind = kinds[(row * 3 + col) % kinds.length] ?? "bush";
-      out.push({ kind, x: PAD_X + col * STEP_X - STEP_X / 2 + ((seed * 7) % 30) - 15, y: l.height - PAD_Y - row * STEP_Y - STEP_Y / 2 + ((seed * 5) % 16) - 8, s: 0.8 + (seed % 3) * 0.15 });
+      out.push({ v: (row * 3 + col) % 7, x: PAD_X + col * STEP_X - STEP_X / 2 + ((seed * 7) % 30) - 15, y: l.height - PAD_Y - row * STEP_Y - STEP_Y / 2 + ((seed * 5) % 16) - 8, s: 0.8 + (seed % 3) * 0.15 });
     }
   }
   return out;
 }
 
-function Decor({ kind, x, y, s }: { kind: "tree" | "pine" | "bush" | "rock" | "flowers"; x: number; y: number; s: number }) {
-  const t = `translate(${x} ${y}) scale(${s})`;
+const CLASSIC_KINDS = ["pine", "tree", "bush", "rock", "flowers", "pine", "bush"] as const;
+
+/** Классика: лес — ёлки, деревья, кусты, камни, цветы. */
+function ForestDecor({ v }: { v: number }) {
+  const kind = CLASSIC_KINDS[v % CLASSIC_KINDS.length] ?? "bush";
   if (kind === "pine")
     return (
-      <g transform={t} className="qm-decor">
+      <>
         <rect x="-2.5" y="6" width="5" height="9" fill="var(--qm-trunk)" />
         <path d="M0 -22 L13 -2 L6 -2 L15 9 L-15 9 L-6 -2 L-13 -2 Z" fill="var(--qm-pine)" />
-      </g>
+      </>
     );
   if (kind === "tree")
     return (
-      <g transform={t} className="qm-decor">
+      <>
         <rect x="-2.5" y="2" width="5" height="12" fill="var(--qm-trunk)" />
         <circle cx="0" cy="-6" r="12" fill="var(--qm-leaf)" />
         <circle cx="-8" cy="0" r="8" fill="var(--qm-leaf)" />
         <circle cx="8" cy="0" r="8" fill="var(--qm-leaf)" />
-      </g>
+      </>
     );
   if (kind === "bush")
     return (
-      <g transform={t} className="qm-decor">
+      <>
         <circle cx="-7" cy="4" r="7" fill="var(--qm-bush)" />
         <circle cx="5" cy="3" r="8" fill="var(--qm-bush)" />
         <circle cx="-1" cy="-3" r="7" fill="var(--qm-bush)" />
-      </g>
+      </>
     );
   if (kind === "rock")
     return (
-      <g transform={t} className="qm-decor">
+      <>
         <path d="M-14 8 L-9 -4 L1 -9 L11 -3 L14 8 Z" fill="var(--qm-rock)" />
         <path d="M-9 -4 L1 -9 L0 2 Z" fill="var(--qm-rock-light)" />
-      </g>
+      </>
     );
   return (
-    <g transform={t} className="qm-decor">
+    <>
       <circle cx="-6" cy="2" r="3" fill="var(--qm-flower-a)" />
       <circle cx="3" cy="-2" r="3" fill="var(--qm-flower-b)" />
       <circle cx="8" cy="5" r="2.5" fill="var(--qm-flower-a)" />
+    </>
+  );
+}
+
+/** Звёздочка-блик (4 луча). */
+function Sparkle({ r, fill }: { r: number; fill: string }) {
+  const k = r * 0.28;
+  return <path d={`M0 ${-r} L${k} ${-k} L${r} 0 L${k} ${k} L0 ${r} L${-k} ${k} L${-r} 0 L${-k} ${-k} Z`} fill={fill} className="qm-twinkle" />;
+}
+
+/** Зеркальный шар диско. */
+function MirrorBall({ r }: { r: number }) {
+  return (
+    <>
+      <circle r={r} fill="var(--qm-ball)" />
+      {[-0.55, 0, 0.55].map((k) => (
+        <ellipse key={`h${k}`} cy={k * r} rx={r * Math.sqrt(1 - k * k)} ry={r * 0.12} fill="none" stroke="var(--qm-ball-line)" strokeWidth="1.4" />
+      ))}
+      {[-0.5, 0.5].map((k) => (
+        <ellipse key={`v${k}`} rx={r * 0.5} ry={r} fill="none" stroke="var(--qm-ball-line)" strokeWidth="1.4" transform={`translate(${k * r * 0.4} 0)`} />
+      ))}
+      <line x1="0" y1={-r} x2="0" y2={r} stroke="var(--qm-ball-line)" strokeWidth="1.4" />
+      <circle cx={-r * 0.35} cy={-r * 0.4} r={r * 0.22} fill="#fff" opacity="0.75" />
+    </>
+  );
+}
+
+/** Вечеринка: диско-шары, ноты, неоновые блики, конфетти. */
+function PartyDecor({ v }: { v: number }) {
+  const k = v % 4;
+  if (k === 0)
+    return (
+      <>
+        <line x1="0" y1="-30" x2="0" y2="-12" stroke="var(--qm-ball-line)" strokeWidth="1.5" />
+        <MirrorBall r={12} />
+      </>
+    );
+  if (k === 1)
+    return <path d="M-6 10 a6 5 0 1 1 0.1 0 Z M0 10 L0 -16 L12 -12 L12 -6 L2 -9 L2 10 Z" fill="var(--qm-neon-b)" className="qm-twinkle" />;
+  if (k === 2) return <Sparkle r={13} fill="var(--qm-neon-a)" />;
+  return (
+    <>
+      <rect x="-12" y="-6" width="6" height="3" rx="1" fill="var(--qm-neon-a)" transform="rotate(25)" />
+      <rect x="2" y="-10" width="6" height="3" rx="1" fill="var(--qm-neon-b)" transform="rotate(-30)" />
+      <circle cx="-2" cy="8" r="3" fill="var(--qm-neon-c)" />
+      <circle cx="10" cy="6" r="2.5" fill="var(--qm-neon-a)" />
+    </>
+  );
+}
+
+/** Детская: леденцы, конфеты, облака, капкейки. */
+function SweetDecor({ v }: { v: number }) {
+  const k = v % 4;
+  if (k === 0)
+    return (
+      <>
+        <rect x="-1.5" y="2" width="3" height="16" rx="1.5" fill="#fffaf3" stroke="#d9a0b0" strokeWidth="1" />
+        <circle cy="-6" r="11" fill="var(--qm-candy-a)" />
+        <path d="M0 -6 m-7 0 a7 7 0 1 1 7 7 a4.5 4.5 0 1 1 -4.5 -4.5" fill="none" stroke="#fffaf3" strokeWidth="2.5" strokeLinecap="round" />
+      </>
+    );
+  if (k === 1)
+    return (
+      <>
+        <path d="M-17 -6 L-9 0 L-17 6 Z M17 -6 L9 0 L17 6 Z" fill="var(--qm-candy-b)" />
+        <ellipse rx="10" ry="7" fill="var(--qm-candy-b)" />
+        <path d="M-4 -6 L-4 6 M2 -7 L2 7" stroke="#fffaf3" strokeWidth="2" opacity="0.8" />
+      </>
+    );
+  if (k === 2)
+    return (
+      <g opacity="0.95">
+        <circle cx="-9" cy="3" r="8" fill="#ffffff" />
+        <circle cx="2" cy="-2" r="10" fill="#ffffff" />
+        <circle cx="12" cy="4" r="7" fill="#ffffff" />
+        <rect x="-9" y="3" width="21" height="8" fill="#ffffff" />
+      </g>
+    );
+  return (
+    <>
+      <path d="M-11 0 L11 0 L8 14 L-8 14 Z" fill="var(--qm-candy-c)" />
+      <path d="M-7 0 L-5 14 M0 0 L0 14 M7 0 L5 14" stroke="#ffffff" strokeWidth="1.2" opacity="0.7" />
+      <path d="M-13 1 Q-13 -9 -4 -10 Q0 -17 5 -10 Q13 -9 13 1 Z" fill="var(--qm-candy-a)" />
+      <circle cy="-15" r="3" fill="#d94a5f" />
+    </>
+  );
+}
+
+/** Бокал шампанского. */
+function Flute({ fill }: { fill: string }) {
+  return (
+    <>
+      <path d="M-5 -16 L5 -16 L4 -2 Q0 3 -4 -2 Z" fill={fill} opacity="0.9" />
+      <rect x="-0.8" y="1" width="1.6" height="11" fill={fill} />
+      <rect x="-5" y="12" width="10" height="2" rx="1" fill={fill} />
+      <circle cx="-1" cy="-10" r="1" fill="#fff8e6" />
+      <circle cx="1.5" cy="-6" r="0.8" fill="#fff8e6" />
+    </>
+  );
+}
+
+/** 18+: бокалы, бутылки, мартини, золотые блики. */
+function NightDecor({ v }: { v: number }) {
+  const k = v % 4;
+  if (k === 0) return <Flute fill="var(--qm-gold)" />;
+  if (k === 1) return <Sparkle r={11} fill="var(--qm-gold-light)" />;
+  if (k === 2)
+    return (
+      <>
+        <path d="M-5 -6 Q-5 -10 -2 -12 L-2 -20 L2 -20 L2 -12 Q5 -10 5 -6 L5 14 L-5 14 Z" fill="var(--qm-bottle)" />
+        <rect x="-5" y="-2" width="10" height="7" fill="var(--qm-gold)" />
+        <rect x="-2.5" y="-23" width="5" height="4" fill="var(--qm-gold)" />
+      </>
+    );
+  return (
+    <>
+      <path d="M-12 -12 L12 -12 L0 2 Z" fill="var(--qm-wine)" opacity="0.9" />
+      <path d="M-12 -12 L12 -12" stroke="var(--qm-gold)" strokeWidth="1.5" />
+      <rect x="-0.8" y="1" width="1.6" height="11" fill="var(--qm-gold)" />
+      <rect x="-6" y="12" width="12" height="2" rx="1" fill="var(--qm-gold)" />
+      <circle cx="5" cy="-14" r="3" fill="#a3c2aa" />
+    </>
+  );
+}
+
+function Decor({ style, v, x, y, s }: Decoration & { style: QuestStyle }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${style === "classic" ? s : s * 1.35})`} className="qm-decor">
+      {style === "party" ? <PartyDecor v={v} /> : style === "kids" ? <SweetDecor v={v} /> : style === "adult" ? <NightDecor v={v} /> : <ForestDecor v={v} />}
     </g>
+  );
+}
+
+/** Фон под тропинкой: у каждого стиля свой. Солнце и луна — в верхнем углу, где нет финиша. */
+function Backdrop({ style, l }: { style: QuestStyle; l: Layout }) {
+  const { width: w, height: h } = l;
+  const finishRight = (l.points.at(-1)?.x ?? 0) > w / 2;
+  const skyX = finishRight ? 0.1 : 0.9;
+  if (style === "party")
+    return (
+      <>
+        <polygon points={`${w * 0.08},0 ${w * 0.16},0 ${w * 0.42},${h} ${w * 0.18},${h}`} className="qm-beam qm-beam--a" />
+        <polygon points={`${w * 0.84},0 ${w * 0.92},0 ${w * 0.82},${h} ${w * 0.58},${h}`} className="qm-beam qm-beam--b" />
+        {Array.from({ length: Math.ceil(w / 60) }, (_, i) => i).flatMap((i) =>
+          [0, 1].map((r) => <rect key={`${i}-${r}`} x={i * 60} y={h - 60 + r * 30} width="58" height="28" className={(i + r) % 2 ? "qm-floor qm-floor--b" : "qm-floor"} />),
+        )}
+      </>
+    );
+  if (style === "kids")
+    return (
+      <>
+        <circle cx={w * skyX} cy={h * 0.1} r={Math.min(w, h) * 0.07} className="qm-sun" />
+        <path d={`M0 ${h} L0 ${h * 0.88} Q${w * 0.15} ${h * 0.8} ${w * 0.3} ${h * 0.88} T${w * 0.6} ${h * 0.87} T${w} ${h * 0.86} L${w} ${h} Z`} className="qm-hill" />
+        <path d={`M0 ${h} L0 ${h * 0.94} Q${w * 0.25} ${h * 0.9} ${w * 0.5} ${h * 0.95} T${w} ${h * 0.93} L${w} ${h} Z`} className="qm-hill qm-hill--front" />
+      </>
+    );
+  if (style === "adult") {
+    const blocks = Math.ceil(w / 46);
+    return (
+      <>
+        <path d={`M${w * skyX} ${h * 0.06} a${h * 0.05} ${h * 0.05} 0 1 0 ${h * 0.03} ${h * 0.09} a${h * 0.04} ${h * 0.04} 0 1 1 ${-h * 0.03} ${-h * 0.09} Z`} className="qm-moon" />
+        {Array.from({ length: blocks }, (_, i) => {
+          const bh = 40 + ((i * 37) % 7) * 14;
+          return (
+            <g key={i}>
+              <rect x={i * 46} y={h - bh} width="44" height={bh} className="qm-city" />
+              {Array.from({ length: Math.floor(bh / 18) }, (_, j) =>
+                (i + j) % 3 !== 0 ? <rect key={j} x={i * 46 + 8 + ((i + j) % 2) * 16} y={h - bh + 8 + j * 18} width="6" height="6" className="qm-window" /> : null,
+              )}
+            </g>
+          );
+        })}
+      </>
+    );
+  }
+  return (
+    <>
+      <ellipse cx={w * 0.82} cy={h * 0.18} rx={w * 0.12} ry={h * 0.07} className="qm-lake" />
+      <path d={`M0 ${h} L0 ${h * 0.86} Q${w * 0.2} ${h * 0.78} ${w * 0.42} ${h * 0.9} T${w} ${h * 0.84} L${w} ${h} Z`} className="qm-hill" />
+    </>
+  );
+}
+
+/** Финиш: замок, диско-шар над сценой, торт или большой бокал. */
+function FinishMark({ style }: { style: QuestStyle }) {
+  if (style === "party")
+    return (
+      <>
+        <rect x="-34" y="8" width="68" height="12" rx="3" className="qm-stage" />
+        <line x1="0" y1="-52" x2="0" y2="-34" stroke="var(--qm-ball-line)" strokeWidth="2" />
+        <g transform="translate(0 -14)" className="qm-ball-spin">
+          <MirrorBall r={20} />
+        </g>
+      </>
+    );
+  if (style === "kids")
+    return (
+      <>
+        <rect x="-30" y="0" width="60" height="18" rx="4" fill="var(--qm-candy-a)" stroke="#b9677d" strokeWidth="2" />
+        <rect x="-20" y="-16" width="40" height="17" rx="4" fill="#fffaf3" stroke="#b9677d" strokeWidth="2" />
+        <path d="M-30 4 Q-22 10 -15 4 Q-7 10 0 4 Q7 10 15 4 Q22 10 30 4" fill="none" stroke="#fffaf3" strokeWidth="3" />
+        <rect x="-2" y="-30" width="4" height="14" fill="var(--qm-candy-c)" />
+        <path d="M0 -40 Q4 -34 0 -30 Q-4 -34 0 -40 Z" className="qm-flame" />
+      </>
+    );
+  if (style === "adult")
+    return (
+      <g transform="scale(2.2) translate(0 -2)">
+        <path d="M-12 -12 L12 -12 L0 2 Z" fill="var(--qm-wine)" />
+        <path d="M-12 -12 L12 -12" stroke="var(--qm-gold-light)" strokeWidth="1.6" />
+        <rect x="-0.9" y="1" width="1.8" height="10" fill="var(--qm-gold)" />
+        <rect x="-6" y="11" width="12" height="2" rx="1" fill="var(--qm-gold)" />
+        <circle cx="6" cy="-14" r="3" fill="#a3c2aa" />
+      </g>
+    );
+  return (
+    <>
+      <path d="M-30 18 L-30 -18 L-22 -18 L-22 -10 L-14 -10 L-14 -18 L-6 -18 L-6 -26 L6 -26 L6 -18 L14 -18 L14 -10 L22 -10 L22 -18 L30 -18 L30 18 Z" className="qm-castle" />
+      <path d="M-6 18 L-6 4 Q0 -4 6 4 L6 18 Z" className="qm-castle__door" />
+      <rect x="-1.5" y="-46" width="3" height="20" className="qm-pole" />
+      <path d="M1.5 -46 L22 -40 L1.5 -34 Z" className="qm-flag qm-flag--finish" />
+    </>
   );
 }
 
@@ -192,9 +417,10 @@ export function QuestMap({ session, content, result: r, size = "screen" }: { ses
   const current = r.mode !== "roll" && r.mover && shown[r.mover] === r.at ? r.at : null;
   const start = l.points[0];
   const finish = l.points.at(-1);
+  const style = content.style;
 
   return (
-    <div className={`quest-map quest-map--${size}`}>
+    <div className={`quest-map quest-map--${size} qm--${style}`}>
       <svg viewBox={`0 0 ${l.width} ${l.height}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Игровое поле">
         <defs>
           <radialGradient id="qm-glow">
@@ -202,11 +428,10 @@ export function QuestMap({ session, content, result: r, size = "screen" }: { ses
             <stop offset="100%" stopColor="var(--qm-glow)" stopOpacity="0" />
           </radialGradient>
         </defs>
-        {/* Озеро и холмы на фоне */}
-        <ellipse cx={l.width * 0.82} cy={l.height * 0.18} rx={l.width * 0.12} ry={l.height * 0.07} className="qm-lake" />
-        <path d={`M0 ${l.height} L0 ${l.height * 0.86} Q${l.width * 0.2} ${l.height * 0.78} ${l.width * 0.42} ${l.height * 0.9} T${l.width} ${l.height * 0.84} L${l.width} ${l.height} Z`} className="qm-hill" />
+        {/* Фон стиля: озеро и холмы, танцпол и прожекторы, сладкие холмы, ночной город */}
+        <Backdrop style={style} l={l} />
         {decor.map((d, i) => (
-          <Decor key={i} {...d} />
+          <Decor key={i} style={style} {...d} />
         ))}
         {/* Тропинка */}
         <path d={road} className="qm-road" />
@@ -248,14 +473,11 @@ export function QuestMap({ session, content, result: r, size = "screen" }: { ses
             </text>
           </g>
         )}
-        {/* Финиш: замок со свечением */}
+        {/* Финиш: у каждого стиля свой, со свечением */}
         {finish && (
           <g transform={`translate(${finish.x} ${finish.y})`} className="qm-finish">
             <circle r="62" fill="url(#qm-glow)" className="qm-finish__glow" />
-            <path d="M-30 18 L-30 -18 L-22 -18 L-22 -10 L-14 -10 L-14 -18 L-6 -18 L-6 -26 L6 -26 L6 -18 L14 -18 L14 -10 L22 -10 L22 -18 L30 -18 L30 18 Z" className="qm-castle" />
-            <path d="M-6 18 L-6 4 Q0 -4 6 4 L6 18 Z" className="qm-castle__door" />
-            <rect x="-1.5" y="-46" width="3" height="20" className="qm-pole" />
-            <path d="M1.5 -46 L22 -40 L1.5 -34 Z" className="qm-flag qm-flag--finish" />
+            <FinishMark style={style} />
             <text y="40" textAnchor="middle" className="qm-label">
               ФИНИШ
             </text>

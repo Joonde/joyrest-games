@@ -59,6 +59,15 @@ describe("сайт агентства не включается сам", () => {
     expect(test.SITE_INDEXING).toBe("off");
   });
 
+  it("витрину (showcase) ни CI, ни compose не ставят: по умолчанию off, test — on", () => {
+    expect(composeEnv("app-prod").SITE_ENABLED).toBe("${SITE_ENABLED:-off}");
+    expect(composeEnv("app-test").SITE_ENABLED).toBe("on");
+    expect(read("deploy/compose.yml")).not.toMatch(/showcase/i);
+    for (const path of ["Dockerfile", ...readdirSync(join(ROOT, ".github/workflows")).map((f) => `.github/workflows/${f}`)]) {
+      expect(read(path), path).not.toMatch(/showcase/i);
+    }
+  });
+
   it("образ и CI не задают SITE_ENABLED / SITE_INDEXING", () => {
     for (const path of ["Dockerfile", ...readdirSync(join(ROOT, ".github/workflows")).map((f) => `.github/workflows/${f}`)]) {
       expect(read(path), path).not.toMatch(/SITE_ENABLED|SITE_INDEXING|joyrest site\b|site-indexing/);
@@ -84,7 +93,11 @@ describe("сайт агентства не включается сам", () => {
     expect(writes).toEqual(['set_env_value "$SETTINGS_FILE" SITE_ENABLED "$value" || die "Не удалось записать $SETTINGS_FILE."']);
     const fn = script.slice(script.indexOf("cmd_site() {"), script.indexOf("\n}\n", script.indexOf("cmd_site() {")));
     expect(fn).toContain('set_env_value "$SETTINGS_FILE" SITE_ENABLED "$value"');
-    expect(fn).toMatch(/case "\$value" in on\|off\)/);
+    expect(fn).toMatch(/case "\$value" in on\|showcase\|off\)/);
+    // Витрина и выключенный сайт сбрасывают индексацию; site-indexing включает её только при точном «on».
+    expect(fn).toMatch(/if \[ "\$value" != on \]; then\n\s+set_env_value "\$SETTINGS_FILE" SITE_INDEXING off/);
+    expect(script).toMatch(/site_enabled\(\) \{\n\s+\[ "\$\(env_value "\$SETTINGS_FILE" SITE_ENABLED\)" = on \]/);
+    expect(script).not.toMatch(/SITE_ENABLED=showcase|SITE_ENABLED showcase\b/);
     expect(script).not.toMatch(/SITE_ENABLED=on|SITE_ENABLED on\b/);
     // Индексацию включает только site-indexing и только при включённом сайте.
     const indexing = [...script.matchAll(/set_env_value[^\n]*SITE_INDEXING[^\n]*/g)].map((m) => m[0]);

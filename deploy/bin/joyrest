@@ -70,8 +70,9 @@ usage() {
   joyrest version             текущие версии
 
 Сайт агентства joy-rest.ru (по умолчанию выключен — заглушка «скоро»):
-  joyrest site [on|off] [force]
-                              включить (on) или выключить (off) сайт на joy-rest.ru;
+  joyrest site [on|showcase|off] [force]
+                              включить (on), витрина без заявок до ИП (showcase)
+                              или выключить (off) сайт на joy-rest.ru;
                               без аргумента — показать текущее состояние
   joyrest site-password       логин и пароль для test.joy-rest.ru (пароль вводится скрыто,
                               на сервере хранится только хэш)
@@ -1167,21 +1168,22 @@ site_enabled() {
 }
 
 # Сайт на joy-rest.ru: off (по умолчанию) — заглушка «скоро», заявки не принимаются (404).
+# showcase — витрина до ИП: сайт виден целиком, но без форм, заявки не принимаются, поисковикам закрыт.
 cmd_site() {
   local value=${1:-} force=${2:-} current
   current=$(env_value "$SETTINGS_FILE" SITE_ENABLED)
   if [ -z "$value" ]; then
-    echo "Сайт joy-rest.ru: ${current:-off} (on — сайт и заявки, off — заглушка «скоро»)"
+    echo "Сайт joy-rest.ru: ${current:-off} (on — сайт и заявки, showcase — витрина без заявок, off — заглушка «скоро»)"
     echo "Индексация: $(env_value "$SETTINGS_FILE" SITE_INDEXING | grep . || echo off)"
     return 0
   fi
   need_root site
-  case "$value" in on|off) ;; *) die "Значение — on или off: sudo joyrest site on" ;; esac
+  case "$value" in on|showcase|off) ;; *) die "Значение — on, showcase или off: sudo joyrest site showcase" ;; esac
   [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
   ensure_no_game "$force" "site $value"
   set_env_value "$SETTINGS_FILE" SITE_ENABLED "$value" || die "Не удалось записать $SETTINGS_FILE."
-  # Выключенный сайт поисковикам не открыт: при следующем включении индексацию — заново.
-  if [ "$value" = off ]; then
+  # Выключенный сайт и витрина поисковикам не открыты: при следующем включении индексацию — заново.
+  if [ "$value" != on ]; then
     set_env_value "$SETTINGS_FILE" SITE_INDEXING off || die "Не удалось записать $SETTINGS_FILE."
   fi
   log "Сайт joy-rest.ru: ${current:-off} → $value"
@@ -1191,6 +1193,8 @@ cmd_site() {
     grep -q '^LEAD_TELEGRAM_TOKEN=.' "$ROOT_DIR/secrets.env" 2>/dev/null \
       || echo "⚠️  Бот заявок не настроен — формы отвечают «временно не работает»: sudo joyrest lead-bot"
     echo "Поисковикам сайт закрыт; открыть — sudo joyrest site-indexing on"
+  elif [ "$value" = showcase ]; then
+    echo "✅ Витрина на https://joy-rest.ru: сайт виден, заявки не принимаются (форма скрыта), поисковикам закрыт."
   else
     echo "✅ Сайт выключен: на https://joy-rest.ru заглушка «скоро», заявки не принимаются."
   fi

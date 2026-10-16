@@ -7,6 +7,7 @@ import { Resvg } from "@resvg/resvg-js";
 import jsQR from "jsqr";
 import { contrastRatio } from "../../src/themes/contrast";
 import { buildApp } from "./app";
+import { siteMode } from "./site";
 
 function dir(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), "joyrest-"));
@@ -20,6 +21,7 @@ function dir(files: Record<string, string>): string {
 const platform = dir({ "index.html": "<title>Платформа</title>", "assets/app-1.js": "1" });
 const siteDir = dir({
   "index.html": "<title>Сайт агентства</title>",
+  "showcase.html": '<html data-site-mode="showcase"><title>Витрина агентства</title>',
   "css/style.0123456789.css": "body{}",
   "img/logo.0123456789.png": "png",
   "fonts/jost-latin-400-normal.woff2": "font",
@@ -29,12 +31,12 @@ const siteDir = dir({
 
 const stubDir = dir({ "index.html": "<title>Скоро</title>", "joyrest-logo.svg": "<svg/>" });
 
-function app(indexing: boolean, enabled = true) {
+function app(indexing: boolean, enabled = true, showcase = false) {
   return buildApp({
     version: "abc",
     publicDir: platform,
     checkDatabase: async () => true,
-    site: { dir: siteDir, enabled, stubDir, hosts: ["joy-rest.ru", "test.joy-rest.ru"], indexing },
+    site: { dir: siteDir, enabled, stubDir, hosts: ["joy-rest.ru", "test.joy-rest.ru"], indexing, showcase },
     lead: { telegram: { token: "t", chatId: "1" }, send: async () => {} },
   });
 }
@@ -146,6 +148,77 @@ describe("сайт выключен (по умолчанию): заглушка 
     expect(robots.body).toBe("User-agent: *\nDisallow: /\n");
     const page = await off.inject({ url: "/", headers: { host: "joy-rest.ru" } });
     expect(page.headers["x-robots-tag"]).toBe("noindex, nofollow");
+  });
+});
+
+describe("витрина до ИП (SITE_ENABLED=showcase)", () => {
+  const showcase = app(true, false, true);
+  afterAll(() => showcase.close());
+
+  it("режим сайта: только точные «on» и «showcase», остальное — заглушка", () => {
+    for (const value of [undefined, "", "off", "true", "show", "showcase1", "show case", "витрина"]) {
+      expect(siteMode(value), String(value)).toBe("off");
+    }
+    for (const value of ["on", "ON", " on\r\n"]) expect(siteMode(value), value).toBe("on");
+    for (const value of ["showcase", "SHOWCASE", " Showcase\r\n"]) expect(siteMode(value), value).toBe("showcase");
+  });
+
+  it("на «/» — витрина (showcase.html), файлы сайта открыты, полной страницы с формами нет", async () => {
+    const page = await showcase.inject({ url: "/", headers: { host: "joy-rest.ru" } });
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain("Витрина агентства");
+    expect(page.body).toContain('data-site-mode="showcase"');
+    expect(page.headers["cache-control"]).toBe("no-cache");
+    expect((await showcase.inject({ url: "/index.html", headers: { host: "joy-rest.ru" } })).statusCode).toBe(404);
+    const css = await showcase.inject({ url: "/css/style.0123456789.css", headers: { host: "joy-rest.ru" } });
+    expect(css.statusCode).toBe(200);
+    expect(css.headers["cache-control"]).toContain("immutable");
+    expect((await showcase.inject({ url: "/calc/", headers: { host: "joy-rest.ru" } })).body).toContain("Калькулятор праздника");
+    expect((await showcase.inject({ url: "/", headers: { host: "games.joy-rest.ru" } })).body).toContain("Платформа");
+  });
+
+  it("заявки не принимаются: /api/lead — 404", async () => {
+    for (const type of ["lead", "question", "review"]) {
+      const res = await showcase.inject({
+        method: "POST",
+        url: "/api/lead",
+        headers: { host: "joy-rest.ru", "content-type": "application/json" },
+        payload: JSON.stringify({ type, consent: true, text: "Текст" }),
+      });
+      expect(res.statusCode, type).toBe(404);
+    }
+  });
+
+  it("поисковикам закрыто, даже если индексация включена", async () => {
+    const robots = await showcase.inject({ url: "/robots.txt", headers: { host: "joy-rest.ru" } });
+    expect(robots.body).toBe("User-agent: *\nDisallow: /\n");
+    const page = await showcase.inject({ url: "/", headers: { host: "joy-rest.ru" } });
+    expect(page.headers["x-robots-tag"]).toBe("noindex, nofollow");
+  });
+
+  it("включённый сайт сильнее витрины: on + showcase — обычный сайт", async () => {
+    const both = app(false, true, true);
+    const page = await both.inject({ url: "/", headers: { host: "joy-rest.ru" } });
+    expect(page.body).toContain("Сайт агентства");
+    await both.close();
+  });
+
+  it("исходники: сборка кладёт showcase.html с меткой, страница прячет формы и шлёт расчёт текстом", () => {
+    const root = resolve(import.meta.dirname, "../..");
+    const build = readFileSync(join(root, "scripts/build-site.ts"), "utf8");
+    expect(build).toContain('"showcase.html"');
+    expect(build).toContain('data-site-mode="showcase"');
+    const html = readFileSync(join(root, "site/index.html"), "utf8");
+    expect(html).toContain('<html lang="ru" data-theme="dark">');
+    expect(html).toMatch(/<form id="leadForm" class="[^"]*\bno-showcase\b/);
+    expect(html).toContain('class="ask-fab no-showcase" id="askFabBtn"');
+    expect(html).toContain('id="showcaseContact"');
+    const css = readFileSync(join(root, "site/css/style.css"), "utf8");
+    expect(css).toContain('[data-site-mode="showcase"] .no-showcase{ display: none !important; }');
+    const js = readFileSync(join(root, "site/js/script.js"), "utf8");
+    expect(js).toContain("document.documentElement.dataset.siteMode === 'showcase'");
+    expect(js).toContain("'Отправить расчёт менеджеру'");
+    expect(js).toContain("if(!SHOWCASE) attachCalc(calcOpts(), false);");
   });
 });
 

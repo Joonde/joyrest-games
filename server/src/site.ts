@@ -4,6 +4,8 @@
  * Пока сайт выключен (SITE_ENABLED не равно on — по умолчанию), на его адресах заглушка
  * «скоро» (deploy/caddy/soon), заявки не принимаются. Включает только владелец:
  * `sudo joyrest site on` (настройка на сервере, settings.env). test.joy-rest.ru — всегда сайт.
+ * Витрина до ИП (`sudo joyrest site showcase`, решение владельца 16 октября 2026): сайт виден целиком, но на «/»
+ * отдаётся showcase.html (без форм заявки, вопроса и отзыва), /api/lead — 404, поисковикам закрыт.
  *
  * Кэш: css/, js/, img/ — с отпечатком содержимого в имени (собирает scripts/build-site.ts),
  * fonts/ — под тем же именем не меняются (CLAUDE.md, раздел 8), поэтому хранятся год.
@@ -26,6 +28,16 @@ export interface SiteOptions {
   hosts: string[];
   /** true — сайт открыт поисковикам (только при enabled). `sudo joyrest site-indexing on|off`. */
   indexing: boolean;
+  /** true — витрина (SITE_ENABLED=showcase): сайт без форм, заявки не принимаются, индексации нет. */
+  showcase?: boolean;
+}
+
+export type SiteMode = "off" | "showcase" | "on";
+
+/** Режим сайта из SITE_ENABLED: только точные «on» и «showcase», всё остальное — заглушка «off». */
+export function siteMode(value: string | undefined): SiteMode {
+  const v = value?.trim().toLowerCase();
+  return v === "on" ? "on" : v === "showcase" ? "showcase" : "off";
 }
 
 /** Только «on» включает. Пусто, нет переменной, опечатка — выключено. */
@@ -72,12 +84,17 @@ export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
     return indexing ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n";
   });
 
-  const dir = options.enabled ? options.dir : options.stubDir;
-  if (dir && existsSync(join(dir, "index.html"))) {
+  // Витрина — только когда сайт не включён полностью: включённый сайт сильнее.
+  const showcase = !options.enabled && options.showcase === true && existsSync(join(options.dir, "showcase.html"));
+  const dir = options.enabled || showcase ? options.dir : options.stubDir;
+  const indexFile = showcase ? "showcase.html" : "index.html";
+  if (dir && existsSync(join(dir, indexFile))) {
     app.register(fastifyStatic, {
       root: dir,
       wildcard: false,
-      index: ["index.html"],
+      index: [indexFile],
+      // В витрине полная страница с формами по прямому адресу не открывается (заявки всё равно 404).
+      ...(showcase ? { allowedPath: (path: string) => path !== "/index.html" } : {}),
       // reply.sendFile оставляем платформе (она регистрирует свой экземпляр).
       decorateReply: false,
       constraints: { host: pattern },
@@ -91,7 +108,7 @@ export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
   // Калькулятор без заявки (/calc/, решение владельца 15 октября 2026) открыт и при заглушке «скоро»: менеджер шлёт
   // клиенту ссылку, клиент присылает расчёт текстом. Заявок он не принимает (/api/lead при заглушке — 404), стили и
   // скрипты встроены в страницу, отдельно нужны только шрифты.
-  if (!options.enabled && existsSync(join(options.dir, "calc", "index.html"))) {
+  if (!options.enabled && !showcase && existsSync(join(options.dir, "calc", "index.html"))) {
     for (const sub of ["calc", "fonts"]) {
       const root = join(options.dir, sub);
       if (!existsSync(root)) continue;

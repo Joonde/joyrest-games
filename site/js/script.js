@@ -5,6 +5,13 @@
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const smooth = reduceMotion ? 'auto' : 'smooth';
   const $ = (id) => document.getElementById(id);
+  // Витрина до ИП (showcase.html, `sudo joyrest site showcase`): формы заявки, вопроса и отзыва скрыты (css/style.css),
+  // заявки сервер не принимает; расчёт калькулятора клиент отправляет менеджеру текстом, как на /calc/.
+  const SHOWCASE = document.documentElement.dataset.siteMode === 'showcase';
+  if(SHOWCASE){
+    const reviews = $('reviews');
+    if(reviews) reviews.setAttribute('data-review-form', 'off');
+  }
 
   // ---------- Шапка: тень при прокрутке ----------
   const siteHeader = $('siteHeader');
@@ -177,6 +184,13 @@
     $('contact').scrollIntoView({ behavior: smooth, block: 'start' });
     // Фокус сразу, в том же нажатии: иначе iPhone не откроет клавиатуру.
     $('name').focus({ preventScroll: true });
+  }
+  // Витрина: формы нет — «Оставить заявку» становится «Написать нам» и просто ведёт к блоку «Как заказать» (#contact).
+  if(SHOWCASE){
+    document.querySelectorAll('[data-focus-target]').forEach((link) => {
+      link.textContent = 'Написать нам';
+      link.removeAttribute('data-focus-target');
+    });
   }
   // «Оставить заявку» ведёт к форме и ставит фокус в первое поле.
   document.querySelectorAll('[data-focus-target]').forEach((link) => {
@@ -445,6 +459,7 @@
     $('calcCardDur').textContent = 'Вечер ' + s.duration;
   }
   function setLinked(on){
+    if(SHOWCASE) return; // в витрине расчёт в заявку не ставится, подписи кнопок — «менеджеру»
     $('calcCard').hidden = !on;
     $('calcLink').hidden = on;
     $('calcLinked').hidden = !on;
@@ -484,8 +499,42 @@
     goToCard();
     topToast('Расчёт добавлен в заявку ✓');
   }
-  $('calcSubmit').addEventListener('click', sendCalc);
-  $('calcBarSend').addEventListener('click', sendCalc);
+  // Витрина: расчёт — текстом менеджеру (как на /calc/): «Поделиться» телефона, иначе копия в буфер.
+  function showcaseText(){
+    const opts = calcOpts();
+    const s = P.calcSummary(opts);
+    const r = P.calcPrice(opts);
+    const level = P.LEVELS.find((l) => l.id === (hostLevelField.value || ''));
+    return 'Расчёт JoyRest: ' + s.text + (level && !r.individual ? ' Формат ведущего: ' + level.name + '.' : '');
+  }
+  function copyCalc(value){
+    const done = () => topToast('Расчёт скопирован — вставьте его в чат с менеджером');
+    const fallback = () => {
+      const area = document.createElement('textarea');
+      area.value = value;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      try{ document.execCommand('copy'); done(); }catch(_){ topToast('Не получилось скопировать — выделите текст вручную'); }
+      document.body.removeChild(area);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done, fallback);
+    else fallback();
+  }
+  function shareCalc(){
+    const value = showcaseText();
+    if(navigator.share){
+      navigator.share({ title: 'Расчёт JoyRest', text: value }).catch((e) => { if(!e || e.name !== 'AbortError') copyCalc(value); });
+    }else copyCalc(value);
+  }
+  if(SHOWCASE){
+    $('calcSubmit').textContent = 'Отправить расчёт менеджеру';
+    $('calcBarSend').textContent = 'Менеджеру';
+  }
+  $('calcSubmit').addEventListener('click', SHOWCASE ? shareCalc : sendCalc);
+  $('calcBarSend').addEventListener('click', SHOWCASE ? shareCalc : sendCalc);
   $('calcCardEdit').addEventListener('click', () => {
     $('calculator').scrollIntoView({ behavior: smooth, block: 'start' });
     topToast('Меняйте выбор — расчёт в заявке обновится сам');
@@ -524,7 +573,8 @@
     calc.extras = {}; calc.addons = {};
     (Array.isArray(saved.extras) ? saved.extras : []).forEach((id) => { if(typeof id === 'string' && P.pkgById(id) && id !== calc.pkg) calc.extras[id] = true; });
     (Array.isArray(saved.addons) ? saved.addons : []).forEach((id) => { if(P.ADDONS.some((a) => a.id === id)) calc.addons[id] = true; });
-    attachCalc(calcOpts(), false);
+    // Витрина: возвращаем только выбор калькулятора, в заявку (её нет) расчёт не ставим.
+    if(!SHOWCASE) attachCalc(calcOpts(), false);
     update();
   })();
 

@@ -323,6 +323,19 @@ Firebase удаляются, Firebase-код удаляется отдельны
   `/srv/joyrest/settings.env` (без нового релиза). Включает только точное `on` (`isOn`);
   ни слияние PR, ни выкладка, ни перезагрузка, ни CI сайт не включают — это проверяет
   `server/src/siteSwitch.test.ts`. В compose значения по умолчанию — только `off`.
+- **Витрина до ИП** (решение владельца 16 октября 2026): `sudo joyrest site showcase` → `SITE_ENABLED=showcase`
+  (`siteMode`: только точные `on` и `showcase`, остальное — `off`; `SiteOptions.showcase`). Сайт виден целиком — пакеты,
+  калькулятор, ведущие, игры, условия, вопросы, Telegram, лента опубликованных отзывов (`/api/site/reviews` — при `on`
+  и `showcase`), но **ничего не собирает**: нет формы заявки, «Задать вопрос» и формы отзыва, `/api/lead` — 404,
+  поисковикам закрыт (индексация — только при `on`; `site showcase` и `site off` сбрасывают `SITE_INDEXING` в `off`).
+  Сборка кладёт рядом с `index.html` `build/site/showcase.html` — та же страница с `data-site-mode="showcase"` у `<html>`;
+  сервер в витрине отдаёт её на «/» (`/index.html` с формами — 404). В разметке: `.no-showcase` — скрыто в витрине (форма
+  `#leadForm`, «Задать вопрос», фраза в FAQ), `.showcase-only` — только в витрине (блок `#showcaseContact` «Как заказать»:
+  Telegram, WhatsApp, «Позвонить» на +7 985 782-26-89). `js/script.js` (`SHOWCASE`): «Оставить заявку» → «Написать нам»
+  (просто к `#contact`), отзыв — `data-review-form="off"`, калькулятор — «Отправить расчёт менеджеру» / «Менеджеру»:
+  текст «Расчёт JoyRest: …» через `navigator.share`, иначе копия (как `/calc/`); сохранённый расчёт возвращает только выбор
+  калькулятора. На test витрина — по адресу test.joy-rest.ru/showcase.html (сам test всегда `on`). Проверяют `site.test.ts`
+  и `siteSwitch.test.ts`.
 - test.joy-rest.ru (`app-test`) показывает сайт всегда, `noindex` всегда и закрыт паролем:
   `basic_auth` в Caddy. Хэш владельца — файл `/srv/joyrest/caddy/etc/auth/test-site-owner.caddy`
   вне репозитория (пишет `sudo joyrest site-password`: скрытый ввод, bcrypt через

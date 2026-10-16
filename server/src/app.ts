@@ -112,7 +112,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   // Сайт агентства и заявки — только на его адресах (ограничение маршрутов по Host).
   const site = options.site ? registerSite(app, options.site) : null;
-  // Заявки — только у включённого сайта: при `joyrest site off` /api/lead отвечает 404.
+  // Заявки — только у включённого сайта: при `joyrest site off` и в витрине (`site showcase`) /api/lead отвечает 404.
   if (options.site?.enabled && options.lead) {
     const sql = options.sql;
     // Заявка и вопрос с сайта — клиент в базу клиентов (CLAUDE.md, «База клиентов»).
@@ -143,8 +143,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
       : undefined;
     registerLead(app, { ...options.lead, hosts: options.site.hosts, onLead }, { constraints: { host: hostPattern(options.site.hosts) } });
   }
-  // Отзывы на сайте — только у включённого сайта и только на его адресах.
-  if (options.site?.enabled && options.sql) {
+  // Лента отзывов — у включённого сайта и в витрине, только на его адресах (принимать отзывы витрина не умеет).
+  if ((options.site?.enabled || options.site?.showcase) && options.sql) {
     registerSiteReviews(app, options.sql, { constraints: { host: hostPattern(options.site.hosts) } });
   }
   // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.

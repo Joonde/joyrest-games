@@ -160,7 +160,7 @@ export function useHostAdmin(profile: UserProfile, update: (fn: (list: HostAccou
   function actionsFor(host: HostAccount, withActive = false): MenuAction[] {
     const isHostPro = host.role !== "admin" && professionOf(host.profession) === "host";
     return [
-      { label: "Возможности (PDF)", to: `/studio/abilities?uid=${encodeURIComponent(host.uid)}` },
+      ...(host.role === "admin" || professionOf(host.profession) === "host" ? [{ label: "Итоги игр", to: `/studio/host-games?uid=${encodeURIComponent(host.uid)}` }] : []),
       ...(withActive && permissions.canSetHostActive(profile, host) ? [{ label: host.active ? "Отключить доступ" : "Включить доступ", onClick: () => toggleActive(host) }] : []),
       ...(staffRepo && isHostPro
         ? [

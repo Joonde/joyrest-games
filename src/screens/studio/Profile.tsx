@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { abilitiesOf } from "../../core/abilities";
 import { finaleRepo, permissions, teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
 import { TelegramConnect } from "../../components/TelegramConnect";
 import { HostGate } from "../../components/HostGate";
@@ -24,10 +26,29 @@ export function Profile() {
         <main className="page">
           <TopBar title="Мой профиль" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
           <ProfileEditor profile={profile} />
+          <AbilitiesCard profile={profile} />
           <TelegramConnect owner={permissions.canManageClients(profile)} />
         </main>
       )}
     </HostGate>
+  );
+}
+
+/** «Мои возможности» прямо в профиле (решение владельца 16 октября 2026): что человеку можно в платформе — коротко и ссылка на полный список с PDF. */
+function AbilitiesCard({ profile }: { profile: UserProfile }) {
+  const a = abilitiesOf(profile, permissions);
+  return (
+    <section className="card stack stack--tight" aria-labelledby="profile-abilities">
+      <h2 id="profile-abilities">Мои возможности</h2>
+      <ul className="meta">
+        <li>{a.who}</li>
+        {a.role && <li>Роль: {a.role}</li>}
+      </ul>
+      <p className="muted">{a.summary}</p>
+      <Link className="btn btn--secondary btn--block" to="/studio/abilities">
+        Что я могу в платформе
+      </Link>
+    </section>
   );
 }
 

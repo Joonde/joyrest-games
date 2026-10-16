@@ -7,7 +7,7 @@ import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { clipFields, parseClip } from "../../core/clip";
 import { embedUrl } from "../dance/content";
 import type { EditorProps } from "../types";
-import { newQuestCell, parseQuestList, QUEST_EMOJI, QUEST_LIMITS, QUEST_TITLES, resizeQuest, STYLE_TITLES, type QuestCell, type QuestContent, type QuestKind, type QuestStyle } from "./content";
+import { newQuestCell, parseQuestList, QUEST_EMOJI, QUEST_LIMITS, QUEST_TITLES, resizeQuest, STYLE_TITLES, STYLE_HINTS, type QuestCell, type QuestContent, type QuestKind, type QuestStyle } from "./content";
 import { DEMO_QUEST, DEMO_QUEST_ADULT } from "./demo";
 import { validateQuest } from "./validate";
 
@@ -66,6 +66,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
               </button>
             ))}
           </div>
+          <p className="muted small">{STYLE_HINTS[content.style]}</p>
         </fieldset>
         {editable && (
           <Fold title="Шаблоны и вставка списком">

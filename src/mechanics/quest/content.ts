@@ -55,6 +55,14 @@ export const QUEST_EMOJI: Record<QuestKind, string> = { task: "⭐", question: "
 
 export const STYLE_TITLES: Record<QuestStyle, string> = { classic: "Классика", party: "Вечеринка", kids: "Детская", adult: "18+" };
 
+/** Как выглядит поле на экране зала в каждом стиле. */
+export const STYLE_HINTS: Record<QuestStyle, string> = {
+  classic: "Лес, озеро, тропинка из камней, на финише — замок.",
+  party: "Ночной танцпол: неоновая дорожка, прожекторы, ноты, на финише — диско-шар.",
+  kids: "Небо и сладкие холмы: леденцы, конфеты, облака, на финише — торт.",
+  adult: "Ночной город: золотая дорожка, бокалы и бутылки, на финише — коктейль.",
+};
+
 function id(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   return "p" + Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");

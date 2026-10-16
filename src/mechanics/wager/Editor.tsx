@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
 import type { EditorProps } from "../types";
-import { cleanNumber, formatNumber, newQuestion, WAGER_LIMITS, type WagerContent, type WagerQuestion } from "./content";
+import { cleanNumber, formatNumber, newQuestion, START_CHIPS, WAGER_LIMITS, type WagerContent, type WagerQuestion } from "./content";
 import { validateWager } from "./validate";
 
 /** «Вставить списком»: строка «Вопрос? = 330 м» (после числа — единицы). */
@@ -49,23 +49,15 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
             <ClampedNumber value={content.betTime} min={WAGER_LIMITS.timeMin} max={WAGER_LIMITS.timeMax} fallback={45} disabled={!editable} onChange={(betTime) => onChange({ ...content, betTime })} />
           </label>
         </div>
+        <p className="muted small">
+          Счёт — фишки. В начале у каждого {START_CHIPS}, одна из них несгораемая. Игрок сам решает, сколько фишек поставить: 3 фишки на 3:1 — получит 9. Проиграл — ставка сгорает, но одна фишка остаётся всегда.
+        </p>
         <div className="row board-editor__size">
           <label className="field">
-            Цена фишки
-            <ClampedNumber value={content.chipPoints} min={WAGER_LIMITS.chipMin} max={WAGER_LIMITS.chipMax} fallback={10} disabled={!editable} onChange={(chipPoints) => onChange({ ...content, chipPoints })} />
-          </label>
-          <label className="field">
-            Бонус автору
-            <ClampedNumber value={content.authorBonus} min={0} max={WAGER_LIMITS.bonusMax} fallback={30} disabled={!editable} onChange={(authorBonus) => onChange({ ...content, authorBonus })} />
+            Бонус автору верной догадки, фишек
+            <ClampedNumber value={content.authorBonus} min={0} max={WAGER_LIMITS.bonusChips} fallback={1} disabled={!editable} onChange={(authorBonus) => onChange({ ...content, authorBonus })} />
           </label>
         </div>
-        <label className="choice">
-          <input type="checkbox" checked={content.stakes} disabled={!editable} onChange={(e) => onChange({ ...content, stakes: e.target.checked })} />
-          <span className="choice__text">
-            <span className="choice__title">Ставить свои очки сверху</span>
-            <span className="choice__hint">Угадали — очки × коэффициент, не угадали — сгорают. Без галочки играют только фишки.</span>
-          </span>
-        </label>
       </section>
 
       <section className="stack">

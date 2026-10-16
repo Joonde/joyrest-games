@@ -2,16 +2,17 @@
 //
 // «Начать игру» → заставка вопроса (`ready`) → «Показать вопрос» (шаг `question`, таймер `guessTime`): капитаны
 // пишут догадку `{ guess }` (можно исправить до конца времени) → «Разложить ответы и открыть ставки» (новый шаг,
-// таймер `betTime`): на поле догадки по возрастанию с коэффициентами, капитаны ставят до двух фишек
-// `{ bets: [{ slot, stake }] }` (slot −1 — «меньше всех»; stake — свои очки сверху, можно 0) → «Показать ответ»:
-// выигрывает догадка ближе всех, но не больше правды (все больше — «меньше всех» 6:1); фишка на ней — chipPoints ×
-// коэффициент, свои очки на ней — ×коэффициент, на других ячейках свои очки сгорают; автору верной догадки —
-// authorBonus → «Следующий вопрос» … → награждение. «Назад» — с каждого этапа (очки снимаются).
+// таймер `betTime`): на поле догадки по возрастанию с коэффициентами, капитаны ставят фишки на одну-две ячейки
+// `{ bets: [{ slot, stake }] }` (slot −1 — «меньше всех»; stake — сколько фишек, из своего запаса) → «Показать ответ»:
+// выигрывает догадка ближе всех, но не больше правды (все больше — «меньше всех» 6:1); N фишек на ней при 3:1 —
+// вместо них 3N, на других ячейках сгорают; автору верной догадки — authorBonus фишек. Счёт — фишки: в начале 2,
+// одна несгораемая (меньше 1 не бывает) → «Следующий вопрос» … → награждение. «Назад» — с каждого этапа.
 import { leaderboardAdditions, scoreChange } from "../../core/leaderboard";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
-import { cleanNumber, layoutSlots, oddsOf, WAGER_LIMITS, winningSlot, type Slot, type WagerContent } from "./content";
+import { cleanNumber, layoutSlots, oddsOf, SAFE_CHIPS, START_CHIPS, WAGER_LIMITS, winningSlot, type Slot, type WagerContent } from "./content";
+import type { LeaderboardEntry } from "../../data/types";
 
 export type WagerMode = "guess" | "bet" | "answer";
 
@@ -133,22 +134,28 @@ export function guessesOf(session: Session, answers: Answer[]): Array<{ pid: str
   return [...out].map(([pid, value]) => ({ pid, value }));
 }
 
-/** Ставки: не больше двух фишек, ячейка — на поле или «меньше всех», свои очки — не больше счёта (по порядку). */
-export function betsFrom(session: Session, answers: Answer[], slots: Slot[], stakes: boolean): Record<string, Bet[]> {
+/** Сколько фишек можно поставить: весь запас, но не меньше несгораемой. */
+export function chipsOf(entry: { score: number } | undefined): number {
+  return Math.max(SAFE_CHIPS, Math.round(entry?.score ?? START_CHIPS));
+}
+
+/** Ставки: до двух ячеек, на каждой — сколько фишек (не меньше 1), всего — не больше запаса (по порядку). */
+export function betsFrom(session: Session, answers: Answer[], slots: Slot[], _stakes?: boolean): Record<string, Bet[]> {
   const out: Record<string, Bet[]> = {};
   for (const a of current(session, answers)) {
     const entry = session.leaderboard[a.pid];
     if (!entry) continue;
     const raw = rec(a.value).bets;
     if (!Array.isArray(raw)) continue;
-    let left = stakes ? Math.max(0, entry.score) : 0;
+    let left = chipsOf(entry);
     const list: Bet[] = [];
     for (const b of raw.slice(0, WAGER_LIMITS.chips)) {
       const d = rec(b);
       const slot = typeof d.slot === "number" ? Math.round(d.slot) : NaN;
       if (!(slot === -1 || (slot >= 0 && slot < slots.length))) continue;
-      const want = typeof d.stake === "number" && Number.isFinite(d.stake) ? Math.max(0, Math.round(d.stake)) : 0;
+      const want = typeof d.stake === "number" && Number.isFinite(d.stake) ? Math.max(1, Math.round(d.stake)) : 1;
       const stake = Math.min(want, left);
+      if (stake < 1) break;
       left -= stake;
       list.push({ slot, stake });
     }
@@ -160,21 +167,30 @@ export function betsFrom(session: Session, answers: Answer[], slots: Slot[], sta
 /** Фишки на ячейках — живой счёт для экрана. */
 export function chipCounts(bets: Record<string, Bet[]>): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const list of Object.values(bets)) for (const b of list) out[String(b.slot)] = (out[String(b.slot)] ?? 0) + 1;
+  for (const list of Object.values(bets)) for (const b of list) out[String(b.slot)] = (out[String(b.slot)] ?? 0) + Math.max(1, b.stake);
   return out;
 }
 
-/** Выплаты: фишка на верной ячейке — chipPoints × коэффициент, свои очки на ней — ×коэффициент, на других — сгорают; автору — бонус. */
-export function payoutsOf(content: WagerContent, slots: Slot[], bets: Record<string, Bet[]>, win: number): Record<string, number> {
+/**
+ * Выплаты в фишках: N фишек на верной ячейке при 3:1 — вместо них 3N (изменение +2N), на других ячейках — сгорают;
+ * автору верной догадки — бонус. Меньше одной (несгораемой) фишки ни у кого не остаётся.
+ */
+export function payoutsOf(content: WagerContent, slots: Slot[], bets: Record<string, Bet[]>, win: number, board: Record<string, LeaderboardEntry> = {}): Record<string, number> {
   const out: Record<string, number> = {};
   const add = (pid: string, n: number) => {
     if (n !== 0) out[pid] = (out[pid] ?? 0) + n;
   };
   const odds = oddsOf(slots, win);
   for (const [pid, list] of Object.entries(bets)) {
-    for (const b of list) add(pid, b.slot === win ? content.chipPoints * odds + b.stake * odds : -b.stake);
+    for (const b of list) add(pid, b.slot === win ? b.stake * (odds - 1) : -b.stake);
   }
   if (win >= 0) for (const author of slots[win]?.authors ?? []) add(author, content.authorBonus);
+  for (const [pid, n] of Object.entries(out)) {
+    const have = board[pid] ? Math.round(board[pid].score) : START_CHIPS;
+    const floor = SAFE_CHIPS - have;
+    if (n < floor) out[pid] = floor;
+    if (out[pid] === 0) delete out[pid];
+  }
   return out;
 }
 
@@ -201,7 +217,8 @@ export function showQuestion(session: Session, content: WagerContent, participan
   if (session.state.stage !== "ready" || !content.questions[r.q]) return {};
   return {
     state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: content.guessTime, revealed: false, answered: 0, result: write({ ...fresh(r.q, r.prev), changeable: true }) },
-    leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
+    // Новые игроки получают стартовые фишки.
+    leaderboard: Object.fromEntries(Object.entries(leaderboardAdditions(session.leaderboard, participants, session.playMode)).map(([p, e]) => [p, session.leaderboard[p] ? e : { ...e, score: START_CHIPS }])),
   };
 }
 
@@ -250,7 +267,7 @@ export function revealAnswer(session: Session, content: WagerContent, answers: A
   if (r.mode !== "bet" || !question) return {};
   const bets = betsFrom(session, answers, r.slots, content.stakes);
   const win = winningSlot(r.slots, question.answer);
-  const payouts = payoutsOf(content, r.slots, bets, win);
+  const payouts = payoutsOf(content, r.slots, bets, win, session.leaderboard);
   const change: SessionChange = {
     state: { stage: "reveal", revealed: true, timeLimit: null, result: write({ ...r, mode: "answer", bets, chips: chipCounts(bets), win, payouts, changeable: false }) },
   };

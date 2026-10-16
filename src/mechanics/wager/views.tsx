@@ -1,5 +1,5 @@
 // «Держи пари»: экран зала (вопрос, поле догадок с коэффициентами и фишками, ответ и выплаты) и телефон капитана
-// (догадка числом, две фишки на поле и свои очки сверху).
+// (догадка числом, фишки из своего запаса на одну-две ячейки).
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { NameText } from "../../components/NameText";
 import { playSound } from "../../components/live/sound";
@@ -10,7 +10,7 @@ import type { Session } from "../../data/types";
 import { teamColorVar } from "../../themes/registry";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { cleanNumber, formatNumber, LOW_ODDS, WAGER_LIMITS, type Slot, type WagerContent } from "./content";
-import { parseWagerResult, type Bet, type WagerResult } from "./logic";
+import { chipsOf, parseWagerResult, type Bet, type WagerResult } from "./logic";
 
 export type WagerAnswerValue = { guess: number } | { bets: Bet[] };
 
@@ -271,7 +271,7 @@ export function WagerPlayerView({ session, content, pid, role, myAnswer, sending
       <p className="muted">Правильный ответ</p>
       <h2 className="wager-phone__answer">{valueLabel(question.answer, question.unit)}</h2>
       <div className={mine > 0 ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-        <strong>{mine > 0 ? `+${mine} очков!` : mine < 0 ? `−${-mine} очков` : "Без изменений"}</strong>
+        <strong>{mine > 0 ? `+${chipsWord(mine)}!` : mine < 0 ? `−${chipsWord(-mine)}` : "Без изменений"}</strong>
         <span>{mine > 0 ? "Ставка сыграла" : "Следующий вопрос — новый шанс"}</span>
       </div>
     </div>
@@ -320,8 +320,9 @@ function BetForm({
 }) {
   const [bets, setBets] = useState<Bet[]>(sent ?? []);
   const unit = content.questions[r.q]?.unit ?? "";
-  const score = Math.max(0, session.leaderboard[pid]?.score ?? 0);
+  const have = chipsOf(session.leaderboard[pid]);
   const stakeSum = bets.reduce((s, b) => s + b.stake, 0);
+  const free = have - stakeSum;
   const cells: Array<{ slot: number; label: string; odds: number }> = [
     { slot: -1, label: "Меньше всех", odds: LOW_ODDS },
     ...r.slots.map((s, i) => ({ slot: i, label: valueLabel(s.value, unit), odds: s.odds })),
@@ -332,7 +333,8 @@ function BetForm({
   return (
     <div className="stack">
       <p className="small">
-        Коснитесь ответа, который ближе всех, но <b>не больше</b> правды. У вас {WAGER_LIMITS.chips} фишки: каждая на верном ответе — {content.chipPoints} × коэффициент.
+        Коснитесь ответа, который ближе всех, но <b>не больше</b> правды, и решите, сколько фишек поставить. 3 фишки на 3:1 — получите 9. Не угадали —
+        ставка сгорает, но одна фишка остаётся всегда.
       </p>
       <ul className="wager-pick">
         {cells.map((c) => {
@@ -342,12 +344,12 @@ function BetForm({
               <button
                 type="button"
                 className={n > 0 ? "wager-pick__btn is-on" : "wager-pick__btn"}
-                disabled={disabled || bets.length >= WAGER_LIMITS.chips}
-                onClick={() => setBets([...bets, { slot: c.slot, stake: 0 }])}
+                disabled={disabled || bets.length >= WAGER_LIMITS.chips || free < 1 || bets.some((b) => b.slot === c.slot)}
+                onClick={() => setBets([...bets, { slot: c.slot, stake: 1 }])}
               >
                 <span className="wager-pick__odds">{c.odds}:1</span>
                 <span className="wager-pick__value">{c.label}</span>
-                {n > 0 && <span className="wager-pick__chips">{"●".repeat(n)}</span>}
+                {n > 0 && <span className="wager-pick__chips">● {bets.find((b) => b.slot === c.slot)?.stake ?? 0}</span>}
               </button>
             </li>
           );
@@ -356,27 +358,18 @@ function BetForm({
       {bets.map((b, i) => (
         <div key={i} className="wager-bet">
           <span className="wager-bet__label">
-            Фишка {i + 1}: <b>{labelOf(b.slot)}</b>
+            Ставка {i + 1}: <b>{labelOf(b.slot)}</b>
           </span>
-          {content.stakes && score > 0 && (
-            <label className="field wager-bet__stake">
-              Свои очки сверху (угадали — ×{cells.find((c) => c.slot === b.slot)?.odds ?? 1}, нет — сгорят)
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={score}
-                value={b.stake || ""}
-                placeholder="0"
-                disabled={disabled}
-                onChange={(e) => {
-                  const want = Math.max(0, Math.round(Number(e.target.value) || 0));
-                  const room = score - (stakeSum - b.stake);
-                  setBets(bets.map((x, j) => (j === i ? { ...x, stake: Math.min(want, room) } : x)));
-                }}
-              />
-            </label>
-          )}
+          <span className="dr-stats__ctrl wager-bet__stake">
+            <button type="button" className="btn btn--secondary" aria-label="Меньше фишек" disabled={disabled || b.stake <= 1} onClick={() => setBets(bets.map((x, j) => (j === i ? { ...x, stake: x.stake - 1 } : x)))}>
+              −
+            </button>
+            <strong aria-live="polite">{chipsWord(b.stake)}</strong>
+            <button type="button" className="btn btn--secondary" aria-label="Больше фишек" disabled={disabled || free < 1} onClick={() => setBets(bets.map((x, j) => (j === i ? { ...x, stake: x.stake + 1 } : x)))}>
+              +
+            </button>
+          </span>
+          <span className="muted small">Угадали — получите {chipsWord(b.stake * (cells.find((c) => c.slot === b.slot)?.odds ?? 1))}</span>
           <button type="button" className="btn btn--quiet" disabled={disabled} onClick={() => setBets(bets.filter((_, j) => j !== i))}>
             Убрать фишку
           </button>
@@ -385,7 +378,16 @@ function BetForm({
       <button type="button" className="btn btn--block" disabled={disabled || bets.length === 0 || same} onClick={() => onSend(bets)}>
         {same ? "Ставки приняты ✓" : sent ? "Изменить ставки" : "Поставить"}
       </button>
-      {content.stakes && score > 0 && <p className="muted small">Ваши очки: {score}. Свои очки сверху — по желанию.</p>}
+      <p className="muted small">
+        У вас {chipsWord(have)}, свободно {free}. Одна фишка несгораемая.
+      </p>
     </div>
   );
+}
+
+/** «1 фишка», «3 фишки», «9 фишек». */
+export function chipsWord(n: number): string {
+  const a = Math.abs(n) % 100, b = a % 10;
+  const w = a > 10 && a < 20 ? "фишек" : b === 1 ? "фишка" : b >= 2 && b <= 4 ? "фишки" : "фишек";
+  return `${n} ${w}`;
 }

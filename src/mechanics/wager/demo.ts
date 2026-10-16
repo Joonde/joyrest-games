@@ -17,8 +17,8 @@ export const DEMO_WAGER = {
     questions: QUESTIONS.map(([text, answer, unit, note], i) => ({ id: `w${i + 1}`, text, answer, unit, note })),
     guessTime: 60,
     betTime: 45,
-    chipPoints: 10,
-    authorBonus: 30,
+    chipPoints: 1,
+    authorBonus: 1,
     stakes: true,
   }),
 };

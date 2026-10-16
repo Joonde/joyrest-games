@@ -156,7 +156,7 @@ export function WagerHostControls({ session, content, answers, participants, con
                         ? r.mode === "bet"
                           ? "ждём…"
                           : "без ставок"
-                        : (bets[p] ?? []).map((b) => (b.slot === -1 ? "меньше всех" : `${formatNumber(r.slots[b.slot]?.value ?? 0)}`) + (b.stake ? ` +${b.stake}` : "")).join(" · ")}
+                        : (bets[p] ?? []).map((b) => (b.slot === -1 ? "меньше всех" : `${formatNumber(r.slots[b.slot]?.value ?? 0)}`) + ` — ${b.stake} ф.`).join(" · ")}
                       {r.mode === "answer" && r.payouts[p] ? ` → ${r.payouts[p] > 0 ? "+" : "−"}${Math.abs(r.payouts[p] ?? 0)}` : ""}
                     </span>
                   </li>

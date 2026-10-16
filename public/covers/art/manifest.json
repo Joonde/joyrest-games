@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "file": "quiz-stage.png",
+      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 8:34): сцена с золотым знаком вопроса, карточки и конверты",
+      "url": "https://www.figma.com/api/mcp/asset/cae59924-814e-4f37-aead-69bd805fe131",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "corporate.png",
+      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 9:34): стол с ноутбуками, кубок, карточки с вопросами",
+      "url": "https://www.figma.com/api/mcp/asset/9f614d98-2ed9-4baa-be06-3d9eedde10ed",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "cards-dice.png",
+      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 10:34): карты, кубики, красная кнопка, юла",
+      "url": "https://www.figma.com/api/mcp/asset/13991552-6b01-4957-8fd4-5339da59afc2",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "music-vinyl.png",
+      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 11:34): пластинка, наушники, микрофон, диско-шар",
+      "url": "https://www.figma.com/api/mcp/asset/d439791e-8eef-496e-9105-d2eccfd85a7f",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "music-piano.png",
+      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 12:34): золотой микрофон, клавиши, кнопка, ноты",
+      "url": "https://www.figma.com/api/mcp/asset/a628589f-8852-442b-8783-0cfb6f2f9b7b",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "stage-mic.png",
+      "what": "Обложка (Figma AI, файл JoyRest — Активная настолка, узел 13:34): сцена с микрофоном и звездой, бархатные шторы",
+      "url": "https://www.figma.com/api/mcp/asset/9392c522-446e-41c0-9f24-aee99fc18bea",
+      "expires": "2026-10-24"
+    }
+  ]
+}

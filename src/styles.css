@@ -9485,45 +9485,245 @@ button.dance-card:active {
 /* ---------- «Активная настолка» ---------- */
 
 .quest-screen {
+  position: relative;
   width: 100%;
   height: 100%;
-  padding: 3cqh 3cqw;
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr);
-  gap: 3cqw;
+  overflow: hidden;
   font-size: 3.2cqh;
+  color: #fff;
+  --qx-glass: rgba(21, 16, 31, 0.8);
+  --qx-line: rgba(227, 198, 140, 0.6);
+  --qx-gold: #f3dfa8;
 }
 
 .quest-screen__board {
-  min-height: 0;
-  height: 94cqh;
+  position: absolute;
+  inset: 0;
 }
 
-.quest-screen__side {
+/* Панель команд слева сверху. */
+.qx-panel {
+  position: absolute;
+  left: 1.25cqw;
+  top: 8.9cqh;
+  width: 19.5cqw;
+  max-height: 72cqh;
+  padding: 1.6cqh 1cqw;
+  box-sizing: border-box;
+  border-radius: 2.6cqh;
+  background: var(--qx-glass);
+  border: 1.5px solid var(--qx-line);
+  box-shadow: 0 1cqh 3cqh rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(9px);
+  overflow: hidden;
+}
+
+.qx-panel__head {
+  margin: 0 0 0.8cqh;
+  font: 600 1.85cqh Jost, sans-serif;
+  color: #f5ebdd;
+  white-space: nowrap;
+}
+
+.qx-panel__mark {
+  font: 700 2.8cqh "Cormorant Garamond", serif;
+  color: #e3c68c;
+  margin-right: 0.4cqw;
+}
+
+.qx-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3cqh;
+}
+
+.qx-row {
+  display: grid;
+  grid-template-columns: 1.2cqw 3.2cqh minmax(0, 1fr) auto 2.4cqw;
+  align-items: center;
+  gap: 0.45cqw;
+  padding: 0.45cqh 0.6cqw;
+  border-radius: 1.5cqh;
+  border: 2px solid transparent;
+  font: 600 1.85cqh Jost, sans-serif;
+}
+
+.qx-row.is-mover {
+  background: rgba(227, 198, 140, 0.22);
+  border-color: #ffe7a3;
+}
+
+.qx-row__place {
+  color: #bfaf95;
+  font-weight: 500;
+}
+
+.qx-row__chip {
+  width: 3.2cqh;
+  height: 3.2cqh;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: grid;
+  place-items: center;
+  color: #2a1b10;
+  font-weight: 700;
+  font-size: 1.5cqh;
+  box-sizing: border-box;
+}
+
+.qx-row__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qx-row__cell {
+  color: #cfc3ae;
+  font-weight: 400;
+  font-size: 1.5cqh;
+  white-space: nowrap;
+}
+
+.qx-row__score {
+  text-align: right;
+  font-weight: 700;
+  color: var(--qx-gold);
+}
+
+.qx-panel__more {
+  margin: 0.6cqh 0 0;
+  color: #cfc3ae;
+  font: 500 1.6cqh Jost, sans-serif;
+}
+
+/* Чей ход и кубик — сверху по центру. */
+.qx-turn {
+  position: absolute;
+  top: 2cqh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  padding: 0.9cqh 0.8cqw 0.9cqh 1.5cqw;
+  border-radius: 4cqh;
+  background: rgba(21, 16, 31, 0.84);
+  border: 1.5px solid rgba(227, 198, 140, 0.7);
+  box-shadow: 0 0.8cqh 2.4cqh rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(9px);
+  max-width: 60cqw;
+}
+
+.qx-turn__who {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2.5cqh;
-  text-align: center;
   min-width: 0;
 }
 
-.quest-screen__title {
-  font-size: 8cqh;
-  margin: 0;
+.qx-turn__label {
+  font: 500 1.4cqh Jost, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #cfc3ae;
 }
 
-.quest-screen__who {
-  font-size: 4.6cqh;
+.qx-turn__name {
+  font: 700 3.8cqh "Cormorant Garamond", serif;
+  color: #ffe7a3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qx-turn__roll {
+  font: 700 2.3cqh Jost, sans-serif;
+  white-space: nowrap;
+}
+
+.qx-turn .quest-die {
+  width: 6cqh;
+  height: 6cqh;
+  padding: 0.8cqh;
+  gap: 0.4cqh;
+  border-radius: 1.2cqh;
+}
+
+/* Карточка клетки — справа снизу. */
+.qx-card {
+  position: absolute;
+  right: 1.25cqw;
+  bottom: 2.5cqh;
+  width: 27cqw;
+  display: grid;
+  gap: 1cqh;
+}
+
+.qx-card__move {
+  margin: 0;
+  padding: 0.8cqh 1cqw;
+  border-radius: 1.6cqh;
+  background: rgba(21, 16, 31, 0.84);
+  border: 1.5px solid rgba(227, 198, 140, 0.7);
+  font: 600 1.9cqh Jost, sans-serif;
+}
+
+.qx-card .quest-task {
+  background: rgba(21, 16, 31, 0.86);
+  border: 2px solid #e8b64c;
+  box-shadow: 0 0 2.4cqh rgba(232, 182, 76, 0.45);
+  backdrop-filter: blur(9px);
+  border-radius: 2.4cqh;
+  color: #fff;
+  text-align: left;
+}
+
+.qx-card .quest-task__kind {
+  color: #f3dfa8;
+}
+
+.qx-card .quest-task__text {
+  font-family: "Cormorant Garamond", serif;
   font-weight: 600;
-  margin: 0;
+  font-size: 2.8cqh;
+  line-height: 1.12;
 }
 
-.quest-screen__note {
-  color: var(--color-text-muted);
+/* Начало и финиш — карточка по центру поверх поля. */
+.qx-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 50cqw;
+  padding: 3cqh 3cqw;
+  text-align: center;
+  border-radius: 3cqh;
+  background: rgba(21, 16, 31, 0.84);
+  border: 2px solid #e8b64c;
+  box-shadow: 0 0 4cqh rgba(232, 182, 76, 0.4);
+  backdrop-filter: blur(9px);
+}
+
+.qx-center__eyebrow {
+  font: 500 1.8cqh Jost, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfc3ae;
+}
+
+.qx-center__title {
+  margin: 0.6cqh 0;
+  font: 700 7cqh "Cormorant Garamond", serif;
+  color: #ffe7a3;
+}
+
+.qx-center__note {
   margin: 0;
+  font: 500 2.2cqh Jost, sans-serif;
+  color: #f5ebdd;
 }
 
 .quest-board {
@@ -9824,15 +10024,10 @@ button.dance-card:active {
   }
 }
 
-/* Узкий экран зала (планшет вертикально): поле сверху, задание снизу. */
+/* Узкий экран зала (планшет вертикально): панели шире. */
 @container (max-aspect-ratio: 1/1) {
-  .quest-screen {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
-  }
-  .quest-screen__board {
-    height: auto;
-  }
+  .qx-panel { width: 40cqw; }
+  .qx-card { width: 60cqw; }
 }
 
 /* ---------- «Кто хочет стать миллионером» ---------- */
@@ -12190,29 +12385,11 @@ button.dance-card:active {
 
 /* ---------- «Активная настолка»: карта приключений (QuestMap) ---------- */
 .quest-map {
-  --qm-ground: #2c3a2c;
-  --qm-ground-2: #1f2a22;
-  --qm-hill: rgba(120, 150, 100, 0.18);
-  --qm-lake: rgba(110, 170, 200, 0.28);
-  --qm-road: #8a6d4b;
-  --qm-road-edge: #5a4530;
-  --qm-stone: #d9cbb4;
-  --qm-stone-edge: #6e5c46;
-  --qm-trunk: #6b4f3a;
-  --qm-pine: #4f7a55;
-  --qm-leaf: #6d9a5f;
-  --qm-bush: #5f8a58;
-  --qm-rock: #7d7468;
-  --qm-rock-light: #a39a8d;
-  --qm-flower-a: #e3aa9c;
-  --qm-flower-b: #e3c68c;
-  --qm-glow: #ffd98a;
+  position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 2cqh;
-  background: radial-gradient(ellipse at 30% 20%, var(--qm-ground), var(--qm-ground-2));
-  box-shadow: inset 0 0 4cqh rgba(0, 0, 0, 0.45);
   overflow: hidden;
+  background: #120e14;
 }
 
 .quest-map svg {
@@ -12223,131 +12400,112 @@ button.dance-card:active {
 
 .quest-map--phone {
   height: auto;
-  aspect-ratio: 1.3;
+  aspect-ratio: 16 / 9;
   border-radius: 12px;
 }
 
-.qm-hill {
-  fill: var(--qm-hill);
+/* Клетка: цветной круг с кремовой каймой и свечением (как на макете Figma). */
+.qm-cell__disc {
+  fill: var(--qm-c);
+  stroke: #fff3d6;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--qm-c)) drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
 }
 
-.qm-lake {
-  fill: var(--qm-lake);
+.qm-cell--empty .qm-cell__disc {
+  fill: rgba(30, 22, 36, 0.62);
+  stroke: rgba(255, 243, 214, 0.75);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
 }
 
-.qm-decor {
-  opacity: 0.85;
-}
-
-.qm-road {
-  fill: none;
-  stroke: var(--qm-road-edge);
-  stroke-width: 30;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.7;
-}
-
-.qm-road-dash {
-  fill: none;
-  stroke: var(--qm-road);
-  stroke-width: 22;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 2 10;
-  opacity: 0.9;
-}
-
-.qm-cell__stone {
-  fill: var(--qm-stone-edge);
-}
-
-.qm-cell__face {
-  fill: var(--qm-stone);
-}
-
-.qm-cell--task .qm-cell__face { fill: #e9d29a; }
-.qm-cell--question .qm-cell__face { fill: #b9d0e6; }
-.qm-cell--dance .qm-cell__face { fill: #efb8c6; }
-.qm-cell--karaoke .qm-cell__face { fill: #cbb8ea; }
-.qm-cell--bonus .qm-cell__face { fill: #a9d7a0; }
-.qm-cell--trap .qm-cell__face { fill: #d99a86; }
-.qm-cell--skip .qm-cell__face { fill: #b9b2a8; }
-
-.qm-cell__emoji {
-  font-size: 26px;
-}
-
-.qm-cell__move {
-  font: 700 15px Jost, sans-serif;
-  fill: #221e1b;
+.qm-cell__icon {
+  font-family: Jost, sans-serif;
+  font-weight: 700;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.25);
+  stroke-width: 1.5px;
 }
 
 .qm-cell__n {
-  font: 600 13px Jost, sans-serif;
-  fill: #fbf6f1;
+  font: 700 26px Jost, sans-serif;
+  fill: #ffe7a3;
   paint-order: stroke;
-  stroke: rgba(0, 0, 0, 0.55);
-  stroke-width: 3px;
+  stroke: rgba(20, 14, 24, 0.9);
+  stroke-width: 6px;
 }
 
-.qm-cell__ring {
-  fill: none;
-  stroke: var(--qm-glow);
+/* Клетка, куда встала фишка: светится, мигает, от неё расходятся круги и искры. */
+.qm-cell.is-landed .qm-cell__disc {
+  stroke: #fffbe8;
   stroke-width: 5;
   transform-box: fill-box;
   transform-origin: center;
-  animation: qm-ring 1.4s ease-in-out infinite;
+  animation: qm-blink 0.9s ease-in-out infinite;
 }
 
-.qm-start__stone {
-  fill: #e9d29a;
-  stroke: var(--qm-stone-edge);
-  stroke-width: 6;
-}
-
-.qm-pole {
-  fill: #5a4530;
-}
-
-.qm-flag {
-  fill: #e3aa9c;
+.qm-land__glow {
   transform-box: fill-box;
-  transform-origin: left center;
-  animation: qm-flag 1.8s ease-in-out infinite;
+  transform-origin: center;
+  animation: qm-glow 1.6s ease-in-out infinite;
 }
 
-.qm-flag--finish {
-  fill: #e3c68c;
+.qm-land__ring {
+  fill: none;
+  stroke: #ffe7a3;
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: qm-ripple 1.8s ease-out infinite;
 }
 
-.qm-label {
-  font: 700 15px Jost, sans-serif;
-  fill: #221e1b;
-  letter-spacing: 1px;
+.qm-land__ring--2 { animation-delay: 0.6s; }
+.qm-land__ring--3 { animation-delay: 1.2s; }
+
+.qm-land__spark {
+  fill: #fff1b8;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: qm-spark 1s ease-out 1 forwards;
 }
 
-.qm-finish .qm-label {
-  fill: #fbf6f1;
-  paint-order: stroke;
-  stroke: rgba(0, 0, 0, 0.6);
-  stroke-width: 3px;
+/* Шаг фишки — вспышка клетки под ней. */
+.qm-touch {
+  fill: rgba(255, 236, 170, 0.55);
+  stroke: #fff6d8;
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: qm-touch 0.36s ease-out forwards;
 }
 
-.qm-castle {
-  fill: #cdbb9a;
-  stroke: #6e5c46;
+.qm-end circle:not(.qm-end__glow) {
+  fill: rgba(27, 20, 38, 0.82);
+  stroke: #e3c68c;
   stroke-width: 3;
 }
 
-.qm-castle__door {
-  fill: #5a4530;
+.qm-end text {
+  fill: #ffe7a3;
 }
 
-.qm-finish__glow {
+.qm-end__glow {
   transform-box: fill-box;
   transform-origin: center;
   animation: qm-glow 2.4s ease-in-out infinite;
+}
+
+.qm-label rect {
+  fill: rgba(27, 20, 38, 0.82);
+  stroke: #e3c68c;
+  stroke-width: 1.5;
+}
+
+.qm-label text {
+  font: 700 26px "Cormorant Garamond", serif;
+  fill: #f3dfa8;
 }
 
 .qm-token {
@@ -12359,22 +12517,36 @@ button.dance-card:active {
 }
 
 .qm-token__shadow {
-  fill: rgba(0, 0, 0, 0.35);
+  fill: rgba(0, 0, 0, 0.45);
 }
 
-.qm-token__base,
 .qm-token__head {
-  stroke: #221e1b;
-  stroke-width: 2.5;
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5));
+}
+
+.qm-token__shine {
+  fill: rgba(255, 255, 255, 0.55);
 }
 
 .qm-token__emoji {
-  font-size: 18px;
+  font: 700 24px Jost, sans-serif;
+  fill: #2a1b10;
 }
 
 .qm-token.is-mover .qm-token__head {
-  stroke: #fffaf3;
-  stroke-width: 4;
+  stroke: #ffe7a3;
+  stroke-width: 5;
+  filter: drop-shadow(0 0 10px #ffd36a) drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5));
+}
+
+.qm-token__arrow {
+  fill: #ffe7a3;
+  stroke: #2a1b10;
+  stroke-width: 2;
+  transform-box: fill-box;
+  animation: qm-arrow 1s ease-in-out infinite;
 }
 
 .qm-burst circle {
@@ -12391,12 +12563,28 @@ button.dance-card:active {
   fill: rgba(120, 100, 80, 0.8);
 }
 
-@keyframes qm-ring {
-  50% { transform: scale(1.12); opacity: 0.55; }
+@keyframes qm-blink {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.18); opacity: 0.72; }
 }
 
-@keyframes qm-flag {
-  50% { transform: skewY(-8deg) scaleX(0.9); }
+@keyframes qm-ripple {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes qm-spark {
+  0% { transform: rotate(var(--a)) translateX(0) scale(1.4); opacity: 1; }
+  100% { transform: rotate(var(--a)) translateX(var(--d)) scale(0.2); opacity: 0; }
+}
+
+@keyframes qm-touch {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes qm-arrow {
+  50% { transform: translateY(-6px); }
 }
 
 @keyframes qm-glow {
@@ -12415,115 +12603,25 @@ button.dance-card:active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qm-cell__ring,
-  .qm-flag,
-  .qm-finish__glow,
+  .qm-cell.is-landed .qm-cell__disc,
+  .qm-land__glow,
+  .qm-land__ring,
+  .qm-land__spark,
+  .qm-touch,
+  .qm-end__glow,
   .qm-token__hop,
+  .qm-token__arrow,
   .qm-burst circle,
   .quest-die.is-rolling,
   .quest-die.is-landed {
     animation: none;
   }
-
+  .qm-land__ring,
+  .qm-land__spark {
+    display: none;
+  }
   .qm-token {
     transition: none;
-  }
-}
-
-/* «Активная настолка»: стили поля (`content.style`). Классика — переменные выше; остальные переопределяют их. */
-.quest-map.qm--party {
-  --qm-ground: #2a1440;
-  --qm-ground-2: #120a1f;
-  --qm-road: #ff7ad9;
-  --qm-road-edge: #6b2a8f;
-  --qm-stone: #f3e6ff;
-  --qm-stone-edge: #7b3fb0;
-  --qm-neon-a: #ff7ad9;
-  --qm-neon-b: #6fe3ff;
-  --qm-neon-c: #ffe066;
-  --qm-ball: #c9cfe0;
-  --qm-ball-line: #6f7894;
-  --qm-glow: #ff9be6;
-}
-
-.quest-map.qm--kids {
-  --qm-ground: #cfeaff;
-  --qm-ground-2: #9fd2f5;
-  --qm-hill: #f7c6d6;
-  --qm-road: #fffaf3;
-  --qm-road-edge: #f08fae;
-  --qm-stone: #fffaf3;
-  --qm-stone-edge: #d27a97;
-  --qm-candy-a: #f59ab8;
-  --qm-candy-b: #9fd8b0;
-  --qm-candy-c: #ffd27a;
-  --qm-glow: #fff1a8;
-  box-shadow: inset 0 0 4cqh rgba(80, 120, 160, 0.25);
-}
-
-.quest-map.qm--adult {
-  --qm-ground: #1f1a2c;
-  --qm-ground-2: #0d0b14;
-  --qm-road: #e3c68c;
-  --qm-road-edge: #5a4a2c;
-  --qm-stone: #f3dfae;
-  --qm-stone-edge: #8c6d36;
-  --qm-gold: #e3c68c;
-  --qm-gold-light: #f3dfae;
-  --qm-wine: #b0546a;
-  --qm-bottle: #3f5c46;
-  --qm-glow: #f3dfae;
-}
-
-.qm--party .qm-road { opacity: 0.9; filter: drop-shadow(0 0 6px #b14bd8); }
-.qm--party .qm-road-dash { stroke-dasharray: 12 10; filter: drop-shadow(0 0 5px var(--qm-neon-a)); }
-.qm--party .qm-cell__stone { filter: drop-shadow(0 0 6px var(--qm-neon-b)); }
-.qm--party .qm-decor { opacity: 0.95; }
-.qm-beam { opacity: 0.16; }
-.qm-beam--a { fill: #ff7ad9; animation: qm-beam 6s ease-in-out infinite; transform-origin: 12% 0; }
-.qm-beam--b { fill: #6fe3ff; animation: qm-beam 7s ease-in-out infinite reverse; transform-origin: 88% 0; }
-.qm-floor { fill: #ff7ad9; opacity: 0.12; }
-.qm-floor--b { fill: #6fe3ff; opacity: 0.1; }
-.qm-stage { fill: #3a1d58; stroke: #ff7ad9; stroke-width: 2; }
-.qm-ball-spin { animation: qm-ball 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-
-.qm--kids .qm-road { stroke-width: 34; opacity: 0.9; }
-.qm--kids .qm-road-dash { stroke: #f59ab8; stroke-width: 26; stroke-dasharray: 10 12; opacity: 0.55; }
-.qm--kids .qm-decor { opacity: 1; }
-.qm--kids .qm-label { fill: #3b2a33; }
-.qm-sun { fill: #ffd86b; filter: drop-shadow(0 0 14px #ffe9a3); }
-.qm-hill--front { fill: #fbe0ea; }
-.qm-flame { fill: #ff9a3c; transform-box: fill-box; transform-origin: center bottom; animation: qm-flag 1s ease-in-out infinite; }
-
-.qm--adult .qm-road { opacity: 0.55; }
-.qm--adult .qm-road-dash { stroke-dasharray: 3 9; filter: drop-shadow(0 0 4px rgba(243, 223, 174, 0.7)); }
-.qm--adult .qm-start__stone { fill: #f3dfae; }
-.qm--adult .qm-flag { fill: #b0546a; }
-.qm-moon { fill: #f3dfae; opacity: 0.85; }
-.qm-city { fill: #17131f; }
-.qm-window { fill: #e3c68c; opacity: 0.55; }
-
-.qm-twinkle { transform-box: fill-box; transform-origin: center; animation: qm-twinkle 2.6s ease-in-out infinite; }
-
-@keyframes qm-twinkle {
-  50% { opacity: 0.45; transform: scale(0.82); }
-}
-
-@keyframes qm-beam {
-  50% { transform: rotate(6deg); }
-}
-
-@keyframes qm-ball {
-  50% { transform: rotate(14deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .qm-twinkle,
-  .qm-beam--a,
-  .qm-beam--b,
-  .qm-ball-spin,
-  .qm-flame {
-    animation: none;
   }
 }
 

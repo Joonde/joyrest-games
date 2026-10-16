@@ -499,7 +499,7 @@
     goToCard();
     topToast('Расчёт добавлен в заявку ✓');
   }
-  // Витрина: расчёт — текстом менеджеру (как на /calc/): «Поделиться» телефона, иначе копия в буфер.
+  // Витрина: расчёт — текстом менеджеру, куда удобно клиенту (окно #sendSheet).
   function showcaseText(){
     const opts = calcOpts();
     const s = P.calcSummary(opts);
@@ -507,8 +507,8 @@
     const level = P.LEVELS.find((l) => l.id === (hostLevelField.value || ''));
     return 'Расчёт JoyRest: ' + s.text + (level && !r.individual ? ' Формат ведущего: ' + level.name + '.' : '');
   }
-  function copyCalc(value){
-    const done = () => topToast('Расчёт скопирован — вставьте его в чат с менеджером');
+  function copyCalc(value, message){
+    const done = () => topToast(message || 'Расчёт скопирован — вставьте его в чат с менеджером', null, null, 6000);
     const fallback = () => {
       const area = document.createElement('textarea');
       area.value = value;
@@ -523,11 +523,38 @@
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(done, fallback);
     else fallback();
   }
-  function shareCalc(){
-    const value = showcaseText();
-    if(navigator.share){
-      navigator.share({ title: 'Расчёт JoyRest', text: value }).catch((e) => { if(!e || e.name !== 'AbortError') copyCalc(value); });
-    }else copyCalc(value);
+  // Окно «Куда отправить расчёт?»: WhatsApp — сразу нам с готовым текстом, почта — письмо с текстом,
+  // Telegram и Авито текст подставить не дают — копируем его и открываем чат, клиенту остаётся вставить.
+  const sheet = $('sendSheet');
+  const avitoUrl = sheet ? (sheet.dataset.avito || '').trim() : '';
+  document.querySelectorAll('[data-avito-link]').forEach((a) => { if(avitoUrl){ a.href = avitoUrl; a.hidden = false; } });
+  let sheetText = '', sheetFrom = null;
+  function closeSheet(){
+    if(!sheet || sheet.hidden) return;
+    sheet.hidden = true; document.body.style.overflow = '';
+    if(sheetFrom) sheetFrom.focus();
+  }
+  function shareCalc(e){
+    sheetText = showcaseText();
+    if(!sheet){ copyCalc(sheetText); return; }
+    sheetFrom = e && e.currentTarget;
+    $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
+    $('sendMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(sheetText);
+    const avito = $('sendAvito');
+    if(avitoUrl){ avito.href = avitoUrl; avito.hidden = false; }
+    sheet.hidden = false; document.body.style.overflow = 'hidden';
+    $('sendWa').focus();
+  }
+  if(sheet){
+    const pasteHint = (where) => () => { copyCalc(sheetText, 'Расчёт скопирован — вставьте его в чат ' + where); closeSheet(); };
+    $('sendWa').addEventListener('click', () => setTimeout(closeSheet, 0));
+    $('sendMail').addEventListener('click', () => setTimeout(closeSheet, 0));
+    $('sendTg').addEventListener('click', pasteHint('Telegram'));
+    $('sendAvito').addEventListener('click', pasteHint('на Авито'));
+    $('sendCopy').addEventListener('click', () => { copyCalc(sheetText); closeSheet(); });
+    $('sendClose').addEventListener('click', closeSheet);
+    sheet.addEventListener('click', (ev) => { if(ev.target === sheet) closeSheet(); });
+    document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') closeSheet(); });
   }
   if(SHOWCASE){
     $('calcSubmit').textContent = 'Отправить расчёт менеджеру';

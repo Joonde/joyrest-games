@@ -808,9 +808,9 @@
           <p class="eyebrow">Заявка</p>
           <h2>Обсудим ваш праздник</h2>
           <p class="no-showcase">Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
-          <p class="showcase-only">Напишите нам в Telegram или WhatsApp — предложим программу под ваш формат и бюджет.</p>
+          <p class="showcase-only">Напишите нам в Telegram, WhatsApp, на почту или на Авито — предложим программу под ваш формат и бюджет.</p>
           <ul class="contact__list">
-            <li>Телефон: <a href="tel:+79857822689">+7 (985) 782-26-89</a></li>
+            <li class="no-showcase">Телефон: <a href="tel:+79857822689">+7 (985) 782-26-89</a></li>
             <li>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">t.me/JoyRest</a></li>
             <li>Почта: <a href="mailto:joyrest@mail.ru">joyrest@mail.ru</a></li>
             <li>Москва и Подмосковье — выезд включён, другие города — по договорённости</li>
@@ -960,13 +960,14 @@
           <h3>Как заказать</h3>
           <ol class="showcase-steps">
             <li>Соберите вечер в <a class="link" href="#calculator">калькуляторе</a> и нажмите «Отправить расчёт менеджеру».</li>
-            <li>Выберите Telegram или WhatsApp — расчёт придёт нам готовым текстом.</li>
+            <li>Выберите, куда написать: Telegram, WhatsApp, почта или Авито — расчёт придёт нам готовым текстом.</li>
             <li>Ответим, предложим программу и забронируем дату.</li>
           </ol>
           <div class="showcase-contact__actions">
             <a class="hbtn hbtn--primary" href="https://t.me/+79857822689" target="_blank" rel="noopener">Написать в Telegram</a>
             <a class="hbtn hbtn--secondary" href="https://wa.me/79857822689" target="_blank" rel="noopener">Написать в WhatsApp</a>
-            <a class="hbtn hbtn--secondary" href="tel:+79857822689">Позвонить</a>
+            <a class="hbtn hbtn--secondary" href="mailto:joyrest@mail.ru">Написать на почту</a>
+            <a class="hbtn hbtn--secondary" data-avito-link href="" target="_blank" rel="noopener" hidden>Написать на Авито</a>
           </div>
         </div>
       </div>
@@ -987,6 +988,21 @@
 <script src="js/reviews.js"></script>
 
 <!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
+<!-- Витрина: куда отправить расчёт. Адрес Авито — data-avito (пусто — кнопки Авито нет). -->
+<div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="" hidden>
+  <div class="send-sheet__box">
+    <h3 id="sendSheetTitle">Куда отправить расчёт?</h3>
+    <p class="send-sheet__hint" id="sendSheetHint">Расчёт придёт нам готовым текстом — останется нажать «Отправить».</p>
+    <div class="send-sheet__actions">
+      <a class="hbtn hbtn--primary" id="sendWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="hbtn hbtn--secondary" id="sendTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
+      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
+      <a class="hbtn hbtn--secondary" id="sendAvito" href="" target="_blank" rel="noopener" hidden>Авито</a>
+      <button type="button" class="hbtn hbtn--secondary" id="sendCopy">Скопировать текст</button>
+      <button type="button" class="send-sheet__close" id="sendClose">Закрыть</button>
+    </div>
+  </div>
+</div>
 <div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>
 </body>
 </html>

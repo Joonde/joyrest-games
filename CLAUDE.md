@@ -330,10 +330,12 @@ Firebase удаляются, Firebase-код удаляется отдельны
   поисковикам закрыт (индексация — только при `on`; `site showcase` и `site off` сбрасывают `SITE_INDEXING` в `off`).
   Сборка кладёт рядом с `index.html` `build/site/showcase.html` — та же страница с `data-site-mode="showcase"` у `<html>`;
   сервер в витрине отдаёт её на «/» (`/index.html` с формами — 404). В разметке: `.no-showcase` — скрыто в витрине (форма
-  `#leadForm`, «Задать вопрос», фраза в FAQ), `.showcase-only` — только в витрине (блок `#showcaseContact` «Как заказать»:
-  Telegram, WhatsApp, «Позвонить» на +7 985 782-26-89). `js/script.js` (`SHOWCASE`): «Оставить заявку» → «Написать нам»
+  `#leadForm`, «Задать вопрос», фраза в FAQ, строка телефона в контактах), `.showcase-only` — только в витрине (блок
+  `#showcaseContact` «Как заказать»: Telegram, WhatsApp, почта, Авито; звонков нет — решение владельца 16 октября 2026). `js/script.js` (`SHOWCASE`): «Оставить заявку» → «Написать нам»
   (просто к `#contact`), отзыв — `data-review-form="off"`, калькулятор — «Отправить расчёт менеджеру» / «Менеджеру»:
-  текст «Расчёт JoyRest: …» через `navigator.share`, иначе копия (как `/calc/`); сохранённый расчёт возвращает только выбор
+  окно «Куда отправить расчёт?» (`#sendSheet`): WhatsApp — `wa.me` с готовым текстом «Расчёт JoyRest: …», почта — `mailto`
+  с текстом, Telegram и Авито — текст копируется и открывается чат, «Скопировать текст». Адрес профиля Авито — `data-avito`
+  у `#sendSheet` (пусто — кнопок Авито нет); сохранённый расчёт возвращает только выбор
   калькулятора. На test витрина — по адресу test.joy-rest.ru/showcase.html (сам test всегда `on`). Проверяют `site.test.ts`
   и `siteSwitch.test.ts`.
 - test.joy-rest.ru (`app-test`) показывает сайт всегда, `noindex` всегда и закрыт паролем:

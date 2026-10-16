@@ -43,6 +43,21 @@
   </form>
 </div>
 
+<!-- Витрина: куда отправить расчёт. Адрес Авито — data-avito (пусто — кнопки Авито нет). -->
+<div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="" hidden>
+  <div class="send-sheet__box">
+    <h3 id="sendSheetTitle">Куда отправить расчёт?</h3>
+    <p class="send-sheet__hint" id="sendSheetHint">Расчёт придёт нам готовым текстом — останется нажать «Отправить».</p>
+    <div class="send-sheet__actions">
+      <a class="hbtn hbtn--primary" id="sendWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="hbtn hbtn--secondary" id="sendTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
+      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
+      <a class="hbtn hbtn--secondary" id="sendAvito" href="" target="_blank" rel="noopener" hidden>Авито</a>
+      <button type="button" class="hbtn hbtn--secondary" id="sendCopy">Скопировать текст</button>
+      <button type="button" class="send-sheet__close" id="sendClose">Закрыть</button>
+    </div>
+  </div>
+</div>
 <div class="vmodal" id="promoModal" role="dialog" aria-modal="true" aria-label="Ролик ДжойРест: все форматы за 30 секунд" hidden>
   <div class="vmodal__box">
     <video id="promoVideo" playsinline controls preload="none"><source src="img/promo.mp4" type="video/mp4"></video>
@@ -988,21 +1003,6 @@
 <script src="js/reviews.js"></script>
 
 <!-- Уведомление сверху экрана («Расчёт добавлен в заявку», «Расчёт убран · Вернуть»). -->
-<!-- Витрина: куда отправить расчёт. Адрес Авито — data-avito (пусто — кнопки Авито нет). -->
-<div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="" hidden>
-  <div class="send-sheet__box">
-    <h3 id="sendSheetTitle">Куда отправить расчёт?</h3>
-    <p class="send-sheet__hint" id="sendSheetHint">Расчёт придёт нам готовым текстом — останется нажать «Отправить».</p>
-    <div class="send-sheet__actions">
-      <a class="hbtn hbtn--primary" id="sendWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
-      <a class="hbtn hbtn--secondary" id="sendTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
-      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
-      <a class="hbtn hbtn--secondary" id="sendAvito" href="" target="_blank" rel="noopener" hidden>Авито</a>
-      <button type="button" class="hbtn hbtn--secondary" id="sendCopy">Скопировать текст</button>
-      <button type="button" class="send-sheet__close" id="sendClose">Закрыть</button>
-    </div>
-  </div>
-</div>
 <div class="top-toast" id="topToast" role="status" aria-live="polite" hidden><span class="top-toast__text" id="topToastText"></span><button type="button" class="top-toast__action" id="topToastAction" hidden></button></div>
 </body>
 </html>

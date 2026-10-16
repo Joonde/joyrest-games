@@ -71,7 +71,8 @@ export function DragonHostControls({ session, content, answers, participants, co
   const fresh = <T,>(make: (list: typeof answers) => T) => () => control.freshAnswers(step).then((list) => make(list.length > 0 ? list : answers));
   const action = dragonPrimary(session, content);
   const backPlan = dragonBack(session, participants);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  const teams = session.playMode === "teams";
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (teams ? "Команда" : "Игрок")) : "—");
   const answered = new Set(answers.filter((a) => a.step === step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).map((a) => a.pid));
   // Ждём выбор героя только от команд с телефоном (без телефона — герой по порядку).
   const waiting = r.phase === "heroes" ? r.order.filter((p) => participants.some((x) => x.id === p) && !answered.has(p)) : [];
@@ -85,7 +86,7 @@ export function DragonHostControls({ session, content, answers, participants, co
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
-        <p className="muted">Капитаны выберут героя и разложат {5} очков по свойствам. Команды в бою — в порядке подключения.</p>
+        <p className="muted">{teams ? "Капитаны выберут героя и разложат 5 очков по свойствам. Команды в бою — в порядке подключения." : "Каждый игрок выберет героя и разложит 5 очков по свойствам. Игроки в бою — в порядке подключения."}</p>
       ) : r.phase === "heroes" ? (
         <div className="stack stack--tight">
           <p>
@@ -169,7 +170,7 @@ export function DragonHostControls({ session, content, answers, participants, co
       <div className="actions">
         {action === "start" && (
           <>
-            {noTeams && <p className="muted small">Ждём, пока подключатся команды.</p>}
+            {noTeams && <p className="muted small">{teams ? "Ждём, пока подключатся команды." : "Ждём, пока подключатся игроки."}</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run(startDragon(session, participants))}>
               Выбор героев
             </button>
@@ -188,13 +189,13 @@ export function DragonHostControls({ session, content, answers, participants, co
                 onClick={() =>
                   confirm({
                     title: "Начать бой без них?",
-                    text: "Кто не выбрал, получит героя по порядку и свойства по 1. Начинайте, только если телефон команды не отвечает.",
+                    text: `Кто не выбрал, получит героя по порядку и свойства по 1. Начинайте, только если телефон ${teams ? "команды" : "игрока"} не отвечает.`,
                     confirmLabel: "Начать бой",
                     run: () => run(fresh((list) => closeHeroes(latest.current, content, list, participants))),
                   })
                 }
               >
-                Начать без {waiting.length === 1 ? "одной команды" : `${waiting.length} команд`}
+                Начать без {teams ? (waiting.length === 1 ? "одной команды" : `${waiting.length} команд`) : waiting.length === 1 ? "одного игрока" : `${waiting.length} игроков`}
               </button>
             )}
           </>
@@ -237,7 +238,7 @@ export function DragonHostControls({ session, content, answers, participants, co
             onClick={() =>
               confirm({
                 title: "Закончить игру досрочно?",
-                text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
+                text: `Побеждает ${teams ? "команда" : "игрок"} с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.`,
                 confirmLabel: "К награждению",
                 run: () => run(awardNow(session)),
               })

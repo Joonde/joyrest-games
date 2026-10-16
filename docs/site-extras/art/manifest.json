@@ -1,0 +1,28 @@
+{
+  "files": [
+    {
+      "file": "cover-toasts.png",
+      "what": "Обложка сайта (Canva AI) — Битва тостов: бокалы, розы, свечи",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0014-5491533004475315632.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261016%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261016T044521Z&X-Amz-Expires=33539&X-Amz-Signature=bdc0f926c09715100aedc16b39a03fb68f43dbbec8f30dcf44d4b6de165c17fe&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2016%20Oct%202026%2014%3A04%3A20%20GMT",
+      "expires": "2026-10-16"
+    },
+    {
+      "file": "cover-freeze.png",
+      "what": "Обложка сайта (Canva AI) — Замри! Живые скульптуры: трое в позах на сцене",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0015-5491533004475315632.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261016%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261016T023752Z&X-Amz-Expires=39081&X-Amz-Signature=84f7987f9f67c8b489dbf0653d0dfcc7f3f0c4a483309f90534b225bd3d470e9&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2016%20Oct%202026%2013%3A29%3A13%20GMT",
+      "expires": "2026-10-16"
+    },
+    {
+      "file": "cover-silent.png",
+      "what": "Обложка сайта (Canva AI) — Немая история: мим на сцене, зрители",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0016-5491533004475315632.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T135403Z&X-Amz-Expires=85295&X-Amz-Signature=7a95243452bd05cfd0a13cbb0b3e79ee7e46f44175b245c8a820afc93b4d5dae&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2016%20Oct%202026%2013%3A35%3A38%20GMT",
+      "expires": "2026-10-16"
+    },
+    {
+      "file": "cover-orchestra.png",
+      "what": "Обложка сайта (Canva AI) — Живой оркестр: дирижёр и гости с бубном и маракасами",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0017-5491533004475315632.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T165950Z&X-Amz-Expires=72923&X-Amz-Signature=5aed2eaad422183aee495cecf5688a84e110abfe87cf058c289a259173591511&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2016%20Oct%202026%2013%3A15%3A13%20GMT",
+      "expires": "2026-10-16"
+    }
+  ]
+}

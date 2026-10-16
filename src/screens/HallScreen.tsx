@@ -100,8 +100,8 @@ function SoundOffIcon() {
   );
 }
 
-/** Полноэкранный режим, звук и (ведущему) «В студию»: кнопки в углу экрана зала. */
-function ScreenControls({ toStudio }: { toStudio: (() => void) | null }) {
+/** Полноэкранный режим, звук и (ведущему) «Пульт или экран» и «В студию»: кнопки в углу экрана зала. */
+function ScreenControls({ toStudio, toPick }: { toStudio: (() => void) | null; toPick: (() => void) | null }) {
   const muted = useMuted();
   const ready = useSoundReady();
   const [full, setFull] = useState(() => document.fullscreenElement !== null);
@@ -138,6 +138,11 @@ function ScreenControls({ toStudio }: { toStudio: (() => void) | null }) {
           {full ? "Выйти из полного экрана" : "Во весь экран"}
         </button>
       )}
+      {toPick && (
+        <button type="button" className="btn btn--secondary" onClick={toPick}>
+          Пульт или экран?
+        </button>
+      )}
       {toStudio && (
         <button type="button" className="btn btn--secondary" onClick={toStudio}>
           В студию
@@ -163,6 +168,8 @@ function useCueSound(cue: SoundCue | null | undefined): void {
 function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
+  // Ведущий случайно сделал это устройство экраном зала (например, телефон) — вернуться к выбору «Пульт / Экран зала».
+  const [repicking, setRepicking] = useState(false);
   useTheme(session.themeId, session.branding);
   useEffect(() => setSoundSet(getTheme(session.themeId).effects?.soundSet ?? "classic"), [session.themeId]);
   useCueSound(session.state.cue);
@@ -209,7 +216,25 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
       {/* У самостоятельной игры свой фон — общий живой фон темы не рисуем. */}
       {!standalone && <Scene themeId={session.themeId} />}
       {/* После игры «В студию» — отдельная кнопка слева сверху, здесь её не дублируем. */}
-      <ScreenControls toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null} />
+      <ScreenControls
+        toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}
+        toPick={isHost && phase !== "finished" ? () => setRepicking(true) : null}
+      />
+      {isHost && (
+        <ConfirmDialog
+          open={repicking}
+          title="Это устройство — пульт или экран?"
+          confirmLabel="К выбору"
+          cancelLabel="Остаться экраном"
+          onCancel={() => setRepicking(false)}
+          onConfirm={() => {
+            if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+            navigate(`/host/${session.code}?pick=1`);
+          }}
+        >
+          <p>Откроется выбор «Пульт / Экран зала». Игра продолжится, экран зала можно снова открыть с выбора или из студии.</p>
+        </ConfirmDialog>
+      )}
       {isHost && (
         <ConfirmDialog
           open={leaving}

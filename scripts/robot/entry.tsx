@@ -32,6 +32,8 @@ const PLAYERS = Math.max(1, Number(q.get("n") ?? "4"));
 const SEED = Number(q.get("seed") ?? "1");
 const DEMO = Number(q.get("demo") ?? "0");
 const BUDGET = Number(q.get("budget") ?? "500");
+// Снимки экранов (scripts/robot/shots.mjs): только вперёд, без вмешательств, пауза перед каждым снимком.
+const SHOTS = q.get("shots") === "1";
 
 let rnd = SEED * 2654435761;
 function random(): number {
@@ -409,7 +411,8 @@ async function hostAct(): Promise<void> {
   const others = list.filter((b) => b !== primary && b !== back && (late || !RISKY.test(text(b))));
   let chosen: HTMLButtonElement | undefined;
   const r = random();
-  if (back && r < 0.12) chosen = back;
+  if (SHOTS) chosen = primary ?? others.find((b) => !RISKY.test(text(b)));
+  else if (back && r < 0.12) chosen = back;
   else if (r < 0.3) chosen = pick(others) ?? primary;
   else chosen = primary ?? pick(others);
   if (!chosen) return;
@@ -418,7 +421,7 @@ async function hostAct(): Promise<void> {
   note(`пульт «${name}»`);
   chosen.click();
   // Двойное касание иногда: второй раз — пока пульт ещё не получил своё изменение.
-  if (chance(0.05)) chosen.click();
+  if (!SHOTS && chance(0.05)) chosen.click();
   await sleep(20);
   await confirmDialogs();
 }
@@ -438,7 +441,7 @@ async function overlay(): Promise<void> {
       if ((e as { code?: string }).code !== "failed-precondition") fail(name, String(e));
     }
   };
-  if (st.phase !== "playing" || mechanic?.standalone) return;
+  if (st.phase !== "playing" || mechanic?.standalone || SHOTS) return;
   if (r < 0.04) safe("таблица на экран", { state: { peek: chance(0.5) ? "total" : "round" } });
   else if (r < 0.08 && st.peek) safe("убрать таблицу", { state: { peek: null } });
   else if (r < 0.11) safe("QR для опоздавших", { state: { slide: joinSlide(`j${report.ticks}`) } });
@@ -501,6 +504,11 @@ async function run(): Promise<void> {
     await overlay();
     await sleep(15);
     await hostAct();
+    if (SHOTS) {
+      const w = window as unknown as { robotShot?: (tick: number) => Promise<void> };
+      await sleep(1300);
+      if (w.robotShot) await w.robotShot(report.ticks);
+    }
     if (finishWanted) {
       finishWanted = false;
       count("завершить игру");

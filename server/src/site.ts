@@ -92,7 +92,8 @@ export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
     app.register(fastifyStatic, {
       root: dir,
       wildcard: false,
-      index: [indexFile],
+      // В витрине «/» — showcase.html, а /calc/ (там своего showcase.html нет) — как обычно, его index.html.
+      index: showcase ? [indexFile, "index.html"] : ["index.html"],
       // В витрине полная страница с формами по прямому адресу не открывается (заявки всё равно 404).
       ...(showcase ? { allowedPath: (path: string) => path !== "/index.html" } : {}),
       // reply.sendFile оставляем платформе (она регистрирует свой экземпляр).

@@ -39,12 +39,13 @@ function StatBadge({ stat }: { stat: Stat }) {
   );
 }
 
-function TaskCard({ task, reveal, size = "screen" }: { task: DragonTask; reveal: boolean; size?: "screen" | "phone" }) {
+/** Задание; `options={false}` — без вариантов (на телефоне варианты — кнопки ответа, второй раз не показываем). */
+function TaskCard({ task, reveal, size = "screen", options = true }: { task: DragonTask; reveal: boolean; size?: "screen" | "phone"; options?: boolean }) {
   return (
     <div className={`dr-task dr-task--${size}`}>
       <StatBadge stat={task.stat} />
       <p className="dr-task__text">{task.kind === "dice" ? task.text || "Бросайте кубик!" : task.text}</p>
-      {task.kind === "choice" && (
+      {task.kind === "choice" && options && (
         <ol className="mil-options">
           {task.options.map((o, i) => (
             <li key={i} className={`mil-option${reveal && i === task.correct ? " is-right" : ""}`}>
@@ -208,7 +209,7 @@ export function DragonPlayerView({ session, content, pid, role, myAnswer, sendin
         </div>
       ) : stage === "question" && task.kind === "choice" && canAct ? (
         <>
-          <TaskCard task={task} reveal={false} size="phone" />
+          <TaskCard task={task} reveal={false} size="phone" options={false} />
           <div className="mil-phone-options">
             {task.options.map((o, i) => (
               <button key={i} type="button" className="btn btn--secondary mil-phone-option" disabled={sending} onClick={() => onAnswer({ choice: i })}>

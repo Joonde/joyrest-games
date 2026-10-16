@@ -14,7 +14,7 @@ import { battleOf, closeHeroes, dragonBack, dragonPrimary, maxLives, nextBattle,
 const LETTERS = ["A", "B", "C", "D"];
 
 /**
- * Пульт «Боя с драконом»: «Начать игру» (капитаны выбирают героев) → «Герои выбраны — в бой!» → задание
+ * Пульт «Боя с драконом»: «Выбор героев» (капитаны выбирают героев) → «Начать бой» (активна, когда все команды с телефоном выбрали) → задание
  * («Показать задание» → «Удар!») → «Следующее задание» … → итог боя → «Следующий бой» → награждение.
  */
 export function DragonHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<DragonContent>) {
@@ -73,6 +73,8 @@ export function DragonHostControls({ session, content, answers, participants, co
   const backPlan = dragonBack(session, participants);
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
   const answered = new Set(answers.filter((a) => a.step === step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).map((a) => a.pid));
+  // Ждём выбор героя только от команд с телефоном (без телефона — герой по порядку).
+  const waiting = r.phase === "heroes" ? r.order.filter((p) => participants.some((x) => x.id === p) && !answered.has(p)) : [];
 
   return (
     <div className="stack host-quiz">
@@ -85,9 +87,24 @@ export function DragonHostControls({ session, content, answers, participants, co
       ) : r.order.length === 0 ? (
         <p className="muted">Капитаны выберут героя и разложат {5} очков по свойствам. Команды в бою — в порядке подключения.</p>
       ) : r.phase === "heroes" ? (
-        <p>
-          Героев выбрали: {answered.size} из {r.order.length}. Кто не успеет — получит героя по порядку и свойства по 1.
-        </p>
+        <div className="stack stack--tight">
+          <p>
+            Героев выбрали: {r.order.filter((p) => answered.has(p)).length} из {r.order.length}.
+          </p>
+          {waiting.length > 0 ? (
+            <p className="muted small">
+              Ждём: {waiting.map((p, i) => (
+                <span key={p}>
+                  {i > 0 ? ", " : ""}
+                  <NameText name={name(p)} />
+                </span>
+              ))}
+              . «Начать бой» станет активной, когда все нажмут «В бой с героем».
+            </p>
+          ) : (
+            <p className="success">Все выбрали героев — можно начинать бой.</p>
+          )}
+        </div>
       ) : (
         task &&
         r.phase !== "over" && (
@@ -159,9 +176,28 @@ export function DragonHostControls({ session, content, answers, participants, co
           </>
         )}
         {action === "heroesDone" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => closeHeroes(latest.current, content, list, participants)))}>
-            Герои выбраны — в бой!
-          </button>
+          <>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || waiting.length > 0} onClick={() => void run(fresh((list) => closeHeroes(latest.current, content, list, participants)))}>
+              Начать бой
+            </button>
+            {waiting.length > 0 && (
+              <button
+                type="button"
+                className="btn btn--quiet btn--block"
+                disabled={busy}
+                onClick={() =>
+                  confirm({
+                    title: "Начать бой без них?",
+                    text: "Кто не выбрал, получит героя по порядку и свойства по 1. Начинайте, только если телефон команды не отвечает.",
+                    confirmLabel: "Начать бой",
+                    run: () => run(fresh((list) => closeHeroes(latest.current, content, list, participants))),
+                  })
+                }
+              >
+                Начать без {waiting.length === 1 ? "одной команды" : `${waiting.length} команд`}
+              </button>
+            )}
+          </>
         )}
         {action === "show" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(showTask(session, content, participants))}>

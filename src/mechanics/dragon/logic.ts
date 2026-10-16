@@ -204,7 +204,7 @@ export function heroFromAnswer(value: unknown, index: number): TeamHero {
   return { hero, stats: parseStats(v.stats) };
 }
 
-/** «Герои выбраны — в бой!» */
+/** «Начать бой» (после выбора героев). */
 export function closeHeroes(session: Session, content: DragonContent, answers: Answer[], participants: Participant[]): SessionChange {
   const r = parseDragonResult(session.state.result);
   const order = orderOf(session, participants, r);

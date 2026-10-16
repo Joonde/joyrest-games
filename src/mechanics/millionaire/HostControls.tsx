@@ -108,7 +108,10 @@ export function MillionaireHostControls({ session, content, answers, participant
 
   const action = millionairePrimary(session);
   const backPlan = millionaireBack(session, content, participants);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  // Режим «каждый сам»: вместо команды — игрок.
+  const solo = session.playMode === "solo";
+  const u = solo ? { gen: "игрока", plNom: "игроки", plGen: "игроков" } : { gen: "команды", plNom: "команды", plGen: "команд" };
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (solo ? "Игрок" : "Команда")) : "—");
   const teams = millionaireTeams(session, participants);
   const pick = teamPick(session, answers);
   // Телефон ведущего коротко вибрирует, когда игрок просит подсказку или выбирает ответ (Android; iPhone молчит).
@@ -130,7 +133,7 @@ export function MillionaireHostControls({ session, content, answers, participant
     const l = LIFELINES.find((x) => x.id === id);
     confirm({
       title: `Подсказка «${lifelineTitle(id)}»?`,
-      text: `${l?.hint ?? ""}. У команды «${name(r.turn)}» она пропадёт до конца игры.`,
+      text: `${l?.hint ?? ""}. У ${u.gen} «${name(r.turn)}» она пропадёт до конца игры.`,
       confirmLabel: "Взять подсказку",
       run: () => run((s) => applyLifeline(s, content, answers, id, now)),
     });
@@ -138,13 +141,13 @@ export function MillionaireHostControls({ session, content, answers, participant
 
   return (
     <div className="stack host-quiz">
-      <p className="eyebrow">Кто хочет стать миллионером · {content.players === "one" ? "одна команда" : "команды по очереди"}</p>
+      <p className="eyebrow">Кто хочет стать миллионером · {content.players === "one" ? (solo ? "один игрок" : "одна команда") : `${u.plNom} по очереди`}</p>
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
         <>
           <p className="muted">
-            Вопросов хватит на {teamsCovered(content)} {content.players === "one" ? "игру" : "команд без замен"}. Команды ходят в порядке подключения.
+            Вопросов хватит на {teamsCovered(content)} {content.players === "one" ? "игру" : `${u.plGen} без замен`}. {solo ? "Игроки" : "Команды"} ходят в порядке подключения.
           </p>
           {content.players === "one" && teams.length > 0 && (
             <fieldset className="stack stack--tight">
@@ -163,7 +166,7 @@ export function MillionaireHostControls({ session, content, answers, participant
           )}
         </>
       ) : r.mode === "over" ? (
-        <p>Все команды закончили. Дальше — награждение.</p>
+        <p>Все {u.plNom} закончили. Дальше — награждение.</p>
       ) : (
         <>
           <p>
@@ -207,7 +210,7 @@ export function MillionaireHostControls({ session, content, answers, participant
             <p className={r.locked ? "mil-host-live is-locked" : "mil-host-live"} role="status">
               <span className="mil-host-live__letter">{LETTERS[pick]}</span>
               <span>
-                {r.locked ? "Окончательный ответ" : r.hostPick === null ? "Команда выбрала на телефоне" : "Вы отметили ответ"}: <strong>{q.options[pick]}</strong>
+                {r.locked ? "Окончательный ответ" : r.hostPick === null ? (solo ? "Игрок выбрал на телефоне" : "Команда выбрала на телефоне") : "Вы отметили ответ"}: <strong>{q.options[pick]}</strong>
                 {pick === q.correct ? " ★ верно" : " — неверно"}
               </span>
             </p>
@@ -236,10 +239,10 @@ export function MillionaireHostControls({ session, content, answers, participant
               {stage === "question" && r.mode === "question" && !r.locked && (
                 <>
                   <p className="small">
-                    Ответ команды: <strong>{pick !== null ? LETTERS[pick] : "ещё нет"}</strong>
+                    Ответ {u.gen}: <strong>{pick !== null ? LETTERS[pick] : "ещё нет"}</strong>
                     {pick !== null && r.hostPick === null ? " (с телефона — подсвечен на экране)" : ""}
                   </p>
-                  <div className="mil-host-pick" role="group" aria-label="Отметить ответ команды">
+                  <div className="mil-host-pick" role="group" aria-label={`Отметить ответ ${u.gen}`}>
                     {q.options.map((_, i) =>
                       r.removed.includes(i) ? null : (
                         <button key={i} type="button" className="btn btn--secondary" aria-pressed={r.hostPick === i} disabled={busy} onClick={() => void run((s) => markPick(s, r.hostPick === i ? null : i))}>
@@ -248,7 +251,7 @@ export function MillionaireHostControls({ session, content, answers, participant
                       ),
                     )}
                   </div>
-                  <p className="muted small">Капитан ответил вслух или телефона нет — отметьте ответ команды здесь.</p>
+                  <p className="muted small">{solo ? "Игрок ответил вслух или телефона нет — отметьте его ответ здесь." : "Капитан ответил вслух или телефона нет — отметьте ответ команды здесь."}</p>
                 </>
               )}
               {stage === "reveal" && (
@@ -299,7 +302,7 @@ export function MillionaireHostControls({ session, content, answers, participant
           )}
           {stage === "question" && r.mode === "question" && content.lifelines.length > 0 && (
             <section className="stack stack--tight">
-              <p className="eyebrow">Подсказки команды</p>
+              <p className="eyebrow">Подсказки {u.gen}</p>
               <div className="tiles tiles--small mil-host-lifelines">
                 {LIFELINES.filter((l) => content.lifelines.includes(l.id)).map((l) => {
                   const check = canUseLifeline(session, content, answers, l.id);
@@ -324,7 +327,7 @@ export function MillionaireHostControls({ session, content, answers, participant
             </section>
           )}
           <details className="quest-host__places">
-            <summary>Лестницы команд</summary>
+            <summary>Лестницы {u.plGen}</summary>
             <ol>
               {[...r.order]
                 .sort((a, b) => (r.levels[b] ?? 0) - (r.levels[a] ?? 0))
@@ -346,7 +349,7 @@ export function MillionaireHostControls({ session, content, answers, participant
       <div className="actions">
         {action === "start" && (
           <>
-            {teams.length === 0 && <p className="muted small">Ждём, пока подключатся команды.</p>}
+            {teams.length === 0 && <p className="muted small">Ждём, пока подключатся {u.plNom}.</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || teams.length === 0} onClick={() => void run((s) => startMillionaire(s, participants, content, only ?? teams[0] ?? null))}>
               Начать игру
             </button>
@@ -361,13 +364,13 @@ export function MillionaireHostControls({ session, content, answers, participant
           <>
             {pick !== null && <p className="muted small">Спросите: «{LETTERS[pick]} — это ваш окончательный ответ?»</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run((s) => control.freshAnswers(step).then((fresh) => lockAnswer(s, fresh.length > 0 ? fresh : answers)))}>
-              {pick === null ? "Ждём ответ команды" : `Да, окончательный — ${LETTERS[pick]}`}
+              {pick === null ? `Ждём ответ ${u.gen}` : `Да, окончательный — ${LETTERS[pick]}`}
             </button>
           </>
         )}
         {action === "reveal" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run((s) => control.freshAnswers(step).then((fresh) => revealAnswer(s, content, fresh.length > 0 ? fresh : answers, participants)))}>
-            {pick === null ? "Ждём ответ команды" : `Показать ответ (${LETTERS[pick]})`}
+            {pick === null ? `Ждём ответ ${u.gen}` : `Показать ответ (${LETTERS[pick]})`}
           </button>
         )}
         {action === "audienceDone" && (
@@ -393,7 +396,7 @@ export function MillionaireHostControls({ session, content, answers, participant
         )}
         {action === "next" && (
           <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextTurn(s, content, participants))}>
-            {content.players === "one" ? "Следующий вопрос" : "Следующая команда"}
+            {content.players === "one" ? "Следующий вопрос" : solo ? "Следующий игрок" : "Следующая команда"}
           </button>
         )}
         {action === "wrongChoice" && (() => {
@@ -450,7 +453,7 @@ export function MillionaireHostControls({ session, content, answers, participant
             </button>
           );
           return (
-            <section className="stack stack--tight mil-wrong" aria-label="Что дальше с командой">
+            <section className="stack stack--tight mil-wrong" aria-label={solo ? "Что дальше с игроком" : "Что дальше с командой"}>
               <p className="host-quiz__subtitle">
                 Ошибка. Что дальше с <NameText name={name(r.turn)} />?
               </p>
@@ -493,7 +496,7 @@ export function MillionaireHostControls({ session, content, answers, participant
             onClick={() =>
               confirm({
                 title: "Закончить игру досрочно?",
-                text: "Побеждает команда, поднявшаяся выше всех, — сразу награждение. «Назад» на награждении вернёт к игре.",
+                text: `Побеждает ${solo ? "игрок, поднявшийся" : "команда, поднявшаяся"} выше всех, — сразу награждение. «Назад» на награждении вернёт к игре.`,
                 confirmLabel: "К награждению",
                 run: () => run((s) => awardNow(s)),
               })

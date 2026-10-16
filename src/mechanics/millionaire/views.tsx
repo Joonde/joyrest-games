@@ -255,7 +255,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
             <MillionaireEmblem className="mil-emblem" />
             <span className="quiz-screen__badge mil-screen__badge">Кто хочет стать миллионером</span>
             <h2 className="mil-screen__title">Скоро начнём!</h2>
-            <p className="mil-screen__note">{levelsOf(content)} вопросов, у каждой команды своя лестница. Несгораемые ступени: {content.safe.join(" и ")}.</p>
+            <p className="mil-screen__note">{levelsOf(content)} вопросов, {session.playMode === "solo" ? "у каждого игрока" : "у каждой команды"} своя лестница. Несгораемые ступени: {content.safe.join(" и ")}.</p>
           </>
         ) : r.mode === "over" ? (
           <h2 className="mil-screen__title">Игра окончена!</h2>
@@ -472,7 +472,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
         <p className="muted small mil-watch__level">
           Вопрос {levelToPlay(r, r.turn)} — {pointsLabel(pointsAt(content, levelToPlay(r, r.turn)))}
         </p>
-        <div className="mil-watch__question" aria-label="Вопрос другой команды">
+        <div className="mil-watch__question" aria-label={session.playMode === "solo" ? "Вопрос другого игрока" : "Вопрос другой команды"}>
           <QuestionCard question={q} result={r} reveal={stage === "reveal"} size="phone" />
         </div>
         {stage === "reveal" && <p className={r.outcome === "right" ? "success" : "muted"}>{r.outcome === "right" ? "Они ответили верно!" : r.outcome === "saved" ? "Ошибка, но их спасло право на ошибку" : "Они ошиблись"}</p>}
@@ -529,7 +529,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
       {mine && callLeft > 0 && stage === "question" && (
         <p className="mil-call mil-call--phone">
           📞 Звонок другу · {clockLeft(callLeft)}
-          {role !== "member" ? " — выберите одного из команды и поговорите наедине" : ""}
+          {role === "member" ? "" : session.playMode === "solo" ? " — позвоните другу или выберите гостя из зала" : " — выберите одного из команды и поговорите наедине"}
         </p>
       )}
       {mine && r.tip && stage === "question" && <p className="mil-phone-status">💡 Совет ведущего — слушайте ведущего{r.tipText ? `: ${r.tipText}` : ""}</p>}

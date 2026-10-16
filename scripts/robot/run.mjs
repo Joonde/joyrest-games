@@ -32,7 +32,7 @@ const MECHANICS = {
   board: { modes: ["solo", "teams"], demos: 1 },
   checkers: { modes: ["teams"], demos: 1, players: [2] },
   dance: { modes: ["teams"], demos: 1 },
-  stage: { modes: ["teams", "solo"], demos: 2 },
+  stage: { modes: ["teams"], demos: 2 },
   quest: { modes: ["teams"], demos: 2 },
   millionaire: { modes: ["teams", "solo"], demos: 1 },
   hundred: { modes: ["teams", "solo"], demos: 4 },

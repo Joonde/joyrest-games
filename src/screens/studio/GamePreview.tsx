@@ -38,7 +38,9 @@ interface Props {
  * Предпросмотр игры: она проходит сама с тестовыми командами, ведущий листает моменты «Назад / Дальше»
  * и смотрит, что в этот момент на экране зала, на телефоне любой команды и на пульте.
  */
-export function GamePreview({ open, onClose, mechanic, content, playMode, themeId }: Props) {
+export function GamePreview({ open, onClose, mechanic, content, playMode: wanted, themeId }: Props) {
+  // Режим, который механика поддерживает (как при запуске): «Шашки» — команды, «Мафия» — каждый сам.
+  const playMode: PlayMode = mechanic.supports[wanted] ? wanted : wanted === "solo" ? "teams" : "solo";
   const [view, setView] = useState<View>("screen");
   const [index, setIndex] = useState(0);
   const [phoneAt, setPhoneAt] = useState(0);

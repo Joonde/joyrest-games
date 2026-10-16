@@ -13,7 +13,7 @@ const DanceEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Danc
 export const dance: Mechanic<DanceContent, DanceAnswerValue> = {
   id: "dance",
   title: "Танцевальный батл",
-  supports: { solo: true, teams: true, noScreen: false },
+  supports: { solo: false, teams: true, noScreen: false },
   // Счётчик «Ответили» пульт механики пишет сам.
   ownAnswered: true,
   create: createDance,

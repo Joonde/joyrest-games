@@ -1,5 +1,5 @@
 import { durationLine } from "../core/eventTime";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { formatClock, formatDate } from "../core/format";
 import { participantsLabel } from "../core/results";
 import { resultsRepo, useAuth, useLoad, type GameResult } from "../data";
@@ -27,6 +27,9 @@ function ResultsView({ result }: { result: GameResult }) {
   useTheme(result.themeId);
   // Ведущий возвращается в студию, гость — на главную (оттуда можно войти в новую игру).
   const host = auth.status === "signedIn" && auth.profile !== null;
+  // Пришли с телефона игры (финал: отзыв, чаевые, канал) — туда же и обратно.
+  const from = (useLocation().state as { back?: unknown } | null)?.back;
+  const back = typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : null;
   const started = result.startedAt ?? null;
   const finished = result.finishedAt ?? null;
   const meta = [
@@ -38,6 +41,11 @@ function ResultsView({ result }: { result: GameResult }) {
 
   return (
     <main className="page">
+      {back && (
+        <Link className="btn btn--secondary back-link" to={back}>
+          ← Назад к отзыву
+        </Link>
+      )}
       <Logo kind="monogram" className="logo--mark" title="JoyRest" />
       <header className="stack stack--tight page-heading">
         <p className="eyebrow">Итоги игры</p>
@@ -50,6 +58,11 @@ function ResultsView({ result }: { result: GameResult }) {
       </section>
       <ShareResults result={result} onToast={showToast} primary />
       <div className="actions">
+        {back && (
+          <Link className="btn btn--block" to={back}>
+            ← Назад к отзыву и чаевым
+          </Link>
+        )}
         <Link className="btn btn--quiet btn--block" to={host ? "/studio" : "/"}>
           {host ? "В студию" : "На главную"}
         </Link>

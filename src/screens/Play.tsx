@@ -650,7 +650,7 @@ function FinalCard({ session, pid }: { session: Session; pid: string }) {
       )}
       {session.program && <EveningTable program={session.program} board={session.leaderboard} limit={5} me={pid} />}
       <div className="actions">
-        <Link className="btn btn--secondary btn--block" to={`/results/${session.id}`}>
+        <Link className="btn btn--secondary btn--block" to={`/results/${session.id}`} state={{ back: `${location.pathname}${location.search}` }}>
           Итоги игры
         </Link>
       </div>

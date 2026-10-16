@@ -452,20 +452,20 @@ describe("тексты и устройство страницы", () => {
     }
   });
 
-  it("обзор игр: 33 игры без «Олимпа», фильтр со счётчиками, правила у каждой", () => {
+  it("обзор игр: 37 игр без «Олимпа», фильтр со счётчиками, правила у каждой", () => {
     const games = [...html.matchAll(/<article class="game" data-cat="(\w+)"( data-phone)?>/g)];
-    expect(games).toHaveLength(33);
-    expect(games.filter((g) => g[2])).toHaveLength(17);
+    expect(games).toHaveLength(37);
+    expect(games.filter((g) => g[2])).toHaveLength(22);
     expect(plain + js).not.toMatch(/олимп/i);
-    const counts: Record<string, number> = { all: 33, phone: 17, quiz: 5, tv: 2, music: 3, dance: 3, cards: 5, active: 5, party: 6, out: 3, custom: 1 };
+    const counts: Record<string, number> = { all: 37, phone: 22, quiz: 6, tv: 3, music: 3, dance: 3, cards: 6, active: 5, party: 7, out: 3, custom: 1 };
     for (const [key, n] of Object.entries(counts)) {
       expect(html, key).toMatch(new RegExp(`data-filter="${key}"[^>]*>[^<]+<span class="filter__n">${n}</span>`));
     }
     const keys = [...html.matchAll(/class="game__rules" data-rule-key="([\w-]+)"/g)].map((m) => m[1]);
-    expect(keys).toHaveLength(33);
+    expect(keys).toHaveLength(37);
     for (const key of keys) expect(js, key).toContain(`'${key}': { title:`);
     // Снимки — настоящие экраны и карточки платформы, с понятным описанием.
-    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "cards-durak", "cards-loto", "game-board", "game-millionaire", "game-dragon", "game-checkers"]) {
+    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "cards-durak", "cards-loto", "game-board", "game-millionaire", "game-dragon", "game-checkers", "game-survival", "game-sweet", "game-alco", "game-meet", "game-hundred", "game-perudo", "game-wager", "game-wine", "cards-spy"]) {
       expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
     }
     // У каждой игры картинка: снимок платформы или своя обложка, без латинской подписи «JOYREST».

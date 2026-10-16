@@ -305,28 +305,28 @@
     </div>
   </section>
 
-  <!-- Обзор игр: 33 игры (Олимп пока не показываем — решение владельца 12 октября 2026). Снимки — настоящие
+  <!-- Обзор игр: 37 игр (Олимп пока не показываем — решение владельца 12 октября 2026). Снимки — настоящие
        экраны и карточки платформы (img/), у игр без снимка — обложка в цветах раздела. Фильтр и «Показать ещё» — js/script.js. -->
   <section id="games" class="section">
     <div class="wrap">
       <p class="eyebrow">Обзор игр</p>
       <h2>Выберите, во что играть</h2>
-      <p class="sub">33 игры JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
+      <p class="sub">37 игр JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
       <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
       <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
         <span class="promo__thumb"><img src="img/promo-poster.webp" width="360" height="640" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
         <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
       </button>
       <div class="filters" role="group" aria-label="Фильтр игр">
-        <button type="button" class="filter is-on" data-filter="all" aria-pressed="true">Все игры<span class="filter__n">33</span></button>
-        <button type="button" class="filter" data-filter="phone" aria-pressed="false">С телефонов<span class="filter__n">17</span></button>
-        <button type="button" class="filter" data-filter="quiz" aria-pressed="false">Квизы<span class="filter__n">5</span></button>
-        <button type="button" class="filter" data-filter="tv" aria-pressed="false">Телешоу<span class="filter__n">2</span></button>
+        <button type="button" class="filter is-on" data-filter="all" aria-pressed="true">Все игры<span class="filter__n">37</span></button>
+        <button type="button" class="filter" data-filter="phone" aria-pressed="false">С телефонов<span class="filter__n">22</span></button>
+        <button type="button" class="filter" data-filter="quiz" aria-pressed="false">Квизы<span class="filter__n">6</span></button>
+        <button type="button" class="filter" data-filter="tv" aria-pressed="false">Телешоу<span class="filter__n">3</span></button>
         <button type="button" class="filter" data-filter="music" aria-pressed="false">Музыкальные<span class="filter__n">3</span></button>
         <button type="button" class="filter" data-filter="dance" aria-pressed="false">Танцевальные<span class="filter__n">3</span></button>
-        <button type="button" class="filter" data-filter="cards" aria-pressed="false">Карточные<span class="filter__n">5</span></button>
+        <button type="button" class="filter" data-filter="cards" aria-pressed="false">Карточные<span class="filter__n">6</span></button>
         <button type="button" class="filter" data-filter="active" aria-pressed="false">Активные настолки<span class="filter__n">5</span></button>
-        <button type="button" class="filter" data-filter="party" aria-pressed="false">Вечеринка<span class="filter__n">6</span></button>
+        <button type="button" class="filter" data-filter="party" aria-pressed="false">Вечеринка<span class="filter__n">7</span></button>
         <button type="button" class="filter" data-filter="out" aria-pressed="false">На улице<span class="filter__n">3</span></button>
         <button type="button" class="filter" data-filter="custom" aria-pressed="false">Под заказ<span class="filter__n">1</span></button>
       </div>
@@ -376,6 +376,15 @@
             <div class="game__foot"><span class="game__pack">Пакет: Квиз</span><button type="button" class="game__rules" data-rule-key="quiz-dance">Правила</button></div>
           </div>
         </article>
+        <article class="game" data-cat="quiz" data-phone>
+          <div class="game__media"><img src="img/game-wager.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Держи пари»: правильный ответ 330 м, догадки команд по возрастанию с коэффициентами и фишки на самой точной"></div>
+          <div class="game__body">
+            <p class="game__cat">Квизы<span class="game__phone"> · с телефонов</span></p>
+            <h3>Держи пари</h3>
+            <p>Ответ — всегда число. Команды пишут догадки, потом ставят фишки на самую точную — выиграть можно, даже не зная ответа.</p>
+            <div class="game__foot"><span class="game__pack">Пакет: Квиз</span><button type="button" class="game__rules" data-rule-key="wager">Правила</button></div>
+          </div>
+        </article>
         <article class="game" data-cat="tv" data-phone>
           <div class="game__media"><img src="img/game-board.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Своей игры»: поле категорий Кино, География, Праздники, Еда со стоимостями вопросов"></div>
           <div class="game__body">
@@ -392,6 +401,15 @@
             <h3>Кто хочет стать миллионером</h3>
             <p>12 ступеней, несгораемые суммы и подсказки: 50 на 50, помощь зала, звонок другу.</p>
             <div class="game__foot"><span class="game__pack">Пакет: Шоу-вечер</span><button type="button" class="game__rules" data-rule-key="millionaire">Правила</button></div>
+          </div>
+        </article>
+        <article class="game" data-cat="tv" data-phone>
+          <div class="game__media"><img src="img/game-hundred.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «100 к 1»: табло ответов «Что дарят молодожёнам», открытые строки с очками и банк раунда"></div>
+          <div class="game__body">
+            <p class="game__cat">Телешоу<span class="game__phone"> · с телефонов</span></p>
+            <h3>100 к 1</h3>
+            <p>Угадайте самые популярные ответы: табло, «кто первый» на телефоне, три ошибки — шанс соперникам, «Большая игра» в финале.</p>
+            <div class="game__foot"><span class="game__pack">Пакет: Шоу-вечер</span><button type="button" class="game__rules" data-rule-key="hundred">Правила</button></div>
           </div>
         </article>
         <article class="game" data-cat="music" data-phone>
@@ -484,17 +502,26 @@
             <div class="game__foot"><span class="game__pack">Пакет: Игровой вечер</span><button type="button" class="game__rules" data-rule-key="durak">Правила</button></div>
           </div>
         </article>
-        <article class="game" data-cat="cards">
-          <div class="game__media game__media--art"><img src="img/cover-spy.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+        <article class="game" data-cat="cards" data-phone>
+          <div class="game__media"><img src="img/cards-spy.webp" width="1400" height="475" loading="lazy" decoding="async" alt="Карты «Шпиона»: рубашка, две карты локации «Университет» с ролями и карта шпиона в шляпе"></div>
           <div class="game__body">
-            <p class="game__cat">Карточные</p>
+            <p class="game__cat">Карточные<span class="game__phone"> · с телефонов</span></p>
             <h3>Шпион</h3>
             <p>Один не знает секрет — вычисляем его наводящими вопросами.</p>
             <div class="game__foot"><span class="game__pack">Пакет: Игровой вечер</span><button type="button" class="game__rules" data-rule-key="spy">Правила</button></div>
           </div>
         </article>
+        <article class="game" data-cat="cards" data-phone>
+          <div class="game__media"><img src="img/game-perudo.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Перудо»: вскрытие — на столе 6 двоек, ставка честная, кости всех команд"></div>
+          <div class="game__body">
+            <p class="game__cat">Карточные<span class="game__phone"> · с телефонов</span></p>
+            <h3>Перудо — кости лжеца</h3>
+            <p>Как в «Пиратах Карибского моря»: свои кости — на телефоне, ставки на весь стол и «Не верю!».</p>
+            <div class="game__foot"><span class="game__pack">Пакет: Игровой вечер</span><button type="button" class="game__rules" data-rule-key="perudo">Правила</button></div>
+          </div>
+        </article>
         <article class="game" data-cat="active" data-phone>
-          <div class="game__media"><img src="img/game-dragon.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Боя с драконом»: дракон со шкалой здоровья, вопрос и герои команд"></div>
+          <div class="game__media"><img src="img/game-dragon.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Боя с драконом»: команда бьёт дракона катаной, шкала здоровья, вопрос и карточки команд"></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки<span class="game__phone"> · с телефонов</span></p>
             <h3>Бой с драконом</h3>
@@ -503,7 +530,7 @@
           </div>
         </article>
         <article class="game" data-cat="active" data-phone>
-          <div class="game__media game__media--art"><img src="img/cover-survival.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/game-survival.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Гонки на выживание»: войнушка — вопрос, банк 200 очков и дорожки команд с болидами"></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки<span class="game__phone"> · с телефонов</span></p>
             <h3>Гонка на выживание</h3>
@@ -521,7 +548,7 @@
           </div>
         </article>
         <article class="game" data-cat="active">
-          <div class="game__media game__media--art"><img src="img/cover-sweet.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/game-sweet.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Сладких приключений»: поле-змейка с фишками команд, кубик и задание «Ламбада» паровозиком"></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки</p>
             <h3>Сладкие приключения</h3>
@@ -530,7 +557,7 @@
           </div>
         </article>
         <article class="game" data-cat="active">
-          <div class="game__media game__media--art"><img src="img/cover-alco.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/game-alco.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Алкогольных приключений»: поле-змейка, кубик и задание изобразить бармена"></div>
           <div class="game__body">
             <p class="game__cat">Активные настолки</p>
             <h3>Алкогольные приключения · 18+</h3>
@@ -539,7 +566,7 @@
           </div>
         </article>
         <article class="game" data-cat="party" data-phone>
-          <div class="game__media game__media--art"><img src="img/cover-meet.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/game-meet.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Давайте знакомиться»: «Чья это история?» — случай из жизни гостя на открытке"></div>
           <div class="game__body">
             <p class="game__cat">Вечеринка<span class="game__phone"> · с телефонов</span></p>
             <h3>Давайте знакомиться</h3>
@@ -590,6 +617,15 @@
             <h3>Живой оркестр</h3>
             <p>Каждый гость — «инструмент» в импровизированном оркестре зала.</p>
             <div class="game__foot"><span class="game__pack">Пакет: Игровой вечер</span><button type="button" class="game__rules" data-rule-key="orchestra">Правила</button></div>
+          </div>
+        </article>
+        <article class="game" data-cat="party" data-phone>
+          <div class="game__media"><img src="img/game-wine.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Экран «Винного казино»: паспорт открытой бутылки — Совиньон Блан из Новой Зеландии — и выигравшие ячейки поля ставок"></div>
+          <div class="game__body">
+            <p class="game__cat">Вечеринка<span class="game__phone"> · с телефонов</span></p>
+            <h3>Винное казино · 18+</h3>
+            <p>Дегустация как казино: гости пробуют вино и ставят фишки на цвет, страну, сорт и год. Открываем бутылку — выигрыши по коэффициентам.</p>
+            <div class="game__foot"><span class="game__pack">Пакет: Игровой вечер</span><button type="button" class="game__rules" data-rule-key="wine">Правила</button></div>
           </div>
         </article>
         <article class="game" data-cat="out">
@@ -847,8 +883,10 @@
                 <option>Квиз под компанию</option>
                 <option>Квиз с элементами игр</option>
                 <option>Квиз с музыкой и танцами</option>
+                <option>Держи пари</option>
                 <option>Своя игра</option>
                 <option>Кто хочет стать миллионером</option>
+                <option>100 к 1</option>
                 <option>Угадай мелодию</option>
                 <option>Музыкальное лото</option>
                 <option>«Спой лучше всех»</option>
@@ -860,12 +898,14 @@
                 <option>Правда или действие</option>
                 <option>Дурак</option>
                 <option>Шпион</option>
+                <option>Перудо — кости лжеца</option>
                 <option>Бой с драконом</option>
                 <option>Гонка на выживание</option>
                 <option>Шашки</option>
                 <option>Сладкие приключения</option>
                 <option>Алкогольные приключения · 18+</option>
                 <option>Давайте знакомиться</option>
+                <option>Винное казино · 18+</option>
                 <option>Большой переполох</option>
                 <option>Битва тостов</option>
                 <option>Замри! Живые скульптуры</option>

@@ -5,7 +5,7 @@ import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
 import type { EditorProps } from "../types";
 import { ShowLookPicker } from "../ShowLookPicker";
-import type { ShowLook } from "../showLook";
+import { TABLE_LOOKS, type ShowLook } from "../showLook";
 import {
   HUNDRED_LIMITS,
   IMPORT_EXAMPLE,
@@ -32,6 +32,7 @@ const LOOK_HINTS: Partial<Record<ShowLook, string>> = {
   classic: "Табло в цветах оформления игры.",
   studio: "Телестудия: синие прожекторы, светящиеся строки табло, золотые очки.",
   evening: "Тёмный зал в стиле ар-деко: золото и тёплый свет JoyRest.",
+  table: "Игровой стол: карты, кубики и красная кнопка, золото на тёмном мраморе.",
 };
 
 const KIND_HINTS: Record<RoundKind, string> = {
@@ -238,7 +239,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
           </Fold>
         )}
         <Fold title="Оформление экрана зала" value={content.look === "classic" ? "Классика" : content.look === "evening" ? "Вечер JoyRest" : "Студия"}>
-          <ShowLookPicker game="hundred" value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
+          <ShowLookPicker game="hundred" looks={TABLE_LOOKS} value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
         </Fold>
       </section>
 

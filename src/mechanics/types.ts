@@ -131,6 +131,11 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
    * слайдов, «+10 секунд», «Наградить сейчас»), экран зала не показывает слайды и общий фон.
    */
   standalone?: { themeId: string };
+  /**
+   * Нарисованный фон экрана зала во время игры (Figma AI, `public/covers/art/web/<имя>.webp`), только в базовых
+   * темах JoyRest — сезонные и праздничные темы остаются со своим живым фоном. null — без фона.
+   */
+  art?: (content: Content) => string | null;
   /** Встроенная музыка момента на экране зала (заставка вопроса, выбор в суперигре); null — нет. */
   music?: (session: Session, content: Content) => MusicMoment | null;
   /**

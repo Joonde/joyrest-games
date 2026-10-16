@@ -25,4 +25,5 @@ export const truth: Mechanic<TruthContent, TruthAnswerValue> = {
   score,
   validate: validateTruth,
   preview: { driver: truthPreview, teams: 3, limit: 40 },
+  art: () => "truth",
 };

@@ -16206,6 +16206,66 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   --show-safe: #e3c68c;
 }
 
+/* «Игровой стол» (Своя игра, 100 к 1): карты, кубики, кнопка — тёмный мрамор и золото, палитра как у «Вечера JoyRest». */
+.show-stage--table {
+  --color-text: #fbf6f1;
+  --color-text-muted: #cfc4b6;
+  --color-surface: #241e19;
+  --color-surface-alt: #30281f;
+  --color-border: rgba(227, 198, 140, 0.35);
+  --color-highlight: #e3c68c;
+  --show-bg: #1a1714;
+  --show-ink: #fbf6f1;
+  --show-letter: #e3c68c;
+  --show-price: #f3dfae;
+  --show-price-glow: rgba(227, 198, 140, 0.45);
+  --show-frame: linear-gradient(180deg, #f3dfae 0%, #b8955a 50%, #e9cf93 100%);
+  --show-frame-solid: #c7a768;
+  --show-plate: linear-gradient(180deg, #2e2620 0%, #1f1a15 55%, #15110e 100%);
+  --show-cell: linear-gradient(180deg, rgba(255, 240, 210, 0.12), rgba(255, 240, 210, 0) 46%), linear-gradient(170deg, #3b3027 0%, #2a221c 55%, #1a1511 100%);
+  --show-cell-line: rgba(227, 198, 140, 0.75);
+  --show-cell-glow: rgba(227, 198, 140, 0.22);
+  --show-cell-halo: rgba(199, 167, 104, 0.3);
+  --show-cell-off: rgba(30, 25, 21, 0.55);
+  --show-title: linear-gradient(180deg, rgba(42, 34, 28, 0.94), rgba(26, 22, 18, 0.94));
+  --show-title-ink: #f3dfae;
+  --show-current: #c49e96;
+  --show-ladder: rgba(22, 18, 15, 0.85);
+  --show-step: rgba(199, 167, 104, 0.18);
+  --show-safe: #e3c68c;
+}
+
+/* Нарисованный фон игры на экране зала (`Mechanic.art`): картина и затемнение под текстом, палитра «Вечер JoyRest». */
+.quiz-stage.hall-art {
+  --show-art: var(--hall-art);
+  --show-shade: radial-gradient(ellipse 70% 66% at 50% 50%, rgba(14, 11, 9, 0.72), rgba(14, 11, 9, 0.42) 78%, rgba(14, 11, 9, 0.25));
+}
+
+@media (min-width: 1400px) {
+  .quiz-stage.hall-art {
+    --show-art: var(--hall-art-hd);
+  }
+}
+
+.board-screen.show-stage--table,
+.hd-screen.show-stage--table {
+  --show-art: url("/covers/art/web/board-1280.webp");
+  --show-shade: radial-gradient(ellipse 64% 62% at 50% 48%, rgba(14, 11, 9, 0.66), rgba(14, 11, 9, 0.3) 78%, rgba(14, 11, 9, 0.12));
+}
+
+@media (min-width: 1400px) {
+  .board-screen.show-stage--table,
+  .hd-screen.show-stage--table {
+    --show-art: url("/covers/art/web/board.webp");
+  }
+}
+
+.show-look__thumb--board-table,
+.show-look__thumb--hundred-table {
+  background-image: url("/covers/art/web/board-1280.webp");
+}
+
+
 /* Фоны: на телевизоре — 1920 px, в предпросмотре и на небольших экранах — 1280 px. */
 .board-screen.show-stage--studio {
   --show-art: url("/shows/art/web/board-studio-1280.webp");

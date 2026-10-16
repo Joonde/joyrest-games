@@ -424,6 +424,9 @@ function TeamsPresentation({ session }: { session: Session }) {
   );
 }
 
+/** Базовые темы JoyRest: в них у игр с нарисованным фоном (`Mechanic.art`) — картина вместо живого фона темы. */
+const BASE_THEMES = new Set(["joyrest", "joyrest-day"]);
+
 function Playing({ session }: { session: Session }) {
   const mechanic = getMechanic(session.mechanic);
   const content = useMemo(
@@ -435,8 +438,13 @@ function Playing({ session }: { session: Session }) {
   const peek = session.state.peek ?? null;
   // QR для опоздавших сам больше не всплывает (закрывал поле игры): его показывает и убирает ведущий —
   // «QR для опоздавших на экран» на пульте. Внизу остаётся только строка с адресом и кодом.
+  // Нарисованный фон игры — только в базовых темах JoyRest (сезонные и праздничные — со своим живым фоном).
+  const art = content !== null && !peek && stage !== "podium" && BASE_THEMES.has(session.themeId) ? (mechanic?.art?.(content) ?? null) : null;
   return (
-    <main className="quiz-stage">
+    <main
+      className={art ? "quiz-stage show-stage show-stage--evening hall-art" : "quiz-stage"}
+      style={art ? ({ ["--hall-art" as string]: `url("/covers/art/web/${art}-1280.webp")`, ["--hall-art-hd" as string]: `url("/covers/art/web/${art}.webp")` } as CSSProperties) : undefined}
+    >
       <Logo kind="monogram" className="logo--corner" title="" />
       <ClientLogo branding={session.branding} className="client-logo--corner" />
       {peek ? (

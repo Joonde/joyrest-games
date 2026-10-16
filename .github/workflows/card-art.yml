@@ -8,7 +8,7 @@ name: Картинки карт
 on:
   push:
     branches: ["claude/**"]
-    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/dance/art/manifest.json]
+    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/dance/art/manifest.json, docs/site-extras/art/manifest.json]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           added=0
-          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art; do
+          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art docs/site-extras/art; do
             [ -f "$dir/manifest.json" ] || continue
             while IFS=$'\t' read -r file url; do
               case "$file" in (*/*|.*|"") echo "Плохое имя файла: $file"; exit 1;; esac
@@ -42,7 +42,7 @@ jobs:
             done < <(jq -r '.files[] | [.file, .url] | @tsv' "$dir/manifest.json")
           done
           echo "ADDED=$added" >> "$GITHUB_ENV"
-      - name: Лёгкие WebP для «Шпиона» и «Батла»
+      - name: Лёгкие WebP для «Шпиона», «Батла» и обложек сайта
         if: env.ADDED != '0'
         run: |
           pip install --quiet pillow
@@ -59,12 +59,22 @@ jobs:
                   im.thumbnail((1920, 1080) if wide else (720, 960))
                   im.save(t, "WEBP", quality=78 if wide else 80, method=6)
                   print("WebP:", t, t.stat().st_size)
+          # Обложки игр сайта: оригиналы — docs/site-extras/art, на сайт — site/img/cover-*.webp (1280×720)
+          for p in sorted(Path("docs/site-extras/art").glob("cover-*.png")):
+              t = Path("site/img") / (p.stem + ".webp")
+              if t.exists(): continue
+              im = Image.open(p).convert("RGB")
+              w, h = im.size; th = round(w * 9 / 16)
+              if th < h: im = im.crop((0, (h - th) // 2, w, (h - th) // 2 + th))
+              im = im.resize((1280, 720), Image.LANCZOS)
+              im.save(t, "WEBP", quality=80, method=6)
+              print("WebP:", t, t.stat().st_size)
           PY
       - name: Сохраняю в ветку
         if: env.ADDED != '0'
         run: |
           git config user.name "joyrest-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art
+          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art docs/site-extras/art site/img
           git commit -m "Картинки: скачано $ADDED [no-test]"
           git push

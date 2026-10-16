@@ -42,7 +42,7 @@ function ResultsView({ result }: { result: GameResult }) {
   return (
     <main className="page">
       {back && (
-        <Link className="btn btn--secondary back-link" to={back}>
+        <Link className="btn btn--quiet back-link" to={back}>
           ← Назад к отзыву
         </Link>
       )}

@@ -127,8 +127,14 @@
       body.appendChild(totals);
       var hint = document.createElement('p');
       hint.className = 'small muted';
-      hint.textContent = '«Новые лица» и «Первый старт» — молодые ведущие JoyRest. Коснитесь цены, чтобы выбрать формат.';
+      hint.textContent = 'Коснитесь цены, чтобы выбрать формат ведущего.';
       body.appendChild(hint);
+      var help = document.createElement('button');
+      help.type = 'button';
+      help.className = 'help';
+      help.innerHTML = '<b aria-hidden="true">?</b><span>Чем отличаются ведущие</span>';
+      help.addEventListener('click', openLevels);
+      body.appendChild(help);
       var chosen = r.totals.filter(function (t) { return t.id === state.level; })[0] || r.totals[0];
       $('barLabel').textContent = chosen.name;
       $('barSum').textContent = money(chosen.price);
@@ -215,6 +221,14 @@
   $('sClose').addEventListener('click', closeSheet);
   sheet.addEventListener('click', function (ev) { if (ev.target === sheet) closeSheet(); });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeSheet(); });
+
+  // «?» у трёх цен: чем отличаются форматы ведущих.
+  var lv = $('lvSheet'), lvFrom = null;
+  function openLevels(e) { lvFrom = e && e.currentTarget; lv.hidden = false; document.body.style.overflow = 'hidden'; $('lvClose').focus(); }
+  function closeLevels() { if (lv.hidden) return; lv.hidden = true; document.body.style.overflow = ''; if (lvFrom && document.body.contains(lvFrom)) lvFrom.focus(); }
+  $('lvClose').addEventListener('click', closeLevels);
+  lv.addEventListener('click', function (ev) { if (ev.target === lv) closeLevels(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeLevels(); });
 
   $('send').addEventListener('click', send);
   $('barSend').addEventListener('click', send);

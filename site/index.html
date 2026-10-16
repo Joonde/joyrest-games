@@ -58,6 +58,26 @@
     </div>
   </div>
 </div>
+<!-- «?» у трёх цен калькулятора: чем отличаются форматы ведущих (тексты — из раздела «Кто проведёт ваш вечер»). -->
+<div class="vmodal send-sheet" id="levelsSheet" role="dialog" aria-modal="true" aria-labelledby="levelsSheetTitle" hidden>
+  <div class="send-sheet__box">
+    <h3 id="levelsSheetTitle">Чем отличаются ведущие</h3>
+    <p class="send-sheet__hint">Программа, игры, реквизит и оборудование во всех форматах одинаковые — разница только в опыте ведущего.</p>
+    <dl class="levels-help">
+      <dt>Опытный</dt>
+      <dd>Ведущие JoyRest с опытом праздников: держат темп вечера, подстраиваются под гостей и спокойно справляются с неожиданностями.</dd>
+      <dt>Новые лица <span>−20%</span></dt>
+      <dd>Уже провели свои первые праздники и набирают опыт. Много энергии и свежих идей. Сценарий готовят вместе с опытным ведущим JoyRest.</dd>
+      <dt>Первый старт <span>−35%</span></dt>
+      <dd>Ваш праздник станет для ведущего одним из первых. Сценарий готовят с опытным ведущим и заранее репетируют — максимальный эксперимент и максимальная скидка.</dd>
+    </dl>
+    <p class="send-sheet__hint">Хотите без сюрпризов — выбирайте «Опытный». За эксперимент и экономию — «Новые лица» или «Первый старт».</p>
+    <div class="send-sheet__actions">
+      <a class="hbtn hbtn--secondary" id="levelsMore" href="#hosts">Подробнее о ведущих</a>
+      <button type="button" class="send-sheet__close" id="levelsClose">Понятно</button>
+    </div>
+  </div>
+</div>
 <div class="vmodal" id="promoModal" role="dialog" aria-modal="true" aria-label="Ролик ДжойРест: все форматы за 30 секунд" hidden>
   <div class="vmodal__box">
     <video id="promoVideo" playsinline controls preload="none"><source src="img/promo.mp4" type="video/mp4"></video>
@@ -248,7 +268,7 @@
           </div>
         </div>
         <aside class="summary" id="calcSummary" aria-live="polite">
-          <p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p>
+          <div class="summary__head"><p class="summary__label">Итого за вечер — коснитесь, чтобы выбрать ведущего</p><button type="button" class="qhelp" id="levelsHelp" aria-haspopup="dialog" aria-label="Чем отличаются ведущие" title="Чем отличаются ведущие">?</button></div>
           <div class="summary__indiv" id="calcIndiv" hidden>
             <p class="summary__indiv-title">Обсудим индивидуально</p>
             <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>

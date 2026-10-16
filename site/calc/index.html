@@ -141,6 +141,13 @@
   .sheet__box { width: min(100%, 420px); background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 24px; display: grid; gap: 12px; }
   .sheet__box h2 { margin-bottom: 4px; }
   .sheet__box a.btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+  .help { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0; border: 0; background: none; color: var(--ink); font-weight: 600; cursor: pointer; text-align: left; }
+  .help b { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--gold); font-weight: 600; }
+  .help:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+  .lv { margin: 0; display: grid; gap: 4px; max-height: 50vh; overflow: auto; }
+  .lv dt { font-weight: 600; margin-top: 8px; }
+  .lv dt span { color: var(--gold); }
+  .lv dd { margin: 0; color: var(--ink-soft); font-size: 15px; }
   .sheet__close { min-height: 48px; border: 0; background: none; color: var(--ink-soft); cursor: pointer; }
   footer { color: var(--ink-soft); font-size: 15px; display: grid; gap: 6px; }
   a { color: var(--gold); }
@@ -211,6 +218,22 @@
   <button type="button" class="btn" id="barSend">Отправить</button>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
+<div class="sheet" id="lvSheet" role="dialog" aria-modal="true" aria-labelledby="lvTitle" hidden>
+  <div class="sheet__box">
+    <h2 id="lvTitle">Чем отличаются ведущие</h2>
+    <p class="small muted">Программа, игры, реквизит и оборудование во всех форматах одинаковые — разница только в опыте ведущего.</p>
+    <dl class="lv">
+      <dt>Опытный</dt>
+      <dd>Ведущие JoyRest с опытом праздников: держат темп вечера, подстраиваются под гостей и спокойно справляются с неожиданностями.</dd>
+      <dt>Новые лица <span>−20%</span></dt>
+      <dd>Уже провели свои первые праздники и набирают опыт. Много энергии и свежих идей. Сценарий готовят вместе с опытным ведущим JoyRest.</dd>
+      <dt>Первый старт <span>−35%</span></dt>
+      <dd>Ваш праздник станет для ведущего одним из первых. Сценарий готовят с опытным ведущим и заранее репетируют — максимальный эксперимент и максимальная скидка.</dd>
+    </dl>
+    <p class="small muted">Хотите без сюрпризов — выбирайте «Опытный». За эксперимент и экономию — «Новые лица» или «Первый старт».</p>
+    <button type="button" class="btn" id="lvClose">Понятно</button>
+  </div>
+</div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
   <div class="sheet__box">
     <h2 id="sheetTitle">Куда отправить расчёт?</h2>

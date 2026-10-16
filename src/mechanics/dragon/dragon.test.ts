@@ -47,7 +47,7 @@ describe("Бой с драконом: содержимое и герои", () =>
   });
 
   it("урон: база × (1 + свойство), силы героев", () => {
-    const task = { id: "t", kind: "choice" as const, stat: "mind" as const, text: "", options: [], correct: 0, power: 100, seconds: 0 };
+    const task = { id: "t", kind: "choice" as const, stat: "mind" as const, text: "", solo: "", options: [], correct: 0, power: 100, seconds: 0 };
     const stats = { str: 0, mind: 2, agi: 0, luck: 0, cha: 0 };
     expect(damageOf(task, { hero: "knight", stats }, true, null, false)).toBe(300);
     expect(damageOf(task, { hero: "sorceress", stats }, true, null, false)).toBe(450);

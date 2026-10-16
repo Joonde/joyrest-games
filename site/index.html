@@ -25,8 +25,8 @@
 
 <a class="skip" href="#calculator">К калькулятору</a>
 
-<button type="button" class="ask-fab" id="askFabBtn" aria-expanded="false" aria-controls="askPanel"><span aria-hidden="true">💬</span> <span class="ask-fab-text">Задать вопрос</span></button>
-<div class="ask-panel" id="askPanel" role="dialog" aria-label="Задать вопрос">
+<button type="button" class="ask-fab no-showcase" id="askFabBtn" aria-expanded="false" aria-controls="askPanel"><span aria-hidden="true">💬</span> <span class="ask-fab-text">Задать вопрос</span></button>
+<div class="ask-panel no-showcase" id="askPanel" role="dialog" aria-label="Задать вопрос">
   <h4>Есть вопрос?</h4>
   <p>Спросите что угодно про мероприятие — ответим без звонков и заявок.</p>
   <form id="askForm">
@@ -43,6 +43,21 @@
   </form>
 </div>
 
+<!-- Витрина: куда отправить расчёт. Адрес Авито — data-avito (пусто — кнопки Авито нет). -->
+<div class="vmodal send-sheet" id="sendSheet" role="dialog" aria-modal="true" aria-labelledby="sendSheetTitle" data-avito="" hidden>
+  <div class="send-sheet__box">
+    <h3 id="sendSheetTitle">Куда отправить расчёт?</h3>
+    <p class="send-sheet__hint" id="sendSheetHint">Расчёт придёт нам готовым текстом — останется нажать «Отправить».</p>
+    <div class="send-sheet__actions">
+      <a class="hbtn hbtn--primary" id="sendWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="hbtn hbtn--secondary" id="sendTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
+      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
+      <a class="hbtn hbtn--secondary" id="sendAvito" href="" target="_blank" rel="noopener" hidden>Авито</a>
+      <button type="button" class="hbtn hbtn--secondary" id="sendCopy">Скопировать текст</button>
+      <button type="button" class="send-sheet__close" id="sendClose">Закрыть</button>
+    </div>
+  </div>
+</div>
 <div class="vmodal" id="promoModal" role="dialog" aria-modal="true" aria-label="Ролик ДжойРест: все форматы за 30 секунд" hidden>
   <div class="vmodal__box">
     <video id="promoVideo" playsinline controls preload="none"><source src="img/promo.mp4" type="video/mp4"></video>
@@ -314,7 +329,7 @@
       <p class="sub">33 игры JoyRest — настоящие экраны платформы и карточки. Выберите раздел — покажем подходящие игры и в каком они пакете.</p>
       <!-- Промо-ролик (28 с, 9:16): превью открывает плеер поверх страницы, видео грузится только по касанию. -->
       <button type="button" class="promo" id="promoOpen" aria-haspopup="dialog">
-        <span class="promo__thumb"><img src="img/promo-poster.webp" width="360" height="640" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
+        <span class="promo__thumb"><img src="img/promo-poster.webp" width="540" height="960" loading="lazy" decoding="async" alt="" id="promoPoster"><span class="promo__play" aria-hidden="true"></span><span class="promo__time">0:28</span></span>
         <span class="promo__text"><b>Все форматы за 30 секунд</b><span>Квизы, телешоу, танцы, карточные игры и настолки — смотрите со звуком</span><span class="promo__go">Смотреть ролик →</span></span>
       </button>
       <div class="filters" role="group" aria-label="Фильтр игр">
@@ -702,7 +717,7 @@
     <div class="wrap">
       <p class="eyebrow">Вопросы</p>
       <h2>Частые вопросы</h2>
-      <p class="sub">Не нашли ответ — нажмите «Задать вопрос» внизу экрана или напишите в Telegram.</p>
+      <p class="sub">Не нашли ответ — <span class="no-showcase">нажмите «Задать вопрос» внизу экрана или </span>напишите в Telegram.</p>
       <div class="faq">
         <details class="faq__item">
           <summary>Нужно ли гостям что-то скачивать?</summary>
@@ -807,15 +822,16 @@
         <div class="contact__info">
           <p class="eyebrow">Заявка</p>
           <h2>Обсудим ваш праздник</h2>
-          <p>Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
+          <p class="no-showcase">Оставьте контакты — свяжемся в течение дня и предложим программу под ваш формат и бюджет.</p>
+          <p class="showcase-only">Напишите нам в Telegram, WhatsApp, на почту или на Авито — предложим программу под ваш формат и бюджет.</p>
           <ul class="contact__list">
-            <li>Телефон: <a href="tel:+79857822689">+7 (985) 782-26-89</a></li>
+            <li class="no-showcase">Телефон: <a href="tel:+79857822689">+7 (985) 782-26-89</a></li>
             <li>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">t.me/JoyRest</a></li>
             <li>Почта: <a href="mailto:joyrest@mail.ru">joyrest@mail.ru</a></li>
             <li>Москва и Подмосковье — выезд включён, другие города — по договорённости</li>
           </ul>
         </div>
-        <form id="leadForm" class="form form--card">
+        <form id="leadForm" class="form form--card no-showcase">
           <div class="field">
             <label for="name">Имя</label>
             <input type="text" id="name" autocomplete="name" required>
@@ -954,6 +970,21 @@
           <p class="form-note" id="formNote" role="status">Спасибо! Заявка отправлена — свяжемся с вами в ближайшее время.</p>
           <p class="form-error" id="formError" role="alert"></p>
         </form>
+        <!-- Витрина (SITE_ENABLED=showcase, до ИП): формы нет — клиент пишет сам, расчёт отправляет из калькулятора. -->
+        <div class="form form--card showcase-only showcase-contact" id="showcaseContact">
+          <h3>Как заказать</h3>
+          <ol class="showcase-steps">
+            <li>Соберите вечер в <a class="link" href="#calculator">калькуляторе</a> и нажмите «Отправить расчёт менеджеру».</li>
+            <li>Выберите, куда написать: Telegram, WhatsApp, почта или Авито — расчёт придёт нам готовым текстом.</li>
+            <li>Ответим, предложим программу и забронируем дату.</li>
+          </ol>
+          <div class="showcase-contact__actions">
+            <a class="hbtn hbtn--primary" href="https://t.me/+79857822689" target="_blank" rel="noopener">Написать в Telegram</a>
+            <a class="hbtn hbtn--secondary" href="https://wa.me/79857822689" target="_blank" rel="noopener">Написать в WhatsApp</a>
+            <a class="hbtn hbtn--secondary" href="mailto:joyrest@mail.ru">Написать на почту</a>
+            <a class="hbtn hbtn--secondary" data-avito-link href="" target="_blank" rel="noopener" hidden>Написать на Авито</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>

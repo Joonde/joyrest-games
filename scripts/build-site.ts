@@ -153,6 +153,18 @@ for (const dir of HASHED_DIRS) {
 }
 rewrite(join(OUT, "index.html"));
 
+// Витрина до ИП (`sudo joyrest site showcase`, решение владельца 16 октября 2026): та же страница, но у <html>
+// data-site-mode="showcase" — CSS прячет формы заявки, вопроса и отзыва, скрипт отправляет расчёт текстом.
+// Сервер отдаёт её на «/», когда SITE_ENABLED=showcase.
+{
+  const OPEN_TAG = '<html lang="ru" data-theme="dark">';
+  const html = readFileSync(join(OUT, "index.html"), "utf8");
+  if (!html.includes(OPEN_TAG)) throw new Error(`index.html: нет тега ${OPEN_TAG} — витрину (showcase.html) не собрать`);
+  const showcase = html.replace(OPEN_TAG, '<html lang="ru" data-theme="dark" data-site-mode="showcase">');
+  if (!showcase.includes('data-site-mode="showcase"')) throw new Error("showcase.html: метка витрины не поставлена");
+  writeFileSync(join(OUT, "showcase.html"), showcase);
+}
+
 if (missing.length > 0) {
   console.error("Сайт ссылается на несуществующие файлы:\n  " + missing.join("\n  "));
   process.exit(1);

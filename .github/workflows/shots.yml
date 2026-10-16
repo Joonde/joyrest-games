@@ -1,0 +1,66 @@
+# Снимки экранов игр для портфолио и сайта (scripts/robot/shots.mjs): робот-ведущий проходит игры только вперёд
+# и снимает экран зала (1920×1080) и телефон на каждом новом виде. Без сервера, всё в памяти страницы.
+# Только вручную (Run workflow) или коммитом с [shots] в ветке claude/* (~10–15 минут).
+# Снимки — в ветку e2e-shots (папка shots/).
+name: Снимки игр
+
+on:
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Игры: механика:шаблон:режим:гостей через запятую (пусто — набор по умолчанию)"
+        required: false
+        default: ""
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  shots:
+    name: Снимки экранов игр
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[shots]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: shots
+      cancel-in-progress: true
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Зависимости
+        run: |
+          npm ci --no-audit --no-fund
+          npm i --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Сборка страницы робота
+        run: |
+          set +e
+          node scripts/robot/build.mjs /tmp/robot > /tmp/robot-build.log 2>&1
+          st=$?
+          cat /tmp/robot-build.log
+          if [ $st -ne 0 ]; then grep -iE "error|✘|could not|no matching" /tmp/robot-build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
+      - name: Снимки
+        run: node scripts/robot/shots.mjs /tmp/robot /tmp/shots "${{ github.event.inputs.games }}" | tee /tmp/shots-log.txt
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/shots ] || exit 0
+          grep "снимков" /tmp/shots-log.txt | sed 's/^/::notice::/' || true
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf shots && mkdir -p shots && cp -r /tmp/shots/. shots/
+          git add -A shots
+          if git commit -qm "Снимки игр ${GITHUB_SHA::7}"; then
+            sent=""
+            for i in 1 2 3 4 5; do
+              if out=$(git push -q origin HEAD:e2e-shots 2>&1); then sent=1; break; fi
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+            [ -n "$sent" ] || echo "::warning::Не отправлено в e2e-shots: $(echo "$out" | tr '\n' ' ' | cut -c1-300)"
+          fi

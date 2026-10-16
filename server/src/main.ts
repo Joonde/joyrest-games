@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { buildApp, parseDataBackend } from "./app";
 import { scheduleCleanup } from "./cleanup";
 import { startBot, telegramPolling, type BotLog } from "./telegram";
-import { isOn } from "./site";
+import { isOn, siteMode } from "./site";
 import { venueFormsOpen } from "./venues";
 
 const port = Number(process.env.PORT ?? 8080);
@@ -38,12 +38,13 @@ const app = buildApp({
   version: process.env.APP_VERSION ?? "dev",
   publicDir: process.env.PUBLIC_DIR ?? null,
   trustedProxies: env("TRUSTED_PROXIES")?.split(",").map((p) => p.trim()) ?? undefined,
-  // Сайт включается только явным SITE_ENABLED=on (sudo joyrest site on); иначе — заглушка.
+  // Сайт включается только явным SITE_ENABLED=on (sudo joyrest site on); showcase — витрина без заявок; иначе — заглушка.
   site:
     siteDir && siteHosts.length > 0
       ? {
           dir: siteDir,
           enabled: isOn(process.env.SITE_ENABLED),
+          showcase: siteMode(process.env.SITE_ENABLED) === "showcase",
           stubDir: env("SITE_STUB_DIR") ? resolve(env("SITE_STUB_DIR") ?? "") : null,
           hosts: siteHosts,
           indexing: isOn(process.env.SITE_INDEXING),

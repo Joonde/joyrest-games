@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Corm;src:url(R/public/fonts/cormorant-garamond-cyrillic-700-normal.woff2);font-weight:700}
+@font-face{font-family:Corm;src:url(R/public/fonts/cormorant-garamond-latin-700-normal.woff2);font-weight:700;unicode-range:U+0000-00FF}
+@font-face{font-family:Jost;src:url(R/public/fonts/jost-cyrillic-400-normal.woff2);font-weight:400}
+@font-face{font-family:Jost;src:url(R/public/fonts/jost-cyrillic-500-normal.woff2);font-weight:500}
+@font-face{font-family:Jost;src:url(R/public/fonts/jost-cyrillic-600-normal.woff2);font-weight:600}
+@font-face{font-family:Jost;src:url(R/public/fonts/jost-latin-500-normal.woff2);font-weight:500;unicode-range:U+0000-00FF}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:720px;height:1280px;overflow:hidden;background:#15120F;font-family:Jost;color:#FBF6F1}
+#stage{position:absolute;inset:0;overflow:hidden;background:radial-gradient(120% 70% at 50% 0%,#2A231D,#15120F 70%)}
+.beam{position:absolute;top:-120px;width:300px;height:1500px;transform-origin:50% 0;background:linear-gradient(180deg,rgba(243,223,174,.22),rgba(243,223,174,0) 75%);filter:blur(14px);mix-blend-mode:screen}
+.bars{position:absolute;left:24px;right:24px;top:22px;display:flex;gap:6px;z-index:9}
+.bars i{flex:1;height:4px;border-radius:2px;background:rgba(251,246,241,.25);overflow:hidden}
+.bars i b{display:block;height:100%;width:0;background:#FBF6F1}
+.brand{position:absolute;left:24px;top:40px;display:flex;align-items:center;gap:10px;z-index:9;font:500 18px Jost;color:#FBF6F1}
+.brand .m{width:34px;height:34px;border-radius:50%;border:1px solid rgba(227,198,140,.6);display:grid;place-items:center}
+.brand .m i{width:22px;height:22px;background:#E3C68C;-webkit-mask:url(R/public/brand/joyrest-monogram.svg) center/contain no-repeat}
+.scene{position:absolute;inset:0;opacity:0}
+.cap{position:absolute;left:40px;right:40px;bottom:150px;text-align:center}
+.eyebrow{font:500 20px Jost;letter-spacing:.24em;color:#E3AA9C;text-transform:uppercase;margin-bottom:18px}
+.title{font:700 66px/1.02 Corm;color:#FBF6F1}
+.title em{font-style:normal;background:linear-gradient(90deg,#F3DFAE,#E3C68C 45%,#A3C2AA);-webkit-background-clip:text;color:transparent}
+.sub{margin-top:18px;font:400 23px/1.35 Jost;color:#CFC4B8}
+.shot{position:absolute;border-radius:18px;overflow:hidden;border:1.5px solid rgba(227,198,140,.55);box-shadow:0 40px 80px -30px rgba(0,0,0,.9),0 0 60px -10px rgba(227,198,140,.18);background:#000}
+.shot img{display:block;width:100%;height:100%;object-fit:cover}
+.bare{position:absolute}
+.bare img{display:block;width:100%}
+.emblem{position:absolute;left:50%;width:460px;height:333px;margin-left:-230px;background:linear-gradient(135deg,#F3DFAE,#E3C68C 40%,#A3C2AA 75%,#E3AA9C);-webkit-mask:url(R/public/brand/joyrest-emblem.svg) center/contain no-repeat}
+.spark{position:absolute;width:8px;height:8px;background:#F3DFAE;clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);z-index:8}
+.count{position:absolute;left:0;right:0;top:640px;text-align:center;font:700 170px/1 Corm;background:linear-gradient(180deg,#F3DFAE,#C9A15F);-webkit-background-clip:text;color:transparent}
+.tile{position:absolute;width:200px;height:113px;border-radius:12px;overflow:hidden;border:1px solid rgba(227,198,140,.45)}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.pill{display:inline-block;margin-top:26px;padding:14px 34px;border-radius:999px;background:#C49E96;color:#221E1B;font:600 26px Jost}
+.chip{display:inline-block;margin:0 6px;padding:6px 14px;border-radius:999px;border:1px solid rgba(227,198,140,.5);font:500 18px Jost;color:#F3ECE3}
+</style></head>
+<body><div id="stage">
+<div class="beam" id="b1" style="left:60px"></div><div class="beam" id="b2" style="left:360px"></div>
+<div class="bars" id="bars"></div>
+<div class="brand"><span class="m"><i></i></span>ДжойРест</div>
+
+<div class="scene" id="s0">
+  <div class="emblem" id="em0" style="top:250px"></div>
+  <div class="cap"><div class="eyebrow">Ведущие и игры · Москва</div><div class="title">Игры, в которые<br><em>играет весь зал</em></div></div>
+</div>
+<div class="scene" id="s1">
+  <div class="shot" id="q1" style="left:30px;top:300px;width:600px;height:338px"><img src="S/site/img/platform-hall.webp"></div>
+  <div class="shot" id="q2" style="left:430px;top:500px;width:250px;height:303px;border-radius:26px"><img src="S/site/img/platform-phone.webp"></div>
+  <div class="cap"><div class="eyebrow">Своя платформа</div><div class="title">Гости играют со<br><em>своих телефонов</em></div><div class="sub">Вопросы — на большом экране, ответы — в телефоне</div></div>
+</div>
+<div class="scene" id="s2">
+  <div class="shot" id="t1" style="left:40px;top:340px;width:640px;height:360px"><img src="X/board-0-teams/002-hall.jpg"></div>
+  <div class="shot" id="t2" style="left:40px;top:340px;width:640px;height:360px"><img src="X/millionaire-0-teams/004-hall.jpg"></div>
+  <div class="shot" id="t3" style="left:40px;top:340px;width:640px;height:360px"><img src="X/hundred-0-teams/039-hall.jpg"></div>
+  <div class="cap"><div class="eyebrow">Квизы и телешоу</div><div class="title">Как в телевизоре,<br><em>только про вас</em></div><div class="sub">Своя игра · Миллионер · 100 к 1</div></div>
+</div>
+<div class="scene" id="s3">
+  <div class="shot" id="d1" style="left:40px;top:340px;width:640px;height:360px"><img src="X/stage-0-teams/006-hall.jpg"></div>
+  <div class="shot" id="d2" style="left:40px;top:340px;width:640px;height:360px"><img src="X/dance-0-teams/002-hall.jpg"></div>
+  <div class="cap"><div class="eyebrow">Танцы и караоке</div><div class="title">Зал <em>не усидит</em></div><div class="sub">Just Dance на поле · Танцевальный батл</div></div>
+</div>
+<div class="scene" id="s4">
+  <div class="bare" id="c1" style="left:20px;top:250px;width:680px"><img src="S/site/img/cards-mafia.webp"></div>
+  <div class="bare" id="c2" style="left:60px;top:520px;width:600px"><img src="S/site/img/cards-truth.webp"></div>
+  <div class="cap"><div class="eyebrow">Карточные игры</div><div class="title">Тайные роли<br><em>прямо в телефоне</em></div><div class="sub">Мафия · Бункер · Шпион · Правда или действие</div></div>
+</div>
+<div class="scene" id="s5">
+  <div class="bare" id="l1" style="left:-10px;top:300px;width:740px"><img src="S/site/img/cards-loto.webp"></div>
+  <div class="cap"><div class="eyebrow">Музыкальное лото</div><div class="title">Узнал песню —<br><em>отметил в карточке</em></div></div>
+</div>
+<div class="scene" id="s6">
+  <div class="shot" id="g1" style="left:40px;top:340px;width:640px;height:360px"><img src="X/dragon-0-teams/013-hall.jpg"></div>
+  <div class="shot" id="g2" style="left:40px;top:340px;width:640px;height:360px"><img src="X/dragon-1-teams/013-hall.jpg"></div>
+  <div class="cap"><div class="eyebrow">Настолки и приключения</div><div class="title">Команды<br><em>против дракона</em></div><div class="sub">Для взрослых и для детей</div></div>
+</div>
+<div class="scene" id="s7">
+  <div id="tiles"></div>
+  <div class="count" id="num">0</div>
+  <div class="cap"><div class="title">игры <em>на любой</em><br><em>праздник</em></div><div class="sub">Свадьбы · корпоративы · дни рождения</div></div>
+</div>
+<div class="scene" id="s8">
+  <div class="emblem" id="em8" style="top:220px"></div>
+  <div class="cap" style="bottom:260px"><div class="title">Радость <em>без хлопот</em></div><div class="sub">Посчитайте вечер за минуту</div><div class="pill">joy-rest.ru</div></div>
+</div>
+<div id="sparks"></div>
+</div>
+<script>
+const T = [0, 3.0, 6.1, 9.9, 13.1, 16.2, 19.2, 22.6, 25.0, 27.73];
+const bars = document.getElementById('bars');
+for (let i = 0; i < 9; i++) bars.innerHTML += '<i><b></b></i>';
+const TILES = ['X/board-0-teams/002-hall.jpg','X/millionaire-0-teams/004-hall.jpg','X/hundred-0-teams/039-hall.jpg','X/dragon-0-teams/013-hall.jpg','X/stage-0-teams/001-hall.jpg','X/dance-0-teams/008-hall.jpg','S/site/img/platform-hall.webp','X/dragon-1-teams/013-hall.jpg','X/stage-0-teams/006-hall.jpg','S/site/img/cards-loto.webp','S/site/img/cards-mafia.webp','S/site/img/cards-truth.webp'];
+const tiles = document.getElementById('tiles');
+TILES.forEach((src, i) => { tiles.innerHTML += `<div class="tile" style="left:${30 + (i % 3) * 225}px;top:${170 + Math.floor(i / 3) * 128}px"><img src="${src}"></div>`; });
+const sp = document.getElementById('sparks');
+const SP = [];
+for (let i = 0; i < 26; i++) { const s = { x: (i * 271) % 700 + 10, y: (i * 457) % 1200 + 40, ph: i * 0.73, sp: 0.6 + (i % 5) * 0.2 }; SP.push(s); sp.innerHTML += '<div class="spark"></div>'; }
+const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+const clamp = (x) => Math.min(1, Math.max(0, x));
+const $ = (id) => document.getElementById(id);
+function set(el, o, tf) { el.style.opacity = o; el.style.transform = tf || ''; }
+window.setT = function (t) {
+  // свет
+  $('b1').style.transform = `rotate(${18 + Math.sin(t * 0.7) * 6}deg)`;
+  $('b2').style.transform = `rotate(${-16 + Math.sin(t * 0.6 + 1) * 6}deg)`;
+  // полоски
+  [...bars.children].forEach((b, i) => { b.firstChild.style.width = (clamp((t - T[i]) / (T[i + 1] - T[i])) * 100) + '%'; });
+  // искры
+  [...sp.children].forEach((e, i) => { const s = SP[i]; const a = 0.5 + 0.5 * Math.sin(t * 3 * s.sp + s.ph); e.style.opacity = a * 0.8; e.style.transform = `translate(${s.x}px,${s.y - t * 8 * s.sp}px) scale(${0.6 + a})`; });
+  for (let i = 0; i < 9; i++) {
+    const el = $('s' + i); const a = T[i], b = T[i + 1];
+    const inn = clamp((t - a) / 0.45), out = i === 8 ? 1 : clamp((b - t) / 0.35);
+    const o = Math.min(inn, out);
+    el.style.opacity = o;
+    el.style.display = o > 0 ? 'block' : 'none';
+    const p = (t - a) / (b - a), l = t - a;
+    const cap = el.querySelector('.cap');
+    if (cap) set(cap, ease(clamp((l - 0.15) / 0.6)), `translateY(${(1 - ease(clamp((l - 0.15) / 0.6))) * 40}px)`);
+    if (i === 0) set($('em0'), ease(l / 1.2), `scale(${0.85 + 0.15 * ease(l / 1.2) + p * 0.04})`);
+    if (i === 1) { set($('q1'), ease(l / 0.7), `perspective(1200px) rotateY(${12 - 8 * p}deg) translateY(${(1 - ease(l / 0.7)) * 60}px)`); set($('q2'), ease((l - 0.6) / 0.6), `translateX(${(1 - ease((l - 0.6) / 0.6)) * 220}px) rotate(${4 - 4 * ease((l - 0.6) / 0.6)}deg)`); }
+    if (i === 2 || i === 3 || i === 6) {
+      const ids = i === 2 ? ['t1', 't2', 't3'] : i === 3 ? ['d1', 'd2'] : ['g1', 'g2'];
+      const seg = (b - a) / ids.length;
+      ids.forEach((id, k) => { const ll = l - k * seg; const vin = ease(ll / 0.5), vout = k === ids.length - 1 ? 1 : clamp((seg - ll) / 0.4); const v = ll < 0 ? 0 : Math.min(vin, vout); set($(id), v, `perspective(1400px) rotateX(${(1 - vin) * 18}deg) scale(${0.92 + 0.08 * vin + 0.03 * clamp(ll / seg)}) translateY(${(1 - vin) * 50}px)`); $(id).style.zIndex = k; });
+    }
+    if (i === 4) { set($('c1'), ease(l / 0.6), `translateY(${(1 - ease(l / 0.6)) * -60}px) scale(${1 + p * 0.03})`); set($('c2'), ease((l - 0.5) / 0.6), `translateY(${(1 - ease((l - 0.5) / 0.6)) * 80}px) rotate(${-3 + 3 * ease((l - 0.5) / 0.6)}deg)`); }
+    if (i === 5) set($('l1'), ease(l / 0.7), `scale(${0.9 + 0.1 * ease(l / 0.7) + p * 0.04}) rotate(${-2 + 2 * ease(l / 0.7)}deg)`);
+    if (i === 7) { [...tiles.children].forEach((tl, k) => set(tl, ease((l - k * 0.08) / 0.4) * 0.55, `scale(${0.8 + 0.2 * ease((l - k * 0.08) / 0.4)})`)); $('num').textContent = Math.round(33 * ease(l / 1.6)); }
+    if (i === 8) set($('em8'), ease(l / 1), `scale(${0.88 + 0.12 * ease(l / 1)})`);
+  }
+};
+window.setT(0);
+</script></body></html>

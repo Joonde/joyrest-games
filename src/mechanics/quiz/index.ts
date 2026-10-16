@@ -1,7 +1,7 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
 import { quizPreview } from "./previewDriver";
-import { createContent, mediaIds, parseContent, trackIds, type QuizContent } from "./content";
+import { createContent, isMelodyQuiz, mediaIds, parseContent, type QuizContent } from "./content";
 import { score, steps, type QuizStep } from "./logic";
 import { validateContent } from "./validate";
 import { QuizHostControls } from "./HostControls";
@@ -34,6 +34,6 @@ export const quiz: Mechanic<QuizContent, QuizAnswerValue, QuizStep> = {
     if (session.state.stage === "question" && q.kind === "super") return "superPick";
     return null;
   },
-  // «Угадай мелодию» (есть треки) — микрофон и клавиши, остальные квизы — стол с кубком.
-  art: (content) => (trackIds(content).length > 0 ? "melody" : "quiz-office"),
+  // «Угадай мелодию» (есть треки или вопросы с «♪») — микрофон и клавиши, остальные квизы — стол с кубком.
+  art: (content) => (isMelodyQuiz(content) ? "melody" : "quiz-office"),
 };

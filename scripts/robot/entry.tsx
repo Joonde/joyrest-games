@@ -256,7 +256,7 @@ function Hall() {
     // Как в HallScreen: нарисованный фон игры под вопросом (Mechanic.art).
     const art = mechanic.art?.(content) ?? null;
     body = art ? (
-      <main className="quiz-stage show-stage show-stage--evening hall-art" style={{ ["--hall-art" as string]: `url("/covers/art/web/${art}-1280.webp")`, ["--hall-art-hd" as string]: `url("/covers/art/web/${art}.webp")` } as CSSProperties}>
+      <main className="quiz-stage show-stage show-stage--evening hall-art" style={{ width: "100%", height: "100%", ["--hall-art" as string]: `url("/covers/art/web/${art}-1280.webp")`, ["--hall-art-hd" as string]: `url("/covers/art/web/${art}.webp")` } as CSSProperties}>
         <ScreenView session={s} content={content} />
       </main>
     ) : (

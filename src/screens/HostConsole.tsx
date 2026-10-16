@@ -303,7 +303,16 @@ function Console({ session }: { session: Session }) {
   const HostControls = mechanic?.HostControls;
   const withScreen = session.screenMode !== "none";
   const menu: MenuAction[] = [{ label: "В студию", to: "/studio" }];
-  if (withScreen) menu.unshift({ label: "Открыть экран зала здесь", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
+  if (withScreen) menu.unshift({ label: "Открыть экран зала в новой вкладке", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
+  // Случайно выбрали «Пульт» не на том устройстве (например, на компьютере у проектора) — снова выбор «Пульт / Экран зала».
+  if (withScreen && phase !== "finished")
+    menu.unshift({
+      label: "Пульт или экран зала?",
+      onClick: () => {
+        setPicking(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      },
+    });
   // Самостоятельная игра («Олимп») ведётся своим пультом: общие звуки, музыка и слайды не нужны.
   const standalone = Boolean(mechanic?.standalone);
   const tools = withScreen && !standalone;

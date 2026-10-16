@@ -2256,6 +2256,9 @@ kbd {
   right: max(16px, var(--safe-right));
   z-index: 20;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100vw - 32px);
   gap: 8px;
   transition: opacity 0.3s ease;
 }

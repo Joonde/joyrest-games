@@ -7,11 +7,11 @@ import { useEffect, useState } from "react";
  */
 export function usePultDraft<T>(sessionId: string, name: string, scope: string, initial: T): [T, (value: T) => void] {
   const key = `joyrest.pult.${sessionId}.${name}`;
-  const [state, setState] = useState<{ scope: string; value: T }>(() => ({ scope, value: read(key, scope) ?? initial }));
+  const [state, setState] = useState<{ scope: string; value: T }>(() => ({ scope, value: (read<T>(key, scope) ?? { value: initial }).value }));
   // Шаг сменился — черновик прошлого шага не в счёт.
-  const current = state.scope === scope ? state.value : (read(key, scope) ?? initial);
+  const current = state.scope === scope ? state.value : ((read<T>(key, scope) ?? { value: initial }).value);
   useEffect(() => {
-    if (state.scope !== scope) setState({ scope, value: read(key, scope) ?? initial });
+    if (state.scope !== scope) setState({ scope, value: (read<T>(key, scope) ?? { value: initial }).value });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при смене шага
   }, [scope, key]);
 
@@ -27,12 +27,12 @@ export function usePultDraft<T>(sessionId: string, name: string, scope: string, 
   return [current, set];
 }
 
-function read<T>(key: string, scope: string): T | null {
+function read<T>(key: string, scope: string): { value: T } | null {
   try {
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const saved = JSON.parse(raw) as { scope?: unknown; value?: T };
-    return saved.scope === scope && saved.value !== undefined ? saved.value : null;
+    return saved.scope === scope && saved.value !== undefined ? { value: saved.value } : null;
   } catch {
     return null;
   }

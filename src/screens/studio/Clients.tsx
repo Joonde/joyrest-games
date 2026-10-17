@@ -87,10 +87,14 @@ function useNow(): number {
   return now;
 }
 const sourceTitle = (s: string) => SOURCE_TITLES[s as ClientSource] ?? s;
-/** «В работе · Мария» → «Мария» (у старых карточек — кто последним менял статус). */
+/**
+ * «В работе · Мария» → «Мария» (у старых карточек — кто последним менял статус). Записи без человека («Клиент ·
+ * мероприятие записано», «Новый · повторное обращение») — пусто: не пишем «Ведёт: мероприятие записано».
+ */
 const lastPart = (line: string) => {
   const parts = line.split(" · ");
-  return parts.length > 1 ? (parts[parts.length - 1] ?? line) : line;
+  const who = parts.length > 1 ? (parts[parts.length - 1] ?? "") : "";
+  return /мероприят|обращени|отметк/i.test(who) ? "" : who;
 };
 
 /**
@@ -465,12 +469,12 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
             disabled={busy}
             onClick={() => onPick(st)}
           >
-            {index > i ? "✓ " : ""}
             {CLIENT_STATUS_TITLES[st]}
           </button>
         ))}
       </div>
-      {next && (
+      {/* «Провели» ставит отметка ведущего «Проведено» — большой кнопки для неё нет (шаг на дорожке — на всякий случай). */}
+      {next && next !== "held" && (
         <button type="button" className="btn btn--block" disabled={busy} onClick={() => onPick(next)}>
           Перевести в «{CLIENT_STATUS_TITLES[next]}» →
         </button>
@@ -607,7 +611,7 @@ function ClientCard({
               {c.contacts > 1 ? ` · всего ${c.contacts}` : ""}
             </span>
           </span>
-          {c.status !== "new" && (c.takenBy || c.statusLine) && (
+          {c.status !== "new" && (c.takenBy || lastPart(c.statusLine)) && (
             <span className="clients-facts__row">
               <span className="clients-facts__label">Ведёт</span>
               <span className="clients-facts__value">

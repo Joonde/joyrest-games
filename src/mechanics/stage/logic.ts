@@ -349,6 +349,8 @@ export function setBattleWinner(session: Session, content: StageContent, winner:
   const tile = tileOf(content, r.tile);
   if (!tile || r.mode !== "result" || tile.kind !== "battle") return {};
   if (winner !== "tie" && winner !== r.performer && winner !== r.opponent) return {};
+  // Тот же итог уже на экране — повторное касание ничего не пишет (пульт не замирает на ожидании своей записи).
+  if (winner === "tie" ? r.outcome === "tie" : r.outcome === "win" && r.winner === winner) return {};
   const next = battleScores(tile, r, winner);
   const diff: Record<string, number> = {};
   for (const k of new Set([...Object.keys(next), ...Object.keys(r.scores)])) {

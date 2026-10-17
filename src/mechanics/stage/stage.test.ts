@@ -164,6 +164,8 @@ describe("Just Dance и Караоке на поле", () => {
     s = apply(s, setBattleWinner(s, content, "C"));
     expect(s.leaderboard.A?.score).toBe(0);
     expect(s.leaderboard.C?.score).toBe(400);
+    // Тот же победитель ещё раз — записи нет.
+    expect(setBattleWinner(s, content, "C")).toEqual({});
     // «Назад» с итога батла — снова голосование, очки сняты.
     s = apply(s, stageBack(s, content)?.change ?? {});
     expect(parseStageResult(s.state.result).mode).toBe("vote");

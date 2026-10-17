@@ -22,6 +22,8 @@ import {
   CLIENT_STATUS_TITLES,
   phoneKey,
   type ClientSource,
+  isOrigin,
+  type ClientOrigin,
 } from "../../src/core/clients";
 import { contactQuery, matchesContact, queryLabel, type ContactQuery } from "../../src/core/privacy";
 import * as permissions from "../../src/data/permissions";
@@ -44,6 +46,8 @@ export interface ClientInput {
   ref?: string | null;
   /** Мероприятие записано — клиент сам становится «Клиент» (менеджеру не нужно менять статус вручную). */
   promote?: boolean;
+  /** Откуда пришёл (канал): ставится, только если у клиента ещё не указан. */
+  origin?: ClientOrigin | null;
 }
 
 interface Row {
@@ -65,6 +69,7 @@ interface Row {
   status_line: string | null;
   status_at: Date | null;
   tg_waiting: Date | null;
+  origin: string;
 }
 
 function recordOf(row: Row): ClientRecord {
@@ -87,6 +92,7 @@ function recordOf(row: Row): ClientRecord {
     statusLine: row.status_line ?? "",
     statusAt: row.status_at ? row.status_at.getTime() : null,
     tgWaitingSince: row.tg_waiting ? row.tg_waiting.getTime() : null,
+    origin: isOrigin(row.origin) ? row.origin : "",
   };
 }
 
@@ -114,6 +120,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
   const links = cleanLinks(input.links ?? []);
   if (!key && links.length === 0) return null;
   const summary = cleanSummary(input.summary);
+  const origin = isOrigin(input.origin) ? input.origin : "";
   return sql.begin(async (tx) => {
     const t = tx as unknown as Sql;
     // Один и тот же человек по телефону, иначе — по любой из ссылок.
@@ -125,8 +132,8 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     }
     let id = found?.id ?? newId("k");
     if (!found) {
-      const made = await t<{ id: string }[]>`insert into clients (id, name, phone, phone_key, links)
-        values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}) on conflict do nothing returning id`;
+      const made = await t<{ id: string }[]>`insert into clients (id, name, phone, phone_key, links, origin)
+        values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${origin}) on conflict do nothing returning id`;
       // Одновременная заявка с тем же телефоном уже создала клиента — пишем обращение ему.
       if (made.length === 0 && key) {
         const [other] = await t<{ id: string }[]>`select id from clients where phone_key = ${key}`;
@@ -140,6 +147,7 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
           phone = case when phone_key = '' and ${key} <> '' then ${phone} else phone end,
           phone_key = case when phone_key = '' and ${key} <> '' then ${key} else phone_key end,
           links = ${t.json(merged)},
+          origin = case when origin = '' then ${origin} else origin end,
           last_contact_at = now(), updated_at = now(), archived_at = null
         where id = ${id}`;
     }
@@ -195,7 +203,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
     const owner = (request: FastifyRequest, reply: FastifyReply) => allowed(request, reply, permissions.canErasePersonalData);
 
     const select = sql`
-      select c.id, c.name, c.phone, c.links, c.status, c.marketing, c.marketing_at, c.marketing_source, c.notes,
+      select c.id, c.name, c.phone, c.links, c.status, c.marketing, c.marketing_at, c.marketing_source, c.notes, c.origin,
         c.created_at, c.last_contact_at, c.archived_at, c.updated_at,
         -- Кто и когда последним сменил статус («В работе · Мария»): владелец и менеджер видят, кто взял клиента.
         (select h.summary from client_contacts h where h.client_id = c.id and h.source = 'status' order by h.created_at desc limit 1) as status_line,
@@ -261,6 +269,8 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const status = isClientStatus(b.status) ? b.status : "new";
       const asked = isMarketing(b.marketing) ? b.marketing : "unknown";
       const notes = cleanNotes(b.notes);
+      // Откуда пришёл — вручную в карточке; не прислали — не трогаем (пустое — «не указан»).
+      const origin = b.origin === "" || isOrigin(b.origin) ? b.origin : null;
       if (!id || (!key && links.length === 0 && !name)) return fail(reply, 400, "invalid-argument");
       if (key) {
         const [other] = await sql<{ id: string }[]>`select id from clients where phone_key = ${key} and id <> ${id}`;
@@ -277,11 +287,12 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const marketing = asked === "yes" && before !== "yes" && !permissions.canSetMarketingConsent(actorOf(user)) ? before : asked;
       const marketingChanged = existing?.marketing !== marketing;
       await sql`
-        insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes)
+        insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes, origin)
         values (${id}, ${name}, ${phone}, ${key}, ${sql.json(links)}, ${status}, ${marketing},
-          ${marketing === "yes" ? new Date() : null}, ${marketing === "yes" ? "вручную владельцем" : ""}, ${notes})
+          ${marketing === "yes" ? new Date() : null}, ${marketing === "yes" ? "вручную владельцем" : ""}, ${notes}, ${origin ?? ""})
         on conflict (id) do update set name = excluded.name, phone = excluded.phone, phone_key = excluded.phone_key,
           links = excluded.links, status = excluded.status, notes = excluded.notes, updated_at = now()
+          ${origin !== null ? sql`, origin = excluded.origin` : sql``}
           ${marketingChanged ? sql`, marketing = excluded.marketing, marketing_at = excluded.marketing_at, marketing_source = excluded.marketing_source` : sql``}`;
       if (!existing) {
         await sql`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual', ${`Добавлен вручную · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;

@@ -326,7 +326,7 @@ export interface ClientsRepository {
   list(archived: boolean): Promise<ClientRecord[]>;
   get(id: string): Promise<ClientDetails>;
   /** Новый клиент вручную или правка (id от браузера). Тот же телефон у другого клиента — 409. */
-  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string; expect?: number }): Promise<ClientDetails>;
+  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string; origin?: string; expect?: number }): Promise<ClientDetails>;
   /** Только статус (одним касанием): заметку и контакты не трогает. В историю — «В работе · имя». */
   setStatus(id: string, status: ClientRecord["status"]): Promise<ClientDetails>;
   /**

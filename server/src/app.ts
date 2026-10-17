@@ -127,6 +127,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
               links: parseLinks(`${f.contactLink} ${f.contactMethod}`),
               marketing: lead.marketing === true,
               source: "site",
+              origin: "site",
               summary: leadSummary(lead),
             });
           } else if (lead.type === "review") {
@@ -134,7 +135,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
             await saveSiteReview(sql, { name: lead.fields.name, text: lead.fields.text, rating: lead.rating });
           } else if (lead.type === "question") {
             const contact = lead.fields.contact;
-            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: leadSummary(lead) });
+            await upsertClient(sql, { phone: contact, links: parseLinks(contact), source: "question", summary: leadSummary(lead), origin: "site" });
           }
           // Менеджерам по продажам — «Новая заявка» в Telegram (без данных клиента); не ждём и не роняем заявку.
           if (lead.type === "lead" || lead.type === "question") {

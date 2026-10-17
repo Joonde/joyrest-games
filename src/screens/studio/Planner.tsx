@@ -36,7 +36,8 @@ import {
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
 import { matchesSearch } from "../../core/search";
-import { calendarRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type CalendarMember, type VenueRequestRecord } from "../../data";
+import { originStats } from "../../core/clients";
+import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -330,6 +331,12 @@ function StatsView({ now, changed, render }: { now: number; changed: AgencyEvent
     return [...base, ...changed];
   }, [shown, changed]);
   const stats = statsOf(events, period.from, period.to, now);
+  // Откуда клиенты: новые клиенты за период и мероприятия их клиентов (по телефону) — по каналам.
+  const [clientsState] = useLoad(
+    () => (clientsRepo ? Promise.all([clientsRepo.list(false), clientsRepo.list(true)]).then(([a, b]) => [...a, ...b]) : Promise.resolve([] as ClientRecord[])),
+    [],
+  );
+  const origins = clientsState.status === "ready" ? originStats(clientsState.data.map((c) => ({ origin: c.origin ?? "", phone: c.phone, createdAt: c.createdAt })), events, period.from, period.to) : [];
   const unmarked = sortEvents(
     events.filter((e) => e.day >= period.from && e.day <= period.to && !e.cancelled && e.held === null && eventStatus(e, now) === "past"),
     false,
@@ -419,6 +426,32 @@ function StatsView({ now, changed, render }: { now: number; changed: AgencyEvent
                       <th scope="row">{t.title}</th>
                       <td>{t.planned}</td>
                       <td>{t.held}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+          {origins.length > 0 && (
+            <section className="card stack stack--tight" aria-label="Откуда клиенты">
+              <h2>Откуда клиенты</h2>
+              <p className="muted small">Новые клиенты за период и мероприятия их клиентов (по телефону клиента). Источник — в карточке «Клиентов».</p>
+              <table className="plan-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Источник</th>
+                    <th scope="col">Новых</th>
+                    <th scope="col">Записано</th>
+                    <th scope="col">Проведено</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {origins.map((o) => (
+                    <tr key={o.origin || "none"}>
+                      <th scope="row">{o.title}</th>
+                      <td>{o.clients}</td>
+                      <td>{o.planned}</td>
+                      <td>{o.held}</td>
                     </tr>
                   ))}
                 </tbody>

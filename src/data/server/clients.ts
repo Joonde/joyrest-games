@@ -28,6 +28,7 @@ function parseClient(value: unknown): ClientRecord {
     statusLine: asText(d.statusLine),
     statusAt: typeof d.statusAt === "number" ? d.statusAt : null,
     tgWaitingSince: typeof d.tgWaitingSince === "number" ? d.tgWaitingSince : null,
+    origin: asText(d.origin),
   };
 }
 

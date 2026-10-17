@@ -6865,8 +6865,14 @@ ul.chips {
 
 .host-buzz__verdict {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+/* На узком телефоне ведущего «Не выполнено» переносится, а не вылезает за край пульта (Ревизор). */
+.host-buzz__verdict .btn {
+  white-space: normal;
+  min-width: 0;
 }
 
 .buzz-queue {
@@ -8091,8 +8097,43 @@ button.checkers__cell {
     grid-template-rows: minmax(0, 1fr);
   }
 
+  /* Обе команды — рядом сверху, ниже — что происходит: иначе вторая карточка уезжала за низ экрана. */
+  .checkers-screen__side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-content: start;
+    gap: 1.6cqh 1cqw;
+  }
+
+  .checkers-screen__side > * {
+    grid-column: 1 / -1;
+  }
+
+  .checkers-screen__side > .checkers-side--b {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .checkers-screen__side > .checkers-side--w {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .checkers-side {
-    padding: 1.2cqh 1.5cqw;
+    padding: 1cqh 1cqw;
+  }
+
+  .checkers-side__chip {
+    width: 5cqh;
+    height: 5cqh;
+  }
+
+  .checkers-side__name {
+    font-size: 3.2cqh;
+  }
+
+  .checkers-side__score {
+    font-size: 4cqh;
   }
 
   .checkers-screen__banner,
@@ -11905,12 +11946,13 @@ button.dance-card:active {
 
 .sv-mark-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: stretch;
 }
 
 .sv-mark-row > .column-opt {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
   overflow: hidden;
 }

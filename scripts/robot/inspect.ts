@@ -313,7 +313,7 @@ export function inspectArea(o: InspectOptions): Raw[] {
         for (const lb of b.lines) {
           const ix = Math.min(la.x + la.w, lb.x + lb.w) - Math.max(la.x, lb.x);
           const iy = Math.min(la.y + la.h, lb.y + lb.h) - Math.max(la.y, lb.y);
-          if (ix > 2 && iy > 2 && (ix * iy) / Math.min(la.w * la.h, lb.w * lb.h) >= 0.25) hit = true;
+          if (ix > 2 && iy > 2 && (ix * iy) / Math.min(la.w * la.h, lb.w * lb.h) >= 0.4) hit = true;
         }
       if (!hit) continue;
       add("надписи наезжают", `«${a.text.slice(0, 30)}» и «${b.text.slice(0, 30)}» друг на друге`, a.el, { x: Math.min(a.rect.x, b.rect.x), y: Math.min(a.rect.y, b.rect.y), w: Math.max(a.rect.x + a.rect.w, b.rect.x + b.rect.w) - Math.min(a.rect.x, b.rect.x), h: Math.max(a.rect.y + a.rect.h, b.rect.y + b.rect.h) - Math.min(a.rect.y, b.rect.y) }, `${a.text} | ${b.text}`);

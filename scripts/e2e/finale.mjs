@@ -31,7 +31,7 @@ const SITE_DIR = process.env.E2E_SITE_DIR ?? "";
 const FONTS_DIR = process.env.E2E_FONTS_DIR ?? "";
 const WAIT = 20_000;
 const MARK = `e2e-${Date.now().toString(36)}`;
-const TIPS = `https://example.com/tips/${MARK}`;
+const TIPS = "https://tips.yandex.ru/guest/payment/4035386?is_from_qr=true"; // общие чаевые JoyRest (TIPS_URL)
 
 const report = [];
 const problems = [];
@@ -276,23 +276,13 @@ try {
   oldTips = (await api("GET", "/api/me/tips", host.cookie)).data?.url ?? "";
   say(`Ведущий: ${host.profile?.name}; метка проверки: ${MARK}`);
 
-  // ===== 1. Чаевые в «Моём профиле» =====
+  // ===== 1. «Мой профиль»: своих чаевых нет =====
   const hp = await open(browser, "Ведущий (студия)", PHONE, host.token);
   await hp.goto(`${BASE}/studio/profile`);
-  const tipsInput = hp.getByLabel("Ссылка на вашу страницу для чаевых");
-  await tipsInput.waitFor({ timeout: WAIT });
-  await tipsInput.fill("http://не-https");
-  await hp.locator("#profile-tips").locator("..").getByRole("button", { name: "Сохранить" }).click();
-  await until(async () => (await hp.getByText("Нужна ссылка, которая начинается с https://").count()) > 0, WAIT, "ошибка неверной ссылки");
-  ok("Профиль: ссылка без https:// — понятная ошибка, не сохраняется");
-  await tipsInput.fill(TIPS);
-  await hp.locator("#profile-tips").locator("..").getByRole("button", { name: "Сохранить" }).click();
-  await until(async () => (await api("GET", "/api/me/tips", host.cookie)).data?.url === TIPS, WAIT, "ссылка сохранена");
-  await hp.reload();
-  await until(async () => (await hp.getByLabel("Ссылка на вашу страницу для чаевых").inputValue()) === TIPS, WAIT, "ссылка после перезагрузки");
-  ok("Профиль: ссылка для чаевых сохраняется и остаётся после перезагрузки");
+  await hp.getByText("Мой профиль").first().waitFor({ timeout: WAIT });
+  check((await hp.getByLabel("Ссылка на вашу страницу для чаевых").count()) === 0, "Профиль: своей ссылки для чаевых нет — чаевые общие");
   await layout(hp, "Профиль ведущего");
-  await shot(hp, "профиль-чаевые");
+  await shot(hp, "профиль");
 
   // ===== 2. Отзыв до конца игры — отказ =====
   const lobby = await createSession(host, `Проверка отзыва ${MARK}`);
@@ -405,7 +395,7 @@ try {
   check((await screen.locator(".finale-qr svg, .finale-qr img").count()) >= 4, "Экран зала: все четыре QR нарисованы");
   check((await screen.locator(".screen-exit").count()) === 1, "Экран зала: «На главную» видно и поверх «Спасибо»");
   const finale = (await api("GET", `/api/finale/${game.id}`, annaDevice)).data ?? {};
-  check(finale.tipsUrl === TIPS, "Экран зала: QR чаевых ведёт на ссылку ведущего из профиля", `API финала: чаевые ${finale.tipsUrl}`);
+  check((await screen.locator(".finale-qr--tips").count()) === 1, "Экран зала: QR чаевых — общая ссылка JoyRest");
   await shot(screen, "экран-спасибо");
 
   // Пульт: убрать и вернуть «Спасибо».
@@ -423,7 +413,7 @@ try {
   // ===== 4. Отзыв с телефона гостя =====
   await anna.getByRole("heading", { name: "Спасибо, что были с нами!" }).waitFor({ timeout: WAIT });
   const tipsLink = anna.getByRole("link", { name: /Оставить чаевые/ });
-  check((await tipsLink.getAttribute("href")) === TIPS, "Телефон гостя: кнопка «Оставить чаевые» ведёт на ссылку ведущего");
+  check((await tipsLink.getAttribute("href")) === TIPS, "Телефон гостя: кнопка «Оставить чаевые» ведёт на общие чаевые JoyRest");
   check((await anna.getByRole("link", { name: "Подписаться на канал JoyRest" }).getAttribute("href")) === "https://t.me/JoyRest", "Телефон гостя: кнопка канала ведёт в t.me/JoyRest");
   check((await anna.getByRole("link", { name: "Наш сайт — joy-rest.ru" }).first().getAttribute("href")) === "https://joy-rest.ru/calc/", "Телефон гостя: кнопка сайта ведёт в калькулятор joy-rest.ru/calc/");
   check((await anna.getByText("Мы начали вести Telegram-канал").count()) === 1, "Телефон гостя: текст про канал на месте");

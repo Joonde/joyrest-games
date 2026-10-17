@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { abilitiesOf } from "../../core/abilities";
-import { finaleRepo, permissions, teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
+import { permissions, teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
 import { TelegramConnect } from "../../components/TelegramConnect";
 import { HostGate } from "../../components/HostGate";
 import { cropImage, ImageError } from "../../components/media/compressImage";
@@ -72,7 +72,6 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
       <ImagePicker uid={profile.uid} kind="avatar" title="Аватарка" hint="Квадратное фото лица, обрежется по центру." has={me.avatar !== null} onDone={(sha) => set({ avatar: sha })} onToast={showToast} />
       <ImagePicker uid={profile.uid} kind="cover" title="Обложка" hint="Широкое фото 3 : 1 — со сцены, с мероприятия, ваш стиль." has={me.cover !== null} onDone={(sha) => set({ cover: sha })} onToast={showToast} />
       <BioEditor initial={me.bio} onSaved={(bio) => set({ bio })} onToast={showToast} />
-      {finaleRepo && permissions.canSetTips(profile) && <TipsEditor owner={permissions.isAdmin(profile)} onToast={showToast} />}
       <Toast text={toast} />
     </>
   );
@@ -197,66 +196,6 @@ function BioEditor({ initial, onSaved, onToast }: { initial: string; onSaved: (b
       )}
       <div className="actions">
         <button type="button" className="btn btn--block" disabled={busy || bio.trim() === initial} onClick={() => void save()}>
-          {busy ? "Сохраняем…" : "Сохранить"}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-/**
- * Ссылка для чаевых (решение владельца 15 октября 2026): в конце игры экран зала показывает её QR-кодом, телефоны гостей —
- * кнопкой «Оставить чаевые». Нет своей — показывается ссылка владельца агентства.
- */
-function TipsEditor({ owner, onToast }: { owner: boolean; onToast: (text: string) => void }) {
-  const [state, retry, update] = useLoad(() => (finaleRepo ? finaleRepo.getTips() : Promise.resolve("")), []);
-  const [url, setUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const saved = state.status === "ready" ? state.data : "";
-  const value = url ?? saved;
-
-  async function save() {
-    if (!finaleRepo) return;
-    const BAD = "Нужна ссылка, которая начинается с https:// — например, со страницы чаевых в CloudTips или Т-Банке.";
-    // Явно не ссылка — говорим сразу, без запроса на сервер.
-    if (value.trim() !== "" && !/^https:\/\/[^\s]+\.[^\s]+$/i.test(value.trim())) {
-      setError(BAD);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await finaleRepo.setTips(value.trim());
-      update(() => next);
-      setUrl(null);
-      onToast(next ? "Ссылка для чаевых сохранена" : "Ссылка для чаевых убрана");
-    } catch {
-      setError("Нужна ссылка, которая начинается с https:// — например, со страницы чаевых в CloudTips или Т-Банке.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (state.status === "error") return <LoadFailedInline onRetry={retry} />;
-  return (
-    <section className="card" aria-labelledby="profile-tips">
-      <h2 id="profile-tips">Чаевые</h2>
-      <label className="field">
-        Ссылка на вашу страницу для чаевых
-        <input inputMode="url" maxLength={300} value={value} placeholder="https://…" onChange={(e) => setUrl(e.target.value)} />
-      </label>
-      <p className="muted small">
-        В конце игры экран зала покажет её QR-кодом, а телефоны гостей — кнопкой «Оставить чаевые».
-        {owner ? " Ваша ссылка показывается и у ведущих, у которых своей нет." : " Нет своей — покажем ссылку агентства."}
-      </p>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="actions">
-        <button type="button" className="btn btn--block" disabled={busy || state.status !== "ready" || value.trim() === saved} onClick={() => void save()}>
           {busy ? "Сохраняем…" : "Сохранить"}
         </button>
       </div>

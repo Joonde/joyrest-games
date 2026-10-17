@@ -56,10 +56,10 @@ function ReviewBody({ sessionId }: { sessionId: string }) {
           <p className="muted">Загружаем…</p>
         )}
       </section>
-      {(finale?.tipsUrl || TIPS_URL) && (
+      {TIPS_URL && (
       <section className="card stack">
         <h2>Чаевые</h2>
-        <TipsButton url={finale?.tipsUrl || TIPS_URL} />
+        <TipsButton />
       </section>
       )}
       <section className="card stack">

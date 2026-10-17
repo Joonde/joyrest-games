@@ -26,12 +26,15 @@ permissions:
 jobs:
   inspect:
     name: Что видят ведущий и гости
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[inspect]')
+    # [crowd] — только «Большой праздник» (10 команд или 40 гостей) отдельным прогоном.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[inspect]') || contains(github.event.head_commit.message, '[crowd]')
     runs-on: ubuntu-24.04
     concurrency:
-      group: inspect
+      group: inspect-${{ contains(github.event.head_commit.message, '[crowd]') && 'crowd' || 'all' }}
       cancel-in-progress: true
-    timeout-minutes: 90
+    timeout-minutes: 150
+    env:
+      PROFILES: ${{ github.event.inputs.profiles || (contains(github.event.head_commit.message, '[crowd]') && 'crowd') || 'tv,projector,laptop' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,7 +59,6 @@ jobs:
           # Каждая игра — две страницы (экран зала и телефоны).
           PAR: "4"
           BUDGET: "400"
-          PROFILES: ${{ github.event.inputs.profiles || 'tv,projector,laptop' }}
           # Все экраны зала на телевизоре — архивом задачи (в ветку e2e-shots не кладём: много снимков).
           GALLERY: /tmp/gallery
         run: |
@@ -69,7 +71,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gallery
+          name: gallery-${{ contains(github.event.head_commit.message, '[crowd]') && 'crowd' || 'all' }}
           path: /tmp/gallery
           retention-days: 7
           if-no-files-found: ignore
@@ -80,9 +82,10 @@ jobs:
           git config user.name "joyrest-ci"
           git config user.email "ci@joy-rest.ru"
           git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
-          rm -rf inspect && mkdir -p inspect && cp -r /tmp/inspect/. inspect/
-          echo "${GITHUB_SHA}" > inspect/commit.txt
-          git add -A inspect
+          DIR=inspect; case "$PROFILES" in crowd) DIR=inspect-crowd;; esac
+          rm -rf "$DIR" && mkdir -p "$DIR" && cp -r /tmp/inspect/. "$DIR"/
+          echo "${GITHUB_SHA}" > "$DIR"/commit.txt
+          git add -A "$DIR"
           if git commit -qm "Отчёт Ревизора ${GITHUB_SHA::7}"; then
             sent=""
             for i in 1 2 3 4 5; do

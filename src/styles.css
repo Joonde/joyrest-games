@@ -2423,6 +2423,9 @@ kbd {
   right: max(16px, var(--safe-right));
   z-index: 20;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100vw - 32px);
   gap: 8px;
   transition: opacity 0.3s ease;
 }
@@ -4497,6 +4500,33 @@ kbd {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+/* Строка — кнопка выбора: очки получает только подсвеченный участник. */
+.people-list__pick {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.people-list__pick:disabled {
+  cursor: default;
+}
+
+.people-list__item {
+  border: 2px solid transparent;
+}
+
+.people-list__item.is-selected {
+  border-color: var(--color-highlight);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-highlight) 25%, transparent);
 }
 
 .people-list__place {

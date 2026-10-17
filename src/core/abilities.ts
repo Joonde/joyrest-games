@@ -57,7 +57,6 @@ export function abilitiesOf(actor: Actor, p: Permissions): Abilities {
     p.canViewTeam(actor) && { text: "Свой профиль: фото, обложка, «о себе», смена пароля.", where: "меню → «Мой профиль»" },
     p.canViewTeam(actor) && { text: "Карточки всей команды JoyRest.", where: "меню → «Команда JoyRest»" },
     p.canLinkTelegram(actor) && { text: "Уведомления в Telegram: назначения, изменения, напоминания (без данных клиентов).", where: "«Мой профиль» → «Подключить Telegram»" },
-    p.canSetTips(actor) && { text: "Своя ссылка для чаевых — гости видят её QR в конце игры.", where: "«Мой профиль»" },
     p.canShowVenueQr(actor) && { text: "QR-анкеты: заведение заполняет анкету площадки, клиент — запрос на подбор.", where: "меню → «QR-анкеты»" },
   ]);
 

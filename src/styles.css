@@ -19480,6 +19480,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .finale-qrs:has(> :nth-child(4)) .finale-qr figcaption span {
   font-size: 1.3cqw;
 }
+/* Чаевые — выделены золотой рамкой (решение владельца 17 октября 2026). */
+.finale-qr--tips {
+  padding: 1.4cqh 0.8cqw;
+  border: 2px solid var(--color-highlight);
+  border-radius: 1.4cqw;
+}
+.finale-tips {
+  padding: 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 14px;
+}
 .finale-hall {
   display: flex;
   flex-direction: column;

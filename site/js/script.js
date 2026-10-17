@@ -501,11 +501,8 @@
   }
   // Витрина: расчёт — текстом менеджеру, куда удобно клиенту (окно #sendSheet).
   function showcaseText(){
-    const opts = calcOpts();
-    const s = P.calcSummary(opts);
-    const r = P.calcPrice(opts);
-    const level = P.LEVELS.find((l) => l.id === (hostLevelField.value || ''));
-    return 'Расчёт JoyRest: ' + s.text + (level && !r.individual ? ' Формат ведущего: ' + level.name + '.' : '');
+    // Строки «Что: значение» — менеджер сразу видит, что напротив чего (решение владельца 17 октября 2026).
+    return P.calcMessage(calcOpts(), hostLevelField.value || '');
   }
   function copyCalc(value, message){
     const done = () => topToast(message || 'Расчёт скопирован — вставьте его в чат с менеджером', null, null, 6000);

@@ -14275,6 +14275,12 @@ button.dance-card:active {
 .mf-reveal__art svg { width: 100%; height: 100%; }
 .mf-reveal__name { font-size: 2.6cqh; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mf-reveal__role { font-size: 2.4cqh; color: #e3c68c; }
+/* Больше 10 игроков — карты меньше и в 7 колонок: 20 ролей уходили за верх и низ экрана (Ревизор, «Большой праздник»). */
+.mf-reveal:has(> li:nth-child(11)) { grid-template-columns: repeat(auto-fit, minmax(12cqw, 1fr)); gap: 1cqh 0.8cqw; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__item { padding: 0.6cqh; gap: 0.2cqh; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__art { width: 8cqh; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__name { font-size: 2cqh; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__role { font-size: 1.9cqh; }
 
 /* Ночное небо и спящий город */
 .mf-sky { position: absolute; inset: 0; pointer-events: none; }
@@ -15028,6 +15034,7 @@ button.dance-card:active {
 .bk-stage__dossier { width: 26cqw; --bk-fs: 1.7cqw; }
 .bk-kicker { margin: 0; font-size: 2cqh; letter-spacing: 0.24em; text-transform: uppercase; color: #F1C230; }
 .bk-title { margin: 0; font-family: var(--font-display, "Cormorant Garamond", serif); font-weight: 700; font-size: 6cqh; line-height: 1.05; text-wrap: balance; }
+.bk-title--many { font-size: 3.4cqh; }
 .bk-lead { margin: 0; font-size: 2.8cqh; line-height: 1.35; color: #E8E0D6; text-wrap: pretty; }
 .bk-lead--muted { color: #B5ABA2; font-size: 2.2cqh; }
 .bk-num { color: #F1C230; }

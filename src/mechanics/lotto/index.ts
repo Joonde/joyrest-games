@@ -25,4 +25,5 @@ export const lotto: Mechanic<LottoContent, { marks: string[] }, LottoStep> = {
   score,
   validate: validateLotto,
   preview: { driver: lottoPreview, teams: 3, limit: 70 },
+  art: () => "lotto",
 };

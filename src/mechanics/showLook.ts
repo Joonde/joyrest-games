@@ -4,10 +4,16 @@
 // картинки — переменные `.show-stage--<вид>` в src/styles.css, логика игры от вида не зависит.
 // У каждой механики свой список видов: «Своя игра» и «Миллионер» — «Студия», «Гонка» — «Трасса».
 
-export type ShowLook = "classic" | "studio" | "evening" | "track";
+export type ShowLook = "classic" | "studio" | "evening" | "track" | "table";
 
 /** Виды «Своей игры» и «Миллионера». */
 export const SHOW_LOOKS: ShowLook[] = ["classic", "studio", "evening"];
+
+/** Виды «Своей игры» и «100 к 1»: ещё «Игровой стол» (карты, кубики, кнопка — Figma AI, `public/covers/art/web/board`). */
+export const TABLE_LOOKS: ShowLook[] = ["classic", "studio", "evening", "table"];
+
+/** Новые игры и шаблон «Своей игры» (решение владельца 17 октября 2026). */
+export const DEFAULT_BOARD_LOOK: ShowLook = "table";
 
 /** Виды «Гонки на выживание». */
 export const SURVIVAL_LOOKS: ShowLook[] = ["classic", "track", "evening"];
@@ -17,6 +23,7 @@ export const SHOW_LOOK_TITLES: Record<ShowLook, string> = {
   studio: "Студия",
   evening: "Вечер JoyRest",
   track: "Трасса",
+  table: "Игровой стол",
 };
 
 /** Новые игры и шаблоны библиотеки («Своя игра», «Миллионер»). */

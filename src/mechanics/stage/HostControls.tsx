@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useHostRun } from "../../components/live/useHostRun";
+import { usePultDraft } from "../../components/live/usePultDraft";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
@@ -26,8 +27,9 @@ function stageMoment(s: Session): string {
  */
 export function StageHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<StageContent>) {
   const { busy, error, setError, latest, inFlight, run, quiet } = useHostRun(session, control, rehearsal, { moment: stageMoment });
-  const [battle, setBattle] = useState<{ tile: string; opponent: string | null } | null>(null);
   const { stage, step } = session.state;
+  // Выбор соперника батла переживает смену вкладки и перезагрузку пульта (до следующего шага).
+  const [battle, setBattle] = usePultDraft<{ tile: string; opponent: string | null } | null>(session.id, "stage-battle", `${step}:${stage}`, null);
   const r = parseStageResult(session.state.result);
   const tile = tileOf(content, r.tile);
   const now = useServerNow(250, r.mode === "vote" && stage === "question");

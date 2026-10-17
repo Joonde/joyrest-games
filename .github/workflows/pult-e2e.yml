@@ -1,0 +1,86 @@
+# Стресс-тест пульта ведущего (CLAUDE.md, раздел 9): настоящий пульт, экран зала и 6–12 телефонов гостей на
+# test.games.joy-rest.ru проходят популярные и новые игры, нажимая всё подряд; отдельно — показ PDF-презентации
+# со вкладки «Слайды». Только вручную (Run workflow) или коммитом с [pult] в ветке claude/* (~30–45 минут).
+# Итог — аннотацией; отчёт и снимки — в ветку e2e-shots (папка pult/).
+name: Стресс-тест пульта
+
+on:
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Игры через запятую (ключи: quiz, lotto, dragon, justdance, millionaire, board, hundred, quest, truth, karaoke, melody, spy, wager, wine, perudo, dance, deck); пусто — все"
+        required: false
+        default: ""
+      budget:
+        description: "Действий пульта на игру"
+        required: false
+        default: "90"
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  pult:
+    name: Пульт на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[pult]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Шаблоны из кода (на случай, если игры нет в библиотеке test) — со страницы робота-ведущего.
+      - name: Зависимости и страница робота
+        run: |
+          npm ci --no-audit --no-fund
+          node scripts/robot/build.mjs /tmp/robot
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/pult.mjs /tmp/e2e/ && cp -r scripts/e2e/fixtures /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      # Test пересобирается после каждого push в claude/*: ждём, пока выложится этот коммит (до 15 минут).
+      - name: Ждём выкладку на test
+        if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 60); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Пульт под нагрузкой
+        working-directory: /tmp/e2e
+        run: node pult.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          PULT_OUT: /tmp/e2e/out
+          PULT_GAMES: ${{ github.event.inputs.games }}
+          PULT_BUDGET: ${{ github.event.inputs.budget || '90' }}
+          PULT_PARALLEL: "2"
+          ROBOT_DIR: /tmp/robot
+          REPO_DIR: ${{ github.workspace }}
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+      - name: Отчёт в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/e2e/out ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf pult && mkdir -p pult && cp -r /tmp/e2e/out/. pult/
+          git add -A pult
+          if git commit -qm "Стресс пульта ${GITHUB_SHA::7}"; then
+            for i in 1 2 3 4 5; do
+              git push -q origin HEAD:e2e-shots && break
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+          fi

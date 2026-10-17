@@ -165,7 +165,8 @@ function useCueSound(cue: SoundCue | null | undefined): void {
   }, [cue]);
 }
 
-function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
+// Экспорт — для Ревизора (scripts/robot/inspect.ts): робот-ведущий проверяет настоящий экран зала на размерах ТВ и проектора.
+export function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
   // Ведущий случайно сделал это устройство экраном зала (например, телефон) — вернуться к выбору «Пульт / Экран зала».

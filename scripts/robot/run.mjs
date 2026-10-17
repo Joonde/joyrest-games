@@ -4,6 +4,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { chromium } from "playwright";
+import { MECHANICS } from "./games.mjs";
 
 const site = path.resolve(process.argv[2] ?? "build/robot");
 const out = process.argv[3] ?? path.join(site, "report.json");
@@ -25,30 +26,6 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, r));
 const port = server.address().port;
-
-const MECHANICS = {
-  quiz: { modes: ["solo", "teams"], demos: 2 },
-  lotto: { modes: ["solo", "teams"], demos: 1 },
-  board: { modes: ["solo", "teams"], demos: 1 },
-  checkers: { modes: ["teams"], demos: 1, players: [2] },
-  dance: { modes: ["teams"], demos: 1 },
-  stage: { modes: ["teams"], demos: 2 },
-  quest: { modes: ["teams"], demos: 2 },
-  millionaire: { modes: ["teams", "solo"], demos: 1 },
-  hundred: { modes: ["teams", "solo"], demos: 4 },
-  survival: { modes: ["teams"], demos: 1 },
-  dragon: { modes: ["teams"], demos: 2 },
-  mafia: { modes: ["solo"], demos: 1, players: [6, 9] },
-  spy: { modes: ["solo"], demos: 1, players: [5, 11] },
-  bunker: { modes: ["solo"], demos: 1, players: [5, 8] },
-  durak: { modes: ["solo"], demos: 1, players: [2, 4] },
-  truth: { modes: ["solo", "teams"], demos: 2 },
-  perudo: { modes: ["solo", "teams"], demos: 1, players: [2, 4] },
-  wager: { modes: ["teams", "solo"], demos: 1 },
-  wine: { modes: ["solo", "teams"], demos: 1 },
-  story: { modes: ["solo", "teams"], demos: 1, players: [4, 6] },
-  olymp: { modes: ["teams"], demos: 2, players: [1, 3] },
-};
 
 const browser = await chromium.launch({ ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}), args: ["--no-sandbox"] });
 const reports = [];

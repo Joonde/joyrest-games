@@ -11955,6 +11955,15 @@ button.dance-card:active {
   flex: 1 1 200px;
   min-width: 0;
   overflow: hidden;
+  padding-block: 8px;
+}
+
+/* Ответ гостя ведущий читает целиком — переносом, а не многоточием: по нему он решает «засчитать» (Ревизор: на телефоне
+   ведущего строка с ответом уезжала за край). */
+.sv-mark-row .line-clamp {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .sv-mark-row__timer {

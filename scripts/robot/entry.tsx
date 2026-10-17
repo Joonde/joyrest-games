@@ -43,6 +43,10 @@ const INSPECT = q.get("inspect") === "1";
 const [HALL_W = 960, HALL_H = 540] = (q.get("hall") ?? "960x540").split("x").map(Number);
 const HOST_W = Number(q.get("host") ?? (INSPECT ? "390" : "720"));
 const PHONE_W = Number(q.get("phone") ?? "360");
+const GALLERY = q.get("gallery") === "1";
+// Что смотрит эта страница: `hall` — экран зала (окно = экран), `phones` — пульт и телефоны (окно = ширина телефона,
+// чтобы vw телефона были как на телефоне). Ход игры один и тот же (тот же seed), страниц две.
+const AREAS = q.get("areas") ?? "all";
 // Длинные имена, как у настоящих гостей (до 30 символов со смайликом): проверка, что ничего не разъезжается.
 const LONG_NAMES = q.get("names") === "long";
 const LONG_TEAMS = ["🦄 Единороги из бухгалтерии", "🐺 Северные волки отдела IT", "🦉 Совы-полуночники ресепшн", "🐻 Медведи складской логистики", "🐯 Тигры клиентского сервиса", "🐬 Дельфины маркетинга и PR"];
@@ -357,11 +361,13 @@ function App() {
     return (
       <>
         {/* Экран зала — в левом верхнем углу во всё окно: transform делает его рамкой для position: fixed. */}
-        <section data-hall key={`hall-${store.keys.hall}`} style={{ position: "relative", width: HALL_W, height: HALL_H, overflow: "hidden", transform: "translateZ(0)" }}>
-          <Guard area="экран зала">
-            <Hall />
-          </Guard>
-        </section>
+        {AREAS !== "phones" && (
+          <section data-hall key={`hall-${store.keys.hall}`} style={{ position: "relative", width: HALL_W, height: HALL_H, overflow: "hidden", transform: "translateZ(0)" }}>
+            <Guard area="экран зала">
+              <Hall />
+            </Guard>
+          </section>
+        )}
         <section data-host key={`host-${store.keys.host}`} style={{ width: HOST_W, background: "var(--color-bg)" }}>
           <main className="page page--pult">
             <section className="card">
@@ -456,17 +462,19 @@ async function settle(): Promise<void> {
   await Promise.race([Promise.all(imgs.map(loaded)), sleep(2000)]);
 }
 
-async function snap(root: HTMLElement, el: Element, id: string, key: string): Promise<string | undefined> {
+async function snap(root: HTMLElement, el: Element | null, id: string, key: string): Promise<string | undefined> {
   const w = window as unknown as { robotSnap?: (id: string, key: string) => Promise<string | null> };
-  if (!w.robotSnap || snaps >= MAX_SHOTS) return undefined;
-  const target = el as HTMLElement;
+  if (!w.robotSnap || (el && snaps >= MAX_SHOTS)) return undefined;
+  const target = (el ?? root) as HTMLElement;
   const prev = [target.style.outline, target.style.outlineOffset];
-  target.style.outline = "4px solid #ff2d55";
-  target.style.outlineOffset = "2px";
+  if (el) {
+    target.style.outline = "4px solid #ff2d55";
+    target.style.outlineOffset = "2px";
+  }
   root.setAttribute("data-snap", "1");
   try {
     const file = await w.robotSnap(id, key);
-    if (file) snaps++;
+    if (file && el) snaps++;
     return file ?? undefined;
   } finally {
     root.removeAttribute("data-snap");
@@ -487,9 +495,9 @@ async function inspectView(): Promise<void> {
   const hall = document.querySelector<HTMLElement>("[data-hall]");
   if (hall) areas.push({ area: "экран зала", root: hall });
   const host = document.querySelector<HTMLElement>("[data-host]");
-  if (host && playing) areas.push({ area: "пульт", root: host });
+  if (host && playing && AREAS !== "hall") areas.push({ area: "пульт", root: host });
   // Телефоны: первые три и участник команды (у него свой вид).
-  const phones = [...document.querySelectorAll<HTMLElement>("[data-phone]")];
+  const phones = AREAS === "hall" ? [] : [...document.querySelectorAll<HTMLElement>("[data-phone]")];
   const member = phones.find((p) => p.dataset.phone?.startsWith("mem"));
   for (const p of [...phones.slice(0, 3), ...(member && !phones.slice(0, 3).includes(member) ? [member] : [])]) areas.push({ area: "телефон", root: p });
   for (const { area, root } of areas) {
@@ -516,6 +524,8 @@ async function inspectView(): Promise<void> {
     }
   }
   window.scrollTo(0, 0);
+  // Галерея (GALLERY=1 у inspect.mjs): снимок экрана зала на каждом новом виде — посмотреть все экраны глазами.
+  if (GALLERY && hall) await snap(hall, null, `вид-${seenViews.size}`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${key}`);
 }
 
 /** Окно подтверждения на экране — соглашаемся (иногда сначала отказываемся). */

@@ -53,15 +53,26 @@ jobs:
           if [ $st -ne 0 ]; then grep -iE "error|✘|could not|no matching" /tmp/robot-build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
       - name: Ревизор смотрит игры
         env:
-          PAR: "6"
-          BUDGET: "350"
+          # Каждая игра — две страницы (экран зала и телефоны).
+          PAR: "4"
+          BUDGET: "400"
           PROFILES: ${{ github.event.inputs.profiles || 'tv,projector,laptop' }}
+          # Все экраны зала на телевизоре — архивом задачи (в ветку e2e-shots не кладём: много снимков).
+          GALLERY: /tmp/gallery
         run: |
           GAMES="${{ github.event.inputs.games }}"
           [ -n "$GAMES" ] || GAMES="quiz,lotto,board,hundred,checkers,dance,stage,quest,millionaire,survival,dragon,mafia,bunker,spy,durak,truth,perudo,wager,wine,story"
           mkdir -p /tmp/inspect
           node scripts/robot/inspect.mjs /tmp/robot /tmp/inspect "$GAMES" | tee /tmp/inspect/log.txt
           cat /tmp/inspect/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Галерея экранов (архив задачи, 7 дней)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery
+          path: /tmp/gallery
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Отчёт в ветку e2e-shots
         if: always()
         run: |

@@ -18,6 +18,9 @@ const only = process.argv[4] ? process.argv[4].split(",").filter(Boolean) : null
 const root = path.resolve(import.meta.dirname, "../..");
 const pub = path.join(root, "public");
 fs.mkdirSync(path.join(out, "shots"), { recursive: true });
+// Галерея — снимок экрана зала на каждом новом виде (только `tv`), отдельной папкой: в ветку e2e-shots не идёт.
+const GALLERY = process.env.GALLERY ? path.resolve(process.env.GALLERY) : null;
+if (GALLERY) fs.mkdirSync(GALLERY, { recursive: true });
 
 /** Размеры. Экран зала — окно браузера целиком (vw, vh, cqw как на настоящем экране). */
 const PROFILES = {
@@ -71,9 +74,21 @@ function addFinding(key, data, where) {
 async function runJob(job) {
   const { m, demo, mode, n, profile } = job;
   const p = PROFILES[profile];
-  const [w, h] = p.hall.split("x").map(Number);
   const name = `${m}-${demo}-${mode}-${profile}`;
   const where = `${m} ${demo + 1}-й шаблон, ${mode === "teams" ? "команды" : "каждый сам"} ×${n}, ${p.title.toLowerCase()}`;
+  // Две страницы с тем же ходом игры (тот же seed): экран зала в окне размера экрана и телефоны с пультом в окне
+  // ширины телефона — у каждой свои vw/vh, как на настоящем устройстве.
+  const [hall, phones] = await Promise.all([runPage(job, name, where, "hall"), runPage(job, name, where, "phones")]);
+  const views = (hall.views ?? 0) + (phones.views ?? 0);
+  const count = (hall.findings?.length ?? 0) + (phones.findings?.length ?? 0);
+  runs.push({ name, views, findings: count, finished: !!hall.finished && !!phones.finished });
+  console.log(`${count ? "•" : "✓"} ${name}: видов ${views}, находок ${count}${hall.finished && phones.finished ? "" : " (до финала не дошла)"}`);
+}
+
+async function runPage(job, name, where, areas) {
+  const { m, demo, mode, n, profile } = job;
+  const p = PROFILES[profile];
+  const [w, h] = areas === "hall" ? p.hall.split("x").map(Number) : [p.phone, 780];
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, reducedMotion: "reduce", locale: "ru-RU" });
   const missing = new Set();
   const pageErrors = [];
@@ -87,16 +102,20 @@ async function runJob(job) {
   await page.exposeFunction("robotSnap", async (id, key) => {
     if (shotKeys.has(key)) return null;
     shotKeys.add(key);
-    const file = `shots/${name}-${id}.jpg`;
+    const gallery = key.startsWith("галерея|");
+    if (gallery && !GALLERY) return null;
+    const file = gallery ? `${name}-${id}.jpg` : `shots/${name}-${areas}-${id}.jpg`;
     const ok = await page
       .locator("[data-snap]")
       .first()
-      .screenshot({ path: path.join(out, file), type: "jpeg", quality: 70, timeout: 10_000 })
+      .screenshot({ path: path.join(gallery ? GALLERY : out, file), type: "jpeg", quality: gallery ? 55 : 70, timeout: 10_000 })
       .then(() => true)
       .catch(() => false);
     return ok ? file : null;
   });
-  const url = `http://localhost:${port}/?m=${m}&mode=${mode}&n=${n}&seed=1&demo=${demo}&budget=${process.env.BUDGET ?? 350}&inspect=1&hall=${p.hall}&host=${p.host}&phone=${p.phone}&names=${p.names}`;
+  // Пульт — тоже телефон ведущего: на странице телефонов он той же ширины.
+  const host = areas === "hall" ? p.host : p.phone;
+  const url = `http://localhost:${port}/?m=${m}&mode=${mode}&n=${n}&seed=1&demo=${demo}&budget=${process.env.BUDGET ?? 350}&inspect=1&areas=${areas}&hall=${p.hall}&host=${host}&phone=${p.phone}&names=${p.names}${GALLERY && profile === "tv" && areas === "hall" ? "&gallery=1" : ""}`;
   let report;
   try {
     await page.goto(url);
@@ -111,10 +130,9 @@ async function runJob(job) {
   for (const e of [...new Set(pageErrors)].slice(0, 10)) addFinding(`страница|ошибка|${e.slice(0, 80)}`, { area: "страница", kind: "ошибка страницы", message: e, path: "", text: "", at: "" }, where);
   for (const file of missing) addFinding(`сеть|404|${file}`, { area: "сеть", kind: "файл не найден", message: `нет файла ${file}`, path: file, text: "", at: "" }, where);
   if (report.stuck) addFinding(`робот|тупик|${m}`, { area: "пульт", kind: "тупик", message: report.stuck, path: "", text: "", at: "" }, where);
-  if (report.timeout) addFinding(`робот|время|${m}`, { area: "страница", kind: "не успел", message: report.timeout, path: "", text: "", at: "" }, where);
-  runs.push({ name, views: report.views ?? 0, findings: report.findings?.length ?? 0, finished: !!report.finished });
-  console.log(`${report.findings?.length ? "•" : "✓"} ${name}: видов ${report.views ?? 0}, находок ${report.findings?.length ?? 0}${report.finished ? "" : " (до финала не дошла)"}`);
+  if (report.timeout) addFinding(`робот|время|${m}|${areas}`, { area: "страница", kind: "не успел", message: report.timeout, path: "", text: "", at: "" }, where);
   await page.close();
+  return report;
 }
 
 let next = 0;

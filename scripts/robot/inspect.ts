@@ -54,6 +54,18 @@ function ownText(el: Element): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+function textLines(el: Element): Box[] {
+  // Строки самого текста (а не блока): прямоугольники строк всех текстовых узлов элемента.
+  const lines: Box[] = [];
+  for (const n of el.childNodes) {
+    if (n.nodeType !== Node.TEXT_NODE || !(n.textContent ?? "").trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(n);
+    for (const r of range.getClientRects()) if (r.width >= 1 && r.height >= 1) lines.push(box(r));
+  }
+  return lines;
+}
+
 function textRect(el: Element): Box | null {
   // Прямоугольник самого текста (а не блока): объединение строк всех текстовых узлов элемента.
   let x1 = Infinity;
@@ -94,6 +106,23 @@ function decorative(el: Element, root: Element): boolean {
   return false;
 }
 
+/** Видно ли элемент вообще: display, visibility, прозрачность, закрытый <details> (content-visibility). */
+function shown(el: Element): boolean {
+  const check = (el as Element & { checkVisibility?: (o: object) => boolean }).checkVisibility;
+  return check ? check.call(el, { checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true }) : true;
+}
+
+/** Служебное экрана зала: кнопки «Во весь экран» (прячутся сами), выход после игры, значок звука. */
+const SERVICE = ".screen-controls, .screen-exit, .screen-tap";
+
+/** Только смайлики и знаки — цветные картинки, контраст и размер у них не меряем. */
+const NO_LETTERS = /^[^\p{L}\p{N}]*$/u;
+
+function inFixed(el: Element, root: Element): boolean {
+  for (let cur: Element | null = el; cur && cur !== root; cur = cur.parentElement) if (getComputedStyle(cur).position === "fixed") return true;
+  return false;
+}
+
 function visuallyHidden(el: Element, r: Box): boolean {
   if (r.w <= 2 || r.h <= 2) return true;
   const cs = getComputedStyle(el);
@@ -131,7 +160,8 @@ function backgroundAt(x: number, y: number, el: Element): [number, number, numbe
   let color: [number, number, number, number] = [0, 0, 0, 0];
   const layers: [number, number, number, number][] = [];
   for (const e of stack) {
-    if (e === el || el.contains(e)) continue;
+    // Свой фон элемента (кружок под буквой) — тоже фон текста; вложенные в него элементы — нет.
+    if (e !== el && el.contains(e)) continue;
     const tag = e.tagName;
     if (tag === "IMG" || tag === "VIDEO" || tag === "CANVAS" || tag === "IFRAME" || tag === "svg" || tag === "SVG" || e instanceof SVGElement) return null;
     const cs = getComputedStyle(e);
@@ -184,19 +214,21 @@ export function inspectArea(o: InspectOptions): Raw[] {
   const { root, area } = o;
   const rootRect = root.getBoundingClientRect();
   if (rootRect.width < 2 || rootRect.height < 2) return out;
-  const leaves: { el: Element; text: string; rect: Box; cs: CSSStyleDeclaration }[] = [];
+  const leaves: { el: Element; text: string; rect: Box; lines: Box[]; cs: CSSStyleDeclaration }[] = [];
   const add = (kind: string, message: string, el: Element, rect: Box, text = "") =>
     out.push({ kind, message, el, path: cssPath(el, root), text: text.slice(0, 80), rect });
 
   for (const el of root.querySelectorAll("*")) {
     const text = ownText(el);
     if (!text) continue;
-    if (decorative(el, root)) continue;
+    if (decorative(el, root) || el.closest(SERVICE) || !shown(el)) continue;
+    // Пульт и телефон: окна поверх страницы (position: fixed) в Ревизоре привязаны к окну экрана зала — не судим.
+    if (area !== "экран зала" && inFixed(el, root)) continue;
     const r = textRect(el);
     if (!r || visuallyHidden(el, r)) continue;
     if (opacityChain(el, root) < 0.15) continue;
     const cs = getComputedStyle(el);
-    leaves.push({ el, text, rect: r, cs });
+    leaves.push({ el, text, rect: r, lines: textLines(el), cs });
   }
 
   // 1. Мусор вместо текста. Смотрим и подписи кнопок (aria-label, title) — их читают и видят.
@@ -223,8 +255,14 @@ export function inspectArea(o: InspectOptions): Raw[] {
       const designedX = c.textOverflow === "ellipsis" || c.webkitLineClamp !== "none";
       const designedY = c.webkitLineClamp !== "none" && c.webkitLineClamp !== "";
       const scroll = (clipX && (c.overflowX === "auto" || c.overflowX === "scroll")) || (clipY && (c.overflowY === "auto" || c.overflowY === "scroll"));
-      const hidden = (clipX || self === root) && outX > 3 && !designedX ? `вбок на ${Math.round(outX)} px` : (clipY || self === root) && outY > 3 && !designedY ? `по высоте на ${Math.round(outY)} px` : "";
-      if (!hidden) continue;
+      // Телефон и пульт листаются вниз — за нижний край области текст уйти может, вбок — нет.
+      const rootY = self === root && area === "экран зала";
+      const hidden = (clipX || self === root) && outX > 3 && !designedX ? `вбок на ${Math.round(outX)} px` : (clipY || rootY) && outY > 3 && !designedY ? `по высоте на ${Math.round(outY)} px` : "";
+      if (!hidden) {
+        // Обрезано задуманно (многоточие) — выше не смотрим: дальше этот текст уже не виден.
+        if (self !== root && ((clipX && outX > 3 && designedX) || (clipY && outY > 3 && designedY))) break;
+        continue;
+      }
       if (self === root) add(area === "экран зала" ? "за краем экрана" : "за краем", `текст выходит за край ${area === "экран зала" ? "экрана" : "области"} ${hidden}`, l.el, r, l.text);
       else if (scroll) {
         // На телевизоре прокрутить некому; на телефоне и пульте прокрутка внутри блока — норма.
@@ -241,20 +279,25 @@ export function inspectArea(o: InspectOptions): Raw[] {
     for (let j = i + 1; j < leaves.length; j++) {
       const b = leaves[j];
       if (!b || a.el.contains(b.el) || b.el.contains(a.el)) continue;
-      const ix = Math.min(a.rect.x + a.rect.w, b.rect.x + b.rect.w) - Math.max(a.rect.x, b.rect.x);
-      const iy = Math.min(a.rect.y + a.rect.h, b.rect.y + b.rect.h) - Math.max(a.rect.y, b.rect.y);
-      if (ix <= 2 || iy <= 2) continue;
-      const small = Math.min(a.rect.w * a.rect.h, b.rect.w * b.rect.h);
-      if ((ix * iy) / small < 0.25) continue;
+      // По строкам: имя в две строки рядом со смайликом — не наложение.
+      let hit = false;
+      for (const la of a.lines)
+        for (const lb of b.lines) {
+          const ix = Math.min(la.x + la.w, lb.x + lb.w) - Math.max(la.x, lb.x);
+          const iy = Math.min(la.y + la.h, lb.y + lb.h) - Math.max(la.y, lb.y);
+          if (ix > 2 && iy > 2 && (ix * iy) / Math.min(la.w * la.h, lb.w * lb.h) >= 0.25) hit = true;
+        }
+      if (!hit) continue;
       add("надписи наезжают", `«${a.text.slice(0, 30)}» и «${b.text.slice(0, 30)}» друг на друге`, a.el, { x: Math.min(a.rect.x, b.rect.x), y: Math.min(a.rect.y, b.rect.y), w: Math.max(a.rect.x + a.rect.w, b.rect.x + b.rect.w) - Math.min(a.rect.x, b.rect.x), h: Math.max(a.rect.y + a.rect.h, b.rect.y + b.rect.h) - Math.min(a.rect.y, b.rect.y) }, `${a.text} | ${b.text}`);
     }
     // Закрыт: в середине текста сверху другой элемент (не сам текст, не его родитель и не прозрачный для касаний).
-    const cx = a.rect.x + a.rect.w / 2;
-    const cy = a.rect.y + a.rect.h / 2;
+    const first = a.lines[0] ?? a.rect;
+    const cx = first.x + first.w / 2;
+    const cy = first.y + first.h / 2;
     if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue;
     const top = document.elementFromPoint(cx, cy);
     // Кнопки экрана зала («Во весь экран») сами прячутся через 3 с без мыши — их не считаем.
-    if (top && top !== a.el && !a.el.contains(top) && !top.contains(a.el) && root.contains(top) && !top.closest(".screen-controls")) {
+    if (top && top !== a.el && !a.el.contains(top) && !top.contains(a.el) && root.contains(top) && !top.closest(SERVICE)) {
       const tcs = getComputedStyle(top);
       const bg = rgba(tcs.backgroundColor);
       const opaque = tcs.backgroundImage !== "none" || (bg !== null && bg[3] > 0.6) || ["IMG", "VIDEO", "CANVAS"].includes(top.tagName) || !!ownText(top);
@@ -264,6 +307,7 @@ export function inspectArea(o: InspectOptions): Raw[] {
 
   // 4. Размер текста: в зале — от высоты экрана (читают с другого конца зала), на телефоне и пульте — в пикселях.
   for (const l of leaves) {
+    if (NO_LETTERS.test(l.text)) continue;
     const size = parseFloat(l.cs.fontSize);
     if (area === "экран зала" && o.hallHeight) {
       if (size / o.hallHeight < MIN_HALL_FONT) add("мелко для зала", `шрифт ${size.toFixed(1)} px — ${((size / o.hallHeight) * 1080).toFixed(0)} px на Full HD (нужно от ${Math.round(MIN_HALL_FONT * 1080)})`, l.el, l.rect, l.text);
@@ -272,6 +316,7 @@ export function inspectArea(o: InspectOptions): Raw[] {
 
   // 5. Контраст текста с фоном (WCAG: обычный текст 4.5, крупный 3; находка — ниже 3 и ниже 4.5 у мелкого).
   for (const l of leaves) {
+    if (NO_LETTERS.test(l.text)) continue;
     const fill = l.cs.getPropertyValue("-webkit-text-fill-color");
     if (l.cs.textShadow !== "none" || l.cs.getPropertyValue("-webkit-text-stroke-width") !== "0px") continue;
     const fg0 = rgba(fill && fill !== l.cs.color && fill !== "currentcolor" ? fill : l.cs.color);
@@ -300,7 +345,7 @@ export function inspectArea(o: InspectOptions): Raw[] {
     for (const b of root.querySelectorAll("button, a[href], [role=button], input:not([type=hidden]), select")) {
       const r = b.getBoundingClientRect();
       if (r.width < 2 || r.height < 2 || decorative(b, root) || opacityChain(b, root) < 0.15) continue;
-      if ((b as HTMLButtonElement).disabled) continue;
+      if ((b as HTMLButtonElement).disabled || !shown(b) || inFixed(b, root)) continue;
       if (b.closest(".chip, .meta")) continue;
       // Ссылка внутри строки текста — часть фразы, а не кнопка.
       if (b.tagName === "A" && getComputedStyle(b).display === "inline") continue;

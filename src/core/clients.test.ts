@@ -24,6 +24,10 @@ describe("база клиентов: ссылки на соцсети", () => {
     expect(cleanLinks(["t.me/abcd", 5, "javascript:alert(1)"])).toEqual(["https://t.me/abcd"]);
     expect(linkTitle("https://t.me/abcd")).toBe("Telegram @abcd");
     expect(reachable({ phone: "", links: [] })).toBe(false);
+    // Клиент без ника из Telegram Business — ссылка по номеру в Telegram.
+    expect(cleanLinks(["tg://user?id=123456789"])).toEqual(["tg://user?id=123456789"]);
+    expect(linkTitle("tg://user?id=123456789")).toBe("Telegram (без ника)");
+    expect(cleanLinks(["tg://resolve?domain=x", "tg://user?id=abc"])).toEqual([]);
   });
 });
 

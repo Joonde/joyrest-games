@@ -1,10 +1,10 @@
 # Ревизор — что видят ведущий и гости
 
-Прогонов: 129 · видов игры проверено: 5847 · разных находок: 545
+Прогонов: 129 · видов игры проверено: 5811 · разных находок: 315
 
 Размеры: Телевизор Full HD (1920x1080); Проектор 4:3, маленький телефон, длинные имена (1024x768); Ноутбук 16:10, большой зал, длинные имена (1280x800).
 
-## Мешает игре — 272
+## Мешает игре — 64
 
 ### не успел · страница
 
@@ -19,34 +19,14 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `—`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
+- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 2
 
 ### за краем экрана · экран зала
 
-текст выходит за край экрана по высоте на 8 px — «🦊»
+текст выходит за край экрана по высоте на 139 px — «шашек: 11»
 
-- где: `section.td-screen__main > p.td-who > span.td-who__name > span.name-emoji`, этап `playing/0/question/pick`
-- игры (1): truth 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 14
-
-![за краем экрана](shots/truth-0-solo-projector-hall-1.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 8 px — «Александра Константинова»
-
-- где: `section.td-screen__main > p.td-who > span.td-who__name > span`, этап `playing/0/question/pick`
-- игры (1): truth 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 14
-
-![за краем экрана](shots/truth-0-solo-projector-hall-2.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 187 px — «🦄»
-
-- где: `div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__name > span.name-emoji`, этап `playing/7/question/task`
+- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__left`, этап `playing/7/question/task`
 - игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена; checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена
 - раз: 6
 
@@ -54,113 +34,23 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### за краем экрана · экран зала
 
-текст выходит за край экрана по высоте на 132 px — «0 очков»
+текст выходит за край экрана по высоте на 107 px — «🦄»
 
-- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__score`, этап `playing/7/question/task`
+- где: `div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__name > span.name-emoji`, этап `playing/7/question/task`
 - игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена; checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![за краем экрана](shots/checkers-0-teams-projector-hall-4.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 220 px — «шашек: 11»
-
-- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__left`, этап `playing/7/question/task`
-- игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена; checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![за краем экрана](shots/checkers-0-teams-projector-hall-5.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 21 px — «Ходит»
-
-- где: `div.td-screen > section.td-screen__main > p.td-who > span.td-who__label`, этап `playing/7/question/pick`
-- игры (1): truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![за краем экрана](shots/truth-0-solo-laptop-hall-3.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 16 px — «круг 2 из 3»
-
-- где: `div.td-screen > section.td-screen__main > p.td-who > span.td-who__round`, этап `playing/7/question/pick`
-- игры (1): truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![за краем экрана](shots/truth-0-solo-laptop-hall-4.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 21 px — «🐺»
-
-- где: `div.st-reveal > ul.st-votes > li > span.name-emoji`, этап `playing/39/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![за краем экрана](shots/story-0-solo-laptop-hall-2.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 21 px — «Владимир Преображенский 8»
-
-- где: `div.st-reveal > ul.st-votes > li > span`, этап `playing/39/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![за краем экрана](shots/story-0-solo-laptop-hall-3.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 21 px — «1»
-
-- где: `div.st-reveal > ul.st-votes > li > strong`, этап `playing/39/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![за краем экрана](shots/story-0-solo-laptop-hall-4.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 39 px — «365»
-
-- где: `div.checkers-screen__side > div.checkers-screen__question > ol.checkers-screen__options > li`, этап `playing/7/question/task`
-- игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
+- раз: 5
 
 ![за краем экрана](shots/checkers-0-teams-projector-hall-1.jpg)
 
 ### за краем экрана · экран зала
 
-текст выходит за край экрана по высоте на 39 px — «C»
+текст выходит за край экрана по высоте на 51 px — «0 очков»
 
-- где: `div.checkers-screen__question > ol.checkers-screen__options > li > span`, этап `playing/7/question/task`
+- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__score`, этап `playing/7/question/task`
 - игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
+- раз: 3
 
 ![за краем экрана](shots/checkers-0-teams-projector-hall-2.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 20 px — «Не справились»
-
-- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-screen__question > p.checkers-screen__verdict`, этап `playing/23/reveal/task`
-- игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![за краем экрана](shots/checkers-0-teams-projector-hall-9.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 21 px — «Ответ 3 из 5»
-
-- где: `main.quiz-stage > div.st-screen > section.st-screen__main > span.quiz-screen__badge`, этап `playing/39/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 1
-
-![за краем экрана](shots/story-0-solo-laptop-hall-1.jpg)
 
 ### за краем · пульт
 
@@ -170,27 +60,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): survival 1-й шаблон, команды ×4, телевизор full hd; survival 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; survival 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 91
 
-![за краем](shots/survival-0-teams-tv-phones-2.jpg)
-
-### за краем · пульт
-
-текст выходит за край области вбок на 109 px — «Шанс для : один ответ. Есть на табло — банк их, нет — банк .»
-
-- где: `main.page.page--pult > section.card > div.stack.host-quiz > p.mil-host-live`, этап `playing/1/reveal/steal`
-- игры (1): hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена …
-- раз: 36
-
-![за краем](shots/hundred-0-teams-projector-phones-1.jpg)
-
-### за краем · пульт
-
-текст выходит за край области вбок на 92 px — «Северные волки отдела IT»
-
-- где: `section.card > div.stack.host-quiz > p.mil-host-live > span`, этап `playing/1/reveal/steal`
-- игры (1): hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена …
-- раз: 33
-
-![за краем](shots/hundred-0-teams-projector-phones-2.jpg)
+![за краем](shots/survival-0-teams-tv-phones-1.jpg)
 
 ### за краем · пульт
 
@@ -202,15 +72,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![за краем](shots/survival-0-teams-projector-phones-1.jpg)
 
-### за краем · пульт
+### за краем · телефон
 
-текст выходит за край области вбок на 43 px — «🦊»
+текст выходит за край области вбок на 7 px — «10»
 
-- где: `section.card > div.stack.host-quiz > p.mil-host-live > span.name-emoji`, этап `playing/1/reveal/steal`
-- игры (1): hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 3-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 9
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/57/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 8
 
-![за краем](shots/hundred-0-solo-projector-phones-3.jpg)
+![за краем](shots/durak-0-solo-tv-phones-24.jpg)
 
 ### за краем · пульт
 
@@ -218,429 +88,129 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.stack.host-quiz > div.actions > div.host-buzz__verdict > button.btn.btn--secondary`, этап `playing/0/reveal/cell`
 - игры (1): quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
+- раз: 7
 
 ![за краем](shots/quest-0-teams-projector-phones-1.jpg)
 
 ### за краем · телефон
 
-текст выходит за край области вбок на 7 px — «7»
+текст выходит за край области вбок на 13 px — «♦︎»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/54/question/play`
+- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx > span`, этап `playing/57/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
+- раз: 5
 
-### за краем · пульт
-
-текст выходит за край области вбок на 105 px — «Анастасия Великорецкая»
-
-- где: `div.stack.host-quiz > p.mil-host-live > strong > span`, этап `playing/42/question/bet`
-- игры (1): board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![за краем](shots/board-0-solo-laptop-phones-3.jpg)
-
-### за краем · телефон
-
-текст выходит за край области вбок на 7 px — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
+![за краем](shots/durak-0-solo-projector-phones-29.jpg)
 
 ### за краем · телефон
 
 текст выходит за край области вбок на 8 px — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/92/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/94/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 5
+
+![за краем](shots/durak-0-solo-laptop-phones-40.jpg)
 
 ### за краем · телефон
 
 текст выходит за край области вбок на 7 px — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/68/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/14/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 4
+
+![за краем](shots/durak-0-solo-tv-phones-6.jpg)
+
+### за краем · телефон
+
+текст выходит за край области вбок на 8 px — «10»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
+![за краем](shots/durak-0-solo-tv-phones-18.jpg)
+
 ### за краем · телефон
 
-текст выходит за край области вбок на 8 px — «7»
+текст выходит за край области вбок на 8 px — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/19/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/18/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 2
 
+![за краем](shots/durak-0-solo-tv-phones-12.jpg)
+
 ### за краем · телефон
 
-текст выходит за край области вбок на 14 px — «♥︎»
+текст выходит за край области вбок на 9 px — «10»
 
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx > span`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--anime > span.dk-idx`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
-### за краем · пульт
-
-текст выходит за край области вбок на 11 px — «🐯»
-
-- где: `div.stack.host-quiz > p.mil-host-live > strong > span.name-emoji`, этап `playing/42/question/bet`
-- игры (1): board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![за краем](shots/board-0-solo-projector-phones-4.jpg)
+![за краем](shots/durak-0-solo-projector-phones-39.jpg)
 
 ### за краем · телефон
 
-текст выходит за край области вбок на 8 px — «7»
+текст выходит за край области вбок на 13 px — «♠︎»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
+- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx > span`, этап `playing/52/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 1
+
+![за краем](shots/durak-0-solo-laptop-phones-19.jpg)
+
+### за краем · телефон
+
+текст выходит за край области вбок на 13 px — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx > span`, этап `playing/65/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 1
+
+![за краем](shots/durak-0-solo-laptop-phones-35.jpg)
+
+### за краем · телефон
+
+текст выходит за край области вбок на 13 px — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx > span`, этап `playing/89/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 1
+
+![за краем](shots/durak-0-solo-laptop-phones-41.jpg)
 
 ### закрыт другим элементом · экран зала
 
-«Вход: localhost:41991/j · код 123 456» закрыт элементом li.mf-reveal__item.mf-role--mafia — «Вход: localhost:41991/j · код 123 456»
+«Вход: localhost:39021/j · код 123 456» закрыт элементом li.mf-reveal__item.mf-role--mafia — «Вход: localhost:39021/j · код 123 456»
 
-- где: `div.hall > main.quiz-stage > p.stage-code`, этап `playing/87/reveal/over`
-- игры (4): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена …
-- раз: 30
+- где: `div.hall > main.quiz-stage > p.stage-code`, этап `playing/90/reveal/over`
+- игры (4): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена …
+- раз: 22
 
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-14.jpg)
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-face — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 195
-
-![закрыт другим элементом](shots/durak-0-solo-projector-phones-30.jpg)
+![закрыт другим элементом](shots/mafia-0-solo-laptop-hall-3.jpg)
 
 ### закрыт другим элементом · телефон
 
-«7» закрыт элементом span.dk-face — «7»
+«Святослав Новосельцев» закрыт элементом strong.mf-tally__n — «Святослав Новосельцев»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 193
+- где: `ul.mf-tally > li.mf-tally__row > span.mf-tally__name > span`, этап `playing/6/reveal/verdict`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 74
 
-![закрыт другим элементом](shots/durak-0-solo-projector-phones-28.jpg)
+![закрыт другим элементом](shots/mafia-0-solo-laptop-phones-4.jpg)
 
-### закрыт другим элементом · телефон
-
-«Максимилиан Рождественский» закрыт элементом span.sp-tally__fill — «Максимилиан Рождественский»
-
-- где: `ul.sp-tally > li.sp-tally__row > span.sp-tally__name > span`, этап `playing/2/reveal/verdict`
-- игры (1): spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена; spy 1-й шаблон, каждый сам ×11, ноутбук 16:10, большой зал, длинные имена
-- раз: 153
-
-![закрыт другим элементом](shots/spy-0-solo-projector-phones-11.jpg)
-
-### закрыт другим элементом · телефон
+### закрыт другим элементом · экран зала
 
 «Александра Константинова» закрыт элементом span.name-emoji — «Александра Константинова»
 
-- где: `div.mf-targets > button.mf-target > span.mf-target__name > span`, этап `playing/1/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 133
-
-![закрыт другим элементом](shots/mafia-0-solo-projector-phones-11.jpg)
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом div.dk-card.dk-d--wedding — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 91
-
-### закрыт другим элементом · телефон
-
-«7» закрыт элементом div.dk-card.dk-d--wedding — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 89
-
-![закрыт другим элементом](shots/durak-0-solo-laptop-phones-64.jpg)
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-face — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 89
-
-### закрыт другим элементом · телефон
-
-«Q» закрыт элементом span.dk-pip.dk-pip--ace — «Q»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 87
-
-![закрыт другим элементом](shots/durak-0-solo-tv-phones-17.jpg)
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-brand — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 87
-
-![закрыт другим элементом](shots/durak-0-solo-tv-phones-19.jpg)
-
-### закрыт другим элементом · телефон
-
-«7» закрыт элементом span.dk-face — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 87
-
-### закрыт другим элементом · экран зала
-
-«Северные волки отдела IT» закрыт элементом span.qx-row__score — «Северные волки отдела IT»
-
-- где: `ol.qx-panel__list > li.qx-row > span.qx-row__name > span`, этап `playing/0/question/roll`
-- игры (1): quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 78
-
-![закрыт другим элементом](shots/quest-0-teams-projector-hall-2.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Единороги из бухгалтерии» закрыт элементом span.sv-lane__track — «Единороги из бухгалтерии»
-
-- где: `li.sv-lane > span.sv-lane__who > span.sv-lane__name > span`, этап `playing/0/ready/`
-- игры (1): survival 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; survival 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 74
-
-![закрыт другим элементом](shots/survival-0-teams-projector-hall-1.jpg)
-
-### закрыт другим элементом · телефон
-
-«7» закрыт элементом span.dk-face — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 66
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-face — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 66
-
-### закрыт другим элементом · телефон
-
-«7» закрыт элементом div.dk-card.dk-d--kpop — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 60
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-face — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 60
-
-### закрыт другим элементом · телефон
-
-«Q» закрыт элементом span.dk-pip.dk-pip--ace — «Q»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 57
-
-![закрыт другим элементом](shots/durak-0-solo-tv-phones-5.jpg)
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-brand — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 57
-
-![закрыт другим элементом](shots/durak-0-solo-tv-phones-7.jpg)
-
-### закрыт другим элементом · телефон
-
-«Владимир Преображенский» закрыт элементом button.mf-target — «Владимир Преображенский»
-
-- где: `div.st-targets > button.mf-target > span.mf-target__name > span`, этап `playing/14/question/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена; story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена
-- раз: 57
-
-![закрыт другим элементом](shots/story-0-solo-projector-phones-4.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Александра Константинова» закрыт элементом span.mf-seat__num — «Александра Константинова»
-
-- где: `ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__name > span`, этап `playing/2/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 56
-
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-5.jpg)
-
-### закрыт другим элементом · телефон
-
-«Владимир Преображенский» закрыт элементом strong.mf-tally__n — «Владимир Преображенский»
-
-- где: `ul.mf-tally > li.mf-tally__row > span.mf-tally__name > span`, этап `playing/1/reveal/verdict`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 55
-
-![закрыт другим элементом](shots/mafia-0-solo-laptop-phones-14.jpg)
-
-### закрыт другим элементом · телефон
-
-«Гость 2» закрыт элементом span.mf-tally__fill — «Гость 2»
-
-- где: `div.stack > ul.mf-tally > li.mf-tally__row > span.mf-tally__name`, этап `playing/1/reveal/verdict`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd
-- раз: 52
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-phones-12.jpg)
-
-### закрыт другим элементом · телефон
-
-«№ 1» закрыт элементом div.mf-card__pattern — «№ 1»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 36
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-phones-1.jpg)
-
-### закрыт другим элементом · телефон
-
-«Город» закрыт элементом div.mf-card__pattern — «Город»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 36
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-phones-2.jpg)
-
-### закрыт другим элементом · телефон
-
-«Ночью спите. Днём — ваш голос решает, кт» закрыт элементом div.mf-card__pattern — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 36
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-phones-4.jpg)
-
-### закрыт другим элементом · телефон
-
-«Мирный житель» закрыт элементом div.mf-card__pattern — «Мирный житель»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > h3.mf-card__title`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 34
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-phones-3.jpg)
-
-### закрыт другим элементом · телефон
-
-«♠︎» закрыт элементом span.dk-pip.dk-pip--ace — «♠︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-pip`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 20
-
-![закрыт другим элементом](shots/durak-0-solo-projector-phones-35.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Александра Константинова» закрыт элементом div.dk-table__felt — «Александра Константинова»
-
 - где: `div.dk-seat__card > span.dk-seat__text > span.dk-seat__name > span`, этап `playing/1/question/deal`
 - игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
+- раз: 13
 
-![закрыт другим элементом](shots/durak-0-solo-projector-hall-2.jpg)
-
-### закрыт другим элементом · телефон
-
-«от гостя:» закрыт элементом span.td-stamp.td-stamp--done — «от гостя:»
-
-- где: `div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from`, этап `playing/7/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-![закрыт другим элементом](shots/truth-0-solo-laptop-phones-7.jpg)
-
-### закрыт другим элементом · телефон
-
-«🦊» закрыт элементом span.td-stamp.td-stamp--done — «🦊»
-
-- где: `div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from > span.name-emoji`, этап `playing/7/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-![закрыт другим элементом](shots/truth-0-solo-laptop-phones-9.jpg)
-
-### закрыт другим элементом · телефон
-
-«♦︎» закрыт элементом span.dk-pip — «♦︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-pip`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 15
-
-### закрыт другим элементом · экран зала
-
-«Единороги из бухгалтерии» закрыт элементом span.name-emoji — «Единороги из бухгалтерии»
-
-- где: `div.stage-teams > div.stage-teams__one > span.stage-teams__name > span`, этап `playing/8/reveal/pick`
-- игры (1): stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 14
-
-![закрыт другим элементом](shots/stage-0-teams-laptop-hall-3.jpg)
-
-### закрыт другим элементом · телефон
-
-«Ваша семья: 🦉 Екатерина Воскресенская (» закрыт элементом div.mf-card__pattern — «Ваша семья: 🦉 Екатерина Воскресенская (Дон)»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__family`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-phones-8.jpg)
-
-### закрыт другим элементом · телефон
-
-«7» закрыт элементом span.dk-pip.dk-pip--ace — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-![закрыт другим элементом](shots/durak-0-solo-laptop-phones-52.jpg)
-
-### закрыт другим элементом · телефон
-
-«♠︎» закрыт элементом span.dk-brand — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-![закрыт другим элементом](shots/durak-0-solo-laptop-phones-54.jpg)
+![закрыт другим элементом](shots/durak-0-solo-projector-hall-1.jpg)
 
 ### закрыт другим элементом · экран зала
 
@@ -650,65 +220,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 8
 
-![закрыт другим элементом](shots/stage-0-teams-projector-hall-6.jpg)
-
-### закрыт другим элементом · пульт
-
-«Единороги из бухгалтерии» закрыт элементом span.buzz-queue__state — «Единороги из бухгалтерии»
-
-- где: `ul.buzz-queue.buzz-queue--plain > li > span.buzz-queue__name > span`, этап `playing/5/reveal/result`
-- игры (1): stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![закрыт другим элементом](shots/stage-0-teams-projector-phones-7.jpg)
-
-### закрыт другим элементом · телефон
-
-«Локация» закрыт элементом span.sp-card__face.sp-card__face--back — «Локация»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--place > span.sp-card__label`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![закрыт другим элементом](shots/spy-0-solo-tv-phones-5.jpg)
+![закрыт другим элементом](shots/stage-0-teams-laptop-hall-4.jpg)
 
 ### закрыт другим элементом · экран зала
 
-«1» закрыт элементом p.stage-code — «1»
+«Единороги из бухгалтерии» закрыт элементом span.name-emoji — «Единороги из бухгалтерии»
 
-- где: `div.st-reveal > ul.st-votes > li > strong`, этап `playing/27/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, команды ×6, телевизор full hd; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
+- где: `div.stage-teams > div.stage-teams__one > span.stage-teams__name > span`, этап `playing/8/reveal/pick`
+- игры (1): stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 6
 
-![закрыт другим элементом](shots/story-0-teams-tv-hall-2.jpg)
+![закрыт другим элементом](shots/stage-0-teams-laptop-hall-2.jpg)
 
 ### закрыт другим элементом · телефон
 
-«0%» закрыт элементом span.mil-option__text — «0%»
+«50%» закрыт элементом span.mil-option__text — «50%»
 
-- где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct`, этап `playing/4/reveal/reveal`
-- игры (1): millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
+- где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct`, этап `playing/8/reveal/reveal`
+- игры (1): millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
 - раз: 6
 
 ![закрыт другим элементом](shots/millionaire-0-teams-laptop-phones-2.jpg)
-
-### закрыт другим элементом · телефон
-
-«№1» закрыт элементом span.sp-card__face.sp-card__face--back — «№1»
-
-- где: `div.quiz-phone.sp-phone > div.sp-phone__card > button.sp-card > span.sp-card__seat`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 6
-
-![закрыт другим элементом](shots/spy-0-solo-tv-phones-3.jpg)
-
-### закрыт другим элементом · телефон
-
-«♦︎» закрыт элементом span.dk-pip — «♦︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-pip`, этап `playing/68/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
 
 ### закрыт другим элементом · экран зала
 
@@ -718,157 +250,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 6
 
-![закрыт другим элементом](shots/durak-0-solo-tv-hall-17.jpg)
-
-### закрыт другим элементом · телефон
-
-«♦︎» закрыт элементом span.dk-pip — «♦︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-pip`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![закрыт другим элементом](shots/durak-0-solo-laptop-phones-49.jpg)
+![закрыт другим элементом](shots/durak-0-solo-tv-hall-16.jpg)
 
 ### закрыт другим элементом · экран зала
 
-«🦉» закрыт элементом p.td-note — «🦉»
+«🦄» закрыт элементом p.stage-code — «🦄»
 
-- где: `ol.td-queue > li > span.td-queue__name > span.name-emoji`, этап `playing/7/question/pick`
-- игры (1): truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![закрыт другим элементом](shots/truth-0-solo-laptop-hall-6.jpg)
-
-### закрыт другим элементом · телефон
-
-«от гостя:» закрыт элементом span.td-stamp.td-stamp--done — «от гостя:»
-
-- где: `div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from`, этап `playing/1/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![закрыт другим элементом](shots/truth-0-solo-laptop-phones-2.jpg)
-
-### закрыт другим элементом · телефон
-
-«🐺» закрыт элементом span.td-stamp.td-stamp--done — «🐺»
-
-- где: `div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from > span.name-emoji`, этап `playing/1/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![закрыт другим элементом](shots/truth-0-solo-laptop-phones-4.jpg)
-
-### закрыт другим элементом · телефон
-
-«J✦R» закрыт элементом div.dk-card.dk-d--wedding — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 5
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом div.dk-card.dk-d--classic — «♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-pip`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 5
-
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом div.dk-card.dk-d--gothic — «♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip`, этап `playing/114/reveal/over`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 5
-
-### закрыт другим элементом · телефон
-
-«Пиратский корабль» закрыт элементом span.sp-card__face.sp-card__face--back — «Пиратский корабль»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--place > strong.sp-card__title`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-![закрыт другим элементом](shots/spy-0-solo-tv-phones-6.jpg)
-
-### закрыт другим элементом · телефон
-
-«Пленник» закрыт элементом span.sp-card__face.sp-card__face--back — «Пленник»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--place > strong.sp-card__role`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-![закрыт другим элементом](shots/spy-0-solo-tv-phones-7.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Анастасия Великорецкая 11» закрыт элементом p.td-note — «Анастасия Великорецкая 11»
-
-- где: `ol.td-queue > li > span.td-queue__name > span`, этап `playing/9/question/pick`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![закрыт другим элементом](shots/truth-0-solo-laptop-hall-7.jpg)
-
-### закрыт другим элементом · экран зала
-
-«🐺» закрыт элементом p.stage-code — «🐺»
-
-- где: `div.st-reveal > ul.st-votes > li > span.name-emoji`, этап `playing/27/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![закрыт другим элементом](shots/story-0-solo-projector-hall-2.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Владимир Преображенский 8» закрыт элементом p.stage-code — «Владимир Преображенский 8»
-
-- где: `div.st-reveal > ul.st-votes > li > span`, этап `playing/27/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![закрыт другим элементом](shots/story-0-solo-projector-hall-4.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Игрок 5» закрыт элементом p.stage-code — «Игрок 5»
-
-- где: `section.st-screen__main > div.st-reveal > ul.st-votes > li`, этап `playing/3/reveal/guess`
-- игры (1): story 1-й шаблон, команды ×6, телевизор full hd
-- раз: 4
-
-![закрыт другим элементом](shots/story-0-teams-tv-hall-1.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Владимир Преображенский» закрыт элементом li.mf-reveal__item.mf-role--civilian — «Владимир Преображенский»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--civilian > span.mf-reveal__name > span`, этап `playing/76/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
+- где: `div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__name > span.name-emoji`, этап `playing/7/question/task`
+- игры (1): checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-18.jpg)
+![закрыт другим элементом](shots/checkers-0-teams-laptop-hall-3.jpg)
 
-### закрыт другим элементом · телефон
+### закрыт другим элементом · экран зала
 
-«J✦R» закрыт элементом div.dk-card.dk-d--gothic — «J✦R»
+«Единороги из бухгалтерии» закрыт элементом p.stage-code — «Единороги из бухгалтерии»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
+- где: `div.checkers-screen__side > div.checkers-side.checkers-side--w > span.checkers-side__name > span`, этап `playing/7/question/task`
+- игры (1): checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-### закрыт другим элементом · телефон
-
-«♦︎» закрыт элементом span.dk-pip — «♦︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-pip`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
+![закрыт другим элементом](shots/checkers-0-teams-laptop-hall-4.jpg)
 
 ### закрыт другим элементом · экран зала
 
@@ -880,199 +282,25 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![закрыт другим элементом](shots/durak-0-solo-tv-hall-13.jpg)
 
-### закрыт другим элементом · телефон
-
-«♥︎» закрыт элементом span.dk-idx.dk-idx--b — «♥︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-face > i`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
 ### закрыт другим элементом · экран зала
 
-«366» закрыт элементом p.stage-code — «366»
+«Не справились» закрыт элементом p.stage-code — «Не справились»
 
-- где: `div.checkers-screen__side > div.checkers-screen__question > ol.checkers-screen__options > li`, этап `playing/7/question/task`
+- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-screen__question > p.checkers-screen__verdict`, этап `playing/23/reveal/task`
 - игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/checkers-0-teams-projector-hall-6.jpg)
-
-### закрыт другим элементом · экран зала
-
-«B» закрыт элементом p.stage-code — «B»
-
-- где: `div.checkers-screen__question > ol.checkers-screen__options > li > span`, этап `playing/7/question/task`
-- игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/checkers-0-teams-projector-hall-8.jpg)
-
-### закрыт другим элементом · телефон
-
-«Вы — шпион» закрыт элементом span.sp-card__face.sp-card__face--back — «Вы — шпион»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--spy > strong.sp-card__title`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/spy-0-solo-tv-phones-1.jpg)
-
-### закрыт другим элементом · телефон
-
-«Вы не знаете, где все. Слушайте и угадай» закрыт элементом span.sp-card__face.sp-card__face--back — «Вы не знаете, где все. Слушайте и угадайте локацию — или не выдайте себя.»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--spy > span.sp-card__hint`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/spy-0-solo-tv-phones-2.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Голосуйте тайно на телефоне · проголосов» закрыт элементом span — «Голосуйте тайно на телефоне · проголосовали 0 из 9»
-
-- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > p.mf-note`, этап `playing/2/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-3.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Александра Константинова 7» закрыт элементом span.mf-num — «Александра Константинова 7»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--mafia > span.mf-reveal__name > span`, этап `playing/76/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-21.jpg)
-
-### закрыт другим элементом · телефон
-
-«J✦R» закрыт элементом div.dk-card.dk-d--russia — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-brand`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 2
-
-![закрыт другим элементом](shots/durak-0-solo-tv-phones-26.jpg)
-
-### закрыт другим элементом · телефон
-
-«J✦R» закрыт элементом div.dk-card.dk-d--rome — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 2
-
-### закрыт другим элементом · экран зала
-
-«7» закрыт элементом div.dk-card.dk-back — «7»
-
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--anime > span.dk-idx`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### закрыт другим элементом · экран зала
-
-«♣︎» закрыт элементом div.dk-card.dk-back — «♣︎»
-
-- где: `div.dk-stock > div.dk-card.dk-d--anime > span.dk-idx > span`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### закрыт другим элементом · экран зала
-
-«♣︎» закрыт элементом div.dk-card.dk-back — «♣︎»
-
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--anime > span.dk-pip`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### закрыт другим элементом · телефон
-
-«Q» закрыт элементом div.dk-card.dk-d--gothic — «Q»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-face > b`, этап `playing/114/reveal/over`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### закрыт другим элементом · телефон
-
-«♠︎» закрыт элементом span.dk-pip — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-face > i`, этап `playing/114/reveal/over`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### закрыт другим элементом · экран зала
-
-«100» закрыт элементом p.td-note — «100»
-
-- где: `div.td-screen > ol.td-queue > li > span.td-queue__score`, этап `playing/7/question/pick`
-- игры (1): truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![закрыт другим элементом](shots/truth-0-teams-projector-hall-6.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Максимилиан Рождественски 3» закрыт элементом span.name-emoji — «Максимилиан Рождественски 3»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `finished/7/podium/`
-- игры (1): quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
 - раз: 1
 
-![закрыт другим элементом](shots/quiz-0-solo-laptop-hall-5.jpg)
+![закрыт другим элементом](shots/checkers-0-teams-projector-hall-5.jpg)
 
 ### закрыт другим элементом · экран зала
 
-«Александра Константинова» закрыт элементом li.mf-reveal__item.mf-role--civilian — «Александра Константинова»
+«🐻» закрыт элементом span — «🐻»
 
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--don > span.mf-reveal__name > span`, этап `playing/76/reveal/over`
+- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `playing/81/podium/over`
 - игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-16.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Анастасия Великорецкая 11» закрыт элементом span.mf-num — «Анастасия Великорецкая 11»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--doctor > span.mf-reveal__name > span`, этап `playing/76/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![закрыт другим элементом](shots/mafia-0-solo-projector-hall-23.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Святослав Новосельцев» закрыт элементом span.sp-reveal__role — «Святослав Новосельцев»
-
-- где: `ul.sp-reveal__list > li.sp-reveal__item > span.sp-reveal__name > span`, этап `playing/125/reveal/over`
-- игры (1): spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![закрыт другим элементом](shots/spy-0-solo-projector-hall-3.jpg)
-
-### закрыт другим элементом · телефон
-
-«J✦R» закрыт элементом div.dk-card.dk-d--cyber — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
-
-![закрыт другим элементом](shots/durak-0-solo-tv-phones-13.jpg)
-
-### закрыт другим элементом · телефон
-
-«J✦R» закрыт элементом div.dk-card.dk-d--kpop — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-brand`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
+![закрыт другим элементом](shots/mafia-0-solo-projector-hall-5.jpg)
 
 ### закрыт другим элементом · экран зала
 
@@ -1094,217 +322,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![закрыт другим элементом](shots/durak-0-solo-tv-hall-15.jpg)
 
-### закрыт другим элементом · экран зала
-
-«♠︎» закрыт элементом span — «♠︎»
-
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--anime > span.dk-pip`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
-
-### закрыт другим элементом · телефон
-
-«Q» закрыт элементом span — «Q»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-face > b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-### закрыт другим элементом · телефон
-
-«Q» закрыт элементом div.dk-card.dk-d--classic — «Q»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-face > b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-### закрыт другим элементом · телефон
-
-«♠︎» закрыт элементом span.dk-pip — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-face > i`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-### закрыт другим элементом · экран зала
-
-«♣︎» закрыт элементом div.dk-card.dk-back — «♣︎»
-
-- где: `div.dk-stock > div.dk-card.dk-d--rome > span.dk-face > i`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 1
-
-![закрыт другим элементом](shots/durak-0-solo-laptop-hall-48.jpg)
-
 ### надписи наезжают · экран зала
 
-«Александра Константинова» и «500 очков» друг на друге — «Александра Константинова \| 500 очков»
+«🐻» и «Максимилиан Рождественский» друг на друге — «🐻 \| Максимилиан Рождественский»
 
-- где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `finished/7/podium/`
-- игры (4): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена
-- раз: 17
-
-![надписи наезжают](shots/quiz-0-solo-projector-hall-7.jpg)
-
-### надписи наезжают · экран зала
-
-«Награждение» и «🐻» друг на друге — «Награждение \| 🐻»
-
-- где: `div.hall > main.quiz-stage > div.podium > p.podium__eyebrow`, этап `playing/7/podium/`
-- игры (3): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `playing/7/podium/`
+- игры (2): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
 ![надписи наезжают](shots/quiz-0-solo-projector-hall-5.jpg)
-
-### надписи наезжают · пульт
-
-«Единороги из бухгалтерии» и «+75» друг на друге — «Единороги из бухгалтерии \| +75»
-
-- где: `ul.buzz-queue.buzz-queue--plain > li > span.buzz-queue__name > span`, этап `playing/1/reveal/result`
-- игры (2): dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 71
-
-![надписи наезжают](shots/dance-0-teams-projector-phones-9.jpg)
-
-### надписи наезжают · экран зала
-
-«Медведи складской логистики» и «🦄» друг на друге — «Медведи складской логистики \| 🦄»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name.podium__name--team > span`, этап `finished/17/podium/result`
-- игры (2): dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-![надписи наезжают](shots/dance-0-teams-projector-hall-11.jpg)
-
-### надписи наезжают · телефон
-
-«Александра Константинова» и «🐺» друг на друге — «Александра Константинова \| 🐺»
-
-- где: `div.mf-targets > button.mf-target > span.mf-target__name > span`, этап `playing/1/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 391
-
-![надписи наезжают](shots/mafia-0-solo-projector-phones-10.jpg)
-
-### надписи наезжают · телефон
-
-«Полковнику никто не пишет» и «Нас не догонят» друг на друге — «Полковнику никто не пишет \| Нас не догонят»
-
-- где: `div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title`, этап `playing/0/question/`
-- игры (1): lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 358
-
-![надписи наезжают](shots/lotto-0-solo-projector-phones-1.jpg)
-
-### надписи наезжают · телефон
-
-«Ирина Аллегрова» и «Сплин» друг на друге — «Ирина Аллегрова \| Сплин»
-
-- где: `div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist`, этап `playing/0/question/`
-- игры (1): lotto 1-й шаблон, каждый сам ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 311
-
-![надписи наезжают](shots/lotto-0-solo-tv-phones-5.jpg)
-
-### надписи наезжают · экран зала
-
-«Александра Константинова» и «2» друг на друге — «Александра Константинова \| 2»
-
-- где: `ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__name > span`, этап `playing/2/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 307
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-4.jpg)
-
-### надписи наезжают · экран зала
-
-«Северные волки отдела IT» и «кл. 0» друг на друге — «Северные волки отдела IT \| кл. 0»
-
-- где: `ol.qx-panel__list > li.qx-row > span.qx-row__name > span`, этап `playing/0/question/roll`
-- игры (1): quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 236
-
-![надписи наезжают](shots/quest-0-teams-projector-hall-1.jpg)
-
-### надписи наезжают · телефон
-
-«Максимилиан Рождественский» и «2» друг на друге — «Максимилиан Рождественский \| 2»
-
-- где: `ul.sp-tally > li.sp-tally__row > span.sp-tally__name > span`, этап `playing/2/reveal/verdict`
-- игры (1): spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена; spy 1-й шаблон, каждый сам ×11, ноутбук 16:10, большой зал, длинные имена
-- раз: 219
-
-![надписи наезжают](shots/spy-0-solo-projector-phones-10.jpg)
-
-### надписи наезжают · телефон
-
-«Лишняя койка» и «сыграно» друг на друге — «Лишняя койка \| сыграно»
-
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__title`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 214
-
-![надписи наезжают](shots/bunker-0-solo-tv-phones-8.jpg)
-
-### надписи наезжают · экран зала
-
-«Александра Константинова» и «Инженер-электрик · стаж 8 лет» друг на друге — «Александра Константинова \| Инженер-электрик · стаж 8 лет»
-
-- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 153
-
-![надписи наезжают](shots/bunker-0-solo-projector-hall-1.jpg)
-
-### надписи наезжают · телефон
-
-«Владимир Преображенский» и «🦉» друг на друге — «Владимир Преображенский \| 🦉»
-
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 144
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-4.jpg)
-
-### надписи наезжают · телефон
-
-«Владимир Преображенский» и «🦉» друг на друге — «Владимир Преображенский \| 🦉»
-
-- где: `div.st-targets > button.mf-target > span.mf-target__name > span`, этап `playing/14/question/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена; story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена
-- раз: 132
-
-![надписи наезжают](shots/story-0-solo-projector-phones-3.jpg)
-
-### надписи наезжают · телефон
-
-«Владимир Преображенский» и «1» друг на друге — «Владимир Преображенский \| 1»
-
-- где: `ul.mf-tally > li.mf-tally__row > span.mf-tally__name > span`, этап `playing/1/reveal/verdict`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 115
-
-![надписи наезжают](shots/mafia-0-solo-projector-phones-14.jpg)
-
-### надписи наезжают · телефон
-
-«Александра Константинова» и «🦉» друг на друге — «Александра Константинова \| 🦉»
-
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--defend > span.dk-opp__name > span`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 102
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-10.jpg)
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-face > b`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 95
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-39.jpg)
 
 ### надписи наезжают · пульт
 
@@ -1316,26 +342,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![надписи наезжают](shots/board-0-solo-tv-phones-1.jpg)
 
-### надписи наезжают · телефон
-
-«Екатерина Воскресенская» и «🐻» друг на друге — «Екатерина Воскресенская \| 🐻»
-
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--throw > span.dk-opp__name > span`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 82
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-33.jpg)
-
-### надписи наезжают · экран зала
-
-«Единороги из бухгалтерии» и «750» друг на друге — «Единороги из бухгалтерии \| 750»
-
-- где: `div.stage-teams > div.stage-teams__one > span.stage-teams__name > span`, этап `playing/8/reveal/pick`
-- игры (1): stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 74
-
-![надписи наезжают](shots/stage-0-teams-projector-hall-1.jpg)
-
 ### надписи наезжают · пульт
 
 «100» и «🔒 батл» друг на друге — «100 \| 🔒 батл»
@@ -1346,415 +352,25 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![надписи наезжают](shots/stage-0-teams-tv-phones-1.jpg)
 
-### надписи наезжают · телефон
+### надписи наезжают · экран зала
 
-«Владимир Преображенский» и «Екатерина Воскресенская» друг на друге — «Владимир Преображенский \| Екатерина Воскресенская»
+«🦊» и «Александра Константинова» друг на друге — «🦊 \| Александра Константинова»
 
-- где: `div.sp-targets > button.sp-target > span.sp-target__name > span`, этап `playing/2/question/vote`
-- игры (1): spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 56
+- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span.name-emoji`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 40
 
-![надписи наезжают](shots/spy-0-solo-projector-phones-9.jpg)
-
-### надписи наезжают · телефон
-
-«♠︎» и «A» друг на друге — «♠︎ \| A»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-pip`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 48
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-34.jpg)
-
-### надписи наезжают · телефон
-
-«от гостя: Игрок» и «Выполнено!» друг на друге — «от гостя: Игрок \| Выполнено!»
-
-- где: `div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from`, этап `playing/2/reveal/done`
-- игры (1): truth 1-й шаблон, команды ×4, телевизор full hd; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, телевизор full hd; truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 48
-
-![надписи наезжают](shots/truth-0-solo-laptop-phones-6.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-pip.dk-pip--ace`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 46
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-27.jpg)
-
-### надписи наезжают · телефон
-
-«Александра Константинова» и «🦉» друг на друге — «Александра Константинова \| 🦉»
-
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--turn > span.dk-opp__name > span`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 45
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-12.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 36
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-29.jpg)
+![надписи наезжают](shots/bunker-0-solo-projector-hall-3.jpg)
 
 ### надписи наезжают · экран зала
 
-«Александра Константинова» и «За столом» друг на друге — «Александра Константинова \| За столом»
-
-- где: `div.dk-seat__card > span.dk-seat__text > span.dk-seat__name > span`, этап `playing/1/question/deal`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 35
-
-![надписи наезжают](shots/durak-0-solo-projector-hall-1.jpg)
-
-### надписи наезжают · экран зала
-
-«Александра Константинова» и «🐺» друг на друге — «Александра Константинова \| 🐺»
-
-- где: `ul.pr-cups > li.pr-cup > span.pr-cup__name > span`, этап `playing/0/question/deal`
-- игры (1): perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 33
-
-![надписи наезжают](shots/perudo-0-solo-projector-hall-1.jpg)
-
-### надписи наезжают · экран зала
-
-«Единороги из бухгалтерии» и «🐺» друг на друге — «Единороги из бухгалтерии \| 🐺»
-
-- где: `ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span`, этап `playing/5/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 30
-
-![надписи наезжают](shots/millionaire-0-teams-projector-hall-3.jpg)
-
-### надписи наезжают · телефон
-
-«♦︎» и «8» друг на друге — «♦︎ \| 8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-pip`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 30
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-face > b`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 24
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-4.jpg)
-
-### надписи наезжают · экран зала
-
-«Выбирает на телефоне…» и «🐺» друг на друге — «Выбирает на телефоне… \| 🐺»
-
-- где: `main.quiz-stage.show-stage > div.td-screen > section.td-screen__main > p.td-note`, этап `playing/0/question/pick`
-- игры (1): truth 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 24
-
-![надписи наезжают](shots/truth-0-solo-projector-hall-3.jpg)
-
-### надписи наезжают · экран зала
-
-«Голосуйте тайно на телефоне · » и «Владимир Преображенский» друг на друге — «Голосуйте тайно на телефоне · проголосовали 0 из 9 \| Владимир Преображенский»
-
-- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > p.mf-note`, этап `playing/2/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 23
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-2.jpg)
-
-### надписи наезжают · экран зала
-
-«Александра Константинова» и «№2» друг на друге — «Александра Константинова \| №2»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--civilian > span.mf-reveal__name > span`, этап `playing/89/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 22
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-17.jpg)
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-face > b`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 22
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-16.jpg)
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-face > b`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 22
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 21
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-18.jpg)
-
-### надписи наезжают · экран зала
-
-«Владимир Преображенский 8» и «🦉» друг на друге — «Владимир Преображенский 8 \| 🦉»
-
-- где: `section.mf-screen__main > ul.mf-nominees > li > span`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 20
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-12.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 20
-
-### надписи наезжают · телефон
-
-«6» и «♠︎» друг на друге — «6 \| ♠︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 20
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-36.jpg)
-
-### надписи наезжают · телефон
-
-«♠︎» и «♠︎» друг на друге — «♠︎ \| ♠︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 20
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-37.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-pip.dk-pip--ace`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-pip.dk-pip--ace`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-face > b`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-### надписи наезжают · телефон
-
-«🦊» и «Выполнено!» друг на друге — «🦊 \| Выполнено!»
-
-- где: `div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from > span.name-emoji`, этап `playing/7/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-![надписи наезжают](shots/truth-0-solo-laptop-phones-8.jpg)
-
-### надписи наезжают · телефон
-
-«Александра Константинова» и «Выполнено!» друг на друге — «Александра Константинова \| Выполнено!»
-
-- где: `div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from > span`, этап `playing/7/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 18
-
-![надписи наезжают](shots/truth-0-solo-laptop-phones-10.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip.dk-pip--ace`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 17
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-20.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-pip.dk-pip--ace`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 16
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-8.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 16
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip.dk-pip--ace`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 15
-
-### надписи наезжают · телефон
-
-«8» и «♠︎» друг на друге — «8 \| ♠︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 15
-
-### надписи наезжают · телефон
-
-«♦︎» и «♠︎» друг на друге — «♦︎ \| ♠︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 15
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 14
-
-### надписи наезжают · экран зала
-
-«Гость 2: «Карманник» — забрал » и «Вход: localhost:41991/j · код » друг на друге — «Гость 2: «Карманник» — забрал багаж игрока Гость 8 \| Вход: localhost:41991/j · к»
+«🐺 Владимир Преображенский: «Ч» и «Вход: localhost:39021/j · код » друг на друге — «🐺 Владимир Преображенский: «Чудесное исцеление» \| Вход: localhost:39021/j · код»
 
 - где: `div.hall > main.quiz-stage > div.bk-screen > p.bk-screen__log`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 14
 
 ![надписи наезжают](shots/bunker-0-solo-tv-hall-2.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 13
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-6.jpg)
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx > span`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 13
-
-### надписи наезжают · телефон
-
-«♦︎» и «8» друг на друге — «♦︎ \| 8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-pip`, этап `playing/68/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 12
-
-### надписи наезжают · экран зала
-
-«Учитель начальных классов · ст» и «Биология» друг на друге — «Учитель начальных классов · стаж 15 лет \| Биология»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text`, этап `playing/9/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 12
-
-![надписи наезжают](shots/bunker-0-solo-tv-hall-13.jpg)
-
-### надписи наезжают · телефон
-
-«♦︎» и «10» друг на друге — «♦︎ \| 10»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-pip`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 12
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-48.jpg)
-
-### надписи наезжают · телефон
-
-«от гостя:» и «Выполнено!» друг на друге — «от гостя: \| Выполнено!»
-
-- где: `div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from`, этап `playing/1/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 12
-
-![надписи наезжают](shots/truth-0-solo-laptop-phones-1.jpg)
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-face > b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-### надписи наезжают · телефон
-
-«♥︎» и «J✦R» друг на друге — «♥︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-pip.dk-pip--ace`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-### надписи наезжают · экран зала
-
-«−1 кость» и «Вход: localhost:41991/j · код » друг на друге — «−1 кость \| Вход: localhost:41991/j · код 123 456»
-
-- где: `section.pr-screen__table > ul.pr-cups > li.pr-cup > span.pr-cup__mark`, этап `playing/10/reveal/reveal`
-- игры (1): perudo 1-й шаблон, каждый сам ×4, телевизор full hd; perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена; perudo 1-й шаблон, команды ×4, телевизор full hd; perudo 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, команды ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-![надписи наезжают](shots/perudo-0-solo-tv-hall-1.jpg)
-
-### надписи наезжают · экран зала
-
-«Екатерина Воскресенская» и «№4» друг на друге — «Екатерина Воскресенская \| №4»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--mafia > span.mf-reveal__name > span`, этап `playing/89/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 10
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-20.jpg)
 
 ### надписи наезжают · экран зала
 
@@ -1774,125 +390,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 8
 
-![надписи наезжают](shots/stage-0-teams-projector-hall-5.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx > span`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-### надписи наезжают · экран зала
-
-«Г» и «♥︎» друг на друге — «Г \| ♥︎»
-
-- где: `div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__avatar`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-16.jpg)
-
-### надписи наезжают · телефон
-
-«♠︎» и «J✦R» друг на друге — «♠︎ \| J✦R»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-pip.dk-pip--ace`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![надписи наезжают](shots/durak-0-solo-projector-phones-38.jpg)
-
-### надписи наезжают · экран зала
-
-«Владимир Преображенский» и «Директор магазина» друг на друге — «Владимир Преображенский \| Директор магазина»
-
-- где: `ul.sp-reveal__list > li.sp-reveal__item > span.sp-reveal__name > span`, этап `playing/125/reveal/over`
-- игры (1): spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 7
-
-![надписи наезжают](shots/spy-0-solo-projector-hall-2.jpg)
-
-### надписи наезжают · экран зала
-
-«Северные волки отдела IT» и «Медведи складской логистики» друг на друге — «Северные волки отдела IT \| Медведи складской логистики»
-
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/millionaire-0-teams-projector-hall-5.jpg)
-
-### надписи наезжают · экран зала
-
-«№9» и «Александра Константинова 7» друг на друге — «№9 \| Александра Константинова 7»
-
-- где: `section.mf-screen__main > ul.mf-nominees > li > span.mf-num`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-11.jpg)
-
-### надписи наезжают · экран зала
-
-«Владимир Преображенский 8» и «№9» друг на друге — «Владимир Преображенский 8 \| №9»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--don > span.mf-reveal__name > span`, этап `playing/89/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-15.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-pip`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-38.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «J» друг на друге — «♥︎ \| J»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-### надписи наезжают · телефон
-
-«8» и «♠︎» друг на друге — «8 \| ♠︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/68/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-### надписи наезжают · телефон
-
-«♦︎» и «♠︎» друг на друге — «♦︎ \| ♠︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span`, этап `playing/68/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-### надписи наезжают · телефон
-
-«♦︎» и «8» друг на друге — «♦︎ \| 8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-pip`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 6
+![надписи наезжают](shots/stage-0-teams-laptop-hall-3.jpg)
 
 ### надписи наезжают · экран зала
 
@@ -1906,177 +404,13 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### надписи наезжают · экран зала
 
-«Гость 3: «Допрос» — игрок Гост» и «Вход: localhost:41991/j · код » друг на друге — «Гость 3: «Допрос» — игрок Гость 8 открывает «Здоровье» \| Вход: localhost:41991/j»
+«🦉 Екатерина Воскресенская: «Т» и «Вход: localhost:39021/j · код » друг на друге — «🦉 Екатерина Воскресенская: «Таблетка от всего» — игрок 🐯 Анастасия Великорецка»
 
-- где: `div.hall > main.quiz-stage > div.bk-screen.bk-screen--big > p.bk-screen__log`, этап `playing/24/question/exile`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/bunker-0-solo-tv-hall-18.jpg)
-
-### надписи наезжают · экран зала
-
-«Три года жил на необитаемом ос» и «Обмен здоровьем» друг на друге — «Три года жил на необитаемом острове \| Обмен здоровьем»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text`, этап `playing/44/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/bunker-0-solo-projector-hall-19.jpg)
-
-### надписи наезжают · телефон
-
-«6» и «♦︎» друг на друге — «6 \| ♦︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-50.jpg)
-
-### надписи наезжают · телефон
-
-«♦︎» и «♦︎» друг на друге — «♦︎ \| ♦︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-51.jpg)
-
-### надписи наезжают · телефон
-
-«J» и «♦︎» друг на друге — «J \| ♦︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-face > b`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-56.jpg)
-
-### надписи наезжают · телефон
-
-«🐺» и «Выполнено!» друг на друге — «🐺 \| Выполнено!»
-
-- где: `div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from > span.name-emoji`, этап `playing/1/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/truth-0-solo-laptop-phones-3.jpg)
-
-### надписи наезжают · телефон
-
-«Владимир Преображенский 8» и «Выполнено!» друг на друге — «Владимир Преображенский 8 \| Выполнено!»
-
-- где: `div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from > span`, этап `playing/1/reveal/done`
-- игры (1): truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/truth-0-solo-laptop-phones-5.jpg)
-
-### надписи наезжают · экран зала
-
-«1» и «Вход: localhost:41991/j · код » друг на друге — «1 \| Вход: localhost:41991/j · код 123 456»
-
-- где: `div.st-reveal > ul.st-votes > li > strong`, этап `playing/27/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, команды ×6, телевизор full hd; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена; story 1-й шаблон, команды ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![надписи наезжают](shots/story-0-teams-tv-hall-4.jpg)
-
-### надписи наезжают · экран зала
-
-«🐺» и «Медведи складской логистики» друг на друге — «🐺 \| Медведи складской логистики»
-
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.hall > main.quiz-stage > div.bk-screen.bk-screen--big > p.bk-screen__log`, этап `playing/12/question/bunker`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 5
 
-![надписи наезжают](shots/millionaire-0-teams-projector-hall-4.jpg)
-
-### надписи наезжают · экран зала
-
-«Владимир Преображенский» и «№3» друг на друге — «Владимир Преображенский \| №3»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--commissar > span.mf-reveal__name > span`, этап `playing/89/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 5
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-19.jpg)
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-44.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-pip`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-63.jpg)
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx > span`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 5
-
-### надписи наезжают · телефон
-
-«9» и «♦︎» друг на друге — «9 \| ♦︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx > span`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-25.jpg)
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx > span`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-### надписи наезжают · экран зала
-
-«Игрок 6» и «Вход: localhost:41991/j · код » друг на друге — «Игрок 6 \| Вход: localhost:41991/j · код 123 456»
-
-- где: `section.st-screen__main > div.st-reveal > ul.st-votes > li`, этап `playing/3/reveal/guess`
-- игры (1): story 1-й шаблон, команды ×6, телевизор full hd; story 1-й шаблон, команды ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![надписи наезжают](shots/story-0-teams-tv-hall-3.jpg)
-
-### надписи наезжают · экран зала
-
-«B» и «Вход: localhost:41991/j · код » друг на друге — «B \| Вход: localhost:41991/j · код 123 456»
-
-- где: `div.checkers-screen__question > ol.checkers-screen__options > li > span`, этап `playing/7/question/task`
-- игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/checkers-0-teams-projector-hall-7.jpg)
+![надписи наезжают](shots/bunker-0-solo-projector-hall-17.jpg)
 
 ### надписи наезжают · экран зала
 
@@ -2090,139 +424,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### надписи наезжают · экран зала
 
-«🦉» и «Владимир Преображенский 8» друг на друге — «🦉 \| Владимир Преображенский 8»
-
-- где: `section.mf-screen__main > ul.mf-nominees > li > span.name-emoji`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-13.jpg)
-
-### надписи наезжают · экран зала
-
-«Анастасия Великорецкая 11» и «№12» друг на друге — «Анастасия Великорецкая 11 \| №12»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--doctor > span.mf-reveal__name > span`, этап `playing/76/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/mafia-0-solo-projector-hall-22.jpg)
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx > span`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-12.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip`, этап `playing/14/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-phones-24.jpg)
-
-### надписи наезжают · телефон
-
-«♣︎» и «♣︎» друг на друге — «♣︎ \| ♣︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx > span`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-### надписи наезжают · телефон
-
-«8» и «♠︎» друг на друге — «8 \| ♠︎»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
-
-### надписи наезжают · телефон
-
-«♦︎» и «♠︎» друг на друге — «♦︎ \| ♠︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
-
-### надписи наезжают · экран зала
-
-«K» и «♥︎» друг на друге — «K \| ♥︎»
-
-- где: `div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-face > b`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-19.jpg)
-
-### надписи наезжают · экран зала
-
-«K» и «♥︎» друг на друге — «K \| ♥︎»
-
-- где: `div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-face > b`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-20.jpg)
-
-### надписи наезжают · экран зала
-
-«K» и «♥︎» друг на друге — «K \| ♥︎»
-
-- где: `div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-face > b`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-21.jpg)
-
-### надписи наезжают · экран зала
-
-«K» и «♥︎» друг на друге — «K \| ♥︎»
-
-- где: `div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-face > b`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-22.jpg)
-
-### надписи наезжают · экран зала
-
-«K» и «♥︎» друг на друге — «K \| ♥︎»
-
-- где: `div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-face > b`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-23.jpg)
-
-### надписи наезжают · экран зала
-
-«Гость 5» и «Учитель начальных классов · ст» друг на друге — «Гость 5 \| Учитель начальных классов · стаж 15 лет»
-
-- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name`, этап `playing/23/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 3
-
-![надписи наезжают](shots/bunker-0-solo-tv-hall-16.jpg)
-
-### надписи наезжают · телефон
-
-«Q» и «♥︎» друг на друге — «Q \| ♥︎»
-
-- где: `span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-face > b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-### надписи наезжают · экран зала
-
-«Коснитесь карточек на телефоне» и «Вход: localhost:41991/j · код » друг на друге — «Коснитесь карточек на телефоне по порядку \| Вход: localhost:41991/j · код 123 45»
+«Коснитесь карточек на телефоне» и «Вход: localhost:39021/j · код » друг на друге — «Коснитесь карточек на телефоне по порядку \| Вход: localhost:39021/j · код 123 45»
 
 - где: `div.hall > main.quiz-stage.show-stage > div.quiz-screen > p.quiz-screen__hint`, этап `playing/0/question/`
 - игры (1): quiz 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
@@ -2238,81 +440,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
-![надписи наезжают](shots/stage-0-teams-projector-hall-4.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-pip`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 2
+![надписи наезжают](shots/stage-0-teams-projector-hall-3.jpg)
 
 ### надписи наезжают · экран зала
 
-«♠︎» и «10» друг на друге — «♠︎ \| 10»
-
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--anime > span.dk-pip`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 2
-
-### надписи наезжают · экран зала
-
-«Храпит так, что слышно в сосед» и «Рыбалка» друг на друге — «Храпит так, что слышно в соседней комнате \| Рыбалка»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text`, этап `playing/44/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![надписи наезжают](shots/bunker-0-solo-projector-hall-18.jpg)
-
-### надписи наезжают · телефон
-
-«8» и «♦︎» друг на друге — «8 \| ♦︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 2
-
-### надписи наезжают · телефон
-
-«♠︎» и «♠︎» друг на друге — «♠︎ \| ♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 2
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-53.jpg)
-
-### надписи наезжают · экран зала
-
-«Ближе всех» и «Вход: localhost:41991/j · код » друг на друге — «Ближе всех \| Вход: localhost:41991/j · код 123 456»
+«Ближе всех» и «Вход: localhost:39021/j · код » друг на друге — «Ближе всех \| Вход: localhost:39021/j · код 123 456»
 
 - где: `div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag`, этап `playing/2/reveal/answer`
-- игры (1): wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, каждый сам ×4, телевизор full hd
+- игры (1): wager 1-й шаблон, каждый сам ×4, телевизор full hd; wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
 ![надписи наезжают](shots/wager-0-solo-tv-hall-1.jpg)
 
 ### надписи наезжают · экран зала
 
-«🐺» и «Вход: localhost:41991/j · код » друг на друге — «🐺 \| Вход: localhost:41991/j · код 123 456»
+«Не справились» и «Вход: localhost:39021/j · код » друг на друге — «Не справились \| Вход: localhost:39021/j · код 123 456»
 
-- где: `div.st-reveal > ul.st-votes > li > span.name-emoji`, этап `playing/27/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 2
+- где: `div.checkers-screen > div.checkers-screen__side > div.checkers-screen__question > p.checkers-screen__verdict`, этап `playing/23/reveal/task`
+- игры (1): checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
 
-![надписи наезжают](shots/story-0-solo-projector-hall-1.jpg)
-
-### надписи наезжают · экран зала
-
-«Владимир Преображенский 8» и «Вход: localhost:41991/j · код » друг на друге — «Владимир Преображенский 8 \| Вход: localhost:41991/j · код 123 456»
-
-- где: `div.st-reveal > ul.st-votes > li > span`, этап `playing/27/reveal/guess`
-- игры (1): story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 2
-
-![надписи наезжают](shots/story-0-solo-projector-hall-3.jpg)
+![надписи наезжают](shots/checkers-0-teams-projector-hall-4.jpg)
 
 ### надписи наезжают · экран зала
 
@@ -2336,89 +484,23 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### надписи наезжают · экран зала
 
-«Окончательный ответ — C» и «Вход: localhost:41991/j · код » друг на друге — «Окончательный ответ — C \| Вход: localhost:41991/j · код 123 456»
+«Окончательный ответ — C» и «Вход: localhost:39021/j · код » друг на друге — «Окончательный ответ — C \| Вход: localhost:39021/j · код 123 456»
 
 - где: `main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big`, этап `playing/6/question/question`
 - игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![надписи наезжают](shots/millionaire-0-teams-projector-hall-7.jpg)
+![надписи наезжают](shots/millionaire-0-teams-projector-hall-4.jpg)
 
 ### надписи наезжают · экран зала
 
-«Мирный житель» и «Вход: localhost:41991/j · код » друг на друге — «Мирный житель \| Вход: localhost:41991/j · код 123 456»
+«А» и «Old fashion» друг на друге — «А \| Old fashion»
 
-- где: `section.mf-screen__main > ul.mf-reveal > li.mf-reveal__item.mf-role--civilian > span.mf-reveal__role`, этап `playing/76/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
+- где: `div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__avatar`, этап `playing/2/question/vote`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![надписи наезжают](shots/mafia-0-solo-projector-hall-24.jpg)
-
-### надписи наезжают · экран зала
-
-«K» и «♥︎» друг на друге — «K \| ♥︎»
-
-- где: `div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-face > b`, этап `playing/2/question/vote`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
-
-![надписи наезжают](shots/durak-0-solo-tv-hall-18.jpg)
-
-### надписи наезжают · экран зала
-
-«9» и «♣︎» друг на друге — «9 \| ♣︎»
-
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
-
-### надписи наезжают · экран зала
-
-«♠︎» и «♣︎» друг на друге — «♠︎ \| ♣︎»
-
-- где: `div.dk-pair > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b > span`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
-
-### надписи наезжают · телефон
-
-«♠︎» и «J✦R» друг на друге — «♠︎ \| J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-pip.dk-pip--ace`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 1
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-55.jpg)
-
-### надписи наезжают · телефон
-
-«♥︎» и «♥︎» друг на друге — «♥︎ \| ♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-pip`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 1
-
-![надписи наезжают](shots/durak-0-solo-laptop-phones-60.jpg)
-
-### надписи наезжают · экран зала
-
-«Q» и «♣︎» друг на друге — «Q \| ♣︎»
-
-- где: `div.dk-stock > div.dk-card.dk-d--rome > span.dk-face > b`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 1
-
-![надписи наезжают](shots/durak-0-solo-laptop-hall-47.jpg)
-
-### прокрутка вбок · пульт
-
-страница шире экрана на 109 px (span) — «Северные волки отдела IT»
-
-- где: `section.card > div.stack.host-quiz > p.mil-host-live > span`, этап `playing/1/reveal/steal`
-- игры (1): hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена …
-- раз: 33
-
-![прокрутка вбок](shots/hundred-0-teams-projector-phones-3.jpg)
+![надписи наезжают](shots/durak-0-solo-projector-hall-15.jpg)
 
 ### прокрутка вбок · пульт
 
@@ -2438,15 +520,17 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): survival 1-й шаблон, команды ×4, телевизор full hd; survival 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; survival 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 15
 
-![прокрутка вбок](shots/survival-0-teams-projector-phones-2.jpg)
+![прокрутка вбок](shots/survival-0-teams-tv-phones-2.jpg)
 
 ### прокрутка вбок · телефон
 
 страница шире экрана на 19 px (button.dk-hand__slot)
 
-- где: `div.quiz-phone.dk-phone > div.dk-hand > div.dk-hand__row > button.dk-hand__slot`, этап `playing/19/question/play`
+- где: `div.quiz-phone.dk-phone > div.dk-hand > div.dk-hand__row > button.dk-hand__slot`, этап `playing/14/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 12
+
+![прокрутка вбок](shots/durak-0-solo-tv-phones-9.jpg)
 
 ### прокрутка вбок · пульт
 
@@ -2454,7 +538,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.stack.stack--tight > ul.dk-host__seats > li > button.btn.btn--quiet`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 11
+- раз: 8
 
 ![прокрутка вбок](shots/durak-0-solo-projector-phones-1.jpg)
 
@@ -2464,7 +548,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.stack.host-quiz > div.actions > div.host-buzz__verdict > button.btn.btn--secondary`, этап `playing/0/reveal/cell`
 - игры (1): quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
+- раз: 7
 
 ![прокрутка вбок](shots/quest-0-teams-projector-phones-2.jpg)
 
@@ -2472,19 +556,11 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 страница шире экрана на 10 px (span) — «Максимилиан Рождественский»
 
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span`, этап `playing/17/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span`, этап `playing/60/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 7
 
-### прокрутка вбок · пульт
-
-страница шире экрана на 105 px (strong)
-
-- где: `section.card > div.stack.host-quiz > p.mil-host-live > strong`, этап `playing/42/question/bet`
-- игры (1): board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![прокрутка вбок](shots/board-0-solo-laptop-phones-4.jpg)
+![прокрутка вбок](shots/durak-0-solo-projector-phones-38.jpg)
 
 ### прокрутка вбок · пульт
 
@@ -2494,27 +570,17 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 6
 
-![прокрутка вбок](shots/stage-0-teams-projector-phones-9.jpg)
+![прокрутка вбок](shots/stage-0-teams-projector-phones-6.jpg)
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 31 px (span) — «Максимилиан Рождественский»
+страница шире экрана на 17 px (span) — «Максимилиан Рождественский»
 
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--throw > span.dk-opp__name > span`, этап `playing/67/question/play`
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--throw > span.dk-opp__name > span`, этап `playing/55/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
+- раз: 6
 
-![прокрутка вбок](shots/durak-0-solo-laptop-phones-37.jpg)
-
-### прокрутка вбок · пульт
-
-страница шире экрана на 15 px ()
-
-- где: `—`, этап `playing/1/reveal/play`
-- игры (1): hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 3-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 3
-
-![прокрутка вбок](shots/hundred-0-solo-projector-phones-2.jpg)
+![прокрутка вбок](shots/durak-0-solo-projector-phones-30.jpg)
 
 ### прокрутка вбок · пульт
 
@@ -2524,29 +590,31 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
-![прокрутка вбок](shots/stage-0-teams-projector-phones-8.jpg)
+![прокрутка вбок](shots/stage-0-teams-projector-phones-5.jpg)
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 34 px (div.dk-card.dk-d--classic)
+страница шире экрана на 10 px (div.dk-card.dk-d--classic)
 
-- где: `div.dk-hand > div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic`, этап `playing/92/question/play`
+- где: `div.dk-hand > div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic`, этап `playing/94/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 2
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 10 px (div.dk-card.dk-d--rome)
+страница шире экрана на 17 px (span) — «Максимилиан Рождественский»
 
-- где: `div.dk-hand > div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--turn > span.dk-opp__name > span`, этап `playing/52/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 2
+
+![прокрутка вбок](shots/durak-0-solo-projector-phones-21.jpg)
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 10 px (div.dk-card.dk-d--wedding)
+страница шире экрана на 10 px (div.dk-card.dk-d--anime)
 
-- где: `div.dk-hand > div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding`, этап `playing/54/question/play`
+- где: `div.dk-hand > div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--anime`, этап `playing/62/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 1
 
@@ -2560,31 +628,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 20 px (span) — «Максимилиан Рождественский»
+страница шире экрана на 20 px (span) — «Святослав Новосельцев»
 
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--defend > span.dk-opp__name > span`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--defend > span.dk-opp__name > span`, этап `playing/115/reveal/over`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 1
 
-### прокрутка вбок · телефон
+![прокрутка вбок](shots/durak-0-solo-laptop-phones-44.jpg)
 
-страница шире экрана на 20 px (span) — «Максимилиан Рождественский»
-
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--turn > span.dk-opp__name > span`, этап `playing/114/reveal/over`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-## Заметно — 202
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 18 px (div.podium.podium--final) — «3»
-
-- где: `div.podium__stage > div.podium__slot > div.podium__step > span.podium__num`, этап `finished/7/podium/`
-- игры (12): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; quiz 1-й шаблон, каждый сам ×4, телевизор full hd; quiz 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена …
-- раз: 58
-
-![обрезан текст](shots/quiz-0-solo-projector-hall-6.jpg)
+## Заметно — 183
 
 ### обрезан текст · экран зала
 
@@ -2592,7 +644,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `playing/7/podium/`
 - игры (7): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 41
+- раз: 28
 
 ![обрезан текст](shots/quiz-0-solo-projector-hall-3.jpg)
 
@@ -2602,27 +654,17 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `playing/7/podium/`
 - игры (7): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 31
+- раз: 23
 
 ![обрезан текст](shots/quiz-0-solo-projector-hall-4.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (span.board-view__name) — «Команда 1»
-
-- где: `div.board-view > ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name`, этап `playing/1/board/`
-- игры (6): quiz 2-й шаблон, команды ×4, телевизор full hd; board 1-й шаблон, команды ×4, телевизор full hd; stage 1-й шаблон, команды ×4, телевизор full hd; stage 2-й шаблон, команды ×4, телевизор full hd; quest 1-й шаблон, команды ×4, телевизор full hd; quest 2-й шаблон, команды ×4, телевизор full hd …
-- раз: 110
-
-![обрезан текст](shots/quiz-1-teams-tv-hall-1.jpg)
 
 ### обрезан текст · экран зала
 
 текст обрезан по высоте на 4 px (span.board-view__name) — «🐯»
 
 - где: `ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name > span.name-emoji`, этап `playing/1/board/`
-- игры (6): quiz 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 104
+- игры (6): quiz 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена …
+- раз: 103
 
 ![обрезан текст](shots/quiz-1-teams-projector-hall-2.jpg)
 
@@ -2631,8 +673,8 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 текст обрезан по высоте на 4 px (span.board-view__name) — «Тигры клиентского сервиса»
 
 - где: `ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name > span`, этап `playing/1/board/`
-- игры (6): quiz 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 104
+- игры (6): quiz 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена …
+- раз: 103
 
 ![обрезан текст](shots/quiz-1-teams-projector-hall-3.jpg)
 
@@ -2642,9 +684,19 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.podium__stage > div.podium__slot > div.podium__names > p.podium__name`, этап `playing/7/podium/`
 - игры (6): quiz 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 2-й шаблон, каждый сам ×4, телевизор full hd; hundred 3-й шаблон, каждый сам ×4, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; truth 1-й шаблон, каждый сам ×4, телевизор full hd …
-- раз: 42
+- раз: 34
 
 ![обрезан текст](shots/quiz-0-solo-tv-hall-2.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (span.board-view__name) — «Команда 1»
+
+- где: `div.board-view > ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name`, этап `playing/1/board/`
+- игры (5): quiz 2-й шаблон, команды ×4, телевизор full hd; board 1-й шаблон, команды ×4, телевизор full hd; stage 1-й шаблон, команды ×4, телевизор full hd; stage 2-й шаблон, команды ×4, телевизор full hd; hundred 1-й шаблон, команды ×4, телевизор full hd; hundred 2-й шаблон, команды ×4, телевизор full hd …
+- раз: 97
+
+![обрезан текст](shots/quiz-1-teams-tv-hall-1.jpg)
 
 ### обрезан текст · экран зала
 
@@ -2671,10 +723,30 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 текст обрезан по высоте на 4 px (span.board-view__name) — «Гость 1»
 
 - где: `div.board-view > ol.board-view__list > li.board-view__row > span.board-view__name`, этап `playing/0/board/`
-- игры (5): quiz 1-й шаблон, каждый сам ×4, телевизор full hd; quiz 2-й шаблон, каждый сам ×4, телевизор full hd; board 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 2-й шаблон, каждый сам ×4, телевизор full hd; hundred 3-й шаблон, каждый сам ×4, телевизор full hd …
-- раз: 81
+- игры (4): quiz 1-й шаблон, каждый сам ×4, телевизор full hd; quiz 2-й шаблон, каждый сам ×4, телевизор full hd; board 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 2-й шаблон, каждый сам ×4, телевизор full hd; hundred 3-й шаблон, каждый сам ×4, телевизор full hd …
+- раз: 74
 
 ![обрезан текст](shots/quiz-0-solo-tv-hall-1.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 17 px (div.podium__names) — «🐻»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name.podium__name--team > span.name-emoji`, этап `playing/100/podium/finish`
+- игры (2): quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 8
+
+![обрезан текст](shots/quest-1-teams-laptop-hall-4.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 17 px (div.podium__names) — «Медведи складской логистики»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name.podium__name--team > span`, этап `playing/100/podium/finish`
+- игры (2): quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 8
+
+![обрезан текст](shots/quest-1-teams-laptop-hall-5.jpg)
 
 ### обрезан текст · экран зала
 
@@ -2691,120 +763,110 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 текст обрезан по высоте на 5 px (span.hd-row__text) — «Букет невесты»
 
 - где: `div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text`, этап `playing/3/reveal/play`
-- игры (1): hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена …
+- игры (1): hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×4, телевизор full hd; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена …
 - раз: 180
 
-![обрезан текст](shots/hundred-0-teams-tv-hall-1.jpg)
+![обрезан текст](shots/hundred-0-teams-projector-hall-1.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 33 px (div.dk-card.dk-d--rome) — «7»
+текст обрезан вбок на 33 px (div.dk-card.dk-d--rome) — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/19/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/18/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 176
+- раз: 100
 
-![обрезан текст](shots/durak-0-solo-projector-phones-25.jpg)
+![обрезан текст](shots/durak-0-solo-tv-phones-13.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 26 px (div.dk-card.dk-d--rome) — «♥︎»
+текст обрезан вбок на 32 px (div.dk-card.dk-d--gothic) — «10»
 
-- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/19/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/57/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 86
+- раз: 96
 
-![обрезан текст](shots/durak-0-solo-projector-phones-26.jpg)
+![обрезан текст](shots/durak-0-solo-tv-phones-25.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 33 px (div.dk-card.dk-d--wedding) — «7»
+текст обрезан вбок на 23 px (div.dk-card.dk-d--classic) — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/54/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/94/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 85
+- раз: 82
 
-![обрезан текст](shots/durak-0-solo-laptop-phones-61.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 32 px (div.dk-card.dk-d--gothic) — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 84
+![обрезан текст](shots/durak-0-solo-projector-phones-43.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 29 px (div.dk-card.dk-d--russia) — «Q»
+текст обрезан вбок на 33 px (div.dk-card.dk-d--russia) — «10»
 
 - где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/14/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 78
+- раз: 80
+
+![обрезан текст](shots/durak-0-solo-tv-phones-7.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 22 px (div.dk-card.dk-d--rome) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/18/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 52
 
 ![обрезан текст](shots/durak-0-solo-tv-phones-14.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 29 px (div.dk-card.dk-d--classic) — «7»
+текст обрезан вбок на 24 px (div.dk-card.dk-d--gothic) — «♠︎»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
+- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span`, этап `playing/57/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 68
+- раз: 47
+
+![обрезан текст](shots/durak-0-solo-projector-phones-23.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 33 px (div.dk-card.dk-d--kpop) — «7»
+текст обрезан вбок на 33 px (div.dk-card.dk-d--wedding) — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b`, этап `playing/26/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/54/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 50
+- раз: 44
+
+![обрезан текст](shots/durak-0-solo-tv-phones-19.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 29 px (div.dk-card.dk-d--cyber) — «Q»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 48
-
-![обрезан текст](shots/durak-0-solo-tv-phones-2.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 27 px (div.dk-card.dk-d--wedding) — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 42
-
-![обрезан текст](shots/durak-0-solo-laptop-phones-62.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 27 px (div.dk-card.dk-d--gothic) — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 40
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 22 px (div.dk-card.dk-d--russia) — «♥︎»
+текст обрезан вбок на 22 px (div.dk-card.dk-d--russia) — «♠︎»
 
 - где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span`, этап `playing/14/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 39
+- раз: 42
 
-![обрезан текст](shots/durak-0-solo-tv-phones-15.jpg)
+![обрезан текст](shots/durak-0-solo-tv-phones-8.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 23 px (div.dk-card.dk-d--classic) — «♥︎»
+текст обрезан вбок на 15 px (div.dk-card.dk-d--classic) — «♠︎»
 
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/92/question/play`
+- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/94/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 34
+- раз: 40
+
+![обрезан текст](shots/durak-0-solo-laptop-phones-37.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 29 px (div.dk-card.dk-d--cyber) — «10»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b`, этап `playing/4/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 36
+
+![обрезан текст](shots/durak-0-solo-tv-phones-1.jpg)
 
 ### обрезан текст · экран зала
 
@@ -2824,7 +886,17 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 31
 
-![обрезан текст](shots/lotto-0-solo-projector-phones-7.jpg)
+![обрезан текст](shots/lotto-0-solo-projector-phones-5.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 30 px (div.dk-card.dk-d--anime) — «10»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 29
+
+![обрезан текст](shots/durak-0-solo-projector-phones-32.jpg)
 
 ### обрезан текст · пульт
 
@@ -2834,35 +906,45 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): wine 1-й шаблон, каждый сам ×4, телевизор full hd; wine 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; wine 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; wine 1-й шаблон, команды ×4, телевизор full hd; wine 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; wine 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 29
 
-![обрезан текст](shots/wine-0-solo-tv-phones-4.jpg)
+![обрезан текст](shots/wine-0-solo-tv-phones-3.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 20 px (div.dk-card.dk-d--cyber) — «♥︎»
+текст обрезан вбок на 29 px (div.dk-card.dk-d--kpop) — «J»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b`, этап `playing/125/reveal/over`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 24
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 31 px (div.dk-card.dk-d--greece) — «7»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/119/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 24
+
+![обрезан текст](shots/durak-0-solo-laptop-phones-45.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 23 px (div.dk-card.dk-d--wedding) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 22
+
+![обрезан текст](shots/durak-0-solo-tv-phones-20.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 17 px (div.dk-card.dk-d--cyber) — «♠︎»
 
 - где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 24
+- раз: 18
 
-![обрезан текст](shots/durak-0-solo-tv-phones-3.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 25 px (div.dk-card.dk-d--kpop) — «♥︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 23
-
-### обрезан текст · телефон
-
-текст обрезан по высоте на 4 px (div.dk-card.dk-d--rome) — «A»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 20
-
-![обрезан текст](shots/durak-0-solo-projector-phones-32.jpg)
+![обрезан текст](shots/durak-0-solo-tv-phones-2.jpg)
 
 ### обрезан текст · экран зала
 
@@ -2874,14 +956,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![обрезан текст](shots/millionaire-0-teams-projector-hall-1.jpg)
 
-### обрезан текст · телефон
-
-текст обрезан по высоте на 3 px (div.dk-card.dk-d--classic) — «8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 15
-
 ### обрезан текст · экран зала
 
 текст обрезан по высоте на 5 px (span.mil-bar__points) — «0»
@@ -2891,6 +965,16 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 13
 
 ![обрезан текст](shots/millionaire-0-teams-tv-hall-1.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 17 px (div.dk-card.dk-d--anime) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b > span`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 13
+
+![обрезан текст](shots/durak-0-solo-projector-phones-33.jpg)
 
 ### обрезан текст · экран зала
 
@@ -2912,15 +996,73 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![обрезан текст](shots/dragon-1-teams-tv-hall-2.jpg)
 
+### обрезан текст · телефон
+
+текст обрезан вбок на 21 px (div.dk-card.dk-d--kpop) — «♥︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span`, этап `playing/125/reveal/over`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 12
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 24 px (div.dk-card.dk-d--greece) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span`, этап `playing/119/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 12
+
+![обрезан текст](shots/durak-0-solo-laptop-phones-46.jpg)
+
 ### обрезан текст · экран зала
 
-текст обрезан по высоте на 6 px (div.dg-boss__name) — «Дракон-сладкоежка»
+текст обрезан по высоте на 5 px (div.dg-boss__name) — «Добрый дракончик»
 
-- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__name`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 10
+- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__name`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 11
 
 ![обрезан текст](shots/dragon-1-teams-tv-hall-1.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (span.dg-team__nm) — «🦄»
+
+- где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 11
+
+![обрезан текст](shots/dragon-1-teams-projector-hall-2.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (span.dg-team__nm) — «Единороги из бухгалтерии»
+
+- где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 11
+
+![обрезан текст](shots/dragon-1-teams-projector-hall-3.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (span.dg-team__nm) — «🦉»
+
+- где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 10
+
+![обрезан текст](shots/dragon-1-teams-projector-hall-4.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (span.dg-team__nm) — «Совы-полуночники ресепшн»
+
+- где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 10
+
+![обрезан текст](shots/dragon-1-teams-projector-hall-5.jpg)
 
 ### обрезан текст · экран зала
 
@@ -2944,131 +1086,53 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### обрезан текст · экран зала
 
-текст обрезан по высоте на 4 px (span.dg-team__nm) — «🦄»
+текст обрезан по высоте на 4 px (span.board-view__name) — «Гость 4»
 
-- где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji`, этап `playing/1/question/`
-- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![обрезан текст](shots/dragon-1-teams-projector-hall-2.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (span.dg-team__nm) — «Единороги из бухгалтерии»
-
-- где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span`, этап `playing/1/question/`
-- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![обрезан текст](shots/dragon-1-teams-projector-hall-3.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (span.board-view__name) — «Гость 1»
-
-- где: `div.board-view.board-view--paged > ol.board-view__list > li.board-view__row > span.board-view__name`, этап `playing/21/question/open`
+- где: `div.board-view.board-view--paged > ol.board-view__list > li.board-view__row > span.board-view__name`, этап `playing/126/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
 - раз: 8
 
-![обрезан текст](shots/bunker-0-solo-tv-hall-15.jpg)
+![обрезан текст](shots/bunker-0-solo-tv-hall-16.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 17 px (div.dk-card.dk-d--greece) — «7»
+текст обрезан по высоте на 4 px (div.dk-card.dk-d--anime) — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-![обрезан текст](shots/durak-0-solo-laptop-phones-46.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (span.dg-team__nm) — «🦉»
-
-- где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji`, этап `playing/1/question/`
-- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 7
-
-![обрезан текст](shots/dragon-1-teams-projector-hall-4.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (span.dg-team__nm) — «Совы-полуночники ресепшн»
-
-- где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span`, этап `playing/1/question/`
-- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 7
-
-![обрезан текст](shots/dragon-1-teams-projector-hall-5.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 18 px (div.mf-screen) — «Партия 3 из 3 · итог»
-
-- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge`, этап `playing/87/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 7
-
-![обрезан текст](shots/mafia-0-solo-projector-hall-1.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 5 px (div.dk-card.dk-d--rome) — «♦︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-pip.dk-pip--ace`, этап `playing/121/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 7
-
-![обрезан текст](shots/durak-0-solo-projector-phones-43.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан по высоте на 4 px (div.dk-card.dk-d--greece) — «10»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 6
 
-![обрезан текст](shots/durak-0-solo-laptop-phones-45.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 59 px (div.podium__names) — «🐺»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name.podium__name--team > span.name-emoji`, этап `playing/20/podium/done`
-- игры (1): truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![обрезан текст](shots/truth-0-teams-projector-hall-8.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 59 px (div.podium__names) — «Северные волки отдела IT»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name.podium__name--team > span`, этап `playing/20/podium/done`
-- игры (1): truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![обрезан текст](shots/truth-0-teams-projector-hall-9.jpg)
+![обрезан текст](shots/durak-0-solo-projector-phones-31.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 13 px (div.dk-card.dk-d--greece) — «♠︎»
+текст обрезан вбок на 5 px (div.dk-card.dk-d--gothic) — «♠︎»
 
-- где: `button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip.dk-pip--ace`, этап `playing/55/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 5
+
+![обрезан текст](shots/durak-0-solo-projector-phones-26.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 5 px (div.dk-card.dk-d--russia) — «♠︎»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip.dk-pip--ace`, этап `playing/12/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 4
 
-![обрезан текст](shots/durak-0-solo-laptop-phones-47.jpg)
+![обрезан текст](shots/durak-0-solo-projector-phones-8.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан по высоте на 3 px (div.dk-card.dk-d--wedding) — «8»
+текст обрезан вбок на 5 px (div.dk-card.dk-d--rome) — «♠︎»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-pip.dk-pip--ace`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 4
+
+![обрезан текст](shots/durak-0-solo-projector-phones-13.jpg)
 
 ### обрезан текст · экран зала
 
@@ -3170,25 +1234,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![обрезан текст](shots/durak-0-solo-tv-hall-11.jpg)
 
-### обрезан текст · экран зала
+### обрезан текст · телефон
 
-текст обрезан вбок на 35 px (div.dk-card.dk-d--rome) — «7»
+текст обрезан вбок на 5 px (div.dk-card.dk-d--classic) — «♠︎»
 
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-pip.dk-pip--ace`, этап `playing/91/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![обрезан текст](shots/durak-0-solo-projector-hall-45.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан вбок на 18 px (div.dk-card.dk-d--rome) — «♣︎»
-
-- где: `div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx > span`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![обрезан текст](shots/durak-0-solo-projector-hall-46.jpg)
+![обрезан текст](shots/durak-0-solo-laptop-phones-42.jpg)
 
 ### обрезан текст · экран зала
 
@@ -3198,168 +1252,124 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
-![обрезан текст](shots/millionaire-0-teams-projector-hall-6.jpg)
+![обрезан текст](shots/millionaire-0-teams-projector-hall-3.jpg)
 
 ### обрезан текст · экран зала
 
-текст обрезан по высоте на 118 px (div.mf-screen) — «Кого город выгоняет?»
+текст обрезан вбок на 35 px (div.dk-card.dk-d--rome) — «J»
 
-- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > h2.mf-title`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-projector-hall-7.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 6 px (div.mf-screen) — «№1»
-
-- где: `section.mf-screen__main > ul.mf-nominees > li > span.mf-num`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-projector-hall-8.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 6 px (div.mf-screen) — «🦊»
-
-- где: `section.mf-screen__main > ul.mf-nominees > li > span.name-emoji`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-projector-hall-9.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 6 px (div.mf-screen) — «Александра Константинова»
-
-- где: `section.mf-screen__main > ul.mf-nominees > li > span`, этап `playing/12/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-projector-hall-10.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан вбок на 37 px (div.dk-card.dk-d--anime) — «7»
-
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--anime > span.dk-idx`, этап `playing/55/question/play`
+- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
+![обрезан текст](shots/durak-0-solo-projector-hall-39.jpg)
+
 ### обрезан текст · экран зала
 
-текст обрезан вбок на 18 px (div.dk-card.dk-d--anime) — «♣︎»
+текст обрезан вбок на 18 px (div.dk-card.dk-d--rome) — «♣︎»
 
-- где: `div.dk-stock > div.dk-card.dk-d--anime > span.dk-idx > span`, этап `playing/55/question/play`
+- где: `div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx > span`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
+
+![обрезан текст](shots/durak-0-solo-projector-hall-40.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 4 px (div.dk-card.dk-d--cyber) — «♦︎»
+текст обрезан вбок на 5 px (div.dk-card.dk-d--cyber) — «♠︎»
 
 - где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-pip.dk-pip--ace`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![обрезан текст](shots/durak-0-solo-projector-phones-12.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 4 px (div.dk-card.dk-d--russia) — «♦︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip.dk-pip--ace`, этап `playing/12/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![обрезан текст](shots/durak-0-solo-projector-phones-23.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 4 px (div.dk-card.dk-d--wedding) — «♦︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-pip.dk-pip--ace`, этап `playing/54/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 4 px (div.dk-card.dk-d--gothic) — «♦︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip.dk-pip--ace`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 6 px (div.dk-card.dk-d--kpop) — «♥︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-pip.dk-pip--ace`, этап `playing/123/reveal/over`
 - игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 2
 
-### обрезан текст · экран зала
+![обрезан текст](shots/durak-0-solo-projector-phones-4.jpg)
 
-текст обрезан вбок на 3 px (div.dk-card.dk-d--rome) — «♣︎»
+### обрезан текст · телефон
 
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-pip`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
+текст обрезан вбок на 5 px (div.dk-card.dk-d--wedding) — «♠︎»
 
-### обрезан текст · экран зала
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-pip.dk-pip--ace`, этап `playing/52/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 2
 
-текст обрезан вбок на 3 px (div.dk-card.dk-d--anime) — «♣︎»
-
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--anime > span.dk-pip`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 1
+![обрезан текст](shots/durak-0-solo-projector-phones-19.jpg)
 
 ### обрезан текст · экран зала
 
-текст обрезан по высоте на 12 px (div.dk-card.dk-d--anime) — «10»
+текст обрезан вбок на 24 px (div.dk-card.dk-d--anime) — «K»
 
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
+- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--anime > span.dk-idx`, этап `playing/55/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 2
+
+![обрезан текст](shots/durak-0-solo-projector-hall-46.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан вбок на 10 px (div.dk-card.dk-d--anime) — «♣︎»
+
+- где: `div.dk-stock > div.dk-card.dk-d--anime > span.dk-idx > span`, этап `playing/55/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 2
+
+![обрезан текст](shots/durak-0-solo-projector-hall-47.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 7 px (div.dk-card.dk-d--greece) — «♥︎»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-pip.dk-pip--ace`, этап `playing/119/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 2
+
+![обрезан текст](shots/durak-0-solo-laptop-phones-47.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 15 px (div.mf-screen) — «Партия 3 из 3 · итог»
+
+- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge`, этап `playing/90/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
 - раз: 1
 
-### бледный текст · пульт
+![обрезан текст](shots/mafia-0-solo-laptop-hall-2.jpg)
 
-контраст 3.41 (нужно от 4.5) — «Ждём выбор капитана…»
+### обрезан текст · телефон
 
-- где: `section.card > div.stack.host-quiz > div.actions > button.btn.btn--block`, этап `playing/0/question/pick`
-- игры (6): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, телевизор full hd; stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, телевизор full hd …
-- раз: 72
+текст обрезан вбок на 5 px (div.dk-card.dk-d--anime) — «♠︎»
 
-![бледный текст](shots/dance-0-teams-tv-phones-4.jpg)
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--anime > span.dk-pip.dk-pip--ace`, этап `playing/60/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
 
-### бледный текст · телефон
+![обрезан текст](shots/durak-0-solo-projector-phones-36.jpg)
 
-контраст 2.50 (нужно от 4.5) — «Поставить»
+### обрезан текст · экран зала
 
-- где: `div.card > div.quiz-phone > div.stack > button.btn.btn--block`, этап `playing/2/question/bet`
-- игры (2): wager 1-й шаблон, команды ×4, телевизор full hd; wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; wager 1-й шаблон, каждый сам ×4, телевизор full hd; wine 1-й шаблон, каждый сам ×4, телевизор full hd; wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 63
+текст обрезан вбок на 26 px (div.dk-card.dk-d--cyber) — «K»
 
-![бледный текст](shots/wager-0-teams-tv-phones-2.jpg)
+- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--cyber > span.dk-idx`, этап `playing/4/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 1
 
-### бледный текст · телефон
+![обрезан текст](shots/durak-0-solo-laptop-hall-38.jpg)
 
-контраст 2.50 (нужно от 3) — «Лото!»
+### обрезан текст · экран зала
 
-- где: `main.page.page--play > div.card > div.quiz-phone.lotto-phone > button.btn.btn--block`, этап `playing/0/question/`
-- игры (1): lotto 1-й шаблон, каждый сам ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 146
+текст обрезан вбок на 12 px (div.dk-card.dk-d--cyber) — «♦︎»
 
-![бледный текст](shots/lotto-0-solo-tv-phones-4.jpg)
+- где: `div.dk-stock > div.dk-card.dk-d--cyber > span.dk-idx > span`, этап `playing/4/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 1
+
+![обрезан текст](shots/durak-0-solo-laptop-hall-39.jpg)
 
 ### бледный текст · телефон
 
 контраст 1.01 (нужно от 4.5) — «33%»
 
 - где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct`, этап `playing/13/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
+- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
 - раз: 95
 
 ![бледный текст](shots/millionaire-0-teams-tv-phones-3.jpg)
@@ -3369,7 +1379,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 контраст 1.01 (нужно от 4.5) — «Зелёного»
 
 - где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text`, этап `playing/2/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
+- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
 - раз: 62
 
 ![бледный текст](shots/millionaire-0-teams-tv-phones-2.jpg)
@@ -3379,50 +1389,10 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 контраст 1.04 (нужно от 4.5) — «A»
 
 - где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter`, этап `playing/2/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
+- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
 - раз: 55
 
 ![бледный текст](shots/millionaire-0-teams-tv-phones-1.jpg)
-
-### бледный текст · телефон
-
-контраст 3.16 (нужно от 4.5) — «Отправить ответы»
-
-- где: `div.card > div.quiz-phone > form.stack.hd-hall-form > button.btn.btn--block`, этап `playing/1/question/hall`
-- игры (1): hundred 4-й шаблон, команды ×4, телевизор full hd; hundred 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 4-й шаблон, каждый сам ×4, телевизор full hd; hundred 4-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 4-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 51
-
-![бледный текст](shots/hundred-3-teams-tv-phones-1.jpg)
-
-### бледный текст · телефон
-
-контраст 2.50 (нужно от 4.5) — «Отправить ответ»
-
-- где: `div.card > div.quiz-phone > form.stack > button.btn.btn--block`, этап `playing/2/question/`
-- игры (1): quiz 1-й шаблон, каждый сам ×4, телевизор full hd; quiz 1-й шаблон, команды ×4, телевизор full hd; quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; quiz 2-й шаблон, каждый сам ×4, телевизор full hd; quiz 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена …
-- раз: 50
-
-![бледный текст](shots/quiz-0-solo-tv-phones-1.jpg)
-
-### бледный текст · телефон
-
-контраст 2.49 (нужно от 4.5) — «№1»
-
-- где: `div.stack > div.mf-targets > button.mf-target > span.mf-target__num`, этап `playing/1/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 49
-
-![бледный текст](shots/mafia-0-solo-tv-phones-10.jpg)
-
-### бледный текст · телефон
-
-контраст 2.49 (нужно от 4.5) — «это вы»
-
-- где: `div.stack > div.mf-targets > button.mf-target > span.mf-target__tag`, этап `playing/1/question/vote`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 47
-
-![бледный текст](shots/mafia-0-solo-tv-phones-11.jpg)
 
 ### бледный текст · пульт
 
@@ -3432,47 +1402,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): wine 1-й шаблон, каждый сам ×4, телевизор full hd; wine 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; wine 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; wine 1-й шаблон, команды ×4, телевизор full hd; wine 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; wine 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 38
 
-![бледный текст](shots/wine-0-solo-tv-phones-5.jpg)
+![бледный текст](shots/wine-0-solo-tv-phones-4.jpg)
 
 ### бледный текст · экран зала
 
-контраст 3.27 (нужно от 4.5) — «Эльф · Лесная тень»
+контраст 3.27 (нужно от 4.5) — «Герой выбирается»
 
-- где: `div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
 - раз: 30
 
 ![бледный текст](shots/dragon-1-teams-tv-hall-6.jpg)
 
-### бледный текст · телефон
-
-контраст 2.50 (нужно от 4.5) — «Отправить (осталось 4)»
-
-- где: `div.quiz-phone > div.stack.stack--tight > div.actions > button.btn.btn--block`, этап `playing/0/question/`
-- игры (1): quiz 2-й шаблон, каждый сам ×4, телевизор full hd; quiz 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 2-й шаблон, команды ×4, телевизор full hd; quiz 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; quiz 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quiz 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 24
-
-![бледный текст](shots/quiz-1-solo-tv-phones-1.jpg)
-
 ### бледный текст · экран зала
 
-контраст 3.27 (нужно от 4.5) — «Варвар · Ярость»
+контраст 3.27 (нужно от 4.5) — «Герой выбирается»
 
-- где: `div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 24
+- где: `div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 30
 
-![бледный текст](shots/dragon-1-teams-tv-hall-7.jpg)
-
-### бледный текст · телефон
-
-контраст 2.50 (нужно от 4.5) — «Отправить историю»
-
-- где: `main.page.page--play > div.card > div.quiz-phone.st-phone > button.btn.btn--block`, этап `playing/0/question/write`
-- игры (1): story 1-й шаблон, команды ×6, телевизор full hd; story 1-й шаблон, каждый сам ×6, телевизор full hd; story 1-й шаблон, каждый сам ×6, ноутбук 16:10, большой зал, длинные имена; story 1-й шаблон, каждый сам ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, команды ×6, проектор 4:3, маленький телефон, длинные имена; story 1-й шаблон, команды ×6, ноутбук 16:10, большой зал, длинные имена
-- раз: 24
-
-![бледный текст](shots/story-0-solo-tv-phones-2.jpg)
+![бледный текст](shots/dragon-1-teams-projector-hall-12.jpg)
 
 ### бледный текст · телефон
 
@@ -3480,29 +1430,19 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `section.bk-phone__mine > ul.bk-phone__cards > li > span.bk-phone__state`, этап `playing/2/question/bunker`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 22
+- раз: 30
 
-![бледный текст](shots/bunker-0-solo-projector-phones-8.jpg)
+![бледный текст](shots/bunker-0-solo-projector-phones-7.jpg)
 
 ### бледный текст · экран зала
 
 контраст 2.44 (нужно от 3) — «3»
 
 - где: `section.mf-screen__seats > ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__num`, этап `playing/5/question/night`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
-- раз: 19
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 20
 
 ![бледный текст](shots/mafia-0-solo-tv-hall-1.jpg)
-
-### бледный текст · телефон
-
-контраст 2.50 (нужно от 4.5) — «Больше не подкидываю»
-
-- где: `div.card > div.quiz-phone.dk-phone > div.dk-phone__actions > button.btn`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 16
-
-![бледный текст](shots/durak-0-solo-laptop-phones-11.jpg)
 
 ### бледный текст · пульт
 
@@ -3524,15 +1464,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![бледный текст](shots/millionaire-0-solo-tv-phones-4.jpg)
 
-### бледный текст · экран зала
+### бледный текст · телефон
 
-контраст 2.58 (нужно от 3) — «А»
+контраст 1.00 (нужно от 4.5) — «9»
 
-- где: `div.dg-q > ol.dg-q__ans > li > b`, этап `playing/15/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/14/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 9
 
-![бледный текст](shots/dragon-1-teams-projector-hall-24.jpg)
+![бледный текст](shots/durak-0-solo-tv-phones-10.jpg)
 
 ### бледный текст · пульт
 
@@ -3544,16 +1484,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![бледный текст](shots/board-0-solo-tv-phones-3.jpg)
 
-### бледный текст · телефон
-
-контраст 3.00 (нужно от 4.5) — «Ответить»
-
-- где: `div.card > div.quiz-phone > form.stack.stack--tight > button.btn.btn--block`, этап `playing/3/question/`
-- игры (1): survival 1-й шаблон, команды ×4, телевизор full hd; survival 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; survival 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 7
-
-![бледный текст](shots/survival-0-teams-tv-phones-1.jpg)
-
 ### бледный текст · экран зала
 
 контраст 1.09 (нужно от 4.5) — «Г»
@@ -3562,77 +1492,77 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 7
 
-![бледный текст](shots/durak-0-solo-projector-hall-44.jpg)
-
-### бледный текст · телефон
-
-контраст 3.34 (нужно от 4.5) — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/68/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![бледный текст](shots/durak-0-solo-projector-phones-22.jpg)
+![бледный текст](shots/durak-0-solo-projector-hall-38.jpg)
 
 ### бледный текст · экран зала
 
 контраст 2.49 (нужно от 4.5) — «выбыл»
 
-- где: `ul.pr-cups > li.pr-cup > span.pr-cup__dice > span.pr-cup__out`, этап `playing/21/reveal/over`
+- где: `ul.pr-cups > li.pr-cup > span.pr-cup__dice > span.pr-cup__out`, этап `playing/20/reveal/over`
 - игры (1): perudo 1-й шаблон, каждый сам ×4, телевизор full hd; perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 6
 
-![бледный текст](shots/perudo-0-solo-tv-hall-3.jpg)
-
-### бледный текст · пульт
-
-контраст 1.07 (нужно от 4.5) — «Постельное бельё»
-
-- где: `li > button.hd-host__row > span.hd-host__text > strong`, этап `playing/1/reveal/play`
-- игры (1): hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, команды ×4, телевизор full hd
-- раз: 5
-
-![бледный текст](shots/hundred-0-teams-laptop-phones-1.jpg)
+![бледный текст](shots/perudo-0-solo-tv-hall-1.jpg)
 
 ### бледный текст · экран зала
 
 контраст 2.58 (нужно от 4.5) — «Бой с драконом»
 
 - где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye`, этап `playing/1/question/`
-- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 5
 
-![бледный текст](shots/dragon-1-teams-tv-hall-8.jpg)
+![бледный текст](shots/dragon-1-teams-projector-hall-13.jpg)
 
 ### бледный текст · экран зала
 
-контраст 2.58 (нужно от 4.5) — «Задание 6 · 🧠 Ум»
+контраст 2.58 (нужно от 4.5) — «Задание 2 · 💪 Сила»
 
-- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye`, этап `playing/15/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye`, этап `playing/19/reveal/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 5
+
+![бледный текст](shots/dragon-1-teams-laptop-hall-16.jpg)
+
+### бледный текст · экран зала
+
+контраст 2.58 (нужно от 3) — «А»
+
+- где: `div.dg-q > ol.dg-q__ans > li > b`, этап `playing/15/reveal/`
+- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd
 - раз: 4
 
-![бледный текст](shots/dragon-1-teams-projector-hall-23.jpg)
+![бледный текст](shots/dragon-1-teams-tv-hall-11.jpg)
+
+### бледный текст · пульт
+
+контраст 1.07 (нужно от 4.5) — «Начальник»
+
+- где: `li > button.hd-host__row > span.hd-host__text > strong`, этап `playing/3/reveal/play`
+- игры (1): hundred 2-й шаблон, команды ×4, телевизор full hd
+- раз: 3
+
+![бледный текст](shots/hundred-1-teams-tv-phones-1.jpg)
+
+### бледный текст · телефон
+
+контраст 1.18 (нужно от 4.5) — «7»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/119/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 3
+
+![бледный текст](shots/durak-0-solo-laptop-phones-49.jpg)
 
 ### бледный текст · экран зала
 
 контраст 2.72 (нужно от 4.5) — «−1 кость»
 
-- где: `section.pr-screen__table > ul.pr-cups > li.pr-cup > span.pr-cup__mark`, этап `playing/21/reveal/over`
+- где: `section.pr-screen__table > ul.pr-cups > li.pr-cup > span.pr-cup__mark`, этап `playing/20/reveal/over`
 - игры (1): perudo 1-й шаблон, каждый сам ×4, телевизор full hd; perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![бледный текст](shots/perudo-0-solo-tv-hall-4.jpg)
-
-### бледный текст · телефон
-
-контраст 1.07 (нужно от 4.5) — «50 на 50»
-
-- где: `section.stack.stack--tight > div.mil-phone-lifelines > button.mil-phone-lifeline > span.mil-phone-lifeline__label`, этап `playing/1/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![бледный текст](shots/millionaire-0-teams-projector-phones-1.jpg)
+![бледный текст](shots/perudo-0-solo-tv-hall-2.jpg)
 
 ### бледный текст · пульт
 
@@ -3642,145 +1572,145 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
-![бледный текст](shots/hundred-1-teams-projector-phones-4.jpg)
+![бледный текст](shots/hundred-1-teams-projector-phones-1.jpg)
 
-### бледный текст · пульт
+### бледный текст · телефон
 
-контраст 1.62 (нужно от 3) — «120»
+контраст 1.65 (нужно от 4.5) — «№12»
 
-- где: `ol.hd-host__list > li > button.hd-host__row > span.hd-host__points`, этап `playing/7/reveal/play`
-- игры (1): hundred 3-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.quiz-phone.mf-phone > div.stack > p.mf-phone__news > span.mf-num`, этап `playing/49/reveal/verdict`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd
+- раз: 2
+
+![бледный текст](shots/mafia-0-solo-tv-phones-8.jpg)
+
+### бледный текст · телефон
+
+контраст 1.07 (нужно от 4.5) — «50 на 50»
+
+- где: `section.stack.stack--tight > div.mil-phone-lifelines > button.mil-phone-lifeline > span.mil-phone-lifeline__label`, этап `playing/1/question/question`
+- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![бледный текст](shots/hundred-2-teams-projector-phones-4.jpg)
+![бледный текст](shots/millionaire-0-teams-projector-phones-1.jpg)
 
 ### мелко для зала · экран зала
 
 шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «кл. 0»
 
 - где: `aside.qx-panel > ol.qx-panel__list > li.qx-row > span.qx-row__cell`, этап `playing/0/question/roll`
-- игры (1): quest 1-й шаблон, команды ×4, телевизор full hd; quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, телевизор full hd; quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- игры (1): quest 1-й шаблон, команды ×4, телевизор full hd; quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, телевизор full hd; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 156
 
 ![мелко для зала](shots/quest-0-teams-tv-hall-1.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «№1»
-
-- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-5.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Профессия»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-6.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Биология»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--biology > span.bk-row__text`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-7.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Здоровье»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-8.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Хобби»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-9.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Багаж»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-10.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Факт»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 121
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-11.jpg)
-
-### мелко для зала · экран зала
-
 шрифт 9.8 px — 14 px на Full HD (нужно от 18) — «0»
 
 - где: `li.dg-team > span.dg-team__row > span.dg-team__dm > b`, этап `playing/2/ready/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 106
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 125
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-10.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 7.9 px — 8 px на Full HD (нужно от 18) — «1»
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «№1»
+
+- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-4.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Профессия»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-5.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Биология»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--biology > span.bk-row__text`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-6.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Здоровье»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-7.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Хобби»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-8.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Багаж»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-9.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Факт»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 118
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-10.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 4.0 px — 6 px на Full HD (нужно от 18) — «2»
 
 - где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__num`, этап `playing/1/question/catastrophe`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 100
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 96
 
 ![мелко для зала](shots/bunker-0-solo-tv-hall-1.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Карманник»
+шрифт 8.6 px — 12 px на Full HD (нужно от 18) — «Чудесное исцеление»
 
 - где: `ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 79
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 81
 
-![мелко для зала](shots/bunker-0-solo-tv-hall-12.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 13.6 px — 14 px на Full HD (нужно от 18) — «Оружейная»
-
-- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 72
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-4.jpg)
+![мелко для зала](shots/bunker-0-solo-tv-hall-11.jpg)
 
 ### мелко для зала · экран зала
 
 шрифт 9.8 px — 14 px на Full HD (нужно от 18) — «урон»
 
 - где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__row > span.dg-team__dm`, этап `playing/2/ready/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 57
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 66
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-9.jpg)
 
@@ -3789,18 +1719,38 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 шрифт 9.8 px — 14 px на Full HD (нужно от 18) — «урон»
 
 - где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__row > span.dg-team__dm`, этап `playing/2/ready/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 49
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 59
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-11.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 12.7 px — 18 px на Full HD (нужно от 18) — «Александра Константинова»
+
+- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 51
+
+![мелко для зала](shots/bunker-0-solo-projector-hall-8.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 6.9 px — 10 px на Full HD (нужно от 18) — «Детская комната»
+
+- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 49
+
+![мелко для зала](shots/bunker-0-solo-tv-hall-3.jpg)
 
 ### мелко для зала · экран зала
 
 шрифт 9.8 px — 14 px на Full HD (нужно от 18) — «Герой выбирается»
 
 - где: `div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero`, этап `playing/1/question/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 42
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 46
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-2.jpg)
 
@@ -3809,20 +1759,10 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 шрифт 9.8 px — 14 px на Full HD (нужно от 18) — «Герой выбирается»
 
 - где: `div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero`, этап `playing/1/question/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 38
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 43
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-3.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.7 px — 18 px на Full HD (нужно от 18) — «Александра Константинова»
-
-- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 32
-
-![мелко для зала](shots/bunker-0-solo-projector-hall-9.jpg)
 
 ### мелко для зала · экран зала
 
@@ -3830,7 +1770,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__status`, этап `playing/1/question/deal`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 25
+- раз: 24
 
 ![мелко для зала](shots/durak-0-solo-tv-hall-1.jpg)
 
@@ -3846,10 +1786,10 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 10.8 px — 15 px на Full HD (нужно от 18) — «Бросает кубик»
+шрифт 15.1 px — 15 px на Full HD (нужно от 18) — «Бросает кубик»
 
 - где: `div.quest-screen.qx--adult > div.qx-turn > div.qx-turn__who > span.qx-turn__label`, этап `playing/0/question/roll`
-- игры (1): quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×4, телевизор full hd; quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- игры (1): quest 2-й шаблон, команды ×4, телевизор full hd; quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 21
 
 ![мелко для зала](shots/quest-1-teams-tv-hall-2.jpg)
@@ -3859,20 +1799,40 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 шрифт 10.2 px — 14 px на Full HD (нужно от 18) — «А»
 
 - где: `div.dg-q > ol.dg-q__ans > li > b`, этап `playing/15/reveal/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 20
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 16
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-13.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 8.9 px — 12 px на Full HD (нужно от 18) — «🎲 2»
+шрифт 12.3 px — 17 px на Full HD (нужно от 18) — «лет в бункере»
 
-- где: `li.dg-team > span.dg-team__row > span.dg-team__dm > span.dg-team__roll`, этап `playing/20/reveal/`
+- где: `div.bk-card.bk-cata > div.bk-in > span.bk-cata__facts > span`, этап `playing/1/question/catastrophe`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 16
+
+![мелко для зала](shots/bunker-0-solo-projector-hall-1.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 13.4 px — 18 px на Full HD (нужно от 18) — «Единороги из бухгалтерии»
+
+- где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span`, этап `playing/20/reveal/`
 - игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 20
+- раз: 15
 
-![мелко для зала](shots/dragon-1-teams-laptop-hall-7.jpg)
+![мелко для зала](shots/dragon-1-teams-laptop-hall-5.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 13.4 px — 18 px на Full HD (нужно от 18) — «Дельфины маркетинга и PR»
+
+- где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span`, этап `playing/20/reveal/`
+- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 15
+
+![мелко для зала](shots/dragon-1-teams-laptop-hall-10.jpg)
 
 ### мелко для зала · экран зала
 
@@ -3886,63 +1846,43 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 12.3 px — 17 px на Full HD (нужно от 18) — «года в бункере»
+шрифт 9.7 px — 14 px на Full HD (нужно от 18) — «Сказочный дракон»
 
-- где: `div.bk-card.bk-cata > div.bk-in > span.bk-cata__facts > span`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 12
-
-![мелко для зала](shots/bunker-0-solo-projector-hall-4.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 16.0 px — 16 px на Full HD (нужно от 18) — «Гость 1»
-
-- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name`, этап `playing/136/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__rank`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
 - раз: 11
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-22.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.2 px — 16 px на Full HD (нужно от 18) — «Сказочный дракон»
-
-- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__rank`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 10
 
 ![мелко для зала](shots/dragon-1-teams-tv-hall-4.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 13.4 px — 18 px на Full HD (нужно от 18) — «Единороги из бухгалтерии»
+шрифт 8.6 px — 12 px на Full HD (нужно от 18) — «Изгнан»
 
-- где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 10
+- где: `ol.bk-screen__dossiers > li > article.bk-dossier > span.bk-dossier__stamp`, этап `playing/56/question/justify`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- раз: 11
 
-![мелко для зала](shots/dragon-1-teams-laptop-hall-4.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 13.4 px — 18 px на Full HD (нужно от 18) — «Дельфины маркетинга и PR»
-
-- где: `ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 10
-
-![мелко для зала](shots/dragon-1-teams-laptop-hall-9.jpg)
+![мелко для зала](shots/bunker-0-solo-tv-hall-14.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Изгнан»
+шрифт 16.0 px — 16 px на Full HD (нужно от 18) — «Гость 1»
 
-- где: `ol.bk-screen__dossiers > li > article.bk-dossier > span.bk-dossier__stamp`, этап `playing/23/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 10
+- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name`, этап `playing/131/question/justify`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- раз: 11
 
 ![мелко для зала](shots/bunker-0-solo-tv-hall-17.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 8.9 px — 12 px на Full HD (нужно от 18) — «🎲 1»
+
+- где: `li.dg-team > span.dg-team__row > span.dg-team__dm > span.dg-team__roll`, этап `playing/20/reveal/`
+- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 10
+
+![мелко для зала](shots/dragon-1-teams-laptop-hall-8.jpg)
 
 ### мелко для зала · экран зала
 
@@ -3953,36 +1893,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 8
 
 ![мелко для зала](shots/dragon-0-teams-projector-hall-6.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.8 px — 18 px на Full HD (нужно от 18) — «Гоголь»
-
-- где: `div.dg-q > ol.dg-q__ans > li > span`, этап `playing/15/reveal/`
-- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![мелко для зала](shots/dragon-0-teams-projector-hall-14.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
-
-- где: `div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-![мелко для зала](shots/durak-0-solo-projector-hall-47.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Задание 6 · 🧠 Ум»
-
-- где: `div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > div.dg-q__eye`, этап `playing/15/reveal/`
-- игры (1): dragon 1-й шаблон, команды ×4, телевизор full hd; dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 7
-
-![мелко для зала](shots/dragon-0-teams-tv-hall-3.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4046,6 +1956,56 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
+шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Задание 6 · 🧠 Ум»
+
+- где: `div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > div.dg-q__eye`, этап `playing/15/reveal/`
+- игры (1): dragon 1-й шаблон, команды ×4, телевизор full hd; dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 6
+
+![мелко для зала](shots/dragon-0-teams-tv-hall-3.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 10.2 px — 14 px на Full HD (нужно от 18) — «Бой 1 из 2»
+
+- где: `main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-round`, этап `playing/2/ready/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 6
+
+![мелко для зала](shots/dragon-1-teams-projector-hall-14.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
+
+- где: `div.dk-seat.dk-seat--throw > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/17/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 6
+
+![мелко для зала](shots/durak-0-solo-projector-hall-48.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Может подкинуть»
+
+- где: `div.dk-table > div.dk-seat.dk-seat--throw > div.dk-seat__card > span.dk-seat__status`, этап `playing/17/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 6
+
+![мелко для зала](shots/durak-0-solo-projector-hall-49.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 12.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
+
+- где: `div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 6
+
+![мелко для зала](shots/durak-0-solo-projector-hall-41.jpg)
+
+### мелко для зала · экран зала
+
 шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Бой с драконом»
 
 - где: `div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye`, этап `playing/1/question/`
@@ -4056,143 +2016,93 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
-
-- где: `div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![мелко для зала](shots/durak-0-solo-laptop-hall-52.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Отбивается»
-
-- где: `div.dk-table > div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__status`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![мелко для зала](shots/durak-0-solo-laptop-hall-53.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 13.0 px — 13 px на Full HD (нужно от 18) — «Угроза»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker`, этап `playing/59/question/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-19.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 14.3 px — 14 px на Full HD (нужно от 18) — «Крысы добрались до склада, еды осталось на неделю.»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text`, этап `playing/59/question/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-20.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.6 px — 13 px на Full HD (нужно от 18) — «Поможет: фермер, охотник, семена, повар»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps`, этап `playing/59/question/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 5
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-21.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 11.5 px — 16 px на Full HD (нужно от 18) — «Карманник»
-
-- где: `ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/127/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 5
-
-![мелко для зала](shots/bunker-0-solo-projector-hall-24.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.8 px — 17 px на Full HD (нужно от 18) — «и ещё 1»
-
-- где: `main.quiz-stage > div.quest-screen.qx--classic > aside.qx-panel > p.qx-panel__more`, этап `playing/26/question/roll`
-- игры (1): quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![мелко для зала](shots/quest-0-teams-laptop-hall-4.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.8 px — 17 px на Full HD (нужно от 18) — «и ещё 1»
-
-- где: `main.quiz-stage > div.quest-screen.qx--adult > aside.qx-panel > p.qx-panel__more`, этап `playing/26/question/roll`
-- игры (1): quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![мелко для зала](shots/quest-1-teams-laptop-hall-4.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 12.8 px — 17 px на Full HD (нужно от 18) — «Бой 2 из 2»
-
-- где: `main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-round`, этап `playing/20/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-![мелко для зала](shots/dragon-1-teams-projector-hall-14.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Бой с драконом»
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Бой с драконом»
 
 - где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye`, этап `playing/1/question/`
-- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 5
 
 ![мелко для зала](shots/dragon-1-teams-tv-hall-5.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Задание 6 · 🧠 Ум»
+шрифт 10.8 px — 15 px на Full HD (нужно от 18) — «Копит радугу — не справитесь, чихнёт!»
 
-- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye`, этап `playing/15/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-intent`, этап `playing/2/ready/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 5
+
+![мелко для зала](shots/dragon-1-teams-projector-hall-16.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 9.2 px — 13 px на Full HD (нужно от 18) — «Задание 2 · 💪 Сила»
+
+- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye`, этап `playing/19/reveal/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd
+- раз: 5
+
+![мелко для зала](shots/dragon-1-teams-laptop-hall-13.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 12.8 px — 17 px на Full HD (нужно от 18) — «и ещё 1»
+
+- где: `main.quiz-stage > div.quest-screen.qx--classic > aside.qx-panel > p.qx-panel__more`, этап `playing/31/reveal/done`
+- игры (1): quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 4
 
-![мелко для зала](shots/dragon-1-teams-projector-hall-20.jpg)
+![мелко для зала](shots/quest-0-teams-laptop-hall-2.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 12.8 px — 17 px на Full HD (нужно от 18) — «и ещё 1»
+
+- где: `main.quiz-stage > div.quest-screen.qx--adult > aside.qx-panel > p.qx-panel__more`, этап `playing/29/reveal/done`
+- игры (1): quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 4
+
+![мелко для зала](shots/quest-1-teams-laptop-hall-2.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 12.8 px — 18 px на Full HD (нужно от 18) — «Гоголь»
+
+- где: `div.dg-q > ol.dg-q__ans > li > span`, этап `playing/15/reveal/`
+- игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 4
+
+![мелко для зала](shots/dragon-0-teams-projector-hall-14.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 11.3 px — 16 px на Full HD (нужно от 18) — «У каждого героя своя сила. Капитан раскладывает 5 очков по свойствам: Сила, Ум, »
+
+- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note`, этап `playing/1/question/`
+- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 4
+
+![мелко для зала](shots/dragon-1-teams-projector-hall-10.jpg)
 
 ### мелко для зала · экран зала
 
 шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
 
-- где: `div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
+- где: `div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 4
 
-![мелко для зала](shots/durak-0-solo-projector-hall-48.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-44.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Ходит»
+шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Бьётся»
 
-- где: `div.dk-table > div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__status`, этап `playing/16/question/play`
+- где: `div.dk-table > div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__status`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 4
 
-![мелко для зала](shots/durak-0-solo-laptop-hall-51.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 8.7 px — 12 px на Full HD (нужно от 18) — «Справились»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__stamp`, этап `playing/127/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 4
-
-![мелко для зала](shots/bunker-0-solo-projector-hall-29.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-45.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4216,13 +2126,13 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 10.8 px — 15 px на Full HD (нужно от 18) — «Копит радугу — не справитесь, чихнёт!»
+шрифт 11.9 px — 17 px на Full HD (нужно от 18) — «Профессия»
 
-- где: `main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-intent`, этап `playing/2/ready/`
-- игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/3/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/dragon-1-teams-projector-hall-16.jpg)
+![мелко для зала](shots/bunker-0-solo-tv-hall-12.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4232,7 +2142,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-tv-hall-25.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-18.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4242,7 +2152,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-tv-hall-26.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-19.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4252,7 +2162,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-26.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-20.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4262,7 +2172,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-27.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-21.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4272,7 +2182,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-28.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-22.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4282,7 +2192,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-29.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-23.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4292,7 +2202,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-30.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-24.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4302,7 +2212,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-31.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-25.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4312,7 +2222,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-32.jpg)
+![мелко для зала](shots/durak-0-solo-tv-hall-26.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4322,7 +2232,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-33.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-27.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4332,7 +2242,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-34.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-28.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4342,7 +2252,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-35.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-29.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4352,7 +2262,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-36.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-30.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4362,7 +2272,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-37.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-31.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4372,7 +2282,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-38.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-32.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4382,7 +2292,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-39.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-33.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4392,7 +2302,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-40.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-34.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4402,7 +2312,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-41.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-35.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4412,7 +2322,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
-![мелко для зала](shots/durak-0-solo-projector-hall-42.jpg)
+![мелко для зала](shots/durak-0-solo-projector-hall-36.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4422,33 +2332,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 3
 
+![мелко для зала](shots/durak-0-solo-projector-hall-37.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 12.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
+
+- где: `div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 3
+
+![мелко для зала](shots/durak-0-solo-projector-hall-42.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 11.5 px — 16 px на Full HD (нужно от 18) — «Ходит»
+
+- где: `div.dk-table > div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__status`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 3
+
 ![мелко для зала](shots/durak-0-solo-projector-hall-43.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
-
-- где: `div.dk-seat.dk-seat--throw > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
-
-### мелко для зала · экран зала
-
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Может подкинуть»
-
-- где: `div.dk-table > div.dk-seat.dk-seat--throw > div.dk-seat__card > span.dk-seat__status`, этап `playing/55/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
-
-### мелко для зала · экран зала
-
-шрифт 16.9 px — 17 px на Full HD (нужно от 18) — «Профессия»
-
-- где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/9/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![мелко для зала](shots/bunker-0-solo-tv-hall-14.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4462,23 +2366,13 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 11.3 px — 16 px на Full HD (нужно от 18) — «У каждого героя своя сила. Капитан раскладывает 5 очков по свойствам: Сила, Ум, »
+шрифт 11.3 px — 16 px на Full HD (нужно от 18) — «Медведи складской логистики»
 
-- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note`, этап `playing/1/question/`
+- где: `div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note > span`, этап `playing/15/reveal/`
 - игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 2
 
-![мелко для зала](shots/dragon-1-teams-projector-hall-10.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 10.9 px — 15 px на Full HD (нужно от 18) — «Депрессия»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__title`, этап `playing/127/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![мелко для зала](shots/bunker-0-solo-projector-hall-26.jpg)
+![мелко для зала](shots/dragon-1-teams-projector-hall-20.jpg)
 
 ### мелко для зала · экран зала
 
@@ -4524,7 +2418,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 11.3 px — 16 px на Full HD (нужно от 18) — «Выполняйте — ведущий засчитает удар»
 
-- где: `div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > p.dg-q__note`, этап `playing/21/reveal/`
+- где: `div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > p.dg-q__note`, этап `playing/19/reveal/`
 - игры (1): dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
@@ -4534,33 +2428,39 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 11.3 px — 16 px на Full HD (нужно от 18) — «Выполняйте — ведущий засчитает удар»
 
-- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > p.dg-q__note`, этап `playing/20/reveal/`
+- где: `div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > p.dg-q__note`, этап `playing/19/reveal/`
 - игры (1): dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![мелко для зала](shots/dragon-1-teams-projector-hall-25.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 13.1 px — 18 px на Full HD (нужно от 18) — «Обмен здоровьем»
-
-- где: `div.bk-stage.bk-stage--exile > div.bk-stage__dossier > article.bk-dossier.bk-dossier--big > p.bk-dossier__used`, этап `playing/45/question/exile`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![мелко для зала](shots/bunker-0-solo-projector-hall-22.jpg)
+![мелко для зала](shots/dragon-1-teams-projector-hall-22.jpg)
 
 ### мелко для зала · экран зала
 
 шрифт 13.1 px — 18 px на Full HD (нужно от 18) — «Изгнан»
 
-- где: `div.bk-stage.bk-stage--exile > div.bk-stage__dossier > article.bk-dossier.bk-dossier--big > span.bk-dossier__stamp`, этап `playing/45/question/exile`
+- где: `div.bk-stage.bk-stage--exile > div.bk-stage__dossier > article.bk-dossier.bk-dossier--big > span.bk-dossier__stamp`, этап `playing/33/question/exile`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![мелко для зала](shots/bunker-0-solo-projector-hall-23.jpg)
+![мелко для зала](shots/bunker-0-solo-projector-hall-18.jpg)
 
-## Мелочи — 71
+### мелко для зала · экран зала
+
+шрифт 12.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
+
+- где: `div.dk-seat.dk-seat--take > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/55/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+### мелко для зала · экран зала
+
+шрифт 11.5 px — 16 px на Full HD (нужно от 18) — «Берёт»
+
+- где: `div.dk-table > div.dk-seat.dk-seat--take > div.dk-seat__card > span.dk-seat__status`, этап `playing/55/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+## Мелочи — 68
 
 ### мелкий текст · телефон
 
@@ -4588,7 +2488,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/1/question/catastrophe`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 1920
+- раз: 1962
 
 ![мелкий текст](shots/bunker-0-solo-tv-phones-2.jpg)
 
@@ -4604,7 +2504,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «Ветеринар · стаж 11 лет»
+шрифт 10.8 px (нужно от 12) — «Биолог · стаж 15 лет»
 
 - где: `li > div.bk-card.bk-trait > div.bk-in > span.bk-trait__text`, этап `playing/1/question/catastrophe`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
@@ -4618,7 +2518,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.bk-card.bk-special > div.bk-in > span.bk-special__band > span`, этап `playing/1/question/catastrophe`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 320
+- раз: 327
 
 ![мелкий текст](shots/bunker-0-solo-tv-phones-3.jpg)
 
@@ -4628,7 +2528,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__title`, этап `playing/1/question/catastrophe`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 320
+- раз: 327
 
 ![мелкий текст](shots/bunker-0-solo-tv-phones-4.jpg)
 
@@ -4638,7 +2538,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text`, этап `playing/1/question/catastrophe`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 320
+- раз: 327
 
 ![мелкий текст](shots/bunker-0-solo-tv-phones-5.jpg)
 
@@ -4646,11 +2546,11 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 9.9 px (нужно от 12) — «сыграно»
 
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__stamp`, этап `playing/3/question/open`
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__stamp`, этап `playing/2/question/bunker`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 214
+- раз: 252
 
-![мелкий текст](shots/bunker-0-solo-tv-phones-9.jpg)
+![мелкий текст](shots/bunker-0-solo-tv-phones-6.jpg)
 
 ### мелкий текст · телефон
 
@@ -4680,7 +2580,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dragon 1-й шаблон, команды ×4, телевизор full hd; dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; dragon 2-й шаблон, команды ×4, телевизор full hd; dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 120
 
-![мелкий текст](shots/dragon-0-teams-tv-phones-2.jpg)
+![мелкий текст](shots/dragon-0-teams-tv-phones-1.jpg)
 
 ### мелкий текст · пульт
 
@@ -4710,57 +2610,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×4, телевизор full hd; stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, телевизор full hd; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 88
 
-![мелкий текст](shots/stage-0-teams-tv-phones-5.jpg)
+![мелкий текст](shots/stage-0-teams-tv-phones-4.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «7»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 49
-
-![мелкий текст](shots/durak-0-solo-projector-phones-40.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «7»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 49
-
-![мелкий текст](shots/durak-0-solo-projector-phones-41.jpg)
-
-### мелкий текст · телефон
-
-шрифт 6.1 px (нужно от 12) — «во время голосования»
-
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when`, этап `playing/2/question/bunker`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 45
-
-![мелкий текст](shots/bunker-0-solo-tv-phones-6.jpg)
-
-### мелкий текст · телефон
-
-шрифт 9.2 px (нужно от 12) — «№ 1»
+шрифт 10.8 px (нужно от 12) — «№ 1»
 
 - где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 36
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 39
 
-![мелкий текст](shots/mafia-0-solo-tv-phones-5.jpg)
+![мелкий текст](shots/mafia-0-solo-tv-phones-1.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 9.2 px (нужно от 12) — «Город»
+шрифт 10.8 px (нужно от 12) — «Город»
 
 - где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 36
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 39
 
-![мелкий текст](shots/mafia-0-solo-tv-phones-6.jpg)
+![мелкий текст](shots/mafia-0-solo-tv-phones-2.jpg)
 
 ### мелкий текст · телефон
 
@@ -4770,23 +2640,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): truth 1-й шаблон, команды ×4, телевизор full hd; truth 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; truth 2-й шаблон, команды ×4, телевизор full hd; truth 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 36
 
-![мелкий текст](shots/truth-0-teams-tv-phones-2.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 30
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 30
+![мелкий текст](shots/truth-0-teams-tv-phones-1.jpg)
 
 ### мелкий текст · пульт
 
@@ -4800,33 +2654,33 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелкий текст · телефон
 
-шрифт 9.2 px (нужно от 12) — «№ 1»
+шрифт 11.6 px (нужно от 12) — «Каждую ночь лечите одного игрока. Одного и того же — не две ночи подряд, себя — »
 
-- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/10/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 27
+- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/0/reveal/roles`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
+- раз: 24
 
-![мелкий текст](shots/mafia-0-solo-projector-phones-15.jpg)
-
-### мелкий текст · телефон
-
-шрифт 9.2 px (нужно от 12) — «Город»
-
-- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/10/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
-- раз: 27
-
-![мелкий текст](shots/mafia-0-solo-projector-phones-16.jpg)
+![мелкий текст](shots/mafia-0-solo-tv-phones-3.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 8.3 px (нужно от 12) — «J✦R»
+шрифт 10.8 px (нужно от 12) — «№ 1»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand`, этап `playing/19/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 27
+- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/30/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 24
 
-![мелкий текст](shots/durak-0-solo-projector-phones-31.jpg)
+![мелкий текст](shots/mafia-0-solo-tv-phones-4.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «Город»
+
+- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/30/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 24
+
+![мелкий текст](shots/mafia-0-solo-tv-phones-5.jpg)
 
 ### мелкий текст · телефон
 
@@ -4834,19 +2688,9 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.bk-phone__back > div.bk-card.bk-back > div.bk-in > span.bk-back__word`, этап `playing/0/question/deal`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 27
-
-![мелкий текст](shots/bunker-0-solo-tv-phones-1.jpg)
-
-### мелкий текст · телефон
-
-шрифт 9.9 px (нужно от 12) — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd
 - раз: 24
 
-![мелкий текст](shots/mafia-0-solo-tv-phones-7.jpg)
+![мелкий текст](shots/bunker-0-solo-tv-phones-1.jpg)
 
 ### мелкий текст · пульт
 
@@ -4862,31 +2706,21 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/14/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/57/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 21
 
-![мелкий текст](shots/durak-0-solo-tv-phones-21.jpg)
+![мелкий текст](shots/durak-0-solo-projector-phones-24.jpg)
 
 ### мелкий текст · телефон
 
 шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/14/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/57/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 21
 
-![мелкий текст](shots/durak-0-solo-tv-phones-22.jpg)
-
-### мелкий текст · телефон
-
-шрифт 9.9 px (нужно от 12) — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
-
-- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/10/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd
-- раз: 18
-
-![мелкий текст](shots/mafia-0-solo-projector-phones-17.jpg)
+![мелкий текст](shots/durak-0-solo-projector-phones-25.jpg)
 
 ### мелкий текст · пульт
 
@@ -4897,6 +2731,16 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 17
 
 ![мелкий текст](shots/dance-0-teams-tv-phones-1.jpg)
+
+### мелкий текст · телефон
+
+шрифт 6.1 px (нужно от 12) — «во время голосования»
+
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when`, этап `playing/140/question/catastrophe`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 16
+
+![мелкий текст](shots/bunker-0-solo-laptop-phones-6.jpg)
 
 ### мелкий текст · пульт
 
@@ -4910,13 +2754,23 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелкий текст · телефон
 
-шрифт 9.2 px (нужно от 12) — «Ваша семья: 🦉 Екатерина Воскресенская (Дон)»
+шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__family`, этап `playing/0/reveal/roles`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена; mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand`, этап `playing/18/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 14
 
-![мелкий текст](shots/mafia-0-solo-tv-phones-9.jpg)
+![мелкий текст](shots/durak-0-solo-tv-phones-17.jpg)
+
+### мелкий текст · телефон
+
+шрифт 8.3 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand`, этап `playing/57/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 14
+
+![мелкий текст](shots/durak-0-solo-projector-phones-27.jpg)
 
 ### мелкий текст · пульт
 
@@ -4926,27 +2780,47 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 13
 
-![мелкий текст](shots/dance-0-teams-tv-phones-11.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-10.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 12
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-brand`, этап `playing/94/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 13
 
-![мелкий текст](shots/durak-0-solo-laptop-phones-57.jpg)
+![мелкий текст](shots/durak-0-solo-laptop-phones-43.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 11.6 px (нужно от 12) — «Каждую ночь лечите одного игрока. Одного и того же — не две ночи подряд, себя — »
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/30/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, проектор 4:3, маленький телефон, длинные имена
 - раз: 12
 
-![мелкий текст](shots/durak-0-solo-laptop-phones-58.jpg)
+![мелкий текст](shots/mafia-0-solo-tv-phones-6.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--anime > span.dk-idx`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 12
+
+![мелкий текст](shots/durak-0-solo-projector-phones-34.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 12
+
+![мелкий текст](shots/durak-0-solo-projector-phones-35.jpg)
 
 ### мелкий текст · телефон
 
@@ -4956,23 +2830,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 11
 
-![мелкий текст](shots/durak-0-solo-tv-phones-23.jpg)
+![мелкий текст](shots/durak-0-solo-tv-phones-11.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 8.3 px (нужно от 12) — «J✦R»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-brand`, этап `playing/26/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/68/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 11
+
+![мелкий текст](shots/durak-0-solo-projector-phones-40.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 8.3 px (нужно от 12) — «J✦R»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand`, этап `playing/54/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/68/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 11
+
+![мелкий текст](shots/durak-0-solo-projector-phones-41.jpg)
 
 ### мелкий текст · пульт
 
@@ -4982,15 +2860,27 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 10
 
-![мелкий текст](shots/dance-0-teams-tv-phones-10.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-9.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 8.3 px (нужно от 12) — «J✦R»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand`, этап `playing/56/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/18/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 10
+
+![мелкий текст](shots/durak-0-solo-tv-phones-15.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/18/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 10
+
+![мелкий текст](shots/durak-0-solo-tv-phones-16.jpg)
 
 ### мелкий текст · телефон
 
@@ -5000,7 +2890,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
-![мелкий текст](shots/dance-0-teams-tv-phones-5.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-4.jpg)
 
 ### мелкий текст · телефон
 
@@ -5010,7 +2900,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
-![мелкий текст](shots/dance-0-teams-tv-phones-6.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-5.jpg)
 
 ### мелкий текст · телефон
 
@@ -5020,7 +2910,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
-![мелкий текст](shots/dance-0-teams-tv-phones-7.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-6.jpg)
 
 ### мелкий текст · телефон
 
@@ -5030,7 +2920,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
-![мелкий текст](shots/dance-0-teams-tv-phones-8.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-7.jpg)
 
 ### мелкий текст · телефон
 
@@ -5040,67 +2930,37 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
-![мелкий текст](shots/dance-0-teams-tv-phones-9.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-8.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 8.3 px (нужно от 12) — «J✦R»
+шрифт 10.8 px (нужно от 12) — «6»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 9
-
-![мелкий текст](shots/durak-0-solo-tv-phones-9.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «7»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/116/reveal/over`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/94/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
+![мелкий текст](shots/durak-0-solo-laptop-phones-38.jpg)
+
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «7»
+шрифт 10.8 px (нужно от 12) — «6»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/116/reveal/over`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/94/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
 - раз: 9
 
-### мелкий текст · телефон
-
-шрифт 8.3 px (нужно от 12) — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-brand`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
+![мелкий текст](shots/durak-0-solo-laptop-phones-39.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «8»
+шрифт 10.8 px (нужно от 12) — «Ваша семья: Гость 9, Опоздал 12»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
+- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__family`, этап `playing/31/reveal/roles`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd; mafia 1-й шаблон, каждый сам ×9, ноутбук 16:10, большой зал, длинные имена
+- раз: 7
 
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «8»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/94/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-### мелкий текст · телефон
-
-шрифт 5.4 px (нужно от 12) — «J✦R»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-brand`, этап `playing/16/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 8
-
-![мелкий текст](shots/durak-0-solo-projector-phones-42.jpg)
+![мелкий текст](shots/mafia-0-solo-laptop-phones-3.jpg)
 
 ### мелкий текст · пульт
 
@@ -5110,7 +2970,47 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): dance 1-й шаблон, команды ×4, телевизор full hd; dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 6
 
-![мелкий текст](shots/dance-0-teams-tv-phones-12.jpg)
+![мелкий текст](shots/dance-0-teams-tv-phones-11.jpg)
+
+### мелкий текст · телефон
+
+шрифт 8.3 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 6
+
+![мелкий текст](shots/durak-0-solo-tv-phones-23.jpg)
+
+### мелкий текст · телефон
+
+шрифт 8.6 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-brand`, этап `playing/119/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 6
+
+![мелкий текст](shots/durak-0-solo-laptop-phones-48.jpg)
+
+### мелкий текст · телефон
+
+шрифт 8.3 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand`, этап `playing/4/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- раз: 5
+
+![мелкий текст](shots/durak-0-solo-tv-phones-5.jpg)
+
+### мелкий текст · телефон
+
+шрифт 8.3 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--anime > span.dk-brand`, этап `playing/62/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd; durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 5
+
+![мелкий текст](shots/durak-0-solo-projector-phones-37.jpg)
 
 ### мелкий текст · телефон
 
@@ -5120,73 +3020,65 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): wager 1-й шаблон, команды ×4, телевизор full hd; wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
 - раз: 5
 
-![мелкий текст](shots/wager-0-teams-tv-phones-3.jpg)
+![мелкий текст](shots/wager-0-teams-tv-phones-2.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 11.5 px (нужно от 12) — «Локация»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--place > span.sp-card__label`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 4
-
-![мелкий текст](shots/spy-0-solo-projector-phones-5.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «7»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--kpop > span.dk-idx`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «7»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b`, этап `playing/26/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 3
-
-### мелкий текст · телефон
-
-шрифт 11.1 px (нужно от 12) — «Вы не знаете, где все. Слушайте и угадайте локацию — или не выдайте себя.»
-
-- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--spy > span.sp-card__hint`, этап `playing/0/reveal/cards`
-- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd; spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![мелкий текст](shots/spy-0-solo-tv-phones-4.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «7»
+шрифт 10.8 px (нужно от 12) — «6»
 
 - где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--cyber > span.dk-idx`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 2
 
-![мелкий текст](shots/durak-0-solo-tv-phones-10.jpg)
+![мелкий текст](shots/durak-0-solo-tv-phones-3.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «7»
+шрифт 10.8 px (нужно от 12) — «6»
 
 - где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 2
 
-![мелкий текст](shots/durak-0-solo-tv-phones-11.jpg)
+![мелкий текст](shots/durak-0-solo-tv-phones-4.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 8.6 px (нужно от 12) — «J✦R»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-brand`, этап `playing/21/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
+- раз: 2
+
+![мелкий текст](shots/durak-0-solo-tv-phones-21.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
+- раз: 2
+
+![мелкий текст](shots/durak-0-solo-tv-phones-22.jpg)
+
+### мелкий текст · телефон
+
+шрифт 11.1 px (нужно от 12) — «Вы не знаете, где все. Слушайте и угадайте локацию — или не выдайте себя.»
+
+- где: `button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--spy > span.sp-card__hint`, этап `playing/126/reveal/cards`
+- игры (1): spy 1-й шаблон, каждый сам ×11, телевизор full hd
 - раз: 1
 
-![мелкий текст](shots/durak-0-solo-laptop-phones-59.jpg)
+![мелкий текст](shots/spy-0-solo-tv-phones-1.jpg)
+
+### мелкий текст · телефон
+
+шрифт 7.4 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-brand`, этап `playing/127/reveal/over`
+- игры (1): durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
 
 ### мелкая кнопка · телефон
 
@@ -5196,7 +3088,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 960
 
-![мелкая кнопка](shots/lotto-0-solo-projector-phones-6.jpg)
+![мелкая кнопка](shots/lotto-0-solo-projector-phones-4.jpg)
 
 ### мелкая кнопка · пульт
 
@@ -5204,7 +3096,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.stack.host-quiz > section.card.stack > div.pr-faces > button.pr-face`, этап `playing/1/question/bid`
 - игры (1): perudo 1-й шаблон, каждый сам ×4, телевизор full hd; perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена; perudo 1-й шаблон, команды ×4, телевизор full hd; perudo 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, команды ×4, ноутбук 16:10, большой зал, длинные имена
-- раз: 370
+- раз: 356
 
 ![мелкая кнопка](shots/perudo-0-solo-tv-phones-1.jpg)
 
@@ -5216,7 +3108,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×4, телевизор full hd; stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; stage 2-й шаблон, команды ×4, телевизор full hd; stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
 - раз: 282
 
-![мелкая кнопка](shots/stage-0-teams-tv-phones-4.jpg)
+![мелкая кнопка](shots/stage-0-teams-tv-phones-3.jpg)
 
 ### мелкая кнопка · телефон
 
@@ -5244,7 +3136,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.stack > div.stack.stack--tight > div.pr-faces > button.pr-face`, этап `playing/1/question/bid`
 - игры (1): perudo 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; perudo 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 71
+- раз: 85
 
 ![мелкая кнопка](shots/perudo-0-solo-projector-phones-2.jpg)
 

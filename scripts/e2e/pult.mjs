@@ -391,7 +391,17 @@ async function runGame(browser, token, spec, game) {
             .map((b, i) => ({ i, text: (b.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60), primary: b.classList.contains("host-quiz__primary") || (b.classList.contains("btn") && !b.classList.contains("btn--secondary") && !b.classList.contains("btn--quiet")) })),
         )
         .catch(() => []);
-    const panelText = () => host.locator(".pult-panel").innerText({ timeout: 2000 }).catch(() => "");
+    // Что видно на пульте: разметка без строки статуса (там часы вечера) — ловит и подсветку плиток, и плашки сверху.
+    const panelText = () =>
+      host
+        .evaluate(() => {
+          const main = document.querySelector("main.page--pult");
+          if (!main) return "";
+          const copy = main.cloneNode(true);
+          copy.querySelector(".pult-status")?.remove();
+          return copy.innerHTML.replace(/\d+:\d{2}/g, "");
+        })
+        .catch(() => "");
     const dialogOpen = () => host.locator("dialog[open]").count().then((n) => n > 0).catch(() => false);
     const buttonsKey = async () => (await controlButtons()).map((b) => b.text).join(" | ");
 
@@ -404,7 +414,10 @@ async function runGame(browser, token, spec, game) {
         if (double) await locator.dblclick({ timeout: 4000 });
         else await locator.click({ timeout: 4000 });
       } catch (e) {
-        run.note(`«${label}»: не нажать (${String(e.message).split("\n")[0].slice(0, 80)})`);
+        const msg = String(e.message);
+        const why = (msg.match(/<[^>]+> (from <[^>]+> subtree )?intercepts pointer events/) ?? msg.match(/element is (not enabled|not visible|not stable|outside of the viewport)/) ?? [msg.split("\n")[0]])[0];
+        run.bug(`«${label}»: не нажать — ${why.slice(0, 200)}`);
+        await shot("не-нажать");
         return { kind: "fail" };
       }
       let kind = "none";
@@ -428,7 +441,18 @@ async function runGame(browser, token, spec, game) {
         else if (reqs.every((r) => r.status < 300)) run.bug(`«${label}»: сервер принял (${reqs.map((r) => r.path.split("/").pop()).join(", ")}), а пульт не изменился за 6 с`);
       } else if (ms > 2500 && kind === "changed") run.note(`«${label}»: пульт обновился только через ${(ms / 1000).toFixed(1)} с`);
       const single409 = reqs.filter((r) => r.status === 409);
-      if (!double && single409.length) run.bug(`«${label}»: одиночное касание получило отказ 409 (${single409.map((r) => r.path.split("/").pop()).join(", ")}) — пульт думал, что игра в другом месте`);
+      if (!double && single409.length) {
+        const exp = single409.map((r) => {
+          try {
+            const b = JSON.parse(r.body);
+            return `expect ${JSON.stringify(b.expect ?? {})} · меняли ${Object.keys(b.state ?? {}).join(",")}${b.addScore ? ",очки" : ""}`;
+          } catch {
+            return r.path;
+          }
+        });
+        const ok = reqs.filter((r) => r.status < 300 && r.t0 > single409[0].t0).length;
+        run.bug(`«${label}»: касание получило отказ 409 ×${single409.length} (${exp[0].slice(0, 160)}); после отказа успешных записей: ${ok}`);
+      }
       return { kind, ms, reqs };
     }
 
@@ -580,7 +604,7 @@ async function runGame(browser, token, spec, game) {
       async slide() {
         await settle();
         const s0 = await state();
-        if (s0.state.slide) return;
+        if (s0.state.slide || s0.state.peek) return;
         const keys0 = await buttonsKey();
         await tab("Слайды");
         const tiles = host.locator(".pult-panel .tile");
@@ -589,13 +613,17 @@ async function runGame(browser, token, spec, game) {
         const i = Math.floor(rnd() * n);
         const label = (await tiles.nth(i).innerText()).trim();
         await tiles.nth(i).click();
+        const title = host.locator(".pult-panel .field input").first();
+        if ((await title.count()) && !(await title.inputValue())) await title.fill("Проверка пульта");
         await press(host.getByRole("button", { name: /^Показать (на экране|этот слайд)/ }), `Слайд «${label}»`);
+        const err = await host.locator(".pult-panel .error").innerText({ timeout: 500 }).catch(() => "");
+        if (err) run.note(`Слайд «${label}»: «${err.trim()}»`);
         await host.locator(".pult-banner").filter({ hasText: "На экране" }).waitFor({ timeout: 5000 }).catch(() => run.bug(`Слайд «${label}»: на пульте нет плашки «На экране слайд»`));
         const s1 = await state();
         if (!s1.state.slide) run.bug(`Слайд «${label}»: слайд не ушёл на экран`);
         // Вернуться к игре — то с вкладки, то плашкой сверху.
         await tab("Игра");
-        if (rnd() < 0.5) await press(host.locator(".pult-banner .btn", { hasText: "Убрать" }).first(), "Плашка «Убрать» (слайд)");
+        if (rnd() < 0.5) await press(host.locator(".pult-banner").filter({ hasText: "слайд" }).locator(".btn", { hasText: "Убрать" }).first(), "Плашка «Убрать» (слайд)");
         else {
           await tab("Слайды");
           await press(host.getByRole("button", { name: "Убрать слайд — вернуть игру" }), "«Убрать слайд — вернуть игру»");
@@ -604,7 +632,7 @@ async function runGame(browser, token, spec, game) {
         await sleep(600);
         const s2 = await state();
         if (s2.state.slide) run.bug(`Слайд «${label}»: после «Убрать» он остался на экране`);
-        if ((await host.locator(".pult-banner").filter({ hasText: "слайд" }).count()) > 0) run.bug(`Слайд «${label}»: плашка «На экране слайд» осталась на пульте`);
+        if ((await host.locator(".pult-banner").filter({ hasText: "На экране слайд" }).count()) > 0) run.bug(`Слайд «${label}»: плашка «На экране слайд» осталась на пульте`);
         await sameGame(`Слайд «${label}» и обратно`, s0, keys0);
         run.count("слайд");
       },
@@ -612,7 +640,7 @@ async function runGame(browser, token, spec, game) {
         // Кнопки на вкладке «Игра»: жеребьёвка, QR опоздавшим, тех. перерыв — показать и убрать той же кнопкой или плашкой.
         await settle();
         const s0 = await state();
-        if (s0.state.slide || s0.state.phase !== "playing") return;
+        if (s0.state.slide || s0.state.peek || s0.state.phase !== "playing") return;
         const keys0 = await buttonsKey();
         const pairs = [
           ["Жеребьёвка — кто ходит первым", "▶ Убрать монетку — вернуться к игре", "draw"],
@@ -628,7 +656,7 @@ async function runGame(browser, token, spec, game) {
         if (s1.state.slide?.kind !== kind) run.bug(`«${on}»: на экран ничего не ушло`);
         if (kind === "draw") await sleep(4500); // монетка крутится
         if (rnd() < 0.5) await press(host.getByRole("button", { name: off, exact: true }), off);
-        else await press(host.locator(".pult-banner .btn", { hasText: "Убрать" }).first(), `Плашка «Убрать» (${kind})`);
+        else await press(host.locator(".pult-banner").filter({ hasText: "слайд" }).locator(".btn", { hasText: "Убрать" }).first(), `Плашка «Убрать» (${kind})`);
         await sleep(600);
         const s2 = await state();
         if (s2.state.slide) run.bug(`«${on}» → убрать: на экране осталось (${s2.state.slide.kind})`);
@@ -641,14 +669,14 @@ async function runGame(browser, token, spec, game) {
         await settle();
         const s0 = await state();
         const b = host.getByRole("button", { name: /^(Таблица на экран|Счёт раунда)$/ }).first();
-        if ((await b.count()) === 0) return;
+        if ((await b.count()) === 0 || s0.state.slide) return;
         const keys0 = await buttonsKey();
         await press(b, "Таблица на экран");
         await sleep(500);
         const s1 = await state();
         if (!s1.state.peek) run.bug("«Таблица на экран»: таблица не ушла на экран");
         if (rnd() < 0.5) await press(host.getByRole("button", { name: /^Убрать (таблицу|счёт раунда)$/ }).first(), "«Убрать таблицу»");
-        else await press(host.locator(".pult-banner .btn", { hasText: "Убрать" }).first(), "Плашка «Убрать» (таблица)");
+        else await press(host.locator(".pult-banner").filter({ hasText: /таблица|счёт раунда/ }).locator(".btn", { hasText: "Убрать" }).first(), "Плашка «Убрать» (таблица)");
         await sleep(600);
         const s2 = await state();
         if (s2.state.peek) run.bug("Таблица: после «Убрать» осталась на экране");
@@ -772,7 +800,8 @@ async function runGame(browser, token, spec, game) {
       run.say(`${double ? "двойное касание" : "касание"} «${label}» [${where(s0)}]`);
       run.count(double ? "двойное касание" : chosen === back ? "Назад" : chosen === primary ? "главная кнопка" : "другая кнопка");
       const tClick = Date.now();
-      const res = await press(controls().locator("button").nth(chosen.i), label, { double });
+      const target = chosen.text ? controls().locator("button:enabled").filter({ hasText: chosen.text }).first() : controls().locator("button").nth(chosen.i);
+      const res = await press(target, label, { double });
       if (res.kind === "dialog") await handleDialog(label);
       if (double) {
         await sleep(1500);
@@ -1082,6 +1111,25 @@ async function runDeck(browser, token, quiz) {
 
 // ---------- main ----------
 
+// Сервер test под нагрузкой: /health раз в 2 с — когда и сколько он не отвечал.
+const health = { checks: 0, down: [], versions: new Set() };
+let downSince = null;
+const healthTimer = setInterval(async () => {
+  health.checks++;
+  const t = Date.now();
+  try {
+    const r = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(5000) });
+    const j = await r.json().catch(() => ({}));
+    if (j.version) health.versions.add(j.version);
+    if (r.ok) {
+      if (downSince) health.down.push({ from: new Date(downSince).toISOString(), seconds: Math.round((t - downSince) / 1000) });
+      downSince = null;
+      return;
+    }
+  } catch {}
+  downSince ??= t;
+}, 2000);
+
 const browser = await chromium.launch({ args: ["--no-sandbox", "--autoplay-policy=no-user-gesture-required"] });
 let code = 0;
 try {
@@ -1129,7 +1177,11 @@ try {
   console.log(`Остановка: ${String(e.message).slice(0, 300)}`);
   code = 2;
 } finally {
-  writeFileSync(join(OUT, "report.json"), JSON.stringify({ base: BASE, at: new Date().toISOString(), budget: BUDGET, results }, null, 2));
+  clearInterval(healthTimer);
+  if (downSince) health.down.push({ from: new Date(downSince).toISOString(), seconds: Math.round((Date.now() - downSince) / 1000), open: true });
+  const serverHealth = { checks: health.checks, down: health.down, versions: [...health.versions] };
+  if (health.down.length) console.log(`❌ Сервер test не отвечал: ${health.down.map((d) => `${d.from} — ${d.seconds} с`).join("; ")}`);
+  writeFileSync(join(OUT, "report.json"), JSON.stringify({ base: BASE, at: new Date().toISOString(), budget: BUDGET, health: serverHealth, results }, null, 2));
   await browser.close();
 }
 annotate(code);

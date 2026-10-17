@@ -16,7 +16,8 @@ import { icsCalendar, icsFileName } from "../../src/core/ics";
 import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from "./auth";
 import { rangeOf } from "./calendar";
 import { dayIndex as dayIdx, dayOf } from "../../src/core/calendar";
-import { upsertClient } from "./clients";
+import { changeStatus, upsertClient } from "./clients";
+import { phoneKey } from "../../src/core/clients";
 import type { Bot } from "./telegram";
 
 export interface EventsOptions {
@@ -218,6 +219,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
           ref: saved.id,
           promote: !saved.cancelled,
+          by: { id: user.id, name: user.name },
         }).catch(() => request.log.warn({ events: "client" }, "events: клиент не записан"));
       }
       return saved;
@@ -279,6 +281,23 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       await sql`update events set held = ${held}, held_at = ${held === null ? null : new Date(now())}, held_by = ${held === null ? null : user.id}, updated_at = now()
         where id = ${id}`;
       request.log.info({ events: "held", held }, "events");
+      // «Проведено» — клиент мероприятия сам становится «Провели» (менеджер просит отзыв и предлагает следующий праздник);
+      // отметку сняли или «Не состоялось» — обратно «Клиент». Сразу видно в «Клиентах» (обновляются раз в 30 с).
+      const ev = await one(id);
+      const key = ev ? phoneKey(ev.clientPhone) : "";
+      if (ev && key) {
+        await sql.begin(async (tx) => {
+          const t = tx as unknown as Sql;
+          const [client] = await t<{ id: string; status: string }[]>`select id, status from clients where phone_key = ${key} for update`;
+          if (!client) return;
+          const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
+          if (held === true && client.status !== "held") {
+            await changeStatus(t, client.id, client.status, "held", { id: user.id, name: user.name }, `Провели · ${what} · ${user.name}`);
+          } else if (held !== true && client.status === "held") {
+            await changeStatus(t, client.id, client.status, "client", { id: user.id, name: user.name }, `Клиент · ${held === false ? "мероприятие не состоялось" : "отметку «Проведено» сняли"} · ${user.name}`);
+          }
+        }).catch(() => request.log.warn({ events: "client-held" }, "events: статус клиента не обновлён"));
+      }
       return (await one(id)) ?? fail(reply, 404, "not-found");
     });
 

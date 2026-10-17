@@ -16,6 +16,7 @@ import { SwipePages } from "../../components/SwipePages";
 import { MusicTab } from "./MusicTab";
 import { VideoTab } from "./VideoTab";
 import { SalesDesk } from "./SalesDesk";
+import { HeldPrompt } from "./HeldPrompt";
 
 type TabId = "agency" | "mine" | "music" | "video" | "history";
 
@@ -131,6 +132,7 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
           </div>
         </section>
         {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
+        {permissions.isSalesManager(profile) && <HeldPrompt owner onToast={showToast} />}
         <Toast text={toast} />
       </main>
     );
@@ -140,6 +142,9 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
   const body = (
     <div className="stack">
       {permissions.hostsGames(profile) && <ActiveGames hostId={profile.uid} />}
+      {(permissions.hostsGames(profile) || permissions.isSalesManager(profile)) && (
+        <HeldPrompt owner={permissions.isAdmin(profile) || permissions.isSalesManager(profile)} onToast={showToast} />
+      )}
       {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>

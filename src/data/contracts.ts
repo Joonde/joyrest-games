@@ -15,6 +15,7 @@ import type {
   CalendarMember,
   AgencyEvent,
   ClientDetails,
+  ClientResponse,
   ClientRecord,
   ContactMatches,
   NoticesState,
@@ -326,7 +327,19 @@ export interface ClientsRepository {
   list(archived: boolean): Promise<ClientRecord[]>;
   get(id: string): Promise<ClientDetails>;
   /** Новый клиент вручную или правка (id от браузера). Тот же телефон у другого клиента — 409. */
-  save(client: { id: string; name: string; phone: string; links: string[]; status: ClientRecord["status"]; marketing: ClientRecord["marketing"]; notes: string; origin?: string; expect?: number }): Promise<ClientDetails>;
+  save(client: {
+    id: string;
+    name: string;
+    phone: string;
+    links: string[];
+    status: ClientRecord["status"];
+    marketing: ClientRecord["marketing"];
+    notes: string;
+    origin?: string;
+    /** Только для нового клиента: что хочет («Свадьба, 12 июня, 60 гостей») — первая запись истории. */
+    request?: string;
+    expect?: number;
+  }): Promise<ClientDetails>;
   /** Только статус (одним касанием): заметку и контакты не трогает. В историю — «В работе · имя». */
   setStatus(id: string, status: ClientRecord["status"]): Promise<ClientDetails>;
   /**
@@ -338,6 +351,8 @@ export interface ClientsRepository {
   restore(id: string): Promise<void>;
   /** Адрес выгрузки CSV: только согласившиеся на рассылку или все. */
   exportUrl(all: boolean): string;
+  /** Ответы на новые заявки за период (дни по Москве, окно до 370 дней): сколько ждали и кто взял. */
+  responses(from: string, to: string): Promise<ClientResponse[]>;
   /** «Данные по номеру»: всё по телефону, нику или почте человека. Непонятный запрос — 400 invalid-argument. */
   findContact(query: string): Promise<ContactMatches>;
   /**

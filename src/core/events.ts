@@ -368,7 +368,7 @@ export function fillFromRequest(r: { name: string; phone: string; eventType: str
 
 // ───────────── Уведомления ведущему в Telegram ─────────────
 
-export type NoticeKind = "created" | "changed" | "removed" | "cancelled" | "day" | "hours";
+export type NoticeKind = "created" | "changed" | "removed" | "cancelled" | "day" | "hours" | "after";
 
 const NOTICE_HEADS: Record<NoticeKind, string> = {
   created: "📅 Вам назначено мероприятие JoyRest",
@@ -377,7 +377,12 @@ const NOTICE_HEADS: Record<NoticeKind, string> = {
   cancelled: "❌ Мероприятие отменено",
   day: "⏰ Напоминание: мероприятие завтра — через сутки",
   hours: "⏰ Скоро начало мероприятия",
+  after: "✅ Мероприятие прошло — отметьте, состоялось ли",
 };
+
+/** «Отметьте, состоялось ли» — через полчаса после конца, в течение 3 дней (днём, с 9 до 22 по Москве — решает бот). */
+export const AFTER_EVENT_MS = 30 * 60_000;
+export const AFTER_EVENT_DAYS = 3;
 
 /** Напоминания: за день (за сутки) и за 2 часа до начала. */
 export const REMIND_DAY_MS = 24 * 3_600_000;
@@ -407,7 +412,12 @@ export function noticeText(
   const when = `${dayTitle(e.day)}, ${rangeLabel(e.start, e.end)}`;
   const from = startsAt ?? eventSpan(e)?.from;
   const head = kind === "hours" && from !== undefined ? `⏰ Через ${Math.max(1, Math.round((from - now) / 3_600_000))} ч начало мероприятия` : NOTICE_HEADS[kind];
-  const tail = kind === "removed" || kind === "cancelled" ? "" : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
+  const tail =
+    kind === "removed" || kind === "cancelled"
+      ? ""
+      : kind === "after"
+        ? `\n\nОдно касание в студии — «Проведено» или «Не состоялось»:\n${platformUrl}/studio`
+        : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
   return `${head}\n\n${what}\n${when}${tail}`;
 }
 

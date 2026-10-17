@@ -14,7 +14,9 @@ export function SalesDesk() {
   const work = list?.filter((c) => c.status === "work").length ?? null;
   // Сколько новых ждут ответа дольше 30 минут (срок из инструкции) — на момент открытия студии.
   const [opened] = useState(() => Date.now());
-  const late = list?.filter((c) => c.status === "new" && opened - c.lastContactAt > 30 * 60_000).length ?? 0;
+  const late = list?.filter((c) => c.status === "new" && opened - (c.newSince ?? c.lastContactAt) > 30 * 60_000).length ?? 0;
+  // Мероприятие прошло (ведущий отметил «Проведено») — пора попросить отзыв и предложить следующий праздник.
+  const held = list?.filter((c) => c.status === "held").length ?? 0;
   return (
     <section className="card stack" aria-labelledby="sales-desk">
       <p className="eyebrow">Менеджер по продажам</p>
@@ -28,6 +30,11 @@ export function SalesDesk() {
         </div>
       </div>
       {late > 0 && <p className="clients-late">⏰ Ждут ответа дольше 30 минут: {late}</p>}
+      {held > 0 && (
+        <p className="small">
+          <Link to="/studio/clients?f=held">Провели — попросите отзыв: {held} →</Link>
+        </p>
+      )}
       {fresh !== null && fresh > 0 && <p className="small">Ответьте новым в течение 30 минут и поставьте им «В работе» — прямо в карточке, одним касанием.</p>}
       <div className="actions">
         <Link className="btn btn--block" to={fresh ? "/studio/clients?f=new" : "/studio/clients?f=work"}>

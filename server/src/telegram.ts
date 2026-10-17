@@ -23,7 +23,7 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { ORIGIN_TITLES, originOf, parseLinks } from "../../src/core/clients";
-import { noticeText, parseLeadText, reminderDue, type NoticeKind } from "../../src/core/events";
+import { AFTER_EVENT_DAYS, AFTER_EVENT_MS, noticeText, parseLeadText, reminderDue, type NoticeKind } from "../../src/core/events";
 import { todayMoscow } from "../../src/core/calendar";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent, TelegramStatus } from "../../src/data/types";
@@ -235,6 +235,19 @@ export function startBot(options: BotOptions): Bot {
         on conflict do nothing returning 1`;
       if (fresh.length === 0) continue;
       await sendTo(r.host_id, noticeText(kind, { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, platformUrl, now(), r.starts_at.getTime()));
+    }
+    // Мероприятие прошло, а «Проведено» не отмечено — ведущему один раз (днём): отметка сама ставит клиенту «Провели».
+    if (!answerHoursOpen(now())) return;
+    const past = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date }[]>`
+      select e.id, e.host_id, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at
+      from events e join tg_links l on l.user_id = e.host_id
+      where e.cancelled_at is null and e.held is null
+        and e.ends_at <= ${new Date(now() - AFTER_EVENT_MS)} and e.ends_at > ${new Date(now() - AFTER_EVENT_DAYS * 86_400_000)}`;
+    for (const r of past) {
+      const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, 'after', ${r.starts_at})
+        on conflict do nothing returning 1`;
+      if (fresh.length === 0) continue;
+      await sendTo(r.host_id, noticeText("after", { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, platformUrl, now(), r.starts_at.getTime()));
     }
   }
   /** Клиенты, которые ждут ответа в Telegram дольше получаса: владельцу (чей Telegram) и менеджерам — по одному разу. */

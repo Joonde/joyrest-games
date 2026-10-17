@@ -36,8 +36,8 @@ import {
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
 import { matchesSearch } from "../../core/search";
-import { originStats } from "../../core/clients";
-import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type CalendarMember, type VenueRequestRecord } from "../../data";
+import { durationLabel, originStats, responseStats } from "../../core/clients";
+import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -337,6 +337,9 @@ function StatsView({ now, changed, render }: { now: number; changed: AgencyEvent
     [],
   );
   const origins = clientsState.status === "ready" ? originStats(clientsState.data.map((c) => ({ origin: c.origin ?? "", phone: c.phone, createdAt: c.createdAt })), events, period.from, period.to) : [];
+  // Скорость ответа на новые заявки за период: кто брал клиентов, в среднем и обычно (медиана), сколько — до 30 минут.
+  const [responsesState] = useLoad(() => (clientsRepo ? clientsRepo.responses(period.from, period.to) : Promise.resolve([] as ClientResponse[])), [period.from, period.to]);
+  const speed = responsesState.status === "ready" && responsesState.data.length > 0 ? responseStats(responsesState.data) : null;
   const unmarked = sortEvents(
     events.filter((e) => e.day >= period.from && e.day <= period.to && !e.cancelled && e.held === null && eventStatus(e, now) === "past"),
     false,
@@ -452,6 +455,35 @@ function StatsView({ now, changed, render }: { now: number; changed: AgencyEvent
                       <td>{o.clients}</td>
                       <td>{o.planned}</td>
                       <td>{o.held}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+          {speed && (
+            <section className="card stack stack--tight" aria-label="Скорость ответа">
+              <h2>Скорость ответа на заявки</h2>
+              <p className="muted small">
+                От прихода заявки до «В работе». Всего {speed.count}: в среднем {durationLabel(speed.avgMs)}, обычно {durationLabel(speed.medianMs)}, до 30 минут —{" "}
+                {speed.inTime}. «Обычно» — середина: одна заявка, пролежавшая ночь, его не портит.
+              </p>
+              <table className="plan-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Кто взял</th>
+                    <th scope="col">Заявок</th>
+                    <th scope="col">Обычно</th>
+                    <th scope="col">До 30 мин</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {speed.byUser.map((u) => (
+                    <tr key={u.name}>
+                      <th scope="row">{u.name}</th>
+                      <td>{u.count}</td>
+                      <td>{durationLabel(u.medianMs)}</td>
+                      <td>{u.inTime}</td>
                     </tr>
                   ))}
                 </tbody>

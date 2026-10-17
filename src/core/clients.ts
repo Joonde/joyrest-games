@@ -8,14 +8,22 @@
 
 export const CLIENT_LIMITS = { name: 100, phone: 40, link: 200, links: 5, notes: 2000, summary: 3000 } as const;
 
-export type ClientStatus = "new" | "work" | "client" | "lost";
-export const CLIENT_STATUSES: ClientStatus[] = ["new", "work", "client", "lost"];
+/**
+ * Путь клиента (решение владельца 17 октября 2026): «Новый» (ещё не ответили) → «В работе» (связались, переговоры) →
+ * «Клиент» (договорились, мероприятие записано) → «Провели» (ведущий отметил «Проведено»: просим отзыв, предлагаем
+ * следующий праздник). «Отказ» — не договорились. Повторная заявка от «Отказа» или «Провели» возвращает в «Новый».
+ */
+export type ClientStatus = "new" | "work" | "client" | "held" | "lost";
+export const CLIENT_STATUSES: ClientStatus[] = ["new", "work", "client", "held", "lost"];
 export const CLIENT_STATUS_TITLES: Record<ClientStatus, string> = {
   new: "Новый",
   work: "В работе",
   client: "Клиент",
+  held: "Провели",
   lost: "Отказ",
 };
+/** Из каких статусов повторное обращение возвращает клиента в «Новый» (с «Клиентом» мероприятие ещё впереди — не трогаем). */
+export const REOPEN_STATUSES: ClientStatus[] = ["lost", "held"];
 
 /** Согласие на рассылку: да — сам отметил (сайт) или подтвердил владельцу; нет — отказался; неизвестно. */
 export type Marketing = "yes" | "no" | "unknown";
@@ -194,14 +202,112 @@ export function originStats(
 }
 
 /**
- * С какого времени клиент ждёт ответа: новый — с последнего обращения; любой другой — пока не ответили в Telegram
- * (бот в Telegram для бизнеса). Архивный не ждёт. null — не ждёт.
+ * С какого времени клиент ждёт ответа: новый — с прихода в «Новый» (у старых карточек — с последнего обращения); любой
+ * другой — пока не ответили в Telegram (бот в Telegram для бизнеса). Архивный не ждёт. null — не ждёт.
  */
-export function waitingOf(c: { status: ClientStatus; archived: boolean; lastContactAt: number; tgWaitingSince?: number | null }): { since: number; telegram: boolean } | null {
+export function waitingOf(c: {
+  status: ClientStatus;
+  archived: boolean;
+  lastContactAt: number;
+  tgWaitingSince?: number | null;
+  newSince?: number | null;
+}): { since: number; telegram: boolean } | null {
   if (c.archived) return null;
   if (c.tgWaitingSince) return { since: c.tgWaitingSince, telegram: true };
-  if (c.status === "new") return { since: c.lastContactAt, telegram: false };
+  if (c.status === "new") return { since: c.newSince ?? c.lastContactAt, telegram: false };
   return null;
+}
+
+// ───────────── Таймер ответа (решение владельца 17 октября 2026) ─────────────
+
+/**
+ * Таймер на карточке: пока клиент «Новый» — идёт (сколько ждёт), ушёл из «Нового» — стоит на том, сколько ждал,
+ * и кто взял. Нет данных (карточка старая, клиента завели сразу «В работе») — null.
+ */
+export interface ClientTimer {
+  running: boolean;
+  ms: number;
+  /** Кто взял клиента (имя), пока идёт — пусто. */
+  by: string;
+}
+
+export function timerOf(
+  c: { status: ClientStatus; archived: boolean; lastContactAt: number; newSince?: number | null; takenMs?: number | null; takenBy?: string },
+  now: number,
+): ClientTimer | null {
+  if (c.status === "new" && !c.archived) return { running: true, ms: Math.max(0, now - (c.newSince ?? c.lastContactAt)), by: "" };
+  if (typeof c.takenMs === "number" && c.takenMs >= 0) return { running: false, ms: c.takenMs, by: c.takenBy ?? "" };
+  return null;
+}
+
+const two = (n: number) => String(n).padStart(2, "0");
+
+/** «45 с», «12 мин 05 с», «3 ч 12 мин», «2 дн 4 ч». */
+export function durationLabel(ms: number): string {
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  if (sec < 60) return `${sec} с`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} мин ${two(sec % 60)} с`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} ч ${two(min % 60)} мин`;
+  return `${Math.floor(h / 24)} дн ${h % 24} ч`;
+}
+
+/** Для сортировки «по таймеру»: ждущие сейчас — выше всех (дольше ждущий — первым), дальше — кого дольше ждали. */
+export function timerSortKey(c: Parameters<typeof timerOf>[0], now: number): number {
+  const t = timerOf(c, now);
+  if (!t) return -1;
+  return t.running ? 1e13 + t.ms : t.ms;
+}
+
+/** Один ответ: сколько клиент ждал в «Новом», кто взял и когда. */
+export interface ResponseRow {
+  userName: string;
+  waitedMs: number;
+  takenAt: number;
+}
+
+export interface ResponseStats {
+  count: number;
+  avgMs: number;
+  medianMs: number;
+  /** Сколько ответов уложились в 30 минут (срок из инструкции менеджера). */
+  inTime: number;
+  byUser: Array<{ name: string; count: number; avgMs: number; medianMs: number; inTime: number }>;
+}
+
+export const ANSWER_LIMIT_MS = 30 * 60_000;
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? (s[mid] ?? 0) : Math.round(((s[mid - 1] ?? 0) + (s[mid] ?? 0)) / 2);
+}
+
+function summary(values: number[]): { count: number; avgMs: number; medianMs: number; inTime: number } {
+  const count = values.length;
+  return {
+    count,
+    avgMs: count ? Math.round(values.reduce((a, b) => a + b, 0) / count) : 0,
+    medianMs: median(values),
+    inTime: values.filter((v) => v <= ANSWER_LIMIT_MS).length,
+  };
+}
+
+/** Среднее и обычное (медиана) время ответа — всего и по каждому, кто брал клиентов; дольше ответивший — ниже. */
+export function responseStats(rows: ResponseRow[]): ResponseStats {
+  const by = new Map<string, number[]>();
+  for (const r of rows) {
+    const name = r.userName || "Без имени";
+    const list = by.get(name) ?? [];
+    list.push(Math.max(0, r.waitedMs));
+    by.set(name, list);
+  }
+  return {
+    ...summary(rows.map((r) => Math.max(0, r.waitedMs))),
+    byUser: [...by.entries()].map(([name, v]) => ({ name, ...summary(v) })).sort((a, b) => a.medianMs - b.medianMs || b.count - a.count),
+  };
 }
 
 /** Есть ли, как связаться: телефон или ссылка. */

@@ -1,10 +1,26 @@
 # Ревизор — что видят ведущий и гости
 
-Прогонов: 43 · видов игры проверено: 1964 · разных находок: 245
+Прогонов: 43 · видов игры проверено: 1903 · разных находок: 217
 
 Размеры: Большой праздник: 10 команд или 40 гостей, телевизор (1920x1080).
 
-## Мешает игре — 38
+## Мешает игре — 32
+
+### не успел · страница
+
+TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
+
+- где: `—`
+- игры (1): truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 2
+
+### не успел · страница
+
+TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
+
+- где: `—`
+- игры (1): truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 2
 
 ### не успел · страница
 
@@ -43,7 +59,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `—`
-- игры (1): truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
 ### не успел · страница
@@ -51,7 +67,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `—`
-- игры (1): truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
 ### за краем · пульт
@@ -64,25 +80,69 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![за краем](shots/survival-0-teams-crowd-phones-1.jpg)
 
+### за краем · телефон
+
+текст выходит за край области вбок на 7 px — «8»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 4
+
+### за краем · телефон
+
+текст выходит за край области вбок на 8 px — «8»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/51/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 2
+
+![за краем](shots/durak-0-solo-crowd-phones-22.jpg)
+
+### за краем · телефон
+
+текст выходит за край области вбок на 8 px — «8»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/89/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 2
+
+### за краем · телефон
+
+текст выходит за край области вбок на 7 px — «8»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/65/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
+
 ### закрыт другим элементом · экран зала
 
-«Вход: localhost:37895/j · код 123 456» закрыт элементом div.dk-vote — «Вход: localhost:37895/j · код 123 456»
+«Вход: localhost:38341/j · код 123 456» закрыт элементом div.dk-vote — «Вход: localhost:38341/j · код 123 456»
 
 - где: `div.hall > main.quiz-stage > p.stage-code`, этап `playing/2/question/vote`
-- игры (4): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор; bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор; mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор; wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 10
+- игры (3): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор; bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор; wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 8
 
 ![закрыт другим элементом](shots/durak-0-solo-crowd-hall-18.jpg)
 
 ### закрыт другим элементом · телефон
 
-«Максимилиан Константинова» закрыт элементом strong.mf-tally__n — «Максимилиан Константинова»
+«Святослав Новосельцев» закрыт элементом strong.mf-tally__n — «Святослав Новосельцев»
 
 - где: `ul.mf-tally > li.mf-tally__row > span.mf-tally__name > span`, этап `playing/1/reveal/verdict`
 - игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 55
+- раз: 47
 
-![закрыт другим элементом](shots/mafia-0-solo-crowd-phones-4.jpg)
+![закрыт другим элементом](shots/mafia-0-solo-crowd-phones-5.jpg)
+
+### закрыт другим элементом · экран зала
+
+«Александра Константинова» закрыт элементом span.name-emoji — «Александра Константинова»
+
+- где: `div.dk-seat__card > span.dk-seat__text > span.dk-seat__name > span`, этап `playing/1/question/deal`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 5
+
+![закрыт другим элементом](shots/durak-0-solo-crowd-hall-1.jpg)
 
 ### закрыт другим элементом · экран зала
 
@@ -92,25 +152,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 4
 
-![закрыт другим элементом](shots/stage-0-teams-crowd-hall-2.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Александра Константинова» закрыт элементом span.name-emoji — «Александра Константинова»
-
-- где: `div.dk-seat__card > span.dk-seat__text > span.dk-seat__name > span`, этап `playing/1/question/deal`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-![закрыт другим элементом](shots/durak-0-solo-crowd-hall-1.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Спальник» закрыт элементом p.stage-code — «Спальник»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text`, этап `playing/109/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
+![закрыт другим элементом](shots/stage-0-teams-crowd-hall-1.jpg)
 
 ### закрыт другим элементом · экран зала
 
@@ -172,56 +214,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![закрыт другим элементом](shots/durak-0-solo-crowd-hall-17.jpg)
 
-### закрыт другим элементом · экран зала
-
-«В игре» закрыт элементом h2.bk-title — «В игре»
-
-- где: `div.bk-screen > header.bk-screen__top > p.bk-screen__status > span`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![закрыт другим элементом](shots/bunker-0-solo-crowd-hall-16.jpg)
-
-### закрыт другим элементом · экран зала
-
-«12» закрыт элементом h2.bk-title — «12»
-
-- где: `header.bk-screen__top > p.bk-screen__status > span > b`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![закрыт другим элементом](shots/bunker-0-solo-crowd-hall-18.jpg)
-
-### закрыт другим элементом · экран зала
-
-«🐯» закрыт элементом article.bk-dossier — «🐯»
-
-- где: `div.bk-stage__text > h2.bk-title > span > span.name-emoji`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![закрыт другим элементом](shots/bunker-0-solo-crowd-hall-20.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Валентина Преображенский» закрыт элементом article.bk-dossier — «Валентина Преображенский»
-
-- где: `div.bk-stage__text > h2.bk-title > span > span`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![закрыт другим элементом](shots/bunker-0-solo-crowd-hall-22.jpg)
-
-### надписи наезжают · пульт
-
-«400» и «кот» друг на друге — «400 \| кот»
-
-- где: `div.board-host__grid > div.board-host__row > button.board-host__cell > span`, этап `playing/0/ready/`
-- игры (1): board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 26
-
-![надписи наезжают](shots/board-0-solo-crowd-phones-1.jpg)
-
 ### надписи наезжают · пульт
 
 «100» и «🔒 батл» друг на друге — «100 \| 🔒 батл»
@@ -234,43 +226,23 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### надписи наезжают · экран зала
 
-«Валентина Преображенский» и «Изгнан» друг на друге — «Валентина Преображенский \| Изгнан»
+«🐯 Анастасия Великорецкая: «За» и «Вход: localhost:38341/j · код » друг на друге — «🐯 Анастасия Великорецкая: «Заразный» — игрок 🐬 Святослав Новосельцев заражён \|»
 
-- где: `div.bk-stage__text > h2.bk-title > span > span`, этап `playing/82/question/justify`
+- где: `div.hall > main.quiz-stage > div.bk-screen > p.bk-screen__log`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 10
-
-![надписи наезжают](shots/bunker-0-solo-crowd-hall-21.jpg)
-
-### надписи наезжают · экран зала
-
-«🦁 Валентина Белозерская: «Кар» и «Вход: localhost:37895/j · код » друг на друге — «🦁 Валентина Белозерская: «Карманник» — забрал багаж игрока 🐬 Константин Воскре»
-
-- где: `div.hall > main.quiz-stage > div.bk-screen > p.bk-screen__log`, этап `playing/16/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 5
+- раз: 4
 
 ![надписи наезжают](shots/bunker-0-solo-crowd-hall-1.jpg)
 
 ### надписи наезжают · экран зала
 
-«🐯» и «Тигры клиентского сервиса» друг на друге — «🐯 \| Тигры клиентского сервиса»
+«🐯 Валентина Преображенский: «» и «Вход: localhost:38341/j · код » друг на друге — «🐯 Валентина Преображенский: «Обмен багажом» — с игроком 🦊 Александра Константи»
 
-- где: `div.stage-tug > div.stage-tug__names > span > span.name-emoji`, этап `playing/10/reveal/result`
-- игры (1): stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-![надписи наезжают](shots/stage-0-teams-crowd-hall-1.jpg)
-
-### надписи наезжают · экран зала
-
-«🐯» и «№3» друг на друге — «🐯 \| №3»
-
-- где: `div.bk-stage__text > h2.bk-title > span > span.name-emoji`, этап `playing/82/question/justify`
+- где: `div.hall > main.quiz-stage > div.bk-screen.bk-screen--big > p.bk-screen__log`, этап `playing/43/question/exile`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
+- раз: 2
 
-![надписи наезжают](shots/bunker-0-solo-crowd-hall-19.jpg)
+![надписи наезжают](shots/bunker-0-solo-crowd-hall-15.jpg)
 
 ### надписи наезжают · экран зала
 
@@ -278,69 +250,29 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-croupier > p.dk-croupier__line`, этап `playing/2/question/vote`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
+- раз: 1
 
 ![надписи наезжают](shots/durak-0-solo-crowd-hall-13.jpg)
 
 ### надписи наезжают · экран зала
 
-«Снова ничья — решит жребий.» и «Фермер · стаж 4 года» друг на друге — «Снова ничья — решит жребий. \| Фермер · стаж 4 года»
-
-- где: `section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![надписи наезжают](shots/bunker-0-solo-crowd-hall-23.jpg)
-
-### надписи наезжают · экран зала
-
-«🐻 Святослав Константинова: «Т» и «Вход: localhost:37895/j · код » друг на друге — «🐻 Святослав Константинова: «Таблетка от всего» — игрок 🐯 Анастасия Великорецка»
-
-- где: `div.hall > main.quiz-stage > div.bk-screen.bk-screen--big > p.bk-screen__log`, этап `playing/84/question/exile`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![надписи наезжают](shots/bunker-0-solo-crowd-hall-25.jpg)
-
-### надписи наезжают · экран зала
-
-«В игре» и «Оправдательная речь:» друг на друге — «В игре \| Оправдательная речь:»
-
-- где: `div.bk-screen > header.bk-screen__top > p.bk-screen__status > span`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![надписи наезжают](shots/bunker-0-solo-crowd-hall-15.jpg)
-
-### надписи наезжают · экран зала
-
-«12» и «Оправдательная речь:» друг на друге — «12 \| Оправдательная речь:»
-
-- где: `header.bk-screen__top > p.bk-screen__status > span > b`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![надписи наезжают](shots/bunker-0-solo-crowd-hall-17.jpg)
-
-### надписи наезжают · экран зала
-
-«Обсуждение» и «8:00» друг на друге — «Обсуждение \| 8:00»
-
-- где: `div.sp-screen > section.sp-screen__main > div.sp-timer > span.sp-timer__label`, этап `playing/1/question/talk`
-- игры (1): spy 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![надписи наезжают](shots/spy-0-solo-crowd-hall-1.jpg)
-
-### надписи наезжают · экран зала
-
-«Ближе всех» и «Вход: localhost:37895/j · код » друг на друге — «Ближе всех \| Вход: localhost:37895/j · код 123 456»
+«Ближе всех» и «Вход: localhost:38341/j · код » друг на друге — «Ближе всех \| Вход: localhost:38341/j · код 123 456»
 
 - где: `div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag`, этап `playing/2/reveal/answer`
 - игры (1): wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
 ![надписи наезжают](shots/wager-0-teams-crowd-hall-1.jpg)
+
+### прокрутка вбок · телефон
+
+страница шире экрана на 10 px (span) — «Максимилиан Рождественский»
+
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--throw > span.dk-opp__name > span`, этап `playing/18/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 10
+
+![прокрутка вбок](shots/durak-0-solo-crowd-phones-18.jpg)
 
 ### прокрутка вбок · пульт
 
@@ -354,61 +286,43 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 10 px (span) — «Максимилиан Рождественский»
+страница шире экрана на 19 px (span) — «Максимилиан Рождественский»
 
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span`, этап `playing/68/question/play`
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span`, этап `playing/111/reveal/over`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 2
 
 ### прокрутка вбок · телефон
 
-страница шире экрана на 10 px (span) — «Максимилиан Рождественский»
+страница шире экрана на 19 px (span) — «Максимилиан Рождественский»
 
-- где: `div.dk-phone__opps > span.dk-opp.dk-opp--throw > span.dk-opp__name > span`, этап `playing/17/question/play`
+- где: `div.dk-phone__opps > span.dk-opp.dk-opp--turn > span.dk-opp__name > span`, этап `playing/51/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
-![прокрутка вбок](shots/durak-0-solo-crowd-phones-19.jpg)
+![прокрутка вбок](shots/durak-0-solo-crowd-phones-24.jpg)
 
-## Заметно — 146
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (p.podium__name) — «🦋»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `finished/7/podium/`
-- игры (2): quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 10
-
-![обрезан текст](shots/quiz-0-solo-crowd-hall-1.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (p.podium__name) — «Валентина Константинова»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `finished/7/podium/`
-- игры (2): quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 10
-
-![обрезан текст](shots/quiz-0-solo-crowd-hall-2.jpg)
+## Заметно — 123
 
 ### обрезан текст · экран зала
 
 текст обрезан по высоте на 4 px (span.wine-cell__label) — «Красное»
 
 - где: `div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label`, этап `playing/1/question/bet`
-- игры (1): wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 200
 
 ![обрезан текст](shots/wine-0-solo-crowd-hall-1.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 28 px (div.dk-card.dk-d--gothic) — «6»
+текст обрезан вбок на 23 px (div.dk-card.dk-d--rome) — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/56/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 48
+- раз: 60
+
+![обрезан текст](shots/durak-0-solo-crowd-phones-12.jpg)
 
 ### обрезан текст · экран зала
 
@@ -422,23 +336,41 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 23 px (div.dk-card.dk-d--rome) — «10»
+текст обрезан вбок на 28 px (div.dk-card.dk-d--gothic) — «10»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/17/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/54/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 36
+- раз: 44
 
-![обрезан текст](shots/durak-0-solo-crowd-phones-12.jpg)
+![обрезан текст](shots/durak-0-solo-crowd-phones-25.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 29 px (div.dk-card.dk-d--cyber) — «10»
+текст обрезан вбок на 13 px (div.dk-card.dk-d--rome) — «♠︎»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b`, этап `playing/4/question/play`
+- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 24
+- раз: 30
 
-![обрезан текст](shots/durak-0-solo-crowd-phones-1.jpg)
+![обрезан текст](shots/durak-0-solo-crowd-phones-13.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 29 px (div.dk-card.dk-d--wedding) — «10»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/51/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 28
+
+![обрезан текст](shots/durak-0-solo-crowd-phones-19.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 29 px (div.dk-card.dk-d--classic) — «10»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/89/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 28
 
 ### обрезан текст · телефон
 
@@ -446,33 +378,17 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/13/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 24
+- раз: 26
 
 ![обрезан текст](shots/durak-0-solo-crowd-phones-5.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 23 px (div.dk-card.dk-d--classic) — «6»
+текст обрезан вбок на 21 px (div.dk-card.dk-d--gothic) — «♠︎»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
+- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span`, этап `playing/54/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 24
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 29 px (div.dk-card.dk-d--greece) — «7»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/117/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 24
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 23 px (div.dk-card.dk-d--gothic) — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 21
+- раз: 23
 
 ### обрезан текст · экран зала
 
@@ -514,13 +430,31 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![обрезан текст](shots/dragon-1-teams-crowd-hall-5.jpg)
 
+### обрезан текст · телефон
+
+текст обрезан вбок на 20 px (div.dk-card.dk-d--wedding) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/51/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 16
+
+![обрезан текст](shots/durak-0-solo-crowd-phones-20.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 20 px (div.dk-card.dk-d--classic) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/89/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 16
+
 ### обрезан текст · экран зала
 
 текст обрезан по высоте на 5 px (span.mil-bar__points) — «0»
 
 - где: `div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__points`, этап `playing/0/ready/turn`
 - игры (1): millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 18
+- раз: 14
 
 ![обрезан текст](shots/millionaire-0-teams-crowd-hall-1.jpg)
 
@@ -530,39 +464,9 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span`, этап `playing/0/ready/turn`
 - игры (1): millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 18
+- раз: 14
 
 ![обрезан текст](shots/millionaire-0-teams-crowd-hall-2.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 13 px (div.dk-card.dk-d--rome) — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span`, этап `playing/17/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 18
-
-![обрезан текст](shots/durak-0-solo-crowd-phones-13.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 17 px (div.dk-card.dk-d--cyber) — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 12
-
-![обрезан текст](shots/durak-0-solo-crowd-phones-2.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 29 px (div.dk-card.dk-d--wedding) — «6»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/53/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 12
-
-![обрезан текст](shots/durak-0-solo-crowd-phones-20.jpg)
 
 ### обрезан текст · телефон
 
@@ -570,45 +474,37 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span`, этап `playing/13/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 11
+- раз: 14
 
 ![обрезан текст](shots/durak-0-solo-crowd-phones-6.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 18 px (div.dk-card.dk-d--classic) — «♠︎»
+текст обрезан вбок на 29 px (div.dk-card.dk-d--cyber) — «10»
 
-- где: `button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span`, этап `playing/92/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 11
+- раз: 12
+
+![обрезан текст](shots/durak-0-solo-crowd-phones-1.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан вбок на 22 px (div.dk-card.dk-d--greece) — «♠︎»
+текст обрезан вбок на 29 px (div.dk-card.dk-d--kpop) — «7»
 
-- где: `button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span`, этап `playing/117/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b`, этап `playing/120/reveal/over`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 11
+- раз: 12
 
 ### обрезан текст · пульт
 
 текст обрезан вбок на 3 px (span.wine-cell__label) — «Новый Свет»
 
 - где: `div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label`, этап `playing/1/reveal/open`
-- игры (1): wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 10
 
 ![обрезан текст](shots/wine-0-solo-crowd-phones-3.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 26 px (span.mil-bar__name) — «🐙»
-
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 9
-
-![обрезан текст](shots/millionaire-0-teams-crowd-hall-3.jpg)
 
 ### обрезан текст · экран зала
 
@@ -620,25 +516,63 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![обрезан текст](shots/board-0-solo-crowd-hall-1.jpg)
 
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 26 px (span.mil-bar__name) — «🐙»
+
+- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji`, этап `playing/0/ready/turn`
+- игры (1): millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 7
+
+![обрезан текст](shots/millionaire-0-teams-crowd-hall-3.jpg)
+
 ### обрезан текст · телефон
 
-текст обрезан по высоте на 4 px (div.dk-card.dk-d--rome) — «J»
+текст обрезан вбок на 17 px (div.dk-card.dk-d--cyber) — «♠︎»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/17/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 8
-
-![обрезан текст](shots/durak-0-solo-crowd-phones-16.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 23 px (div.dk-card.dk-d--wedding) — «♠︎»
-
-- где: `button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span`, этап `playing/53/question/play`
+- где: `button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 6
 
-![обрезан текст](shots/durak-0-solo-crowd-phones-21.jpg)
+![обрезан текст](shots/durak-0-solo-crowd-phones-2.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 8 px (div.dk-card.dk-d--rome) — «♣︎»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-pip.dk-pip--ace`, этап `playing/17/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+![обрезан текст](shots/durak-0-solo-crowd-phones-17.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 21 px (div.dk-card.dk-d--kpop) — «♠︎»
+
+- где: `button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span`, этап `playing/120/reveal/over`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (p.podium__name) — «🦋»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `finished/7/podium/`
+- игры (1): quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 5
+
+![обрезан текст](shots/quiz-0-solo-crowd-hall-1.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (p.podium__name) — «Валентина Константинова»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `finished/7/podium/`
+- игры (1): quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 5
+
+![обрезан текст](shots/quiz-0-solo-crowd-hall-2.jpg)
 
 ### обрезан текст · экран зала
 
@@ -650,15 +584,13 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![обрезан текст](shots/dragon-1-teams-crowd-hall-1.jpg)
 
-### обрезан текст · экран зала
+### обрезан текст · телефон
 
-текст обрезан по высоте на 30 px (span.mil-bar__name) — «· пропуск хода»
+текст обрезан вбок на 12 px (div.dk-card.dk-d--gothic) — «♣︎»
 
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag`, этап `playing/3/reveal/reveal`
-- игры (1): millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip.dk-pip--ace`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 3
-
-![обрезан текст](shots/millionaire-0-teams-crowd-hall-4.jpg)
 
 ### обрезан текст · телефон
 
@@ -666,47 +598,37 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip.dk-pip--ace`, этап `playing/13/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
+- раз: 2
 
-![обрезан текст](shots/durak-0-solo-crowd-phones-9.jpg)
+![обрезан текст](shots/durak-0-solo-crowd-phones-11.jpg)
 
 ### обрезан текст · телефон
 
-текст обрезан по высоте на 3 px (div.dk-card.dk-d--classic) — «7»
+текст обрезан вбок на 12 px (div.dk-card.dk-d--wedding) — «♣︎»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-pip.dk-pip--ace`, этап `playing/51/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
+- раз: 2
+
+![обрезан текст](shots/durak-0-solo-crowd-phones-23.jpg)
+
+### обрезан текст · телефон
+
+текст обрезан вбок на 12 px (div.dk-card.dk-d--classic) — «♣︎»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-pip.dk-pip--ace`, этап `playing/89/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 2
 
 ### обрезан текст · экран зала
 
-текст обрезан по высоте на 57 px (div.mf-screen) — «№17»
+текст обрезан по высоте на 30 px (span.mil-bar__name) — «· пропуск хода»
 
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--civilian > span.mf-reveal__name > span.mf-num`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
+- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag`, этап `playing/3/reveal/reveal`
+- игры (1): millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
 
-![обрезан текст](shots/mafia-0-solo-crowd-hall-7.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 57 px (div.mf-screen) — «🦁»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--civilian > span.mf-reveal__name > span.name-emoji`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-8.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 100 px (div.mf-screen) — «Мирный житель»
-
-- где: `section.mf-screen__main > ul.mf-reveal > li.mf-reveal__item.mf-role--civilian > span.mf-reveal__role`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-9.jpg)
+![обрезан текст](shots/millionaire-0-teams-crowd-hall-4.jpg)
 
 ### обрезан текст · телефон
 
@@ -714,91 +636,9 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-pip.dk-pip--ace`, этап `playing/4/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![обрезан текст](shots/durak-0-solo-crowd-phones-3.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 8 px (div.dk-card.dk-d--wedding) — «♣︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-pip.dk-pip--ace`, этап `playing/53/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![обрезан текст](shots/durak-0-solo-crowd-phones-22.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 8 px (div.dk-card.dk-d--gothic) — «♣︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-pip.dk-pip--ace`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 8 px (div.dk-card.dk-d--classic) — «♣︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-pip.dk-pip--ace`, этап `playing/92/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 10 px (div.dk-card.dk-d--rome) — «8»
-
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/18/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 10 px (div.dk-card.dk-d--greece) — «8»
-
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/20/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 57 px (div.mf-screen) — «№16»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--mafia > span.mf-reveal__name > span.mf-num`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-4.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 57 px (div.mf-screen) — «🐬»
-
-- где: `ul.mf-reveal > li.mf-reveal__item.mf-role--mafia > span.mf-reveal__name > span.name-emoji`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-5.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 100 px (div.mf-screen) — «Мафия»
-
-- где: `section.mf-screen__main > ul.mf-reveal > li.mf-reveal__item.mf-role--mafia > span.mf-reveal__role`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-6.jpg)
-
-### обрезан текст · телефон
-
-текст обрезан вбок на 8 px (div.dk-card.dk-d--rome) — «♣︎»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-pip.dk-pip--ace`, этап `playing/17/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
-![обрезан текст](shots/durak-0-solo-crowd-phones-17.jpg)
+![обрезан текст](shots/durak-0-solo-crowd-phones-4.jpg)
 
 ### обрезан текст · экран зала
 
@@ -902,91 +742,37 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### обрезан текст · экран зала
 
-текст обрезан вбок на 35 px (div.dk-card.dk-d--rome) — «7»
+текст обрезан вбок на 35 px (div.dk-card.dk-d--rome) — «6»
 
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/18/question/play`
+- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/16/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
 ### обрезан текст · экран зала
 
-текст обрезан вбок на 18 px (div.dk-card.dk-d--rome) — «♦︎»
+текст обрезан вбок на 18 px (div.dk-card.dk-d--rome) — «♥︎»
 
-- где: `div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx > span`, этап `playing/18/question/play`
+- где: `div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx > span`, этап `playing/16/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
 ### обрезан текст · экран зала
 
-текст обрезан вбок на 3 px (div.dk-card.dk-d--rome) — «♦︎»
+текст обрезан вбок на 3 px (div.dk-card.dk-d--rome) — «♥︎»
 
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-pip`, этап `playing/18/question/play`
+- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-pip`, этап `playing/16/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
-
-### обрезан текст · экран зала
-
-текст обрезан вбок на 35 px (div.dk-card.dk-d--greece) — «7»
-
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--greece > span.dk-idx`, этап `playing/20/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-### обрезан текст · экран зала
-
-текст обрезан вбок на 18 px (div.dk-card.dk-d--greece) — «♦︎»
-
-- где: `div.dk-stock > div.dk-card.dk-d--greece > span.dk-idx > span`, этап `playing/20/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-### обрезан текст · экран зала
-
-текст обрезан вбок на 3 px (div.dk-card.dk-d--greece) — «♦︎»
-
-- где: `div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--greece > span.dk-pip`, этап `playing/20/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 164 px (div.mf-screen) — «Партия 1 из 3 · итог»
-
-- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-2.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 92 px (div.mf-screen) — «Победила мафия!»
-
-- где: `main.quiz-stage > div.mf-screen > section.mf-screen__main > h2.mf-title`, этап `playing/54/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![обрезан текст](shots/mafia-0-solo-crowd-hall-3.jpg)
 
 ### прячется за прокруткой · экран зала
 
 на экране зала текст виден только прокруткой (по высоте на 12 px) — «и ещё 36»
 
 - где: `div.final > div.final__board > div.board-view > p.board-view__more`, этап `finished/7/podium/`
-- игры (6): quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; lotto 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; survival 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор …
-- раз: 7
+- игры (7): quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; lotto 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; quest 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор …
+- раз: 8
 
 ![прячется за прокруткой](shots/quiz-0-solo-crowd-hall-3.jpg)
-
-### прячется за прокруткой · экран зала
-
-на экране зала текст виден только прокруткой (по высоте на 167 px) — «Карманник»
-
-- где: `ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/109/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-![прячется за прокруткой](shots/bunker-0-solo-crowd-hall-26.jpg)
 
 ### бледный текст · телефон
 
@@ -1058,25 +844,25 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![бледный текст](shots/millionaire-0-teams-crowd-phones-4.jpg)
 
-### бледный текст · экран зала
-
-контраст 2.44 (нужно от 3) — «1»
-
-- где: `section.mf-screen__seats > ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__num`, этап `playing/7/question/night`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 12
-
-![бледный текст](shots/mafia-0-solo-crowd-hall-1.jpg)
-
 ### бледный текст · пульт
 
 контраст 3.07 (нужно от 4.5) — «Германия»
 
 - где: `div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label`, этап `playing/1/reveal/open`
-- игры (1): wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 12
 
 ![бледный текст](shots/wine-0-solo-crowd-phones-4.jpg)
+
+### бледный текст · экран зала
+
+контраст 2.44 (нужно от 3) — «16»
+
+- где: `section.mf-screen__seats > ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__num`, этап `playing/5/reveal/verdict`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 8
+
+![бледный текст](shots/mafia-0-solo-crowd-hall-1.jpg)
 
 ### бледный текст · экран зала
 
@@ -1087,16 +873,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 4
 
 ![бледный текст](shots/dragon-1-teams-crowd-hall-18.jpg)
-
-### бледный текст · телефон
-
-контраст 1.07 (нужно от 4.5) — «Анастасия Белозерская»
-
-- где: `div.mf-targets > button.mf-target > span.mf-target__name > span`, этап `playing/2/question/night`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-![бледный текст](shots/mafia-0-solo-crowd-phones-5.jpg)
 
 ### бледный текст · экран зала
 
@@ -1126,15 +902,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![бледный текст](shots/dragon-1-teams-crowd-hall-17.jpg)
 
-### бледный текст · телефон
+### бледный текст · пульт
 
-контраст 3.34 (нужно от 4.5) — «7»
+контраст 1.85 (нужно от 4.5) — «ещё: бельё, плед»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/13/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
+- где: `li > button.hd-host__row > span.hd-host__text > small`, этап `playing/0/reveal/play`
+- игры (1): hundred 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
 
-![бледный текст](shots/durak-0-solo-crowd-phones-11.jpg)
+![бледный текст](shots/hundred-0-teams-crowd-phones-1.jpg)
 
 ### бледный текст · экран зала
 
@@ -1156,23 +932,15 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![бледный текст](shots/millionaire-0-solo-crowd-hall-6.jpg)
 
-### бледный текст · пульт
+### бледный текст · телефон
 
-контраст 1.85 (нужно от 4.5) — «ещё: бельё, плед»
+контраст 3.34 (нужно от 4.5) — «J»
 
-- где: `li > button.hd-host__row > span.hd-host__text > small`, этап `playing/0/reveal/play`
-- игры (1): hundred 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![бледный текст](shots/hundred-0-teams-crowd-phones-1.jpg)
-
-### бледный текст · экран зала
-
-контраст 1.18 (нужно от 3) — «6»
-
-- где: `div.dk-battle > div.dk-pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/20/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/13/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
+
+![бледный текст](shots/durak-0-solo-crowd-phones-10.jpg)
 
 ### мелко для зала · экран зала
 
@@ -1188,81 +956,81 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «№1»
 
-- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat`, этап `playing/16/question/open`
+- где: `li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
 
-![мелко для зала](shots/bunker-0-solo-crowd-hall-6.jpg)
+![мелко для зала](shots/bunker-0-solo-crowd-hall-5.jpg)
 
 ### мелко для зала · экран зала
 
 шрифт 16.0 px — 16 px на Full HD (нужно от 18) — «Александра Константинова»
 
-- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span`, этап `playing/16/question/open`
+- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
+
+![мелко для зала](shots/bunker-0-solo-crowd-hall-6.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Рыбак · стаж 6 лет»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text`, этап `playing/7/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 64
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-7.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Стилист · стаж 23 года»
+шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Биология»
 
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text`, этап `playing/16/question/open`
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--biology > span.bk-row__text`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-8.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Биология»
+шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Здоровье»
 
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--biology > span.bk-row__text`, этап `playing/16/question/open`
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-9.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Здоровье»
+шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Хобби»
 
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text`, этап `playing/16/question/open`
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-10.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Хобби»
+шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Багаж»
 
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text`, этап `playing/16/question/open`
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-11.jpg)
 
 ### мелко для зала · экран зала
 
-шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Багаж»
+шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Факт»
 
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text`, этап `playing/16/question/open`
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
+- раз: 64
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-12.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 11.7 px — 12 px на Full HD (нужно от 18) — «Может не спать двое суток»
-
-- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text`, этап `playing/16/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 80
-
-![мелко для зала](shots/bunker-0-solo-crowd-hall-13.jpg)
 
 ### мелко для зала · экран зала
 
@@ -1276,13 +1044,13 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 10.9 px — 11 px на Full HD (нужно от 18) — «Медкомиссия»
+шрифт 10.9 px — 11 px на Full HD (нужно от 18) — «Перепланировка»
 
-- где: `ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/16/question/open`
+- где: `ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 60
+- раз: 41
 
-![мелко для зала](shots/bunker-0-solo-crowd-hall-14.jpg)
+![мелко для зала](shots/bunker-0-solo-crowd-hall-13.jpg)
 
 ### мелко для зала · экран зала
 
@@ -1306,16 +1074,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 7.9 px — 8 px на Full HD (нужно от 18) — «1»
-
-- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__num`, этап `playing/16/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 40
-
-![мелко для зала](shots/bunker-0-solo-crowd-hall-3.jpg)
-
-### мелко для зала · экран зала
-
 шрифт 13.4 px — 13 px на Full HD (нужно от 18) — «урон»
 
 - где: `ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__row > span.dg-team__dm`, этап `playing/2/ready/`
@@ -1336,11 +1094,21 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 13.6 px — 14 px на Full HD (нужно от 18) — «Оружейная»
+шрифт 7.9 px — 8 px на Full HD (нужно от 18) — «1»
 
-- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title`, этап `playing/16/question/open`
+- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__num`, этап `playing/7/question/open`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 25
+- раз: 30
+
+![мелко для зала](shots/bunker-0-solo-crowd-hall-3.jpg)
+
+### мелко для зала · экран зала
+
+шрифт 13.6 px — 14 px на Full HD (нужно от 18) — «Мастерская»
+
+- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title`, этап `playing/7/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 11
 
 ![мелко для зала](shots/bunker-0-solo-crowd-hall-4.jpg)
 
@@ -1353,16 +1121,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 8
 
 ![мелко для зала](shots/durak-0-solo-crowd-hall-2.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 10.9 px — 11 px на Full HD (нужно от 18) — «Изгнан»
-
-- где: `ol.bk-screen__dossiers > li > article.bk-dossier > span.bk-dossier__stamp`, этап `playing/82/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 8
-
-![мелко для зала](shots/bunker-0-solo-crowd-hall-24.jpg)
 
 ### мелко для зала · экран зала
 
@@ -1403,22 +1161,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 4
 
 ![мелко для зала](shots/dragon-1-teams-crowd-hall-6.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «4 карт»
-
-- где: `div.dk-seat.dk-seat--throw > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/18/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-### мелко для зала · экран зала
-
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Ходит»
-
-- где: `div.dk-table > div.dk-seat.dk-seat--throw > div.dk-seat__card > span.dk-seat__status`, этап `playing/18/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
 
 ### мелко для зала · экран зала
 
@@ -1512,68 +1254,10 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелко для зала · экран зала
 
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «4 карт»
-
-- где: `div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/18/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### мелко для зала · экран зала
-
-шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Бьётся»
-
-- где: `div.dk-table > div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__status`, этап `playing/18/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### мелко для зала · экран зала
-
 шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
 
-- где: `div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/18/question/play`
+- где: `div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### мелко для зала · экран зала
-
-шрифт 15.9 px — 16 px на Full HD (нужно от 18) — «Профессия»
-
-- где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/16/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-![мелко для зала](shots/bunker-0-solo-crowd-hall-5.jpg)
-
-### мелко для зала · экран зала
-
-шрифт 13.0 px — 13 px на Full HD (нужно от 18) — «Угроза»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker`, этап `playing/109/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### мелко для зала · экран зала
-
-шрифт 14.3 px — 14 px на Full HD (нужно от 18) — «Загорелась проводка, дым идёт по коридорам.»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text`, этап `playing/109/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### мелко для зала · экран зала
-
-шрифт 12.6 px — 13 px на Full HD (нужно от 18) — «Поможет: электрик, пожарный, огнетушитель»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps`, этап `playing/109/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 2
-
-### мелко для зала · экран зала
-
-шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «Справились»
-
-- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__stamp`, этап `playing/109/reveal/final`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 2
 
 ### мелко для зала · экран зала
@@ -1750,7 +1434,49 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
-## Мелочи — 61
+### мелко для зала · экран зала
+
+шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
+
+- где: `div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
+
+### мелко для зала · экран зала
+
+шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Ходит»
+
+- где: `div.dk-table > div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__status`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
+
+### мелко для зала · экран зала
+
+шрифт 17.3 px — 17 px на Full HD (нужно от 18) — «6 карт»
+
+- где: `div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
+
+### мелко для зала · экран зала
+
+шрифт 16.2 px — 16 px на Full HD (нужно от 18) — «Отбивается»
+
+- где: `div.dk-table > div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__status`, этап `playing/16/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
+
+### мелко для зала · экран зала
+
+шрифт 16.5 px — 17 px на Full HD (нужно от 18) — «Профессия»
+
+- где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/8/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 1
+
+![мелко для зала](shots/bunker-0-solo-crowd-hall-14.jpg)
+
+## Мелочи — 62
 
 ### мелкий текст · телефон
 
@@ -1772,65 +1498,25 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![мелкий текст](shots/lotto-0-solo-crowd-phones-3.jpg)
 
-### мелкий текст · телефон
-
-шрифт 9.2 px (нужно от 12) — «Профессия»
-
-- где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/2/question/bunker`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 630
-
-![мелкий текст](shots/bunker-0-solo-crowd-phones-2.jpg)
-
 ### мелкий текст · пульт
 
 шрифт 10.0 px (нужно от 12) — «Красное»
 
 - где: `div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label`, этап `playing/1/question/bet`
-- игры (1): wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 400
 
 ![мелкий текст](shots/wine-0-solo-crowd-phones-2.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 7.2 px (нужно от 12) — «Особое условие»
+шрифт 9.2 px (нужно от 12) — «Профессия»
 
-- где: `div.bk-card.bk-special > div.bk-in > span.bk-special__band > span`, этап `playing/2/question/bunker`
+- где: `div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span`, этап `playing/2/question/bunker`
 - игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 105
+- раз: 324
 
-![мелкий текст](shots/bunker-0-solo-crowd-phones-3.jpg)
-
-### мелкий текст · телефон
-
-шрифт 11.0 px (нужно от 12) — «Лишняя койка»
-
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__title`, этап `playing/2/question/bunker`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 105
-
-![мелкий текст](shots/bunker-0-solo-crowd-phones-4.jpg)
-
-### мелкий текст · телефон
-
-шрифт 7.3 px (нужно от 12) — «В бункере нашлось ещё одно место: изгоняем на одного меньше.»
-
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text`, этап `playing/2/question/bunker`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 105
-
-![мелкий текст](shots/bunker-0-solo-crowd-phones-5.jpg)
-
-### мелкий текст · телефон
-
-шрифт 9.9 px (нужно от 12) — «сыграно»
-
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__stamp`, этап `playing/3/question/open`
-- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 82
-
-![мелкий текст](shots/bunker-0-solo-crowd-phones-6.jpg)
+![мелкий текст](shots/bunker-0-solo-crowd-phones-2.jpg)
 
 ### мелкий текст · телефон
 
@@ -1838,7 +1524,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from`, этап `playing/0/reveal/done`
 - игры (1): truth 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 72
+- раз: 69
 
 ![мелкий текст](shots/truth-0-solo-crowd-phones-1.jpg)
 
@@ -1852,12 +1538,42 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![мелкий текст](shots/lotto-0-solo-crowd-phones-1.jpg)
 
+### мелкий текст · телефон
+
+шрифт 7.2 px (нужно от 12) — «Особое условие»
+
+- где: `div.bk-card.bk-special > div.bk-in > span.bk-special__band > span`, этап `playing/2/question/bunker`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 54
+
+![мелкий текст](shots/bunker-0-solo-crowd-phones-3.jpg)
+
+### мелкий текст · телефон
+
+шрифт 11.0 px (нужно от 12) — «Отмена голосования»
+
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__title`, этап `playing/2/question/bunker`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 54
+
+![мелкий текст](shots/bunker-0-solo-crowd-phones-4.jpg)
+
+### мелкий текст · телефон
+
+шрифт 7.3 px (нужно от 12) — «Это голосование отменяется: изгнание переносится на следующий раунд. Нельзя в по»
+
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text`, этап `playing/2/question/bunker`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 54
+
+![мелкий текст](shots/bunker-0-solo-crowd-phones-5.jpg)
+
 ### мелкий текст · пульт
 
 шрифт 11.0 px (нужно от 12) — «Цвет»
 
 - где: `div.wine-table.wine-table--compact > div.wine-row > span.wine-row__head > span.wine-row__title`, этап `playing/1/question/bet`
-- игры (1): wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 48
 
 ![мелкий текст](shots/wine-0-solo-crowd-phones-1.jpg)
@@ -1867,7 +1583,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 шрифт 11.0 px (нужно от 12) — «Эльфийка»
 
 - где: `div.stack > div.dr-pick > button.dr-pick__item > span.dr-pick__name`, этап `playing/1/question/`
-- игры (1): dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
+- игры (1): dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 40
 
 ![мелкий текст](shots/dragon-0-teams-crowd-phones-1.jpg)
@@ -1892,6 +1608,16 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![мелкий текст](shots/stage-0-teams-crowd-phones-4.jpg)
 
+### мелкий текст · телефон
+
+шрифт 9.9 px (нужно от 12) — «сыграно»
+
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__stamp`, этап `playing/5/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 27
+
+![мелкий текст](shots/bunker-0-solo-crowd-phones-7.jpg)
+
 ### мелкий текст · пульт
 
 шрифт 11.0 px (нужно от 12) — «кот»
@@ -1900,7 +1626,7 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 26
 
-![мелкий текст](shots/board-0-solo-crowd-phones-2.jpg)
+![мелкий текст](shots/board-0-solo-crowd-phones-1.jpg)
 
 ### мелкий текст · телефон
 
@@ -1908,9 +1634,19 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 - где: `div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from > span`, этап `playing/3/question/card`
 - игры (1): truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 24
+- раз: 21
 
 ![мелкий текст](shots/truth-0-solo-crowd-phones-2.jpg)
+
+### мелкий текст · телефон
+
+шрифт 6.1 px (нужно от 12) — «во время голосования»
+
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when`, этап `playing/2/question/bunker`
+- игры (1): bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 18
+
+![мелкий текст](shots/bunker-0-solo-crowd-phones-6.jpg)
 
 ### мелкий текст · телефон
 
@@ -1920,43 +1656,47 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - игры (1): truth 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор; truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор; truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 18
 
-![мелкий текст](shots/truth-0-solo-crowd-phones-3.jpg)
+![мелкий текст](shots/truth-0-teams-crowd-phones-2.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «K»
+шрифт 10.8 px (нужно от 12) — «№ 1»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/17/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 17
+- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/0/reveal/roles`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 15
 
-![мелкий текст](shots/durak-0-solo-crowd-phones-14.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «K»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/17/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 17
-
-![мелкий текст](shots/durak-0-solo-crowd-phones-15.jpg)
+![мелкий текст](shots/mafia-0-solo-crowd-phones-1.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 10.8 px (нужно от 12) — «Город»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 12
+- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/0/reveal/roles`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 15
+
+![мелкий текст](shots/mafia-0-solo-crowd-phones-2.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 11.6 px (нужно от 12) — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/56/question/play`
+- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/0/reveal/roles`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 15
+
+![мелкий текст](shots/mafia-0-solo-crowd-phones-3.jpg)
+
+### мелкий текст · телефон
+
+шрифт 8.3 px (нужно от 12) — «J✦R»
+
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand`, этап `playing/17/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 12
+- раз: 13
+
+![мелкий текст](shots/durak-0-solo-crowd-phones-16.jpg)
 
 ### мелкий текст · телефон
 
@@ -1972,29 +1712,9 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand`, этап `playing/56/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 10
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «K»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/13/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand`, этап `playing/54/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 9
-
-![мелкий текст](shots/durak-0-solo-crowd-phones-7.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «K»
-
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/13/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 9
-
-![мелкий текст](shots/durak-0-solo-crowd-phones-8.jpg)
 
 ### мелкий текст · пульт
 
@@ -2028,37 +1748,93 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелкий текст · телефон
 
+шрифт 10.8 px (нужно от 12) — «10»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx`, этап `playing/13/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+![мелкий текст](shots/durak-0-solo-crowd-phones-7.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «10»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/13/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+![мелкий текст](shots/durak-0-solo-crowd-phones-8.jpg)
+
+### мелкий текст · телефон
+
 шрифт 8.3 px (нужно от 12) — «J✦R»
 
 - где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-brand`, этап `playing/13/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 6
 
-![мелкий текст](shots/durak-0-solo-crowd-phones-10.jpg)
+![мелкий текст](shots/durak-0-solo-crowd-phones-9.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «10»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx`, этап `playing/17/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+![мелкий текст](shots/durak-0-solo-crowd-phones-14.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «10»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b`, этап `playing/17/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+![мелкий текст](shots/durak-0-solo-crowd-phones-15.jpg)
 
 ### мелкий текст · телефон
 
 шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand`, этап `playing/17/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand`, этап `playing/51/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 6
 
-![мелкий текст](shots/durak-0-solo-crowd-phones-18.jpg)
+![мелкий текст](shots/durak-0-solo-crowd-phones-21.jpg)
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/92/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx`, этап `playing/54/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 6
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/92/question/play`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b`, этап `playing/54/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx`, этап `playing/89/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 6
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b`, этап `playing/89/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 6
 
@@ -2066,47 +1842,9 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-brand`, этап `playing/92/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-brand`, этап `playing/89/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 6
-
-### мелкий текст · телефон
-
-шрифт 8.3 px (нужно от 12) — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-brand`, этап `playing/117/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 6
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «№ 1»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/0/reveal/meet`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 6
-
-![мелкий текст](shots/mafia-0-solo-crowd-phones-1.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «Город»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/0/reveal/meet`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 6
-
-![мелкий текст](shots/mafia-0-solo-crowd-phones-2.jpg)
-
-### мелкий текст · телефон
-
-шрифт 11.6 px (нужно от 12) — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
-
-- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/0/reveal/meet`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 6
-
-![мелкий текст](shots/mafia-0-solo-crowd-phones-3.jpg)
 
 ### мелкий текст · пульт
 
@@ -2118,6 +1856,16 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ![мелкий текст](shots/dance-0-teams-crowd-phones-2.jpg)
 
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «Ваша семья: 🐻 Максимилиан Рождественский, 🐺 Максимилиан Новосельцев, 🦉 Анаста»
+
+- где: `button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__family`, этап `playing/0/reveal/roles`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 5
+
+![мелкий текст](shots/mafia-0-solo-crowd-phones-4.jpg)
+
 ### мелкий текст · пульт
 
 шрифт 11.3 px (нужно от 12) — «№ 2»
@@ -2127,26 +1875,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 4
 
 ![мелкий текст](shots/dance-0-teams-crowd-phones-10.jpg)
-
-### мелкий текст · телефон
-
-шрифт 8.3 px (нужно от 12) — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand`, этап `playing/4/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-![мелкий текст](shots/durak-0-solo-crowd-phones-4.jpg)
-
-### мелкий текст · телефон
-
-шрифт 8.3 px (нужно от 12) — «J✦R»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand`, этап `playing/53/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 4
-
-![мелкий текст](shots/durak-0-solo-crowd-phones-23.jpg)
 
 ### мелкий текст · телефон
 
@@ -2200,19 +1928,59 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «8»
+шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx`, этап `playing/119/reveal/over`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand`, этап `playing/4/question/play`
+- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 3
+
+![мелкий текст](shots/durak-0-solo-crowd-phones-3.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «7»
+
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/91/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 3
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «8»
+шрифт 10.8 px (нужно от 12) — «7»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b`, этап `playing/119/reveal/over`
+- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/91/question/play`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 3
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «№ 1»
+
+- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/51/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 3
+
+![мелкий текст](shots/mafia-0-solo-crowd-phones-6.jpg)
+
+### мелкий текст · телефон
+
+шрифт 10.8 px (нужно от 12) — «Город»
+
+- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/51/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 3
+
+![мелкий текст](shots/mafia-0-solo-crowd-phones-7.jpg)
+
+### мелкий текст · телефон
+
+шрифт 11.6 px (нужно от 12) — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
+
+- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/51/reveal/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 3
+
+![мелкий текст](shots/mafia-0-solo-crowd-phones-8.jpg)
 
 ### мелкий текст · телефон
 
@@ -2223,36 +1991,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 3
 
 ![мелкий текст](shots/bunker-0-solo-crowd-phones-1.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «№ 1»
-
-- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat`, этап `playing/47/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
-
-![мелкий текст](shots/mafia-0-solo-crowd-phones-6.jpg)
-
-### мелкий текст · телефон
-
-шрифт 10.8 px (нужно от 12) — «Город»
-
-- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side`, этап `playing/47/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
-
-![мелкий текст](shots/mafia-0-solo-crowd-phones-7.jpg)
-
-### мелкий текст · телефон
-
-шрифт 11.6 px (нужно от 12) — «Ночью спите. Днём — ваш голос решает, кто покинет город.»
-
-- где: `div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power`, этап `playing/47/reveal/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 3
-
-![мелкий текст](shots/mafia-0-solo-crowd-phones-8.jpg)
 
 ### мелкий текст · пульт
 
@@ -2286,23 +2024,21 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 
 ### мелкий текст · телефон
 
-шрифт 10.8 px (нужно от 12) — «6»
+шрифт 8.3 px (нужно от 12) — «J✦R»
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx`, этап `playing/53/question/play`
+- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-brand`, этап `playing/120/reveal/over`
 - игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
 - раз: 1
 
-![мелкий текст](shots/durak-0-solo-crowd-phones-24.jpg)
+### мелкая кнопка · пульт
 
-### мелкий текст · телефон
+кнопка 32×56 px (пальцу нужно от 40×40)
 
-шрифт 10.8 px (нужно от 12) — «6»
+- где: `div.stack.host-quiz > section.card.stack > div.pr-faces > button.pr-face`, этап `playing/1/question/bid`
+- игры (1): perudo 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор; perudo 1-й шаблон, команды ×4, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 110
 
-- где: `div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b`, этап `playing/53/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 1
-
-![мелкий текст](shots/durak-0-solo-crowd-phones-25.jpg)
+![мелкая кнопка](shots/perudo-0-solo-crowd-phones-1.jpg)
 
 ### мелкая кнопка · пульт
 
@@ -2313,16 +2049,6 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 106
 
 ![мелкая кнопка](shots/stage-0-teams-crowd-phones-3.jpg)
-
-### мелкая кнопка · пульт
-
-кнопка 32×56 px (пальцу нужно от 40×40)
-
-- где: `div.stack.host-quiz > section.card.stack > div.pr-faces > button.pr-face`, этап `playing/1/question/bid`
-- игры (1): perudo 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор; perudo 1-й шаблон, команды ×4, большой праздник: 10 команд или 40 гостей, телевизор
-- раз: 98
-
-![мелкая кнопка](shots/perudo-0-solo-crowd-phones-1.jpg)
 
 ### мелкая кнопка · телефон
 
@@ -2343,4 +2069,14 @@ TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.
 - раз: 47
 
 ![мелкая кнопка](shots/checkers-0-teams-crowd-phones-1.jpg)
+
+### мелкая кнопка · телефон
+
+кнопка 24×24 px (пальцу нужно от 40×40)
+
+- где: `div.quiz-phone.st-phone > div.sl-input > label.choice > input`, этап `playing/30/question/write`
+- игры (1): story 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор
+- раз: 9
+
+![мелкая кнопка](shots/story-0-solo-crowd-phones-1.jpg)
 

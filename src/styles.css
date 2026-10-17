@@ -2487,6 +2487,13 @@ kbd {
   font-size: 2.2cqh;
 }
 
+/* Строка «Вход: … · код» лежит внизу кадра поверх игры. У игр, где низ занят (очередь «Правды или действия»,
+   плашки «100 к 1», история песен лото, места «Мафии»), — отступ под неё: строка ложилась на имена гостей
+   (Ревизор, 17 октября 2026). */
+.quiz-stage > :is(.td-screen, .hd-screen, .lotto-screen, .mf-screen, .pr-screen, .st-screen) {
+  padding-bottom: 6.5cqh;
+}
+
 .quiz-screen--intro {
   display: flex;
   flex-direction: column;
@@ -2609,6 +2616,8 @@ kbd {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Смайлик выше строки — без запаса сверху и снизу его срезало (Ревизор). */
+  padding-block: 0.12em;
 }
 
 .board-view__last {
@@ -2766,6 +2775,25 @@ kbd {
   display: flex;
   justify-content: center;
   font-size: 0.8em;
+}
+
+/* Таблица финала плотнее обычной: вместе с пьедесталом она должна поместиться в экран целиком — телевизор не
+   листают (Ревизор, 17 октября 2026: четвёртая строка уходила за низ экрана). */
+.final__board .board-view {
+  gap: 1.2cqh;
+  font-size: 3.2cqh;
+}
+
+.final__board .board-view__title {
+  font-size: 4.5cqh;
+}
+
+.final__board .board-view__list {
+  gap: 1cqh;
+}
+
+.final__board .board-view__row {
+  padding: 0.8cqh 2cqw;
 }
 
 /* Музыка: строка трека — кнопка прослушивания, название и плашки, меню «⋯». */
@@ -4120,6 +4148,8 @@ kbd {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Ряд — ровно по высоте сцены: длинные имена не выталкивают ступени за край (Ревизор, 17 октября 2026). */
+  grid-template-rows: minmax(0, 1fr);
   align-items: end;
   gap: 2cqw;
   border-bottom: 2px solid var(--color-border);
@@ -4138,6 +4168,9 @@ kbd {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Не помещается — прячется верх списка, очки и ступень видны всегда. */
+  justify-content: flex-end;
+  overflow: hidden;
   gap: 1cqh;
   min-height: 0;
   opacity: 1;
@@ -4193,6 +4226,7 @@ kbd {
 }
 
 .podium__step {
+  flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -4282,13 +4316,17 @@ kbd {
 }
 
 .final > .podium--final {
-  height: 40cqh;
+  height: 36cqh;
   flex: none;
   padding: 0 6cqw;
 }
 
+/* В финале под пьедесталом ещё таблица: имя — одной строкой с многоточием (полностью — в таблице). */
 .podium--final .podium__name {
   font-size: 4cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .podium--final .podium__slot--1 .podium__name {
@@ -4305,19 +4343,24 @@ kbd {
 }
 
 .podium--final .podium__num {
-  font-size: 5cqh;
+  font-size: 4.4cqh;
 }
 
+.podium--final .podium__step {
+  padding-top: 1cqh;
+}
+
+/* Цифра места должна помещаться в ступень: у третьей было 5% высоты при цифре 5% и отступе 2% — цифру срезало. */
 .podium--final .podium__slot--1 .podium__step {
-  height: 12cqh;
+  height: 13cqh;
 }
 
 .podium--final .podium__slot--2 .podium__step {
-  height: 8cqh;
+  height: 9.5cqh;
 }
 
 .podium--final .podium__slot--3 .podium__step {
-  height: 5cqh;
+  height: 7cqh;
 }
 
 /* Пьедестал на пульте и телефоне. */
@@ -6822,8 +6865,14 @@ ul.chips {
 
 .host-buzz__verdict {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+/* На узком телефоне ведущего «Не выполнено» переносится, а не вылезает за край пульта (Ревизор). */
+.host-buzz__verdict .btn {
+  white-space: normal;
+  min-width: 0;
 }
 
 .buzz-queue {
@@ -7964,7 +8013,8 @@ button.checkers__cell {
 .checkers-screen {
   width: 100%;
   height: 100%;
-  padding: 3cqh 3cqw;
+  /* Снизу — место под строку «Вход: … · код» экрана зала. */
+  padding: 3cqh 3cqw 6cqh;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -7973,7 +8023,7 @@ button.checkers__cell {
 }
 
 .checkers-screen__board {
-  height: 94cqh;
+  height: 91cqh;
   aspect-ratio: 1;
 }
 
@@ -8022,6 +8072,78 @@ button.checkers__cell {
   font-family: "Cormorant Garamond", serif;
   font-weight: 700;
   font-size: 5cqh;
+  white-space: nowrap;
+}
+
+/* Проектор 4:3 и ноутбук 16:10: доска уже не забирает всю ширину, у карточки команды имя — своей строкой
+   (Ревизор, 17 октября 2026: имя команды пропадало, «0 очков» ломалось, строка «Вход» ложилась на доску). */
+@container (max-aspect-ratio: 17 / 10) {
+  .checkers-screen__board {
+    height: auto;
+    width: min(91cqh, 56cqw);
+    align-self: center;
+  }
+
+  .checkers-side {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "chip score" "name name" "left left";
+  }
+
+  .checkers-side__score {
+    justify-self: end;
+  }
+
+  .checkers-screen {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* Обе команды — рядом сверху, ниже — что происходит: иначе вторая карточка уезжала за низ экрана. */
+  .checkers-screen__side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-content: start;
+    gap: 1.6cqh 1cqw;
+  }
+
+  .checkers-screen__side > * {
+    grid-column: 1 / -1;
+  }
+
+  .checkers-screen__side > .checkers-side--b {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .checkers-screen__side > .checkers-side--w {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .checkers-side {
+    padding: 1cqh 1cqw;
+  }
+
+  .checkers-side__chip {
+    width: 5cqh;
+    height: 5cqh;
+  }
+
+  .checkers-side__name {
+    font-size: 3.2cqh;
+  }
+
+  .checkers-side__score {
+    font-size: 4cqh;
+  }
+
+  .checkers-screen__banner,
+  .checkers-screen__question h2 {
+    font-size: 3.4cqh;
+  }
+
+  .checkers-screen__options {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .checkers-side__left {
@@ -10322,10 +10444,13 @@ button.dance-card:active {
   position: relative;
   width: 100%;
   height: 100%;
-  padding: 4cqh 3cqw 3cqh;
+  /* Снизу — место под строку «Вход: … · код» экрана зала. */
+  padding: 4cqh 3cqw 6.5cqh;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  /* Ряд — ровно по высоте кадра: лестница и вопрос не уходят за низ экрана (Ревизор, 17 октября 2026). */
+  grid-template-rows: minmax(0, 1fr);
   gap: 3cqw;
   font-size: 3.2cqh;
 }
@@ -10362,6 +10487,13 @@ button.dance-card:active {
   border: 2px solid #f0a040;
   background: color-mix(in srgb, #f0a040 16%, transparent);
   font-size: 1.05rem;
+}
+
+/* Без кружка с буквой — просто строка текста: во flex каждое слово вокруг имени становилось своей колонкой и на
+   узком пульте текст рассыпался в столбики («100 к 1», «Своя игра»; Ревизор, 17 октября 2026). */
+.mil-host-live:not(:has(> .mil-host-live__letter)) {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .mil-host-live.is-locked {
@@ -10430,7 +10562,7 @@ button.dance-card:active {
 .mil-screen__bars {
   min-width: 0;
   min-height: 0;
-  height: 92cqh;
+  height: 100%;
 }
 
 .mil-bars {
@@ -10568,6 +10700,47 @@ button.dance-card:active {
 .mil-lifeboard.is-many .mil-lifeline {
   width: 2.8cqh;
   height: 2.8cqh;
+}
+
+/* Больше 8 участников — над вопросом только тот, кто ходит: одна строка по центру. */
+.mil-lifeboard.is-one {
+  grid-template-columns: minmax(0, 36cqw);
+  justify-content: center;
+}
+
+/* Под вопросом звонок другу, совет ведущего или «Окончательный ответ» — экран плотнее, иначе с пятью командами
+   низ уходил за край телевизора (Ревизор, 17 октября 2026). Вспышка подсказки повторяет то же — прячем. */
+.mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) {
+  gap: 1.2cqh;
+}
+
+.mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-lifeboard {
+  margin: 0;
+}
+
+.mil-screen__main:has(> .mil-tip, > .mil-call) > .mil-flash {
+  display: none;
+}
+
+.mil-screen__main:has(> .mil-call) .mil-tip,
+.mil-screen__main:has(> .mil-screen__note--big) .mil-tip {
+  padding: 0.8cqh 2cqw;
+}
+
+.mil-screen__main:has(> .mil-call) .mil-tip__icon,
+.mil-screen__main:has(> .mil-screen__note--big) .mil-tip__icon {
+  width: 5cqh;
+  height: 5cqh;
+}
+
+.mil-screen__main:has(> .mil-call) .mil-tip__title,
+.mil-screen__main:has(> .mil-screen__note--big) .mil-tip__title {
+  font-size: 2.4cqh;
+}
+
+.mil-screen__main:has(> .mil-call) .mil-tip__text,
+.mil-screen__main:has(> .mil-screen__note--big) .mil-tip__text {
+  font-size: 3cqh;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -11773,13 +11946,24 @@ button.dance-card:active {
 
 .sv-mark-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: stretch;
 }
 
 .sv-mark-row > .column-opt {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
+  overflow: hidden;
+  padding-block: 8px;
+}
+
+/* Ответ гостя ведущий читает целиком — переносом, а не многоточием: по нему он решает «засчитать» (Ревизор: на телефоне
+   ведущего строка с ответом уезжала за край). */
+.sv-mark-row .line-clamp {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .sv-mark-row__timer {
@@ -14065,6 +14249,15 @@ button.dance-card:active {
 
 .mf-nominees { display: flex; flex-wrap: wrap; justify-content: center; gap: 2cqh 2cqw; margin: 0; padding: 0; list-style: none; }
 .mf-nominees li { padding: 1.4cqh 2.4cqw; border-radius: 2cqh; background: rgb(255 90 102 / 0.18); border: 0.3cqh solid #ff5a66; font-size: 4.4cqh; font-weight: 600; }
+/* Четыре кандидата и больше — плотнее и заголовок меньше: подсказка про голосование не наезжает на места. */
+.mf-nominees:has(> li:nth-child(4)) { gap: 1.2cqh 1.4cqw; }
+.mf-nominees:has(> li:nth-child(4)) li { padding: 0.8cqh 1.8cqw; font-size: 3.2cqh; }
+.mf-screen__main:has(> .mf-nominees > li:nth-child(4)) .mf-title { font-size: 7cqh; }
+/* Девять и больше (голосуют против любого живого — в большой игре это 20 человек): плотная сетка номеров с именами,
+   иначе список вылезал за верх экрана и ложился на места (Ревизор, «Большой праздник»). */
+.mf-nominees:has(> li:nth-child(9)) { display: grid; grid-template-columns: repeat(auto-fill, minmax(18cqw, 1fr)); gap: 0.8cqh 1cqw; width: 100%; }
+.mf-nominees:has(> li:nth-child(9)) li { padding: 0.5cqh 1cqw; font-size: 2.3cqh; border-width: 0.2cqh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.mf-screen__main:has(> .mf-nominees > li:nth-child(9)) .mf-title { font-size: 5cqh; }
 
 .mf-tally { display: grid; gap: 1.4cqh; width: min(100%, 80cqw); margin: 0; padding: 0; list-style: none; }
 .mf-tally__row { display: grid; grid-template-columns: minmax(0, 28%) minmax(0, 1fr) 3em; align-items: center; gap: 1.4cqw; font-size: 3.4cqh; text-align: left; }
@@ -14091,6 +14284,12 @@ button.dance-card:active {
 .mf-reveal__art svg { width: 100%; height: 100%; }
 .mf-reveal__name { font-size: 2.6cqh; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mf-reveal__role { font-size: 2.4cqh; color: #e3c68c; }
+/* Больше 10 игроков — карты меньше и в 7 колонок: 20 ролей уходили за верх и низ экрана (Ревизор, «Большой праздник»). */
+.mf-reveal:has(> li:nth-child(11)) { grid-template-columns: repeat(auto-fit, minmax(12cqw, 1fr)); gap: 1cqh 0.8cqw; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__item { padding: 0.6cqh; gap: 0.2cqh; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__art { width: 8cqh; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__name { font-size: 2cqh; }
+.mf-reveal:has(> li:nth-child(11)) .mf-reveal__role { font-size: 1.9cqh; }
 
 /* Ночное небо и спящий город */
 .mf-sky { position: absolute; inset: 0; pointer-events: none; }
@@ -14229,7 +14428,9 @@ button.dance-card:active {
   color: #fbf6f1;
   isolation: isolate;
 }
-.td-back--screen, .td-face--screen { height: 72cqh; }
+/* 62% высоты: над картой — кто ходит, под ней — подсказка и очередь, снизу — строка «Вход» (Ревизор: при 72% всё
+   это не помещалось на ноутбуке и проекторе). */
+.td-back--screen, .td-face--screen { height: 62cqh; }
 .td-back--phone, .td-face--phone { width: min(100%, 300px); margin: 0 auto; }
 .td-back--mini { width: 120px; }
 
@@ -14438,6 +14639,8 @@ button.dance-card:active {
 .st-title { margin: 0; font-family: var(--font-display); font-size: 7cqh; line-height: 1.05; text-wrap: balance; }
 .st-prompt { margin: 0; max-width: 70cqw; font-family: var(--font-display); font-size: 4cqh; font-style: italic; color: var(--color-text-muted); text-wrap: balance; }
 .st-note { margin: 0; color: var(--color-text-muted); }
+/* Под письмом — автор и голоса: письмо меньше, иначе верх уезжал за край, а голоса — под строку «Вход». */
+.st-screen__main:has(.st-reveal) .st-letter { width: min(60cqw, 84cqh); }
 
 .st-letter {
   --st-paper: #fbf3e4;
@@ -14840,6 +15043,7 @@ button.dance-card:active {
 .bk-stage__dossier { width: 26cqw; --bk-fs: 1.7cqw; }
 .bk-kicker { margin: 0; font-size: 2cqh; letter-spacing: 0.24em; text-transform: uppercase; color: #F1C230; }
 .bk-title { margin: 0; font-family: var(--font-display, "Cormorant Garamond", serif); font-weight: 700; font-size: 6cqh; line-height: 1.05; text-wrap: balance; }
+.bk-title--many { font-size: 3.4cqh; }
 .bk-lead { margin: 0; font-size: 2.8cqh; line-height: 1.35; color: #E8E0D6; text-wrap: pretty; }
 .bk-lead--muted { color: #B5ABA2; font-size: 2.2cqh; }
 .bk-num { color: #F1C230; }
@@ -15676,29 +15880,46 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   overflow-wrap: anywhere;
 }
 
-/* Слайд «QR для входа»: крупный код поверх игры для опоздавших. */
+/* Слайд «QR для входа»: крупный код поверх игры для опоздавших. QR и текст — всегда в ряд: на проекторе 4:3 они
+   переносились друг под друга и уезжали за верх и низ экрана (Ревизор, 17 октября 2026). */
 .slide__join {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 5cqw;
+  gap: 4cqw;
+  max-width: 100%;
   text-align: left;
 }
 
 .slide__join .big-code {
-  font-size: 12cqh;
+  font-size: min(12cqh, 9cqw);
 }
 
 .slide__qr--join {
-  width: 48cqh;
+  flex: none;
+  width: min(48cqh, 38cqw);
 }
 
 .slide__join-text {
   display: flex;
   flex-direction: column;
   gap: 2cqh;
+  min-width: 0;
   max-width: 44cqw;
+}
+
+.slide__join-text .slide__text {
+  font-size: min(4.6cqh, 3.2cqw);
+}
+
+/* Просьба про VPN была 0.7em от 18 px — на телевизоре 13 px, не прочитать (Ревизор, 17 октября 2026). */
+.slide__join-text .slide__text--small {
+  font-size: min(3.2cqh, 2.3cqw);
+}
+
+/* Заголовок слайда входа меньше обычного: под ним ещё QR и код. */
+.slide--join .slide__title {
+  font-size: min(10cqh, 7cqw);
 }
 
 .slide__text--small {
@@ -18342,6 +18563,25 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-size: 3cqh;
 }
 
+/* Больше 12 гостей — плашки мельче и плотнее (40 гостей не помещались в экран; Ревизор, «Большой праздник»). */
+.wager-guessed:has(> li:nth-child(13)) {
+  gap: 0.6cqh 0.8cqw;
+}
+
+.wager-guessed:has(> li:nth-child(13)) li {
+  padding: 0.3cqh 1cqw;
+  font-size: 2.1cqh;
+  border-width: 1px;
+}
+
+.wager-guessed:has(> li:nth-child(31)) li {
+  font-size: 1.8cqh;
+  max-width: 15cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .wager-guessed li.is-done {
   background: var(--team-color, var(--color-highlight));
   color: var(--color-team-text);
@@ -19087,6 +19327,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .mil-watch__question .mil-option {
   border-style: dashed;
+}
+
+/* Фон убираем только у обычных вариантов: у «окончательного» и верного своя заливка и тёмный текст — без неё
+   ответ команды на телефоне наблюдателя был тёмным по тёмному (Ревизор, 17 октября 2026). */
+.mil-watch__question .mil-option:not(.is-locked, .is-right, .is-wrong) {
   background: transparent;
 }
 

@@ -1,0 +1,113 @@
+# Ревизор (CLAUDE.md, раздел 9): робот-ведущий проводит каждую игру и на каждом новом виде смотрит глазами людей —
+# настоящий экран зала на телевизоре, ноутбуке и проекторе, пульт и телефоны гостей в обёртке настоящих страниц
+# (длинные имена, большой зал, маленький телефон). Находит мусор вместо текста, обрезанный и уехавший текст, надписи
+# друг на друге, мелкое для зала, бледное, битые картинки и файлы, пустые экраны, кнопки меньше пальца, прокрутку вбок.
+# Без сервера: всё в памяти страницы. Только вручную (Run workflow) или коммитом с [inspect] в ветке claude/* (~30–45 минут).
+# Отчёт со снимками — в ветку e2e-shots (папка inspect/, README.md открывается в GitHub с телефона), коротко — в итог задачи.
+name: Ревизор
+
+on:
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Игры через запятую (пусто — все, кроме Олимпа)"
+        required: false
+        default: ""
+      profiles:
+        description: "Размеры: tv, projector, laptop (через запятую)"
+        required: false
+        default: "tv,projector,laptop"
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    name: Что видят ведущий и гости
+    # [crowd] — только «Большой праздник» (10 команд или 40 гостей) отдельным прогоном.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[inspect]') || contains(github.event.head_commit.message, '[crowd]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: inspect-${{ contains(github.event.head_commit.message, '[crowd]') && 'crowd' || 'all' }}
+      cancel-in-progress: true
+    timeout-minutes: 150
+    env:
+      PROFILES: ${{ github.event.inputs.profiles || (contains(github.event.head_commit.message, '[crowd]') && 'crowd') || 'tv,projector,laptop' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Зависимости
+        run: |
+          npm ci --no-audit --no-fund
+          # Playwright — только здесь: в зависимостях проекта его нет.
+          npm i --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Сборка страницы робота
+        run: |
+          set +e
+          node scripts/robot/build.mjs /tmp/robot > /tmp/robot-build.log 2>&1
+          st=$?
+          cat /tmp/robot-build.log
+          if [ $st -ne 0 ]; then grep -iE "error|✘|could not|no matching" /tmp/robot-build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
+      - name: Ревизор смотрит игры
+        env:
+          # Каждая игра — две страницы (экран зала и телефоны).
+          PAR: "4"
+          BUDGET: "400"
+          # Все экраны зала на телевизоре — архивом задачи (в ветку e2e-shots не кладём: много снимков).
+          GALLERY: /tmp/gallery
+        run: |
+          GAMES="${{ github.event.inputs.games }}"
+          [ -n "$GAMES" ] || GAMES="quiz,lotto,board,hundred,checkers,dance,stage,quest,millionaire,survival,dragon,mafia,bunker,spy,durak,truth,perudo,wager,wine,story"
+          mkdir -p /tmp/inspect
+          node scripts/robot/inspect.mjs /tmp/robot /tmp/inspect "$GAMES" | tee /tmp/inspect/log.txt
+          cat /tmp/inspect/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Галерея — уменьшить снимки
+        if: always()
+        run: |
+          [ -d /tmp/gallery ] || exit 0
+          pip install --quiet pillow 2>/dev/null || pip install --quiet --break-system-packages pillow
+          python3 - <<'PY'
+          import glob
+          from PIL import Image
+          for f in glob.glob("/tmp/gallery/*.jpg"):
+              im = Image.open(f).convert("RGB")
+              if im.width > 960:
+                  im = im.resize((960, round(im.height * 960 / im.width)))
+              im.save(f, quality=60, optimize=True)
+          PY
+      - name: Галерея экранов (архив задачи, 7 дней)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-${{ contains(github.event.head_commit.message, '[crowd]') && 'crowd' || 'all' }}
+          path: /tmp/gallery
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Отчёт в ветку e2e-shots
+        if: always()
+        run: |
+          [ -f /tmp/inspect/findings.json ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          DIR=inspect; case "$PROFILES" in crowd) DIR=inspect-crowd;; esac
+          rm -rf "$DIR" && mkdir -p "$DIR" && cp -r /tmp/inspect/. "$DIR"/
+          [ -d /tmp/gallery ] && mkdir -p "$DIR"/gallery && cp /tmp/gallery/*.jpg "$DIR"/gallery/ 2>/dev/null || true
+          echo "${GITHUB_SHA}" > "$DIR"/commit.txt
+          git add -A "$DIR"
+          if git commit -qm "Отчёт Ревизора ${GITHUB_SHA::7}"; then
+            sent=""
+            for i in 1 2 3 4 5; do
+              if out=$(git push -q origin HEAD:e2e-shots 2>&1); then sent=1; break; fi
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+            [ -n "$sent" ] || echo "::warning::Не отправлено в e2e-shots: $(echo "$out" | tr '\n' ' ' | cut -c1-300)"
+          else
+            echo "::notice::Нечего отправлять в e2e-shots"
+          fi

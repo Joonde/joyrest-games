@@ -142,12 +142,21 @@ export function LadderBars({ session, content, result, carousel = false }: { ses
   );
 }
 
-/** Подсказки всех команд над вопросом: у каждой — свои значки, взятые перечёркнуты; команда хода подсвечена. */
+/** Больше стольких участников — над вопросом только подсказки того, кто ходит (остальные — на их телефонах). */
+const LIFEBOARD_MAX = 8;
+
+/**
+ * Подсказки всех команд над вопросом: у каждой — свои значки, взятые перечёркнуты; команда хода подсвечена.
+ * Большой праздник (больше `LIFEBOARD_MAX`, решение 17 октября 2026 по проверке Ревизора на 10 командах и 40 гостях): таблица
+ * подсказок всех занимала полэкрана, имена сжимались до смайлика, вопрос уезжал за край — показываем только того, кто ходит.
+ */
 function LifelineBoard({ session, content, result }: { session: Session; content: MillionaireContent; result: MillionaireResult }) {
   if (content.lifelines.length === 0 || result.order.length === 0) return null;
-  const list = result.order.filter((p) => !result.out.includes(p));
+  const alive = result.order.filter((p) => !result.out.includes(p));
+  const list = alive.length > LIFEBOARD_MAX ? alive.filter((p) => p === result.turn) : alive;
+  if (list.length === 0) return null;
   return (
-    <ul className={`mil-lifeboard${list.length > 4 ? " is-many" : ""}`} aria-label="Подсказки команд">
+    <ul className={`mil-lifeboard${list.length > 4 ? " is-many" : ""}${list.length === 1 ? " is-one" : ""}`} aria-label="Подсказки команд">
       {list.map((pid) => (
         <li key={pid} className={pid === result.turn ? "mil-lifeboard__team is-turn" : "mil-lifeboard__team"} style={{ ["--team" as string]: colorOf(session, result, pid) } as CSSProperties}>
           <span className="mil-lifeboard__name">

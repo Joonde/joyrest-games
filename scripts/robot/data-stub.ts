@@ -39,3 +39,10 @@ export function useLoad(): [{ status: "loading" }, () => void] {
   return [{ status: "loading" }, () => undefined];
 }
 export const gameFoldersRepo = null;
+// Экран зала целиком (`Screen` из HallScreen, Ревизор) импортирует и вход по коду — роботу они не нужны.
+export function useGuestSignIn(): [{ status: "loading" }, () => void] {
+  return [{ status: "loading" }, () => undefined];
+}
+export function useSessionByCode(): [{ status: "loading" }, () => void] {
+  return [{ status: "loading" }, () => undefined];
+}

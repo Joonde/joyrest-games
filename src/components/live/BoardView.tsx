@@ -84,7 +84,8 @@ export function BoardView({ leaderboard, limit, showLast = true, title = "Таб
       {paged && (
         <p className="board-view__pages" aria-label={`Страница ${at + 1} из ${pages.length}`}>
           <span className="board-view__range">
-            места {rows[0]?.place ?? ""}–{rows[rows.length - 1]?.place ?? ""} из {all.length}
+            {/* Строки страницы по порядку: при равных очках места одинаковые, и «места 1–1 из 10» сбивало (Ревизор). */}
+            {at * BOARD_PAGE_ROWS + 1}–{at * BOARD_PAGE_ROWS + rows.length} из {all.length}
           </span>
           <span className="board-view__dots" aria-hidden="true">
             {pages.map((_, i) => (

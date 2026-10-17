@@ -20,6 +20,8 @@ import type { Answer, Participant, PlayMode, Session, SessionChange } from "../.
 import { allDemoGames as demoGames, getMechanic, newContent, validateGame } from "../../src/mechanics/registry";
 import type { PhoneRole, SessionControl } from "../../src/mechanics/types";
 import { applyTheme, getTheme } from "../../src/themes/registry";
+import { Screen as RealHall } from "../../src/screens/HallScreen";
+import { findingKey, inspectArea, type Area, type Finding } from "./inspect";
 import "../../src/fonts.css";
 import "../../src/styles.css";
 
@@ -34,6 +36,25 @@ const DEMO = Number(q.get("demo") ?? "0");
 const BUDGET = Number(q.get("budget") ?? "500");
 // Снимки экранов (scripts/robot/shots.mjs): только вперёд, без вмешательств, пауза перед каждым снимком.
 const SHOTS = q.get("shots") === "1";
+// Ревизор (scripts/robot/inspect.mjs): настоящий экран зала на размере `hall` (окно браузера — того же размера,
+// поэтому vw/vh как на телевизоре), пульт и телефоны — в обёртке настоящих страниц (`page--pult`, `page--play`),
+// на каждом новом виде — проверка того, что видят люди (inspect.ts).
+const INSPECT = q.get("inspect") === "1";
+const [HALL_W = 960, HALL_H = 540] = (q.get("hall") ?? "960x540").split("x").map(Number);
+const HOST_W = Number(q.get("host") ?? (INSPECT ? "390" : "720"));
+const PHONE_W = Number(q.get("phone") ?? "360");
+const GALLERY = q.get("gallery") === "1";
+// Что смотрит эта страница: `hall` — экран зала (окно = экран), `phones` — пульт и телефоны (окно = ширина телефона,
+// чтобы vw телефона были как на телефоне). Ход игры один и тот же (тот же seed), страниц две.
+const AREAS = q.get("areas") ?? "all";
+// Длинные имена, как у настоящих гостей (до 30 символов со смайликом): проверка, что ничего не разъезжается.
+const LONG_NAMES = q.get("names") === "long";
+const LONG_TEAMS = ["🦄 Единороги из бухгалтерии", "🐺 Северные волки отдела IT", "🦉 Совы-полуночники ресепшн", "🐻 Медведи складской логистики", "🐯 Тигры клиентского сервиса", "🐬 Дельфины маркетинга и PR", "🦁 Львы юридического отдела", "🐝 Пчёлки финансового контроля", "🦋 Бабочки отдела кадров 2.0", "🐙 Осьминоги техподдержки"];
+// Гости: смайлик, имя и фамилия (до 30 символов), все разные — как в большом зале на 40 человек.
+const FIRST = ["Александра", "Владимир", "Екатерина", "Максимилиан", "Анастасия", "Святослав", "Валентина", "Константин"];
+const LAST = ["Константинова", "Преображенский", "Воскресенская", "Рождественский", "Великорецкая", "Новосельцев", "Белозерская"];
+const EMOJI = ["🦊", "🐺", "🦉", "🐻", "🐯", "🐬", "🦁", "🐝", "🦋", "🐙"];
+const LONG_PLAYERS = Array.from({ length: 56 }, (_, i) => `${EMOJI[i % EMOJI.length]} ${FIRST[i % FIRST.length]} ${LAST[(i + Math.floor(i / FIRST.length)) % LAST.length]}`.slice(0, 30));
 
 let rnd = SEED * 2654435761;
 function random(): number {
@@ -60,6 +81,8 @@ interface Report {
   edges: Record<string, number>;
   actions: Record<string, number>;
   log: string[];
+  findings: Finding[];
+  views: number;
 }
 
 const mechanic = getMechanic(MECHANIC);
@@ -80,6 +103,8 @@ const report: Report = {
   edges: {},
   actions: {},
   log: [],
+  findings: [],
+  views: 0,
 };
 (window as unknown as { robotReport: Report }).robotReport = report;
 
@@ -107,12 +132,14 @@ function addGuest(late = false): void {
   const n = ++joinCounter;
   const at = Date.now() + n;
   if (MODE === "teams") {
-    const team: Participant = { id: `team${n}`, name: `${late ? "Опоздавшие" : "Команда"} ${n}`, kind: "team", teamId: null, captainUid: `cap${n}`, joinedAt: at };
+    const teamName = LONG_NAMES ? `${LONG_TEAMS[(n - 1) % LONG_TEAMS.length] ?? "Команда"}${n > LONG_TEAMS.length ? ` ${n}` : ""}`.slice(0, 30) : `${late ? "Опоздавшие" : "Команда"} ${n}`;
+    const team: Participant = { id: `team${n}`, name: teamName, kind: "team", teamId: null, captainUid: `cap${n}`, joinedAt: at };
     participants.push(team);
     participants.push({ id: `cap${n}`, name: `Капитан ${n}`, kind: "player", teamId: team.id, captainUid: `cap${n}`, joinedAt: at });
     participants.push({ id: `mem${n}`, name: `Игрок ${n}`, kind: "player", teamId: team.id, captainUid: `mem${n}`, joinedAt: at + 1 });
   } else {
-    participants.push({ id: `p${n}`, name: `${late ? "Опоздал" : "Гость"} ${n}`, kind: "player", teamId: null, captainUid: `p${n}`, joinedAt: at });
+    const playerName = LONG_NAMES ? `${LONG_PLAYERS[(n - 1) % LONG_PLAYERS.length] ?? "Гость"}${n > LONG_PLAYERS.length ? ` ${n}` : ""}`.slice(0, 30) : `${late ? "Опоздал" : "Гость"} ${n}`;
+    participants.push({ id: `p${n}`, name: playerName, kind: "player", teamId: null, captainUid: `p${n}`, joinedAt: at });
   }
 }
 for (let i = 0; i < PLAYERS; i++) addGuest();
@@ -244,6 +271,7 @@ function Hall() {
   useStore();
   const s = store.session;
   if (!mechanic || content === null) return null;
+  if (INSPECT) return <RealHall session={s} isHost={false} />;
   const { ScreenView } = mechanic;
   const slide = s.state.slide ?? null;
   let body: ReactNode;
@@ -332,6 +360,41 @@ function Phones() {
 
 function App() {
   useStore();
+  if (INSPECT) {
+    const phones = participants.filter((p) => p.kind === "player");
+    return (
+      <>
+        {/* Экран зала — в левом верхнем углу во всё окно: transform делает его рамкой для position: fixed. */}
+        {AREAS !== "phones" && (
+          <section data-hall key={`hall-${store.keys.hall}`} style={{ position: "relative", width: HALL_W, height: HALL_H, overflow: "hidden", transform: "translateZ(0)" }}>
+            <Guard area="экран зала">
+              <Hall />
+            </Guard>
+          </section>
+        )}
+        <section data-host key={`host-${store.keys.host}`} style={{ width: HOST_W, background: "var(--color-bg)" }}>
+          <main className="page page--pult">
+            <section className="card">
+              <Guard area="пульт">
+                <Host />
+              </Guard>
+            </section>
+          </main>
+        </section>
+        {phones.map((p) => (
+          <section key={`${p.id}-${store.keys[p.id] ?? 0}`} data-phone={p.id} style={{ width: PHONE_W, background: "var(--color-bg)" }}>
+            <main className="page page--play">
+              <div className="card">
+                <Guard area={`телефон ${p.id}`}>
+                  <Phone me={p} />
+                </Guard>
+              </div>
+            </main>
+          </section>
+        ))}
+      </>
+    );
+  }
   return (
     <div className="page page--wide" style={{ maxWidth: "none" }}>
       <section data-hall key={`hall-${store.keys.hall}`}>
@@ -369,6 +432,112 @@ function count(name: string) {
 }
 function note(line: string) {
   if (report.log.length < 400) report.log.push(`${report.ticks}: ${line} [${where()}]`);
+}
+
+// ------------------------------------------------------------------ Ревизор
+
+const seenViews = new Set<string>();
+const findings = new Map<string, Finding>();
+const MAX_VIEWS = Number(q.get("views") ?? "60");
+const MAX_SHOTS = Number(q.get("snaps") ?? "25");
+let snaps = 0;
+
+/** Вид игры: этап, режим механики, слайд, таблица поверх, награждение, есть ли ответы. */
+function viewKey(): string {
+  const s = store.session;
+  const st = s.state;
+  const r = st.result && typeof st.result === "object" ? (st.result as Record<string, unknown>) : {};
+  const answered = store.answers.some((a) => a.step === st.step && (a.submittedAt ?? 0) >= (st.startedAt ?? 0));
+  return [st.phase, st.stage, modeOf(s), st.slide?.kind ?? "", st.peek ?? "", typeof r.podium === "number" ? r.podium : "", answered ? "ответы" : "", st.revealed ? "открыт" : ""].join("|");
+}
+
+async function settle(): Promise<void> {
+  await sleep(300);
+  const running = document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().endTime !== Infinity);
+  await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => undefined))), sleep(1500)]);
+  // Картинки и шрифты — дождаться (битая картинка видна только после загрузки).
+  await Promise.race([document.fonts.ready, sleep(1000)]);
+  const imgs = [...document.images].filter((i) => !i.complete);
+  const loaded = (i: HTMLImageElement) =>
+    new Promise((r) => {
+      i.addEventListener("load", r, { once: true });
+      i.addEventListener("error", r, { once: true });
+    });
+  await Promise.race([Promise.all(imgs.map(loaded)), sleep(2000)]);
+}
+
+async function snap(root: HTMLElement, el: Element | null, id: string, key: string): Promise<string | undefined> {
+  const w = window as unknown as { robotSnap?: (id: string, key: string) => Promise<string | null> };
+  if (!w.robotSnap || (el && snaps >= MAX_SHOTS)) return undefined;
+  const target = (el ?? root) as HTMLElement;
+  const prev = [target.style.outline, target.style.outlineOffset];
+  if (el) {
+    target.style.outline = "4px solid #ff2d55";
+    target.style.outlineOffset = "2px";
+  }
+  root.setAttribute("data-snap", "1");
+  try {
+    const file = await w.robotSnap(id, key);
+    if (file && el) snaps++;
+    return file ?? undefined;
+  } finally {
+    root.removeAttribute("data-snap");
+    target.style.outline = prev[0] ?? "";
+    target.style.outlineOffset = prev[1] ?? "";
+  }
+}
+
+async function inspectView(): Promise<void> {
+  const key = viewKey();
+  if (seenViews.has(key) || seenViews.size >= MAX_VIEWS) return;
+  seenViews.add(key);
+  await settle();
+  report.views++;
+  const at = where();
+  const playing = store.session.state.phase === "playing";
+  const areas: { area: Area; root: HTMLElement }[] = [];
+  const hall = document.querySelector<HTMLElement>("[data-hall]");
+  if (hall) areas.push({ area: "экран зала", root: hall });
+  const host = document.querySelector<HTMLElement>("[data-host]");
+  if (host && playing && AREAS !== "hall") areas.push({ area: "пульт", root: host });
+  // Телефоны: первые три и участник команды (у него свой вид).
+  const phones = AREAS === "hall" ? [] : [...document.querySelectorAll<HTMLElement>("[data-phone]")];
+  const member = phones.find((p) => p.dataset.phone?.startsWith("mem"));
+  for (const p of [...phones.slice(0, 3), ...(member && !phones.slice(0, 3).includes(member) ? [member] : [])]) areas.push({ area: "телефон", root: p });
+  for (const { area, root } of areas) {
+    window.scrollTo(0, area === "экран зала" ? 0 : root.offsetTop);
+    await sleep(30);
+    let raws;
+    try {
+      raws = inspectArea({ area, root, at, playing, hallHeight: area === "экран зала" ? HALL_H : undefined });
+    } catch (e) {
+      fail("ревизор", String((e as Error)?.stack ?? e));
+      continue;
+    }
+    for (const raw of raws) {
+      const k = findingKey(area, raw);
+      const old = findings.get(k);
+      if (old) {
+        old.count++;
+        continue;
+      }
+      const f: Finding = { key: k, area, kind: raw.kind, message: raw.message, path: raw.path, text: raw.text, at, count: 1 };
+      findings.set(k, f);
+      report.findings.push(f);
+      f.shot = await snap(root, raw.el, `${findings.size}`, k);
+    }
+  }
+  window.scrollTo(0, 0);
+  // Галерея (GALLERY=1 у inspect.mjs): снимки на выборке видов (1, 3, 6, 10, 15, 22, 31, 42 и финал) — посмотреть глазами.
+  const sample = GALLERY && ([1, 3, 6, 10, 15, 22, 31, 42].includes(seenViews.size) || store.session.state.phase === "finished");
+  if (sample && hall) await snap(hall, null, `вид-${seenViews.size}`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}`);
+  // Телефонная страница: пульт ведущего, телефон капитана и участника (или первого гостя).
+  if (sample && AREAS === "phones") {
+    if (host && playing) await snap(host, null, `вид-${seenViews.size}-пульт`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}|пульт`);
+    const first = phones[0];
+    if (first) await snap(first, null, `вид-${seenViews.size}-телефон`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}|телефон`);
+    if (member && member !== first) await snap(member, null, `вид-${seenViews.size}-участник`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}|участник`);
+  }
 }
 
 /** Окно подтверждения на экране — соглашаемся (иногда сначала отказываемся). */
@@ -516,6 +685,7 @@ async function run(): Promise<void> {
     await overlay();
     await sleep(15);
     await hostAct();
+    if (INSPECT) await inspectView();
     if (SHOTS) {
       const w = window as unknown as { robotShot?: (tick: number) => Promise<void> };
       await sleep(1300);
@@ -530,6 +700,7 @@ async function run(): Promise<void> {
     if (store.session.state.phase === "finished") {
       report.finished = true;
       await sleep(50);
+      if (INSPECT) await inspectView();
       break;
     }
     const st = store.session.state;

@@ -2,7 +2,7 @@
  * Конец игры (решение владельца 15 октября 2026): после награждения — «Спасибо» с делами: чаевые ведущему, отзыв
  * о вечере, отзыв на Авито и Telegram-канал JoyRest. Экран зала показывает QR-коды (слайд «Спасибо»), телефон гостя — те же
  * дела кнопками, отзыв пишется прямо на телефоне. Чаевые (решение владельца 17 октября 2026) — всегда: ссылка ведущего из профиля,
- * нет — ссылка владельца, нет и её — общие чаевые JoyRest (`TIPS_URL`, «Спасибо Мир»), и без своего сервера тоже. Ссылки «Авито · канал · сайт» (`FinaleLinks`) — везде, где гость видит конец игры (17 октября 2026).
+ * нет — ссылка владельца, нет и её — общие чаевые JoyRest (`TIPS_URL`, сейчас пусто), и без своего сервера тоже. Ссылки «Авито · канал · сайт» (`FinaleLinks`) — везде, где гость видит конец игры (17 октября 2026).
  * Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -18,7 +18,8 @@ export const SITE_CALC_URL = "https://joy-rest.ru/calc/";
 export const SITE_TEXT = "Посчитайте стоимость следующего праздника за минуту";
 
 /** Общие чаевые JoyRest (решение владельца 17 октября 2026): показываются, когда у ведущего и владельца нет своей ссылки. */
-export const TIPS_URL = "https://spasibomir.ru/pay/35704";
+/** Пусто — общих чаевых нет (17 октября 2026: прежний QR владелец убрал, новый пришлёт). */
+export const TIPS_URL = "";
 export const TIPS_TEXT =
   "Огромное спасибо, что играли с нами! Если вечер понравился и есть желание поддержать ведущего и команду JoyRest — можно оставить чаевые.";
 
@@ -110,7 +111,7 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
     return (
       <div className="finale-hall">
         <div className="finale-qrs">
-          <TipsQr url={TIPS_URL} />
+          {TIPS_URL && <TipsQr url={TIPS_URL} />}
           <figure className="finale-qr">
             <QrCode value={CHANNEL_URL} label="QR-код канала JoyRest в Telegram" className="finale-qr__code" />
             <figcaption>
@@ -126,7 +127,7 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
   return (
     <div className="finale-hall">
       <div className="finale-qrs">
-        <TipsQr url={finale?.tipsUrl || TIPS_URL} />
+        {(finale?.tipsUrl || TIPS_URL) && <TipsQr url={finale?.tipsUrl || TIPS_URL} />}
         <figure className="finale-qr">
           <QrCode value={reviewUrl(sessionId)} label="QR-код: оставить отзыв" className="finale-qr__code" />
           <figcaption>
@@ -183,6 +184,7 @@ function TipsQr({ url }: { url: string }) {
 export function FinalePhone({ sessionId }: { sessionId: string }) {
   const [finale, setFinale] = useFinale(sessionId);
   if (!finaleRepo) {
+    if (!TIPS_URL) return null;
     return (
       <section className="card stack finale-phone">
         <TipsButton />
@@ -192,7 +194,7 @@ export function FinalePhone({ sessionId }: { sessionId: string }) {
   return (
     <section className="card stack finale-phone" aria-labelledby="finale-title">
       <h2 id="finale-title">Спасибо, что были с нами!</h2>
-      <TipsButton url={finale?.tipsUrl || TIPS_URL} />
+      {(finale?.tipsUrl || TIPS_URL) && <TipsButton url={finale?.tipsUrl || TIPS_URL} />}
       <ReviewForm sessionId={sessionId} initial={finale?.myReview ?? null} onSaved={(r) => finale && setFinale({ ...finale, myReview: r })} />
       <FinaleLinks avito={!finale?.myReview} />
     </section>

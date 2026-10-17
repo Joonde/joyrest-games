@@ -56,10 +56,12 @@ function ReviewBody({ sessionId }: { sessionId: string }) {
           <p className="muted">Загружаем…</p>
         )}
       </section>
+      {(finale?.tipsUrl || TIPS_URL) && (
       <section className="card stack">
         <h2>Чаевые</h2>
         <TipsButton url={finale?.tipsUrl || TIPS_URL} />
       </section>
+      )}
       <section className="card stack">
         <h2>Мы на связи</h2>
         <FinaleLinks avito={!finale?.myReview} />

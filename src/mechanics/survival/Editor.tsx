@@ -101,7 +101,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
           </div>
         {importing && (
           <div className="stack stack--tight">
-            <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …». «(150)» в конце — очки.</p>
+            <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …» («Задание: для команд || для каждого сам» — второй текст в режиме «каждый сам»). «(150)» в конце — очки.</p>
             <textarea value={text} rows={10} placeholder={"Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nЗадание: спойте гимн команды (200)"} onChange={(e) => setText(e.target.value)} />
             <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replace(parseSurvivalList(text), "Заменить раунды списком")}>
               Заменить раунды
@@ -146,6 +146,13 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
                       {round.kind === "task" && !war ? "Задание" : "Вопрос"}
                       <textarea rows={2} maxLength={SURVIVAL_LIMITS.text} value={round.text} disabled={!editable} onChange={(e) => update(round.id, { text: e.target.value })} />
                     </label>
+                    {round.kind === "task" && !war && (
+                      <label className="field">
+                        Для режима «каждый сам»
+                        <span className="muted small">Если задание командное («капитан», «вся команда») — напишите, как его выполнить одному. Пусто — тот же текст.</span>
+                        <textarea rows={2} maxLength={SURVIVAL_LIMITS.text} value={round.solo} disabled={!editable} onChange={(e) => update(round.id, { solo: e.target.value })} />
+                      </label>
+                    )}
                     {(round.kind === "choice" || war) &&
                       round.options.map((o, k) => (
                         <div key={k} className="row mil-editor-option">
@@ -160,7 +167,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
                       ))}
                     {round.kind !== "choice" && !war && (
                       <label className="field">
-                        {round.kind === "open" ? "Верный ответ (несколько — через «|»)" : "Тайные слова командам через «|» (капитан видит своё на телефоне, ведущий — у кого какое)"}
+                        {round.kind === "open" ? "Верный ответ (несколько — через «|»)" : "Тайные слова командам через «|» (капитан — в «каждый сам» сам игрок — видит своё на телефоне, ведущий — у кого какое)"}
                         <input maxLength={SURVIVAL_LIMITS.answer} value={round.answer} disabled={!editable} onChange={(e) => update(round.id, { answer: e.target.value })} />
                       </label>
                     )}

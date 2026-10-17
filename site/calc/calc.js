@@ -156,12 +156,9 @@
     }
   }
 
-  /** Текст расчёта для менеджера: тот же, что карточка «Ваш расчёт» в заявке сайта, + выбранный формат. */
+  /** Текст расчёта для менеджера: строки «Что: значение» и три цены, выбранный формат отмечен ✅. */
   function text() {
-    var s = P.calcSummary(state);
-    var level = P.LEVELS.filter(function (l) { return l.id === state.level; })[0];
-    var r = P.calcPrice(state);
-    return 'Расчёт JoyRest: ' + s.text + (level && !r.individual ? ' Формат ведущего: ' + level.name + '.' : '');
+    return P.calcMessage(state, state.level || '');
   }
 
   var toastTimer = 0;

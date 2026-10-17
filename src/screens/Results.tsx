@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { formatClock, formatDate } from "../core/format";
 import { participantsLabel } from "../core/results";
 import { resultsRepo, useAuth, useLoad, type GameResult } from "../data";
+import { FinaleLinks } from "../components/live/Finale";
 import { Logo } from "../components/Logo";
 import { ResultsTable, ShareResults } from "../components/Results";
 import { PlaySkeleton } from "../components/Skeleton";
@@ -41,11 +42,6 @@ function ResultsView({ result }: { result: GameResult }) {
 
   return (
     <main className="page">
-      {back && (
-        <Link className="btn btn--quiet back-link" to={back}>
-          ← Назад к отзыву
-        </Link>
-      )}
       <Logo kind="monogram" className="logo--mark" title="JoyRest" />
       <header className="stack stack--tight page-heading">
         <p className="eyebrow">Итоги игры</p>
@@ -57,10 +53,16 @@ function ResultsView({ result }: { result: GameResult }) {
         <ResultsTable result={result} />
       </section>
       <ShareResults result={result} onToast={showToast} primary />
+      {!host && (
+        <section className="card stack">
+          <h2>Понравилось?</h2>
+          <FinaleLinks />
+        </section>
+      )}
       <div className="actions">
         {back && (
           <Link className="btn btn--block" to={back}>
-            ← Назад к отзыву и чаевым
+            ← Вернуться к отзыву
           </Link>
         )}
         <Link className="btn btn--quiet btn--block" to={host ? "/studio" : "/"}>

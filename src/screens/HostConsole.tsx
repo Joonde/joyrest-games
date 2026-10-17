@@ -188,11 +188,13 @@ function Console({ session }: { session: Session }) {
     return () => window.clearTimeout(timer);
   }, [sizesKey, reveal.hidden, reveal.sizes, session.id, session.state.phase]);
 
-  // Счётчик «Ответили: N» для экрана зала — не чаще раза в 2 секунды.
+  // Счётчик «Ответили: N» для экрана зала — не чаще раза в 2 секунды. Механика со своим счётчиком
+  // (`ownAnswered`: голоса, ставки, оценки) пишет его сама — не спорим с ней.
   const ownCount = answers.filter((a) => a.step === session.state.step).length;
   const lastCountWrite = useRef(0);
+  const countsItself = mechanic?.ownAnswered === true;
   useEffect(() => {
-    if (session.state.stage !== "question" || ownCount === session.state.answered) return;
+    if (countsItself || session.state.stage !== "question" || ownCount === session.state.answered) return;
     const wait = Math.max(0, lastCountWrite.current + ANSWERED_THROTTLE_MS - Date.now());
     const timer = window.setTimeout(() => {
       lastCountWrite.current = Date.now();
@@ -202,7 +204,7 @@ function Console({ session }: { session: Session }) {
       }
     }, wait);
     return () => window.clearTimeout(timer);
-  }, [ownCount, session.id, session.state.stage, session.state.answered]);
+  }, [ownCount, countsItself, session.id, session.state.stage, session.state.answered]);
 
   const control: SessionControl = useMemo(
     () => ({
@@ -412,7 +414,8 @@ function Console({ session }: { session: Session }) {
             {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
             {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}
             {/* Перерыв и итоги вечера ведёт своя карточка («Награждение вечера»). */}
-            {phase === "playing" && !standalone && session.mechanic !== EVENING_MECHANIC && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
+            {/* Механики со своим награждением на пульте (`ownAward`: партии, «Закончить и наградить») — без общей кнопки. */}
+            {phase === "playing" && !standalone && !mechanic?.ownAward && session.mechanic !== EVENING_MECHANIC && session.state.stage !== "podium" && hasPodium(session.leaderboard) && (
               <>
                 <button className="btn btn--secondary btn--block" disabled={busy || !canAwardNow(session.state)} onClick={() => setConfirmAward(true)}>
                   Наградить сейчас

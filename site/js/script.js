@@ -501,11 +501,8 @@
   }
   // Витрина: расчёт — текстом менеджеру, куда удобно клиенту (окно #sendSheet).
   function showcaseText(){
-    const opts = calcOpts();
-    const s = P.calcSummary(opts);
-    const r = P.calcPrice(opts);
-    const level = P.LEVELS.find((l) => l.id === (hostLevelField.value || ''));
-    return 'Расчёт JoyRest: ' + s.text + (level && !r.individual ? ' Формат ведущего: ' + level.name + '.' : '');
+    // Строки «Что: значение» — менеджер сразу видит, что напротив чего (решение владельца 17 октября 2026).
+    return P.calcMessage(calcOpts(), hostLevelField.value || '');
   }
   function copyCalc(value, message){
     const done = () => topToast(message || 'Расчёт скопирован — вставьте его в чат с менеджером', null, null, 6000);
@@ -574,6 +571,17 @@
     $('sendClose').addEventListener('click', closeSheet);
     sheet.addEventListener('click', (ev) => { if(ev.target === sheet) closeSheet(); });
     document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') closeSheet(); });
+  }
+  // «?» у трёх цен: чем отличаются форматы ведущих.
+  const levelsSheet = $('levelsSheet');
+  if(levelsSheet){
+    let from = null;
+    const close = () => { if(levelsSheet.hidden) return; levelsSheet.hidden = true; document.body.style.overflow = ''; if(from) from.focus(); };
+    $('levelsHelp').addEventListener('click', (e) => { from = e.currentTarget; levelsSheet.hidden = false; document.body.style.overflow = 'hidden'; $('levelsClose').focus(); });
+    $('levelsClose').addEventListener('click', close);
+    $('levelsMore').addEventListener('click', () => { from = null; close(); });
+    levelsSheet.addEventListener('click', (ev) => { if(ev.target === levelsSheet) close(); });
+    document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') close(); });
   }
   if(SHOWCASE){
     $('calcSubmit').textContent = 'Отправить расчёт менеджеру';

@@ -136,6 +136,16 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
    * темах JoyRest — сезонные и праздничные темы остаются со своим живым фоном. null — без фона.
    */
   art?: (content: Content) => string | null;
+  /**
+   * Пульт механики сам ведёт к награждению («Закончить и наградить», партии): идёт она почти всё время на этапе
+   * `question`, поэтому общая кнопка «Наградить сейчас» (только с `ready`, `reveal`, `board`) не показывается.
+   */
+  ownAward?: boolean;
+  /**
+   * Пульт механики сам пишет `state.answered` (голоса, ставки, оценки — не все ответы шага): общий счётчик
+   * ответов пульта его не перезаписывает.
+   */
+  ownAnswered?: boolean;
   /** Встроенная музыка момента на экране зала (заставка вопроса, выбор в суперигре); null — нет. */
   music?: (session: Session, content: Content) => MusicMoment | null;
   /**

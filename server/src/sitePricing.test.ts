@@ -23,6 +23,7 @@ interface Summary { type: string; guests: number | null; parts: string[]; totals
 interface Pricing {
   calcPrice(o: Options): Result;
   calcSummary(o: Options): Summary;
+  calcMessage(o: Options, level: string): string;
   hoursWord(n: number): string;
   gamesWord(n: number): string;
   TIERS: number[];
@@ -192,5 +193,32 @@ describe("калькулятор сайта: цены", () => {
     const evening = P.calcSummary({ pkg: "show", tier: 0, extras: ["dance", "show"] });
     expect(evening.parts).toContain("ещё в этот вечер: Танцевальный");
     expect(evening.text.length).toBeLessThanOrEqual(1000);
+  });
+  it("сообщение менеджеру: строки «что: значение», выбранный формат отмечен", () => {
+    const m = P.calcMessage({ pkg: "quiz", tier: 1, ext: 1, addons: ["prize", "logo"] }, "new");
+    expect(m.split("\n")).toEqual([
+      "🧮 Расчёт JoyRest",
+      "────────────",
+      "Пакет: Квиз",
+      "Гостей: до 25",
+      "День: будни",
+      "Продление: 30 мин",
+      "Допы: Логотип на экранах, Призы и медали",
+      "Длительность: ≈ 2–2,5 часа",
+      "────────────",
+      "Стоимость по формату ведущего:",
+      "▫️ Опытный: 34 300 ₽",
+      "✅ Новые лица (−20%): 28 000 ₽ — выбран",
+      "▫️ Первый старт (−35%): 23 200 ₽",
+    ]);
+    const plain = P.calcMessage({ pkg: "show", tier: 0, weekend: true, extras: ["dance"] }, "");
+    expect(plain).toContain("Ещё игры: Танцевальный");
+    expect(plain).toContain("Продление: нет");
+    expect(plain).not.toContain("✅");
+    const turnkey = P.calcMessage({ pkg: "turnkey", tier: 5 }, "standard");
+    expect(turnkey).toContain("Пакет: Под ключ");
+    expect(turnkey).toContain("Гостей: больше 90");
+    expect(turnkey).toContain("Стоимость: обсудим индивидуально");
+    expect(turnkey).not.toMatch(/\u00a0/);
   });
 });

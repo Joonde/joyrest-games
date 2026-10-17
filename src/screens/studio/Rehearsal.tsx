@@ -13,7 +13,7 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../../components/Status";
 import { TopBar } from "../../components/TopBar";
-import { getMechanic, validateGame } from "../../mechanics/registry";
+import { getMechanic, supportedPlayMode, validateGame } from "../../mechanics/registry";
 import type { SessionControl } from "../../mechanics/types";
 import type { Participant } from "../../data";
 import { rehearsalParticipants } from "./rehearsalTeams";
@@ -59,7 +59,8 @@ function initialSession(game: Game, hostId: string): Session {
     mechanic: game.mechanic,
     gameSnapshot: null,
     themeId: game.themeId,
-    playMode: game.playMode,
+    // Режим, который механика поддерживает (как при запуске): «Шашки» — команды, «Мафия» — каждый сам.
+    playMode: supportedPlayMode(game.mechanic, game.playMode),
     screenMode: "laptop",
     state: startState(),
     leaderboard: {},
@@ -72,7 +73,7 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
   const content = useMemo(() => (mechanic ? mechanic.parse(game.content) : null), [mechanic, game.content]);
   const [session, setSession] = useState(() => initialSession(game, hostId));
   // Игры по очереди команд без участников не начать — на репетиции за них играют тестовые команды.
-  const demo: Participant[] = useMemo(() => rehearsalParticipants(game.mechanic, game.playMode), [game.mechanic, game.playMode]);
+  const demo: Participant[] = useMemo(() => rehearsalParticipants(game.mechanic, session.playMode), [game.mechanic, session.playMode]);
   // Звуки и фрагменты «Угадай мелодию» на репетиции — после первого касания, как на экране зала.
   useSoundUnlock();
   const control: SessionControl = useMemo(

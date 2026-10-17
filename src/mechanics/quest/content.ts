@@ -10,6 +10,8 @@ export interface QuestCell {
   kind: QuestKind;
   /** Задание или вопрос. */
   text: string;
+  /** Текст для режима «каждый сам» (задание командное — как выполнить одному); пусто — тот же `text`. */
+  solo: string;
   /** Ответ на вопрос — видит ведущий. */
   answer: string;
   /** Очки за выполненное задание. */
@@ -71,7 +73,7 @@ function id(): string {
 const CLIP = () => clipFields(parseClip({})) as Pick<QuestCell, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">;
 
 export function newQuestCell(kind: QuestKind = "task", text = ""): QuestCell {
-  return { id: id(), kind, text, answer: "", points: kind === "task" || kind === "question" || kind === "dance" || kind === "karaoke" ? 50 : 0, move: kind === "bonus" ? 2 : kind === "trap" ? -2 : 0, videoUrl: "", ...CLIP() };
+  return { id: id(), kind, text, solo: "", answer: "", points: kind === "task" || kind === "question" || kind === "dance" || kind === "karaoke" ? 50 : 0, move: kind === "bonus" ? 2 : kind === "trap" ? -2 : 0, videoUrl: "", ...CLIP() };
 }
 
 export function createQuest(): QuestContent {
@@ -98,6 +100,7 @@ export function parseQuest(raw: unknown): QuestContent {
       id: cid,
       kind,
       text: str(c.text, QUEST_LIMITS.text),
+      solo: str(c.solo, QUEST_LIMITS.text),
       answer: str(c.answer, QUEST_LIMITS.answer),
       points: int(c.points, 0, 0, QUEST_LIMITS.maxPoints),
       move: int(c.move, 0, -QUEST_LIMITS.maxMove, QUEST_LIMITS.maxMove),
@@ -120,7 +123,7 @@ export function resizeQuest(content: QuestContent, n: number): QuestContent {
 /**
  * «Заполнить из списка»: строка — клетка по порядку. «Вопрос: текст = ответ», «Танец: …»,
  * «Караоке: …», «+3» / «Бонус +3», «−2» / «Ловушка −2», «Пропуск», «Пусто», иначе — задание.
- * «… (50)» в конце — очки.
+ * «… (50)» в конце — очки. «Задание для команд || задание для каждого сам» — второй текст в режиме «каждый сам».
  */
 export function parseQuestList(text: string): QuestCell[] {
   return text
@@ -130,7 +133,8 @@ export function parseQuestList(text: string): QuestCell[] {
     .slice(0, QUEST_LIMITS.maxCells)
     .map((line) => {
       const pts = line.match(/\((\d{1,4})\)\s*$/);
-      const body = pts ? line.slice(0, pts.index).trim() : line;
+      // «текст для команд || текст для режима „каждый сам“».
+      const [body = "", soloPart = ""] = (pts ? line.slice(0, pts.index).trim() : line).split(/\s*\|\|\s*/);
       const points = pts ? Math.min(QUEST_LIMITS.maxPoints, Number(pts[1])) : undefined;
       const lower = body.toLowerCase();
       // Бонус и ловушка — только отдельной строкой: «+3», «−2», «Бонус +3», «Ловушка: −2» (а не «- 3 причины…»).
@@ -149,9 +153,15 @@ export function parseQuestList(text: string): QuestCell[] {
       else if (/^караоке\s*[:.]/.test(lower)) cell = { ...newQuestCell("karaoke"), text: body.replace(/^караоке\s*[:.]\s*/i, "") };
       else cell = { ...newQuestCell("task"), text: body.replace(/^задание\s*[:.]\s*/i, "") };
       cell.text = cell.text.slice(0, QUEST_LIMITS.text);
+      if (soloPart.trim() && cell.kind !== "question" && cell.kind !== "empty") cell.solo = soloPart.trim().replace(/^(задание|танец|караоке)\s*[:.]\s*/i, "").slice(0, QUEST_LIMITS.text);
       if (points !== undefined) cell.points = points;
       return cell;
     });
+}
+
+/** Текст клетки для режима игры: в «каждый сам» — `solo`, если он есть. */
+export function cellText(cell: QuestCell, playMode: string | undefined): string {
+  return playMode === "solo" && cell.solo ? cell.solo : cell.text;
 }
 
 export function questTrackIds(content: QuestContent): string[] {

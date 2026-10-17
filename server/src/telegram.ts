@@ -9,6 +9,9 @@
  * - Владелец или менеджер по продажам пересылает боту сообщение клиента или текст заявки — клиент попадает в базу клиентов.
  * - Новая заявка клиента (сайт, вопрос, запрос по QR) — менеджерам по продажам «Новая заявка» со ссылкой в студию
  *   (`salesNotice`), без имени, телефона и адреса: их видно только в студии. Владельцу заявки приходят как раньше.
+ * - Telegram Business (решение владельца 17 октября 2026): владелец или менеджер подключает бота к своему Telegram
+ *   («Настройки → Telegram для бизнеса → Чат-боты»). Клиент прислал ему расчёт с сайта («Расчёт JoyRest») — клиент сам
+ *   попадает в базу с текстом расчёта, менеджерам — «Новый клиент из Telegram». Другие переписки бот не читает и не хранит.
  *
  * Сообщения бот читает через getUpdates (без вебхука и без открытых адресов). Читать может только одно окружение:
  * TELEGRAM_UPDATES=on у основной версии (compose); без переменной — только на тестовой (адреса test.*).
@@ -80,6 +83,7 @@ export interface BotOptions {
 }
 
 interface TgUser {
+  id?: number;
   first_name?: string;
   last_name?: string;
   username?: string;
@@ -94,14 +98,32 @@ interface TgMessage {
   forward_origin?: { type: string; sender_user?: TgUser; sender_user_name?: string };
   forward_from?: TgUser;
   forward_sender_name?: string;
+  business_connection_id?: string;
+}
+
+/** Подключение бота к Telegram владельца или менеджера (Telegram Business). */
+interface TgBusinessConnection {
+  id: string;
+  user: TgUser;
+  user_chat_id: number;
+  is_enabled: boolean;
+}
+
+/** Сообщение — расчёт с сайта JoyRest (калькулятор, витрина, /calc/). */
+export function isCalcMessage(text: string): boolean {
+  return /Расч[её]т\s+JoyRest/i.test(text);
 }
 
 /** Откуда новая заявка: с сайта, вопрос с сайта, запрос по QR-анкете. */
-export type SalesLeadKind = "site" | "question" | "venue";
+export type SalesLeadKind = "site" | "question" | "venue" | "telegram";
 
 /** Текст «Новая заявка» для менеджера: что пришло и куда смотреть — без имени, телефона и адреса клиента. */
 export function salesNoticeText(kind: SalesLeadKind, platformUrl: string): string {
-  const what = kind === "site" ? "Новая заявка с сайта" : kind === "question" ? "Новый вопрос с сайта" : "Новый запрос клиента по QR-анкете";
+  const what =
+    kind === "site" ? "Новая заявка с сайта"
+    : kind === "question" ? "Новый вопрос с сайта"
+    : kind === "telegram" ? "Новый клиент прислал расчёт с сайта в Telegram"
+    : "Новый запрос клиента по QR-анкете";
   const where = kind === "venue" ? `${platformUrl}/venues` : `${platformUrl}/studio/clients`;
   return `🔔 ${what}.
 Свяжитесь с клиентом в течение 30 минут (в рабочее время) и поставьте статус «В работе».
@@ -227,7 +249,7 @@ export function startBot(options: BotOptions): Bot {
       log.info({ telegram: "link", result: "ok" }, "telegram");
       const [u] = await sql<{ role: string; access_role: string | null }[]>`select role, access_role from users where id = ${row.user_id}`;
       const ownerHint = permissions.canManageClients({ uid: row.user_id, role: u?.role === "admin" ? "admin" : "host", active: true, accessRole: u?.access_role ?? null })
-        ? "\n\nКлиенты: перешлите сюда сообщение клиента или текст заявки — клиент попадёт в базу клиентов."
+        ? "\n\nКлиенты: перешлите сюда сообщение клиента или текст заявки — клиент попадёт в базу клиентов.\n\nЕщё удобнее: подключите этого бота к своему Telegram («Настройки» → «Telegram для бизнеса» → «Чат-боты»). Тогда расчёты с сайта, которые клиенты присылают вам, сами попадут в «Клиенты»."
         : "";
       await sendChat(chatId, `✅ Telegram подключён. Сюда будут приходить ваши мероприятия JoyRest: назначение, изменения, отмена и напоминания за день (за сутки) и за 2 часа.\n\nОтключить — /stop${ownerHint}`);
       return;
@@ -277,12 +299,98 @@ export function startBot(options: BotOptions): Bot {
     await sendChat(chatId, `✅ Клиент в базе (${got.join(", ")}).\n${platformUrl}/studio/clients`);
   }
 
+  // ───── Telegram Business: расчёты, которые клиенты пишут владельцу или менеджеру ─────
+  /** Кто подключил бота: владелец или менеджер с подключённым в студии Telegram. */
+  async function businessOwner(chatId: number): Promise<string | null> {
+    const [link] = await sql<{ user_id: string; role: string; active: boolean; access_role: string | null }[]>`
+      select l.user_id, u.role, u.active, u.access_role from tg_links l join users u on u.id = l.user_id where l.chat_id = ${chatId}`;
+    if (!link) return null;
+    return permissions.canManageClients({ uid: link.user_id, role: link.role === "admin" ? "admin" : "host", active: link.active, accessRole: link.access_role }) ? link.user_id : null;
+  }
+
+  async function handleConnection(c: TgBusinessConnection, quiet = false): Promise<void> {
+    const key = `biz:${c.id}`;
+    if (!c.is_enabled) {
+      await sql`delete from tg_state where key = ${key}`;
+      if (!quiet) await sendChat(c.user_chat_id, "Бот JoyRest отключён от вашего Telegram: расчёты клиентов больше не попадают в «Клиенты» сами.");
+      log.info({ telegram: "business", result: "off" }, "telegram");
+      return;
+    }
+    const owner = await businessOwner(c.user_chat_id);
+    if (!owner) {
+      await sql`delete from tg_state where key = ${key}`;
+      if (!quiet) {
+        await sendChat(
+          c.user_chat_id,
+          "Бот JoyRest подключён к вашему Telegram, но клиенты сюда пока не попадут: сначала подключите Telegram в студии («Мой профиль» → «Уведомления в Telegram»), потом в настройках Telegram отключите и снова подключите бота.",
+        );
+      }
+      log.info({ telegram: "business", result: "not-allowed" }, "telegram");
+      return;
+    }
+    const value = JSON.stringify({ user: c.user.id ?? c.user_chat_id, chat: c.user_chat_id, owner });
+    await sql`insert into tg_state (key, value) values (${key}, ${value}) on conflict (key) do update set value = excluded.value`;
+    if (!quiet) {
+      await sendChat(
+        c.user_chat_id,
+        `✅ Бот JoyRest подключён к вашему Telegram.\n\nКогда клиент пришлёт вам расчёт с сайта («Расчёт JoyRest»), он сам попадёт в «Клиенты» вместе с расчётом, а менеджерам придёт уведомление. Другие переписки бот не читает и не хранит.\n${platformUrl}/studio/clients`,
+      );
+    }
+    log.info({ telegram: "business", result: "on" }, "telegram");
+  }
+
+  async function connectionOf(id: string): Promise<{ user: number; chat: number } | null> {
+    const read = async () => {
+      const [row] = await sql<{ value: string }[]>`select value from tg_state where key = ${`biz:${id}`}`;
+      try {
+        return row ? (JSON.parse(row.value) as { user: number; chat: number }) : null;
+      } catch {
+        return null;
+      }
+    };
+    const known = await read();
+    if (known) return known;
+    // Бота подключили, пока сервер не читал сообщения, — спросим Telegram, кто это.
+    try {
+      const r = await call("getBusinessConnection", { business_connection_id: id });
+      if (!r.ok || !r.result) return null;
+      await handleConnection(r.result as TgBusinessConnection, true);
+    } catch {
+      return null;
+    }
+    return read();
+  }
+
+  async function handleBusiness(m: TgMessage): Promise<void> {
+    if (!m.business_connection_id || m.chat.type !== "private") return;
+    const text = (m.text ?? m.caption ?? "").trim();
+    // Только расчёты с сайта: остальную переписку не трогаем и не храним.
+    if (!isCalcMessage(text)) return;
+    const conn = await connectionOf(m.business_connection_id);
+    if (!conn) return;
+    const from = m.from;
+    // Своё сообщение владельца (переслал расчёт клиенту) — не клиент.
+    if (!from || from.id === conn.user || m.chat.id === conn.chat) return;
+    const links = parseLinks(text);
+    links.unshift(from.username ? `https://t.me/${from.username}` : `tg://user?id=${from.id ?? m.chat.id}`);
+    const id = await upsertClient(sql, {
+      name: [from.first_name, from.last_name].filter(Boolean).join(" "),
+      phone: "",
+      links,
+      source: "telegram",
+      summary: `Расчёт с сайта — прислал в Telegram:\n${text}`,
+      ref: `tgb-${m.chat.id}-${m.message_id}`,
+    });
+    log.info({ telegram: "business-client", result: id ? "ok" : "no-contact" }, "telegram");
+    if (id) await salesNotice("telegram");
+  }
+
   async function poll(): Promise<void> {
     const [state] = await sql<{ value: string }[]>`select value from tg_state where key = 'offset'`.catch(() => []);
     let offset = Number(state?.value) || 0;
     while (!stopped) {
       try {
-        const r = await call("getUpdates", { offset, timeout: POLL_TIMEOUT_S, allowed_updates: ["message"] }, (POLL_TIMEOUT_S + 10) * 1000);
+        const r = await call("getUpdates", { offset, timeout: POLL_TIMEOUT_S, allowed_updates: ["message", "business_connection", "business_message"] }, (POLL_TIMEOUT_S + 10) * 1000);
         if (r.status === 409) pollState = "conflict";
         else if (r.ok) {
           pollState = "ok";
@@ -298,10 +406,15 @@ export function startBot(options: BotOptions): Bot {
           await sleep(10_000);
           continue;
         }
-        const updates = Array.isArray(r.result) ? (r.result as Array<{ update_id: number; message?: TgMessage }>) : [];
+        const updates = Array.isArray(r.result)
+          ? (r.result as Array<{ update_id: number; message?: TgMessage; business_connection?: TgBusinessConnection; business_message?: TgMessage }>)
+          : [];
         for (const u of updates) {
           offset = u.update_id + 1;
-          if (u.message) await handle(u.message).catch(() => log.warn({ telegram: "handle" }, "telegram: сообщение не обработано"));
+          const fail = () => log.warn({ telegram: "handle" }, "telegram: сообщение не обработано");
+          if (u.message) await handle(u.message).catch(fail);
+          if (u.business_connection) await handleConnection(u.business_connection).catch(fail);
+          if (u.business_message) await handleBusiness(u.business_message).catch(fail);
         }
         if (updates.length > 0) {
           await sql`insert into tg_state (key, value) values ('offset', ${String(offset)}) on conflict (key) do update set value = excluded.value`;

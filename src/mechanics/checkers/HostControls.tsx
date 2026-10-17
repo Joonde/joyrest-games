@@ -1,11 +1,11 @@
-import { resultKey } from "../../core/session";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
-import { secondsLeft } from "../../core/session";
+import { resultKey, secondsLeft } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import type { CheckersContent } from "./content";
@@ -18,17 +18,9 @@ import { CheckersBoard, MovePicker } from "./views";
  * «Показать ответ» (+20 за верный) → «Ход: …». «Пропустить ход», «Назад», «Завершить партию».
  */
 export function CheckersHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<CheckersContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Ход с телефона меняет доску: касание ведущего по старой доске не повторяем — просим нажать ещё раз.
+  const { busy, error, setError, latest, inFlight, run, quiet } = useHostRun(session, control, rehearsal, { moment: (s) => resultKey(s.state.result) });
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parseCheckersResult(session.state.result);
   const q = currentQuestion(content, r);
@@ -38,12 +30,12 @@ export function CheckersHostControls({ session, content, answers, participants, 
   // Пришёл ход капитана — проверяем по правилам и ставим на доску (любой открытый пульт; `expect` мирит).
   const moveKey = stage === "question" && r.mode === "move" ? answers.filter((a) => a.step === step && a.pid === r.mover).map((a) => a.id).join(",") : "";
   useEffect(() => {
-    if (!moveKey || busy) return;
+    if (!moveKey || busy || inFlight.current) return;
     const current = latest.current;
     const { phase, step: atStep, stage: atStage, startedAt } = current.state;
     const change = moveChange(current, answers);
     if (change) {
-      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+      void quiet(change);
       return;
     }
     // Пришёл ход не по правилам (телефон видел старую доску): убираем его и просим сходить заново.
@@ -58,42 +50,7 @@ export function CheckersHostControls({ session, content, answers, participants, 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только когда пришёл ход
   }, [moveKey, busy, session.state.startedAt]);
 
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | (() => Promise<SessionChange>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      // «Назад»: сначала убрать старые ответы, потом открыть шаг заново — иначе телефон, нажавший в эту
-      // секунду, получит отказ и «вспомнит» старый ответ.
-      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      // Отпечаток итогов шага: второй пульт не повторит «Выполнено» / «Неверно» по устаревшему виду.
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function revealNow(): Promise<SessionChange> {
+  async function revealNow(s: Session): Promise<SessionChange> {
     let all = answers;
     try {
       const fresh = await control.freshAnswers(step);
@@ -101,7 +58,7 @@ export function CheckersHostControls({ session, content, answers, participants, 
     } catch {
       // по тому, что пришло
     }
-    return revealTask(latest.current, content, all);
+    return revealTask(s, content, all);
   }
 
   const action = checkersPrimary(session, content);
@@ -125,13 +82,13 @@ export function CheckersHostControls({ session, content, answers, participants, 
   };
 
   function perform() {
-    if (action === "start") void run(startGame(session, participants));
-    if (action === "task") void run(toTask(session, content));
+    if (action === "start") void run((s) => startGame(s, participants));
+    if (action === "task") void run((s) => toTask(s, content));
     if (action === "taskReveal") void run(revealNow);
-    if (action === "turn") void run(nextTurn(session));
-    if (action === "end") void run(endGame(session));
-    if (action === "podium") void run(awardNow(session));
-    if (action === "podiumNext") void run(podiumNext(session));
+    if (action === "turn") void run((s) => nextTurn(s));
+    if (action === "end") void run((s) => endGame(s));
+    if (action === "podium") void run((s) => awardNow(s));
+    if (action === "podiumNext") void run((s) => podiumNext(s));
     if (action === "finish") control.requestFinish();
   }
 
@@ -174,10 +131,10 @@ export function CheckersHostControls({ session, content, answers, participants, 
                 <>
                   <p className="muted small">Ответили вслух или это задание — засчитайте сами:</p>
                   <div className="row checkers-host__movers">
-                    <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === true} disabled={busy} onClick={() => void run(markTask(session, r.taskOk === true ? null : true))}>
+                    <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === true} disabled={busy} onClick={() => void run((s) => markTask(s, r.taskOk === true ? null : true))}>
                       Верно
                     </button>
-                    <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === false} disabled={busy} onClick={() => void run(markTask(session, r.taskOk === false ? null : false))}>
+                    <button type="button" className="btn btn--secondary" aria-pressed={r.taskOk === false} disabled={busy} onClick={() => void run((s) => markTask(s, r.taskOk === false ? null : false))}>
                       Неверно
                     </button>
                   </div>
@@ -221,7 +178,7 @@ export function CheckersHostControls({ session, content, answers, participants, 
           {labels[action]}
         </button>
         {r.mode === "move" && stage === "question" && r.mover && (
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(skipMove(session))}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => skipMove(s))}>
             Пропустить ход
           </button>
         )}
@@ -231,14 +188,14 @@ export function CheckersHostControls({ session, content, answers, participants, 
                 title: "Завершить партию досрочно?",
                 text: "Вопросы дальше не пойдут. Побеждает команда с большим счётом, потом награждение. «Назад» вернёт партию.",
                 confirmLabel: "Завершить партию",
-                run: () => run(endGame(session)),
+                run: () => run((s) => endGame(s)),
               })
             }
           >
             Завершить партию досрочно
           </button>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => checkersBack(s)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

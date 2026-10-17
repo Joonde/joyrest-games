@@ -18928,6 +18928,37 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-size: 1.5cqw;
   color: var(--color-text-muted);
 }
+/* Четыре QR (чаевые, отзыв, Авито, канал) — помещаются в кадр 16:9 одной строкой. */
+.finale-qrs:has(> :nth-child(4)) {
+  gap: 2.5cqw;
+}
+.finale-qrs:has(> :nth-child(4)) .finale-qr {
+  width: 21cqw;
+}
+.finale-qrs:has(> :nth-child(4)) .finale-qr__code {
+  width: 16cqw;
+  max-width: 28cqh;
+}
+.finale-qrs:has(> :nth-child(4)) .finale-qr figcaption strong {
+  font-size: 2.2cqw;
+}
+.finale-qrs:has(> :nth-child(4)) .finale-qr figcaption span {
+  font-size: 1.3cqw;
+}
+.finale-hall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2cqh;
+  width: 100%;
+}
+.finale-hall__line {
+  margin: 0;
+  font-size: 1.8cqw;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
 .finale-phone h2 {
   text-wrap: balance;
 }

@@ -14,6 +14,8 @@ export const spy: Mechanic<SpyContent, SpyAnswerValue> = {
   id: "spy",
   title: "Шпион",
   supports: { solo: true, teams: false, noScreen: true },
+  // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
+  ownAward: true,
   create: createSpy,
   parse: parseSpy,
   mediaIds: () => [],

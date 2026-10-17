@@ -157,7 +157,9 @@ export function HundredScreenView({ session, content }: ViewProps<HundredContent
             : round.kind === "big"
               ? hall
                 ? "Финал: пишем ответы с телефонов"
-                : "Финал для лидера: два игрока, пять вопросов"
+                : session.playMode === "solo"
+                  ? "Финал для лидера: два захода, пять вопросов"
+                  : "Финал для лидера: два игрока, пять вопросов"
               : multiplierOf(round.kind) > 1
                 ? `Очки ×${multiplierOf(round.kind)}`
                 : "Угадайте самые популярные ответы"}
@@ -227,7 +229,7 @@ export function HundredScreenView({ session, content }: ViewProps<HundredContent
                 Отвечает <NameText name={nameOf(session, r.buzz.current)} />
               </span>
             ) : r.mode === "face" ? (
-              <span>{r.armed ? "Капитаны, жмите «Жми первым!» на телефоне" : "Слушаем вопрос — кнопки включатся по отсчёту ведущего"}</span>
+              <span>{r.armed ? (session.playMode === "solo" ? "Жмите «Жми первым!» на телефоне" : "Капитаны, жмите «Жми первым!» на телефоне") : "Слушаем вопрос — кнопки включатся по отсчёту ведущего"}</span>
             ) : r.mode === "steal" ? (
               <span className="hd-screen__speaker">
                 Шанс для <NameText name={nameOf(session, opponentOf(r))} />: один ответ
@@ -270,7 +272,7 @@ function BigScreen({ session, content, r, left, look }: { session: Session; cont
         <span className="quiz-screen__badge">
           Большая игра · <NameText name={nameOf(session, r.big.team)} />
         </span>
-        <span className="hd-screen__source">{done ? `Итог: ${total} из ${content.bigGoal}` : `${player === 0 ? "Первый" : "Второй"} игрок · ${content.bigTimes[player]} секунд`}</span>
+        <span className="hd-screen__source">{done ? `Итог: ${total} из ${content.bigGoal}` : `${player === 0 ? "Первый" : "Второй"} ${session.playMode === "solo" ? "заход" : "игрок"} · ${content.bigTimes[player]} секунд`}</span>
         {left !== null && (
           <span className={left === 0 ? "hd-screen__count is-over" : "hd-screen__count"} role="timer">
             {left === 0 ? "Время вышло" : left}
@@ -301,7 +303,7 @@ function BigScreen({ session, content, r, left, look }: { session: Session; cont
         ) : done ? (
           <span className="hd-screen__speaker">{total >= content.bigGoal ? `Победа! +${content.bigBonus} бонус` : "Почти получилось!"}</span>
         ) : (
-          <span>{player === 1 ? "Ответ, который уже назвал первый игрок, повторять нельзя" : "Отвечайте быстро — пять вопросов подряд"}</span>
+          <span>{player === 1 ? (session.playMode === "solo" ? "Свои ответы из первого захода повторять нельзя" : "Ответ, который уже назвал первый игрок, повторять нельзя") : "Отвечайте быстро — пять вопросов подряд"}</span>
         )}
         <span className="hd-screen__bank">
           {total} из {content.bigGoal}
@@ -381,7 +383,7 @@ export function HundredPlayerView({ session, content, pid, role, myAnswer, sendi
         <p className="eyebrow">Большая игра</p>
         <div className={mine ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
           <strong>{mine ? "Большая игра — ваша!" : r.big.team ? <>Играет <NameText name={nameOf(session, r.big.team)} /></> : "Финал для лидера"}</strong>
-          <span>{mine ? "Два игрока по очереди отвечают ведущему вслух на пять вопросов" : "Смотрите на экран — болейте!"}</span>
+          <span>{mine ? (teams ? "Два игрока по очереди отвечают ведущему вслух на пять вопросов" : "Два захода на время: отвечайте ведущему вслух на пять вопросов, во втором — другие ответы") : "Смотрите на экран — болейте!"}</span>
         </div>
         {noScreen && r.mode !== "intro" && (
           <ol className="hd-phone-big">
@@ -495,7 +497,7 @@ export function HundredPlayerView({ session, content, pid, role, myAnswer, sendi
     body = (
       <div className={mine ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
         <strong>
-          {r.mode === "steal" ? (mine ? "Шанс! Посоветуйтесь и назовите один ответ" : <>Шанс для <NameText name={nameOf(session, opponentOf(r))} /></>) : mine ? "Ваша команда отвечает" : <>Отвечают <NameText name={nameOf(session, r.playing)} /> — смотрите на экран</>}
+          {r.mode === "steal" ? (mine ? (teams ? "Шанс! Посоветуйтесь и назовите один ответ" : "Шанс! Назовите один ответ") : <>Шанс для <NameText name={nameOf(session, opponentOf(r))} /></>) : mine ? (teams ? "Ваша команда отвечает" : "Вы отвечаете") : <>Отвечают <NameText name={nameOf(session, r.playing)} /> — смотрите на экран</>}
         </strong>
         <span>
           {r.mode === "play" ? (mine ? "Называйте ответы ведущему по очереди. Три ошибки — шанс соперника" : `Ошибок: ${r.strikes} из ${HUNDRED_LIMITS.strikes}. После трёх — шанс у соперника`) : "Угадают — банк их"}

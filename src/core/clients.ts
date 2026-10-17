@@ -59,6 +59,8 @@ export function phoneLabel(raw: string): string {
 }
 
 const LINK_PATTERNS: Array<[RegExp, (m: RegExpExecArray) => string]> = [
+  // Telegram без ника: ссылка на человека по номеру в Telegram (так приходят клиенты, написавшие в Telegram Business).
+  [/tg:\/\/user\?id=(\d{3,15})/i, (m) => `tg://user?id=${m[1]}`],
   [/(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\/([A-Za-z0-9_]{4,32})/i, (m) => `https://t.me/${m[1]}`],
   [/(?:https?:\/\/)?(?:www\.|m\.)?(?:vk\.com|vk\.ru)\/([A-Za-z0-9_.]{2,50})/i, (m) => `https://vk.com/${m[1]}`],
   [/(?:https?:\/\/)?(?:www\.)?instagram\.com\/([A-Za-z0-9_.]{2,30})/i, (m) => `https://instagram.com/${m[1]}`],
@@ -83,6 +85,7 @@ export function parseLinks(text: string): string[] {
 
 /** Какая сеть у ссылки — для подписи. */
 export function linkTitle(link: string): string {
+  if (/^tg:\/\/user/i.test(link)) return "Telegram (без ника)";
   if (/t\.me\//i.test(link)) return `Telegram ${link.replace(/^https:\/\/t\.me\//i, "@")}`;
   if (/vk\.com\//i.test(link)) return `ВКонтакте ${link.replace(/^https:\/\/vk\.com\//i, "")}`;
   if (/instagram\.com\//i.test(link)) return `Instagram ${link.replace(/^https:\/\/instagram\.com\//i, "")}`;

@@ -305,6 +305,7 @@ async function soloGame(browser, token) {
   step("экран зала: «Спасибо» с QR", screen);
   await expectText(screen, screen.locator(".finale-qr"), "Оставьте отзыв", "Экран зала, «Спасибо»: QR отзыва");
   await expectText(screen, screen.locator(".finale-qr"), "Наш Telegram", "Экран зала, «Спасибо»: QR канала");
+  await expectText(screen, screen.locator(".finale-qr"), "Отзыв на Авито", "Экран зала, «Спасибо»: QR Авито");
   if (await screen.locator(".screen-exit").count()) ok("Экран зала: «На главную» видно и поверх «Спасибо»");
   else bad("Экран зала: под «Спасибо» нет выхода");
   await shot(screen, "экран-спасибо", "Экран зала: «Спасибо» после игры");

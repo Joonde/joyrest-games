@@ -107,8 +107,47 @@ function rememberSession(code: string, sessionId: string): void {
   }
 }
 
+// Id сессии в адресе (`?s=<id>`): экран зала на Smart TV без localStorage и телефон в приватном режиме после
+// завершения игры (по коду её уже не найти) открывают свою игру по адресу из истории браузера.
+const URL_SESSION_PARAM = "s";
+const URL_SESSION_ID = /^[\w-]{1,64}$/;
+
+function sessionIdFromUrl(): string | null {
+  try {
+    const id = new URLSearchParams(window.location.search).get(URL_SESSION_PARAM);
+    return id && URL_SESSION_ID.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Кладёт id найденной сессии в адрес (`?s=<id>`) без перехода: перезагрузка откроет ту же игру и после её конца. */
+export function putSessionInUrl(sessionId: string): void {
+  try {
+    if (!URL_SESSION_ID.test(sessionId)) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(URL_SESSION_PARAM) === sessionId) return;
+    url.searchParams.set(URL_SESSION_PARAM, sessionId);
+    // Состояние истории (react-router) сохраняем как есть — меняется только адрес.
+    window.history.replaceState(window.history.state, "", url.toString());
+  } catch {
+    // Старый браузер без URL/history — останется поиск по коду и запомненным id.
+  }
+}
+
 async function findSession(code: string, hostId: string | undefined): Promise<Session | null> {
   if (hostId) return sessionsRepo.findHostSessionByCode(code, hostId);
+  // Сначала — id из адреса (если код совпадает), потом поиск по коду и запомненные id.
+  const urlId = sessionIdFromUrl();
+  if (urlId) {
+    try {
+      const fromUrl = await sessionsRepo.get(urlId);
+      if (fromUrl?.code === code) return fromUrl;
+    } catch (error) {
+      // Сбой сети — обычный повтор; не найдено или нет доступа — ищем по коду, как раньше.
+      if (errorCodeOf(error) === "unavailable") throw error;
+    }
+  }
   const knownId = knownSessions().find(([c]) => c === code)?.[1];
   let active: Session | null;
   try {
@@ -158,6 +197,7 @@ export function useSessionByCode(
           return;
         }
         rememberSession(code, found.id);
+        if (!hostId) putSessionInUrl(found.id);
         setState({ status: "ready", session: found });
         unsubscribe = sessionsRepo.watch(
           found.id,

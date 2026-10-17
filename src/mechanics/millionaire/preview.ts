@@ -36,7 +36,7 @@ export const millionairePreview: PreviewDriver<MillionaireContent> = ({ session,
     case "retry":
       return { label: "Пульт: «Ответить ещё раз»", change: retryQuestion(session, content) };
     case "next":
-      return { label: "Пульт: «Следующая команда»", change: nextTurn(session, content, participants) };
+      return { label: session.playMode === "teams" ? "Пульт: «Следующая команда»" : "Пульт: «Следующий игрок»", change: nextTurn(session, content, participants) };
     case "wrongChoice":
       return { label: "Пульт: «Дальше, пропустив ход»", change: wrongChoice(session, content, participants, "skip") };
     default:

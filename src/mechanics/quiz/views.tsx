@@ -168,6 +168,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
         timeLimit={q.timeLimit}
         burst={`${step}:${session.state.startedAt ?? 0}`}
         counter={round ? roundTitle(round) : `Вопрос ${step + 1} из ${total}`}
+        teams={session.playMode === "teams"}
       />
     );
   }

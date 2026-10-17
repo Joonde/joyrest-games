@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey } from "../../core/session";
-import type { Session, SessionChange } from "../../data/types";
+import type { Session } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
 import { DICE_LUCK, heroOf, statTitle, taskText, type DragonContent } from "./content";
@@ -18,60 +18,20 @@ const LETTERS = ["A", "B", "C", "D"];
  * («Показать задание» → «Удар!») → «Следующее задание» … → итог боя → «Следующий бой» → награждение.
  */
 export function DragonHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<DragonContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Фоновых записей у пульта нет: отказ сервера — это второй пульт или двойное касание, повтора не нужно.
+  const { busy, error, run } = useHostRun(session, control, rehearsal, { moment: (s) => resultKey(s.state.result) });
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parseDragonResult(session.state.result);
   const noTeams = scoringParticipants(participants, session.playMode).length === 0 && Object.keys(session.leaderboard).length === 0;
   const battle = battleOf(content, r);
   const task = taskOf(content, r);
 
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | null | (() => Promise<SessionChange | null>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      // Отставший пульт (игра уже ушла дальше) ответы не стирает: запись всё равно получит отказ.
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const fresh = <T,>(make: (list: typeof answers) => T) => () => control.freshAnswers(step).then((list) => make(list.length > 0 ? list : answers));
+  const fresh = <T,>(make: (s: Session, list: typeof answers) => T) => (s: Session) => control.freshAnswers(step).then((list) => make(s, list.length > 0 ? list : answers));
   const action = dragonPrimary(session, content);
   const backPlan = dragonBack(session, participants);
-  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Команда") : "—");
+  const teams = session.playMode === "teams";
+  const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? (teams ? "Команда" : "Игрок")) : "—");
   const answered = new Set(answers.filter((a) => a.step === step && (a.submittedAt ?? 0) >= (session.state.startedAt ?? 0)).map((a) => a.pid));
   // Ждём выбор героя только от команд с телефоном (без телефона — герой по порядку).
   const waiting = r.phase === "heroes" ? r.order.filter((p) => participants.some((x) => x.id === p) && !answered.has(p)) : [];
@@ -85,7 +45,7 @@ export function DragonHostControls({ session, content, answers, participants, co
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
-        <p className="muted">Капитаны выберут героя и разложат {5} очков по свойствам. Команды в бою — в порядке подключения.</p>
+        <p className="muted">{teams ? "Капитаны выберут героя и разложат 5 очков по свойствам. Команды в бою — в порядке подключения." : "Каждый игрок выберет героя и разложит 5 очков по свойствам. Игроки в бою — в порядке подключения."}</p>
       ) : r.phase === "heroes" ? (
         <div className="stack stack--tight">
           <p>
@@ -135,7 +95,7 @@ export function DragonHostControls({ session, content, answers, participants, co
             {r.order
               .filter((p) => !r.dead.includes(p))
               .map((p) => (
-                <button key={p} type="button" className="column-opt" aria-pressed={r.marks.includes(p)} disabled={busy} onClick={() => void run(toggleMark(session, p))}>
+                <button key={p} type="button" className="column-opt" aria-pressed={r.marks.includes(p)} disabled={busy} onClick={() => void run((s) => toggleMark(s, p))}>
                   <span className="column-opt__check" aria-hidden="true">{r.marks.includes(p) ? "✓" : ""}</span>
                   <span className="line-clamp">
                     <NameText name={name(p)} />
@@ -169,15 +129,15 @@ export function DragonHostControls({ session, content, answers, participants, co
       <div className="actions">
         {action === "start" && (
           <>
-            {noTeams && <p className="muted small">Ждём, пока подключатся команды.</p>}
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run(startDragon(session, participants))}>
+            {noTeams && <p className="muted small">{teams ? "Ждём, пока подключатся команды." : "Ждём, пока подключатся игроки."}</p>}
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noTeams} onClick={() => void run((s) => startDragon(s, participants))}>
               Выбор героев
             </button>
           </>
         )}
         {action === "heroesDone" && (
           <>
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || waiting.length > 0} onClick={() => void run(fresh((list) => closeHeroes(latest.current, content, list, participants)))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || waiting.length > 0} onClick={() => void run(fresh((s, list) => closeHeroes(s, content, list, participants)))}>
               Начать бой
             </button>
             {waiting.length > 0 && (
@@ -188,39 +148,39 @@ export function DragonHostControls({ session, content, answers, participants, co
                 onClick={() =>
                   confirm({
                     title: "Начать бой без них?",
-                    text: "Кто не выбрал, получит героя по порядку и свойства по 1. Начинайте, только если телефон команды не отвечает.",
+                    text: `Кто не выбрал, получит героя по порядку и свойства по 1. Начинайте, только если телефон ${teams ? "команды" : "игрока"} не отвечает.`,
                     confirmLabel: "Начать бой",
-                    run: () => run(fresh((list) => closeHeroes(latest.current, content, list, participants))),
+                    run: () => run(fresh((s, list) => closeHeroes(s, content, list, participants))),
                   })
                 }
               >
-                Начать без {waiting.length === 1 ? "одной команды" : `${waiting.length} команд`}
+                Начать без {teams ? (waiting.length === 1 ? "одной команды" : `${waiting.length} команд`) : waiting.length === 1 ? "одного игрока" : `${waiting.length} игроков`}
               </button>
             )}
           </>
         )}
         {action === "show" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(showTask(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => showTask(s, content, participants))}>
             Показать задание
           </button>
         )}
         {action === "reveal" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((list) => revealTask(latest.current, content, list, participants)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(fresh((s, list) => revealTask(s, content, list, participants)))}>
             Удар!
           </button>
         )}
         {action === "next" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextTask(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextTask(s, content, participants))}>
             {(battle && r.task + 1 >= battle.tasks.length) || r.order.every((p) => r.dead.includes(p)) ? "Итог боя" : "Следующее задание"}
           </button>
         )}
         {action === "nextBattle" && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(nextBattle(session, content, participants))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => nextBattle(s, content, participants))}>
             {r.battle + 1 < content.battles.length ? "Следующий бой" : "К награждению"}
           </button>
         )}
         {(action === "podium" || action === "podiumNext") && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => (action === "podium" ? awardNow(s) : podiumNext(s)))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}
           </button>
         )}
@@ -237,16 +197,16 @@ export function DragonHostControls({ session, content, answers, participants, co
             onClick={() =>
               confirm({
                 title: "Закончить игру досрочно?",
-                text: "Побеждает команда с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.",
+                text: `Побеждает ${teams ? "команда" : "игрок"} с большим счётом — сразу награждение. «Назад» на награждении вернёт к игре.`,
                 confirmLabel: "К награждению",
-                run: () => run(awardNow(session)),
+                run: () => run((s) => awardNow(s)),
               })
             }
           >
             Закончить досрочно
           </button>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => dragonBack(s, participants)?.change ?? null, backPlan.clear)}>
           Назад
         </button>
       </div>

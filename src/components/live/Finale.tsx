@@ -1,33 +1,84 @@
 /**
- * Конец игры (решение владельца 15 октября 2026): после награждения — «Спасибо» с тремя делами: чаевые ведущему, отзыв
- * о вечере и Telegram-канал JoyRest. Экран зала показывает три QR-кода (слайд «Спасибо»), телефон гостя — те же три дела
- * кнопками, отзыв пишется прямо на телефоне. Ссылку для чаевых ведущий ставит в профиле (нет — ссылка владельца, нет и её —
- * карточки чаевых нет). Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
+ * Конец игры (решение владельца 15 октября 2026): после награждения — «Спасибо» с делами: чаевые ведущему, отзыв
+ * о вечере, отзыв на Авито и Telegram-канал JoyRest. Экран зала показывает QR-коды (слайд «Спасибо»), телефон гостя — те же
+ * дела кнопками, отзыв пишется прямо на телефоне. Ссылку для чаевых ведущий ставит в профиле (нет — ссылка владельца, нет и её —
+ * карточки чаевых нет). Ссылки «Авито · канал · сайт» (`FinaleLinks`) — везде, где гость видит конец игры (17 октября 2026).
+ * Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { errorCodeOf, finaleRepo, type Finale } from "../../data";
 import { QrCode } from "../QrCode";
 
 export const CHANNEL_URL = "https://t.me/JoyRest";
 export const CHANNEL_TEXT = "Мы начали вести Telegram-канал — будем благодарны за подписку. Так вам будет легче найти нас, когда снова захотите праздник.";
+export const AVITO_URL = "https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349";
+export const AVITO_TEXT = "Отзывы на Авито помогают другим выбрать нас";
+export const SITE_URL = "https://joy-rest.ru";
+export const SITE_CALC_URL = "https://joy-rest.ru/calc/";
+export const SITE_TEXT = "Посчитайте стоимость следующего праздника за минуту";
 
 export function reviewUrl(sessionId: string): string {
   return `${window.location.origin}/review/${sessionId}`;
 }
 
-/** Данные конца игры; null — ещё грузится или своего сервера нет. */
-export function useFinale(sessionId: string | null | undefined): [Finale | null, (f: Finale) => void] {
+/**
+ * Ссылки конца игры для гостя: отзыв на Авито, канал, сайт. Кнопки столбиком во всю ширину. `avito={false}` — когда
+ * кнопка Авито уже стоит рядом (отзыв отправлен — `ReviewForm` зовёт на Авито сам).
+ */
+export function FinaleLinks({ avito = true }: { avito?: boolean }) {
+  return (
+    <div className="stack stack--tight finale-links">
+      {avito && (
+        <>
+          <p className="muted small">{AVITO_TEXT}</p>
+          <a className="btn btn--secondary btn--block" href={AVITO_URL} target="_blank" rel="noopener noreferrer">
+            ⭐ Оставить отзыв на Авито
+          </a>
+        </>
+      )}
+      <p className="muted small">{CHANNEL_TEXT}</p>
+      <a className="btn btn--secondary btn--block" href={CHANNEL_URL} target="_blank" rel="noopener noreferrer">
+        Подписаться на канал JoyRest
+      </a>
+      <p className="muted small">{SITE_TEXT}</p>
+      <a className="btn btn--quiet btn--block" href={SITE_CALC_URL} target="_blank" rel="noopener noreferrer">
+        Наш сайт — joy-rest.ru
+      </a>
+    </div>
+  );
+}
+
+/** Состояние загрузки данных конца игры. */
+export type FinaleStatus = "loading" | "ready" | "notFound" | "failed";
+
+/**
+ * Данные конца игры; null — ещё грузится, не нашлось или своего сервера нет. Третий элемент — состояние загрузки:
+ * «не найдено» (игру уже убрали — архив) и «не получилось» (сеть, после повторов) с `retry`.
+ */
+export function useFinale(
+  sessionId: string | null | undefined,
+): [Finale | null, (f: Finale) => void, { status: FinaleStatus; retry: () => void }] {
   const [finale, setFinale] = useState<Finale | null>(null);
+  const [status, setStatus] = useState<FinaleStatus>("loading");
+  const [round, setRound] = useState(0);
   useEffect(() => {
     if (!finaleRepo || !sessionId) return;
     let alive = true;
     let timer = 0;
+    setStatus("loading");
     const load = (attempt: number) => {
       finaleRepo
         ?.get(sessionId)
-        .then((f) => alive && setFinale(f))
-        .catch(() => {
-          if (alive && attempt < 5) timer = window.setTimeout(() => load(attempt + 1), 2000 * (attempt + 1));
+        .then((f) => {
+          if (!alive) return;
+          setFinale(f);
+          setStatus("ready");
+        })
+        .catch((e: unknown) => {
+          if (!alive) return;
+          if (errorCodeOf(e) === "not-found") setStatus("notFound");
+          else if (attempt < 5) timer = window.setTimeout(() => load(attempt + 1), 2000 * (attempt + 1));
+          else setStatus("failed");
         });
     };
     load(0);
@@ -35,11 +86,12 @@ export function useFinale(sessionId: string | null | undefined): [Finale | null,
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [sessionId]);
-  return [finale, setFinale];
+  }, [sessionId, round]);
+  const retry = useCallback(() => setRound((n) => n + 1), []);
+  return [finale, setFinale, { status, retry }];
 }
 
-/** Экран зала: три QR-кода на слайде «Спасибо». */
+/** Экран зала: QR-коды на слайде «Спасибо». */
 export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined }) {
   const [finale] = useFinale(sessionId);
   // Ждём ссылку для чаевых до 4 с, чтобы QR-коды не перестраивались на глазах у зала; нет ответа — без чаевых.
@@ -53,40 +105,50 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
     return (
       <div className="slide__channel">
         <QrCode value={CHANNEL_URL} label="QR-код канала JoyRest в Telegram" className="slide__qr" />
-        <p className="slide__text">Фото и новые игры — в канале t.me/JoyRest</p>
+        <p className="slide__text">Фото и новые игры — в канале t.me/JoyRest, цены и калькулятор — на joy-rest.ru</p>
       </div>
     );
   }
   return (
-    <div className="finale-qrs">
-      {finale?.tipsUrl && (
+    <div className="finale-hall">
+      <div className="finale-qrs">
+        {finale?.tipsUrl && (
+          <figure className="finale-qr">
+            <QrCode value={finale.tipsUrl} label="QR-код: чаевые ведущему" className="finale-qr__code" />
+            <figcaption>
+              <strong>Чаевые ведущему</strong>
+              <span>Если вечер понравился{finale.hostName ? ` — ${finale.hostName} будет рад(а)` : ""}</span>
+            </figcaption>
+          </figure>
+        )}
         <figure className="finale-qr">
-          <QrCode value={finale.tipsUrl} label="QR-код: чаевые ведущему" className="finale-qr__code" />
+          <QrCode value={reviewUrl(sessionId)} label="QR-код: оставить отзыв" className="finale-qr__code" />
           <figcaption>
-            <strong>Чаевые ведущему</strong>
-            <span>Если вечер понравился{finale.hostName ? ` — ${finale.hostName} будет рад(а)` : ""}</span>
+            <strong>Оставьте отзыв</strong>
+            <span>Пара слов о вечере — нам это очень важно</span>
           </figcaption>
         </figure>
-      )}
-      <figure className="finale-qr">
-        <QrCode value={reviewUrl(sessionId)} label="QR-код: оставить отзыв" className="finale-qr__code" />
-        <figcaption>
-          <strong>Оставьте отзыв</strong>
-          <span>Пара слов о вечере — нам это очень важно</span>
-        </figcaption>
-      </figure>
-      <figure className="finale-qr">
-        <QrCode value={CHANNEL_URL} label="QR-код: Telegram-канал JoyRest" className="finale-qr__code" />
-        <figcaption>
-          <strong>Наш Telegram</strong>
-          <span>Подпишитесь — так нас будет легче найти</span>
-        </figcaption>
-      </figure>
+        <figure className="finale-qr">
+          <QrCode value={AVITO_URL} label="QR-код: отзыв на Авито" className="finale-qr__code" />
+          <figcaption>
+            <strong>Отзыв на Авито</strong>
+            <span>Помогите другим найти нас</span>
+          </figcaption>
+        </figure>
+        <figure className="finale-qr">
+          <QrCode value={CHANNEL_URL} label="QR-код: Telegram-канал JoyRest" className="finale-qr__code" />
+          <figcaption>
+            <strong>Наш Telegram</strong>
+            <span>Подпишитесь — так нас будет легче найти</span>
+          </figcaption>
+        </figure>
+      </div>
+      <p className="finale-hall__line">joy-rest.ru · t.me/JoyRest</p>
     </div>
   );
 }
 
-/** Телефон гостя после игры: те же три дела кнопками, отзыв — прямо здесь. */
+/** Телефон гостя после игры: те же дела кнопками, отзыв — прямо здесь. */
 export function FinalePhone({ sessionId }: { sessionId: string }) {
   const [finale, setFinale] = useFinale(sessionId);
   if (!finaleRepo) return null;
@@ -99,12 +161,7 @@ export function FinalePhone({ sessionId }: { sessionId: string }) {
         </a>
       )}
       <ReviewForm sessionId={sessionId} initial={finale?.myReview ?? null} onSaved={(r) => finale && setFinale({ ...finale, myReview: r })} />
-      <div className="stack stack--tight">
-        <p className="muted small">{CHANNEL_TEXT}</p>
-        <a className="btn btn--secondary btn--block" href={CHANNEL_URL} target="_blank" rel="noopener noreferrer">
-          Подписаться на канал JoyRest
-        </a>
-      </div>
+      <FinaleLinks avito={!finale?.myReview} />
     </section>
   );
 }
@@ -167,6 +224,10 @@ export function ReviewForm({
           <span className="muted">{"★".repeat(5 - rating)}</span>
         </p>
         <p>Спасибо за отзыв! Нам очень приятно.</p>
+        <p className="muted small">Поделитесь отзывом и на Авито — нам это очень поможет.</p>
+        <a className="btn btn--secondary btn--block" href={AVITO_URL} target="_blank" rel="noopener noreferrer">
+          ⭐ Отзыв на Авито
+        </a>
         <button type="button" className="btn btn--quiet" onClick={() => setEditing(true)}>
           Исправить отзыв
         </button>

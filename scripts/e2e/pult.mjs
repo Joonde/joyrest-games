@@ -86,7 +86,8 @@ async function api(method, path, cookie, body) {
   const res = await fetch(BASE + path, {
     method,
     headers: { "Content-Type": "application/json", "X-JoyRest": "1", Origin: BASE, Cookie: cookie },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    // Как приложение: у изменений всегда есть тело (пустое — «{}»), иначе сервер отвечает 400.
+    body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${data?.error ?? ""}`);
@@ -927,6 +928,9 @@ async function runDeck(browser, token, quiz) {
     net: [],
   };
   const cookie = `__Host-jr_s=${token}`;
+  // Остатки прошлых проверок — убрать.
+  const left = (await api("GET", "/api/decks", cookie).catch(() => ({ data: [] }))).data;
+  for (const d of Array.isArray(left) ? left : (left?.decks ?? [])) if (/test-presentation/.test(d.title ?? "")) await api("DELETE", `/api/decks/${d.id}`, cookie).catch(() => undefined);
   const id = `deck${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const { data } = await api("POST", "/api/sessions", cookie, {
     id,

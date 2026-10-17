@@ -67,6 +67,20 @@ jobs:
           mkdir -p /tmp/inspect
           node scripts/robot/inspect.mjs /tmp/robot /tmp/inspect "$GAMES" | tee /tmp/inspect/log.txt
           cat /tmp/inspect/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Галерея — уменьшить снимки
+        if: always()
+        run: |
+          [ -d /tmp/gallery ] || exit 0
+          pip install --quiet pillow 2>/dev/null || pip install --quiet --break-system-packages pillow
+          python3 - <<'PY'
+          import glob
+          from PIL import Image
+          for f in glob.glob("/tmp/gallery/*.jpg"):
+              im = Image.open(f).convert("RGB")
+              if im.width > 960:
+                  im = im.resize((960, round(im.height * 960 / im.width)))
+              im.save(f, quality=60, optimize=True)
+          PY
       - name: Галерея экранов (архив задачи, 7 дней)
         if: always()
         uses: actions/upload-artifact@v4
@@ -84,6 +98,7 @@ jobs:
           git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
           DIR=inspect; case "$PROFILES" in crowd) DIR=inspect-crowd;; esac
           rm -rf "$DIR" && mkdir -p "$DIR" && cp -r /tmp/inspect/. "$DIR"/
+          [ -d /tmp/gallery ] && mkdir -p "$DIR"/gallery && cp /tmp/gallery/*.jpg "$DIR"/gallery/ 2>/dev/null || true
           echo "${GITHUB_SHA}" > "$DIR"/commit.txt
           git add -A "$DIR"
           if git commit -qm "Отчёт Ревизора ${GITHUB_SHA::7}"; then

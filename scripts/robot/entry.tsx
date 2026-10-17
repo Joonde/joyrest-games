@@ -528,10 +528,11 @@ async function inspectView(): Promise<void> {
     }
   }
   window.scrollTo(0, 0);
-  // Галерея (GALLERY=1 у inspect.mjs): снимок экрана зала на каждом новом виде — посмотреть все экраны глазами.
-  if (GALLERY && hall) await snap(hall, null, `вид-${seenViews.size}`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}`);
+  // Галерея (GALLERY=1 у inspect.mjs): снимки на выборке видов (1, 3, 6, 10, 15, 22, 31, 42 и финал) — посмотреть глазами.
+  const sample = GALLERY && ([1, 3, 6, 10, 15, 22, 31, 42].includes(seenViews.size) || store.session.state.phase === "finished");
+  if (sample && hall) await snap(hall, null, `вид-${seenViews.size}`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}`);
   // Телефонная страница: пульт ведущего, телефон капитана и участника (или первого гостя).
-  if (GALLERY && AREAS === "phones") {
+  if (sample && AREAS === "phones") {
     if (host && playing) await snap(host, null, `вид-${seenViews.size}-пульт`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}|пульт`);
     const first = phones[0];
     if (first) await snap(first, null, `вид-${seenViews.size}-телефон`, `галерея|${MECHANIC}|${DEMO}|${MODE}|${PLAYERS}|${key}|телефон`);

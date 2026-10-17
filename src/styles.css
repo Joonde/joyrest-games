@@ -2616,6 +2616,8 @@ kbd {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Смайлик выше строки — без запаса сверху и снизу его срезало (Ревизор). */
+  padding-block: 0.12em;
 }
 
 .board-view__last {
@@ -10659,9 +10661,10 @@ button.dance-card:active {
   height: 2.8cqh;
 }
 
-/* Пять команд и больше — подсказки в три колонки: на две строки меньше. */
-.mil-lifeboard.is-many {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17cqw), 1fr));
+/* Больше 8 участников — над вопросом только тот, кто ходит: одна строка по центру. */
+.mil-lifeboard.is-one {
+  grid-template-columns: minmax(0, 36cqw);
+  justify-content: center;
 }
 
 /* Под вопросом звонок другу, совет ведущего или «Окончательный ответ» — экран плотнее, иначе с пятью командами
@@ -14199,6 +14202,11 @@ button.dance-card:active {
 .mf-nominees:has(> li:nth-child(4)) { gap: 1.2cqh 1.4cqw; }
 .mf-nominees:has(> li:nth-child(4)) li { padding: 0.8cqh 1.8cqw; font-size: 3.2cqh; }
 .mf-screen__main:has(> .mf-nominees > li:nth-child(4)) .mf-title { font-size: 7cqh; }
+/* Девять и больше (голосуют против любого живого — в большой игре это 20 человек): плотная сетка номеров с именами,
+   иначе список вылезал за верх экрана и ложился на места (Ревизор, «Большой праздник»). */
+.mf-nominees:has(> li:nth-child(9)) { display: grid; grid-template-columns: repeat(auto-fill, minmax(18cqw, 1fr)); gap: 0.8cqh 1cqw; width: 100%; }
+.mf-nominees:has(> li:nth-child(9)) li { padding: 0.5cqh 1cqw; font-size: 2.3cqh; border-width: 0.2cqh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.mf-screen__main:has(> .mf-nominees > li:nth-child(9)) .mf-title { font-size: 5cqh; }
 
 .mf-tally { display: grid; gap: 1.4cqh; width: min(100%, 80cqw); margin: 0; padding: 0; list-style: none; }
 .mf-tally__row { display: grid; grid-template-columns: minmax(0, 28%) minmax(0, 1fr) 3em; align-items: center; gap: 1.4cqw; font-size: 3.4cqh; text-align: left; }
@@ -18495,6 +18503,25 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border: 2px solid var(--team-color, var(--color-border));
   color: var(--color-text-muted);
   font-size: 3cqh;
+}
+
+/* Больше 12 гостей — плашки мельче и плотнее (40 гостей не помещались в экран; Ревизор, «Большой праздник»). */
+.wager-guessed:has(> li:nth-child(13)) {
+  gap: 0.6cqh 0.8cqw;
+}
+
+.wager-guessed:has(> li:nth-child(13)) li {
+  padding: 0.3cqh 1cqw;
+  font-size: 2.1cqh;
+  border-width: 1px;
+}
+
+.wager-guessed:has(> li:nth-child(31)) li {
+  font-size: 1.8cqh;
+  max-width: 15cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wager-guessed li.is-done {

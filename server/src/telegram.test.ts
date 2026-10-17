@@ -18,7 +18,7 @@ interface Sent {
 
 /** Telegram понарошку: getMe, getUpdates (очередь входящих), sendMessage (журнал отправленного). */
 function fakeTelegram() {
-  const inbox: Array<{ update_id: number; message: object }> = [];
+  const inbox: Array<{ update_id: number } & Record<string, object | number>> = [];
   const sent: Sent[] = [];
   let id = 0;
   const reply = (body: unknown) => new Response(JSON.stringify({ ok: true, result: body }), { status: 200, headers: { "content-type": "application/json" } });
@@ -44,6 +44,11 @@ function fakeTelegram() {
     push(chat: number, text: string, extra: object = {}) {
       id += 1;
       inbox.push({ update_id: id, message: { message_id: id, chat: { id: chat, type: "private" }, from: { username: `user${chat}` }, text, ...extra } });
+    },
+    /** Любое обновление Telegram: подключение бота к бизнес-аккаунту, сообщение клиента бизнес-аккаунту. */
+    update(body: Record<string, object>) {
+      id += 1;
+      inbox.push({ update_id: id, ...body });
     },
   };
 }
@@ -243,4 +248,48 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     const clients = (await get("/api/clients", maria)).json().clients as Array<{ phone: string }>;
     expect(clients.some((c) => c.phone.includes("903"))).toBe(true);
   });
+  it("Telegram для бизнеса: клиент прислал расчёт владельцу — клиент в базе, менеджеру уведомление; остальное не трогаем", async () => {
+    const SALES = 444;
+    const CALC = "🧮 Расчёт JoyRest\n────────────\nПакет: Квиз\nГостей: до 25\nСтоимость по формату ведущего:\n✅ Опытный: 34 300 ₽ — выбран";
+    tg.update({ business_connection: { id: "bc1", user: { id: OWNER, first_name: "Михаил" }, user_chat_id: OWNER, is_enabled: true } });
+    await until(() => to(OWNER).some((t) => t.includes("подключён к вашему Telegram")), "бот подключён к Telegram владельца");
+    const before = (await get("/api/clients", owner)).json().clients.length as number;
+    const notices = to(SALES).length;
+    const msg = (n: number, from: object, text: string, conn = "bc1") => ({
+      business_message: { message_id: n, business_connection_id: conn, chat: { id: (from as { id: number }).id, type: "private" }, from, text },
+    });
+    // Обычная переписка — не клиент; своё сообщение владельца с расчётом — тоже.
+    tg.update(msg(9001, { id: 7001, first_name: "Друг" }, "Привет! Как дела?"));
+    tg.update(msg(9002, { id: OWNER, first_name: "Михаил" }, CALC));
+    tg.update(msg(9003, { id: 7002, first_name: "Оля", username: "olya_fest" }, CALC));
+    tg.update(msg(9004, { id: 7003, first_name: "Без", last_name: "Ника" }, CALC));
+    await until(async () => (await get("/api/clients", owner)).json().clients.length === before + 2, "два клиента с расчётом");
+    const clients = (await get("/api/clients", owner)).json().clients as Array<{ id: string; name: string; links: string[] }>;
+    const olya = clients.find((c) => c.name === "Оля");
+    expect(olya?.links).toEqual(["https://t.me/olya_fest"]);
+    expect(clients.find((c) => c.name === "Без Ника")?.links).toEqual(["tg://user?id=7003"]);
+    expect(clients.some((c) => c.name === "Друг" || c.name === "Михаил")).toBe(false);
+    const card = (await get(`/api/clients/${olya?.id}`, owner)).json() as { history: Array<{ summary: string; source: string }> };
+    expect(card.history[0]?.summary).toContain("Пакет: Квиз");
+    expect(card.history[0]?.source).toBe("telegram");
+    await until(() => to(SALES).length === notices + 2, "менеджеру — два уведомления");
+    expect(to(SALES).at(-1)).toContain("прислал расчёт с сайта в Telegram");
+    expect(to(SALES).at(-1)).not.toContain("Оля");
+    // Тот же расчёт ещё раз — та же карточка.
+    tg.update(msg(9005, { id: 7002, first_name: "Оля", username: "olya_fest" }, CALC));
+    await until(() => to(SALES).length === notices + 3, "повтор");
+    expect((await get("/api/clients", owner)).json().clients).toHaveLength(before + 2);
+    // Ведущий без права на клиентов подключил бота — клиенты не попадают.
+    tg.update({ business_connection: { id: "bc2", user: { id: ANNA }, user_chat_id: ANNA, is_enabled: true } });
+    await until(() => to(ANNA).some((t) => t.includes("клиенты сюда пока не попадут")), "ведущему — нельзя");
+    tg.update(msg(9006, { id: 7004, first_name: "Вера", username: "vera_x" }, CALC, "bc2"));
+    // Отключил бота — расчёты больше не попадают.
+    tg.update({ business_connection: { id: "bc1", user: { id: OWNER }, user_chat_id: OWNER, is_enabled: false } });
+    await until(() => to(OWNER).some((t) => t.includes("отключён от вашего Telegram")), "отключение");
+    tg.update(msg(9007, { id: 7005, first_name: "Гоша", username: "gosha_x" }, CALC));
+    await new Promise((r) => setTimeout(r, 400));
+    const after = (await get("/api/clients", owner)).json().clients as Array<{ name: string }>;
+    expect(after.some((c) => c.name === "Вера" || c.name === "Гоша")).toBe(false);
+  });
 });
+

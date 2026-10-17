@@ -15808,6 +15808,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-size: min(4.6cqh, 3.2cqw);
 }
 
+/* Просьба про VPN была 0.7em от 18 px — на телевизоре 13 px, не прочитать (Ревизор, 17 октября 2026). */
+.slide__join-text .slide__text--small {
+  font-size: min(3.2cqh, 2.3cqw);
+}
+
 /* Заголовок слайда входа меньше обычного: под ним ещё QR и код. */
 .slide--join .slide__title {
   font-size: min(10cqh, 7cqw);

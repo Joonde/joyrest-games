@@ -2490,7 +2490,7 @@ kbd {
 /* Строка «Вход: … · код» лежит внизу кадра поверх игры. У игр, где низ занят (очередь «Правды или действия»,
    плашки «100 к 1», история песен лото, места «Мафии»), — отступ под неё: строка ложилась на имена гостей
    (Ревизор, 17 октября 2026). */
-.quiz-stage > :is(.td-screen, .hd-screen, .lotto-screen, .mf-screen) {
+.quiz-stage > :is(.td-screen, .hd-screen, .lotto-screen, .mf-screen, .pr-screen, .st-screen) {
   padding-bottom: 6.5cqh;
 }
 
@@ -4341,19 +4341,24 @@ kbd {
 }
 
 .podium--final .podium__num {
-  font-size: 5cqh;
+  font-size: 4.4cqh;
 }
 
+.podium--final .podium__step {
+  padding-top: 1cqh;
+}
+
+/* Цифра места должна помещаться в ступень: у третьей было 5% высоты при цифре 5% и отступе 2% — цифру срезало. */
 .podium--final .podium__slot--1 .podium__step {
-  height: 12cqh;
+  height: 13cqh;
 }
 
 .podium--final .podium__slot--2 .podium__step {
-  height: 8cqh;
+  height: 9.5cqh;
 }
 
 .podium--final .podium__slot--3 .podium__step {
-  height: 5cqh;
+  height: 7cqh;
 }
 
 /* Пьедестал на пульте и телефоне. */
@@ -8079,6 +8084,23 @@ button.checkers__cell {
   .checkers-side__score {
     justify-self: end;
   }
+
+  .checkers-screen {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .checkers-side {
+    padding: 1.2cqh 1.5cqw;
+  }
+
+  .checkers-screen__banner,
+  .checkers-screen__question h2 {
+    font-size: 3.4cqh;
+  }
+
+  .checkers-screen__options {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .checkers-side__left {
@@ -10424,6 +10446,13 @@ button.dance-card:active {
   font-size: 1.05rem;
 }
 
+/* Без кружка с буквой — просто строка текста: во flex каждое слово вокруг имени становилось своей колонкой и на
+   узком пульте текст рассыпался в столбики («100 к 1», «Своя игра»; Ревизор, 17 октября 2026). */
+.mil-host-live:not(:has(> .mil-host-live__letter)) {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .mil-host-live.is-locked {
   background: #f0a040;
   color: #221e1b;
@@ -11880,6 +11909,7 @@ button.dance-card:active {
 .sv-mark-row > .column-opt {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .sv-mark-row__timer {
@@ -14165,6 +14195,10 @@ button.dance-card:active {
 
 .mf-nominees { display: flex; flex-wrap: wrap; justify-content: center; gap: 2cqh 2cqw; margin: 0; padding: 0; list-style: none; }
 .mf-nominees li { padding: 1.4cqh 2.4cqw; border-radius: 2cqh; background: rgb(255 90 102 / 0.18); border: 0.3cqh solid #ff5a66; font-size: 4.4cqh; font-weight: 600; }
+/* Четыре кандидата и больше — плотнее и заголовок меньше: подсказка про голосование не наезжает на места. */
+.mf-nominees:has(> li:nth-child(4)) { gap: 1.2cqh 1.4cqw; }
+.mf-nominees:has(> li:nth-child(4)) li { padding: 0.8cqh 1.8cqw; font-size: 3.2cqh; }
+.mf-screen__main:has(> .mf-nominees > li:nth-child(4)) .mf-title { font-size: 7cqh; }
 
 .mf-tally { display: grid; gap: 1.4cqh; width: min(100%, 80cqw); margin: 0; padding: 0; list-style: none; }
 .mf-tally__row { display: grid; grid-template-columns: minmax(0, 28%) minmax(0, 1fr) 3em; align-items: center; gap: 1.4cqw; font-size: 3.4cqh; text-align: left; }
@@ -14329,7 +14363,9 @@ button.dance-card:active {
   color: #fbf6f1;
   isolation: isolate;
 }
-.td-back--screen, .td-face--screen { height: 72cqh; }
+/* 62% высоты: над картой — кто ходит, под ней — подсказка и очередь, снизу — строка «Вход» (Ревизор: при 72% всё
+   это не помещалось на ноутбуке и проекторе). */
+.td-back--screen, .td-face--screen { height: 62cqh; }
 .td-back--phone, .td-face--phone { width: min(100%, 300px); margin: 0 auto; }
 .td-back--mini { width: 120px; }
 
@@ -14538,6 +14574,8 @@ button.dance-card:active {
 .st-title { margin: 0; font-family: var(--font-display); font-size: 7cqh; line-height: 1.05; text-wrap: balance; }
 .st-prompt { margin: 0; max-width: 70cqw; font-family: var(--font-display); font-size: 4cqh; font-style: italic; color: var(--color-text-muted); text-wrap: balance; }
 .st-note { margin: 0; color: var(--color-text-muted); }
+/* Под письмом — автор и голоса: письмо меньше, иначе верх уезжал за край, а голоса — под строку «Вход». */
+.st-screen__main:has(.st-reveal) .st-letter { width: min(60cqw, 84cqh); }
 
 .st-letter {
   --st-paper: #fbf3e4;
@@ -19204,6 +19242,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .mil-watch__question .mil-option {
   border-style: dashed;
+}
+
+/* Фон убираем только у обычных вариантов: у «окончательного» и верного своя заливка и тёмный текст — без неё
+   ответ команды на телефоне наблюдателя был тёмным по тёмному (Ревизор, 17 октября 2026). */
+.mil-watch__question .mil-option:not(.is-locked, .is-right, .is-wrong) {
   background: transparent;
 }
 

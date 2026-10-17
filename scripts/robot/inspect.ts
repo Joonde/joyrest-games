@@ -54,14 +54,39 @@ function ownText(el: Element): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** Видимая часть прямоугольника: обрезана родителями с overflow (имя с многоточием не «длиннее» своей рамки). */
+function clipped(el: Element, r: Box): Box | null {
+  let { x, y } = r;
+  let x2 = r.x + r.w;
+  let y2 = r.y + r.h;
+  for (let cur: Element | null = el; cur; cur = cur.parentElement) {
+    const cs = getComputedStyle(cur);
+    if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+    const b = cur.getBoundingClientRect();
+    if (cs.overflowX !== "visible") {
+      x = Math.max(x, b.left);
+      x2 = Math.min(x2, b.right);
+    }
+    if (cs.overflowY !== "visible") {
+      y = Math.max(y, b.top);
+      y2 = Math.min(y2, b.bottom);
+    }
+  }
+  return x2 - x >= 1 && y2 - y >= 1 ? { x, y, w: x2 - x, h: y2 - y } : null;
+}
+
 function textLines(el: Element): Box[] {
-  // Строки самого текста (а не блока): прямоугольники строк всех текстовых узлов элемента.
+  // Строки самого текста (а не блока): видимые прямоугольники строк всех текстовых узлов элемента.
   const lines: Box[] = [];
   for (const n of el.childNodes) {
     if (n.nodeType !== Node.TEXT_NODE || !(n.textContent ?? "").trim()) continue;
     const range = document.createRange();
     range.selectNodeContents(n);
-    for (const r of range.getClientRects()) if (r.width >= 1 && r.height >= 1) lines.push(box(r));
+    for (const r of range.getClientRects()) {
+      if (r.width < 1 || r.height < 1) continue;
+      const c = clipped(el, box(r));
+      if (c) lines.push(c);
+    }
   }
   return lines;
 }
@@ -114,6 +139,9 @@ function shown(el: Element): boolean {
 
 /** Служебное экрана зала: кнопки «Во весь экран» (прячутся сами), выход после игры, значок звука. */
 const SERVICE = ".screen-controls, .screen-exit, .screen-tap";
+
+/** Нарочно сложенное друг на друга: карты веером и в стопке, рисованные лица карт. Наложения там — замысел. */
+const LAYERED = ".dk-card, .dk-hand, .dk-mini, .td-face, .td-back, .bk-card, .mf-card, .sp-card";
 
 /** Только смайлики и знаки — цветные картинки, контраст и размер у них не меряем. */
 const NO_LETTERS = /^[^\p{L}\p{N}]*$/u;
@@ -275,10 +303,10 @@ export function inspectArea(o: InspectOptions): Raw[] {
   // 3. Надписи друг на друге и закрытые другими элементами.
   for (let i = 0; i < leaves.length; i++) {
     const a = leaves[i];
-    if (!a) continue;
+    if (!a || a.el.closest(LAYERED)) continue;
     for (let j = i + 1; j < leaves.length; j++) {
       const b = leaves[j];
-      if (!b || a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      if (!b || a.el.contains(b.el) || b.el.contains(a.el) || b.el.closest(LAYERED)) continue;
       // По строкам: имя в две строки рядом со смайликом — не наложение.
       let hit = false;
       for (const la of a.lines)
@@ -316,7 +344,8 @@ export function inspectArea(o: InspectOptions): Raw[] {
 
   // 5. Контраст текста с фоном (WCAG: обычный текст 4.5, крупный 3; находка — ниже 3 и ниже 4.5 у мелкого).
   for (const l of leaves) {
-    if (NO_LETTERS.test(l.text)) continue;
+    // Неактивная кнопка нарочно бледная — это подсказка «пока нельзя», а не плохой контраст.
+    if (NO_LETTERS.test(l.text) || l.el.closest("button:disabled, [aria-disabled=true]")) continue;
     const fill = l.cs.getPropertyValue("-webkit-text-fill-color");
     if (l.cs.textShadow !== "none" || l.cs.getPropertyValue("-webkit-text-stroke-width") !== "0px") continue;
     const fg0 = rgba(fill && fill !== l.cs.color && fill !== "currentcolor" ? fill : l.cs.color);

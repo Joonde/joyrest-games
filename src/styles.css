@@ -219,15 +219,33 @@ a {
   min-width: 0;
 }
 
-.topbar__titles .eyebrow,
-.topbar__titles h1 {
+.topbar__titles .eyebrow {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Длинное название экрана на телефоне переносится на вторую строку, а не обрезается («Календарь и мероприятия»). */
 .topbar__titles h1 {
   font-size: 28px;
+  line-height: 1.1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-wrap: balance;
+}
+
+@media (max-width: 420px) {
+  .topbar,
+  .topbar__brand {
+    gap: 12px;
+  }
+
+  .topbar__titles h1 {
+    font-size: 22px;
+  }
 }
 
 .topbar__actions {

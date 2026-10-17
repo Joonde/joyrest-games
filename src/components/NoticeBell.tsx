@@ -118,8 +118,13 @@ export function NoticeBell() {
             strokeLinejoin="round"
           />
         </svg>
-        {badge > 0 && <span className="notice-bell__count">{badge > 99 ? "99+" : badge}</span>}
       </button>
+      {/* Число — рядом с кнопкой, а не внутри: внутри оно выступало за край и «распирало» кнопку. */}
+      {badge > 0 && (
+        <span className="notice-bell__count" aria-hidden="true">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
       {open && (
         <div className="notice-panel" id={panelId} role="dialog" aria-label="Уведомления">
           <p className="notice-panel__title">Уведомления</p>

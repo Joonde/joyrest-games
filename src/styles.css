@@ -291,6 +291,7 @@ a {
   position: absolute;
   top: -6px;
   right: -6px;
+  pointer-events: none;
   min-width: 22px;
   height: 22px;
   padding: 0 6px;

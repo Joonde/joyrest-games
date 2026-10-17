@@ -1,0 +1,44 @@
+• quiz-1-teams-crowd: видов 28, находок 2
+• quiz-1-solo-crowd: видов 26, находок 2
+• quiz-0-teams-crowd: видов 28, находок 2
+• quiz-0-solo-crowd: видов 34, находок 4
+• lotto-0-teams-crowd: видов 32, находок 3
+• lotto-0-solo-crowd: видов 28, находок 3
+• dance-0-teams-crowd: видов 40, находок 18
+• board-0-teams-crowd: видов 78, находок 5 (до финала не дошла)
+• checkers-0-teams-crowd: видов 56, находок 2
+• stage-1-teams-crowd: видов 56, находок 8
+• stage-0-teams-crowd: видов 56, находок 8
+• quest-0-teams-crowd: видов 51, находок 4
+• millionaire-0-teams-crowd: видов 30, находок 11
+• millionaire-0-solo-crowd: видов 30, находок 21
+• quest-1-teams-crowd: видов 52, находок 4
+• board-0-solo-crowd: видов 74, находок 5 (до финала не дошла)
+• hundred-0-teams-crowd: видов 68, находок 4
+• hundred-0-solo-crowd: видов 58, находок 3
+• hundred-1-teams-crowd: видов 68, находок 3
+• hundred-1-solo-crowd: видов 58, находок 3
+• hundred-2-teams-crowd: видов 68, находок 3
+• hundred-3-teams-crowd: видов 36, находок 2
+• hundred-2-solo-crowd: видов 58, находок 3
+• survival-0-teams-crowd: видов 44, находок 2
+• dragon-0-teams-crowd: видов 30, находок 9
+• dragon-1-teams-crowd: видов 34, находок 19
+• hundred-3-solo-crowd: видов 40, находок 2
+• durak-0-solo-crowd: видов 50, находок 96
+• mafia-0-solo-crowd: видов 72, находок 20 (до финала не дошла)
+• spy-0-solo-crowd: видов 39, находок 1 (до финала не дошла)
+• bunker-0-solo-crowd: видов 77, находок 33 (до финала не дошла)
+• truth-0-teams-crowd: видов 50, находок 4
+• truth-1-teams-crowd: видов 50, находок 4
+• truth-0-solo-crowd: видов 48, находок 4 (до финала не дошла)
+• wager-0-teams-crowd: видов 22, находок 4
+• perudo-0-solo-crowd: видов 46, находок 3
+• wine-0-solo-crowd: видов 14, находок 5
+• perudo-0-teams-crowd: видов 47, находок 3
+• wager-0-solo-crowd: видов 24, находок 7
+• wine-0-teams-crowd: видов 12, находок 5
+✓ story-0-teams-crowd: видов 43, находок 0
+• truth-1-solo-crowd: видов 48, находок 4 (до финала не дошла)
+✓ story-0-solo-crowd: видов 52, находок 0
+Ревизор: 260 находок → /tmp/inspect/README.md

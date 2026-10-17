@@ -1,0 +1,4741 @@
+{
+ "runs": [
+  {
+   "name": "quiz-1-teams-crowd",
+   "views": 28,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-crowd",
+   "views": 26,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-crowd",
+   "views": 28,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-solo-crowd",
+   "views": 34,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-crowd",
+   "views": 32,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-crowd",
+   "views": 28,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "dance-0-teams-crowd",
+   "views": 40,
+   "findings": 18,
+   "finished": true
+  },
+  {
+   "name": "board-0-teams-crowd",
+   "views": 78,
+   "findings": 5,
+   "finished": false
+  },
+  {
+   "name": "checkers-0-teams-crowd",
+   "views": 56,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-crowd",
+   "views": 56,
+   "findings": 8,
+   "finished": true
+  },
+  {
+   "name": "stage-0-teams-crowd",
+   "views": 56,
+   "findings": 8,
+   "finished": true
+  },
+  {
+   "name": "quest-0-teams-crowd",
+   "views": 51,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-teams-crowd",
+   "views": 30,
+   "findings": 11,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-solo-crowd",
+   "views": 30,
+   "findings": 21,
+   "finished": true
+  },
+  {
+   "name": "quest-1-teams-crowd",
+   "views": 52,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "board-0-solo-crowd",
+   "views": 74,
+   "findings": 5,
+   "finished": false
+  },
+  {
+   "name": "hundred-0-teams-crowd",
+   "views": 68,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-solo-crowd",
+   "views": 58,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-teams-crowd",
+   "views": 68,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-solo-crowd",
+   "views": 58,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-teams-crowd",
+   "views": 68,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-teams-crowd",
+   "views": 36,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-solo-crowd",
+   "views": 58,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-crowd",
+   "views": 44,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "dragon-0-teams-crowd",
+   "views": 30,
+   "findings": 9,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-crowd",
+   "views": 34,
+   "findings": 19,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-solo-crowd",
+   "views": 40,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "durak-0-solo-crowd",
+   "views": 50,
+   "findings": 96,
+   "finished": true
+  },
+  {
+   "name": "mafia-0-solo-crowd",
+   "views": 72,
+   "findings": 20,
+   "finished": false
+  },
+  {
+   "name": "spy-0-solo-crowd",
+   "views": 39,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "bunker-0-solo-crowd",
+   "views": 77,
+   "findings": 33,
+   "finished": false
+  },
+  {
+   "name": "truth-0-teams-crowd",
+   "views": 50,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "truth-1-teams-crowd",
+   "views": 50,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "truth-0-solo-crowd",
+   "views": 48,
+   "findings": 4,
+   "finished": false
+  },
+  {
+   "name": "wager-0-teams-crowd",
+   "views": 22,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-solo-crowd",
+   "views": 46,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-crowd",
+   "views": 14,
+   "findings": 5,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-teams-crowd",
+   "views": 47,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "wager-0-solo-crowd",
+   "views": 24,
+   "findings": 7,
+   "finished": true
+  },
+  {
+   "name": "wine-0-teams-crowd",
+   "views": 12,
+   "findings": 5,
+   "finished": true
+  },
+  {
+   "name": "story-0-teams-crowd",
+   "views": 43,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-1-solo-crowd",
+   "views": 48,
+   "findings": 4,
+   "finished": false
+  },
+  {
+   "name": "story-0-solo-crowd",
+   "views": 52,
+   "findings": 0,
+   "finished": true
+  }
+ ],
+ "findings": [
+  {
+   "key": "экран зала|обрезан текст|ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.board-view__name)",
+   "path": "ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name > span.name-emoji",
+   "text": "🐙",
+   "at": "playing/0/board/",
+   "count": 213,
+   "shot": "shots/quiz-1-teams-crowd-hall-1.jpg",
+   "where": [
+    "quiz 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quiz 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quest 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quest 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 3-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz",
+    "dance",
+    "board",
+    "stage",
+    "quest",
+    "millionaire",
+    "hundred",
+    "truth",
+    "perudo"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.board-view__name)",
+   "path": "ol.board-view__list > li.board-view__row.board-view__row--team > span.board-view__name > span",
+   "text": "Осьминоги техподдержки",
+   "at": "playing/0/board/",
+   "count": 213,
+   "shot": "shots/quiz-1-teams-crowd-hall-2.jpg",
+   "where": [
+    "quiz 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quiz 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quest 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quest 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 3-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz",
+    "dance",
+    "board",
+    "stage",
+    "quest",
+    "millionaire",
+    "hundred",
+    "truth",
+    "perudo"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ol.board-view__list > li.board-view__row > span.board-view__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.board-view__name)",
+   "path": "ol.board-view__list > li.board-view__row > span.board-view__name > span.name-emoji",
+   "text": "🐙",
+   "at": "playing/4/board/",
+   "count": 111,
+   "shot": "shots/quiz-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "quiz 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 3-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 4-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор",
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz",
+    "board",
+    "hundred",
+    "durak",
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ol.board-view__list > li.board-view__row > span.board-view__name > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.board-view__name)",
+   "path": "ol.board-view__list > li.board-view__row > span.board-view__name > span",
+   "text": "Владимир Рождественский",
+   "at": "playing/4/board/",
+   "count": 111,
+   "shot": "shots/quiz-0-solo-crowd-hall-2.jpg",
+   "where": [
+    "quiz 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 3-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 4-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор",
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz",
+    "board",
+    "hundred",
+    "durak",
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.podium__slot > div.podium__names > p.podium__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (p.podium__name)",
+   "path": "div.podium__slot > div.podium__names > p.podium__name > span.name-emoji",
+   "text": "🦋",
+   "at": "finished/7/podium/",
+   "count": 8,
+   "shot": "shots/quiz-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "perudo 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz",
+    "perudo"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.podium__slot > div.podium__names > p.podium__name > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (p.podium__name)",
+   "path": "div.podium__slot > div.podium__names > p.podium__name > span",
+   "text": "Валентина Константинова",
+   "at": "finished/7/podium/",
+   "count": 8,
+   "shot": "shots/quiz-0-solo-crowd-hall-4.jpg",
+   "where": [
+    "quiz 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "perudo 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quiz",
+    "perudo"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule",
+   "text": "Одна линия",
+   "at": "playing/0/question/",
+   "count": 63,
+   "shot": "shots/lotto-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "lotto 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "lotto 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title",
+   "text": "Звезда по имени Солнце",
+   "at": "playing/0/question/",
+   "count": 1008,
+   "shot": "shots/lotto-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "lotto 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "lotto 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist",
+   "text": "Любэ",
+   "at": "playing/0/question/",
+   "count": 855,
+   "shot": "shots/lotto-0-teams-crowd-phones-3.jpg",
+   "where": [
+    "lotto 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "lotto 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__style|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 14.3 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__style",
+   "text": "💃 Латина",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-hall-1.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__n|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 11 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__n",
+   "text": "№ 1",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-hall-2.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 11 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n",
+   "text": "№ 2",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-hall-3.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__style|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 14.3 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__style",
+   "text": "🎉 Вечеринка",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-hall-4.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__n|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 11 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__n",
+   "text": "№ 3",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-hall-5.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.board-grid > div.board-grid__row > div.board-grid__title > span.line-clamp|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (span.line-clamp)",
+   "path": "div.board-grid > div.board-grid__row > div.board-grid__title > span.line-clamp",
+   "text": "Кино",
+   "at": "playing/2/ready/pick",
+   "count": 8,
+   "shot": "shots/board-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "board"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--dance > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--dance > span.dance-card__n",
+   "text": "№ 1",
+   "at": "playing/0/question/pick",
+   "count": 7,
+   "shot": "shots/dance-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--karaoke > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--karaoke > span.dance-card__n",
+   "text": "№ 2",
+   "at": "playing/0/question/pick",
+   "count": 5,
+   "shot": "shots/dance-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--battle > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--battle > span.dance-card__n",
+   "text": "№ 3",
+   "at": "playing/0/question/pick",
+   "count": 8,
+   "shot": "shots/dance-0-teams-crowd-phones-3.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__style|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__style",
+   "text": "💃 Латина",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-phones-4.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__n|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__n",
+   "text": "№ 1",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-phones-5.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n",
+   "text": "№ 2",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-phones-6.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__style|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__style",
+   "text": "🎉 Вечеринка",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-phones-7.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__n|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__n",
+   "text": "№ 3",
+   "at": "playing/0/question/pick",
+   "count": 3,
+   "shot": "shots/dance-0-teams-crowd-phones-8.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--dance > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--dance > span.dance-card__n",
+   "text": "№ 1",
+   "at": "playing/6/question/pick",
+   "count": 2,
+   "shot": "shots/dance-0-teams-crowd-phones-9.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--karaoke > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--karaoke > span.dance-card__n",
+   "text": "№ 2",
+   "at": "playing/6/question/pick",
+   "count": 4,
+   "shot": "shots/dance-0-teams-crowd-phones-10.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--battle > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--battle > span.dance-card__n",
+   "text": "№ 9",
+   "at": "playing/8/question/pick",
+   "count": 1,
+   "shot": "shots/dance-0-teams-crowd-phones-11.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|надписи наезжают|div.board-host__grid > div.board-host__row > button.board-host__cell > span|",
+   "area": "пульт",
+   "kind": "надписи наезжают",
+   "message": "«400» и «кот» друг на друге",
+   "path": "div.board-host__grid > div.board-host__row > button.board-host__cell > span",
+   "text": "400 | кот",
+   "at": "playing/0/ready/",
+   "count": 26,
+   "shot": "shots/board-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "board"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.board-host__grid > div.board-host__row > button.board-host__cell > small|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.board-host__grid > div.board-host__row > button.board-host__cell > small",
+   "text": "кот",
+   "at": "playing/0/ready/",
+   "count": 26,
+   "shot": "shots/board-0-solo-crowd-phones-2.jpg",
+   "where": [
+    "board 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "board 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "board"
+   ]
+  },
+  {
+   "key": "пульт|мелкая кнопка|div.stack.host-quiz > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell|",
+   "area": "пульт",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 33×33 px (пальцу нужно от 40×40)",
+   "path": "div.stack.host-quiz > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell",
+   "text": "",
+   "at": "playing/1/question/move",
+   "count": 47,
+   "shot": "shots/checkers-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "checkers 1-й шаблон, команды ×2, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "checkers"
+   ]
+  },
+  {
+   "key": "телефон|мелкая кнопка|div.quiz-phone.quiz-phone--center > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell|",
+   "area": "телефон",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 33×33 px (пальцу нужно от 40×40)",
+   "path": "div.quiz-phone.quiz-phone--center > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell",
+   "text": "",
+   "at": "playing/1/question/move",
+   "count": 48,
+   "shot": "shots/checkers-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "checkers 1-й шаблон, команды ×2, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "checkers"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.stage-tug > div.stage-tug__names > span > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«🐯» и «Тигры клиентского сервиса» друг на друге",
+   "path": "div.stage-tug > div.stage-tug__names > span > span.name-emoji",
+   "text": "🐯 | Тигры клиентского сервиса",
+   "at": "playing/10/reveal/result",
+   "count": 4,
+   "shot": "shots/stage-0-teams-crowd-hall-3.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.stage-screen.stage-screen--battle > div.stage-tug > div.stage-tug__bar > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«50% · 0» закрыт элементом img.stage-dancer",
+   "path": "div.stage-screen.stage-screen--battle > div.stage-tug > div.stage-tug__bar > span",
+   "text": "50% · 0",
+   "at": "playing/10/reveal/result",
+   "count": 4,
+   "shot": "shots/stage-0-teams-crowd-hall-4.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|надписи наезжают|div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__points|",
+   "area": "пульт",
+   "kind": "надписи наезжают",
+   "message": "«100» и «🔒 батл» друг на друге",
+   "path": "div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__points",
+   "text": "100 | 🔒 батл",
+   "at": "playing/0/reveal/pick",
+   "count": 20,
+   "shot": "shots/stage-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__tag|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 9.0 px (нужно от 12)",
+   "path": "div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__tag",
+   "text": "🔒 батл",
+   "at": "playing/0/reveal/pick",
+   "count": 34,
+   "shot": "shots/stage-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|мелкая кнопка|div.stack.host-quiz > div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile|",
+   "area": "пульт",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 33×48 px (пальцу нужно от 40×40)",
+   "path": "div.stack.host-quiz > div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile",
+   "text": "100",
+   "at": "playing/0/reveal/pick",
+   "count": 106,
+   "shot": "shots/stage-0-teams-crowd-phones-3.jpg",
+   "where": [
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stage-field.stage-field--compact > div.stage-field__row > div.stage-tile > span.stage-tile__who|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.stage-field.stage-field--compact > div.stage-field__row > div.stage-tile > span.stage-tile__who",
+   "text": "Мужчины",
+   "at": "playing/2/reveal/pick",
+   "count": 34,
+   "shot": "shots/stage-0-teams-crowd-phones-4.jpg",
+   "where": [
+    "stage 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "stage 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|aside.qx-panel > ol.qx-panel__list > li.qx-row > span.qx-row__cell|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.2 px — 16 px на Full HD (нужно от 18)",
+   "path": "aside.qx-panel > ol.qx-panel__list > li.qx-row > span.qx-row__cell",
+   "text": "кл. 0",
+   "at": "playing/0/question/roll",
+   "count": 80,
+   "shot": "shots/quest-0-teams-crowd-hall-1.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "quest 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.quest-screen.qx--classic > div.qx-turn > div.qx-turn__who > span.qx-turn__label|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.quest-screen.qx--classic > div.qx-turn > div.qx-turn__who > span.qx-turn__label",
+   "text": "Бросает кубик",
+   "at": "playing/0/question/roll",
+   "count": 7,
+   "shot": "shots/quest-0-teams-crowd-hall-2.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (span.mil-bar__points)",
+   "path": "div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__points",
+   "text": "0",
+   "at": "playing/0/ready/turn",
+   "count": 14,
+   "shot": "shots/millionaire-0-teams-crowd-hall-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.mil-carousel > div.mil-bar > span.mil-bar__name > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 53 px (span.mil-bar__name)",
+   "path": "div.mil-carousel > div.mil-bar > span.mil-bar__name > span",
+   "text": "Северные волки отдела IT",
+   "at": "playing/0/ready/turn",
+   "count": 14,
+   "shot": "shots/millionaire-0-teams-crowd-hall-2.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 26 px (span.mil-bar__name)",
+   "path": "div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji",
+   "text": "🐙",
+   "at": "playing/0/ready/turn",
+   "count": 7,
+   "shot": "shots/millionaire-0-teams-crowd-hall-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Единороги из бухгалтерии» закрыт элементом span.name-emoji",
+   "path": "ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span",
+   "text": "Единороги из бухгалтерии",
+   "at": "playing/0/ready/turn",
+   "count": 69,
+   "shot": "shots/millionaire-0-teams-crowd-hall-4.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 30 px (span.mil-bar__name)",
+   "path": "div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag",
+   "text": "· пропуск хода",
+   "at": "playing/3/reveal/reveal",
+   "count": 1,
+   "shot": "shots/millionaire-0-teams-crowd-hall-7.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.01 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text",
+   "text": "Зелёного",
+   "at": "playing/0/reveal/reveal",
+   "count": 30,
+   "shot": "shots/millionaire-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.14 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter",
+   "text": "B",
+   "at": "playing/0/reveal/reveal",
+   "count": 51,
+   "shot": "shots/millionaire-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|div.stack.host-quiz > div.card.stack > ol.mil-host-options > li|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 3.55 (нужно от 4.5)",
+   "path": "div.stack.host-quiz > div.card.stack > ol.mil-host-options > li",
+   "text": "Шесть",
+   "at": "playing/3/question/question",
+   "count": 8,
+   "shot": "shots/millionaire-0-teams-crowd-phones-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|div.card.stack > ol.mil-host-options > li > strong|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 3.55 (нужно от 4.5)",
+   "path": "div.card.stack > ol.mil-host-options > li > strong",
+   "text": "B",
+   "at": "playing/3/question/question",
+   "count": 8,
+   "shot": "shots/millionaire-0-teams-crowd-phones-4.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.01 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct",
+   "text": "24%",
+   "at": "playing/4/question/question",
+   "count": 33,
+   "shot": "shots/millionaire-0-solo-crowd-phones-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|закрыт другим элементом|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct|",
+   "area": "телефон",
+   "kind": "закрыт другим элементом",
+   "message": "«27%» закрыт элементом span.mil-option__text",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct",
+   "text": "27%",
+   "at": "playing/4/reveal/reveal",
+   "count": 1,
+   "shot": "shots/millionaire-0-solo-crowd-phones-4.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.quest-screen.qx--adult > div.qx-turn > div.qx-turn__who > span.qx-turn__label|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.quest-screen.qx--adult > div.qx-turn > div.qx-turn__who > span.qx-turn__label",
+   "text": "Бросает кубик",
+   "at": "playing/0/question/roll",
+   "count": 7,
+   "shot": "shots/quest-1-teams-crowd-hall-2.jpg",
+   "where": [
+    "quest 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 37 px",
+   "path": "main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who",
+   "text": "Ход:",
+   "at": "playing/0/ready/turn",
+   "count": 3,
+   "shot": "shots/millionaire-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 37 px",
+   "path": "div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.name-emoji",
+   "text": "🦊",
+   "at": "playing/0/ready/turn",
+   "count": 3,
+   "shot": "shots/millionaire-0-solo-crowd-hall-2.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 37 px",
+   "path": "div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span",
+   "text": "Александра Константинова",
+   "at": "playing/0/ready/turn",
+   "count": 3,
+   "shot": "shots/millionaire-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«🐙» закрыт элементом p.stage-code",
+   "path": "ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span.name-emoji",
+   "text": "🐙",
+   "at": "playing/0/ready/turn",
+   "count": 1,
+   "shot": "shots/millionaire-0-solo-crowd-hall-8.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|section.mil-screen__bars > div.mil-bars-window > p.mil-bars-window__more > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«,» закрыт элементом span",
+   "path": "section.mil-screen__bars > div.mil-bars-window > p.mil-bars-window__more > span",
+   "text": ",",
+   "at": "playing/0/ready/turn",
+   "count": 3,
+   "shot": "shots/millionaire-0-solo-crowd-hall-9.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.mil-timer|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 127 px",
+   "path": "div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.mil-timer",
+   "text": "30 с",
+   "at": "playing/0/question/question",
+   "count": 1,
+   "shot": "shots/millionaire-0-solo-crowd-hall-10.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 22 px",
+   "path": "ul.mil-lifeboard > li.mil-lifeboard__team > span.mil-lifeboard__name > span.name-emoji",
+   "text": "🦊",
+   "at": "playing/0/question/question",
+   "count": 6,
+   "shot": "shots/millionaire-0-solo-crowd-hall-11.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 48 px",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter",
+   "text": "A",
+   "at": "playing/0/question/question",
+   "count": 6,
+   "shot": "shots/millionaire-0-solo-crowd-hall-12.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 48 px",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text",
+   "text": "Зелёного",
+   "at": "playing/0/question/question",
+   "count": 6,
+   "shot": "shots/millionaire-0-solo-crowd-hall-13.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|за краем экрана|main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big|",
+   "area": "экран зала",
+   "kind": "за краем экрана",
+   "message": "текст выходит за край экрана по высоте на 191 px",
+   "path": "main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big",
+   "text": "Окончательный ответ — A",
+   "at": "playing/0/question/question",
+   "count": 1,
+   "shot": "shots/millionaire-0-solo-crowd-hall-14.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«A» закрыт элементом p.stage-code",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__letter",
+   "text": "A",
+   "at": "playing/0/question/question",
+   "count": 2,
+   "shot": "shots/millionaire-0-solo-crowd-hall-15.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Зелёного» закрыт элементом p.stage-code",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text",
+   "text": "Зелёного",
+   "at": "playing/0/question/question",
+   "count": 2,
+   "shot": "shots/millionaire-0-solo-crowd-hall-16.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Голубого» и «Вход: localhost:46821/j · код » друг на друге",
+   "path": "div.mil-question.mil-question--screen > ol.mil-options > li.mil-option > span.mil-option__text",
+   "text": "Голубого | Вход: localhost:46821/j · код 123 456",
+   "at": "playing/0/question/question",
+   "count": 1,
+   "shot": "shots/millionaire-0-solo-crowd-hall-17.jpg",
+   "where": [
+    "millionaire 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (span.hd-row__text)",
+   "path": "div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text",
+   "text": "«Горько!»",
+   "at": "playing/2/reveal/play",
+   "count": 45,
+   "shot": "shots/hundred-0-teams-crowd-hall-3.jpg",
+   "where": [
+    "hundred 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 3-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "hundred 3-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > small|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 1.85 (нужно от 4.5)",
+   "path": "li > button.hd-host__row > span.hd-host__text > small",
+   "text": "ещё: бельё, плед",
+   "at": "playing/0/reveal/play",
+   "count": 1,
+   "shot": "shots/hundred-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "hundred 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.stack > div.dr-pick > button.dr-pick__item > span.dr-pick__name|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.stack > div.dr-pick > button.dr-pick__item > span.dr-pick__name",
+   "text": "Эльфийка",
+   "at": "playing/1/question/",
+   "count": 40,
+   "shot": "shots/dragon-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "пульт|за краем|div.sv-marks > div.sv-mark-row > button.column-opt > span.line-clamp|",
+   "area": "пульт",
+   "kind": "за краем",
+   "message": "текст выходит за край области вбок на 145 px",
+   "path": "div.sv-marks > div.sv-mark-row > button.column-opt > span.line-clamp",
+   "text": "— «Робот пишет ответ 97»",
+   "at": "playing/3/question/",
+   "count": 35,
+   "shot": "shots/survival-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "survival 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "survival"
+   ]
+  },
+  {
+   "key": "пульт|прокрутка вбок|div.stack.host-quiz > section.stack.stack--tight > div.sv-marks > div.sv-mark-row|",
+   "area": "пульт",
+   "kind": "прокрутка вбок",
+   "message": "страница шире экрана на 195 px (div.sv-mark-row)",
+   "path": "div.stack.host-quiz > section.stack.stack--tight > div.sv-marks > div.sv-mark-row",
+   "text": "",
+   "at": "playing/3/question/",
+   "count": 4,
+   "shot": "shots/survival-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "survival 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "survival"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-boss > div.dg-boss__rank|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 18.2 px — 18 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-boss > div.dg-boss__rank",
+   "text": "Бой 1 из 2",
+   "at": "playing/1/question/",
+   "count": 4,
+   "shot": "shots/dragon-0-teams-crowd-hall-1.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 13 px на Full HD (нужно от 18)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 40,
+   "shot": "shots/dragon-0-teams-crowd-hall-2.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 13 px на Full HD (нужно от 18)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 40,
+   "shot": "shots/dragon-0-teams-crowd-hall-3.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye",
+   "text": "Бой с драконом",
+   "at": "playing/1/question/",
+   "count": 2,
+   "shot": "shots/dragon-0-teams-crowd-hall-4.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__row > span.dg-team__dm|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 13 px на Full HD (нужно от 18)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__row > span.dg-team__dm",
+   "text": "урон",
+   "at": "playing/2/ready/",
+   "count": 30,
+   "shot": "shots/dragon-0-teams-crowd-hall-5.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li.dg-team > span.dg-team__row > span.dg-team__dm > b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 13 px на Full HD (нужно от 18)",
+   "path": "li.dg-team > span.dg-team__row > span.dg-team__dm > b",
+   "text": "0",
+   "at": "playing/2/ready/",
+   "count": 60,
+   "shot": "shots/dragon-0-teams-crowd-hall-6.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__row > span.dg-team__dm|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 13 px на Full HD (нужно от 18)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__row > span.dg-team__dm",
+   "text": "урон",
+   "at": "playing/2/ready/",
+   "count": 30,
+   "shot": "shots/dragon-0-teams-crowd-hall-7.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > div.dg-q__eye",
+   "text": "Задание 1 · 🧠 Ум",
+   "at": "playing/3/reveal/",
+   "count": 2,
+   "shot": "shots/dragon-0-teams-crowd-hall-8.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__name|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.dg-boss__name)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__name",
+   "text": "Добрый дракончик",
+   "at": "playing/1/question/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-crowd-hall-1.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji",
+   "text": "🦄",
+   "at": "playing/1/question/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-crowd-hall-2.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span",
+   "text": "Единороги из бухгалтерии",
+   "at": "playing/1/question/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-crowd-hall-3.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji",
+   "text": "🐬",
+   "at": "playing/1/question/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-crowd-hall-4.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span",
+   "text": "Дельфины маркетинга и PR",
+   "at": "playing/1/question/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-crowd-hall-5.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__rank|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 18.2 px — 18 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__rank",
+   "text": "Сказочный дракон",
+   "at": "playing/1/question/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-crowd-hall-6.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye",
+   "text": "Бой с драконом",
+   "at": "playing/1/question/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-crowd-hall-9.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 3.27 (нужно от 4.5)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-crowd-hall-10.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 3.27 (нужно от 4.5)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-crowd-hall-11.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 2.58 (нужно от 4.5)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye",
+   "text": "Бой с драконом",
+   "at": "playing/1/question/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-crowd-hall-12.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye",
+   "text": "Задание 1 · 🧠 Ум",
+   "at": "playing/3/reveal/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-crowd-hall-16.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 2.58 (нужно от 4.5)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye",
+   "text": "Задание 1 · 🧠 Ум",
+   "at": "playing/3/reveal/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-crowd-hall-17.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-q > ol.dg-q__ans > li > b|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 2.58 (нужно от 3)",
+   "path": "div.dg-q > ol.dg-q__ans > li > b",
+   "text": "А",
+   "at": "playing/3/reveal/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-crowd-hall-18.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 29 px (div.dk-card.dk-d--cyber)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/4/question/play",
+   "count": 12,
+   "shot": "shots/durak-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 21 px (div.dk-card.dk-d--cyber)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/4/question/play",
+   "count": 6,
+   "shot": "shots/durak-0-solo-crowd-phones-2.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/4/question/play",
+   "count": 3,
+   "shot": "shots/durak-0-solo-crowd-phones-3.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-pip.dk-pip--ace|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 5 px (div.dk-card.dk-d--cyber)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--cyber > span.dk-pip.dk-pip--ace",
+   "text": "♦︎",
+   "at": "playing/4/question/play",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-phones-4.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 29 px (div.dk-card.dk-d--russia)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/12/question/play",
+   "count": 24,
+   "shot": "shots/durak-0-solo-crowd-phones-5.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 21 px (div.dk-card.dk-d--russia)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/12/question/play",
+   "count": 12,
+   "shot": "shots/durak-0-solo-crowd-phones-6.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/12/question/play",
+   "count": 5,
+   "shot": "shots/durak-0-solo-crowd-phones-7.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip.dk-pip--ace|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 5 px (div.dk-card.dk-d--russia)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-pip.dk-pip--ace",
+   "text": "♦︎",
+   "at": "playing/12/question/play",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-phones-8.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx",
+   "text": "8",
+   "at": "playing/12/question/play",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-phones-9.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "8",
+   "at": "playing/12/question/play",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-phones-10.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 29 px (div.dk-card.dk-d--rome)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/17/question/play",
+   "count": 48,
+   "shot": "shots/durak-0-solo-crowd-phones-11.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 21 px (div.dk-card.dk-d--rome)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/17/question/play",
+   "count": 21,
+   "shot": "shots/durak-0-solo-crowd-phones-12.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx",
+   "text": "8",
+   "at": "playing/17/question/play",
+   "count": 17,
+   "shot": "shots/durak-0-solo-crowd-phones-13.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b",
+   "text": "8",
+   "at": "playing/17/question/play",
+   "count": 17,
+   "shot": "shots/durak-0-solo-crowd-phones-14.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--rome > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/17/question/play",
+   "count": 9,
+   "shot": "shots/durak-0-solo-crowd-phones-15.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (div.dk-card.dk-d--rome)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b",
+   "text": "A",
+   "at": "playing/17/question/play",
+   "count": 8,
+   "shot": "shots/durak-0-solo-crowd-phones-16.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 5.4 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--rome > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/17/question/play",
+   "count": 8,
+   "shot": "shots/durak-0-solo-crowd-phones-17.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (div.dk-card.dk-d--greece)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b",
+   "text": "A",
+   "at": "playing/20/question/play",
+   "count": 3,
+   "shot": "shots/durak-0-solo-crowd-phones-18.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 23 px (div.dk-card.dk-d--greece)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/20/question/play",
+   "count": 12,
+   "shot": "shots/durak-0-solo-crowd-phones-19.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 15 px (div.dk-card.dk-d--greece)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/20/question/play",
+   "count": 5,
+   "shot": "shots/durak-0-solo-crowd-phones-20.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx",
+   "text": "Q",
+   "at": "playing/20/question/play",
+   "count": 6,
+   "shot": "shots/durak-0-solo-crowd-phones-21.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b",
+   "text": "Q",
+   "at": "playing/20/question/play",
+   "count": 6,
+   "shot": "shots/durak-0-solo-crowd-phones-22.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 5.4 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--greece > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/20/question/play",
+   "count": 3,
+   "shot": "shots/durak-0-solo-crowd-phones-23.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--greece > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/20/question/play",
+   "count": 2,
+   "shot": "shots/durak-0-solo-crowd-phones-24.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|section.card > div.stack.host-quiz > div.actions > button.btn.btn--secondary|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 1.07 (нужно от 4.5)",
+   "path": "section.card > div.stack.host-quiz > div.actions > button.btn.btn--secondary",
+   "text": "Гости выбирают колоду (голосование)",
+   "at": "playing/39/question/play",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-phones-25.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 29 px (div.dk-card.dk-d--kpop)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/39/question/play",
+   "count": 24,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 20 px (div.dk-card.dk-d--kpop)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/39/question/play",
+   "count": 12,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/39/question/play",
+   "count": 6,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|прокрутка вбок|div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span|",
+   "area": "телефон",
+   "kind": "прокрутка вбок",
+   "message": "страница шире экрана на 10 px (span)",
+   "path": "div.dk-phone__opps > span.dk-opp.dk-opp--wait > span.dk-opp__name > span",
+   "text": "Максимилиан Рождественский",
+   "at": "playing/39/question/play",
+   "count": 3,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 25 px (div.dk-card.dk-d--wedding)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/51/question/play",
+   "count": 24,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 18 px (div.dk-card.dk-d--wedding)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/51/question/play",
+   "count": 12,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/51/question/play",
+   "count": 4,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 28 px (div.dk-card.dk-d--gothic)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/53/question/play",
+   "count": 26,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 20 px (div.dk-card.dk-d--gothic)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/53/question/play",
+   "count": 13,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/53/question/play",
+   "count": 3,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.00 (нужно от 4.5)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/63/question/play",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 3 px (div.dk-card.dk-d--classic)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b",
+   "text": "7",
+   "at": "playing/88/question/play",
+   "count": 3,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 25 px (div.dk-card.dk-d--classic)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/88/question/play",
+   "count": 12,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 18 px (div.dk-card.dk-d--classic)",
+   "path": "button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b > span",
+   "text": "♠︎",
+   "at": "playing/88/question/play",
+   "count": 6,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx",
+   "text": "6",
+   "at": "playing/88/question/play",
+   "count": 6,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b",
+   "text": "6",
+   "at": "playing/88/question/play",
+   "count": 6,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-brand|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.3 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-brand",
+   "text": "J✦R",
+   "at": "playing/88/question/play",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|за краем|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx|",
+   "area": "телефон",
+   "kind": "за краем",
+   "message": "текст выходит за край области вбок на 7 px",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx",
+   "text": "K",
+   "at": "playing/112/reveal/over",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-pip.dk-pip--ace|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 8 px (div.dk-card.dk-d--kpop)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--kpop > span.dk-pip.dk-pip--ace",
+   "text": "♣︎",
+   "at": "playing/122/reveal/over",
+   "count": 2,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--kpop > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--kpop > span.dk-idx",
+   "text": "6",
+   "at": "playing/122/reveal/over",
+   "count": 3,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.dk-mini > span.dk-mini__pair > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b",
+   "text": "6",
+   "at": "playing/122/reveal/over",
+   "count": 3,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.dk-seat__card > span.dk-seat__text > span.dk-seat__name > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Александра Константинова» закрыт элементом span.name-emoji",
+   "path": "div.dk-seat__card > span.dk-seat__text > span.dk-seat__name > span",
+   "text": "Александра Константинова",
+   "at": "playing/1/question/deal",
+   "count": 7,
+   "shot": "shots/durak-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__status|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.2 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__status",
+   "text": "За столом",
+   "at": "playing/1/question/deal",
+   "count": 9,
+   "shot": "shots/durak-0-solo-crowd-hall-2.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 3 px (div.dk-card.dk-d--classic)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (div.dk-card.dk-d--gothic)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-4.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.dk-card.dk-d--greece)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-5.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.dk-card.dk-d--rome)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-6.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 7 px (div.dk-card.dk-d--cyber)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-7.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 7 px (div.dk-card.dk-d--vintage)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-8.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (div.dk-card.dk-d--russia)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-9.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 7 px (div.dk-card.dk-d--kpop)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-10.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (div.dk-card.dk-d--anime)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-11.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 3 px (div.dk-card.dk-d--wedding)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-12.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-croupier > p.dk-croupier__line|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Выбираем колоду — голосуйте на» и «Какой колодой играем?» друг на друге",
+   "path": "div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-croupier > p.dk-croupier__line",
+   "text": "Выбираем колоду — голосуйте на телефонах | Какой колодой играем?",
+   "at": "playing/2/question/vote",
+   "count": 2,
+   "shot": "shots/durak-0-solo-crowd-hall-13.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-croupier > p.dk-croupier__line|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Выбираем колоду — голосуйте на телефонах» закрыт элементом h2",
+   "path": "div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-croupier > p.dk-croupier__line",
+   "text": "Выбираем колоду — голосуйте на телефонах",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-14.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-hall__title > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Дурак подкидной» закрыт элементом h2",
+   "path": "div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-hall__title > span",
+   "text": "Дурак подкидной",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-15.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-hall__title > small|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«партия 1 из 3 · 36 карт · Классика JoyRe» закрыт элементом h2",
+   "path": "div.dk-hall.dk-felt--bordeaux > div.dk-hall__top > div.dk-hall__title > small",
+   "text": "партия 1 из 3 · 36 карт · Классика JoyRest",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-16.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__avatar|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Е» закрыт элементом div.dk-card.dk-d--rome",
+   "path": "div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__avatar",
+   "text": "Е",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-17.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > p.stage-code|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Вход: localhost:46821/j · код 123 456» закрыт элементом div.dk-vote",
+   "path": "div.hall > main.quiz-stage > p.stage-code",
+   "text": "Вход: localhost:46821/j · код 123 456",
+   "at": "playing/2/question/vote",
+   "count": 7,
+   "shot": "shots/durak-0-solo-crowd-hall-18.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор",
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak",
+    "bunker",
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--classic > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--classic > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-19.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-20.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-21.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-22.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-23.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--greece > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-24.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "shot": "shots/durak-0-solo-crowd-hall-25.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--rome > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--cyber > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--vintage > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--russia > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--russia > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--kpop > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--anime > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--anime > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--anime > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--wedding > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--wedding > span.dk-idx",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dk-vote__grid > div.dk-vote__tile > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b",
+   "text": "K",
+   "at": "playing/2/question/vote",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__avatar|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.09 (нужно от 4.5)",
+   "path": "div.dk-table > div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__avatar",
+   "text": "А",
+   "at": "playing/2/question/vote",
+   "count": 3,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 35 px (div.dk-card.dk-d--rome)",
+   "path": "div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx",
+   "text": "K",
+   "at": "playing/16/question/play",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 18 px (div.dk-card.dk-d--rome)",
+   "path": "div.dk-stock > div.dk-card.dk-d--rome > span.dk-idx > span",
+   "text": "♥︎",
+   "at": "playing/16/question/play",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dk-seat.dk-seat--wait > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta",
+   "text": "6 карт",
+   "at": "playing/16/question/play",
+   "count": 4,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta",
+   "text": "6 карт",
+   "at": "playing/16/question/play",
+   "count": 2,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-table > div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__status|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.2 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dk-table > div.dk-seat.dk-seat--turn > div.dk-seat__card > span.dk-seat__status",
+   "text": "Ходит",
+   "at": "playing/16/question/play",
+   "count": 2,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__text > span.dk-seat__meta",
+   "text": "6 карт",
+   "at": "playing/16/question/play",
+   "count": 2,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dk-table > div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__status|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.2 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dk-table > div.dk-seat.dk-seat--defend > div.dk-seat__card > span.dk-seat__status",
+   "text": "Отбивается",
+   "at": "playing/16/question/play",
+   "count": 2,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--greece > span.dk-idx|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 35 px (div.dk-card.dk-d--greece)",
+   "path": "div.dk-table__felt > div.dk-stock > div.dk-card.dk-d--greece > span.dk-idx",
+   "text": "K",
+   "at": "playing/18/question/play",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dk-stock > div.dk-card.dk-d--greece > span.dk-idx > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 18 px (div.dk-card.dk-d--greece)",
+   "path": "div.dk-stock > div.dk-card.dk-d--greece > span.dk-idx > span",
+   "text": "♥︎",
+   "at": "playing/18/question/play",
+   "count": 1,
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.hall > main.quiz-stage > div.bk-screen > p.bk-screen__log|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«🦊 Александра Константинова: «» и «Вход: localhost:46821/j · код » друг на друге",
+   "path": "div.hall > main.quiz-stage > div.bk-screen > p.bk-screen__log",
+   "text": "🦊 Александра Константинова: «Таблетка от всего» — игрок 🐻 Святослав Константин",
+   "at": "playing/8/question/open",
+   "count": 5,
+   "shot": "shots/bunker-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__num|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 7.9 px — 8 px на Full HD (нужно от 18)",
+   "path": "li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__num",
+   "text": "1",
+   "at": "playing/8/question/open",
+   "count": 35,
+   "shot": "shots/bunker-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.6 px — 14 px на Full HD (нужно от 18)",
+   "path": "li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title",
+   "text": "Кинозал",
+   "at": "playing/8/question/open",
+   "count": 17,
+   "shot": "shots/bunker-0-solo-crowd-hall-4.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.5 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span",
+   "text": "Профессия",
+   "at": "playing/8/question/open",
+   "count": 2,
+   "shot": "shots/bunker-0-solo-crowd-hall-5.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat",
+   "text": "№1",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-6.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 16.0 px — 16 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span",
+   "text": "Александра Константинова",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-7.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--profession > span.bk-row__text",
+   "text": "Кондитер · стаж 10 лет",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-8.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--biology > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--biology > span.bk-row__text",
+   "text": "Биология",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-9.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--health > span.bk-row__text",
+   "text": "Здоровье",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-10.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text",
+   "text": "Хобби",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-11.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text",
+   "text": "Багаж",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-12.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.7 px — 12 px на Full HD (нужно от 18)",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text",
+   "text": "Факт",
+   "at": "playing/8/question/open",
+   "count": 80,
+   "shot": "shots/bunker-0-solo-crowd-hall-13.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.9 px — 11 px на Full HD (нужно от 18)",
+   "path": "ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used",
+   "text": "Таблетка от всего",
+   "at": "playing/8/question/open",
+   "count": 56,
+   "shot": "shots/bunker-0-solo-crowd-hall-14.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ol.bk-screen__dossiers > li > article.bk-dossier > span.bk-dossier__stamp|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.9 px — 11 px на Full HD (нужно от 18)",
+   "path": "ol.bk-screen__dossiers > li > article.bk-dossier > span.bk-dossier__stamp",
+   "text": "Изгнан",
+   "at": "playing/61/question/justify",
+   "count": 1,
+   "shot": "shots/bunker-0-solo-crowd-hall-15.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|прячется за прокруткой|ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used|",
+   "area": "экран зала",
+   "kind": "прячется за прокруткой",
+   "message": "на экране зала текст виден только прокруткой (по высоте на 142 px)",
+   "path": "ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used",
+   "text": "Переполох на складе",
+   "at": "playing/111/question/final",
+   "count": 10,
+   "shot": "shots/bunker-0-solo-crowd-hall-18.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|прячется за прокруткой|li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat|",
+   "area": "экран зала",
+   "kind": "прячется за прокруткой",
+   "message": "на экране зала текст виден только прокруткой (по высоте на 242 px)",
+   "path": "li > article.bk-dossier > header.bk-dossier__head > span.bk-dossier__seat",
+   "text": "№16",
+   "at": "playing/111/question/final",
+   "count": 2,
+   "shot": "shots/bunker-0-solo-crowd-hall-19.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Котёнок» закрыт элементом p.stage-code",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text",
+   "text": "Котёнок",
+   "at": "playing/111/question/final",
+   "count": 4,
+   "shot": "shots/bunker-0-solo-crowd-hall-20.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Терпеть не может детей» закрыт элементом p.stage-code",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text",
+   "text": "Терпеть не может детей",
+   "at": "playing/111/question/final",
+   "count": 1,
+   "shot": "shots/bunker-0-solo-crowd-hall-21.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.0 px — 13 px на Full HD (нужно от 18)",
+   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker",
+   "text": "Угроза",
+   "at": "playing/111/question/final",
+   "count": 4,
+   "shot": "shots/bunker-0-solo-crowd-hall-22.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 14.3 px — 14 px на Full HD (нужно от 18)",
+   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text",
+   "text": "Люди перестали вставать с кроватей и ссорятся.",
+   "at": "playing/111/question/final",
+   "count": 4,
+   "shot": "shots/bunker-0-solo-crowd-hall-23.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 12.6 px — 13 px на Full HD (нужно от 18)",
+   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps",
+   "text": "Поможет: психолог, музыкант, юмор, книги, игры",
+   "at": "playing/111/question/final",
+   "count": 4,
+   "shot": "shots/bunker-0-solo-crowd-hall-24.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__stamp|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__stamp",
+   "text": "Справились",
+   "at": "playing/111/question/final",
+   "count": 4,
+   "shot": "shots/bunker-0-solo-crowd-hall-25.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Пение в караоке» закрыт элементом p.stage-code",
+   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text",
+   "text": "Пение в караоке",
+   "at": "playing/111/reveal/final",
+   "count": 3,
+   "shot": "shots/bunker-0-solo-crowd-hall-26.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat",
+   "text": "№ 1",
+   "at": "playing/0/reveal/meet",
+   "count": 6,
+   "shot": "shots/mafia-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side",
+   "text": "Мафия",
+   "at": "playing/0/reveal/meet",
+   "count": 6,
+   "shot": "shots/mafia-0-solo-crowd-phones-2.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.6 px (нужно от 12)",
+   "path": "button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power",
+   "text": "Ночью вместе с семьёй выбираете, кого убрать.",
+   "at": "playing/0/reveal/meet",
+   "count": 6,
+   "shot": "shots/mafia-0-solo-crowd-phones-3.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__family|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "button.mf-card > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__family",
+   "text": "Ваша семья: 🐯 Анастасия Великорецкая, 🐬 Святослав Новосельцев (Дон), 🦁 Валент",
+   "at": "playing/0/reveal/meet",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-phones-4.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|закрыт другим элементом|ul.mf-tally > li.mf-tally__row > span.mf-tally__name > span|",
+   "area": "телефон",
+   "kind": "закрыт другим элементом",
+   "message": "«Максимилиан Константинова» закрыт элементом strong.mf-tally__n",
+   "path": "ul.mf-tally > li.mf-tally__row > span.mf-tally__name > span",
+   "text": "Максимилиан Константинова",
+   "at": "playing/1/reveal/verdict",
+   "count": 100,
+   "shot": "shots/mafia-0-solo-crowd-phones-5.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__seat",
+   "text": "№ 1",
+   "at": "playing/59/reveal/over",
+   "count": 3,
+   "shot": "shots/mafia-0-solo-crowd-phones-6.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.8 px (нужно от 12)",
+   "path": "div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > span.mf-card__side",
+   "text": "Мафия",
+   "at": "playing/59/reveal/over",
+   "count": 3,
+   "shot": "shots/mafia-0-solo-crowd-phones-7.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.6 px (нужно от 12)",
+   "path": "div.mf-card.mf-card--still > span.mf-card__inner > div.mf-card__face.mf-card__front > p.mf-card__power",
+   "text": "Ночью вместе с семьёй выбираете, кого убрать.",
+   "at": "playing/59/reveal/over",
+   "count": 3,
+   "shot": "shots/mafia-0-solo-crowd-phones-8.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|section.mf-screen__seats > ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__num|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 2.44 (нужно от 3)",
+   "path": "section.mf-screen__seats > ol.mf-seats.mf-seats--screen > li.mf-seat > span.mf-seat__num",
+   "text": "1",
+   "at": "playing/7/question/night",
+   "count": 10,
+   "shot": "shots/mafia-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 200 px (div.mf-screen)",
+   "path": "main.quiz-stage > div.mf-screen > section.mf-screen__main > span.quiz-screen__badge",
+   "text": "Голосование · 20 с",
+   "at": "playing/11/question/vote",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-hall-2.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|main.quiz-stage > div.mf-screen > section.mf-screen__main > h2.mf-title|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 127 px (div.mf-screen)",
+   "path": "main.quiz-stage > div.mf-screen > section.mf-screen__main > h2.mf-title",
+   "text": "Кого город выгоняет?",
+   "at": "playing/11/question/vote",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|section.mf-screen__main > ul.mf-nominees > li > span.mf-num|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.mf-screen)",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span.mf-num",
+   "text": "№2",
+   "at": "playing/11/question/vote",
+   "count": 2,
+   "shot": "shots/mafia-0-solo-crowd-hall-4.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|section.mf-screen__main > ul.mf-nominees > li > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.mf-screen)",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/11/question/vote",
+   "count": 2,
+   "shot": "shots/mafia-0-solo-crowd-hall-5.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|section.mf-screen__main > ul.mf-nominees > li > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.mf-screen)",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span",
+   "text": "Владимир Преображенский",
+   "at": "playing/11/question/vote",
+   "count": 2,
+   "shot": "shots/mafia-0-solo-crowd-hall-6.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|section.mf-screen__main > ul.mf-nominees > li > span.mf-num|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«№18» и «🐺» друг на друге",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span.mf-num",
+   "text": "№18 | 🐺",
+   "at": "playing/11/question/vote",
+   "count": 4,
+   "shot": "shots/mafia-0-solo-crowd-hall-7.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|section.mf-screen__main > ul.mf-nominees > li > span.mf-num|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«№18» закрыт элементом span.name-emoji",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span.mf-num",
+   "text": "№18",
+   "at": "playing/11/question/vote",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-hall-8.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|section.mf-screen__main > ul.mf-nominees > li > span|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Владимир Новосельцев» и «3» друг на друге",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span",
+   "text": "Владимир Новосельцев | 3",
+   "at": "playing/11/question/vote",
+   "count": 11,
+   "shot": "shots/mafia-0-solo-crowd-hall-9.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|section.mf-screen__main > ul.mf-nominees > li > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«🦋» и «Анастасия Великорецкая» друг на друге",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span.name-emoji",
+   "text": "🦋 | Анастасия Великорецкая",
+   "at": "playing/11/question/vote",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-hall-10.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|section.mf-screen__main > ul.mf-nominees > li > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«🦋» закрыт элементом span",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span.name-emoji",
+   "text": "🦋",
+   "at": "playing/11/question/vote",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-hall-11.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|section.mf-screen__main > ul.mf-nominees > li > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Екатерина Белозерская» закрыт элементом span",
+   "path": "section.mf-screen__main > ul.mf-nominees > li > span",
+   "text": "Екатерина Белозерская",
+   "at": "playing/11/question/vote",
+   "count": 1,
+   "shot": "shots/mafia-0-solo-crowd-hall-12.jpg",
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "mafia 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "mafia"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.sp-screen > section.sp-screen__main > div.sp-timer > span.sp-timer__label|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Обсуждение» и «8:00» друг на друге",
+   "path": "div.sp-screen > section.sp-screen__main > div.sp-timer > span.sp-timer__label",
+   "text": "Обсуждение | 8:00",
+   "at": "playing/1/question/talk",
+   "count": 1,
+   "shot": "shots/spy-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "spy 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "spy"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "spy 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "spy"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "spy 1-й шаблон, каждый сам ×20, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "spy"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-phone__back > div.bk-card.bk-back > div.bk-in > span.bk-back__word|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.6 px (нужно от 12)",
+   "path": "div.bk-phone__back > div.bk-card.bk-back > div.bk-in > span.bk-back__word",
+   "text": "Бункер",
+   "at": "playing/0/question/deal",
+   "count": 3,
+   "shot": "shots/bunker-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 9.2 px (нужно от 12)",
+   "path": "div.bk-card.bk-trait > div.bk-in > span.bk-trait__band > span",
+   "text": "Профессия",
+   "at": "playing/2/question/bunker",
+   "count": 684,
+   "shot": "shots/bunker-0-solo-crowd-phones-2.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-card.bk-special > div.bk-in > span.bk-special__band > span|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 7.2 px (нужно от 12)",
+   "path": "div.bk-card.bk-special > div.bk-in > span.bk-special__band > span",
+   "text": "Особое условие",
+   "at": "playing/2/question/bunker",
+   "count": 114,
+   "shot": "shots/bunker-0-solo-crowd-phones-3.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__title|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__title",
+   "text": "Перепланировка",
+   "at": "playing/2/question/bunker",
+   "count": 114,
+   "shot": "shots/bunker-0-solo-crowd-phones-4.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 7.3 px (нужно от 12)",
+   "path": "div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text",
+   "text": "Последняя открытая карта бункера заменяется новой из колоды.",
+   "at": "playing/2/question/bunker",
+   "count": 114,
+   "shot": "shots/bunker-0-solo-crowd-phones-5.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 6.1 px (нужно от 12)",
+   "path": "div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when",
+   "text": "во время голосования",
+   "at": "playing/2/question/bunker",
+   "count": 76,
+   "shot": "shots/bunker-0-solo-crowd-phones-6.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__stamp|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 9.9 px (нужно от 12)",
+   "path": "div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__stamp",
+   "text": "сыграно",
+   "at": "playing/3/question/open",
+   "count": 32,
+   "shot": "shots/bunker-0-solo-crowd-phones-7.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×16, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.9 px (нужно от 12)",
+   "path": "div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from",
+   "text": "от гостя: Игрок",
+   "at": "playing/0/reveal/done",
+   "count": 72,
+   "shot": "shots/truth-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "truth 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "truth"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.9 px (нужно от 12)",
+   "path": "div.quiz-phone.td-phone > div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from",
+   "text": "от гостя: Игрок",
+   "at": "playing/10/reveal/done",
+   "count": 18,
+   "shot": "shots/truth-0-solo-crowd-phones-3.jpg",
+   "where": [
+    "truth 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 2-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "truth"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "truth"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from > span|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.9 px (нужно от 12)",
+   "path": "div.td-flip.td-flip--phone > div.td-face.td-face--dare > span.td-face__from > span",
+   "text": "Константин Преображенский",
+   "at": "playing/3/question/card",
+   "count": 24,
+   "shot": "shots/truth-0-solo-crowd-phones-2.jpg",
+   "where": [
+    "truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "truth"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from > span|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.9 px (нужно от 12)",
+   "path": "div.td-flip.td-flip--phone > div.td-face.td-face--truth > span.td-face__from > span",
+   "text": "Валентина Белозерская",
+   "at": "playing/43/question/card",
+   "count": 12,
+   "shot": "shots/truth-0-solo-crowd-phones-4.jpg",
+   "where": [
+    "truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "truth 2-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "truth"
+   ]
+  },
+  {
+   "area": "страница",
+   "kind": "не успел",
+   "message": "TimeoutError: page.waitForFunction: Timeout 600000ms exceeded.",
+   "path": "",
+   "text": "",
+   "at": "",
+   "count": 1,
+   "where": [
+    "truth 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "truth"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Ближе всех» и «Вход: localhost:46821/j · код » друг на друге",
+   "path": "div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag",
+   "text": "Ближе всех | Вход: localhost:46821/j · код 123 456",
+   "at": "playing/2/reveal/answer",
+   "count": 1,
+   "shot": "shots/wager-0-teams-crowd-hall-1.jpg",
+   "where": [
+    "wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value",
+   "text": "Меньше всех",
+   "at": "playing/2/question/bet",
+   "count": 9,
+   "shot": "shots/wager-0-teams-crowd-phones-1.jpg",
+   "where": [
+    "wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value",
+   "text": "Меньше всех",
+   "at": "playing/2/question/bet",
+   "count": 2,
+   "shot": "shots/wager-0-teams-crowd-phones-2.jpg",
+   "where": [
+    "wager 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "пульт|мелкая кнопка|div.stack.host-quiz > section.card.stack > div.pr-faces > button.pr-face|",
+   "area": "пульт",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 32×56 px (пальцу нужно от 40×40)",
+   "path": "div.stack.host-quiz > section.card.stack > div.pr-faces > button.pr-face",
+   "text": "",
+   "at": "playing/1/question/bid",
+   "count": 111,
+   "shot": "shots/perudo-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "perudo 1-й шаблон, каждый сам ×4, большой праздник: 10 команд или 40 гостей, телевизор",
+    "perudo 1-й шаблон, команды ×4, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "perudo"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.wine-cell__label)",
+   "path": "div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label",
+   "text": "Красное",
+   "at": "playing/1/question/bet",
+   "count": 200,
+   "shot": "shots/wine-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wine"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.wine-table.wine-table--compact > div.wine-row > span.wine-row__head > span.wine-row__title|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.wine-table.wine-table--compact > div.wine-row > span.wine-row__head > span.wine-row__title",
+   "text": "Цвет",
+   "at": "playing/1/question/bet",
+   "count": 48,
+   "shot": "shots/wine-0-solo-crowd-phones-1.jpg",
+   "where": [
+    "wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wine"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label",
+   "text": "Красное",
+   "at": "playing/1/question/bet",
+   "count": 400,
+   "shot": "shots/wine-0-solo-crowd-phones-2.jpg",
+   "where": [
+    "wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wine"
+   ]
+  },
+  {
+   "key": "пульт|обрезан текст|div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label|",
+   "area": "пульт",
+   "kind": "обрезан текст",
+   "message": "текст обрезан вбок на 3 px (span.wine-cell__label)",
+   "path": "div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label",
+   "text": "Новый Свет",
+   "at": "playing/1/reveal/open",
+   "count": 10,
+   "shot": "shots/wine-0-solo-crowd-phones-3.jpg",
+   "where": [
+    "wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wine"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 3.07 (нужно от 4.5)",
+   "path": "div.wine-row > span.wine-row__cells > span.wine-cell > span.wine-cell__label",
+   "text": "Германия",
+   "at": "playing/1/reveal/open",
+   "count": 12,
+   "shot": "shots/wine-0-solo-crowd-phones-4.jpg",
+   "where": [
+    "wine 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор",
+    "wine 1-й шаблон, команды ×10, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wine"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.wager-screen > ul.wager-guessed > li > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 54 px (div.wager-screen)",
+   "path": "div.wager-screen > ul.wager-guessed > li > span.name-emoji",
+   "text": "🐯",
+   "at": "playing/1/question/guess",
+   "count": 16,
+   "shot": "shots/wager-0-solo-crowd-hall-1.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.wager-screen > ul.wager-guessed > li > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 54 px (div.wager-screen)",
+   "path": "div.wager-screen > ul.wager-guessed > li > span",
+   "text": "Александра Белозерская",
+   "at": "playing/1/question/guess",
+   "count": 16,
+   "shot": "shots/wager-0-solo-crowd-hall-2.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.wager-screen > ul.wager-guessed > li > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«🐺» закрыт элементом p.stage-code",
+   "path": "div.wager-screen > ul.wager-guessed > li > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/1/question/guess",
+   "count": 3,
+   "shot": "shots/wager-0-solo-crowd-hall-3.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.wager-screen > ul.wager-guessed > li > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Святослав Воскресенская» закрыт элементом p.stage-code",
+   "path": "div.wager-screen > ul.wager-guessed > li > span",
+   "text": "Святослав Воскресенская",
+   "at": "playing/1/question/guess",
+   "count": 3,
+   "shot": "shots/wager-0-solo-crowd-hall-4.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.wager-screen > ul.wager-guessed > li > span|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Валентина Рождественский» и «Вход: localhost:46821/j · код » друг на друге",
+   "path": "div.wager-screen > ul.wager-guessed > li > span",
+   "text": "Валентина Рождественский | Вход: localhost:46821/j · код 123 456",
+   "at": "playing/1/question/guess",
+   "count": 1,
+   "shot": "shots/wager-0-solo-crowd-hall-5.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.wager-screen > ul.wager-guessed > li > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«🐻» и «Вход: localhost:46821/j · код » друг на друге",
+   "path": "div.wager-screen > ul.wager-guessed > li > span.name-emoji",
+   "text": "🐻 | Вход: localhost:46821/j · код 123 456",
+   "at": "playing/1/question/guess",
+   "count": 1,
+   "shot": "shots/wager-0-solo-crowd-hall-6.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×40, большой праздник: 10 команд или 40 гостей, телевизор"
+   ],
+   "games": [
+    "wager"
+   ]
+  }
+ ]
+}

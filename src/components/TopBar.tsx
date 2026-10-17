@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { noticesRepo, permissions } from "../data";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { NoticeBell } from "./NoticeBell";
+import { ProfileContext } from "./profileContext";
 import { Logo } from "./Logo";
 import { ActionButton, ActionMenu, type MenuAction } from "./Menu";
 
@@ -30,6 +33,9 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
   const overflow = actions.length > INLINE_ACTIONS + 1;
   const inline = overflow ? actions.slice(0, INLINE_ACTIONS) : actions;
   const more = overflow ? actions.slice(INLINE_ACTIONS) : [];
+  const profile = useContext(ProfileContext);
+  // Колокольчик — владельцу и менеджеру по продажам в студии (не на пульте: там свои дела).
+  const bell = !leaveWarning && noticesRepo !== null && profile !== null && permissions.canManageClients(profile);
   return (
     <header className="topbar">
       <div className="topbar__brand">
@@ -55,17 +61,22 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
           <h1>{title}</h1>
         </div>
       </div>
-      {actions.length > 0 && (
-        <>
-          {/* На компьютере — первые кнопки в ряд, остальное в «Ещё»; на телефоне — всё в меню ☰. */}
-          <nav className="topbar__actions" aria-label="Действия">
-            {inline.map((action) => (
-              <ActionButton key={action.label} action={action} />
-            ))}
-            {more.length > 0 && <ActionMenu className="topbar__more" actions={more} label="Ещё" icon="dots" />}
-          </nav>
-          <ActionMenu className="topbar__menu" actions={actions} label="Меню" />
-        </>
+      {(actions.length > 0 || bell) && (
+        <div className="topbar__tools">
+          {bell && <NoticeBell />}
+          {actions.length > 0 && (
+            <>
+              {/* На компьютере — первые кнопки в ряд, остальное в «Ещё»; на телефоне — всё в меню ☰. */}
+              <nav className="topbar__actions" aria-label="Действия">
+                {inline.map((action) => (
+                  <ActionButton key={action.label} action={action} />
+                ))}
+                {more.length > 0 && <ActionMenu className="topbar__more" actions={more} label="Ещё" icon="dots" />}
+              </nav>
+              <ActionMenu className="topbar__menu" actions={actions} label="Меню" />
+            </>
+          )}
+        </div>
       )}
       {leaveWarning && (
         <ConfirmDialog open={asking} title="Перейти в студию?" confirmLabel="Перейти в студию" cancelLabel="Остаться" onCancel={() => setAsking(false)} onConfirm={() => navigate("/studio")}>

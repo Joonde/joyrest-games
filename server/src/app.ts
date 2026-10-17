@@ -14,6 +14,7 @@ import { registerCalendar } from "./calendar";
 import { registerEvents } from "./events";
 import { registerGames, type GamesOptions } from "./games";
 import { registerClients, upsertClient } from "./clients";
+import { registerNotices } from "./notices";
 import { leadSummary, registerLead, type LeadData, type LeadOptions } from "./lead";
 import { registerTelegram, type Bot } from "./telegram";
 import { parseLinks } from "../../src/core/clients";
@@ -166,6 +167,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerClients(app, { sql: options.sql, isSite });
+    registerNotices(app, { sql: options.sql, isSite });
     registerTelegram(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerVenues(app, {
       formsOpen: false,

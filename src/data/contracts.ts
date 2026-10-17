@@ -17,6 +17,7 @@ import type {
   ClientDetails,
   ClientRecord,
   ContactMatches,
+  NoticesState,
   EraseReport,
   TelegramStatus,
   TelegramHealth,
@@ -314,6 +315,13 @@ export interface EventsRepository {
 }
 
 /** База клиентов — только свой сервер и только владелец; у Firebase — null. */
+/** Колокольчик уведомлений студии (владелец и менеджер по продажам; только свой сервер). */
+export interface NoticesRepository {
+  load(): Promise<NoticesState>;
+  /** Открыл колокольчик — пришедшее до этого прочитано. */
+  markSeen(): Promise<void>;
+}
+
 export interface ClientsRepository {
   list(archived: boolean): Promise<ClientRecord[]>;
   get(id: string): Promise<ClientDetails>;

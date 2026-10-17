@@ -22,6 +22,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     cancelled: d.cancelled === true,
     held: d.held === true ? true : d.held === false ? false : null,
     updatedAt: typeof d.updatedAt === "number" ? d.updatedAt : 0,
+    ...(d.clientNotSaved === true ? { clientNotSaved: true } : {}),
   };
 }
 

@@ -17,6 +17,9 @@ import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from ".
 import { rangeOf } from "./calendar";
 import { dayIndex as dayIdx, dayOf } from "../../src/core/calendar";
 import { changeStatus, upsertClient } from "./clients";
+
+/** Паузы перед попытками записать клиента мероприятия в базу: сразу, через 0,3 с и через 1 с. */
+const CLIENT_RETRY_MS = [0, 300, 1000];
 import { phoneKey } from "../../src/core/clients";
 import type { Bot } from "./telegram";
 
@@ -210,9 +213,11 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       ) {
         notice(request, "changed", saved.hostId, saved);
       }
-      // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю).
+      // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю). Ждём записи и при сбое
+      // повторяем (17 октября 2026: раньше запись шла без ожидания — клиент мог молча не попасть в «Клиентов»).
+      // Не записался и после повторов — мероприятие всё равно сохранено, а форма говорит добавить клиента вручную.
       if (saved.clientName || saved.clientPhone) {
-        void upsertClient(sql, {
+        const client = {
           name: saved.clientName,
           phone: saved.clientPhone,
           source: "event",
@@ -220,7 +225,22 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           ref: saved.id,
           promote: !saved.cancelled,
           by: { id: user.id, name: user.name },
-        }).catch(() => request.log.warn({ events: "client" }, "events: клиент не записан"));
+        };
+        let stored = false;
+        for (const pause of CLIENT_RETRY_MS) {
+          if (pause) await new Promise((r) => setTimeout(r, pause));
+          try {
+            await upsertClient(sql, client);
+            stored = true;
+            break;
+          } catch {
+            request.log.warn({ events: "client" }, "events: клиент не записан, повтор");
+          }
+        }
+        if (!stored) {
+          request.log.error({ events: "client" }, "events: клиент не записан после повторов");
+          return { ...saved, clientNotSaved: true };
+        }
       }
       return saved;
     });

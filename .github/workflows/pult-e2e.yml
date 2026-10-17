@@ -46,6 +46,16 @@ jobs:
           mkdir -p /tmp/e2e && cp scripts/e2e/pult.mjs /tmp/e2e/ && cp -r scripts/e2e/fixtures /tmp/e2e/
           cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
           npx playwright install --with-deps chromium
+      # Test пересобирается после каждого push в claude/*: ждём, пока выложится этот коммит (до 15 минут).
+      - name: Ждём выкладку на test
+        if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 60); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
       - name: Пульт под нагрузкой
         working-directory: /tmp/e2e
         run: node pult.mjs

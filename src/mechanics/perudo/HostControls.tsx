@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { scoringParticipants } from "../../core/leaderboard";
-import type { Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { hostKey } from "../mafia/deal";
 import type { PerudoContent } from "./content";
@@ -20,21 +20,17 @@ import { Die } from "./views";
  * Ведущий — судья: видит кости всех стаканов.
  */
 export function PerudoHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<PerudoContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Ставки раунда идут на одном шаге: касание по старому ходу не повторяем — просим нажать ещё раз.
+  const { busy, error, latest, run, quiet } = useHostRun(session, control, rehearsal, {
+    moment: (s) => resultKey(s.state.result),
+    emptyText: "Это действие сейчас недоступно.",
+    errorText: (e) => (typeof e === "object" && e !== null && "code" in e && e.code === "foreign-pult" ? "Кости стаканов без телефона знает пульт, с которого бросали, — вскрывайте с него." : null),
+  });
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [face, setFace] = useState(3);
   const [qty, setQty] = useState(1);
   const [peek, setPeek] = useState(false);
   const [dialog, confirm] = useConfirm();
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parsePerudoResult(session.state.result);
   const started = session.state.result !== null && session.state.result !== undefined;
@@ -91,65 +87,29 @@ export function PerudoHostControls({ session, content, answers, participants, co
     return { dice: out, foreign };
   }
 
-  function nextSession(): Promise<void> {
-    return new Promise((done) => {
-      const timer = window.setTimeout(done, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        done();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | null | (() => Promise<SessionChange | null>), clear?: number) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    // Ставки раунда идут на одном шаге: сверяем и сам ход, чтобы отставший пульт не затёр новую ставку.
-    const atResult = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change) {
-        setError("Это действие сейчас недоступно.");
-        return;
-      }
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      if (clear !== undefined) await control.clearAnswers(clear);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: atResult } });
-      await arrived;
-    } catch (e) {
-      const code = typeof e === "object" && e !== null && "code" in e ? e.code : null;
-      if (code === "foreign-pult") setError("Кости стаканов без телефона знает пульт, с которого бросали, — вскрывайте с него.");
-      else if (code !== "failed-precondition") setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   /**
    * Бросок: свежие ключи с сервера и их отпечатки в раунд — телефон, чей ключ не дошёл, не покажет «свои» кости,
    * а пульт и вскрытие считают его стакан ключом ведущего.
    */
   const roll = () =>
-    run(async () => {
+    run(async (s) => {
       const list = r.keysStep !== null ? await control.freshAnswers(r.keysStep).catch(() => []) : [];
       const k = { ...keys, ...keysFrom(list, r.keysStep) };
       setKeys(k);
       const prints: Record<string, string> = {};
       // Стаканы без телефона — отпечаток ключа ведущего этого пульта («h…»): другой пульт поймёт, что их кости не знает.
       for (const p of r.seats) prints[p] = k[p] ? keyPrint(k[p] as string) : `h${keyPrint(hostCupKey(host, p))}`;
-      return startRound(latest.current, newNonce(), prints);
+      return startRound(s, newNonce(), prints);
     });
 
   /** Вскрытие: свежие ключи с сервера, чтобы не ошибиться с костями. */
   const call = (kind: "dudo" | "calza") =>
-    run(async () => {
+    run(async (s) => {
       const list = r.keysStep !== null ? await control.freshAnswers(r.keysStep).catch(() => []) : [];
       const k = { ...keys, ...keysFrom(list, r.keysStep) };
       const all = allDice(k);
       if (all.foreign.length > 0) throw Object.assign(new Error("foreign"), { code: "foreign-pult" });
-      return resolveCall(latest.current, content, kind, all.dice);
+      return resolveCall(s, content, kind, all.dice);
     });
 
   // Ход с телефона того, чья очередь, — сразу на стол.
@@ -159,10 +119,8 @@ export function PerudoHostControls({ session, content, answers, participants, co
     const move = moveFromAnswers(latest.current, answers);
     if (!move) return;
     if ("bid" in move) {
-      const change = placeBid(latest.current, move.pid, move.bid);
-      if (!change) return;
-      const { phase, step: atStep, stage: atStage, result: atResult } = latest.current.state;
-      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(atResult) } }).catch(() => undefined);
+      const { pid, bid } = move;
+      void quiet((cur) => placeBid(cur, pid, bid));
     } else void call(move.call);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только на новый ход
   }, [moveKey, busy]);
@@ -271,7 +229,10 @@ export function PerudoHostControls({ session, content, answers, participants, co
               +
             </button>
           </div>
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy || faceMin === null || !r.turn} onClick={() => r.turn && void run(placeBid(session, r.turn, hostBid))}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy || faceMin === null || !r.turn} onClick={() => {
+              const turn = r.turn;
+              if (turn) void run((s) => placeBid(s, turn, hostBid));
+            }}>
             Ставка за стакан: {bidText(hostBid)}
           </button>
         </section>
@@ -286,7 +247,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
         {action === "deal" && (
           <>
             {noPlayers && <p className="muted small">Нужно хотя бы 2 игрока (или команды).</p>}
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noPlayers} onClick={() => void run(startDeal(session, participants, content))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || noPlayers} onClick={() => void run((s) => startDeal(s, participants, content))}>
               Собрать стаканы
             </button>
           </>
@@ -315,16 +276,16 @@ export function PerudoHostControls({ session, content, answers, participants, co
         )}
         {action === "nextParty" && (
           <>
-            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(startDeal(session, participants, content))}>
+            <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => startDeal(s, participants, content))}>
               Партия {r.party + 1} из {content.parties}: собрать стаканы
             </button>
-            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Закончить игру?", text: "Сразу награждение по общему счёту.", confirmLabel: "К награждению", run: () => run(awardNow(session)) })}>
+            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => confirm({ title: "Закончить игру?", text: "Сразу награждение по общему счёту.", confirmLabel: "К награждению", run: () => run((s) => awardNow(s)) })}>
               Закончить и наградить
             </button>
           </>
         )}
         {(action === "podium" || action === "podiumNext") && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(action === "podium" ? awardNow(session) : podiumNext(session))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run((s) => (action === "podium" ? awardNow(s) : podiumNext(s)))}>
             {action === "podium" ? "Награждение" : "Открыть следующее место"}
           </button>
         )}
@@ -333,7 +294,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
             Завершить игру
           </button>
         )}
-        <button type="button" className="btn btn--secondary btn--block" disabled={busy || back === null} onClick={() => back && void run(back.change, back.clearAnswers)}>
+        <button type="button" className="btn btn--secondary btn--block" disabled={busy || back === null} onClick={() => back && void run((s) => perudoBack(s)?.change ?? null, back.clearAnswers === undefined ? [] : [back.clearAnswers])}>
           Назад
         </button>
       </div>

@@ -147,7 +147,7 @@ export function WagerScreenView({ session, content }: ViewProps<WagerContent>) {
         </div>
         <h2 className="wager-screen__question">{question.text}</h2>
         <p className="wager-screen__lead">
-          Напишите число на телефоне капитана{question.unit ? ` (в «${question.unit}»)` : ""}
+          {session.playMode === "teams" ? "Напишите число на телефоне капитана" : "Напишите число на своём телефоне"}{question.unit ? ` (в «${question.unit}»)` : ""}
         </p>
         <p className="wager-screen__count">
           Догадки: <b>{r.guessed.length}</b> из {total}

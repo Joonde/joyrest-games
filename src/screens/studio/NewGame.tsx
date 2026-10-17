@@ -8,7 +8,7 @@ import { Message } from "../../components/Status";
 import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
 import { CATEGORIES, categoryOf } from "../../mechanics/categories";
-import { newContent, selectableMechanics } from "../../mechanics/registry";
+import { newContent, selectableMechanics, supportedPlayMode } from "../../mechanics/registry";
 import { DEFAULT_THEME_ID } from "../../themes/registry";
 
 export function NewGame() {
@@ -49,7 +49,7 @@ function NewGameForm({ profile }: { user: AuthUser; profile: UserProfile }) {
         mechanic,
         themeId: DEFAULT_THEME_ID,
         ageRating: "0+",
-        playMode: "solo",
+        playMode: supportedPlayMode(mechanic, "solo"),
         content: newContent(mechanic),
       });
       navigate(`/studio/games/${id}`, { replace: true });

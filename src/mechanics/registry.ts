@@ -44,6 +44,7 @@ import { evening } from "./evening";
 import { DEMO_MELODY, DEMO_QUIZ, DEMO_QUIZ_FORMATS } from "./quiz/demo";
 import { questionsLabel } from "../core/results";
 import type { AnyMechanic, Mechanic, Step, ValidationError } from "./types";
+import type { PlayMode } from "../data/types";
 
 /**
  * Механика в реестре. Формат содержимого знает только сама механика, а ядро передаёт
@@ -97,6 +98,23 @@ export const selectableMechanics: Array<{ id: string; title: string; hint: strin
 export function mechanicTitle(id: string | null): string {
   if (!id) return "Без игры";
   return getMechanic(id)?.title ?? id;
+}
+
+/**
+ * Режим участников, который механика поддерживает: «Бункер» и «Мафия» — только каждый сам,
+ * «Шашки», «Танцевальный батл», «Just Dance на поле» — только команды. Неподдерживаемый режим
+ * игры (старые игры, новая игра по умолчанию) заменяется на поддерживаемый.
+ */
+export function supportedPlayMode(mechanicId: string | null, mode: PlayMode): PlayMode {
+  const supports = getMechanic(mechanicId)?.supports;
+  if (!supports || supports[mode]) return mode;
+  return mode === "solo" ? "teams" : "solo";
+}
+
+/** Режимы участников, которые механика поддерживает (по порядку: каждый сам, команды). */
+export function supportedPlayModes(mechanicId: string | null): PlayMode[] {
+  const supports = getMechanic(mechanicId)?.supports;
+  return (["solo", "teams"] as const).filter((m) => !supports || supports[m]);
 }
 
 /** Содержимое новой игры выбранной механики. */

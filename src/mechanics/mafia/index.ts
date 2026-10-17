@@ -14,6 +14,8 @@ export const mafia: Mechanic<MafiaContent, MafiaAnswerValue> = {
   id: "mafia",
   title: "Мафия",
   supports: { solo: true, teams: false, noScreen: true },
+  // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
+  ownAward: true,
   create: createMafia,
   parse: parseMafia,
   mediaIds: () => [],

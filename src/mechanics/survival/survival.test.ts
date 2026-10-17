@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
-import { createSurvival, newSurvivalRound, parseSurvival, parseSurvivalList, ticketAllowed, type SurvivalContent, parseSurvivalList as parseListForWords, taskWordFor } from "./content";
+import { createSurvival, newSurvivalRound, parseSurvival, parseSurvivalList, roundText, ticketAllowed, type SurvivalContent, parseSurvivalList as parseListForWords, taskWordFor } from "./content";
 import { DEMO_SURVIVAL } from "./demo";
 import {
   afterAuction,
@@ -76,6 +76,14 @@ describe("Гонка на выживание: содержимое", () => {
     expect(list[0]?.correct).toBe(1);
     expect(list[1]).toMatchObject({ answer: "4 | четыре", points: 50 });
     expect(list[2]?.points).toBe(200);
+  });
+
+  it("задание для режима «каждый сам»: «для команд || для одного = слова», в шаблоне — у всех заданий", () => {
+    const [task] = parseSurvivalList("Задание: капитан показывает — команда угадывает || Покажите — зал угадывает = слон | жираф (150)");
+    expect(task).toMatchObject({ kind: "task", text: "капитан показывает — команда угадывает", solo: "Покажите — зал угадывает", answer: "слон | жираф", points: 150 });
+    expect(task && roundText(task, "solo")).toBe("Покажите — зал угадывает");
+    expect(task && roundText(task, "teams")).toBe("капитан показывает — команда угадывает");
+    for (const r of DEMO_SURVIVAL.rounds) expect(roundText(r, "solo")).not.toMatch(/команд[аеуы]? угадыв|капитан/i);
   });
 
   it("проверка: шаблон проходит, войнушка — только вопрос с вариантами", () => {

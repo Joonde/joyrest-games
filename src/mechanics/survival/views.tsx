@@ -10,7 +10,7 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { isWar, KIND_TITLES, LETTERS, taskWordFor, taskWords, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
+import { isWar, KIND_TITLES, LETTERS, roundText, taskWordFor, taskWords, warIndex, type SurvivalContent, type SurvivalRound } from "./content";
 import { auctionPending, isWarRound, minBet, parseSurvivalResult, roundNumber, roundOf, TASK_MS, type SurvivalResult } from "./logic";
 import { showStageClass } from "../showLook";
 
@@ -138,10 +138,10 @@ export function RaceLanes({ session, content, result, size = "screen" }: { sessi
   );
 }
 
-function RoundCard({ round, result, reveal, size = "screen" }: { round: SurvivalRound; result: SurvivalResult; reveal: boolean; size?: "screen" | "phone" }) {
+function RoundCard({ round, result, reveal, playMode, size = "screen" }: { round: SurvivalRound; result: SurvivalResult; reveal: boolean; playMode: string; size?: "screen" | "phone" }) {
   return (
     <div className={`sv-round sv-round--${size}`}>
-      <p className="sv-round__text">{round.text}</p>
+      <p className="sv-round__text">{roundText(round, playMode)}</p>
       {round.kind === "choice" && (
         <ol className="mil-options sv-options">
           {round.options.map((text, i) => (
@@ -258,7 +258,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
         <span className="quiz-screen__badge">Аукцион{left !== null && r.phase === "auction" ? ` · ${left} с` : ""}</span>
         {show ? <Ticket price={r.phase === "auctionDone" && r.bid ? r.bid.amount : null} /> : <h2 className="sv-title">🎟 Билет освобождения</h2>}
         {r.phase === "auction" ? (
-          <p className="sv-note">Капитаны, ставьте очки на телефонах! Кто больше — тот и забирает.</p>
+          <p className="sv-note">{session.playMode === "teams" ? "Капитаны, ставьте очки на телефонах!" : "Ставьте очки на телефонах!"} Кто больше — тот и забирает.</p>
         ) : r.bid ? (
           <p className="sv-who">
             Билет у <NameText name={nameOf(session, r.bid.pid)} /> за {pointsLabel(r.bid.amount)}
@@ -296,8 +296,8 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
             <span className="sv-bank__label">банк</span>
           </div>
         )}
-        <RoundCard round={round} result={r} reveal={stage === "reveal"} />
-        {round.kind === "task" && taskWords(round).length > 0 && stage === "question" && <p className="sv-note">Капитаны видят своё слово на телефоне — показывают по очереди, без слов</p>}
+        <RoundCard round={round} result={r} reveal={stage === "reveal"} playMode={session.playMode} />
+        {round.kind === "task" && taskWords(round).length > 0 && stage === "question" && <p className="sv-note">{session.playMode === "teams" ? "Капитаны видят своё слово на телефоне — показывают по очереди, без слов" : "Каждый видит своё слово на телефоне — показываем по очереди, без слов"}</p>}
         {round.kind === "task" && stage === "question" && r.taskTimer && <TaskTimer session={session} timer={r.taskTimer} />}
         {war && r.freed.length > 0 && (
           <p className="sv-note">
@@ -487,10 +487,10 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
       ) : (
         <>
           {round.kind === "task" && <p className="eyebrow">Задание · {pointsLabel(round.points)}</p>}
-          <RoundCard round={round} result={r} reveal={stage === "reveal"} size="phone" />
+          <RoundCard round={round} result={r} reveal={stage === "reveal"} playMode={session.playMode} size="phone" />
           {stage === "question" && round.kind === "task" && r.taskTimer && (
             <div className={r.taskTimer.pid === pid ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">
-              <strong>{r.taskTimer.pid === pid ? "Ваша очередь — показывайте!" : <>Сейчас показывает <NameText name={session.leaderboard[r.taskTimer.pid]?.name ?? "команда"} /></>}</strong>
+              <strong>{r.taskTimer.pid === pid ? "Ваша очередь — показывайте!" : <>Сейчас показывает <NameText name={session.leaderboard[r.taskTimer.pid]?.name ?? (session.playMode === "teams" ? "команда" : "игрок")} /></>}</strong>
               {r.taskTimer.pid !== pid && <span>Вы наблюдаете — ждите, когда ведущий позовёт вас</span>}
             </div>
           )}
@@ -498,7 +498,7 @@ export function SurvivalPlayerView({ session, content, pid, role, myAnswer, send
             <div className="buzz__plate buzz__plate--glow sv-secret" role="status">
               <span>Ваше слово — видите только вы:</span>
               <strong>{taskWordFor(round, r.order, pid)}</strong>
-              <span>Покажите его команде без слов, когда ведущий позовёт</span>
+              <span>{session.playMode === "teams" ? "Покажите его команде без слов, когда ведущий позовёт" : "Покажите его залу без слов, когда ведущий позовёт"}</span>
             </div>
           )}
           {stage === "question" && round.kind === "task" && taskWords(round).length > 0 && role === "member" && <p className="muted">Капитан покажет слово — угадывайте! Ведущий засчитает.</p>}

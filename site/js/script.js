@@ -572,6 +572,17 @@
     sheet.addEventListener('click', (ev) => { if(ev.target === sheet) closeSheet(); });
     document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') closeSheet(); });
   }
+  // «?» у трёх цен: чем отличаются форматы ведущих.
+  const levelsSheet = $('levelsSheet');
+  if(levelsSheet){
+    let from = null;
+    const close = () => { if(levelsSheet.hidden) return; levelsSheet.hidden = true; document.body.style.overflow = ''; if(from) from.focus(); };
+    $('levelsHelp').addEventListener('click', (e) => { from = e.currentTarget; levelsSheet.hidden = false; document.body.style.overflow = 'hidden'; $('levelsClose').focus(); });
+    $('levelsClose').addEventListener('click', close);
+    $('levelsMore').addEventListener('click', () => { from = null; close(); });
+    levelsSheet.addEventListener('click', (ev) => { if(ev.target === levelsSheet) close(); });
+    document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') close(); });
+  }
   if(SHOWCASE){
     $('calcSubmit').textContent = 'Отправить расчёт менеджеру';
     $('calcBarSend').textContent = 'Менеджеру';

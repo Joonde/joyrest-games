@@ -190,13 +190,20 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
   // Видел ли этот экран игру: финальные фанфары — только при переходе к финалу, не при открытии.
   const sawGame = useRef(phase === "playing");
   if (phase === "playing") sawGame.current = true;
-  // Идёт игра — экран не перезагружается сам при обновлении платформы (иначе снова просит коснуться для звука);
-  // обновится в лобби, в перерыве вечера или после финала.
+  // Финальные фанфары звучат не больше раза за открытый экран: «Спасибо» поверх итогов и «Убрать» заново
+  // открывают финал (`Final` монтируется снова), флаг живёт здесь, а не в `Final`.
+  const fanfareDone = useRef(false);
+  // Идёт игра — экран не перезагружается сам при обновлении платформы (иначе снова просит коснуться для звука).
+  // Занят и тогда, когда звук уже разрешён и что-то звучит или видно: музыка ведущего, встроенная музыка момента
+  // (лобби, перерыв), слайд. Сам обновится только в тишине — или пока звук ещё не разрешали (терять нечего).
   const playingNow = phase === "playing" && session.mechanic !== EVENING_MECHANIC;
+  const builtinNow = builtinMusicOf(session, moment) !== null;
+  const soundingNow = Boolean(session.state.music?.playing) || builtinNow || Boolean(session.state.slide);
+  const hallBusy = playingNow || (soundReady && soundingNow);
   useEffect(() => {
-    setHallBusy(playingNow);
-    return () => setHallBusy(false);
-  }, [playingNow]);
+    setHallBusy(hallBusy);
+  }, [hallBusy]);
+  useEffect(() => () => setHallBusy(false), []);
   // Пульт видит, что экран на связи и звук разрешён.
   useScreenReport(session.id, { soundReady, muted, musicBlocked }, phase !== "finished");
   // QR для опоздавших после завершения не нужен (код уже не работает) — показываем финал.
@@ -261,7 +268,7 @@ function Screen({ session, isHost }: { session: Session; isHost: boolean }) {
           )}
           {!standalone && phase === "lobby" && <Lobby session={session} />}
           {!standalone && phase === "playing" && <Playing session={session} />}
-          {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} />}
+          {!standalone && phase === "finished" && <Final session={session} sawGame={sawGame.current} sounded={fanfareDone} />}
           {/* Игра окончена: выход сверху слева, виден всегда (не прячется вместе с кнопками экрана и не уходит под плашку звука). */}
           {phase === "finished" && <ScreenExit isHost={isHost} />}
         </>
@@ -468,21 +475,23 @@ function Playing({ session }: { session: Session }) {
 }
 
 /** Финал: пьедестал (всё открыто), под ним таблица. */
-function Final({ session, sawGame }: { session: Session; sawGame: boolean }) {
+function Final({ session, sawGame, sounded }: { session: Session; sawGame: boolean; sounded: { current: boolean } }) {
   const ranked = rankedLeaderboard(session.leaderboard);
   const winners = ranked.filter((e) => e.place === 1 && e.score > 0);
   // После награждения фанфары уже прозвучали на первом месте; открытый после игры экран молчит.
   const afterPodium = session.state.stage === "podium";
-  const played = useRef(afterPodium || !sawGame);
 
   useEffect(() => {
-    // Фанфары — один раз, когда финал наступил при открытом экране.
-    if (played.current) return;
-    played.current = true;
+    // Фанфары — один раз за открытый экран, когда финал наступил при нём (флаг — у экрана: `Final` монтируется
+    // заново, когда ведущий убирает «Спасибо»).
+    if (sounded.current) return;
+    sounded.current = true;
+    if (afterPodium || !sawGame) return;
     const startedAt = Date.now();
     const timer = window.setTimeout(() => playSound("fanfare"), 300);
     return () => {
-      if (Date.now() - startedAt < 300) played.current = false;
+      // Финал тут же закрыл слайд «Спасибо» — фанфары не успели, прозвучат, когда финал откроется снова.
+      if (Date.now() - startedAt < 300) sounded.current = false;
       window.clearTimeout(timer);
     };
   }, []);

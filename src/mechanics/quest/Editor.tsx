@@ -45,7 +45,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
       <section className="card">
         <h2>Как играем</h2>
         <p className="muted small">
-          На экране поле змейкой, фишки команд на старте. Капитан, чья очередь, жмёт «Бросить кубик» на телефоне — фишка идёт, открывается задание клетки. Ведущий решает: «Выполнено» (очки клетки) или «Не выполнено». Бонус и ловушка двигают фишку, «пропуск» — команда пропускает следующий ход. Кто первый на финише — получает бонус, дальше награждение.
+          На экране поле змейкой, фишки команд (или игроков) на старте. Капитан, чья очередь (в режиме «каждый сам» — сам игрок), жмёт «Бросить кубик» на телефоне — фишка идёт, открывается задание клетки. Ведущий решает: «Выполнено» (очки клетки) или «Не выполнено». Бонус и ловушка двигают фишку, «пропуск» — команда пропускает следующий ход. Кто первый на финише — получает бонус, дальше награждение.
         </p>
         <div className="row board-editor__size">
           <label className="field">
@@ -84,7 +84,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
         {importing && (
           <div className="stack stack--tight">
             <p className="muted small">
-              Строка — клетка по порядку. «Вопрос: текст = ответ», «Танец: …», «Караоке: …», «+3» (бонус), «Ловушка −2», «Пропуск», «Пусто», иначе — задание. В конце «(30)» — очки.
+              Строка — клетка по порядку. «Вопрос: текст = ответ», «Танец: …», «Караоке: …», «+3» (бонус), «Ловушка −2», «Пропуск», «Пусто», иначе — задание. В конце «(30)» — очки. «Задание для команд || задание для каждого сам» — второй текст в режиме «каждый сам».
             </p>
             <textarea value={text} rows={10} placeholder={"Изобразите животное (20)\nВопрос: Столица Франции? = Париж\n+2\nТанец: Макарена (30)"} onChange={(e) => setText(e.target.value)} />
             <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => fillFrom(parseQuestList(text), "Заполнить клетки из списка")}>
@@ -150,6 +150,13 @@ function CellForm({ cell, editable, errors, onChange }: { cell: QuestCell; edita
             {cell.kind === "question" ? "Вопрос" : "Задание"}
             <textarea value={cell.text} maxLength={QUEST_LIMITS.text} disabled={!editable} onChange={(e) => onChange({ text: e.target.value })} />
           </label>
+          {cell.kind !== "question" && (
+            <label className="field">
+              Для режима «каждый сам»
+              <span className="muted small">Если задание командное («капитан», «вся команда») — напишите, как его выполнить одному. Пусто — тот же текст.</span>
+              <textarea rows={2} value={cell.solo} maxLength={QUEST_LIMITS.text} disabled={!editable} onChange={(e) => onChange({ solo: e.target.value })} />
+            </label>
+          )}
           {cell.kind === "question" && (
             <label className="field">
               Ответ — видит только ведущий

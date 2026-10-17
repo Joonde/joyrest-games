@@ -14,6 +14,8 @@ export const wine: Mechanic<WineContent, WineAnswerValue> = {
   id: "wine",
   title: "Винное казино",
   supports: { solo: true, teams: true, noScreen: false },
+  // Счётчик «Ответили» пульт механики пишет сам.
+  ownAnswered: true,
   create: createWine,
   parse: parseWine,
   mediaIds: () => [],

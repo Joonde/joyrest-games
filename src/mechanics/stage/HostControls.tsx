@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { PodiumHostList } from "../../components/live/Podium";
+import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
@@ -12,23 +13,20 @@ import { canSeek } from "./video";
 import { StageField, tileLabel } from "./views";
 import "./stage.css";
 
+/** Момент игры для повтора касания: без подарков, голосов и команд плеера (их пишет фон и плеер). */
+function stageMoment(s: Session): string {
+  const r = parseStageResult(s.state.result);
+  return JSON.stringify([r.mode, r.tile, r.turn, r.played.length, r.outcome, r.winner]);
+}
+
 /**
  * Пульт «Just Dance / Караоке на поле»: «Начать игру» → команда называет плитку, ведущий касается её → выступление:
  * плеер (пауза, −10/+10 с, остановить, на весь экран), «Выступили» (очки плитки + симпатия зала) или «Не вышли»;
  * батл — соперник, «Голосование зала», «Подсчитать голоса», поправка победителя → «Следующая команда».
  */
 export function StageHostControls({ session, content, answers, participants, control, rehearsal }: HostControlsProps<StageContent>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, setError, latest, inFlight, run, quiet } = useHostRun(session, control, rehearsal, { moment: stageMoment });
   const [battle, setBattle] = useState<{ tile: string; opponent: string | null } | null>(null);
-  const latest = useRef<Session>(session);
-  const waiters = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    latest.current = session;
-    const done = waiters.current;
-    waiters.current = [];
-    done.forEach((w) => w());
-  }, [session]);
   const { stage, step } = session.state;
   const r = parseStageResult(session.state.result);
   const tile = tileOf(content, r.tile);
@@ -37,52 +35,17 @@ export function StageHostControls({ session, content, answers, participants, con
   const own = answers.filter((a) => a.step === step);
   const answersKey = own.map((a) => `${a.id}:${a.submittedAt ?? 0}:${JSON.stringify(a.value)}`).join("|");
 
-  // Симпатия и голоса батла — на экран (не чаще раза в 1,5 с).
+  // Симпатия и голоса батла — на экран (не чаще раза в 1,5 с); пока ведущий записывает своё — ждём.
   useEffect(() => {
-    if (rehearsal || stage !== "question" || (r.mode !== "perform" && r.mode !== "vote")) return;
+    if (rehearsal || busy || stage !== "question" || (r.mode !== "perform" && r.mode !== "vote")) return;
     const timer = window.setTimeout(() => {
-      const cur = latest.current;
-      const change = r.mode === "perform" ? liveGifts(cur, answers, participants) : liveVotes(cur, answers, participants);
-      if (!change) return;
-      const { phase, step: atStep, stage: atStage } = cur.state;
-      void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+      if (inFlight.current) return;
+      void quiet((cur) => (parseStageResult(cur.state.result).mode === "perform" ? liveGifts(cur, answers, participants) : liveVotes(cur, answers, participants)));
     }, 1500);
     return () => window.clearTimeout(timer);
     // Итоги шага тоже: команда плеера с другого пульта могла записать прежний счёт — проверяем снова.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- при новых ответах и новых итогах шага
-  }, [answersKey, r.mode, stage, resultKey(session.state.result)]);
-
-  function nextSession(): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(resolve, 3000);
-      waiters.current.push(() => {
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
-  async function run(make: SessionChange | (() => Promise<SessionChange>), clear?: number[]) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const { phase, step: atStep, stage: atStage } = session.state;
-    const seen = resultKey(session.state.result);
-    try {
-      const change = typeof make === "function" ? await make() : make;
-      if (!change.state && !change.addScore && !change.leaderboard) return;
-      const arrived = rehearsal ? Promise.resolve() : nextSession();
-      const cur = latest.current.state;
-      if (clear && (cur.step !== atStep || cur.stage !== atStage || cur.phase !== phase || resultKey(cur.result) !== seen)) return;
-      for (const s of clear ?? []) await control.clearAnswers(s);
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: seen } });
-      await arrived;
-    } catch (e) {
-      if (!(typeof e === "object" && e !== null && "code" in e && e.code === "failed-precondition")) setError("Не получилось. Проверьте интернет и нажмите ещё раз.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  }, [answersKey, r.mode, stage, busy, resultKey(session.state.result)]);
 
   /** Плеер и «на весь экран» — без отпечатка итогов (их можно жать, пока на экран летят голоса и подарки). */
   async function media(change: SessionChange) {
@@ -117,7 +80,7 @@ export function StageHostControls({ session, content, answers, participants, con
       setBattle({ tile: id, opponent: defaultOpponent({ ...r, order: sides }, turn) });
       return;
     }
-    void run(pickTile(session, content, id, participants));
+    void run((s) => pickTile(s, content, id, participants));
   }
 
   const labels: Record<typeof action, string> = {
@@ -132,13 +95,13 @@ export function StageHostControls({ session, content, answers, participants, con
     finish: "Завершить игру",
   };
   function perform() {
-    if (action === "start") void run(startGame(session, participants));
-    if (action === "done") void run(async () => finishPerform(latest.current, content, await fresh(), participants, true));
-    if (action === "vote") void run(startVote(session, content, Math.floor(Math.random() * 1000)));
-    if (action === "count") void run(async () => countVotes(latest.current, content, await fresh(), participants));
-    if (action === "next") void run(nextTurn(session, participants));
-    if (action === "podium") void run(awardNow(session));
-    if (action === "podiumNext") void run(podiumNext(session));
+    if (action === "start") void run((s) => startGame(s, participants));
+    if (action === "done") void run(async (s) => finishPerform(s, content, await fresh(), participants, true));
+    if (action === "vote") void run((s) => startVote(s, content, Math.floor(Math.random() * 1000)));
+    if (action === "count") void run(async (s) => countVotes(s, content, await fresh(), participants));
+    if (action === "next") void run((s) => nextTurn(s, participants));
+    if (action === "podium") void run((s) => awardNow(s));
+    if (action === "podiumNext") void run((s) => podiumNext(s));
     if (action === "finish") control.requestFinish();
   }
 
@@ -176,7 +139,7 @@ export function StageHostControls({ session, content, answers, participants, con
               onClick={() => {
                 const b = battle;
                 setBattle(null);
-                void run(pickTile(session, content, b.tile, participants, b.opponent));
+                void run((s) => pickTile(s, content, b.tile, participants, b.opponent));
               }}
             >
               Открыть батл
@@ -196,7 +159,7 @@ export function StageHostControls({ session, content, answers, participants, con
                 <p className="muted small">
                   🔒 Батлы откроются, когда каждая команда хотя бы раз выступит (чтобы у всех были очки на зрительскую симпатию). Ещё не выступили: {waiting.map((p) => name(p)).join(", ")}.
                 </p>
-                <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(openBattles(session))}>
+                <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run((s) => openBattles(s))}>
                   Открыть батлы сейчас
                 </button>
               </div>
@@ -288,12 +251,12 @@ export function StageHostControls({ session, content, answers, participants, con
               <div className="row">
                 {[r.performer, r.opponent].map((p) =>
                   p ? (
-                    <button key={p} type="button" className={r.winner === p ? "btn" : "btn btn--secondary"} disabled={busy} onClick={() => void run(setBattleWinner(session, content, p))}>
+                    <button key={p} type="button" className={r.winner === p ? "btn" : "btn btn--secondary"} disabled={busy} onClick={() => void run((s) => setBattleWinner(s, content, p))}>
                       Победил: <NameText name={name(p)} />
                     </button>
                   ) : null,
                 )}
-                <button type="button" className={r.outcome === "tie" ? "btn" : "btn btn--secondary"} disabled={busy} onClick={() => void run(setBattleWinner(session, content, "tie"))}>
+                <button type="button" className={r.outcome === "tie" ? "btn" : "btn btn--secondary"} disabled={busy} onClick={() => void run((s) => setBattleWinner(s, content, "tie"))}>
                   Ничья
                 </button>
               </div>
@@ -313,17 +276,17 @@ export function StageHostControls({ session, content, answers, participants, con
           </button>
         )}
         {r.mode === "perform" && tile?.kind === "perform" && (
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(async () => finishPerform(latest.current, content, await fresh(), participants, false))}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(async (s) => finishPerform(s, content, await fresh(), participants, false))}>
             Не вышли · 0
           </button>
         )}
         {r.mode === "perform" && backPlan && (
-          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run(backPlan.change, backPlan.clear)}>
+          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void run((s) => stageBack(s, content)?.change ?? null, backPlan.clear)}>
             Другая плитка — эта останется на поле
           </button>
         )}
         {r.mode !== "perform" && (
-          <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run(backPlan.change, backPlan.clear)}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => stageBack(s, content)?.change ?? null, backPlan.clear)}>
             Назад
           </button>
         )}

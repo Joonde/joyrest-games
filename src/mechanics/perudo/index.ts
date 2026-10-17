@@ -14,6 +14,8 @@ export const perudo: Mechanic<PerudoContent, PerudoAnswerValue> = {
   id: "perudo",
   title: "Перудо — кости лжеца",
   supports: { solo: true, teams: true, noScreen: true },
+  // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
+  ownAward: true,
   create: createPerudo,
   parse: parsePerudo,
   mediaIds: () => [],

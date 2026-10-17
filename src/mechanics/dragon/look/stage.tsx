@@ -77,9 +77,9 @@ function TaskBox({ task, r, reveal, left, kids, session, content }: { task: Drag
     return (
       <div className="dg-q dg-q--center">
         <div className="dg-q__eye">Бой с драконом</div>
-        <div className="dg-q__text">{r.phase === "heroes" ? "Капитаны выбирают героев" : "Скоро в бой!"}</div>
+        <div className="dg-q__text">{r.phase === "heroes" ? (session.playMode === "solo" ? "Игроки выбирают героев" : "Капитаны выбирают героев") : "Скоро в бой!"}</div>
         <p className="dg-q__note">
-          У каждого героя своя сила. Капитан раскладывает {STAT_POINTS} очков по свойствам: Сила, Ум, Ловкость, Удача, Харизма.
+          У каждого героя своя сила. {session.playMode === "solo" ? "Игрок раскладывает" : "Капитан раскладывает"} {STAT_POINTS} очков по свойствам: Сила, Ум, Ловкость, Удача, Харизма.
           {r.phase === "heroes" && session.state.answered > 0 ? ` Выбрали: ${session.state.answered} из ${r.order.length}.` : ""}
         </p>
       </div>
@@ -145,7 +145,7 @@ function TaskBox({ task, r, reveal, left, kids, session, content }: { task: Drag
           )}
         </ol>
       )}
-      {task.kind === "dice" && <p className="dg-q__note">🎲 Капитаны бросают кубик на телефоне — число увидите на карточке команды</p>}
+      {task.kind === "dice" && <p className="dg-q__note">{session.playMode === "solo" ? "🎲 Бросайте кубик на телефоне — число увидите на своей карточке" : "🎲 Капитаны бросают кубик на телефоне — число увидите на карточке команды"}</p>}
       {task.kind === "task" && <p className="dg-q__note">Выполняйте — ведущий засчитает удар</p>}
     </div>
   );

@@ -613,6 +613,8 @@ export interface ClientRecord {
   statusAt: number | null;
   /** С какого времени клиент ждёт ответа в Telegram (бот в Telegram для бизнеса); null — не ждёт. */
   tgWaitingSince?: number | null;
+  /** Откуда пришёл: site, avito, qr, card, telegram… (`ORIGIN_TITLES`); пусто — не указан. */
+  origin?: string;
 }
 
 export interface ClientContact {

@@ -357,7 +357,28 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect((await get("/api/notices", anna)).statusCode).toBe(403);
     expect((await app.inject({ method: "GET", url: "/api/notices", headers: { host: HOST } })).statusCode).toBe(401);
   });
+  it("откуда пришёл: расчёт — «Сайт», по ссылке «Пишу с Авито» — новый клиент «Авито», вручную — можно сменить", async () => {
+    tg.update({ business_message: { message_id: 9301, business_connection_id: "bc4", chat: { id: 8401, type: "private" }, from: { id: 8401, first_name: "Дина", username: "dina_avito" }, text: "Здравствуйте! Пишу с Авито, нужен ведущий на юбилей" } });
+    tg.update({ business_message: { message_id: 9302, business_connection_id: "bc4", chat: { id: 8402, type: "private" }, from: { id: 8402, first_name: "Просто", username: "just_hi" }, text: "Привет, как дела?" } });
+    const list = async () => (await get("/api/clients", owner)).json().clients as Array<{ id: string; name: string; origin: string }>;
+    await until(async () => (await list()).some((c) => c.name === "Дина"), "клиент с Авито");
+    const all = await list();
+    expect(all.find((c) => c.name === "Дина")?.origin).toBe("avito");
+    expect(all.find((c) => c.name === "Ира")?.origin).toBe("site");
+    expect(all.some((c) => c.name === "Просто")).toBe(false);
+    // Дина написала ещё — ждёт ответа, второй карточки нет.
+    tg.update({ business_message: { message_id: 9303, business_connection_id: "bc4", chat: { id: 8401, type: "private" }, from: { id: 8401, first_name: "Дина", username: "dina_avito" }, text: "Ещё раз с Авито пишу" } });
+    await new Promise((r) => setTimeout(r, 300));
+    expect((await list()).filter((c) => c.name === "Дина")).toHaveLength(1);
+    // Владелец поправил источник вручную.
+    const dina = (await list()).find((c) => c.name === "Дина");
+    const card = (await get(`/api/clients/${dina?.id}`, owner)).json() as { id: string; name: string; phone: string; links: string[]; status: string; marketing: string; notes: string; updatedAt: number };
+    const saved = await post("/api/clients", owner, { id: card.id, name: card.name, phone: card.phone, links: card.links, status: card.status, marketing: card.marketing, notes: card.notes, origin: "recommend", expect: card.updatedAt });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().origin).toBe("recommend");
+  });
 });
+
 
 
 

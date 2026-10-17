@@ -109,6 +109,90 @@ export function cleanLinks(value: unknown): string[] {
   return parseLinks(value.filter((v): v is string => typeof v === "string").join(" "));
 }
 
+/** Откуда пришёл клиент (канал) — для карточки и «Итогов». Пусто — не указан. */
+export type ClientOrigin = "site" | "avito" | "qr" | "card" | "telegram" | "whatsapp" | "instagram" | "vk" | "recommend" | "call" | "other";
+export const ORIGIN_TITLES: Record<ClientOrigin, string> = {
+  site: "Сайт",
+  avito: "Авито",
+  qr: "QR после мероприятия",
+  card: "Визитка",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  vk: "ВКонтакте",
+  recommend: "Рекомендация",
+  call: "Звонок",
+  other: "Другое",
+};
+export const CLIENT_ORIGINS = Object.keys(ORIGIN_TITLES) as ClientOrigin[];
+
+export function isOrigin(value: unknown): value is ClientOrigin {
+  return typeof value === "string" && value in ORIGIN_TITLES;
+}
+
+export function originTitle(origin: string): string {
+  return isOrigin(origin) ? ORIGIN_TITLES[origin] : "Не указан";
+}
+
+/**
+ * Канал по первому сообщению клиента: так сразу видно, откуда он, если пишет по ссылке для бизнеса Telegram с готовым
+ * текстом («Здравствуйте! Пишу с Авито», «… по вашей визитке», «… был(а) у вас на празднике»). Не узнали — null.
+ */
+export function originOf(text: string): ClientOrigin | null {
+  const t = text.toLowerCase().replace(/ё/g, "е");
+  if (/авито|avito/.test(t)) return "avito";
+  if (/визитк/.test(t)) return "card";
+  if (/(^|[^a-zа-я])qr([^a-zа-я]|$)|кьюар|был[аи]?\s+(у\s+вас\s+)?на\s+(вашем\s+)?(празднике|мероприятии|вечере|игре|свадьбе|корпоративе)/.test(t)) return "qr";
+  return null;
+}
+
+/** «Итоги» по каналам: новых клиентов за период и мероприятий их клиентов (по телефону). */
+export interface OriginRow {
+  origin: ClientOrigin | "";
+  title: string;
+  clients: number;
+  planned: number;
+  held: number;
+}
+
+export function originStats(
+  clients: Array<{ origin: string; phone: string; createdAt: number }>,
+  events: Array<{ day: string; clientPhone: string; cancelled: boolean; held: boolean | null }>,
+  from: string,
+  to: string,
+): OriginRow[] {
+  const day = (ms: number) => new Date(ms + 3 * 3_600_000).toISOString().slice(0, 10);
+  const byPhone = new Map<string, string>();
+  for (const c of clients) {
+    const key = phoneKey(c.phone);
+    if (key) byPhone.set(key, isOrigin(c.origin) ? c.origin : "");
+  }
+  const rows = new Map<string, OriginRow>();
+  const row = (origin: string) => {
+    const key = isOrigin(origin) ? origin : "";
+    let r = rows.get(key);
+    if (!r) {
+      r = { origin: key, title: originTitle(key), clients: 0, planned: 0, held: 0 };
+      rows.set(key, r);
+    }
+    return r;
+  };
+  for (const c of clients) {
+    const d = day(c.createdAt);
+    if (d >= from && d <= to) row(c.origin).clients += 1;
+  }
+  for (const e of events) {
+    if (e.cancelled || e.day < from || e.day > to) continue;
+    const key = phoneKey(e.clientPhone);
+    if (!key) continue;
+    const r = row(byPhone.get(key) ?? "");
+    r.planned += 1;
+    if (e.held === true) r.held += 1;
+  }
+  // Не указан — в конце; остальные по числу клиентов и мероприятий.
+  return [...rows.values()].sort((a, b) => Number(a.origin === "") - Number(b.origin === "") || b.held - a.held || b.clients - a.clients || b.planned - a.planned || a.title.localeCompare(b.title, "ru"));
+}
+
 /**
  * С какого времени клиент ждёт ответа: новый — с последнего обращения; любой другой — пока не ответили в Telegram
  * (бот в Telegram для бизнеса). Архивный не ждёт. null — не ждёт.

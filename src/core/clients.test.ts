@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanLinks, clientsCsv, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, waitingOf } from "./clients";
+import { cleanLinks, clientsCsv, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, waitingOf, originOf, originStats } from "./clients";
 
 describe("база клиентов: телефон — ключ", () => {
   it("8…, +7…, 9… и с разделителями — один и тот же человек", () => {
@@ -28,6 +28,39 @@ describe("база клиентов: ссылки на соцсети", () => {
     expect(cleanLinks(["tg://user?id=123456789"])).toEqual(["tg://user?id=123456789"]);
     expect(linkTitle("tg://user?id=123456789")).toBe("Telegram (без ника)");
     expect(cleanLinks(["tg://resolve?domain=x", "tg://user?id=abc"])).toEqual([]);
+  });
+});
+
+describe("база клиентов: откуда пришёл", () => {
+  it("канал по первому сообщению: Авито, визитка, QR после мероприятия; обычный текст — не узнали", () => {
+    expect(originOf("Здравствуйте! Пишу с Авито")).toBe("avito");
+    expect(originOf("Добрый день, я по вашей визитке")).toBe("card");
+    expect(originOf("Здравствуйте! Я была у вас на празднике в субботу")).toBe("qr");
+    expect(originOf("Отсканировал QR после вечера")).toBe("qr");
+    expect(originOf("Здравствуйте, сколько стоит квиз?")).toBeNull();
+    expect(originOf("🧮 Расчёт JoyRest\nПакет: Квиз")).toBeNull();
+  });
+  it("«Итоги» по каналам: новые клиенты за период и мероприятия их клиентов по телефону", () => {
+    const at = (day: string) => Date.parse(`${day}T12:00:00Z`);
+    const clients = [
+      { origin: "avito", phone: "+7 900 111-22-33", createdAt: at("2026-10-05") },
+      { origin: "avito", phone: "89002223344", createdAt: at("2026-09-05") },
+      { origin: "site", phone: "", createdAt: at("2026-10-07") },
+      { origin: "", phone: "8 900 555 66 77", createdAt: at("2026-10-08") },
+    ];
+    const events = [
+      { day: "2026-10-20", clientPhone: "89001112233", cancelled: false, held: true },
+      { day: "2026-10-21", clientPhone: "+7 900 222 33 44", cancelled: false, held: null },
+      { day: "2026-10-22", clientPhone: "89001112233", cancelled: true, held: null },
+      { day: "2026-11-02", clientPhone: "89001112233", cancelled: false, held: true },
+      { day: "2026-10-23", clientPhone: "", cancelled: false, held: true },
+    ];
+    const rows = originStats(clients, events, "2026-10-01", "2026-10-31");
+    expect(rows).toEqual([
+      { origin: "avito", title: "Авито", clients: 1, planned: 2, held: 1 },
+      { origin: "site", title: "Сайт", clients: 1, planned: 0, held: 0 },
+      { origin: "", title: "Не указан", clients: 1, planned: 0, held: 0 },
+    ]);
   });
 });
 

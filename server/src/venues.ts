@@ -472,6 +472,8 @@ export function registerVenues(app: FastifyInstance, options: VenuesOptions): vo
           name: data.name,
           phone: data.phone,
           source: "venue",
+          // Запрос клиента — по QR ведущего после мероприятия («Для клиента»).
+          origin: "qr",
           summary: [`Запрос №${number}`, data.eventType, data.guests ? `${data.guests} гостей` : "", data.date].filter(Boolean).join(", "),
           ref: id,
         }).catch(() => log(request, "request-form", "client-failed"));

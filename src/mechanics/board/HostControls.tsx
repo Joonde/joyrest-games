@@ -139,6 +139,8 @@ export function BoardHostControls({ session, content, answers, participants, con
             "Коснитесь клетки, чтобы открыть вопрос. Метки ♪, фото и «кот» видите только вы."
           )}
         </p>
+        {/* На телефоне в ряд помещается 6 клеток; шире поле — листается вбок, говорим об этом. */}
+        {Math.max(1, ...fieldCats.map((c) => c.cells.length)) > 6 && <p className="board-host__scroll-hint">Поле шире экрана — листайте клетки вбок →</p>}
         <div className="board-host__grid" style={{ ["--board-cols" as string]: Math.max(1, ...fieldCats.map((c) => c.cells.length)) }}>
           {fieldCats.map((category) => (
             <div key={category.id} className="board-host__row">

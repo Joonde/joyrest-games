@@ -375,6 +375,23 @@ function Console({ session }: { session: Session }) {
       )}
 
       <div className="pult-panel" role="tabpanel" id={`pult-panel-${tab}`} aria-labelledby={`pult-tab-${tab}`}>
+        {/* Пульт игры не размонтируется на других вкладках: начатый выбор (соперник батла, ставка) не теряется,
+            фоновые записи (голоса, подарки, фишки на экран) идут дальше. */}
+        {phase === "playing" && HostControls && content !== null && (
+          <section className="card" hidden={tab !== "game"}>
+            <Suspense fallback={null}>
+              <HostControls
+                key={program ? `${program.at}-${program.index}` : "game"}
+                session={session}
+                content={content}
+                answers={answers}
+                participants={participants}
+                control={control}
+                rehearsal={false}
+              />
+            </Suspense>
+          </section>
+        )}
         {tab === "game" && (
           <>
             {phase === "lobby" && (
@@ -395,21 +412,6 @@ function Console({ session }: { session: Session }) {
                   Завершить сессию без игры
                 </button>
               </>
-            )}
-            {phase === "playing" && HostControls && content !== null && (
-              <section className="card">
-                <Suspense fallback={null}>
-                  <HostControls
-                    key={program ? `${program.at}-${program.index}` : "game"}
-                    session={session}
-                    content={content}
-                    answers={answers}
-                    participants={participants}
-                    control={control}
-                    rehearsal={false}
-                  />
-                </Suspense>
-              </section>
             )}
             {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
             {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}

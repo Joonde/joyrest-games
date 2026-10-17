@@ -107,6 +107,11 @@ a {
   justify-content: center;
 }
 
+/* Атрибут hidden сильнее display у карточек и блоков (пульт игры на других вкладках). */
+[hidden] {
+  display: none !important;
+}
+
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -2463,6 +2468,68 @@ kbd {
   text-align: right;
   font-weight: 600;
   font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Длинная таблица (больше 8 строк): строки плотнее, страницы листаются сами, внизу — какие места и точки страниц. */
+.board-view--paged {
+  gap: 1.4cqh;
+  font-size: 3.4cqh;
+}
+
+.board-view--paged .board-view__title {
+  font-size: 5.6cqh;
+}
+
+.board-view--paged .board-view__list {
+  gap: 0.9cqh;
+}
+
+.board-view--paged .board-view__row {
+  padding: 0.8cqh 2cqw;
+}
+
+.board-view--paged .board-view__list {
+  animation: board-page-in 0.5s ease-out;
+}
+
+@keyframes board-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.5cqh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-view--paged .board-view__list {
+    animation: none;
+  }
+}
+
+.board-view__pages {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2cqw;
+  font-size: 0.8em;
+  color: var(--color-text-muted);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.board-view__dots {
+  display: flex;
+  gap: 0.8cqh;
+}
+
+.board-view__dot {
+  width: 1.2cqh;
+  height: 1.2cqh;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.board-view__dot.is-on {
+  background: var(--color-highlight);
 }
 
 /* Финал. */
@@ -7473,6 +7540,28 @@ ul.chips {
   grid-template-columns: minmax(72px, 1.4fr) repeat(var(--board-cols, 5), minmax(44px, 1fr));
   gap: 6px;
   align-items: stretch;
+}
+
+/* Телефон: название категории — строкой над клетками, иначе столбец «500» уезжал за край. */
+@media (max-width: 599px) {
+  .board-host__grid {
+    gap: 10px;
+  }
+
+  .board-host__row {
+    grid-template-columns: repeat(var(--board-cols, 5), minmax(44px, 1fr));
+    gap: 6px 6px;
+  }
+
+  .board-host__title {
+    grid-column: 1 / -1;
+  }
+}
+
+.board-host__scroll-hint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
 }
 
 .board-host__title {
@@ -14134,6 +14223,9 @@ button.dance-card:active {
   .td-back__sheen { display: none; }
 }
 
+/* Медальон, кольцо, искры и блик рубашки — украшение: касание по центру карты выбирает половину под ним. */
+.td-back__medal, .td-back__ring, .td-back__spark, .td-back__sheen { pointer-events: none; }
+
 /* Эмблема на лице карты — водяной знак (решение владельца) */
 .td-watermark { position: absolute; z-index: 1; left: 50%; top: 56%; width: 64cqi; transform: translate(-50%, -50%); opacity: 0.16; pointer-events: none; }
 .td-editor__list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
@@ -19939,6 +20031,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   gap: 2cqw;
   flex-wrap: wrap;
   font-size: 3.4cqh;
+  /* Справа внизу экрана — круглая кнопка звука (`.screen-tap`): «Банк раунда» стоит левее неё. */
+  padding-right: calc(max(52px, 8cqh) + 1cqh);
 }
 
 .hd-screen__bank {
@@ -20965,4 +21059,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .popular .cards {
   margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+  .board-host__scroll-hint {
+    display: none;
+  }
 }

@@ -16,6 +16,7 @@ import type {
   CalendarRepository,
   EventsRepository,
   ClientsRepository,
+  NoticesRepository,
   TelegramRepository,
   TeamRepository,
   TracksRepository,
@@ -43,6 +44,7 @@ import { serverAuthService } from "./server/auth";
 import { serverCalendarRepository } from "./server/calendar";
 import { serverEventsRepository } from "./server/events";
 import { serverClientsRepository } from "./server/clients";
+import { serverNoticesRepository } from "./server/notices";
 import { serverTelegramRepository } from "./server/telegram";
 import { serverGameFolders, serverGamesRepository } from "./server/games";
 import { serverMediaRepository } from "./server/media";
@@ -113,5 +115,6 @@ export const calendarRepo: CalendarRepository | null = server ? serverCalendarRe
 export const eventsRepo: EventsRepository | null = server ? serverEventsRepository : null;
 /** База клиентов — только свой сервер. */
 export const clientsRepo: ClientsRepository | null = server ? serverClientsRepository : null;
+export const noticesRepo: NoticesRepository | null = server ? serverNoticesRepository : null;
 /** Свой Telegram для уведомлений — только свой сервер. */
 export const telegramRepo: TelegramRepository | null = server ? serverTelegramRepository : null;

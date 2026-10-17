@@ -337,6 +337,27 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect((await post(`/api/clients/${id}/status`, owner, { status: "work" })).statusCode).toBe(200);
     expect((await lena())?.tgWaitingSince).toBeNull();
   });
+  it("колокольчик студии: новые обращения клиентов владельцу и менеджеру, «прочитано» — каждому своё; ведущему — нельзя", async () => {
+    const first = (await get("/api/notices", owner)).json() as { unread: number; items: Array<{ kind: string; title: string; name: string; line: string; unread: boolean; clientId: string }> };
+    const olya = first.items.find((n) => n.name === "Оля");
+    expect(olya).toMatchObject({ kind: "new", title: "Из Telegram", unread: true });
+    expect(olya?.line).toContain("Расчёт с сайта");
+    expect(first.unread).toBeGreaterThan(0);
+    // Владелец открыл колокольчик — у него прочитано.
+    expect((await post("/api/notices/seen", owner)).statusCode).toBe(200);
+    const after = (await get("/api/notices", owner)).json() as { unread: number; items: Array<{ unread: boolean; kind: string }> };
+    expect(after.unread).toBe(after.items.filter((n) => n.kind === "waiting").length);
+    expect(after.items.some((n) => n.kind === "new" && n.unread)).toBe(false);
+    // Новое обращение после этого — снова новое.
+    tg.update({ business_connection: { id: "bc4", user: { id: OWNER }, user_chat_id: OWNER, is_enabled: true } });
+    await until(() => to(OWNER).filter((t) => t.includes("подключён к вашему Telegram")).length >= 3, "снова подключён");
+    tg.update({ business_message: { message_id: 9201, business_connection_id: "bc4", chat: { id: 8301, type: "private" }, from: { id: 8301, first_name: "Ира", username: "ira_bell" }, text: "🧮 Расчёт JoyRest\nПакет: Квиз" } });
+    await until(async () => ((await get("/api/notices", owner)).json() as { items: Array<{ name: string; unread: boolean }> }).items.some((n) => n.name === "Ира" && n.unread), "новое у владельца");
+    // Ведущему без права на клиентов колокольчика нет.
+    expect((await get("/api/notices", anna)).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/api/notices", headers: { host: HOST } })).statusCode).toBe(401);
+  });
 });
+
 
 

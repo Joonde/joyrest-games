@@ -97,7 +97,9 @@ export function Clients() {
 
 function ClientBase({ profile }: { profile: UserProfile }) {
   const owner = permissions.canExportClients(profile);
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  // Колокольчик открывает одного клиента (?id=): только его карточка, сразу раскрыта.
+  const focusId = params.get("id");
   // «Рабочее место» открывает «Клиентов» сразу на «Новых» (?f=new).
   const [filter, setFilter] = useState<Filter>(() => {
     const f = params.get("f");
@@ -135,12 +137,13 @@ function ClientBase({ profile }: { profile: UserProfile }) {
   const [confirm, ask] = useConfirm();
 
   const list = useMemo(() => {
+    if (focusId) return (shown ?? []).filter((c) => c.id === focusId);
     const all = (shown ?? []).filter((c) => c.archived === archived);
     const byFilter = all.filter((c) => (filter === "all" || filter === "archive" ? true : filter === "mailing" ? c.marketing === "yes" : c.status === filter));
     const found = query.trim() ? byFilter.filter((c) => matchesSearch([c.name, c.phone, phoneKey(c.phone), c.notes, ...c.links], query)) : byFilter;
     // «Новые» — дольше всех ждущие сверху: им отвечаем первыми.
     return filter === "new" ? [...found].sort((a, b) => a.lastContactAt - b.lastContactAt) : found;
-  }, [shown, filter, query, archived]);
+  }, [shown, filter, query, archived, focusId]);
   // Счётчики у фильтров (кроме «Архива»: в архиве свой список).
   const counts = useMemo((): Partial<Record<Filter, number>> => {
     if (archived) return {};
@@ -247,14 +250,30 @@ function ClientBase({ profile }: { profile: UserProfile }) {
         state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />
       ) : (
         <div className={state.status === "ready" ? "stack" : "stack is-stale"}>
-          <p className="small muted" aria-live="polite">
-            Показано: {list.length}
-          </p>
+          {focusId ? (
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete("id");
+                setParams(next, { replace: true });
+              }}
+            >
+              ← Все клиенты
+            </button>
+          ) : (
+            <p className="small muted" aria-live="polite">
+              Показано: {list.length}
+            </p>
+          )}
+          {focusId && list.length === 0 && <p className="muted">Клиента нет в этом списке — возможно, он в архиве.</p>}
           {list.length === 0 && <p className="muted">{query.trim() ? "Ничего не нашлось." : archived ? "В архиве пусто." : "Клиентов пока нет — они появятся с первыми заявками."}</p>}
           {list.map((c) => (
             <ClientCard
               key={c.id}
               client={c}
+              startOpen={c.id === focusId}
               now={now}
               manager={profile.name}
               onEdit={() => setForm(c)}
@@ -377,6 +396,7 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
 
 function ClientCard({
   client: c,
+  startOpen = false,
   now,
   manager,
   onEdit,
@@ -385,6 +405,7 @@ function ClientCard({
   onToast,
 }: {
   client: ClientRecord;
+  startOpen?: boolean;
   now: number;
   manager: string;
   onEdit: () => void;
@@ -392,7 +413,7 @@ function ClientCard({
   onChanged: (c: ClientRecord, toast: string) => void;
   onToast: (text: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [details, retry] = useLoad(() => (open && clientsRepo ? clientsRepo.get(c.id) : Promise.resolve(null as ClientDetails | null)), [open, c.id, c.lastContactAt, c.status, c.notes]);
   const full = details.status === "ready" ? details.data : null;
   const [note, setNote] = useState(c.notes);

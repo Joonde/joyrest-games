@@ -12,6 +12,7 @@ export {
   authService,
   calendarRepo,
   clientsRepo,
+  noticesRepo,
   telegramRepo,
   clock,
   eventsRepo,

@@ -629,6 +629,26 @@ export interface ClientDetails extends ClientRecord {
 }
 
 /** «Данные по номеру»: всё, что есть в базе по телефону, нику или почте человека (только владелец). */
+/** Уведомление колокольчика студии: новое обращение клиента или клиент ждёт ответа в Telegram. */
+export interface Notice {
+  id: string;
+  clientId: string;
+  kind: "new" | "waiting";
+  /** «Заявка с сайта», «Из Telegram», «Ждёт ответа в Telegram». */
+  title: string;
+  /** Имя клиента (или телефон). */
+  name: string;
+  /** Первая строка обращения. */
+  line: string;
+  at: number;
+  unread: boolean;
+}
+
+export interface NoticesState {
+  unread: number;
+  items: Notice[];
+}
+
 export interface ContactMatches {
   /** Как понят запрос: «+7 915 241-59-99», «@nick», почта. */
   label: string;

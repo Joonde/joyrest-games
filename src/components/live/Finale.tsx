@@ -110,7 +110,7 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
     return (
       <div className="finale-hall">
         <div className="finale-qrs">
-          <TipsQr url={TIPS_URL} hostName="" />
+          <TipsQr url={TIPS_URL} />
           <figure className="finale-qr">
             <QrCode value={CHANNEL_URL} label="QR-код канала JoyRest в Telegram" className="finale-qr__code" />
             <figcaption>
@@ -126,7 +126,7 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
   return (
     <div className="finale-hall">
       <div className="finale-qrs">
-        <TipsQr url={finale?.tipsUrl || TIPS_URL} hostName={finale?.hostName ?? ""} />
+        <TipsQr url={finale?.tipsUrl || TIPS_URL} />
         <figure className="finale-qr">
           <QrCode value={reviewUrl(sessionId)} label="QR-код: оставить отзыв" className="finale-qr__code" />
           <figcaption>
@@ -167,13 +167,13 @@ export function TipsButton({ url = TIPS_URL }: { url?: string }) {
 }
 
 /** Карточка чаевых на экране зала: всегда есть (своя ссылка ведущего, владельца или общие чаевые JoyRest). */
-function TipsQr({ url, hostName }: { url: string; hostName: string }) {
+function TipsQr({ url }: { url: string }) {
   return (
-    <figure className="finale-qr">
+    <figure className="finale-qr finale-qr--tips">
       <QrCode value={url} label="QR-код: чаевые" className="finale-qr__code" />
       <figcaption>
         <strong>Чаевые</strong>
-        <span>Если вечер понравился — поддержите {hostName ? `ведущего ${hostName}` : "ведущего"} и команду JoyRest</span>
+        <span>Если вечер понравился — поддержите ведущего и команду JoyRest</span>
       </figcaption>
     </figure>
   );

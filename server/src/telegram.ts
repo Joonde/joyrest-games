@@ -22,7 +22,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { parseLinks } from "../../src/core/clients";
+import { ORIGIN_TITLES, originOf, parseLinks } from "../../src/core/clients";
 import { noticeText, parseLeadText, reminderDue, type NoticeKind } from "../../src/core/events";
 import { todayMoscow } from "../../src/core/calendar";
 import * as permissions from "../../src/data/permissions";
@@ -338,6 +338,7 @@ export function startBot(options: BotOptions): Bot {
       source: "telegram",
       summary,
       ref: `tg-${chatId}-${m.message_id}`,
+      origin: originOf(text) ?? "telegram",
     });
     log.info({ telegram: "client", result: id ? "ok" : "no-contact" }, "telegram");
     if (!id) {
@@ -434,11 +435,14 @@ export function startBot(options: BotOptions): Bot {
         where conn_id = ${connId} and chat_id = ${chatId} and waiting_since is not null`;
       return;
     }
+    // Новый человек пишет по ссылке для бизнеса с готовым текстом («Пишу с Авито», «по вашей визитке», «был(а) на
+    // празднике») — тоже клиент, с источником. Остальную переписку не трогаем.
+    const marked = calc ? null : originOf(text);
     if (!calc) {
       // Клиент из базы написал ещё — ждёт ответа (только время). Чужие чаты (не клиенты) сюда не попадают.
-      await sql`update tg_chats set waiting_since = coalesce(waiting_since, now()), updated_at = now()
-        where conn_id = ${connId} and chat_id = ${chatId}`;
-      return;
+      const known = await sql`update tg_chats set waiting_since = coalesce(waiting_since, now()), updated_at = now()
+        where conn_id = ${connId} and chat_id = ${chatId} returning 1`;
+      if (known.length > 0 || !marked) return;
     }
     const links = parseLinks(text);
     links.unshift(from.username ? `https://t.me/${from.username}` : `tg://user?id=${from.id ?? m.chat.id}`);
@@ -447,8 +451,9 @@ export function startBot(options: BotOptions): Bot {
       phone: "",
       links,
       source: "telegram",
-      summary: `Расчёт с сайта — прислал в Telegram:\n${text}`,
+      summary: calc ? `Расчёт с сайта — прислал в Telegram:\n${text}` : `Написал в Telegram (${ORIGIN_TITLES[marked ?? "telegram"]}):\n${text}`,
       ref: `tgb-${m.chat.id}-${m.message_id}`,
+      origin: calc ? (originOf(text) ?? "site") : marked,
     });
     log.info({ telegram: "business-client", result: id ? "ok" : "no-contact" }, "telegram");
     if (!id) return;

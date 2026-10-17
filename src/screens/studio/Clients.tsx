@@ -19,6 +19,9 @@ import {
   type ClientSource,
   type ClientStatus,
   type Marketing,
+  CLIENT_ORIGINS,
+  ORIGIN_TITLES,
+  originTitle,
   waitingOf,
 } from "../../core/clients";
 import { firstMessage } from "../../core/salesGuide";
@@ -496,7 +499,11 @@ function ClientCard({
         {/* Под именем — подписанные поля, а не одна строка через точки (решение владельца 15 октября 2026). */}
         <span className="clients-facts">
           <span className="clients-facts__row">
-            <span className="clients-facts__label">Откуда</span>
+            <span className="clients-facts__label">Источник</span>
+            <span className="clients-facts__value">{originTitle(c.origin ?? "")}</span>
+          </span>
+          <span className="clients-facts__row">
+            <span className="clients-facts__label">Последнее</span>
             <span className="clients-facts__value">{sourceTitle(c.lastSource)}</span>
           </span>
           <span className="clients-facts__row">
@@ -674,6 +681,7 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
   const [status, setStatus] = useState<ClientStatus>(initial?.status ?? "new");
   const [marketing, setMarketing] = useState<Marketing>(initial?.marketing ?? "unknown");
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [origin, setOrigin] = useState(initial?.origin ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const parsedLinks = parseLinks(links);
@@ -684,7 +692,7 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
     setBusy(true);
     setError(null);
     try {
-      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes, ...(initial ? { expect: initial.updatedAt } : {}) }));
+      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes, origin, ...(initial ? { expect: initial.updatedAt } : {}) }));
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
       setError(
@@ -725,6 +733,17 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
           ))}
         </div>
       </fieldset>
+      <label className="field">
+        <span className="field__label">Откуда пришёл</span>
+        <select value={origin} onChange={(e) => setOrigin(e.target.value)}>
+          <option value="">Не указан</option>
+          {CLIENT_ORIGINS.map((o) => (
+            <option key={o} value={o}>
+              {ORIGIN_TITLES[o]}
+            </option>
+          ))}
+        </select>
+      </label>
       <fieldset className="stack stack--tight">
         <legend>Рассылка</legend>
         {(["yes", "unknown", "no"] as const).filter((m) => m !== "yes" || canConsent || initial?.marketing === "yes").map((m) => (

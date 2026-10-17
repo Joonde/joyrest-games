@@ -16,7 +16,7 @@ import { icsCalendar, icsFileName } from "../../src/core/ics";
 import { actorOf, apiGuard, sessionUser, type SessionRow, type UserRow } from "./auth";
 import { rangeOf } from "./calendar";
 import { dayIndex as dayIdx, dayOf } from "../../src/core/calendar";
-import { changeStatus, upsertClient } from "./clients";
+import { changeStatus, upsertClient, type ClientInput } from "./clients";
 
 /** Паузы перед попытками записать клиента мероприятия в базу: сразу, через 0,3 с и через 1 с. */
 const CLIENT_RETRY_MS = [0, 300, 1000];
@@ -217,7 +217,7 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       // повторяем (17 октября 2026: раньше запись шла без ожидания — клиент мог молча не попасть в «Клиентов»).
       // Не записался и после повторов — мероприятие всё равно сохранено, а форма говорит добавить клиента вручную.
       if (saved.clientName || saved.clientPhone) {
-        const client = {
+        const client: ClientInput = {
           name: saved.clientName,
           phone: saved.clientPhone,
           source: "event",

@@ -63,6 +63,8 @@ interface Report {
 }
 
 const mechanic = getMechanic(MECHANIC);
+// Шаблоны из кода — для стресс-теста пульта (scripts/e2e/pult.mjs), когда игры нет в библиотеке test.
+(window as unknown as { robotDemos: unknown }).robotDemos = demoGames;
 const demos = demoGames.filter((d) => d.mechanic === MECHANIC);
 const demo = demos[DEMO] ?? null;
 const report: Report = {

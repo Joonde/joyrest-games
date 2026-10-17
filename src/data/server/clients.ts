@@ -27,6 +27,7 @@ function parseClient(value: unknown): ClientRecord {
     updatedAt: num(d.updatedAt),
     statusLine: asText(d.statusLine),
     statusAt: typeof d.statusAt === "number" ? d.statusAt : null,
+    tgWaitingSince: typeof d.tgWaitingSince === "number" ? d.tgWaitingSince : null,
   };
 }
 

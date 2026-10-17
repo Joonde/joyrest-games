@@ -64,6 +64,7 @@ interface Row {
   updated_at: Date;
   status_line: string | null;
   status_at: Date | null;
+  tg_waiting: Date | null;
 }
 
 function recordOf(row: Row): ClientRecord {
@@ -85,6 +86,7 @@ function recordOf(row: Row): ClientRecord {
     updatedAt: row.updated_at.getTime(),
     statusLine: row.status_line ?? "",
     statusAt: row.status_at ? row.status_at.getTime() : null,
+    tgWaitingSince: row.tg_waiting ? row.tg_waiting.getTime() : null,
   };
 }
 
@@ -200,7 +202,9 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         (select h.created_at from client_contacts h where h.client_id = c.id and h.source = 'status' order by h.created_at desc limit 1) as status_at,
         (select count(*)::int from client_contacts h where h.client_id = c.id and h.source <> 'status') as contacts,
         -- Откуда пришёл — по настоящим обращениям: смена статуса обращением не считается.
-        coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source
+        coalesce((select h.source from client_contacts h where h.client_id = c.id and h.source <> 'status' order by h.created_at desc limit 1), 'status') as last_source,
+        -- С какого времени клиент ждёт ответа в Telegram (бот в Telegram для бизнеса).
+        (select min(t.waiting_since) from tg_chats t where t.client_id = c.id) as tg_waiting
       from clients c`;
 
     async function details(id: string): Promise<ClientDetails | null> {
@@ -305,6 +309,8 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         if (row.archived_at) return "archived" as const;
         if (row.status === status) return "same" as const;
         await t`update clients set status = ${status}, updated_at = now() where id = ${id}`;
+        // Статус поменяли — с клиентом связались: «ждёт ответа в Telegram» больше не напоминаем.
+        await t`update tg_chats set waiting_since = null, notified_at = null, updated_at = now() where client_id = ${id}`;
         await t`insert into client_contacts (id, client_id, source, summary)
           values (${newId("c")}, ${id}, 'status', ${`${CLIENT_STATUS_TITLES[status]} · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
         return "ok" as const;

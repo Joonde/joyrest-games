@@ -109,6 +109,17 @@ export function cleanLinks(value: unknown): string[] {
   return parseLinks(value.filter((v): v is string => typeof v === "string").join(" "));
 }
 
+/**
+ * С какого времени клиент ждёт ответа: новый — с последнего обращения; любой другой — пока не ответили в Telegram
+ * (бот в Telegram для бизнеса). Архивный не ждёт. null — не ждёт.
+ */
+export function waitingOf(c: { status: ClientStatus; archived: boolean; lastContactAt: number; tgWaitingSince?: number | null }): { since: number; telegram: boolean } | null {
+  if (c.archived) return null;
+  if (c.tgWaitingSince) return { since: c.tgWaitingSince, telegram: true };
+  if (c.status === "new") return { since: c.lastContactAt, telegram: false };
+  return null;
+}
+
 /** Есть ли, как связаться: телефон или ссылка. */
 export function reachable(c: { phone: string; links: string[] }): boolean {
   return phoneKey(c.phone) !== "" || c.links.length > 0;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanLinks, clientsCsv, linkTitle, parseLinks, phoneKey, phoneLabel, reachable } from "./clients";
+import { cleanLinks, clientsCsv, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, waitingOf } from "./clients";
 
 describe("база клиентов: телефон — ключ", () => {
   it("8…, +7…, 9… и с разделителями — один и тот же человек", () => {
@@ -28,6 +28,17 @@ describe("база клиентов: ссылки на соцсети", () => {
     expect(cleanLinks(["tg://user?id=123456789"])).toEqual(["tg://user?id=123456789"]);
     expect(linkTitle("tg://user?id=123456789")).toBe("Telegram (без ника)");
     expect(cleanLinks(["tg://resolve?domain=x", "tg://user?id=abc"])).toEqual([]);
+  });
+});
+
+describe("база клиентов: кто ждёт ответа", () => {
+  it("новый — с последнего обращения; ждущий в Telegram — с его сообщения, в любом статусе; архив не ждёт", () => {
+    const base = { status: "new" as const, archived: false, lastContactAt: 1000, tgWaitingSince: null };
+    expect(waitingOf(base)).toEqual({ since: 1000, telegram: false });
+    expect(waitingOf({ ...base, status: "work" })).toBeNull();
+    expect(waitingOf({ ...base, status: "work", tgWaitingSince: 5000 })).toEqual({ since: 5000, telegram: true });
+    expect(waitingOf({ ...base, tgWaitingSince: 5000 })).toEqual({ since: 5000, telegram: true });
+    expect(waitingOf({ ...base, archived: true, tgWaitingSince: 5000 })).toBeNull();
   });
 });
 

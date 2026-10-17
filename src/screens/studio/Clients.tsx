@@ -19,6 +19,7 @@ import {
   type ClientSource,
   type ClientStatus,
   type Marketing,
+  waitingOf,
 } from "../../core/clients";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
@@ -148,7 +149,10 @@ function ClientBase({ profile }: { profile: UserProfile }) {
     for (const st of CLIENT_STATUSES) n[st] = active.filter((c) => c.status === st).length;
     return n;
   }, [shown, archived]);
-  const late = (shown ?? []).filter((c) => !c.archived && c.status === "new" && now - c.lastContactAt > ANSWER_MS).length;
+  const late = (shown ?? []).filter((c) => {
+    const w = waitingOf(c);
+    return w !== null && now - w.since > ANSWER_MS;
+  }).length;
   const candidates = useMemo(() => [...new Set((shown ?? []).map((c) => c.name).filter(Boolean))], [shown]);
   const consented = (shown ?? []).filter((c) => !c.archived && c.marketing === "yes").length;
 
@@ -407,7 +411,8 @@ function ClientCard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.notes]);
-  const waiting = c.status === "new" && !c.archived ? now - c.lastContactAt : 0;
+  const wait = waitingOf(c);
+  const waiting = wait ? now - wait.since : 0;
   const late = waiting > ANSWER_MS;
 
   // Статус одним касанием: сервер меняет только статус (чужую заметку не трогает), в историю — «В работе · имя».
@@ -496,7 +501,7 @@ function ClientCard({
             </span>
           )}
         </span>
-        {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа {agoLabel(waiting)}</span>}
+        {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа{wait?.telegram ? " в Telegram" : ""} {agoLabel(waiting)}</span>}
         {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}

@@ -611,6 +611,8 @@ export interface ClientRecord {
   /** Последняя смена статуса — «В работе · Мария» (кто взял клиента); пусто — статус не меняли. */
   statusLine: string;
   statusAt: number | null;
+  /** С какого времени клиент ждёт ответа в Telegram (бот в Telegram для бизнеса); null — не ждёт. */
+  tgWaitingSince?: number | null;
 }
 
 export interface ClientContact {

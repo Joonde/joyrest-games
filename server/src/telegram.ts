@@ -12,6 +12,8 @@
  * - Telegram Business (решение владельца 17 октября 2026): владелец или менеджер подключает бота к своему Telegram
  *   («Настройки → Telegram для бизнеса → Чат-боты»). Клиент прислал ему расчёт с сайта («Расчёт JoyRest») — клиент сам
  *   попадает в базу с текстом расчёта, менеджерам — «Новый клиент из Telegram». Другие переписки бот не читает и не хранит.
+ * - «Клиент ждёт ответа» (17 октября 2026): в чате такого клиента бот замечает его новые сообщения и ответ владельца (только время,
+ *   без текста, `tg_chats`). Не ответили 30 минут — владельцу и менеджерам «⏰ Клиент ждёт ответа», с 9:00 до 22:00 по Москве.
  *
  * Сообщения бот читает через getUpdates (без вебхука и без открытых адресов). Читать может только одно окружение:
  * TELEGRAM_UPDATES=on у основной версии (compose); без переменной — только на тестовой (адреса test.*).
@@ -31,6 +33,21 @@ import { upsertClient } from "./clients";
 const CODE_TTL_MS = 30 * 60_000;
 const POLL_TIMEOUT_S = 25;
 const REMIND_EVERY_MS = 60_000;
+/** Через сколько без ответа напомнить, что клиент ждёт. */
+export const ANSWER_WAIT_MIN = 30;
+
+/** Напоминать о ждущем клиенте — днём, с 9:00 до 22:00 по Москве (ночью не будим). */
+export function answerHoursOpen(ms: number): boolean {
+  const hour = new Date(ms + 3 * 3_600_000).getUTCHours();
+  return hour >= 9 && hour < 22;
+}
+
+/** «Клиент ждёт ответа» — без имени и телефона: их видно только в студии. */
+export function waitingText(platformUrl: string): string {
+  return `⏰ Клиент ждёт ответа в Telegram больше ${ANSWER_WAIT_MIN} минут.
+Ответьте ему в Telegram или поставьте статус в студии.
+${platformUrl}/studio/clients`;
+}
 
 /** Читать сообщения бота: явное on/off из TELEGRAM_UPDATES, без него — только тестовая версия (test.*). */
 export function telegramPolling(value: string | undefined, siteHosts: string[]): boolean {
@@ -62,6 +79,8 @@ export interface Bot {
   eventNotice(kind: NoticeKind, userId: string, event: Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end">, startsAt: Date): Promise<void>;
   /** Менеджерам по продажам с подключённым Telegram — о новой заявке (без данных клиента). Ответ — скольким ушло. */
   salesNotice(kind: SalesLeadKind): Promise<number>;
+  /** Напомнить о клиентах, которые ждут ответа в Telegram (раз в минуту — само; для проверок). */
+  waitingNow(): Promise<number>;
   stop(): void;
 }
 
@@ -218,7 +237,37 @@ export function startBot(options: BotOptions): Bot {
       await sendTo(r.host_id, noticeText(kind, { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, platformUrl, now(), r.starts_at.getTime()));
     }
   }
-  const remindTimer = setInterval(() => void remind().catch(() => log.warn({ telegram: "remind" }, "telegram: напоминания не отправились")), REMIND_EVERY_MS);
+  /** Клиенты, которые ждут ответа в Telegram дольше получаса: владельцу (чей Telegram) и менеджерам — по одному разу. */
+  async function waiting(): Promise<number> {
+    if (!answerHoursOpen(now())) return 0;
+    const rows = await sql<{ value: string }[]>`
+      update tg_chats t set notified_at = now()
+      from tg_state s
+      where s.key = 'biz:' || t.conn_id and t.waiting_since is not null and t.notified_at is null
+        and t.waiting_since < now() - make_interval(mins => ${ANSWER_WAIT_MIN})
+      returning s.value`;
+    if (rows.length === 0) return 0;
+    const sales = await sql<{ user_id: string }[]>`
+      select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and u.access_role = 'sales'`;
+    let sent = 0;
+    for (const r of rows) {
+      let owner = "";
+      try {
+        owner = String((JSON.parse(r.value) as { owner?: string }).owner ?? "");
+      } catch {
+        owner = "";
+      }
+      const to = new Set([owner, ...sales.map((s) => s.user_id)].filter(Boolean));
+      for (const userId of to) if (await sendTo(userId, waitingText(platformUrl))) sent += 1;
+    }
+    log.info({ telegram: "waiting", chats: rows.length, sent }, "telegram");
+    return sent;
+  }
+
+  const remindTimer = setInterval(() => {
+    void remind().catch(() => log.warn({ telegram: "remind" }, "telegram: напоминания не отправились"));
+    void waiting().catch(() => log.warn({ telegram: "waiting" }, "telegram: «клиент ждёт» не отправилось"));
+  }, REMIND_EVERY_MS);
   remindTimer.unref?.();
 
   // ───── входящие сообщения ─────
@@ -310,8 +359,11 @@ export function startBot(options: BotOptions): Bot {
 
   async function handleConnection(c: TgBusinessConnection, quiet = false): Promise<void> {
     const key = `biz:${c.id}`;
+    unknownConnections.delete(c.id);
     if (!c.is_enabled) {
       await sql`delete from tg_state where key = ${key}`;
+      // Бот больше не видит этот Telegram — ответы не узнать, «ждёт ответа» снимаем.
+      await sql`update tg_chats set waiting_since = null, notified_at = null, updated_at = now() where conn_id = ${c.id}`;
       if (!quiet) await sendChat(c.user_chat_id, "Бот JoyRest отключён от вашего Telegram: расчёты клиентов больше не попадают в «Клиенты» сами.");
       log.info({ telegram: "business", result: "off" }, "telegram");
       return;
@@ -339,6 +391,9 @@ export function startBot(options: BotOptions): Bot {
     log.info({ telegram: "business", result: "on" }, "telegram");
   }
 
+  /** Подключения, которых Telegram не знает или которые нам не подходят, — не спрашиваем о них на каждое сообщение. */
+  const unknownConnections = new Set<string>();
+
   async function connectionOf(id: string): Promise<{ user: number; chat: number } | null> {
     const read = async () => {
       const [row] = await sql<{ value: string }[]>`select value from tg_state where key = ${`biz:${id}`}`;
@@ -350,27 +405,41 @@ export function startBot(options: BotOptions): Bot {
     };
     const known = await read();
     if (known) return known;
+    if (unknownConnections.has(id)) return null;
     // Бота подключили, пока сервер не читал сообщения, — спросим Telegram, кто это.
     try {
       const r = await call("getBusinessConnection", { business_connection_id: id });
-      if (!r.ok || !r.result) return null;
-      await handleConnection(r.result as TgBusinessConnection, true);
+      if (r.ok && r.result) await handleConnection(r.result as TgBusinessConnection, true);
     } catch {
       return null;
     }
-    return read();
+    const found = await read();
+    if (!found) unknownConnections.add(id);
+    return found;
   }
 
   async function handleBusiness(m: TgMessage): Promise<void> {
-    if (!m.business_connection_id || m.chat.type !== "private") return;
+    const connId = m.business_connection_id;
+    if (!connId || m.chat.type !== "private") return;
     const text = (m.text ?? m.caption ?? "").trim();
-    // Только расчёты с сайта: остальную переписку не трогаем и не храним.
-    if (!isCalcMessage(text)) return;
-    const conn = await connectionOf(m.business_connection_id);
+    const calc = isCalcMessage(text);
+    const conn = await connectionOf(connId);
     if (!conn) return;
     const from = m.from;
-    // Своё сообщение владельца (переслал расчёт клиенту) — не клиент.
-    if (!from || from.id === conn.user || m.chat.id === conn.chat) return;
+    const chatId = m.chat.id;
+    if (!from || chatId === conn.chat) return;
+    // Владелец ответил клиенту — клиент больше не ждёт. Текст ответа не читаем.
+    if (from.id === conn.user) {
+      await sql`update tg_chats set waiting_since = null, notified_at = null, updated_at = now()
+        where conn_id = ${connId} and chat_id = ${chatId} and waiting_since is not null`;
+      return;
+    }
+    if (!calc) {
+      // Клиент из базы написал ещё — ждёт ответа (только время). Чужие чаты (не клиенты) сюда не попадают.
+      await sql`update tg_chats set waiting_since = coalesce(waiting_since, now()), updated_at = now()
+        where conn_id = ${connId} and chat_id = ${chatId}`;
+      return;
+    }
     const links = parseLinks(text);
     links.unshift(from.username ? `https://t.me/${from.username}` : `tg://user?id=${from.id ?? m.chat.id}`);
     const id = await upsertClient(sql, {
@@ -382,7 +451,11 @@ export function startBot(options: BotOptions): Bot {
       ref: `tgb-${m.chat.id}-${m.message_id}`,
     });
     log.info({ telegram: "business-client", result: id ? "ok" : "no-contact" }, "telegram");
-    if (id) await salesNotice("telegram");
+    if (!id) return;
+    await sql`insert into tg_chats (conn_id, chat_id, client_id, waiting_since) values (${connId}, ${chatId}, ${id}, now())
+      on conflict (conn_id, chat_id) do update set client_id = excluded.client_id,
+        waiting_since = coalesce(tg_chats.waiting_since, now()), updated_at = now()`;
+    await salesNotice("telegram");
   }
 
   async function poll(): Promise<void> {
@@ -437,6 +510,7 @@ export function startBot(options: BotOptions): Bot {
     sendTo,
     eventNotice,
     salesNotice,
+    waitingNow: waiting,
     stop() {
       stopped = true;
       clearInterval(remindTimer);

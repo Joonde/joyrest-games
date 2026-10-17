@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { authService, permissions, useAuth, type AuthUser, type UserProfile } from "../data";
 import { Logo } from "./Logo";
+import { ProfileContext } from "./profileContext";
 import { LoadFailed, Message, Pending } from "./Status";
 
 const PASSWORD_PATH = "/studio/password";
@@ -54,7 +55,7 @@ export function HostGate({ requireAdmin = false, skeleton, children }: Props) {
       </Message>
     );
   }
-  return <>{children(user, profile)}</>;
+  return <ProfileContext.Provider value={profile}>{children(user, profile)}</ProfileContext.Provider>;
 }
 
 function LoginForm() {

@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { migrate } from "./migrate";
-import { startBot, type Bot } from "./telegram";
+import { answerHoursOpen, startBot, type Bot } from "./telegram";
 
 interface Sent {
   chat: number;
@@ -291,5 +291,73 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     const after = (await get("/api/clients", owner)).json().clients as Array<{ name: string }>;
     expect(after.some((c) => c.name === "Вера" || c.name === "Гоша")).toBe(false);
   });
+  it("клиент ждёт ответа: напоминание через 30 минут днём — владельцу и менеджеру, один раз; ответ и статус снимают ожидание", async () => {
+    const SALES = 444;
+    const CALC = "🧮 Расчёт JoyRest\nПакет: Шоу-вечер";
+    const noon = Date.UTC(2026, 9, 17, 9, 0); // 12:00 по Москве
+    expect(answerHoursOpen(noon)).toBe(true);
+    expect(answerHoursOpen(Date.UTC(2026, 9, 17, 20, 30))).toBe(false); // 23:30 по Москве — не будим
+    tg.update({ business_connection: { id: "bc3", user: { id: OWNER }, user_chat_id: OWNER, is_enabled: true } });
+    await until(() => to(OWNER).filter((t) => t.includes("подключён к вашему Telegram")).length >= 2, "снова подключён");
+    const msg = (n: number, from: object, text: string) => ({
+      business_message: { message_id: n, business_connection_id: "bc3", chat: { id: 8001, type: "private" }, from, text },
+    });
+    const client = { id: 8001, first_name: "Лена", username: "lena_wait" };
+    tg.update(msg(9101, client, CALC));
+    const lena = async () => ((await get("/api/clients", owner)).json().clients as Array<{ id: string; name: string; tgWaitingSince: number | null }>).find((c) => c.name === "Лена");
+    await until(async () => typeof (await lena())?.tgWaitingSince === "number", "Лена ждёт ответа");
+    // Ответ владельца — не ждёт; клиент написал снова — опять ждёт (текст не хранится).
+    tg.update(msg(9102, { id: OWNER, first_name: "Михаил" }, "Здравствуйте! Сейчас посчитаем"));
+    await until(async () => (await lena())?.tgWaitingSince === null, "ответили");
+    tg.update(msg(9103, client, "А на субботу свободно?"));
+    await until(async () => typeof (await lena())?.tgWaitingSince === "number", "снова ждёт");
+    // Чат не клиента — ничего не записано.
+    tg.update({ business_message: { message_id: 9104, business_connection_id: "bc3", chat: { id: 8002, type: "private" }, from: { id: 8002, first_name: "Друг" }, text: "Привет" } });
+    await new Promise((r) => setTimeout(r, 300));
+    expect((await sql`select 1 from tg_chats where chat_id = 8002`).length).toBe(0);
+    // Прошло 31 минута — днём напоминание владельцу и менеджеру, без имени; второй раз — нет.
+    await sql`update tg_chats set waiting_since = now() - interval '31 minutes' where chat_id = 8001`;
+    const day = startBot({ sql, token: "test-token", log, polling: false, platformUrl: "https://games.test", fetchImpl: tg.fetchImpl, now: () => noon });
+    const night = startBot({ sql, token: "test-token", log, polling: false, platformUrl: "https://games.test", fetchImpl: tg.fetchImpl, now: () => noon + 12 * 3_600_000 });
+    try {
+      expect(await night.waitingNow()).toBe(0);
+      const before = { owner: to(OWNER).length, sales: to(SALES).length };
+      expect(await day.waitingNow()).toBe(2);
+      expect(to(OWNER).length).toBe(before.owner + 1);
+      expect(to(SALES).length).toBe(before.sales + 1);
+      expect(to(SALES).at(-1)).toContain("Клиент ждёт ответа в Telegram");
+      expect(to(SALES).at(-1)).not.toContain("Лена");
+      expect(await day.waitingNow()).toBe(0);
+    } finally {
+      day.stop();
+      night.stop();
+    }
+    // Статус в студии — с клиентом связались, больше не ждёт.
+    const id = (await lena())?.id ?? "";
+    expect((await post(`/api/clients/${id}/status`, owner, { status: "work" })).statusCode).toBe(200);
+    expect((await lena())?.tgWaitingSince).toBeNull();
+  });
+  it("колокольчик студии: новые обращения клиентов владельцу и менеджеру, «прочитано» — каждому своё; ведущему — нельзя", async () => {
+    const first = (await get("/api/notices", owner)).json() as { unread: number; items: Array<{ kind: string; title: string; name: string; line: string; unread: boolean; clientId: string }> };
+    const olya = first.items.find((n) => n.name === "Оля");
+    expect(olya).toMatchObject({ kind: "new", title: "Из Telegram", unread: true });
+    expect(olya?.line).toContain("Расчёт с сайта");
+    expect(first.unread).toBeGreaterThan(0);
+    // Владелец открыл колокольчик — у него прочитано.
+    expect((await post("/api/notices/seen", owner)).statusCode).toBe(200);
+    const after = (await get("/api/notices", owner)).json() as { unread: number; items: Array<{ unread: boolean; kind: string }> };
+    expect(after.unread).toBe(after.items.filter((n) => n.kind === "waiting").length);
+    expect(after.items.some((n) => n.kind === "new" && n.unread)).toBe(false);
+    // Новое обращение после этого — снова новое.
+    tg.update({ business_connection: { id: "bc4", user: { id: OWNER }, user_chat_id: OWNER, is_enabled: true } });
+    await until(() => to(OWNER).filter((t) => t.includes("подключён к вашему Telegram")).length >= 3, "снова подключён");
+    tg.update({ business_message: { message_id: 9201, business_connection_id: "bc4", chat: { id: 8301, type: "private" }, from: { id: 8301, first_name: "Ира", username: "ira_bell" }, text: "🧮 Расчёт JoyRest\nПакет: Квиз" } });
+    await until(async () => ((await get("/api/notices", owner)).json() as { items: Array<{ name: string; unread: boolean }> }).items.some((n) => n.name === "Ира" && n.unread), "новое у владельца");
+    // Ведущему без права на клиентов колокольчика нет.
+    expect((await get("/api/notices", anna)).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/api/notices", headers: { host: HOST } })).statusCode).toBe(401);
+  });
 });
+
+
 

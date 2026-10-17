@@ -401,7 +401,7 @@ try {
   await screen.locator(".finale-qrs").waitFor({ timeout: WAIT });
   await until(async () => (await screen.locator(".finale-qr figcaption strong").count()) >= 4, 8000, "четыре QR").catch(() => undefined);
   const captions = await screen.locator(".finale-qr figcaption strong").allTextContents();
-  check(captions.join("|") === "Чаевые ведущему|Оставьте отзыв|Отзыв на Авито|Наш Telegram", "Экран зала: после игры сам открылся «Спасибо» — четыре QR: чаевые, отзыв, Авито, канал", `Экран зала: подписи QR — ${captions.join(", ")}`);
+  check(captions.join("|") === "Чаевые|Оставьте отзыв|Отзыв на Авито|Наш Telegram", "Экран зала: после игры сам открылся «Спасибо» — четыре QR: чаевые, отзыв, Авито, канал", `Экран зала: подписи QR — ${captions.join(", ")}`);
   check((await screen.locator(".finale-qr svg, .finale-qr img").count()) >= 4, "Экран зала: все четыре QR нарисованы");
   check((await screen.locator(".screen-exit").count()) === 1, "Экран зала: «На главную» видно и поверх «Спасибо»");
   const finale = (await api("GET", `/api/finale/${game.id}`, annaDevice)).data ?? {};
@@ -422,8 +422,8 @@ try {
 
   // ===== 4. Отзыв с телефона гостя =====
   await anna.getByRole("heading", { name: "Спасибо, что были с нами!" }).waitFor({ timeout: WAIT });
-  const tipsLink = anna.getByRole("link", { name: /Чаевые ведущему/ });
-  check((await tipsLink.getAttribute("href")) === TIPS, "Телефон гостя: кнопка «Чаевые ведущему» ведёт на ссылку ведущего");
+  const tipsLink = anna.getByRole("link", { name: /Оставить чаевые/ });
+  check((await tipsLink.getAttribute("href")) === TIPS, "Телефон гостя: кнопка «Оставить чаевые» ведёт на ссылку ведущего");
   check((await anna.getByRole("link", { name: "Подписаться на канал JoyRest" }).getAttribute("href")) === "https://t.me/JoyRest", "Телефон гостя: кнопка канала ведёт в t.me/JoyRest");
   check((await anna.getByRole("link", { name: "Наш сайт — joy-rest.ru" }).first().getAttribute("href")) === "https://joy-rest.ru/calc/", "Телефон гостя: кнопка сайта ведёт в калькулятор joy-rest.ru/calc/");
   check((await anna.getByText("Мы начали вести Telegram-канал").count()) === 1, "Телефон гостя: текст про канал на месте");

@@ -206,7 +206,7 @@ function BioEditor({ initial, onSaved, onToast }: { initial: string; onSaved: (b
 
 /**
  * Ссылка для чаевых (решение владельца 15 октября 2026): в конце игры экран зала показывает её QR-кодом, телефоны гостей —
- * кнопкой «Чаевые ведущему». Нет своей — показывается ссылка владельца агентства.
+ * кнопкой «Оставить чаевые». Нет своей — показывается ссылка владельца агентства.
  */
 function TipsEditor({ owner, onToast }: { owner: boolean; onToast: (text: string) => void }) {
   const [state, retry, update] = useLoad(() => (finaleRepo ? finaleRepo.getTips() : Promise.resolve("")), []);
@@ -247,7 +247,7 @@ function TipsEditor({ owner, onToast }: { owner: boolean; onToast: (text: string
         <input inputMode="url" maxLength={300} value={value} placeholder="https://…" onChange={(e) => setUrl(e.target.value)} />
       </label>
       <p className="muted small">
-        В конце игры экран зала покажет её QR-кодом, а телефоны гостей — кнопкой «Чаевые ведущему».
+        В конце игры экран зала покажет её QR-кодом, а телефоны гостей — кнопкой «Оставить чаевые».
         {owner ? " Ваша ссылка показывается и у ведущих, у которых своей нет." : " Нет своей — покажем ссылку агентства."}
       </p>
       {error && (

@@ -2,7 +2,7 @@
 // подпись по желанию. Там же — чаевые ведущему и «Мы на связи» (Авито, канал, сайт — `FinaleLinks`). Игру уже убрали
 // (сессии живут 30 дней) — «уже в архиве» и те же ссылки; сеть не ответила — «Повторить». Только свой сервер (`finaleRepo`).
 import { useParams } from "react-router-dom";
-import { FinaleLinks, ReviewForm, useFinale } from "../components/live/Finale";
+import { FinaleLinks, ReviewForm, TIPS_URL, TipsButton, useFinale } from "../components/live/Finale";
 import { Logo } from "../components/Logo";
 import { PlaySkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
@@ -56,15 +56,10 @@ function ReviewBody({ sessionId }: { sessionId: string }) {
           <p className="muted">Загружаем…</p>
         )}
       </section>
-      {finale?.tipsUrl && (
-        <section className="card stack">
-          <h2>Чаевые ведущему</h2>
-          <p className="muted small">Если вечер понравился — это лучшая благодарность.</p>
-          <a className="btn btn--block" href={finale.tipsUrl} target="_blank" rel="noopener noreferrer">
-            💛 Оставить чаевые
-          </a>
-        </section>
-      )}
+      <section className="card stack">
+        <h2>Чаевые</h2>
+        <TipsButton url={finale?.tipsUrl || TIPS_URL} />
+      </section>
       <section className="card stack">
         <h2>Мы на связи</h2>
         <FinaleLinks avito={!finale?.myReview} />

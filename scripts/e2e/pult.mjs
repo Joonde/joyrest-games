@@ -23,6 +23,8 @@ const OUT = process.env.PULT_OUT ?? "pult-out";
 const BUDGET = Number(process.env.PULT_BUDGET ?? 90);
 const MINUTES = Number(process.env.PULT_MINUTES ?? 7);
 const PARALLEL = Number(process.env.PULT_PARALLEL ?? 3);
+/** Версия, которую проверяем (коммит push); пусто — какая есть на test. */
+const EXPECT = process.env.EXPECT_VERSION || "";
 const ROBOT_DIR = process.env.ROBOT_DIR ?? "";
 const REPO_DIR = process.env.REPO_DIR ?? "";
 const SEED = Number(process.env.PULT_SEED ?? 7);
@@ -1188,6 +1190,8 @@ try {
           } catch (e) {
             res = { key: spec.key, name: spec.name, actions: 0, finished: false, lag: { median: 0, p95: 0 }, server: { median: 0, p95: 0 }, problems: [{ level: "bug", text: `Прогон не начался: ${String(e.message).slice(0, 200)}` }] };
           }
+          // Test перевыложили другой веткой: этот прогон шёл не на проверяемой версии — честно пишем это в отчёт.
+          if (EXPECT && lastVersion && lastVersion !== EXPECT) res.problems.unshift({ level: "note", text: `Шёл на версии ${lastVersion.slice(0, 7)} другой ветки, а не на ${EXPECT.slice(0, 7)} — итог не про эту версию` });
           const redeployed = lastVersion !== v0 || res.problems.some((p) => p.level === "bug" && /\b50[234]\b|ECONNRESET|ECONNREFUSED/.test(p.text) && /прервался|не начался/.test(p.text));
           if (!redeployed || attempt >= 3) {
             if (attempt > 1) res.problems.unshift({ level: "note", text: `Попытка ${attempt}: прошлые прервала выкладка другой ветки на test` });

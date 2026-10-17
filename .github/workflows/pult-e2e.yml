@@ -24,7 +24,7 @@ permissions:
 jobs:
   pult:
     name: Пульт на test
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[pult]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[pult')
     runs-on: ubuntu-24.04
     concurrency:
       group: e2e
@@ -56,13 +56,20 @@ jobs:
             sleep 15
           done
           echo "На test другая версия ($v) — проверяем её."
+      # «[pult:quiz,perudo]» в сообщении коммита — только эти игры.
+      - name: Какие игры
+        id: pick
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: echo "games=$(printf '%s' "$MSG" | sed -n 's/.*\[pult:\([a-z,]*\)\].*/\1/p' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Пульт под нагрузкой
         working-directory: /tmp/e2e
         run: node pult.mjs
         env:
           E2E_BASE: https://test.games.joy-rest.ru
           PULT_OUT: /tmp/e2e/out
-          PULT_GAMES: ${{ github.event.inputs.games }}
+          PULT_GAMES: ${{ github.event.inputs.games || steps.pick.outputs.games }}
+          EXPECT_VERSION: ${{ github.event_name == 'push' && github.sha || '' }}
           PULT_BUDGET: ${{ github.event.inputs.budget || '90' }}
           PULT_PARALLEL: "2"
           ROBOT_DIR: /tmp/robot

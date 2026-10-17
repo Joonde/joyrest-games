@@ -64,13 +64,15 @@ export function HeldPrompt({ owner, onToast, hostId }: { owner: boolean; onToast
                 {owner && e.hostName ? ` · ведёт ${e.hostName}` : ""}
               </div>
             </div>
-            <div className="seg" role="group" aria-label="Состоялось ли">
-              <button type="button" className="seg__btn" disabled={busy !== null} onClick={() => void mark(e, true)}>
-                Проведено
+            <div className="actions" role="group" aria-label="Состоялось ли">
+              <button type="button" className="btn btn--block" disabled={busy !== null} onClick={() => void mark(e, true)}>
+                {busy === e.id ? "Отмечаем…" : "✓ Проведено"}
               </button>
-              <button type="button" className="seg__btn" disabled={busy !== null} onClick={() => void mark(e, false)}>
-                Не состоялось
-              </button>
+              {!onPult && (
+                <button type="button" className="btn btn--quiet btn--block" disabled={busy !== null} onClick={() => void mark(e, false)}>
+                  Не состоялось
+                </button>
+              )}
             </div>
           </li>
         ))}

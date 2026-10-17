@@ -717,8 +717,8 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .send-sheet__actions .hbtn{ min-height: 52px; font-size: 16px; }
 .send-sheet__close{ min-height: 44px; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
 .summary__head{ display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.qhelp{ flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--btn-outline); background: transparent; color: var(--ink); font: 600 17px/1 'Jost', sans-serif; cursor: pointer; position: relative; }
-.qhelp::after{ content: ""; position: absolute; inset: -6px; }
+.qhelp{ flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--btn-outline); background: transparent; color: var(--ink); font: 600 17px/1 'Jost', sans-serif; cursor: pointer; position: relative; }
+.qhelp::after{ content: ""; position: absolute; inset: -4px; }
 .qhelp:hover{ background: var(--line); }
 .qhelp:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 2px; }
 .levels-help{ margin: 0 0 16px; display: grid; gap: 6px; max-height: 52vh; overflow: auto; }

@@ -1,8 +1,8 @@
 /**
  * Конец игры (решение владельца 15 октября 2026): после награждения — «Спасибо» с делами: чаевые ведущему, отзыв
  * о вечере, отзыв на Авито и Telegram-канал JoyRest. Экран зала показывает QR-коды (слайд «Спасибо»), телефон гостя — те же
- * дела кнопками, отзыв пишется прямо на телефоне. Ссылку для чаевых ведущий ставит в профиле (нет — ссылка владельца, нет и её —
- * карточки чаевых нет). Ссылки «Авито · канал · сайт» (`FinaleLinks`) — везде, где гость видит конец игры (17 октября 2026).
+ * дела кнопками, отзыв пишется прямо на телефоне. Чаевые (решение владельца 17 октября 2026) — всегда: ссылка ведущего из профиля,
+ * нет — ссылка владельца, нет и её — общие чаевые JoyRest (`TIPS_URL` — Яндекс Чаевые), и без своего сервера тоже. Ссылки «Авито · канал · сайт» (`FinaleLinks`) — везде, где гость видит конец игры (17 октября 2026).
  * Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +16,12 @@ export const AVITO_TEXT = "Отзывы на Авито помогают дру�
 export const SITE_URL = "https://joy-rest.ru";
 export const SITE_CALC_URL = "https://joy-rest.ru/calc/";
 export const SITE_TEXT = "Посчитайте стоимость следующего праздника за минуту";
+
+/** Общие чаевые JoyRest (решение владельца 17 октября 2026): показываются, когда у ведущего и владельца нет своей ссылки. */
+/** Общие чаевые JoyRest — Яндекс Чаевые (QR владельца, 17 октября 2026). Пусто — карточки чаевых нет. */
+export const TIPS_URL = "https://tips.yandex.ru/guest/payment/4035386?is_from_qr=true";
+export const TIPS_TEXT =
+  "Огромное спасибо, что играли с нами! Если вечер понравился и есть желание поддержать ведущего и команду JoyRest — можно оставить чаевые.";
 
 export function reviewUrl(sessionId: string): string {
   return `${window.location.origin}/review/${sessionId}`;
@@ -103,24 +109,25 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
   if (finaleRepo && sessionId && !finale && !waited) return <div className="finale-qrs" aria-busy="true" />;
   if (!finaleRepo || !sessionId) {
     return (
-      <div className="slide__channel">
-        <QrCode value={CHANNEL_URL} label="QR-код канала JoyRest в Telegram" className="slide__qr" />
-        <p className="slide__text">Фото и новые игры — в канале t.me/JoyRest, цены и калькулятор — на joy-rest.ru</p>
+      <div className="finale-hall">
+        <div className="finale-qrs">
+          {TIPS_URL && <TipsQr url={TIPS_URL} />}
+          <figure className="finale-qr">
+            <QrCode value={CHANNEL_URL} label="QR-код канала JoyRest в Telegram" className="finale-qr__code" />
+            <figcaption>
+              <strong>Наш Telegram</strong>
+              <span>Фото и новые игры — в канале</span>
+            </figcaption>
+          </figure>
+        </div>
+        <p className="finale-hall__line">joy-rest.ru · t.me/JoyRest</p>
       </div>
     );
   }
   return (
     <div className="finale-hall">
       <div className="finale-qrs">
-        {finale?.tipsUrl && (
-          <figure className="finale-qr">
-            <QrCode value={finale.tipsUrl} label="QR-код: чаевые ведущему" className="finale-qr__code" />
-            <figcaption>
-              <strong>Чаевые ведущему</strong>
-              <span>Если вечер понравился{finale.hostName ? ` — ${finale.hostName} будет рад(а)` : ""}</span>
-            </figcaption>
-          </figure>
-        )}
+        {(finale?.tipsUrl || TIPS_URL) && <TipsQr url={finale?.tipsUrl || TIPS_URL} />}
         <figure className="finale-qr">
           <QrCode value={reviewUrl(sessionId)} label="QR-код: оставить отзыв" className="finale-qr__code" />
           <figcaption>
@@ -148,18 +155,46 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
   );
 }
 
+/** Чаевые на телефоне гостя: благодарность и кнопка. */
+export function TipsButton({ url = TIPS_URL }: { url?: string }) {
+  return (
+    <div className="stack stack--tight finale-tips">
+      <p className="small">{TIPS_TEXT}</p>
+      <a className="btn btn--block" href={url} target="_blank" rel="noopener noreferrer">
+        💛 Оставить чаевые
+      </a>
+    </div>
+  );
+}
+
+/** Карточка чаевых на экране зала: всегда есть (своя ссылка ведущего, владельца или общие чаевые JoyRest). */
+function TipsQr({ url }: { url: string }) {
+  return (
+    <figure className="finale-qr finale-qr--tips">
+      <QrCode value={url} label="QR-код: чаевые" className="finale-qr__code" />
+      <figcaption>
+        <strong>Чаевые</strong>
+        <span>Если вечер понравился — поддержите ведущего и команду JoyRest</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 /** Телефон гостя после игры: те же дела кнопками, отзыв — прямо здесь. */
 export function FinalePhone({ sessionId }: { sessionId: string }) {
   const [finale, setFinale] = useFinale(sessionId);
-  if (!finaleRepo) return null;
+  if (!finaleRepo) {
+    if (!TIPS_URL) return null;
+    return (
+      <section className="card stack finale-phone">
+        <TipsButton />
+      </section>
+    );
+  }
   return (
     <section className="card stack finale-phone" aria-labelledby="finale-title">
       <h2 id="finale-title">Спасибо, что были с нами!</h2>
-      {finale?.tipsUrl && (
-        <a className="btn btn--block" href={finale.tipsUrl} target="_blank" rel="noopener noreferrer">
-          💛 Чаевые ведущему{finale.hostName ? ` · ${finale.hostName}` : ""}
-        </a>
-      )}
+      {(finale?.tipsUrl || TIPS_URL) && <TipsButton url={finale?.tipsUrl || TIPS_URL} />}
       <ReviewForm sessionId={sessionId} initial={finale?.myReview ?? null} onSaved={(r) => finale && setFinale({ ...finale, myReview: r })} />
       <FinaleLinks avito={!finale?.myReview} />
     </section>

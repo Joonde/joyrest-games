@@ -297,9 +297,10 @@ describe("оформление экрана зала «Своей игры»", (
     expect(parseBoard(null).look).toBe("classic");
     expect(parseBoard({ ...old, look: "studio" }).look).toBe("studio");
     expect(parseBoard({ ...old, look: "evening" }).look).toBe("evening");
-    expect(createBoard().look).toBe("studio");
+    expect(parseBoard({ ...old, look: "table" }).look).toBe("table");
+    expect(createBoard().look).toBe("table");
     const demo = parseBoard(DEMO_BOARD.content);
-    expect(demo.look).toBe("studio");
+    expect(demo.look).toBe("table");
     expect(validateBoard(demo)).toEqual([]);
     for (const look of SHOW_LOOKS) expect(validateBoard({ ...demo, look })).toEqual([]);
   });

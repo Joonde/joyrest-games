@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useHostRun } from "../../components/live/useHostRun";
+import { usePultDraft } from "../../components/live/usePultDraft";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { scoringParticipants } from "../../core/leaderboard";
@@ -27,12 +28,14 @@ export function PerudoHostControls({ session, content, answers, participants, co
     errorText: (e) => (typeof e === "object" && e !== null && "code" in e && e.code === "foreign-pult" ? "Кости стаканов без телефона знает пульт, с которого бросали, — вскрывайте с него." : null),
   });
   const [keys, setKeys] = useState<Record<string, string>>({});
-  const [face, setFace] = useState(3);
-  const [qty, setQty] = useState(1);
   const [peek, setPeek] = useState(false);
   const [dialog, confirm] = useConfirm();
   const { stage, step } = session.state;
   const r = parsePerudoResult(session.state.result);
+  // Набранная ставка за стакан без телефона переживает смену вкладки и перезагрузку пульта (до следующего хода).
+  const bidScope = `${step}:${r.round}:${r.seq}`;
+  const [face, setFace] = usePultDraft(session.id, "perudo-face", bidScope, 3);
+  const [qty, setQty] = usePultDraft(session.id, "perudo-qty", bidScope, 1);
   const started = session.state.result !== null && session.state.result !== undefined;
   const name = (p: string | null) => (p ? (session.leaderboard[p]?.name ?? participants.find((x) => x.id === p)?.name ?? "Игрок") : "—");
   const noPlayers = new Set([...scoringParticipants(participants, session.playMode).map((p) => p.id), ...Object.keys(session.leaderboard)]).size < 2;

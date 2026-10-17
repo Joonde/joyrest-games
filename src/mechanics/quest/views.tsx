@@ -1,10 +1,12 @@
-// «Активная настолка»: поле змейкой на экране зала, фишки команд, кубик, задание клетки.
+// «Активная настолка»: экран зала как на макете Figma — нарисованное поле на весь кадр, слева команды, сверху
+// чей ход и кубик, справа снизу карточка клетки.
 import { useEffect, useRef } from "react";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { useFragment } from "../../components/music/useFragment";
 import { NameText } from "../../components/NameText";
+import { rankedLeaderboard } from "../../core/leaderboard";
 import { pointsLabel } from "../../core/results";
 import { acceptsAnswers } from "../../core/session";
 import type { Session } from "../../data/types";
@@ -12,7 +14,7 @@ import { embedUrl } from "../dance/content";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { cellText, QUEST_EMOJI, QUEST_TITLES, type QuestCell, type QuestContent } from "./content";
 import { cellAt, parseQuestResult, type QuestResult } from "./logic";
-import { QuestDie, QuestMap } from "./QuestMap";
+import { QuestDie, QuestMap, teamColor } from "./QuestMap";
 
 export type QuestAnswerValue = { roll: true };
 
@@ -68,45 +70,85 @@ export function QuestScreenView({ session, content }: ViewProps<QuestContent>) {
     }
     prev.current = key;
   }, [step, r.mode, r.outcome]);
+  const ranked = rankedLeaderboard(session.leaderboard);
+  const shownTeams = ranked.slice(0, 10);
 
   return (
-    <div className="quest-screen">
+    <div className={`quest-screen qx--${content.style}`}>
       {r.mode === "finish" && <Confetti burst={`quest:${step}`} />}
       <div className="quest-screen__board">
         <QuestBoard session={session} content={content} result={r} />
       </div>
-      <aside className="quest-screen__side">
-        {stage === "ready" ? (
-          <>
-            <span className="quiz-screen__badge">Активная настолка</span>
-            <h2 className="quest-screen__title">Начнём игру!</h2>
-            <p className="quest-screen__note">
-              {session.playMode === "teams" ? "Команды по очереди бросают кубик на телефоне капитана." : "Игроки по очереди бросают кубик на своём телефоне."} Каждая клетка — задание.
-            </p>
-          </>
-        ) : r.mode === "finish" ? (
-          <>
-            <h2 className="quest-screen__title">Финиш!</h2>
-            <p className="quest-screen__who">
-              <NameText name={mover} />
-            </p>
-            <p className="quest-screen__note">+{r.points} за финиш</p>
-          </>
-        ) : (
-          <>
-            <p className="quest-screen__who">
-              {r.mode === "roll" ? "Бросает" : "Ходит"} <NameText name={mover} />
-            </p>
+      {ranked.length > 0 && (
+        <aside className="qx-panel" aria-label="Команды">
+          <p className="qx-panel__head">
+            <span className="qx-panel__mark">J✦R</span> {session.playMode === "teams" ? "Команды" : "Игроки"} · {ranked.length}
+          </p>
+          <ol className="qx-panel__list">
+            {shownTeams.map((e) => (
+              <li key={e.id} className={e.id === r.mover ? "qx-row is-mover" : "qx-row"}>
+                <span className="qx-row__place">{e.place}</span>
+                <span className="qx-row__chip" style={{ background: teamColor(session, r, e.id) }} aria-hidden="true">
+                  {Array.from(e.name.trim())[0] ?? "?"}
+                </span>
+                <span className="qx-row__name">
+                  <NameText name={e.name} />
+                </span>
+                <span className="qx-row__cell">кл. {r.pos[e.id] ?? 0}</span>
+                <span className="qx-row__score">{e.score}</span>
+              </li>
+            ))}
+          </ol>
+          {ranked.length > shownTeams.length && <p className="qx-panel__more">и ещё {ranked.length - shownTeams.length}</p>}
+        </aside>
+      )}
+      {stage === "ready" ? (
+        <div className="qx-center">
+          <span className="qx-center__eyebrow">Активная настолка</span>
+          <h2 className="qx-center__title">Начнём игру!</h2>
+          <p className="qx-center__note">
+            {session.playMode === "teams" ? "Команды по очереди бросают кубик на телефоне капитана." : "Игроки по очереди бросают кубик на своём телефоне."} Каждая клетка — задание.
+          </p>
+        </div>
+      ) : r.mode === "finish" ? (
+        <div className="qx-center">
+          <span className="qx-center__eyebrow">Финиш!</span>
+          <h2 className="qx-center__title">
+            <NameText name={mover} />
+          </h2>
+          <p className="qx-center__note">+{r.points} за финиш</p>
+        </div>
+      ) : (
+        <>
+          <div className="qx-turn">
+            <div className="qx-turn__who">
+              <span className="qx-turn__label">{r.mode === "roll" ? "Бросает кубик" : "Ходит"}</span>
+              <span className="qx-turn__name">
+                <NameText name={mover} />
+              </span>
+            </div>
             <QuestDie value={r.roll} rolling={`${step}:${r.roll ?? 0}`} sounds />
-            {r.mode !== "roll" && r.moved !== 0 && (
-              <p className="quest-screen__note">
-                Клетка {r.hit}: {r.moved > 0 ? `бонус! Вперёд на ${r.moved}` : `ловушка! Назад на ${-r.moved}`} → клетка {r.at}
-              </p>
-            )}
-            {r.mode !== "roll" && <TaskCard cell={cell} result={r} session={session} showVideo />}
-          </>
-        )}
-      </aside>
+            {r.mode !== "roll" && r.roll ? (
+              <div className="qx-turn__who">
+                <span className="qx-turn__label">выпало</span>
+                <span className="qx-turn__roll">
+                  {r.roll} → кл. {r.at}
+                </span>
+              </div>
+            ) : null}
+          </div>
+          {r.mode !== "roll" && (
+            <div className="qx-card">
+              {r.moved !== 0 && (
+                <p className="qx-card__move">
+                  Клетка {r.hit}: {r.moved > 0 ? `бонус! Вперёд на ${r.moved}` : `ловушка! Назад на ${-r.moved}`} → клетка {r.at}
+                </p>
+              )}
+              <TaskCard cell={cell} result={r} session={session} showVideo />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

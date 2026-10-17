@@ -132,6 +132,11 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
    */
   standalone?: { themeId: string };
   /**
+   * Нарисованный фон экрана зала во время игры (Figma AI, `public/covers/art/web/<имя>.webp`), только в базовых
+   * темах JoyRest — сезонные и праздничные темы остаются со своим живым фоном. null — без фона.
+   */
+  art?: (content: Content) => string | null;
+  /**
    * Пульт механики сам ведёт к награждению («Закончить и наградить», партии): идёт она почти всё время на этапе
    * `question`, поэтому общая кнопка «Наградить сейчас» (только с `ready`, `reveal`, `board`) не показывается.
    */

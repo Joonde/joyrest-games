@@ -4,7 +4,7 @@
 // Робот жмёт кнопки пульта и телефонов как человек: вперёд, «Назад», двойные касания, таблица и QR поверх
 // игры, перерывы, «+10 секунд», «Наградить сейчас», опоздавшие, ушедшие, перезагрузка телефона, пульта и
 // экрана. Каждая ошибка экрана, зависание и нарушение правил попадают в отчёт (window.robotReport).
-import { Component, Suspense, useSyncExternalStore, type ReactNode } from "react";
+import { Component, Suspense, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BoardView } from "../../src/components/live/BoardView";
 import { Podium, PodiumPhone } from "../../src/components/live/Podium";
@@ -63,6 +63,8 @@ interface Report {
 }
 
 const mechanic = getMechanic(MECHANIC);
+// Шаблоны из кода — для стресс-теста пульта (scripts/e2e/pult.mjs), когда игры нет в библиотеке test.
+(window as unknown as { robotDemos: unknown }).robotDemos = demoGames;
 const demos = demoGames.filter((d) => d.mechanic === MECHANIC);
 const demo = demos[DEMO] ?? null;
 const report: Report = {
@@ -252,7 +254,17 @@ function Hall() {
   else if (s.state.peek)
     body = <BoardView leaderboard={s.state.peek === "round" ? roundLeaderboard(s.leaderboard) : s.leaderboard} title="Таблица" showLast={false} />;
   else if (s.state.stage === "podium") body = <Podium session={s} />;
-  else body = <ScreenView session={s} content={content} />;
+  else {
+    // Как в HallScreen: нарисованный фон игры под вопросом (Mechanic.art).
+    const art = mechanic.art?.(content) ?? null;
+    body = art ? (
+      <main className="quiz-stage show-stage show-stage--evening hall-art" style={{ width: "100%", height: "100%", ["--hall-art" as string]: `url("/covers/art/web/${art}-1280.webp")`, ["--hall-art-hd" as string]: `url("/covers/art/web/${art}.webp")` } as CSSProperties}>
+        <ScreenView session={s} content={content} />
+      </main>
+    ) : (
+      <ScreenView session={s} content={content} />
+    );
+  }
   return (
     <div className="preview-screen" style={{ width: 960, height: 540 }}>
       {body}

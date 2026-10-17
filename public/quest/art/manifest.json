@@ -1,0 +1,28 @@
+{
+  "files": [
+    {
+      "file": "classic.png",
+      "what": "«Активная настолка»: поле «Классика — горы, лес, водопад, озеро, мост, замок; дорожка из камней» (Figma AI, файл JoyRest — Активная настолка 94GFxr7d2uoMdZQVrke1d9)",
+      "url": "https://www.figma.com/api/mcp/asset/93e1ca1a-5845-4ed9-a471-a21b6f425cee",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "party.png",
+      "what": "«Активная настолка»: поле «Вечеринка — ночной город, неоновая дорожка, диско-шар, фейерверки» (Figma AI, файл JoyRest — Активная настолка 94GFxr7d2uoMdZQVrke1d9)",
+      "url": "https://www.figma.com/api/mcp/asset/1880d13c-613d-4858-b362-c2cedbaa98ba",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "kids.png",
+      "what": "«Активная настолка»: поле «Детская — сладкая страна, карамельная дорожка, замок, радуга» (Figma AI, файл JoyRest — Активная настолка 94GFxr7d2uoMdZQVrke1d9)",
+      "url": "https://www.figma.com/api/mcp/asset/b9809734-e221-406f-930a-df582631ca77",
+      "expires": "2026-10-24"
+    },
+    {
+      "file": "adult.png",
+      "what": "«Активная настолка»: поле «18+ — казино и красный бархат, дорожка из золотых фишек» (Figma AI, файл JoyRest — Активная настолка 94GFxr7d2uoMdZQVrke1d9)",
+      "url": "https://www.figma.com/api/mcp/asset/8b62fe03-4c2b-4960-a899-3bd31743dc0a",
+      "expires": "2026-10-24"
+    }
+  ]
+}

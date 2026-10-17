@@ -305,7 +305,16 @@ function Console({ session }: { session: Session }) {
   const HostControls = mechanic?.HostControls;
   const withScreen = session.screenMode !== "none";
   const menu: MenuAction[] = [{ label: "В студию", to: "/studio" }];
-  if (withScreen) menu.unshift({ label: "Открыть экран зала здесь", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
+  if (withScreen) menu.unshift({ label: "Открыть экран зала в новой вкладке", onClick: () => window.open(`/screen/${session.code}`, "_blank") });
+  // Случайно выбрали «Пульт» не на том устройстве (например, на компьютере у проектора) — снова выбор «Пульт / Экран зала».
+  if (withScreen && phase !== "finished")
+    menu.unshift({
+      label: "Пульт или экран зала?",
+      onClick: () => {
+        setPicking(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      },
+    });
   // Самостоятельная игра («Олимп») ведётся своим пультом: общие звуки, музыка и слайды не нужны.
   const standalone = Boolean(mechanic?.standalone);
   const tools = withScreen && !standalone;
@@ -375,6 +384,23 @@ function Console({ session }: { session: Session }) {
       )}
 
       <div className="pult-panel" role="tabpanel" id={`pult-panel-${tab}`} aria-labelledby={`pult-tab-${tab}`}>
+        {/* Пульт игры не размонтируется на других вкладках: начатый выбор (соперник батла, ставка) не теряется,
+            фоновые записи (голоса, подарки, фишки на экран) идут дальше. */}
+        {phase === "playing" && HostControls && content !== null && (
+          <section className="card" hidden={tab !== "game"}>
+            <Suspense fallback={null}>
+              <HostControls
+                key={program ? `${program.at}-${program.index}` : "game"}
+                session={session}
+                content={content}
+                answers={answers}
+                participants={participants}
+                control={control}
+                rehearsal={false}
+              />
+            </Suspense>
+          </section>
+        )}
         {tab === "game" && (
           <>
             {phase === "lobby" && (
@@ -395,21 +421,6 @@ function Console({ session }: { session: Session }) {
                   Завершить сессию без игры
                 </button>
               </>
-            )}
-            {phase === "playing" && HostControls && content !== null && (
-              <section className="card">
-                <Suspense fallback={null}>
-                  <HostControls
-                    key={program ? `${program.at}-${program.index}` : "game"}
-                    session={session}
-                    content={content}
-                    answers={answers}
-                    participants={participants}
-                    control={control}
-                    rehearsal={false}
-                  />
-                </Suspense>
-              </section>
             )}
             {phase === "playing" && !standalone && <AddTimeButton session={session} now={() => Date.now() + clock.offset()} onApply={apply} />}
             {phase === "playing" && withScreen && !mechanic?.ownPeek && !standalone && <PeekCard session={session} onApply={apply} />}
@@ -786,15 +797,25 @@ function PeopleCard({
   const now = Date.now() + clock.offset();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const board = rankedLeaderboard(session.leaderboard);
+  const ranked = rankedLeaderboard(session.leaderboard);
+  // Порядок строк не меняется от очков: иначе после «+10» список пересортировывается и следующее касание
+  // попадает в другого игрока (решение владельца 17 октября 2026). Место — числом, новые — в конец.
+  const order = useRef<string[]>([]);
+  order.current = stableOrder(order.current, ranked.map((e) => e.id));
+  const byId = new Map(ranked.map((e) => [e.id, e]));
+  const board = order.current.map((id) => byId.get(id)).filter((e): e is (typeof ranked)[number] => e !== undefined);
+  // Очки — только выбранному: ведущий касается игрока, строка подсвечивается, кнопки очков — у неё.
+  const [selected, setSelected] = useState<string | null>(null);
   const teams = session.playMode === "teams";
   const finished = session.state.phase === "finished";
+  const selectedId = selected !== null && byId.has(selected) ? selected : null;
 
   const adjust = useCallback(
-    (pid: string, _entry: LeaderboardEntry, delta: number) => {
+    (pid: string, entry: LeaderboardEntry, delta: number) => {
       // Прибавка на сервере: три быстрых «+10» — это +30, а не +10.
       void sessionsRepo
         .apply(session.id, { addScore: { [pid]: delta } })
+        .then(() => onToast(`${delta > 0 ? "+" : "−"}${Math.abs(delta)} — ${entry.name}`))
         .catch(() => onToast("Не удалось изменить очки. Проверьте интернет."));
     },
     [session.id, onToast],
@@ -893,6 +914,14 @@ function PeopleCard({
       {board.length === 0 ? (
         <p className="muted">Пока никого. Попросите гостей отсканировать QR-код.</p>
       ) : (
+        <>
+        {!finished && (
+          <p className="muted small">
+            {selectedId === null
+              ? `Коснитесь ${teams ? "команды" : "игрока"} — появятся кнопки очков только для ${teams ? "неё" : "него"}.`
+              : `Очки получает только выбранн${teams ? "ая команда" : "ый игрок"}. Другого — коснитесь его строки.`}
+          </p>
+        )}
         <ul className="people-list">
           {board.map((entry) => {
             const members = participants.filter((p) => p.kind === "player" && p.teamId === entry.id);
@@ -922,9 +951,15 @@ function PeopleCard({
               },
             ];
             return (
-              <li key={entry.id} className="people-list__item">
-                <div className="people-list__head">
-                  <span className="people-list__place">{entry.place}</span>
+              <li key={entry.id} className={entry.id === selectedId ? "people-list__item is-selected" : "people-list__item"}>
+                <button
+                  type="button"
+                  className="people-list__head people-list__pick"
+                  aria-pressed={entry.id === selectedId}
+                  disabled={finished}
+                  onClick={() => setSelected((cur) => (cur === entry.id ? null : entry.id))}
+                >
+                  <span className="people-list__place" title="Место">{entry.place}</span>
                   <span className="people-list__name">
                     <PresenceDot state={presence(entry.id)} />
                     {entry.kind === "team" && (
@@ -933,8 +968,8 @@ function PeopleCard({
                     <NameText name={entry.name} />
                   </span>
                   <strong className="people-list__score">{entry.score}</strong>
-                </div>
-                {!finished && (
+                </button>
+                {!finished && entry.id === selectedId && (
                   <div className="people-list__tools">
                     <button
                       type="button"
@@ -980,6 +1015,7 @@ function PeopleCard({
             );
           })}
         </ul>
+        </>
       )}
 
       <ConfirmDialog
@@ -1031,6 +1067,14 @@ function PeopleCard({
       </ConfirmDialog>
     </section>
   );
+}
+
+/** Прежний порядок строк без ушедших, новые — в конец (в порядке мест). */
+function stableOrder(prev: readonly string[], ids: readonly string[]): string[] {
+  const now = new Set(ids);
+  const kept = prev.filter((id) => now.has(id));
+  const seen = new Set(kept);
+  return [...kept, ...ids.filter((id) => !seen.has(id))];
 }
 
 /** Число телефонов по командам — строкой с ключами по порядку (jsonb меняет порядок ключей). */

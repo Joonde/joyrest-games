@@ -80,6 +80,18 @@ export function NoticeBell() {
   }
 
   const unread = state?.unread ?? 0;
+
+  // Число новых — и во вкладке браузера: «(2) JoyRest Games» видно, даже когда открыта другая вкладка.
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\+?\) /, "");
+    document.title = unread > 0 ? `(${unread > 99 ? "99+" : unread}) ${base}` : base;
+  }, [unread]);
+  useEffect(
+    () => () => {
+      document.title = document.title.replace(/^\(\d+\+?\) /, "");
+    },
+    [],
+  );
   // После открытия новые прочитаны: на колокольчике остаются только ждущие ответа.
   const badge = open ? (state?.items.filter((i) => i.kind === "waiting").length ?? 0) : unread;
   const items = state?.items ?? [];

@@ -3,7 +3,7 @@
 // ведущего. «Большая игра» — финал команды-лидера: 5 вопросов, два игрока по очереди на время.
 // Очки ответов — либо оценка JoyRest (шаблоны библиотеки, `source: "estimate"` — НЕ опрос, так и подписываем),
 // либо опрос гостей заранее (`source: "poll"`, `src/core/polls.ts`): проценты из числа ответивших.
-import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
+import { DEFAULT_SHOW_LOOK, parseShowLook, TABLE_LOOKS, type ShowLook } from "../showLook";
 
 export type RoundKind = "simple" | "double" | "triple" | "reverse" | "big";
 /** classic — две команды у табло, кнопка «Жми первым!»; hall — «Весь зал»: все пишут до трёх ответов с телефона. */
@@ -258,7 +258,7 @@ export function parseHundred(raw: unknown): HundredContent {
     bigTimes: [int(times[0], 20, HUNDRED_LIMITS.minBigTime, HUNDRED_LIMITS.maxBigTime), int(times[1], 25, HUNDRED_LIMITS.minBigTime, HUNDRED_LIMITS.maxBigTime)],
     bigGoal: int(d.bigGoal, 200, 1, HUNDRED_LIMITS.maxGoal),
     bigBonus: int(d.bigBonus, 100, 0, HUNDRED_LIMITS.maxBonus),
-    look: parseShowLook(d.look),
+    look: parseShowLook(d.look, TABLE_LOOKS),
     pollId: typeof d.pollId === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(d.pollId) ? d.pollId : null,
   };
 }

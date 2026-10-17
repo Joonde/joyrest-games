@@ -490,3 +490,10 @@ export function mediaIds(content: QuizContent): string[] {
 export function trackIds(content: QuizContent): string[] {
   return [...new Set(content.questions.flatMap((q) => (q.trackId ? [q.trackId] : [])))];
 }
+
+/** Музыкальный квиз («Угадай мелодию»): есть треки или хотя бы половина вопросов начинается с «♪» (шаблон без треков). */
+export function isMelodyQuiz(content: QuizContent): boolean {
+  if (trackIds(content).length > 0) return true;
+  const notes = content.questions.filter((q) => q.text.trimStart().startsWith("♪")).length;
+  return notes > 0 && notes * 2 >= content.questions.length;
+}

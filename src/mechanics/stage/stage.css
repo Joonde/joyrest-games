@@ -1343,3 +1343,8 @@
 .quiz-stage:has(.stage-screen:not(.stage-screen--full)) .stage-code {
   z-index: 2;
 }
+
+/* «Караоке на поле» на нарисованном фоне (`Mechanic.art`, .hall-art в HallScreen): своя заливка не закрывает картину. */
+.hall-art .stage-screen.is-karaoke {
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, rgba(12, 8, 18, 0.35), rgba(12, 8, 18, 0.1));
+}

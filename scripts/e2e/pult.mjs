@@ -1118,6 +1118,8 @@ async function runDeck(browser, token, quiz) {
 // Сервер test под нагрузкой: /health раз в 2 с — когда и сколько он не отвечал.
 const health = { checks: 0, down: [], versions: new Set() };
 let downSince = null;
+let okSince = null;
+let lastVersion = null;
 const healthTimer = setInterval(async () => {
   health.checks++;
   const t = Date.now();
@@ -1125,19 +1127,28 @@ const healthTimer = setInterval(async () => {
     const r = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(5000) });
     const j = await r.json().catch(() => ({}));
     if (j.version) health.versions.add(j.version);
+    if (j.version) lastVersion = j.version;
     if (r.ok) {
+      okSince ??= t;
       if (downSince) health.down.push({ from: new Date(downSince).toISOString(), seconds: Math.round((t - downSince) / 1000) });
       downSince = null;
       return;
     }
   } catch {}
   downSince ??= t;
+  okSince = null;
 }, 2000);
+
+/** Ждать, пока test отвечает без перерыва 30 с (не дольше 10 минут). */
+async function waitStable() {
+  const until = Date.now() + 10 * 60_000;
+  while (Date.now() < until && !(okSince && Date.now() - okSince > 30_000)) await sleep(2000);
+}
 
 const browser = await chromium.launch({ args: ["--no-sandbox", "--autoplay-policy=no-user-gesture-required"] });
 let code = 0;
 try {
-  const token = await login();
+  let token = await login();
   const library = (await api("GET", "/api/games?scope=agency", `__Host-jr_s=${token}`)).data ?? [];
   const demos = await codeDemos(browser);
   const plan = [];
@@ -1167,10 +1178,25 @@ try {
       await sleep(w * 4000);
       while (queue.length) {
         const { spec, game } = queue.shift();
-        try {
-          results.push(await runGame(browser, token, spec, game));
-        } catch (e) {
-          results.push({ key: spec.key, name: spec.name, actions: 0, finished: false, lag: { median: 0, p95: 0 }, server: { median: 0, p95: 0 }, problems: [{ level: "bug", text: `Прогон не начался: ${String(e.message).slice(0, 200)}` }] });
+        // Test общий для всех веток: другая ветка выкладывается — сервер ~10 с отвечает 502 и меняется версия.
+        // Такой прогон не про пульт: ждём, пока test снова стабилен, и проводим игру заново (до 3 попыток).
+        for (let attempt = 1; ; attempt++) {
+          const v0 = lastVersion;
+          let res;
+          try {
+            res = await runGame(browser, token, spec, game);
+          } catch (e) {
+            res = { key: spec.key, name: spec.name, actions: 0, finished: false, lag: { median: 0, p95: 0 }, server: { median: 0, p95: 0 }, problems: [{ level: "bug", text: `Прогон не начался: ${String(e.message).slice(0, 200)}` }] };
+          }
+          const redeployed = lastVersion !== v0 || res.problems.some((p) => p.level === "bug" && /\b50[234]\b|ECONNRESET|ECONNREFUSED/.test(p.text) && /прервался|не начался/.test(p.text));
+          if (!redeployed || attempt >= 3) {
+            if (attempt > 1) res.problems.unshift({ level: "note", text: `Попытка ${attempt}: прошлые прервала выкладка другой ветки на test` });
+            results.push(res);
+            break;
+          }
+          console.log(`${spec.name}: test перевыкладывали (${v0?.slice(0, 7)} → ${lastVersion?.slice(0, 7)}) — ждём и повторяем`);
+          await waitStable();
+          token = await login();
         }
       }
     }),

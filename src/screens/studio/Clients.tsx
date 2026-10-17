@@ -23,10 +23,15 @@ import {
   ORIGIN_TITLES,
   originTitle,
   waitingOf,
+  timerOf,
+  timerSortKey,
+  durationLabel,
+  responseStats,
+  ANSWER_LIMIT_MS,
 } from "../../core/clients";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
-import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type UserProfile } from "../../data";
+import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type ClientResponse, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { HostGate } from "../../components/HostGate";
@@ -46,11 +51,15 @@ const FILTER_TITLES: Record<Filter, string> = {
   new: "Новые",
   work: "В работе",
   client: "Клиенты",
+  held: "Провели",
   lost: "Отказ",
   mailing: "Рассылка",
   archive: "Архив",
 };
-const STATUS_COLORS: Record<ClientStatus, string> = { new: brand.gold, work: brand.lavender, client: brand.sage, lost: brand.coral };
+const STATUS_COLORS: Record<ClientStatus, string> = { new: brand.gold, work: brand.lavender, client: brand.sage, held: brand.wine, lost: brand.coral };
+/** Порядок списка: свежие обращения сверху или по таймеру ответа — дольше ждущие (и дольше ждавшие) сверху. */
+type Sort = "fresh" | "timer";
+const dayOf = (ms: number) => new Date(ms + 3 * 3_600_000).toISOString().slice(0, 10);
 
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow" });
 /** Дата и время по Москве — в истории видно, сколько анкета ждала до «В работе». */
@@ -58,7 +67,7 @@ const dateTimeLabel = (ms: number) =>
   new Date(ms).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
 const isFilter = (v: string | null): v is Filter => v !== null && v in FILTER_TITLES;
 /** Новую анкету ждут ответа не дольше 30 минут (инструкция менеджера, «Сроки»). */
-const ANSWER_MS = 30 * 60_000;
+const ANSWER_MS = ANSWER_LIMIT_MS;
 
 /** «12 мин», «3 ч», «2 дн» — сколько прошло. */
 function agoLabel(ms: number): string {
@@ -78,6 +87,63 @@ function useNow(): number {
   return now;
 }
 const sourceTitle = (s: string) => SOURCE_TITLES[s as ClientSource] ?? s;
+/**
+ * «В работе · Мария» → «Мария» (у старых карточек — кто последним менял статус). Записи без человека («Клиент ·
+ * мероприятие записано», «Новый · повторное обращение») — пусто: не пишем «Ведёт: мероприятие записано».
+ */
+const lastPart = (line: string) => {
+  const parts = line.split(" · ");
+  const who = parts.length > 1 ? (parts[parts.length - 1] ?? "") : "";
+  return /мероприят|обращени|отметк/i.test(who) ? "" : who;
+};
+
+/**
+ * Таймер ответа сверху карточки (решение владельца 17 октября 2026): заявка пришла — пошёл отсчёт по секундам;
+ * менеджер перевёл из «Нового» — таймер встал и показывает, сколько клиент ждал и кто взял.
+ */
+function TimerBadge({ client: c }: { client: ClientRecord }) {
+  const [now, setNow] = useState(() => Date.now());
+  const running = c.status === "new" && !c.archived;
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+  const t = timerOf(c, now);
+  if (!t) return null;
+  const late = t.ms > ANSWER_MS;
+  return (
+    <span className={["clients-timer", t.running ? "is-running" : "is-stopped", late ? "is-late" : ""].filter(Boolean).join(" ")} role="timer">
+      <span aria-hidden="true">{t.running ? "⏱" : "✓"}</span>{" "}
+      {t.running ? (
+        <>
+          Ждёт ответа <b>{durationLabel(t.ms)}</b>
+        </>
+      ) : (
+        <>
+          Ответили за <b>{durationLabel(t.ms)}</b>
+          {t.by ? ` · ${t.by}` : ""}
+        </>
+      )}
+    </span>
+  );
+}
+
+/** Сколько в среднем ждут ответа новые заявки (за 30 дней): в среднем, обычно (медиана) и сколько — вовремя. */
+function ResponseSummary({ refresh }: { refresh: number }) {
+  const [state] = useLoad(() => {
+    if (!clientsRepo) return Promise.resolve([] as ClientResponse[]);
+    const now = Date.now();
+    return clientsRepo.responses(dayOf(now - 29 * 86_400_000), dayOf(now));
+  }, [refresh]);
+  if (state.status !== "ready" || state.data.length === 0) return null;
+  const st = responseStats(state.data);
+  return (
+    <p className="small clients-speed">
+      ⏱ Ответ на новую заявку за 30 дней: в среднем <b>{durationLabel(st.avgMs)}</b>, обычно <b>{durationLabel(st.medianMs)}</b> · до 30 минут — {st.inTime} из {st.count}
+    </p>
+  );
+}
 
 export function Clients() {
   return (
@@ -115,6 +181,9 @@ function ClientBase({ profile }: { profile: UserProfile }) {
   const [query, setQuery] = useState(() => params.get("q") ?? "");
   const [form, setForm] = useState<ClientRecord | "new" | null>(null);
   const [toast, showToast] = useToast();
+  // «Новые» — сразу по таймеру (дольше ждущие сверху), остальные — свежие обращения сверху; менеджер меняет сам.
+  const [sort, setSort] = useState<Sort>(() => (params.get("f") === "new" ? "timer" : "fresh"));
+  const [saves, setSaves] = useState(0);
 
   // Владелец и менеджер работают одновременно: список тихо обновляется раз в 30 секунд и при возврате на вкладку,
   // без каркаса и мигания — новые анкеты и чужие смены статуса видны без перезагрузки.
@@ -144,9 +213,13 @@ function ClientBase({ profile }: { profile: UserProfile }) {
     const all = (shown ?? []).filter((c) => c.archived === archived);
     const byFilter = all.filter((c) => (filter === "all" || filter === "archive" ? true : filter === "mailing" ? c.marketing === "yes" : c.status === filter));
     const found = query.trim() ? byFilter.filter((c) => matchesSearch([c.name, c.phone, phoneKey(c.phone), c.notes, ...c.links], query)) : byFilter;
-    // «Новые» — дольше всех ждущие сверху: им отвечаем первыми.
-    return filter === "new" ? [...found].sort((a, b) => a.lastContactAt - b.lastContactAt) : found;
-  }, [shown, filter, query, archived, focusId]);
+    // По таймеру: кто ждёт ответа прямо сейчас — сверху (дольше ждущий — первым), дальше — кого дольше ждали.
+    if (sort === "timer") {
+      const at = Date.now();
+      return [...found].sort((a, b) => timerSortKey(b, at) - timerSortKey(a, at) || b.lastContactAt - a.lastContactAt);
+    }
+    return found;
+  }, [shown, filter, query, archived, focusId, sort]);
   // Счётчики у фильтров (кроме «Архива»: в архиве свой список).
   const counts = useMemo((): Partial<Record<Filter, number>> => {
     if (archived) return {};
@@ -165,7 +238,20 @@ function ClientBase({ profile }: { profile: UserProfile }) {
   function saved(c: ClientRecord, text: string) {
     update((data) => [c, ...data.filter((x) => x.id !== c.id)]);
     setForm(null);
+    setSaves((n) => n + 1);
     showToast(text);
+  }
+
+  /** Тот же телефон уже есть в базе — открыть его карточку (в списке; нет — поиском по номеру). */
+  function openExisting(phone: string) {
+    const key = phoneKey(phone);
+    const other = (shown ?? []).find((c) => phoneKey(c.phone) === key);
+    setForm(null);
+    if (other) setParams({ id: other.id }, { replace: true });
+    else {
+      setFilter("all");
+      setQuery(phone);
+    }
   }
 
   function toggleArchive(c: ClientRecord) {
@@ -190,6 +276,7 @@ function ClientBase({ profile }: { profile: UserProfile }) {
         canConsent={permissions.canSetMarketingConsent(profile)}
         onCancel={() => setForm(null)}
         onSaved={(c) => saved(c, form === "new" ? "Клиент добавлен" : "Сохранено")}
+        onOpenExisting={openExisting}
       />
     );
   }
@@ -242,11 +329,20 @@ function ClientBase({ profile }: { profile: UserProfile }) {
           </button>
         ))}
       </div>
+      <div className="seg clients-sort" role="group" aria-label="Порядок">
+        <button type="button" className={sort === "fresh" ? "seg__btn is-on" : "seg__btn"} aria-pressed={sort === "fresh"} onClick={() => setSort("fresh")}>
+          Свежие сверху
+        </button>
+        <button type="button" className={sort === "timer" ? "seg__btn is-on" : "seg__btn"} aria-pressed={sort === "timer"} onClick={() => setSort("timer")}>
+          ⏱ По таймеру — дольше ждут сверху
+        </button>
+      </div>
       {late > 0 && (
         <p className="clients-late" role="status">
-          ⏰ Ждут ответа дольше 30 минут: {late}. В «Новых» дольше всех ждущие — сверху.
+          ⏰ Ждут ответа дольше 30 минут: {late}. «По таймеру» — они первыми.
         </p>
       )}
+      <ResponseSummary refresh={saves + (shown?.filter((c) => c.status !== "new").length ?? 0)} />
       <SearchField label="Поиск" value={query} placeholder="Имя, телефон, ссылка, заметка" candidates={candidates} onChange={setQuery} />
 
       {!shown ? (
@@ -314,13 +410,14 @@ function occasionOf(details: ClientDetails | null): string {
   return lead ? (lead.summary.split("\n")[0] ?? "").split(",")[0] ?? "" : "";
 }
 
-/** Путь клиента: «Новый» → «В работе» → «Клиент»; «Отказ» — отдельно, в стороне. */
-const PATH: ClientStatus[] = ["new", "work", "client"];
+/** Путь клиента: «Новый» → «В работе» → «Клиент» → «Провели»; «Отказ» — отдельно, в стороне. */
+const PATH: ClientStatus[] = ["new", "work", "client", "held"];
 const STATUS_HINTS: Record<ClientStatus, string> = {
-  new: "Ответьте в течение 30 минут и переведите в «В работе».",
-  work: "Ведёте переговоры. Договорились — «Клиент», не вышло — «Отказ» с причиной в заметке.",
-  client: "Договорились — мероприятие записано в «Мероприятия».",
-  lost: "Не договорились — причина в заметке. Напишет снова — карточка вернётся.",
+  new: "Таймер идёт. Ответьте в течение 30 минут и переведите в «В работе» — таймер остановится.",
+  work: "Ведёте переговоры. Договорились — «Клиент» (поставится сам, когда мероприятие запишут), не вышло — «Отказ» с причиной в заметке.",
+  client: "Договорились, мероприятие впереди. После него ведущий отметит «Проведено» — статус станет «Провели» сам.",
+  held: "Мероприятие прошло. На следующий день попросите отзыв (шаблон — в инструкции) и предложите следующий праздник. Напишет снова — станет «Новым».",
+  lost: "Не договорились — причина в заметке. Напишет снова — станет «Новым», таймер пойдёт заново.",
 };
 
 /**
@@ -372,12 +469,12 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
             disabled={busy}
             onClick={() => onPick(st)}
           >
-            {index > i ? "✓ " : ""}
             {CLIENT_STATUS_TITLES[st]}
           </button>
         ))}
       </div>
-      {next && (
+      {/* «Провели» ставит отметка ведущего «Проведено» — большой кнопки для неё нет (шаг на дорожке — на всякий случай). */}
+      {next && next !== "held" && (
         <button type="button" className="btn btn--block" disabled={busy} onClick={() => onPick(next)}>
           Перевести в «{CLIENT_STATUS_TITLES[next]}» →
         </button>
@@ -491,6 +588,7 @@ function ClientCard({
   return (
     <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": STATUS_COLORS[c.status] } as CSSProperties}>
       <button type="button" className="plan-card__head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <TimerBadge client={c} />
         <span className="plan-card__top">
           <span className="plan-card__title">{c.name || "Без имени"}</span>
           <Pill color={STATUS_COLORS[c.status]}>{CLIENT_STATUS_TITLES[c.status]}</Pill>
@@ -513,12 +611,12 @@ function ClientCard({
               {c.contacts > 1 ? ` · всего ${c.contacts}` : ""}
             </span>
           </span>
-          {c.status !== "new" && c.statusLine && (
+          {c.status !== "new" && (c.takenBy || lastPart(c.statusLine)) && (
             <span className="clients-facts__row">
               <span className="clients-facts__label">Ведёт</span>
               <span className="clients-facts__value">
-                {c.statusLine.split(" · ").slice(1).join(" · ") || c.statusLine}
-                {c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
+                {c.takenBy || lastPart(c.statusLine)}
+                {c.takenAt ? ` · с ${dateTimeLabel(c.takenAt)}` : c.statusAt ? ` · ${dateTimeLabel(c.statusAt)}` : ""}
               </span>
             </span>
           )}
@@ -529,7 +627,8 @@ function ClientCard({
             </span>
           )}
         </span>
-        {waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа{wait?.telegram ? " в Telegram" : ""} {agoLabel(waiting)}</span>}
+        {/* Новый клиент — таймер сверху; здесь — только «ждёт ответа в Telegram» (у любого статуса). */}
+        {wait?.telegram && waiting > 0 && <span className={late ? "clients-wait is-late" : "clients-wait"}>{late ? "⏰ " : ""}ждёт ответа в Telegram {agoLabel(waiting)}</span>}
         {!open && c.notes && <span className="clients-note-line">📝 {c.notes.split("\n")[0]}</span>}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
@@ -673,7 +772,24 @@ function ClientCard({
   );
 }
 
-function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: ClientRecord | null; canConsent: boolean; onSaved: (c: ClientRecord) => void; onCancel: () => void }) {
+/**
+ * Карточка клиента вручную (звонок, Авито, рекомендация) и правка. Проверки (17 октября 2026): у нового — телефон
+ * или ссылка обязательны (без них клиенту не написать), неполный телефон не сохраняется, тот же телефон — «Открыть
+ * его карточку», чужая правка — «Сохранить мои правки поверх» без потери введённого, выход с правками — через вопрос.
+ */
+function ClientForm({
+  initial,
+  canConsent,
+  onSaved,
+  onCancel,
+  onOpenExisting,
+}: {
+  initial: ClientRecord | null;
+  canConsent: boolean;
+  onSaved: (c: ClientRecord) => void;
+  onCancel: () => void;
+  onOpenExisting: (phone: string) => void;
+}) {
   const [id] = useState(() => initial?.id ?? newId());
   const [name, setName] = useState(initial?.name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -682,29 +798,67 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
   const [marketing, setMarketing] = useState<Marketing>(initial?.marketing ?? "unknown");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [origin, setOrigin] = useState(initial?.origin ?? "");
+  const [request, setRequest] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Что пошло не так при сохранении: тот же телефон у другого клиента или карточку только что изменил другой.
+  const [problem, setProblem] = useState<"duplicate" | "changed" | null>(null);
+  const [confirm, ask] = useConfirm();
   const parsedLinks = parseLinks(links);
-  const ready = name.trim() !== "" || phoneKey(phone) !== "" || parsedLinks.length > 0;
+  const key = phoneKey(phone);
+  const phoneBad = phone.trim() !== "" && key === "";
+  // Новый клиент — нужен телефон или ссылка; у старых карточек (бывают только с именем) хватит имени.
+  const reachableNow = key !== "" || parsedLinks.length > 0;
+  const ready = !phoneBad && (initial ? reachableNow || name.trim() !== "" : reachableNow);
+  const dirty =
+    name !== (initial?.name ?? "") ||
+    phone !== (initial?.phone ?? "") ||
+    links !== (initial?.links ?? []).join("\n") ||
+    status !== (initial?.status ?? "new") ||
+    marketing !== (initial?.marketing ?? "unknown") ||
+    notes !== (initial?.notes ?? "") ||
+    origin !== (initial?.origin ?? "") ||
+    request.trim() !== "";
 
-  async function save() {
+  async function save(force = false) {
     if (!clientsRepo || !ready) return;
     setBusy(true);
     setError(null);
+    setProblem(null);
     try {
-      onSaved(await clientsRepo.save({ id, name: name.trim(), phone: phone.trim(), links: parsedLinks, status, marketing, notes, origin, ...(initial ? { expect: initial.updatedAt } : {}) }));
+      onSaved(
+        await clientsRepo.save({
+          id,
+          name: name.trim(),
+          phone: phone.trim(),
+          links: parsedLinks,
+          status,
+          marketing,
+          notes,
+          origin,
+          ...(initial ? {} : { request: request.trim() }),
+          ...(initial && !force ? { expect: initial.updatedAt } : {}),
+        }),
+      );
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-      setError(
-        code === "already-exists"
-          ? "Клиент с этим телефоном уже есть — найдите его поиском."
-          : code === "failed-precondition"
-            ? "Пока вы правили, карточку изменил другой человек. Ваши правки не сохранены: нажмите «Отмена», откройте карточку снова и внесите их ещё раз."
-            : "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.",
-      );
+      if (code === "already-exists") setProblem("duplicate");
+      else if (code === "failed-precondition") setProblem("changed");
+      else setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function cancel() {
+    if (!dirty) return onCancel();
+    ask({
+      title: "Выйти без сохранения?",
+      text: "Введённое в форме не сохранится.",
+      confirmLabel: "Выйти без сохранения",
+      cancelLabel: "Остаться",
+      run: () => onCancel(),
+    });
   }
 
   return (
@@ -712,27 +866,42 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
       <h2 id="client-form">{initial ? "Изменить клиента" : "Новый клиент"}</h2>
       <label className="field">
         <span className="field__label">Имя</span>
-        <input type="text" autoComplete="off" maxLength={CLIENT_LIMITS.name} value={name} onChange={(e) => setName(e.target.value)} />
+        <input type="text" autoComplete="off" maxLength={CLIENT_LIMITS.name} value={name} placeholder="Как обращаться: Мария" onChange={(e) => setName(e.target.value)} />
       </label>
       <label className="field">
         <span className="field__label">Телефон</span>
-        <input type="tel" inputMode="tel" autoComplete="off" maxLength={CLIENT_LIMITS.phone} value={phone} placeholder="+7 …" onChange={(e) => setPhone(e.target.value)} />
+        <input
+          type="tel"
+          inputMode="tel"
+          autoComplete="off"
+          maxLength={CLIENT_LIMITS.phone}
+          value={phone}
+          placeholder="+7 915 241-59-99"
+          aria-invalid={phoneBad}
+          onChange={(e) => setPhone(e.target.value)}
+        />
       </label>
+      {phoneBad && <p className="error small">Телефон неполный: нужно 10–11 цифр, например +7 915 241-59-99.</p>}
+      {key !== "" && phoneLabel(phone) !== phone.trim() && <p className="muted small">Сохранится как {phoneLabel(phone)}</p>}
       <label className="field">
         <span className="field__label">Соцсети (Telegram, ВКонтакте, Instagram, WhatsApp)</span>
         <textarea rows={2} value={links} placeholder="@nick, vk.com/…, instagram.com/…" onChange={(e) => setLinks(e.target.value)} />
       </label>
       {parsedLinks.length > 0 && <p className="muted small">Распознано: {parsedLinks.map(linkTitle).join(", ")}</p>}
-      <fieldset className="stack stack--tight">
-        <legend>Статус</legend>
-        <div className="plan-quick" role="group" aria-label="Статус">
-          {CLIENT_STATUSES.map((s) => (
-            <button key={s} type="button" className={status === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={status === s} onClick={() => setStatus(s)}>
-              {CLIENT_STATUS_TITLES[s]}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      {links.trim() !== "" && parsedLinks.length === 0 && <p className="error small">Ссылку не распознали: вставьте @ник Telegram или ссылку vk.com/…, instagram.com/…, wa.me/…</p>}
+      {!initial && (
+        <label className="field">
+          <span className="field__label">Что хочет клиент</span>
+          <textarea
+            rows={2}
+            maxLength={CLIENT_LIMITS.notes}
+            value={request}
+            placeholder="Свадьба, 12 июня, 60 гостей, бюджет до 40 000 ₽"
+            onChange={(e) => setRequest(e.target.value)}
+          />
+          <span className="field__hint">Первой записью попадёт в историю клиента — как заявка с сайта.</span>
+        </label>
+      )}
       <label className="field">
         <span className="field__label">Откуда пришёл</span>
         <select value={origin} onChange={(e) => setOrigin(e.target.value)}>
@@ -743,7 +912,27 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
             </option>
           ))}
         </select>
+        {!initial && origin === "" && <span className="field__hint">Укажите — по этому считаются «Итоги»: откуда приходят клиенты.</span>}
       </label>
+      <fieldset className="stack stack--tight">
+        <legend>Статус</legend>
+        <div className="plan-quick" role="group" aria-label="Статус">
+          {CLIENT_STATUSES.map((s) => (
+            <button key={s} type="button" className={status === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={status === s} onClick={() => setStatus(s)}>
+              {CLIENT_STATUS_TITLES[s]}
+            </button>
+          ))}
+        </div>
+        {!initial && (
+          <p className="muted small">
+            {status === "new"
+              ? "«Новый» — ещё не связались: пойдёт таймер ответа. Уже разговариваете с клиентом — выберите «В работе»."
+              : status === "work"
+                ? "«В работе» — вы уже говорите с клиентом, таймер не нужен."
+                : STATUS_HINTS[status]}
+          </p>
+        )}
+      </fieldset>
       <fieldset className="stack stack--tight">
         <legend>Рассылка</legend>
         {(["yes", "unknown", "no"] as const).filter((m) => m !== "yes" || canConsent || initial?.marketing === "yes").map((m) => (
@@ -760,10 +949,35 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
         )}
       </fieldset>
       <label className="field">
-        <span className="field__label">Заметка</span>
+        <span className="field__label">Заметка: дата, гости, расчёт, следующий шаг</span>
         <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
-      {!ready && <p className="muted small">Нужны имя, телефон или ссылка.</p>}
+      {!ready && !phoneBad && (
+        <p className="muted small">{initial ? "Нужны имя, телефон или ссылка." : "Нужен телефон или ссылка на соцсеть — без них клиенту не написать."}</p>
+      )}
+      {problem === "duplicate" && (
+        <div className="card stack stack--tight clients-conflict" role="alert">
+          <p className="small">
+            <b>Клиент с этим телефоном уже есть.</b> Один человек — одна карточка: откройте его и допишите заметку там.
+          </p>
+          <button type="button" className="btn btn--block" onClick={() => onOpenExisting(phone)}>
+            Открыть его карточку
+          </button>
+        </div>
+      )}
+      {problem === "changed" && (
+        <div className="card stack stack--tight clients-conflict" role="alert">
+          <p className="small">
+            <b>Пока вы правили, карточку изменил другой человек.</b> Ваши правки — в форме, они не потеряны.
+          </p>
+          <button type="button" className="btn btn--block" disabled={busy} onClick={() => void save(true)}>
+            Сохранить мои правки поверх
+          </button>
+          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={onCancel}>
+            Открыть свежую версию (мои правки не сохранятся)
+          </button>
+        </div>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -773,10 +987,11 @@ function ClientForm({ initial, canConsent, onSaved, onCancel }: { initial: Clien
         <button type="button" className="btn btn--block" disabled={busy || !ready} onClick={() => void save()}>
           {busy ? "Сохраняем…" : "Сохранить"}
         </button>
-        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={onCancel}>
+        <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={cancel}>
           Отмена
         </button>
       </div>
+      {confirm}
     </section>
   );
 }

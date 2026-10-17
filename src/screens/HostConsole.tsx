@@ -44,6 +44,7 @@ import { elapsedClock } from "../core/eventTime";
 import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, thanksSlide } from "../core/slides";
 import { EventPhotosCard } from "../components/live/EventPhotos";
+import { HeldPrompt } from "./studio/HeldPrompt";
 import { TechBreak } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
@@ -482,6 +483,10 @@ function Console({ session }: { session: Session }) {
                   {inBlock ? "Завершить блок досрочно" : program ? "Завершить вечер досрочно" : "Завершить игру досрочно"}
                 </button>
               </>
+            )}
+            {/* Ведущий ещё на площадке — сразу «Проведено» по мероприятию из календаря (клиенту — «Провели»). */}
+            {phase === "finished" && Object.keys(session.leaderboard).length > 0 && (
+              <HeldPrompt owner={false} hostId={session.hostId} onToast={showToast} />
             )}
             {phase === "finished" && (
               <section className="card">

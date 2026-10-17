@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanLinks, clientsCsv, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, waitingOf, originOf, originStats } from "./clients";
+import { cleanLinks, clientsCsv, durationLabel, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, responseStats, timerOf, timerSortKey, waitingOf, originOf, originStats } from "./clients";
 
 describe("база клиентов: телефон — ключ", () => {
   it("8…, +7…, 9… и с разделителями — один и тот же человек", () => {
@@ -82,5 +82,53 @@ describe("база клиентов: выгрузка для рассылки", 
     ]);
     expect(csv.startsWith("﻿Имя;Телефон;")).toBe(true);
     expect(csv).toContain(`"'=HYPERLINK(""x"")";+7 915 241-59-99;https://t.me/abcd;Новый;Согласен на рассылку;2026-10-14;2026-10-14`);
+  });
+});
+
+describe("база клиентов: таймер ответа", () => {
+  const base = { archived: false, lastContactAt: 1_000_000 };
+  it("«Новый» — таймер идёт от прихода в «Новый», старые карточки — от обращения", () => {
+    expect(timerOf({ ...base, status: "new", newSince: 1_060_000 }, 1_120_000)).toEqual({ running: true, ms: 60_000, by: "" });
+    expect(timerOf({ ...base, status: "new" }, 1_120_000)).toEqual({ running: true, ms: 120_000, by: "" });
+    expect(timerOf({ ...base, status: "new", archived: true }, 1_120_000)).toBeNull();
+  });
+  it("ушёл из «Нового» — таймер стоит на том, сколько ждал, и кто взял; без данных — нет таймера", () => {
+    expect(timerOf({ ...base, status: "work", takenMs: 492_000, takenBy: "Мария" }, 9e12)).toEqual({ running: false, ms: 492_000, by: "Мария" });
+    expect(timerOf({ ...base, status: "client", takenMs: null }, 9e12)).toBeNull();
+  });
+  it("подписи времени", () => {
+    expect(durationLabel(45_000)).toBe("45 с");
+    expect(durationLabel(12 * 60_000 + 5_000)).toBe("12 мин 05 с");
+    expect(durationLabel(3 * 3_600_000 + 12 * 60_000)).toBe("3 ч 12 мин");
+    expect(durationLabel(52 * 3_600_000)).toBe("2 дн 4 ч");
+    expect(durationLabel(-5)).toBe("0 с");
+  });
+  it("по таймеру: ждущие сейчас — выше всех, дольше ждущий — первым, потом дольше ждавшие", () => {
+    const now = 10_000_000;
+    const list = [
+      { id: "a", ...base, status: "work" as const, takenMs: 3_600_000 },
+      { id: "b", ...base, status: "new" as const, newSince: now - 60_000 },
+      { id: "c", ...base, status: "new" as const, newSince: now - 600_000 },
+      { id: "d", ...base, status: "lost" as const },
+      { id: "e", ...base, status: "work" as const, takenMs: 60_000 },
+    ];
+    expect([...list].sort((x, y) => timerSortKey(y, now) - timerSortKey(x, now)).map((c) => c.id)).toEqual(["c", "b", "a", "e", "d"]);
+  });
+  it("среднее и обычное время ответа, по каждому менеджеру; ночная заявка не портит «обычно»", () => {
+    const st = responseStats([
+      { userName: "Мария", waitedMs: 5 * 60_000, takenAt: 1 },
+      { userName: "Мария", waitedMs: 7 * 60_000, takenAt: 2 },
+      { userName: "Мария", waitedMs: 10 * 3_600_000, takenAt: 3 },
+      { userName: "Олег", waitedMs: 20 * 60_000, takenAt: 4 },
+    ]);
+    expect(st.count).toBe(4);
+    expect(st.inTime).toBe(3);
+    expect(st.medianMs).toBe(Math.round((7 * 60_000 + 20 * 60_000) / 2));
+    expect(st.avgMs).toBeGreaterThan(2 * 3_600_000);
+    expect(st.byUser.map((u) => [u.name, u.count, u.medianMs])).toEqual([
+      ["Мария", 3, 7 * 60_000],
+      ["Олег", 1, 20 * 60_000],
+    ]);
+    expect(responseStats([])).toMatchObject({ count: 0, avgMs: 0, medianMs: 0 });
   });
 });

@@ -592,7 +592,7 @@ export interface ClientRecord {
   phone: string;
   /** Ссылки на соцсети: https://t.me/…, https://vk.com/…, https://instagram.com/…, https://wa.me/… */
   links: string[];
-  status: "new" | "work" | "client" | "lost";
+  status: "new" | "work" | "client" | "held" | "lost";
   /** Согласие на рассылку: yes — сам отметил или подтвердил; no — отказался. */
   marketing: "yes" | "no" | "unknown";
   marketingAt: number | null;
@@ -615,6 +615,19 @@ export interface ClientRecord {
   tgWaitingSince?: number | null;
   /** Откуда пришёл: site, avito, qr, card, telegram… (`ORIGIN_TITLES`); пусто — не указан. */
   origin?: string;
+  /** С какого времени ждёт в «Новом» (таймер идёт); null — не ждёт или карточка заведена до таймера. */
+  newSince?: number | null;
+  /** Ушёл из «Нового»: когда, сколько ждал и кто взял (таймер стоит). */
+  takenAt?: number | null;
+  takenMs?: number | null;
+  takenBy?: string;
+}
+
+/** Один ответ на новую заявку: сколько ждала, кто взял, когда (среднее время ответа). */
+export interface ClientResponse {
+  userName: string;
+  waitedMs: number;
+  takenAt: number;
 }
 
 export interface ClientContact {

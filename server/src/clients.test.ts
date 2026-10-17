@@ -259,6 +259,69 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect([...again.clients, ...again.requests, ...again.events, ...again.venues]).toHaveLength(0);
   });
 
+  it("таймер ответа: идёт с прихода заявки, встаёт на «В работе» с именем; среднее — по ответам; повтор от «Отказа» — снова «Новый»", async () => {
+    const id = await upsertClient(sql, { name: "Тимур", phone: "+7 917 333-22-11", source: "site", summary: "Квиз, 30 гостей" });
+    // Заявка «пролежала» 5 минут.
+    await sql`update clients set new_since = now() - interval '5 minutes' where id = ${id}`;
+    const fresh = (await get(`/api/clients/${id}`, owner)).json();
+    expect(fresh).toMatchObject({ status: "new", takenMs: null });
+    expect(Date.now() - fresh.newSince).toBeGreaterThanOrEqual(5 * 60_000 - 5_000);
+    const taken = (await post(`/api/clients/${id}/status`, owner, { status: "work" })).json();
+    expect(taken.status).toBe("work");
+    expect(taken.newSince).toBeNull();
+    expect(taken.takenMs).toBeGreaterThanOrEqual(5 * 60_000 - 5_000);
+    expect(taken.takenMs).toBeLessThan(6 * 60_000);
+    expect(taken.takenBy).toBeTruthy();
+    // Второй раз в «В работе» не считается, «Клиент» — тоже не ответ на заявку.
+    await post(`/api/clients/${id}/status`, owner, { status: "client" });
+    const today = day(0);
+    const responses = (await get(`/api/clients/responses?from=${today}&to=${today}`, owner)).json().responses as Array<{ waitedMs: number }>;
+    expect(responses.filter((r) => r.waitedMs >= 5 * 60_000 - 5_000 && r.waitedMs < 6 * 60_000)).toHaveLength(1);
+    expect((await get(`/api/clients/responses?from=${today}&to=${today}`, anna)).statusCode).toBe(403);
+    expect((await get(`/api/clients/responses?from=${day(-400)}&to=${today}`, owner)).statusCode).toBe(400);
+    // «Клиент» с мероприятием впереди пишет снова — статус не трогаем.
+    await upsertClient(sql, { phone: "89173332211", source: "site", summary: "Вопрос про площадку" });
+    expect((await get(`/api/clients/${id}`, owner)).json().status).toBe("client");
+    // Не договорились — «Отказ»; написал снова — «Новый», таймер с нуля, в истории «повторное обращение».
+    await post(`/api/clients/${id}/status`, owner, { status: "lost" });
+    await upsertClient(sql, { phone: "89173332211", source: "site", summary: "Снова квиз, весной" });
+    const back = (await get(`/api/clients/${id}`, owner)).json();
+    expect(back).toMatchObject({ status: "new", takenMs: null, takenBy: "" });
+    expect(Date.now() - back.newSince).toBeLessThan(60_000);
+    expect(back.history.some((h: { summary: string }) => h.summary === "Новый · повторное обращение")).toBe(true);
+    // Через форму «В работе» — таймер тоже встаёт.
+    const viaForm = (await post("/api/clients", owner, { id, name: "Тимур", phone: "+7 917 333-22-11", links: [], status: "work", marketing: "unknown", notes: "", expect: back.updatedAt })).json();
+    expect(viaForm).toMatchObject({ status: "work" });
+    expect(viaForm.takenMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("клиент вручную: «что хочет» — первой записью истории, «Новый» — с таймером, «В работе» — без", async () => {
+    const made = (await post("/api/clients", owner, { id: "kreq1", name: "Алла", phone: "+7 918 444-55-66", links: [], status: "new", marketing: "unknown", notes: "", request: "Свадьба, 12 июня, 60 гостей" })).json();
+    expect(made.history[0].summary).toContain("Свадьба, 12 июня, 60 гостей");
+    expect(made.newSince).toBeGreaterThan(0);
+    const talk = (await post("/api/clients", owner, { id: "kreq2", name: "Глеб", phone: "+7 918 444-55-67", links: [], status: "work", marketing: "unknown", notes: "" })).json();
+    expect(talk).toMatchObject({ status: "work", newSince: null, takenMs: null });
+  });
+
+  it("«Проведено» ставит клиенту «Провели», снятая отметка — обратно «Клиент»", async () => {
+    const ev = { id: "evheld", hostId: annaId, day: day(-1), start: 1080, end: 1320, title: "Корпоратив", clientName: "Лев", clientPhone: "+7 919 777-88-99", place: "", guests: 25, note: "" };
+    expect((await post("/api/events", owner, ev)).statusCode).toBe(200);
+    const find = async () => ((await get("/api/clients", owner)).json().clients as Array<{ name: string; status: string; id: string }>).find((c) => c.name === "Лев");
+    await new Promise((r) => setTimeout(r, 200));
+    expect((await find())?.status).toBe("client");
+    expect((await post("/api/events/evheld/held", anna, { held: true })).statusCode).toBe(200);
+    const lev = await find();
+    expect(lev?.status).toBe("held");
+    const card = (await get(`/api/clients/${lev?.id}`, owner)).json();
+    expect(card.history.some((h: { summary: string }) => h.summary.startsWith("Провели · Корпоратив"))).toBe(true);
+    expect((await post("/api/events/evheld/held", anna, { held: null })).statusCode).toBe(200);
+    expect((await find())?.status).toBe("client");
+    // Провели и снова написал — «Новый».
+    await post("/api/events/evheld/held", anna, { held: true });
+    await upsertClient(sql, { phone: "+79197778899", source: "site", summary: "Новый год" });
+    expect((await find())?.status).toBe("new");
+  });
+
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {
     expect((await get("/api/telegram/me", anna)).json()).toEqual({ available: false, linked: false, username: "" });
     expect((await post("/api/telegram/link", anna)).statusCode).toBe(503);

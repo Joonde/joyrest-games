@@ -32,6 +32,7 @@ const TONES: Record<(typeof SALES_PATH)[number]["tone"], string> = {
   gold: brand.gold,
   lavender: brand.lavender,
   sage: brand.sage,
+  wine: brand.wine,
   coral: brand.coral,
 };
 

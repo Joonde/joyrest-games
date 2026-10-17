@@ -291,6 +291,7 @@ a {
   position: absolute;
   top: -6px;
   right: -6px;
+  pointer-events: none;
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
@@ -6595,7 +6596,7 @@ ul.chips {
 
 .buzz--queued .buzz__plate {
   background: #e3c68c;
-  border-color: #e3c68c;
+  border-color: var(--color-highlight);
   color: #221e1b;
   box-shadow: 0 0 0 4px rgba(227, 198, 140, 0.25), 0 0 32px rgba(227, 198, 140, 0.35);
 }
@@ -7331,7 +7332,7 @@ ul.chips {
 
 .buzz__plate--glow {
   background: #e3c68c;
-  border-color: #e3c68c;
+  border-color: var(--color-highlight);
   color: #221e1b;
   box-shadow: 0 0 0 4px rgba(227, 198, 140, 0.25), 0 0 32px rgba(227, 198, 140, 0.35);
 }
@@ -20771,7 +20772,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .clients-status__path {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 4px;
   border-radius: 14px;
   border: 1.5px solid var(--color-border);
@@ -20783,7 +20784,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc((100% - 8px) / 3);
+  width: calc((100% - 8px) / 4);
   border-radius: 10px;
   background: var(--status-color);
   transform: translateX(calc(var(--status-index) * 100%));
@@ -21262,4 +21263,67 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   .board-host__scroll-hint {
     display: none;
   }
+}
+
+/* Четыре шага пути клиента на узком телефоне: мельче и в две строки, если не влезает. */
+.clients-status__step {
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+/* Таймер ответа сверху карточки клиента (решение владельца 17 октября 2026): идёт — жёлтая плашка, дольше 30 минут —
+   красная рамка, остановился — спокойная серая с галочкой. */
+.clients-timer {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text);
+}
+.clients-timer.is-running {
+  background: color-mix(in srgb, var(--color-highlight) 18%, transparent);
+  border-color: var(--color-highlight);
+}
+.clients-timer.is-running.is-late {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+.clients-timer.is-stopped {
+  color: var(--color-text-muted);
+}
+.clients-timer b {
+  font-weight: 600;
+}
+
+.clients-sort {
+  flex-wrap: wrap;
+}
+.clients-speed {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* «Как прошло мероприятие?» на главной студии. */
+.held-prompt__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.held-prompt__item {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+.held-prompt__item:first-child {
+  padding-top: 0;
+  border-top: 0;
 }

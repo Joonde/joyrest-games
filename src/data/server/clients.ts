@@ -1,13 +1,13 @@
 /** База клиентов на своём сервере: `/api/clients...` (CLAUDE.md, раздел 3, «База клиентов»). */
 import type { ClientsRepository } from "../contracts";
-import type { ClientContact, ClientDetails, ClientRecord, ContactMatches } from "../types";
+import type { ClientContact, ClientDetails, ClientRecord, ClientResponse, ContactMatches } from "../types";
 import { api, asRecord, asText } from "./api";
 
 const num = (v: unknown) => (typeof v === "number" ? v : 0);
 
 function parseClient(value: unknown): ClientRecord {
   const d = asRecord(value);
-  const status = d.status === "work" || d.status === "client" || d.status === "lost" ? d.status : "new";
+  const status = d.status === "work" || d.status === "client" || d.status === "held" || d.status === "lost" ? d.status : "new";
   const marketing = d.marketing === "yes" || d.marketing === "no" ? d.marketing : "unknown";
   return {
     id: asText(d.id),
@@ -29,6 +29,10 @@ function parseClient(value: unknown): ClientRecord {
     statusAt: typeof d.statusAt === "number" ? d.statusAt : null,
     tgWaitingSince: typeof d.tgWaitingSince === "number" ? d.tgWaitingSince : null,
     origin: asText(d.origin),
+    newSince: typeof d.newSince === "number" ? d.newSince : null,
+    takenAt: typeof d.takenAt === "number" ? d.takenAt : null,
+    takenMs: typeof d.takenMs === "number" ? d.takenMs : null,
+    takenBy: asText(d.takenBy),
   };
 }
 
@@ -83,6 +87,10 @@ export const serverClientsRepository: ClientsRepository = {
   },
   exportUrl(all) {
     return `/api/clients/export${all ? "?all=1" : ""}`;
+  },
+  async responses(from, to) {
+    const data = asRecord(await api("GET", `/api/clients/responses?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`));
+    return list(data.responses).map((r): ClientResponse => ({ userName: asText(r.userName), waitedMs: num(r.waitedMs), takenAt: num(r.takenAt) }));
   },
   async findContact(query) {
     return parseMatches(await api("GET", `/api/privacy?q=${encodeURIComponent(query)}`));

@@ -529,7 +529,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro" | "lobbyTokyo" | "lobbyFocus" | "lobbyLofi";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -546,6 +546,9 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   mafiaNight: "/sounds/mafia-night-2.mp3",
   /** Лобби: на экране QR, ждём гостей. */
   lobby: "/sounds/lobby-1.mp3",
+  lobbyTokyo: "/sounds/lobby-tokyo-1.mp3",
+  lobbyFocus: "/sounds/lobby-focus-1.mp3",
+  lobbyLofi: "/sounds/lobby-lofi-1.mp3",
   /** «Дурак»: тихий фон за столом всю партию. */
   durakTable: "/sounds/durak-table-1.mp3",
   /** «Бой с драконом»: громко в лобби (QR, ждём гостей), тихо фоном во время боя. */
@@ -576,7 +579,8 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
 export const BUILTIN_MUSIC = {
   break: [SAMPLES.breakA, SAMPLES.breakB].filter((u): u is string => Boolean(u)),
   teams: [SAMPLES.teamsIntro].filter((u): u is string => Boolean(u)),
-  lobby: [SAMPLES.lobby].filter((u): u is string => Boolean(u)),
+  // Лобби игр без своей музыки: четыре спокойных трека (лоу-фай) по очереди (решение владельца 18 октября 2026).
+  lobby: [SAMPLES.lobby, SAMPLES.lobbyTokyo, SAMPLES.lobbyFocus, SAMPLES.lobbyLofi].filter((u): u is string => Boolean(u)),
   questionIntro: [SAMPLES.questionIntro].filter((u): u is string => Boolean(u)),
   superPick: [SAMPLES.superPick].filter((u): u is string => Boolean(u)),
   // Один трек дважды: следующий круг вступает наплывом, стык mp3 не слышен.

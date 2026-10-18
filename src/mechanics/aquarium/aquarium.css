@@ -15,6 +15,12 @@
   color: var(--aq-fg);
   font-family: var(--font-body, "Jost", system-ui, sans-serif);
 }
+/* В предпросмотре студии и на экране зала сцена — на весь кадр (общее правило делает детей кадра relative). */
+.preview-screen > .aq-stage.aq-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
 .aq-stage--aqua {
   background: linear-gradient(180deg, #14708a 0%, #0b3d58 45%, #05192b 100%);
 }

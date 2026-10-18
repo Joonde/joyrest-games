@@ -441,6 +441,14 @@ export interface DecksRepository {
   pageUrl(sha: string): string;
 }
 
+/** Рисунки гостей «Аквариума и Ёлки»: раскраска с телефона → файл на сервере (только свой сервер). */
+export interface DrawingsRepository {
+  /** Раскраска (WebP/JPEG до 60 КБ) в идущую игру — отпечаток файла. */
+  upload(sessionId: string, image: Blob): Promise<string>;
+  /** Адрес картинки рисунка (экран зала, пульт). */
+  url(sha: string): string;
+}
+
 /** «Опрос гостей заранее» для «100 к 1» (только свой сервер). */
 export interface PollsRepository {
   /** Анкета для гостя без входа; null — опроса нет. */

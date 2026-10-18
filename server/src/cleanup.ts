@@ -11,6 +11,7 @@
  */
 import { brandLogosInUse } from "./branding";
 import { deckPagesInUse } from "./decks";
+import { drawingsInUse } from "./drawings";
 import { readdir, stat, unlink } from "node:fs/promises";
 import { promoteLibraryTracks } from "./libraryTracks";
 import { join } from "node:path";
@@ -63,6 +64,14 @@ export async function cleanupDeckPages(sql: Sql, dir: string, now: number = Date
   const info = await stat(slides).catch(() => null);
   if (!info?.isDirectory()) return 0;
   return removeOrphans(slides, await deckPagesInUse(sql), now);
+}
+
+/** Рисунки гостей «Аквариума и Ёлки» (MEDIA_DIR/drawings) без ссылок в сессиях. */
+export async function cleanupDrawings(sql: Sql, dir: string, now: number = Date.now()): Promise<number> {
+  const drawings = join(dir, "drawings");
+  const info = await stat(drawings).catch(() => null);
+  if (!info?.isDirectory()) return 0;
+  return removeOrphans(drawings, await drawingsInUse(sql), now);
 }
 
 /** Удаляет аватарки и обложки, которые ведущие заменили или убрали. */
@@ -143,7 +152,7 @@ export function scheduleCleanup(sql: Sql, mediaDir: string | null, log: Log, int
     try {
       // Треки игр библиотеки — в общую музыку (до уборки файлов: файл остаётся у общей копии).
       const libraryGames = await promoteLibraryTracks(sql);
-      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) + (await cleanupPhotos(sql, mediaDir)) + (await cleanupBrandLogos(sql, mediaDir)) + (await cleanupDeckPages(sql, mediaDir)) : 0;
+      const files = mediaDir ? (await cleanupMedia(sql, mediaDir)) + (await cleanupAudio(sql, mediaDir)) + (await cleanupProfiles(sql, mediaDir)) + (await cleanupVenueFiles(sql, mediaDir)) + (await cleanupVideos(sql, mediaDir)) + (await cleanupPhotos(sql, mediaDir)) + (await cleanupBrandLogos(sql, mediaDir)) + (await cleanupDeckPages(sql, mediaDir)) + (await cleanupDrawings(sql, mediaDir)) : 0;
       const devices = await cleanupDevices(sql);
       // Старые сессии (30 дней) — каждую ночь, не дожидаясь входа владельца; итоги остаются в истории.
       let sessions = 0;

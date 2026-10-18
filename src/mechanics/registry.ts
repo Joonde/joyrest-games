@@ -1,3 +1,4 @@
+import { aquarium } from "./aquarium";
 import { board } from "./board";
 import { DEMO_BOARD } from "./board/demo";
 import { checkers } from "./checkers";
@@ -55,7 +56,7 @@ function register<Content, AnswerValue, S extends Step>(mechanic: Mechanic<Conte
 }
 
 /** Реестр механик. Новая механика подключается одной строкой здесь. */
-export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(evening)];
+export const mechanics: AnyMechanic[] = [register(quiz), register(lotto), register(board), register(checkers), register(dance), register(stage), register(quest), register(millionaire), register(hundred), register(survival), register(dragon), register(olymp), register(mafia), register(spy), register(durak), register(truth), register(perudo), register(wager), register(wine), register(story), register(bunker), register(aquarium), register(evening)];
 
 export function getMechanic(id: string | null): AnyMechanic | undefined {
   return id ? mechanics.find((m) => m.id === id) : undefined;
@@ -83,6 +84,7 @@ const HINTS: Record<string, string> = {
   spy: "Все знают, где мы, кроме шпиона: локация и роль — тайно на телефоне. Вопросы по кругу, шпион угадывает локацию, город голосует, кто шпион. 4–20 игроков.",
   hundred: "Табло популярных ответов, как в телешоу: розыгрыш «Жми первым!», команда отвечает, три ошибки — шанс соперника, двойная, тройная, «Игра наоборот» и «Большая игра». Режим «Весь зал»: все пишут ответы с телефона. Свои проценты — «Опрос гостей заранее».",
   board: "Поле категорий и стоимостей, кнопка «кто первый», треки, картинки, «Кот в мешке» (вопрос другому игроку) и «Аукцион» со ставками.",
+  aquarium: "Перерыв с раскраской: гости раскрашивают на телефонах рыбок или ёлочные игрушки — рисунки оживают в 3D-аквариуме или на ёлке на экране зала. По мотивам Paper Aquarium (MrMoT9I).",
   evening: "Целый вечер по одному коду: от 1 до 5 игр подряд. Гости входят один раз, после каждого блока — его победители и общий счёт, в конце — награждение по сумме.",
 };
 
@@ -226,6 +228,8 @@ export const allDemoGames: Array<{ mechanic: string; title: string; hint: string
   { mechanic: bunker.id, title: "Бункер", hint: "Классика: 3 партии по 5 раундов, 6 карт персонажа и особое условие, 2 угрозы в финале. 4–16 игроков.", content: createBunker(), playMode: "solo", ageRating: "12+" },
   { mechanic: bunker.id, title: "Бункер: Возрождение", hint: "Для 8+ игроков: среди спасшихся нужна пара, чтобы продолжить род, и 3 угрозы в финале.", content: { ...createBunker(), rebirth: true, threats: 3 }, playMode: "solo", ageRating: "12+" },
   { mechanic: story.id, title: "Давайте знакомиться", hint: "5 разделов на знакомство: истории гостей, смешные предложения со словами с бумажек, «что было дальше», две правды и ложь, 8 вопросов «кто это сказал».", content: createStory(), playMode: "teams" },
+  { mechanic: aquarium.id, title: "Аквариум", hint: "Перерыв с раскраской: гости раскрашивают рыбок на телефонах — те приплывают в 3D-аквариум на экране. Крабы, ракушки, корм.", content: aquarium.create(), playMode: "solo" },
+  { mechanic: aquarium.id, title: "Ёлка", hint: "Перерыв с раскраской: гости раскрашивают ёлочные игрушки — те повисают на ёлке. Куранты с отсчётом до Нового года, Дед Мороз на санях.", content: { ...aquarium.create(), scene: "tree" }, playMode: "solo" },
   { mechanic: dragon.id, title: "Бой с драконом: для детей", hint: "2 боя с добрыми драконами: простые вопросы и весёлые задания, 4 жизни.", content: DEMO_DRAGON_KIDS, playMode: "teams", themeId: "adventure" },
 ];
 
@@ -241,5 +245,6 @@ export function stepsLabel(mechanicId: string, content: unknown): string {
     const word = d10 === 1 && d100 !== 11 ? "песня" : d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14) ? "песни" : "песен";
     return `${n} ${word}`;
   }
+  if (mechanicId === aquarium.id) return "Раскраска на перерыв";
   return questionsLabel(n);
 }

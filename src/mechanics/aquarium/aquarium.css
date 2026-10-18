@@ -1,0 +1,335 @@
+/* «Аквариум и Ёлка»: экран зала (по прототипу 18 октября 2026), лист раскраски на телефоне, пульт. */
+
+.aq-stage {
+  --aq-fg: #f5ecef;
+  --aq-ink: #2b2230;
+  --aq-bg: #120d14;
+  --aq-line: #3d2f43;
+  --aq-rose: #d69cab;
+  --aq-sage: #c6c094;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  transition: background 0.6s ease;
+  color: var(--aq-fg);
+  font-family: var(--font-body, "Jost", system-ui, sans-serif);
+}
+.aq-stage--aqua {
+  background: linear-gradient(180deg, #14708a 0%, #0b3d58 45%, #05192b 100%);
+}
+.aq-stage--tree {
+  background: radial-gradient(ellipse 80% 70% at 50% 30%, #33244f 0%, #160f28 55%, #0a0713 100%);
+}
+.aq-box {
+  position: absolute;
+  inset: 0;
+}
+.aq-box .aq-gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.quiz-stage:has(> .aq-stage) > .logo--corner,
+.quiz-stage:has(> .aq-stage) > .client-logo--corner,
+.quiz-stage:has(> .aq-stage) > .stage-code {
+  z-index: 2;
+}
+.aq-tags {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.aq-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  background: var(--aq-fg);
+  color: var(--aq-ink);
+  font-weight: 600;
+  font-size: max(13px, 1.6cqh);
+  padding: 0.35em 0.8em;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.aq-tag::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-bottom: 0;
+  border-top-color: var(--aq-fg);
+}
+.aq-corner {
+  position: absolute;
+  top: max(1.6cqh, 12px);
+  left: max(1.6cqh, 12px);
+  max-width: min(46cqw, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.aq-hint {
+  background: color-mix(in srgb, var(--aq-bg) 72%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--aq-line);
+  border-radius: 12px;
+  padding: 0.7em 1em;
+  font-size: max(14px, 2cqh);
+  line-height: 1.4;
+}
+.aq-hint b {
+  color: var(--aq-rose);
+  font-weight: 600;
+}
+.aq-count {
+  position: absolute;
+  top: max(1.6cqh, 12px);
+  right: max(1.6cqh, 12px);
+  background: color-mix(in srgb, var(--aq-bg) 70%, transparent);
+  border: 1px solid var(--aq-line);
+  border-radius: 999px;
+  padding: 0.35em 0.9em;
+  font-size: max(13px, 1.8cqh);
+  font-variant-numeric: tabular-nums;
+}
+.aq-credit {
+  font-size: max(11.5px, 1.45cqh);
+  color: color-mix(in srgb, var(--aq-fg) 75%, transparent);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--aq-bg) 45%, transparent);
+  padding: 0.25em 0.7em;
+  border-radius: 6px;
+}
+.aq-nogl {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: #b3a3ad;
+  font-size: max(15px, 2.2cqh);
+}
+
+/* Телефон гостя: лист раскраски */
+.aq-phone__title {
+  margin: 0;
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: 26px;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.aq-species {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+.aq-sp {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 6px 8px;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  min-height: 64px;
+  cursor: pointer;
+}
+.aq-sp canvas {
+  width: 64px;
+  height: 40px;
+}
+.aq-sp[aria-pressed="true"] {
+  border-color: var(--color-control-checked, #c49e96);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-control-checked, #c49e96);
+}
+.aq-cwrap {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ebe6dc repeating-linear-gradient(0deg, transparent 0 23px, rgba(0, 0, 0, 0.05) 23px 24px);
+}
+.aq-cwrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.aq-tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.aq-seg {
+  display: flex;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 3px;
+}
+.aq-seg button {
+  border: 0;
+  background: transparent;
+  padding: 0 14px;
+  min-height: 44px;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.aq-seg button[aria-pressed="true"] {
+  background: var(--color-text);
+  color: var(--color-bg, #221e1b);
+}
+.aq-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.aq-size input {
+  width: 110px;
+  accent-color: var(--color-control-checked, #c49e96);
+}
+.aq-pal {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 7px;
+}
+.aq-sw {
+  aspect-ratio: 1;
+  min-height: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  max-width: 100%;
+  padding: 0;
+  cursor: pointer;
+}
+.aq-sw[aria-pressed="true"] {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+.aq-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.aq-row .btn {
+  flex: 1 1 140px;
+}
+.aq-name {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.aq-name input {
+  min-height: 52px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0 12px;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 16px;
+}
+.aq-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  min-height: 44px;
+}
+.aq-check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--color-control-checked, #c49e96);
+}
+
+/* Пульт */
+.aq-host__scenes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.aq-host__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.aq-host__item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  grid-template-areas: "thumb who" "thumb btns";
+  gap: 4px 10px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+.aq-host__thumb {
+  width: 72px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ebe6dc;
+  grid-area: thumb;
+}
+.aq-host__thumb--none {
+  display: block;
+}
+.aq-host__who {
+  grid-area: who;
+  display: grid;
+  min-width: 0;
+}
+.aq-host__btns {
+  grid-area: btns;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.aq-host__btns .btn {
+  flex: 1 1 auto;
+  width: auto;
+  min-height: 44px;
+  padding: 0 10px;
+}
+.aq-host__fold summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aq-stage {
+    transition: none;
+  }
+}

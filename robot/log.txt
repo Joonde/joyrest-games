@@ -1,1 +1,13 @@
+✓ aquarium Аквариум teams ×3 #1: ходов 2, до финала
+✓ aquarium Аквариум teams ×3 #3: ходов 7, до финала
+✓ aquarium Аквариум solo ×3 #1: ходов 8, до финала
+✓ aquarium Ёлка solo ×3 #1: ходов 8, до финала
+✓ aquarium Аквариум teams ×3 #2: ходов 31, до финала
+✓ aquarium Аквариум solo ×3 #2: ходов 9, до финала
+✓ aquarium Ёлка teams ×3 #1: ходов 2, до финала
+✓ aquarium Аквариум solo ×3 #3: ходов 45, до финала
+✓ aquarium Ёлка solo ×3 #2: ходов 9, до финала
+✓ aquarium Ёлка teams ×3 #3: ходов 7, до финала
+✓ aquarium Ёлка solo ×3 #3: ходов 45, до финала
+✓ aquarium Ёлка teams ×3 #2: ходов 31, до финала
 отчёт: /tmp/robot/report.json

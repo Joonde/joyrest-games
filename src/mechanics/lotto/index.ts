@@ -26,4 +26,6 @@ export const lotto: Mechanic<LottoContent, { marks: string[] }, LottoStep> = {
   validate: validateLotto,
   preview: { driver: lottoPreview, teams: 3, limit: 70 },
   art: () => "lotto",
+  // Заставка «Откройте карточки» (правила, пример карточки) — лёгкая фоновая музыка; песни играют сами.
+  music: (session) => (session.state.phase === "playing" && session.state.stage === "ready" ? "lottoIntro" : null),
 };

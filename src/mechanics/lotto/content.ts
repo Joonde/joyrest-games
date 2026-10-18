@@ -21,8 +21,11 @@ export interface LottoSong {
   videoStart: number;
 }
 
-/** Что считается победой: одна линия, две линии или вся карточка. */
-export type WinRule = "line" | "twoLines" | "full";
+/** Что считается победой: линия по горизонтали, по вертикали, любая линия, две линии или вся карточка. */
+export type WinRule = "row" | "column" | "line" | "twoLines" | "full";
+
+/** Порядок в конструкторе. */
+export const WIN_RULES: WinRule[] = ["row", "column", "line", "twoLines", "full"];
 
 /**
  * Оформление карточки на телефоне гостя: «Классика» — простая сетка в цветах темы, «Вечер» и
@@ -73,13 +76,17 @@ export function badVideoLink(song: Pick<LottoSong, "video">): boolean {
 }
 
 export const RULE_TITLES: Record<WinRule, string> = {
+  row: "Линия по горизонтали",
+  column: "Линия по вертикали",
   line: "Одна линия",
   twoLines: "Две линии",
   full: "Вся карточка",
 };
 
 export const RULE_HINTS: Record<WinRule, string> = {
-  line: "Ряд, столбец или диагональ — быстрая игра.",
+  row: "Любой ряд целиком — слева направо.",
+  column: "Любой столбец целиком — сверху вниз.",
+  line: "Ряд, столбец или диагональ — самая быстрая игра.",
   twoLines: "Любые две линии — игра подольше.",
   full: "Все песни карточки — для долгого вечера.",
 };
@@ -144,7 +151,7 @@ export function parseLotto(raw: unknown): LottoContent {
     };
   });
   const size = d.size === 3 || d.size === 5 ? d.size : 4;
-  const rule = d.rule === "twoLines" || d.rule === "full" ? d.rule : "line";
+  const rule: WinRule = WIN_RULES.includes(d.rule as WinRule) ? (d.rule as WinRule) : "line";
   const prizes = (Array.isArray(d.prizes) ? d.prizes : [300, 200, 100])
     .slice(0, LOTTO_LIMITS.prizes)
     .map((p) => int(p, 0, 0, LOTTO_LIMITS.maxPrize));

@@ -4,12 +4,12 @@ import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackPicker } from "../../components/music/TrackPicker";
 import type { VideoSource } from "../dance/content";
 import type { EditorProps } from "../types";
-import { badVideoLink, CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, hasVideo, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, type LottoContent, type LottoSong, type WinRule } from "./content";
+import { badVideoLink, CARD_STYLE_HINTS, CARD_STYLE_TITLES, CARD_STYLES, cardCells, hasVideo, LOTTO_LIMITS, newSong, parseSongList, RULE_HINTS, RULE_TITLES, WIN_RULES, type LottoContent, type LottoSong, type WinRule } from "./content";
 import { validateLotto } from "./validate";
 import { ClampedNumber } from "../../components/ClampedNumber";
 
 const SIZES: Array<LottoContent["size"]> = [3, 4, 5];
-const RULES: WinRule[] = ["line", "twoLines", "full"];
+const RULES: WinRule[] = WIN_RULES;
 
 /** Конструктор музыкального лото: песни (название, исполнитель, трек), карточка, правило победы, очки. */
 export function LottoEditor({ content, onChange, editable }: EditorProps<LottoContent>) {
@@ -68,7 +68,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           ))}
         </fieldset>
         <fieldset disabled={!editable}>
-          <legend>Победа</legend>
+          <legend>Что собрать для победы</legend>
           {RULES.map((rule) => (
             <label key={rule} className="choice">
               <input type="radio" name="lotto-rule" checked={content.rule === rule} onChange={() => set({ rule })} />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { storeScope } from "../../core/program";
 import { NameText } from "../../components/NameText";
 import { preloadTrack, useFragment } from "../../components/music/useFragment";
@@ -6,7 +6,7 @@ import { playSound } from "../../components/live/sound";
 import { placeOf } from "../../core/leaderboard";
 import { pointsLabel } from "../../core/results";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { StageVideo } from "../stage/video";
+import { StageVideo, WarmVideo } from "../stage/video";
 import { cardCells, cellFit, hasVideo, RULE_TITLES, type CardStyle, type LottoContent, type LottoSong } from "./content";
 import { cardFor, isWin, parseLottoResult } from "./logic";
 
@@ -101,6 +101,9 @@ export function LottoScreenView({ session, content }: ViewProps<LottoContent>) {
   }, [winKey, heard]);
 
   if (!song) return <div className="quiz-screen quiz-screen--empty">Песен нет</div>;
+  // Ролик, который покажем следующим: на заставке — первая песня, после названия — следующая.
+  const upcoming = stage === "ready" ? song : stage === "reveal" ? next : undefined;
+  const warm = upcoming?.video.source === "link" && upcoming.video.url ? <WarmVideo key={upcoming.id} url={upcoming.video.url} /> : null;
   const recent = history(content, step, stage === "reveal", 5);
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? "";
 
@@ -114,6 +117,7 @@ export function LottoScreenView({ session, content }: ViewProps<LottoContent>) {
           <p className="quiz-screen__hint">Услышали песню с карточки — отметьте её. Собрали — жмите «Лото!»</p>
         </div>
         {styled && <SampleTicket content={content} />}
+        {warm}
       </div>
     );
   }
@@ -179,6 +183,7 @@ export function LottoScreenView({ session, content }: ViewProps<LottoContent>) {
           {winnersList}
         </div>
       )}
+      {warm}
       {recent.length > 0 && (
         <ol className="lotto-screen__history" aria-label="Уже звучали">
           {recent.map((s) => (
@@ -239,6 +244,22 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
 
   useEffect(() => setMarks(loadMarks(key)), [key]);
 
+  // Собрали — кнопка «Лото!» загорается и мигает, телефон коротко вибрирует (один раз за сборку).
+  const buzzed = useRef(false);
+  useEffect(() => {
+    if (!canClaim) {
+      buzzed.current = false;
+      return;
+    }
+    if (buzzed.current) return;
+    buzzed.current = true;
+    try {
+      navigator.vibrate?.([120, 80, 120]);
+    } catch {
+      // Вибрации нет — хватит мигания.
+    }
+  }, [canClaim]);
+
   function toggle(id: string) {
     const next = marked.has(id) ? marks.filter((m) => m !== id) : [...marks, id];
     setMarks(next);
@@ -253,7 +274,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
   else if (claimed) status = "Заявка у ведущего — проверим после песни";
   else if (role === "member") status = "«Лото!» нажимает капитан команды";
   else if (stage === "ready") status = "Ждём первую песню";
-  else status = ready ? "Собрали? Жмите «Лото!»" : `Отмечайте песни · ${RULE_TITLES[content.rule].toLowerCase()}`;
+  else status = ready ? "Собрали! Жмите «Лото!» ↑" : `Отмечайте песни · ${RULE_TITLES[content.rule].toLowerCase()}`;
   const hint = won < 0 && nowId !== null ? (nowMarked ? "✓ Эта песня у вас отмечена" : "🎵 Эта песня у вас есть! Нажмите на светящуюся клетку") : null;
 
   return (
@@ -287,7 +308,7 @@ export function LottoPlayerView({ session, content, pid, role, myAnswer, sending
       </LottoTicket>
       {card.length < cardCells(content) && <p className="error small">В игре мало песен для карточки — скажите ведущему.</p>}
       {role !== "member" && won < 0 && (
-        <button type="button" className="btn btn--block lotto-phone__claim" disabled={!canClaim} onClick={() => onAnswer({ marks })}>
+        <button type="button" className={canClaim ? "btn btn--block lotto-phone__claim is-ready" : "btn btn--block lotto-phone__claim"} disabled={!canClaim} onClick={() => onAnswer({ marks })}>
           Лото!
         </button>
       )}

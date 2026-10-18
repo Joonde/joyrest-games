@@ -68,7 +68,10 @@ export function cardLines(size: number): number[][] {
 export function isWin(card: string[], marked: Set<string>, size: number, rule: WinRule): boolean {
   if (card.length === 0) return false;
   if (rule === "full") return card.every((id) => marked.has(id));
-  const done = cardLines(size).filter((line) => line.every((cell) => marked.has(card[cell] ?? ""))).length;
+  const all = cardLines(size);
+  // Ряды — первые size линий, столбцы — следующие size, дальше — две диагонали.
+  const lines = rule === "row" ? all.slice(0, size) : rule === "column" ? all.slice(size, 2 * size) : all;
+  const done = lines.filter((line) => line.every((cell) => marked.has(card[cell] ?? ""))).length;
   return done >= (rule === "twoLines" ? 2 : 1);
 }
 

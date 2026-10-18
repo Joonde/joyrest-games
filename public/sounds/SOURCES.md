@@ -14,6 +14,7 @@
 | lobby-1.mp3 | лобби: на экране QR, ждём гостей | Pixabay, автор — уточнить |
 | dragon-attack-2.mp3 | «Бой с драконом»: атака дракона | Pixabay, автор — уточнить |
 | mafia-night-2.mp3 | «Мафия»: ночь и раздача ролей, по кругу с наплывом | своя: создана кодом JoyRest (`scripts/sounds/mafia-night.py`), права наши |
+| lotto-intro-1.mp3 | Музыкальное лото: заставка «Откройте карточки», по кругу (громкость 60%) | своя: создана кодом JoyRest (`scripts/sounds/lotto-intro.py`), права наши |
 | durak-table-1.mp3 | «Дурак»: тихий фон за столом всю партию (громкость 35%) | geoffharvey — «Tap Room Rag», id 183462 (прислал владелец 10 октября 2026) |
 | millionaire-think-low-1.mp3, millionaire-think-high-1.mp3 | «Миллионер» (ступени 1–6 и 7–12) и «Своя игра»: напряжение, пока открыт вопрос, по кругу с наплывом | своя: создана кодом JoyRest (`scripts/sounds/millionaire.py`), права наши; в духе телевикторины, мелодия своя |
 | millionaire-question-1.mp3, -lock-1, -right-1, -wrong-1, -lifeline-1 | «Миллионер»: вопрос на экране, «окончательный ответ», верно, неверно, подсказка | своя: создана кодом JoyRest (`scripts/sounds/millionaire.py`), права наши |

@@ -6068,6 +6068,51 @@ ul.chips {
   font-size: 2.6cqh;
 }
 
+/* Ролик по ссылке ещё грузится — надпись поверх (экран зала, лото и танцы на поле). */
+.stage-video,
+.lotto-video {
+  position: relative;
+}
+
+.stage-video__loading {
+  position: absolute;
+  inset: auto 0 6cqh;
+  margin: 0 auto;
+  width: max-content;
+  max-width: 90%;
+  padding: 1.4cqh 3cqh;
+  border-radius: 99px;
+  background: rgba(10, 8, 12, 0.78);
+  color: #fbf6f1;
+  font-size: 3cqh;
+  pointer-events: none;
+  animation: stage-loading 1.6s ease-in-out infinite;
+}
+
+@keyframes stage-loading {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Прогрев плеера следующего ролика — невидимый, без звука и касаний. */
+.stage-video__warm {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  left: -10px;
+  top: -10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-video__loading {
+    animation: none;
+  }
+}
+
 /* Видео песни (клип, караоке) — во всю середину экрана, название после показа — плашкой поверх. */
 .lotto-video {
   grid-area: now;
@@ -6511,6 +6556,35 @@ ul.chips {
 .lotto-phone__claim {
   font-family: var(--font-display);
   font-size: 26px;
+}
+
+/* Не собрано — кнопка тусклая; собрали — загорается и мигает, чтобы гость не забыл нажать. */
+.lotto-phone__claim:disabled {
+  opacity: 0.45;
+}
+
+.lotto-phone__claim.is-ready {
+  font-size: 30px;
+  box-shadow: 0 0 0 3px var(--color-highlight), 0 0 28px 6px color-mix(in srgb, var(--color-highlight) 70%, transparent);
+  animation: lotto-claim 0.9s ease-in-out infinite;
+}
+
+@keyframes lotto-claim {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotto-phone__claim.is-ready {
+    animation: none;
+  }
 }
 
 .lotto-winners {

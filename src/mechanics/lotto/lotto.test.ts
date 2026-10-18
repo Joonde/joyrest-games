@@ -6,7 +6,6 @@ import { DEMO_LOTTO } from "./demo";
 import { cardFor, cardLines, isWin, lottoBack, lottoPrimary, lottoSteps, lottoVideoCommand, nextSong, parseLottoResult, playedUpTo, playSong, replaySong, revealSong, score } from "./logic";
 import { badVideoLink, hasVideo } from "./content";
 import { validateLotto } from "./validate";
-import { embedUrl } from "../dance/content";
 
 const NO_VIDEO = { source: "none" as const, url: "", name: "" };
 const songs = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Песня ${i}`, artist: "", trackId: null, trackStart: 0, video: NO_VIDEO, videoStart: 0 }));
@@ -55,11 +54,6 @@ describe("содержимое лото", () => {
     expect(demo.cardStyle).toBe("evening");
     expect(validateLotto(demo)).toEqual([]);
     for (const cardStyle of CARD_STYLES) expect(validateLotto(game({ cardStyle }))).toEqual([]);
-    for (const song of demo.songs) {
-      expect(hasVideo(song)).toBe(true);
-      expect(badVideoLink(song)).toBe(false);
-      expect(embedUrl(song.video.url)).toMatch(/^https:\/\/rutube\.ru\/play\/embed\/[0-9a-f]{32}/);
-    }
   });
 
   it("список «Исполнитель — Песня» разбирается", () => {

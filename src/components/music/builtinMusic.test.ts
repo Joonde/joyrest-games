@@ -30,7 +30,7 @@ const of = (s: Session) => builtinMusicOf(s, moment(s));
 
 describe("встроенная музыка экрана зала", () => {
   it("лобби — музыка ожидания, «Представить команды» — своя", () => {
-    expect(of(session({ phase: "lobby" }))).toEqual({ key: "lobby", urls: ["/sounds/lobby-1.mp3"] });
+    expect(of(session({ phase: "lobby" }))).toEqual({ key: "lobby", urls: ["/sounds/lobby-1.mp3", "/sounds/lobby-tokyo-1.mp3", "/sounds/lobby-focus-1.mp3", "/sounds/lobby-lofi-1.mp3"] });
     expect(of(session({ phase: "lobby", teams: { hidden: true, shown: 0 } }))?.urls).toEqual(["/sounds/teams-intro-1.mp3"]);
   });
 

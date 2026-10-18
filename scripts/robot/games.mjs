@@ -20,5 +20,6 @@ export const MECHANICS = {
   wager: { modes: ["teams", "solo"], demos: 1 },
   wine: { modes: ["solo", "teams"], demos: 1 },
   story: { modes: ["solo", "teams"], demos: 1, players: [4, 6] },
+  aquarium: { modes: ["solo", "teams"], demos: 2 },
   olymp: { modes: ["teams"], demos: 2, players: [1, 3] },
 };

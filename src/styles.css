@@ -323,6 +323,20 @@ a {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
+/* Телефон и планшет: окно во всю ширину экрана сразу под шапкой — привязанное к колокольчику, оно уезжало влево
+   за край (справа от колокольчика ещё кнопка меню). */
+@media (max-width: 1023px) {
+  .notice-panel {
+    position: fixed;
+    top: var(--notice-top, 96px);
+    left: max(16px, var(--safe-left, 0px));
+    right: max(16px, var(--safe-right, 0px));
+    width: auto;
+    max-height: calc(100dvh - var(--notice-top, 96px) - 16px);
+    z-index: 40;
+  }
+}
+
 .notice-panel__title {
   margin: 0;
   font-weight: 600;

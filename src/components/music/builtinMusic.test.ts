@@ -83,6 +83,14 @@ describe("встроенная музыка экрана зала", () => {
     expect(at({ phase: "playing", stage: "ready", step: 5, result: result(8, "turn") })).toBeNull();
   });
 
+  it("музыкальное лото: на заставке «Откройте карточки» — лёгкая музыка, песни — без неё", async () => {
+    const { lotto } = await import("../../mechanics/lotto");
+    const at = (state: Partial<SessionState>) => builtinMusicOf(session(state), lotto.music?.(session(state), {} as never) ?? null);
+    expect(at({ phase: "playing", stage: "ready", step: 0 })).toEqual({ key: "lottoIntro", urls: ["/sounds/lotto-intro-1.mp3", "/sounds/lotto-intro-1.mp3"], volume: 0.6 });
+    expect(at({ phase: "playing", stage: "question", step: 0 })).toBeNull();
+    expect(at({ phase: "playing", stage: "reveal", step: 0 })).toBeNull();
+  });
+
   it("бой с драконом: громко в лобби, фоном весь бой без перезапуска, на награждении — тишина", () => {
     const d = (state: Partial<SessionState>) => {
       const s = { ...session(state), mechanic: "dragon" } as Session;

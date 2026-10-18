@@ -4,7 +4,7 @@ import { BUILTIN_MUSIC, BUILTIN_VOLUME } from "../live/sound";
 import type { BuiltinMusic } from "./useHallMusic";
 
 /** Музыка, которая идёт всю партию, а не заново на каждом шаге. */
-const CONTINUOUS = new Set<MusicMoment>(["durakTable", "thinkLow", "thinkHigh", "dragonLobby", "dragonBattle", "milStart", "milBed", "milVote"]);
+const CONTINUOUS = new Set<MusicMoment>(["durakTable", "thinkLow", "thinkHigh", "dragonLobby", "dragonBattle", "milStart", "milBed", "milVote", "lottoIntro"]);
 
 /** Встроенная музыка: лобби (QR, ждём гостей), «Представить команды», слайд «Перерыв» — два трека по кругу с наплывом. */
 export function builtinMusicOf(session: Session, moment: MusicMoment | null): BuiltinMusic | null {

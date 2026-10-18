@@ -529,7 +529,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -568,6 +568,8 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   milBed: "/sounds/millionaire-bed-1.mp3",
   /** «Миллионер»: помощь зала — пока зал голосует (прислал владелец, 14 октября 2026). */
   milVote: "/sounds/millionaire-vote-1.mp3",
+  /** Музыкальное лото: заставка «Откройте карточки» — лёгкий фон, своя мелодия (`scripts/sounds/lotto-intro.py`). */
+  lottoIntro: "/sounds/lotto-intro-1.mp3",
 };
 
 /** Встроенная музыка момента: перерыв, представление команд. */
@@ -587,10 +589,11 @@ export const BUILTIN_MUSIC = {
   milStart: [SAMPLES.milStart, SAMPLES.milStart].filter((u): u is string => Boolean(u)),
   milBed: [SAMPLES.milBed, SAMPLES.milBed].filter((u): u is string => Boolean(u)),
   milVote: [SAMPLES.milVote, SAMPLES.milVote].filter((u): u is string => Boolean(u)),
+  lottoIntro: [SAMPLES.lottoIntro, SAMPLES.lottoIntro].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();

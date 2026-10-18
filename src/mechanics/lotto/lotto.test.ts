@@ -278,3 +278,30 @@ describe("видео песни (клип, караоке)", () => {
     if (toPrev) expect(parseLottoResult(applyChange(s, toPrev.change, 1).state.result).video.paused).toBe(true);
   });
 });
+
+describe("лото: что собрать для победы", () => {
+  // Карточка 3×3: клетки 0..8, ряд 0 — 0,1,2; столбец 0 — 0,3,6; диагональ — 0,4,8.
+  const card = ["a", "b", "c", "d", "e", "f", "g", "h", "i"];
+  const row = new Set(["a", "b", "c"]);
+  const col = new Set(["a", "d", "g"]);
+  const diag = new Set(["a", "e", "i"]);
+  it("линия по горизонтали — только ряд", () => {
+    expect(isWin(card, row, 3, "row")).toBe(true);
+    expect(isWin(card, col, 3, "row")).toBe(false);
+    expect(isWin(card, diag, 3, "row")).toBe(false);
+  });
+  it("линия по вертикали — только столбец", () => {
+    expect(isWin(card, col, 3, "column")).toBe(true);
+    expect(isWin(card, row, 3, "column")).toBe(false);
+    expect(isWin(card, diag, 3, "column")).toBe(false);
+  });
+  it("любая линия — ряд, столбец или диагональ", () => {
+    for (const set of [row, col, diag]) expect(isWin(card, set, 3, "line")).toBe(true);
+  });
+  it("правило сохраняется и читается, неизвестное — «одна линия»", () => {
+    expect(parseLotto({ ...createLotto(), rule: "row" }).rule).toBe("row");
+    expect(parseLotto({ ...createLotto(), rule: "column" }).rule).toBe("column");
+    expect(parseLotto({ ...createLotto(), rule: "diagonal" }).rule).toBe("line");
+  });
+});
+

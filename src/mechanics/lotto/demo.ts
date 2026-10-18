@@ -31,11 +31,19 @@ const LIST: Array<[string, string]> = [
   ["Мираж", "Музыка нас связала"],
 ];
 
-/** Шаблон для «Библиотеки JoyRest»: 28 песен, карточка 4×4 «Вечер», одна линия. Треки ведущий добавляет сам. */
+/** Шаблон для «Библиотеки JoyRest»: 28 песен, карточка 4×4 «Вечер», одна линия. Треки и видео ведущий добавляет сам. */
 export const DEMO_LOTTO: { title: string; content: LottoContent } = {
   title: "Музыкальное лото: хиты на русском",
   content: {
-    songs: LIST.map(([artist, title], i) => ({ id: `lotto${i + 1}`, title, artist, trackId: null, trackStart: 0, video: { source: "none", url: "", name: "" }, videoStart: 0 })),
+    songs: LIST.map(([artist, title], i) => ({
+      id: `lotto${i + 1}`,
+      title,
+      artist,
+      trackId: null,
+      trackStart: 0,
+      video: { source: "none", url: "", name: "" },
+      videoStart: 0,
+    })),
     size: 4,
     rule: "line",
     fragment: 30,

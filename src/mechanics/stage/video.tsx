@@ -165,11 +165,28 @@ function PlainVideo({ src, start, video }: { src: string; start: number; video: 
   );
 }
 
+/**
+ * Ролик YouTube или Rutube во встроенном плеере. Плеер грузится долго, а команды до готовности теряются,
+ * поэтому экран не просто пересылает команды, а раз в секунду сверяет, что плеер делает, с тем, что
+ * нужно пульту (`video.paused`): должен играть, а стоит — «играй» и «включи звук»; должен стоять, а играет —
+ * «пауза» (18 октября 2026: без этого ведущему приходилось жать «Пауза / Дальше» дважды, а ролик иногда шёл
+ * без звука). Перемотка и «Остановить» — отдельными командами, когда плеер готов.
+ */
 function LinkVideo({ target, title, video, start }: { target: { host: VideoHost; src: string }; title: string; video: Props["video"]; start: number }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const time = useRef(0);
   const ready = useRef(false);
   const queue = useRef<Array<() => void>>([]);
+  /** Что делает плеер (по его сообщениям); null — ещё не сказал. */
+  const playing = useRef<boolean | null>(null);
+  const muted = useRef<boolean | null>(null);
+  const ended = useRef(false);
+  /** Сколько раз подряд просили играть, а плеер не заиграл. */
+  const tries = useRef(0);
+  const unmuteTries = useRef(0);
+  const wantPaused = useRef(video.paused);
+  wantPaused.current = video.paused;
+  const [loading, setLoading] = useState(true);
   // VK: «Остановить» убирает ролик, «Дальше» — заново с начала.
   const [vkRun, setVkRun] = useState(0);
   const [vkStopped, setVkStopped] = useState(false);
@@ -178,6 +195,28 @@ function LinkVideo({ target, title, video, start }: { target: { host: VideoHost;
   const yt = (func: string, args: unknown[] = []) => post({ event: "command", func, args });
   const rt = (type: string, data: Record<string, unknown> = {}) => post({ type, data });
   const send = (fn: () => void) => (ready.current ? fn() : queue.current.push(fn));
+
+  // `withSound: false` — браузер не пускает ролик со звуком без касания экрана: пусть хоть картинка идёт.
+  function play(withSound = true) {
+    ended.current = false;
+    if (target.host === "youtube") {
+      if (withSound) {
+        yt("unMute");
+        yt("setVolume", [100]);
+      }
+      yt("playVideo");
+    } else {
+      if (withSound) {
+        rt("player:unMute");
+        rt("player:setVolume", { volume: 1 });
+      }
+      rt("player:play");
+    }
+  }
+  function pause() {
+    if (target.host === "youtube") yt("pauseVideo");
+    else rt("player:pause");
+  }
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -195,11 +234,27 @@ function LinkVideo({ target, title, video, start }: { target: { host: VideoHost;
         if (d.event === "onReady" || d.event === "initialDelivery") markReady();
         const info = (typeof d.info === "object" && d.info !== null ? d.info : {}) as Record<string, unknown>;
         if (typeof info.currentTime === "number") time.current = info.currentTime;
+        const state = typeof info.playerState === "number" ? info.playerState : d.event === "onStateChange" && typeof d.info === "number" ? d.info : null;
+        if (state !== null) {
+          playing.current = state === 1 || state === 3;
+          ended.current = state === 0;
+          if (state === 1) setLoading(false);
+        }
+        if (typeof info.muted === "boolean") muted.current = info.muted;
       }
       if (target.host === "rutube") {
         if (d.type === "player:ready") markReady();
         const inner = (typeof d.data === "object" && d.data !== null ? d.data : {}) as Record<string, unknown>;
-        if (d.type === "player:currentTime" && typeof inner.time === "number") time.current = inner.time;
+        if (d.type === "player:currentTime" && typeof inner.time === "number") {
+          time.current = inner.time;
+          setLoading(false);
+        }
+        if (d.type === "player:changeState" && typeof inner.state === "string") {
+          playing.current = inner.state === "playing";
+          ended.current = inner.state === "stopped" || inner.state === "ended";
+          if (inner.state === "playing") setLoading(false);
+        }
+        if (d.type === "player:volumeChange" && typeof inner.muted === "boolean") muted.current = inner.muted;
       }
     };
     window.addEventListener("message", onMessage);
@@ -207,20 +262,49 @@ function LinkVideo({ target, title, video, start }: { target: { host: VideoHost;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- один слушатель на плеер
   }, [target.host]);
 
+  // Сверка раз в секунду: плеер делает не то, что нужно пульту, — повторяем команду.
+  useEffect(() => {
+    if (target.host === "vk") return;
+    const timer = window.setInterval(() => {
+      if (!ref.current) return;
+      if (wantPaused.current) {
+        if (playing.current !== false) pause();
+        return;
+      }
+      if (ended.current) return; // ролик доиграл — заново не запускаем
+      if (playing.current === true) {
+        tries.current = 0;
+        // Играет без звука — просим звук, но не больше трёх раз: браузер без касания экрана может ставить ролик на паузу.
+        if (muted.current === true && unmuteTries.current < 3) {
+          unmuteTries.current += 1;
+          play();
+        }
+        return;
+      }
+      tries.current += 1;
+      // Четыре раза не заиграл со звуком — через раз просим без звука (картинка пойдёт, звук — после касания экрана).
+      play(tries.current <= 4 || tries.current % 2 === 0);
+    }, 1000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- play и pause читают refs
+  }, [target.host, target.src]);
+
   function markReady() {
     if (ready.current) return;
     ready.current = true;
     const waiting = queue.current;
     queue.current = [];
     waiting.forEach((fn) => fn());
+    if (wantPaused.current) pause();
+    else play();
   }
 
   function onLoad() {
-    // YouTube присылает время и готовность, когда попросили «слушать».
+    // YouTube присылает время и состояние, когда попросили «слушать».
     if (target.host === "youtube") post({ event: "listening", id: "joyrest", channel: "widget" });
     // Готовность может не прийти (старый плеер) — через 2 с всё равно отправляем команды.
     window.setTimeout(markReady, 2000);
-    if (video.paused) send(() => (target.host === "youtube" ? yt("pauseVideo") : rt("player:pause")));
+    if (target.host === "vk") setLoading(false);
   }
 
   useCommands(video, (cmd) => {
@@ -232,10 +316,15 @@ function LinkVideo({ target, title, video, start }: { target: { host: VideoHost;
       }
       return;
     }
+    // Пауза и «дальше» — сразу (и дальше их держит сверка), перемотка — когда плеер готов.
+    if (cmd === "play") {
+      tries.current = 0;
+      unmuteTries.current = 0;
+      return play();
+    }
+    if (cmd === "pause") return pause();
     send(() => {
       if (target.host === "youtube") {
-        if (cmd === "play") yt("playVideo");
-        if (cmd === "pause") yt("pauseVideo");
         if (cmd === "back") yt("seekTo", [Math.max(0, time.current - 10), true]);
         if (cmd === "fwd") yt("seekTo", [time.current + 10, true]);
         if (cmd === "stop") {
@@ -244,8 +333,6 @@ function LinkVideo({ target, title, video, start }: { target: { host: VideoHost;
         }
         return;
       }
-      if (cmd === "play") rt("player:play");
-      if (cmd === "pause") rt("player:pause");
       if (cmd === "back") rt("player:relativelySeek", { time: -10 });
       if (cmd === "fwd") rt("player:relativelySeek", { time: 10 });
       if (cmd === "stop") {
@@ -256,5 +343,25 @@ function LinkVideo({ target, title, video, start }: { target: { host: VideoHost;
   });
 
   if (target.host === "vk" && vkStopped) return <div className="stage-video__stopped">Видео остановлено</div>;
-  return <iframe key={vkRun} ref={ref} className="stage-video__frame" src={target.src} title={title || "Видео"} onLoad={onLoad} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen />;
+  return (
+    <>
+      <iframe key={vkRun} ref={ref} className="stage-video__frame" src={target.src} title={title || "Видео"} onLoad={onLoad} allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen />
+      {loading && !video.paused && (
+        <div className="stage-video__loading" aria-live="polite">
+          Видео загружается…
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Прогрев плеера: следующий ролик открывается заранее невидимым и без автозапуска — к его показу
+ * скрипты плеера уже в кэше браузера, ролик стартует быстрее. Звука нет (без autoplay ролик стоит).
+ */
+export function WarmVideo({ url }: { url: string }) {
+  const target = videoTarget(url);
+  if (!target || target.host === "vk") return null;
+  const src = target.src.replace(/([?&])autoplay=1&?/, "$1").replace(/[?&]$/, "");
+  return <iframe className="stage-video__warm" src={src} title="" aria-hidden="true" tabIndex={-1} allow="encrypted-media" />;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { noticesRepo, type Notice, type NoticesState } from "../data";
 
@@ -22,7 +22,21 @@ export function NoticeBell() {
   const [state, setState] = useState<NoticesState | null>(null);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  // Телефон и планшет: окно — во всю ширину экрана под кнопкой (у края колокольчика оно уезжало за левый край).
+  const [panelTop, setPanelTop] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    const place = () => setPanelTop(Math.round((buttonRef.current?.getBoundingClientRect().bottom ?? 0) + 8));
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, { passive: true });
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place);
+    };
+  }, [open]);
 
   const refresh = useCallback(() => {
     if (!noticesRepo || document.visibilityState !== "visible") return;
@@ -100,6 +114,7 @@ export function NoticeBell() {
   return (
     <div className="notice-bell" ref={wrapRef}>
       <button
+        ref={buttonRef}
         type="button"
         className="btn btn--secondary menu-button notice-bell__button"
         aria-label={unread > 0 ? `Уведомления: новых ${unread}` : "Уведомления"}
@@ -126,7 +141,7 @@ export function NoticeBell() {
         </span>
       )}
       {open && (
-        <div className="notice-panel" id={panelId} role="dialog" aria-label="Уведомления">
+        <div className="notice-panel" id={panelId} role="dialog" aria-label="Уведомления" style={{ ["--notice-top" as string]: `${panelTop}px` } as CSSProperties}>
           <p className="notice-panel__title">Уведомления</p>
           {items.length === 0 ? (
             <p className="muted small">Пока тихо. Новые заявки клиентов появятся здесь.</p>

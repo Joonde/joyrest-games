@@ -529,7 +529,7 @@ export function playSound(name: SoundName): void {
  * Content License); источник каждого файла — public/sounds/SOURCES.md. Нет файла — играет
  * синтезированный звук (`fallback`). Новая версия файла — новое имя (кэш на год).
  */
-export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro" | "lobbyTokyo" | "lobbyFocus" | "lobbyLofi";
+export type SampleName = "dragonAttack" | "dragonHurt" | "millionaireLobby" | "superChest" | "breakA" | "breakB" | "teamsIntro" | "applause" | "lobby" | "questionIntro" | "superPick" | "mafiaNight" | "durakTable" | "thinkLow" | "thinkHigh" | "milQuestion" | "milLock" | "milRight" | "milWrong" | "milLifeline" | "dragonBattle" | "milStart" | "milBed" | "milVote" | "lottoIntro" | "lobbyTokyo" | "lobbyFocus" | "lobbyLofi" | "treeChristmas" | "treeLullaby" | "treeFireplace";
 
 export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonAttack: "/sounds/dragon-attack-2.mp3",
@@ -549,6 +549,9 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   lobbyTokyo: "/sounds/lobby-tokyo-1.mp3",
   lobbyFocus: "/sounds/lobby-focus-1.mp3",
   lobbyLofi: "/sounds/lobby-lofi-1.mp3",
+  treeChristmas: "/sounds/tree-christmas-1.mp3",
+  treeLullaby: "/sounds/tree-lullaby-1.mp3",
+  treeFireplace: "/sounds/tree-fireplace-1.mp3",
   /** «Дурак»: тихий фон за столом всю партию. */
   durakTable: "/sounds/durak-table-1.mp3",
   /** «Бой с драконом»: громко в лобби (QR, ждём гостей), тихо фоном во время боя. */
@@ -594,6 +597,9 @@ export const BUILTIN_MUSIC = {
   milBed: [SAMPLES.milBed, SAMPLES.milBed].filter((u): u is string => Boolean(u)),
   milVote: [SAMPLES.milVote, SAMPLES.milVote].filter((u): u is string => Boolean(u)),
   lottoIntro: [SAMPLES.lottoIntro, SAMPLES.lottoIntro].filter((u): u is string => Boolean(u)),
+  // «Аквариум и Ёлка» (решение владельца 18 октября 2026): у рыбок — три лоу-фай трека, у ёлки — три новогодних, по очереди.
+  aquaMusic: [SAMPLES.lobbyTokyo, SAMPLES.lobbyFocus, SAMPLES.lobbyLofi].filter((u): u is string => Boolean(u)),
+  treeMusic: [SAMPLES.treeChristmas, SAMPLES.treeLullaby, SAMPLES.treeFireplace].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */

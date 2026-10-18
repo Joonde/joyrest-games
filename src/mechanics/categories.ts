@@ -3,7 +3,7 @@
 // ничего не хранится: новая игра сама попадает в свой раздел.
 import { trackIds, parseContent as parseQuiz } from "./quiz/content";
 
-export type CategoryId = "evening" | "quiz" | "music" | "tv" | "adventure" | "olymp" | "cards" | "social" | "active" | "other";
+export type CategoryId = "evening" | "quiz" | "music" | "tv" | "adventure" | "olymp" | "cards" | "social" | "active" | "draw" | "other";
 
 export interface Category {
   id: CategoryId;
@@ -23,6 +23,7 @@ export const CATEGORIES: Category[] = [
   { id: "cards", title: "Карточные и кости", icon: "🃏", hint: "«Мафия», «Шпион», «Бункер», «Дурак», «Перудо», «Правда или действие»" },
   { id: "social", title: "Знакомство и общение", icon: "🤝", hint: "«Давайте знакомиться» — игры, чтобы узнать друг друга" },
   { id: "active", title: "Танцы и активные", icon: "💃", hint: "Just Dance и караоке на поле, танцевальный батл" },
+  { id: "draw", title: "Раскраски на перерыв", icon: "🎨", hint: "«Аквариум» и «Ёлка»: гости раскрашивают на телефонах, рисунки оживают на экране" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
 ];
 
@@ -48,6 +49,7 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   wine: "cards",
   bunker: "cards",
   story: "social",
+  aquarium: "draw",
   evening: "evening",
 };
 

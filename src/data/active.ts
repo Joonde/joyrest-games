@@ -25,6 +25,7 @@ import type {
   EventPhotosRepository,
   BrandingsRepository,
   DecksRepository,
+  DrawingsRepository,
   PollsRepository,
   StaffRepository,
   ResultsRepository,
@@ -62,6 +63,7 @@ import { serverFinaleRepository } from "./server/finale";
 import { serverEventPhotosRepository } from "./server/photos";
 import { serverBrandingsRepository } from "./server/brandings";
 import { serverDecksRepository } from "./server/decks";
+import { serverDrawingsRepository } from "./server/drawings";
 import { serverPollsRepository } from "./server/polls";
 import { serverResultsRepository } from "./server/results";
 import { serverSessionsRepository } from "./server/sessions";
@@ -95,6 +97,8 @@ export const tracksRepo: TracksRepository | null = server ? serverTracksReposito
 export const photosRepo: EventPhotosRepository | null = server ? serverEventPhotosRepository : null;
 export const brandingsRepo: BrandingsRepository | null = server ? serverBrandingsRepository : null;
 export const decksRepo: DecksRepository | null = server ? serverDecksRepository : null;
+/** Рисунки гостей «Аквариума и Ёлки» — только свой сервер. */
+export const drawingsRepo: DrawingsRepository | null = server ? serverDrawingsRepository : null;
 /** «Опрос гостей заранее» для «100 к 1» — только свой сервер. */
 export const pollsRepo: PollsRepository | null = server ? serverPollsRepository : null;
 /** Конец игры: чаевые и отзывы — только свой сервер. */

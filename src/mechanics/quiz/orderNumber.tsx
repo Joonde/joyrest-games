@@ -72,7 +72,7 @@ export function OrderScreenCards({ q, gameId, revealed, result }: { q: QuizQuest
               <span className="quiz-screen__order-bar" aria-hidden="true">
                 <span style={{ width: `${(right / total) * 100}%` }} />
               </span>
-              на месте у {right} из {result.total}
+              верно поставили: {right} из {result.total}
             </span>
           </li>
         );
@@ -271,14 +271,14 @@ export function OrderNumberVerdict({ q, value, result }: { q: QuizQuestion; valu
   );
 }
 
-/** Пульт после ответа: по порядку — сколько на своём месте; число — кто как близко. */
+/** Пульт после ответа: по порядку — сколько участников поставили карточку верно; число — кто как близко. */
 export function OrderNumberHost({ q, own, leaderboard }: { q: QuizQuestion; own: Answer[]; leaderboard: Leaderboard }) {
   if (q.kind === "order") {
     return (
       <ul className="host-quiz__dist">
         {q.options.map((text, card) => (
           <li key={card} className="is-correct">
-            {card + 1}. {text} — на месте у <strong>{own.filter((a) => parseOrder(a.value, q.options.length)?.[card] === card).length}</strong>
+            {card + 1}. {text} — верно поставили: <strong>{own.filter((a) => parseOrder(a.value, q.options.length)?.[card] === card).length}</strong> из {own.length}
           </li>
         ))}
       </ul>

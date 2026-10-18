@@ -21657,3 +21657,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   padding-top: 0;
   border-top: 0;
 }
+
+/* Вопрос на экране зала — всегда по центру экрана (решение владельца 18 октября 2026). */
+.quiz-screen__question,
+.board-screen__question,
+.checkers-screen__question h2,
+.wager-screen__question,
+.mil-question__text,
+.sv-screen__main .sv-round__text {
+  text-align: center;
+  text-wrap: balance;
+  justify-self: stretch;
+}

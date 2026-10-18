@@ -285,7 +285,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
               {revealed && (
                 <span className="quiz-screen__picture-cap">
                   <strong>{p.answers.find((a) => a.trim()) ?? "—"}</strong>
-                  <span>угадали {result.right?.[i] ?? 0}</span>
+                  <span>угадали: {result.right?.[i] ?? 0} из {result.total}</span>
                 </span>
               )}
             </li>

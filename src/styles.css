@@ -20109,7 +20109,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .quiz-screen__order-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) 26cqw;
+  /* Статистика — у правого края и не шире трети карточки: название всегда получает остальное место и не
+     уходит под полоску (21 октября 2026: при 26cqw на узком экране название сжималось в столбик под статистикой). */
+  grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 30%);
   align-items: center;
   gap: 1.6cqw;
   padding: 1.2cqh 2cqw;
@@ -20136,7 +20138,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   text-align: center;
 }
 
+.quiz-screen__order-row > .quiz-screen__text {
+  overflow-wrap: break-word;
+}
+
 .quiz-screen__order-stat {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.6cqh;

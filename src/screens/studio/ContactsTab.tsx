@@ -67,14 +67,14 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
 
   const keyOf = (m: ContactMatch) => phoneKey(m.phone);
   const shown = (scan?.matches ?? []).filter((m) => keyOf(m) && (showAll || m.reasons.length > 0));
-  const toAdd = shown.filter((m) => picked.has(keyOf(m)) && !known.has(keyOf(m)));
+  const toAdd = (scan?.matches ?? []).filter((m) => keyOf(m) && picked.has(keyOf(m)) && !known.has(keyOf(m)));
   const found = (scan?.matches ?? []).filter((m) => m.reasons.length > 0 && keyOf(m));
 
   async function onFile(file: File | undefined) {
     setFileError(null);
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) {
-      setFileError("Файл больше 20 МБ — это не похоже на контакты. Выгрузите контакты файлом .vcf.");
+    if (file.size > 150 * 1024 * 1024) {
+      setFileError("Файл больше 150 МБ — это не похоже на контакты. Выгрузите контакты файлом .vcf.");
       return;
     }
     const text = await file.text();

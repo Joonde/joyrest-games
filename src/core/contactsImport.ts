@@ -17,7 +17,16 @@ export interface PhoneContact {
 
 /** Строки vCard с переносами (RFC 6350: продолжение — строка с пробелом или табом в начале). */
 function unfold(text: string): string[] {
-  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n[ \t]/g, "").split("\n");
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n[ \t]/g, "").split("\n");
+  // Quoted-Printable (старые Android, vCard 2.1): строка на «=» продолжается следующей, без пробела в начале.
+  const out: string[] = [];
+  for (const line of lines) {
+    const prev = out[out.length - 1];
+    if (prev !== undefined && prev.endsWith("=") && /ENCODING=QUOTED-PRINTABLE/i.test(prev.slice(0, prev.indexOf(":")))) {
+      out[out.length - 1] = prev.slice(0, -1) + line;
+    } else out.push(line);
+  }
+  return out;
 }
 
 /** Значение поля: экранирование vCard и Quoted-Printable (старые Android). */
@@ -65,7 +74,11 @@ export function parseVcf(text: string): PhoneContact[] {
     }
     const value = decodeValue(params, raw);
     if (key === "FN") cur.name = value.replace(/\s+/g, " ").trim();
-    else if (key === "N") structured = value.split(";").filter(Boolean).reverse().join(" ").trim();
+    else if (key === "N") {
+      // N: Фамилия;Имя;Отчество;Префикс;Суффикс — в карточку как «Имя Отчество Фамилия».
+      const [family = "", given = "", middle = ""] = value.split(";");
+      structured = [given, middle, family].filter(Boolean).join(" ").trim();
+    }
     else if (key === "TEL" && value) cur.phones.push(value);
     else if (key === "ORG") cur.org = value.replace(/;/g, " ").trim();
     else if (key === "NOTE") cur.note = value;
@@ -92,7 +105,7 @@ const WORDS: Array<[RegExp, string]> = [
   [/(?<![а-яё])(клиент|заказчи[кц])[а-яё]{0,2}(?![а-яё])/i, "заказчик"],
 ];
 
-const MONTHS = "январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр|янв|фев|мар|апр|авг|сен|окт|ноя|дек";
+const MONTHS = "январ[а-яё]*|феврал[а-яё]*|март[а-яё]*|апрел[а-яё]*|ма[йя](?![а-яё])|июн[а-яё]*|июл[а-яё]*|август[а-яё]*|сентябр[а-яё]*|октябр[а-яё]*|ноябр[а-яё]*|декабр[а-яё]*|янв|фев|мар|апр|авг|сен|окт|ноя|дек";
 
 /** Дата в подписи: 17.10, 17/10/24, 17 октября, 20-е. Номер телефона и годы рождения не считаются. */
 export function dateIn(text: string): string | null {
@@ -103,7 +116,7 @@ export function dateIn(text: string): string | null {
     const m = Number(numeric[2]);
     if (d >= 1 && d <= 31 && m >= 1 && m <= 12) return numeric[0];
   }
-  const word = new RegExp(`(?<!\\d)(\\d{1,2})\\s*-?\\s*(?:го\\s+)?(${MONTHS})[а-яё]*`, "i").exec(text);
+  const word = new RegExp(`(?<!\\d)(\\d{1,2})\\s*-?\\s*(?:го\\s+)?(?:${MONTHS})(?![а-яё])`, "i").exec(text);
   if (word && Number(word[1]) >= 1 && Number(word[1]) <= 31) return word[0];
   const ordinal = /(?<![\d])(\d{1,2})\s?-\s?(?:е|го|ое)(?![а-яё])/i.exec(text);
   if (ordinal && Number(ordinal[1]) >= 1 && Number(ordinal[1]) <= 31) return ordinal[0];
@@ -135,13 +148,14 @@ export function matchContact(contact: PhoneContact): ContactMatch {
 /** Все контакты файла: сначала похожие на клиентов; одинаковые номера — один раз. */
 export function scanContacts(text: string): { matches: ContactMatch[]; total: number } {
   const all = parseVcf(text).map(matchContact);
-  const seen = new Set<string>();
-  const unique = all.filter((m) => {
+  // Один номер в нескольких карточках («Аня» и «Аня квиз 17.10») — остаётся та, где больше признаков клиента.
+  const best = new Map<string, ContactMatch>();
+  for (const m of all) {
     const key = phoneKey(m.phone) || m.label;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+    const prev = best.get(key);
+    if (!prev || m.reasons.length > prev.reasons.length) best.set(key, m);
+  }
+  const unique = [...best.values()];
   unique.sort((a, b) => Number(b.reasons.length > 0) - Number(a.reasons.length > 0) || a.label.localeCompare(b.label, "ru"));
   return { matches: unique, total: all.length };
 }
@@ -149,7 +163,8 @@ export function scanContacts(text: string): { matches: ContactMatch[]; total: nu
 /** Имя для карточки: подпись без слов мероприятия и дат («Аня квиз 17.10» → «Аня»), пусто — подпись целиком. */
 export function cleanName(name: string): string {
   let rest = name;
-  for (const [re] of WORDS) rest = rest.replace(new RegExp(re.source, "gi"), " ");
+  // Слово целиком, с окончанием: «день рождения», «корпоратив», «свадьба» — без хвостов вроде «ения».
+  for (const [re] of WORDS) rest = rest.replace(new RegExp(`(?:${re.source})[а-яё]*`, "gi"), " ");
   const date = dateIn(rest);
   if (date) rest = rest.replace(date, " ");
   rest = rest.replace(/[()\-–—,.:;/|]+/g, " ").replace(/\s+/g, " ").trim();

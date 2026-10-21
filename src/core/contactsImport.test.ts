@@ -79,6 +79,28 @@ describe("загрузка контактов с телефона", () => {
     expect(cleanName("Аня квиз 17.10")).toBe("Аня");
     expect(cleanName("Олег корп")).toBe("Олег");
     expect(cleanName("квиз")).toBe("квиз");
+    expect(cleanName("Петя день рождения")).toBe("Петя");
+    expect(cleanName("Аня свадьба")).toBe("Аня");
+    expect(cleanName("Маша юбилей 17 октября")).toBe("Маша");
+  });
+
+  it("Android: длинное имя в Quoted-Printable с переносом строки, N без FN — «Имя Фамилия»", () => {
+    const qp = ["BEGIN:VCARD", "VERSION:2.1", "N;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:;=D0=90=D0=BD=D1=8F =D0=BA=D0=B2=D0=B8=D0=B7 =D0=B4=D0=B5=D0=BD=D1=8C =", "=D1=80=D0=BE=D0=B6=D0=B4=D0=B5=D0=BD=D0=B8=D1=8F;;;", "TEL:+79150000001", "END:VCARD"].join("\r\n");
+    expect(parseVcf(qp)[0]?.name).toBe("Аня квиз день рождения");
+    const n = ["BEGIN:VCARD", "N:Иванов;Иван;Иванович;;", "TEL:+79150000002", "END:VCARD"].join("\n");
+    expect(parseVcf(n)[0]?.name).toBe("Иван Иванович Иванов");
+  });
+
+  it("один номер в двух карточках — остаётся та, где признаки клиента", () => {
+    const two = ["BEGIN:VCARD", "FN:Аня", "TEL:+79150000003", "END:VCARD", "BEGIN:VCARD", "FN:Аня квиз 17.10", "TEL:8 915 000-00-03", "END:VCARD"].join("\n");
+    const { matches } = scanContacts(two);
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.reasons).toEqual(["квиз", "17.10"]);
+  });
+
+  it("май и маяк: «Лена 2 маяк» — не дата, «Оля 9 мая» — дата", () => {
+    expect(dateIn("Лена 2 маяк")).toBeNull();
+    expect(dateIn("Оля 9 мая")).toBe("9 мая");
   });
 
   it("сообщение прежнему клиенту — без цен и скидок, с вопросом о согласии", () => {

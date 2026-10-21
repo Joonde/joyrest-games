@@ -82,10 +82,12 @@ export interface PreviewOptions<Content> {
   driver: PreviewDriver<Content>;
   teams: number;
   limit: number;
+  /** Игра, из которой берутся картинки (без неё экран и телефоны не находят картинки вопросов). */
+  gameId?: string;
 }
 
 /** Прогон: сцены от начала игры до награждения и итогов. */
-export function runPreview<Content>({ mechanic, content, playMode, themeId, driver, teams, limit }: PreviewOptions<Content>): { scenes: PreviewScene[]; phones: PreviewPhone[]; participants: Participant[] } {
+export function runPreview<Content>({ mechanic, content, playMode, themeId, driver, teams, limit, gameId }: PreviewOptions<Content>): { scenes: PreviewScene[]; phones: PreviewPhone[]; participants: Participant[] } {
   const { participants, phones } = previewParticipants(playMode, teams);
   // Часы — сейчас: таймеры вопросов в предпросмотре идут как в игре.
   let clock = Date.now();
@@ -93,7 +95,7 @@ export function runPreview<Content>({ mechanic, content, playMode, themeId, driv
     id: "preview",
     code: "000000",
     hostId: "",
-    gameId: "preview",
+    gameId: gameId ?? "preview",
     gameTitle: "",
     mechanic,
     gameSnapshot: null,

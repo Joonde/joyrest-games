@@ -1760,12 +1760,414 @@ legend {
   min-width: 0;
 }
 
-.q-card__round {
-  color: var(--color-highlight);
+/*
+ * Раунды квиза в конструкторе (21 октября 2026): карта раундов над списком (полосой или сеткой), блок раунда в
+ * списке, полоса цвета раунда у карточек, строка «+ Вопрос в раунд / + Новый раунд». Цвет раунда — пастель
+ * команд (`--rc`), текст на ней тёмный.
+ */
+.round-map {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.round-map__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.round-map__tab {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.round-map__tab[aria-pressed="true"] {
+  background: var(--color-highlight);
+  color: var(--color-bg);
+}
+
+.round-map__none {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.round-map__split {
+  min-height: 44px;
+}
+
+.round-map__bar {
+  display: flex;
+  gap: 4px;
+  min-height: 56px;
+}
+
+.round-map__seg {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  flex-basis: 0;
+  min-width: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--rc);
+  color: #221e1b;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.round-map__seg-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.round-map__seg-span {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.round-map__seg.is-current,
+.round-map__cell.is-current {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.round-map__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Новый раунд в сетке — с новой строки, с подписью и чертой цвета раунда сверху. */
+.round-map__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.round-map__group + .round-map__group {
+  padding-top: 10px;
+  border-top: 2px dashed color-mix(in srgb, var(--rc) 70%, transparent);
+}
+
+.round-map__label {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.round-map__label em {
+  color: var(--color-text-muted);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.round-map__cells {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.round-map__cell {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--rc);
+  color: #221e1b;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* Первый вопрос раунда в сетке — светлая черта слева: здесь начинается раунд. */
+.round-map__group .round-map__cell:first-child {
+  box-shadow: inset 4px 0 0 rgb(255 255 255 / 0.85);
+}
+
+.q-round {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px 6px 6px 14px;
+  border: 1.5px solid var(--rc);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--rc) 16%, var(--color-surface));
+  list-style: none;
+}
+
+.q-round:first-child {
+  margin-top: 0;
+}
+
+.q-round--auto {
+  border-style: dashed;
+}
+
+.q-round__mark {
+  color: var(--rc);
+  font-size: 16px;
+}
+
+.q-round__title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  min-height: 44px;
+  justify-content: center;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.q-round__name {
+  max-width: 100%;
+  font-family: var(--font-display, inherit);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.q-round__sub {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-round__btn {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.q-round__fold {
+  border-color: transparent;
+  color: var(--rc);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .q-round__fold {
+    transition: transform 0.2s ease;
+  }
+}
+
+.q-round.is-folded .q-round__fold {
+  transform: rotate(-90deg);
+}
+
+.q-round__edit {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.q-round__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 17px;
+}
+
+/* Карточка вопроса в раунде — полоса цвета раунда слева. */
+.q-card--round {
+  border-left: 4px solid var(--rc);
+}
+
+.q-round-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+}
+
+.q-round-add__btn {
+  flex: 1 1 140px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1.5px dashed color-mix(in srgb, var(--rc) 75%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+/* Время и очки вопроса одним касанием (поле с числом осталось — для любого значения). */
+.q-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.q-quick__label {
+  min-width: 52px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.q-quick__btn {
+  min-width: 52px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.q-quick__btn.is-on {
+  border-color: var(--color-highlight);
+  background: var(--color-highlight);
+  color: var(--color-bg);
+}
+
+/* «Вариант удалён · Вернуть» — прямо под строками вариантов. */
+.q-restore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 4px 4px 14px;
+  border: 1.5px dashed var(--color-highlight);
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.q-restore span {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.q-restore__btn {
+  min-height: 44px;
+  color: var(--color-highlight);
+  font-weight: 700;
+}
+
+/* Уведомление с действием: «Раунд убран — Вернуть». */
+.toast--undo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 20px;
+  text-align: left;
+}
+
+.toast__action {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--color-bg);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-bg);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Наверху открытого вопроса: в каком он раунде и «+ Новый раунд с этого вопроса» — видно сразу, без прокрутки. */
+.q-card__round-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.q-card__round-tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--rc, var(--color-highlight));
+  color: #221e1b;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.q-card__to-map {
+  min-height: 44px;
+  margin-left: auto;
+  font-size: 15px;
+}
+
+.round-map {
+  scroll-margin-top: calc(60px + var(--safe-top, 0px));
+}
+
+.q-card__round-start {
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .q-card__text {
@@ -1877,10 +2279,16 @@ legend {
 .q-card.is-open > .q-card__head,
 .quest-strip.is-open > .quest-strip__head {
   position: sticky;
-  top: env(safe-area-inset-top, 0px);
+  /* Ниже плашки «Все изменения сохранены» (она тоже прилипает к верху): иначе они наезжают друг на друга. */
+  top: calc(52px + var(--safe-top, 0px));
   z-index: 3;
   background: var(--color-surface-alt);
   border-radius: var(--radius-md);
+}
+
+/* Плашки внутри открытого элемента — на тон темнее, иначе сливаются с подсвеченным фоном. */
+.stage-editor__tile:has(> .stage-editor__head[aria-expanded="true"]) .stage-editor__kind {
+  background: var(--color-bg);
 }
 
 .q-card__editing {
@@ -10602,8 +11010,9 @@ button.dance-card:active {
   color: var(--color-highlight);
 }
 
-.quest-strip__form {
-  padding: 0 14px 14px;
+.quest-strip__form,
+.quest-strip__body {
+  padding: 4px 14px 16px 18px;
 }
 
 .seg--wrap {
@@ -20109,7 +20518,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .quiz-screen__order-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) 26cqw;
+  /* Статистика — у правого края и не шире трети карточки: название всегда получает остальное место и не
+     уходит под полоску (21 октября 2026: при 26cqw на узком экране название сжималось в столбик под статистикой). */
+  grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 30%);
   align-items: center;
   gap: 1.6cqw;
   padding: 1.2cqh 2cqw;
@@ -20136,7 +20547,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   text-align: center;
 }
 
+.quiz-screen__order-row > .quiz-screen__text {
+  overflow-wrap: break-word;
+}
+
 .quiz-screen__order-stat {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.6cqh;

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { formatNumber, readNumber } from "./orderNumber";
 import { questionsLabel } from "../../core/results";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -6,7 +6,7 @@ import { ActionMenu, type MenuAction } from "../../components/Menu";
 import { Toast, useToast } from "../../components/Toast";
 import { compressImage, ImageError } from "../../components/media/compressImage";
 import { MediaImage } from "../../components/media/MediaImage";
-import { mediaRepo } from "../../data";
+import { mediaRepo, tracksRepo } from "../../data";
 import type { EditorProps, ValidationError } from "../types";
 import {
   changeKind,
@@ -14,6 +14,7 @@ import {
   correctSet,
   FORMAT_BLOCKS,
   hasAnswers,
+  hasOptions,
   LIMITS as QUIZ_LIMITS,
   newPicture,
   QUESTION_FORMATS,
@@ -28,13 +29,15 @@ import {
   moveItem,
   newQuestion,
   quizRounds,
-  roundTitle,
+  roundAt,
   type QuestionKind,
   type QuizContent,
   type QuizQuestion,
   type QuizSettings,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
+import { RoundHeader, RoundMap, roundColor, roundName } from "./RoundBlocks";
+import { insertAfter, moveKeepingRounds, moveToRound, nextRoundTitle, removeKeepingRound, removeRoundAt, roundCount, startRoundAt } from "./roundsEdit";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
@@ -44,6 +47,20 @@ import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
 import { LevelIcon } from "../../components/live/SuperGame";
 import { LEVEL_NAMES, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_LIMITS, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
+
+/**
+ * Новый вопрос в конструкторе: правильный вариант не отмечен заранее — ведущий отмечает сам
+ * (иначе «A» остаётся верным, если забыть поставить галочку; проверка просит «Отметьте правильный вариант»).
+ */
+function blankQuestion(kind: QuestionKind): QuizQuestion {
+  const q = newQuestion(kind);
+  return hasOptions(kind) ? { ...q, correct: -1, alsoCorrect: [] } : q;
+}
+
+/** Ключ свёрнутого раунда: название (раунд без названия — один, первый). */
+function foldKey(round: { title: string }): string {
+  return round.title || "\u0000auto";
+}
 
 const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "super"];
 
@@ -56,6 +73,20 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   const [toDelete, setToDelete] = useState<QuizQuestion | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // Свёрнутые раунды: id первого вопроса раунда.
+  // Свёрнутые раунды — по названию (переживает перенос вопросов), запоминаются на устройстве для этой игры.
+  const foldStore = `joyrest.quiz.folded.${gameId}`;
+  const [folded, setFolded] = useState<Set<string>>(() => {
+    try {
+      const raw: unknown = JSON.parse(localStorage.getItem(foldStore) ?? "[]");
+      return new Set(Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  });
+  // Убрали раунд — несколько секунд можно «Вернуть».
+  const [undo, setUndo] = useState<{ text: string; prev: QuizQuestion[] } | null>(null);
+  const undoTimer = useRef<number | undefined>(undefined);
   const [toast, showToast] = useToast(3500);
   // Картинки, загруженные в этот раз: их можно сразу удалить при замене. Старые картинки
   // остаются до удаления игры — на них может ссылаться уже запущенная сессия.
@@ -105,8 +136,14 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   }
 
   function add(kind: QuestionKind = "choice") {
-    const q = newQuestion(kind);
-    setQuestions([...questions, q]);
+    const q = blankQuestion(kind);
+    // Сразу под вопросом, с которым работаете (решение владельца 22 октября 2026); ничего не открыто — в конец игры.
+    const openIndex = questions.findIndex((x) => x.id === openId);
+    const at = openIndex >= 0 ? openIndex : questions.length - 1;
+    const into = rounds.find((r) => at >= r.from && at <= r.to);
+    unfold(into);
+    setQuestions(insertAfter(questions, at, q));
+    if (openIndex >= 0) showToast(`Вопрос ${at + 2} добавлен под вопросом ${at + 1}${into ? ` — раунд «${roundName(into)}»` : ""}`);
     setOpenId(q.id);
     setAdding(false);
     focusLater(`#q-${q.id}-text`);
@@ -122,18 +159,125 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   }
 
   function remove(question: QuizQuestion) {
-    const remaining = questions.filter((q) => q.id !== question.id);
+    const remaining = removeKeepingRound(questions, question.id);
     setQuestions(remaining);
     for (const id of questionImages(question)) releaseImage(id, remaining);
     setToDelete(null);
-    showToast("Вопрос удалён");
+    const gone = rounds.find((r) => r.from === r.to && questions[r.from]?.id === question.id && r.title);
+    showToast(gone && roundCount(remaining) < rounds.length ? `Вопрос удалён. Раунд «${gone.title}» убран — в нём не осталось вопросов` : "Вопрос удалён");
   }
 
   function move(index: number, to: number, focus?: "up" | "down") {
     const id = questions[index]?.id;
-    setQuestions(moveItem(questions, index, to));
+    // Блоки раундов остаются на местах: вопрос, перенесённый через блок, уходит в соседний раунд.
+    const before = roundAt({ questions } as QuizContent, index);
+    const next = moveKeepingRounds(questions, index, to);
+    setQuestions(next);
+    const after = quizRounds({ questions: next } as QuizContent).find((r) => to >= r.from && to <= r.to);
+    if (before && after && before.from !== after.from) showToast(`Вопрос перенесён в «${roundName(after)}»`);
     // Фокус остаётся на той же кнопке у перемещённого вопроса.
     if (id && focus) focusLater(`[data-move="${id}-${focus}"]`);
+  }
+
+  /** Новый вопрос в раунде — сразу после `index`. */
+  function addAfter(index: number) {
+    if (room <= 0) return;
+    const q = blankQuestion("choice");
+    setQuestions(insertAfter(questions, index, q));
+    setOpenId(q.id);
+    focusLater(`#q-${q.id}-text`);
+    showToast(`Вопрос ${index + 2} добавлен под вопросом ${index + 1}`);
+  }
+
+  /** Новый раунд после `index`: блок и первый вопрос в нём. */
+  function addRoundAfter(index: number) {
+    if (room <= 0) return;
+    const q = { ...blankQuestion("choice"), round: nextRoundTitle(questions, index + 1) };
+    setQuestions(insertAfter(questions, index, q));
+    setOpenId(q.id);
+    focusLater(`#q-${q.id}-text`);
+    showToast(`Новый раунд «${q.round}» — переименуйте его кнопкой ✎`);
+  }
+
+  /** С этого вопроса — новый раунд: он и вопросы ниже (до следующего блока) уходят в него. */
+  function startRound(index: number) {
+    const next = startRoundAt(questions, index);
+    setQuestions(next);
+    showToast(`С вопроса ${index + 1} начинается «${next[index]?.round ?? ""}»`);
+  }
+
+  function renameRound(index: number, title: string) {
+    const name = title.replace(/\s+/g, " ").trim().slice(0, LIMITS.round);
+    const current = questions[index];
+    if (!current) return;
+    // Пустое название — прежнее (раунд не пропадает: блок убирают кнопкой ✕).
+    const round = name || current.round || nextRoundTitle(questions, index);
+    setQuestions(questions.map((q, i) => (i === index ? { ...q, round } : q)));
+  }
+
+  function dropRound(index: number) {
+    const name = questions[index]?.round;
+    const next = removeRoundAt(questions, index);
+    const prev = questions;
+    setQuestions(next);
+    const left = roundCount(next) > 0;
+    window.clearTimeout(undoTimer.current);
+    setUndo({ text: left ? `Раунд «${name}» убран, вопросы остались — в раунде выше` : `Раунд «${name}» убран, вопросы остались — игра без раундов`, prev });
+    undoTimer.current = window.setTimeout(() => setUndo(null), 7000);
+  }
+
+  function undoDrop() {
+    if (!undo) return;
+    window.clearTimeout(undoTimer.current);
+    setQuestions(undo.prev);
+    setUndo(null);
+  }
+
+  function unfold(round: (typeof rounds)[number] | undefined) {
+    if (round && folded.has(foldKey(round))) toggleFold(foldKey(round));
+  }
+
+  /** «⋯ → В раунд «…»»: вопрос — в конец выбранного раунда. */
+  function sendToRound(question: QuizQuestion, target: (typeof rounds)[number]) {
+    const key = questions[target.from]?.id;
+    if (!key) return;
+    const before = rounds.length;
+    const next = moveToRound(questions, question.id, key);
+    setQuestions(next);
+    const after = quizRounds({ questions: next } as QuizContent);
+    const now = next.findIndex((q) => q.id === question.id);
+    const into = after.find((r) => now >= r.from && now <= r.to);
+    unfold(target);
+    showToast(`Вопрос перенесён в «${roundName(into ?? target)}» — теперь № ${now + 1}${after.length < before ? ". Прежний раунд опустел и убран" : ""}`);
+    requestAnimationFrame(() => document.getElementById(`q-${question.id}-card`)?.scrollIntoView({ block: "center", behavior: smoothScroll() }));
+  }
+
+  function toggleFold(key: string) {
+    setFolded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(foldStore, JSON.stringify([...next]));
+      } catch {
+        // Нет хранилища — свёрнутое живёт до перезагрузки.
+      }
+      return next;
+    });
+  }
+
+  /** Карта раундов далеко наверху — вернуться к ней одним касанием. */
+  function toMap() {
+    document.getElementById("quiz-round-map")?.scrollIntoView({ block: "start", behavior: smoothScroll() });
+  }
+
+  /** Касание карты: раунд разворачивается, вопрос открывается и встаёт в начало экрана. */
+  function pick(index: number) {
+    const q = questions[index];
+    if (!q) return;
+    unfold(rounds.find((r) => index >= r.from && index <= r.to));
+    setOpenId(q.id);
+    requestAnimationFrame(() => document.getElementById(`q-${q.id}-card`)?.scrollIntoView({ block: "start", behavior: smoothScroll() }));
   }
 
   /** Картинка вопроса (`slot` не задан) или одна из нескольких картинок (номер поля). */
@@ -220,6 +364,17 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
       )}
 
       {questions.length > 0 && (
+        <RoundMap
+          questions={questions}
+          rounds={rounds}
+          openIndex={questions.findIndex((q) => q.id === openId)}
+          editable={editable}
+          onPick={pick}
+          onSplit={() => startRound(Math.min(questions.length - 1, Math.max(1, Math.ceil(questions.length / 2))))}
+        />
+      )}
+
+      {questions.length > 0 && (
         <ol className="q-list" aria-label="Вопросы игры" onDragLeave={(e) => e.currentTarget === e.target && setDropIndex(null)}>
           {questions.map((q, index) => {
             const own = errorsFor(errors, q.id);
@@ -227,6 +382,9 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             const menu: MenuAction[] = [{ label: "Предпросмотр", onClick: () => setPreview(index) }];
             if (editable) {
               if (room > 0) menu.push({ label: "Дублировать", onClick: () => duplicate(index) });
+              rounds.forEach((r) => {
+                if (index < r.from || index > r.to) menu.push({ label: `Перенести в «${roundName(r)}»`, onClick: () => sendToRound(q, r) });
+              });
               menu.push({ label: "Удалить", onClick: () => setToDelete(q) });
             }
             const classes = ["card", "q-card"];
@@ -234,9 +392,40 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             if (dragId === q.id) classes.push("is-dragging");
             if (dropIndex === index) classes.push("drop-before");
             if (dropIndex === index + 1 && index === questions.length - 1) classes.push("drop-after");
+            const roundIndex = rounds.findIndex((r) => index >= r.from && index <= r.to);
+            const round = roundIndex >= 0 ? rounds[roundIndex] : undefined;
+            const roundKey = round ? foldKey(round) : "";
+            const isFolded = round ? folded.has(roundKey) : false;
+            if (round) classes.push("q-card--round");
+            const cardStyle = round ? ({ "--rc": roundColor(roundIndex) } as CSSProperties) : undefined;
+            const header = round && round.from === index && (
+              <RoundHeader
+                round={round}
+                index={roundIndex}
+                auto={!round.title}
+                folded={isFolded}
+                editable={editable}
+                onFold={() => toggleFold(roundKey)}
+                onRename={(title) => renameRound(index, title)}
+                onRemove={() => dropRound(index)}
+              />
+            );
+            const addRow = editable && round && round.to === index && room > 0 && (
+              <li className="q-round-add" style={cardStyle}>
+                <button type="button" className="q-round-add__btn" onClick={() => addAfter(index)}>
+                  + Вопрос в этот раунд
+                </button>
+                <button type="button" className="q-round-add__btn" onClick={() => addRoundAfter(index)}>
+                  + Новый раунд
+                </button>
+              </li>
+            );
+            if (isFolded) return <Fragment key={q.id}>{header}</Fragment>;
             return (
+              <Fragment key={q.id}>
+              {header}
               <li
-                key={q.id}
+                style={cardStyle}
                 id={`q-${q.id}-card`}
                 className={classes.join(" ")}
                 onDragOver={(e) => onDragOver(e, index)}
@@ -275,13 +464,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                   >
                     <span className="q-card__number">{index + 1}</span>
                     <span className="q-card__titles">
-                      {rounds.find((r) => r.from === index) && (
-                        <span className="q-card__round">{roundTitle(rounds.find((r) => r.from === index) as (typeof rounds)[number])}</span>
-                      )}
                       <span className="q-card__text">{q.text.trim() || "Без текста"}</span>
                       <span className="q-card__meta muted small">
                         {KIND_TITLES[q.kind]} · {q.timeLimit} с · {q.points} очк.
                         {q.imageId ? " · картинка" : ""}
+                        {round ? ` · ${index - round.from + 1}\u00a0из\u00a0${round.to - round.from + 1}` : ""}
                       </span>
                       {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
                       {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}
@@ -320,6 +507,26 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
 
                 {expanded && (
                   <div id={`q-${q.id}-form`} className="q-card__body">
+                    {(round || editable) && (
+                      <div className="q-card__round-bar">
+                        {round && (
+                          <span className="q-card__round-tag">
+                            ◆ {roundName(round)} · вопрос {index - round.from + 1} из {round.to - round.from + 1}
+                          </span>
+                        )}
+                        {editable && (!round || round.from !== index) && (
+                          <button type="button" className="btn btn--quiet q-card__round-start" onClick={() => startRound(index)}>
+                            + Новый раунд с этого вопроса
+                          </button>
+                        )}
+                        {editable && !round && <span className="muted small">Вопросы выше станут «Раундом 1», этот и ниже — «Раундом 2».</span>}
+                        {questions.length >= 8 && (
+                          <button type="button" className="btn btn--quiet q-card__to-map" onClick={toMap}>
+                            ↑ К карте раундов
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {editable ? (
                       <QuestionForm
                         gameId={gameId}
@@ -336,6 +543,16 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                       <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreview(index)}>
                         Предпросмотр
                       </button>
+                      {editable && room > 0 && (
+                        <button type="button" className="btn btn--secondary btn--block" onClick={() => addAfter(index)}>
+                          + Добавить вопрос ниже
+                        </button>
+                      )}
+                      {index < questions.length - 1 && (
+                        <button type="button" className="btn btn--secondary btn--block" onClick={() => pick(index + 1)}>
+                          Дальше — вопрос {index + 2} →
+                        </button>
+                      )}
                       <button type="button" className="btn btn--quiet btn--block" onClick={() => collapse(q.id)}>
                         Готово — свернуть вопрос {index + 1}
                       </button>
@@ -343,6 +560,8 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                   </div>
                 )}
               </li>
+              {addRow}
+              </Fragment>
             );
           })}
         </ol>
@@ -386,7 +605,15 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
       >
         <p>«{toDelete?.text.trim() || "Без текста"}» пропадёт из игры. Запущенные сессии не изменятся.</p>
       </ConfirmDialog>
-      <Toast text={toast} />
+      <Toast text={undo ? null : toast} />
+      {undo && (
+        <div className="toast toast--undo" role="status">
+          <span>{undo.text}</span>
+          <button type="button" className="toast__action" onClick={undoDrop}>
+            Вернуть
+          </button>
+        </div>
+      )}
     </>
   );
 }
@@ -492,6 +719,30 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
   const [processing, setProcessing] = useState(false);
   // Поле числа: пока ведущий печатает — как набрал («1 6»), в игру уходит уже разобранное число.
   const [numberDraft, setNumberDraft] = useState<string | null>(null);
+  // Удалили вариант, карточку или ответ — 7 секунд можно «Вернуть» (прежние строки и галочки целиком).
+  const [restore, setRestore] = useState<{ text: string; snap: Pick<QuizQuestion, "options" | "answers" | "correct" | "alsoCorrect"> } | null>(null);
+  const restoreTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(restoreTimer.current), []);
+  function remember(text: string) {
+    window.clearTimeout(restoreTimer.current);
+    setRestore({ text, snap: { options: q.options, answers: q.answers, correct: q.correct, alsoCorrect: q.alsoCorrect } });
+    restoreTimer.current = window.setTimeout(() => setRestore(null), 7000);
+  }
+  function undoRemove() {
+    if (!restore) return;
+    const snap = restore.snap;
+    window.clearTimeout(restoreTimer.current);
+    onChange((cur) => ({ ...cur, ...snap }));
+    setRestore(null);
+  }
+  const removedBar = restore && (
+    <div className="q-restore" role="status">
+      <span>{restore.text}</span>
+      <button type="button" className="btn btn--quiet q-restore__btn" onClick={undoRemove}>
+        Вернуть
+      </button>
+    </div>
+  );
   const has = (field: QuestionField) => errorsFor(errors, q.id, field).length > 0;
   const describedBy = (field: QuestionField) => (has(field) ? `q-${q.id}-${field}-error` : undefined);
 
@@ -510,6 +761,18 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
     });
   }
 
+  /** Enter в строке варианта: к следующей строке, в последней — новая строка (как в списке на бумаге). */
+  function nextRow(event: KeyboardEvent<HTMLInputElement>, i: number, count: number, max: number, add: () => void, prefix: string) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    if (i < count - 1) {
+      document.querySelector<HTMLInputElement>(`[data-row="${prefix}-${i + 1}"]`)?.focus();
+      return;
+    }
+    if (count >= max) return;
+    add();
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>(`[data-row="${prefix}-${i + 1}"]`)?.focus());
+  }
   function setAnswer(i: number, value: string) {
     onChange((cur) => ({ ...cur, answers: cur.answers.map((a, j) => (j === i ? value : a)) }));
   }
@@ -561,45 +824,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         <SuperEditor gameId={gameId} question={q} errors={errors} onChange={onChange} onPickImage={onPickImage} onRemoveImage={onRemoveImage} />
       ) : q.kind === "pictures" ? (
         <PicturesEditor gameId={gameId} question={q} errors={errors} onChange={onChange} onPickImage={onPickImage} onRemoveImage={onRemoveImage} />
-      ) : (
-      <div className="field">
-        <span>Картинка</span>
-        {q.imageId ? (
-          <div className="q-image">
-            <MediaImage className="q-image__img" gameId={gameId} mediaId={q.imageId} variant="full" alt="Картинка к вопросу" />
-            <div className="actions">
-              <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
-                {processing ? "Сжимаем…" : "Заменить картинку"}
-              </button>
-              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={() => onRemoveImage()}>
-                Убрать картинку
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="actions">
-            <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
-              {processing ? "Сжимаем…" : "Добавить картинку"}
-            </button>
-          </div>
-        )}
-        <span className="muted small">Картинку покажет экран зала. Мы уменьшим её на этом устройстве, чтобы она быстро грузилась.</span>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            setProcessing(true);
-            // Сжатие идёт на устройстве; запись картинки уходит в очередь и дойдёт при связи.
-            void onPickImage(file).finally(() => setProcessing(false));
-          }}
-        />
-      </div>
-      )}
+      ) : null}
 
       {q.kind === "order" ? (
         <fieldset aria-describedby={describedBy("options")}>
@@ -612,17 +837,29 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <span className="q-row__num" aria-hidden="true">
                 {i + 1}
               </span>
-              <input className="q-row__input" aria-label={`Карточка ${i + 1}`} maxLength={LIMITS.option} value={option} onChange={(e) => setOption(i, e.target.value)} />
+              <input
+                className="q-row__input"
+                aria-label={`Карточка ${i + 1}`}
+                data-row={`${q.id}-card-${i}`}
+                enterKeyHint={i < q.options.length - 1 ? "next" : "enter"}
+                maxLength={LIMITS.option}
+                value={option}
+                onChange={(e) => setOption(i, e.target.value)}
+                onKeyDown={(e) => nextRow(e, i, q.options.length, LIMITS.maxOptions, () => onChange((cur) => ({ ...cur, options: [...cur.options, ""] })), `${q.id}-card`)} />
               <button type="button" className="btn btn--quiet" aria-label={`Карточку ${i + 1} — выше`} disabled={i === 0} onClick={() => onChange((cur) => ({ ...cur, options: moveItem(cur.options, i, i - 1) }))}>
                 ↑
               </button>
               <RemoveButton
                 label={`Удалить карточку ${i + 1}`}
                 disabled={q.options.length <= LIMITS.minOrder}
-                onClick={() => onChange((cur) => ({ ...cur, options: cur.options.filter((_, j) => j !== i) }))}
+                onClick={() => {
+                  remember(`Карточка ${i + 1}${option.trim() ? ` «${option.trim()}»` : ""} удалена`);
+                  onChange((cur) => ({ ...cur, options: cur.options.filter((_, j) => j !== i) }));
+                }}
               />
             </div>
           ))}
+          {removedBar}
           <FieldErrors errors={errors} field="options" questionId={q.id} />
           <button
             type="button"
@@ -687,17 +924,23 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <input
                 className="q-row__input"
                 aria-label={`Верный ответ ${i + 1}`}
+                data-row={`${q.id}-answer-${i}`}
                 maxLength={LIMITS.answer}
                 value={answer}
                 onChange={(e) => setAnswer(i, e.target.value)}
+                onKeyDown={(e) => nextRow(e, i, q.answers.length, LIMITS.answers, () => onChange((cur) => ({ ...cur, answers: [...cur.answers, ""] })), `${q.id}-answer`)}
               />
               <RemoveButton
                 label={`Удалить ответ ${i + 1}`}
                 disabled={q.answers.length <= 1}
-                onClick={() => onChange((cur) => ({ ...cur, answers: cur.answers.filter((_, j) => j !== i) }))}
+                onClick={() => {
+                  remember(`Ответ${answer.trim() ? ` «${answer.trim()}»` : ""} удалён`);
+                  onChange((cur) => ({ ...cur, answers: cur.answers.filter((_, j) => j !== i) }));
+                }}
               />
             </div>
           ))}
+          {removedBar}
           <FieldErrors errors={errors} field="answers" questionId={q.id} />
           <button
             type="button"
@@ -724,13 +967,21 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <input
                 className="q-row__input"
                 aria-label={`Вариант ${LETTERS[i]}`}
+                data-row={`${q.id}-option-${i}`}
+                enterKeyHint={i < q.options.length - 1 ? "next" : "enter"}
+                placeholder={`Вариант ${LETTERS[i]}`}
                 maxLength={LIMITS.option}
                 value={option}
                 onChange={(e) => setOption(i, e.target.value)}
+                onKeyDown={(e) => nextRow(e, i, q.options.length, LIMITS.maxOptions, () => onChange((cur) => ({ ...cur, options: [...cur.options, ""] })), `${q.id}-option`)}
               />
-              <RemoveButton label={`Удалить вариант ${LETTERS[i]}`} disabled={q.options.length <= LIMITS.minOptions} onClick={() => removeOption(i)} />
+              <RemoveButton label={`Удалить вариант ${LETTERS[i]}`} disabled={q.options.length <= LIMITS.minOptions} onClick={() => {
+                  remember(`Вариант ${LETTERS[i]}${option.trim() ? ` «${option.trim()}»` : ""} удалён${correctSet(q).includes(i) ? " (он был правильным)" : ""}`);
+                  removeOption(i);
+                }} />
             </div>
           ))}
+          {removedBar}
           <FieldErrors errors={errors} field="options" questionId={q.id} />
           <FieldErrors errors={errors} field="correct" questionId={q.id} />
           <button
@@ -744,7 +995,6 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </fieldset>
       )}
 
-      {q.kind !== "super" && <TrackTimeline clip={clipOf(q)} onChange={(clip) => onChange((cur) => withClip(cur, clip))} />}
 
       {q.kind === "buzz" && (
         <div className="field">
@@ -795,32 +1045,88 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </label>
         )}
       </div>
+      {q.kind !== "buzz" && q.kind !== "super" && (
+        <div className="q-quick" role="group" aria-label="Время одним касанием">
+          <span className="q-quick__label">Время:</span>
+          {[15, 20, 30, 45, 60, 90].map((t) => (
+            <button key={t} type="button" className={q.timeLimit === t ? "q-quick__btn is-on" : "q-quick__btn"} aria-pressed={q.timeLimit === t} onClick={() => onChange({ timeLimit: t })}>
+              {t} с
+            </button>
+          ))}
+        </div>
+      )}
+      {q.kind !== "super" && (
+        <div className="q-quick" role="group" aria-label="Очки одним касанием">
+          <span className="q-quick__label">Очки:</span>
+          {[50, 100, 200, 300, 500].map((p) => (
+            <button key={p} type="button" className={q.points === p ? "q-quick__btn is-on" : "q-quick__btn"} aria-pressed={q.points === p} onClick={() => onChange({ points: p })}>
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
       {q.kind === "speed" && <p className="muted small">Самый быстрый верный ответ получает максимум, остальные — меньше.</p>}
       {q.kind === "pictures" && <p className="muted small">Очки делятся на картинки: угадал 3 из 4 — три четверти очков.</p>}
 
-      <label className="field">
-        Начать с этого вопроса раунд
-        <input
-          maxLength={LIMITS.round}
-          placeholder="Название раунда, например «Кино»"
-          value={q.round ?? ""}
-          onChange={(e) => onChange({ round: e.target.value === "" ? null : e.target.value })}
-        />
-      </label>
-      <p className="muted small">
-        Пусто — вопрос продолжает прежний раунд. После последнего вопроса раунда экран покажет итоги раунда и общий счёт.
-      </p>
+
 
       <label className="field">
-        Заметка ведущему
+        Заметка ведущему — видно только на пульте
         <textarea
           maxLength={LIMITS.note}
           rows={2}
-          placeholder="Факт, шутка или подводка к вопросу — видно только на пульте"
+          placeholder="Факт, шутка или подводка — видно только вам на пульте"
           value={q.note ?? ""}
           onChange={(e) => onChange({ note: e.target.value })}
         />
       </label>
+
+      {q.kind !== "super" && q.kind !== "pictures" && (
+        <Fold title="Картинка к вопросу" value={q.imageId ? "есть" : "нет"} open={Boolean(q.imageId)}>
+      <div className="field">
+        <span>Картинка</span>
+        {q.imageId ? (
+          <div className="q-image">
+            <MediaImage className="q-image__img" gameId={gameId} mediaId={q.imageId} variant="full" alt="Картинка к вопросу" />
+            <div className="actions">
+              <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
+                {processing ? "Сжимаем…" : "Заменить картинку"}
+              </button>
+              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={() => onRemoveImage()}>
+                Убрать картинку
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="actions">
+            <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
+              {processing ? "Сжимаем…" : "Добавить картинку"}
+            </button>
+          </div>
+        )}
+        <span className="muted small">Картинку покажет экран зала. Мы уменьшим её на этом устройстве, чтобы она быстро грузилась.</span>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            setProcessing(true);
+            // Сжатие идёт на устройстве; запись картинки уходит в очередь и дойдёт при связи.
+            void onPickImage(file).finally(() => setProcessing(false));
+          }}
+        />
+      </div>
+        </Fold>
+      )}
+      {q.kind !== "super" && tracksRepo && (
+        <Fold title={q.kind === "buzz" ? "Трек — что угадывают" : "Трек к вопросу"} value={q.trackId ? "выбран" : "нет"} open={q.kind === "buzz" || Boolean(q.trackId)}>
+          <TrackTimeline clip={clipOf(q)} onChange={(clip) => onChange((cur) => withClip(cur, clip))} />
+        </Fold>
+      )}
     </div>
   );
 }

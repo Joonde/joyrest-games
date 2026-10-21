@@ -235,6 +235,19 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const launchBlocked = errors.length > 0;
   const [previewOpen, setPreviewOpen] = useState(false);
   const canPreview = Boolean(mechanic?.preview) && !launchBlocked;
+
+  /** «Показать, что исправить»: к первому замечанию; закрытая карточка с замечанием открывается. */
+  function toFirstIssue() {
+    const el = document.querySelector<HTMLElement>(".q-card__issue, .has-error, [aria-invalid='true'], .field .error");
+    if (!el) return;
+    const summary = el.closest<HTMLButtonElement>("button[aria-expanded='false']");
+    if (summary) summary.click();
+    requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>("[aria-invalid='true'], .field .error, .q-card__issue, .has-error") ?? el;
+      target.scrollIntoView({ block: "center" });
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.focus({ preventScroll: true });
+    });
+  }
   const MechanicEditor = mechanic?.Editor;
 
   return (
@@ -320,6 +333,11 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               <strong>Пока нельзя запустить.</strong>{" "}
               {errors.length === 1 ? errors[0]?.message : `Исправьте замечания: ${errors.length}. Они отмечены у вопросов ниже.`}
             </p>
+            {editable && (
+              <button type="button" className="btn btn--secondary btn--block" onClick={toFirstIssue}>
+                Показать, что исправить
+              </button>
+            )}
           </div>
         )}
         <div className="actions">
@@ -374,7 +392,23 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
             Как проводить эту игру
           </Link>
-          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
+          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} gameId={game.id} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
+        </section>
+      )}
+      {mechanic?.preview && launchBlocked && (
+        <section className="card stack stack--tight">
+          <h2>Как игра пойдёт</h2>
+          <p className="muted small">
+            Предпросмотр игры откроется, когда исправите {errors.length === 1 ? "замечание" : `замечания (${errors.length})`} — с ошибками игра не пройдёт до конца.
+          </p>
+          <button type="button" className="btn btn--secondary btn--block" disabled>
+            Предпросмотр игры
+          </button>
+          {editable && (
+            <button type="button" className="btn btn--quiet btn--block" onClick={toFirstIssue}>
+              Показать, что исправить
+            </button>
+          )}
         </section>
       )}
       {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}

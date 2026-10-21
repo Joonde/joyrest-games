@@ -2049,6 +2049,28 @@ legend {
   overflow-wrap: anywhere;
 }
 
+/* Уведомление с действием: «Раунд убран — Вернуть». */
+.toast--undo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 20px;
+  text-align: left;
+}
+
+.toast__action {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--color-bg);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-bg);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* Наверху открытого вопроса: в каком он раунде и «+ Новый раунд с этого вопроса» — видно сразу, без прокрутки. */
 .q-card__round-bar {
   display: flex;

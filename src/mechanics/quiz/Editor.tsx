@@ -36,7 +36,7 @@ import {
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
 import { RoundHeader, RoundMap, roundColor, roundName } from "./RoundBlocks";
-import { insertAfter, moveKeepingRounds, nextRoundTitle, removeKeepingRound, removeRoundAt, startRoundAt } from "./roundsEdit";
+import { insertAfter, moveKeepingRounds, moveToRound, nextRoundTitle, removeKeepingRound, removeRoundAt, roundCount, startRoundAt } from "./roundsEdit";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
@@ -60,6 +60,9 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   // Свёрнутые раунды: id первого вопроса раунда.
   const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  // Убрали раунд — несколько секунд можно «Вернуть».
+  const [undo, setUndo] = useState<{ text: string; prev: QuizQuestion[] } | null>(null);
+  const undoTimer = useRef<number | undefined>(undefined);
   const [toast, showToast] = useToast(3500);
   // Картинки, загруженные в этот раз: их можно сразу удалить при замене. Старые картинки
   // остаются до удаления игры — на них может ссылаться уже запущенная сессия.
@@ -110,7 +113,13 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
 
   function add(kind: QuestionKind = "choice") {
     const q = newQuestion(kind);
-    setQuestions([...questions, q]);
+    // Сразу под вопросом, с которым работаете (решение владельца 22 октября 2026); ничего не открыто — в конец игры.
+    const openIndex = questions.findIndex((x) => x.id === openId);
+    const at = openIndex >= 0 ? openIndex : questions.length - 1;
+    const into = rounds.find((r) => at >= r.from && at <= r.to);
+    unfold(into);
+    setQuestions(insertAfter(questions, at, q));
+    if (openIndex >= 0) showToast(`Вопрос ${at + 2} добавлен под вопросом ${at + 1}${into ? ` — раунд «${roundName(into)}»` : ""}`);
     setOpenId(q.id);
     setAdding(false);
     focusLater(`#q-${q.id}-text`);
@@ -130,7 +139,8 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     setQuestions(remaining);
     for (const id of questionImages(question)) releaseImage(id, remaining);
     setToDelete(null);
-    showToast("Вопрос удалён");
+    const gone = rounds.find((r) => r.from === r.to && questions[r.from]?.id === question.id && r.title);
+    showToast(gone && roundCount(remaining) < rounds.length ? `Вопрос удалён. Раунд «${gone.title}» убран — в нём не осталось вопросов` : "Вопрос удалён");
   }
 
   function move(index: number, to: number, focus?: "up" | "down") {
@@ -152,6 +162,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     setQuestions(insertAfter(questions, index, q));
     setOpenId(q.id);
     focusLater(`#q-${q.id}-text`);
+    showToast(`Вопрос ${index + 2} добавлен под вопросом ${index + 1}`);
   }
 
   /** Новый раунд после `index`: блок и первый вопрос в нём. */
@@ -183,9 +194,39 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   function dropRound(index: number) {
     const name = questions[index]?.round;
     const next = removeRoundAt(questions, index);
+    const prev = questions;
     setQuestions(next);
-    const left = quizRounds({ questions: next } as QuizContent).length > 0;
-    showToast(left ? `Раунд «${name}» убран — его вопросы ушли в раунд выше` : `Раунд «${name}» убран — игра без раундов`);
+    const left = roundCount(next) > 0;
+    window.clearTimeout(undoTimer.current);
+    setUndo({ text: left ? `Раунд «${name}» убран, вопросы остались — в раунде выше` : `Раунд «${name}» убран, вопросы остались — игра без раундов`, prev });
+    undoTimer.current = window.setTimeout(() => setUndo(null), 7000);
+  }
+
+  function undoDrop() {
+    if (!undo) return;
+    window.clearTimeout(undoTimer.current);
+    setQuestions(undo.prev);
+    setUndo(null);
+  }
+
+  function unfold(round: (typeof rounds)[number] | undefined) {
+    const key = round ? questions[round.from]?.id : undefined;
+    if (key && folded.has(key)) toggleFold(key);
+  }
+
+  /** «⋯ → В раунд «…»»: вопрос — в конец выбранного раунда. */
+  function sendToRound(question: QuizQuestion, target: (typeof rounds)[number]) {
+    const key = questions[target.from]?.id;
+    if (!key) return;
+    const before = rounds.length;
+    const next = moveToRound(questions, question.id, key);
+    setQuestions(next);
+    const after = quizRounds({ questions: next } as QuizContent);
+    const now = next.findIndex((q) => q.id === question.id);
+    const into = after.find((r) => now >= r.from && now <= r.to);
+    unfold(target);
+    showToast(`Вопрос перенесён в «${roundName(into ?? target)}» — теперь № ${now + 1}${after.length < before ? ". Прежний раунд опустел и убран" : ""}`);
+    requestAnimationFrame(() => document.getElementById(`q-${question.id}-card`)?.scrollIntoView({ block: "center", behavior: smoothScroll() }));
   }
 
   function toggleFold(firstId: string) {
@@ -310,6 +351,9 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             const menu: MenuAction[] = [{ label: "Предпросмотр", onClick: () => setPreview(index) }];
             if (editable) {
               if (room > 0) menu.push({ label: "Дублировать", onClick: () => duplicate(index) });
+              rounds.forEach((r) => {
+                if (index < r.from || index > r.to) menu.push({ label: `Перенести в «${roundName(r)}»`, onClick: () => sendToRound(q, r) });
+              });
               menu.push({ label: "Удалить", onClick: () => setToDelete(q) });
             }
             const classes = ["card", "q-card"];
@@ -338,7 +382,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             const addRow = editable && round && round.to === index && room > 0 && (
               <li className="q-round-add" style={cardStyle}>
                 <button type="button" className="q-round-add__btn" onClick={() => addAfter(index)}>
-                  + Вопрос в «{roundName(round)}»
+                  + Вопрос в этот раунд
                 </button>
                 <button type="button" className="q-round-add__btn" onClick={() => addRoundAfter(index)}>
                   + Новый раунд
@@ -393,7 +437,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                       <span className="q-card__meta muted small">
                         {KIND_TITLES[q.kind]} · {q.timeLimit} с · {q.points} очк.
                         {q.imageId ? " · картинка" : ""}
-                        {round ? ` · ${index - round.from + 1} из ${round.to - round.from + 1} в раунде` : ""}
+                        {round ? ` · ${index - round.from + 1} из ${round.to - round.from + 1}` : ""}
                       </span>
                       {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
                       {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}
@@ -463,6 +507,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                       <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreview(index)}>
                         Предпросмотр
                       </button>
+                      {editable && room > 0 && (
+                        <button type="button" className="btn btn--secondary btn--block" onClick={() => addAfter(index)}>
+                          + Добавить вопрос ниже
+                        </button>
+                      )}
                       <button type="button" className="btn btn--quiet btn--block" onClick={() => collapse(q.id)}>
                         Готово — свернуть вопрос {index + 1}
                       </button>
@@ -515,7 +564,15 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
       >
         <p>«{toDelete?.text.trim() || "Без текста"}» пропадёт из игры. Запущенные сессии не изменятся.</p>
       </ConfirmDialog>
-      <Toast text={toast} />
+      <Toast text={undo ? null : toast} />
+      {undo && (
+        <div className="toast toast--undo" role="status">
+          <span>{undo.text}</span>
+          <button type="button" className="toast__action" onClick={undoDrop}>
+            Вернуть
+          </button>
+        </div>
+      )}
     </>
   );
 }

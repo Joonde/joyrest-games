@@ -46,3 +46,23 @@ export function removeRoundAt(questions: QuizQuestion[], index: number): QuizQue
 export function insertAfter(questions: QuizQuestion[], index: number, question: QuizQuestion): QuizQuestion[] {
   return [...questions.slice(0, index + 1), question, ...questions.slice(index + 1)];
 }
+
+/**
+ * Перенести вопрос в конец другого раунда (`target` — id первого вопроса того раунда).
+ * Если вопрос начинал свой раунд, раунд начнётся со следующего вопроса; был в раунде один — раунд пропадает.
+ */
+export function moveToRound(questions: QuizQuestion[], id: string, target: string): QuizQuestion[] {
+  const question = questions.find((q) => q.id === id);
+  if (!question || id === target) return questions;
+  const rest = removeKeepingRound(questions, id);
+  const at = rest.findIndex((q) => q.id === target);
+  if (at < 0) return questions;
+  const round = quizRounds({ questions: rest } as QuizContent).find((r) => at >= r.from && at <= r.to);
+  if (!round) return questions;
+  return insertAfter(rest, round.to, { ...question, round: null });
+}
+
+/** Сколько раундов в списке. */
+export function roundCount(questions: QuizQuestion[]): number {
+  return quizRounds({ questions } as QuizContent).length;
+}

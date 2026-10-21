@@ -220,7 +220,7 @@ export function RoundHeader({ round, index, auto, folded, editable, onFold, onRe
             </button>
           )}
           {editable && !auto && (
-            <button type="button" className="q-round__btn" aria-label={`Убрать раунд «${name}»`} onClick={onRemove}>
+            <button type="button" className="q-round__btn" aria-label={`Убрать раунд «${name}», вопросы останутся`} title="Убрать раунд — вопросы останутся в раунде выше" onClick={onRemove}>
               ✕
             </button>
           )}

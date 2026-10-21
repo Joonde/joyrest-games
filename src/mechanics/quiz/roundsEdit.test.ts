@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newQuestion, quizRounds, type QuizContent, type QuizQuestion } from "./content";
-import { insertAfter, moveKeepingRounds, nextRoundTitle, removeKeepingRound, removeRoundAt, startRoundAt } from "./roundsEdit";
+import { insertAfter, moveKeepingRounds, moveToRound, nextRoundTitle, removeKeepingRound, removeRoundAt, startRoundAt } from "./roundsEdit";
 
 function game(...rounds: Array<string | null>): QuizQuestion[] {
   return rounds.map((round, i) => ({ ...newQuestion("choice"), id: `q${i + 1}`, text: `Вопрос ${i + 1}`, round }));
@@ -61,5 +61,20 @@ describe("раунды — блоки в списке вопросов", () => {
     expect(ids(added)).toEqual(["q1", "q2", "new", "q3", "q4"]);
     expect(groups(added)).toEqual([["Кино", 0, 2], ["Музыка", 3, 4]]);
     expect(ids(insertAfter(qs, -1, { ...newQuestion("choice"), id: "first" }))[0]).toBe("first");
+  });
+
+  it("перенос в другой раунд — в конец того раунда, блоки на месте", () => {
+    const qs = game("Кино", null, null, "Музыка", null, "Москва", null);
+    const down = moveToRound(qs, "q2", "q4");
+    expect(ids(down)).toEqual(["q1", "q3", "q4", "q5", "q2", "q6", "q7"]);
+    expect(groups(down)).toEqual([["Кино", 0, 1], ["Музыка", 2, 4], ["Москва", 5, 6]]);
+    // Первый вопрос раунда уезжает — раунд начинается со следующего, название сохраняется.
+    const first = moveToRound(qs, "q4", "q1");
+    expect(ids(first)).toEqual(["q1", "q2", "q3", "q4", "q5", "q6", "q7"]);
+    expect(groups(first)).toEqual([["Кино", 0, 3], ["Музыка", 4, 4], ["Москва", 5, 6]]);
+    // Вверх, в раунд без названия (вопросы до первого блока).
+    const auto = game(null, null, "Кино", null);
+    expect(groups(moveToRound(auto, "q4", "q1"))).toEqual([["", 0, 2], ["Кино", 3, 3]]);
+    expect(moveToRound(qs, "нет", "q1")).toBe(qs);
   });
 });

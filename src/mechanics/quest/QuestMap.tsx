@@ -8,7 +8,7 @@ import { playSound } from "../../components/live/sound";
 import type { Session } from "../../data/types";
 import type { QuestContent, QuestKind } from "./content";
 import { cellAt, finishOf, type QuestResult } from "./logic";
-import { ART_H, ART_W, FIELDS, pathLength, placeCells } from "./paths";
+import { ART_H, ART_W, FIELDS, pathLength, pathRuns, placeCells } from "./paths";
 
 const TEAM_COLORS = ["#E3AA9C", "#E3C68C", "#A3C2AA", "#D2A0AC", "#B3AADD", "#9FC3D6", "#E0B3A0", "#C9C08F"];
 const STEP_MS = 320;
@@ -104,6 +104,7 @@ export function QuestMap({ session, content, result: r, size = "screen" }: { ses
   const field = FIELDS[content.style] ?? FIELDS.classic;
   const total = finishOf(content) + 1;
   const points = useMemo(() => placeCells(field.path, total), [field, total]);
+  const runs = useMemo(() => pathRuns(field.path).map((run) => run.map((p) => `${p.x},${p.y}`).join(" ")), [field]);
   const spacing = useMemo(() => pathLength(field.path) / Math.max(1, total - 1), [field, total]);
   // Клетка — круг чуть меньше шага по дорожке (40 клеток — крупные со значками, 100 — мелкие, только цветом).
   const R = Math.max(10, Math.min(24, spacing * 0.46));
@@ -135,6 +136,15 @@ export function QuestMap({ session, content, result: r, size = "screen" }: { ses
           </radialGradient>
         </defs>
         <image href={src} x="0" y="0" width={ART_W} height={ART_H} preserveAspectRatio="xMidYMid slice" />
+        {/* Полоса дорожки закрывает нарисованные камни: клеток игры больше или меньше камней — без неё клетки наезжают на камни. */}
+        <g className="qm-lane" aria-hidden="true">
+          {runs.map((pts, k) => (
+            <polyline key={`e${k}`} points={pts} fill="none" stroke={field.lane.edge} strokeWidth={field.lane.width + 8} strokeLinecap="round" strokeLinejoin="round" opacity={0.94} />
+          ))}
+          {runs.map((pts, k) => (
+            <polyline key={`f${k}`} points={pts} fill="none" stroke={field.lane.color} strokeWidth={field.lane.width} strokeLinecap="round" strokeLinejoin="round" opacity={0.96} />
+          ))}
+        </g>
         {/* Клетки на нарисованной дорожке */}
         {points.map((p, i) => {
           if (i === 0 || i === total - 1) return null;

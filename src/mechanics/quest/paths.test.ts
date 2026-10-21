@@ -22,6 +22,15 @@ describe("дорожки нарисованных полей", () => {
     }
   });
 
+  it("на каждом поле дорожка проходит по всем нарисованным камням (не меньше 30 точек) и у полосы есть цвет", () => {
+    for (const field of Object.values(FIELDS)) {
+      expect(field.path.filter((p) => p !== null).length).toBeGreaterThanOrEqual(30);
+      expect(field.lane.width).toBeGreaterThanOrEqual(60);
+      expect(field.lane.color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(field.lane.edge).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
   it("по разрыву (мосту) клетки не ставятся", () => {
     const cells = placeCells([{ x: 0, y: 0 }, { x: 100, y: 0 }, null, { x: 500, y: 0 }, { x: 600, y: 0 }], 5);
     expect(cells.map((c) => Math.round(c.x))).toEqual([0, 50, 100, 550, 600]);

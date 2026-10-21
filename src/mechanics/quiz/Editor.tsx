@@ -57,9 +57,21 @@ function blankQuestion(kind: QuestionKind): QuizQuestion {
   return hasOptions(kind) ? { ...q, correct: -1, alsoCorrect: [] } : q;
 }
 
+/** Название суперигры по раунду: «Суперигра «Кино»» (без раундов — просто «Суперигра»). */
+function superTitle(round?: string): string {
+  return round ? `Суперигра «${round}»` : "Суперигра";
+}
+
 /** Ключ свёрнутого раунда: название (раунд без названия — один, первый). */
 function foldKey(round: { title: string }): string {
   return round.title || "\u0000auto";
+}
+
+/** Подпись суперигры в списке: «4 уровня · Сундуки · 100–500 очк.». */
+function superMeta(q: QuizQuestion): string {
+  const points = (q.levels ?? []).map((l) => l.points).filter((n) => Number.isFinite(n));
+  const range = points.length > 0 ? `${Math.min(...points)}–${Math.max(...points)} очк.` : "";
+  return [`${q.levels?.length ?? 4} уровня`, STYLE_TITLES[parseStyle(q.superStyle)], range].filter(Boolean).join(" · ");
 }
 
 const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "super"];
@@ -136,6 +148,14 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   }
 
   function add(kind: QuestionKind = "choice") {
+    if (kind === "super") {
+      // Суперигра — всегда в конец раунда открытого вопроса (ничего не открыто — последнего раунда или игры).
+      const openIndex = questions.findIndex((x) => x.id === openId);
+      const target = openIndex >= 0 ? rounds.find((r) => openIndex >= r.from && openIndex <= r.to) : rounds[rounds.length - 1];
+      addSuper(target ? target.to : questions.length - 1, target);
+      setAdding(false);
+      return;
+    }
     const q = blankQuestion(kind);
     // Сразу под вопросом, с которым работаете (решение владельца 22 октября 2026); ничего не открыто — в конец игры.
     const openIndex = questions.findIndex((x) => x.id === openId);
@@ -189,6 +209,18 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     showToast(`Вопрос ${index + 2} добавлен под вопросом ${index + 1}`);
   }
 
+  /** Суперигра раунда — после `index` (последнего вопроса раунда), с названием по раунду. */
+  function addSuper(index: number, round: (typeof rounds)[number] | undefined) {
+    if (room <= 0) return;
+    const name = round ? roundName(round) : "";
+    const q = { ...newQuestion("super"), text: superTitle(name) };
+    unfold(round);
+    setQuestions(insertAfter(questions, index, q));
+    setOpenId(q.id);
+    showToast(round ? `Суперигра встала в конец раунда «${name}»` : "Суперигра встала последним вопросом игры");
+    requestAnimationFrame(() => document.getElementById(`q-${q.id}-card`)?.scrollIntoView({ block: "start", behavior: smoothScroll() }));
+  }
+
   /** Новый раунд после `index`: блок и первый вопрос в нём. */
   function addRoundAfter(index: number) {
     if (room <= 0) return;
@@ -212,7 +244,17 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     if (!current) return;
     // Пустое название — прежнее (раунд не пропадает: блок убирают кнопкой ✕).
     const round = name || current.round || nextRoundTitle(questions, index);
-    setQuestions(questions.map((q, i) => (i === index ? { ...q, round } : q)));
+    // Суперигра раунда с названием по умолчанию переименовывается вместе с раундом.
+    const block = rounds.find((r) => r.from === index);
+    const before = block ? roundName(block) : "";
+    const auto = new Set([superTitle(before), superTitle()]);
+    setQuestions(
+      questions.map((q, i) => {
+        const inRound = block ? i >= block.from && i <= block.to : i === index;
+        const text = inRound && q.kind === "super" && auto.has(q.text.trim()) ? superTitle(round) : q.text;
+        return i === index ? { ...q, round, text } : text === q.text ? q : { ...q, text };
+      }),
+    );
   }
 
   function dropRound(index: number) {
@@ -397,6 +439,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             const roundKey = round ? foldKey(round) : "";
             const isFolded = round ? folded.has(roundKey) : false;
             if (round) classes.push("q-card--round");
+            const isSuper = q.kind === "super";
+            if (isSuper) classes.push("q-card--super");
+            const lastAt = round ? round.to : questions.length - 1;
+            const superLate = isSuper && index !== lastAt;
+            const roundHasSuper = round ? questions.slice(round.from, round.to + 1).some((x) => x.kind === "super") : false;
             const cardStyle = round ? ({ "--rc": roundColor(roundIndex) } as CSSProperties) : undefined;
             const header = round && round.from === index && (
               <RoundHeader
@@ -418,6 +465,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                 <button type="button" className="q-round-add__btn" onClick={() => addRoundAfter(index)}>
                   + Новый раунд
                 </button>
+                {!roundHasSuper && (
+                  <button type="button" className="q-round-add__btn q-round-add__btn--super" onClick={() => addSuper(index, round)}>
+                    👑 + Суперигра в конец «{roundName(round)}»
+                  </button>
+                )}
               </li>
             );
             if (isFolded) return <Fragment key={q.id}>{header}</Fragment>;
@@ -462,20 +514,38 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                     aria-controls={`q-${q.id}-form`}
                     onClick={() => toggle(q.id)}
                   >
-                    <span className="q-card__number">{index + 1}</span>
+                    <span className="q-card__number" aria-label={isSuper ? `Вопрос ${index + 1}, суперигра` : undefined}>
+                      {isSuper ? "👑" : index + 1}
+                    </span>
                     <span className="q-card__titles">
-                      <span className="q-card__text">{q.text.trim() || "Без текста"}</span>
+                      <span className="q-card__text">
+                        {isSuper ? "👑 " : ""}
+                        {q.text.trim() || "Без текста"}
+                      </span>
                       <span className="q-card__meta muted small">
-                        {KIND_TITLES[q.kind]} · {q.timeLimit} с · {q.points} очк.
+                        {isSuper ? superMeta(q) : `${KIND_TITLES[q.kind]} · ${q.timeLimit} с · ${q.points} очк.`}
                         {q.imageId ? " · картинка" : ""}
                         {round ? ` · ${index - round.from + 1}\u00a0из\u00a0${round.to - round.from + 1}` : ""}
                       </span>
+                      {isSuper && !superLate && <span className="q-card__super-badge">👑 {round ? "Финал раунда" : "Финал игры"}</span>}
                       {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
                       {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}
                     </span>
                   </button>
                   <ActionMenu icon="dots" label={`Действия с вопросом ${index + 1}`} actions={menu} />
                 </div>
+
+                {editable && superLate && (
+                  <div className="q-card__super-warn" role="note">
+                    <span>
+                      <b>Суперигра лучше в конце {round ? `раунда «${roundName(round)}»` : "игры"} — перенести?</b>{" "}
+                      {round ? "Её очки идут в счёт этого раунда, поэтому она идёт после всех его вопросов." : "Её ставят последним вопросом."}
+                    </span>
+                    <button type="button" className="btn btn--secondary btn--block" onClick={() => move(index, lastAt)}>
+                      Перенести в конец {round ? "раунда" : "игры"}
+                    </button>
+                  </div>
+                )}
 
                 {editable && (
                   <div className="q-card__toolbar">
@@ -511,10 +581,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                       <div className="q-card__round-bar">
                         {round && (
                           <span className="q-card__round-tag">
-                            ◆ {roundName(round)} · вопрос {index - round.from + 1} из {round.to - round.from + 1}
+                            ◆ {roundName(round)} · {isSuper ? "финал раунда" : `вопрос ${index - round.from + 1} из ${round.to - round.from + 1}`}
                           </span>
                         )}
-                        {editable && (!round || round.from !== index) && (
+                        {isSuper && <span className="muted small">Суперигра — последняя в раунде, её очки идут в счёт раунда.</span>}
+                        {editable && !isSuper && (!round || round.from !== index) && (
                           <button type="button" className="btn btn--quiet q-card__round-start" onClick={() => startRound(index)}>
                             + Новый раунд с этого вопроса
                           </button>

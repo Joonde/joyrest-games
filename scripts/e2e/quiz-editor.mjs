@@ -422,6 +422,56 @@ async function main() {
     check((await openCard().locator(".q-row--correct").count()) === 0, "В новом вопросе правильный вариант не отмечен заранее");
     await openCard().getByRole("button", { name: /Готово — свернуть/ }).click();
 
+    // 15в. Суперигра раунда: кнопка в конце раунда, корона, название по раунду, переименование, «перенести в конец», окно «Добавить вопрос».
+    const superBtn = page.getByRole("button", { name: /Суперигра в конец «Кино»/ });
+    check(await superBtn.isVisible(), "В конце раунда «Кино» есть «👑 + Суперигра в конец «Кино»»");
+    await superBtn.click();
+    await settle();
+    const sup = page.locator(".q-list > .q-card--super.is-open");
+    check((await sup.count()) === 1, "Суперигра добавлена и сразу открыта");
+    check((await sup.locator(".q-card__number").innerText()).includes("👑"), "У суперигры корона вместо номера");
+    check(/Кино · финал раунда/.test(await sup.locator(".q-card__round-tag").innerText()), "Наверху: «◆ Кино · финал раунда»");
+    let g2 = (await api("GET", `/api/games/${gameId}`, host.cookie)).data?.content?.questions ?? [];
+    let si = g2.findIndex((x) => x.kind === "super");
+    check(si >= 0 && g2[si].text === "Суперигра «Кино»" && g2[si + 1]?.round === "Раунд 2", `На сервере: «${g2[si]?.text}» последней в «Кино»`, `На сервере суперигра: № ${si + 1}, «${g2[si]?.text}», дальше раунд «${g2[si + 1]?.round}»`);
+    check((await page.locator(".round-map__cell--super").count()) === 1 || (await page.locator(".round-map__seg-name", { hasText: "👑" }).count()) === 1, "На карте раундов у «Кино» корона");
+    check(!(await page.getByRole("button", { name: /Суперигра в конец «Кино»/ }).isVisible().catch(() => false)), "У «Кино» кнопки суперигры больше нет — она уже есть");
+    await snap("superigra");
+    // Переименовать «Кино» → «Фильмы»: суперигра переименовывается сама.
+    await openCard().getByRole("button", { name: /Готово — свернуть/ }).click();
+    await page.locator(".q-round").first().getByRole("button", { name: /Переименовать раунд/ }).click();
+    await page.locator(".q-round__input").fill("Фильмы");
+    await page.locator(".q-round__input").press("Enter");
+    await settle();
+    g2 = (await api("GET", `/api/games/${gameId}`, host.cookie)).data?.content?.questions ?? [];
+    si = g2.findIndex((x) => x.kind === "super");
+    check(g2[si]?.text === "Суперигра «Фильмы»", "Раунд переименован — суперигра стала «Суперигра «Фильмы»»", `Суперигра после переименования: «${g2[si]?.text}»`);
+    // Стрелка вверх — суперигра не последняя: подсказка и «Перенести в конец раунда».
+    await page.locator(".q-list > .q-card--super").getByRole("button", { name: /Поднять вопрос/ }).click();
+    await page.waitForTimeout(400);
+    const warnBox = page.locator(".q-card__super-warn");
+    check(await warnBox.isVisible(), `Подсказка: «${(await warnBox.innerText().catch(() => "")).split("\n")[0]}»`);
+    await snap("superigra-ne-v-konce");
+    await warnBox.getByRole("button", { name: "Перенести в конец раунда" }).click();
+    await settle();
+    g2 = (await api("GET", `/api/games/${gameId}`, host.cookie)).data?.content?.questions ?? [];
+    si = g2.findIndex((x) => x.kind === "super");
+    check(g2[si + 1]?.round === "Раунд 2" && !(await warnBox.isVisible().catch(() => false)), "«Перенести в конец раунда» вернул суперигру последней, подсказка ушла");
+    // Окно «Добавить вопрос» → «Суперигра»: в конец раунда открытого вопроса (Музыка).
+    const musicStart = g2.findIndex((x) => x.round === "Музыка");
+    await cardByNumber(musicStart + 1).locator(".q-card__summary").click();
+    await openCard().waitFor({ timeout: WAIT });
+    await page.getByRole("button", { name: "Добавить вопрос", exact: true }).first().click();
+    await page.locator(".add-question summary", { hasText: "В конце раунда" }).click();
+    await page.locator(".add-question").getByRole("button", { name: /Суперигра/ }).click();
+    await settle();
+    g2 = (await api("GET", `/api/games/${gameId}`, host.cookie)).data?.content?.questions ?? [];
+    const supers = g2.flatMap((x, i) => (x.kind === "super" ? [[x.text, i]] : []));
+    const last = supers.at(-1);
+    check(last && last[0] === "Суперигра «Музыка»" && last[1] === g2.length - 1, `«Добавить вопрос» → «Суперигра» встала в конец «Музыки»: «${last?.[0]}»`, `Суперигры на сервере: ${JSON.stringify(supers)}, вопросов ${g2.length}`);
+    await openCard().getByRole("button", { name: /Готово — свернуть/ }).click().catch(() => {});
+    await snap("superigra-muzyka");
+
     // 16. Размеры: шрифт, кнопки, прокрутка вбок.
     const sizes = await page.evaluate(() => {
       const small = [];

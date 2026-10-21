@@ -2108,6 +2108,53 @@ legend {
   font-weight: 700;
 }
 
+/* Суперигра в конструкторе: корона вместо номера, золотистая карточка, «Финал раунда», подсказка «перенести в конец». */
+.q-card--super {
+  background: linear-gradient(135deg, color-mix(in srgb, #e3c68c 20%, var(--color-surface)), var(--color-surface) 60%);
+}
+
+.q-card--super .q-card__number {
+  background: #e3c68c;
+  color: #221e1b;
+}
+
+.q-card__super-badge {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #e3c68c;
+  color: #221e1b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.q-card__super-warn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 16px 12px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--color-danger);
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.q-card__super-warn b {
+  color: var(--color-danger);
+}
+
+.q-round-add__btn--super {
+  flex-basis: 100%;
+  border-style: solid;
+  border-color: #e3c68c;
+  background: color-mix(in srgb, #e3c68c 12%, transparent);
+}
+
+.round-map__cell--super {
+  background: linear-gradient(135deg, #f3dfae, #c9a15f);
+  font-size: 17px;
+}
+
 /* Уведомление с действием: «Раунд убран — Вернуть». */
 .toast--undo {
   display: flex;

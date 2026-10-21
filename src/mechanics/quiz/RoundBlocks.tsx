@@ -60,7 +60,7 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
   const groups: Array<{ round: QuizRound | null; index: number }> = rounds.length > 0 ? rounds.map((round, index) => ({ round, index })) : [{ round: null, index: 0 }];
 
   return (
-    <div className="round-map" aria-label="Карта раундов">
+    <div id="quiz-round-map" className="round-map" aria-label="Карта раундов">
       <div className="round-map__tabs" role="group" aria-label="Вид карты">
         <button type="button" className="round-map__tab" aria-pressed={view === "bar"} onClick={() => choose("bar")}>
           Полосой раундов

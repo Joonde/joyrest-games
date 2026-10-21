@@ -2092,6 +2092,16 @@ legend {
   overflow-wrap: anywhere;
 }
 
+.q-card__to-map {
+  min-height: 44px;
+  margin-left: auto;
+  font-size: 15px;
+}
+
+.round-map {
+  scroll-margin-top: calc(60px + var(--safe-top, 0px));
+}
+
 .q-card__round-start {
   min-height: 44px;
   padding: 6px 14px;

@@ -47,6 +47,11 @@ import { LETTERS } from "./views";
 import { LevelIcon } from "../../components/live/SuperGame";
 import { LEVEL_NAMES, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_LIMITS, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
+/** Ключ свёрнутого раунда: название (раунд без названия — один, первый). */
+function foldKey(round: { title: string }): string {
+  return round.title || "\u0000auto";
+}
+
 const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "super"];
 
 /** Конструктор квиза: список вопросов, правка, порядок, импорт списком и предпросмотр. */
@@ -59,7 +64,16 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   // Свёрнутые раунды: id первого вопроса раунда.
-  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  // Свёрнутые раунды — по названию (переживает перенос вопросов), запоминаются на устройстве для этой игры.
+  const foldStore = `joyrest.quiz.folded.${gameId}`;
+  const [folded, setFolded] = useState<Set<string>>(() => {
+    try {
+      const raw: unknown = JSON.parse(localStorage.getItem(foldStore) ?? "[]");
+      return new Set(Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  });
   // Убрали раунд — несколько секунд можно «Вернуть».
   const [undo, setUndo] = useState<{ text: string; prev: QuizQuestion[] } | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
@@ -210,8 +224,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   }
 
   function unfold(round: (typeof rounds)[number] | undefined) {
-    const key = round ? questions[round.from]?.id : undefined;
-    if (key && folded.has(key)) toggleFold(key);
+    if (round && folded.has(foldKey(round))) toggleFold(foldKey(round));
   }
 
   /** «⋯ → В раунд «…»»: вопрос — в конец выбранного раунда. */
@@ -229,22 +242,30 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     requestAnimationFrame(() => document.getElementById(`q-${question.id}-card`)?.scrollIntoView({ block: "center", behavior: smoothScroll() }));
   }
 
-  function toggleFold(firstId: string) {
+  function toggleFold(key: string) {
     setFolded((prev) => {
       const next = new Set(prev);
-      if (next.has(firstId)) next.delete(firstId);
-      else next.add(firstId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(foldStore, JSON.stringify([...next]));
+      } catch {
+        // Нет хранилища — свёрнутое живёт до перезагрузки.
+      }
       return next;
     });
+  }
+
+  /** Карта раундов далеко наверху — вернуться к ней одним касанием. */
+  function toMap() {
+    document.getElementById("quiz-round-map")?.scrollIntoView({ block: "start", behavior: smoothScroll() });
   }
 
   /** Касание карты: раунд разворачивается, вопрос открывается и встаёт в начало экрана. */
   function pick(index: number) {
     const q = questions[index];
     if (!q) return;
-    const round = rounds.find((r) => index >= r.from && index <= r.to);
-    const first = round ? questions[round.from]?.id : undefined;
-    if (first && folded.has(first)) toggleFold(first);
+    unfold(rounds.find((r) => index >= r.from && index <= r.to));
     setOpenId(q.id);
     requestAnimationFrame(() => document.getElementById(`q-${q.id}-card`)?.scrollIntoView({ block: "start", behavior: smoothScroll() }));
   }
@@ -363,7 +384,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             if (dropIndex === index + 1 && index === questions.length - 1) classes.push("drop-after");
             const roundIndex = rounds.findIndex((r) => index >= r.from && index <= r.to);
             const round = roundIndex >= 0 ? rounds[roundIndex] : undefined;
-            const roundKey = round ? questions[round.from]?.id ?? "" : "";
+            const roundKey = round ? foldKey(round) : "";
             const isFolded = round ? folded.has(roundKey) : false;
             if (round) classes.push("q-card--round");
             const cardStyle = round ? ({ "--rc": roundColor(roundIndex) } as CSSProperties) : undefined;
@@ -489,6 +510,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                           </button>
                         )}
                         {editable && !round && <span className="muted small">Вопросы выше станут «Раундом 1», этот и ниже — «Раундом 2».</span>}
+                        {questions.length >= 8 && (
+                          <button type="button" className="btn btn--quiet q-card__to-map" onClick={toMap}>
+                            ↑ К карте раундов
+                          </button>
+                        )}
                       </div>
                     )}
                     {editable ? (

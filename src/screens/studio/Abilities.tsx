@@ -2,11 +2,13 @@
  * «Мои возможности» (`/studio/abilities`, решение владельца 15 октября 2026): что человек может и чего не может в платформе —
  * по его профессии, роли и доступу (`src/core/abilities.ts`, те же проверки прав, что на сервере) — и «Скачать PDF»
  * (печать страницы: на iPhone — «Поделиться» → «Сохранить в Файлы»). Владелец открывает её для любого человека
- * (`?uid=`, из «⋯» на карточке): скачать и отправить сотруднику.
+ * (`?uid=`, из «⋯» на карточке): скачать и отправить сотруднику. `?profession=` (только владелец, вкладка «Инструкции» в
+ * «Команде JoyRest», решение владельца 21 октября 2026) — как платформу видит новый человек этой профессии: без роли доступа,
+ * менеджер по продажам — с ролью «Менеджер по продажам», как при добавлении.
  */
 import { Link, useSearchParams } from "react-router-dom";
 import { abilitiesOf } from "../../core/abilities";
-import { professionTitle } from "../../core/professions";
+import { isProfession, professionTitle } from "../../core/professions";
 import { permissions, useLoad, usersRepo, type HostAccount, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
@@ -34,13 +36,17 @@ function AbilitiesFor({ profile }: { profile: UserProfile }) {
   const asked = params.get("uid");
   const owner = permissions.canManageHosts(profile);
   const other = owner && asked && asked !== profile.uid ? asked : null;
+  const pro = params.get("profession");
+  const sample = owner && !other && isProfession(pro) ? pro : null;
   const [people, retry] = useLoad(() => (other ? usersRepo.listHosts() : Promise.resolve(NONE)), [other]);
   if (other && people.status === "loading") return <ListSkeleton />;
   if (other && people.status === "error") return <LoadFailedInline onRetry={retry} />;
   const target = other ? (people.status === "ready" ? people.data.find((h) => h.uid === other) : undefined) : undefined;
   if (other && !target) return <p className="muted">Человек не найден.</p>;
-  const name = target ? target.name : profile.name;
-  const actor: UserProfile = target ?? profile;
+  const name = sample ? professionTitle(sample) : target ? target.name : profile.name;
+  const actor: UserProfile = sample
+    ? { ...profile, uid: "sample", role: "host", active: true, venueAccess: false, profession: sample, accessRole: sample === "sales" ? "sales" : null }
+    : (target ?? profile);
   const a = abilitiesOf(actor, permissions);
   const today = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Moscow" });
 
@@ -56,13 +62,19 @@ function AbilitiesFor({ profile }: { profile: UserProfile }) {
           <li>на {today}</li>
         </ul>
         <p>{a.summary}</p>
+        {sample && (
+          <p className="muted small">
+            Так платформу видит новый человек этой профессии. Дадите роль доступа — возможностей станет больше. Для конкретного
+            человека — «Команда JoyRest» → «⋯» на его карточке.
+          </p>
+        )}
       </header>
 
       <div className="actions abilities__tools">
         <button type="button" className="btn btn--block" onClick={() => window.print()}>
           Скачать PDF
         </button>
-        {!target && a.guides.map((g) => (
+        {!target && !sample && a.guides.map((g) => (
           <Link key={g.to} className="btn btn--secondary btn--block" to={g.to}>
             {g.title}
           </Link>

@@ -118,7 +118,7 @@ export function cleanLinks(value: unknown): string[] {
 }
 
 /** Откуда пришёл клиент (канал) — для карточки и «Итогов». Пусто — не указан. */
-export type ClientOrigin = "site" | "avito" | "qr" | "card" | "telegram" | "whatsapp" | "instagram" | "vk" | "recommend" | "call" | "other";
+export type ClientOrigin = "site" | "avito" | "qr" | "card" | "telegram" | "whatsapp" | "instagram" | "vk" | "recommend" | "call" | "past" | "other";
 export const ORIGIN_TITLES: Record<ClientOrigin, string> = {
   site: "Сайт",
   avito: "Авито",
@@ -130,6 +130,8 @@ export const ORIGIN_TITLES: Record<ClientOrigin, string> = {
   vk: "ВКонтакте",
   recommend: "Рекомендация",
   call: "Звонок",
+  // Прежний клиент: из контактов телефона владельца («Клиенты» → «Мои контакты»; 21 октября 2026).
+  past: "Прежний клиент",
   other: "Другое",
 };
 export const CLIENT_ORIGINS = Object.keys(ORIGIN_TITLES) as ClientOrigin[];

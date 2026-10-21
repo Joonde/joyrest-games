@@ -40,7 +40,9 @@ import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { TelegramConnect } from "../../components/TelegramConnect";
 import { Toast, useToast } from "../../components/Toast";
+import { Tabs } from "../../components/Tabs";
 import { TopBar } from "../../components/TopBar";
+import { ContactsTab } from "./ContactsTab";
 import { brand } from "../../themes/brand";
 import { newId, Pill, useLastReady } from "./calendarParts";
 import { studioActions } from "./Studio";
@@ -156,11 +158,36 @@ export function Clients() {
           ) : !permissions.canManageClients(profile) ? (
             <p className="muted">База клиентов открыта владельцу агентства и менеджеру по продажам.</p>
           ) : (
-            <ClientBase profile={profile} />
+            <ClientsTabs profile={profile} />
           )}
         </main>
       )}
     </HostGate>
+  );
+}
+
+/** Вкладки «Клиентов»: база и (только владельцу) «Мои контакты» — прежние клиенты из контактов телефона. */
+function ClientsTabs({ profile }: { profile: UserProfile }) {
+  const [params, setParams] = useSearchParams();
+  const own = permissions.canExportClients(profile);
+  const tab = own && params.get("tab") === "contacts" ? "contacts" : "base";
+  if (!own) return <ClientBase profile={profile} />;
+  return (
+    <>
+      <Tabs
+        idPrefix="clients"
+        label="Клиенты"
+        value={tab}
+        onChange={(next) => setParams(next === "contacts" ? { tab: "contacts" } : {}, { replace: true })}
+        items={[
+          { id: "base", label: "База клиентов" },
+          { id: "contacts", label: "Мои контакты" },
+        ]}
+      />
+      <div id={`clients-panel-${tab}`} role="tabpanel" className="stack">
+        {tab === "contacts" ? <ContactsTab profile={profile} /> : <ClientBase profile={profile} />}
+      </div>
+    </>
   );
 }
 

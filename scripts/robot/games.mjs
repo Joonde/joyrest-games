@@ -1,6 +1,6 @@
 // Игры робота-ведущего: шаблоны, режимы и составы (run.mjs — правила, inspect.mjs — Ревизор).
 export const MECHANICS = {
-  quiz: { modes: ["solo", "teams"], demos: 2 },
+  quiz: { modes: ["solo", "teams"], demos: 4 },
   lotto: { modes: ["solo", "teams"], demos: 1 },
   board: { modes: ["solo", "teams"], demos: 1 },
   checkers: { modes: ["teams"], demos: 1, players: [2] },

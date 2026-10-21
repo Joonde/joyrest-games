@@ -84,6 +84,7 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
           <div className="round-map__bar">
             {rounds.map((round, i) => {
               const current = openIndex >= round.from && openIndex <= round.to;
+              const crown = questions.slice(round.from, round.to + 1).some((q) => q.kind === "super");
               return (
                 <button
                   key={round.from}
@@ -93,7 +94,10 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
                   aria-label={`${roundName(round)}: вопросы ${span(round)}`}
                   onClick={() => onPick(round.from)}
                 >
-                  <span className="round-map__seg-name">{roundName(round)}</span>
+                  <span className="round-map__seg-name">
+                    {crown ? "👑 " : ""}
+                    {roundName(round)}
+                  </span>
                   <span className="round-map__seg-span">{span(round).replace("№ ", "")}</span>
                 </button>
               );
@@ -106,11 +110,12 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
             const from = round?.from ?? 0;
             const to = round?.to ?? questions.length - 1;
             const count = to - from + 1;
+            const crown = questions.slice(from, to + 1).some((q) => q.kind === "super");
             return (
               <div key={from} className="round-map__group" style={{ "--rc": roundColor(round ? index : 0) } as CSSProperties}>
                 {round && (
                   <span className="round-map__label">
-                    ◆ {roundName(round)} <em>· {count} {plural(count)}</em>
+                    ◆ {roundName(round)} <em>· {count} {plural(count)}{crown ? " · 👑 суперигра" : ""}</em>
                   </span>
                 )}
                 <div className="round-map__cells">
@@ -118,11 +123,11 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
                     <button
                       key={q.id}
                       type="button"
-                      className={from + k === openIndex ? "round-map__cell is-current" : "round-map__cell"}
-                      aria-label={`Вопрос ${from + k + 1}${round ? `, ${roundName(round)}` : ""}`}
+                      className={["round-map__cell", q.kind === "super" ? "round-map__cell--super" : "", from + k === openIndex ? "is-current" : ""].filter(Boolean).join(" ")}
+                      aria-label={`Вопрос ${from + k + 1}${q.kind === "super" ? ", суперигра" : ""}${round ? `, ${roundName(round)}` : ""}`}
                       onClick={() => onPick(from + k)}
                     >
-                      {from + k + 1}
+                      {q.kind === "super" ? "👑" : from + k + 1}
                     </button>
                   ))}
                 </div>

@@ -17,6 +17,7 @@ import { addTimeChange, applyChange, meetsExpect, resultKey, startState } from "
 import { joinSlide, techSlide } from "../../src/core/slides";
 import { canSubmitAnswer } from "../../src/data/permissions";
 import type { Answer, Participant, PlayMode, Session, SessionChange } from "../../src/data/types";
+import { ROBOT_DEMOS } from "./demos";
 import { allDemoGames as demoGames, getMechanic, newContent, validateGame } from "../../src/mechanics/registry";
 import type { PhoneRole, SessionControl } from "../../src/mechanics/types";
 import { applyTheme, getTheme } from "../../src/themes/registry";
@@ -88,7 +89,7 @@ interface Report {
 const mechanic = getMechanic(MECHANIC);
 // Шаблоны из кода — для стресс-теста пульта (scripts/e2e/pult.mjs), когда игры нет в библиотеке test.
 (window as unknown as { robotDemos: unknown }).robotDemos = demoGames;
-const demos = demoGames.filter((d) => d.mechanic === MECHANIC);
+const demos = [...demoGames, ...ROBOT_DEMOS].filter((d) => d.mechanic === MECHANIC);
 const demo = demos[DEMO] ?? null;
 const report: Report = {
   mechanic: MECHANIC,

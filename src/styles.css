@@ -21671,3 +21671,45 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   padding-top: 0;
   border-top: 0;
 }
+
+/* «Клиенты» → «Мои контакты»: прежние клиенты из контактов телефона (21 октября 2026). */
+.contacts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.contacts-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.contacts-row input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: var(--color-control-checked);
+}
+.contacts-row__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.contacts-row__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.contacts-row__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.contacts-past {
+  display: grid;
+  gap: 8px;
+}

@@ -374,7 +374,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
             Как проводить эту игру
           </Link>
-          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
+          <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} gameId={game.id} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
         </section>
       )}
       {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}

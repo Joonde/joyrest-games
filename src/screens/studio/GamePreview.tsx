@@ -29,6 +29,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   mechanic: AnyMechanic;
+  /** Игра — откуда грузить картинки вопросов. */
+  gameId: string;
   content: unknown;
   playMode: PlayMode;
   themeId: string;
@@ -38,7 +40,7 @@ interface Props {
  * Предпросмотр игры: она проходит сама с тестовыми командами, ведущий листает моменты «Назад / Дальше»
  * и смотрит, что в этот момент на экране зала, на телефоне любой команды и на пульте.
  */
-export function GamePreview({ open, onClose, mechanic, content, playMode: wanted, themeId }: Props) {
+export function GamePreview({ open, onClose, mechanic, gameId, content, playMode: wanted, themeId }: Props) {
   // Режим, который механика поддерживает (как при запуске): «Шашки» — команды, «Мафия» — каждый сам.
   const playMode: PlayMode = mechanic.supports[wanted] ? wanted : wanted === "solo" ? "teams" : "solo";
   const [view, setView] = useState<View>("screen");
@@ -50,8 +52,8 @@ export function GamePreview({ open, onClose, mechanic, content, playMode: wanted
     if (!open || !mechanic.preview) return null;
     const parsed = mechanic.parse(content);
     const { driver, teams = 3, limit = 50 } = mechanic.preview;
-    return { parsed, ...runPreview({ mechanic: mechanic.id, content: parsed, playMode, themeId, driver, teams, limit }) };
-  }, [open, mechanic, content, playMode, themeId]);
+    return { parsed, ...runPreview({ mechanic: mechanic.id, content: parsed, playMode, themeId, driver, teams, limit, gameId }) };
+  }, [open, mechanic, gameId, content, playMode, themeId]);
   if (!run) return null;
   const { scenes, phones, parsed, participants } = run;
   const at = Math.min(index, scenes.length - 1);

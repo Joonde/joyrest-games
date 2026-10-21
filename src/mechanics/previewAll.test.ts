@@ -12,6 +12,15 @@ describe("предпросмотр игры", () => {
     expect(missing).toEqual([]);
   });
 
+  it("картинки берутся из своей игры: в сценах номер настоящей игры, а не заглушка", () => {
+    const mechanic = mechanics.find((m) => m.id === "quiz");
+    const demo = allDemoGames.find((d) => d.mechanic === "quiz");
+    if (!mechanic?.preview || !demo) throw new Error("нет квиза");
+    const { scenes } = runPreview({ mechanic: "quiz", content: mechanic.parse(demo.content), playMode: "teams", themeId: "joyrest", driver: mechanic.preview.driver, teams: 2, limit: 5, gameId: "game-42" });
+    expect(scenes.length).toBeGreaterThan(0);
+    for (const scene of scenes) expect(scene.session.gameId).toBe("game-42");
+  });
+
   for (const demo of allDemoGames.filter((d) => !WITHOUT.has(d.mechanic))) {
     it(`${demo.title}: от начала до итогов`, () => {
       const mechanic = mechanics.find((m) => m.id === demo.mechanic);

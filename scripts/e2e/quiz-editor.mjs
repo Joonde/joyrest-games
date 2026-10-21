@@ -365,6 +365,32 @@ async function main() {
     const g = await api("GET", `/api/games/${gameId}`, host.cookie);
     const q1 = g.data?.content?.questions?.[0];
     check(q1?.timeLimit === 20 && q1?.points === 200 && q1?.options?.includes("Ответ по Enter"), "На сервере: 20 с, 200 очков, новый вариант", `На сервере: ${q1?.timeLimit} с, ${q1?.points} очк., варианты ${JSON.stringify(q1?.options)}`);
+    // Порядок анкеты: варианты, время и очки, заметка — выше свёрнутых «Картинки» и «Трека».
+    const order = await openCard().evaluate((card) => {
+      const y = (el) => (el ? el.getBoundingClientRect().top : null);
+      const folds = [...card.querySelectorAll("details.fold")];
+      const fold = (t) => folds.find((d) => d.querySelector(".fold__title")?.textContent?.includes(t)) ?? null;
+      const legend = [...card.querySelectorAll("legend")].find((l) => l.textContent.includes("Варианты ответа"));
+      const note = [...card.querySelectorAll("label")].find((l) => l.textContent.includes("Заметка ведущему"));
+      const image = fold("Картинка к вопросу");
+      const track = fold("Трек к вопросу");
+      return { options: y(legend), note: y(note), image: y(image), imageOpen: image?.open ?? null, track: y(track), trackOpen: track?.open ?? null };
+    });
+    check(order.options !== null && order.image !== null && order.options < order.image, "Варианты — сразу под вопросом, выше «Картинки»", `Порядок: ${JSON.stringify(order)}`);
+    check(order.note !== null && order.note < order.image, "«Заметка ведущему» — выше «Картинки» и «Трека»", `Порядок: ${JSON.stringify(order)}`);
+    check(order.imageOpen === false, "«Картинка к вопросу» свёрнута, пока картинки нет");
+    check(order.track === null || order.trackOpen === false, "«Трек к вопросу» свёрнут, пока трека нет");
+    // Удалить вариант — «Вернуть».
+    const countNow = await rows.count();
+    const removedText = await rows.nth(1).inputValue();
+    await openCard().getByRole("button", { name: /^Удалить вариант B/ }).click();
+    check((await rows.count()) === countNow - 1, "Вариант B удалён");
+    const restoreBar = openCard().locator(".q-restore");
+    check(await restoreBar.isVisible(), `Появилось «${(await restoreBar.innerText().catch(() => "")).replace(/\s+/g, " ")}»`);
+    await snap("udalen-variant");
+    await restoreBar.getByRole("button", { name: "Вернуть" }).click();
+    check((await rows.count()) === countNow && (await rows.nth(1).inputValue()) === removedText, "«Вернуть» вернул вариант B на место");
+    await settle();
     await snap("anketa");
     await openCard().getByRole("button", { name: /Дальше — вопрос 2/ }).click();
     await page.waitForTimeout(500);

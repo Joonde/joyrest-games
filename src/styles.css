@@ -2084,6 +2084,30 @@ legend {
   color: var(--color-bg);
 }
 
+/* «Вариант удалён · Вернуть» — прямо под строками вариантов. */
+.q-restore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 4px 4px 14px;
+  border: 1.5px dashed var(--color-highlight);
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.q-restore span {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.q-restore__btn {
+  min-height: 44px;
+  color: var(--color-highlight);
+  font-weight: 700;
+}
+
 /* Уведомление с действием: «Раунд убран — Вернуть». */
 .toast--undo {
   display: flex;

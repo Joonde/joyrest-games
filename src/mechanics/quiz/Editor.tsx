@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { formatNumber, readNumber } from "./orderNumber";
 import { questionsLabel } from "../../core/results";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -6,7 +6,7 @@ import { ActionMenu, type MenuAction } from "../../components/Menu";
 import { Toast, useToast } from "../../components/Toast";
 import { compressImage, ImageError } from "../../components/media/compressImage";
 import { MediaImage } from "../../components/media/MediaImage";
-import { mediaRepo } from "../../data";
+import { mediaRepo, tracksRepo } from "../../data";
 import type { EditorProps, ValidationError } from "../types";
 import {
   changeKind,
@@ -719,6 +719,30 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
   const [processing, setProcessing] = useState(false);
   // Поле числа: пока ведущий печатает — как набрал («1 6»), в игру уходит уже разобранное число.
   const [numberDraft, setNumberDraft] = useState<string | null>(null);
+  // Удалили вариант, карточку или ответ — 7 секунд можно «Вернуть» (прежние строки и галочки целиком).
+  const [restore, setRestore] = useState<{ text: string; snap: Pick<QuizQuestion, "options" | "answers" | "correct" | "alsoCorrect"> } | null>(null);
+  const restoreTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(restoreTimer.current), []);
+  function remember(text: string) {
+    window.clearTimeout(restoreTimer.current);
+    setRestore({ text, snap: { options: q.options, answers: q.answers, correct: q.correct, alsoCorrect: q.alsoCorrect } });
+    restoreTimer.current = window.setTimeout(() => setRestore(null), 7000);
+  }
+  function undoRemove() {
+    if (!restore) return;
+    const snap = restore.snap;
+    window.clearTimeout(restoreTimer.current);
+    onChange((cur) => ({ ...cur, ...snap }));
+    setRestore(null);
+  }
+  const removedBar = restore && (
+    <div className="q-restore" role="status">
+      <span>{restore.text}</span>
+      <button type="button" className="btn btn--quiet q-restore__btn" onClick={undoRemove}>
+        Вернуть
+      </button>
+    </div>
+  );
   const has = (field: QuestionField) => errorsFor(errors, q.id, field).length > 0;
   const describedBy = (field: QuestionField) => (has(field) ? `q-${q.id}-${field}-error` : undefined);
 
@@ -800,45 +824,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         <SuperEditor gameId={gameId} question={q} errors={errors} onChange={onChange} onPickImage={onPickImage} onRemoveImage={onRemoveImage} />
       ) : q.kind === "pictures" ? (
         <PicturesEditor gameId={gameId} question={q} errors={errors} onChange={onChange} onPickImage={onPickImage} onRemoveImage={onRemoveImage} />
-      ) : (
-      <div className="field">
-        <span>Картинка</span>
-        {q.imageId ? (
-          <div className="q-image">
-            <MediaImage className="q-image__img" gameId={gameId} mediaId={q.imageId} variant="full" alt="Картинка к вопросу" />
-            <div className="actions">
-              <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
-                {processing ? "Сжимаем…" : "Заменить картинку"}
-              </button>
-              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={() => onRemoveImage()}>
-                Убрать картинку
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="actions">
-            <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
-              {processing ? "Сжимаем…" : "Добавить картинку"}
-            </button>
-          </div>
-        )}
-        <span className="muted small">Картинку покажет экран зала. Мы уменьшим её на этом устройстве, чтобы она быстро грузилась.</span>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            setProcessing(true);
-            // Сжатие идёт на устройстве; запись картинки уходит в очередь и дойдёт при связи.
-            void onPickImage(file).finally(() => setProcessing(false));
-          }}
-        />
-      </div>
-      )}
+      ) : null}
 
       {q.kind === "order" ? (
         <fieldset aria-describedby={describedBy("options")}>
@@ -866,10 +852,14 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <RemoveButton
                 label={`Удалить карточку ${i + 1}`}
                 disabled={q.options.length <= LIMITS.minOrder}
-                onClick={() => onChange((cur) => ({ ...cur, options: cur.options.filter((_, j) => j !== i) }))}
+                onClick={() => {
+                  remember(`Карточка ${i + 1}${option.trim() ? ` «${option.trim()}»` : ""} удалена`);
+                  onChange((cur) => ({ ...cur, options: cur.options.filter((_, j) => j !== i) }));
+                }}
               />
             </div>
           ))}
+          {removedBar}
           <FieldErrors errors={errors} field="options" questionId={q.id} />
           <button
             type="button"
@@ -943,10 +933,14 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <RemoveButton
                 label={`Удалить ответ ${i + 1}`}
                 disabled={q.answers.length <= 1}
-                onClick={() => onChange((cur) => ({ ...cur, answers: cur.answers.filter((_, j) => j !== i) }))}
+                onClick={() => {
+                  remember(`Ответ${answer.trim() ? ` «${answer.trim()}»` : ""} удалён`);
+                  onChange((cur) => ({ ...cur, answers: cur.answers.filter((_, j) => j !== i) }));
+                }}
               />
             </div>
           ))}
+          {removedBar}
           <FieldErrors errors={errors} field="answers" questionId={q.id} />
           <button
             type="button"
@@ -981,9 +975,13 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
                 onChange={(e) => setOption(i, e.target.value)}
                 onKeyDown={(e) => nextRow(e, i, q.options.length, LIMITS.maxOptions, () => onChange((cur) => ({ ...cur, options: [...cur.options, ""] })), `${q.id}-option`)}
               />
-              <RemoveButton label={`Удалить вариант ${LETTERS[i]}`} disabled={q.options.length <= LIMITS.minOptions} onClick={() => removeOption(i)} />
+              <RemoveButton label={`Удалить вариант ${LETTERS[i]}`} disabled={q.options.length <= LIMITS.minOptions} onClick={() => {
+                  remember(`Вариант ${LETTERS[i]}${option.trim() ? ` «${option.trim()}»` : ""} удалён${correctSet(q).includes(i) ? " (он был правильным)" : ""}`);
+                  removeOption(i);
+                }} />
             </div>
           ))}
+          {removedBar}
           <FieldErrors errors={errors} field="options" questionId={q.id} />
           <FieldErrors errors={errors} field="correct" questionId={q.id} />
           <button
@@ -997,7 +995,6 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </fieldset>
       )}
 
-      {q.kind !== "super" && <TrackTimeline clip={clipOf(q)} onChange={(clip) => onChange((cur) => withClip(cur, clip))} />}
 
       {q.kind === "buzz" && (
         <div className="field">
@@ -1074,15 +1071,62 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
 
 
       <label className="field">
-        Заметка ведущему
+        Заметка ведущему — видно только на пульте
         <textarea
           maxLength={LIMITS.note}
           rows={2}
-          placeholder="Факт, шутка или подводка к вопросу — видно только на пульте"
+          placeholder="Факт, шутка или подводка — видно только вам на пульте"
           value={q.note ?? ""}
           onChange={(e) => onChange({ note: e.target.value })}
         />
       </label>
+
+      {q.kind !== "super" && q.kind !== "pictures" && (
+        <Fold title="Картинка к вопросу" value={q.imageId ? "есть" : "нет"} open={Boolean(q.imageId)}>
+      <div className="field">
+        <span>Картинка</span>
+        {q.imageId ? (
+          <div className="q-image">
+            <MediaImage className="q-image__img" gameId={gameId} mediaId={q.imageId} variant="full" alt="Картинка к вопросу" />
+            <div className="actions">
+              <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
+                {processing ? "Сжимаем…" : "Заменить картинку"}
+              </button>
+              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={() => onRemoveImage()}>
+                Убрать картинку
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="actions">
+            <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
+              {processing ? "Сжимаем…" : "Добавить картинку"}
+            </button>
+          </div>
+        )}
+        <span className="muted small">Картинку покажет экран зала. Мы уменьшим её на этом устройстве, чтобы она быстро грузилась.</span>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            setProcessing(true);
+            // Сжатие идёт на устройстве; запись картинки уходит в очередь и дойдёт при связи.
+            void onPickImage(file).finally(() => setProcessing(false));
+          }}
+        />
+      </div>
+        </Fold>
+      )}
+      {q.kind !== "super" && tracksRepo && (
+        <Fold title={q.kind === "buzz" ? "Трек — что угадывают" : "Трек к вопросу"} value={q.trackId ? "выбран" : "нет"} open={q.kind === "buzz" || Boolean(q.trackId)}>
+          <TrackTimeline clip={clipOf(q)} onChange={(clip) => onChange((cur) => withClip(cur, clip))} />
+        </Fold>
+      )}
     </div>
   );
 }

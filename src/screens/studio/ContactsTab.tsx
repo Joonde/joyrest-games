@@ -65,9 +65,12 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
   const past = useMemo(() => (clients ?? []).filter((c) => c.origin === "past" && !c.archived && phoneKey(c.phone)), [clients]);
 
   const keyOf = (m: ContactMatch) => phoneKey(m.phone);
-  const shown = (scan?.matches ?? []).filter((m) => keyOf(m) && (showAll || m.reasons.length > 0));
-  const toAdd = (scan?.matches ?? []).filter((m) => keyOf(m) && picked.has(keyOf(m)) && !known.has(keyOf(m)));
-  const found = (scan?.matches ?? []).filter((m) => m.reasons.length > 0 && keyOf(m));
+  // Уже есть в «Клиентах» (с архивом и проведёнными мероприятиями) — не показываем: повторная загрузка — только новые.
+  const fresh = (scan?.matches ?? []).filter((m) => keyOf(m) && !known.has(keyOf(m)));
+  const already = (scan?.matches ?? []).filter((m) => keyOf(m) && known.has(keyOf(m))).length;
+  const shown = fresh.filter((m) => showAll || m.reasons.length > 0);
+  const toAdd = fresh.filter((m) => picked.has(keyOf(m)));
+  const found = fresh.filter((m) => m.reasons.length > 0);
 
   async function onFile(file: File | undefined) {
     setFileError(null);
@@ -210,8 +213,8 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
         </p>
       </section>
 
-      <button type="button" className="btn btn--block" onClick={() => fileRef.current?.click()}>
-        Выбрать сохранённый файл контактов
+      <button type="button" className="btn btn--block" disabled={!clients} onClick={() => fileRef.current?.click()}>
+        {clients ? "Выбрать сохранённый файл контактов" : "Загружаем «Клиентов»…"}
       </button>
       <input
         ref={fileRef}
@@ -230,27 +233,26 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
       {scan && (
         <section className="card" aria-label="Найденные контакты">
           <p>
-            В файле контактов: <strong>{scan.total}</strong>. Похожи на прежних клиентов: <strong>{found.length}</strong>.
+            В файле контактов: <strong>{scan.total}</strong>. Новых, похожих на прежних клиентов: <strong>{found.length}</strong>.
+            {already > 0 && <> Уже в «Клиентах» — {already}, их не показываем.</>}
           </p>
           <label className="small">
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Показать все контакты с телефоном
           </label>
           {shown.length === 0 ? (
-            <p className="muted">Похожих на клиентов не нашли. Включите «Показать все контакты» и отметьте нужных вручную.</p>
+            <p className="muted">Новых похожих на клиентов нет — все найденные уже в «Клиентах». Нужен кто-то ещё — включите «Показать все контакты».</p>
           ) : (
             <ul className="contacts-list">
               {shown.map((m) => {
                 const key = keyOf(m);
-                const inBase = known.has(key);
                 return (
                   <li key={key}>
                     <label className="contacts-row">
-                      <input type="checkbox" checked={!inBase && picked.has(key)} disabled={inBase} onChange={() => toggle(key)} />
+                      <input type="checkbox" checked={picked.has(key)} onChange={() => toggle(key)} />
                       <span className="contacts-row__text">
                         <span className="contacts-row__name">{m.label || "Без имени"}</span>
                         <span className="muted small">
                           {phoneLabel(m.phone)}
-                          {inBase ? " · уже в «Клиентах»" : ""}
                         </span>
                         {m.reasons.length > 0 && (
                           <span className="contacts-row__tags">

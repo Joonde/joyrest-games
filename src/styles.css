@@ -435,6 +435,14 @@ a {
   gap: 0;
 }
 
+/* Меню шапки не уходит за низ экрана: длинный список листается внутри (21 октября 2026). */
+.topbar__menu .menu,
+.topbar__more .menu {
+  max-height: calc(100dvh - 104px - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .menu .btn {
   width: 100%;
   justify-content: flex-start;
@@ -21712,4 +21720,50 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .contacts-past {
   display: grid;
   gap: 8px;
+  min-width: 0;
+}
+/* Две кнопки в ряд на телефоне; длинные подписи переносятся на вторую строку, а не обрезаются. */
+.contacts-past__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.contacts-past__actions .btn {
+  min-width: 0;
+  padding: 8px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.contacts-past__quiet {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+@media (min-width: 720px) {
+  .contacts-past__actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* «Команда JoyRest» → «Инструкции» (21 октября 2026). */
+.guides-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 1024px) {
+  .guides-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.guides-pros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.guides-pros .btn {
+  min-width: 0;
+  padding: 8px 12px;
 }

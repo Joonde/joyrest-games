@@ -13,6 +13,7 @@ import { LoadFailedInline } from "../../components/Status";
 import { TeamCard } from "../../components/team/TeamCard";
 import { TopBar } from "../../components/TopBar";
 import { studioActions } from "./Studio";
+import { StaffGuides } from "./StaffGuides";
 
 const NONE: TeamMember[] = [];
 
@@ -28,14 +29,14 @@ export function Team({ manage = false }: { manage?: boolean }) {
   );
 }
 
-type TeamTab = "team" | "pros" | "manage";
+type TeamTab = "team" | "pros" | "guides" | "manage";
 
 function TeamPage({ profile, manage }: { profile: UserProfile; manage: boolean }) {
   const [params, setParams] = useSearchParams();
   const canManage = permissions.canManageHosts(profile);
   // Firebase-версия без «Команды»: у владельца сразу управление.
   const raw = params.get("tab");
-  const tab: TeamTab = canManage && (raw === "manage" || (raw !== "team" && raw !== "pros" && manage) || !teamRepo) ? "manage" : raw === "pros" ? "pros" : "team";
+  const tab: TeamTab = canManage && (raw === "manage" || (raw !== "team" && raw !== "pros" && raw !== "guides" && manage) || !teamRepo) ? "manage" : raw === "pros" ? "pros" : raw === "guides" ? "guides" : "team";
   const actions = [{ label: "В студию", to: "/studio" }, ...studioActions(profile)];
   return (
     <main className={tab === "manage" ? "page" : "page page--wide"}>
@@ -50,12 +51,13 @@ function TeamPage({ profile, manage }: { profile: UserProfile; manage: boolean }
           items={[
             { id: "team", label: "Ведущие" },
             { id: "pros", label: "Профессии JoyRest" },
+            { id: "guides", label: "Инструкции" },
             ...(canManage ? [{ id: "manage" as const, label: "Управление" }] : []),
           ]}
         />
       )}
       <div id={`team-panel-${tab}`} role={teamRepo ? "tabpanel" : undefined} className="stack">
-        {tab === "manage" ? <HostsManager profile={profile} /> : <TeamList pros={tab === "pros"} profile={profile} canManage={canManage} />}
+        {tab === "manage" ? <HostsManager profile={profile} /> : tab === "guides" ? <StaffGuides profile={profile} /> : <TeamList pros={tab === "pros"} profile={profile} canManage={canManage} />}
       </div>
     </main>
   );

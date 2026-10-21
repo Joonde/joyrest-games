@@ -72,7 +72,7 @@ export function abilitiesOf(actor: Actor, p: Permissions): Abilities {
 
   add("Клиенты и продажи", [
     p.canManageClients(actor) && { text: "База клиентов: заявки с сайта целиком, статус одним касанием, заметки, связь в один тап.", where: "меню → «Клиенты»" },
-    p.canReadSalesGuide(actor) && { text: "Инструкция менеджера: от анкеты до отзыва, шаблоны сообщений, цены.", where: "меню → «Инструкция менеджера»" },
+    p.canReadSalesGuide(actor) && { text: "Инструкция менеджера: от анкеты до отзыва, шаблоны сообщений, цены.", where: "«Команда JoyRest» → «Инструкции»" },
     p.canExportClients(actor) && { text: "Выгрузка клиентов для рассылки (только согласившихся) и всех." },
     p.canSetMarketingConsent(actor) && { text: "Отметить согласие клиента на рассылку." },
     p.canErasePersonalData(actor) && { text: "«Данные по номеру»: всё о человеке в базе и удаление навсегда.", where: "«Клиенты» → «Данные по номеру»" },

@@ -61,7 +61,8 @@ export function Studio() {
 /** Общие пункты шапки студии и её подэкранов. */
 export function studioActions(profile: UserProfile): TopBarAction[] {
   return [
-    // «Команда JoyRest» — первой кнопкой в шапке (решение владельца 15 октября 2026), «Как проводить игры» — в меню.
+    // «Команда JoyRest» — первой кнопкой в шапке (решение владельца 15 октября 2026). Инструкции и «Мои возможности» —
+    // вкладка «Инструкции» в «Команде JoyRest» (решение владельца 21 октября 2026: меню стало слишком длинным).
     ...(teamRepo ? [{ label: "Команда JoyRest", to: "/studio/team" }] : []),
     // Календарь — только свой сервер: владелец видит, кто может в дату мероприятия; остальные отмечают свободные дни.
     ...(calendarRepo && permissions.canEditOwnCalendar(profile)
@@ -74,16 +75,14 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     ...(photosRepo && permissions.canViewEventPhotos(profile, profile.uid) ? [{ label: "Фотоотчёты", to: "/studio/photos" }] : []),
     // Показы — фото и PDF на весь экран зала (только свой сервер, тем, кто проводит игры).
     ...(decksRepo && permissions.canCreateSession(profile) ? [{ label: "Показы", to: "/studio/decks" }] : []),
-    ...(clientsRepo && permissions.canReadSalesGuide(profile) ? [{ label: "Инструкция менеджера", to: "/studio/sales-guide" }] : []),
     // Владелец: «Команда JoyRest» со второй вкладкой «Управление ведущими»; без «Команды» (Firebase) — сразу управление.
     ...(permissions.canManageHosts(profile) && !teamRepo ? [{ label: "Ведущие", to: "/admin" }] : []),
     // База площадок — только свой сервер: QR-анкеты у всех ведущих, база — у владельца и тех, кому он открыл.
     ...(venuesRepo && permissions.canManageVenues(profile) ? [{ label: "База площадок", to: "/venues" }] : []),
     ...(venuesRepo && permissions.canShowVenueQr(profile) ? [{ label: "QR-анкеты", to: "/studio/qr" }] : []),
     ...(teamRepo ? [{ label: "Мой профиль", to: "/studio/profile" }] : []),
-    // Что я могу в платформе — по профессии и роли, со «Скачать PDF» (решение владельца 15 октября 2026).
-    { label: "Мои возможности", to: "/studio/abilities" },
-    { label: "Как проводить игры", to: "/studio/guide" },
+    // Без «Команды» (Firebase) вкладки «Инструкции» нет — инструкция ведущим остаётся в меню.
+    ...(teamRepo ? [] : [{ label: "Как проводить игры", to: "/studio/guide" }]),
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },
   ];

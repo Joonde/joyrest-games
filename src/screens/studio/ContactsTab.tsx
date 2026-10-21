@@ -309,7 +309,7 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
                   {yes ? " · согласие на новости ✓" : ""}
                 </span>
                 {yes && <span className="small">Сообщение со скидкой 10%:</span>}
-                <div className="clients-contact" role="group" aria-label={`Написать: ${c.name}`}>
+                <div className="contacts-past__actions" role="group" aria-label={`Написать: ${c.name}`}>
                   <a className="btn btn--secondary" href={`https://wa.me/${key}?text=${text}`} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
                     WhatsApp
                   </a>
@@ -317,11 +317,11 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
                     Telegram
                   </a>
                   {!yes && (
-                    <button type="button" className="btn btn--quiet" onClick={() => answeredYes(c)}>
+                    <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => answeredYes(c)}>
                       Ответил «да»
                     </button>
                   )}
-                  <button type="button" className="btn btn--quiet" onClick={() => removePast(c)}>
+                  <button type="button" className="btn btn--quiet contacts-past__quiet" onClick={() => removePast(c)}>
                     Убрать — не клиент
                   </button>
                 </div>

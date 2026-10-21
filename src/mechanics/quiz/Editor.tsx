@@ -458,7 +458,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                       <span className="q-card__meta muted small">
                         {KIND_TITLES[q.kind]} · {q.timeLimit} с · {q.points} очк.
                         {q.imageId ? " · картинка" : ""}
-                        {round ? ` · ${index - round.from + 1} из ${round.to - round.from + 1}` : ""}
+                        {round ? ` · ${index - round.from + 1}\u00a0из\u00a0${round.to - round.from + 1}` : ""}
                       </span>
                       {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
                       {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}

@@ -195,7 +195,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
             const own = errors.filter((e) => e.path.startsWith(`songs/${song.id}/`));
             const open = openId === song.id;
             return (
-              <li key={song.id} className="card q-card">
+              <li key={song.id} className={open ? "card q-card is-open" : "card q-card"}>
                 <div className="q-card__head">
                   <span className="q-card__number">{index + 1}</span>
                   <button type="button" className="btn btn--quiet q-card__summary" aria-expanded={open} onClick={() => setOpenId(open ? null : song.id)}>
@@ -213,7 +213,8 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                   </p>
                 ))}
                 {open && (
-                  <div className="stack">
+                  <div className="stack q-card__body">
+                    <span className="q-card__editing">✎ Вы правите песню {index + 1}</span>
                     <label className="field">
                       Название
                       <input maxLength={LOTTO_LIMITS.title} value={song.title} disabled={!editable} onChange={(e) => setSong(song.id, { title: e.target.value })} />
@@ -241,6 +242,9 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                         Убрать песню
                       </button>
                     )}
+                    <button type="button" className="btn btn--secondary btn--block" onClick={() => setOpenId(null)}>
+                      Готово — свернуть песню {index + 1}
+                    </button>
                   </div>
                 )}
               </li>

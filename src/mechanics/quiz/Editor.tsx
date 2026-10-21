@@ -88,6 +88,22 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
     requestAnimationFrame(() => document.querySelector<HTMLElement>(selector)?.focus());
   }
 
+  /** Открыть вопрос на правку (другой сворачивается) и поставить его начало вверх экрана — видно, где вы. */
+  function toggle(id: string) {
+    if (openId === id) {
+      collapse(id);
+      return;
+    }
+    setOpenId(id);
+    requestAnimationFrame(() => document.getElementById(`q-${id}-card`)?.scrollIntoView({ block: "start", behavior: smoothScroll() }));
+  }
+
+  /** Свернуть вопрос и вернуть к нему взгляд: после длинной формы карточка не «теряется» выше экрана. */
+  function collapse(id: string) {
+    setOpenId(null);
+    requestAnimationFrame(() => document.getElementById(`q-${id}-card`)?.scrollIntoView({ block: "nearest", behavior: smoothScroll() }));
+  }
+
   function add(kind: QuestionKind = "choice") {
     const q = newQuestion(kind);
     setQuestions([...questions, q]);
@@ -214,12 +230,14 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
               menu.push({ label: "Удалить", onClick: () => setToDelete(q) });
             }
             const classes = ["card", "q-card"];
+            if (expanded) classes.push("is-open");
             if (dragId === q.id) classes.push("is-dragging");
             if (dropIndex === index) classes.push("drop-before");
             if (dropIndex === index + 1 && index === questions.length - 1) classes.push("drop-after");
             return (
               <li
                 key={q.id}
+                id={`q-${q.id}-card`}
                 className={classes.join(" ")}
                 onDragOver={(e) => onDragOver(e, index)}
                 onDrop={onDrop}
@@ -253,7 +271,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                     className="q-card__summary"
                     aria-expanded={expanded}
                     aria-controls={`q-${q.id}-form`}
-                    onClick={() => setOpenId(expanded ? null : q.id)}
+                    onClick={() => toggle(q.id)}
                   >
                     <span className="q-card__number">{index + 1}</span>
                     <span className="q-card__titles">
@@ -266,6 +284,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                         {q.imageId ? " · картинка" : ""}
                       </span>
                       {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
+                      {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}
                     </span>
                   </button>
                   <ActionMenu icon="dots" label={`Действия с вопросом ${index + 1}`} actions={menu} />
@@ -293,7 +312,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                     >
                       <Arrow />
                     </button>
-                    <button type="button" className="btn btn--quiet" onClick={() => setOpenId(expanded ? null : q.id)}>
+                    <button type="button" className="btn btn--quiet" onClick={() => toggle(q.id)}>
                       {expanded ? "Свернуть" : "Изменить"}
                     </button>
                   </div>
@@ -316,6 +335,9 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                     <div className="actions">
                       <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreview(index)}>
                         Предпросмотр
+                      </button>
+                      <button type="button" className="btn btn--quiet btn--block" onClick={() => collapse(q.id)}>
+                        Готово — свернуть вопрос {index + 1}
                       </button>
                     </div>
                   </div>
@@ -1086,4 +1108,8 @@ function SuperEditor({
       </p>
     </div>
   );
+}
+
+function smoothScroll(): ScrollBehavior {
+  return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }

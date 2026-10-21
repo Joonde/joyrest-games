@@ -1814,6 +1814,99 @@ legend {
   border-top: 1px solid var(--color-border);
 }
 
+/*
+ * Открытый на правку элемент конструктора (вопрос квиза, песня лото, клетка настолки, раунд гонки, вопрос
+ * «Миллионера», задание дракона, карточка батла, вино, плитка «Just Dance на поле») — видно, где вы: золотая
+ * рамка со свечением и полосой слева, поля — «колодцами» темнее карточки, остальные элементы списка
+ * приглушены, заголовок открытого вопроса прилипает к верху экрана, пока листаете длинную форму.
+ */
+.q-card.is-open,
+.quest-strip.is-open,
+.dance-editor__card:has(> .dance-editor__head[aria-expanded="true"]),
+.stage-editor__tile:has(> .stage-editor__head[aria-expanded="true"]) {
+  border-color: var(--color-highlight);
+  background: var(--color-surface-alt);
+  box-shadow:
+    inset 4px 0 0 var(--color-highlight),
+    0 0 0 1px var(--color-highlight),
+    0 0 0 6px color-mix(in srgb, var(--color-highlight) 18%, transparent),
+    0 16px 40px rgb(0 0 0 / 0.35);
+}
+
+.q-card.is-open.has-error,
+.quest-strip.is-open.has-error,
+.dance-editor__card.has-error:has(> .dance-editor__head[aria-expanded="true"]),
+.stage-editor__tile.has-error:has(> .stage-editor__head[aria-expanded="true"]) {
+  border-color: var(--color-danger);
+}
+
+.q-card,
+.quest-strip,
+.dance-editor__card,
+.stage-editor__tile {
+  scroll-margin-top: 16px;
+}
+
+/* Поля открытого элемента — темнее карточки, иначе всё сливается в один тон. */
+:is(.q-card.is-open, .quest-strip.is-open, .dance-editor__card, .stage-editor__tile) :is(.field input, .field textarea, .field select, .q-row__input) {
+  background: var(--color-bg);
+}
+
+/* Остальные элементы списка тише, пока один открыт; касание или наведение возвращает яркость. */
+.q-list:has(> .q-card.is-open) > .q-card:not(.is-open),
+.quest-strips:has(> .quest-strip.is-open) > .quest-strip:not(.is-open),
+.stack:has(> .dance-editor__card > .dance-editor__head[aria-expanded="true"]) > .dance-editor__card:has(> .dance-editor__head[aria-expanded="false"]) {
+  opacity: 0.6;
+}
+
+.q-list > .q-card:is(:hover, :focus-within),
+.quest-strips > .quest-strip:is(:hover, :focus-within),
+.stack > .dance-editor__card:is(:hover, :focus-within) {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .q-card,
+  .quest-strip,
+  .dance-editor__card {
+    transition: opacity 0.2s ease, box-shadow 0.2s ease;
+  }
+}
+
+/* Заголовок открытого вопроса прилипает к верху экрана: номер и текст видны всю длинную форму. */
+.q-card.is-open > .q-card__head,
+.quest-strip.is-open > .quest-strip__head {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 3;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-md);
+}
+
+.q-card__editing {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-highlight);
+  color: var(--color-bg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Метка «правите» у полосок и карточек без своей разметки. */
+.quest-strip__head[aria-expanded="true"]::after,
+.dance-editor__head[aria-expanded="true"]::after {
+  content: "✎ правите";
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-highlight);
+  color: var(--color-bg);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Вариант ответа: кружок «верный», поле и кнопка удаления в одну строку. */
 .q-row {
   display: flex;

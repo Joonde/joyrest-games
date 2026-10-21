@@ -348,6 +348,33 @@ async function main() {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
 
+    // 15б. Анкета вопроса: Enter в последнем варианте — новая строка, время и очки одним касанием, «Дальше — вопрос N».
+    await cardByNumber(1).locator(".q-card__summary").click();
+    await openCard().waitFor({ timeout: WAIT });
+    const rows = openCard().locator(".q-row__input");
+    const before = await rows.count();
+    await rows.nth(before - 1).click();
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(300);
+    check((await rows.count()) === before + 1, `Enter в последнем варианте добавил строку (${before} → ${await rows.count()})`);
+    check(await page.locator(":focus").evaluate((el) => el.classList.contains("q-row__input")).catch(() => false), "Курсор — в новой строке");
+    await page.keyboard.type("Ответ по Enter");
+    await openCard().getByRole("button", { name: "20 с", exact: true }).click();
+    await openCard().getByRole("button", { name: "200", exact: true }).click();
+    await settle();
+    const g = await api("GET", `/api/games/${gameId}`, host.cookie);
+    const q1 = g.data?.content?.questions?.[0];
+    check(q1?.timeLimit === 20 && q1?.points === 200 && q1?.options?.includes("Ответ по Enter"), "На сервере: 20 с, 200 очков, новый вариант", `На сервере: ${q1?.timeLimit} с, ${q1?.points} очк., варианты ${JSON.stringify(q1?.options)}`);
+    await snap("anketa");
+    await openCard().getByRole("button", { name: /Дальше — вопрос 2/ }).click();
+    await page.waitForTimeout(500);
+    check((await openCard().locator(".q-card__number").innerText()).trim() === "2", "«Дальше — вопрос 2» открыл следующий вопрос");
+    // Новый вопрос — без заранее отмеченного правильного варианта.
+    await openCard().getByRole("button", { name: "+ Добавить вопрос ниже" }).click();
+    await page.waitForTimeout(400);
+    check((await openCard().locator(".q-row--correct").count()) === 0, "В новом вопросе правильный вариант не отмечен заранее");
+    await openCard().getByRole("button", { name: /Готово — свернуть/ }).click();
+
     // 16. Размеры: шрифт, кнопки, прокрутка вбок.
     const sizes = await page.evaluate(() => {
       const small = [];

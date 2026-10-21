@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import { Fragment, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { formatNumber, readNumber } from "./orderNumber";
 import { questionsLabel } from "../../core/results";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -14,6 +14,7 @@ import {
   correctSet,
   FORMAT_BLOCKS,
   hasAnswers,
+  hasOptions,
   LIMITS as QUIZ_LIMITS,
   newPicture,
   QUESTION_FORMATS,
@@ -46,6 +47,15 @@ import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
 import { LevelIcon } from "../../components/live/SuperGame";
 import { LEVEL_NAMES, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_LIMITS, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
+
+/**
+ * Новый вопрос в конструкторе: правильный вариант не отмечен заранее — ведущий отмечает сам
+ * (иначе «A» остаётся верным, если забыть поставить галочку; проверка просит «Отметьте правильный вариант»).
+ */
+function blankQuestion(kind: QuestionKind): QuizQuestion {
+  const q = newQuestion(kind);
+  return hasOptions(kind) ? { ...q, correct: -1, alsoCorrect: [] } : q;
+}
 
 /** Ключ свёрнутого раунда: название (раунд без названия — один, первый). */
 function foldKey(round: { title: string }): string {
@@ -126,7 +136,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   }
 
   function add(kind: QuestionKind = "choice") {
-    const q = newQuestion(kind);
+    const q = blankQuestion(kind);
     // Сразу под вопросом, с которым работаете (решение владельца 22 октября 2026); ничего не открыто — в конец игры.
     const openIndex = questions.findIndex((x) => x.id === openId);
     const at = openIndex >= 0 ? openIndex : questions.length - 1;
@@ -172,7 +182,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   /** Новый вопрос в раунде — сразу после `index`. */
   function addAfter(index: number) {
     if (room <= 0) return;
-    const q = newQuestion("choice");
+    const q = blankQuestion("choice");
     setQuestions(insertAfter(questions, index, q));
     setOpenId(q.id);
     focusLater(`#q-${q.id}-text`);
@@ -182,7 +192,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   /** Новый раунд после `index`: блок и первый вопрос в нём. */
   function addRoundAfter(index: number) {
     if (room <= 0) return;
-    const q = { ...newQuestion("choice"), round: nextRoundTitle(questions, index + 1) };
+    const q = { ...blankQuestion("choice"), round: nextRoundTitle(questions, index + 1) };
     setQuestions(insertAfter(questions, index, q));
     setOpenId(q.id);
     focusLater(`#q-${q.id}-text`);
@@ -538,6 +548,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                           + Добавить вопрос ниже
                         </button>
                       )}
+                      {index < questions.length - 1 && (
+                        <button type="button" className="btn btn--secondary btn--block" onClick={() => pick(index + 1)}>
+                          Дальше — вопрос {index + 2} →
+                        </button>
+                      )}
                       <button type="button" className="btn btn--quiet btn--block" onClick={() => collapse(q.id)}>
                         Готово — свернуть вопрос {index + 1}
                       </button>
@@ -722,6 +737,18 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
     });
   }
 
+  /** Enter в строке варианта: к следующей строке, в последней — новая строка (как в списке на бумаге). */
+  function nextRow(event: KeyboardEvent<HTMLInputElement>, i: number, count: number, max: number, add: () => void, prefix: string) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    if (i < count - 1) {
+      document.querySelector<HTMLInputElement>(`[data-row="${prefix}-${i + 1}"]`)?.focus();
+      return;
+    }
+    if (count >= max) return;
+    add();
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>(`[data-row="${prefix}-${i + 1}"]`)?.focus());
+  }
   function setAnswer(i: number, value: string) {
     onChange((cur) => ({ ...cur, answers: cur.answers.map((a, j) => (j === i ? value : a)) }));
   }
@@ -824,7 +851,15 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <span className="q-row__num" aria-hidden="true">
                 {i + 1}
               </span>
-              <input className="q-row__input" aria-label={`Карточка ${i + 1}`} maxLength={LIMITS.option} value={option} onChange={(e) => setOption(i, e.target.value)} />
+              <input
+                className="q-row__input"
+                aria-label={`Карточка ${i + 1}`}
+                data-row={`${q.id}-card-${i}`}
+                enterKeyHint={i < q.options.length - 1 ? "next" : "enter"}
+                maxLength={LIMITS.option}
+                value={option}
+                onChange={(e) => setOption(i, e.target.value)}
+                onKeyDown={(e) => nextRow(e, i, q.options.length, LIMITS.maxOptions, () => onChange((cur) => ({ ...cur, options: [...cur.options, ""] })), `${q.id}-card`)} />
               <button type="button" className="btn btn--quiet" aria-label={`Карточку ${i + 1} — выше`} disabled={i === 0} onClick={() => onChange((cur) => ({ ...cur, options: moveItem(cur.options, i, i - 1) }))}>
                 ↑
               </button>
@@ -899,9 +934,11 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <input
                 className="q-row__input"
                 aria-label={`Верный ответ ${i + 1}`}
+                data-row={`${q.id}-answer-${i}`}
                 maxLength={LIMITS.answer}
                 value={answer}
                 onChange={(e) => setAnswer(i, e.target.value)}
+                onKeyDown={(e) => nextRow(e, i, q.answers.length, LIMITS.answers, () => onChange((cur) => ({ ...cur, answers: [...cur.answers, ""] })), `${q.id}-answer`)}
               />
               <RemoveButton
                 label={`Удалить ответ ${i + 1}`}
@@ -936,9 +973,13 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
               <input
                 className="q-row__input"
                 aria-label={`Вариант ${LETTERS[i]}`}
+                data-row={`${q.id}-option-${i}`}
+                enterKeyHint={i < q.options.length - 1 ? "next" : "enter"}
+                placeholder={`Вариант ${LETTERS[i]}`}
                 maxLength={LIMITS.option}
                 value={option}
                 onChange={(e) => setOption(i, e.target.value)}
+                onKeyDown={(e) => nextRow(e, i, q.options.length, LIMITS.maxOptions, () => onChange((cur) => ({ ...cur, options: [...cur.options, ""] })), `${q.id}-option`)}
               />
               <RemoveButton label={`Удалить вариант ${LETTERS[i]}`} disabled={q.options.length <= LIMITS.minOptions} onClick={() => removeOption(i)} />
             </div>
@@ -1007,6 +1048,26 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         </label>
         )}
       </div>
+      {q.kind !== "buzz" && q.kind !== "super" && (
+        <div className="q-quick" role="group" aria-label="Время одним касанием">
+          <span className="q-quick__label">Время:</span>
+          {[15, 20, 30, 45, 60, 90].map((t) => (
+            <button key={t} type="button" className={q.timeLimit === t ? "q-quick__btn is-on" : "q-quick__btn"} aria-pressed={q.timeLimit === t} onClick={() => onChange({ timeLimit: t })}>
+              {t} с
+            </button>
+          ))}
+        </div>
+      )}
+      {q.kind !== "super" && (
+        <div className="q-quick" role="group" aria-label="Очки одним касанием">
+          <span className="q-quick__label">Очки:</span>
+          {[50, 100, 200, 300, 500].map((p) => (
+            <button key={p} type="button" className={q.points === p ? "q-quick__btn is-on" : "q-quick__btn"} aria-pressed={q.points === p} onClick={() => onChange({ points: p })}>
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
       {q.kind === "speed" && <p className="muted small">Самый быстрый верный ответ получает максимум, остальные — меньше.</p>}
       {q.kind === "pictures" && <p className="muted small">Очки делятся на картинки: угадал 3 из 4 — три четверти очков.</p>}
 

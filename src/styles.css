@@ -2049,6 +2049,41 @@ legend {
   overflow-wrap: anywhere;
 }
 
+/* Время и очки вопроса одним касанием (поле с числом осталось — для любого значения). */
+.q-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.q-quick__label {
+  min-width: 52px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.q-quick__btn {
+  min-width: 52px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.q-quick__btn.is-on {
+  border-color: var(--color-highlight);
+  background: var(--color-highlight);
+  color: var(--color-bg);
+}
+
 /* Уведомление с действием: «Раунд убран — Вернуть». */
 .toast--undo {
   display: flex;

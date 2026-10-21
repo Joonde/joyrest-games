@@ -149,6 +149,21 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
     writeSent(next);
   }
 
+  /** Лишний контакт — в архив: из списка пропадает, при следующей загрузке контактов не добавится снова. */
+  function removePast(c: ClientRecord) {
+    ask({
+      title: `Убрать «${c.name || phoneLabel(c.phone)}» из прежних клиентов?`,
+      text: "Карточка уйдёт в архив «Клиентов» — ничего не стирается, вернуть можно из «Архива». При следующей загрузке контактов этот номер не добавится снова.",
+      confirmLabel: "Убрать",
+      run: async () => {
+        if (!clientsRepo) return;
+        await clientsRepo.archive(c.id);
+        update((data) => data.map((x) => (x.id === c.id ? { ...x, archived: true } : x)));
+        showToast("Убрано в архив");
+      },
+    });
+  }
+
   function answeredYes(c: ClientRecord) {
     ask({
       title: `${c.name || phoneLabel(c.phone)} ответил(а) «да»?`,
@@ -304,6 +319,9 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
                       Ответил «да»
                     </button>
                   )}
+                  <button type="button" className="btn btn--quiet" onClick={() => removePast(c)}>
+                    Убрать — не клиент
+                  </button>
                 </div>
               </li>
             );

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import postgres from "postgres";
 import { buildApp, parseDataBackend } from "./app";
 import { scheduleCleanup } from "./cleanup";
+import { startChannel } from "./channel";
 import { startBot, telegramPolling, type BotLog } from "./telegram";
 import { isOn, siteMode } from "./site";
 import { venueFormsOpen } from "./venues";
@@ -31,7 +32,22 @@ const platformUrl = env("PLATFORM_URL") ?? (siteHosts.some((h) => h.startsWith("
 let logTarget: BotLog = { info: () => undefined, warn: (details, message) => console.warn(message, details) };
 const botLog: BotLog = { info: (d, m) => logTarget.info(d, m), warn: (d, m) => logTarget.warn(d, m) };
 // Бот уведомлений команды — тот же токен, что у заявок. Сообщения читает только одно окружение (TELEGRAM_UPDATES).
-const bot = sql && leadToken ? startBot({ sql, token: leadToken, log: botLog, polling: telegramPolling(process.env.TELEGRAM_UPDATES, siteHosts), platformUrl }) : null;
+// Публикации в Telegram-канал (CHANNEL_POSTS=on и CHANNEL_CHAT — только основная версия; очередь — channel/ в образе).
+const channelChat = env("CHANNEL_CHAT");
+const channel =
+  sql && leadToken && channelChat && isOn(process.env.CHANNEL_POSTS)
+    ? startChannel({ sql, token: leadToken, chat: channelChat, ownerChat: leadChat, dir: resolve(env("CHANNEL_DIR") ?? "/app/channel"), mediaDir, log: botLog })
+    : null;
+const bot = sql && leadToken
+  ? startBot({
+      sql,
+      token: leadToken,
+      log: botLog,
+      polling: telegramPolling(process.env.TELEGRAM_UPDATES, siteHosts),
+      platformUrl,
+      commands: channel ? (chatId, text) => channel.command(chatId, text) : undefined,
+    })
+  : null;
 
 const app = buildApp({
   bot,

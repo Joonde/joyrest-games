@@ -95,6 +95,10 @@ services:
       # Бот уведомлений команды (тот же, что у заявок) читает сообщения — подключение Telegram ведущих и
       # пересланные владельцем заявки. Читать может только одно окружение — основное.
       TELEGRAM_UPDATES: "on"
+      # Публикации в Telegram-канал JoyRest ботом заявок (бот — админ канала с правом публикации). Очередь — channel/ в
+      # образе, остановить — команда /pause боту из чата владельца. Публикует только основная версия.
+      CHANNEL_POSTS: ${CHANNEL_POSTS:-on}
+      CHANNEL_CHAT: "@JoyRest"
     volumes:
       - /srv/joyrest/media/prod:/app/media
     depends_on:
@@ -134,6 +138,8 @@ services:
       VENUE_FORMS: "on"
       # Сообщения бота читает основная версия; тестовая только отправляет уведомления.
       TELEGRAM_UPDATES: "off"
+      # Тестовая версия в канал не публикует.
+      CHANNEL_POSTS: "off"
     volumes:
       - /srv/joyrest/media/test:/app/media
     depends_on:

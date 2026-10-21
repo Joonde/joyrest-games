@@ -717,6 +717,17 @@ Telegram для бизнеса → Чат-боты»; у бота в BotFather �
 читает — «Подключение Telegram на этой версии пока недоступно». API: `GET|DELETE /api/telegram/me`, `POST /api/telegram/link`
 (`permissions.canLinkTelegram`). Адрес ссылок — `PLATFORM_URL` или по адресам сайта.
 
+Telegram-канал JoyRest (решение владельца 21 октября 2026; `server/src/channel.ts`, миграция `0035_channel.sql`): бот заявок
+(`LEAD_TELEGRAM_TOKEN`) — администратор канала t.me/JoyRest с правом публикации и сам публикует посты по расписанию. Очередь — папка
+`channel/` репозитория (`queue.json`: `id`, `n`, `at` с поясом +03:00, `text` до 1024 знаков, `video` из `channel/video/`, `pin`; README
+там же), попадает в образ (`/app/channel`, `CHANNEL_DIR`) и при запуске основной версии — в `channel_posts` (вышедшие не трогаются,
+ролики копируются в `MEDIA_DIR/channel`). Раз в минуту: за 3 часа до поста владельцу (`LEAD_TELEGRAM_CHAT_ID`) — первая строка и
+команды; время пришло — `sendVideo` в `CHANNEL_CHAT` (@JoyRest), `pin` — закрепить; пост старше 6 часов (сервер был выключен) —
+«пропущен», владельцу сообщение; 3 отказа Telegram — «не вышел», владельцу сообщение. Команды владельца боту (чат заявок или
+владелец агентства с Telegram в студии): /channel, /pause, /resume, /skip_N. Публикует только основная версия (`CHANNEL_POSTS`
+в compose: prod `${CHANNEL_POSTS:-on}`, test `off`). Посты и ролики готовит Claude по скиллу ведения канала (проверка фактов и
+цен по `pricing.js`, без персональных данных); новая неделя попадает в канал с релизом `main`. Проверяет `channel.test.ts`.
+
 Библиотеки игр: общую (`scope: "agency"`) правят admin и заместитель (`deputy`; удалить игру библиотеки — только admin), ведущие запускают её игры
 как есть или копируют в «Мои игры» (`scope: "personal"`, видит только владелец).
 Разделы (решение владельца 8 октября 2026, `src/mechanics/categories.ts`): игры библиотеки собраны в

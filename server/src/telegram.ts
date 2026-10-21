@@ -99,6 +99,8 @@ export interface BotOptions {
   platformUrl: string;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** Команды владельца о канале (/channel, /pause, /resume, /skip_N): ответ или null — не о канале. */
+  commands?: (chatId: number, text: string) => Promise<string | null>;
 }
 
 interface TgUser {
@@ -288,6 +290,13 @@ export function startBot(options: BotOptions): Bot {
     if (m.chat.type !== "private") return;
     const chatId = m.chat.id;
     const text = (m.text ?? m.caption ?? "").trim();
+    if (options.commands && text.startsWith("/")) {
+      const reply = await options.commands(chatId, text);
+      if (reply) {
+        await sendChat(chatId, reply);
+        return;
+      }
+    }
     const start = /^\/start(?:\s+([A-Za-z0-9_-]{8,64}))?$/.exec(text);
     if (start) {
       const code = start[1];

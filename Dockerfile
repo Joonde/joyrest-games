@@ -25,6 +25,8 @@ COPY --from=build /src/build/site ./site
 COPY --from=build /src/build/server ./server
 COPY server/migrations ./migrations
 COPY deploy ./deploy
+# Очередь постов Telegram-канала и ролики (server/src/channel.ts).
+COPY channel ./channel
 # Заглушка joy-rest.ru показывает логотип и иконку из фирменных файлов.
 COPY public/brand/joyrest-logo.svg public/brand/favicon.svg ./deploy/caddy/soon/
 # Описание версии: по нему сервер знает, какой образ запускать и что выложено.

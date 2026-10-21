@@ -330,6 +330,27 @@ async function main() {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
 
+    // 14б. Замечания: предпросмотр игры закрыт с понятной подписью, «Показать, что исправить» ведёт к замечанию.
+    check(await page.getByText(/Предпросмотр игры откроется, когда исправите/).isVisible(), "С замечаниями: «Предпросмотр игры откроется, когда исправите…»");
+    for (let i = 0; i < 8; i++) {
+      const fix = page.getByRole("button", { name: "Показать, что исправить" }).first();
+      if (!(await fix.isVisible().catch(() => false))) break;
+      await fix.click();
+      await page.waitForTimeout(500);
+      const card = openCard();
+      check((await card.count()) === 1, `«Показать, что исправить» открыл вопрос ${await card.locator(".q-card__number").innerText().catch(() => "?")}`);
+      if ((await card.count()) === 0) break;
+      const text = card.locator("textarea").first();
+      if (!(await text.inputValue()).trim()) await text.fill("Вопрос для проверки");
+      const boxes = card.locator('input[type="checkbox"].check');
+      if ((await boxes.count()) > 0 && (await card.locator(".q-row--correct").count()) === 0) await boxes.first().check();
+      const inputs = card.locator(".q-row__input");
+      for (let k = 0; k < (await inputs.count()); k++) if (!(await inputs.nth(k).inputValue()).trim()) await inputs.nth(k).fill(`Ответ ${k + 1}`);
+      await settle();
+      if (i === 0) await snap("ispravit");
+    }
+    check(!(await page.getByText("Пока нельзя запустить.").isVisible().catch(() => false)), "Все замечания исправлены через «Показать, что исправить»");
+
     // 15. «Предпросмотр игры»: заставки раундов.
     await page.getByRole("button", { name: "Предпросмотр игры" }).click();
     const gp = page.locator("dialog[open]");

@@ -1877,10 +1877,16 @@ legend {
 .q-card.is-open > .q-card__head,
 .quest-strip.is-open > .quest-strip__head {
   position: sticky;
-  top: env(safe-area-inset-top, 0px);
+  /* Ниже плашки «Все изменения сохранены» (она тоже прилипает к верху): иначе они наезжают друг на друга. */
+  top: calc(52px + var(--safe-top, 0px));
   z-index: 3;
   background: var(--color-surface-alt);
   border-radius: var(--radius-md);
+}
+
+/* Плашки внутри открытого элемента — на тон темнее, иначе сливаются с подсвеченным фоном. */
+.stage-editor__tile:has(> .stage-editor__head[aria-expanded="true"]) .stage-editor__kind {
+  background: var(--color-bg);
 }
 
 .q-card__editing {
@@ -10602,8 +10608,9 @@ button.dance-card:active {
   color: var(--color-highlight);
 }
 
-.quest-strip__form {
-  padding: 0 14px 14px;
+.quest-strip__form,
+.quest-strip__body {
+  padding: 4px 14px 16px 18px;
 }
 
 .seg--wrap {

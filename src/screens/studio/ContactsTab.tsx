@@ -10,7 +10,6 @@ import { phoneKey, phoneLabel } from "../../core/clients";
 import { cleanName, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
 import { clientsRepo, useLoad, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
-import { Fold } from "../../components/Fold";
 import { ListSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
 import { Toast, useToast } from "../../components/Toast";
@@ -79,7 +78,7 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
     }
     const text = await file.text();
     if (!/BEGIN:VCARD/i.test(text)) {
-      setFileError("В файле нет контактов. Нужен файл .vcf — как его получить, написано выше.");
+      setFileError("В файле нет контактов. Нужен файл контактов .vcf — как его сохранить, написано в шаге 1.");
       return;
     }
     const result = scanContacts(text);
@@ -183,16 +182,21 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
         («17.10», «17 октября», «20-е»). Файл читается прямо здесь, на телефоне, — в базу попадут только те, кого вы отметите.
       </p>
 
-      <Fold title="Как выгрузить контакты с телефона">
+      <section className="card" aria-label="Как загрузить контакты">
+        <p className="small">
+          <strong>Шаг 1. Сохраните контакты файлом</strong> — браузер не может открыть контакты сам, только файл:
+        </p>
         <ol className="small">
-          <li>iPhone: «Контакты» → «Списки» (вверху слева) → удерживайте «Все контакты» → «Экспортировать» → «Сохранить в Файлы».</li>
+          <li>iPhone: «Контакты» → «Списки» (вверху слева) → удерживайте «Все контакты» → «Экспортировать» → «Сохранить в Файлы» → «Сохранить».</li>
           <li>Android: «Контакты» → меню → «Управление контактами» → «Экспорт» → файл .vcf.</li>
-          <li>Ниже нажмите «Выбрать файл контактов» и выберите сохранённый файл.</li>
         </ol>
-      </Fold>
+        <p className="small">
+          <strong>Шаг 2.</strong> Нажмите кнопку ниже и выберите этот файл («Все контакты.vcf»).
+        </p>
+      </section>
 
       <button type="button" className="btn btn--block" onClick={() => fileRef.current?.click()}>
-        Выбрать файл контактов (.vcf)
+        Выбрать сохранённый файл контактов
       </button>
       <input
         ref={fileRef}

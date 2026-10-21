@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { Fragment, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { formatNumber, readNumber } from "./orderNumber";
 import { questionsLabel } from "../../core/results";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -28,13 +28,15 @@ import {
   moveItem,
   newQuestion,
   quizRounds,
-  roundTitle,
+  roundAt,
   type QuestionKind,
   type QuizContent,
   type QuizQuestion,
   type QuizSettings,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
+import { RoundHeader, RoundMap, roundColor, roundName } from "./RoundBlocks";
+import { insertAfter, moveKeepingRounds, nextRoundTitle, removeKeepingRound, removeRoundAt, startRoundAt } from "./roundsEdit";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
@@ -56,6 +58,8 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   const [toDelete, setToDelete] = useState<QuizQuestion | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // Свёрнутые раунды: id первого вопроса раунда.
+  const [folded, setFolded] = useState<Set<string>>(() => new Set());
   const [toast, showToast] = useToast(3500);
   // Картинки, загруженные в этот раз: их можно сразу удалить при замене. Старые картинки
   // остаются до удаления игры — на них может ссылаться уже запущенная сессия.
@@ -122,7 +126,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   }
 
   function remove(question: QuizQuestion) {
-    const remaining = questions.filter((q) => q.id !== question.id);
+    const remaining = removeKeepingRound(questions, question.id);
     setQuestions(remaining);
     for (const id of questionImages(question)) releaseImage(id, remaining);
     setToDelete(null);
@@ -131,9 +135,77 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
 
   function move(index: number, to: number, focus?: "up" | "down") {
     const id = questions[index]?.id;
-    setQuestions(moveItem(questions, index, to));
+    // Блоки раундов остаются на местах: вопрос, перенесённый через блок, уходит в соседний раунд.
+    const before = roundAt({ questions } as QuizContent, index);
+    const next = moveKeepingRounds(questions, index, to);
+    setQuestions(next);
+    const after = quizRounds({ questions: next } as QuizContent).find((r) => to >= r.from && to <= r.to);
+    if (before && after && before.from !== after.from) showToast(`Вопрос перенесён в «${roundName(after)}»`);
     // Фокус остаётся на той же кнопке у перемещённого вопроса.
     if (id && focus) focusLater(`[data-move="${id}-${focus}"]`);
+  }
+
+  /** Новый вопрос в раунде — сразу после `index`. */
+  function addAfter(index: number) {
+    if (room <= 0) return;
+    const q = newQuestion("choice");
+    setQuestions(insertAfter(questions, index, q));
+    setOpenId(q.id);
+    focusLater(`#q-${q.id}-text`);
+  }
+
+  /** Новый раунд после `index`: блок и первый вопрос в нём. */
+  function addRoundAfter(index: number) {
+    if (room <= 0) return;
+    const q = { ...newQuestion("choice"), round: nextRoundTitle(questions, index + 1) };
+    setQuestions(insertAfter(questions, index, q));
+    setOpenId(q.id);
+    focusLater(`#q-${q.id}-text`);
+    showToast(`Новый раунд «${q.round}» — переименуйте его кнопкой ✎`);
+  }
+
+  /** С этого вопроса — новый раунд: он и вопросы ниже (до следующего блока) уходят в него. */
+  function startRound(index: number) {
+    const next = startRoundAt(questions, index);
+    setQuestions(next);
+    showToast(`С вопроса ${index + 1} начинается «${next[index]?.round ?? ""}»`);
+  }
+
+  function renameRound(index: number, title: string) {
+    const name = title.replace(/\s+/g, " ").trim().slice(0, LIMITS.round);
+    const current = questions[index];
+    if (!current) return;
+    // Пустое название — прежнее (раунд не пропадает: блок убирают кнопкой ✕).
+    const round = name || current.round || nextRoundTitle(questions, index);
+    setQuestions(questions.map((q, i) => (i === index ? { ...q, round } : q)));
+  }
+
+  function dropRound(index: number) {
+    const name = questions[index]?.round;
+    const next = removeRoundAt(questions, index);
+    setQuestions(next);
+    const left = quizRounds({ questions: next } as QuizContent).length > 0;
+    showToast(left ? `Раунд «${name}» убран — его вопросы ушли в раунд выше` : `Раунд «${name}» убран — игра без раундов`);
+  }
+
+  function toggleFold(firstId: string) {
+    setFolded((prev) => {
+      const next = new Set(prev);
+      if (next.has(firstId)) next.delete(firstId);
+      else next.add(firstId);
+      return next;
+    });
+  }
+
+  /** Касание карты: раунд разворачивается, вопрос открывается и встаёт в начало экрана. */
+  function pick(index: number) {
+    const q = questions[index];
+    if (!q) return;
+    const round = rounds.find((r) => index >= r.from && index <= r.to);
+    const first = round ? questions[round.from]?.id : undefined;
+    if (first && folded.has(first)) toggleFold(first);
+    setOpenId(q.id);
+    requestAnimationFrame(() => document.getElementById(`q-${q.id}-card`)?.scrollIntoView({ block: "start", behavior: smoothScroll() }));
   }
 
   /** Картинка вопроса (`slot` не задан) или одна из нескольких картинок (номер поля). */
@@ -220,6 +292,17 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
       )}
 
       {questions.length > 0 && (
+        <RoundMap
+          questions={questions}
+          rounds={rounds}
+          openIndex={questions.findIndex((q) => q.id === openId)}
+          editable={editable}
+          onPick={pick}
+          onSplit={() => startRound(Math.min(questions.length - 1, Math.max(1, Math.ceil(questions.length / 2))))}
+        />
+      )}
+
+      {questions.length > 0 && (
         <ol className="q-list" aria-label="Вопросы игры" onDragLeave={(e) => e.currentTarget === e.target && setDropIndex(null)}>
           {questions.map((q, index) => {
             const own = errorsFor(errors, q.id);
@@ -234,9 +317,40 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
             if (dragId === q.id) classes.push("is-dragging");
             if (dropIndex === index) classes.push("drop-before");
             if (dropIndex === index + 1 && index === questions.length - 1) classes.push("drop-after");
+            const roundIndex = rounds.findIndex((r) => index >= r.from && index <= r.to);
+            const round = roundIndex >= 0 ? rounds[roundIndex] : undefined;
+            const roundKey = round ? questions[round.from]?.id ?? "" : "";
+            const isFolded = round ? folded.has(roundKey) : false;
+            if (round) classes.push("q-card--round");
+            const cardStyle = round ? ({ "--rc": roundColor(roundIndex) } as CSSProperties) : undefined;
+            const header = round && round.from === index && (
+              <RoundHeader
+                round={round}
+                index={roundIndex}
+                auto={!round.title}
+                folded={isFolded}
+                editable={editable}
+                onFold={() => toggleFold(roundKey)}
+                onRename={(title) => renameRound(index, title)}
+                onRemove={() => dropRound(index)}
+              />
+            );
+            const addRow = editable && round && round.to === index && room > 0 && (
+              <li className="q-round-add" style={cardStyle}>
+                <button type="button" className="q-round-add__btn" onClick={() => addAfter(index)}>
+                  + Вопрос в «{roundName(round)}»
+                </button>
+                <button type="button" className="q-round-add__btn" onClick={() => addRoundAfter(index)}>
+                  + Новый раунд
+                </button>
+              </li>
+            );
+            if (isFolded) return <Fragment key={q.id}>{header}</Fragment>;
             return (
+              <Fragment key={q.id}>
+              {header}
               <li
-                key={q.id}
+                style={cardStyle}
                 id={`q-${q.id}-card`}
                 className={classes.join(" ")}
                 onDragOver={(e) => onDragOver(e, index)}
@@ -275,13 +389,11 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                   >
                     <span className="q-card__number">{index + 1}</span>
                     <span className="q-card__titles">
-                      {rounds.find((r) => r.from === index) && (
-                        <span className="q-card__round">{roundTitle(rounds.find((r) => r.from === index) as (typeof rounds)[number])}</span>
-                      )}
                       <span className="q-card__text">{q.text.trim() || "Без текста"}</span>
                       <span className="q-card__meta muted small">
                         {KIND_TITLES[q.kind]} · {q.timeLimit} с · {q.points} очк.
                         {q.imageId ? " · картинка" : ""}
+                        {round ? ` · ${index - round.from + 1} из ${round.to - round.from + 1} в раунде` : ""}
                       </span>
                       {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
                       {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}
@@ -320,6 +432,21 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
 
                 {expanded && (
                   <div id={`q-${q.id}-form`} className="q-card__body">
+                    {(round || editable) && (
+                      <div className="q-card__round-bar">
+                        {round && (
+                          <span className="q-card__round-tag">
+                            ◆ {roundName(round)} · вопрос {index - round.from + 1} из {round.to - round.from + 1}
+                          </span>
+                        )}
+                        {editable && (!round || round.from !== index) && (
+                          <button type="button" className="btn btn--quiet q-card__round-start" onClick={() => startRound(index)}>
+                            + Новый раунд с этого вопроса
+                          </button>
+                        )}
+                        {editable && !round && <span className="muted small">Вопросы выше станут «Раундом 1», этот и ниже — «Раундом 2».</span>}
+                      </div>
+                    )}
                     {editable ? (
                       <QuestionForm
                         gameId={gameId}
@@ -343,6 +470,8 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                   </div>
                 )}
               </li>
+              {addRow}
+              </Fragment>
             );
           })}
         </ol>
@@ -798,18 +927,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       {q.kind === "speed" && <p className="muted small">Самый быстрый верный ответ получает максимум, остальные — меньше.</p>}
       {q.kind === "pictures" && <p className="muted small">Очки делятся на картинки: угадал 3 из 4 — три четверти очков.</p>}
 
-      <label className="field">
-        Начать с этого вопроса раунд
-        <input
-          maxLength={LIMITS.round}
-          placeholder="Название раунда, например «Кино»"
-          value={q.round ?? ""}
-          onChange={(e) => onChange({ round: e.target.value === "" ? null : e.target.value })}
-        />
-      </label>
-      <p className="muted small">
-        Пусто — вопрос продолжает прежний раунд. После последнего вопроса раунда экран покажет итоги раунда и общий счёт.
-      </p>
+
 
       <label className="field">
         Заметка ведущему

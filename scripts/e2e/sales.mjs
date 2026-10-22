@@ -278,7 +278,9 @@ try {
   // Закрытое менеджеру
   check((await api("GET", "/api/clients/export", sales.cookie)).status === 403, "выгрузка клиентов закрыта (403)", "менеджеру открыта выгрузка клиентов");
   check((await api("GET", `/api/privacy?q=${encodeURIComponent(PHONE_PLUS)}`, sales.cookie)).status === 403, "«Данные по номеру» закрыты (403)", "менеджеру открыты «Данные по номеру»");
-  check((await api("GET", `/api/events?stats=1&from=${TODAY}&to=${DAY}`, sales.cookie)).status === 403, "«Итоги» мероприятий закрыты (403)", "менеджеру открыты «Итоги»");
+  // «Итоги» — окно до 370 дней только владельцу; менеджеру stats=1 не действует, и окно 200 дней — 400 (обычный предел 62 дня).
+  const statsRes = await api("GET", `/api/events?stats=1&from=${TODAY}&to=${addDays(TODAY, 200)}`, sales.cookie);
+  check(statsRes.status === 400, "«Итоги» мероприятий менеджеру не отдаются", `менеджеру открыты «Итоги»: ${statsRes.status}`);
   const gamesList = await api("GET", "/api/games?scope=agency", sales.cookie);
   check(gamesList.status === 403, "игры библиотеки менеджеру закрыты (403)", `игры библиотеки менеджеру: ${gamesList.status}`);
   check((await api("GET", "/api/clients", host.cookie)).status === 403, "ведущему «Клиенты» закрыты (403)", "ведущий видит «Клиентов»");
@@ -293,7 +295,7 @@ try {
   const promoted = await api("GET", `/api/clients/${clientId}`, sales.cookie);
   check(promoted.data?.status === "client", "клиент стал «Клиентом» после записи мероприятия", `статус после мероприятия: ${promoted.data?.status}`);
   const stats = await api("GET", "/api/clients", sales.cookie);
-  const twins = (stats.data?.clients ?? stats.data ?? []).filter((c) => c?.phoneKey === promoted.data?.phoneKey || c?.phone?.replace(/\D/g, "").endsWith(PHONE_DIGITS));
+  const twins = (stats.data?.clients ?? stats.data ?? []).filter((c) => String(c?.phone ?? "").replace(/\D/g, "").slice(-10) === PHONE_DIGITS.slice(-10));
   check(twins.length === 1, "телефон в форме «8…» не создал второго клиента", `клиентов с этим телефоном: ${twins.length}`);
   const hostView = await api("GET", `/api/events?from=${DAY}&to=${DAY}`, host.cookie);
   check((hostView.data?.events ?? []).some((e) => e.id === eventId), "ведущий видит назначенное мероприятие", "ведущий не видит мероприятие");

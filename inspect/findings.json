@@ -1,499 +1,1533 @@
 {
  "runs": [
   {
-   "name": "quiz-0-solo-projector",
-   "views": 46,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-solo-laptop",
-   "views": 40,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-teams-tv",
+   "name": "dance-0-teams-tv",
    "views": 38,
-   "findings": 0,
+   "findings": 16,
    "finished": true
   },
   {
-   "name": "quiz-0-solo-tv",
-   "views": 46,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-0-teams-projector",
+   "name": "dance-0-teams-projector",
    "views": 38,
-   "findings": 0,
+   "findings": 20,
    "finished": true
   },
   {
-   "name": "quiz-0-teams-laptop",
-   "views": 44,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-solo-laptop",
-   "views": 28,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-teams-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-teams-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-1-teams-laptop",
-   "views": 30,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-solo-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-solo-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-solo-laptop",
-   "views": 32,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-teams-tv",
-   "views": 40,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-teams-projector",
-   "views": 40,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-tv",
-   "views": 28,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "quiz-2-teams-laptop",
-   "views": 40,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-projector",
-   "views": 28,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-solo-laptop",
-   "views": 30,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-teams-projector",
-   "views": 32,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-teams-tv",
-   "views": 32,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "quiz-3-teams-laptop",
+   "name": "dance-0-teams-laptop",
    "views": 34,
-   "findings": 1,
+   "findings": 11,
    "finished": true
   },
   {
-   "name": "lotto-0-solo-tv",
-   "views": 30,
-   "findings": 3,
+   "name": "checkers-0-teams-projector",
+   "views": 56,
+   "findings": 2,
    "finished": true
   },
   {
-   "name": "lotto-0-solo-projector",
-   "views": 30,
-   "findings": 5,
+   "name": "checkers-0-teams-tv",
+   "views": 56,
+   "findings": 2,
    "finished": true
   },
   {
-   "name": "lotto-0-teams-tv",
-   "views": 20,
-   "findings": 3,
+   "name": "checkers-0-teams-laptop",
+   "views": 56,
+   "findings": 2,
    "finished": true
   },
   {
-   "name": "lotto-0-solo-laptop",
-   "views": 32,
+   "name": "stage-0-teams-tv",
+   "views": 56,
    "findings": 4,
    "finished": true
   },
   {
-   "name": "wager-0-teams-projector",
-   "views": 18,
+   "name": "stage-0-teams-laptop",
+   "views": 44,
+   "findings": 6,
+   "finished": true
+  },
+  {
+   "name": "stage-0-teams-projector",
+   "views": 56,
+   "findings": 7,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-tv",
+   "views": 56,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-laptop",
+   "views": 44,
+   "findings": 6,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-projector",
+   "views": 56,
+   "findings": 7,
+   "finished": true
+  },
+  {
+   "name": "quest-0-teams-tv",
+   "views": 41,
    "findings": 2,
    "finished": true
   },
   {
-   "name": "wager-0-teams-tv",
-   "views": 18,
+   "name": "quest-0-teams-projector",
+   "views": 46,
    "findings": 2,
    "finished": true
   },
   {
-   "name": "lotto-0-teams-projector",
-   "views": 20,
-   "findings": 5,
-   "finished": true
-  },
-  {
-   "name": "wager-0-teams-laptop",
-   "views": 16,
+   "name": "quest-1-teams-tv",
+   "views": 45,
    "findings": 2,
    "finished": true
   },
   {
-   "name": "wager-0-solo-projector",
-   "views": 30,
+   "name": "quest-1-teams-projector",
+   "views": 40,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-0-teams-laptop",
+   "views": 53,
    "findings": 3,
    "finished": true
   },
   {
-   "name": "wager-0-solo-tv",
-   "views": 30,
+   "name": "survival-0-teams-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-1-teams-laptop",
+   "views": 50,
    "findings": 3,
    "finished": true
   },
   {
-   "name": "lotto-0-teams-laptop",
+   "name": "dragon-0-teams-tv",
    "views": 28,
    "findings": 4,
    "finished": true
   },
   {
-   "name": "wager-0-solo-laptop",
-   "views": 18,
-   "findings": 1,
+   "name": "dragon-0-teams-projector",
+   "views": 28,
+   "findings": 16,
+   "finished": true
+  },
+  {
+   "name": "dragon-0-teams-laptop",
+   "views": 36,
+   "findings": 12,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-tv",
+   "views": 30,
+   "findings": 11,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-projector",
+   "views": 30,
+   "findings": 24,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-laptop",
+   "views": 52,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-laptop",
+   "views": 32,
+   "findings": 14,
    "finished": true
   }
  ],
  "findings": [
   {
-   "key": "экран зала|обрезан текст|div.podium__slot > div.podium__names > p.podium__name > span.name-emoji|",
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__style|",
    "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (div.podium__names)",
-   "path": "div.podium__slot > div.podium__names > p.podium__name > span.name-emoji",
-   "text": "🦊",
-   "at": "playing/7/podium/",
-   "count": 5,
-   "shot": "shots/quiz-0-solo-projector-hall-1.jpg",
+   "kind": "мелко для зала",
+   "message": "шрифт 14.3 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__style",
+   "text": "💃 Латина",
+   "at": "playing/0/question/pick",
+   "count": 6,
+   "shot": "shots/dance-0-teams-tv-hall-1.jpg",
    "where": [
-    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "quiz"
+    "dance"
    ]
   },
   {
-   "key": "экран зала|обрезан текст|div.podium__slot > div.podium__names > p.podium__name > span|",
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__n|",
    "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (div.podium__names)",
-   "path": "div.podium__slot > div.podium__names > p.podium__name > span",
-   "text": "Владимир Преображенский",
-   "at": "playing/7/podium/",
-   "count": 1,
-   "shot": "shots/quiz-0-solo-projector-hall-2.jpg",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 11 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--dance > span.db-card__label > span.db-card__n",
+   "text": "№ 1",
+   "at": "playing/0/question/pick",
+   "count": 6,
+   "shot": "shots/dance-0-teams-tv-hall-2.jpg",
    "where": [
-    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "quiz"
+    "dance"
    ]
   },
   {
-   "key": "экран зала|надписи наезжают|div.podium__slot > div.podium__names > p.podium__name > span.name-emoji|",
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n|",
    "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«🐻» и «Максимилиан Рождественский» друг на друге",
-   "path": "div.podium__slot > div.podium__names > p.podium__name > span.name-emoji",
-   "text": "🐻 | Максимилиан Рождественский",
-   "at": "playing/7/podium/",
-   "count": 1,
-   "shot": "shots/quiz-0-solo-projector-hall-3.jpg",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 11 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n",
+   "text": "№ 2",
+   "at": "playing/0/question/pick",
+   "count": 6,
+   "shot": "shots/dance-0-teams-tv-hall-3.jpg",
    "where": [
-    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "quiz"
+    "dance"
    ]
   },
   {
-   "key": "экран зала|прячется за прокруткой|div.final > div.final__board > div.board-view > p.board-view__more|",
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__style|",
    "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 7 px)",
-   "path": "div.final > div.final__board > div.board-view > p.board-view__more",
-   "text": "и ещё 2",
-   "at": "finished/7/podium/",
+   "kind": "мелко для зала",
+   "message": "шрифт 14.3 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__style",
+   "text": "🎉 Вечеринка",
+   "at": "playing/0/question/pick",
+   "count": 6,
+   "shot": "shots/dance-0-teams-tv-hall-4.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__n|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 11 px на Full HD (нужно от 18)",
+   "path": "div.db-pick__cards > span.db-card.db-card--battle > span.db-card__label > span.db-card__n",
+   "text": "№ 3",
+   "at": "playing/0/question/pick",
+   "count": 6,
+   "shot": "shots/dance-0-teams-tv-hall-5.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--dance > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--dance > span.dance-card__n",
+   "text": "№ 1",
+   "at": "playing/0/question/pick",
+   "count": 17,
+   "shot": "shots/dance-0-teams-tv-phones-1.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--karaoke > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--karaoke > span.dance-card__n",
+   "text": "№ 2",
+   "at": "playing/0/question/pick",
+   "count": 14,
+   "shot": "shots/dance-0-teams-tv-phones-2.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--battle > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > button.dance-card.dance-card--battle > span.dance-card__n",
+   "text": "№ 3",
+   "at": "playing/0/question/pick",
+   "count": 21,
+   "shot": "shots/dance-0-teams-tv-phones-3.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__style|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__style",
+   "text": "💃 Латина",
+   "at": "playing/0/question/pick",
+   "count": 9,
+   "shot": "shots/dance-0-teams-tv-phones-4.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__n|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--dance > span.db-card__label > span.db-card__n",
+   "text": "№ 1",
+   "at": "playing/0/question/pick",
+   "count": 9,
+   "shot": "shots/dance-0-teams-tv-phones-5.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--karaoke > span.db-card__label > span.db-card__n",
+   "text": "№ 2",
+   "at": "playing/0/question/pick",
+   "count": 9,
+   "shot": "shots/dance-0-teams-tv-phones-6.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__style|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__style",
+   "text": "🎉 Вечеринка",
+   "at": "playing/0/question/pick",
+   "count": 9,
+   "shot": "shots/dance-0-teams-tv-phones-7.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__n|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 8.1 px (нужно от 12)",
+   "path": "button.db-swipe__item > span.db-card.db-card--battle > span.db-card__label > span.db-card__n",
+   "text": "№ 3",
+   "at": "playing/0/question/pick",
+   "count": 9,
+   "shot": "shots/dance-0-teams-tv-phones-8.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--dance > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--dance > span.dance-card__n",
+   "text": "№ 1",
+   "at": "playing/8/question/pick",
+   "count": 10,
+   "shot": "shots/dance-0-teams-tv-phones-9.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--karaoke > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--karaoke > span.dance-card__n",
+   "text": "№ 2",
+   "at": "playing/8/question/pick",
    "count": 13,
-   "shot": "shots/quiz-0-solo-projector-hall-4.jpg",
+   "shot": "shots/dance-0-teams-tv-phones-10.jpg",
    "where": [
-    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "quiz 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "quiz 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "quiz 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "quiz 3-й шаблон, команды ×4, телевизор full hd",
-    "quiz 3-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "quiz 4-й шаблон, каждый сам ×4, телевизор full hd",
-    "quiz 4-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "quiz 4-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
-    "quiz",
-    "lotto"
+    "dance"
    ]
   },
   {
-   "key": "экран зала|обрезан текст|div.podium__stage > div.podium__slot > div.podium__names > p.podium__name|",
+   "key": "пульт|мелкий текст|div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--battle > span.dance-card__n|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.3 px (нужно от 12)",
+   "path": "div.stack.host-quiz > div.dance-cards > div.dance-card.dance-card--battle > span.dance-card__n",
+   "text": "№ 3",
+   "at": "playing/16/question/pick",
+   "count": 6,
+   "shot": "shots/dance-0-teams-tv-phones-11.jpg",
+   "where": [
+    "dance 1-й шаблон, команды ×4, телевизор full hd",
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dance 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dance"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.dance-screen.db-stage > div.db-video.db-video--art > span.db-live|",
    "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 6 px (div.podium__names)",
-   "path": "div.podium__stage > div.podium__slot > div.podium__names > p.podium__name",
-   "text": "Гость 1",
-   "at": "playing/7/podium/",
-   "count": 3,
-   "shot": "shots/quiz-0-solo-tv-hall-1.jpg",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.8 px — 15 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.dance-screen.db-stage > div.db-video.db-video--art > span.db-live",
+   "text": "● ИДЁТ ВЫСТУПЛЕНИЕ",
+   "at": "playing/0/reveal/perform",
+   "count": 1,
+   "shot": "shots/dance-0-teams-projector-hall-6.jpg",
    "where": [
-    "quiz 1-й шаблон, каждый сам ×4, телевизор full hd"
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "quiz"
+    "dance"
    ]
   },
   {
-   "key": "телефон|мелкий текст|div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule|",
-   "area": "телефон",
-   "kind": "мелкий текст",
-   "message": "шрифт 10.0 px (нужно от 12)",
-   "path": "div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule",
-   "text": "Одна линия",
-   "at": "playing/0/question/",
-   "count": 186,
-   "shot": "shots/lotto-0-solo-tv-phones-1.jpg",
+   "key": "экран зала|мелко для зала|div.dance-screen.db-stage > div.db-side > div > span.db-kicker|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.8 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.dance-screen.db-stage > div.db-side > div > span.db-kicker",
+   "text": "На сцене",
+   "at": "playing/0/reveal/perform",
+   "count": 1,
+   "shot": "shots/dance-0-teams-projector-hall-7.jpg",
    "where": [
-    "lotto 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, телевизор full hd",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "lotto"
+    "dance"
    ]
   },
   {
-   "key": "телефон|мелкий текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title|",
-   "area": "телефон",
-   "kind": "мелкий текст",
-   "message": "шрифт 10.0 px (нужно от 12)",
-   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title",
-   "text": "Звезда по имени Солнце",
-   "at": "playing/0/question/",
-   "count": 2283,
-   "shot": "shots/lotto-0-solo-tv-phones-2.jpg",
+   "key": "экран зала|мелко для зала|div.db-side > div.db-mini > div.db-mini__text > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.8 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.db-side > div.db-mini > div.db-mini__text > span",
+   "text": "Латина",
+   "at": "playing/0/reveal/perform",
+   "count": 1,
+   "shot": "shots/dance-0-teams-projector-hall-8.jpg",
    "where": [
-    "lotto 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, телевизор full hd",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "lotto"
+    "dance"
    ]
   },
   {
-   "key": "телефон|мелкий текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist|",
-   "area": "телефон",
-   "kind": "мелкий текст",
-   "message": "шрифт 10.0 px (нужно от 12)",
-   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist",
-   "text": "Серебро",
-   "at": "playing/0/question/",
-   "count": 2505,
-   "shot": "shots/lotto-0-solo-tv-phones-3.jpg",
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.dance-screen.db-stage > div.db-side > p.db-hint|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 12.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.dance-screen.db-stage > div.db-side > p.db-hint",
+   "text": "Вся команда выходит и повторяет за ведущим",
+   "at": "playing/0/reveal/perform",
+   "count": 1,
+   "shot": "shots/dance-0-teams-projector-hall-9.jpg",
    "where": [
-    "lotto 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, телевизор full hd",
-    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+    "dance 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "lotto"
+    "dance"
    ]
   },
   {
-   "key": "телефон|мелкая кнопка|div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell|",
+   "key": "пульт|мелкая кнопка|div.stack.host-quiz > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell|",
+   "area": "пульт",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 28×28 px (пальцу нужно от 40×40)",
+   "path": "div.stack.host-quiz > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell",
+   "text": "",
+   "at": "playing/1/question/move",
+   "count": 141,
+   "shot": "shots/checkers-0-teams-projector-phones-1.jpg",
+   "where": [
+    "checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена",
+    "checkers 1-й шаблон, команды ×2, телевизор full hd",
+    "checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "checkers"
+   ]
+  },
+  {
+   "key": "телефон|мелкая кнопка|div.quiz-phone.quiz-phone--center > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell|",
    "area": "телефон",
    "kind": "мелкая кнопка",
-   "message": "кнопка 45×36 px (пальцу нужно от 40×40)",
-   "path": "div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell",
-   "text": "Звезда по имени Солнце",
-   "at": "playing/0/question/",
-   "count": 960,
-   "shot": "shots/lotto-0-solo-projector-phones-4.jpg",
+   "message": "кнопка 28×28 px (пальцу нужно от 40×40)",
+   "path": "div.quiz-phone.quiz-phone--center > div.stack.stack--tight > div.checkers.checkers--phone > button.checkers__cell",
+   "text": "",
+   "at": "playing/1/question/move",
+   "count": 144,
+   "shot": "shots/checkers-0-teams-laptop-phones-2.jpg",
    "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+    "checkers 1-й шаблон, команды ×2, проектор 4:3, маленький телефон, длинные имена",
+    "checkers 1-й шаблон, команды ×2, телевизор full hd",
+    "checkers 1-й шаблон, команды ×2, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
-    "lotto"
+    "checkers"
    ]
   },
   {
-   "key": "телефон|обрезан текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist|",
-   "area": "телефон",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (span.lotto-card__artist)",
-   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist",
-   "text": "Ирина Аллегрова",
-   "at": "playing/0/question/",
-   "count": 31,
-   "shot": "shots/lotto-0-solo-projector-phones-5.jpg",
+   "key": "пульт|надписи наезжают|div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__points|",
+   "area": "пульт",
+   "kind": "надписи наезжают",
+   "message": "«100» и «🔒 батл» друг на друге",
+   "path": "div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__points",
+   "text": "100 | 🔒 батл",
+   "at": "playing/0/reveal/pick",
+   "count": 70,
+   "shot": "shots/stage-0-teams-tv-phones-1.jpg",
    "where": [
-    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+    "stage 1-й шаблон, команды ×4, телевизор full hd",
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×4, телевизор full hd",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "lotto"
+    "stage"
    ]
   },
   {
-   "key": "пульт|мелкий текст|div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value|",
+   "key": "пульт|мелкий текст|div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__tag|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 9.0 px (нужно от 12)",
+   "path": "div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile > span.stage-tile__tag",
+   "text": "🔒 батл",
+   "at": "playing/0/reveal/pick",
+   "count": 106,
+   "shot": "shots/stage-0-teams-tv-phones-2.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×4, телевизор full hd",
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×4, телевизор full hd",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|мелкая кнопка|div.stack.host-quiz > div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile|",
+   "area": "пульт",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 33×48 px (пальцу нужно от 40×40)",
+   "path": "div.stack.host-quiz > div.stage-field.stage-field--compact > div.stage-field__row > button.stage-tile",
+   "text": "100",
+   "at": "playing/0/reveal/pick",
+   "count": 282,
+   "shot": "shots/stage-0-teams-tv-phones-3.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×4, телевизор full hd",
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×4, телевизор full hd",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stage-field.stage-field--compact > div.stage-field__row > div.stage-tile > span.stage-tile__who|",
    "area": "пульт",
    "kind": "мелкий текст",
    "message": "шрифт 11.0 px (нужно от 12)",
-   "path": "div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value",
-   "text": "Меньше всех",
-   "at": "playing/2/question/bet",
-   "count": 29,
-   "shot": "shots/wager-0-teams-tv-phones-1.jpg",
+   "path": "div.stage-field.stage-field--compact > div.stage-field__row > div.stage-tile > span.stage-tile__who",
+   "text": "2 М",
+   "at": "playing/2/reveal/pick",
+   "count": 88,
+   "shot": "shots/stage-0-teams-tv-phones-4.jpg",
    "where": [
-    "wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "wager 1-й шаблон, команды ×4, телевизор full hd",
-    "wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "wager 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "wager 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+    "stage 1-й шаблон, команды ×4, телевизор full hd",
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×4, телевизор full hd",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "wager"
+    "stage"
    ]
   },
   {
-   "key": "телефон|мелкий текст|div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value|",
+   "key": "экран зала|закрыт другим элементом|div.stage-teams > div.stage-teams__one > span.stage-teams__name > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Единороги из бухгалтерии» закрыт элементом span.name-emoji",
+   "path": "div.stage-teams > div.stage-teams__one > span.stage-teams__name > span",
+   "text": "Единороги из бухгалтерии",
+   "at": "playing/8/reveal/pick",
+   "count": 6,
+   "shot": "shots/stage-0-teams-laptop-hall-1.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.stage-screen.stage-screen--battle > div.stage-tug > div.stage-tug__bar > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«50% · 0» закрыт элементом img.stage-dancer",
+   "path": "div.stage-screen.stage-screen--battle > div.stage-tug > div.stage-tug__bar > span",
+   "text": "50% · 0",
+   "at": "playing/36/reveal/result",
+   "count": 8,
+   "shot": "shots/stage-0-teams-laptop-hall-2.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|прокрутка вбок|ul.buzz-queue.buzz-queue--plain > li > span.buzz-queue__name > span|",
+   "area": "пульт",
+   "kind": "прокрутка вбок",
+   "message": "страница шире экрана на 12 px (span)",
+   "path": "ul.buzz-queue.buzz-queue--plain > li > span.buzz-queue__name > span",
+   "text": "Медведи складской логистики",
+   "at": "playing/18/reveal/result",
+   "count": 2,
+   "shot": "shots/stage-0-teams-projector-phones-5.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "пульт|прокрутка вбок|div.stack.stack--tight > div.stack.stack--tight > div.row > button.btn.btn--secondary|",
+   "area": "пульт",
+   "kind": "прокрутка вбок",
+   "message": "страница шире экрана на 12 px (button.btn.btn--secondary)",
+   "path": "div.stack.stack--tight > div.stack.stack--tight > div.row > button.btn.btn--secondary",
+   "text": "Победил:",
+   "at": "playing/29/reveal/result",
+   "count": 6,
+   "shot": "shots/stage-0-teams-projector-phones-6.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "stage 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|aside.qx-panel > ol.qx-panel__list > li.qx-row > span.qx-row__cell|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.5 px — 16 px на Full HD (нужно от 18)",
+   "path": "aside.qx-panel > ol.qx-panel__list > li.qx-row > span.qx-row__cell",
+   "text": "кл. 0",
+   "at": "playing/0/question/roll",
+   "count": 166,
+   "shot": "shots/quest-0-teams-tv-hall-1.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 1-й шаблон, команды ×4, телевизор full hd",
+    "quest 2-й шаблон, команды ×4, телевизор full hd",
+    "quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.quest-screen.qx--classic > div.qx-turn > div.qx-turn__who > span.qx-turn__label|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.8 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.quest-screen.qx--classic > div.qx-turn > div.qx-turn__who > span.qx-turn__label",
+   "text": "Бросает кубик",
+   "at": "playing/0/question/roll",
+   "count": 21,
+   "shot": "shots/quest-0-teams-tv-hall-2.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 1-й шаблон, команды ×4, телевизор full hd",
+    "quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.quest-screen.qx--adult > div.qx-turn > div.qx-turn__who > span.qx-turn__label|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 15.1 px — 15 px на Full HD (нужно от 18)",
+   "path": "div.quest-screen.qx--adult > div.qx-turn > div.qx-turn__who > span.qx-turn__label",
+   "text": "Бросает кубик",
+   "at": "playing/0/question/roll",
+   "count": 21,
+   "shot": "shots/quest-1-teams-tv-hall-2.jpg",
+   "where": [
+    "quest 2-й шаблон, команды ×4, телевизор full hd",
+    "quest 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.quest-screen.qx--classic > aside.qx-panel > p.qx-panel__more|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 12.8 px — 17 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.quest-screen.qx--classic > aside.qx-panel > p.qx-panel__more",
+   "text": "и ещё 1",
+   "at": "playing/30/reveal/done",
+   "count": 4,
+   "shot": "shots/quest-0-teams-laptop-hall-2.jpg",
+   "where": [
+    "quest 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.quest-screen.qx--adult > aside.qx-panel > p.qx-panel__more|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 12.8 px — 17 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.quest-screen.qx--adult > aside.qx-panel > p.qx-panel__more",
+   "text": "и ещё 1",
+   "at": "playing/31/question/roll",
+   "count": 5,
+   "shot": "shots/quest-1-teams-laptop-hall-2.jpg",
+   "where": [
+    "quest 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quest"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.stack > div.dr-pick > button.dr-pick__item > span.dr-pick__name|",
    "area": "телефон",
    "kind": "мелкий текст",
    "message": "шрифт 11.0 px (нужно от 12)",
-   "path": "div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value",
-   "text": "Меньше всех",
-   "at": "playing/2/question/bet",
+   "path": "div.stack > div.dr-pick > button.dr-pick__item > span.dr-pick__name",
+   "text": "Эльфийка",
+   "at": "playing/1/question/",
+   "count": 120,
+   "shot": "shots/dragon-0-teams-tv-phones-1.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, телевизор full hd",
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-boss > div.dg-boss__rank|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 18.2 px — 18 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-boss > div.dg-boss__rank",
+   "text": "Бой 1 из 2",
+   "at": "playing/1/question/",
+   "count": 13,
+   "shot": "shots/dragon-0-teams-tv-hall-1.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, телевизор full hd",
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye",
+   "text": "Бой с драконом",
+   "at": "playing/1/question/",
    "count": 5,
-   "shot": "shots/wager-0-teams-tv-phones-2.jpg",
+   "shot": "shots/dragon-0-teams-tv-hall-2.jpg",
    "where": [
-    "wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "wager 1-й шаблон, команды ×4, телевизор full hd",
-    "wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+    "dragon 1-й шаблон, команды ×4, телевизор full hd",
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
-    "wager"
+    "dragon"
    ]
   },
   {
-   "key": "экран зала|надписи наезжают|div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag|",
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > div.dg-q__eye|",
    "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Ближе всех» и «Вход: localhost:40707/j · код » друг на друге",
-   "path": "div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag",
-   "text": "Ближе всех | Вход: localhost:40707/j · код 123 456",
-   "at": "playing/2/reveal/answer",
-   "count": 2,
-   "shot": "shots/wager-0-solo-projector-hall-1.jpg",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > div.dg-q__eye",
+   "text": "Задание 6 · 🧠 Ум",
+   "at": "playing/15/reveal/",
+   "count": 7,
+   "shot": "shots/dragon-0-teams-tv-hall-3.jpg",
    "where": [
-    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "wager 1-й шаблон, каждый сам ×4, телевизор full hd"
+    "dragon 1-й шаблон, команды ×4, телевизор full hd",
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
-    "wager"
+    "dragon"
    ]
   },
   {
-   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > p.stage-code|",
+   "key": "экран зала|мелко для зала|div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero|",
    "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Вход: localhost:40707/j · код 123 456» закрыт элементом li.wager-slot.wager-slot--low",
-   "path": "div.hall > main.quiz-stage > p.stage-code",
-   "text": "Вход: localhost:40707/j · код 123 456",
-   "at": "playing/2/reveal/answer",
-   "count": 2,
-   "shot": "shots/wager-0-solo-tv-hall-2.jpg",
+   "kind": "мелко для зала",
+   "message": "шрифт 9.8 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 37,
+   "shot": "shots/dragon-0-teams-projector-hall-2.jpg",
    "where": [
-    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "wager 1-й шаблон, каждый сам ×4, телевизор full hd"
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
-    "wager"
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 9.8 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 35,
+   "shot": "shots/dragon-0-teams-projector-hall-3.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note",
+   "text": "У каждого героя своя сила. Капитан раскладывает 5 очков по свойствам: Сила, Ум, ",
+   "at": "playing/1/question/",
+   "count": 2,
+   "shot": "shots/dragon-0-teams-projector-hall-5.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-round|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.2 px — 14 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-round",
+   "text": "Задание",
+   "at": "playing/2/ready/",
+   "count": 8,
+   "shot": "shots/dragon-0-teams-projector-hall-6.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-hp > div.dg-hp__num|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-hp > div.dg-hp__num",
+   "text": "2 500 / 2 500",
+   "at": "playing/2/ready/",
+   "count": 3,
+   "shot": "shots/dragon-0-teams-projector-hall-7.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-intent|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.8 px — 15 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-intent",
+   "text": "Открывает третий глаз — не справитесь, ударит лучом",
+   "at": "playing/2/ready/",
+   "count": 7,
+   "shot": "shots/dragon-0-teams-projector-hall-8.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__row > span.dg-team__dm|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 9.8 px — 14 px на Full HD (нужно от 18)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__row > span.dg-team__dm",
+   "text": "урон",
+   "at": "playing/2/ready/",
+   "count": 52,
+   "shot": "shots/dragon-0-teams-projector-hall-9.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li.dg-team > span.dg-team__row > span.dg-team__dm > b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 9.8 px — 14 px на Full HD (нужно от 18)",
+   "path": "li.dg-team > span.dg-team__row > span.dg-team__dm > b",
+   "text": "0",
+   "at": "playing/2/ready/",
+   "count": 98,
+   "shot": "shots/dragon-0-teams-projector-hall-10.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__row > span.dg-team__dm|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 9.8 px — 14 px на Full HD (нужно от 18)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__row > span.dg-team__dm",
+   "text": "урон",
+   "at": "playing/2/ready/",
+   "count": 46,
+   "shot": "shots/dragon-0-teams-projector-hall-11.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-q > ol.dg-q__ans > li > b|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.2 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.dg-q > ol.dg-q__ans > li > b",
+   "text": "А",
+   "at": "playing/15/reveal/",
+   "count": 16,
+   "shot": "shots/dragon-0-teams-projector-hall-13.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-q > ol.dg-q__ans > li > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 12.8 px — 18 px на Full HD (нужно от 18)",
+   "path": "div.dg-q > ol.dg-q__ans > li > span",
+   "text": "Гоголь",
+   "at": "playing/15/reveal/",
+   "count": 4,
+   "shot": "shots/dragon-0-teams-projector-hall-14.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > p.dg-q__note|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--adult > div.dg-frame > div.dg-q > p.dg-q__note",
+   "text": "Выполняйте — ведущий засчитает удар",
+   "at": "playing/19/reveal/",
+   "count": 1,
+   "shot": "shots/dragon-0-teams-projector-hall-15.jpg",
+   "where": [
+    "dragon 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__name|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 8 px (div.dg-boss__name)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__name",
+   "text": "Добрый дракончик",
+   "at": "playing/1/question/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-tv-hall-1.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (span.dg-team__nm)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm",
+   "text": "Команда 1",
+   "at": "playing/1/question/",
+   "count": 11,
+   "shot": "shots/dragon-1-teams-tv-hall-2.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (span.dg-team__nm)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm",
+   "text": "Команда 3",
+   "at": "playing/1/question/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-tv-hall-3.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__rank|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 18.2 px — 18 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-boss > div.dg-boss__rank",
+   "text": "Сказочный дракон",
+   "at": "playing/1/question/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-tv-hall-4.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye",
+   "text": "Бой с драконом",
+   "at": "playing/1/question/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-tv-hall-5.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 3.27 (нужно от 4.5)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 30,
+   "shot": "shots/dragon-1-teams-tv-hall-6.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 3.27 (нужно от 4.5)",
+   "path": "div.dg-frame > ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__hero",
+   "text": "Герой выбирается",
+   "at": "playing/1/question/",
+   "count": 26,
+   "shot": "shots/dragon-1-teams-tv-hall-7.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 2.58 (нужно от 4.5)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > div.dg-q__eye",
+   "text": "Бой с драконом",
+   "at": "playing/1/question/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-tv-hall-8.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 17.3 px — 17 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye",
+   "text": "Задание 2 · 💪 Сила",
+   "at": "playing/19/reveal/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-tv-hall-9.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 2.58 (нужно от 4.5)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > div.dg-q__eye",
+   "text": "Задание 2 · 💪 Сила",
+   "at": "playing/19/reveal/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-tv-hall-10.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, телевизор full hd",
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span.name-emoji",
+   "text": "🦄",
+   "at": "playing/1/question/",
+   "count": 11,
+   "shot": "shots/dragon-1-teams-projector-hall-2.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span",
+   "text": "Единороги из бухгалтерии",
+   "at": "playing/1/question/",
+   "count": 11,
+   "shot": "shots/dragon-1-teams-projector-hall-3.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span.name-emoji",
+   "text": "🦉",
+   "at": "playing/1/question/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-projector-hall-4.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.dg-team__nm)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span",
+   "text": "Совы-полуночники ресепшн",
+   "at": "playing/1/question/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-projector-hall-5.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note",
+   "text": "У каждого героя своя сила. Капитан раскладывает 5 очков по свойствам: Сила, Ум, ",
+   "at": "playing/1/question/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-projector-hall-10.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-round|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.2 px — 14 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-round",
+   "text": "Бой 1 из 2",
+   "at": "playing/2/ready/",
+   "count": 4,
+   "shot": "shots/dragon-1-teams-projector-hall-14.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-hp > div.dg-hp__num|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-hp > div.dg-hp__num",
+   "text": "Сила дракона 1 500 из 1 500",
+   "at": "playing/2/ready/",
+   "count": 3,
+   "shot": "shots/dragon-1-teams-projector-hall-15.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-intent|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.8 px — 15 px на Full HD (нужно от 18)",
+   "path": "main.quiz-stage > div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-intent",
+   "text": "Копит радугу — не справитесь, чихнёт!",
+   "at": "playing/2/ready/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-projector-hall-16.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-frame > div.dg-q.dg-q--center > p.dg-q__note > span",
+   "text": "Медведи складской логистики",
+   "at": "playing/15/reveal/",
+   "count": 2,
+   "shot": "shots/dragon-1-teams-projector-hall-20.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > p.dg-q__note|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 11.3 px — 16 px на Full HD (нужно от 18)",
+   "path": "div.dg-stage.dg-stage--kid > div.dg-frame > div.dg-q > p.dg-q__note",
+   "text": "Выполняйте — ведущий засчитает удар",
+   "at": "playing/19/reveal/",
+   "count": 1,
+   "shot": "shots/dragon-1-teams-projector-hall-22.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 18 px на Full HD (нужно от 18)",
+   "path": "ul.dg-teams.dg-teams--l > li.dg-team > span.dg-team__nm > span",
+   "text": "Единороги из бухгалтерии",
+   "at": "playing/20/reveal/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-laptop-hall-4.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|li.dg-team > span.dg-team__row > span.dg-team__dm > span.dg-team__roll|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 8.9 px — 12 px на Full HD (нужно от 18)",
+   "path": "li.dg-team > span.dg-team__row > span.dg-team__dm > span.dg-team__roll",
+   "text": "🎲 3",
+   "at": "playing/20/reveal/",
+   "count": 20,
+   "shot": "shots/dragon-1-teams-laptop-hall-7.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 13.4 px — 18 px на Full HD (нужно от 18)",
+   "path": "ul.dg-teams.dg-teams--r > li.dg-team > span.dg-team__nm > span",
+   "text": "Дельфины маркетинга и PR",
+   "at": "playing/20/reveal/",
+   "count": 10,
+   "shot": "shots/dragon-1-teams-laptop-hall-9.jpg",
+   "where": [
+    "dragon 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "dragon"
    ]
   }
  ]

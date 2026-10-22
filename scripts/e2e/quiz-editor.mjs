@@ -526,8 +526,12 @@ async function main() {
     check((await page.locator(".eg-section").count()) === 1, "Выбрали квиз — на странице только его инструкция");
     check(await page.locator("#quiz .eg-example").count() >= 3, "В инструкции квиза есть примеры «что будет»");
     await snap("instrukciya-kviz");
-    await page.getByRole("link", { name: "← Все игры и общие правила" }).first().click();
+    // «← Назад» из инструкции игры — к выбору игр, оттуда «← Назад» — в студию.
+    await page.getByRole("button", { name: "← Назад" }).first().click();
     await page.locator(".eg-pick__item").first().waitFor({ timeout: WAIT });
+    ok("«← Назад» из инструкции игры ведёт к выбору игр");
+    await page.getByRole("button", { name: "← Назад" }).first().click();
+    await page.waitForURL(/\/studio\/?(\?.*)?$/, { timeout: WAIT }).then(() => ok("«← Назад» из инструкции ведёт в студию")).catch(() => bad(`«← Назад» из инструкции: адрес ${page.url()}`));
     const wideGuide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     check(!wideGuide, "Инструкция без прокрутки вбок");
     check(pageErrors.length === 0, "Ошибок страницы нет", `Ошибки страницы: ${pageErrors.slice(0, 3).join(" | ")}`);

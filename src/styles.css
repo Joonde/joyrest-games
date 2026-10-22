@@ -6127,6 +6127,7 @@ ul.chips {
 
   .abilities .top-bar,
   .abilities .topbar,
+  .abilities .back-button,
   .abilities header.top,
   .abilities__tools {
     display: none !important;

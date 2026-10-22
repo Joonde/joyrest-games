@@ -9,6 +9,7 @@ import { Link, useLocation } from "react-router-dom";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { Toast, useToast } from "../../components/Toast";
+import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
 import {
   OWNER_CHECKS,
@@ -121,6 +122,7 @@ function SalesGuidePage({ profile }: { profile: UserProfile }) {
   return (
     <main className="page page--wide guide">
       <TopBar title="Инструкция менеджера" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
+      <BackButton />
 
       <section className="card stack guide-game">
         <h2>Менеджер по продажам JoyRest</h2>
@@ -236,6 +238,7 @@ function SalesGuidePage({ profile }: { profile: UserProfile }) {
         </section>
       )}
       <Toast text={toast} />
+      <BackButton />
     </main>
   );
 }

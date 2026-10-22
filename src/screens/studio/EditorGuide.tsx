@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
+import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
 import { EDITOR_BASICS, EDITOR_GUIDES as ALL_GUIDES, type EditorBasics, type EditorExample, type EditorGuide } from "../../core/editorGuide";
 import { normalizeSearch } from "../../core/search";
@@ -187,16 +188,16 @@ export function EditorGuideScreen({ profile }: { profile: UserProfile }) {
       <TopBar title="Как создавать игры" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
       {selected ? (
         <>
-          <Link className="btn btn--secondary btn--block" to="/studio/editor-guide">
-            ← Все игры и общие правила
-          </Link>
+          <BackButton fallback="/studio/editor-guide" />
           <GameSection key={selected.mechanic} g={selected} open />
-          <Link className="btn btn--secondary btn--block" to="/studio/editor-guide">
-            ← Все игры и общие правила
+          <BackButton fallback="/studio/editor-guide" />
+          <Link className="btn btn--quiet btn--block" to="/studio/editor-guide" replace>
+            Все игры и общие правила
           </Link>
         </>
       ) : (
         <>
+          <BackButton />
           <section className="card stack stack--tight">
             <h2>✍️ Как создавать игры в конструкторе</h2>
             <p>Выберите игру — откроется её инструкция: с чего начать, шаги, все поля и примеры «что будет на экране и телефонах». Ниже — общие правила для всех игр.</p>
@@ -229,6 +230,7 @@ export function EditorGuideScreen({ profile }: { profile: UserProfile }) {
           ))}
           {q && games.length > 0 && <h2 className="eg-part">🎲 Игры</h2>}
           {q && games.map((g) => <GameSection key={`${g.mechanic}:${q}`} g={g} open />)}
+          <BackButton />
         </>
       )}
     </main>

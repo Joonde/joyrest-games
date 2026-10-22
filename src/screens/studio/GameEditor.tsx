@@ -281,11 +281,6 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       <button type="button" className="btn btn--quiet back-link" onClick={() => goBack()}>
         ← К играм
       </button>
-      {editable && editorGuideFor(game.mechanic) && (
-        <Link className="btn btn--quiet back-link editor-guide-link" to={`/studio/editor-guide#${game.mechanic}`}>
-          ✍️ Как создавать эту игру — инструкция
-        </Link>
-      )}
       {editable ? (
         <>
           <span ref={statusSentinel} className="save-status__sentinel" aria-hidden="true" />
@@ -420,14 +415,6 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <button type="button" className="btn btn--secondary btn--block" onClick={() => setPreviewOpen(true)}>
             Предпросмотр игры
           </button>
-          <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
-            Как проводить эту игру
-          </Link>
-          {editorGuideFor(game.mechanic) && (
-            <Link className="btn btn--quiet btn--block" to={`/studio/editor-guide#${game.mechanic}`}>
-              Как создавать эту игру
-            </Link>
-          )}
           <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} gameId={game.id} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
         </section>
       )}
@@ -448,16 +435,28 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         </section>
       )}
       {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}
-      {!(canPreview && mechanic) && (
-        <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
-          Как проводить эту игру
-        </Link>
-      )}
-      {!(canPreview && mechanic) && editorGuideFor(game.mechanic) && (
-        <Link className="btn btn--quiet btn--block" to={`/studio/editor-guide#${game.mechanic}`}>
-          Как создавать эту игру
-        </Link>
-      )}
+      {/* Инструкции к этой игре — одним блоком: как создать (конструктор) и как провести (пульт), не путаются с настройками. */}
+      <nav className="card guide-pins" aria-labelledby="game-guides-title">
+        <h2 id="game-guides-title" className="guide-pins__title">📘 Инструкции к этой игре</h2>
+        <div className="guide-pins__grid">
+          {editorGuideFor(game.mechanic) && (
+            <Link className="guide-pins__item" to={`/studio/editor-guide#${game.mechanic}`}>
+              <span className="guide-pins__icon" aria-hidden="true">✍️</span>
+              <span className="guide-pins__text">
+                <strong>Как создать</strong>
+                <span>Поля, картинки, музыка — по шагам</span>
+              </span>
+            </Link>
+          )}
+          <Link className="guide-pins__item" to={`/studio/guide#${game.mechanic}`}>
+            <span className="guide-pins__icon" aria-hidden="true">🎤</span>
+            <span className="guide-pins__text">
+              <strong>Как провести на празднике</strong>
+              <span>Пульт, что видят гости, как объяснить правила</span>
+            </span>
+          </Link>
+        </div>
+      </nav>
 
       {MechanicEditor ? (
         <Suspense fallback={<section className="card" aria-busy="true"><span className="skeleton skeleton--choice" /></section>}>

@@ -695,12 +695,12 @@ const BOARD_MODES: Array<{ id: QuizSettings["board"]; title: string; hint: strin
   { id: "manual", title: "По кнопке", hint: "После ответа — сразу следующий вопрос; таблицу ведущий показывает, когда захочет." },
 ];
 
-/** Как проводить квиз: заставка вопроса, когда таблица, картинки на телефонах. */
+/** «Настройки показа» квиза: заставка вопроса, когда таблица, картинки на телефонах. */
 function SettingsCard({ settings, hasRace, onChange }: { settings: QuizSettings; hasRace: boolean; onChange: (settings: QuizSettings) => void }) {
   return (
     <details className="card quiz-settings">
       <summary>
-        <h2>Как проводить</h2>
+        <h2>⚙️ Настройки показа</h2>
         <span className="muted small">
           {settings.intro ? "с заставкой вопроса" : "без заставки"} · {BOARD_MODES.find((b) => b.id === settings.board)?.title.toLowerCase()}
           {settings.phoneImages ? " · картинки на телефонах" : ""}

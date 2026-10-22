@@ -13872,11 +13872,6 @@ button.dance-card:active {
   outline-offset: 2px;
 }
 
-.editor-guide-link {
-  display: block;
-  text-align: left;
-}
-
 /* На телефоне — одна колонка: длинные названия («Кто хочет стать миллионером») не рвутся посреди слова. */
 .eg-pick {
   display: grid;

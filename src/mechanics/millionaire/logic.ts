@@ -3,7 +3,7 @@
 // Команды ходят по очереди, у каждой своя ступень (0–12). Ход: заставка (`ready`, «Ход команды X ·
 // вопрос на 5 000») → вопрос (`question`): капитан выбирает вариант на телефоне (`{ choice }`, до фиксации
 // можно передумать) или ведущий отмечает ответ команды на пульте — выбор подсвечивается на экране
-// (`chosen`) → ведущий переспрашивает «Это окончательный ответ?» и фиксирует его (`locked`) → «Показать
+// (`chosen`) → ведущий переспрашивает «Фиксируем ответ?» и фиксирует его (`locked`) → «Показать
 // ответ» (`reveal`): верно — ступенью выше, неверно — вниз до
 // несгораемой; «Право на ошибку» — вариант гаснет, вопрос заново → «Следующая команда». Дошла до 12 —
 // миллионер, дальше не ходит. Подсказки — каждая один раз за игру у команды; любая подсказка открывает
@@ -282,13 +282,13 @@ export function syncChosen(session: Session, answers: Answer[]): SessionChange |
   return { state: { result: write({ ...r, chosen: pick }) } };
 }
 
-/** «Это окончательный ответ?» — да: ответ зафиксирован, телефон его больше не поменяет. */
+/** «Фиксируем ответ?» — да: ответ зафиксирован, телефон его больше не поменяет. */
 export function lockAnswer(session: Session, answers: Answer[]): SessionChange | null {
   const r = parseMillionaireResult(session.state.result);
   if (session.state.stage !== "question" || r.mode !== "question" || r.locked) return null;
   const pick = teamPick(session, answers);
   if (pick === null) return null;
-  // «Окончательный ответ» останавливает часы (как в телеигре): таймер с экрана уходит.
+  // Фиксация ответа останавливает часы: таймер с экрана уходит.
   return { state: { timeLimit: null, result: write({ ...r, chosen: pick, hostPick: pick, locked: true, changeable: false, refused: null }) } };
 }
 

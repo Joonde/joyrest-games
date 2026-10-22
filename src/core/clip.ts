@@ -6,7 +6,8 @@
 
 export const FADE_IN = [0, 2, 5] as const;
 export const FADE_OUT = [0, 3, 6] as const;
-export const CHORUS_LENGTHS = [5, 10, 15] as const;
+/** Быстрые кнопки длины припева; любая другая длина — ползунками или числом (3–120 с). */
+export const CHORUS_LENGTHS = [5, 10, 15, 20, 25, 30] as const;
 export type ClipJoin = "cut" | "cross" | "sting";
 
 export const CLIP_LIMITS = { maxStart: 3600, minLength: 3, maxLength: 120 } as const;
@@ -73,7 +74,7 @@ export function parseClip(raw: unknown): Clip {
     fadeIn: pick(d.fadeIn, FADE_IN, DEFAULT_CLIP.fadeIn as 0),
     fadeOut: pick(d.fadeOut, FADE_OUT, DEFAULT_CLIP.fadeOut as 3),
     chorusStart,
-    chorusLength: pick(d.chorusLength, CHORUS_LENGTHS, DEFAULT_CLIP.chorusLength as 10),
+    chorusLength: int(d.chorusLength, DEFAULT_CLIP.chorusLength, CLIP_LIMITS.minLength, CLIP_LIMITS.maxLength),
     join: d.join === "cut" || d.join === "sting" || d.join === "cross" ? d.join : DEFAULT_CLIP.join,
     confetti: d.confetti !== false,
   };
@@ -95,10 +96,11 @@ export function clipFields(clip: Clip): Record<string, unknown> {
 }
 
 /**
- * Участки на таймлайне не заходят друг за друга и за края трека. `which` — какой ползунок
- * двигают: начало или конец угадывания, начало припева. Длина трека неизвестна — без правого края.
+ * Участки на таймлайне не заходят за края трека. `which` — какой ползунок двигают: начало или конец
+ * угадывания, начало или конец припева, `chorus` — весь припев целиком (длина та же).
+ * Длина трека неизвестна — без правого края.
  */
-export function moveHandle(clip: Clip, which: "start" | "end" | "chorus", seconds: number, duration: number | null): Clip {
+export function moveHandle(clip: Clip, which: "start" | "end" | "chorus" | "chorusStart" | "chorusEnd", seconds: number, duration: number | null): Clip {
   const max = duration && duration > 0 ? Math.floor(duration) : CLIP_LIMITS.maxStart + CLIP_LIMITS.maxLength;
   const s = Math.max(0, Math.round(seconds));
   if (which === "start") {
@@ -110,6 +112,16 @@ export function moveHandle(clip: Clip, which: "start" | "end" | "chorus", second
   if (which === "end") {
     const end = Math.min(max, Math.max(clip.start + CLIP_LIMITS.minLength, Math.min(s, clip.start + CLIP_LIMITS.maxLength)));
     return { ...clip, length: end - clip.start };
+  }
+  const from = clip.chorusStart ?? 0;
+  if (which === "chorusStart") {
+    const end = Math.min(max, from + clip.chorusLength);
+    const start = Math.max(0, Math.max(end - CLIP_LIMITS.maxLength, Math.min(s, end - CLIP_LIMITS.minLength)));
+    return { ...clip, chorusStart: start, chorusLength: end - start };
+  }
+  if (which === "chorusEnd") {
+    const end = Math.min(max, Math.max(from + CLIP_LIMITS.minLength, Math.min(s, from + CLIP_LIMITS.maxLength)));
+    return { ...clip, chorusStart: from, chorusLength: Math.max(CLIP_LIMITS.minLength, end - from) };
   }
   const chorus = Math.min(Math.max(0, max - clip.chorusLength), s);
   return { ...clip, chorusStart: chorus };

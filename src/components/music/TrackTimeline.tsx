@@ -55,7 +55,7 @@ const FADE_IN_LABELS: Record<number, string> = { 0: "Сразу громко", 2
 const FADE_OUT_LABELS: Record<number, string> = { 0: "Обрыв", 3: "Затухание 3 с", 6: "Затухание 6 с" };
 const JOIN_LABELS: Record<ClipJoin, string> = { cut: "Сразу", cross: "Склейка", sting: "Отбивка" };
 
-type Handle = "start" | "end" | "chorus";
+type Handle = "start" | "end" | "chorusStart" | "chorusEnd";
 
 export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChange: (clip: Clip) => void; disabled?: boolean }) {
   const { tracks, failed } = useTrackList();
@@ -86,6 +86,7 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
   const pct = (sec: number) => `${Math.min(100, Math.max(0, (sec / duration) * 100))}%`;
   const guessEnd = clip.start + clip.length;
   const chorusEnd = (clip.chorusStart ?? 0) + clip.chorusLength;
+  const knownDuration = track?.durationMs ? track.durationMs / 1000 : null;
 
   if (!tracksRepo) return null;
 
@@ -105,8 +106,7 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
   function onPointerMove(event: ReactPointerEvent) {
     if (!drag) return;
     const sec = secondsAt(event.clientX);
-    // Припев тянут за середину: ползунок — его начало, длина выбирается кнопками.
-    onChange(moveHandle(latest.current, drag, drag === "chorus" ? sec - latest.current.chorusLength / 2 : sec, track?.durationMs ? track.durationMs / 1000 : null));
+    onChange(moveHandle(latest.current, drag, sec, knownDuration));
   }
 
   /** Прослушать участок: играет прямо по касанию (iPhone), конец — по таймеру позиции. */
@@ -193,14 +193,24 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
               onPointerDown={(e) => onPointerDown("end", e)}
             />
             {clip.chorusStart !== null && (
-              <button
-                type="button"
-                className="timeline__handle timeline__handle--chorus"
-                style={{ left: pct(clip.chorusStart + clip.chorusLength / 2) }}
-                aria-label={`Припев: ${clock(clip.chorusStart)}–${clock(chorusEnd)}`}
-                disabled={disabled}
-                onPointerDown={(e) => onPointerDown("chorus", e)}
-              />
+              <>
+                <button
+                  type="button"
+                  className="timeline__handle timeline__handle--chorus"
+                  style={{ left: pct(clip.chorusStart) }}
+                  aria-label={`Начало припева: ${clock(clip.chorusStart)}`}
+                  disabled={disabled}
+                  onPointerDown={(e) => onPointerDown("chorusStart", e)}
+                />
+                <button
+                  type="button"
+                  className="timeline__handle timeline__handle--chorus"
+                  style={{ left: pct(chorusEnd) }}
+                  aria-label={`Конец припева: ${clock(chorusEnd)}`}
+                  disabled={disabled}
+                  onPointerDown={(e) => onPointerDown("chorusEnd", e)}
+                />
+              </>
             )}
           </div>
           <p className="timeline__scale muted small">
@@ -218,11 +228,11 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
           <div className="q-numbers">
             <label className="field">
               С секунды
-              <ClampedNumber value={clip.start} min={0} max={3600} fallback={0} disabled={disabled} onChange={(v) => onChange(moveHandle(clip, "start", v, track?.durationMs ? track.durationMs / 1000 : null))} />
+              <ClampedNumber value={clip.start} min={0} max={3600} fallback={0} disabled={disabled} onChange={(v) => onChange(moveHandle(clip, "start", v, knownDuration))} />
             </label>
             <label className="field">
               Играть, секунд
-              <ClampedNumber value={clip.length} min={3} max={120} fallback={15} disabled={disabled} onChange={(v) => onChange(moveHandle(clip, "end", clip.start + v, track?.durationMs ? track.durationMs / 1000 : null))} />
+              <ClampedNumber value={clip.length} min={3} max={120} fallback={15} disabled={disabled} onChange={(v) => onChange(moveHandle(clip, "end", clip.start + v, knownDuration))} />
             </label>
           </div>
 
@@ -241,12 +251,44 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
                 type="button"
                 className={clip.chorusStart !== null && clip.chorusLength === n ? "seg__btn is-on" : "seg__btn"}
                 disabled={disabled}
-                onClick={() => set({ chorusLength: n, chorusStart: clip.chorusStart ?? Math.min(Math.max(0, duration - n), guessEnd + 10) })}
+                onClick={() => {
+                  const from = clip.chorusStart ?? Math.min(Math.max(0, duration - n), guessEnd + 10);
+                  onChange(moveHandle({ ...clip, chorusStart: from }, "chorusEnd", from + n, knownDuration));
+                }}
               >
                 {n} с
               </button>
             ))}
           </div>
+          {clip.chorusStart !== null && (
+            <>
+              <p className="muted small">Или любой промежуток: тяните два золотых ползунка на дорожке или впишите секунды.</p>
+              <div className="q-numbers">
+                <label className="field">
+                  Припев с секунды
+                  <ClampedNumber
+                    value={clip.chorusStart}
+                    min={0}
+                    max={3600}
+                    fallback={0}
+                    disabled={disabled}
+                    onChange={(v) => onChange(moveHandle(clip, "chorus", v, knownDuration))}
+                  />
+                </label>
+                <label className="field">
+                  Играть припев, секунд
+                  <ClampedNumber
+                    value={clip.chorusLength}
+                    min={3}
+                    max={120}
+                    fallback={10}
+                    disabled={disabled}
+                    onChange={(v) => onChange(moveHandle(clip, "chorusEnd", (clip.chorusStart ?? 0) + v, knownDuration))}
+                  />
+                </label>
+              </div>
+            </>
+          )}
 
           <div className="actions actions--row">
             <button type="button" className="btn btn--secondary" aria-pressed={listening === "guess"} onClick={() => listen("guess")}>

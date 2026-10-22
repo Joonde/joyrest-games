@@ -145,7 +145,8 @@ async function main() {
   const settle = async () => {
     // Автосохранение: пачка правок уходит через 0,7 с; ждём «сохранены».
     await page.waitForTimeout(900);
-    await page.getByText("Все изменения сохранены автоматически").first().waitFor({ timeout: WAIT }).catch(() => bad("Статус «сохранены» не появился за 15 с"));
+    // Плашка у верха экрана — короткая «✓ Сохранено», в начале страницы — полная: ждём статус «сохранено» в любом виде.
+    await page.locator(".save-status--saved").first().waitFor({ timeout: WAIT }).catch(() => bad("Статус «сохранены» не появился за 15 с"));
   };
   const headers = () => page.locator(".q-round .q-round__name").allInnerTexts();
   const cards = () => page.locator(".q-list > .q-card");

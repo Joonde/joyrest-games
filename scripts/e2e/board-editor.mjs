@@ -137,7 +137,7 @@ async function main() {
     // 1. Касание клетки: открывается форма — и её видно сразу, без прокрутки (иначе кажется, что «не отвечает»).
     await cells(0).nth(0).click();
     await form.waitFor({ timeout: 3000 }).then(() => ok("Касание клетки открыло форму")).catch(() => bad("Касание клетки: форма не открылась"));
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(1200);
     check(await inView(form.locator("textarea")), "Форма клетки сразу на экране (поле «Вопрос» видно)", "Форма клетки открылась ниже экрана — ведущий её не видит, кажется, что клетка «не отвечает»");
     await snap("forma");
 
@@ -233,7 +233,7 @@ async function main() {
     // 7. Другая клетка (в конце поля) — форма снова на экране, печатается.
     await cells(3).nth(4).click();
     await form.waitFor({ timeout: 3000 }).catch(() => bad("Вторая клетка: форма не открылась"));
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(1200);
     check(await inView(form.locator("textarea")), "Вторая клетка: форма на экране", "Вторая клетка: форма ниже экрана");
     await form.locator("textarea").pressSequentially("2 + 2?", { delay: 60 });
     await form.locator("input:not([type=file]):not([inputmode])").last().pressSequentially("4", { delay: 60 });

@@ -23212,3 +23212,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   object-fit: cover;
   border-radius: 12px;
 }
+
+/* Форма клетки «Ставки на знания» при открытии прокручивается к началу экрана — не под липкую шапку. */
+.board-cell-form {
+  scroll-margin-top: 88px;
+}

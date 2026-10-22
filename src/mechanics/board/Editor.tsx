@@ -50,7 +50,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
       const form = document.querySelector(".board-cell-form");
       if (!form) return;
       const r = form.getBoundingClientRect();
-      if (r.top < 0 || r.top > window.innerHeight * 0.6) {
+      if (r.top < 0 || r.top > window.innerHeight * 0.25) {
         const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
         form.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
       }

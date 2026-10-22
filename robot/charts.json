@@ -22,8 +22,8 @@
    "podium/buzz → reveal/buzz": 16,
    "ready/pick → question/auction": 16,
    "question/auction → question/buzz": 14,
-   "question/bet → ready/pick": 6,
-   "question/auction → ready/pick": 2
+   "question/auction → ready/pick": 2,
+   "question/bet → ready/pick": 6
   },
   "actions": {
    "пульт: главная": 2402,
@@ -51,6 +51,118 @@
   "modes": [
    "solo ×3",
    "teams ×3"
+  ]
+ },
+ {
+  "mechanic": "millionaire",
+  "runs": 6,
+  "finished": 6,
+  "ticks": 218,
+  "problems": [],
+  "edges": {
+   "ready/turn → question/question": 32,
+   "question/question → question/question": 29,
+   "question/question → question/audience": 5,
+   "question/audience → question/question": 5,
+   "question/question → reveal/reveal": 35,
+   "reveal/reveal → ready/turn": 22,
+   "reveal/reveal → question/question": 7,
+   "reveal/reveal → reveal/over": 6,
+   "question/question → ready/turn": 4,
+   "reveal/reveal → podium/reveal": 1,
+   "podium/reveal → reveal/reveal": 1
+  },
+  "actions": {
+   "пульт: главная": 158,
+   "телефон: кнопка": 76,
+   "пульт: другая": 48,
+   "QR для опоздавших": 14,
+   "таблица на экран": 7,
+   "завершить игру": 6,
+   "технический перерыв": 6,
+   "пульт: Назад": 18,
+   "убрать слайд": 7,
+   "телефон переподключился": 4,
+   "экран зала перезагрузили": 3,
+   "опоздавший гость": 5,
+   "пульт открыли заново": 5,
+   "жеребьёвка": 1,
+   "наградить сейчас": 1,
+   "назад с награждения": 1,
+   "+10 секунд": 1
+  },
+  "demos": [
+   "Миллион на кону"
+  ],
+  "modes": [
+   "teams ×3",
+   "solo ×3"
+  ]
+ },
+ {
+  "mechanic": "hundred",
+  "runs": 24,
+  "finished": 24,
+  "ticks": 2620,
+  "problems": [],
+  "edges": {
+   "ready → question/face": 18,
+   "question/face → question/face": 87,
+   "question/face → reveal/play": 87,
+   "reveal/play → question/face": 15,
+   "reveal/done → ready/intro": 87,
+   "ready/intro → question/face": 60,
+   "ready/intro → reveal/done": 15,
+   "ready/intro → question/big": 18,
+   "question/big → ready/big": 18,
+   "ready/big → question/big": 15,
+   "question/big → reveal/bigDone": 18,
+   "reveal/bigDone → podium/bigDone": 18,
+   "reveal/play → podium/play": 27,
+   "podium/play → reveal/play": 27,
+   "ready/intro → podium/intro": 6,
+   "podium/intro → ready/intro": 6,
+   "question/face → ready/intro": 6,
+   "ready/big → reveal/bigDone": 3,
+   "reveal/bigDone → question/big": 3,
+   "ready → question/hall": 6,
+   "question/hall → reveal/hallCheck": 67,
+   "reveal/hallCheck → question/hall": 13,
+   "reveal/hallCheck → ready/intro": 61,
+   "ready/intro → question/hall": 58,
+   "ready/intro → reveal/hallCheck": 13,
+   "question/hall → ready/intro": 10,
+   "reveal/hallCheck → podium/hallCheck": 6
+  },
+  "actions": {
+   "пульт: главная": 997,
+   "телефон: кнопка": 392,
+   "пульт: другая": 1356,
+   "пульт: Назад": 291,
+   "технический перерыв": 104,
+   "жеребьёвка": 42,
+   "убрать слайд": 114,
+   "телефон переподключился": 74,
+   "таблица на экран": 93,
+   "QR для опоздавших": 126,
+   "пульт открыли заново": 41,
+   "опоздавший гость": 64,
+   "экран зала перезагрузили": 36,
+   "завершить игру": 24,
+   "наградить сейчас": 33,
+   "назад с награждения": 33,
+   "+10 секунд": 12,
+   "убрать таблицу": 5
+  },
+  "demos": [
+   "Что скажет большинство: Свадьба",
+   "Что скажет большинство: Корпоратив",
+   "Что скажет большинство: День рождения",
+   "Что скажет большинство: Весь зал"
+  ],
+  "modes": [
+   "teams ×3",
+   "solo ×3"
   ]
  }
 ]

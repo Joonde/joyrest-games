@@ -1,4 +1,4 @@
-// «Своя игра» для «Библиотеки JoyRest»: два раунда по 4 категории и 5 вопросов; «Коты в мешке» и «Аукционы».
+// «Ставка на знания» для «Библиотеки JoyRest»: два раунда по 4 категории и 5 вопросов; «Коты в мешке» и «Аукционы».
 import { clipFields, parseClip } from "../../core/clip";
 import type { BoardCell, BoardContent, CellKind } from "./content";
 
@@ -108,4 +108,4 @@ const content: BoardContent = {
   look: "table",
 };
 
-export const DEMO_BOARD = { title: "Своя игра: кино, география, праздники, еда", content };
+export const DEMO_BOARD = { title: "Ставка на знания: кино, география, праздники, еда", content };

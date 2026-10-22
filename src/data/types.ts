@@ -164,7 +164,7 @@ export interface TeamsReveal {
 
 export type SlideKind = "intro" | "rules" | "round" | "break" | "tech" | "join" | "award" | "thanks" | "custom" | "draw" | "image";
 
-/** «Опрос гостей заранее» для «100 к 1» (только свой сервер, `server/src/polls.ts`, логика — `src/core/polls.ts`). */
+/** «Опрос гостей заранее» для «Что скажет большинство» (только свой сервер, `server/src/polls.ts`, логика — `src/core/polls.ts`). */
 export interface PollQuestionRef {
   id: string;
   text: string;
@@ -305,7 +305,7 @@ export interface GuestReview {
 
 /**
  * Видео JoyRest на сервере (решение владельца 15 октября 2026): загружают владелец и заместитель, видят все,
- * ставят в игры с видео («Just Dance и Караоке на поле», «Танцевальный батл», музыкальное лото). Файл грузится
+ * ставят в игры с видео («Танцуй как звезда и Караоке на поле», «Танцевальный батл», музыкальное лото). Файл грузится
  * частями (`received` из `size`), `ready` — файл целиком на сервере.
  */
 export interface LibraryVideo {

@@ -1,4 +1,4 @@
-// «Кто хочет стать миллионером»: на экране зала — полоска-лестница у каждой команды (поднимается за
+// «Миллион на кону»: на экране зала — полоска-лестница у каждой команды (поднимается за
 // верный ответ, падает до несгораемой за ошибку) и вопрос с вариантами A–D; подсказки команды, чей ход, —
 // крупными плитками с подписями, у остальных — значками под полоской (использованная перечёркнута).
 // Выбор команды подсвечивается оранжевым, «окончательный ответ» — заливкой, верный — бегущей зелёной
@@ -262,7 +262,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
         {r.order.length === 0 ? (
           <>
             <MillionaireEmblem className="mil-emblem" />
-            <span className="quiz-screen__badge mil-screen__badge">Кто хочет стать миллионером</span>
+            <span className="quiz-screen__badge mil-screen__badge">Миллион на кону</span>
             <h2 className="mil-screen__title">Скоро начнём!</h2>
             <p className="mil-screen__note">{levelsOf(content)} вопросов, {session.playMode === "solo" ? "у каждого игрока" : "у каждой команды"} своя лестница. Несгораемые ступени: {content.safe.join(" и ")}.</p>
           </>
@@ -333,10 +333,10 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
               </div>
             )}
             {r.shield && stage === "question" && <p className="mil-screen__note">🛡 Право на ошибку включено</p>}
-            {stage === "question" && r.mode === "question" && r.locked && <p className="mil-screen__note mil-screen__note--big">Окончательный ответ — {LETTERS[r.chosen ?? 0]}</p>}
+            {stage === "question" && r.mode === "question" && r.locked && <p className="mil-screen__note mil-screen__note--big">Ответ зафиксирован — {LETTERS[r.chosen ?? 0]}</p>}
             {stage === "reveal" && (
               <p className={`mil-outcome mil-outcome--${r.outcome ?? "none"}`}>
-                {r.outcome === "right" ? (top ? "Миллионер! 👑" : "Верно!") : r.outcome === "saved" ? "Неверно — но спасает право на ошибку" : "Неверно"}
+                {r.outcome === "right" ? (top ? "Миллион! 👑" : "Верно!") : r.outcome === "saved" ? "Неверно — но спасает право на ошибку" : "Неверно"}
               </p>
             )}
           </>
@@ -381,7 +381,7 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
   const teams = session.playMode === "teams";
   const head = (
     <p className="eyebrow">
-      Миллионер{r.order.includes(pid) ? ` · ступень ${myLevel} из ${levelsOf(content)} · ${pointsLabel(pointsAt(content, myLevel))}` : ""}
+      Миллион на кону{r.order.includes(pid) ? ` · ступень ${myLevel} из ${levelsOf(content)} · ${pointsLabel(pointsAt(content, myLevel))}` : ""}
     </p>
   );
   const used = r.used[pid] ?? [];
@@ -527,9 +527,9 @@ export function MillionairePlayerView({ session, content, pid, role, myAnswer, s
       {mine && stage === "question" && r.mode === "question" && (
         <p className={r.locked ? "mil-phone-status is-locked" : myChoice !== null ? "mil-phone-status is-chosen" : "mil-phone-status"} role="status">
           {r.locked
-            ? `Окончательный ответ — ${LETTERS[r.chosen ?? 0]}. Ждём!`
+            ? `Ответ зафиксирован — ${LETTERS[r.chosen ?? 0]}. Ждём!`
             : myChoice !== null || r.chosen !== null
-              ? `Выбран ${LETTERS[myChoice ?? r.chosen ?? 0]}. Ведущий спросит: «Это окончательный ответ?» — можно передумать`
+              ? `Выбран ${LETTERS[myChoice ?? r.chosen ?? 0]}. Ведущий спросит: «Фиксируем ответ?» — можно передумать`
               : role === "member"
                 ? "Капитан выбирает ответ"
                 : "Выберите ответ"}

@@ -332,7 +332,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
 
   it("мероприятие из блоков: один код, блок → перерыв → следующий блок, общий счёт, ответы прошлого блока в архиве", async () => {
     const snap = (title: string, mechanic: string) => ({ title, mechanic, themeId: "joyrest", content: { questions: [] } });
-    const program = { title: "Вечер", blocks: [{ title: "Квиз", mechanic: "quiz", snapshot: snap("Квиз", "quiz") }, { title: "Своя игра", mechanic: "board", snapshot: snap("Своя игра", "board") }] };
+    const program = { title: "Вечер", blocks: [{ title: "Квиз", mechanic: "quiz", snapshot: snap("Квиз", "quiz") }, { title: "Ставка на знания", mechanic: "board", snapshot: snap("Ставка на знания", "board") }] };
     // Больше 5 блоков или блок без снимка — отказ.
     const bad = await call("POST", "/api/sessions", host, { id: "prog-bad", gameTitle: "Вечер", mechanic: "evening", program: { blocks: [{ title: "x", mechanic: "quiz" }] } });
     expect(bad.statusCode).toBe(400);
@@ -376,7 +376,7 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("POST", "/api/sessions/prog1/program", host, { action: "break", from: 1 })).statusCode).toBe(200);
     const final = (await call("GET", "/api/sessions/prog1", guest.cookie)).json();
     expect(final).toMatchObject({ mechanic: "evening", program: { at: "final" } });
-    expect(final.program.results.map((r: { title: string }) => r.title)).toEqual(["Квиз", "Своя игра"]);
+    expect(final.program.results.map((r: { title: string }) => r.title)).toEqual(["Квиз", "Ставка на знания"]);
     expect((await call("POST", "/api/sessions/prog1/finish", host, { participantsCount: 1 })).statusCode).toBe(200);
     expect((await call("GET", "/api/results/prog1", "")).json().board).toEqual([{ name: "Аня", score: 150 }]);
     // После завершения вечер не переключить.

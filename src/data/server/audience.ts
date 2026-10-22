@@ -1,4 +1,4 @@
-/** «Помощь зала» по QR: `/api/sessions/:id/audience` (CLAUDE.md, раздел 6, «Миллионер»). */
+/** «Помощь зала» по QR: `/api/sessions/:id/audience` (CLAUDE.md, раздел 6, «Миллион на кону»). */
 import type { AudienceRepository } from "../contracts";
 import { api, asRecord } from "./api";
 

@@ -1,6 +1,6 @@
-// «Just Dance и Караоке на поле» (решение владельца 12 октября 2026): поле как в «Своей игре» — строки-категории,
+// «Танцуй как звезда и Караоке на поле» (решение владельца 12 октября 2026): поле как в «Ставке на знания» — строки-категории,
 // плитки с очками. Плитку выбрали — она переворачивается: кто выходит (фигурки), трек, задание, и на экране зала
-// играет видео Just Dance или караоке. Видео на сервер не загружается: ссылка (YouTube, VK Видео, Rutube) или файл
+// играет танцевальное видео или караоке. Видео на сервер не загружается: ссылка (YouTube, VK Видео, Rutube) или файл
 // на устройстве экрана зала (как в «Танцевальном батле»).
 import { parseVideo, type VideoSource } from "../dance/content";
 import { VERSUS, WHO } from "./who";
@@ -43,7 +43,7 @@ export interface StageContent {
 
 export const STAGE_LIMITS = { categories: 6, perCategory: 8, title: 80, catTitle: 40, note: 200, url: 500, minPoints: 10, maxPoints: 5000, maxGift: 500, minVote: 10, maxVote: 120 } as const;
 
-export const VARIANT_TITLES: Record<StageVariant, string> = { dance: "Just Dance", karaoke: "Караоке" };
+export const VARIANT_TITLES: Record<StageVariant, string> = { dance: "Танцуй как звезда", karaoke: "Караоке" };
 
 function newId(prefix: string): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));

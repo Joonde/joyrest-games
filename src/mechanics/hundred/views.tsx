@@ -1,4 +1,4 @@
-// «100 к 1»: экран зала (табло, плашки команд, крестики, банк; «Большая игра»; «Весь зал») и телефон гостя
+// «Что скажет большинство»: экран зала (табло, плашки команд, крестики, банк; «Большая игра»; «Весь зал») и телефон гостя
 // («Жми первым!» у капитанов играющей пары, до трёх ответов в «Весь зал»).
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { playSound } from "../../components/live/sound";
@@ -133,7 +133,7 @@ export function HundredScreenView({ session, content }: ViewProps<HundredContent
     return (
       <div className={`hd-screen hd-screen--intro${look}`}>
         <h2 className="hd-screen__title" data-shine="on">
-          100 к 1
+          Что скажет большинство
         </h2>
       </div>
     );
@@ -147,7 +147,7 @@ export function HundredScreenView({ session, content }: ViewProps<HundredContent
     const hall = content.mode === "hall" ? hallNumber(content, r) : null;
     return (
       <div className={`hd-screen hd-screen--intro${look}`}>
-        <p className="hd-screen__eyebrow">{hall ? `Весь зал · вопрос ${hall.n} из ${hall.total}` : "100 к 1"}</p>
+        <p className="hd-screen__eyebrow">{hall ? `Весь зал · вопрос ${hall.n} из ${hall.total}` : "Что скажет большинство"}</p>
         <h2 className="hd-screen__title" data-shine="on">
           {ROUND_TITLES[round.kind]}
         </h2>
@@ -367,7 +367,7 @@ export function HundredPlayerView({ session, content, pid, role, myAnswer, sendi
     return (
       <div className="quiz-phone quiz-phone--center">
         {who}
-        <h2>100 к 1</h2>
+        <h2>Что скажет большинство</h2>
         {scoreLine}
       </div>
     );

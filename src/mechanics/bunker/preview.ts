@@ -1,4 +1,4 @@
-// Предпросмотр «Бункера»: те же функции пульта, что в игре (раздача, раунды с картами бункера, круг
+// Предпросмотр «Убежища»: те же функции пульта, что в игре (раздача, раунды с картами убежища, круг
 // открытия, обсуждение, голосование, финал с угрозами). Персонажей тестовых игроков пульт раздаёт так же
 // (`dealSecrets`), но с постоянным жребием — сцены не меняются от открытия к открытию. В настоящей игре
 // персонаж каждого шифруется ключом его телефона (WebCrypto, асинхронно) — предпросмотр синхронный, поэтому
@@ -64,7 +64,7 @@ export const bunkerPreview: PreviewDriver<BunkerContent> = ({ session, content, 
       // Карты персонажей шифруются асинхронно — в предпросмотре их нет, персонажей знает только пульт.
       return { label: "Пульт: «Раздать карты» — катастрофа на экране, у каждого свой персонаж", change: dealt(session, content, {}, "", seeded(31 * r.party + 7)) };
     case "round":
-      return secrets ? { label: `Пульт: «Раунд ${r.round + 1}» — открывается карта бункера`, change: startRound(session, content, secrets) } : null;
+      return secrets ? { label: `Пульт: «Раунд ${r.round + 1}» — открывается карта убежища`, change: startRound(session, content, secrets) } : null;
     case "opening":
       return { label: "Пульт: «Круг открытия карт»", change: startOpening(session) };
     case "nextSpeaker":
@@ -103,7 +103,7 @@ export const bunkerPreview: PreviewDriver<BunkerContent> = ({ session, content, 
       return { label: out ? `Телефоны проголосовали. Пульт: «Подсчитать голоса» — изгнан ${name(out)}` : "Телефоны проголосовали. Пульт: «Подсчитать голоса»", answers: list, change };
     }
     case "final":
-      return secrets ? { label: "Пульт: «Финал: кто в бункере» — открываются все карты спасшихся", change: startFinal(session, content, secrets) } : null;
+      return secrets ? { label: "Пульт: «Финал: кто в убежище» — открываются все карты спасшихся", change: startFinal(session, content, secrets) } : null;
     case "threat":
       return secrets ? { label: `Пульт: «Открыть угрозу ${r.threatsShown.length + 1} из ${content.threats}»`, change: nextThreat(session, secrets) } : null;
     case "judge":
@@ -113,7 +113,7 @@ export const bunkerPreview: PreviewDriver<BunkerContent> = ({ session, content, 
       if (!secrets) return null;
       const change = finishBunker(session, content, secrets.chars);
       const won = parseBunkerResult(change.state?.result).outcome?.won === true;
-      return { label: won ? "Пульт: «Итог игры» — бункер выжил, спасшимся очки" : "Пульт: «Итог игры» — бункер не выжил", change };
+      return { label: won ? "Пульт: «Итог игры» — убежище выжило, спасшимся очки" : "Пульт: «Итог игры» — убежище не выжило", change };
     }
     // Следующие партии — так же; предпросмотр показывает одну и сразу награждение.
     default:

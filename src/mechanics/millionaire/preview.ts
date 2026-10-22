@@ -29,7 +29,7 @@ export const millionairePreview: PreviewDriver<MillionaireContent> = ({ session,
         return { label: "Капитан выбрал ответ", answers: [{ pid: team, value: { choice: r.shield ? wrong : q.correct } }] };
       }
       if (r.chosen === null) return { label: "На экране — выбор команды (оранжевая рамка)", change: syncChosen(session, answers) };
-      return { label: "«Это окончательный ответ?» — «Да, окончательный»", change: lockAnswer(session, answers) };
+      return { label: "«Фиксируем ответ?» — «Да, фиксируем»", change: lockAnswer(session, answers) };
     }
     case "reveal":
       return { label: "Пульт: «Показать ответ»", change: revealAnswer(session, content, answers, participants) };

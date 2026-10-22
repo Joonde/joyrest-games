@@ -449,7 +449,7 @@ export interface DrawingsRepository {
   url(sha: string): string;
 }
 
-/** «Опрос гостей заранее» для «100 к 1» (только свой сервер). */
+/** «Опрос гостей заранее» для «Что скажет большинство» (только свой сервер). */
 export interface PollsRepository {
   /** Анкета для гостя без входа; null — опроса нет. */
   form(id: string): Promise<PollForm | null>;

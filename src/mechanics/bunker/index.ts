@@ -9,10 +9,10 @@ import { BunkerPlayerView, BunkerScreenView, type BunkerAnswerValue } from "./vi
 
 const BunkerEditor = lazy(() => import("./Editor").then((m) => ({ default: m.BunkerEditor })));
 
-/** «Бункер»: катастрофа, мест — на половину игроков; карты персонажей тайно на телефонах, изгнание голосованием. */
+/** «Убежище»: катастрофа, мест — на половину игроков; карты персонажей тайно на телефонах, изгнание голосованием. */
 export const bunker: Mechanic<BunkerContent, BunkerAnswerValue> = {
   id: "bunker",
-  title: "Бункер",
+  title: "Убежище",
   supports: { solo: true, teams: false, noScreen: true },
   // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
   ownAward: true,
@@ -28,7 +28,7 @@ export const bunker: Mechanic<BunkerContent, BunkerAnswerValue> = {
   steps: bunkerSteps,
   score,
   validate: validateBunker,
-  // Бункер — от 4 игроков; 5 раундов круга открытия — длинный предпросмотр.
+  // Убежище — от 4 игроков; 5 раундов круга открытия — длинный предпросмотр.
   preview: { driver: bunkerPreview, teams: 4, limit: 64 },
   ownPeek: true,
 };

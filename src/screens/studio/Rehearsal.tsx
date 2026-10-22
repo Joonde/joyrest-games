@@ -74,7 +74,7 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
   const [session, setSession] = useState(() => initialSession(game, hostId));
   // Игры по очереди команд без участников не начать — на репетиции за них играют тестовые команды.
   const demo: Participant[] = useMemo(() => rehearsalParticipants(game.mechanic, session.playMode), [game.mechanic, session.playMode]);
-  // Звуки и фрагменты «Угадай мелодию» на репетиции — после первого касания, как на экране зала.
+  // Звуки и фрагменты «Узнай по нотам» на репетиции — после первого касания, как на экране зала.
   useSoundUnlock();
   const control: SessionControl = useMemo(
     () => ({

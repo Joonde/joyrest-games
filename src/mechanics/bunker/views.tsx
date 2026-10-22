@@ -1,4 +1,4 @@
-// «Бункер»: экран зала — катастрофа, карты бункера, досье всех игроков, ход, голосование, изгнание,
+// «Убежище»: экран зала — катастрофа, карты убежища, досье всех игроков, ход, голосование, изгнание,
 // финал; телефон — свои шесть карт и особое условие (видит только хозяин), ход, тайный голос.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Confetti } from "../../components/live/Confetti";
@@ -61,7 +61,7 @@ function Timer({ endsAt, now, label }: { endsAt: number | null; now: number; lab
 
 function BunkerRow({ r, content }: { r: BunkerResult; content: BunkerContent }) {
   return (
-    <ol className="bk-screen__bunker" aria-label="Карты бункера">
+    <ol className="bk-screen__bunker" aria-label="Карты убежища">
       {Array.from({ length: 5 }, (_, i) => (
         <li key={i}>
           <BunkerCard index={r.bunkerShown[i] ?? null} n={i + 1} small />
@@ -107,8 +107,8 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
           ))}
         </div>
         {started && partyOf(content, r) && <p className="bk-kicker">{partyOf(content, r)}</p>}
-        <h2 className="bk-title">Бункер</h2>
-        <p className="bk-lead">{started ? `Раздаём карты: ${r.seats.length} ${plural(r.seats.length, "игрок", "игрока", "игроков")}, мест в бункере — ${Math.max(1, Math.floor(r.seats.length / 2))}` : "Катастрофа близко. Мест в бункере — только на половину из вас."}</p>
+        <h2 className="bk-title">Убежище</h2>
+        <p className="bk-lead">{started ? `Раздаём карты: ${r.seats.length} ${plural(r.seats.length, "игрок", "игрока", "игроков")}, мест в убежище — ${Math.max(1, Math.floor(r.seats.length / 2))}` : "Катастрофа близко. Мест в убежище — только на половину из вас."}</p>
       </div>
     );
   }
@@ -127,10 +127,10 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
           <div className="bk-stage__text">
             <p className="bk-kicker">{partyOf(content, r) ? `${partyOf(content, r)} · ` : ""}Катастрофа случилась</p>
             <h2 className="bk-title">
-              В бункере {r.places} {plural(r.places, "место", "места", "мест")} на {r.seats.length}
+              В убежище {r.places} {plural(r.places, "место", "места", "мест")} на {r.seats.length}
             </h2>
             <p className="bk-lead">
-              {content.rounds} {plural(content.rounds, "раунд", "раунда", "раундов")}: каждый открывает карты и доказывает, что пригодится в бункере. Голосованием изгоняем лишних.
+              {content.rounds} {plural(content.rounds, "раунд", "раунда", "раундов")}: каждый открывает карты и доказывает, что пригодится в убежище. Голосованием изгоняем лишних.
               {content.rebirth ? " Среди спасшихся должна быть пара, чтобы продолжить род." : ""}
             </p>
           </div>
@@ -146,8 +146,8 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
             <BunkerCard index={card} n={r.round} fresh />
           </div>
           <div className="bk-stage__text">
-            <p className="bk-kicker">Раунд {r.round} · исследуем бункер</p>
-            <h2 className="bk-title">Карта бункера №{r.round}</h2>
+            <p className="bk-kicker">Раунд {r.round} · исследуем убежище</p>
+            <h2 className="bk-title">Карта убежища №{r.round}</h2>
             <p className="bk-lead">{quota > 0 ? `В этом раунде изгоняем: ${quota}` : "В этом раунде без изгнания — знакомимся"}</p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
               Раунд {r.round} · круг открытия · {r.turn + 1} из {r.order.length}
             </p>
             <h2 className="bk-title">{sp ? <Who session={session} r={r} pid={sp} /> : "—"}</h2>
-            <p className="bk-lead">{opened ? "Убедите всех, что вы нужны в бункере" : r.round <= 1 ? "Открывает профессию" : "Выбирает, какую карту открыть"}</p>
+            <p className="bk-lead">{opened ? "Убедите всех, что вы нужны в убежище" : r.round <= 1 ? "Открывает профессию" : "Выбирает, какую карту открыть"}</p>
             <Timer endsAt={r.speakEndsAt} now={now} label="Речь" />
           </div>
           {opened && last && sp && (
@@ -258,7 +258,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
           <div className="bk-stage__text">
             <p className="bk-kicker">{r.tally?.random ? "Снова ничья — решил жребий" : "Итог голосования"}</p>
             <h2 className="bk-title">
-              <Who session={session} r={r} pid={out} /> покидает бункер
+              <Who session={session} r={r} pid={out} /> покидает убежище
             </h2>
             <Tally session={session} r={r} />
           </div>
@@ -339,13 +339,13 @@ function Final({ session, content, r }: { session: Session; content: BunkerConte
     <div className="bk-screen bk-screen--final">
       {o?.won && <Confetti burst={`bk:${session.state.step}`} />}
       <header className="bk-final__head">
-        <p className="bk-kicker">{partyOf(content, r) ? `${partyOf(content, r)} · ` : ""}Двери бункера закрываются</p>
-        <h2 className="bk-title">{o ? (o.won ? "Бункер выжил!" : "Бункер не выжил") : `В бункере: ${r.alive.length} ${plural(r.alive.length, "человек", "человека", "человек")}`}</h2>
+        <p className="bk-kicker">{partyOf(content, r) ? `${partyOf(content, r)} · ` : ""}Двери убежища закрываются</p>
+        <h2 className="bk-title">{o ? (o.won ? "Убежище выжило!" : "Убежище не выжило") : `В убежище: ${r.alive.length} ${plural(r.alive.length, "человек", "человека", "человек")}`}</h2>
         {o && (
           <p className="bk-lead">
             {o.rebirth === false ? "Нет пары, чтобы продолжить род. " : o.rebirth ? "Есть пара — человечество возродится. " : ""}
             {o.threats > 0 ? `Угрозы: справились с ${o.beaten} из ${o.threats}.` : ""}
-            {o.won && content.winPoints > 0 ? ` Каждому в бункере +${content.winPoints}.` : ""}
+            {o.won && content.winPoints > 0 ? ` Каждому в убежище +${content.winPoints}.` : ""}
           </p>
         )}
       </header>
@@ -436,7 +436,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
 
   const head = (
     <p className="eyebrow">
-      Бункер{partyOf(content, r) ? ` · ${partyOf(content, r).toLowerCase()}` : ""}
+      Убежище{partyOf(content, r) ? ` · ${partyOf(content, r).toLowerCase()}` : ""}
       {seated ? ` · ваш номер ${r.seats.indexOf(pid) + 1}` : ""}
       {r.round > 0 && r.mode !== "final" ? ` · раунд ${r.round} из ${content.rounds}` : ""}
     </p>
@@ -529,7 +529,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
     const o = r.outcome;
     task = (
       <section className="bk-phone__task">
-        <h2>{alive ? (o ? (o.won ? "Вы в бункере — и бункер выжил!" : "Вы в бункере, но бункер не выжил") : "Вы в бункере!") : "Вы остались снаружи"}</h2>
+        <h2>{alive ? (o ? (o.won ? "Вы в убежище — и убежище выжило!" : "Вы в убежище, но убежище не выжило") : "Вы в убежище!") : "Вы остались снаружи"}</h2>
         {!o && <p className="muted">Смотрите на экран: угрозы и итог.</p>}
         {o && r.party < content.parties && <p className="muted">Скоро следующая партия — новые карты и новая катастрофа. Очки копятся.</p>}
       </section>
@@ -542,7 +542,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
       </section>
     );
   } else {
-    const label: Record<string, string> = { catastrophe: "Катастрофа — смотрите на экран", bunker: "Открываем карту бункера", open: `Ход: ${nameOf(session, r.speaker)}`, discuss: "Обсуждение: кого не берём в бункер?", justify: "Ничья — оправдательные речи", exile: r.tally?.out ? `Изгнан: ${nameOf(session, r.tally.out)}` : "Голосование отменено" };
+    const label: Record<string, string> = { catastrophe: "Катастрофа — смотрите на экран", bunker: "Открываем карту убежища", open: `Ход: ${nameOf(session, r.speaker)}`, discuss: "Обсуждение: кого не берём в убежище?", justify: "Ничья — оправдательные речи", exile: r.tally?.out ? `Изгнан: ${nameOf(session, r.tally.out)}` : "Голосование отменено" };
     task = (
       <section className="bk-phone__task bk-phone__task--quiet">
         {r.mode === "open" && r.speaker && r.speaker !== pid ? (
@@ -577,7 +577,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
       )}
       {(
         <details className="bk-phone__all" open={session.screenMode === "none"}>
-          <summary>Катастрофа и бункер</summary>
+          <summary>Катастрофа и убежище</summary>
           <div className="bk-phone__world">
             <CatastropheCard id={r.catastrophe} years={r.years} places={r.places} compact />
             {r.bunkerShown.length > 0 && (

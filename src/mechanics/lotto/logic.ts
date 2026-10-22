@@ -95,7 +95,7 @@ export interface LottoResult {
   video: LottoVideo;
 }
 
-/** Команды видео с пульта — как у «Just Dance на поле»: пауза, дальше, −10 с, +10 с, остановить. */
+/** Команды видео с пульта — как у «Танцуй как звезда»: пауза, дальше, −10 с, +10 с, остановить. */
 export type LottoVideoCmd = "play" | "pause" | "back" | "fwd" | "stop";
 
 export interface LottoVideo {

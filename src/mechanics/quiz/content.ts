@@ -38,7 +38,7 @@ export interface QuizQuestion {
   points: number;
   imageId: string | null;
   /**
-   * Музыка к вопросу («Угадай мелодию»): трек из музыки ведущего или общей, с какой секунды и
+   * Музыка к вопросу («Узнай по нотам»): трек из музыки ведущего или общей, с какой секунды и
    * сколько секунд играть на экране зала. Нет — вопрос без музыки.
    */
   trackId?: string | null;
@@ -491,7 +491,7 @@ export function trackIds(content: QuizContent): string[] {
   return [...new Set(content.questions.flatMap((q) => (q.trackId ? [q.trackId] : [])))];
 }
 
-/** Музыкальный квиз («Угадай мелодию»): есть треки или хотя бы половина вопросов начинается с «♪» (шаблон без треков). */
+/** Музыкальный квиз («Узнай по нотам»): есть треки или хотя бы половина вопросов начинается с «♪» (шаблон без треков). */
 export function isMelodyQuiz(content: QuizContent): boolean {
   if (trackIds(content).length > 0) return true;
   const notes = content.questions.filter((q) => q.text.trimStart().startsWith("♪")).length;

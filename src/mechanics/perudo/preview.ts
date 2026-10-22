@@ -1,4 +1,4 @@
-// Предпросмотр «Перудо»: те же функции пульта (`startDeal`, `startRound`, `placeBid`, `resolveCall`), ключи
+// Предпросмотр «Кости лжеца»: те же функции пульта (`startDeal`, `startRound`, `placeBid`, `resolveCall`), ключи
 // стаканов у тестовых телефонов придуманы заранее — пульт-судья знает кости всех, как в настоящей игре.
 import type { Session, SessionChange } from "../../data/types";
 import type { PreviewDriver } from "../preview";

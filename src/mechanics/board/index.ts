@@ -9,10 +9,10 @@ import { BoardPlayerView, BoardScreenView, type BoardAnswerValue } from "./views
 
 const BoardEditor = lazy(() => import("./Editor").then((m) => ({ default: m.BoardEditor })));
 
-/** «Своя игра»: поле категорий и стоимостей, кнопка «кто первый», «Кот в мешке» со ставками. */
+/** «Ставка на знания»: поле категорий и стоимостей, кнопка «кто первый», «Кот в мешке» со ставками. */
 export const board: Mechanic<BoardContent, BoardAnswerValue, BoardStep> = {
   id: "board",
-  title: "Своя игра",
+  title: "Ставка на знания",
   supports: { solo: true, teams: true, noScreen: true },
   create: createBoard,
   parse: parseBoard,

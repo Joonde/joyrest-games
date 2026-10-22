@@ -1,4 +1,4 @@
-// Конструктор «Своей игры»: размер поля, категории, стоимость и содержимое каждой клетки.
+// Конструктор «Ставки на знания»: размер поля, категории, стоимость и содержимое каждой клетки.
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { compressImage, ImageError } from "../../components/media/compressImage";
@@ -105,7 +105,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
           <input type="checkbox" checked={content.penalty} disabled={!editable} onChange={(e) => onChange({ ...content, penalty: e.target.checked })} />
           <span className="choice__text">
             <span className="choice__title">Неверный ответ — минус стоимость клетки</span>
-            <span className="choice__hint">Как в телевизионной «Своей игре». Без галочки ошибка просто передаёт слово следующему.</span>
+            <span className="choice__hint">Как в телевизионной «Ставке на знания». Без галочки ошибка просто передаёт слово следующему.</span>
           </span>
         </label>
         <label className="field">

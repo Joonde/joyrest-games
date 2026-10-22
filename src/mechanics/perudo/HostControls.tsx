@@ -16,7 +16,7 @@ import { bidText } from "./text";
 import { Die } from "./views";
 
 /**
- * Пульт «Перудо»: «Собрать стаканы» → «Бросить кости» → ставки идут с телефонов сами (за стакан без телефона
+ * Пульт «Кости лжеца»: «Собрать стаканы» → «Бросить кости» → ставки идут с телефонов сами (за стакан без телефона
  * ставит ведущий) → «Не верю!» / «Ровно!» — вскрытие на экране → «Следующий раунд» → итог партии.
  * Ведущий — судья: видит кости всех стаканов.
  */
@@ -141,7 +141,7 @@ export function PerudoHostControls({ session, content, answers, participants, co
   return (
     <div className="stack host-quiz">
       <p className="eyebrow">
-        Перудо{content.parties > 1 && started ? ` · партия ${r.party} из ${content.parties}` : ""}
+        Кости лжеца{content.parties > 1 && started ? ` · партия ${r.party} из ${content.parties}` : ""}
         {r.round > 0 ? ` · раунд ${r.round}` : ""}
         {r.palifico && r.mode === "bid" ? " · ПАЛИФИКО" : ""}
         {started && r.seats.length > 0 ? ` · стаканов ${aliveCups(r).length}, костей ${total}` : ""}

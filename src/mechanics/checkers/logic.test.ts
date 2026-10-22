@@ -121,7 +121,7 @@ describe("Шашки: ход игры", () => {
 });
 
 describe("шаблоны", () => {
-  it("«Шашки» и «Своя игра» из библиотеки готовы к запуску", () => {
+  it("«Шашки» и «Ставка на знания» из библиотеки готовы к запуску", () => {
     expect(DEMO_CHECKERS.content.questions.length).toBe(30);
     expect(validateCheckers(DEMO_CHECKERS.content)).toEqual([]);
     expect(validateBoard(DEMO_BOARD.content)).toEqual([]);

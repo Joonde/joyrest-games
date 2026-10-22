@@ -64,12 +64,12 @@ export const SPECIALS: Special[] = [
   { id: "immunity", title: "Неприкосновенность", text: "Голоса против вас в этом голосовании не считаются.", target: "none", when: "vote", icon: "shield" },
   { id: "doubleVote", title: "Решающий голос", text: "Ваш голос в этом голосовании считается дважды.", target: "none", when: "vote", icon: "double" },
   { id: "cancelVote", title: "Отмена голосования", text: "Это голосование отменяется: изгнание переносится на следующий раунд. Нельзя в последнем раунде.", target: "none", when: "vote", icon: "cross" },
-  { id: "extraBed", title: "Лишняя койка", text: "В бункере нашлось ещё одно место: изгоняем на одного меньше.", target: "none", when: "any", icon: "bed" },
-  { id: "collapse", title: "Обвал", text: "Обвалился отсек: в бункере на одно место меньше.", target: "none", when: "any", icon: "rocks" },
+  { id: "extraBed", title: "Лишняя койка", text: "В убежище нашлось ещё одно место: изгоняем на одного меньше.", target: "none", when: "any", icon: "bed" },
+  { id: "collapse", title: "Обвал", text: "Обвалился отсек: в убежище на одно место меньше.", target: "none", when: "any", icon: "rocks" },
   { id: "returnExiled", title: "Второй шанс", text: "Последний изгнанный возвращается в игру.", target: "none", when: "any", icon: "back" },
   { id: "shuffleHealth", title: "Эпидемия", text: "Все игроки в игре перемешивают карты «Здоровье» и разбирают их случайно.", target: "none", when: "any", icon: "shuffle" },
   { id: "shuffleBaggage", title: "Переполох на складе", text: "Все игроки в игре перемешивают «Багаж» и разбирают его случайно.", target: "none", when: "any", icon: "shuffle" },
-  { id: "newBunker", title: "Перепланировка", text: "Последняя открытая карта бункера заменяется новой из колоды.", target: "none", when: "any", icon: "hatch" },
+  { id: "newBunker", title: "Перепланировка", text: "Последняя открытая карта убежища заменяется новой из колоды.", target: "none", when: "any", icon: "hatch" },
 ];
 
 export const SPECIAL_BY_ID = Object.fromEntries(SPECIALS.map((s) => [s.id, s])) as Record<SpecialId, Special>;
@@ -95,7 +95,7 @@ export interface SpecialWorld {
   open: Record<string, Cat[]>;
   places: number;
   bunker: number[];
-  /** Сколько карт бункера открыто. */
+  /** Сколько карт убежища открыто. */
   bunkerOpen: number;
   round: number;
   rounds: number;
@@ -210,10 +210,10 @@ export function playSpecial(world: SpecialWorld, pid: string, use: Use, voting: 
       if (world.round >= world.rounds) return "last";
       return w({}, `${by} — голосование отменено`, { vote: "cancelVote" });
     case "extraBed":
-      return w({ places: world.places + 1 }, `${by} — мест в бункере: ${world.places + 1}`);
+      return w({ places: world.places + 1 }, `${by} — мест в убежище: ${world.places + 1}`);
     case "collapse":
       if (world.places <= 1) return "empty";
-      return w({ places: world.places - 1 }, `${by} — мест в бункере: ${world.places - 1}`);
+      return w({ places: world.places - 1 }, `${by} — мест в убежище: ${world.places - 1}`);
     case "returnExiled": {
       const back = world.exiled[world.exiled.length - 1];
       if (!back) return "empty";
@@ -233,7 +233,7 @@ export function playSpecial(world: SpecialWorld, pid: string, use: Use, voting: 
       if (free.length === 0) return "empty";
       const bunker = [...world.bunker];
       bunker[world.bunkerOpen - 1] = free[Math.floor(random() * free.length)] as number;
-      return w({ bunker }, `${by} — новая карта бункера`);
+      return w({ bunker }, `${by} — новая карта убежища`);
     }
     default:
       return "empty";

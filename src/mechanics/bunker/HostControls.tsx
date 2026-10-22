@@ -1,4 +1,4 @@
-// Пульт «Бункера»: раздача, раунды, круг открытия, обсуждение, голосование (ничья — оправдание и
+// Пульт «Убежища»: раздача, раунды, круг открытия, обсуждение, голосование (ничья — оправдание и
 // переголосование), изгнание, финал с угрозами. Особые условия с телефонов пульт применяет сам, сразу.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -295,7 +295,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
       case "dealt":
         return btn(ACTION_LABELS.dealt, () => void doDeal());
       case "round":
-        return btn(`Раунд ${r.round + 1}: карта бункера`, () => secrets && void run(startRound(session, content, secrets)), needSecrets);
+        return btn(`Раунд ${r.round + 1}: карта убежища`, () => secrets && void run(startRound(session, content, secrets)), needSecrets);
       case "opening":
         return btn(ACTION_LABELS.opening, () => void run(startOpening(session)));
       case "nextSpeaker":
@@ -352,7 +352,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
   return (
     <div className="stack host-quiz bk-host">
       <p className="eyebrow">
-        Бункер
+        Убежище
         {content.parties > 1 || r.party > 1 ? ` · партия ${r.party} из ${Math.max(content.parties, r.party)}` : ""}
         {r.round > 0 ? ` · раунд ${r.round} из ${content.rounds}` : ""}
         {started && r.mode !== "deal" ? ` · в игре ${r.alive.length}, мест ${r.places}` : ""}
@@ -363,7 +363,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
         <PodiumHostList session={session} />
       ) : !started ? (
         <p className="muted">
-          Игроки — по порядку входа, от {BUNKER_LIMITS.minPlayers} до {BUNKER_LIMITS.maxPlayers}. Сейчас {players}: мест в бункере будет {placesFor(Math.max(players, 1))}. У каждого — 6 карт персонажа{content.specials ? " и особое условие" : ""}, на телефоне.
+          Игроки — по порядку входа, от {BUNKER_LIMITS.minPlayers} до {BUNKER_LIMITS.maxPlayers}. Сейчас {players}: мест в убежище будет {placesFor(Math.max(players, 1))}. У каждого — 6 карт персонажа{content.specials ? " и особое условие" : ""}, на телефоне.
         </p>
       ) : r.mode === "deal" ? (
         <div className="card stack stack--tight">
@@ -479,7 +479,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
 
       {started && r.mode === "final" && (
         <p className="bk-host__news">
-          {r.outcome ? (r.outcome.won ? "Бункер выжил!" : "Бункер не выжил.") : `В бункере ${r.alive.length}: их карты открыты. `}
+          {r.outcome ? (r.outcome.won ? "Убежище выжило!" : "Убежище не выжило.") : `В убежище ${r.alive.length}: их карты открыты. `}
           {!r.outcome && r.verdicts.some((v) => v === null) ? "Спасшиеся обсуждают угрозу: чем справятся? Решите, справились ли." : ""}
           {!r.outcome && content.rebirth && secrets ? ` «Возрождение»: ${(() => {
             const ok = r.alive.some((p) => secrets.chars[p]?.biology.startsWith("b:m")) && r.alive.some((p) => secrets.chars[p]?.biology.startsWith("b:f"));
@@ -488,7 +488,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
         </p>
       )}
 
-      {started && partial && r.mode !== "deal" && <p className="muted small">Этот пульт не раздавал карты: ему не видны карты бункера и угрозы. Раунды и итог ведите с устройства, где раздавали.</p>}
+      {started && partial && r.mode !== "deal" && <p className="muted small">Этот пульт не раздавал карты: ему не видны карты убежища и угрозы. Раунды и итог ведите с устройства, где раздавали.</p>}
 
       {started && r.mode !== "deal" && r.log.length > 0 && stage !== "podium" && (
         <details className="quest-host__places">

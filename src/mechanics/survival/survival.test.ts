@@ -211,7 +211,7 @@ describe("оформление экрана зала «Гонки на выжи�
     expect(parseSurvival({ ...old, look: "neon" }).look).toBe("classic");
     expect(parseSurvival({ ...old, look: 7 }).look).toBe("classic");
     expect(parseSurvival(null).look).toBe("classic");
-    // Виды «Своей игры» и «Миллионера» гонке не подходят.
+    // Виды «Ставки на знания» и «Миллиона на кону» гонке не подходят.
     expect(parseSurvival({ ...old, look: "studio" }).look).toBe("classic");
     expect(parseSurvival({ ...old, look: "track" }).look).toBe("track");
     expect(parseSurvival({ ...old, look: "evening" }).look).toBe("evening");
@@ -222,7 +222,7 @@ describe("оформление экрана зала «Гонки на выжи�
     for (const look of SURVIVAL_LOOKS) expect(validateSurvival({ ...demo, look })).toEqual([]);
   });
 
-  it("свой список видов: «Классика», «Трасса», «Вечер JoyRest»; у «Своей игры» «Трассы» нет", () => {
+  it("свой список видов: «Классика», «Трасса», «Вечер JoyRest»; у «Ставки на знания» «Трассы» нет", () => {
     expect(SURVIVAL_LOOKS.map((l) => SHOW_LOOK_TITLES[l])).toEqual(["Классика", "Трасса", "Вечер JoyRest"]);
     expect(SHOW_LOOKS).not.toContain("track");
     expect(parseShowLook("track")).toBe("classic");

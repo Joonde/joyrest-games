@@ -18,7 +18,7 @@ interface Template {
   slots: Array<{ mechanic: string; category?: CategoryId; style?: string; variant?: string }>;
 }
 
-/** Слот программы подходит игре: механика, раздел, стиль танца (у батла), вариант («Just Dance» или «Караоке» на поле). */
+/** Слот программы подходит игре: механика, раздел, стиль танца (у батла), вариант («Танцуй как звезда» или «Караоке на поле»). */
 function fits(game: Game, slot: Template["slots"][number]): boolean {
   if (game.mechanic !== slot.mechanic) return false;
   if (slot.category && categoryOf(game) !== slot.category) return false;
@@ -31,17 +31,17 @@ function fits(game: Game, slot: Template["slots"][number]): boolean {
 }
 
 const TEMPLATES: Template[] = [
-  { id: "corp", title: "Корпоратив", hint: "Квиз → «Своя игра» → «Миллионер»", slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }, { mechanic: "millionaire" }] },
+  { id: "corp", title: "Корпоратив", hint: "Квиз → «Ставка на знания» → «Миллион на кону»", slots: [{ mechanic: "quiz", category: "quiz" }, { mechanic: "board" }, { mechanic: "millionaire" }] },
   { id: "birthday", title: "День рождения", hint: "«Давайте знакомиться» → квиз → «Правда или действие»", slots: [{ mechanic: "story" }, { mechanic: "quiz", category: "quiz" }, { mechanic: "truth" }] },
-  { id: "music", title: "Музыкальный вечер", hint: "«Угадай мелодию» → музыкальное лото → танцевальный батл", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
-  { id: "table", title: "Вечер настолок", hint: "«Перудо» → «Мафия»", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
+  { id: "music", title: "Музыкальный вечер", hint: "«Узнай по нотам» → музыкальное лото → танцевальный батл", slots: [{ mechanic: "quiz", category: "music" }, { mechanic: "lotto" }, { mechanic: "dance" }] },
+  { id: "table", title: "Вечер настолок", hint: "«Кости лжеца» → «Мафия»", slots: [{ mechanic: "perudo" }, { mechanic: "mafia" }] },
   {
     id: "dance",
     title: "Танцевальный вечер",
-    hint: "Джаз-фанк → диско → латина → Just Dance на поле",
+    hint: "Джаз-фанк → диско → латина → Танцуй как звезда",
     slots: [{ mechanic: "dance", style: "jazz" }, { mechanic: "dance", style: "disco" }, { mechanic: "dance", style: "latin" }, { mechanic: "stage", variant: "dance" }],
   },
-  { id: "show", title: "Телешоу", hint: "«Своя игра» → «Гонка на выживание» → «Миллионер»", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
+  { id: "show", title: "Телешоу", hint: "«Ставка на знания» → «Гонка на выживание» → «Миллион на кону»", slots: [{ mechanic: "board" }, { mechanic: "survival" }, { mechanic: "millionaire" }] },
 ];
 
 function refOf(game: Game): ProgramBlockRef {

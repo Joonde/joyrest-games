@@ -34,6 +34,6 @@ export const quiz: Mechanic<QuizContent, QuizAnswerValue, QuizStep> = {
     if (session.state.stage === "question" && q.kind === "super") return "superPick";
     return null;
   },
-  // «Угадай мелодию» (есть треки или вопросы с «♪») — микрофон и клавиши, остальные квизы — стол с кубком.
+  // «Узнай по нотам» (есть треки или вопросы с «♪») — микрофон и клавиши, остальные квизы — стол с кубком.
   art: (content) => (isMelodyQuiz(content) ? "melody" : "quiz-office"),
 };

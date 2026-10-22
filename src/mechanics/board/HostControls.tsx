@@ -17,7 +17,7 @@ function boardMoment(s: Session): string {
 }
 
 /**
- * Пульт «Своей игры»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
+ * Пульт «Ставки на знания»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
  * «кто первый» у гостей → «Верно» / «Неверно» → «К полю» (клетка гаснет). Крупная кнопка
  * «Таблица очков на экран» — в любой момент, потом «Убрать таблицу».
  */
@@ -127,7 +127,7 @@ export function BoardHostControls({ session, content, answers, participants, con
     return (
       <div className="stack host-quiz board-host">
         <p className="eyebrow">
-          Своя игра{rounds > 1 ? ` · раунд ${result.round} из ${rounds}` : ""} · сыграно {played} из {total}
+          Ставка на знания{rounds > 1 ? ` · раунд ${result.round} из ${rounds}` : ""} · сыграно {played} из {total}
         </p>
         {peekButton}
         <p className="muted small">
@@ -176,7 +176,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const header = (
     <div className="stack stack--tight">
       <p className="eyebrow">
-        {found?.category.title || "Своя игра"} · {cell.points} · {CELL_TITLES[cell.kind]}
+        {found?.category.title || "Ставка на знания"} · {cell.points} · {CELL_TITLES[cell.kind]}
       </p>
       <p className="host-quiz__question">{cell.text || (cell.trackId ? "Угадайте мелодию" : "—")}</p>
       <p className="muted small">

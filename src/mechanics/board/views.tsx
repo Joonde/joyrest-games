@@ -1,4 +1,4 @@
-// «Своя игра»: экран зала (поле, вопрос, кот в мешке, ответ) и телефон гостя (кнопка, ставка).
+// «Ставка на знания»: экран зала (поле, вопрос, кот в мешке, ответ) и телефон гостя (кнопка, ставка).
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BuzzButton } from "../../components/live/BuzzButton";
 import { Confetti } from "../../components/live/Confetti";
@@ -80,7 +80,7 @@ export function BoardGrid({ content, result, small = false }: { content: BoardCo
   const categories = roundCategories(content, result.round);
   const columns = Math.max(1, ...categories.map((c) => c.cells.length));
   return (
-    <div className={small ? "board-grid board-grid--small" : "board-grid"} style={{ ["--board-cols" as string]: columns }} role="table" aria-label="Поле «Своей игры»">
+    <div className={small ? "board-grid board-grid--small" : "board-grid"} style={{ ["--board-cols" as string]: columns }} role="table" aria-label="Поле «Ставки на знания»">
       {categories.map((category) => (
         <div key={category.id} className="board-grid__row" role="row">
           <div className="board-grid__title" role="rowheader">
@@ -153,7 +153,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
     return (
       <div className={`board-screen${look}`}>
         <div className="board-screen__top">
-          <span className="quiz-screen__badge">{roundsOf(content) > 1 ? `Своя игра · раунд ${result.round}` : "Своя игра"}</span>
+          <span className="quiz-screen__badge">{roundsOf(content) > 1 ? `Ставка на знания · раунд ${result.round}` : "Ставка на знания"}</span>
           {picker ? (
             <span className="board-screen__picker">
               Выбирает: <NameText name={picker} />
@@ -169,7 +169,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
 
   const head = (
     <div className="board-screen__top">
-      <span className="quiz-screen__badge">{category?.title || "Своя игра"}</span>
+      <span className="quiz-screen__badge">{category?.title || "Ставка на знания"}</span>
       <span className="board-screen__points">
         {cell.kind === "cat" || cell.kind === "auction"
           ? `${cell.kind === "cat" ? "Кот в мешке" : "Аукцион"}${result.catStep && result.catTo ? ` · ${result.catPrice} очков` : ""}`
@@ -325,7 +325,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
     const mine = result.picker === pid;
     return (
       <div className="quiz-phone quiz-phone--center">
-        <p className="eyebrow">Своя игра</p>
+        <p className="eyebrow">Ставка на знания</p>
         {mine ? (
           <div className="buzz__plate buzz__plate--glow" role="status">
             <strong>Вы выбираете клетку!</strong>
@@ -342,7 +342,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
 
   const title = (
     <p className="eyebrow">
-      {category?.title || "Своя игра"} · {cell.kind === "cat" ? "Кот в мешке" : `${cell.points} очков`}
+      {category?.title || "Ставка на знания"} · {cell.kind === "cat" ? "Кот в мешке" : `${cell.points} очков`}
     </p>
   );
 

@@ -67,7 +67,7 @@ describe("встроенная музыка экрана зала", () => {
     expect(at({ phase: "playing", stage: "podium", step: 9 })).toBeNull();
   });
 
-  it("«Миллионер»: вход гостей и поля — заставка, вопрос — фон до последних 10 секунд, зал голосует — своя музыка", async () => {
+  it("«Миллион на кону»: вход гостей и поля — заставка, вопрос — фон до последних 10 секунд, зал голосует — своя музыка", async () => {
     const { millionaire } = await import("../../mechanics/millionaire");
     const result = (level: number, mode = "question", seen: string[] = ["q1"]) => ({ order: ["A"], turn: "A", levels: { A: level }, mode, q: "q1", seen });
     const at = (state: Partial<SessionState>) => builtinMusicOf(session(state), millionaire.music?.(session(state), {} as never) ?? null);

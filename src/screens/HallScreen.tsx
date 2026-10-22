@@ -179,7 +179,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
   // Встроенная музыка момента (если ведущий не включил свою): перерыв и представление команд.
   const mechanic = getMechanic(session.mechanic);
   const content = useMemo(() => (mechanic?.music ? mechanic.parse(snapshotContent(session.gameSnapshot)) : null), [mechanic, session.gameSnapshot]);
-  // Пока идёт таймер вопроса — раз в секунду пересчитать музыку момента («Миллионер» стихает за 10 секунд до конца).
+  // Пока идёт таймер вопроса — раз в секунду пересчитать музыку момента («Миллион на кону» стихает за 10 секунд до конца).
   useServerNow(1000, session.state.stage === "question" && session.state.timeLimit !== null);
   const moment = mechanic?.music && content !== null ? mechanic.music(session, content) : null;
   const musicBlocked = useHallMusic(session.state.music, session.state.mix, builtinMusicOf(session, moment));

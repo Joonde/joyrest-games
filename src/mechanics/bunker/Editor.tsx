@@ -1,4 +1,4 @@
-// Конструктор «Бункера»: раунды, время речей и голосования, особые условия, режимы финала, очки.
+// Конструктор «Убежища»: раунды, время речей и голосования, особые условия, режимы финала, очки.
 import { ClampedNumber } from "../../components/ClampedNumber";
 import type { EditorProps } from "../types";
 import { CatastropheCard } from "./CardArt";
@@ -30,11 +30,11 @@ export function BunkerEditor({ content, onChange, editable }: EditorProps<Bunker
       <section className="card stack">
         <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
-          Случилась катастрофа, мест в бункере — на половину игроков ({BUNKER_LIMITS.minPlayers}–{BUNKER_LIMITS.maxPlayers} человек). У каждого на телефоне тайный персонаж: профессия, биология, здоровье, хобби, багаж и факт{content.specials ? ", плюс особое условие" : ""}. Каждый раунд открывается карта бункера, игроки по очереди открывают по одной карте (в первом — профессию) и доказывают, что нужны. Потом обсуждение и тайное голосование: кого не берём. Ничья — оправдательные речи и переголосование, снова ничья — жребий.
+          Случилась катастрофа, мест в убежище — на половину игроков ({BUNKER_LIMITS.minPlayers}–{BUNKER_LIMITS.maxPlayers} человек). У каждого на телефоне тайный персонаж: профессия, биология, здоровье, хобби, багаж и факт{content.specials ? ", плюс особое условие" : ""}. Каждый раунд открывается карта убежища, игроки по очереди открывают по одной карте (в первом — профессию) и доказывают, что нужны. Потом обсуждение и тайное голосование: кого не берём. Ничья — оправдательные речи и переголосование, снова ничья — жребий.
         </p>
         <div className="row board-editor__size">
           {num("Партий за игру", "parties", 1, 10)}
-          {num("Раундов в партии (одна карта бункера на раунд)", "rounds", 3, BUNKER_LIMITS.bunkerCards)}
+          {num("Раундов в партии (одна карта убежища на раунд)", "rounds", 3, BUNKER_LIMITS.bunkerCards)}
           {num("Речь в первом раунде, с", "firstSpeechSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Речь в следующих, с", "speechSeconds", 10, BUNKER_LIMITS.maxSeconds)}
           {num("Обсуждение, с (0 — без таймера)", "discussSeconds", 0, 600)}
@@ -74,7 +74,7 @@ export function BunkerEditor({ content, onChange, editable }: EditorProps<Bunker
       <section className="card stack">
         <h2>Особые условия и финал</h2>
         {toggle("specials", "Особые условия", `У каждого одна карта — сыграть можно один раз: обмен картами, лечение, шпион, неприкосновенность, отмена голосования и ещё ${SPECIALS.length - 5}.`)}
-        {toggle("rebirth", "«Возрождение»", "Бункер выживет, только если среди спасшихся есть мужчина и женщина 18–55 лет без бесплодия. Лучше от 8 игроков.")}
+        {toggle("rebirth", "«Возрождение»", "Убежище выживет, только если среди спасшихся есть мужчина и женщина 18–55 лет без бесплодия. Лучше от 8 игроков.")}
         <label className="field">
           «История выживания»: угроз в финале
           <select value={content.threats} disabled={!editable} onChange={(e) => set({ threats: Number(e.target.value) })}>
@@ -87,7 +87,7 @@ export function BunkerEditor({ content, onChange, editable }: EditorProps<Bunker
         <p className="muted small">Угрозы открываются в финале: пожар, болезнь, чужаки у входа… Спасшиеся решают, чем справятся, — ведущий отмечает итог.</p>
         <div className="row board-editor__size">
           {num("Очки за пережитый раунд", "roundPoints", 0, BUNKER_LIMITS.maxPoints)}
-          {num("Очки спасшимся, если бункер выжил", "winPoints", 0, BUNKER_LIMITS.maxPoints)}
+          {num("Очки спасшимся, если убежище выжило", "winPoints", 0, BUNKER_LIMITS.maxPoints)}
         </div>
       </section>
     </div>

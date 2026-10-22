@@ -9,10 +9,10 @@ import { PerudoPlayerView, PerudoScreenView } from "./views";
 
 const PerudoEditor = lazy(() => import("./Editor").then((m) => ({ default: m.PerudoEditor })));
 
-/** «Перудо» — кости лжеца: тайные кости на телефонах, ставки по кругу, «Не верю!» и вскрытие на экране. */
+/** «Кости лжеца» — кости лжеца: тайные кости на телефонах, ставки по кругу, «Не верю!» и вскрытие на экране. */
 export const perudo: Mechanic<PerudoContent, PerudoAnswerValue> = {
   id: "perudo",
-  title: "Перудо — кости лжеца",
+  title: "Кости лжеца — кости лжеца",
   supports: { solo: true, teams: true, noScreen: true },
   // Своё награждение на пульте (партии, «Закончить и наградить»): общая «Наградить сейчас» не нужна.
   ownAward: true,

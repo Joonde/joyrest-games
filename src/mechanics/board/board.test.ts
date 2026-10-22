@@ -69,7 +69,7 @@ const openArmed = (s: Session, c: BoardContent, id: string) => {
   return parseBoardResult(opened.state.result).mode === "buzz" ? apply(opened, armBuzz(opened, c)) : opened;
 };
 
-describe("Своя игра: поле", () => {
+describe("Ставка на знания: поле", () => {
   it("разбор поля не бросает и сохраняет клетки; шаги — все клетки", () => {
     const c = content();
     expect(parseBoard(JSON.parse(JSON.stringify(c)))).toEqual(c);
@@ -83,7 +83,7 @@ describe("Своя игра: поле", () => {
   });
 });
 
-describe("Своя игра: ход", () => {
+describe("Ставка на знания: ход", () => {
   it("клетка → кнопка → «Неверно» (штраф) → слово второму → «Верно»; клетка гаснет, выбирает победитель", () => {
     const c = content();
     let s = session();
@@ -287,7 +287,7 @@ describe("Своя игра: ход", () => {
   });
 });
 
-describe("оформление экрана зала «Своей игры»", () => {
+describe("оформление экрана зала «Ставки на знания»", () => {
   it("старые игры без поля и неизвестные значения — «Классика», шаблон и новые игры — «Студия»", () => {
     const old: Record<string, unknown> = { ...createBoard() };
     delete old.look;

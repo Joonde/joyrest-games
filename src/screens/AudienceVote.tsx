@@ -67,7 +67,7 @@ function VoteScreen({ session }: { session: Session }) {
       <Logo kind="full" className="logo--form" />
       <p className="eyebrow">Помощь зала · код {formatSessionCode(session.code)}</p>
       {session.mechanic !== "millionaire" || !audienceRepo ? (
-        <p>Здесь голосуют в «Помощи зала» игры «Кто хочет стать миллионером».</p>
+        <p>Здесь голосуют в «Помощи зала» игры «Миллион на кону».</p>
       ) : session.state.phase === "finished" ? (
         <h1>Игра окончена — спасибо!</h1>
       ) : open && q ? (

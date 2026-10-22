@@ -1,5 +1,5 @@
-// Шаблоны «Just Dance на поле» и «Караоке на поле» для «Библиотеки JoyRest»: плитки без видео — ведущий в копии
-// игры вставляет ссылки на ролики Just Dance / караоке (YouTube, VK Видео, Rutube) или выбирает файлы на ноутбуке.
+// Шаблоны «Танцуй как звезда» и «Караоке на поле» для «Библиотеки JoyRest»: плитки без видео — ведущий в копии
+// игры вставляет ссылки на танцевальные ролики и караоке (YouTube, VK Видео, Rutube) или выбирает файлы на ноутбуке.
 import { parseStage, type StageContent, type StageVariant } from "./content";
 
 type Row = [string, Array<[number, string, string, string]>];
@@ -78,5 +78,5 @@ function build(variant: StageVariant, rows: Row[]): StageContent {
   return parseStage({ variant, categories, tiles, gift: 50, voteTime: 20 });
 }
 
-export const DEMO_STAGE_DANCE = { title: "Just Dance на поле", content: build("dance", DANCE) };
+export const DEMO_STAGE_DANCE = { title: "Танцуй как звезда", content: build("dance", DANCE) };
 export const DEMO_STAGE_KARAOKE = { title: "Караоке на поле", content: build("karaoke", KARAOKE) };

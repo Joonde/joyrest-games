@@ -92,7 +92,7 @@ describe.skipIf(!url)("опрос гостей на PostgreSQL", () => {
     annaId = a.account.uid;
     const b = (await post("/api/users", owner, { email: "boris@example.com", name: "Борис" })).json();
     boris = await login("boris@example.com", b.temporaryPassword);
-    const created = await post("/api/games", anna, { id: "annaGame", scope: "personal", ownerId: annaId, title: "100 к 1", mechanic: "hundred", themeId: "joyrest", ageRating: "0+", playMode: "teams", content: {} });
+    const created = await post("/api/games", anna, { id: "annaGame", scope: "personal", ownerId: annaId, title: "Что скажет большинство", mechanic: "hundred", themeId: "joyrest", ageRating: "0+", playMode: "teams", content: {} });
     expect(created.statusCode).toBe(200);
   });
 

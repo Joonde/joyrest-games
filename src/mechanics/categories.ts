@@ -16,13 +16,13 @@ export interface Category {
 export const CATEGORIES: Category[] = [
   { id: "evening", title: "Мероприятия из блоков", icon: "🎉", hint: "Несколько игр подряд по одному коду: общий счёт вечера и победители блоков" },
   { id: "quiz", title: "Квизы", icon: "🧠", hint: "Вопросы на экране, ответы на телефонах" },
-  { id: "music", title: "Музыкальные", icon: "🎵", hint: "«Угадай мелодию», музыкальное лото" },
-  { id: "tv", title: "Телешоу", icon: "📺", hint: "«Своя игра», «Миллионер», «100 к 1», «Гонка на выживание»" },
+  { id: "music", title: "Музыкальные", icon: "🎵", hint: "«Узнай по нотам», музыкальное лото" },
+  { id: "tv", title: "Телешоу", icon: "📺", hint: "«Ставка на знания», «Миллион на кону», «Что скажет большинство», «Гонка на выживание»" },
   { id: "adventure", title: "Приключения и настолки", icon: "🎲", hint: "Настолка, шашки, «Бой с драконом»" },
   { id: "olymp", title: "Олимп", icon: "⚡", hint: "Ролевые истории про греческих богов: «Вечная зима», «Метка Тёмного мира»" },
-  { id: "cards", title: "Карточные и кости", icon: "🃏", hint: "«Мафия», «Шпион», «Бункер», «Дурак», «Перудо», «Правда или действие»" },
+  { id: "cards", title: "Карточные и кости", icon: "🃏", hint: "«Мафия», «Шпион», «Убежище», «Дурак», «Кости лжеца», «Правда или действие»" },
   { id: "social", title: "Знакомство и общение", icon: "🤝", hint: "«Давайте знакомиться» — игры, чтобы узнать друг друга" },
-  { id: "active", title: "Танцы и активные", icon: "💃", hint: "Just Dance и караоке на поле, танцевальный батл" },
+  { id: "active", title: "Танцы и активные", icon: "💃", hint: "Танцуй как звезда и караоке на поле, танцевальный батл" },
   { id: "draw", title: "Раскраски на перерыв", icon: "🎨", hint: "«Аквариум» и «Ёлка»: гости раскрашивают на телефонах, рисунки оживают на экране" },
   { id: "other", title: "Другие игры", icon: "✨", hint: "Всё остальное" },
 ];
@@ -53,10 +53,10 @@ const BY_MECHANIC: Record<string, CategoryId> = {
   evening: "evening",
 };
 
-/** Квиз про музыку: в названии мелодия, песни, музыка (шаблон «Угадай мелодию» — ещё без треков). */
-const MUSIC_TITLE = /мелод|музык|песн|хит/i;
+/** Квиз про музыку: в названии мелодия, песни, музыка (шаблон «Узнай по нотам» — ещё без треков). */
+const MUSIC_TITLE = /мелод|музык|песн|хит|по нотам/i;
 
-/** Раздел игры: квиз с треками или про музыку по названию — музыкальный («Угадай мелодию»). */
+/** Раздел игры: квиз с треками или про музыку по названию — музыкальный («Узнай по нотам»). */
 export function categoryOf(game: { mechanic: string | null; content: unknown; title?: string }): CategoryId {
   const id = BY_MECHANIC[game.mechanic ?? ""] ?? "other";
   if (id === "quiz" && (MUSIC_TITLE.test(game.title ?? "") || trackIds(parseQuiz(game.content)).length > 0)) return "music";
@@ -82,10 +82,10 @@ export const POPULAR_SLOTS: Array<{ title: string; match: (g: { mechanic: string
   { title: "Квиз", match: (g) => g.mechanic === "quiz" && categoryOf(g) === "quiz" },
   { title: "Музыкальное лото", match: (g) => g.mechanic === "lotto" },
   { title: "Бой с драконом", match: (g) => g.mechanic === "dragon" },
-  { title: "Just Dance на поле", match: (g) => g.mechanic === "stage" && variantOf(g.content) !== "karaoke" },
-  { title: "Кто хочет стать миллионером", match: (g) => g.mechanic === "millionaire" },
-  { title: "Своя игра", match: (g) => g.mechanic === "board" },
-  { title: "100 к 1", match: (g) => g.mechanic === "hundred" },
+  { title: "Танцуй как звезда", match: (g) => g.mechanic === "stage" && variantOf(g.content) !== "karaoke" },
+  { title: "Миллион на кону", match: (g) => g.mechanic === "millionaire" },
+  { title: "Ставка на знания", match: (g) => g.mechanic === "board" },
+  { title: "Что скажет большинство", match: (g) => g.mechanic === "hundred" },
 ];
 
 function variantOf(content: unknown): unknown {

@@ -6,11 +6,17 @@
   var P = window.JoyPricing;
   if (!P) return;
   var KEY = 'jr-calc-page';
-  var state = { pkg: 'quiz', tier: 1, weekend: false, extras: [], ext: 0, addons: [], level: 'standard' };
+  var state = { pkg: 'quiz', tier: 1, weekend: false, date: '', extras: [], ext: 0, addons: [], level: 'standard' };
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && typeof saved === 'object') for (var k in state) if (k in saved) state[k] = saved[k];
   } catch (e) { /* без памяти — просто с начала */ }
+  // Сегодня по Москве: ранняя бронь и прошедшие даты. Прошедшая или кривая дата из памяти не возвращается.
+  function today() { return P.moscowToday(); }
+  if (typeof state.date !== 'string' || !P.parseDate(state.date) || state.date < today()) state.date = '';
+  function opts() {
+    return { pkg: state.pkg, tier: state.tier, weekend: state.weekend, date: state.date, today: today(), extras: state.extras, ext: state.ext, addons: state.addons };
+  }
 
   var $ = function (id) { return document.getElementById(id); };
   var money = P.money;
@@ -70,9 +76,22 @@
       return opt('до ' + n, '', '', state.tier === i, function () { set({ tier: i }); });
     }).concat([opt('больше 90', 'обсудим', '', state.tier === P.TIERS.length, function () { set({ tier: P.TIERS.length }); })]));
 
+    var r = P.calcPrice(opts());
+    var dateEl = $('date');
+    dateEl.min = today();
+    if (dateEl.value !== state.date) dateEl.value = state.date;
+    var info = $('dateInfo');
+    info.textContent = '';
+    if (r.date) {
+      var b = document.createElement('b');
+      b.textContent = r.date.label.replace(/, [а-я]+$/, '') + ', ' + r.date.weekday;
+      info.appendChild(b);
+      info.appendChild(document.createTextNode(' — ' + (r.weekend ? 'пятница–воскресенье, +10%' : 'будний день') +
+        (r.season ? ' · ' + r.season.title.toLowerCase() : '') + '.' + (state.date < today() ? ' Эта дата уже прошла — проверьте.' : '')));
+    } else info.textContent = 'Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.';
     fill('days', [
-      opt('Будни', 'пн–чт', '', !state.weekend, function () { set({ weekend: false }); }),
-      opt('Пятница–воскресенье', '+10%', '', state.weekend, function () { set({ weekend: true }); })
+      opt('Будни', 'пн–чт', '', !r.weekend, function () { set({ weekend: false }); }, !!r.date),
+      opt('Пятница–воскресенье', '+10%', '', r.weekend, function () { set({ weekend: true }); }, !!r.date)
     ]);
 
     $('extraSection').hidden = turnkey;
@@ -91,15 +110,56 @@
       }));
       fill('addons', P.ADDONS.map(function (a) {
         var on = state.addons.indexOf(a.id) >= 0;
-        return opt(a.label, a.info, '+' + money(a.price) + (a.fixed ? ' · без скидок' : ''), on, function () {
+        var price = a.id === 'far' ? r.travel : a.price;
+        return opt(a.label, a.info, '+' + money(price) + (a.id === 'far' ? ' + такси' : '') + (a.fixed ? ' · без скидок' : ''), on, function () {
           set({ addons: on ? state.addons.filter(function (x) { return x !== a.id; }) : state.addons.concat([a.id]) });
         });
       }));
     }
 
-    var r = P.calcPrice(state);
     var body = $('resBody');
     body.textContent = '';
+    var season = r.individual ? null : r.season;
+    if (season) {
+      var box = document.createElement('div');
+      box.className = 'season';
+      var title = document.createElement('p');
+      title.className = 'season__title';
+      var tName = document.createElement('span');
+      tName.textContent = 'Праздничная цена · ' + season.title;
+      var tBadge = document.createElement('span');
+      tBadge.className = 'season__badge';
+      tBadge.textContent = P.seasonBadge(season);
+      title.appendChild(tName); title.appendChild(tBadge);
+      box.appendChild(title);
+      var why = document.createElement('p');
+      why.textContent = season.text;
+      box.appendChild(why);
+      if (season.early) {
+        var std = r.totals[0];
+        var early = document.createElement('p');
+        early.className = 'early';
+        early.textContent = 'Ранняя бронь до ' + P.earlyUntilLabel(state.date) + ': +' + season.pct + '% вместо +' + season.fullPct + '% — экономия ' +
+          money(P.roundUp(std.base * season.fullPct / 100) - std.extra) + ' на формате «' + std.name + '».';
+        box.appendChild(early);
+      }
+      var note = document.createElement('p');
+      note.textContent = 'Праздничная цена зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.';
+      box.appendChild(note);
+      body.appendChild(box);
+    }
+    if (!r.individual && r.hint) {
+      var hintEl = document.createElement('p');
+      hintEl.className = 'hint-ok';
+      hintEl.textContent = r.hint;
+      body.appendChild(hintEl);
+    }
+    if (!r.individual && !r.date) {
+      var nd = document.createElement('p');
+      nd.className = 'small muted';
+      nd.textContent = 'Укажите дату праздника — в декабре, перед праздниками и в сами праздники действует праздничная цена.';
+      body.appendChild(nd);
+    }
     if (r.individual) {
       var p = document.createElement('p');
       p.textContent = r.reason === 'turnkey'
@@ -117,9 +177,12 @@
         b.type = 'button';
         b.className = 'total';
         b.setAttribute('aria-pressed', state.level === t.id ? 'true' : 'false');
-        b.innerHTML = '<span><span class="total__name"></span><span class="total__badge"></span></span><span class="total__price"></span>';
+        b.innerHTML = '<span><span class="total__name"></span><span class="total__badge"></span><span class="total__calc"></span></span><span class="total__price"></span>';
         b.querySelector('.total__name').textContent = t.name;
         b.querySelector('.total__badge').textContent = t.badge;
+        b.querySelector('.total__calc').textContent = !season ? '' : (season.min && t.base + P.roundUp(t.base * season.pct / 100) < season.min
+          ? 'минимум в новогоднюю ночь ' + money(season.min)
+          : money(t.base) + ' + праздничная цена ' + money(t.extra));
         b.querySelector('.total__price').textContent = money(t.price);
         b.addEventListener('click', function () { set({ level: t.id }); });
         totals.appendChild(b);
@@ -152,13 +215,15 @@
         li.textContent = l.label + ' — ' + money(l.value);
         ul.appendChild(li);
       });
+      if (r.weekend) { var wli = document.createElement('li'); wli.textContent = 'Пятница–воскресенье — +10%'; ul.appendChild(wli); }
+      if (season) { var sli = document.createElement('li'); sli.textContent = 'Праздничная цена · ' + season.title + ' — ' + P.seasonBadge(season); ul.appendChild(sli); }
       body.appendChild(ul);
     }
   }
 
   /** Текст расчёта для менеджера: строки «Что: значение» и три цены, выбранный формат отмечен ✅. */
   function text() {
-    return P.calcMessage(state, state.level || '');
+    return P.calcMessage(opts(), state.level || '');
   }
 
   var toastTimer = 0;
@@ -209,7 +274,7 @@
     $('sMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(value);
     // Картинку готовим сразу: «Поделиться» телефона должно открыться прямо по касанию.
     sheetFile = null;
-    if (window.JoyCalcImage) window.JoyCalcImage.make(P.calcSummary(state), state.level || 'standard', levelIds()).then(function (f) { sheetFile = f; }, function () {});
+    if (window.JoyCalcImage) window.JoyCalcImage.make(P.calcSummary(opts()), state.level || 'standard', levelIds()).then(function (f) { sheetFile = f; }, function () {});
     $('sImg').hidden = !window.JoyCalcImage;
     sheet.hidden = false;
     document.body.style.overflow = 'hidden';
@@ -227,7 +292,7 @@
       });
     };
     if (sheetFile) go(sheetFile);
-    else window.JoyCalcImage.make(P.calcSummary(state), state.level || 'standard', levelIds()).then(go, function () { toast('Не получилось сделать картинку — отправьте текстом'); });
+    else window.JoyCalcImage.make(P.calcSummary(opts()), state.level || 'standard', levelIds()).then(go, function () { toast('Не получилось сделать картинку — отправьте текстом'); });
   });
   $('sCopy').addEventListener('click', function () { copy(); closeSheet(); });
   $('sClose').addEventListener('click', closeSheet);
@@ -242,6 +307,15 @@
   lv.addEventListener('click', function (ev) { if (ev.target === lv) closeLevels(); });
   document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeLevels(); });
 
+  var setDate = function () { var v = $('date').value; set({ date: P.parseDate(v) ? v : '' }); };
+  $('date').addEventListener('change', setDate);
+  $('date').addEventListener('input', setDate);
+  // Ранняя бронь Нового года — с 1 сентября по 15 ноября по Москве.
+  (function () {
+    var t = today(), y = t.slice(0, 4);
+    var until = y + '-' + ('0' + P.EARLY_UNTIL.m).slice(-2) + '-' + ('0' + P.EARLY_UNTIL.d).slice(-2);
+    $('promo').hidden = !(t >= y + '-09-01' && t <= until);
+  })();
   $('send').addEventListener('click', send);
   $('barSend').addEventListener('click', send);
   $('copy').addEventListener('click', function () { copy(); });

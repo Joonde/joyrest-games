@@ -237,7 +237,9 @@
 
   // ---------- Калькулятор ----------
   const P = window.JoyPricing;
-  const calc = { pkg: 'quiz', tier: 0, weekend: false, extras: {}, ext: 0, addons: {}, info: '' };
+  const calc = { pkg: 'quiz', tier: 0, weekend: false, date: '', extras: {}, ext: 0, addons: {}, info: '' };
+  // Сегодня по Москве — для ранней брони и чтобы не выбрать прошедшую дату.
+  const today = () => P.moscowToday();
   const money = (n) => P.money(n);
   const CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
   const el = (tag, cls, html) => { const n = document.createElement(tag); if(cls) n.className = cls; if(html !== undefined) n.innerHTML = html; return n; };
@@ -273,7 +275,17 @@
     ui.tiers.push(b);
     $('calcTiers').append(b);
   });
-  // Шаг 3 — день
+  // Шаг 3 — дата праздника (день недели и праздничная цена — из неё) и день, если дата ещё не известна
+  const dateInput = $('calcDate');
+  dateInput.min = today();
+  const setDate = () => {
+    const v = dateInput.value;
+    calc.date = P.parseDate(v) ? v : '';
+    update();
+  };
+  dateInput.addEventListener('change', setDate);
+  dateInput.addEventListener('input', setDate);
+  $('calcDateClear').addEventListener('click', () => { dateInput.value = ''; calc.date = ''; update(); dateInput.focus(); });
   [['Будни (пн–чт)', false], ['Пятница–воскресенье · +10%', true]].forEach(([label, wk]) => {
     const b = el('button', 'chip', label);
     b.type = 'button';
@@ -327,6 +339,26 @@
   });
 
   const DAY_LABEL = (wk) => wk ? 'пятница–воскресенье' : 'будни';
+  // «27 400 + 5 500» под ценой: сумма вечера и праздничная цена (выезд — отдельной строкой ниже).
+  function levelCalc(t, r){
+    const s = r.season;
+    if(s.min && t.base + P.roundUp(t.base * s.pct / 100) < s.min) return `минимум ${money(s.min)}`;
+    return `${money(t.base)} + ${money(t.extra)}`;
+  }
+  // Ранняя бронь Нового года: блок виден с 1 сентября по 15 ноября по Москве.
+  (() => {
+    const promo = $('earlyPromo');
+    if(!promo) return;
+    const t = today();
+    const y = t.slice(0, 4);
+    promo.hidden = !(t >= `${y}-09-01` && t <= `${y}-${String(P.EARLY_UNTIL.m).padStart(2, '0')}-${String(P.EARLY_UNTIL.d).padStart(2, '0')}`);
+    $('earlyCalc').addEventListener('click', () => {
+      const input = $('calcDate');
+      input.closest('.step-q').scrollIntoView({ behavior: smooth, block: 'center' });
+      input.focus({ preventScroll: true });
+      try{ if(input.showPicker) input.showPicker(); }catch(_){ /* не везде можно открыть календарь из скрипта */ }
+    });
+  })();
   function durationText(h){ return `≈ ${P.hh(h.min)}–${P.hh(h.max)} ${P.hoursWord(h.max)}`; }
   let lastResult = null;
   // Расчёт в заявке (карточка «Ваш расчёт»): { opts, text } или null. Пока он есть — карточка обновляется сама.
@@ -337,7 +369,14 @@
     const ti = tierIndex();
     ui.packs.forEach(([id, b]) => pressable(b, id === calc.pkg));
     ui.tiers.forEach((b, i) => pressable(b, i === calc.tier));
-    ui.days.forEach(([wk, b]) => pressable(b, wk === calc.weekend));
+    const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() });
+    // Дата есть — день недели берётся из неё, кнопки дня только показывают его.
+    ui.days.forEach(([wk, b]) => { pressable(b, wk === r.weekend); b.disabled = !!r.date; });
+    if(dateInput.value !== calc.date) dateInput.value = calc.date;
+    $('calcDateClear').hidden = !calc.date;
+    $('calcDateInfo').innerHTML = r.date
+      ? `<b>${esc(r.date.label.replace(/, [а-я]+$/, ''))}, ${esc(r.date.weekday)}</b> — ${r.weekend ? 'пятница–воскресенье, +10%' : 'будний день'}${r.season ? ' · ' + esc(r.season.title.toLowerCase()) : ''}.${calc.date < today() ? ' Эта дата уже прошла — проверьте.' : ''}`
+      : 'Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.';
     ui.extras.forEach(([id, b]) => {
       const same = id === calc.pkg;
       b.hidden = same;
@@ -353,8 +392,25 @@
       desc.hidden = !open;
     });
 
-    const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, extras: extrasList(), ext: calc.ext, addons: addonsList() });
     lastResult = r;
+    // Праздничная цена: причина над ценами, у каждой цены — из чего она.
+    const season = r.individual ? null : r.season;
+    $('calcSeason').hidden = !season;
+    if(season){
+      $('calcSeasonTitle').textContent = 'Праздничная цена · ' + season.title;
+      $('calcSeasonBadge').textContent = P.seasonBadge(season);
+      $('calcSeasonText').textContent = season.text;
+      $('calcSeasonEarly').hidden = !season.early;
+      if(season.early){
+        const t = r.totals.find((x) => x.id === (hostLevelField.value || 'standard')) || r.totals[0];
+        const full = t.base + P.roundUp(t.base * season.fullPct / 100) - t.base;
+        $('calcSeasonEarly').textContent = `Ранняя бронь до ${P.earlyUntilLabel(calc.date)}: +${season.pct}% вместо +${season.fullPct}% — экономия ${money(full - t.extra)} на формате «${t.name}».`;
+      }
+    }
+    const hint = r.individual ? '' : r.hint;
+    $('calcSeasonHint').hidden = !hint;
+    $('calcSeasonHint').textContent = hint;
+    $('calcNoDate').hidden = r.individual || !!r.date;
     const pkg = P.pkgById(calc.pkg);
     const nEx = r.extrasCount;
     $('calcIndiv').hidden = !r.individual;
@@ -363,12 +419,12 @@
     // Три цены — кнопки: касание выбирает формат ведущего (то же поле, что в заявке), выбранный подсвечен.
     const level = hostLevelField.value || 'standard';
     $('calcLevels').innerHTML = r.totals.map((t) =>
-      `<button type="button" class="level${t.id === level ? ' level--top' : ''}" data-level="${esc(t.id)}" aria-pressed="${t.id === level}"><span class="level__name">${esc(t.name)}</span><span class="level__badge">${esc(t.badge)}</span><span class="level__price">${money(t.price)}</span></button>`).join('');
+      `<button type="button" class="level${t.id === level ? ' level--top' : ''}" data-level="${esc(t.id)}" aria-pressed="${t.id === level}"><span class="level__name">${esc(t.name)}</span><span class="level__badge">${esc(t.badge)}</span><span class="level__price">${money(t.price)}</span>${season ? `<span class="level__calc">${esc(levelCalc(t, r))}</span>` : ''}</button>`).join('');
     let text;
     if(r.reason === 'turnkey') text = 'Под ключ — соберём программу под ваш повод';
     else if(r.reason === 'guests') text = 'Больше 90 гостей — подберём ведущих и программу';
     else if(r.reason === 'extras') text = 'Больше двух дополнительных игр — это индивидуальный заказ: соберём программу на весь вечер';
-    else text = `${pkg.name}${nEx ? ` + ещё ${nEx} ${P.gamesWord(nEx)}` : ''} · до ${P.TIERS[ti]} гостей · ${DAY_LABEL(calc.weekend)}`;
+    else text = `${pkg.name}${nEx ? ` + ещё ${nEx} ${P.gamesWord(nEx)}` : ''} · до ${P.TIERS[ti]} гостей · ${r.date ? r.date.label.replace(/ \d{4},/, ',') : DAY_LABEL(r.weekend)}`;
     $('calcText').textContent = text;
     $('calcDurValue').textContent = durationText(r.hours);
     const parts = r.individual ? [] : [`${pkg.name} · 1,5–2 ч`, ...extrasList().map((id) => `+ ${P.pkgById(id).name} · ~1 ч`)];
@@ -377,7 +433,9 @@
     const lines = r.lines.filter((l) => !l.fixed).map((l) => [l.label, '+' + money(l.value)]);
     if(lines.length) lines[0][1] = money(r.lines[0].value);
     if(r.weekend) lines.push(['Пятница–воскресенье', '+10%']);
-    r.lines.filter((l) => l.fixed).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
+    r.lines.filter((l) => l.fixed && !/^Выезд/.test(l.label)).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
+    if(season) lines.push(['Праздничная цена · ' + season.title, P.seasonBadge(season)]);
+    r.lines.filter((l) => l.fixed && /^Выезд/.test(l.label)).forEach((l) => lines.push([l.label, '+' + money(l.value)]));
     $('calcLines').innerHTML = lines.map(([k, v]) => `<li><span>${esc(k)}</span><span>${v}</span></li>`).join('');
     // Полоска итога внизу экрана телефона
     $('calcBarSum').innerHTML = r.individual
@@ -402,7 +460,7 @@
   // калькулятором. Касание цены в карточке выбирает формат ведущего. Расчёт помнит телефон (jr-calc), после
   // отправки заявки — забывает. В /api/lead уходит полем calc.
   const CALC_KEY = 'jr-calc';
-  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
+  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
   function saveCalc(opts){
     try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
   }
@@ -624,6 +682,8 @@
     const tier = Number.isInteger(saved.tier) && saved.tier >= 0 && saved.tier <= P.TIERS.length ? saved.tier : 0;
     const ext = Number.isInteger(saved.ext) && P.EXTENSIONS[saved.ext] ? saved.ext : 0;
     calc.pkg = saved.pkg; calc.tier = tier; calc.weekend = saved.weekend === true; calc.ext = ext;
+    // Дата возвращается, только если она ещё не прошла.
+    calc.date = typeof saved.date === 'string' && P.parseDate(saved.date) && saved.date >= today() ? saved.date : '';
     calc.extras = {}; calc.addons = {};
     (Array.isArray(saved.extras) ? saved.extras : []).forEach((id) => { if(typeof id === 'string' && P.pkgById(id) && id !== calc.pkg) calc.extras[id] = true; });
     (Array.isArray(saved.addons) ? saved.addons : []).forEach((id) => { if(P.ADDONS.some((a) => a.id === id)) calc.addons[id] = true; });

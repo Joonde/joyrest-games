@@ -285,7 +285,20 @@
     <div class="wrap">
       <p class="eyebrow"><span class="eyebrow__n">1</span><span class="eyebrow__t">Пакеты и цены</span></p>
       <h2>Соберите свой вечер</h2>
-      <p class="sub">Выберите пакет, гостей и день — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
+      <p class="sub">Выберите пакет, гостей и дату — итог обновляется сразу. Без доплат за каждые 5 гостей и почасовых расчётов.</p>
+      <!-- Ранняя бронь Нового года (решение владельца 22 октября 2026): видна с 1 сентября по 15 ноября по Москве, показывает js/script.js. -->
+      <aside class="early" id="earlyPromo" hidden aria-labelledby="earlyTitle">
+        <p class="early__tag">До 15 ноября</p>
+        <h3 class="early__title" id="earlyTitle">Новый год дешевле — если забронировать заранее!</h3>
+        <p class="early__text">Бронируете корпоратив или праздник до 15 ноября включительно — праздничная цена новогоднего сезона вдвое меньше.</p>
+        <ul class="early__rows">
+          <li><span>5–18 декабря</span><span><s>+20%</s> <b>+10%</b></span></li>
+          <li><span>19–28 декабря</span><span><s>+40%</s> <b>+20%</b></span></li>
+          <li><span>29 декабря —&nbsp;1&nbsp;января</span><span class="early__full">полная цена</span></li>
+        </ul>
+        <p class="early__note">Цена закрепляется предоплатой 2&nbsp;000&nbsp;₽. Лучшие даты разбирают первыми!</p>
+        <button type="button" class="btn btn--primary" id="earlyCalc">Посчитать новогодний праздник</button>
+      </aside>
       <div class="calc">
         <div class="calc__steps">
           <div class="step-q">
@@ -299,9 +312,11 @@
             <p class="hint">90+ — больше 90 гостей: подберём нескольких ведущих, цену назовём индивидуально.</p>
           </div>
           <div class="step-q">
-            <p class="step-q__label"><span class="step-q__n">3</span>День</p>
+            <p class="step-q__label"><span class="step-q__n">3</span><label for="calcDate">Дата праздника</label></p>
+            <div class="datebox"><input type="date" id="calcDate" class="datebox__input" aria-describedby="calcDateInfo"><button type="button" class="chip" id="calcDateClear" hidden>Убрать дату</button></div>
+            <p class="hint datebox__info" id="calcDateInfo">Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.</p>
             <div class="chips" id="calcDays" role="group" aria-label="День"></div>
-            <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни.</p>
+            <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни. В декабре, перед 14 февраля, 23 февраля и 8 марта и в сами праздники действует праздничная цена.</p>
           </div>
           <div class="step-q">
             <p class="step-q__label"><span class="step-q__n">4</span>Ещё игра в этот вечер</p>
@@ -324,7 +339,15 @@
             <p class="summary__indiv-title">Обсудим индивидуально</p>
             <p class="summary__note">Оставьте заявку — предложим программу и цену в течение дня.</p>
           </div>
+          <div class="season" id="calcSeason" hidden>
+            <p class="season__title"><span id="calcSeasonTitle"></span><span class="season__badge" id="calcSeasonBadge"></span></p>
+            <p class="season__text" id="calcSeasonText"></p>
+            <p class="season__early" id="calcSeasonEarly" hidden></p>
+            <p class="season__note">Праздничная цена зависит от даты праздника, а не от дня брони, и считается последней — от суммы вечера со всеми выбранными пунктами.</p>
+          </div>
+          <p class="season-hint" id="calcSeasonHint" hidden></p>
           <div class="levels" id="calcLevels"></div>
+          <p class="summary__nodate" id="calcNoDate" hidden>Укажите дату праздника — в декабре, перед праздниками и в сами праздники действует праздничная цена.</p>
           <p class="summary__text" id="calcText"></p>
           <div class="duration" id="calcDuration">
             <span class="duration__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
@@ -335,10 +358,10 @@
             </div>
           </div>
           <ul class="summary__lines" id="calcLines"></ul>
-          <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве и Подмосковью</span></div>
+          <div class="included"><span>Ведущий</span><span>Сценарий</span><span>Платформа и QR</span><span>Реквизит</span><span>Выезд по Москве</span></div>
           <button type="button" class="btn btn--primary btn--block" id="calcSubmit">Отправить расчёт в заявку</button>
           <p class="summary__linked" id="calcLinked" hidden>✓ Расчёт в заявке и обновляется сам, когда вы меняете выбор</p>
-          <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси при выезде за область. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
+          <p class="summary__foot">Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро. Бронь даты — предоплата 2 000 ₽ в счёт стоимости.</p>
         </aside>
       </div>
       <div class="mbar" id="calcBar"><a href="#calcSummary" class="mbar__sum" id="calcBarSum" aria-label="Итог расчёта"></a><button type="button" class="mbar__send" id="calcBarSend">В заявку</button></div>
@@ -803,7 +826,8 @@
         </div>
         <div class="terms__card">
           <h3>Выезд</h3>
-          <p>Москва и Подмосковье — выезд включён, другие города — по договорённости. За пределами Московской области — +2 000 ₽ и такси ведущему по факту.</p>
+          <p>По Москве выезд включён; если рядом с площадкой нет метро (дальше 10–15 минут пешком) — такси ведущему по факту.</p>
+          <p>Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; в праздничные дни — 5 000 ₽, с 19 декабря по 1 января — 7 000 ₽. Другие регионы — по договорённости.</p>
         </div>
       </div>
       <p class="terms__more">Подробные условия — в договоре.</p>
@@ -944,7 +968,7 @@
             <li>Telegram-канал: <a href="https://t.me/JoyRest" target="_blank" rel="noopener" class="link">t.me/JoyRest</a></li>
             <li>Почта: <a href="mailto:joyrest@mail.ru">joyrest@mail.ru</a></li>
             <li class="showcase-only">Авито: <a href="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" target="_blank" rel="noopener" class="link">профиль JoyRest</a></li>
-            <li>Москва и Подмосковье — выезд включён, другие города — по договорённости</li>
+            <li>Москва — выезд включён, Подмосковье — +2 000 ₽ и такси, другие регионы — по договорённости</li>
           </ul>
         </div>
         <form id="leadForm" class="form form--card no-showcase">

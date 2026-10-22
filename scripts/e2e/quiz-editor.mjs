@@ -493,6 +493,38 @@ async function main() {
     check(!sizes.wide, "Нет прокрутки вбок");
     await page.evaluate(() => window.scrollTo(0, 0));
     await snap("itog");
+    // 17. Карточка игры: «✍️ Редактировать» и «▶ Запустить игру», текст целиком; закреплённые инструкции и «Как создавать игры».
+    await page.goto(`${BASE}/studio`);
+    const card = page.locator(".game-card").filter({ hasText: "Проверка раундов (робот)" }).first();
+    await page.locator(".guide-pins").waitFor({ timeout: WAIT });
+    // Игр у ведущего много — «Мои игры» разложены по разделам: открываем «Квизы».
+    if (!(await card.isVisible())) {
+      const quizzes = page.locator(".category-row", { hasText: "Квизы" }).first();
+      if ((await quizzes.getAttribute("aria-expanded")) !== "true") await quizzes.click().catch(() => {});
+    }
+    await card.waitFor({ timeout: WAIT });
+    const cut = await card.locator(".actions .btn").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2).map((el) => el.textContent.trim()));
+    const labels = await card.locator(".actions .btn").allInnerTexts();
+    check(labels.some((t) => t.includes("✍️ Редактировать")) && labels.some((t) => t.includes("▶ Запустить игру")), `Карточка: ${labels.join(" · ")}`, `Кнопки карточки: ${labels.join(" · ")}`);
+    check(cut.length === 0, "Текст кнопок карточки не обрезан", `Обрезано: ${cut.join("; ")}`);
+    check(await page.locator(".guide-pins__item", { hasText: "Как создавать игры" }).isVisible(), "Сверху студии закреплено «Как создавать игры»");
+    await card.scrollIntoViewIfNeeded();
+    await snap("kartochka-igry");
+    await page.locator(".guide-pins__item", { hasText: "Как создавать игры" }).click();
+    await page.locator(".eg-section").first().waitFor({ timeout: WAIT });
+    const sections = await page.locator(".eg-section").count();
+    check(sections >= 25, `«Как создавать игры»: разделов ${sections}`, `Разделов всего ${sections}`);
+    await snap("instrukciya");
+    await page.getByLabel("Найти в инструкции").fill("картинка");
+    await page.waitForTimeout(300);
+    const found = await page.locator(".eg-section[open]").count();
+    check(found > 0 && found < sections, `Поиск «картинка»: открыто разделов ${found}`, `Поиск «картинка» нашёл ${found}`);
+    await page.goto(`${BASE}/studio/editor-guide#quiz`);
+    await page.locator("#quiz[open]").waitFor({ timeout: WAIT });
+    check(await page.locator("#quiz .eg-example").count() >= 3, "Раздел квиза открыт по ссылке, есть примеры «что будет»");
+    await snap("instrukciya-kviz");
+    const wideGuide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    check(!wideGuide, "Инструкция без прокрутки вбок");
     check(pageErrors.length === 0, "Ошибок страницы нет", `Ошибки страницы: ${pageErrors.slice(0, 3).join(" | ")}`);
   } catch (error) {
     bad(`Сценарий прервался: ${String(error?.message ?? error).split("\n")[0]}`);

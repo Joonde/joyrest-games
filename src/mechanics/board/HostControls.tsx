@@ -6,10 +6,11 @@ import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import { clock } from "../../data";
+import { MediaImage } from "../../components/media/MediaImage";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
-import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, speakLeft, speakMore, speakTimeout, startAuction, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, setImageShown, speakLeft, speakMore, speakTimeout, startAuction, startCatQuestion, toBoard } from "./logic";
 
 /** Момент игры для повтора касания: без нажатий кнопки и выбора «Кота в мешке» (их пишет фон пульта). */
 function boardMoment(s: Session): string {
@@ -360,6 +361,21 @@ export function BoardHostControls({ session, content, answers, participants, con
       )}
       {header}
       {peekButton}
+      {/* Картинка по кнопке ведущего (решение владельца 22 октября 2026): сначала вопрос, картинка — когда скажете. */}
+      {stage === "question" && cell?.imageId && cell.imageShow === "host" && (
+        <div className="board-host__image">
+          <MediaImage className="board-host__thumb" gameId={session.gameId} mediaId={cell.imageId} variant="small" alt="" />
+          <button
+            type="button"
+            className={result.imageShown ? "btn btn--quiet btn--block" : "btn btn--secondary btn--block"}
+            disabled={busy}
+            onClick={() => void run((s) => setImageShown(s, content, !parseBoardResult(s.state.result).imageShown))}
+          >
+            {result.imageShown ? "Убрать картинку с экрана" : "🖼 Показать картинку на экране"}
+          </button>
+        </div>
+      )}
+      {stage === "reveal" && cell?.answerImageId && <p className="muted small">🖼 На экране — картинка к ответу.</p>}
       {stage === "question" && !result.armed && (
         <div className="board-host__arm">
           <p>Прочитайте вопрос вслух. Кнопки у гостей пока не активны — фальстарта не будет.</p>

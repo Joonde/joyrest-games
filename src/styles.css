@@ -8352,6 +8352,29 @@ ul.chips {
   justify-self: center;
 }
 
+/* Картинка появляется по кнопке ведущего или вместе с ответом — мягко, без сдвига вопроса. */
+@media (prefers-reduced-motion: no-preference) {
+  .board-screen__image {
+    animation: board-image-in 0.45s ease-out both;
+  }
+}
+
+@keyframes board-image-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.board-screen__image--answer {
+  outline: 0.4cqh solid var(--color-highlight);
+  outline-offset: 0.6cqh;
+}
+
 .board-screen__hint {
   color: var(--color-text-muted);
   margin: 0;
@@ -23067,4 +23090,19 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .save-status--slow .save-status__dot {
   background: var(--color-highlight);
   animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Пульт «Ставки на знания»: картинка по кнопке ведущего. */
+.board-host__image {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.board-host__thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
 }

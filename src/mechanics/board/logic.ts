@@ -74,6 +74,8 @@ export interface BoardResult {
    * (иначе время по-прежнему вышло и ответ снова открылся бы через секунду). Сбрасывает новый отсчёт.
    */
   noAuto: boolean;
+  /** Ведущий показал картинку вопроса («Показать картинку»; у клетки `imageShow: "host"`). Новая клетка — снова скрыта. */
+  imageShown: boolean;
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -130,6 +132,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     pausedAt: typeof d.pausedAt === "number" && Number.isFinite(d.pausedAt) && d.pausedAt > 0 ? d.pausedAt : null,
     speakSince: typeof d.speakSince === "number" && Number.isFinite(d.speakSince) && d.speakSince > 0 ? d.speakSince : null,
     noAuto: d.noAuto === true,
+    imageShown: d.imageShown === true,
   };
 }
 
@@ -219,7 +222,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
   const auction = found.cell.kind === "auction";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false };
   return {
     state: {
       stage: "question",
@@ -402,6 +405,24 @@ export function speakMore(session: Session, now: number): SessionChange | null {
   return { state: { result: write({ ...result, speakSince: now }) } };
 }
 
+/**
+ * Видна ли картинка вопроса сейчас: `now` — всегда, `host` — после «Показать картинку» (и на ответе, если к ответу
+ * своей картинки нет). На ответе есть картинка к ответу — она вместо картинки вопроса.
+ */
+export function cellImageOf(cell: BoardCell, result: BoardResult, revealed: boolean): string | null {
+  if (revealed && cell.answerImageId) return cell.answerImageId;
+  if (!cell.imageId) return null;
+  return cell.imageShow === "now" || result.imageShown || revealed ? cell.imageId : null;
+}
+
+/** «Показать картинку» / «Убрать картинку» на пульте: только пока вопрос открыт и у клетки картинка по кнопке. */
+export function setImageShown(session: Session, content: BoardContent, on: boolean): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  const found = findCell(content, result.cell);
+  if (session.state.stage !== "question" || !found?.cell.imageId || found.cell.imageShow !== "host" || result.imageShown === on) return null;
+  return { state: { result: write({ ...result, imageShown: on }) } };
+}
+
 /** Сколько секунд даём остальным после «Неверно», даже если отвечавший нажал в самом конце. */
 export const RESUME_MIN_SECONDS = 5;
 
@@ -465,7 +486,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false }),
     },
   };
 }
@@ -505,7 +526,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
     const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false }) },
+      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
     return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };

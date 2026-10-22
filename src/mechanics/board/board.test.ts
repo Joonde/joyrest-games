@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
-import { createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
+import { boardMediaIds, createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
 import {
   armBuzz,
+  cellImageOf,
+  setImageShown,
   boardBack,
   boardFirstTurn,
   boardBuzzSync,
@@ -437,5 +439,49 @@ describe("«Ставка на знания»: «Назад» после «Ник
 
   it("старые сессии без поля — авто-показ как раньше", () => {
     expect(parseBoardResult({}).noAuto).toBe(false);
+  });
+});
+
+describe("«Ставка на знания»: когда показать картинку (22 октября 2026)", () => {
+  it("старые клетки — картинка сразу; картинка к ответу — по умолчанию нет", () => {
+    const cell = parseBoard({ categories: [{ title: "Т", cells: [{ text: "?", imageId: "m1" }] }] }).categories[0]?.cells[0];
+    expect(cell?.imageShow).toBe("now");
+    expect(cell?.answerImageId).toBeNull();
+  });
+
+  it("по кнопке ведущего: скрыта до «Показать картинку», на ответе видна; к ответу — своя картинка", () => {
+    const c = content();
+    const first = c.categories[0]?.cells[0];
+    if (!first) throw new Error("клетка");
+    first.imageId = "q1";
+    first.imageShow = "host";
+    first.answerImageId = "a1";
+    let s = apply(session(), openCell(session(), c, first.id));
+    let r = parseBoardResult(s.state.result);
+    expect(cellImageOf(first, r, false)).toBeNull();
+    s = apply(s, setImageShown(s, c, true));
+    r = parseBoardResult(s.state.result);
+    expect(cellImageOf(first, r, false)).toBe("q1");
+    expect(setImageShown(s, c, true)).toBeNull();
+    expect(cellImageOf(first, r, true)).toBe("a1");
+    s = apply(s, setImageShown(s, c, false));
+    expect(cellImageOf(first, parseBoardResult(s.state.result), false)).toBeNull();
+    // Новая клетка — снова скрыта.
+    s = apply(s, setImageShown(s, c, true));
+    s = apply(s, boardReveal(s, c, participants, false));
+    s = apply(s, toBoard(s, c));
+    expect(parseBoardResult(s.state.result).imageShown).toBe(false);
+    // Картинки к ответу копируются вместе с игрой.
+    expect(boardMediaIds(c)).toEqual(expect.arrayContaining(["q1", "a1"]));
+  });
+
+  it("сразу с вопросом — кнопки нет, картинка видна", () => {
+    const c = content();
+    const first = c.categories[0]?.cells[0];
+    if (!first) throw new Error("клетка");
+    first.imageId = "q1";
+    const s = apply(session(), openCell(session(), c, first.id));
+    expect(setImageShown(s, c, true)).toBeNull();
+    expect(cellImageOf(first, parseBoardResult(s.state.result), false)).toBe("q1");
   });
 });

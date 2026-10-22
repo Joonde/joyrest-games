@@ -8,6 +8,8 @@ import { DEFAULT_BOARD_LOOK, parseShowLook, TABLE_LOOKS, type ShowLook } from ".
 
 export type CellKind = "question" | "track" | "picture" | "cat" | "auction";
 
+export type ImageShow = "now" | "host";
+
 export interface BoardCell {
   id: string;
   points: number;
@@ -17,6 +19,13 @@ export interface BoardCell {
   /** Правильный ответ — видит только ведущий. */
   answer: string;
   imageId: string | null;
+  /**
+   * Когда картинка вопроса на экране (решение владельца 22 октября 2026): `now` — сразу с вопросом, `host` — когда
+   * ведущий нажмёт «Показать картинку» на пульте (сначала вопрос, потом подсказка-картинка).
+   */
+  imageShow: ImageShow;
+  /** Картинка к ответу: появляется на экране вместе с правильным ответом (вместо картинки вопроса). */
+  answerImageId: string | null;
   /** Трек клетки: угадывание, припев, звучание (`src/core/clip.ts`). */
   trackId: string | null;
   trackStart: number;
@@ -91,7 +100,7 @@ function id(prefix: string): string {
 }
 
 export function newCell(points: number): BoardCell {
-  return { id: id("c"), points, kind: "question", text: "", answer: "", imageId: null, ...(clipFields({ ...parseClip({}) }) as Pick<BoardCell, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">) };
+  return { id: id("c"), points, kind: "question", text: "", answer: "", imageId: null, imageShow: "now", answerImageId: null, ...(clipFields({ ...parseClip({}) }) as Pick<BoardCell, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">) };
 }
 
 /** Стоимость по умолчанию в колонке: 100, 200, 300… (во втором раунде — 200, 400…, в третьем — 300…). */
@@ -204,6 +213,8 @@ function parseCell(raw: unknown, col: number, seen: Set<string>): BoardCell {
     text: text(d.text, BOARD_LIMITS.text),
     answer: text(d.answer, BOARD_LIMITS.answer),
     imageId: typeof d.imageId === "string" && d.imageId.length > 0 ? d.imageId.slice(0, 64) : null,
+    imageShow: d.imageShow === "host" ? "host" : "now",
+    answerImageId: typeof d.answerImageId === "string" && d.answerImageId.length > 0 ? d.answerImageId.slice(0, 64) : null,
     ...(clipFields(parseClip(d)) as Pick<BoardCell, "trackId" | "trackStart" | "trackLength" | "fadeIn" | "fadeOut" | "chorusStart" | "chorusLength" | "join" | "confetti">),
   };
 }
@@ -233,7 +244,7 @@ export function parseBoard(raw: unknown): BoardContent {
 }
 
 export function boardMediaIds(content: BoardContent): string[] {
-  return [...new Set(allCells(content).flatMap(({ cell }) => (cell.imageId ? [cell.imageId] : [])))];
+  return [...new Set(allCells(content).flatMap(({ cell }) => [cell.imageId, cell.answerImageId].filter((m): m is string => m !== null)))];
 }
 
 export function boardTrackIds(content: BoardContent): string[] {

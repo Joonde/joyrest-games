@@ -58,7 +58,7 @@ export function isMarketing(value: unknown): value is Marketing {
  */
 const RU_TEN_DIGITS = /^(?:[349]\d|8[0-8])\d{8}$/;
 /** 10 цифр, начинающихся с «7» или «89», — российский номер без последней цифры («+7 915 123 45 6», «8 915 123 45 6»). */
-const RU_SHORT = /^(?:7|89)\d{8}$/;
+const RU_SHORT = /^(?:7\d{9}|89\d{8})$/;
 
 /** Телефон → ключ «7XXXXXXXXXX» (Россия) или все цифры для других стран; неполный номер — пусто. */
 export function phoneKey(raw: string): string {

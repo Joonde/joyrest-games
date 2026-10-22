@@ -142,8 +142,14 @@ export function VideoTab({ profile, onToast }: Props) {
       done();
       retry();
       onToast(toast);
-    } catch {
-      setDialogError("Не получилось. Проверьте интернет и попробуйте снова.");
+    } catch (e) {
+      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      setDialogError(
+        code === "permission-denied"
+          ? "В папке есть видео других людей — переименовать или удалить её может только владелец."
+          : "Не получилось. Проверьте интернет и попробуйте снова.",
+      );
+      if (code === "permission-denied") retry();
     } finally {
       setBusy(false);
     }
@@ -188,21 +194,24 @@ export function VideoTab({ profile, onToast }: Props) {
   }
 
   function row(video: LibraryVideo) {
-    const actions: MenuAction[] = canUpload
-      ? [
-          { label: "Название", onClick: () => { setDialogError(null); setEditing({ video, title: video.title }); } },
-          {
-            label: video.folder ? "Другая папка" : "В папку",
-            onClick: () => {
-              setDialogError(null);
-              setFolderDraft(video.folder);
-              setMoveFor(video);
+    // Чужое видео переименовать, переложить и убрать может только владелец агентства; заместитель — только своё
+    // (так же проверяет сервер, QA 22 октября 2026).
+    const mine = permissions.isAdmin(profile) || video.ownerId === profile.uid;
+    const actions: MenuAction[] =
+      canUpload && mine
+        ? [
+            { label: "Название", onClick: () => { setDialogError(null); setEditing({ video, title: video.title }); } },
+            {
+              label: video.folder ? "Другая папка" : "В папку",
+              onClick: () => {
+                setDialogError(null);
+                setFolderDraft(video.folder);
+                setMoveFor(video);
+              },
             },
-          },
-          // Убрать видео у всех — владелец агентства; заместитель — только своё.
-          ...(permissions.isAdmin(profile) || video.ownerId === profile.uid ? [{ label: "Убрать видео", onClick: () => { setDialogError(null); setToDelete(video); } }] : []),
-        ]
-      : [];
+            { label: "Убрать видео", onClick: () => { setDialogError(null); setToDelete(video); } },
+          ]
+        : [];
     return (
       <li key={video.id} className="track">
         <button
@@ -322,6 +331,9 @@ export function VideoTab({ profile, onToast }: Props) {
               )}
               {folders.map((name) => {
                 const items = groups.find((g) => g.folder === name)?.videos ?? [];
+                // Папку с чужими видео переименовывает и удаляет только владелец агентства: иначе заместитель переложил бы
+                // чужие видео (так же проверяет сервер, повторная проверка QA 22 октября 2026).
+                const ownFolder = permissions.isAdmin(profile) || items.every((v) => v.ownerId === profile.uid);
                 return (
                   <Fold key={name} title={`📁 ${name}`} value={`${items.length}`}>
                     {items.length === 0 ? (
@@ -329,7 +341,8 @@ export function VideoTab({ profile, onToast }: Props) {
                     ) : (
                       <ul className="tracks">{items.map(row)}</ul>
                     )}
-                    {canUpload && (
+                    {canUpload && !ownFolder && <p className="muted small">В папке есть видео других людей — переименовать или удалить её может только владелец.</p>}
+                    {canUpload && ownFolder && (
                       <div className="actions">
                         <button
                           type="button"

@@ -119,8 +119,9 @@ async function getOrNull(path: string): Promise<Session | null> {
 const base = (id: string) => `/api/sessions/${encodeURIComponent(id)}`;
 
 export const serverSessionsRepository: SessionsRepository = {
-  async create(_hostId, options) {
-    const data = asRecord(await api("POST", "/api/sessions", { id: newId(), ...options }));
+  async create(_hostId, { id, ...options }) {
+    // Повтор с тем же id (обрыв связи после отправки) сервер считает той же сессией.
+    const data = asRecord(await api("POST", "/api/sessions", { ...options, id: id || newId() }));
     return { id: asText(data.id), code: asText(data.code) };
   },
 

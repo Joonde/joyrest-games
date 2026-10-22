@@ -8,10 +8,18 @@ import { parseSlide } from "../../src/data/cues";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { cleanupDeckPages } from "./cleanup";
+import { deckBytes } from "./decks";
 import { migrate } from "./migrate";
 
 const webp = (fill: number) => Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4, 0), Buffer.from("WEBP"), Buffer.alloc(300, fill)]);
 const SHA = "a".repeat(64);
+
+describe("место под показы", () => {
+  it("одинаковые файлы считаются один раз", () => {
+    expect(deckBytes(new Map([["a", 100], ["b", 50]]))).toBe(150);
+    expect(deckBytes(new Map())).toBe(0);
+  });
+});
 
 describe("слайд «фото и PDF»", () => {
   it("страница показа проходит проверку сервера; без файла или с чужим номером — нет", () => {
@@ -105,6 +113,38 @@ describe.skipIf(!url)("показы на PostgreSQL", () => {
     expect((await post("/api/decks", anna, { id: "d2", title: "Лишний", pages: [p1] })).statusCode).toBe(200);
     expect((await app.inject({ method: "DELETE", url: "/api/decks/d2", headers: headers(anna) })).statusCode).toBe(200);
     expect((await get("/api/decks", anna)).json().decks).toHaveLength(1);
+  });
+
+  it("размер страницы — с диска, а не из запроса (лимит места не обмануть)", async () => {
+    const saved = (await post("/api/decks", anna, { id: "d3", title: "Маленький", pages: [{ ...p1, size: 1 }] })).json();
+    expect(saved.pages[0].size).toBe(p1.size);
+    expect(p1.size).toBe(webp(1).length);
+    expect((await app.inject({ method: "DELETE", url: "/api/decks/d3", headers: headers(anna) })).statusCode).toBe(200);
+  });
+
+  it("лимит места ведущего (413) и мало места на диске (507) — и в PUT /api/decks/page", async () => {
+    const base = { version: "t", publicDir: null, checkDatabase: async () => true, sql, mediaDir };
+    // Места под показы — меньше двух страниц: первая проходит, новая вторая — 413 (уже лежащая — не считается дважды).
+    const tight = buildApp({ ...base, decks: { totalBytes: webp(1).length + 10, freeBytes: async () => 100 * 1024 ** 3 } });
+    const full = buildApp({ ...base, decks: { freeBytes: async () => 1024 ** 3 } });
+    const send = (target: typeof app, body: Buffer) =>
+      target.inject({ method: "PUT", url: "/api/decks/page", headers: { ...headers(boris), "content-type": "image/webp", "x-width": "10", "x-height": "10" }, payload: body });
+    const first = await send(tight, webp(41));
+    expect(first.statusCode).toBe(200);
+    expect((await post("/api/decks", boris, { id: "dq", title: "Лимит", pages: [first.json()] })).statusCode).toBe(200);
+    const quota = await send(tight, webp(42));
+    expect(quota.statusCode).toBe(413);
+    expect(quota.json()).toEqual({ error: "resource-exhausted" });
+    // Та же страница повторно — не новый файл, лимит не превышен.
+    expect((await send(tight, webp(41))).statusCode).toBe(200);
+    // Свободного места на диске меньше 3 ГБ — новый файл не принимаем; уже лежащий — можно.
+    const disk = await send(full, webp(43));
+    expect(disk.statusCode).toBe(507);
+    expect(disk.json()).toEqual({ error: "resource-exhausted" });
+    expect((await send(full, webp(41))).statusCode).toBe(200);
+    expect((await app.inject({ method: "DELETE", url: "/api/decks/dq", headers: headers(boris) })).statusCode).toBe(200);
+    await tight.close();
+    await full.close();
   });
 
   it("страница на экране зала: пульт показывает, после «Завершить игру» тоже можно", async () => {

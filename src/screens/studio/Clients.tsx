@@ -15,6 +15,10 @@ import {
   parseLinks,
   phoneKey,
   phoneLabel,
+  phoneIssueText,
+  telHref,
+  whatsappHref,
+  telegramPhoneHref,
   SOURCE_TITLES,
   type ClientSource,
   type ClientStatus,
@@ -28,6 +32,11 @@ import {
   durationLabel,
   responseStats,
   ANSWER_LIMIT_MS,
+  appendMyNote,
+  forcedStatusAndMarketing,
+  clientErrorText,
+  errorCode,
+  errorReason,
 } from "../../core/clients";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
@@ -288,8 +297,19 @@ function ClientBase({ profile }: { profile: UserProfile }) {
       confirmLabel: c.archived ? "Вернуть" : "В архив",
       run: async () => {
         if (!clientsRepo) return;
-        if (c.archived) await clientsRepo.restore(c.id);
-        else await clientsRepo.archive(c.id);
+        try {
+          if (c.archived) await clientsRepo.restore(c.id);
+          else await clientsRepo.archive(c.id);
+        } catch (e) {
+          // Не сбой связи (клиента изменили или убрали на другом устройстве) — обновляем список и говорим, что случилось.
+          const code = errorCode(e);
+          if (code === "failed-precondition" || code === "already-exists" || code === "not-found") {
+            retry();
+            showToast(clientErrorText(e, c.archived ? "вернуть из архива" : "убрать в архив"));
+            return;
+          }
+          throw e;
+        }
         update((data) => data.filter((x) => x.id !== c.id));
         showToast(c.archived ? "Клиент возвращён" : "Клиент в архиве");
       },
@@ -422,12 +442,11 @@ function ClientBase({ profile }: { profile: UserProfile }) {
 
 /** Как связаться: звонок, WhatsApp и Telegram по номеру (российский или международный). */
 function contactLinks(phone: string): { label: string; href: string }[] {
-  const key = phoneKey(phone);
-  if (!key) return [];
+  if (!phoneKey(phone)) return [];
   return [
-    { label: "📞 Позвонить", href: `tel:+${key}` },
-    { label: "WhatsApp", href: `https://wa.me/${key}` },
-    { label: "Telegram", href: `https://t.me/+${key}` },
+    { label: "📞 Позвонить", href: telHref(phone) },
+    { label: "WhatsApp", href: whatsappHref(phone) },
+    { label: "Telegram", href: telegramPhoneHref(phone) },
   ];
 }
 
@@ -465,6 +484,20 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
       cancelLabel: "Нет, оставить",
       run: () => onPick("lost"),
     });
+  // Вернуть в «Новый» — тоже через вопрос: таймер ответа пойдёт заново, «кто взял» останется в истории.
+  const pick = (st: ClientStatus) => {
+    if (st === "new" && c.status !== "new") {
+      ask({
+        title: "Вернуть клиента в «Новый»?",
+        text: `«${name}» снова будет ждать ответа: таймер пойдёт с нуля. Кто брал клиента — останется в истории. Обычно так делают, только если статус поставили по ошибке.`,
+        confirmLabel: "Да, в «Новый»",
+        cancelLabel: "Нет, оставить",
+        run: () => onPick("new"),
+      });
+      return;
+    }
+    onPick(st);
+  };
   const next = index >= 0 && index < PATH.length - 1 ? PATH[index + 1] : null;
   return (
     <section
@@ -494,7 +527,7 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
             className={["clients-status__step", c.status === st ? "is-on" : "", index > i ? "is-done" : ""].filter(Boolean).join(" ")}
             aria-pressed={c.status === st}
             disabled={busy}
-            onClick={() => onPick(st)}
+            onClick={() => pick(st)}
           >
             {CLIENT_STATUS_TITLES[st]}
           </button>
@@ -570,8 +603,8 @@ function ClientCard({
     setError(null);
     try {
       onChanged(await clientsRepo.setStatus(c.id, status), `Статус: ${CLIENT_STATUS_TITLES[status]}`);
-    } catch {
-      setError("Не получилось сменить статус. Проверьте интернет и нажмите ещё раз.");
+    } catch (e) {
+      setError(clientErrorText(e, "сменить статус"));
     } finally {
       setBusy(false);
     }
@@ -590,7 +623,8 @@ function ClientCard({
       onChanged(saved, "Заметка сохранена");
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-      if (code === "failed-precondition" && clientsRepo) {
+      if (code === "failed-precondition" && errorReason(e) === "archived") setError("Клиент в архиве — верните его, чтобы править заметку.");
+      else if (code === "failed-precondition" && clientsRepo) {
         const fresh = await clientsRepo.get(c.id).catch(() => null);
         if (fresh) {
           setConflict(fresh.notes);
@@ -709,7 +743,7 @@ function ClientCard({
               </p>
               <p className="clients-history__text">{conflict || "(пусто)"}</p>
               <p className="small muted">Ваш текст — в поле выше, он не потерян.</p>
-              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(`${conflict}\n${note}`.trim(), conflict)}>
+              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(appendMyNote(conflict, note, noteBase), conflict)}>
                 Добавить мой текст в конец
               </button>
               <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void saveNote(note, conflict)}>
@@ -740,7 +774,7 @@ function ClientCard({
               <>
                 <dt>Телефон</dt>
                 <dd>
-                  <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{phoneLabel(c.phone)}</a>
+                  {telHref(c.phone) ? <a href={telHref(c.phone)}>{phoneLabel(c.phone)}</a> : phoneLabel(c.phone)}
                 </dd>
               </>
             )}
@@ -847,34 +881,62 @@ function ClientForm({
     origin !== (initial?.origin ?? "") ||
     request.trim() !== "";
 
-  async function save(force = false) {
+  /**
+   * Сохранить. «Мои правки поверх» (`force`): карточку за это время изменил другой — берём свежую версию, и статус с
+   * согласием на рассылку отправляем свои, только если их меняли в этой форме (иначе — свежие): чужая смена статуса
+   * («кто взял», таймер ответа) и согласие «да» не откатываются (22 октября 2026, QA M1).
+   */
+  async function write(force: boolean) {
     if (!clientsRepo || !ready) return;
     setBusy(true);
     setError(null);
     setProblem(null);
     try {
+      let chosen = { status, marketing };
+      let version = initial?.updatedAt;
+      if (initial && force) {
+        const fresh = await clientsRepo.get(initial.id);
+        chosen = forcedStatusAndMarketing({ status, marketing }, { status: initial.status, marketing: initial.marketing }, fresh);
+        version = fresh.updatedAt;
+      }
       onSaved(
         await clientsRepo.save({
           id,
           name: name.trim(),
           phone: phone.trim(),
           links: parsedLinks,
-          status,
-          marketing,
+          status: chosen.status,
+          marketing: chosen.marketing,
           notes,
           origin,
           ...(initial ? {} : { request: request.trim() }),
-          ...(initial && !force ? { expect: initial.updatedAt } : {}),
+          ...(initial && version ? { expect: version } : {}),
         }),
       );
     } catch (e) {
-      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      const code = errorCode(e);
       if (code === "already-exists") setProblem("duplicate");
       else if (code === "failed-precondition") setProblem("changed");
+      else if (code === "not-found") setError("Этого клиента уже нет — закройте форму и обновите список.");
       else setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function save(force = false) {
+    // Вернуть в «Новый» — через вопрос: таймер ответа пойдёт заново.
+    if (initial && initial.status !== "new" && status === "new") {
+      ask({
+        title: "Вернуть клиента в «Новый»?",
+        text: "Клиент снова будет ждать ответа: таймер пойдёт с нуля. Кто брал клиента — останется в истории. Обычно так делают, только если статус поставили по ошибке.",
+        confirmLabel: "Да, в «Новый»",
+        cancelLabel: "Нет, оставить",
+        run: () => write(force),
+      });
+      return;
+    }
+    void write(force);
   }
 
   function cancel() {
@@ -908,7 +970,7 @@ function ClientForm({
           onChange={(e) => setPhone(e.target.value)}
         />
       </label>
-      {phoneBad && <p className="error small">Телефон неполный: нужно 10–11 цифр, например +7 915 241-59-99.</p>}
+      {phoneBad && <p className="error small">{phoneIssueText(phone)}</p>}
       {key !== "" && phoneLabel(phone) !== phone.trim() && <p className="muted small">Сохранится как {phoneLabel(phone)}</p>}
       <label className="field">
         <span className="field__label">Соцсети (Telegram, ВКонтакте, Instagram, WhatsApp)</span>

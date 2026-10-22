@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { abilitiesOf } from "../../core/abilities";
 import { permissions, teamRepo, useLoad, type TeamMember, type UserProfile } from "../../data";
 import { TelegramConnect } from "../../components/TelegramConnect";
+import { useConfirm } from "../../components/ConfirmDialog";
 import { HostGate } from "../../components/HostGate";
 import { cropImage, ImageError } from "../../components/media/compressImage";
 import { StudioSkeleton } from "../../components/Skeleton";
@@ -103,6 +104,9 @@ function ImagePicker({
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Убрать аватарку или обложку — только после «Вы точно уверены?» (QA 22 октября 2026): одно касание не стирает.
+  const [confirm, ask] = useConfirm();
+  const what = kind === "avatar" ? "аватарку" : "обложку";
 
   async function pick(file: File | null) {
     if (!file || !teamRepo) return;
@@ -145,7 +149,20 @@ function ImagePicker({
           {busy ? "Сжимаем и загружаем…" : has ? `Сменить ${kind === "avatar" ? "аватарку" : "обложку"}` : `Выбрать ${kind === "avatar" ? "аватарку" : "обложку"}`}
         </button>
         {has && (
-          <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => void remove()}>
+          <button
+            type="button"
+            className="btn btn--quiet btn--block"
+            disabled={busy}
+            onClick={() =>
+              ask({
+                title: `Убрать ${what}?`,
+                text: "Команда больше не увидит её в вашей карточке. Вернуть можно, только загрузив картинку заново.",
+                confirmLabel: `Убрать ${what}`,
+                cancelLabel: "Оставить",
+                run: () => remove(),
+              })
+            }
+          >
             Убрать
           </button>
         )}
@@ -155,6 +172,7 @@ function ImagePicker({
           {error}
         </p>
       )}
+      {confirm}
     </section>
   );
 }

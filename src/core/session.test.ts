@@ -67,6 +67,16 @@ describe("ожидание пульта и правки таблицы", () => {
     expect(meetsExpect(state, { phase: "lobby" })).toBe(false);
   });
 
+  it("ожидание слайда: тот же id — да, другой или «слайда нет» — нет", () => {
+    const slide = { id: "tb1", kind: "tech" as const, title: "Пауза", text: "", lines: [], endsAt: 1 };
+    const withSlide = { ...startState(), slide };
+    expect(meetsExpect(withSlide, { slide: "tb1" })).toBe(true);
+    expect(meetsExpect(withSlide, { slide: "jq1" })).toBe(false);
+    expect(meetsExpect(withSlide, { slide: null })).toBe(false);
+    expect(meetsExpect(startState(), { slide: null })).toBe(true);
+    expect(meetsExpect(startState(), { slide: "tb1" })).toBe(false);
+  });
+
   it("прибавка очков и новое имя — только у тех, кто в таблице", () => {
     const board = { a: { name: "Аня", kind: "player" as const, score: 10, last: 5 } };
     expect(adjustBoard(board, { a: 10, x: 5 }, { a: "Анна", y: "Боря" })).toEqual({ a: { name: "Анна", kind: "player", score: 20, last: 5 } });

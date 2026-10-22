@@ -7,7 +7,7 @@ import { buildApp } from "./app";
 import { upsertClient } from "./clients";
 import { statsRangeOf } from "./events";
 import { migrate } from "./migrate";
-import { telegramPolling } from "./telegram";
+import { telegramPolling, type Bot } from "./telegram";
 
 describe("Telegram и итоги: без базы", () => {
   it("сообщения бота читает одно окружение: основное по compose, без переменной — только test.*", () => {
@@ -176,7 +176,13 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await post("/api/clients/kshared/status", owner, { status: "work" });
     expect(((await get("/api/clients/kshared", owner)).json().history as Array<{ source: string }>).filter((h) => h.source === "status")).toHaveLength(1);
     await post("/api/clients/kshared/archive", owner);
-    expect((await post("/api/clients/kshared/status", nika, { status: "lost" })).statusCode).toBe(409);
+    const inArchive = await post("/api/clients/kshared/status", nika, { status: "lost" });
+    expect(inArchive.statusCode).toBe(409);
+    // Причина — архив, а не чужая правка: браузер говорит «верните из архива».
+    expect(inArchive.json()).toEqual({ error: "failed-precondition", reason: "archived" });
+    const noteInArchive = await post("/api/clients/kshared/notes", nika, { notes: "новое", base: now.notes });
+    expect(noteInArchive.statusCode).toBe(409);
+    expect(noteInArchive.json()).toMatchObject({ reason: "archived" });
     expect((await post("/api/clients/kshared/status", nika, { status: "мимо" })).statusCode).toBe(400);
     // Мероприятие: владелец и менеджер открыли форму правки одной версии — второй не затрёт первого.
     const ev = { id: "evshared", hostId: annaId, day: day(30), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 20, note: "" };
@@ -259,6 +265,25 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect([...again.clients, ...again.requests, ...again.events, ...again.venues]).toHaveLength(0);
   });
 
+  it("«Данные по номеру»: неполный номер (ключа нет) находит записи с той же опечаткой и удаляет их", async () => {
+    const now = new Date();
+    await sql`insert into venue_requests (id, data) values ('rq-short', ${sql.json({ name: "Лена", phone: "8 916 777 66 5" })}),
+      ('rq-short-other', ${sql.json({ name: "Не она", phone: "8 916 777 66 55" })})`;
+    await sql`insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, title, client_name, client_phone)
+      values ('ev-short', ${annaId}, ${day(31)}, 1080, 1200, ${now}, ${now}, 'Квиз', 'Лена', '+7 916 777-66-5')`;
+    const found = await get(`/api/privacy?q=${encodeURIComponent("8916777665")}`, owner);
+    expect(found.statusCode).toBe(200);
+    const body = found.json();
+    expect(body.label).toBe("916777665 (номер неполный)");
+    expect(body.requests.map((r: { id: string }) => r.id)).toEqual(["rq-short"]);
+    expect(body.events.map((e: { id: string }) => e.id)).toEqual(["ev-short"]);
+    expect((await post("/api/privacy/erase", owner, { q: "8916777665" })).json()).toEqual({ clients: 0, requests: 1, events: 1, venues: 0 });
+    expect(await sql`select 1 from venue_requests where id = 'rq-short'`).toHaveLength(0);
+    expect(await sql`select 1 from venue_requests where id = 'rq-short-other'`).toHaveLength(1);
+    const [ev] = await sql<{ client_phone: string }[]>`select client_phone from events where id = 'ev-short'`;
+    expect(ev?.client_phone).toBe("");
+  });
+
   it("таймер ответа: идёт с прихода заявки, встаёт на «В работе» с именем; среднее — по ответам; повтор от «Отказа» — снова «Новый»", async () => {
     const id = await upsertClient(sql, { name: "Тимур", phone: "+7 917 333-22-11", source: "site", summary: "Квиз, 30 гостей" });
     // Заявка «пролежала» 5 минут.
@@ -320,6 +345,204 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await post("/api/events/evheld/held", anna, { held: true });
     await upsertClient(sql, { phone: "+79197778899", source: "site", summary: "Новый год" });
     expect((await find())?.status).toBe("new");
+  });
+
+  // ───── Исправления по QA 22 октября 2026 ─────
+  type ClientRow = { id: string; status: string; archived_at: Date | null; last_contact_at: Date; taken_ms: string | number | null };
+  const byKey = async (key: string) =>
+    (await sql<ClientRow[]>`select id, status, archived_at, last_contact_at, taken_ms from clients where phone_key = ${key}`)[0];
+  const responsesOf = async (id: string) => Number((await sql<{ n: number }[]>`select count(*)::int as n from client_responses where client_id = ${id}`)[0]?.n ?? 0);
+  const statusLines = async (id: string) => Number((await sql<{ n: number }[]>`select count(*)::int as n from client_contacts where client_id = ${id} and source = 'status'`)[0]?.n ?? 0);
+
+  it("M1: правка без статуса и согласия (мои правки поверх) не откатывает чужой статус и согласие «да»", async () => {
+    const base = { id: "kforce", name: "Рита", phone: "+7 921 100-20-30", links: [], notes: "" };
+    expect((await post("/api/clients", owner, { ...base, status: "new", marketing: "unknown" })).statusCode).toBe(200);
+    const taken = (await post("/api/clients/kforce/status", owner, { status: "client" })).json();
+    const consent = await post("/api/clients", owner, { ...base, status: "client", marketing: "yes", expect: taken.updatedAt });
+    expect(consent.json()).toMatchObject({ status: "client", marketing: "yes" });
+    const linesBefore = await statusLines("kforce");
+    // Форма менеджера, открытая раньше: свои правки поверх — без статуса и согласия.
+    const forced = await post("/api/clients", owner, { ...base, name: "Рита Н.", notes: "моя правка" });
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json()).toMatchObject({ name: "Рита Н.", notes: "моя правка", status: "client", marketing: "yes" });
+    expect(await statusLines("kforce")).toBe(linesBefore);
+    expect(await responsesOf("kforce")).toBe(1);
+  });
+
+  it("ручной «Новый» не стирает «кто взял» и не дублирует скорость ответа", async () => {
+    await post("/api/clients", owner, { id: "kback", name: "Зоя", phone: "+7 921 200-30-40", links: [], status: "new", marketing: "unknown", notes: "" });
+    const first = (await post("/api/clients/kback/status", owner, { status: "work" })).json();
+    expect(first.takenBy).toBeTruthy();
+    const back = (await post("/api/clients/kback/status", owner, { status: "new" })).json();
+    expect(back).toMatchObject({ status: "new", takenBy: first.takenBy, takenMs: first.takenMs });
+    expect(back.newSince).toBeGreaterThan(0);
+    await post("/api/clients/kback/status", owner, { status: "work" });
+    expect(await responsesOf("kback")).toBe(1);
+  });
+
+  it("M2: мероприятие с неполным телефоном или только с именем — сохранено, а ответ говорит, что клиент не записан", async () => {
+    const ev = { id: "evhalf", hostId: annaId, day: day(45), start: 1080, end: 1200, title: "Квиз", clientName: "Анна", clientPhone: "8915", place: "", guests: 20, note: "" };
+    const half = await post("/api/events", owner, ev);
+    expect(half.statusCode).toBe(200);
+    expect(half.json()).toMatchObject({ id: "evhalf", clientNotSaved: true, clientIncomplete: true });
+    const nameOnly = await post("/api/events", owner, { ...ev, id: "evname", clientPhone: "" });
+    expect(nameOnly.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
+    // «8 915 123 45 6» — 10 цифр без последней: не «7 891 512-34-56», а неполный номер.
+    const short = await post("/api/events", owner, { ...ev, id: "evshort", clientPhone: "8 915 123 45 6" });
+    expect(short.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
+    expect(await sql`select 1 from clients where phone_key = '78915123456'`).toHaveLength(0);
+    // Без клиента вовсе — ничего не говорим.
+    const none = (await post("/api/events", owner, { ...ev, id: "evnone", clientName: "", clientPhone: "" })).json();
+    expect(none.clientNotSaved).toBeUndefined();
+  });
+
+  it("двойное касание «Записать»: оба ответа — успех, запись одна, «назначено» в Telegram — один раз", async () => {
+    // Бот понарошку: считаем уведомления ведущему (настоящий Telegram — в telegram.test.ts).
+    const notices: string[] = [];
+    const bot: Bot = {
+      polling: false,
+      health: async () => ({ polling: false, username: null, lastPollAt: null, state: "off" }),
+      remindNow: async () => undefined,
+      username: async () => null,
+      sendTo: async () => false,
+      eventNotice: async (kind, userId, event) => {
+        notices.push(`${kind}:${userId}:${event.id}`);
+      },
+      salesNotice: async () => 0,
+      waitingNow: async () => 0,
+      stop: () => undefined,
+    };
+    const withBot = buildApp({ version: "t", publicDir: null, checkDatabase: async () => true, sql, bot, auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } } });
+    try {
+      const send = (payload: object) => withBot.inject({ method: "POST", url: "/api/events", headers: headers(owner), payload });
+      const ev = { id: "evtwice", hostId: annaId, day: day(47), start: 1080, end: 1200, title: "Квиз", clientName: "Дина", clientPhone: "+7 921 800-90-10", place: "", guests: 20, note: "" };
+      const twice = await Promise.all([send(ev), send(ev)]);
+      expect(twice.map((r) => r.statusCode)).toEqual([200, 200]);
+      expect(await sql`select 1 from events where id = 'evtwice'`).toHaveLength(1);
+      expect(notices.filter((n) => n === `created:${annaId}:evtwice`)).toHaveLength(1);
+      // Клиент тоже один, с одной записью истории мероприятия.
+      const dina = await byKey("79218009010");
+      expect(dina?.status).toBe("client");
+      expect(await sql`select 1 from client_contacts where source = 'event' and ref = 'evtwice'`).toHaveLength(1);
+      // Правка без смены времени, вида и гостей — ведущему ничего нового.
+      expect((await send({ ...ev, note: "заметка" })).statusCode).toBe(200);
+      expect(notices.filter((n) => n.endsWith(":evtwice"))).toHaveLength(1);
+      // Перенос — «изменено» один раз.
+      expect((await send({ ...ev, start: 1140, end: 1260 })).statusCode).toBe(200);
+      expect(notices.filter((n) => n === `changed:${annaId}:evtwice`)).toHaveLength(1);
+    } finally {
+      await withBot.close();
+    }
+  });
+
+  it("смена телефона в мероприятии: история переезжает к новому клиенту, правки не возвращают его из «Провели» и архива", async () => {
+    const ev = { id: "evswap", hostId: annaId, day: day(-4), start: 1080, end: 1200, title: "Юбилей", clientName: "Яна", clientPhone: "+7 921 600-70-80", place: "", guests: 30, note: "" };
+    expect((await post("/api/events", owner, ev)).statusCode).toBe(200);
+    const first = await byKey("79216007080");
+    expect(first?.status).toBe("client");
+    // Ошиблись номером — исправили на телефон B: B — «Клиент», запись истории мероприятия — у него.
+    const swapped = { ...ev, clientPhone: "+7 921 600-70-81" };
+    expect((await post("/api/events", owner, swapped)).statusCode).toBe(200);
+    const second = await byKey("79216007081");
+    expect(second?.status).toBe("client");
+    const owners = await sql<{ client_id: string }[]>`select client_id from client_contacts where source = 'event' and ref = 'evswap'`;
+    expect(owners.map((r) => r.client_id)).toEqual([second?.id]);
+    // «Проведено» — B «Провели»; убрали в архив.
+    expect((await post("/api/events/evswap/held", owner, { held: true })).statusCode).toBe(200);
+    expect((await byKey("79216007081"))?.status).toBe("held");
+    expect((await post(`/api/clients/${second?.id}/archive`, owner)).statusCode).toBe(200);
+    const archived = await byKey("79216007081");
+    await new Promise((r) => setTimeout(r, 20));
+    // Правка мероприятия — B остаётся «Провели», в архиве, «последнее обращение» не сдвигается.
+    expect((await post("/api/events", owner, { ...swapped, note: "правка" })).statusCode).toBe(200);
+    expect((await post("/api/events", owner, { ...swapped, note: "ещё правка" })).statusCode).toBe(200);
+    const still = await byKey("79216007081");
+    expect(still?.status).toBe("held");
+    expect(still?.archived_at).not.toBeNull();
+    expect(still?.last_contact_at.getTime()).toBe(archived?.last_contact_at.getTime());
+  });
+
+  it("ручной «Новый» без обращения — не в скорости ответа; новое обращение клиента в «Новом» — снова в ней", async () => {
+    const card = async () => (await get("/api/clients/kmanualnew", owner)).json();
+    // Заведён сразу «В работе» (ответа на обращение не было), вернули в «Новый» и снова «В работе» — строки нет.
+    await post("/api/clients", owner, { id: "kmanualnew", name: "Фёдор", phone: "+7 921 700-80-90", links: [], status: "work", marketing: "unknown", notes: "" });
+    await post("/api/clients/kmanualnew/status", owner, { status: "new" });
+    await post("/api/clients/kmanualnew/status", owner, { status: "work" });
+    expect(await responsesOf("kmanualnew")).toBe(0);
+    // Вручную «Новый», и клиент написал — это обращение: таймер с нуля, без прежнего «кто взял».
+    await post("/api/clients/kmanualnew/status", owner, { status: "new" });
+    await sql`update clients set new_since = now() - interval '1 hour' where id = 'kmanualnew'`;
+    await upsertClient(sql, { phone: "89217008090", source: "site", summary: "Квиз на 30 гостей" });
+    const fresh = await card();
+    expect(fresh).toMatchObject({ status: "new", takenMs: null, takenBy: "" });
+    expect(Date.now() - fresh.newSince).toBeLessThan(60_000);
+    // Пока ждёт ответа, ещё одно сообщение таймер не сбрасывает.
+    await sql`update clients set new_since = now() - interval '2 minutes' where id = 'kmanualnew'`;
+    await upsertClient(sql, { phone: "89217008090", source: "site", summary: "И про ведущего" });
+    expect(Date.now() - (await card()).newSince).toBeGreaterThanOrEqual(2 * 60_000 - 5_000);
+    const taken = (await post("/api/clients/kmanualnew/status", owner, { status: "work" })).json();
+    expect(taken.takenMs).toBeGreaterThanOrEqual(2 * 60_000 - 5_000);
+    expect(await responsesOf("kmanualnew")).toBe(1);
+    // Ответили, вернули в «Новый» вручную, клиент написал снова — ещё один ответ в скорость.
+    await post("/api/clients/kmanualnew/status", owner, { status: "new" });
+    await upsertClient(sql, { phone: "89217008090", source: "question", summary: "Можно на субботу?" });
+    expect(await card()).toMatchObject({ status: "new", takenMs: null });
+    await post("/api/clients/kmanualnew/status", owner, { status: "work" });
+    expect(await responsesOf("kmanualnew")).toBe(2);
+  });
+
+  it("клиент, созданный мероприятием, — сразу «Клиент» без «ответили за 0 с»", async () => {
+    const ev = { id: "evfresh", hostId: annaId, day: day(46), start: 1080, end: 1200, title: "Свадьба", clientName: "Нина", clientPhone: "+7 921 300-40-50", place: "", guests: 60, note: "" };
+    expect((await post("/api/events", owner, ev)).json().clientNotSaved).toBeUndefined();
+    const nina = await byKey("79213004050");
+    expect(nina?.status).toBe("client");
+    expect(nina?.taken_ms).toBeNull();
+    expect(await responsesOf(nina?.id ?? "")).toBe(0);
+    expect(await statusLines(nina?.id ?? "")).toBe(1);
+  });
+
+  it("«Провели» + новое мероприятие — снова «Клиент»; правка прежнего — статус, архив и «последнее обращение» не трогает", async () => {
+    const PHONE = "+7 921 400-50-60";
+    const past = { id: "evonce", hostId: annaId, day: day(-3), start: 1080, end: 1200, title: "Юбилей", clientName: "Ефим", clientPhone: PHONE, place: "", guests: 30, note: "" };
+    expect((await post("/api/events", owner, past)).statusCode).toBe(200);
+    expect((await post("/api/events/evonce/held", owner, { held: true })).statusCode).toBe(200);
+    const efim = await byKey("79214005060");
+    expect(efim?.status).toBe("held");
+    // Правка того же мероприятия — «Провели» остаётся.
+    expect((await post("/api/events", owner, { ...past, note: "поправили заметку" })).statusCode).toBe(200);
+    expect((await byKey("79214005060"))?.status).toBe("held");
+    // Клиента убрали в архив; правка прежнего мероприятия его не возвращает и не сдвигает «последнее обращение».
+    expect((await post(`/api/clients/${efim?.id}/archive`, owner)).statusCode).toBe(200);
+    const archived = await byKey("79214005060");
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await post("/api/events", owner, { ...past, note: "ещё правка" })).statusCode).toBe(200);
+    const still = await byKey("79214005060");
+    expect(still?.archived_at).not.toBeNull();
+    expect(still?.last_contact_at.getTime()).toBe(archived?.last_contact_at.getTime());
+    // Новое мероприятие — снова «Клиент» и из архива.
+    expect((await post("/api/events", owner, { ...past, id: "evagain", day: day(50) })).statusCode).toBe(200);
+    const again = await byKey("79214005060");
+    expect(again).toMatchObject({ status: "client", archived_at: null });
+    // Архив несуществующего — 404, а не «успех».
+    expect((await post("/api/clients/knothing/archive", owner)).statusCode).toBe(404);
+  });
+
+  it("городской без семёрки — тот же клиент, что и с +7, в том числе записанный по-старому", async () => {
+    // Карточка из прежней версии: ключ «4951234567» без семёрки.
+    await sql`insert into clients (id, name, phone, phone_key, links, new_since) values ('klegacy', 'Город', '495 123-45-67', '4951234567', '[]', now())`;
+    const id = await upsertClient(sql, { phone: "+7 (495) 123-45-67", source: "site", summary: "Квиз" });
+    expect(id).toBe("klegacy");
+    expect((await sql<{ phone_key: string }[]>`select phone_key from clients where id = 'klegacy'`)[0]?.phone_key).toBe("74951234567");
+    const dup = await post("/api/clients", owner, { id: "kcity2", name: "Двойник", phone: "8 495 123 45 67", links: [], status: "new", marketing: "unknown", notes: "" });
+    expect(dup.statusCode).toBe(409);
+    expect(dup.json()).toMatchObject({ error: "already-exists", id: "klegacy" });
+  });
+
+  it("два одновременных клиента с одним телефоном — один сохранён, второй 409, без 500", async () => {
+    const body = (id: string) => ({ id, name: "Одновременно", phone: "+7 921 500-60-70", links: [], status: "new", marketing: "unknown", notes: "" });
+    const res = await Promise.all([post("/api/clients", owner, body("krace1")), post("/api/clients", owner, body("krace2"))]);
+    expect(res.map((r) => r.statusCode).sort()).toEqual([200, 409]);
+    expect(await sql`select 1 from clients where phone_key = '79215006070'`).toHaveLength(1);
   });
 
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {

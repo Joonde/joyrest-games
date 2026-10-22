@@ -2,7 +2,11 @@
 // очками и синонимами, импорт списком, «Опрос гостей заранее». Очки шаблонов — оценка JoyRest, не опрос.
 import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
+import { insertBack } from "../../components/undoRemove";
+import { useDebouncedCommit } from "../../components/useDebouncedCommit";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import type { EditorProps } from "../types";
 import { ShowLookPicker } from "../ShowLookPicker";
 import { SHOW_LOOK_TITLES, TABLE_LOOKS, type ShowLook } from "../showLook";
@@ -43,37 +47,67 @@ const KIND_HINTS: Record<RoundKind, string> = {
   big: "Финал команды-лидера: 5 вопросов, два игрока по очереди на время.",
 };
 
-/** Синонимы через запятую: правка в черновике, в игру — когда поле теряет фокус (иначе запятая «съедается»). */
+/** Синонимы из текста поля: до `HUNDRED_LIMITS.synonyms` штук, лишние — отдельно (о них говорим, а не режем молча). */
+function parseSynonyms(text: string): { list: string[]; extra: string[] } {
+  const all = text
+    .split(/[,;]/)
+    .map((s) => s.trim().slice(0, HUNDRED_LIMITS.synonym))
+    .filter(Boolean);
+  return { list: all.slice(0, HUNDRED_LIMITS.synonyms), extra: all.slice(HUNDRED_LIMITS.synonyms) };
+}
+
+/**
+ * Синонимы через запятую: пока поле в фокусе, текст — черновик (иначе запятая «съедается» при пересборке строки),
+ * а в игру он уходит через 0,4 с после последней буквы и сразу при сворачивании приложения.
+ */
 function SynonymsField({ value, disabled, onChange }: { value: string[]; disabled: boolean; onChange: (list: string[]) => void }) {
   const [draft, setDraft] = useState(value.join(", "));
   const [editing, setEditing] = useState(false);
+  const { schedule, flush } = useDebouncedCommit((text: string) => onChange(parseSynonyms(text).list));
   useEffect(() => {
     if (!editing) setDraft(value.join(", "));
   }, [value, editing]);
+  const extra = parseSynonyms(draft).extra;
   return (
-    <input
-      className="hd-editor__syn"
-      value={draft}
-      placeholder="ещё засчитать: конверт, деньги"
-      aria-label="Синонимы через запятую"
-      disabled={disabled}
-      onFocus={() => setEditing(true)}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => {
-        setEditing(false);
-        onChange(
-          draft
-            .split(/[,;]/)
-            .map((s) => s.trim().slice(0, HUNDRED_LIMITS.synonym))
-            .filter(Boolean)
-            .slice(0, HUNDRED_LIMITS.synonyms),
-        );
-      }}
-    />
+    <>
+      <input
+        className="hd-editor__syn"
+        value={draft}
+        placeholder="ещё засчитать: конверт, деньги"
+        aria-label="Синонимы через запятую"
+        disabled={disabled}
+        onFocus={() => setEditing(true)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          schedule(e.target.value);
+        }}
+        onBlur={() => {
+          flush();
+          setEditing(false);
+        }}
+      />
+      {extra.length > 0 && (
+        <span className="muted small hd-editor__syn-extra" role="status">
+          Больше {HUNDRED_LIMITS.synonyms} синонимов не берём — лишние: {extra.join(", ")}
+        </span>
+      )}
+    </>
   );
 }
 
-function QuestionForm({ question, editable, errors, onChange }: { question: HundredQuestion; editable: boolean; errors: string[]; onChange: (q: HundredQuestion) => void }) {
+function QuestionForm({
+  question,
+  editable,
+  errors,
+  onChange,
+  onRemoveAnswer,
+}: {
+  question: HundredQuestion;
+  editable: boolean;
+  errors: string[];
+  onChange: (q: HundredQuestion) => void;
+  onRemoveAnswer: (index: number) => void;
+}) {
   const sum = question.answers.reduce((s, a) => s + a.points, 0);
   const setAnswer = (id: string, patch: Partial<HundredAnswer>) => onChange({ ...question, answers: question.answers.map((a) => (a.id === id ? { ...a, ...patch } : a)) });
   return (
@@ -102,14 +136,14 @@ function QuestionForm({ question, editable, errors, onChange }: { question: Hund
             />
             <SynonymsField value={a.synonyms} disabled={!editable} onChange={(synonyms) => setAnswer(a.id, { synonyms })} />
             {editable && question.answers.length > HUNDRED_LIMITS.minAnswers && (
-              <button type="button" className="btn btn--quiet hd-editor__remove" aria-label={`Убрать ответ ${i + 1}`} onClick={() => onChange({ ...question, answers: question.answers.filter((x) => x.id !== a.id) })}>
+              <button type="button" className="btn btn--quiet hd-editor__remove" aria-label={`Убрать ответ ${i + 1}`} onClick={() => onRemoveAnswer(i)}>
                 ✕
               </button>
             )}
           </li>
         ))}
       </ol>
-      <p className={sum > 100 ? "error small" : "muted small"}>
+      <p className={sum > 100 ? "error small edit-issue" : "muted small"}>
         Сумма очков: {sum} из 100 (очки — доля опрошенных, назвавших ответ). Табло показывает ответы по очкам — самые популярные сверху.
       </p>
       {editable && question.answers.length < HUNDRED_LIMITS.maxAnswers && (
@@ -123,7 +157,7 @@ function QuestionForm({ question, editable, errors, onChange }: { question: Hund
         </button>
       )}
       {errors.map((e) => (
-        <p key={e} className="error small" role="alert">
+        <p key={e} className="error small edit-issue" role="alert">
           {e}
         </p>
       ))}
@@ -137,6 +171,8 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
   const [addKind, setAddKind] = useState<RoundKind>("simple");
   const [importText, setImportText] = useState("");
   const [importNote, setImportNote] = useState<string | null>(null);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  const { offer, bar } = useUndoRemove();
   const errors = validateHundred(content);
   const roundErrors = errors.filter((e) => e.path === "rounds");
 
@@ -146,6 +182,33 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
 
   function updateQuestion(q: HundredQuestion) {
     setRounds(latest.current.rounds.map((r) => ({ ...r, questions: r.questions.map((x) => (x.id === q.id ? q : x)) })));
+  }
+
+  /** Убрать ответ табло — 7 секунд «Вернуть» на то же место. */
+  function removeAnswer(questionId: string, index: number) {
+    const question = latest.current.rounds.flatMap((r) => r.questions).find((q) => q.id === questionId);
+    const answer = question?.answers[index];
+    if (!question || !answer) return;
+    setRounds(latest.current.rounds.map((r) => ({ ...r, questions: r.questions.map((q) => (q.id === questionId ? { ...q, answers: q.answers.filter((_, j) => j !== index) } : q)) })));
+    offer(`Ответ ${index + 1}${answer.text.trim() ? ` «${answer.text.trim()}»` : ""} убран`, () =>
+      setRounds(
+        latest.current.rounds.map((r) => ({
+          ...r,
+          questions: r.questions.map((q) => (q.id === questionId ? { ...q, answers: insertBack(q.answers, { item: answer, index }, (a) => a.id) } : q)),
+        })),
+      ),
+    );
+  }
+
+  /** Убрать раунд целиком (у «Большой игры» — пять вопросов): 7 секунд «Вернуть» на то же место. */
+  function removeRound(index: number) {
+    const round = latest.current.rounds[index];
+    if (!round) return;
+    setRounds(latest.current.rounds.filter((_, j) => j !== index));
+    const questions = round.questions.length;
+    offer(`Раунд ${index + 1} · ${ROUND_TITLES[round.kind]} убран${questions > 1 ? ` (вопросов: ${questions})` : ""}`, () =>
+      setRounds(insertBack(latest.current.rounds, { item: round, index }, (r) => r.id)),
+    );
   }
 
   function changeKind(round: HundredRound, kind: RoundKind) {
@@ -171,9 +234,20 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
       return;
     }
     const rounds = roundsFromImport(questions);
-    setRounds(replace ? rounds : [...latest.current.rounds, ...rounds].slice(0, HUNDRED_LIMITS.maxRounds));
+    const all = replace ? rounds : [...latest.current.rounds, ...rounds];
+    const lost = Math.max(0, all.length - HUNDRED_LIMITS.maxRounds);
+    setRounds(all.slice(0, HUNDRED_LIMITS.maxRounds));
     const problems = questions.flatMap((q) => q.problems.map((p) => `Строка ${q.line}: ${p}`));
-    setImportNote([`Добавлено вопросов: ${questions.length}.`, skipped.length > 0 ? `Пропущены строки: ${skipped.join(", ")}.` : "", ...problems].filter(Boolean).join(" "));
+    setImportNote(
+      [
+        replace ? `Все раунды заменены: вопросов из списка — ${questions.length}.` : `Добавлено в конец: вопросов — ${questions.length}.`,
+        lost > 0 ? `Больше ${HUNDRED_LIMITS.maxRounds} раундов не берём — последние ${lost} из списка не вошли.` : "",
+        skipped.length > 0 ? `Пропущены строки: ${skipped.join(", ")}.` : "",
+        ...problems,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
     setImportText("");
   }
 
@@ -266,11 +340,17 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
                 {round.questions.map((q, k) => (
                   <div key={q.id} className="stack stack--tight">
                     {round.kind === "big" && <h3 className="host-quiz__subtitle">Вопрос {k + 1}</h3>}
-                    <QuestionForm question={q} editable={editable} errors={errors.filter((e) => e.path.startsWith(`questions/${q.id}/`)).map((e) => e.message)} onChange={updateQuestion} />
+                    <QuestionForm
+                      question={q}
+                      editable={editable}
+                      errors={errors.filter((e) => e.path.startsWith(`questions/${q.id}/`)).map((e) => e.message)}
+                      onChange={updateQuestion}
+                      onRemoveAnswer={(index) => removeAnswer(q.id, index)}
+                    />
                   </div>
                 ))}
                 {errs.map((e) => (
-                  <p key={e.message} className="error small" role="alert">
+                  <p key={e.message} className="error small edit-issue" role="alert">
                     {e.message}
                   </p>
                 ))}
@@ -287,7 +367,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
                       </button>
                     )}
                     {content.rounds.length > 1 && (
-                      <button type="button" className="btn btn--quiet btn--block" onClick={() => setRounds(latest.current.rounds.filter((r) => r.id !== round.id))}>
+                      <button type="button" className="btn btn--quiet btn--block" onClick={() => removeRound(i)}>
                         Убрать раунд
                       </button>
                     )}
@@ -326,7 +406,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
           </div>
         )}
         {roundErrors.map((e) => (
-          <p key={e.message} className="error" role="alert">
+          <p key={e.message} className="error edit-issue" role="alert">
             {e.message}
           </p>
         ))}
@@ -334,7 +414,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
 
       {editable && (
         <section className="card stack">
-          <Fold title="Вставить вопросы списком" value="из заметок или таблицы">
+          <Fold title="Добавить или заменить списком" value="из заметок или таблицы">
             <div className="stack">
               <p className="muted small">Вопрос — с новой строки, ответы — строками «- ответ = очки | синоним, синоним». Строка «# Двойная игра» (или «# Большая игра») перед вопросом задаёт вид раунда.</p>
               <pre className="hd-editor__example">{IMPORT_EXAMPLE}</pre>
@@ -344,10 +424,10 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
               </label>
               <div className="actions">
                 <button type="button" className="btn btn--block" disabled={!importText.trim()} onClick={() => runImport(false)}>
-                  Добавить раунды
+                  Добавить списком
                 </button>
-                <button type="button" className="btn btn--secondary btn--block" disabled={!importText.trim()} onClick={() => runImport(true)}>
-                  Заменить все раунды
+                <button type="button" className="btn btn--secondary btn--block" disabled={!importText.trim()} onClick={() => setConfirmReplace(true)}>
+                  Заменить всё списком
                 </button>
               </div>
               {importNote && (
@@ -361,6 +441,19 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
       )}
 
       <PollPanel gameId={gameId} content={content} editable={editable} onChange={onChange} latest={latest} />
+      <ConfirmDialog
+        open={confirmReplace}
+        title="Заменить все раунды списком?"
+        confirmLabel="Заменить всё"
+        onCancel={() => setConfirmReplace(false)}
+        onConfirm={() => {
+          setConfirmReplace(false);
+          runImport(true);
+        }}
+      >
+        <p>Все раунды игры ({content.rounds.length}) пропадут, вместо них будут вопросы из списка. Чтобы дописать вопросы в конец, нажмите «Добавить списком».</p>
+      </ConfirmDialog>
+      {bar}
     </div>
   );
 }

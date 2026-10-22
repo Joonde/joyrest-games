@@ -423,7 +423,7 @@ export function applyLifeline(session: Session, content: MillionaireContent, ans
   const used = { ...r.used, [team]: [...(r.used[team] ?? []), id] };
   // Подсказка — новый шаг: прежний выбор не считается, капитан выбирает заново.
   let next: MillionaireResult = { ...r, used, flash: id, hostPick: null, ...fresh };
-  // Подсказка — часы заново (в телеигре они стоят, пока берут подсказку); на звонок — ещё и время звонка.
+  // Подсказка — часы заново (пока берут подсказку, время не идёт); на звонок — ещё и время звонка.
   let timeLimit: number | null = answerLimit(content);
   if (id === "fifty") {
     const wrong = wrongLeft(content, r);

@@ -1,5 +1,5 @@
 import { Fold } from "../../components/Fold";
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameSnapshot } from "../../core/games";
 import {
@@ -181,14 +181,21 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
   const previewTheme = brandTheme(getTheme(themeId), branding);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // id сессии держит форма (QA 22 октября 2026): обрыв связи после отправки — повтор «Создать сессию» с тем же id
+  // вернёт ту же сессию, а не создаст вторую. Ведущий поменял настройки — это уже другая сессия, id новый.
+  const sessionId = useRef<{ id: string; key: string } | null>(null);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    const key = JSON.stringify([themeId, playMode, screenMode, branding]);
+    const attempt = sessionId.current && sessionId.current.key === key ? sessionId.current : { id: newSessionId(), key };
+    sessionId.current = attempt;
     try {
       // Игра копируется в сессию: правка в студии не ломает идущую игру.
       const { code } = await sessionsRepo.create(profile.uid, {
+        id: attempt.id,
         gameId: game.id,
         gameTitle: game.title,
         mechanic: game.mechanic,
@@ -304,4 +311,18 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
       </form>
     </main>
   );
+}
+
+const SESSION_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+/** 20 случайных букв и цифр — id новой сессии от браузера (как у остальных записей своего сервера). */
+function newSessionId(): string {
+  let id = "";
+  const limit = 256 - (256 % SESSION_ID_ALPHABET.length);
+  while (id.length < 20) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(32))) {
+      if (byte < limit && id.length < 20) id += SESSION_ID_ALPHABET[byte % SESSION_ID_ALPHABET.length];
+    }
+  }
+  return id;
 }

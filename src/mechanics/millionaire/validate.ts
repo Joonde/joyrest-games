@@ -11,6 +11,7 @@ export function validateMillionaire(content: MillionaireContent): ValidationErro
     if (!q.text.trim()) errors.push({ path: `questions/${q.id}/text`, message: `${where}: напишите вопрос.` });
     if (q.options.some((o) => !o.trim())) errors.push({ path: `questions/${q.id}/options`, message: `${where}: заполните все четыре варианта.` });
     else if (new Set(q.options.map((o) => o.trim().toLowerCase())).size < 4) errors.push({ path: `questions/${q.id}/options`, message: `${where}: варианты не должны повторяться.` });
+    if (!Number.isInteger(q.correct) || q.correct < 0 || q.correct > 3) errors.push({ path: `questions/${q.id}/correct`, message: `${where}: отметьте верный вариант.` });
   });
   for (let i = 1; i < content.ladder.length; i++) {
     if ((content.ladder[i] ?? 0) <= (content.ladder[i - 1] ?? 0)) {

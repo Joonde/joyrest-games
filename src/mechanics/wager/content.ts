@@ -72,6 +72,8 @@ const int = (v: unknown, def: number, min: number, max: number) => (typeof v ===
 
 /** Число игры: конечное, не больше предела, до двух знаков после запятой. */
 export function cleanNumber(v: unknown): number | null {
+  // Пустая строка и строка без цифр — не число (Number("") = 0: пустое поле давало ответ 0).
+  if (typeof v === "string" && !/\d/.test(v)) return null;
   const n = typeof v === "string" ? Number(v.replace(/\s/g, "").replace(",", ".")) : v;
   if (typeof n !== "number" || !Number.isFinite(n) || Math.abs(n) > WAGER_LIMITS.maxAbs) return null;
   return Math.round(n * 100) / 100;

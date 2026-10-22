@@ -1,12 +1,12 @@
 // Конструктор «Гонки на выживание»: раунды полосками (вопрос с вариантами, открытый вопрос, задание),
 // каждый 5-й — войнушка; аукционы билета (до 3, после второй войнушки) — отметкой у раунда.
 import { Fold } from "../../components/Fold";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { pointsLabel } from "../../core/results";
 import type { EditorProps } from "../types";
-import { isWar, KIND_TITLES, LETTERS, newSurvivalRound, parseSurvivalList, SURVIVAL_LIMITS, ticketAllowed, warIndex, type SurvivalContent, type SurvivalKind, type SurvivalRound } from "./content";
+import { isWar, KIND_TITLES, LETTERS, newSurvivalRound, parseSurvivalImport, SURVIVAL_LIMITS, ticketAllowed, warIndex, type SurvivalContent, type SurvivalKind, type SurvivalRound } from "./content";
 import { DEMO_SURVIVAL } from "./demo";
 import { validateSurvival } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
@@ -44,6 +44,20 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
       },
     });
   }
+
+  const parsed = useMemo(() => parseSurvivalImport(text), [text]);
+  const unmarked = parsed.rounds.filter((r) => r.kind === "choice" && r.correct < 0).length;
+
+  // «Показать, что исправить» в шапке конструктора: открыть первый раунд с ошибкой.
+  useEffect(() => {
+    const reveal = () => {
+      const errs = validateSurvival(latest.current);
+      const bad = latest.current.rounds.find((r) => errs.some((e) => e.path.startsWith(`rounds/${r.id}/`)));
+      if (bad) setOpenId(bad.id);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
 
   function setCount(n: number) {
     const cur = latest.current;
@@ -101,9 +115,31 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
           </div>
         {importing && (
           <div className="stack stack--tight">
-            <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …» («Задание: для команд || для каждого сам» — второй текст в режиме «каждый сам»). «(150)» в конце — очки.</p>
+            <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» (или «а)», «1.») и «* верный»; открытый — «Вопрос? = ответ | ответ2» (варианты ответа — через «|» или « / » с пробелами); задание — «Задание: …» («Задание: для команд || для каждого сам» — второй текст в режиме «каждый сам»). «(150)» или «(150 очков)» в конце — очки (год вроде «(1799)» очками не считаем); верный вариант можно пометить и так: «- Париж *».</p>
             <textarea value={text} rows={10} placeholder={"Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nЗадание: спойте гимн команды (200)"} onChange={(e) => setText(e.target.value)} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replace(parseSurvivalList(text), "Заменить раунды списком")}>
+            {text.trim() !== "" && (
+              <div className="stack stack--tight" aria-live="polite">
+                <p className="small">
+                  {parsed.rounds.length > 0 ? `Распознано раундов: ${parsed.rounds.length}.` : "Раундов не нашли."}
+                  {unmarked > 0 ? ` Вопросов без отмеченного верного варианта: ${unmarked} — отметьте «*» или потом кружком.` : ""}
+                </p>
+                {parsed.skipped.length > 0 && (
+                  <p className="error small import-note">
+                    Не разобрали строки: {parsed.skipped.join(", ")}. Вариант должен стоять под вопросом, у вопроса — не больше 4 вариантов.
+                  </p>
+                )}
+                {parsed.notes.length > 0 && (
+                  <ul className="muted small import-note">
+                    {parsed.notes.map((n) => (
+                      <li key={n.line}>
+                        Строка {n.line}: {n.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            <button type="button" className="btn btn--block" disabled={parsed.rounds.length === 0} onClick={() => replace(parsed.rounds, "Заменить раунды списком")}>
               Заменить раунды
             </button>
           </div>
@@ -122,7 +158,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
             const mine = errors.filter((e) => e.path.startsWith(`rounds/${round.id}/`));
             const ticket = content.tickets.includes(n);
             return (
-              <li key={round.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error" : ""}${war ? " sv-strip--war" : ""}`}>
+              <li key={round.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error edit-issue" : ""}${war ? " sv-strip--war" : ""}`}>
                 <button type="button" className="quest-strip__head" aria-expanded={open} onClick={() => setOpenId(open ? null : round.id)}>
                   <span className="quest-strip__n">{n}</span>
                   <span aria-hidden="true">{war ? "⚔️" : ticket ? "🎟" : round.kind === "task" ? "⭐" : "❓"}</span>
@@ -191,7 +227,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
                       </button>
                     )}
                     {mine.map((e) => (
-                      <p key={e.message} className="error small">
+                      <p key={e.message} className="error small edit-issue">
                         {e.message}
                       </p>
                     ))}

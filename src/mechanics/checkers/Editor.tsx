@@ -1,6 +1,8 @@
 // Конструктор «Шашек»: время на ответ и вопросы (варианты или открытый ответ), импорт списком.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import type { EditorProps } from "../types";
 import { CHECKERS_LIMITS, newCheckersQuestion, parseCheckersList, type CheckersContent, type CheckersQuestion } from "./content";
 import { validateCheckers } from "./validate";
@@ -11,8 +13,21 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
   const [importing, setImporting] = useState(false);
   const [text, setText] = useState("");
   const errors = validateCheckers(content);
-  const set = (questions: CheckersQuestion[]) => onChange({ ...content, questions });
-  const update = (id: string, patch: Partial<CheckersQuestion>) => set(content.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+  // Правки — от свежего содержимого: две записи подряд и запоздалые колбэки не откатывают друг друга.
+  const latest = useRef(content);
+  latest.current = content;
+  const set = (questions: CheckersQuestion[]) => onChange({ ...latest.current, questions });
+  const update = (id: string, patch: Partial<CheckersQuestion>) => set(latest.current.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+  const [importNote, setImportNote] = useState<string | null>(null);
+  const { offer, bar } = useUndoRemove();
+
+  /** Убрать вопрос — 7 секунд «Вернуть» на то же место. */
+  function removeQuestion(q: CheckersQuestion) {
+    const index = latest.current.questions.findIndex((x) => x.id === q.id);
+    if (index < 0) return;
+    set(latest.current.questions.filter((x) => x.id !== q.id));
+    offer(`Вопрос ${index + 1}${q.text.trim() ? ` «${q.text.trim().slice(0, 40)}»` : ""} убран`, () => set(insertBack(latest.current.questions, { item: q, index }, (x) => x.id)));
+  }
 
   return (
     <div className="stack">
@@ -23,7 +38,7 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
         </p>
         <label className="field">
           Секунд на ответ
-          <ClampedNumber value={content.timeLimit} min={CHECKERS_LIMITS.minTime} max={CHECKERS_LIMITS.maxTime} fallback={30} disabled={!editable} onChange={(timeLimit) => onChange({ ...content, timeLimit })} />
+          <ClampedNumber value={content.timeLimit} min={CHECKERS_LIMITS.minTime} max={CHECKERS_LIMITS.maxTime} fallback={30} disabled={!editable} onChange={(timeLimit) => onChange({ ...latest.current, timeLimit })} />
         </label>
         <p className="muted small">Партия обычно занимает 30–60 ходов — вопросов лучше заготовить побольше (40+), лишние просто не понадобятся.</p>
       </section>
@@ -79,12 +94,12 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
             {errors
               .filter((er) => er.path.startsWith(`questions/${q.id}/`))
               .map((er) => (
-                <p key={er.message} className="error small">
+                <p key={er.message} className="error small edit-issue">
                   {er.message}
                 </p>
               ))}
             {editable && content.questions.length > 1 && (
-              <button type="button" className="btn btn--quiet btn--block" onClick={() => set(content.questions.filter((x) => x.id !== q.id))}>
+              <button type="button" className="btn btn--quiet btn--block" onClick={() => removeQuestion(q)}>
                 Убрать вопрос
               </button>
             )}
@@ -94,11 +109,11 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
 
       {editable && (
         <div className="actions">
-          <button type="button" className="btn btn--secondary btn--block" disabled={content.questions.length >= CHECKERS_LIMITS.questions} onClick={() => set([...content.questions, newCheckersQuestion()])}>
+          <button type="button" className="btn btn--secondary btn--block" disabled={content.questions.length >= CHECKERS_LIMITS.questions} onClick={() => set([...latest.current.questions, newCheckersQuestion()])}>
             + Вопрос
           </button>
           <button type="button" className="btn btn--quiet btn--block" onClick={() => setImporting((v) => !v)}>
-            {importing ? "Скрыть вставку списком" : "Вставить списком"}
+            {importing ? "Скрыть добавление списком" : "Добавить списком"}
           </button>
         </div>
       )}
@@ -112,16 +127,36 @@ export function CheckersEditor({ content, onChange, editable }: EditorProps<Chec
             disabled={!text.trim()}
             onClick={() => {
               const added = parseCheckersList(text);
-              const keep = content.questions.filter((q) => q.text.trim());
-              set([...keep, ...added].slice(0, CHECKERS_LIMITS.questions));
+              const keep = latest.current.questions.filter((q) => q.text.trim());
+              const all = [...keep, ...added];
+              const lost = Math.max(0, all.length - CHECKERS_LIMITS.questions);
+              set(all.slice(0, CHECKERS_LIMITS.questions));
+              setImportNote(
+                added.length === 0
+                  ? "Не нашли ни одного вопроса: вопрос — с новой строки, варианты — с «-», верный — с «*»."
+                  : `Добавлено в конец: ${added.length - lost}.${lost > 0 ? ` Больше ${CHECKERS_LIMITS.questions} вопросов не берём — последние ${lost} из списка не вошли.` : ""}`,
+              );
               setText("");
-              setImporting(false);
+              if (added.length > 0) setImporting(false);
             }}
           >
-            Добавить вопросы
+            Добавить в конец
           </button>
         </section>
       )}
+      {importNote && (
+        <p className="muted small" role="status">
+          {importNote}
+        </p>
+      )}
+      {errors
+        .filter((er) => er.path === "questions")
+        .map((er) => (
+          <p key={er.message} className="error small edit-issue">
+            {er.message}
+          </p>
+        ))}
+      {bar}
     </div>
   );
 }

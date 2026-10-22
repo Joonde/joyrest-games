@@ -37,7 +37,7 @@ import {
 import { professionOf } from "../../core/professions";
 import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, type EventProgram } from "../../core/eventProgram";
 import { matchesSearch } from "../../core/search";
-import { durationLabel, originStats, responseStats } from "../../core/clients";
+import { durationLabel, originStats, phoneIssueText, phoneKey, responseStats, telHref } from "../../core/clients";
 import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
@@ -219,7 +219,10 @@ export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boo
           setOpenId(saved.id);
           setView("day");
           // Клиент не попал в базу клиентов даже после повторов сервера — сказать прямо, чтобы его не потеряли.
-          if (saved.clientNotSaved) onToast("Мероприятие записано, но клиент не попал в «Клиенты» — добавьте его вручную");
+          // Телефон неполный или его нет (только имя) — сервер клиента не записал: нужен полный телефон или ссылка.
+          if (saved.clientNotSaved && (saved.clientIncomplete || !phoneKey(saved.clientPhone)))
+            onToast("Мероприятие записано. Клиент не попал в «Клиенты»: нужен полный телефон или ссылка — добавьте его вручную");
+          else if (saved.clientNotSaved) onToast("Мероприятие записано, но клиент не попал в «Клиенты» — добавьте его вручную");
           else onToast(form.event ? "Мероприятие сохранено" : `Мероприятие записано: ${saved.hostName}`);
         }}
       />
@@ -885,7 +888,7 @@ function EventCard({
               <>
                 <dt>Телефон</dt>
                 <dd>
-                  <a href={`tel:${event.clientPhone.replace(/[^\d+]/g, "")}`}>{event.clientPhone}</a>
+                  {telHref(event.clientPhone) ? <a href={telHref(event.clientPhone)}>{event.clientPhone}</a> : event.clientPhone}
                 </dd>
               </>
             )}
@@ -1168,8 +1171,13 @@ export function EventForm({
   const [program, setProgram] = useState<EventProgram | null>(base?.program ?? null);
   const [allTeam, setAllTeam] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Двойное касание «Записать»: второй запрос не уходит, пока первый не вернулся (иначе ведущему — два уведомления).
+  const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [filled, setFilled] = useState<string | null>(null);
+  // Клиент попадёт в «Клиенты» только с полным телефоном; мероприятие записать можно и без него.
+  const phoneIncomplete = clientPhone.trim() !== "" && phoneKey(clientPhone) === "";
+  const nameOnly = clientName.trim() !== "" && clientPhone.trim() === "";
   const [confirm, ask] = useConfirm();
   const [team, retryTeam] = useLoad(
     () => (calendarRepo ? calendarRepo.team(day, addDays(day, 1)) : Promise.resolve({ members: [] as CalendarMember[], entries: [] as AvailabilityEntry[] })),
@@ -1229,7 +1237,8 @@ export function EventForm({
   }
 
   async function save() {
-    if (!eventsRepo || !ready) return;
+    if (!eventsRepo || !ready || saving.current) return;
+    saving.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -1254,6 +1263,7 @@ export function EventForm({
     } catch (e) {
       setError(errorText(e));
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }
@@ -1396,8 +1406,21 @@ export function EventForm({
         </datalist>
         <label className="field">
           <span className="field__label">Телефон клиента</span>
-          <input type="tel" inputMode="tel" autoComplete="off" maxLength={EVENT_LIMITS.phone} value={clientPhone} placeholder="+7 …" onChange={(e) => setClientPhone(e.target.value)} />
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            maxLength={EVENT_LIMITS.phone}
+            value={clientPhone}
+            placeholder="+7 …"
+            aria-invalid={phoneIncomplete}
+            onChange={(e) => setClientPhone(e.target.value)}
+          />
         </label>
+        {phoneIncomplete && (
+          <p className="small plan-warn">{phoneIssueText(clientPhone)} Мероприятие записать можно, но клиент не попадёт в «Клиенты».</p>
+        )}
+        {nameOnly && <p className="muted small">Без телефона клиент не попадёт в «Клиенты» — добавьте телефон, если он есть.</p>}
         <label className="field">
           <span className="field__label">Где (адрес или площадка)</span>
           <input type="text" list="event-places" maxLength={EVENT_LIMITS.place} value={place} onChange={(e) => setPlace(e.target.value)} />

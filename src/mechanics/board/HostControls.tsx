@@ -178,7 +178,7 @@ export function BoardHostControls({ session, content, answers, participants, con
       <p className="eyebrow">
         {found?.category.title || "Ставка на знания"} · {cell.points} · {CELL_TITLES[cell.kind]}
       </p>
-      <p className="host-quiz__question">{cell.text || (cell.trackId ? "Угадайте мелодию" : "—")}</p>
+      <p className="host-quiz__question">{cell.text || (cell.trackId ? "Узнайте песню" : "—")}</p>
       <p className="muted small">
         Верный ответ: <strong className="host-quiz__answer">{cell.answer || "—"}</strong>
       </p>

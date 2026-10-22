@@ -315,8 +315,14 @@ export function checkChange(value: unknown): CheckedChange | null {
   const checked: CheckedChange = { state, leaderboard };
   if (value.expect !== undefined) {
     if (!isRecord(value.expect)) return null;
-    const { phase, step, stage, result } = value.expect;
+    const { phase, step, stage, result, slide } = value.expect;
     const expect: ChangeExpect = {};
+    if (slide !== undefined) {
+      // id слайда на экране (или null — слайда нет): конец перерыва с двух пультов не уберёт чужой слайд.
+      if (slide === null) expect.slide = null;
+      else if (typeof slide === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(slide)) expect.slide = slide;
+      else return null;
+    }
     if (result !== undefined) {
       if (typeof result !== "string" || result.length > 40) return null;
       expect.result = result;

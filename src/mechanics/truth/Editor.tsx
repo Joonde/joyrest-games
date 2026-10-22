@@ -1,7 +1,7 @@
 // Конструктор «Правды или действия»: колода (правда и действие, пометка 18+), импорт списком, шаблоны,
 // очки, круги, задания от гостей.
 import { Fold } from "../../components/Fold";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import type { EditorProps } from "../types";
@@ -19,6 +19,19 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
   const errors = validateTruth(content);
   const setCard = (id: string, patch: Partial<TruthCard>) => onChange({ ...latest.current, cards: latest.current.cards.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
   const shown = content.cards.filter((c) => c.kind === filter);
+  const [importNote, setImportNote] = useState<string | null>(null);
+
+  // «Показать, что исправить»: карточка с замечанием может быть на другой вкладке — переключаемся на её вид.
+  const firstBadKind = useRef<TruthKind | null>(null);
+  firstBadKind.current = content.cards.find((c) => errors.some((e) => e.path === `cards/${c.id}/text`))?.kind ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBadKind.current) setFilter(firstBadKind.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
+
   const count = (k: TruthKind, adult: boolean) => content.cards.filter((c) => c.kind === k && c.adult === adult).length;
 
   function replace(cards: TruthCard[], label: string, adult: boolean) {
@@ -40,30 +53,30 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
         <div className="row board-editor__size">
           <label className="field">
             Очки за правду
-            <ClampedNumber value={content.truthPoints} min={0} max={TRUTH_LIMITS.maxPoints} fallback={50} disabled={!editable} onChange={(truthPoints) => onChange({ ...content, truthPoints })} />
+            <ClampedNumber value={content.truthPoints} min={0} max={TRUTH_LIMITS.maxPoints} fallback={50} disabled={!editable} onChange={(truthPoints) => onChange({ ...latest.current, truthPoints })} />
           </label>
           <label className="field">
             Очки за действие
-            <ClampedNumber value={content.darePoints} min={0} max={TRUTH_LIMITS.maxPoints} fallback={100} disabled={!editable} onChange={(darePoints) => onChange({ ...content, darePoints })} />
+            <ClampedNumber value={content.darePoints} min={0} max={TRUTH_LIMITS.maxPoints} fallback={100} disabled={!editable} onChange={(darePoints) => onChange({ ...latest.current, darePoints })} />
           </label>
           <label className="field">
             Штраф за отказ (0 — фант от зала)
-            <ClampedNumber value={content.refusePenalty} min={0} max={TRUTH_LIMITS.maxPoints} fallback={0} disabled={!editable} onChange={(refusePenalty) => onChange({ ...content, refusePenalty })} />
+            <ClampedNumber value={content.refusePenalty} min={0} max={TRUTH_LIMITS.maxPoints} fallback={0} disabled={!editable} onChange={(refusePenalty) => onChange({ ...latest.current, refusePenalty })} />
           </label>
           <label className="field">
             Кругов (0 — пока не остановите)
-            <ClampedNumber value={content.rounds} min={0} max={TRUTH_LIMITS.maxRounds} fallback={3} disabled={!editable} onChange={(rounds) => onChange({ ...content, rounds })} />
+            <ClampedNumber value={content.rounds} min={0} max={TRUTH_LIMITS.maxRounds} fallback={3} disabled={!editable} onChange={(rounds) => onChange({ ...latest.current, rounds })} />
           </label>
         </div>
         <label className="choice">
-          <input type="checkbox" checked={content.guestCards} disabled={!editable} onChange={(e) => onChange({ ...content, guestCards: e.target.checked })} />
+          <input type="checkbox" checked={content.guestCards} disabled={!editable} onChange={(e) => onChange({ ...latest.current, guestCards: e.target.checked })} />
           <span className="choice__text">
             <span className="choice__title">Гости присылают свои вопросы и задания</span>
             <span className="choice__hint">С телефона, пока ходит другой игрок. На пульте — «В колоду» или «Не брать».</span>
           </span>
         </label>
         <label className="choice">
-          <input type="checkbox" checked={content.adult} disabled={!editable} onChange={(e) => onChange({ ...content, adult: e.target.checked })} />
+          <input type="checkbox" checked={content.adult} disabled={!editable} onChange={(e) => onChange({ ...latest.current, adult: e.target.checked })} />
           <span className="choice__text">
             <span className="choice__title">Играть и карточками 18+</span>
             <span className="choice__hint">Только для взрослой компании. Без галочки карточки 18+ не выпадают.</span>
@@ -100,7 +113,7 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
         <ol className="td-editor__list">
           {shown.map((c) => (
             <li key={c.id} className="td-editor__card">
-              <textarea className="input" rows={2} maxLength={TRUTH_LIMITS.text} value={c.text} disabled={!editable} aria-label="Текст карточки" onChange={(e) => setCard(c.id, { text: e.target.value })} />
+              <textarea className="input" rows={2} maxLength={TRUTH_LIMITS.text} value={c.text} disabled={!editable} aria-label="Текст карточки" aria-invalid={errors.some((e) => e.path === `cards/${c.id}/text`)} onChange={(e) => setCard(c.id, { text: e.target.value })} />
               <span className="td-editor__row">
                 <label className="td-editor__adult">
                   <input type="checkbox" checked={c.adult} disabled={!editable} onChange={(e) => setCard(c.id, { adult: e.target.checked })} /> 18+
@@ -116,7 +129,7 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
         </ol>
         {editable && (
           <div className="actions">
-            <button type="button" className="btn btn--secondary btn--block" disabled={content.cards.length >= TRUTH_LIMITS.cards} onClick={() => onChange({ ...content, cards: [...content.cards, { id: newCardId(), kind: filter, text: "", adult: false }] })}>
+            <button type="button" className="btn btn--secondary btn--block" disabled={content.cards.length >= TRUTH_LIMITS.cards} onClick={() => onChange({ ...latest.current, cards: [...latest.current.cards, { id: newCardId(), kind: filter, text: "", adult: false }] })}>
               + {KIND_TITLES[filter]}
             </button>
             <button type="button" className="btn btn--quiet btn--block" onClick={() => setImporting((v) => !v)}>
@@ -128,13 +141,26 @@ export function TruthEditor({ content, onChange, editable }: EditorProps<TruthCo
           <div className="stack stack--tight">
             <p className="muted small">Каждая карточка с новой строки. «Правда: …» или «Действие: …» меняют вид; «18+» в начале — карточка для взрослых.</p>
             <textarea className="input" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={"Правда: Кем вы мечтали стать в детстве?\nДействие: Станцуйте как робот\n18+ Правда: Самое смелое свидание?"} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => { onChange({ ...latest.current, cards: [...latest.current.cards, ...parseCardList(text)].slice(0, TRUTH_LIMITS.cards) }); setText(""); setImporting(false); }}>
-              Добавить в колоду
+            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => {
+                const added = parseCardList(text);
+                const all = [...latest.current.cards, ...added];
+                const lost = Math.max(0, all.length - TRUTH_LIMITS.cards);
+                onChange({ ...latest.current, cards: all.slice(0, TRUTH_LIMITS.cards) });
+                setImportNote(`Добавлено в конец колоды: ${added.length - lost}.${lost > 0 ? ` Больше ${TRUTH_LIMITS.cards} карточек не берём — последние ${lost} из списка не вошли.` : ""}`);
+                setText("");
+                setImporting(false);
+              }}>
+              Добавить в конец колоды
             </button>
           </div>
         )}
+        {importNote && (
+          <p className="muted small" role="status">
+            {importNote}
+          </p>
+        )}
         {errors.length > 0 && (
-          <ul className="error small">
+          <ul className="error small edit-issue">
             {errors.slice(0, 3).map((e, i) => (
               <li key={i}>{e.message}</li>
             ))}

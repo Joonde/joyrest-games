@@ -1,8 +1,10 @@
 // Конструктор «Танцуй как звезда / Караоке на поле»: категории и плитки, у плитки — очки, кто выходит (или кто против кого),
 // трек, задание и видео (ссылка или файл на устройстве экрана зала).
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import { LibraryVideoPicker, videoSourceLabel, videoSources } from "../../components/media/libraryVideo";
 import { saveLocalVideo } from "../../components/media/localVideo";
 import type { EditorProps } from "../types";
@@ -23,6 +25,45 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
   const set = (patch: Partial<StageContent>) => onChange({ ...latest.current, ...patch });
   const updateTile = (id: string, patch: Partial<StageTile>) => set({ tiles: latest.current.tiles.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
   const karaoke = content.variant === "karaoke";
+  const { offer, bar } = useUndoRemove();
+
+  // «Показать, что исправить»: свёрнутая плитка с замечанием раскрывается (первая по порядку поля).
+  const firstBadTile = useRef<string | null>(null);
+  firstBadTile.current =
+    content.categories.flatMap((c) => tilesOf(content, c.id)).find((t) => errors.some((e) => e.path.startsWith(`tiles/${t.id}/`)))?.id ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBadTile.current) setOpenTile(firstBadTile.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
+
+  /** Убрать плитку — 7 секунд «Вернуть» на то же место. */
+  function removeTile(tile: StageTile) {
+    const index = latest.current.tiles.findIndex((t) => t.id === tile.id);
+    if (index < 0) return;
+    set({ tiles: latest.current.tiles.filter((t) => t.id !== tile.id) });
+    setOpenTile(null);
+    offer(`Плитка ${tile.points}${tile.title.trim() ? ` «${tile.title.trim()}»` : ""} убрана`, () => set({ tiles: insertBack(latest.current.tiles, { item: tile, index }, (t) => t.id) }));
+  }
+
+  /** Убрать категорию со всеми плитками — 7 секунд «Вернуть»: категория и плитки встают на прежние места. */
+  function removeCategory(catId: string) {
+    const current = latest.current;
+    const index = current.categories.findIndex((c) => c.id === catId);
+    const category = current.categories[index];
+    if (!category) return;
+    const removed = current.tiles.map((item, i) => ({ item, index: i })).filter((x) => x.item.cat === catId);
+    set({ categories: current.categories.filter((c) => c.id !== catId), tiles: current.tiles.filter((t) => t.cat !== catId) });
+    const name = category.title.trim() ? `«${category.title.trim()}»` : `${index + 1}`;
+    offer(`Категория ${name} убрана${removed.length > 0 ? ` вместе с плитками (${removed.length})` : ""}`, () => {
+      const now = latest.current;
+      if (now.categories.some((c) => c.id === catId)) return;
+      const tiles = removed.reduce<StageTile[]>((list, r) => insertBack(list, r, (t) => t.id), now.tiles);
+      set({ categories: insertBack(now.categories, { item: category, index }), tiles });
+    });
+  }
 
   return (
     <div className="stack">
@@ -103,7 +144,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
             <label className="field">
               Категория {ci + 1}
               <input value={cat.title} maxLength={STAGE_LIMITS.catTitle} disabled={!editable} placeholder={karaoke ? "Хиты, дуэты, батлы…" : "Активные, медленные, джаз-дэнс…"} onChange={(e) => set({ categories: latest.current.categories.map((c) => (c.id === cat.id ? { ...c, title: e.target.value } : c)) })} />
-              {catError && <span className="error small">{catError.message}</span>}
+              {catError && <span className="error small edit-issue">{catError.message}</span>}
             </label>
             <ul className="stage-editor__tiles">
               {tiles.map((tile) => {
@@ -124,7 +165,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
                         editable={editable}
                         errors={tileErrors.map((e) => e.message)}
                         onChange={(p) => updateTile(tile.id, p)}
-                        onRemove={() => set({ tiles: latest.current.tiles.filter((t) => t.id !== tile.id) })}
+                        onRemove={() => removeTile(tile)}
                       />
                     )}
                   </li>
@@ -150,7 +191,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
                   </button>
                 ))}
                 {content.categories.length > 1 && (
-                  <button type="button" className="btn btn--quiet" onClick={() => set({ categories: latest.current.categories.filter((c) => c.id !== cat.id), tiles: latest.current.tiles.filter((t) => t.cat !== cat.id) })}>
+                  <button type="button" className="btn btn--quiet" onClick={() => removeCategory(cat.id)}>
                     Убрать категорию
                   </button>
                 )}
@@ -175,10 +216,11 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
       {errors
         .filter((e) => e.path === "categories" || e.path === "tiles")
         .map((e) => (
-          <p key={e.path} className="error small">
+          <p key={e.path} className="error small edit-issue">
             {e.message}
           </p>
         ))}
+      {bar}
     </div>
   );
 }
@@ -265,7 +307,7 @@ function TileForm({ tile, karaoke, editable, errors, onChange, onRemove }: { til
           <label className="field">
             Ссылка на YouTube, VK Видео или Rutube
             <input value={tile.video.url} inputMode="url" maxLength={STAGE_LIMITS.url} disabled={!editable} placeholder="https://youtu.be/…" onChange={(e) => onChange({ video: { ...tile.video, url: e.target.value.trim() } })} />
-            {tile.video.url && !embedUrl(tile.video.url) && <span className="error small">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
+            {tile.video.url && !embedUrl(tile.video.url) && <span className="error small edit-issue">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
             <span className="muted small">Пауза и перемотка с пульта работают у YouTube и Rutube; у VK Видео — только «остановить» и «запустить заново». Проверьте ролик на репетиции: некоторые запрещают показ на других сайтах.</span>
           </label>
         )}
@@ -298,7 +340,7 @@ function TileForm({ tile, karaoke, editable, errors, onChange, onRemove }: { til
         )}
       </fieldset>
       {errors.map((m) => (
-        <p key={m} className="error small">
+        <p key={m} className="error small edit-issue">
           {m}
         </p>
       ))}

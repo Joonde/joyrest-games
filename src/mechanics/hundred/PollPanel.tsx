@@ -35,6 +35,8 @@ export function PollPanel({ gameId, content, editable, onChange, latest }: Props
   const [state, setState] = useState<"idle" | "loading" | "missing" | "error">("idle");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // «Взять 6 лучших в табло» поверх уже заполненного табло — только после вопроса (QA 22 октября 2026).
+  const [replaceFor, setReplaceFor] = useState<HundredQuestion | null>(null);
   const [toast, showToast] = useToast();
   const pollId = content.pollId;
 
@@ -114,7 +116,12 @@ export function PollPanel({ gameId, content, editable, onChange, latest }: Props
   }
 
   /** «Взять 6 лучших в табло»: очки — доля ответивших на этот вопрос, подпись — «Опрос гостей · N человек». */
-  function takeTop(question: HundredQuestion) {
+  function takeTop(question: HundredQuestion, confirmed = false) {
+    const fresh = allQuestions(latest.current).find(({ question: q }) => q.id === question.id)?.question ?? question;
+    if (!confirmed && fresh.answers.some((a) => a.text.trim())) {
+      setReplaceFor(fresh);
+      return;
+    }
     const texts = summary?.responses[question.id] ?? [];
     const top = topAnswers(groupPollAnswers(texts, editsOf(question.id)), texts.length, 6);
     if (top.length < 4) {
@@ -122,7 +129,7 @@ export function PollPanel({ gameId, content, editable, onChange, latest }: Props
       return;
     }
     const answers = top.map((a) => ({ ...newAnswer(a.text, a.points, a.synonyms) }));
-    const next: HundredQuestion = { ...question, answers, source: "poll", pollCount: texts.length };
+    const next: HundredQuestion = { ...fresh, answers, source: "poll", pollCount: texts.length };
     onChange({ ...latest.current, rounds: latest.current.rounds.map((r) => ({ ...r, questions: r.questions.map((q) => (q.id === question.id ? next : q)) })) });
     showToast("Табло заполнено из опроса");
   }
@@ -265,6 +272,22 @@ export function PollPanel({ gameId, content, editable, onChange, latest }: Props
           )}
         </>
       )}
+      <ConfirmDialog
+        open={replaceFor !== null}
+        title="Заменить ответы табло результатами опроса?"
+        confirmLabel="Заменить ответы табло"
+        onCancel={() => setReplaceFor(null)}
+        onConfirm={() => {
+          const q = replaceFor;
+          setReplaceFor(null);
+          if (q) takeTop(q, true);
+        }}
+      >
+        <p>
+          В табло вопроса «{replaceFor?.text.trim() || "Вопрос"}» уже есть ответы: {replaceFor?.answers.filter((a) => a.text.trim()).map((a) => a.text.trim()).join(", ")}. Они и синонимы
+          заменятся шестью самыми частыми ответами гостей.
+        </p>
+      </ConfirmDialog>
       <ConfirmDialog
         open={confirmDelete}
         title="Удалить опрос?"

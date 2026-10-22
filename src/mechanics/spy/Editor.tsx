@@ -1,7 +1,10 @@
 // Конструктор «Шпиона»: настройки партии (шпионов, время, партии, очки) и колода локаций с ролями.
+import { useRef } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import type { EditorProps } from "../types";
 import { createSpy, DEFAULT_LOCATIONS, rolesOf, SPY_LIMITS, type SpyContent, type SpyLocation } from "./content";
 import { validateSpy } from "./validate";
@@ -23,9 +26,27 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
   const [dialog, confirm] = useConfirm();
   const errors = validateSpy(content);
   const errorAt = (path: string) => errors.find((e) => e.path === path)?.message;
-  const setLocation = (i: number, next: SpyLocation) => onChange({ ...content, locations: content.locations.map((l, k) => (k === i ? next : l)) });
-  const removeLocation = (i: number) => onChange({ ...content, locations: content.locations.filter((_, k) => k !== i) });
-  const addLocation = () => onChange({ ...content, locations: [...content.locations, { name: "", roles: [] }] });
+  const latest = useRef(content);
+  latest.current = content;
+  const { offer, bar } = useUndoRemove();
+  const setLocation = (i: number, next: SpyLocation) => onChange({ ...latest.current, locations: latest.current.locations.map((l, k) => (k === i ? next : l)) });
+  /** Убрать локацию — 7 секунд «Вернуть» на то же место. */
+  const removeLocation = (i: number) => {
+    const location = latest.current.locations[i];
+    if (!location) return;
+    onChange({ ...latest.current, locations: latest.current.locations.filter((_, k) => k !== i) });
+    // Ключ — название локации (у локаций нет id; одинаковые названия проверка и так не пускает): двойное «Вернуть»
+    // не добавит её дважды. Без названия ключа нет — второй раз не даёт сам флаг `returned`.
+    const name = location.name.trim().toLowerCase();
+    const key = name ? (l: SpyLocation) => l.name.trim().toLowerCase() : undefined;
+    let returned = false;
+    offer(`Локация ${location.name.trim() ? `«${location.name.trim()}»` : i + 1} убрана`, () => {
+      if (returned) return;
+      returned = true;
+      onChange({ ...latest.current, locations: insertBack(latest.current.locations, { item: location, index: i }, key) });
+    });
+  };
+  const addLocation = () => onChange({ ...latest.current, locations: [...latest.current.locations, { name: "", roles: [] }] });
   const missingDefaults = DEFAULT_LOCATIONS.filter((d) => !content.locations.some((l) => l.name.trim().toLowerCase() === d.name.toLowerCase()));
 
   return (
@@ -43,7 +64,7 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
           <legend>Шпионов в партии</legend>
           {(["auto", 1, 2] as const).map((mode) => (
             <label key={String(mode)} className="choice">
-              <input type="radio" name="spy-count" checked={content.spies === mode} disabled={!editable} onChange={() => onChange({ ...content, spies: mode })} />
+              <input type="radio" name="spy-count" checked={content.spies === mode} disabled={!editable} onChange={() => onChange({ ...latest.current, spies: mode })} />
               <span className="choice__text">
                 <span className="choice__title">{mode === "auto" ? "По числу игроков (рекомендуем)" : mode === 1 ? "Один шпион" : "Два шпиона"}</span>
                 <span className="choice__hint">{mode === "auto" ? `Один, с ${SPY_LIMITS.twoSpiesFrom} игроков — двое` : mode === 1 ? "Классика" : "Шпионы не знают друг друга. Меньше 6 игроков — всё равно один"}</span>
@@ -54,30 +75,30 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
         <div className="row board-editor__size">
           <label className="field">
             Обсуждение, минут
-            <ClampedNumber value={content.roundMinutes} min={SPY_LIMITS.minMinutes} max={SPY_LIMITS.maxMinutes} fallback={8} disabled={!editable} onChange={(roundMinutes) => onChange({ ...content, roundMinutes })} />
+            <ClampedNumber value={content.roundMinutes} min={SPY_LIMITS.minMinutes} max={SPY_LIMITS.maxMinutes} fallback={8} disabled={!editable} onChange={(roundMinutes) => onChange({ ...latest.current, roundMinutes })} />
           </label>
           <label className="field">
             Голосование, секунд
-            <ClampedNumber value={content.voteSeconds} min={SPY_LIMITS.minVote} max={SPY_LIMITS.maxVote} fallback={45} disabled={!editable} onChange={(voteSeconds) => onChange({ ...content, voteSeconds })} />
+            <ClampedNumber value={content.voteSeconds} min={SPY_LIMITS.minVote} max={SPY_LIMITS.maxVote} fallback={45} disabled={!editable} onChange={(voteSeconds) => onChange({ ...latest.current, voteSeconds })} />
           </label>
           <label className="field">
             Партий за игру
-            <ClampedNumber value={content.parties} min={1} max={10} fallback={3} disabled={!editable} onChange={(parties) => onChange({ ...content, parties })} />
+            <ClampedNumber value={content.parties} min={1} max={10} fallback={3} disabled={!editable} onChange={(parties) => onChange({ ...latest.current, parties })} />
           </label>
         </div>
         <Fold title="Очки" value={`город ${content.townPoints} · шпион ${content.spyPoints} · угадал +${content.guessBonus}`}>
           <div className="row board-editor__size">
             <label className="field">
               Победил город — каждому
-              <ClampedNumber value={content.townPoints} min={0} max={1000} fallback={100} disabled={!editable} onChange={(townPoints) => onChange({ ...content, townPoints })} />
+              <ClampedNumber value={content.townPoints} min={0} max={1000} fallback={100} disabled={!editable} onChange={(townPoints) => onChange({ ...latest.current, townPoints })} />
             </label>
             <label className="field">
               Победил шпион — каждому шпиону
-              <ClampedNumber value={content.spyPoints} min={0} max={1000} fallback={300} disabled={!editable} onChange={(spyPoints) => onChange({ ...content, spyPoints })} />
+              <ClampedNumber value={content.spyPoints} min={0} max={1000} fallback={300} disabled={!editable} onChange={(spyPoints) => onChange({ ...latest.current, spyPoints })} />
             </label>
             <label className="field">
               Шпион угадал локацию — сверху
-              <ClampedNumber value={content.guessBonus} min={0} max={1000} fallback={100} disabled={!editable} onChange={(guessBonus) => onChange({ ...content, guessBonus })} />
+              <ClampedNumber value={content.guessBonus} min={0} max={1000} fallback={100} disabled={!editable} onChange={(guessBonus) => onChange({ ...latest.current, guessBonus })} />
             </label>
           </div>
         </Fold>
@@ -89,7 +110,7 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
           В каждой партии — новая локация из колоды, в одной игре они не повторяются. Роли — через запятую: игроков больше, чем ролей, — роли повторяются. Список всех локаций видят все игроки.
         </p>
         {errorAt("locations") && (
-          <p className="error" role="alert">
+          <p className="error edit-issue" role="alert">
             {errorAt("locations")}
           </p>
         )}
@@ -111,7 +132,7 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
                     <span className="muted small">Роли ({rolesOf(l).length})</span>
                     <textarea className="input" rows={2} value={rolesText(l)} disabled={!editable} onChange={(e) => setLocation(i, { ...l, roles: e.target.value.split(",").map((r) => r.trimStart()).slice(0, SPY_LIMITS.maxRoles) })} onBlur={(e) => setLocation(i, { ...l, roles: parseRoles(e.target.value) })} />
                   </label>
-                  {err && <p className="error small">{err}</p>}
+                  {err && <p className="error small edit-issue">{err}</p>}
                 </li>
               );
             })}
@@ -126,12 +147,12 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
                   type="button"
                   className="btn btn--quiet btn--block"
                   disabled={content.locations.length >= SPY_LIMITS.maxLocations}
-                  onClick={() => onChange({ ...content, locations: [...content.locations, ...missingDefaults.map((d) => ({ name: d.name, roles: [...d.roles] }))].slice(0, SPY_LIMITS.maxLocations) })}
+                  onClick={() => onChange({ ...latest.current, locations: [...latest.current.locations, ...missingDefaults.map((d) => ({ name: d.name, roles: [...d.roles] }))].slice(0, SPY_LIMITS.maxLocations) })}
                 >
                   Вернуть стандартные локации ({missingDefaults.length})
                 </button>
               )}
-              <button type="button" className="btn btn--quiet btn--block" onClick={() => confirm({ title: "Сбросить колоду?", text: "Свои локации и правки ролей пропадут — вернётся стандартная колода.", confirmLabel: "Сбросить", run: () => onChange({ ...content, locations: createSpy().locations }) })}>
+              <button type="button" className="btn btn--quiet btn--block" onClick={() => confirm({ title: "Сбросить колоду?", text: "Свои локации и правки ролей пропадут — вернётся стандартная колода.", confirmLabel: "Сбросить", run: () => onChange({ ...latest.current, locations: createSpy().locations }) })}>
                 Сбросить колоду к стандартной
               </button>
             </div>
@@ -139,6 +160,7 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
         </Fold>
       </section>
       {dialog}
+      {bar}
     </div>
   );
 }

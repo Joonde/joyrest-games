@@ -20,7 +20,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
-import { dropDraft, readDraft, useAutosave, type SaveStatus } from "../../components/useAutosave";
+import { draftRestoreMode, dropDraft, readDraft, useAutosave, type Draft, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, supportedPlayMode, validateGame } from "../../mechanics/registry";
 import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
@@ -38,19 +38,51 @@ const PLAY_MODES: Array<{ id: PlayMode; title: string; hint: string }> = [
 const SAVE_TEXT: Record<SaveStatus, string> = {
   saved: "Все изменения сохранены автоматически",
   saving: "Сохраняется…",
+  slow: "Сохраняется дольше обычного — сервер отвечает медленно",
   offline: "Нет связи — правки сохранятся, когда появится интернет",
   error: "Не удалось сохранить — пробуем ещё раз",
   conflict: "Игру изменил другой человек — ваши правки ждут решения",
+  denied: "Сервер не принимает правки — они остались на этом телефоне",
 };
 
 /** Короткий статус, когда плашка прилипла к верху экрана: не закрывает кнопки и текст под ней. */
 const SAVE_SHORT: Record<SaveStatus, string> = {
   saved: "✓ Сохранено",
   saving: "Сохраняется…",
+  slow: "Сохраняется…",
   offline: "Нет связи",
   error: "Пробуем ещё раз",
   conflict: "Нужно решение",
+  denied: "Не сохраняется",
 };
+
+/** Почему сервер отказал насовсем — понятным языком. */
+function deniedText(code: string | null): string {
+  if (code === "not-found" || code === "permission-denied") return "Игру удалили или у вас больше нет доступа — правки остались на этом телефоне.";
+  if (code === "unauthenticated") return "Вы вышли из аккаунта — войдите снова и откройте игру: правки остались на этом телефоне.";
+  if (code === "resource-exhausted") return "На сервере закончилось место для ваших игр — правки остались на этом телефоне. Освободите место и нажмите «Попробовать ещё раз».";
+  return "Сервер не принимает эти правки — они остались на этом телефоне. Обновите страницу или напишите владельцу.";
+}
+
+/** Выход без сохранения при отказе сервера: правки не уйдут сами — честно говорим, где они остались. */
+function deniedLeaveText(code: string | null): string {
+  if (code === "unauthenticated") return "Правки не сохранены: вы вышли из аккаунта. Они остались только на этом телефоне — войдите снова и откройте игру.";
+  if (code === "resource-exhausted") return "Правки не сохранены: на сервере закончилось место. Они остались только на этом телефоне.";
+  if (code === "not-found" || code === "permission-denied") return "Правки не сохранены: игру удалили или у вас нет доступа. Они остались только на этом телефоне.";
+  return "Правки не сохранены: сервер их не принял. Они остались только на этом телефоне.";
+}
+
+/** Время черновика для человека: «22 октября, 14:05». */
+function draftTime(at: number): string {
+  try {
+    return new Date(at).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "прошлого раза";
+  }
+}
+
+/** Что мешает уйти из игры: правки ещё не на сервере. */
+type LeaveIssue = "error" | "offline" | "slow" | "conflict" | "denied";
 
 /** Плашка статуса прилипла к верху (страницу прокрутили ниже неё). */
 function useStuck() {
@@ -68,6 +100,20 @@ function useStuck() {
 
 /** Кто-то правил игру за последние 10 минут — предупредить, что можно столкнуться правками. */
 const RECENT_EDIT_MS = 10 * 60_000;
+
+/**
+ * Где конструкторы помечают ошибки: общий класс `edit-issue` и прежние метки. Сообщения окна «вставить списком»
+ * («Не разобрали строки…») помечены `import-note` — это не ошибки игры, туда «Показать, что исправить» не ведёт.
+ */
+const ISSUE_SELECTOR = ".edit-issue, .q-card__issue, .has-error, [aria-invalid='true'], .field .error:not(.import-note), p.error:not(.import-note)";
+
+/** Первое место с ошибкой игры (не сообщение окна импорта). */
+function findIssue(): HTMLElement | null {
+  return Array.from(document.querySelectorAll<HTMLElement>(ISSUE_SELECTOR)).find((el) => !el.closest(".import-note, .import-list")) ?? null;
+}
+
+/** Подсказка в окнах выхода, когда ведущий нажал «▶ Запустить игру» или «Репетиция», а правки ещё не дошли. */
+const LAUNCH_OLD = "Запустится версия, которая уже есть на сервере, — без правок, которые ещё не дошли. Чтобы запустить с ними, дождитесь сохранения.";
 
 export function GameEditor() {
   const { gameId = "" } = useParams();
@@ -102,13 +148,22 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const mechanic = getMechanic(initial.mechanic);
   // Содержимое сразу приводим к формату механики: дальше с ним работает только она.
   // Правки, которые в прошлый раз не дошли до сервера (вкладку закрыли без связи), возвращаются и уходят снова —
-  // если игра на сервере с тех пор не менялась (иначе свежее — на сервере).
-  const [draft] = useState(() => {
-    const d = readDraft<GamePatch>(`game.${initial.id}`);
-    if (d && (initial.updatedAt === null || d.at > initial.updatedAt)) return d.patch;
-    if (d) dropDraft(`game.${initial.id}`);
-    return null;
+  // молча, только если игра на сервере с тех пор не менялась: черновик помнит версию сервера, с которой начат
+  // (`base`), часам телефона не верим. Игру меняли (или черновик старый, без версии) — спрашиваем, чью версию оставить.
+  const draftKey = `game.${initial.id}`;
+  const [draftChoice] = useState<{ restore: GamePatch | null; ask: Draft<GamePatch> | null }>(() => {
+    const d = readDraft<GamePatch>(draftKey);
+    if (!d) return { restore: null, ask: null };
+    if (!permissions.canEditGame(profile, initial)) {
+      dropDraft(draftKey);
+      return { restore: null, ask: null };
+    }
+    // Молча — только если версия на сервере та же, поверх которой лежат правки (после своих сохранений черновик помнит
+    // новую версию). Иначе спрашиваем — даже если последним правил сам человек: с другого устройства он мог сделать новее.
+    return draftRestoreMode(d, initial.updatedAt) === "restore" ? { restore: d.patch, ask: null } : { restore: null, ask: d };
   });
+  const draft = draftChoice.restore;
+  const [draftAsk, setDraftAsk] = useState<Draft<GamePatch> | null>(draftChoice.ask);
   const [game, setGame] = useState<Game>(() => {
     const merged = { ...initial, ...(draft ?? {}) };
     return { ...merged, content: mechanic ? mechanic.parse(merged.content) : merged.content };
@@ -120,7 +175,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   // Роли без профессии ведущего (создатель игр, тестировщик) игры не проводят — только репетиция.
   const launchable = permissions.canLaunchGame(profile, game);
   const copyable = permissions.canCopyToPersonal(profile, game);
-  const { status, change, flush, resume } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch), `game.${initial.id}`);
+  const { status, deniedCode, pendingChanges, change, flush, resume } = useAutosave<GamePatch>((patch) => gamesRepo.update(game.id, patch), draftKey, initial.updatedAt);
   // Совместная работа (владелец и заместитель в библиотеке): кто правил игру недавно и кто изменил её, пока правили вы.
   const [openedAt] = useState(() => Date.now());
   const recentEditor =
@@ -147,9 +202,10 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
   const original = useRef<GamePatch>({ title: initial.title, content: mechanic ? mechanic.parse(initial.content) : initial.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
   const edited = useRef(false);
-  const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [leaveError, setLeaveError] = useState(false);
+  /** Что мешает уйти и что делать после решения: выйти или закончить «Готово — назвать игру». */
+  const [leaveIssue, setLeaveIssue] = useState<LeaveIssue | null>(null);
+  const afterIssue = useRef<"leave" | "save">("leave");
   /** «Готово — назвать игру»: своё название (сама игра уже сохранена автоматически). */
   const [saveStep, setSaveStep] = useState<"name" | null>(null);
   const [saveName, setSaveName] = useState("");
@@ -162,7 +218,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   async function settled(): Promise<void> {
     const end = Date.now() + 6000;
     await new Promise((r) => setTimeout(r, 50));
-    while (statusRef.current !== "saved" && statusRef.current !== "error" && statusRef.current !== "conflict" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
+    while (statusRef.current !== "saved" && statusRef.current !== "error" && statusRef.current !== "conflict" && statusRef.current !== "denied" && Date.now() < end) await new Promise((r) => setTimeout(r, 150));
   }
   const back = game.scope === "agency" ? "/studio?tab=agency" : "/studio";
   const titleValid = isValidGameTitle(cleanGameTitle(titleInput));
@@ -181,8 +237,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
    */
   function goBack(to: string = back) {
     leaveTo.current = to;
-    if (!editable || !edited.current) return navigate(to);
-    setLeaving(true);
+    // После «↶ Отменить правки» пометка «правок нет», а запись ещё в пути — ждём и её.
+    if (!editable || (!edited.current && !pendingChanges())) return navigate(to);
     setRestoring(true);
     flush(true);
     leaveWhenSettled();
@@ -190,20 +246,86 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   /** «Отменить правки»: вернуть игру к виду на момент открытия (с подтверждением). */
   const [undoAsk, setUndoAsk] = useState(false);
   const leaveTo = useRef(back);
+  /** Уходим на запуск или репетицию: «Выйти всё равно» запустит версию с сервера — без недошедших правок. */
+  const launching = afterIssue.current === "leave" && /^\/studio\/(launch|rehearsal)\//.test(leaveTo.current);
 
-  /** Уйти, когда правки дошли (или лежат в очереди без связи); сервер отказал — остаться и сказать. */
+  /** Что мешает уйти сейчас (null — всё на сервере). */
+  function issueNow(): LeaveIssue | null {
+    const st = statusRef.current;
+    if (st === "conflict" || st === "denied" || st === "error" || st === "offline") return st;
+    // Связь есть, сервер отвечает, но запись ещё идёт — «сохраняется дольше обычного», а не «нет связи».
+    if (st !== "saved" || pendingChanges()) return typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "slow";
+    return null;
+  }
+
+  /** Уйти, когда правки дошли; не дошли за 6 с — не делать вид, что сохранено, а сказать почему и спросить. */
   function leaveWhenSettled() {
-    setLeaveError(false);
+    afterIssue.current = "leave";
+    setLeaveIssue(null);
     void settled().then(() => {
-      if (statusRef.current === "error" || statusRef.current === "conflict") {
-        setRestoring(false);
-        setLeaveError(true);
+      const issue = issueNow();
+      setRestoring(false);
+      if (issue) {
+        setLeaveIssue(issue);
         return;
       }
-      setLeaving(false);
-      setRestoring(false);
       navigate(leaveTo.current, edited.current ? { state: { toast: "Изменения сохранены" } } : undefined);
     });
+  }
+
+  /** «Выйти всё равно» без связи: правки лежат в черновике на этом телефоне. */
+  function leaveAnyway() {
+    setLeaveIssue(null);
+    // Сервер отказал насовсем — сами правки не уйдут: не обещаем «когда появится интернет».
+    if (statusRef.current === "denied") {
+      navigate(afterIssue.current === "save" ? (game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine") : leaveTo.current, {
+        state: { toast: deniedLeaveText(deniedCode) },
+      });
+      return;
+    }
+    // Запись ещё идёт (связь есть) — она может успеть; не успеет — правки на этом телефоне.
+    if (statusRef.current === "slow" || statusRef.current === "saving") {
+      navigate(afterIssue.current === "save" ? (game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine") : leaveTo.current, {
+        state: { toast: "Правки ещё сохранялись. Если не успели — они остались на этом телефоне и уйдут, когда вы снова откроете игру" },
+      });
+      return;
+    }
+    if (afterIssue.current === "save") {
+      const where = game.scope === "agency" ? "библиотеке" : "ваших играх";
+      navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", {
+        state: { toast: `Игра «${cleanGameTitle(saveName) || game.title}» сохранится в ${where}, когда появится интернет и вы снова её откроете` },
+      });
+      return;
+    }
+    navigate(leaveTo.current, edited.current ? { state: { toast: "Правки остались на этом телефоне и уйдут, когда появится интернет и вы снова откроете игру" } } : undefined);
+  }
+
+  /** «Сохранить мою версию поверх» из окна выхода: снять остановку и дождаться записи. */
+  function overwriteAndContinue() {
+    gamesRepo.overwriteNext?.(initial.id);
+    resume();
+    setLeaveIssue(null);
+    setRestoring(true);
+    if (afterIssue.current === "save") void finishSave();
+    else leaveWhenSettled();
+  }
+
+  /** «Подождать»: запись идёт дольше обычного — ждём ещё и уходим, когда дойдёт. */
+  function waitMore() {
+    setLeaveIssue(null);
+    setRestoring(true);
+    if (afterIssue.current === "save") void finishSave();
+    else leaveWhenSettled();
+  }
+
+  /** «Попробовать ещё раз»: при отказе насовсем — снять остановку и повторить. */
+  function retryAndContinue() {
+    if (statusRef.current === "denied") resume();
+    else flush(true);
+    setLeaveIssue(null);
+    setRestoring(true);
+    if (afterIssue.current === "save") void finishSave();
+    else leaveWhenSettled();
   }
 
   function onTitle(value: string) {
@@ -242,36 +364,75 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
     setTitleInput(clean);
     edit({ title: clean });
     flush(true);
+    await finishSave(clean);
+  }
+
+  /**
+   * Дождаться, пока название и правки дошли до сервера, и уйти к своим играм. Конфликт с чужой правкой, отказ сервера
+   * или нет связи — не уходить молча (правки потом потерялись бы или легли поверх чужих), а спросить.
+   */
+  async function finishSave(title: string = cleanGameTitle(saveName) || game.title) {
+    afterIssue.current = "save";
     await settled();
-    if (statusRef.current === "error") {
-      setSaving(false);
-      setSaveError("Сервер не принял изменения. Проверьте интернет и нажмите ещё раз.");
+    const issue = issueNow();
+    setSaving(false);
+    setRestoring(false);
+    if (issue) {
+      setSaveStep(null);
+      setLeaveIssue(issue);
       return;
     }
     edited.current = false;
-    setSaving(false);
     setSaveStep(null);
-    // Нет связи: правка ждёт в очереди устройства и уйдёт сама — честно об этом и говорим.
     const where = game.scope === "agency" ? "библиотеке" : "ваших играх";
-    const toast = statusRef.current === "saved" ? `Игра «${clean}» сохранена в ${where}` : `Игра «${clean}» сохранится в ${where}, когда появится связь`;
-    navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", { state: { toast } });
+    navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", { state: { toast: `Игра «${title}» сохранена в ${where}` } });
   }
 
   const launchBlocked = errors.length > 0;
   const [previewOpen, setPreviewOpen] = useState(false);
   const canPreview = Boolean(mechanic?.preview) && !launchBlocked;
 
-  /** «Показать, что исправить»: к первому замечанию; закрытая карточка с замечанием открывается. */
+  /** Замечания текстом, если на странице не нашлось, куда вести (чтобы не было тупика). */
+  const [issuesList, setIssuesList] = useState(false);
+
+  /**
+   * «Показать, что исправить»: конструкторы помечают ошибочные места классом `edit-issue` (и старыми `.q-card__issue`,
+   * `.has-error`, `aria-invalid`). Сначала просим их раскрыть свёрнутое (`joyrest:reveal-issues`), через два кадра ищем,
+   * раскрываем родительские `<details>` и свёрнутые блоки, прокручиваем и ставим фокус. Не нашли — список замечаний текстом.
+   */
   function toFirstIssue() {
-    const el = document.querySelector<HTMLElement>(".q-card__issue, .has-error, [aria-invalid='true'], .field .error");
-    if (!el) return;
-    const summary = el.closest<HTMLButtonElement>("button[aria-expanded='false']");
-    if (summary) summary.click();
-    requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>("[aria-invalid='true'], .field .error, .q-card__issue, .has-error") ?? el;
-      target.scrollIntoView({ block: "center" });
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.focus({ preventScroll: true });
-    });
+    window.dispatchEvent(new CustomEvent("joyrest:reveal-issues"));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = findIssue();
+        if (!el) {
+          setIssuesList(true);
+          return;
+        }
+        setIssuesList(false);
+        for (let d = el.closest<HTMLDetailsElement>("details"); d; d = d.parentElement?.closest<HTMLDetailsElement>("details") ?? null) d.open = true;
+        // Свёрнутые карточки и блоки: замечание в самой кнопке-заголовке или кнопка-заголовок рядом с содержимым
+        // (aria-expanded="false", класс `…__head`); меню «⋯» и прочие кнопки не трогаем.
+        el.closest<HTMLButtonElement>("button[aria-expanded='false']")?.click();
+        let node: HTMLElement | null = el;
+        while (node && node !== document.body) {
+          const parent: HTMLElement | null = node.parentElement;
+          const toggle = parent
+            ? Array.from(parent.children).find(
+                (c): c is HTMLButtonElement => c instanceof HTMLButtonElement && c !== node && c.getAttribute("aria-expanded") === "false" && /__head\b|fold/.test(c.className),
+              )
+            : undefined;
+          if (toggle && !toggle.contains(el)) toggle.click();
+          node = parent;
+        }
+        requestAnimationFrame(() => {
+          const target = findIssue() ?? el;
+          const field = target.matches("input, textarea, select") ? target : target.querySelector<HTMLElement>("[aria-invalid='true'], input, textarea, select, button");
+          target.scrollIntoView({ block: "center" });
+          (field ?? target).focus({ preventScroll: true });
+        });
+      }),
+    );
   }
   const MechanicEditor = mechanic?.Editor;
 
@@ -322,6 +483,16 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </button>
             </div>
           )}
+          {status === "denied" && (
+            <div className="card stack stack--tight clients-conflict" role="alert">
+              <p>
+                <b>{deniedText(deniedCode)}</b>
+              </p>
+              <button type="button" className="btn btn--secondary btn--block" onClick={() => resume()}>
+                Попробовать ещё раз
+              </button>
+            </div>
+          )}
           {edited.current && (
             <button type="button" className="btn btn--quiet back-link" onClick={() => setUndoAsk(true)}>
               ↶ Отменить правки — вернуть, как было при открытии
@@ -364,6 +535,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
                 Показать, что исправить
               </button>
             )}
+            {issuesList && <IssueList errors={errors} />}
           </div>
         )}
         <div className="actions">
@@ -374,12 +546,27 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </button>
             ) : (
               <>
+                {/* Запуск и репетиция — после того, как правки дошли до сервера (иначе запустится старая версия игры). */}
                 {launchable && (
-                  <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+                  <Link
+                    className="btn btn--block"
+                    to={`/studio/launch/${game.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      goBack(`/studio/launch/${game.id}`);
+                    }}
+                  >
                     ▶ Запустить игру
                   </Link>
                 )}
-                <Link className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"} to={`/studio/rehearsal/${game.id}`}>
+                <Link
+                  className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"}
+                  to={`/studio/rehearsal/${game.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    goBack(`/studio/rehearsal/${game.id}`);
+                  }}
+                >
                   Репетиция без гостей
                 </Link>
               </>
@@ -432,6 +619,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               Показать, что исправить
             </button>
           )}
+          {issuesList && <IssueList errors={errors} />}
         </section>
       )}
       {/* Инструкция нужна и там, где предпросмотра нет (квиз с ошибками, «Мафия», вечер из блоков…). */}
@@ -568,7 +756,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         onConfirm={() => void saveGame()}
         onCancel={() => setSaveStep(null)}
       >
-        <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти в своих играх (например, «Квиз на свадьбу Ани и Димы»).</p>
+        <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти {game.scope === "agency" ? "в библиотеке JoyRest" : "в своих играх"} (например, «Квиз на свадьбу Ани и Димы»).</p>
         {/* «Готово» на клавиатуре телефона сохраняет. */}
         <form
           onSubmit={(e) => {
@@ -588,23 +776,109 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         )}
       </ConfirmDialog>
       <ConfirmDialog
-        open={leaving && leaveError}
+        open={leaveIssue === "error"}
         title="Изменения не сохранились"
         confirmLabel="Попробовать ещё раз"
         cancelLabel="Остаться в игре"
         busy={restoring}
-        onConfirm={() => {
-          setRestoring(true);
-          flush(true);
-          leaveWhenSettled();
-        }}
-        onCancel={() => {
-          setLeaving(false);
-          setLeaveError(false);
-        }}
+        onConfirm={retryAndContinue}
+        onCancel={() => setLeaveIssue(null)}
       >
         <p className="error" role="alert">
           Сервер не принял изменения. Проверьте интернет и нажмите ещё раз — правки не потеряются, пока вы в игре.
+        </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={leaveIssue === "offline"}
+        title="Нет связи"
+        confirmLabel={launching ? "Запустить версию с сервера" : "Выйти всё равно"}
+        cancelLabel="Остаться"
+        onConfirm={leaveAnyway}
+        onCancel={() => setLeaveIssue(null)}
+      >
+        <p role="alert">Нет связи — правки сохранятся на этом телефоне и уйдут, когда появится интернет и вы снова откроете эту игру.</p>
+        {launching && <p>{LAUNCH_OLD}</p>}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={leaveIssue === "slow"}
+        title="Правки ещё сохраняются"
+        confirmLabel="Подождать"
+        cancelLabel={launching ? "Запустить версию с сервера" : "Выйти всё равно"}
+        busy={restoring}
+        onConfirm={waitMore}
+        onCancel={leaveAnyway}
+      >
+        <p role="status">
+          Связь есть, но сервер отвечает дольше обычного. Подождите несколько секунд — выйдем, как только правки сохранятся. Выйдете сейчас —
+          недошедшие правки останутся на этом телефоне.
+        </p>
+        {launching && <p>{LAUNCH_OLD}</p>}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={leaveIssue === "conflict"}
+        title="Игру изменил другой человек"
+        confirmLabel="Сохранить мою версию поверх"
+        cancelLabel="Остаться в игре"
+        busy={restoring}
+        onConfirm={overwriteAndContinue}
+        onCancel={() => setLeaveIssue(null)}
+      >
+        <p>
+          Пока вы правили, эту игру изменил(а) {conflictBy ?? "другой человек"}. Ваши правки не потерялись — они на этом устройстве. Выберите, чью
+          версию оставить.
+        </p>
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          onClick={() => {
+            dropDraft(draftKey);
+            window.location.reload();
+          }}
+        >
+          Открыть свежую версию (мои правки убрать)
+        </button>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={leaveIssue === "denied"}
+        title="Правки не сохраняются"
+        confirmLabel="Попробовать ещё раз"
+        cancelLabel={launching ? "Запустить версию с сервера" : "Выйти"}
+        busy={restoring}
+        onConfirm={retryAndContinue}
+        onCancel={leaveAnyway}
+      >
+        <p className="error" role="alert">
+          {deniedText(deniedCode)}
+        </p>
+        {launching && <p>{LAUNCH_OLD}</p>}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={draftAsk !== null}
+        title="Есть несохранённые правки"
+        confirmLabel="Вернуть мои правки поверх"
+        cancelLabel="Оставить версию с сервера"
+        onConfirm={() => {
+          const d = draftAsk;
+          setDraftAsk(null);
+          if (!d) return;
+          gamesRepo.overwriteNext?.(initial.id);
+          const patch = d.patch;
+          setGame((g) => ({ ...g, ...patch, content: mechanic && patch.content !== undefined ? mechanic.parse(patch.content) : (patch.content ?? g.content) }));
+          if (typeof patch.title === "string") setTitleInput(patch.title);
+          edited.current = true;
+          change(patch);
+          showToast("Вернули ваши правки — они сохраняются поверх");
+        }}
+        onCancel={() => {
+          setDraftAsk(null);
+          dropDraft(draftKey);
+          showToast("Оставили версию с сервера");
+        }}
+      >
+        <p>
+          На этом устройстве есть несохранённые правки от {draftAsk ? draftTime(draftAsk.at) : "прошлого раза"}.{" "}
+          {draftAsk?.base === undefined ? "Не знаем, меняли ли игру с тех пор." : "Игру с тех пор изменили."} Вернуть ваши правки поверх или
+          оставить версию с сервера?
         </p>
       </ConfirmDialog>
       <ConfirmDialog
@@ -629,5 +903,21 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       </ConfirmDialog>
       <Toast text={toast} />
     </main>
+  );
+}
+
+/** Замечания проверки списком — когда на странице не нашлось, куда прокрутить. */
+function IssueList({ errors }: { errors: Array<{ path: string; message: string }> }) {
+  const messages = [...new Set(errors.map((e) => e.message))];
+  return (
+    <div className="stack stack--tight" role="alert">
+      <p className="small">Что исправить:</p>
+      <ul className="small">
+        {messages.slice(0, 20).map((m) => (
+          <li key={m}>{m}</li>
+        ))}
+      </ul>
+      {messages.length > 20 && <p className="muted small">И ещё {messages.length - 20}.</p>}
+    </div>
   );
 }

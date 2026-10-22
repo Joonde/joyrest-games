@@ -74,6 +74,14 @@ function FileVideo({ tile, video }: Props) {
   const [missing, setMissing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Адрес файла, выбранного здесь же (blob:), освобождается при замене и при уходе с экрана — иначе
+  // каждое «Выбрать видео» держит в памяти весь файл до перезагрузки (QA 22 октября 2026).
+  useEffect(() => {
+    if (!url?.startsWith("blob:")) return;
+    const own = url;
+    return () => URL.revokeObjectURL(own);
+  }, [url]);
+
   useEffect(() => {
     let made: string | null = null;
     let cancelled = false;

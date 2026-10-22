@@ -24,7 +24,9 @@ export const dragonPreview: PreviewDriver<DragonContent> = ({ session, content, 
       const task = taskOf(content, r);
       const alive = teams.filter((p) => !r.dead.includes(p));
       if (task?.kind === "choice" && answers.length === 0) {
-        return { label: "Капитаны ответили", answers: alive.map((pid, i) => ({ pid, value: { choice: i % 3 === 1 ? (task.correct + 1) % 4 : task.correct } })) };
+        // Верный не отмечен (игра ещё с ошибкой проверки) — предпросмотр всё равно идёт: считаем верным A.
+        const right = task.correct >= 0 && task.correct <= 3 ? task.correct : 0;
+        return { label: "Капитаны ответили", answers: alive.map((pid, i) => ({ pid, value: { choice: i % 3 === 1 ? (right + 1) % 4 : right } })) };
       }
       if (task?.kind === "dice" && answers.length === 0) return { label: "Капитаны бросили кубик", answers: alive.map((pid) => ({ pid, value: { roll: true } })) };
       if (task?.kind === "task") {

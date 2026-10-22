@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { cleanLinks, clientsCsv, durationLabel, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, responseStats, timerOf, timerSortKey, waitingOf, originOf, originStats } from "./clients";
+import {
+  appendMyNote,
+  cleanLinks,
+  clientsCsv,
+  durationLabel,
+  forcedStatusAndMarketing,
+  linkTitle,
+  parseLinks,
+  phoneKey,
+  phoneKeyVariants,
+  phoneLabel,
+  phoneIssue,
+  phoneIssueText,
+  telHref,
+  whatsappHref,
+  telegramPhoneHref,
+  reachable,
+  clientErrorText,
+  responseStats,
+  statusAfterEvent,
+  timerOf,
+  timerSortKey,
+  waitingOf,
+  originOf,
+  originStats,
+} from "./clients";
 
 describe("база клиентов: телефон — ключ", () => {
   it("8…, +7…, 9… и с разделителями — один и тот же человек", () => {
@@ -9,6 +34,106 @@ describe("база клиентов: телефон — ключ", () => {
     expect(phoneKey("12345")).toBe("");
     expect(phoneKey("+375 29 123 45 67")).toBe("375291234567");
     expect(phoneLabel("89152415999")).toBe("+7 915 241-59-99");
+  });
+
+  it("городской без семёрки (495, 499, 3xx) — тот же номер, что с +7", () => {
+    expect(phoneKey("495 123-45-67")).toBe("74951234567");
+    expect(phoneKey("(499) 123 45 67")).toBe("74991234567");
+    expect(phoneKey("+7 (495) 123-45-67")).toBe("74951234567");
+    expect(phoneKey("8 495 123 45 67")).toBe("74951234567");
+    expect(phoneKey("8 812 123 45 67")).toBe("78121234567");
+    expect(phoneKey("343 123 45 67")).toBe("73431234567");
+    expect(phoneLabel("4951234567")).toBe("+7 495 123-45-67");
+    // Не российский код из 10 цифр — как есть.
+    expect(phoneKey("1234567890")).toBe("1234567890");
+    expect(phoneKey("5551234567")).toBe("5551234567");
+  });
+
+  it("10 цифр с «7» или «8» (кроме 800–809) — российский номер без последней цифры, ключа нет", () => {
+    expect(phoneKey("8 915 123 45 6")).toBe("");
+    expect(phoneKey("+7 915 123 45 6")).toBe("");
+    expect(phoneKey("7495123456")).toBe("");
+    expect(phoneKey("8 495 123 45 6")).toBe("");
+    expect(phoneKey("8121234567")).toBe("");
+    expect(phoneKey("8811234567")).toBe("");
+    expect(phoneIssue("8 495 123 45 6")).toBe("short");
+    // 800–809 — бесплатные и федеральные номера без семёрки; 3xx, 4xx, 9xx — тоже коды.
+    expect(phoneKey("8001234567")).toBe("78001234567");
+    expect(phoneKey("8091234567")).toBe("78091234567");
+    expect(phoneKey("9152415999")).toBe("79152415999");
+    // Полный номер с 8 и +7 — как раньше.
+    expect(phoneKey("8 915 123 45 67")).toBe("79151234567");
+    expect(phoneKey("+7 915 123 45 67")).toBe("79151234567");
+  });
+
+  it("12 цифр с «7» или «8» — лишняя цифра, не иностранный номер", () => {
+    expect(phoneKey("8-916-123-45-678")).toBe("");
+    expect(phoneKey("+7 916 123 45 678")).toBe("");
+    expect(phoneIssue("8-916-123-45-678")).toBe("long");
+    expect(phoneIssueText("+7 916 123 45 678")).toMatch(/лишняя цифра/);
+    expect(phoneIssueText("8 915 123 45 6")).toMatch(/неполный/);
+    expect(phoneIssueText("8 915 123 45 67")).toBe("");
+    expect(phoneIssueText("")).toBe("");
+    // Иностранные 12 цифр — как раньше.
+    expect(phoneKey("+375 29 123 45 67")).toBe("375291234567");
+  });
+
+  it("ссылки звонка и мессенджеров по номеру", () => {
+    expect(telHref("495 123-45-67")).toBe("tel:+74951234567");
+    expect(telHref("8 (915) 241-59-99")).toBe("tel:+79152415999");
+    expect(telHref("+375 29 123 45 67")).toBe("tel:+375291234567");
+    // Неполный — как ввели (цифры и «+»), пусто — некуда.
+    expect(telHref("8 915 123 45 6")).toBe("tel:8915123456");
+    expect(telHref("+7 915 123 45 6")).toBe("tel:+7915123456");
+    expect(telHref("нет")).toBe("");
+    expect(whatsappHref("495 123-45-67")).toBe("https://wa.me/74951234567");
+    expect(whatsappHref("89152415999", "Привет & спасибо")).toBe(`https://wa.me/79152415999?text=${encodeURIComponent("Привет & спасибо")}`);
+    expect(whatsappHref("8 915 123 45 6")).toBe("");
+    expect(telegramPhoneHref("+7 915 241-59-99")).toBe("https://t.me/+79152415999");
+    expect(telegramPhoneHref("+7 915 241-59-99", "Да")).toBe("https://t.me/+79152415999?text=%D0%94%D0%B0");
+    expect(telegramPhoneHref("12")).toBe("");
+  });
+
+  it("варианты ключа: городской мог лежать в базе без семёрки, мобильный — нет", () => {
+    expect(phoneKeyVariants("74951234567")).toEqual(["74951234567", "4951234567"]);
+    expect(phoneKeyVariants("78121234567")).toEqual(["78121234567", "8121234567"]);
+    expect(phoneKeyVariants("79152415999")).toEqual(["79152415999"]);
+    expect(phoneKeyVariants("375291234567")).toEqual(["375291234567"]);
+    expect(phoneKeyVariants("")).toEqual([]);
+  });
+});
+
+describe("база клиентов: споры за заметку и статус", () => {
+  it("«Добавить мой текст в конец» — только дописанное, без повтора общего текста", () => {
+    expect(appendMyNote("квиз\nперезвонить в 18:00", "квиз\n30 гостей", "квиз")).toBe("квиз\nперезвонить в 18:00\n30 гостей");
+    // Ничего своего не дописал — их версия как есть.
+    expect(appendMyNote("квиз\nперезвонить", "квиз", "квиз")).toBe("квиз\nперезвонить");
+    // Правил строку внутри — новая строка добавляется, общие строки — нет.
+    expect(appendMyNote("квиз\nперезвонить", "квиз, 30 гостей", "квиз")).toBe("квиз\nперезвонить\nквиз, 30 гостей");
+    // Тот же текст уже есть у них — не дублируем (регистр и пробелы не важны).
+    expect(appendMyNote("квиз\nПерезвонить  в 18:00", "квиз\nперезвонить в 18:00", "квиз")).toBe("квиз\nПерезвонить  в 18:00");
+    // Пустая основа и пустая их версия.
+    expect(appendMyNote("", "новая заметка", "")).toBe("новая заметка");
+    expect(appendMyNote("их текст", "мой текст", "")).toBe("их текст\nмой текст");
+  });
+
+  it("«Сохранить мои правки поверх»: статус и согласие — свои, только если их меняли", () => {
+    const opened = { status: "new", marketing: "unknown" };
+    const fresh = { status: "client", marketing: "yes" };
+    expect(forcedStatusAndMarketing({ status: "new", marketing: "unknown" }, opened, fresh)).toEqual({ status: "client", marketing: "yes" });
+    expect(forcedStatusAndMarketing({ status: "work", marketing: "unknown" }, opened, fresh)).toEqual({ status: "work", marketing: "yes" });
+    expect(forcedStatusAndMarketing({ status: "new", marketing: "no" }, opened, fresh)).toEqual({ status: "client", marketing: "no" });
+  });
+
+  it("мероприятие и статус: новое — «Клиент» (и из «Провели»), правка учтённого — только из «Новый» и «В работе»", () => {
+    expect(statusAfterEvent("new", false)).toBe("client");
+    expect(statusAfterEvent("held", false)).toBe("client");
+    expect(statusAfterEvent("lost", false)).toBe("client");
+    expect(statusAfterEvent("client", false)).toBeNull();
+    expect(statusAfterEvent("held", true)).toBeNull();
+    expect(statusAfterEvent("lost", true)).toBeNull();
+    expect(statusAfterEvent("work", true)).toBe("client");
+    expect(statusAfterEvent("new", true)).toBe("client");
   });
 });
 
@@ -130,5 +255,17 @@ describe("база клиентов: таймер ответа", () => {
       ["Олег", 1, 20 * 60_000],
     ]);
     expect(responseStats([])).toMatchObject({ count: 0, avgMs: 0, medianMs: 0 });
+  });
+});
+
+describe("база клиентов: тексты ошибок действий", () => {
+  it("409 у клиента в архиве — «верните его», а не «изменил другой человек»", () => {
+    expect(clientErrorText({ code: "failed-precondition", reason: "archived" }, "сменить статус")).toBe(
+      "Клиент в архиве — верните его, чтобы сменить статус.",
+    );
+    expect(clientErrorText({ code: "failed-precondition", reason: "" }, "сменить статус")).toMatch(/изменил другой человек/);
+    expect(clientErrorText({ code: "already-exists" }, "сменить статус")).toMatch(/изменил другой человек/);
+    expect(clientErrorText({ code: "not-found" }, "сменить статус")).toMatch(/уже нет/);
+    expect(clientErrorText(new Error("сеть"), "сменить статус")).toMatch(/Проверьте интернет/);
   });
 });

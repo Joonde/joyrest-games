@@ -37,8 +37,10 @@ export const survivalPreview: PreviewDriver<SurvivalContent> = ({ session, conte
         const next = playing.filter((_, i) => i !== 1).find((p) => !r.marks.includes(p));
         if (next) return { label: "Ведущий отмечает, кто выполнил задание", change: toggleMark(session, next) };
       } else if (answers.length === 0) {
-        const right = round.kind === "open" ? (acceptedAnswers(round)[0] ?? "") : round.correct;
-        const wrong = round.kind === "open" ? "не знаю" : (round.correct + 1) % Math.max(2, round.options.filter(Boolean).length);
+        // Верный не отмечен (игра ещё с ошибкой проверки) — предпросмотр всё равно идёт: считаем верным A.
+        const marked = round.correct >= 0 && round.correct <= 3 ? round.correct : 0;
+        const right = round.kind === "open" ? (acceptedAnswers(round)[0] ?? "") : marked;
+        const wrong = round.kind === "open" ? "не знаю" : (marked + 1) % Math.max(2, round.options.filter(Boolean).length);
         return {
           label: "Капитаны ответили",
           answers: playing.map((pid, i) => ({ pid, value: round.kind === "open" ? { text: i === 1 ? wrong : right } : { choice: i === 1 ? wrong : right } })),

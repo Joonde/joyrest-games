@@ -3,6 +3,7 @@
  * Владелец и ведущие, которым он открыл доступ (`permissions.canManageVenues`).
  */
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { telHref } from "../../core/clients";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   findDuplicates,
@@ -212,7 +213,7 @@ const COLUMNS: Column[] = [
   { label: "Банкет от, ₽", group: "main", num: true, value: (v) => n(v.data.perGuest) },
   { label: "Добавлена", group: "main", value: (v) => dateTime(v.createdAt) },
   { label: "Контакт", group: "contacts", value: (v) => t([v.data.person, v.data.role].filter(Boolean).join(", ")) },
-  { label: "Телефон", group: "contacts", value: (v) => (v.data.phone ? <a href={`tel:${v.data.phone.replace(/[^\d+]/g, "")}`} onClick={(e) => e.stopPropagation()}>{v.data.phone}</a> : "—") },
+  { label: "Телефон", group: "contacts", value: (v) => (v.data.phone ? <a href={telHref(v.data.phone) || undefined} onClick={(e) => e.stopPropagation()}>{v.data.phone}</a> : "—") },
   { label: "Мессенджер", group: "contacts", value: (v) => t(v.data.messenger) },
   { label: "Адрес", group: "contacts", value: (v) => t(v.data.address) },
   { label: "Залов", group: "space", num: true, value: (v) => n(v.data.halls) },
@@ -552,7 +553,7 @@ function RequestRow({ request: r }: { request: VenueRequestRecord }) {
       </div>
       <p className="request-card__name">{r.data.name}</p>
       {r.data.phone && (
-        <a className="request-card__phone" href={`tel:${r.data.phone.replace(/[^\d+]/g, "")}`}>
+        <a className="request-card__phone" href={telHref(r.data.phone) || undefined}>
           {r.data.phone}
         </a>
       )}

@@ -44,10 +44,12 @@ interface MapProps {
   editable: boolean;
   onPick: (index: number) => void;
   onSplit: () => void;
+  /** Раунды (номер первого вопроса), где есть что исправить: на карте — «⚠». */
+  issueFrom?: Set<number>;
 }
 
 /** Карта раундов: полосой (раунд — плашка) или сеткой (вопросы квадратиками, раунды — строками с подписью). */
-export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSplit }: MapProps) {
+export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSplit, issueFrom }: MapProps) {
   const [view, setView] = useState<MapView>(readView);
   function choose(next: MapView) {
     setView(next);
@@ -85,16 +87,18 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
             {rounds.map((round, i) => {
               const current = openIndex >= round.from && openIndex <= round.to;
               const crown = questions.slice(round.from, round.to + 1).some((q) => q.kind === "super");
+              const issue = issueFrom?.has(round.from) ?? false;
               return (
                 <button
                   key={round.from}
                   type="button"
-                  className={current ? "round-map__seg is-current" : "round-map__seg"}
+                  className={["round-map__seg", current ? "is-current" : "", issue ? "round-map__seg--issue" : ""].filter(Boolean).join(" ")}
                   style={{ "--rc": roundColor(i), flexGrow: round.to - round.from + 1 } as CSSProperties}
-                  aria-label={`${roundName(round)}: вопросы ${span(round)}`}
+                  aria-label={`${roundName(round)}: вопросы ${span(round)}${issue ? ", есть что исправить" : ""}`}
                   onClick={() => onPick(round.from)}
                 >
                   <span className="round-map__seg-name">
+                    {issue ? "⚠ " : ""}
                     {crown ? "👑 " : ""}
                     {roundName(round)}
                   </span>
@@ -114,8 +118,8 @@ export function RoundMap({ questions, rounds, openIndex, editable, onPick, onSpl
             return (
               <div key={from} className="round-map__group" style={{ "--rc": roundColor(round ? index : 0) } as CSSProperties}>
                 {round && (
-                  <span className="round-map__label">
-                    ◆ {roundName(round)} <em>· {count} {plural(count)}{crown ? " · 👑 суперигра" : ""}</em>
+                  <span className={issueFrom?.has(round.from) ? "round-map__label round-map__label--issue" : "round-map__label"}>
+                    {issueFrom?.has(round.from) ? "⚠" : "◆"} {roundName(round)} <em>· {count} {plural(count)}{crown ? " · 👑 суперигра" : ""}</em>
                   </span>
                 )}
                 <div className="round-map__cells">
@@ -155,10 +159,12 @@ interface HeaderProps {
   onFold: () => void;
   onRename: (title: string) => void;
   onRemove: () => void;
+  /** Сколько замечаний в вопросах раунда: «⚠ Исправить: N» видно и у свёрнутого раунда. */
+  issues?: number;
 }
 
 /** Блок раунда в списке вопросов: все вопросы ниже — в этом раунде, пока не начнётся следующий блок. */
-export function RoundHeader({ round, index, auto, folded, editable, onFold, onRename, onRemove }: HeaderProps) {
+export function RoundHeader({ round, index, auto, folded, editable, onFold, onRename, onRemove, issues = 0 }: HeaderProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const input = useRef<HTMLInputElement>(null);
@@ -179,7 +185,11 @@ export function RoundHeader({ round, index, auto, folded, editable, onFold, onRe
   }
 
   return (
-    <li className={`q-round${auto ? " q-round--auto" : ""}${folded ? " is-folded" : ""}`} style={{ "--rc": roundColor(index) } as CSSProperties}>
+    // Свёрнутый раунд с замечаниями помечен `edit-issue`: «Показать, что исправить» найдёт его, даже если вопросы скрыты.
+    <li
+      className={`q-round${auto ? " q-round--auto" : ""}${folded ? " is-folded" : ""}${issues > 0 ? " q-round--issue" : ""}${issues > 0 && folded ? " edit-issue" : ""}`}
+      style={{ "--rc": roundColor(index) } as CSSProperties}
+    >
       <span className="q-round__mark" aria-hidden="true">
         ◆
       </span>
@@ -206,8 +216,8 @@ export function RoundHeader({ round, index, auto, folded, editable, onFold, onRe
           <button type="submit" className="q-round__btn" aria-label="Сохранить название">
             ✓
           </button>
-          <button type="button" className="q-round__btn" aria-label="Отменить" onClick={() => setEditing(false)}>
-            ✕
+          <button type="button" className="q-round__btn q-round__btn--text" aria-label="Отменить переименование" onClick={() => setEditing(false)}>
+            Отмена
           </button>
         </form>
       ) : (
@@ -218,6 +228,7 @@ export function RoundHeader({ round, index, auto, folded, editable, onFold, onRe
               {count} {plural(count)} · {span(round)}
               {auto ? " · назовите раунд" : ""}
             </span>
+            {issues > 0 && <span className="q-round__issue">⚠ Исправить: {issues}</span>}
           </button>
           {editable && (
             <button type="button" className="q-round__btn" aria-label={auto ? "Назвать раунд" : `Переименовать раунд «${name}»`} onClick={start}>

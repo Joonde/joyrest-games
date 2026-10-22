@@ -28,7 +28,7 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
   return (
     <Sheet
       open={open}
-      title="Вставить списком"
+      title="Добавить списком — в конец игры"
       onClose={onClose}
       footer={
         <>
@@ -49,7 +49,17 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
             Варианты — с новой строки через <kbd>-</kbd>, правильный помечен <kbd>*</kbd>.
           </li>
           <li>
-            Открытый ответ — строка <kbd>= ответ1 | ответ2</kbd>.
+            Варианты можно писать и так: <kbd>а) Москва</kbd>, <kbd>1. Москва</kbd>.
+          </li>
+          <li>
+            Открытый ответ — строка <kbd>= ответ1 | ответ2</kbd>; варианты ответа — через <kbd>|</kbd> или <kbd> / </kbd> с
+            пробелами (слитное «AC/DC», «300 км/ч» — один ответ).
+          </li>
+          <li>
+            «Расставь по порядку» — карточки через <kbd>&gt;</kbd> в верном порядке, «Угадай число» — <kbd>~ 1665 ступеней</kbd>.
+          </li>
+          <li>
+            Новый раунд — строка <kbd># Раунд: Кино</kbd>.
           </li>
           <li>Тип «на скорость», картинку, время и очки можно поменять после добавления.</li>
         </ul>
@@ -84,7 +94,7 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
             </p>
           )}
           {result.questions.length > room && (
-            <p className="error small">
+            <p className="error small import-note">
               В игре не больше {LIMITS.questions} вопросов: добавятся первые {room}.
             </p>
           )}
@@ -103,7 +113,27 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
                   <span className="muted small"> · {KIND_TITLES[question.kind]}</span>
                 </p>
                 {question.kind === "open" ? (
-                  <p className="small">Верные ответы: {question.answers.join(" / ")}</p>
+                  <p className="small">
+                    {/* Каждый ответ в кавычках через «|»: видно, как разбили («AC/DC» — один ответ). */}
+                    {question.answers.length === 1 ? "Верный ответ" : `Верные ответы (${question.answers.length})`}:{" "}
+                    {question.answers.length > 0 ? question.answers.map((a) => `«${a}»`).join(" | ") : "—"}
+                  </p>
+                ) : question.kind === "number" ? (
+                  <p className="small">
+                    Верное число:{" "}
+                    {question.number === null || question.number === undefined
+                      ? "—"
+                      : `${question.number.toLocaleString("ru-RU")}${question.unit ? ` ${question.unit}` : ""}`}
+                  </p>
+                ) : question.kind === "order" ? (
+                  <>
+                    <p className="small muted">Верный порядок:</p>
+                    <ol className="import-item__options small">
+                      {question.options.map((o, j) => (
+                        <li key={j}>{o || "—"}</li>
+                      ))}
+                    </ol>
+                  </>
                 ) : (
                   <ul className="import-item__options small">
                     {question.options.map((o, j) => (
@@ -115,7 +145,7 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
                   </ul>
                 )}
                 {problems.map((p) => (
-                  <p key={p} className="error small">
+                  <p key={p} className="error small import-note">
                     {p}
                   </p>
                 ))}

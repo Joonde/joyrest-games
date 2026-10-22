@@ -175,6 +175,21 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       return { folders: await folderList() };
     });
 
+    /**
+     * В папке есть чужие видео, а это не владелец агентства? Переименовать или удалить такую папку — значит переложить
+     * чужие видео, а это может только владелец (как «⋯ → В папку» у чужого видео; повторная проверка QA 22 октября 2026).
+     * Строки папки блокируются до конца транзакции: пока проверяем, чужое видео в неё не переложат.
+     */
+    async function foreignInFolder(t: Sql, user: SessionRow, folder: string): Promise<boolean> {
+      if (permissions.isAdmin(actorOf(user))) return false;
+      const rows = await t<{ owner_id: string }[]>`select owner_id from videos where folder = ${folder} for update`;
+      return rows.some((r) => r.owner_id !== user.id);
+    }
+
+    function foreignDenied(reply: FastifyReply) {
+      return reply.code(403).send({ error: "permission-denied", reason: "foreign-videos" });
+    }
+
     api.post<{ Body: unknown }>("/api/video-folders/rename", { bodyLimit: 1024 }, async (request, reply) => {
       const user = await requireUser(request, reply, permissions.canUploadVideo);
       if (!user) return reply;
@@ -182,11 +197,15 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       const from = cleanLine(body.from, FOLDER_MAX);
       const to = cleanLine(body.to, FOLDER_MAX);
       if (!from || !to) return fail(reply, 400, "invalid-argument");
-      await sql.begin(async (tx) => {
-        await tx`delete from video_folders where name = ${from}`;
-        await tx`insert into video_folders (name) values (${to}) on conflict do nothing`;
-        await tx`update videos set folder = ${to}, updated_at = now() where folder = ${from}`;
+      const done = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        if (await foreignInFolder(t, user, from)) return false;
+        await t`delete from video_folders where name = ${from}`;
+        await t`insert into video_folders (name) values (${to}) on conflict do nothing`;
+        await t`update videos set folder = ${to}, updated_at = now() where folder = ${from}`;
+        return true;
       });
+      if (!done) return foreignDenied(reply);
       request.log.info({ video: "folder-rename" }, "video");
       return { folders: await folderList() };
     });
@@ -196,10 +215,14 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       if (!user) return reply;
       const name = cleanLine(isRecord(request.body) ? request.body.name : undefined, FOLDER_MAX);
       if (!name) return fail(reply, 400, "invalid-argument");
-      await sql.begin(async (tx) => {
-        await tx`delete from video_folders where name = ${name}`;
-        await tx`update videos set folder = '', updated_at = now() where folder = ${name}`;
+      const done = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        if (await foreignInFolder(t, user, name)) return false;
+        await t`delete from video_folders where name = ${name}`;
+        await t`update videos set folder = '', updated_at = now() where folder = ${name}`;
+        return true;
       });
+      if (!done) return foreignDenied(reply);
       request.log.info({ video: "folder-delete" }, "video");
       return { folders: await folderList() };
     });
@@ -311,6 +334,8 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       if (!user) return reply;
       const video = await findVideo(request.params.id);
       if (!video) return fail(reply, 404, "not-found");
+      // Переименовать и переложить чужое видео — только владелец агентства, как убрать (QA 22 октября 2026).
+      if (video.owner_id !== user.id && !permissions.isAdmin(actorOf(user))) return fail(reply, 403, "permission-denied");
       const body = isRecord(request.body) ? request.body : {};
       const title = body.title === undefined ? video.title : cleanLine(body.title, TITLE_MAX);
       if (!title) return fail(reply, 400, "invalid-argument");

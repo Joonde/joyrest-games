@@ -168,7 +168,7 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
 
   it("«Принял, готовлюсь»: кнопка в Telegram и в студии — одна отметка; новая программа — новая кнопка, старая не засчитывается", async () => {
     const program = { formats: ["Квиз", "Музыкальный"], extension: "30 мин", addons: ["Призы и медали"], duration: "≈ 3–3,5 часа" };
-    const event = { id: "ev5", hostId: borisId, day: day(11), start: 1140, end: 1350, title: "Корпоратив", clientName: "Ольга", clientPhone: "+7 999 555-44-33", place: "", guests: 40, note: "", program };
+    const event = { id: "ev5", hostId: borisId, day: day(11), start: 1140, end: 1350, title: "Выпускной", clientName: "Ольга", clientPhone: "+7 999 555-44-33", place: "", guests: 40, note: "", program };
     const n = to(BORIS).length;
     expect((await post("/api/events", owner, event)).statusCode).toBe(200);
     await until(() => to(BORIS).length === n + 1, "назначение с программой");

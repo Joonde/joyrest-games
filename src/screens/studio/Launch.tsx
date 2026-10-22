@@ -190,11 +190,12 @@ function LaunchForm({ game, profile, blocks }: { game: Game; profile: UserProfil
     setBusy(true);
     setError(null);
     const key = JSON.stringify([themeId, playMode, screenMode, branding]);
-    if (!sessionId.current || sessionId.current.key !== key) sessionId.current = { id: newSessionId(), key };
+    const attempt = sessionId.current && sessionId.current.key === key ? sessionId.current : { id: newSessionId(), key };
+    sessionId.current = attempt;
     try {
       // Игра копируется в сессию: правка в студии не ломает идущую игру.
       const { code } = await sessionsRepo.create(profile.uid, {
-        id: sessionId.current.id,
+        id: attempt.id,
         gameId: game.id,
         gameTitle: game.title,
         mechanic: game.mechanic,

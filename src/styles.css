@@ -22840,3 +22840,52 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   min-width: 0;
   padding: 8px 12px;
 }
+
+/* ── Конструкторы: исправления по QA 22 октября 2026 ── */
+
+/* Кнопки блока раунда квиза — не меньше 52 px (правило интерфейса); «Отмена» переименования — словом, не ✕. */
+.q-round__btn {
+  width: 52px;
+  height: 52px;
+}
+
+.q-round__btn--text {
+  width: auto;
+  padding: 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.q-round__title,
+.q-round__input,
+.q-round-add__btn,
+.q-restore__btn {
+  min-height: 52px;
+}
+
+/* В раунде есть что исправить: видно и у свёрнутого раунда, и на карте раундов. */
+.q-round--issue {
+  outline: 2px dashed var(--color-danger);
+  outline-offset: 2px;
+}
+
+.q-round__issue {
+  color: var(--color-danger);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.round-map__seg--issue {
+  outline: 3px dashed var(--color-danger);
+  outline-offset: -3px;
+}
+
+.round-map__label--issue {
+  text-decoration: underline wavy var(--color-danger);
+  text-underline-offset: 4px;
+}
+
+/* «Больше N синонимов не берём — лишние: …» под полем синонимов табло. */
+.hd-editor__syn-extra {
+  flex-basis: 100%;
+}

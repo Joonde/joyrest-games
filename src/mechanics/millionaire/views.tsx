@@ -271,7 +271,10 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
         ) : stage === "ready" ? (
           <>
             <p className="mil-screen__who">
-              Ход: <NameText name={team} />
+              <span className="mil-screen__label">Ход:&nbsp;</span>
+              <span className="mil-screen__team">
+                <NameText name={team} />
+              </span>
             </p>
             <h2 className="mil-screen__title">Вопрос {level} — {pointsLabel(pointsAt(content, level))}</h2>
             {content.safe.includes(level) && <p className="mil-screen__note">Несгораемая ступень</p>}
@@ -280,7 +283,12 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
         ) : q ? (
           <>
             <p className="mil-screen__who">
-              <NameText name={team} /> · вопрос {level} — {pointsLabel(pointsAt(content, level))}
+              <span className="mil-screen__team">
+                <NameText name={team} />
+              </span>
+              <span className="mil-screen__label">
+                &nbsp;· вопрос {level} — {pointsLabel(pointsAt(content, level))}
+              </span>
               {answerLeft !== null && (
                 <span className={`mil-timer${answerLeft <= 10 ? " is-low" : ""}${answerLeft === 0 ? " is-out" : ""}`} role="timer" aria-label={`Осталось ${answerLeft} с`}>
                   {answerLeft === 0 ? "Время вышло" : `${answerLeft} с`}

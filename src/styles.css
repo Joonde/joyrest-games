@@ -4932,9 +4932,13 @@ kbd {
   padding: 0 6cqw;
 }
 
-/* В финале под пьедесталом ещё таблица: имя — одной строкой с многоточием (полностью — в таблице). */
+/* В финале под пьедесталом ещё таблица: имя — одной строкой с многоточием (полностью — в таблице). Высота строки —
+   с запасом под низ букв и смайлик: при 1.05 обрезались на 4 px (Ревизор, 22 октября 2026). */
 .podium--final .podium__name {
+  flex: none;
   font-size: 4cqh;
+  line-height: 1.3;
+  padding-block: 0.05em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -8612,7 +8616,7 @@ ul.chips {
 
 .board-host__cell small,
 .board-editor__cell small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
 }
@@ -11320,10 +11324,29 @@ button.dance-card:active {
   text-wrap: balance;
 }
 
+/* Кто ходит — одной строкой: длинное имя команды сокращается многоточием, «· вопрос N — очки» и таймер видны всегда
+   (на проекторе 4:3 имя в две строки выталкивало строку за верх кадра — Ревизор, 22 октября 2026). */
 .mil-screen__who {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  min-width: 0;
   font-size: 4.2cqh;
   font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
   margin: 0;
+}
+
+.mil-screen__team {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mil-screen__label,
+.mil-screen__who > .mil-timer {
+  flex: none;
 }
 
 .mil-screen__note {
@@ -11382,6 +11405,12 @@ button.dance-card:active {
 
 .mil-carousel > .mil-bar:not(.is-turn) {
   filter: saturate(0.6);
+}
+
+/* У соседей вполоборота подпись и очки повёрнуты, наполовину закрыты центральной полоской и не читаются — прячем
+   (Ревизор, 22 октября 2026: «текст обрезан по высоте»). Чьи это лестницы — видно в подсказках над вопросом. */
+.mil-carousel > .mil-bar:not(.is-turn) :is(.mil-bar__name, .mil-bar__points) {
+  visibility: hidden;
 }
 
 /* Центральная полоска непрозрачна: соседние не просвечивают сквозь неё. */
@@ -11520,6 +11549,53 @@ button.dance-card:active {
   font-size: 3cqh;
 }
 
+/* Проектор 4:3 и другие «квадратные» экраны (Ревизор, 22 октября 2026): под вопросом сразу звонок, совет, право на ошибку и
+   «Ответ зафиксирован» — не помещались, низ наезжал на строку «Вход: … · код», верх уходил за кадр. Пока под вопросом
+   что-то идёт, над вопросом — подсказки только того, кто ходит; совет ведущего — компактной строкой. */
+@container (max-aspect-ratio: 3 / 2) {
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-lifeboard {
+    grid-template-columns: minmax(0, 36cqw);
+    justify-content: center;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-lifeboard__team:not(.is-turn) {
+    display: none;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) {
+    gap: 1cqh;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip {
+    gap: 1.4cqw;
+    padding: 0.6cqh 1.6cqw;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip__icon {
+    width: 4cqh;
+    height: 4cqh;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip__title {
+    font-size: 2cqh;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip__text {
+    margin-top: 0.2cqh;
+    font-size: 2.6cqh;
+    line-height: 1.25;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-call,
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-screen__note--big {
+    font-size: 3.4cqh;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-screen__note {
+    line-height: 1.3;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mil-carousel > .mil-bar {
     transition: none;
@@ -11540,9 +11616,12 @@ button.dance-card:active {
   opacity: 1;
 }
 
+/* Имя и очки обрезаются только многоточием по ширине: высота строки с запасом под низ кириллицы и смайлик. */
 .mil-bar__points {
   font-weight: 700;
   font-size: 2.6cqh;
+  line-height: 1.35;
+  padding-block: 0.1em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -11609,9 +11688,15 @@ button.dance-card:active {
 .mil-bar__name {
   font-weight: 600;
   font-size: 2.4cqh;
+  line-height: 1.35;
+  padding-block: 0.1em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.mil-bar__name .name-emoji {
+  line-height: 1;
 }
 
 .mil-lifelines {
@@ -12283,10 +12368,12 @@ button.dance-card:active {
   gap: 4px;
 }
 
+/* Убранные «50 на 50» — зачёркнуты и второстепенным цветом, без прозрачности (контраст ≥ 4.5 — Ревизор, 22 октября 2026). */
 .mil-host-options .is-gone {
-  opacity: 0.4;
+  color: var(--color-text-muted);
   text-decoration: line-through;
 }
+
 
 .mil-host-options .is-correct {
   color: var(--color-success);
@@ -20572,11 +20659,16 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   right: 6cqw;
 }
 
+/* На телефоне процент — обычная плашка в конце строки варианта (не поверх): поверх он заходил на текст варианта
+   (Ревизор, 22 октября 2026). */
 .mil-question--phone .mil-option__pct {
-  top: 2px;
-  right: 14px;
+  position: relative !important;
+  top: auto;
+  right: auto;
+  flex: none;
+  margin-left: auto;
   padding: 1px 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* «Миллион на кону» на телефоне, когда ходит другая команда: только смотреть. */
@@ -20602,10 +20694,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   text-align: center;
 }
 
+/* Чужой вопрос — без прозрачности (с ней тёмный текст на оранжевой и зелёной заливке и проценты становились
+   нечитаемыми — Ревизор, 22 октября 2026): «только смотреть» видно по пунктирным рамкам и приглушённому вопросу. */
 .mil-watch__question {
-  opacity: 0.6;
   pointer-events: none;
   user-select: none;
+}
+
+.mil-watch__question .mil-question__text {
+  color: var(--color-text-muted);
 }
 
 .mil-watch__question .mil-option {
@@ -21910,21 +22007,25 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   color: var(--show-price, var(--color-highlight));
 }
 
+/* Высота строки — с запасом под низ кириллицы (при 1.1 срезались «у», «д», «р» на 8 px — Ревизор, 22 октября 2026);
+   ответ и «угадали» вместе — 3,6 × 1,3 + 2,2 × 1,3 ≈ 7,5cqh внутри строки табло 9cqh. */
 .hd-row__text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   font-weight: 600;
   font-size: 3.6cqh;
-  line-height: 1.1;
+  line-height: 1.3;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .hd-row__hits {
   font-weight: 400;
   font-size: 2.2cqh;
+  line-height: 1.3;
   color: var(--color-text-muted);
 }
 
@@ -22130,8 +22231,13 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   background: var(--color-surface-alt);
 }
 
+/* Открыто без очков — пунктирной рамкой, без прозрачности (бледный текст на пульте — Ревизор, 22 октября 2026). */
 .hd-host__row.is-shown {
-  opacity: 0.7;
+  border-style: dashed;
+}
+
+.hd-host__text strong {
+  color: var(--color-text);
 }
 
 .hd-host__n {

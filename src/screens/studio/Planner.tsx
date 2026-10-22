@@ -199,7 +199,7 @@ export function Planner({ owner, admin = owner, onToast }: { owner: boolean; adm
           setView("day");
           // Клиент не попал в базу клиентов даже после повторов сервера — сказать прямо, чтобы его не потеряли.
           // Телефон неполный или его нет (только имя) — сервер клиента не записал: нужен полный телефон или ссылка.
-          if (saved.clientNotSaved && !phoneKey(saved.clientPhone))
+          if (saved.clientNotSaved && (saved.clientIncomplete || !phoneKey(saved.clientPhone)))
             onToast("Мероприятие записано. Клиент не попал в «Клиенты»: нужен полный телефон или ссылка — добавьте его вручную");
           else if (saved.clientNotSaved) onToast("Мероприятие записано, но клиент не попал в «Клиенты» — добавьте его вручную");
           else onToast(form.event ? "Мероприятие сохранено" : `Мероприятие записано: ${saved.hostName}`);

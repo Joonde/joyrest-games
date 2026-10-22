@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { permissions, tracksRepo, useAuth, type Track, type TrackCategory } from "../../data";
 import { titleFromFile } from "../../core/music";
 import { audioDuration } from "./usePreview";
+import { DISK_FULL_TEXT, isServerDiskFull } from "../Status";
 
 export const MAX_TRACK_BYTES = 15 * 1024 * 1024;
 export const TRACK_ACCEPT = "audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,.mp3,.m4a,.ogg";
@@ -18,6 +19,7 @@ export function newTrackId(): string {
 
 /** Понятный текст ошибки загрузки. */
 export function uploadErrorText(e: unknown): string {
+  if (isServerDiskFull(e)) return DISK_FULL_TEXT;
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
   return code === "invalid-argument"
     ? "Это не похоже на mp3, m4a или ogg. Выберите другой файл."

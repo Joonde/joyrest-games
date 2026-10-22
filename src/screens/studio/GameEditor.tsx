@@ -369,11 +369,17 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         }
         setIssuesList(false);
         for (let d = el.closest<HTMLDetailsElement>("details"); d; d = d.parentElement?.closest<HTMLDetailsElement>("details") ?? null) d.open = true;
-        // Свёрнутые блоки (Fold и карточки) — кнопка с aria-expanded="false" перед содержимым.
+        // Свёрнутые карточки и блоки: замечание в самой кнопке-заголовке или кнопка-заголовок рядом с содержимым
+        // (aria-expanded="false", класс `…__head`); меню «⋯» и прочие кнопки не трогаем.
+        el.closest<HTMLButtonElement>("button[aria-expanded='false']")?.click();
         let node: HTMLElement | null = el;
         while (node && node !== document.body) {
           const parent: HTMLElement | null = node.parentElement;
-          const toggle = parent ? Array.from(parent.children).find((c): c is HTMLButtonElement => c instanceof HTMLButtonElement && c.getAttribute("aria-expanded") === "false" && c !== node) : undefined;
+          const toggle = parent
+            ? Array.from(parent.children).find(
+                (c): c is HTMLButtonElement => c instanceof HTMLButtonElement && c !== node && c.getAttribute("aria-expanded") === "false" && /__head\b|fold/.test(c.className),
+              )
+            : undefined;
           if (toggle && !toggle.contains(el)) toggle.click();
           node = parent;
         }

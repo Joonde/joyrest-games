@@ -22,8 +22,37 @@ import { pointsLabel } from "../../core/results";
 
 const LEVEL_KEYS = ["bronze", "silver", "gold", "diamond"] as const;
 
-/** Картинка уровня в оформлении: сундук, ключ, корона или кубок цвета металла уровня. */
-export function LevelIcon({ style, level }: { style: SuperStyle; level: number }) {
+/** Адрес нарисованной картинки уровня (Canva, public/super/art/web/, 384 px). Сундук после верного ответа — открытый, с золотом. */
+export function levelArt(style: SuperStyle, level: number, open = false): string {
+  const sheet = style === "chests" && open ? "chests-open" : style;
+  return `/super/art/web/${sheet}-${LEVEL_KEYS[level] ?? "gold"}.webp`;
+}
+
+/** Все картинки оформления заранее: открытый сундук не должен мигать пустым местом при «Показать ответы». */
+function useArtPreload(style: SuperStyle) {
+  useEffect(() => {
+    const imgs = LEVEL_KEYS.flatMap((_, i) => [levelArt(style, i), levelArt(style, i, true)]).map((src) => {
+      const img = new Image();
+      img.src = src;
+      return img;
+    });
+    return () => {
+      for (const img of imgs) img.src = "";
+    };
+  }, [style]);
+}
+
+/** Картинка уровня в оформлении: сундук, ключ, корона или кубок цвета металла уровня. Нет файла — простой рисунок. */
+export function LevelIcon({ style, level, open = false }: { style: SuperStyle; level: number; open?: boolean }) {
+  const src = levelArt(style, level, open);
+  const [failed, setFailed] = useState<string | null>(null);
+  if (failed !== src) {
+    return <img className="super-icon super-icon--art" src={src} alt="" draggable={false} decoding="async" onError={() => setFailed(src)} />;
+  }
+  return <LevelSvg style={style} level={level} />;
+}
+
+function LevelSvg({ style, level }: { style: SuperStyle; level: number }) {
   const cls = `super-icon super-level--${LEVEL_KEYS[level] ?? "gold"}`;
   const common = { className: cls, viewBox: "0 0 64 64", "aria-hidden": true, focusable: false } as const;
   const fill = "var(--lvl)";
@@ -111,6 +140,9 @@ export function SuperScreen(props: SuperScreenProps) {
   const { stage, gameId, title, levels, style, penalty, picks, verdicts, names, left, timeLimit, burst, counter, teams = true } = props;
   // Музыка заставки и звук каждого нового выбора уровня.
   useEffect(() => preloadSamples(["superChest"]), []);
+  useArtPreload(style);
+  // Сокровищница на весь кадр (палитра «Вечер JoyRest» в любой теме сессии) и анимация по оформлению.
+  const stageCls = `show-stage show-stage--evening super-screen--vault super-screen--${style}`;
   const introKey = stage === "ready" ? burst : "";
   const lastIntro = useRef(introKey);
   useEffect(() => {
@@ -138,7 +170,7 @@ export function SuperScreen(props: SuperScreenProps) {
 
   if (stage === "ready") {
     return (
-      <div className="super-screen super-screen--intro">
+      <div className={`super-screen super-screen--intro ${stageCls}`}>
         <div className="super-rays" aria-hidden="true" />
         <div className="super-sparkles" aria-hidden="true">
           {Array.from({ length: 14 }, (_, i) => (
@@ -154,6 +186,7 @@ export function SuperScreen(props: SuperScreenProps) {
             <li key={i} className={`super-level super-level--${LEVEL_KEYS[i]}`} style={{ animationDelay: `${0.4 + i * 0.25}s` }}>
               <span className="super-level__icon" aria-hidden="true">
                 <LevelIcon style={style} level={i} />
+                <span className="super-glint" style={{ animationDelay: `${1.6 + i * 0.4}s`, ["--glint-mask" as string]: `url(${levelArt(style, i)})` }} />
               </span>
               <span className="super-level__name">{LEVEL_NAMES[i]}</span>
               <span className="super-level__points">{pointsLabel(l.points)}</span>
@@ -175,7 +208,7 @@ export function SuperScreen(props: SuperScreenProps) {
   const anyRight = Object.values(verdicts).some((v) => v.right);
 
   return (
-    <div className={revealed ? "super-screen super-screen--reveal" : "super-screen"}>
+    <div className={`${revealed ? "super-screen super-screen--reveal" : "super-screen"} ${stageCls}`}>
       {revealed && anyRight && <Confetti burst={`super:${burst}`} count={90} />}
       <div className="quiz-screen__top">
         {counter && <span className="quiz-screen__counter">{counter}</span>}
@@ -198,10 +231,29 @@ export function SuperScreen(props: SuperScreenProps) {
         {levels.map((l, i) => {
           const who = byLevel[i] ?? [];
           const fine = penaltyFor(penalty, i, l.points);
+          // После ответов: кто-то угадал — сундук открывается (монеты, свет), у других оформлений — блеск и искры;
+          // выбрали, но никто не угадал — картинка тускнеет и вздрагивает.
+          const won = revealed && who.some((pid) => verdicts[pid]?.right);
+          const lost = revealed && who.length > 0 && !won;
+          const state = won ? " is-won" : lost ? " is-lost" : "";
           return (
-            <li key={i} className={`super-level super-level--${LEVEL_KEYS[i]}${who.length > 0 ? " is-picked" : ""}`}>
+            <li key={i} className={`super-level super-level--${LEVEL_KEYS[i]}${who.length > 0 ? " is-picked" : ""}${state}`}>
               <span className="super-level__icon" aria-hidden="true">
-                <LevelIcon style={style} level={i} />
+                <LevelIcon style={style} level={i} open={won} />
+                {won && (
+                  <span className="super-burst">
+                    {Array.from({ length: 12 }, (_, k) => (
+                      <span
+                        key={k}
+                        style={{
+                          ["--dx" as string]: `${Math.round(Math.cos((k / 12) * Math.PI * 2 - Math.PI / 2) * (60 + (k % 3) * 18))}%`,
+                          ["--dy" as string]: `${Math.round(Math.sin((k / 12) * Math.PI * 2 - Math.PI / 2) * (55 + (k % 4) * 12) - 20)}%`,
+                          animationDelay: `${0.2 + (k % 4) * 0.08}s`,
+                        }}
+                      />
+                    ))}
+                  </span>
+                )}
               </span>
               <span className="super-level__name">{LEVEL_NAMES[i]}</span>
               <span className="super-level__points">

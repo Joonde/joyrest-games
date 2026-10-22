@@ -5,6 +5,7 @@ import { useServerNow } from "../../components/live/useServerNow";
 import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
+import { clock } from "../../data";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
@@ -35,9 +36,34 @@ export function BoardHostControls({ session, content, answers, participants, con
   const syncKey = stage === "question" && result.mode === "buzz" ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
   useEffect(() => {
     if (!syncKey || busy) return;
-    void quiet((cur) => boardBuzzSync(cur, answers));
+    void quiet((cur) => boardBuzzSync(cur, answers, Date.now() + clock.offset()));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт при новых нажатиях и смене слова
   }, [syncKey, result.buzz.current, result.buzz.order.length, busy]);
+
+  // Никто не угадал (решение владельца 22 октября 2026): время вышло и в очереди никого или все, кто мог, ответили
+  // неверно — ответ на экран сам (экран: «Никто не угадал», правильный ответ и припев). Запас 3,5 с — нажатие,
+  // сделанное в последнюю секунду, ещё дойдёт.
+  const players = Object.keys(session.leaderboard).filter((id) => participants.some((p) => p.id === id));
+  const everyoneOut = players.length > 0 && players.every((id) => result.buzz.out.includes(id));
+  const nobodyLeft =
+    stage === "question" && result.mode === "buzz" && result.armed && !result.catStep && !result.buzz.current && !result.buzz.winner && (left === 0 || everyoneOut);
+  const nobodyKey = nobodyLeft ? `${step}:${result.cell}:${result.buzz.out.length}:${everyoneOut ? "out" : "time"}` : "";
+  useEffect(() => {
+    if (!nobodyKey || busy) return;
+    const timer = window.setTimeout(
+      () =>
+        void quiet((cur) => {
+          const r = parseBoardResult(cur.state.result);
+          if (cur.state.stage !== "question" || cur.state.step !== step || r.buzz.current || r.buzz.winner || r.mode !== "buzz") return null;
+          const rest = secondsLeft(cur.state, Date.now() + clock.offset());
+          const allOut = players.length > 0 && players.every((id) => r.buzz.out.includes(id));
+          return rest === 0 || allOut ? boardReveal(cur, content, participants, false) : null;
+        }),
+      everyoneOut ? 1200 : 3500,
+    );
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новое «никто не угадал»
+  }, [nobodyKey, busy]);
 
   // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
   const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
@@ -302,7 +328,7 @@ export function BoardHostControls({ session, content, answers, participants, con
               className="btn btn--secondary"
               disabled={busy}
               // У «Кота в мешке» отвечает один — «Неверно» сразу показывает ответ (минус цена).
-              onClick={() => void run((s) => (!sameSpeaker(s) ? null : parseBoardResult(s.state.result).catStep ? boardReveal(s, content, participants, false) : boardWrong(s, content)))}
+              onClick={() => void run((s) => (!sameSpeaker(s) ? null : parseBoardResult(s.state.result).catStep ? boardReveal(s, content, participants, false) : boardWrong(s, content, Date.now() + clock.offset())))}
             >
               Неверно
             </button>
@@ -339,7 +365,7 @@ export function BoardHostControls({ session, content, answers, participants, con
               Верно ответил(а) <NameText name={nameOf(result.buzz.winner)} />
             </>
           ) : (
-            "Никто не ответил верно"
+            "Никто не угадал — ответ и припев на экране"
           )}
         </p>
       )}

@@ -600,10 +600,12 @@ export const BUILTIN_MUSIC = {
   // «Аквариум и Ёлка» (решение владельца 18 октября 2026): у рыбок — три лоу-фай трека, у ёлки — три новогодних, по очереди.
   aquaMusic: [SAMPLES.lobbyTokyo, SAMPLES.lobbyFocus, SAMPLES.lobbyLofi].filter((u): u is string => Boolean(u)),
   treeMusic: [SAMPLES.treeChristmas, SAMPLES.treeLullaby, SAMPLES.treeFireplace].filter((u): u is string => Boolean(u)),
+  // «Ставка на знания»: тихий фон, пока на экране поле (решение владельца 22 октября 2026, ~20%).
+  boardBed: [SAMPLES.lobbyLofi, SAMPLES.lobbyFocus, SAMPLES.lobbyTokyo].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6, boardBed: 0.2 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();

@@ -7,6 +7,7 @@
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type BuzzState } from "../../core/buzz";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
+import { MAX_TIME_LIMIT } from "../../core/session";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
 import { allCells, findCell, roundsOf, type BoardCell, type BoardContent } from "./content";
@@ -57,6 +58,11 @@ export interface BoardResult {
   catPrice: number;
   /** Текущий раунд (1–3). */
   round: number;
+  /**
+   * Время сервера (мс), с которого отсчёт стоит: кто-то нажал и отвечает (решение владельца 22 октября 2026 —
+   * пока человек отвечает, время и трек замирают). «Неверно» и слово никому — отсчёт идёт дальше с того же места.
+   */
+  pausedAt: number | null;
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -110,6 +116,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     catTo: typeof d.catTo === "string" && ID.test(d.catTo) ? d.catTo : null,
     catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(1, Math.round(d.catPrice))) : 0,
     round: typeof d.round === "number" && Number.isInteger(d.round) && d.round >= 1 && d.round <= 3 ? d.round : 1,
+    pausedAt: typeof d.pausedAt === "number" && Number.isFinite(d.pausedAt) && d.pausedAt > 0 ? d.pausedAt : null,
   };
 }
 
@@ -330,31 +337,58 @@ export function armBuzz(session: Session, content: BoardContent): SessionChange 
       timeLimit: content.buzzTime,
       revealed: false,
       answered: 0,
-      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true }),
+      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true, pausedAt: null }),
     },
   };
 }
 
-/** Свежие нажатия → у кого слово; null — записывать нечего. */
-export function boardBuzzSync(session: Session, answers: Answer[]): SessionChange | null {
+/**
+ * Свежие нажатия → у кого слово; null — записывать нечего. Слово досталось — отсчёт замирает с момента нажатия
+ * (`pausedAt`; нет времени нажатия — с `now`, часы сервера на пульте).
+ */
+export function boardBuzzSync(session: Session, answers: Answer[], now?: number): SessionChange | null {
   if (session.state.stage !== "question") return null;
   const result = parseBoardResult(session.state.result);
   if (result.mode !== "buzz" || !result.armed) return null;
   // «Кот в мешке»: слово получают только сделавшие ставку.
   const order = buzzOrder(answers, session.state.step).filter((pid) => !result.catStep || (result.bets[pid] ?? 0) > 0);
   const next = syncBuzz(result.buzz, order);
-  return next ? { state: { result: write({ ...result, buzz: next }) } } : null;
+  if (!next) return null;
+  let pausedAt = result.pausedAt;
+  if (!result.buzz.current && next.current && pausedAt === null) {
+    const at = answers.find((a) => a.step === session.state.step && a.pid === next.current)?.submittedAt ?? null;
+    pausedAt = at ?? now ?? null;
+  }
+  return { state: { result: write({ ...result, buzz: next, pausedAt }) } };
 }
 
-/** «Неверно»: слово следующему; при штрафе — минус стоимость клетки (не у кота: там своя ставка). */
-export function boardWrong(session: Session, content: BoardContent): SessionChange {
+/** Сколько секунд даём остальным после «Неверно», даже если отвечавший нажал в самом конце. */
+export const RESUME_MIN_SECONDS = 5;
+
+/**
+ * «Неверно»: слово следующему; при штрафе — минус стоимость клетки (не у кота: там своя ставка). Слово никому
+ * не перешло — отсчёт идёт дальше: время, пока человек отвечал, добавляется к таймеру (не меньше
+ * `RESUME_MIN_SECONDS` с этой минуты), кнопки у остальных снова горят, трек на экране продолжается с того же места.
+ */
+export function boardWrong(session: Session, content: BoardContent, now?: number): SessionChange {
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
   const who = result.buzz.current;
   if (!who) return {};
   const fine = content.penalty && found && found.cell.kind !== "cat" ? found.cell.points : 0;
-  const next: BoardResult = { ...result, buzz: buzzWrong(result.buzz), fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines };
-  return fine > 0 ? { state: { result: write(next) }, addScore: { [who]: -fine } } : { state: { result: write(next) } };
+  const buzz = buzzWrong(result.buzz);
+  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines };
+  const state: SessionChange["state"] = {};
+  const { startedAt, timeLimit } = session.state;
+  if (!buzz.current && now !== undefined && typeof startedAt === "number" && timeLimit !== null) {
+    const frozen = result.pausedAt !== null ? Math.max(0, Math.ceil((now - result.pausedAt) / 1000)) : 0;
+    const least = Math.ceil((now + RESUME_MIN_SECONDS * 1000 - startedAt) / 1000);
+    const limit = Math.min(MAX_TIME_LIMIT, Math.max(timeLimit + frozen, least));
+    if (limit !== timeLimit) state.timeLimit = limit;
+    next.pausedAt = null;
+  }
+  state.result = write(next);
+  return fine > 0 ? { state, addScore: { [who]: -fine } } : { state };
 }
 
 /** Показать ответ: «Верно» (`right`) — победителю очки и право выбора; иначе — без победителя. */
@@ -390,7 +424,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0 }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null }),
     },
   };
 }

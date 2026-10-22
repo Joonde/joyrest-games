@@ -28,9 +28,12 @@ export const board: Mechanic<BoardContent, BoardAnswerValue, BoardStep> = {
   preview: { driver: boardPreview, teams: 3, limit: 60 },
   firstTurn: (session, _content, pid) => boardFirstTurn(session, pid),
   // Отсчёт пошёл (и у «Кота в мешке», пока отвечают) — музыка напряжения; у клетки с треком звучит её трек.
+  // На поле (ведущий или игрок выбирает клетку) — тихий фон ~20% (решение владельца 22 октября 2026).
   music: (session, content) => {
     const r = parseBoardResult(session.state.result);
-    if (session.state.phase !== "playing" || session.state.stage !== "question" || !r.armed) return null;
+    if (session.state.phase !== "playing") return null;
+    if (session.state.stage === "ready") return "boardBed";
+    if (session.state.stage !== "question" || !r.armed) return null;
     return findCell(content, r.cell)?.cell.trackId ? null : "thinkLow";
   },
 };

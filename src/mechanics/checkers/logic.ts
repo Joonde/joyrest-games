@@ -37,7 +37,7 @@ export interface CheckersResult {
   winner: string | null;
   /** «Завершить партию»: откуда — «Назад» вернёт туда же. */
   overFrom: { mode: "move" | "task"; stage: "ready" | "question" | "reveal" } | null;
-  /** Итог прошлого этапа — «Назад» с начала хода или задания (до трёх шагов назад). */
+  /** Итог прошлого этапа — «Назад» с начала хода или задания (до `CHECKERS_UNDO` шагов назад). */
   undo: Record<string, unknown> | null;
 }
 
@@ -79,8 +79,11 @@ function parseOverFrom(v: unknown): CheckersResult["overFrom"] {
 
 const write = (r: CheckersResult): Record<string, unknown> => ({ ...r });
 
-/** Снимок для «Назад»: не глубже трёх шагов, чтобы итог шага не рос всю партию. */
-function snapshot(r: CheckersResult, depth = 3): Record<string, unknown> {
+/** Сколько этапов (ход, задание) можно отмотать «Назад» подряд: снимок ~0,3 КБ, 20 — ~6 КБ в итоге шага. */
+export const CHECKERS_UNDO = 20;
+
+/** Снимок для «Назад»: не глубже `CHECKERS_UNDO` шагов, чтобы итог шага не рос всю партию. */
+function snapshot(r: CheckersResult, depth = CHECKERS_UNDO): Record<string, unknown> {
   const inner = depth > 1 && r.undo ? snapshot(parseCheckersResult(r.undo), depth - 1) : null;
   return { ...r, undo: inner };
 }
@@ -289,8 +292,10 @@ export function checkersBack(session: Session): CheckersBack | null {
   if (stage === "question" && r.undo) {
     return { change: { state: { step: step - 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, answered: 0, result: r.undo } }, clear: [step] };
   }
-  // Первый ход партии — к началу.
-  if (stage === "question" && r.mode === "move") {
+  // Первый ход партии — к началу. Только пока на доске начальная расстановка: взятия необратимы, значит
+  // очков за партию ещё нет. Цепочка снимков кончилась посреди партии — «Назад» гаснет (иначе доска
+  // встала бы в начало, а очки за ранние ходы остались).
+  if (stage === "question" && r.mode === "move" && r.board === initialBoard()) {
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, mover: null }) } }, clear: [step] };
   }
   return null;

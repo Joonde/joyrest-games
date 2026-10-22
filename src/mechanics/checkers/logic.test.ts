@@ -4,9 +4,10 @@ import type { Answer, Participant, Session, SessionChange } from "../../data/typ
 import { parseCheckers } from "./content";
 import { DEMO_CHECKERS } from "./demo";
 import { validateCheckers } from "./validate";
+import { initialBoard, legalMoves } from "./rules";
 import { DEMO_BOARD } from "../board/demo";
 import { validateBoard } from "../board/validate";
-import { checkersBack, checkersPrimary, markTask, moveChange, nextTurn, parseCheckersResult, pathChange, revealTask, startGame, taskRight, toTask } from "./logic";
+import { CHECKERS_UNDO, checkersBack, checkersPrimary, markTask, moveChange, nextTurn, parseCheckersResult, pathChange, revealTask, startGame, taskRight, toTask } from "./logic";
 
 const content = parseCheckers({
   timeLimit: 20,
@@ -125,5 +126,61 @@ describe("шаблоны", () => {
     expect(DEMO_CHECKERS.content.questions.length).toBe(30);
     expect(validateCheckers(DEMO_CHECKERS.content)).toEqual([]);
     expect(validateBoard(DEMO_BOARD.content)).toEqual([]);
+  });
+});
+
+describe("Шашки: «Назад» через много ходов (QA 22 октября 2026)", () => {
+  const plain = parseCheckers({ timeLimit: 20, questions: [] });
+  const total = (s: Session) => Object.values(s.leaderboard).reduce((sum, e) => sum + e.score, 0);
+  // Партия по первым разрешённым ходам: доски и сумма очков после каждого хода.
+  function play(moves: number) {
+    let s = session();
+    s = apply(s, startGame(s, teams));
+    const boards = [parseCheckersResult(s.state.result).board];
+    const totals = [0];
+    for (let k = 0; k < moves; k++) {
+      const r = parseCheckersResult(s.state.result);
+      const move = legalMoves(r.board, r.mover === r.white ? "w" : "b")[0];
+      if (!move) break;
+      s = apply(s, pathChange(s, move.path) ?? {});
+      boards.push(parseCheckersResult(s.state.result).board);
+      totals.push(total(s));
+      if (parseCheckersResult(s.state.result).mode === "over") break;
+      s = apply(s, nextTurn(s));
+    }
+    return { s, boards, totals };
+  }
+  function rewind(start: Session) {
+    let s = start;
+    for (let i = 0; i < 200; i++) {
+      const back = checkersBack(s);
+      if (!back) break;
+      s = apply(s, back.change);
+    }
+    return s;
+  }
+
+  it("несколько ходов: «Назад» доходит до начала партии, все очки сняты", () => {
+    const { s, totals } = play(12);
+    expect(checkersPrimary(s, plain)).not.toBe("start");
+    expect(totals[totals.length - 1]).toBeGreaterThan(0);
+    const back = rewind(s);
+    expect(back.state.stage).toBe("ready");
+    expect(parseCheckersResult(back.state.result).board).toBe(initialBoard());
+    expect(total(back)).toBe(0);
+  });
+
+  it("цепочка снимков кончилась посреди партии — «Назад» гаснет, доска и очки согласованы", () => {
+    const { s, boards, totals } = play(CHECKERS_UNDO + 8);
+    const back = rewind(s);
+    const r = parseCheckersResult(back.state.result);
+    expect(back.state.stage).toBe("question");
+    expect(r.board).not.toBe(initialBoard());
+    const k = boards.indexOf(r.board);
+    expect(k).toBeGreaterThan(0);
+    expect(total(back)).toBe(totals[k]);
+    // Старый снимок без цепочки (`undo: null`) не уводит партию к началу.
+    const cut: Session = { ...s, state: { ...s.state, stage: "question", result: { ...(s.state.result as Record<string, unknown>), undo: null } } };
+    expect(checkersBack(cut)).toBeNull();
   });
 });

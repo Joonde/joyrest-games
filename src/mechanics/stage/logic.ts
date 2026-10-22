@@ -57,8 +57,14 @@ export interface StageResult {
   done: string[];
   /** Ведущий открыл батлы раньше. */
   battlesOpen: boolean;
+  /** Прошлый ход (последний в `history`) — для старых пультов. */
   prev: Prev | null;
+  /** Стопка прошлых ходов (старые — первыми): «Назад» с выбора плитки возвращает последний, сколько бы раз ни нажали. */
+  history: Prev[];
 }
+
+/** Сколько ходов можно отмотать «Назад» подряд. */
+export const STAGE_HISTORY = 30;
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const rec = (v: unknown): Record<string, unknown> => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -84,10 +90,18 @@ export function hypeText(variant: "dance" | "karaoke", n: number): string {
   return list[((n % list.length) + list.length) % list.length] ?? list[0];
 }
 
+function parsePrev(raw: unknown): Prev | null {
+  const p = rec(raw);
+  if (typeof p.tile !== "string" || !ID.test(p.tile)) return null;
+  return { tile: p.tile, performer: pid(p.performer), opponent: pid(p.opponent), turn: typeof p.turn === "number" && Number.isInteger(p.turn) && p.turn >= 0 ? p.turn : 0, scores: nums(p.scores), outcome: outcomeOf(p.outcome), winner: pid(p.winner), gifts: ids(p.gifts), done: ids(p.done) };
+}
+
 export function parseStageResult(raw: unknown): StageResult {
   const d = rec(raw);
-  const p = rec(d.prev);
   const v = rec(d.video);
+  // Старые сессии: только `prev` (один ход назад) — стопка из него одного.
+  const single = parsePrev(d.prev);
+  const history = Array.isArray(d.history) ? d.history.map(parsePrev).filter((x): x is Prev => x !== null).slice(-STAGE_HISTORY) : single ? [single] : [];
   return {
     order: ids(d.order),
     turn: typeof d.turn === "number" && Number.isInteger(d.turn) && d.turn >= 0 ? d.turn : 0,
@@ -107,14 +121,19 @@ export function parseStageResult(raw: unknown): StageResult {
     hype: typeof d.hype === "number" && Number.isInteger(d.hype) && d.hype >= 0 ? d.hype : -1,
     done: ids(d.done),
     battlesOpen: d.battlesOpen === true,
-    prev:
-      typeof p.tile === "string"
-        ? { tile: p.tile, performer: pid(p.performer), opponent: pid(p.opponent), turn: typeof p.turn === "number" ? p.turn : 0, scores: nums(p.scores), outcome: outcomeOf(p.outcome), winner: pid(p.winner), gifts: ids(p.gifts), done: ids(p.done) }
-        : null,
+    prev: history[history.length - 1] ?? null,
+    history,
   };
 }
 
-const write = (r: StageResult): Record<string, unknown> => ({ ...r });
+/** Стопка ходов — не больше `STAGE_HISTORY` и ~24 КБ (много команд — короче), чтобы итог шага не рос всю игру. */
+const HISTORY_MAX_CHARS = 24_000;
+
+const write = (r: StageResult): Record<string, unknown> => {
+  const history = r.history.slice(-STAGE_HISTORY);
+  while (history.length > 1 && JSON.stringify(history).length > HISTORY_MAX_CHARS) history.shift();
+  return { ...r, history, prev: history[history.length - 1] ?? null };
+};
 
 export function stageSteps(content: StageContent): Step[] {
   return content.tiles.map((t) => ({ id: t.id, answerable: true }));
@@ -380,7 +399,7 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...fresh(r), order, done, played: [...r.played, r.tile], prev, tile: null, performer: null, opponent: null, mode: "pick", turn }),
+      result: write({ ...fresh(r), order, done, played: [...r.played, r.tile], history: [...r.history, prev], tile: null, performer: null, opponent: null, mode: "pick", turn }),
     },
   };
 }
@@ -432,9 +451,10 @@ export function stageBack(session: Session, content: StageContent): StageBack | 
     if (Object.keys(minus).length > 0) change.addScore = minus;
     return { change };
   }
-  // Выбор плитки: назад к итогу прошлого выступления; первый выбор — к заставке.
-  if (!r.prev) return { change: { state: { stage: "ready", revealed: false, startedAt: null, timeLimit: null, result: {} } } };
-  const prev = r.prev;
+  // Выбор плитки: назад к итогу прошлого выступления (стопка ходов); к заставке — только пока ни одна плитка
+  // не сыграна, иначе сыгранные плитки стёрлись бы, а очки остались.
+  const prev = r.history[r.history.length - 1];
+  if (!prev) return r.played.length === 0 ? { change: { state: { stage: "ready", revealed: false, startedAt: null, timeLimit: null, result: {} } } } : null;
   return {
     change: {
       state: {
@@ -443,7 +463,7 @@ export function stageBack(session: Session, content: StageContent): StageBack | 
         revealed: true,
         startedAt: null,
         timeLimit: null,
-        result: write({ ...r, played: r.played.filter((t) => t !== prev.tile), tile: prev.tile, performer: prev.performer, opponent: prev.opponent, turn: prev.turn, scores: prev.scores, outcome: prev.outcome, winner: prev.winner, gifts: prev.gifts, done: prev.done, mode: "result", prev: null }),
+        result: write({ ...r, played: r.played.filter((t) => t !== prev.tile), tile: prev.tile, performer: prev.performer, opponent: prev.opponent, turn: prev.turn, scores: prev.scores, outcome: prev.outcome, winner: prev.winner, gifts: prev.gifts, done: prev.done, mode: "result", history: r.history.slice(0, -1) }),
       },
     },
     clear: [step],

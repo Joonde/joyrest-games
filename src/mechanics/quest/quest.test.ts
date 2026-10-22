@@ -30,6 +30,21 @@ describe("Активная настолка", () => {
     expect(list[3]?.move).toBe(-2);
   });
 
+  it("список (QA 22 октября 2026): «=» внутри вопроса и ответа, «Пропускаем…» — задание, а не пропуск хода", () => {
+    const [sum, formula, noAnswer, spaced] = parseQuestList("Вопрос: Сколько будет 2+2=? = 4\nВопрос: Формула? = E=mc2\nВопрос: Сколько будет 2+2=?\nВопрос: Столица Франции = Париж");
+    expect(sum).toMatchObject({ kind: "question", text: "Сколько будет 2+2=?", answer: "4" });
+    expect(formula).toMatchObject({ kind: "question", text: "Формула?", answer: "E=mc2" });
+    expect(noAnswer).toMatchObject({ kind: "question", text: "Сколько будет 2+2=?", answer: "" });
+    expect(spaced).toMatchObject({ kind: "question", text: "Столица Франции", answer: "Париж" });
+    const [orange, skip, skipColon, skipWord, skipBang] = parseQuestList("Пропускаем апельсин по кругу без рук (30)\nПропуск хода\nПропуск: отдохните\nпропуск\nПропуск!");
+    expect(orange).toMatchObject({ kind: "task", text: "Пропускаем апельсин по кругу без рук", points: 30 });
+    expect(skip?.kind).toBe("skip");
+    expect(skipColon).toMatchObject({ kind: "skip", text: "отдохните" });
+    expect(skipWord?.kind).toBe("skip");
+    expect(skipBang).toMatchObject({ kind: "skip", text: "" });
+    expect(parseQuestList("Пропустите ход соседа")[0]?.kind).toBe("task");
+  });
+
   it("задание для режима «каждый сам»: «текст || текст одному», в шаблонах у командных заданий он есть", () => {
     const [cell] = parseQuestList("Фото всей командой || Селфи с соседями (20)");
     expect(cell).toMatchObject({ kind: "task", text: "Фото всей командой", solo: "Селфи с соседями", points: 20 });
@@ -110,5 +125,44 @@ describe("шаблоны настолки", () => {
       expect(demo.content.cells).toHaveLength(40);
       expect(validateQuest(demo.content)).toEqual([]);
     }
+  });
+});
+
+describe("Активная настолка: «Назад» с броска следующей команды (QA 22 октября 2026)", () => {
+  it("бросок — к итогу прошлого хода (фишка и очки на месте), дальше — ход отменён, первый бросок — к «Начать игру»", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, teams));
+    s = apply(s, applyRoll(s, content, 2, teams));
+    s = apply(s, judge(s, content, true));
+    const judged = s;
+    s = apply(s, nextTurn(s, teams));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "roll", mover: "B" });
+    const back = questBack(s);
+    expect(back?.clear).toEqual([s.state.step]);
+    s = apply(s, back?.change ?? {});
+    expect(s.state).toMatchObject({ step: judged.state.step, stage: "reveal", revealed: true });
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "done", mover: "A", outcome: "ok", pos: { A: 2, B: 0 } });
+    expect(s.leaderboard.A?.score).toBe(10);
+    // Ещё «Назад» — ход A отменён: фишка на старте, очки сняты.
+    s = apply(s, questBack(s)?.change ?? {});
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "roll", mover: "A", pos: { A: 0, B: 0 } });
+    expect(s.leaderboard.A?.score).toBe(0);
+    s = apply(s, questBack(s)?.change ?? {});
+    expect(questPrimary(s)).toBe("start");
+    expect(questBack(s)).toBeNull();
+    // Игра с начала — как обычно.
+    s = apply(s, startQuest(s, teams));
+    expect(parseQuestResult(s.state.result)).toMatchObject({ mode: "roll", mover: "A" });
+  });
+
+  it("снимка нет посреди партии — «Назад» с броска гаснет", () => {
+    const content = board();
+    let s = session();
+    s = apply(s, startQuest(s, teams));
+    s = apply(s, applyRoll(s, content, 2, teams));
+    s = apply(s, nextTurn(s, teams));
+    const lost: Session = { ...s, state: { ...s.state, result: { ...(s.state.result as Record<string, unknown>), before: null, prev: null } } };
+    expect(questBack(lost)).toBeNull();
   });
 });

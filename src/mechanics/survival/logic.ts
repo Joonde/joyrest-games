@@ -7,6 +7,7 @@
 // «кто первый верно» → победитель забирает банк (все ставки + приз), остальные теряют ставку; верных нет —
 // ставки сгорают. Никто не выбывает: после последнего раунда — награждение по очкам.
 import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboard";
+import { beforeChange, makeBefore, parseBefore, type Before } from "../../core/backStack";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import { MAX_SCORE_DELTA } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
@@ -41,6 +42,8 @@ export interface SurvivalResult {
   prevTickets: Record<string, number> | null;
   /** Задание: чья очередь показывать и до какого времени (по часам сервера) — отсчёт на экране. */
   taskTimer: { pid: string; endsAt: number } | null;
+  /** Прошлый этап целиком — «Назад» с заставки раунда и с конца гонки (`core/backStack`). */
+  before: Before | null;
 }
 
 /** Сколько длится показ задания одной командой, мс (решение владельца 11 октября 2026). */
@@ -78,6 +81,7 @@ export function parseSurvivalResult(raw: unknown): SurvivalResult {
     deltas: counts(d.deltas, true),
     prevTickets: prev && typeof prev === "object" ? counts(prev) : null,
     taskTimer: pid(rec(d.taskTimer).pid) && typeof rec(d.taskTimer).endsAt === "number" ? { pid: rec(d.taskTimer).pid as string, endsAt: rec(d.taskTimer).endsAt as number } : null,
+    before: parseBefore(d.before),
   };
 }
 
@@ -162,7 +166,7 @@ export function startSurvival(session: Session, participants: Participant[]): Se
   const r = parseSurvivalResult(session.state.result);
   const order = orderOf(session, participants, r);
   return {
-    state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...fresh(r), round: 0, phase: "intro", order, tickets: {}, auctioned: [] }) },
+    state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...fresh(r), round: 0, phase: "intro", order, tickets: {}, auctioned: [], before: null }) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
@@ -209,7 +213,7 @@ export function finishAuction(session: Session, answers: Answer[], participants:
 /** После аукциона — к самому раунду (заставка). */
 export function afterAuction(session: Session): SessionChange {
   const r = parseSurvivalResult(session.state.result);
-  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...fresh(r), phase: "intro" }) } };
+  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...fresh(r), phase: "intro", before: makeBefore("reveal", write(r), session.state.answered) }) } };
 }
 
 /** Войнушка: открыть ставки. */
@@ -311,7 +315,7 @@ export function nextRound(session: Session, content: SurvivalContent, participan
   const round = r.round + 1;
   const over = round >= content.rounds.length;
   return {
-    state: { step: session.state.step + 1, stage: over ? "reveal" : "ready", startedAt: null, timeLimit: null, revealed: over, answered: 0, result: write({ ...fresh(r), round: over ? r.round : round, phase: over ? "over" : "intro", order: orderOf(session, participants, r) }) },
+    state: { step: session.state.step + 1, stage: over ? "reveal" : "ready", startedAt: null, timeLimit: null, revealed: over, answered: 0, result: write({ ...fresh(r), round: over ? r.round : round, phase: over ? "over" : "intro", order: orderOf(session, participants, r), before: makeBefore("reveal", write(r), session.state.answered) }) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
@@ -344,5 +348,9 @@ export function survivalBack(session: Session, content: SurvivalContent, partici
   if (r.phase === "play" || r.phase === "bet" || r.phase === "auction") {
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...fresh(r), phase: "intro" }) } }, clear: [step] };
   }
+  // Заставка раунда (и конец гонки) — к итогу прошлого раунда или аукциона: заставка очков не начисляла.
+  if ((r.phase === "intro" || r.phase === "over") && r.before) return { change: beforeChange(step, r.before), clear: [step] };
+  // Заставка первого раунда — к «Начать игру» (очков ещё нет).
+  if (r.phase === "intro" && r.round === 0 && r.auctioned.length === 0 && r.order.length > 0) return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: {} } } };
   return null;
 }

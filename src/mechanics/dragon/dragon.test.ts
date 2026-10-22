@@ -40,6 +40,16 @@ describe("Бой с драконом: содержимое и герои", () =>
     expect(b[0]?.tasks.map((x) => [x.kind, x.stat])).toEqual([["choice", "mind"], ["task", "str"], ["choice", "mind"]]);
   });
 
+  it("список: номер боя в заголовке снимается («# Бой 2: Ледяной дракон 3000»)", () => {
+    const names = (text: string) => parseDragonList(`${text}\nСила: Присесть (100)`).map((b) => [b.name, b.hp]);
+    expect(names("# Бой 2: Ледяной дракон 3000")).toEqual([["Ледяной дракон", 3000]]);
+    expect(names("# Бой №3 — Тень 800")).toEqual([["Тень", 800]]);
+    expect(names("# Бой 1 Огненный змей")).toEqual([["Огненный змей", 1500]]);
+    expect(names("# Бой: Дракон 500")).toEqual([["Дракон", 500]]);
+    expect(names("# Бой 3000")).toEqual([["Дракон", 3000]]);
+    expect(names("# Бой 2")).toEqual([["Дракон", 1500]]);
+  });
+
   it("шаблоны «Классика» и «Для детей» проходят проверку", () => {
     expect(validateDragon(DEMO_DRAGON)).toEqual([]);
     expect(validateDragon(DEMO_DRAGON_KIDS)).toEqual([]);
@@ -201,5 +211,74 @@ describe("Бой с драконом: «Назад» после поражени
     expect(parseDragonResult(s.state.result).phase).toBe("task");
     expect(s.leaderboard.A?.score).toBe(0);
     expect(parseDragonResult(s.state.result).hp).toBe(100_000);
+  });
+});
+
+describe("Бой с драконом: «Назад» с заставки (QA 22 октября 2026)", () => {
+  it("заставка задания — к итогу прошлого удара, очки и жизни как были; ещё раз — удар отменён", () => {
+    let { s, c } = heroes();
+    s = apply(s, showTask(s, c, teams));
+    s = apply(s, revealTask(s, c, [ans(s, "A", { choice: 0 }), ans(s, "B", { choice: 1 })], teams));
+    const shown = s;
+    expect(parseDragonResult(s.state.result).phase).toBe("reveal");
+    s = apply(s, nextTask(s, c, teams));
+    expect(parseDragonResult(s.state.result).phase).toBe("intro");
+    const back = dragonBack(s, teams);
+    expect(back).not.toBeNull();
+    s = apply(s, back?.change ?? null);
+    const r = parseDragonResult(s.state.result);
+    expect(s.state.step).toBe(shown.state.step);
+    expect(s.state.stage).toBe("reveal");
+    expect(r.phase).toBe("reveal");
+    expect(r.task).toBe(0);
+    expect(r.hp).toBe(parseDragonResult(shown.state.result).hp);
+    expect(r.lives).toEqual(parseDragonResult(shown.state.result).lives);
+    expect(s.leaderboard.B?.score).toBe(shown.leaderboard.B?.score);
+    // Ещё «Назад» — удар отменён, очки сняты.
+    s = apply(s, dragonBack(s, teams)?.change ?? null);
+    expect(parseDragonResult(s.state.result).phase).toBe("task");
+    expect(s.leaderboard.B?.score).toBe(0);
+    // Снова «Удар!» и «Следующее задание» — игра идёт как обычно.
+    s = apply(s, revealTask(s, c, [ans(s, "A", { choice: 0 }), ans(s, "B", { choice: 1 })], teams));
+    s = apply(s, nextTask(s, c, teams));
+    expect(parseDragonResult(s.state.result)).toMatchObject({ phase: "intro", task: 1 });
+  });
+
+  it("заставка первого боя — к выбору героев (выбор телефонов сохранён), выбор героев — к «Начать игру»", () => {
+    const { s: fought, c } = heroes();
+    const back = dragonBack(fought, teams);
+    expect(back).not.toBeNull();
+    let s = apply(fought, back?.change ?? null);
+    expect(parseDragonResult(s.state.result).phase).toBe("heroes");
+    expect(s.state.stage).toBe("question");
+    expect(dragonPrimary(s, c)).toBe("heroesDone");
+    s = apply(s, dragonBack(s, teams)?.change ?? null);
+    expect(s.state.stage).toBe("ready");
+    expect(dragonPrimary(s, c)).toBe("start");
+    expect(dragonBack(s, teams)).toBeNull();
+  });
+
+  it("заставка второго боя и конец игры — к итогу прошлого боя", () => {
+    let { s, c } = heroes();
+    s = apply(s, showTask(s, c, teams));
+    // Волшебница сразу побеждает первого дракона.
+    s = apply(s, revealTask(s, c, [ans(s, "A", { choice: 1 })], teams));
+    expect(parseDragonResult(s.state.result).phase).toBe("victory");
+    const won = s;
+    s = apply(s, nextBattle(s, c, teams));
+    expect(parseDragonResult(s.state.result)).toMatchObject({ phase: "intro", battle: 1 });
+    s = apply(s, dragonBack(s, teams)?.change ?? null);
+    expect(parseDragonResult(s.state.result)).toMatchObject({ phase: "victory", battle: 0 });
+    expect(s.leaderboard).toEqual(won.leaderboard);
+    // Второй бой до конца — «Назад» с конца игры.
+    s = apply(s, nextBattle(s, c, teams));
+    s = apply(s, showTask(s, c, teams));
+    s = apply(s, revealTask(s, c, [ans(s, "A", { choice: 1 })], teams));
+    s = apply(s, nextBattle(s, c, teams));
+    expect(parseDragonResult(s.state.result).phase).toBe("over");
+    const before = s.leaderboard;
+    s = apply(s, dragonBack(s, teams)?.change ?? null);
+    expect(parseDragonResult(s.state.result)).toMatchObject({ battle: 1 });
+    expect(s.leaderboard).toEqual(before);
   });
 });

@@ -6,6 +6,7 @@
 // → ведущий: «Выполнено» (+очки клетки) / «Не выполнено» → следующая команда. Первая на финише —
 // бонус финиша и награждение.
 import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboard";
+import { beforeChange, makeBefore, parseBefore, type Before } from "../../core/backStack";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreDelta, Step } from "../types";
@@ -42,6 +43,8 @@ export interface QuestResult {
   points: number;
   winner: string | null;
   prev: Prev | null;
+  /** Итог прошлого хода целиком — «Назад» с броска следующей команды (`core/backStack`). */
+  before: Before | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -74,6 +77,7 @@ export function parseQuestResult(raw: unknown): QuestResult {
     points: typeof d.points === "number" ? d.points : 0,
     winner: pid(d.winner),
     prev: Object.keys(p).length > 0 ? { turn: nat(p.turn), pos: nums(p.pos), skip: ids(p.skip), points: typeof p.points === "number" ? p.points : 0, mover: pid(p.mover) } : null,
+    before: parseBefore(d.before),
   };
 }
 
@@ -142,7 +146,7 @@ export function startQuest(session: Session, participants: Participant[]): Sessi
   const order = orderOf(session, participants, r);
   const pos = Object.fromEntries(order.map((p) => [p, r.pos[p] ?? 0]));
   return {
-    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, order, pos, mode: "roll", mover: moverOf({ ...r, order }), roll: null, outcome: null, points: 0 }) },
+    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write({ ...r, order, pos, mode: "roll", mover: moverOf({ ...r, order }), roll: null, outcome: null, points: 0, before: null }) },
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
   };
 }
@@ -232,7 +236,7 @@ export function nextTurn(session: Session, participants: Participant[] = []): Se
     if (order.length === 1) break;
     turn += 1;
   }
-  const next: QuestResult = { ...r, order, pos, turn, skip, mode: "roll", mover: null, roll: null, outcome: null, points: 0 };
+  const next: QuestResult = { ...r, order, pos, turn, skip, mode: "roll", mover: null, roll: null, outcome: null, points: 0, before: makeBefore("reveal", write(r), session.state.answered) };
   next.mover = moverOf(next);
   return { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: write(next) } };
 }
@@ -256,6 +260,12 @@ export function questBack(session: Session): QuestBack | null {
     const minus = r.mode === "finish" ? r.points : r.outcome === "ok" ? r.points : 0;
     if (minus > 0 && p.mover) change.addScore = { [p.mover]: -minus };
     return { change, clear: [step] };
+  }
+  if (stage === "question" && r.mode === "roll") {
+    // Бросок следующей команды — к итогу прошлого хода (бросок очков не начислял, прошлый ход — целиком как был).
+    if (r.before) return { change: beforeChange(step, r.before), clear: [step] };
+    // Первый бросок партии — к «Начать игру»: все на старте, пропусков нет — терять нечего.
+    if (!r.prev && r.skip.length === 0 && Object.values(r.pos).every((n) => n === 0)) return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: {} } }, clear: [step] };
   }
   return null;
 }

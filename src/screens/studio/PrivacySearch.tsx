@@ -34,7 +34,7 @@ export function PrivacySearch() {
           <TopBar title="Данные по номеру" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
           {!clientsRepo ? (
             <p className="muted">Доступно на своём сервере JoyRest.</p>
-          ) : !permissions.canManageClients(profile) ? (
+          ) : !permissions.canErasePersonalData(profile) ? (
             <p className="muted">Этот раздел открыт только владельцу агентства.</p>
           ) : (
             <Finder />

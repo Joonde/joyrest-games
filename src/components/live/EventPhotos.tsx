@@ -34,17 +34,43 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
   const input = useRef<HTMLInputElement>(null);
   const target = useRef<number>(1);
 
+  // Список не загрузился — это не «фото нет» (QA 22 октября 2026, M10): показываем «Повторить», а снимать нельзя,
+  // иначе «Сделать фото» молча заменит уже снятое (в том числе со второго пульта).
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  // Поколение записей: растёт в начале и в конце каждого сохранения и удаления. Список, запрошенный до последней записи
+  // (закрыли и открыли блок, пока фото сохранялось), устарел — его ответ не затирает только что снятое фото, а список
+  // перечитывается заново (повторная проверка QA 22 октября 2026).
+  const generation = useRef(0);
   useEffect(() => {
-    if (!photosRepo || !open || photos) return;
+    if (!photosRepo || !open) return;
     let alive = true;
+    const asked = generation.current;
+    setFailed(false);
+    // Каждое открытие — свежий список: второй пульт мог уже снять фото.
     photosRepo
       .list(sessionId)
-      .then((list) => alive && setPhotos(list))
-      .catch(() => alive && setPhotos([]));
+      .then((list) => {
+        if (!alive) return;
+        if (asked !== generation.current) {
+          setAttempt((n) => n + 1);
+          return;
+        }
+        setPhotos(list);
+      })
+      .catch(() => {
+        if (!alive) return;
+        if (asked !== generation.current) {
+          setAttempt((n) => n + 1);
+          return;
+        }
+        setPhotos(null);
+        setFailed(true);
+      });
     return () => {
       alive = false;
     };
-  }, [open, photos, sessionId]);
+  }, [open, attempt, sessionId]);
 
   if (!photosRepo) return null;
   const bySlot = new Map((photos ?? []).map((p) => [p.slot, p]));
@@ -62,6 +88,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
     const slot = target.current;
     setBusySlot(slot);
     setError(null);
+    generation.current += 1;
     try {
       const blob = await shrinkImage(file, { maxSide: 1600, targetBytes: 800 * 1024, maxBytes: 1400 * 1024 });
       const { width, height } = await dimensions(blob);
@@ -70,6 +97,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
     } catch (e) {
       setError(e instanceof ImageError ? e.message : "Не получилось сохранить фото. Проверьте интернет и попробуйте ещё раз.");
     } finally {
+      generation.current += 1;
       setBusySlot(null);
     }
   }
@@ -79,12 +107,14 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
     setToDelete(null);
     setBusySlot(slot);
     setError(null);
+    generation.current += 1;
     try {
       await photosRepo.remove(sessionId, slot);
       setPhotos((list) => (list ?? []).filter((p) => p.slot !== slot));
     } catch {
       setError("Не получилось удалить фото. Проверьте интернет.");
     } finally {
+      generation.current += 1;
       setBusySlot(null);
     }
   }
@@ -94,7 +124,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
       <details className="fold event-photos" onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className="fold__head">
           <span className="fold__title">📷 Общее фото для фотоотчёта</span>
-          <span className="fold__value">{photos ? `${count} из ${PHOTO_SLOTS.length}` : "до 3 фото"}</span>
+          <span className="fold__value">{failed ? "не загрузилось" : photos ? `${count} из ${PHOTO_SLOTS.length}` : "до 3 фото"}</span>
           <span className="fold__chev" aria-hidden="true" />
         </summary>
         <div className="fold__body stack stack--tight">
@@ -110,6 +140,15 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
             tabIndex={-1}
             onChange={(e) => void save(e.target.files?.[0] ?? null)}
           />
+          {failed && (
+            <div className="stack stack--tight" role="alert">
+              <p className="error small">Фото этой игры не загрузились — снимать пока нельзя, чтобы не заменить уже снятое.</p>
+              <button type="button" className="btn btn--secondary btn--block" onClick={() => setAttempt((n) => n + 1)}>
+                Не загрузилось — Повторить
+              </button>
+            </div>
+          )}
+          {!failed && photos === null && open && <p className="muted small">Загружаем фото этой игры…</p>}
           <div className="event-photos__grid">
             {PHOTO_SLOTS.map((slot) => {
               const photo = bySlot.get(slot);

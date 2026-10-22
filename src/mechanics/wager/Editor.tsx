@@ -2,25 +2,12 @@
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import type { EditorProps } from "../types";
 import { cleanNumber, formatNumber, newQuestion, START_CHIPS, WAGER_LIMITS, type WagerContent, type WagerQuestion } from "./content";
+import { importWager } from "./importText";
 import { validateWager } from "./validate";
-
-/** «Вставить списком»: строка «Вопрос? = 330 м» (после числа — единицы). */
-export function importLines(text: string): WagerQuestion[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const at = line.lastIndexOf("=");
-      if (at <= 0) return [];
-      const m = /^\s*(-?[\d\s]+(?:[.,]\d+)?)\s*(.*)$/.exec(line.slice(at + 1));
-      const answer = cleanNumber(m?.[1] ?? "");
-      if (answer === null) return [];
-      return [{ ...newQuestion(), text: line.slice(0, at).trim().slice(0, WAGER_LIMITS.text), answer, unit: (m?.[2] ?? "").trim().slice(0, WAGER_LIMITS.unit) }];
-    });
-}
 
 export function WagerEditor({ content, onChange, editable }: EditorProps<WagerContent>) {
   const errors = validateWager(content);
@@ -28,7 +15,37 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
   latest.current = content;
   const [paste, setPaste] = useState("");
   const update = (id: string, patch: Partial<WagerQuestion>) => onChange({ ...latest.current, questions: latest.current.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)) });
-  const imported = importLines(paste);
+  const parsed = importWager(paste);
+  const imported = parsed.questions;
+  const [importNote, setImportNote] = useState<string | null>(null);
+  const { offer, bar } = useUndoRemove();
+
+  /** Удалить вопрос — 7 секунд «Вернуть» на то же место. */
+  function removeQuestion(q: WagerQuestion) {
+    const index = latest.current.questions.findIndex((x) => x.id === q.id);
+    if (index < 0) return;
+    onChange({ ...latest.current, questions: latest.current.questions.filter((x) => x.id !== q.id) });
+    offer(`Вопрос ${index + 1}${q.text.trim() ? ` «${q.text.trim().slice(0, 40)}»` : ""} удалён`, () =>
+      onChange({ ...latest.current, questions: insertBack(latest.current.questions, { item: q, index }, (x) => x.id) }),
+    );
+  }
+
+  function addImported() {
+    const kept = latest.current.questions.filter((q) => q.text.trim());
+    const all = [...kept, ...imported];
+    const lost = Math.max(0, all.length - WAGER_LIMITS.questions);
+    onChange({ ...latest.current, questions: all.slice(0, WAGER_LIMITS.questions) });
+    setImportNote(
+      [
+        `Добавлено в конец: ${imported.length - lost}.`,
+        lost > 0 ? `Больше ${WAGER_LIMITS.questions} вопросов в игре не берём — последние ${lost} из списка не вошли.` : "",
+        parsed.skipped.length > 0 ? `Не разобрали строки: ${parsed.skipped.map((x) => x.line).join(", ")} — их нет в игре.` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+    setPaste("");
+  }
 
   return (
     <div className="stack">
@@ -43,11 +60,11 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
         <div className="row board-editor__size">
           <label className="field">
             Секунд на догадку
-            <ClampedNumber value={content.guessTime} min={WAGER_LIMITS.timeMin} max={WAGER_LIMITS.timeMax} fallback={60} disabled={!editable} onChange={(guessTime) => onChange({ ...content, guessTime })} />
+            <ClampedNumber value={content.guessTime} min={WAGER_LIMITS.timeMin} max={WAGER_LIMITS.timeMax} fallback={60} disabled={!editable} onChange={(guessTime) => onChange({ ...latest.current, guessTime })} />
           </label>
           <label className="field">
             Секунд на ставки
-            <ClampedNumber value={content.betTime} min={WAGER_LIMITS.timeMin} max={WAGER_LIMITS.timeMax} fallback={45} disabled={!editable} onChange={(betTime) => onChange({ ...content, betTime })} />
+            <ClampedNumber value={content.betTime} min={WAGER_LIMITS.timeMin} max={WAGER_LIMITS.timeMax} fallback={45} disabled={!editable} onChange={(betTime) => onChange({ ...latest.current, betTime })} />
           </label>
         </div>
         <p className="muted small">
@@ -56,7 +73,7 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
         <div className="row board-editor__size">
           <label className="field">
             Бонус автору верной догадки, фишек
-            <ClampedNumber value={content.authorBonus} min={0} max={WAGER_LIMITS.bonusChips} fallback={1} disabled={!editable} onChange={(authorBonus) => onChange({ ...content, authorBonus })} />
+            <ClampedNumber value={content.authorBonus} min={0} max={WAGER_LIMITS.bonusChips} fallback={1} disabled={!editable} onChange={(authorBonus) => onChange({ ...latest.current, authorBonus })} />
           </label>
         </div>
       </section>
@@ -87,12 +104,12 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
                 <input value={q.note} maxLength={WAGER_LIMITS.note} disabled={!editable} placeholder="Откуда это число" onChange={(e) => update(q.id, { note: e.target.value })} />
               </label>
               {qErrors.map((e) => (
-                <p key={e.path} className="error small">
+                <p key={e.path} className="error small edit-issue">
                   {e.message}
                 </p>
               ))}
               {editable && content.questions.length > 1 && (
-                <button type="button" className="btn btn--quiet" onClick={() => onChange({ ...content, questions: content.questions.filter((x) => x.id !== q.id) })}>
+                <button type="button" className="btn btn--quiet" onClick={() => removeQuestion(q)}>
                   Удалить вопрос
                 </button>
               )}
@@ -104,33 +121,55 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
       {editable && (
         <>
           <div className="actions">
-            <button type="button" className="btn btn--secondary btn--block" disabled={content.questions.length >= WAGER_LIMITS.questions} onClick={() => onChange({ ...content, questions: [...content.questions, newQuestion()] })}>
+            <button type="button" className="btn btn--secondary btn--block" disabled={content.questions.length >= WAGER_LIMITS.questions} onClick={() => onChange({ ...latest.current, questions: [...latest.current.questions, newQuestion()] })}>
               + Вопрос
             </button>
           </div>
-          <Fold title="Вставить вопросы списком" value={imported.length > 0 ? `${imported.length}` : ""}>
+          <Fold title="Добавить списком" value={imported.length > 0 ? `${imported.length}` : ""}>
             <div className="stack stack--tight">
               <p className="muted small">Каждый вопрос с новой строки, после «=» — ответ числом и единицы: «Высота Эльбруса? = 5642 м».</p>
               <label className="field">
                 Список
-                <textarea rows={6} value={paste} onChange={(e) => setPaste(e.target.value)} />
+                <textarea
+                  rows={6}
+                  value={paste}
+                  onChange={(e) => {
+                    setPaste(e.target.value);
+                    setImportNote(null);
+                  }}
+                />
               </label>
+              {parsed.skipped.length > 0 && (
+                <div className="muted small" role="status">
+                  <p>Не разобрали строки — нет «=» или после него не число (пишите «= 330 м», без «около»):</p>
+                  <ul>
+                    {parsed.skipped.slice(0, 8).map((x) => (
+                      <li key={x.line}>
+                        Строка {x.line}: «{x.text.length > 60 ? `${x.text.slice(0, 60)}…` : x.text}»
+                      </li>
+                    ))}
+                    {parsed.skipped.length > 8 && <li>и ещё {parsed.skipped.length - 8}</li>}
+                  </ul>
+                </div>
+              )}
               <button
                 type="button"
                 className="btn btn--secondary btn--block"
                 disabled={imported.length === 0 || content.questions.length >= WAGER_LIMITS.questions}
-                onClick={() => {
-                  const blank = content.questions.filter((q) => q.text.trim());
-                  onChange({ ...content, questions: [...blank, ...imported].slice(0, WAGER_LIMITS.questions) });
-                  setPaste("");
-                }}
+                onClick={addImported}
               >
-                Добавить {imported.length > 0 ? imported.length : ""} в игру
+                Добавить списком{imported.length > 0 ? ` · ${imported.length}` : ""}
               </button>
+              {importNote && (
+                <p className="muted small" role="status">
+                  {importNote}
+                </p>
+              )}
             </div>
           </Fold>
         </>
       )}
+      {bar}
     </div>
   );
 }
@@ -138,7 +177,7 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
 /** Поле числа: можно стирать и писать запятую, в игру уходит только правильное число. */
 function NumberInput({ value, disabled, onChange }: { value: number; disabled: boolean; onChange: (n: number) => void }) {
   const [text, setText] = useState(formatNumber(value).replace(/ /g, " ").replace("−", "-"));
-  const bad = cleanNumber(text) === null;
+  const bad = cleanNumber(text) === null; // пустое поле — тоже ошибка, а не ответ 0
   return (
     <input
       type="text"

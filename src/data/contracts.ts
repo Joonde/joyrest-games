@@ -124,9 +124,10 @@ export interface GamesRepository {
   copy(sourceGameId: string, mediaIds: string[], draft: NewGame): Promise<string>;
   /**
    * Свой сервер: сохранение сверяет версию игры, с которой правит этот человек. Игру за это время изменил другой —
-   * ошибка `failed-precondition` (`conflictBy` в ней — его имя), ничего не записано.
+   * ошибка `failed-precondition` (`conflictBy` в ней — его имя), ничего не записано. Свой сервер возвращает новую версию
+   * игры (`updatedAt` после записи) — её запоминает черновик автосохранения; Firebase — ничего (версия неизвестна).
    */
-  update(gameId: string, patch: GamePatch): Promise<void>;
+  update(gameId: string, patch: GamePatch): Promise<number | null | void>;
   /** Свой сервер: «Сохранить мою версию поверх» — следующее сохранение без сверки версии. */
   overwriteNext?(gameId: string): void;
   /** Удаляет игру вместе со всеми её картинками. */

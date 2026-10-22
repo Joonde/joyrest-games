@@ -1,5 +1,5 @@
 // Конструктор «Ставки на знания»: размер поля, категории, стоимость и содержимое каждой клетки.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { compressImage, ImageError } from "../../components/media/compressImage";
 import { MediaImage } from "../../components/media/MediaImage";
@@ -41,6 +41,17 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
   const errors = validateBoard(content);
   const errorCells = new Set(errors.map((e) => e.path.split("/")[1]).filter(Boolean));
   const open = findCell(content, openId);
+
+  // «Показать, что исправить»: открывается первая клетка с замечанием (форма клетки показывается под полем).
+  const firstBad = useRef<string | null>(null);
+  firstBad.current = allCells(content).find(({ cell }) => errors.some((e) => e.path.startsWith(`cells/${cell.id}/`)))?.cell.id ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBad.current) setOpenId(firstBad.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
 
   function updateCell(id: string, patch: Partial<BoardCell> | ((cell: BoardCell) => BoardCell)) {
     const current = latest.current;
@@ -90,19 +101,19 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
         <div className="row board-editor__size">
           <label className="field">
             Раундов
-            <ClampedNumber value={rounds} min={1} max={MAX_ROUNDS} fallback={2} disabled={!editable} onChange={(n) => onChange(setRounds(content, n))} />
+            <ClampedNumber value={rounds} min={1} max={MAX_ROUNDS} fallback={2} disabled={!editable} onChange={(n) => onChange(setRounds(latest.current, n))} />
           </label>
           <label className="field">
             Категорий в раунде
-            <ClampedNumber value={rows} min={BOARD_LIMITS.minRows} max={BOARD_LIMITS.maxRows} fallback={4} disabled={!editable} onChange={(r) => onChange(resizeBoard(content, r, cols))} />
+            <ClampedNumber value={rows} min={BOARD_LIMITS.minRows} max={BOARD_LIMITS.maxRows} fallback={4} disabled={!editable} onChange={(r) => onChange(resizeBoard(latest.current, r, cols))} />
           </label>
           <label className="field">
             Вопросов в категории
-            <ClampedNumber value={cols} min={BOARD_LIMITS.minCols} max={BOARD_LIMITS.maxCols} fallback={5} disabled={!editable} onChange={(c) => onChange(resizeBoard(content, rows, c))} />
+            <ClampedNumber value={cols} min={BOARD_LIMITS.minCols} max={BOARD_LIMITS.maxCols} fallback={5} disabled={!editable} onChange={(c) => onChange(resizeBoard(latest.current, rows, c))} />
           </label>
         </div>
         <label className="choice">
-          <input type="checkbox" checked={content.penalty} disabled={!editable} onChange={(e) => onChange({ ...content, penalty: e.target.checked })} />
+          <input type="checkbox" checked={content.penalty} disabled={!editable} onChange={(e) => onChange({ ...latest.current, penalty: e.target.checked })} />
           <span className="choice__text">
             <span className="choice__title">Неверный ответ — минус стоимость клетки</span>
             <span className="choice__hint">Как в телевизионной «Ставке на знания». Без галочки ошибка просто передаёт слово следующему.</span>
@@ -110,14 +121,14 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
         </label>
         <label className="field">
           Время на ставки в «Аукционе», секунд
-          <ClampedNumber value={content.betTime} min={BOARD_LIMITS.minBetTime} max={BOARD_LIMITS.maxBetTime} fallback={30} disabled={!editable} onChange={(betTime) => onChange({ ...content, betTime })} />
+          <ClampedNumber value={content.betTime} min={BOARD_LIMITS.minBetTime} max={BOARD_LIMITS.maxBetTime} fallback={30} disabled={!editable} onChange={(betTime) => onChange({ ...latest.current, betTime })} />
         </label>
         <fieldset className="stack stack--tight">
           <legend>Время на ответ после «Запустить отсчёт»</legend>
           <p className="muted small">Ведущий сначала читает вопрос — кнопки гостей не активны (без фальстарта). Потом «Запустить отсчёт» — и столько секунд жать кнопку.</p>
           <div className="row" role="radiogroup" aria-label="Секунд на ответ">
             {BUZZ_TIMES.map((t) => (
-              <button key={t} type="button" className="pick-chip" role="radio" aria-checked={content.buzzTime === t} aria-pressed={content.buzzTime === t} disabled={!editable} onClick={() => onChange({ ...content, buzzTime: t })}>
+              <button key={t} type="button" className="pick-chip" role="radio" aria-checked={content.buzzTime === t} aria-pressed={content.buzzTime === t} disabled={!editable} onClick={() => onChange({ ...latest.current, buzzTime: t })}>
                 {t} с
               </button>
             ))}
@@ -147,7 +158,8 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
                 placeholder={`Категория ${r + 1}`}
                 aria-label={`Название категории ${r + 1}`}
                 disabled={!editable}
-                onChange={(e) => onChange({ ...content, categories: content.categories.map((c) => (c.id === category.id ? { ...c, title: e.target.value } : c)) })}
+                aria-invalid={errors.some((e) => e.path === `categories/${category.id}/title`)}
+                onChange={(e) => onChange({ ...latest.current, categories: latest.current.categories.map((c) => (c.id === category.id ? { ...c, title: e.target.value } : c)) })}
               />
               <div className="board-editor__cells">
                 {category.cells.map((cell) => (
@@ -190,7 +202,7 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
         />
       )}
       {errors.some((e) => e.path === "board") && (
-        <p className="error" role="alert">
+        <p className="error edit-issue" role="alert">
           {errors.find((e) => e.path === "board")?.message}
         </p>
       )}
@@ -301,7 +313,7 @@ function CellForm({
       {errors.length > 0 && (
         <ul className="error-list" role="alert">
           {errors.map((m) => (
-            <li key={m} className="error">
+            <li key={m} className="error edit-issue">
               {m}
             </li>
           ))}

@@ -1,4 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import { LibraryVideoPicker, videoSourceLabel, videoSources } from "../../components/media/libraryVideo";
 import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackPicker } from "../../components/music/TrackPicker";
@@ -23,12 +25,45 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
   const set = (patch: Partial<LottoContent>) => onChange({ ...latest.current, ...patch });
   const setSong = (id: string, patch: Partial<LottoSong>) => set({ songs: latest.current.songs.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const room = LOTTO_LIMITS.songs - content.songs.length;
+  const [bulkNote, setBulkNote] = useState<string | null>(null);
+  const { offer, bar } = useUndoRemove();
+
+  // «Показать, что исправить»: песня с замечанием раскрывается.
+  const firstBad = useRef<string | null>(null);
+  firstBad.current = content.songs.find((s) => errors.some((e) => e.path.startsWith(`songs/${s.id}/`)))?.id ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBad.current) setOpenId(firstBad.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
 
   function addBulk() {
-    const songs = parseSongList(bulk).slice(0, room);
+    const all = parseSongList(bulk);
+    const free = LOTTO_LIMITS.songs - latest.current.songs.length;
+    const songs = all.slice(0, Math.max(0, free));
     if (songs.length === 0) return;
-    set({ songs: [...content.songs, ...songs] });
+    set({ songs: [...latest.current.songs, ...songs] });
+    const lost = all.slice(songs.length);
+    setBulkNote(
+      lost.length > 0
+        ? `Добавлено в конец: ${songs.length}. Больше ${LOTTO_LIMITS.songs} песен в игре не берём — не вошли: ${lost
+            .slice(0, 3)
+            .map((x) => `«${[x.artist, x.title].filter(Boolean).join(" — ")}»`)
+            .join(", ")}${lost.length > 3 ? ` и ещё ${lost.length - 3}` : ""}.`
+        : `Добавлено в конец: ${songs.length}.`,
+    );
     setBulk("");
+  }
+
+  /** Убрать песню — 7 секунд «Вернуть» на то же место. */
+  function removeSong(song: LottoSong) {
+    const index = latest.current.songs.findIndex((s) => s.id === song.id);
+    if (index < 0) return;
+    set({ songs: latest.current.songs.filter((s) => s.id !== song.id) });
+    setOpenId(null);
+    offer(`Песня ${index + 1}${song.title.trim() ? ` «${song.title.trim()}»` : ""} убрана`, () => set({ songs: insertBack(latest.current.songs, { item: song, index }, (s) => s.id) }));
   }
 
   function shuffle() {
@@ -155,19 +190,19 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           </p>
         )}
         {general.map((e) => (
-          <p key={e.message} className="error small">
+          <p key={e.message} className="error small edit-issue">
             {e.message}
           </p>
         ))}
         {editable && (
           <>
             <label className="field">
-              Вставить списком: «Исполнитель — Песня», по одной в строке
+              Добавить списком в конец: «Исполнитель — Песня», по одной в строке
               <textarea rows={4} value={bulk} placeholder={"Земфира — Хочешь?\nКино — Звезда по имени Солнце"} onChange={(e) => setBulk(e.target.value)} />
             </label>
             <div className="actions">
               <button type="button" className="btn btn--block" disabled={!bulk.trim() || room <= 0} onClick={addBulk}>
-                Добавить песни из списка
+                Добавить списком
               </button>
               <button
                 type="button"
@@ -175,7 +210,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                 disabled={room <= 0}
                 onClick={() => {
                   const song = newSong();
-                  set({ songs: [...content.songs, song] });
+                  set({ songs: [...latest.current.songs, song] });
                   setOpenId(song.id);
                 }}
               >
@@ -185,6 +220,11 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                 Перемешать порядок
               </button>
             </div>
+            {bulkNote && (
+              <p className="muted small" role="status">
+                {bulkNote}
+              </p>
+            )}
           </>
         )}
       </section>
@@ -208,7 +248,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                   </button>
                 </div>
                 {own.map((e) => (
-                  <p key={e.message} className="error small">
+                  <p key={e.message} className="error small edit-issue">
                     {e.message}
                   </p>
                 ))}
@@ -238,7 +278,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
                     />
                     <SongVideo song={song} editable={editable} onChange={(patch) => setSong(song.id, patch)} />
                     {editable && (
-                      <button type="button" className="btn btn--quiet btn--block" onClick={() => set({ songs: content.songs.filter((s) => s.id !== song.id) })}>
+                      <button type="button" className="btn btn--quiet btn--block" onClick={() => removeSong(song)}>
                         Убрать песню
                       </button>
                     )}
@@ -252,6 +292,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
           })}
         </ol>
       )}
+      {bar}
     </>
   );
 }
@@ -279,7 +320,7 @@ function SongVideo({ song, editable, onChange }: { song: LottoSong; editable: bo
         <label className="field">
           Ссылка на YouTube, VK Видео или Rutube
           <input value={song.video.url} inputMode="url" maxLength={LOTTO_LIMITS.url} disabled={!editable} placeholder="https://youtu.be/…" onChange={(e) => onChange({ video: { ...song.video, url: e.target.value.trim() } })} />
-          {badVideoLink(song) && <span className="error small">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
+          {badVideoLink(song) && <span className="error small edit-issue">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
           <span className="muted small">Проверьте ролик на репетиции: некоторые запрещают показ на других сайтах. Пауза и перемотка с пульта — у YouTube и Rutube.</span>
         </label>
       )}

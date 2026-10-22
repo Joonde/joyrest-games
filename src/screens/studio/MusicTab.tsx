@@ -14,7 +14,7 @@ function clipLabel(clip: TrackClip): string {
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
 import { ListSkeleton } from "../../components/Skeleton";
-import { LoadFailedInline } from "../../components/Status";
+import { DISK_FULL_TEXT, isServerDiskFull, LoadFailedInline } from "../../components/Status";
 import { audioDuration, usePreview } from "../../components/music/usePreview";
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -729,9 +729,11 @@ function UploadCard({ profile, folders, onUploaded }: { profile: UserProfile; fo
       setError(
         code === "invalid-argument"
           ? "Это не похоже на mp3, m4a или ogg. Выберите другой файл."
-          : code === "resource-exhausted"
-            ? "Место для музыки закончилось. Удалите старые треки."
-            : "Не удалось загрузить. Проверьте интернет и попробуйте снова.",
+          : isServerDiskFull(e)
+            ? DISK_FULL_TEXT
+              : code === "resource-exhausted"
+              ? "Место для музыки закончилось. Удалите старые треки."
+              : "Не удалось загрузить. Проверьте интернет и попробуйте снова.",
       );
     } finally {
       setBusy(false);
@@ -742,8 +744,8 @@ function UploadCard({ profile, folders, onUploaded }: { profile: UserProfile; fo
     <section className="card" aria-labelledby="upload-track">
       <h2 id="upload-track">Музыка</h2>
       <p className="muted">
-        Загрузите трек — он сразу появится в «Моих треках»: его можно поставить в любую игру (квиз, лото, батл, «Своя
-        игра») и включить с пульта на экране зала. У трека можно выбрать отрезок, громкость и затухание.
+        Загрузите трек — он сразу появится в «Моих треках»: его можно поставить в любую игру (квиз, лото, батл, «Ставка
+        на знания») и включить с пульта на экране зала. У трека можно выбрать отрезок, громкость и затухание.
       </p>
       <input
         ref={fileRef}

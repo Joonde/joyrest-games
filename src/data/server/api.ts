@@ -11,6 +11,8 @@ export class ApiError extends Error {
   constructor(
     readonly code: string,
     readonly status: number,
+    /** Уточнение сервера к коду (`{ error, reason }`), например «archived» у 409; нет — пусто. */
+    readonly reason: string = "",
   ) {
     super(code);
     this.name = "ApiError";
@@ -26,6 +28,12 @@ const STATUS_CODES: Record<number, string> = {
   429: "resource-exhausted",
   501: "unimplemented",
 };
+
+/** Уточнение причины из тела ответа (`reason`); нет — пусто. */
+export function reasonOf(data: unknown): string {
+  if (typeof data !== "object" || data === null || !("reason" in data)) return "";
+  return typeof data.reason === "string" ? data.reason.slice(0, 64) : "";
+}
 
 function errorOf(data: unknown): string | null {
   if (typeof data !== "object" || data === null || !("error" in data)) return null;
@@ -45,7 +53,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => null);
     // Сбой сервера (5xx) и непонятный ответ — тоже повторяемые.
-    throw new ApiError(errorOf(data) ?? STATUS_CODES[response.status] ?? "unavailable", response.status);
+    throw new ApiError(errorOf(data) ?? STATUS_CODES[response.status] ?? "unavailable", response.status, reasonOf(data));
   }
   return response;
 }

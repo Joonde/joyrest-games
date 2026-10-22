@@ -136,7 +136,7 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     expect((await get("/api/videos/v1/file", "")).statusCode).toBe(401);
   });
 
-  it("название и папку правят владелец и заместитель; убрать — тоже они", async () => {
+  it("название и папку правят владелец (любое) и заместитель (своё); убрать — тоже они", async () => {
     const patch = (cookie: string, payload: object) => app.inject({ method: "PATCH", url: "/api/videos/v1", headers: headers(cookie), payload });
     expect((await patch(host, { title: "Чужое" })).statusCode).toBe(403);
     expect((await patch(owner, { title: "Танец под диско", folder: "Диско" })).json()).toMatchObject({ title: "Танец под диско", folder: "Диско" });
@@ -146,6 +146,12 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     // Видео владельца заместитель не убирает и не дописывает.
     expect((await post("/api/videos", owner, { id: "own1", title: "Видео владельца", size: 100_000 })).statusCode).toBe(200);
     expect((await chunk("own1", deputy, 0, mp4(CHUNK))).statusCode).toBe(403);
+    // …и не переименовывает и не перекладывает в другую папку (QA 22 октября 2026); своё — может.
+    const patchOf = (cookie: string, id: string, payload: object) => app.inject({ method: "PATCH", url: `/api/videos/${id}`, headers: headers(cookie), payload });
+    expect((await patchOf(deputy, "own1", { title: "Чужое" })).statusCode).toBe(403);
+    expect((await patchOf(deputy, "own1", { folder: "Другая" })).statusCode).toBe(403);
+    expect((await patchOf(deputy, "v1", { folder: "Диско" })).json()).toMatchObject({ folder: "Диско" });
+    expect((await patchOf(owner, "own1", { title: "Видео владельца 2" })).json()).toMatchObject({ title: "Видео владельца 2" });
     expect((await del(deputy, "own1")).statusCode).toBe(403);
     expect((await del(owner, "own1")).statusCode).toBe(200);
     expect((await del(deputy)).statusCode).toBe(200);
@@ -169,6 +175,31 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     const after = (await get("/api/videos", owner)).json().videos as Array<{ id: string; folder: string }>;
     expect(after.find((v) => v.id === "fold1")?.folder).toBe("");
     expect((await app.inject({ method: "DELETE", url: "/api/videos/fold1", headers: headers(deputy) })).statusCode).toBe(200);
+  });
+
+  it("папку с чужими видео заместитель не переименовывает и не удаляет — только владелец", async () => {
+    expect((await post("/api/videos", owner, { id: "ownf", title: "Видео владельца", folder: "Общая", size: 100_000 })).statusCode).toBe(200);
+    expect((await post("/api/videos", deputy, { id: "depf", title: "Видео зама", folder: "Общая", size: 100_000 })).statusCode).toBe(200);
+    const rename = await post("/api/video-folders/rename", deputy, { from: "Общая", to: "Моя" });
+    expect(rename.statusCode).toBe(403);
+    expect(rename.json()).toEqual({ error: "permission-denied", reason: "foreign-videos" });
+    const remove = await post("/api/video-folders/delete", deputy, { name: "Общая" });
+    expect(remove.statusCode).toBe(403);
+    expect(remove.json()).toMatchObject({ reason: "foreign-videos" });
+    const folderOf = async (id: string) => ((await get("/api/videos", owner)).json().videos as Array<{ id: string; folder: string }>).find((v) => v.id === id)?.folder;
+    expect(await folderOf("ownf")).toBe("Общая");
+    expect(await folderOf("depf")).toBe("Общая");
+    // Папку только со своими видео заместитель переименовывает.
+    expect((await post("/api/videos", deputy, { id: "depg", title: "Ещё видео зама", folder: "Зам", size: 100_000 })).statusCode).toBe(200);
+    expect((await post("/api/video-folders/rename", deputy, { from: "Зам", to: "Зам 2" })).statusCode).toBe(200);
+    expect(await folderOf("depg")).toBe("Зам 2");
+    // Владелец — любую.
+    expect((await post("/api/video-folders/rename", owner, { from: "Общая", to: "Общая 2" })).statusCode).toBe(200);
+    expect(await folderOf("ownf")).toBe("Общая 2");
+    expect(await folderOf("depf")).toBe("Общая 2");
+    for (const id of ["ownf", "depf", "depg"]) {
+      expect((await app.inject({ method: "DELETE", url: `/api/videos/${id}`, headers: headers(owner) })).statusCode).toBe(200);
+    }
   });
 
   it("ночная уборка: файл без ссылок и брошенная загрузка", async () => {

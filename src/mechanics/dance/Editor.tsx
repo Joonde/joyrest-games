@@ -1,6 +1,8 @@
 // Конструктор «Танцевального батла»: карточки Батл / Танец / Караоке, видео (файл или ссылка), трек.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import { LibraryVideoPicker, videoSourceLabel, videoSources } from "../../components/media/libraryVideo";
 import { saveLocalVideo } from "../../components/media/localVideo";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
@@ -20,6 +22,28 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
   latest.current = content;
   const update = (id: string, patch: Partial<DanceCard> | ((c: DanceCard) => DanceCard)) =>
     onChange({ ...latest.current, cards: latest.current.cards.map((c) => (c.id === id ? (typeof patch === "function" ? patch(c) : { ...c, ...patch }) : c)) });
+  const { offer, bar } = useUndoRemove();
+
+  // «Показать, что исправить»: свёрнутая карточка с замечанием раскрывается.
+  const firstBad = useRef<string | null>(null);
+  firstBad.current = content.cards.find((c) => errors.some((e) => e.path.startsWith(`cards/${c.id}/`)))?.id ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBad.current) setOpenId(firstBad.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
+
+  /** Убрать карточку — 7 секунд «Вернуть» на то же место. */
+  function removeCard(card: DanceCard) {
+    const index = latest.current.cards.findIndex((c) => c.id === card.id);
+    if (index < 0) return;
+    onChange({ ...latest.current, cards: latest.current.cards.filter((c) => c.id !== card.id) });
+    offer(`Карточка ${index + 1}${card.title.trim() ? ` «${card.title.trim()}»` : ""} убрана`, () =>
+      onChange({ ...latest.current, cards: insertBack(latest.current.cards, { item: card, index }, (c) => c.id) }),
+    );
+  }
 
   return (
     <div className="stack">
@@ -31,21 +55,21 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
         <div className="row board-editor__size">
           <label className="field">
             Оценка от
-            <ClampedNumber value={content.minRate} min={1} max={content.maxRate - 1} fallback={10} disabled={!editable} onChange={(minRate) => onChange({ ...content, minRate })} />
+            <ClampedNumber value={content.minRate} min={1} max={content.maxRate - 1} fallback={10} disabled={!editable} onChange={(minRate) => onChange({ ...latest.current, minRate })} />
           </label>
           <label className="field">
             до
-            <ClampedNumber value={content.maxRate} min={content.minRate + 1} max={1000} fallback={100} disabled={!editable} onChange={(maxRate) => onChange({ ...content, maxRate })} />
+            <ClampedNumber value={content.maxRate} min={content.minRate + 1} max={1000} fallback={100} disabled={!editable} onChange={(maxRate) => onChange({ ...latest.current, maxRate })} />
           </label>
         </div>
         <div className="row board-editor__size">
           <label className="field">
             Очки за победу в батле
-            <ClampedNumber value={content.battlePoints} min={DANCE_LIMITS.minPoints} max={DANCE_LIMITS.maxPoints} fallback={100} disabled={!editable} onChange={(battlePoints) => onChange({ ...content, battlePoints })} />
+            <ClampedNumber value={content.battlePoints} min={DANCE_LIMITS.minPoints} max={DANCE_LIMITS.maxPoints} fallback={100} disabled={!editable} onChange={(battlePoints) => onChange({ ...latest.current, battlePoints })} />
           </label>
           <label className="field">
             Секунд на голосование
-            <ClampedNumber value={content.voteTime} min={DANCE_LIMITS.minVote} max={DANCE_LIMITS.maxVote} fallback={30} disabled={!editable} onChange={(voteTime) => onChange({ ...content, voteTime })} />
+            <ClampedNumber value={content.voteTime} min={DANCE_LIMITS.minVote} max={DANCE_LIMITS.maxVote} fallback={30} disabled={!editable} onChange={(voteTime) => onChange({ ...latest.current, voteTime })} />
           </label>
         </div>
       </section>
@@ -67,7 +91,7 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
                   {card.title || "без названия"}
                 </span>
               </button>
-              {open && <CardForm card={card} editable={editable} errors={cardErrors.map((e) => e.message)} onChange={(p) => update(card.id, p)} onRemove={content.cards.length > 1 ? () => onChange({ ...content, cards: content.cards.filter((c) => c.id !== card.id) }) : undefined} />}
+              {open && <CardForm card={card} editable={editable} errors={cardErrors.map((e) => e.message)} onChange={(p) => update(card.id, p)} onRemove={content.cards.length > 1 ? () => removeCard(card) : undefined} />}
             </article>
           );
         })}
@@ -111,7 +135,7 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
               disabled={content.cards.length >= DANCE_LIMITS.cards}
               onClick={() => {
                 const card = newCard(kind);
-                onChange({ ...content, cards: [...content.cards, card] });
+                onChange({ ...latest.current, cards: [...latest.current.cards, card] });
                 setOpenId(card.id);
               }}
             >
@@ -123,6 +147,7 @@ export function DanceEditor({ content, onChange, editable }: EditorProps<DanceCo
           ))}
         </div>
       )}
+      {bar}
     </div>
   );
 }
@@ -177,7 +202,7 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
           <label className="field">
             Ссылка на YouTube, VK Видео или Rutube
             <input value={card.video.url} inputMode="url" maxLength={DANCE_LIMITS.url} disabled={!editable} placeholder="https://youtu.be/…" onChange={(e) => onChange({ video: { ...card.video, url: e.target.value.trim() } })} />
-            {card.video.url && !embedUrl(card.video.url) && <span className="error small">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
+            {card.video.url && !embedUrl(card.video.url) && <span className="error small edit-issue">Эту ссылку экран не откроет: нужна ссылка на ролик YouTube, VK Видео или Rutube.</span>}
             <span className="muted small">Ролик откроется прямо на экране зала — нужен интернет на площадке. Некоторые ролики запрещают показ на других сайтах — проверьте на репетиции.</span>
           </label>
         )}
@@ -217,7 +242,7 @@ function CardForm({ card, editable, errors, onChange, onRemove }: { card: DanceC
       )}
 
       {errors.map((m) => (
-        <p key={m} className="error small">
+        <p key={m} className="error small edit-issue">
           {m}
         </p>
       ))}

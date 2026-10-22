@@ -1635,6 +1635,7 @@ legend {
 
 .save-status--offline,
 .save-status--error,
+.save-status--denied,
 .save-status--conflict {
   color: var(--color-text);
   border-color: var(--color-danger);
@@ -1642,6 +1643,7 @@ legend {
 
 .save-status--offline .save-status__dot,
 .save-status--error .save-status__dot,
+.save-status--denied .save-status__dot,
 .save-status--conflict .save-status__dot {
   background: var(--color-danger);
 }
@@ -2181,7 +2183,7 @@ legend {
 
 .toast__action {
   flex: none;
-  min-height: 44px;
+  min-height: 52px;
   padding: 0 16px;
   border: 1.5px solid var(--color-bg);
   border-radius: 999px;
@@ -22839,4 +22841,59 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .guides-pros .btn {
   min-width: 0;
   padding: 8px 12px;
+}
+
+/* ── Конструкторы: исправления по QA 22 октября 2026 ── */
+
+/* Кнопки блока раунда квиза — не меньше 52 px (правило интерфейса); «Отмена» переименования — словом, не ✕. */
+.q-round__btn {
+  width: 52px;
+  height: 52px;
+}
+
+.q-round__btn--text {
+  width: auto;
+  padding: 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.q-round__title,
+.q-round__input,
+.q-round-add__btn,
+.q-restore__btn {
+  min-height: 52px;
+}
+
+/* В раунде есть что исправить: видно и у свёрнутого раунда, и на карте раундов. */
+.q-round--issue {
+  outline: 2px dashed var(--color-danger);
+  outline-offset: 2px;
+}
+
+.q-round__issue {
+  color: var(--color-danger);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.round-map__seg--issue {
+  outline: 3px dashed var(--color-danger);
+  outline-offset: -3px;
+}
+
+.round-map__label--issue {
+  text-decoration: underline wavy var(--color-danger);
+  text-underline-offset: 4px;
+}
+
+/* «Больше N синонимов не берём — лишние: …» под полем синонимов табло. */
+.hd-editor__syn-extra {
+  flex-basis: 100%;
+}
+
+/* Автосохранение: сервер отвечает, но дольше обычного (QA 22 октября 2026, Р7) — не «нет связи», точка мигает. */
+.save-status--slow .save-status__dot {
+  background: var(--color-highlight);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
 }

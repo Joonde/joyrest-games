@@ -33,6 +33,16 @@ describe("запросы к своему серверу", () => {
     expect(isPermanentError(await api("GET", "/api/users").catch((e: unknown) => e))).toBe(true);
   });
 
+  it("уточнение сервера `reason` сохраняется в ошибке (409 у клиента в архиве)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => reply(409, { error: "failed-precondition", reason: "archived" })));
+    const error = await api("POST", "/api/clients/k1/status", { status: "work" }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ code: "failed-precondition", status: 409, reason: "archived" });
+
+    vi.stubGlobal("fetch", vi.fn(async () => reply(409, { error: "failed-precondition" })));
+    expect(await api("POST", "/api/clients/k1/status", {}).catch((e: unknown) => e)).toMatchObject({ reason: "" });
+  });
+
   it("обрыв сети и сбой сервера повторяются", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new TypeError("Failed to fetch");

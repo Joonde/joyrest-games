@@ -5,10 +5,11 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { DECK_LIMITS, titleFromFile } from "../../core/decks";
+import { DECK_LIMITS, DECK_RELOAD_MS, deckReloadKey, shouldReloadDecks, titleFromFile } from "../../core/decks";
 import { imageSlide } from "../../core/slides";
 import { decksRepo, type Deck, type DeckPage, type SessionChange, type SlideState } from "../../data";
 import { Fold } from "../Fold";
+import { DISK_FULL_TEXT, isServerDiskFull } from "../Status";
 import { ImageError } from "../media/compressImage";
 import { prepareDeckFiles } from "../media/deckFiles";
 import { slideId } from "./SlidesPanel";
@@ -31,6 +32,61 @@ function loadDecks(force = false): Promise<Deck[]> {
 function publish(decks: Deck[]) {
   cache = Promise.resolve(decks);
   for (const l of listeners) l(decks);
+}
+
+// Перечитывание списка — одно на страницу пульта: плашка сверху и панель «Слайды» видят один и тот же пропавший показ,
+// а запрос уходит один (повторная проверка QA 22 октября 2026). Сбой сети — повтор через `DECK_RELOAD_MS`, пока показ
+// кому-то нужен.
+let lastReload = 0;
+let reloadTimer: number | null = null;
+let reloadBusy = false;
+const reloadWanted = new Set<symbol>();
+// Страницы (`deckReloadKey`), для которых список перечитали, а их в нём нет: больше не перечитываем, пока на экране
+// не сменится показ или страница (показ удалили — не крутим запрос раз в 10 с до конца вечера).
+const reloadTried = new Set<string>();
+
+function scheduleDeckReload(delay: number): void {
+  if (reloadTimer !== null || reloadBusy || reloadWanted.size === 0) return;
+  reloadTimer = window.setTimeout(() => {
+    reloadTimer = null;
+    if (reloadWanted.size === 0) return;
+    reloadBusy = true;
+    lastReload = Date.now();
+    loadDecks(true).then(
+      (decks) => {
+        reloadBusy = false;
+        // Все, кто ждал перечитывания, получили ответ: если их страницы в списке нет — второй раз не просим.
+        for (const token of reloadWanted) if (token.description) reloadTried.add(token.description);
+        publish(decks);
+      },
+      () => {
+        reloadBusy = false;
+        scheduleDeckReload(DECK_RELOAD_MS);
+      },
+    );
+  }, delay);
+}
+
+/**
+ * На экране показ, которого нет в списке (загрузили с другого пульта, QA 22 октября 2026, M9) — перечитываем список,
+ * но не чаще раза в `DECK_RELOAD_MS`: чужой показ (владелец ведёт игру ведущего) в списке так и не появится.
+ */
+function useMissingDeckReload(decks: Deck[] | null, media: SlideState["media"]): void {
+  const missing = shouldReloadDecks(decks, media, reloadTried);
+  const key = media ? deckReloadKey(media) : "";
+  useEffect(() => {
+    if (!missing) return;
+    const token = Symbol(key);
+    reloadWanted.add(token);
+    scheduleDeckReload(Math.max(0, lastReload + DECK_RELOAD_MS - Date.now()));
+    return () => {
+      reloadWanted.delete(token);
+      if (reloadWanted.size === 0 && reloadTimer !== null) {
+        window.clearTimeout(reloadTimer);
+        reloadTimer = null;
+      }
+    };
+  }, [missing, key]);
 }
 
 export function useDecks(): { decks: Deck[] | null; failed: boolean; reload: () => void; set: (decks: Deck[]) => void } {
@@ -88,6 +144,7 @@ export async function uploadToDeck(
 export function uploadErrorText(e: unknown): string {
   if (e instanceof ImageError) return e.message;
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  if (isServerDiskFull(e)) return DISK_FULL_TEXT;
   if (code === "resource-exhausted") return "Места под показы не хватает: уберите старые показы в студии («Показы») и попробуйте снова.";
   return "Не получилось загрузить. Проверьте интернет и попробуйте ещё раз — уже загруженные страницы сохранятся.";
 }
@@ -96,6 +153,7 @@ export function uploadErrorText(e: unknown): string {
 export function DeckStepper({ slide, onApply }: { slide: SlideState; onApply: (change: SessionChange) => Promise<void> }) {
   const { decks } = useDecks();
   const media = slide.media;
+  useMissingDeckReload(decks, media);
   if (!media) return null;
   const deck = decks?.find((d) => d.id === media.deck) ?? null;
   const go = (page: number) => {
@@ -124,6 +182,7 @@ export function DeckPanel({ current, onApply }: { current: SlideState | null; on
   const [error, setError] = useState<string | null>(null);
   // Только что загруженный показ — раскрыт: следующую страницу сразу видно.
   const [fresh, setFresh] = useState<string | null>(null);
+  useMissingDeckReload(decks, current?.kind === "image" ? current.media : null);
   if (!decksRepo) return null;
   const repo = decksRepo;
   const shownDeck = current?.kind === "image" ? current.media?.deck : null;

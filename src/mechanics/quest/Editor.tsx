@@ -1,6 +1,6 @@
 // Конструктор «Активной настолки»: размер поля (40–100), клетки полосками, тип задания, список, шаблоны.
 import { Fold } from "../../components/Fold";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
@@ -24,10 +24,22 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
   const update = (id: string, patch: Partial<QuestCell> | ((c: QuestCell) => QuestCell)) =>
     onChange({ ...latest.current, cells: latest.current.cells.map((c) => (c.id === id ? (typeof patch === "function" ? patch(c) : { ...c, ...patch }) : c)) });
 
+  // «Показать, что исправить»: клетка с замечанием раскрывается.
+  const firstBad = useRef<string | null>(null);
+  firstBad.current = content.cells.find((c) => errors.some((e) => e.path.startsWith(`cells/${c.id}/`)))?.id ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBad.current) setOpenId(firstBad.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
+
   function fillFrom(cells: QuestCell[], label: string) {
+    const count = Math.min(QUEST_LIMITS.maxCells, cells.length);
     confirm({
       title: `${label}?`,
-      text: "Задания в клетках заменятся новыми по порядку. Остальные клетки останутся.",
+      text: `Клетки с 1-й по ${count}-ю заменятся новыми по порядку${count > latest.current.cells.length ? " (поле станет больше)" : ""}. Остальные клетки останутся.${cells.length > QUEST_LIMITS.maxCells ? ` Больше ${QUEST_LIMITS.maxCells} клеток не берём — последние ${cells.length - QUEST_LIMITS.maxCells} строк не войдут.` : ""}`,
       confirmLabel: "Заполнить",
       run: () => {
         const current = latest.current;
@@ -50,18 +62,18 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
         <div className="row board-editor__size">
           <label className="field">
             Клеток на поле (40–100)
-            <ClampedNumber value={content.cells.length} min={QUEST_LIMITS.minCells} max={QUEST_LIMITS.maxCells} fallback={40} disabled={!editable} onChange={(n) => onChange(resizeQuest(content, n))} />
+            <ClampedNumber value={content.cells.length} min={QUEST_LIMITS.minCells} max={QUEST_LIMITS.maxCells} fallback={40} disabled={!editable} onChange={(n) => onChange(resizeQuest(latest.current, n))} />
           </label>
           <label className="field">
             Очки за финиш
-            <ClampedNumber value={content.finishPoints} min={0} max={QUEST_LIMITS.maxPoints} fallback={200} disabled={!editable} onChange={(finishPoints) => onChange({ ...content, finishPoints })} />
+            <ClampedNumber value={content.finishPoints} min={0} max={QUEST_LIMITS.maxPoints} fallback={200} disabled={!editable} onChange={(finishPoints) => onChange({ ...latest.current, finishPoints })} />
           </label>
         </div>
         <fieldset>
           <legend>Оформление</legend>
           <div className="seg" role="group" aria-label="Оформление">
             {(Object.keys(STYLE_TITLES) as QuestStyle[]).map((style) => (
-              <button key={style} type="button" className={content.style === style ? "seg__btn is-on" : "seg__btn"} aria-pressed={content.style === style} disabled={!editable} onClick={() => onChange({ ...content, style })}>
+              <button key={style} type="button" className={content.style === style ? "seg__btn is-on" : "seg__btn"} aria-pressed={content.style === style} disabled={!editable} onClick={() => onChange({ ...latest.current, style })}>
                 {STYLE_TITLES[style]}
               </button>
             ))}
@@ -69,7 +81,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
           <p className="muted small">{STYLE_HINTS[content.style]}</p>
         </fieldset>
         {editable && (
-          <Fold title="Шаблоны и вставка списком">
+          <Fold title="Шаблоны и замена списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => fillFrom(DEMO_QUEST.content.cells, "Заполнить шаблоном «Классика»")}>
               Заполнить шаблоном «Классика»
@@ -78,7 +90,7 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
               Заполнить шаблоном «18+»
             </button>
             <button type="button" className="btn btn--quiet btn--block" onClick={() => setImporting((v) => !v)}>
-              {importing ? "Скрыть вставку списком" : "Заполнить из списка"}
+              {importing ? "Скрыть замену списком" : "Заменить всё списком"}
             </button>
           </div>
         {importing && (
@@ -87,8 +99,8 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
               Строка — клетка по порядку. «Вопрос: текст = ответ», «Танец: …», «Караоке: …», «+3» (бонус), «Ловушка −2», «Пропуск», «Пусто», иначе — задание. В конце «(30)» — очки. «Задание для команд || задание для каждого сам» — второй текст в режиме «каждый сам».
             </p>
             <textarea value={text} rows={10} placeholder={"Изобразите животное (20)\nВопрос: Столица Франции? = Париж\n+2\nТанец: Макарена (30)"} onChange={(e) => setText(e.target.value)} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => fillFrom(parseQuestList(text), "Заполнить клетки из списка")}>
-              Заполнить клетки
+            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => fillFrom(parseQuestList(text), "Заменить клетки строками списка")}>
+              Заменить всё списком
             </button>
           </div>
         )}
@@ -118,6 +130,13 @@ export function QuestEditor({ content, onChange, editable }: EditorProps<QuestCo
           })}
         </ol>
       </section>
+      {errors
+        .filter((e) => e.path === "cells")
+        .map((e) => (
+          <p key={e.path} className="error small edit-issue">
+            {e.message}
+          </p>
+        ))}
       {dialog}
     </div>
   );
@@ -179,12 +198,12 @@ function CellForm({ cell, editable, errors, onChange }: { cell: QuestCell; edita
         <label className="field">
           Видео (необязательно): YouTube, VK Видео или Rutube
           <input value={cell.videoUrl} inputMode="url" maxLength={QUEST_LIMITS.url} disabled={!editable} placeholder="https://youtu.be/…" onChange={(e) => onChange({ videoUrl: e.target.value.trim() })} />
-          {cell.videoUrl && !embedUrl(cell.videoUrl) && <span className="error small">Эту ссылку экран не откроет.</span>}
+          {cell.videoUrl && !embedUrl(cell.videoUrl) && <span className="error small edit-issue">Эту ссылку экран не откроет.</span>}
         </label>
       )}
       {withTask && <TrackTimeline clip={parseClip(cell)} disabled={!editable} onChange={(clip) => onChange((c) => ({ ...c, ...(clipFields(clip) as Partial<QuestCell>) }))} />}
       {errors.map((m) => (
-        <p key={m} className="error small">
+        <p key={m} className="error small edit-issue">
           {m}
         </p>
       ))}

@@ -4,6 +4,14 @@ import { useEffect, useState, type ReactNode } from "react";
 export const SLOW_LOADING_MS = 8000;
 export const VERY_SLOW_LOADING_MS = 30_000;
 
+/** Ответ 507: на диске сервера закончилось место — это не лимит ведущего (413), сам он тут ничего не сделает. */
+export const DISK_FULL_TEXT = "На сервере закончилось место — напишите владельцу.";
+
+/** Ошибка загрузки — «на сервере нет места» (507), а не «ваш лимит» (413). */
+export function isServerDiskFull(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "status" in error && Number((error as { status: unknown }).status) === 507;
+}
+
 export function Loading({ text = "Загружаем…" }: { text?: string }) {
   return (
     <main className="page page--center" aria-busy="true">

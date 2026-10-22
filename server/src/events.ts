@@ -20,7 +20,7 @@ import { changeStatus, upsertClient, type ClientInput } from "./clients";
 
 /** Паузы перед попытками записать клиента мероприятия в базу: сразу, через 0,3 с и через 1 с. */
 const CLIENT_RETRY_MS = [0, 300, 1000];
-import { phoneKey } from "../../src/core/clients";
+import { phoneKey, phoneKeyVariants } from "../../src/core/clients";
 import type { Bot } from "./telegram";
 
 export interface EventsOptions {
@@ -186,22 +186,28 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
         return reply.code(409).send({ error: "changed" });
       }
-      await sql.begin(async (tx) => {
-        await tx`
+      // Двойное касание «Сохранить»: два одинаковых запроса почти одновременно. «Назначено» в Telegram — только тому,
+      // чей запрос действительно создал запись (`xmax = 0` — вставка, а не правка), иначе ведущему пришло бы два.
+      const inserted = await sql.begin(async (tx) => {
+        const t = tx as unknown as Sql;
+        const [row] = await t<{ inserted: boolean }[]>`
           insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, created_by)
           values (${input.id}, ${input.hostId}, ${input.day}, ${input.start}, ${input.end}, ${new Date(span.from)}, ${new Date(span.to)},
             ${input.clientName}, ${input.clientPhone}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${user.id})
           on conflict (id) do update set host_id = excluded.host_id, day = excluded.day, start_min = excluded.start_min,
             end_min = excluded.end_min, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
             client_name = excluded.client_name, client_phone = excluded.client_phone, title = excluded.title,
-            place = excluded.place, guests = excluded.guests, note = excluded.note, updated_at = now()`;
-        await book(tx as unknown as Sql, input, user.id);
+            place = excluded.place, guests = excluded.guests, note = excluded.note, updated_at = now()
+          returning (xmax = 0) as inserted`;
+        await book(t, input, user.id);
+        return row?.inserted === true;
       });
       request.log.info({ events: existing ? "edit" : "create" }, "events");
       const saved = await one(input.id);
       if (!saved) return fail(reply, 500, "internal");
-      if (!existing) notice(request, "created", saved.hostId, saved);
-      else if (existing.host_id !== saved.hostId) {
+      if (!existing) {
+        if (inserted) notice(request, "created", saved.hostId, saved);
+      } else if (existing.host_id !== saved.hostId) {
         notice(request, "removed", existing.host_id, { ...saved, day: existing.day, start: existing.start_min, end: existing.end_min });
         notice(request, "created", saved.hostId, saved);
       } else if (
@@ -227,10 +233,11 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           by: { id: user.id, name: user.name },
         };
         let stored = false;
+        let clientId: string | null = null;
         for (const pause of CLIENT_RETRY_MS) {
           if (pause) await new Promise((r) => setTimeout(r, pause));
           try {
-            await upsertClient(sql, client);
+            clientId = await upsertClient(sql, client);
             stored = true;
             break;
           } catch {
@@ -241,6 +248,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           request.log.error({ events: "client" }, "events: клиент не записан после повторов");
           return { ...saved, clientNotSaved: true };
         }
+        // Неполный телефон («8915») или только имя — связаться не с кем, в «Клиенты» не попал. Мероприятие сохранено,
+        // а форма говорит, что нужен полный телефон или ссылка (раньше это считалось успехом и терялось молча).
+        if (clientId === null) return { ...saved, clientNotSaved: true, clientIncomplete: true };
       }
       return saved;
     });
@@ -308,7 +318,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (ev && key) {
         await sql.begin(async (tx) => {
           const t = tx as unknown as Sql;
-          const [client] = await t<{ id: string; status: string }[]>`select id, status from clients where phone_key = ${key} for update`;
+          const [client] = await t<{ id: string; status: string }[]>`select id, status from clients where phone_key in ${t(phoneKeyVariants(key))}
+            order by (phone_key = ${key}) desc limit 1 for update`;
           if (!client) return;
           const what = `${ev.title || "Мероприятие"}, ${dayTitle(ev.day)}`;
           if (held === true && client.status !== "held") {

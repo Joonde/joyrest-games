@@ -6,7 +6,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, statfs, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
@@ -20,6 +20,19 @@ export interface DecksOptions {
   sql: Sql;
   mediaDir: string | null;
   isSite?: (request: FastifyRequest) => boolean;
+  /** Свободное место на диске (тесты подменяют). */
+  freeBytes?: (dir: string) => Promise<number>;
+  /** Меньше — новые страницы не принимаем (507), как у картинок и музыки. */
+  minFreeBytes?: number;
+  /** Место под показы ведущего (по умолчанию `DECK_LIMITS.totalBytes`, 500 МБ; тесты уменьшают). */
+  totalBytes?: number;
+}
+
+const MIN_FREE_BYTES = 3 * 1024 ** 3;
+
+async function diskFree(dir: string): Promise<number> {
+  const stats = await statfs(dir);
+  return stats.bavail * stats.bsize;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -42,6 +55,24 @@ function dimension(value: unknown): number | null {
 export function registerDecks(app: FastifyInstance, options: DecksOptions): void {
   const { sql } = options;
   const dir = options.mediaDir ? join(options.mediaDir, "slides") : null;
+  const freeBytes = options.freeBytes ?? diskFree;
+  const minFree = options.minFreeBytes ?? MIN_FREE_BYTES;
+  const totalBytes = options.totalBytes ?? DECK_LIMITS.totalBytes;
+
+  /** Настоящий размер файла страницы на диске (размеру из запроса не верим — QA 22 октября 2026); нет файла — null. */
+  async function fileSize(sha: string): Promise<number | null> {
+    if (!dir) return null;
+    const info = await stat(join(dir, sha)).catch(() => null);
+    return info?.isFile() ? info.size : null;
+  }
+
+  /** Страницы всех показов ведущего (кроме `except`): отпечаток → размер, одинаковые файлы — один раз. */
+  async function usedPages(owner: string, except: string | null): Promise<Map<string, number>> {
+    const rows = await sql<{ sha: string; size: string }[]>`
+      select distinct p->>'sha' as sha, (p->>'size')::bigint::text as size
+      from decks d, jsonb_array_elements(d.pages) p where d.owner_id = ${owner} and d.id <> ${except ?? ""}`;
+    return new Map(rows.map((r) => [r.sha, Number(r.size)]));
+  }
 
   app.register(async (api) => {
     api.addHook("onRequest", apiGuard(options.isSite));
@@ -81,17 +112,20 @@ export function registerDecks(app: FastifyInstance, options: DecksOptions): void
       const pages = parseDeckPages(body.pages);
       if (!id || (Array.isArray(body.pages) && body.pages.length > DECK_LIMITS.pages)) return fail(reply, 400, "invalid-argument");
       const title = cleanDeckTitle(body.title) || "Показ";
-      // Страницы — только файлы, которые уже на сервере.
-      if (dir && pages.some((p) => !existsSync(join(dir, p.sha)))) return fail(reply, 400, "invalid-argument");
+      // Страницы — только файлы, которые уже на сервере; размер — настоящий, с диска (не из запроса).
+      if (dir) {
+        for (const p of pages) {
+          const size = await fileSize(p.sha);
+          if (size === null) return fail(reply, 400, "invalid-argument");
+          p.size = size;
+        }
+      }
       const [count] = await sql<{ n: number }[]>`select count(*)::int as n from decks where owner_id = ${user.id} and id <> ${id}`;
       if ((count?.n ?? 0) >= DECK_LIMITS.decks) return fail(reply, 429, "resource-exhausted");
       // Место: страницы всех показов ведущего (одинаковые файлы — один раз).
-      const [used] = await sql<{ bytes: number }[]>`
-        select coalesce(sum(size), 0)::bigint as bytes from (
-          select distinct p->>'sha' as sha, (p->>'size')::bigint as size
-          from decks d, jsonb_array_elements(d.pages) p where d.owner_id = ${user.id} and d.id <> ${id}) t`;
-      const adding = new Map(pages.map((p) => [p.sha, p.size]));
-      if (Number(used?.bytes ?? 0) + [...adding.values()].reduce((a, b) => a + b, 0) > DECK_LIMITS.totalBytes) return fail(reply, 413, "resource-exhausted");
+      const used = await usedPages(user.id, id);
+      for (const p of pages) used.set(p.sha, p.size);
+      if (deckBytes(used) > totalBytes) return fail(reply, 413, "resource-exhausted");
       const rows = await sql<Row[]>`
         insert into decks (id, owner_id, title, pages) values (${id}, ${user.id}, ${title}, ${sql.json(pages as never)})
         on conflict (id) do update set title = excluded.title, pages = excluded.pages, updated_at = now() where decks.owner_id = ${user.id}
@@ -122,12 +156,27 @@ export function registerDecks(app: FastifyInstance, options: DecksOptions): void
       const h = dimension(request.headers["x-height"]);
       if (!w || !h) return fail(reply, 400, "invalid-argument");
       const sha = createHash("sha256").update(bytes).digest("hex");
+      // Лимит ведущего проверяем уже здесь (не только при сохранении показа): новый файл не должен выйти за 500 МБ.
+      const used = await usedPages(user.id, null);
+      if (!used.has(sha)) {
+        used.set(sha, bytes.length);
+        if (deckBytes(used) > totalBytes) return fail(reply, 413, "resource-exhausted");
+      }
       await mkdir(dir, { recursive: true });
       const path = join(dir, sha);
       if (!existsSync(path)) {
+        if ((await freeBytes(dir)) < minFree) {
+          request.log.warn("decks: мало места на диске, загрузка отклонена");
+          return fail(reply, 507, "resource-exhausted");
+        }
         const temp = `${path}.${randomBytes(6).toString("hex")}.tmp`;
         await writeFile(temp, bytes, { mode: 0o600 });
         await rename(temp, path);
+      } else {
+        // Тот же файл уже лежит (давно и без ссылок): освежаем время, иначе ночная уборка (7 дней без ссылок) может
+        // убрать его раньше, чем показ сохранится.
+        const t = new Date();
+        await utimes(path, t, t).catch(() => undefined);
       }
       return { sha, w, h, size: bytes.length };
     });
@@ -149,6 +198,13 @@ export function registerDecks(app: FastifyInstance, options: DecksOptions): void
       return reply.type(mime).send(file);
     });
   });
+}
+
+/** Сколько места занимают страницы (отпечаток → размер). */
+export function deckBytes(pages: Map<string, number>): number {
+  let total = 0;
+  for (const size of pages.values()) total += size;
+  return total;
 }
 
 /** Страницы, на которые ссылаются показы и идущие слайды сессий (остальные убирает ночная уборка). */

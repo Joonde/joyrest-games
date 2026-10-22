@@ -457,6 +457,27 @@ describe.skipIf(!url)("игра в реальном времени на PostgreS
     expect((await call("POST", "/api/sessions/exp1/apply", host, { state: { cue: { id: "c1", sound: "gong" } } })).statusCode).toBe(200);
   });
 
+  it("конец перерыва с двух пультов: убирает только тот же слайд (`expect.slide`), чужой слайд остаётся", async () => {
+    await newSession("tech1");
+    const tech = { id: "tb1", kind: "tech", title: "Пауза", text: "", lines: [], endsAt: clock + 60_000 };
+    expect((await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: tech } })).statusCode).toBe(200);
+    // Второй пульт за это время показал QR для опоздавших.
+    const join = { id: "jq1", kind: "join", title: "Вход", text: "", lines: [], endsAt: null };
+    expect((await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: join } })).statusCode).toBe(200);
+    // Первый пульт по таймеру убирает «свой» перерыв — отказ, QR на месте.
+    const late = await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: null }, expect: { slide: "tb1" } });
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toEqual({ error: "failed-precondition" });
+    expect((await call("GET", "/api/sessions/tech1", host)).json().state.slide).toMatchObject({ id: "jq1" });
+    // Тот же слайд — убирается; «слайда нет» тоже проверяется.
+    expect((await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: null }, expect: { slide: "jq1" } })).statusCode).toBe(200);
+    expect((await call("GET", "/api/sessions/tech1", host)).json().state.slide ?? null).toBeNull();
+    expect((await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: join }, expect: { slide: null } })).statusCode).toBe(200);
+    expect((await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: tech }, expect: { slide: null } })).statusCode).toBe(409);
+    // Непонятный id — 400.
+    expect((await call("POST", "/api/sessions/tech1/apply", host, { state: { slide: null }, expect: { slide: "не id" } })).statusCode).toBe(400);
+  });
+
   it("экран зала сообщает пульту о себе; видит только ведущий; молчит минуту — нет экрана", async () => {
     await newSession("scr1");
     const screen = await device();

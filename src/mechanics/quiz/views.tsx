@@ -228,7 +228,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
               ♪{" "}
             </span>
           )}
-          {q.text || "Угадайте мелодию"}
+          {q.text || "Узнайте песню"}
         </h2>
         {revealed && (
           <p className="quiz-screen__race-answer">
@@ -509,7 +509,7 @@ export function QuizPlayerView({
             <NameText name={me.name} /> · {Math.min(target, me.race ?? 0)} из {target} до финиша
           </p>
         )}
-        {noScreen && <h2 className="quiz-phone__question">{q.text || "Угадайте мелодию"}</h2>}
+        {noScreen && <h2 className="quiz-phone__question">{q.text || "Узнайте песню"}</h2>}
         {role === "member" ? (
           <div className="buzz">
             <div className="buzz__plate" role="status">

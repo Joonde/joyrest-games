@@ -87,7 +87,11 @@ export const serverGamesRepository: GamesRepository = {
   async update(gameId, patch) {
     const base = versions.get(gameId);
     const result = asRecord(await api("PATCH", path(gameId), base !== undefined ? { ...patch, base } : patch));
-    if (typeof result.updatedAt === "number") versions.set(gameId, result.updatedAt);
+    if (typeof result.updatedAt === "number") {
+      versions.set(gameId, result.updatedAt);
+      return result.updatedAt;
+    }
+    return null;
   },
 
   overwriteNext(gameId) {

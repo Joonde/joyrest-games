@@ -3,6 +3,7 @@
 // победитель забирает банк (ставки + приз, растущий 100, 200, 300…). После второй войнушки в раундах,
 // которые отметил ведущий (до 3), — аукцион «билета освобождения»: билет позволяет один раз пропустить
 // войнушку без ставки.
+import { dashMark, dashStartsQuestion, isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SURVIVAL_LOOK, parseShowLook, SURVIVAL_LOOKS, type ShowLook } from "../showLook";
 
 export type SurvivalKind = "choice" | "open" | "task";
@@ -50,7 +51,7 @@ function id(): string {
 }
 
 export function newSurvivalRound(kind: SurvivalKind = "choice"): SurvivalRound {
-  return { id: id(), kind, text: "", solo: "", options: ["", "", "", ""], correct: 0, answer: "", points: 100, seconds: kind === "task" ? 0 : 30 };
+  return { id: id(), kind, text: "", solo: "", options: ["", "", "", ""], correct: -1, answer: "", points: 100, seconds: kind === "task" ? 0 : 30 };
 }
 
 /** Войнушка ли раунд (номер с 1). */
@@ -92,7 +93,7 @@ export function parseSurvival(raw: unknown): SurvivalContent {
       text: str(r.text, SURVIVAL_LIMITS.text),
       solo: kind === "task" ? str(r.solo, SURVIVAL_LIMITS.text) : "",
       options: Array.from({ length: 4 }, (_, k) => str(Array.isArray(r.options) ? r.options[k] : "", SURVIVAL_LIMITS.option)),
-      correct: int(r.correct, 0, 0, 3),
+      correct: int(r.correct, -1, -1, 3),
       answer: str(r.answer, SURVIVAL_LIMITS.answer),
       points: int(r.points, 100, 0, SURVIVAL_LIMITS.maxPoints),
       seconds: int(r.seconds, kind === "task" ? 0 : 30, 0, SURVIVAL_LIMITS.maxSeconds),
@@ -147,46 +148,112 @@ export function taskWordFor(round: Pick<SurvivalRound, "kind" | "answer">, order
   return words.length > 0 && i >= 0 ? (words[i % words.length] ?? null) : null;
 }
 
+export interface SurvivalImport {
+  rounds: SurvivalRound[];
+  /** Номера строк (с 1), которые не удалось разобрать: вариант без вопроса, пятый вариант. */
+  skipped: number[];
+  /** Замечания по строкам: «(1799)» похоже на год — очки не поставлены. */
+  notes: Array<{ line: number; text: string }>;
+}
+
 /**
- * Список: строка — раунд по порядку. «Вопрос?» и строки «- вариант», «* верный» — вопрос с вариантами;
- * «Вопрос? = ответ | ответ2» — открытый; «Задание: …» — задание («Задание: … = слон | жираф» — тайные слова
- * командам; «Задание: для команд || для каждого сам = слова» — второй текст в режиме «каждый сам»). «(150)» в конце — очки.
+ * «Вопрос? = ответ»: ответ — после последнего «=», только если он есть и это не продолжение вопроса («2+2=?»,
+ * «Если x=5, сколько x+1?» — не ответ).
  */
-export function parseSurvivalList(text: string): SurvivalRound[] {
+export function openAnswerSplit(body: string): { question: string; answers: string[] } | null {
+  // Ответ начинается с первого «=» после вопросительного знака («Формула? = E=mc2» → «E=mc2»); без «?» — с « = »
+  // с пробелами, иначе с последнего «=».
+  const q = Math.max(body.lastIndexOf("?"), body.lastIndexOf("？"));
+  const spaced = body.indexOf(" = ");
+  const at = q >= 0 ? body.indexOf("=", q) : spaced >= 0 ? spaced + 1 : body.lastIndexOf("=");
+  if (at < 0) return null;
+  const tail = body.slice(at + 1).trim();
+  if (!tail || /[?？]\s*$/.test(tail)) return null;
+  const answers = splitAnswers(tail);
+  return answers.length > 0 ? { question: body.slice(0, at).trim(), answers } : null;
+}
+
+/**
+ * Список: строка — раунд по порядку. «Вопрос?» и строки «- вариант», «* верный» (или «- верный *») — вопрос с
+ * вариантами; «Вопрос? = ответ | ответ2» (или « / » с пробелами; «AC/DC» — один ответ) — открытый; «Задание: …» — задание («Задание: … = слон | жираф» —
+ * тайные слова командам; «Задание: для команд || для каждого сам = слова» — второй текст в режиме «каждый сам»).
+ * «(150)» или «(150 очков)» в конце — очки («(1799)» без слова — похоже на год: очки не ставим, пишем замечание).
+ * Варианты — и «а)», «1.»; нумерация «1.» перед вопросом снимается. Без «*» верный вариант не отмечен — проверка попросит
+ * отметить.
+ */
+export function parseSurvivalImport(text: string): SurvivalImport {
   const out: SurvivalRound[] = [];
+  const skipped: number[] = [];
+  const notes: SurvivalImport["notes"] = [];
   let current: SurvivalRound | null = null;
+  let run: ListedRun = newListedRun();
+  let dashed = false;
   const flush = () => {
     if (current && current.text) out.push(current);
     current = null;
   };
-  for (const raw of text.split(/\r?\n/)) {
+  const lines = splitLines(text);
+  const ahead = nextLines(lines);
+  const ahead2 = nextLines(lines, 1);
+  let mark: string | null = null;
+  lines.forEach((raw, index) => {
+    const lineNo = index + 1;
     const line = raw.trim();
-    if (!line) continue;
-    const opt = line.match(/^([-*•])\s*(.+)$/);
-    if (opt && current && (current as SurvivalRound).kind === "choice") {
-      const cur = current as SurvivalRound;
-      const free = cur.options.findIndex((o) => !o);
-      if (free >= 0) {
-        cur.options[free] = (opt[2] ?? "").slice(0, SURVIVAL_LIMITS.option);
-        if (opt[1] === "*") cur.correct = free;
+    if (!line) return;
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
+    if (isQuestionHeader(line)) return;
+    const dash = listOption(line);
+    const cur0 = current as SurvivalRound | null;
+    const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
+    // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && (!room || dashStartsQuestion(raw, mark, ahead[index])) ? dash.text : null;
+    const opt = dashQuestion ? null : dash ?? listedOption(stripBold(line).trim(), room && !dashed ? run : null, ahead[index], ahead2[index]);
+    if (dash && !dashQuestion) {
+      dashed = true;
+      mark ??= dashMark(raw);
+    }
+    if (opt) {
+      const cur = current as SurvivalRound | null;
+      if (!cur || cur.kind !== "choice") {
+        skipped.push(lineNo);
+        return;
       }
-      continue;
+      const free = cur.options.findIndex((o) => !o);
+      if (free < 0 || !opt.text) {
+        skipped.push(lineNo);
+        return;
+      }
+      cur.options[free] = opt.text.slice(0, SURVIVAL_LIMITS.option);
+      if (opt.correct && cur.correct < 0) cur.correct = free;
+      return;
     }
     flush();
-    const pts = line.match(/\((\d{1,5})\)\s*$/);
-    const body = (pts ? line.slice(0, pts.index) : line).trim();
-    const points = pts ? Math.min(SURVIVAL_LIMITS.maxPoints, Number(pts[1])) : 100;
+    run = newListedRun();
+    dashed = false;
+    mark = null;
+    const { body: numbered, points: given, note } = pointsSuffix(stripBold(dashQuestion ?? line), SURVIVAL_LIMITS.maxPoints);
+    if (note) notes.push({ line: lineNo, text: note });
+    const body = numbered.replace(QUESTION_NUMBERING, "").trim();
+    const points = given ?? 100;
+    const open = openAnswerSplit(body);
     if (/^задание\s*[:.]/i.test(body)) {
-      const [task, words] = body.replace(/^задание\s*[:.]\s*/i, "").split("=");
-      const [teamPart = "", soloPart = ""] = (task ?? "").split(/\s*\|\|\s*/);
-      current = { ...newSurvivalRound("task"), text: teamPart.trim().slice(0, SURVIVAL_LIMITS.text), solo: soloPart.trim().slice(0, SURVIVAL_LIMITS.text), answer: (words ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };
-    } else if (body.includes("=")) {
-      const [q, a] = body.split("=");
-      current = { ...newSurvivalRound("open"), text: (q ?? "").trim().slice(0, SURVIVAL_LIMITS.text), answer: (a ?? "").trim().slice(0, SURVIVAL_LIMITS.answer), points };
+      const rest = body.replace(/^задание\s*[:.]\s*/i, "");
+      const at = rest.indexOf("=");
+      const task = at >= 0 ? rest.slice(0, at) : rest;
+      const words = at >= 0 ? rest.slice(at + 1) : "";
+      const [teamPart = "", soloPart = ""] = task.split(/\s*\|\|\s*/);
+      current = { ...newSurvivalRound("task"), text: teamPart.trim().slice(0, SURVIVAL_LIMITS.text), solo: soloPart.trim().slice(0, SURVIVAL_LIMITS.text), answer: words.trim().slice(0, SURVIVAL_LIMITS.answer), points };
+    } else if (open) {
+      current = { ...newSurvivalRound("open"), text: open.question.slice(0, SURVIVAL_LIMITS.text), answer: open.answers.join(" | ").slice(0, SURVIVAL_LIMITS.answer), points };
     } else {
       current = { ...newSurvivalRound("choice"), text: body.slice(0, SURVIVAL_LIMITS.text), points };
     }
-  }
+  });
   flush();
-  return out.slice(0, SURVIVAL_LIMITS.maxRounds);
+  return { rounds: out.slice(0, SURVIVAL_LIMITS.maxRounds), skipped, notes };
+}
+
+/** То же, только раунды (шаблон и старые вызовы). */
+export function parseSurvivalList(text: string): SurvivalRound[] {
+  return parseSurvivalImport(text).rounds;
 }

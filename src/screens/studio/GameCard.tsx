@@ -33,7 +33,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
   const date = game.updatedAt ?? game.createdAt;
   const ready = validateGame(game.mechanic, game.content).length === 0;
 
-  const menu: MenuAction[] = [{ label: editable ? "Открыть" : "Посмотреть", to: `/studio/games/${game.id}` }];
+  const menu: MenuAction[] = [{ label: editable ? "✍️ Редактировать" : "👀 Посмотреть", to: `/studio/games/${game.id}` }];
   if (ready) menu.push({ label: "Репетиция без гостей", to: `/studio/rehearsal/${game.id}` });
   if (game.scope === "agency" && permissions.canCreateGame(profile, "agency", profile.uid)) {
     menu.push({ label: "Дублировать в библиотеке", onClick: () => onDuplicate("agency") });
@@ -77,7 +77,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
       <div className="actions">
         {permissions.canLaunchGame(profile, game) ? (
           <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
-            Запустить
+            ▶ Запустить игру
           </Link>
         ) : (
           ready && (
@@ -87,7 +87,7 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
           )
         )}
         <Link className="btn btn--secondary btn--block" to={`/studio/games/${game.id}`}>
-          {editable ? "Открыть" : "Посмотреть"}
+          {editable ? "✍️ Редактировать" : "👀 Посмотреть"}
         </Link>
       </div>
     </article>

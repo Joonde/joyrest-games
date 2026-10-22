@@ -115,7 +115,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
                       <strong>{tile.points}</strong>
                       <span className={tile.kind === "battle" ? "stage-editor__kind is-battle" : "stage-editor__kind"}>{tileShort(tile)}</span>
                       <span className="muted line-clamp">{tile.title || tile.note || "—"}</span>
-                      <span className="muted small">{tile.video.source === "none" ? "без видео" : tile.video.source === "file" ? "файл" : "ссылка"}</span>
+                      <span className="muted small">{tile.video.source === "none" ? "без видео" : tile.video.source === "file" ? "файл" : tile.video.source === "server" ? "видео JoyRest" : "ссылка"}</span>
                     </button>
                     {open && (
                       <TileForm

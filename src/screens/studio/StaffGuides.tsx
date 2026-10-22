@@ -8,6 +8,11 @@ import { abilitiesOf } from "../../core/abilities";
 import { PROFESSIONS } from "../../core/professions";
 import { clientsRepo, permissions, type UserProfile } from "../../data";
 
+const GUIDE_HINTS: Record<string, string> = {
+  "/studio/editor-guide": "Конструктор по шагам: где редактировать и где запускать, картинки, музыка, видео и что увидят зал и гости — для каждой игры.",
+  "/studio/guide": "Как провести каждую игру: кнопки пульта, что видят гости, как объяснить правила.",
+};
+
 interface GuideCard {
   title: string;
   hint: string;
@@ -22,7 +27,7 @@ export function StaffGuides({ profile }: { profile: UserProfile }) {
     const cards: GuideCard[] = [
       ...a.guides.map((g) => ({
         title: g.title,
-        hint: g.to === "/studio/guide" ? "Как провести каждую игру: кнопки пульта, что видят гости, как объяснить правила." : "От анкеты до отзыва: сроки, шаблоны сообщений, цены.",
+        hint: GUIDE_HINTS[g.to] ?? "От анкеты до отзыва: сроки, шаблоны сообщений, цены.",
         to: g.to,
         button: "Открыть",
       })),
@@ -31,6 +36,12 @@ export function StaffGuides({ profile }: { profile: UserProfile }) {
     return <Cards cards={cards} />;
   }
   const cards: GuideCard[] = [
+    {
+      title: "Для ведущих: конструктор",
+      hint: "«Как создавать игры»: где редактировать и где запускать, картинки, музыка, видео, все поля и примеры для каждой игры.",
+      to: "/studio/editor-guide",
+      button: "Как создавать игры",
+    },
     {
       title: "Для ведущих",
       hint: "«Как проводить игры»: схема каждой игры, кнопки пульта, что видят гости, как объяснить правила.",

@@ -82,7 +82,7 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     ...(venuesRepo && permissions.canShowVenueQr(profile) ? [{ label: "QR-анкеты", to: "/studio/qr" }] : []),
     ...(teamRepo ? [{ label: "Мой профиль", to: "/studio/profile" }] : []),
     // Без «Команды» (Firebase) вкладки «Инструкции» нет — инструкция ведущим остаётся в меню.
-    ...(teamRepo ? [] : [{ label: "Как проводить игры", to: "/studio/guide" }]),
+    ...(teamRepo ? [] : [{ label: "Как создавать игры", to: "/studio/editor-guide" }, { label: "Как проводить игры", to: "/studio/guide" }]),
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },
   ];
@@ -147,6 +147,16 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
+      )}
+      {permissions.canUseGames(profile) && (
+        <nav className="guide-pins" aria-label="Инструкции">
+          <Link className="guide-pins__item" to="/studio/editor-guide">
+            <span aria-hidden="true">✍️</span> Как создавать игры
+          </Link>
+          <Link className="guide-pins__item" to="/studio/guide">
+            <span aria-hidden="true">🎤</span> Как проводить игры
+          </Link>
+        </nav>
       )}
       {tabs.length > 0 && <Tabs
         items={tabs}

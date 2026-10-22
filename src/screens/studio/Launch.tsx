@@ -93,7 +93,7 @@ function LaunchLoader({ gameId, profile }: { gameId: string; profile: UserProfil
         </ul>
         <div className="actions">
           <Link className="btn btn--block" to={`/studio/games/${game.id}`}>
-            {fixable ? "Исправить игру" : "Открыть игру"}
+            {fixable ? "✍️ Исправить игру" : "✍️ Редактировать игру"}
           </Link>
           <Link className="btn btn--secondary btn--block" to="/studio">
             В студию
@@ -143,7 +143,7 @@ function EveningLoader({ game, profile }: { game: Game; profile: UserProfile }) 
         </ul>
         <div className="actions">
           <Link className="btn btn--block" to={`/studio/games/${game.id}`}>
-            Открыть программу
+            ✍️ Редактировать программу
           </Link>
           <Link className="btn btn--secondary btn--block" to="/studio">
             В студию

@@ -13793,6 +13793,269 @@ button.dance-card:active {
   }
 }
 
+/* ---------- «Как создавать игры» (/studio/editor-guide) и закреплённые инструкции в студии ---------- */
+.guide-pins {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.guide-pins__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 10%, var(--color-surface));
+  color: var(--color-text);
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.guide-pins__item:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: 2px;
+}
+
+@media (max-width: 380px) {
+  .guide-pins {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.editor-guide-link {
+  display: block;
+  text-align: left;
+}
+
+.eg-part {
+  margin: 8px 0 0;
+}
+
+.eg-section {
+  scroll-margin-top: 16px;
+}
+
+.eg-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.eg-section__head::-webkit-details-marker {
+  display: none;
+}
+
+.eg-section__head::after {
+  content: "";
+  margin-left: auto;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.eg-section[open] > .eg-section__head {
+  margin-bottom: 16px;
+}
+
+.eg-section[open] > .eg-section__head::after {
+  transform: rotate(225deg);
+}
+
+.eg-section h3 {
+  margin: 8px 0 0;
+}
+
+/* Схема-стрелки: столбиком на телефоне, в ряд на широком экране. */
+.eg-flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 20px;
+}
+
+.eg-flow__step {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--color-highlight) 60%, transparent);
+  background: color-mix(in srgb, var(--color-highlight) 8%, var(--color-surface));
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.eg-flow__step span {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.eg-flow__step:not(:last-child)::after {
+  content: "↓";
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%);
+  color: var(--color-highlight);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+@media (min-width: 900px) {
+  .eg-flow {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .eg-flow__step:not(:last-child)::after {
+    content: "→";
+    left: auto;
+    right: -20px;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+}
+
+.eg-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.eg-steps__item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.eg-steps__item p {
+  margin: 4px 0 0;
+}
+
+.eg-steps__n {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary, #221e1b);
+  font-weight: 700;
+}
+
+.eg-fields {
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+  padding: 0 16px;
+}
+
+.eg-fields > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.eg-fields dl {
+  margin: 0 0 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.eg-fields__row {
+  display: grid;
+  gap: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.eg-fields__row dt {
+  font-weight: 600;
+  color: var(--color-highlight);
+}
+
+.eg-fields__row dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.eg-example {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+}
+
+.eg-example h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.eg-example__grid {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.eg-example__row {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eg-example__row dt {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.eg-example__row dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.eg-example__row--setup dd {
+  padding-left: 10px;
+  border-left: 3px solid var(--color-highlight);
+}
+
+@media (min-width: 900px) {
+  .eg-example__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .eg-example__row--setup {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ---------- «Как проводить игры» (/studio/guide) ---------- */
 .guide .guide-game {
   scroll-margin-top: 16px;

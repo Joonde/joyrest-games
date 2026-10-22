@@ -977,7 +977,7 @@ function ClientForm({
           onChange={(e) => setPhone(e.target.value)}
         />
       </label>
-      {phoneBad && <p className="error small">Телефон неполный: нужно 10–11 цифр, например +7 915 241-59-99.</p>}
+      {phoneBad && <p className="error small">Телефон неполный: нужно 11 цифр с 8 или +7, например +7 915 241-59-99.</p>}
       {key !== "" && phoneLabel(phone) !== phone.trim() && <p className="muted small">Сохранится как {phoneLabel(phone)}</p>}
       <label className="field">
         <span className="field__label">Соцсети (Telegram, ВКонтакте, Instagram, WhatsApp)</span>

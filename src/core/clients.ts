@@ -54,13 +54,17 @@ export function isMarketing(value: unknown): value is Marketing {
 /**
  * 10 цифр без «7» и «8» с российским кодом: 9xx — мобильные, 3xx и 4xx — города (Москва 495, 499), 8xx — города и 800
  * (Санкт-Петербург 812). Решение владельца 22 октября 2026: «495…» без семёрки — тот же номер, что «+7 495…».
+ * Кода 89x нет: 10 цифр «89…» — это «8 9xx» без последней цифры (повторная проверка QA 22 октября 2026).
  */
-const RU_TEN_DIGITS = /^[3489]\d{9}$/;
+const RU_TEN_DIGITS = /^(?:[349]\d|8[0-8])\d{8}$/;
+/** 10 цифр, начинающихся с «7» или «89», — российский номер без последней цифры («+7 915 123 45 6», «8 915 123 45 6»). */
+const RU_SHORT = /^(?:7|89)\d{8}$/;
 
-/** Телефон → ключ «7XXXXXXXXXX» (Россия) или все цифры для других стран; меньше 10 цифр — пусто. */
+/** Телефон → ключ «7XXXXXXXXXX» (Россия) или все цифры для других стран; неполный номер — пусто. */
 export function phoneKey(raw: string): string {
   const digits = raw.replace(/\D/g, "");
   if (digits.length === 11 && (digits.startsWith("8") || digits.startsWith("7"))) return `7${digits.slice(1)}`;
+  if (digits.length === 10 && RU_SHORT.test(digits)) return "";
   if (digits.length === 10 && RU_TEN_DIGITS.test(digits)) return `7${digits}`;
   return digits.length >= 10 && digits.length <= 15 ? digits : "";
 }

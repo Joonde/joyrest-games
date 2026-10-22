@@ -17,6 +17,24 @@
       "what": "Суперигра: ключи бронза, серебро, золото, бриллиант (Canva AI)",
       "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0020-7637498814313736433.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261021%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261021T052805Z&X-Amz-Expires=87763&X-Amz-Signature=d1be2bbc044984134a341e00f2987460c1bc59b33ec2aea08bce40958a76b06c&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2022%20Oct%202026%2005%3A50%3A48%20GMT",
       "expires": "2026-10-22"
+    },
+    {
+      "file": "crowns.png",
+      "what": "Суперигра: короны бронза, серебро, золото, бриллиант (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0021-4045878109690498405.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261022%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261022T011625Z&X-Amz-Expires=16007&X-Amz-Signature=62e0565f80d6970fd49bc76c666132067a3d4d68b0fe163706a8916e5018b91b&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2022%20Oct%202026%2005%3A43%3A12%20GMT",
+      "expires": "2026-10-22"
+    },
+    {
+      "file": "cups.png",
+      "what": "Суперигра: кубки бронза, серебро, золото, бриллиант (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0022-4045878109690498405.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261022%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261022T001743Z&X-Amz-Expires=21555&X-Amz-Signature=79a02dc3ab6b5dd4916a025637990482471f4d823f4920fc8d62112994324d26&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2022%20Oct%202026%2006%3A16%3A58%20GMT",
+      "expires": "2026-10-22"
+    },
+    {
+      "file": "vault.png",
+      "what": "Суперигра: фон экрана зала — сокровищница, золотые лучи, монеты по углам, середина пустая (Canva AI)",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0023-4045878109690498405.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261021%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261021T124442Z&X-Amz-Expires=62491&X-Amz-Signature=27563da4bfff95e1faf902b0896782889d6a700c3714263dace5959493703bdc&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Thu%2C%2022%20Oct%202026%2006%3A06%3A13%20GMT",
+      "expires": "2026-10-22"
     }
   ]
 }

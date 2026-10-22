@@ -88,6 +88,29 @@ describe("редакция платформы: без базы", () => {
     expect(joyrest).toContain("dc up -d --no-deps app-test app-lite-test");
     expect(joyrest).toContain("run_migrations lite");
   });
+
+  it("joyrest: база Лайта мигрирует и при выкладке main, и при joyrest up; пароль владельца Лайта задаётся", () => {
+    const joyrest = readFileSync(resolve(import.meta.dirname, "../../deploy/bin/joyrest"), "utf8");
+    const fn = (name: string) => {
+      const start = joyrest.indexOf(`\n${name}() {`);
+      expect(start, name).toBeGreaterThan(0);
+      return joyrest.slice(start, joyrest.indexOf("\n}", start + 1));
+    };
+    // Миграция Лайта — не только для test: иначе после выкладки main app-lite-test стартует на пустой базе.
+    const deploy = fn("deploy_env");
+    expect(deploy).toContain('if [ "$env" = test ] || [ ! -e "$ROOT_DIR/test-current" ]; then');
+    expect(deploy).toContain('migrate_lite "$(release_value test APP_IMAGE)"');
+    expect(deploy.indexOf("migrate_lite")).toBeLessThan(deploy.indexOf('switch_to "$env" "$sha"'));
+    expect(fn("cmd_up")).toContain('migrate_lite "$(release_value test APP_IMAGE)"');
+    // Ошибка миграции Лайта не роняет выкладку.
+    expect(fn("migrate_lite")).toMatch(/run_migrations lite "\$1" \|\| log /);
+    const run = fn("run_migrations");
+    expect(run).toContain("lite) db=joyrest_lite_test ;;");
+    expect(run).toContain("prod) db=joyrest_prod ;;");
+    const password = fn("cmd_admin_password");
+    expect(password).toContain('case "$target" in prod|test|lite) ;;');
+    expect(password).toContain("service=app-lite-test env=test host=lite-test.joy-rest.ru");
+  });
 });
 
 // Адреса разделов агентства: в Лайте — 404, в платформе агентства — есть (без входа — не 404).

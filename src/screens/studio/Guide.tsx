@@ -2,6 +2,7 @@ import { Fragment, useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
+import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
 import { GAME_GUIDES as ALL_GUIDES, GUIDE_INTRO, GUIDE_TROUBLE, type GameGuide, type GuideFlow } from "../../core/guide";
 import { HIDDEN_MECHANICS } from "../../mechanics/hidden";
@@ -139,12 +140,11 @@ export function GuidePage({ profile }: { profile: UserProfile }) {
     return (
       <main className="page page--wide guide">
         <TopBar title="Как проводить игры" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
-        <Link className="btn btn--secondary btn--block" to="/studio/guide">
-          ← Все игры
-        </Link>
+        <BackButton fallback="/studio/guide" />
         <GameSection g={selected} />
-        <Link className="btn btn--secondary btn--block" to="/studio/guide">
-          ← Все игры
+        <BackButton fallback="/studio/guide" />
+        <Link className="btn btn--quiet btn--block" to="/studio/guide" replace>
+          Все игры
         </Link>
       </main>
     );
@@ -152,6 +152,7 @@ export function GuidePage({ profile }: { profile: UserProfile }) {
   return (
     <main className="page page--wide guide">
       <TopBar title="Как проводить игры" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
+      <BackButton />
       <h2 className="eg-part">🎲 Выберите игру</h2>
       <nav className="card guide-toc" aria-label="Игры">
         <a href="#start" className="guide-toc__item">
@@ -216,6 +217,7 @@ export function GuidePage({ profile }: { profile: UserProfile }) {
           ничего не записывается.
         </p>
       </section>
+      <BackButton />
     </main>
   );
 }

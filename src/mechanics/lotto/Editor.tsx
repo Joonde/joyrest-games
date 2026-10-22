@@ -43,7 +43,7 @@ export function LottoEditor({ content, onChange, editable }: EditorProps<LottoCo
   return (
     <>
       <section className="card">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <fieldset disabled={!editable}>
           <legend>Карточка</legend>
           <div className="pick-chips">

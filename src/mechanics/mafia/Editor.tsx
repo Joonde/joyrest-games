@@ -17,7 +17,7 @@ export function MafiaEditor({ content, onChange, editable }: EditorProps<MafiaCo
   return (
     <div className="stack">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           Клубная классика: Мафия, Дон, Комиссар, Доктор и мирные жители. Роли тайные — каждый видит свою карту только на своём телефоне. Ночью ход делают все (мирные — для вида), убийство состоится, только если вся семья мафии выберет одного. Днём ведущий даёт слово, выставляет кандидатов, город голосует тайно. Игра для {MAFIA_LIMITS.minPlayers}–{MAFIA_LIMITS.maxPlayers} игроков, каждый играет за себя.
         </p>

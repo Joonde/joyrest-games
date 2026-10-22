@@ -42,7 +42,7 @@ export function DurakEditor({ content, onChange, editable }: EditorProps<DurakCo
   return (
     <div className="stack">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           Стол с крупье на экране зала, у каждого — свои карты на телефоне веером. Пульт сам тасует, раздаёт и проверяет каждый ход по правилам. Мест за столом по правилам — до {maxSeats(content)}; гостей больше — откройте ещё одну игру-стол. За место без телефона играет компьютер.
         </p>

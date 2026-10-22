@@ -33,7 +33,7 @@ export function WagerEditor({ content, onChange, editable }: EditorProps<WagerCo
   return (
     <div className="stack">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           Ответ на каждый вопрос — число. Капитаны пишут догадку на телефоне, потом догадки раскладываются на поле по возрастанию: в середине —
           2:1, к краям — 3:1, 4:1, 5:1, «меньше всех» — 6:1. Каждый ставит свои фишки (сколько хочет, до двух ячеек) на ответ, который ближе

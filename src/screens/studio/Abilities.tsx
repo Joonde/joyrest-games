@@ -13,6 +13,7 @@ import { permissions, useLoad, usersRepo, type HostAccount, type UserProfile } f
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
+import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
 import { studioActions } from "./Studio";
 
@@ -24,7 +25,9 @@ export function Abilities() {
       {(_user, profile) => (
         <main className="page abilities">
           <TopBar title="Возможности" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
+          <BackButton />
           <AbilitiesFor profile={profile} />
+          <BackButton />
         </main>
       )}
     </HostGate>

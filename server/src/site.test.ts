@@ -27,6 +27,8 @@ const siteDir = dir({
   "fonts/jost-latin-400-normal.woff2": "font",
   "favicon.svg": "<svg/>",
   "calc/index.html": "<title>Калькулятор праздника</title>",
+  "korporativ/index.html": "<title>Корпоратив</title>",
+  "sitemap.xml": "<urlset></urlset>",
 });
 
 const stubDir = dir({ "index.html": "<title>Скоро</title>", "joyrest-logo.svg": "<svg/>" });
@@ -100,7 +102,7 @@ describe("сайт агентства", () => {
 
   it("индексация включена: robots.txt Allow, без X-Robots-Tag", async () => {
     const robots = await open.inject({ url: "/robots.txt", headers: { host: "joy-rest.ru" } });
-    expect(robots.body).toBe("User-agent: *\nAllow: /\n");
+    expect(robots.body).toBe("User-agent: *\nAllow: /\n\nSitemap: https://joy-rest.ru/sitemap.xml\n");
     const page = await open.inject({ url: "/", headers: { host: "joy-rest.ru" } });
     expect(page.headers["x-robots-tag"]).toBeUndefined();
   });
@@ -174,6 +176,8 @@ describe("витрина до ИП (SITE_ENABLED=showcase)", () => {
     expect(css.statusCode).toBe(200);
     expect(css.headers["cache-control"]).toContain("immutable");
     expect((await showcase.inject({ url: "/calc/", headers: { host: "joy-rest.ru" } })).body).toContain("Калькулятор праздника");
+    expect((await showcase.inject({ url: "/korporativ/", headers: { host: "joy-rest.ru" } })).body).toContain("Корпоратив");
+    expect((await showcase.inject({ url: "/sitemap.xml", headers: { host: "joy-rest.ru" } })).statusCode).toBe(200);
     expect((await showcase.inject({ url: "/", headers: { host: "games.joy-rest.ru" } })).body).toContain("Платформа");
   });
 
@@ -189,11 +193,22 @@ describe("витрина до ИП (SITE_ENABLED=showcase)", () => {
     }
   });
 
-  it("поисковикам закрыто, даже если индексация включена", async () => {
+  it("индексация включена — витрина открыта поисковикам (решение владельца 22 октября 2026)", async () => {
     const robots = await showcase.inject({ url: "/robots.txt", headers: { host: "joy-rest.ru" } });
-    expect(robots.body).toBe("User-agent: *\nDisallow: /\n");
+    expect(robots.body).toBe("User-agent: *\nAllow: /\n\nSitemap: https://joy-rest.ru/sitemap.xml\n");
     const page = await showcase.inject({ url: "/", headers: { host: "joy-rest.ru" } });
-    expect(page.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(page.headers["x-robots-tag"]).toBeUndefined();
+  });
+
+  it("индексация выключена (по умолчанию) — витрина закрыта поисковикам", async () => {
+    const hidden = app(false, false, true);
+    const robots = await hidden.inject({ url: "/robots.txt", headers: { host: "joy-rest.ru" } });
+    expect(robots.body).toBe("User-agent: *\nDisallow: /\n");
+    for (const url of ["/", "/calc/", "/css/style.0123456789.css"]) {
+      const res = await hidden.inject({ url, headers: { host: "joy-rest.ru" } });
+      expect(res.headers["x-robots-tag"], url).toBe("noindex, nofollow");
+    }
+    await hidden.close();
   });
 
   it("включённый сайт сильнее витрины: on + showcase — обычный сайт", async () => {
@@ -233,7 +248,8 @@ describe("исходники сайта (site/)", () => {
       expect(text).not.toMatch(/fonts\.googleapis|fonts\.gstatic|images\.unsplash|cdn\./);
     }
     expect(html).not.toMatch(/<script[^>]+src="https?:/);
-    expect(html).not.toMatch(/<link[^>]+href="https?:/);
+    // Внешних файлов нет; адрес страницы для поисковиков (canonical) — не загрузка.
+    expect(html.replace(/<link rel="canonical" href="https:\/\/joy-rest\.ru\/[a-z-/]*">/g, "")).not.toMatch(/<link[^>]+href="https?:/);
   });
 
   it("Telegram: своя карточка канала без внешних скриптов, старого поста нет", () => {
@@ -451,7 +467,7 @@ describe("тексты и устройство страницы", () => {
     const text = visibleText();
     expect(text).toContain(EXTRA);
     expect(text.replace(EXTRA, "")).not.toMatch(/дидже|площадк|музыкант|подрядчик|кавер|квартет/i);
-    expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, игры и сценарий под ваш формат — вам остаётся только прийти и радоваться.");
+    expect(text).toContain("JoyRest берёт на себя программу вашего праздника: ведущий, квизы, викторины и интерактивные игры-шоу под ваш формат — вам остаётся только прийти и радоваться.");
     // Старый текст первого экрана сохранён рядом — вернётся вместе с услугами.
     expect(html).toContain("площадку, ведущего, диджея и музыкантов подбираем под ваш формат и бюджет");
     expect(html).not.toMatch(/фокусник|шоу-блок/i);
@@ -648,5 +664,74 @@ describe("логотип сайта", () => {
     expect(calc).toContain("JoyPricing");
     expect(calc).toContain("@font-face");
     expect(calc).not.toMatch(/<form\b|fetch\(|XMLHttpRequest|sendBeacon/);
+    // Страницы услуг: логотипы встроены, стили и скрипт темы — с отпечатком, sitemap.xml на месте.
+    const page = readFileSync(join(out, "korporativ/index.html"), "utf8");
+    expect(page).not.toMatch(/data-brand-svg="[a-z-]+"><\/span>/);
+    expect(page.match(/<svg aria-hidden="true"/g)).toHaveLength(2);
+    for (const name of ["fonts", "style", "landing"]) expect(page).toMatch(new RegExp(`href="/css/${name}\\.[0-9a-f]{10}\\.css"`));
+    expect(page).toMatch(/<script src="\/js\/theme\.[0-9a-f]{10}\.js"><\/script>/);
+    expect(readFileSync(join(out, "sitemap.xml"), "utf8")).toContain("<loc>https://joy-rest.ru/korporativ/</loc>");
   }, 30_000);
+});
+
+describe("поисковики: главная, страницы услуг, sitemap (решение владельца 22 октября 2026)", () => {
+  const root = resolve(import.meta.dirname, "../..");
+  const html = readFileSync(join(root, "site/index.html"), "utf8");
+  const sitemap = readFileSync(join(root, "site/sitemap.xml"), "utf8");
+  const slugs = [...html.matchAll(/<a href="\/([a-z-]+)\/">/g)].map((m) => m[1] ?? "");
+  const pages = slugs.map((slug) => ({ slug, html: readFileSync(join(root, "site", slug, "index.html"), "utf8") }));
+  const ld = (text: string) => [...text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1] ?? "") as unknown);
+
+  it("главная: адрес страницы, описание с ключевыми словами, разметка услуги", () => {
+    expect(html).toContain('<link rel="canonical" href="https://joy-rest.ru/">');
+    const title = /<title>([^<]+)<\/title>/.exec(html)?.[1] ?? "";
+    expect(title.length).toBeLessThanOrEqual(70);
+    const description = /<meta name="description" content="([^"]+)">/.exec(html)?.[1] ?? "";
+    for (const word of ["квиз", "викторин", "интерактивн", "корпоратив", "новогодний", "Москва и Подмосковье"]) {
+      expect(`${title} ${description}`, word).toContain(word);
+    }
+    expect(JSON.stringify(ld(html))).toContain('"Московская область"');
+  });
+
+  it("каждая страница услуги — своя: адрес, заголовок, описание, разметка, ссылка в подвале и в sitemap", () => {
+    expect(slugs.length).toBeGreaterThanOrEqual(7);
+    const titles = new Set<string>();
+    for (const { slug, html: page } of pages) {
+      const url = `https://joy-rest.ru/${slug}/`;
+      expect(page, slug).toContain(`<link rel="canonical" href="${url}">`);
+      expect(sitemap, slug).toContain(`<loc>${url}</loc>`);
+      const title = /<title>([^<]+)<\/title>/.exec(page)?.[1] ?? "";
+      expect(title.length, slug).toBeLessThanOrEqual(80);
+      expect(titles.has(title), slug).toBe(false);
+      titles.add(title);
+      expect(page.match(/<h1>/g), slug).toHaveLength(1);
+      expect(page, slug).toMatch(/<meta name="description" content="[^"]{80,200}">/);
+      expect(page, slug).toContain("Москва и Подмосковье");
+      const graph = JSON.stringify(ld(page));
+      for (const type of ['"Service"', '"BreadcrumbList"', '"FAQPage"']) expect(graph, `${slug} ${type}`).toContain(type);
+      // Ведут в калькулятор и к связи; форм и сбора данных нет — работают и в витрине.
+      expect(page, slug).toContain('href="/calc/"');
+      expect(page, slug).not.toMatch(/<form\b|fetch\(|<input/);
+    }
+  });
+
+  it("на страницах услуг — только то, что есть на главной: без площадок, диджеев, штрафов и чужих названий", () => {
+    for (const { slug, html: page } of pages) {
+      const text = page.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<[^>]+>/g, " ");
+      expect(text, slug).not.toMatch(/дидже|площадк|музыкант|подрядчик|кавер|квартет|фокусник|шоу-блок|МКАД|залог|штраф|₽\/час/i);
+      expect(text, slug).not.toMatch(/комисси|маржа|наценк|агентству/i);
+      expect(text, slug).not.toMatch(/Своя игра|Кто хочет стать миллионером|100 к 1|Угадай мелодию|Just Dance|Бункер|Перудо/);
+    }
+    // Цены — из таблицы калькулятора.
+    const pricing = readFileSync(join(root, "site/js/pricing.js"), "utf8");
+    for (const sum of ["14900", "19900", "22900", "21400"]) expect(pricing).toContain(sum);
+  });
+
+  it("sitemap.xml — только адреса joy-rest.ru, главная и калькулятор", () => {
+    const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1] ?? "");
+    expect(locs).toContain("https://joy-rest.ru/");
+    expect(locs).toContain("https://joy-rest.ru/calc/");
+    expect(locs.every((loc) => loc.startsWith("https://joy-rest.ru/"))).toBe(true);
+    expect(new Set(locs).size).toBe(locs.length);
+  });
 });

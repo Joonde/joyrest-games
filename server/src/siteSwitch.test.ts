@@ -99,13 +99,14 @@ describe("сайт агентства не включается сам", () => {
     expect(script).toMatch(/site_enabled\(\) \{\n\s+\[ "\$\(env_value "\$SETTINGS_FILE" SITE_ENABLED\)" = on \]/);
     expect(script).not.toMatch(/SITE_ENABLED=showcase|SITE_ENABLED showcase\b/);
     expect(script).not.toMatch(/SITE_ENABLED=on|SITE_ENABLED on\b/);
-    // Индексацию включает только site-indexing и только при включённом сайте.
+    // Индексацию включает только site-indexing и только при включённом сайте или витрине (решение 22 октября 2026).
     const indexing = [...script.matchAll(/set_env_value[^\n]*SITE_INDEXING[^\n]*/g)].map((m) => m[0]);
     expect(indexing).toEqual([
       'set_env_value "$SETTINGS_FILE" SITE_INDEXING off || die "Не удалось записать $SETTINGS_FILE."',
       'set_env_value "$SETTINGS_FILE" SITE_INDEXING "$value" || die "Не удалось записать $SETTINGS_FILE."',
     ]);
-    expect(script).toMatch(/if \[ "\$value" = on \] && ! site_enabled; then\n\s+die/);
+    expect(script).toMatch(/site_public\(\) \{\n\s+case "\$\(env_value "\$SETTINGS_FILE" SITE_ENABLED\)" in on\|showcase\) return 0 ;; \*\) return 1 ;; esac/);
+    expect(script).toMatch(/if \[ "\$value" = on \] && ! site_public; then\n\s+die/);
   });
 
   it("приложение без SITE_ENABLED отдаёт на joy-rest.ru заглушку и 404 на /api/lead", async () => {

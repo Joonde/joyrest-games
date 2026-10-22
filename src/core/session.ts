@@ -37,6 +37,7 @@ export function meetsExpect(state: SessionState, expect: ChangeExpect | undefine
   if (expect.phase !== undefined && state.phase !== expect.phase) return false;
   if (expect.step !== undefined && state.step !== expect.step) return false;
   if (expect.stage !== undefined && state.stage !== expect.stage) return false;
+  if (expect.slide !== undefined && (state.slide?.id ?? null) !== expect.slide) return false;
   return true;
 }
 

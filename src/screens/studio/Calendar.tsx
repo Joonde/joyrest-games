@@ -22,6 +22,7 @@ import {
   STATUS_ORDER,
   STATUS_TITLES,
   timeLabel,
+  PER_DAY_MAX,
   todayMoscow,
   weeklyDays,
   type MemberAvailability,
@@ -39,7 +40,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { TopBar } from "../../components/TopBar";
 import { brand } from "../../themes/brand";
 import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
-import { partialText, pendingDays, planRepeat, repeatKey, type RepeatPlan } from "./calendarRepeat";
+import { pendingDays, planRepeat, repeatKey, saveErrorText, type RepeatPlan } from "./calendarRepeat";
 import { EventForm, Planner, type EventDraft } from "./Planner";
 import { studioActions } from "./Studio";
 
@@ -412,8 +413,10 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
     const current = planRepeat(plan.current, repeatKey(day, k, s, e, w, n), days, newId);
     plan.current = current;
     const added: AvailabilityEntry[] = [];
+    let at = day;
     try {
       for (const d of pendingDays(current, days)) {
+        at = d;
         const id = current.ids[d] ?? newId();
         added.push(await calendarRepo.save({ id, day: d, start: s, end: e, kind: k, note: n }));
         current.saved.push(d);
@@ -422,10 +425,10 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
       onSaved(added, days.length > 1 ? `${what} — ${days.length} недель` : what);
       plan.current = null;
       setNote("");
-    } catch {
-      // Сохранённые недели сразу видны в календаре, текст говорит, сколько не сохранилось.
+    } catch (e) {
+      // Сохранённые недели сразу видны в календаре, текст говорит, сколько не сохранилось и почему.
       if (added.length > 0) onSaved(added, `Сохранено ${current.saved.length} из ${days.length}`);
-      setError(partialText(current.saved.length, days.length));
+      setError(saveErrorText(e, current.saved.length, days.length, at, PER_DAY_MAX));
     } finally {
       setBusy(false);
     }

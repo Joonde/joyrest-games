@@ -142,8 +142,14 @@ export function VideoTab({ profile, onToast }: Props) {
       done();
       retry();
       onToast(toast);
-    } catch {
-      setDialogError("Не получилось. Проверьте интернет и попробуйте снова.");
+    } catch (e) {
+      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      setDialogError(
+        code === "permission-denied"
+          ? "В папке есть видео других людей — переименовать или удалить её может только владелец."
+          : "Не получилось. Проверьте интернет и попробуйте снова.",
+      );
+      if (code === "permission-denied") retry();
     } finally {
       setBusy(false);
     }
@@ -325,6 +331,9 @@ export function VideoTab({ profile, onToast }: Props) {
               )}
               {folders.map((name) => {
                 const items = groups.find((g) => g.folder === name)?.videos ?? [];
+                // Папку с чужими видео переименовывает и удаляет только владелец агентства: иначе заместитель переложил бы
+                // чужие видео (так же проверяет сервер, повторная проверка QA 22 октября 2026).
+                const ownFolder = permissions.isAdmin(profile) || items.every((v) => v.ownerId === profile.uid);
                 return (
                   <Fold key={name} title={`📁 ${name}`} value={`${items.length}`}>
                     {items.length === 0 ? (
@@ -332,7 +341,8 @@ export function VideoTab({ profile, onToast }: Props) {
                     ) : (
                       <ul className="tracks">{items.map(row)}</ul>
                     )}
-                    {canUpload && (
+                    {canUpload && !ownFolder && <p className="muted small">В папке есть видео других людей — переименовать или удалить её может только владелец.</p>}
+                    {canUpload && ownFolder && (
                       <div className="actions">
                         <button
                           type="button"

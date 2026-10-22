@@ -3,7 +3,7 @@
 // свойству героя. Не справились — дракон отнимает жизнь; жизни кончились — команда теряет очки боя и
 // ждёт следующего; дракон дожил до конца боя — все теряют очки боя.
 
-import { listOption, pointsSuffix, splitLines, stripBold } from "../quiz/listText";
+import { listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 
 export type Stat = "str" | "mind" | "agi" | "luck" | "cha";
 
@@ -172,12 +172,30 @@ export interface DragonImport {
   battles: DragonBattle[];
   /** Номера строк (с 1), которые не удалось разобрать: вариант без вопроса, пятый вариант, лишнее задание. */
   skipped: number[];
+  /** Замечания по строкам: «(1799)» похоже на год — урон не поставлен. */
+  notes: Array<{ line: number; text: string }>;
+}
+
+/** Свойство в начале строки: «Ум: …», «Удача.», «Удача Бросайте кубик» (без двоеточия — только если дальше текст с большой буквы). */
+const STAT_LINE = /^(сила|ум|ловкость|удача|харизма)(?:\s*[:.]\s*(.*)|\s+(.*)|\s*)$/i;
+
+/** Свойство и текст задания; «Сила тока…» (дальше с маленькой буквы, без двоеточия) — не свойство, а текст. */
+function statLine(body: string): { word: string; text: string } | null {
+  const m = STAT_LINE.exec(body);
+  if (!m) return null;
+  const loose = m[3];
+  if (loose !== undefined) {
+    const first = loose.charAt(0);
+    if (first.toLowerCase() === first && first.toUpperCase() !== first) return null;
+  }
+  return { word: (m[1] ?? "").toLowerCase(), text: m[2] ?? loose ?? "" };
 }
 
 /**
  * Список: «# Бой: Огненный дракон 2000» — новый бой (число — здоровье). Дальше задания: «Ум: вопрос?» и
  * строки «- вариант», «* верный» (или «- верный *»); «Сила: задание» / «Харизма: …» — задание (засчитывает ведущий);
- * «Удача» — кубик. «(150)» в конце — урон. «Задание для команд || задание для каждого сам» — второй текст в режиме
+ * «Удача» — кубик (можно без двоеточия: «Удача Бросайте кубик»). Варианты — и «а)», «1.». «(150)» в конце — урон
+ * («(1799)» без слова — похоже на год: урон не ставим, пишем замечание). «Задание для команд || задание для каждого сам» — второй текст в режиме
  * «каждый сам». Без «*» верный вариант не отмечен — проверка попросит отметить.
  */
 export function parseDragonImport(text: string): DragonImport {
@@ -185,8 +203,13 @@ export function parseDragonImport(text: string): DragonImport {
   const skipped: number[] = [];
   let battle: DragonBattle | null = null;
   let task: DragonTask | null = null;
+  const notes: DragonImport["notes"] = [];
+  let run: ListedRun = newListedRun();
+  let dashed = false;
   const statByWord: Record<string, Stat> = { сила: "str", ум: "mind", ловкость: "agi", удача: "luck", харизма: "cha" };
-  splitLines(text).forEach((raw, index) => {
+  const lines = splitLines(text);
+  const ahead = nextLines(lines);
+  lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const line = stripBold(raw.trim()).trim();
     if (!line) return;
@@ -197,7 +220,11 @@ export function parseDragonImport(text: string): DragonImport {
       task = null;
       return;
     }
-    const opt = listOption(raw);
+    const dash = listOption(raw);
+    const cur0 = task as DragonTask | null;
+    const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
+    const opt = dash ?? listedOption(line, room && !dashed ? run : null, ahead[index]);
+    if (dash) dashed = true;
     if (opt) {
       const cur = task as DragonTask | null;
       if (!cur || cur.kind !== "choice") {
@@ -219,11 +246,15 @@ export function parseDragonImport(text: string): DragonImport {
       battle = target;
       battles.push(target);
     }
-    const { body, points } = pointsSuffix(line, DRAGON_LIMITS.maxPower);
-    const m = body.match(/^(сила|ум|ловкость|удача|харизма)\s*[:.]\s*(.*)$/i);
-    const stat = m ? (statByWord[(m[1] ?? "").toLowerCase()] ?? "mind") : "mind";
+    run = newListedRun();
+    dashed = false;
+    const { body: numbered, points, note } = pointsSuffix(line, DRAGON_LIMITS.maxPower, "урон не поставлен");
+    if (note) notes.push({ line: lineNo, text: note });
+    const body = numbered.replace(QUESTION_NUMBERING, "").trim();
+    const m = statLine(body);
+    const stat = m ? (statByWord[m.word] ?? "mind") : "mind";
     // «текст для команд || текст для режима „каждый сам“».
-    const [teamPart = "", soloPart = ""] = (m ? (m[2] ?? "") : body).split(/\s*\|\|\s*/);
+    const [teamPart = "", soloPart = ""] = (m ? m.text : body).split(/\s*\|\|\s*/);
     const textPart = teamPart.slice(0, DRAGON_LIMITS.text);
     const kind: DragonTaskKind = stat === "luck" ? "dice" : stat === "str" || stat === "cha" ? "task" : "choice";
     const next: DragonTask = { ...newDragonTask(kind, stat), text: textPart || (kind === "dice" ? "Бросайте кубик!" : ""), solo: soloPart.trim().slice(0, DRAGON_LIMITS.text), power: points ?? 100 };
@@ -231,7 +262,7 @@ export function parseDragonImport(text: string): DragonImport {
     if (target.tasks.length < DRAGON_LIMITS.maxTasks) target.tasks.push(next);
     else skipped.push(lineNo);
   });
-  return { battles: battles.filter((b) => b.tasks.length > 0).slice(0, DRAGON_LIMITS.maxBattles), skipped };
+  return { battles: battles.filter((b) => b.tasks.length > 0).slice(0, DRAGON_LIMITS.maxBattles), skipped, notes };
 }
 
 /** То же, только бои (шаблоны и старые вызовы). */

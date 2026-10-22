@@ -3,7 +3,7 @@
 // победитель забирает банк (ставки + приз, растущий 100, 200, 300…). После второй войнушки в раундах,
 // которые отметил ведущий (до 3), — аукцион «билета освобождения»: билет позволяет один раз пропустить
 // войнушку без ставки.
-import { listOption, pointsSuffix, splitAnswers, splitLines, stripBold } from "../quiz/listText";
+import { listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SURVIVAL_LOOK, parseShowLook, SURVIVAL_LOOKS, type ShowLook } from "../showLook";
 
 export type SurvivalKind = "choice" | "open" | "task";
@@ -152,6 +152,8 @@ export interface SurvivalImport {
   rounds: SurvivalRound[];
   /** Номера строк (с 1), которые не удалось разобрать: вариант без вопроса, пятый вариант. */
   skipped: number[];
+  /** Замечания по строкам: «(1799)» похоже на год — очки не поставлены. */
+  notes: Array<{ line: number; text: string }>;
 }
 
 /**
@@ -171,21 +173,32 @@ export function openAnswerSplit(body: string): { question: string; answers: stri
  * Список: строка — раунд по порядку. «Вопрос?» и строки «- вариант», «* верный» (или «- верный *») — вопрос с
  * вариантами; «Вопрос? = ответ | ответ2» (или «/») — открытый; «Задание: …» — задание («Задание: … = слон | жираф» —
  * тайные слова командам; «Задание: для команд || для каждого сам = слова» — второй текст в режиме «каждый сам»).
- * «(150)» или «(150 очков)» в конце — очки. Без «*» верный вариант не отмечен — проверка попросит отметить.
+ * «(150)» или «(150 очков)» в конце — очки («(1799)» без слова — похоже на год: очки не ставим, пишем замечание).
+ * Варианты — и «а)», «1.»; нумерация «1.» перед вопросом снимается. Без «*» верный вариант не отмечен — проверка попросит
+ * отметить.
  */
 export function parseSurvivalImport(text: string): SurvivalImport {
   const out: SurvivalRound[] = [];
   const skipped: number[] = [];
+  const notes: SurvivalImport["notes"] = [];
   let current: SurvivalRound | null = null;
+  let run: ListedRun = newListedRun();
+  let dashed = false;
   const flush = () => {
     if (current && current.text) out.push(current);
     current = null;
   };
-  splitLines(text).forEach((raw, index) => {
+  const lines = splitLines(text);
+  const ahead = nextLines(lines);
+  lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const line = raw.trim();
     if (!line) return;
-    const opt = listOption(line);
+    const dash = listOption(line);
+    const cur0 = current as SurvivalRound | null;
+    const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
+    const opt = dash ?? listedOption(stripBold(line).trim(), room && !dashed ? run : null, ahead[index]);
+    if (dash) dashed = true;
     if (opt) {
       const cur = current as SurvivalRound | null;
       if (!cur || cur.kind !== "choice") {
@@ -202,7 +215,11 @@ export function parseSurvivalImport(text: string): SurvivalImport {
       return;
     }
     flush();
-    const { body, points: given } = pointsSuffix(stripBold(line), SURVIVAL_LIMITS.maxPoints);
+    run = newListedRun();
+    dashed = false;
+    const { body: numbered, points: given, note } = pointsSuffix(stripBold(line), SURVIVAL_LIMITS.maxPoints);
+    if (note) notes.push({ line: lineNo, text: note });
+    const body = numbered.replace(QUESTION_NUMBERING, "").trim();
     const points = given ?? 100;
     const open = openAnswerSplit(body);
     if (/^задание\s*[:.]/i.test(body)) {
@@ -219,7 +236,7 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     }
   });
   flush();
-  return { rounds: out.slice(0, SURVIVAL_LIMITS.maxRounds), skipped };
+  return { rounds: out.slice(0, SURVIVAL_LIMITS.maxRounds), skipped, notes };
 }
 
 /** То же, только раунды (шаблон и старые вызовы). */

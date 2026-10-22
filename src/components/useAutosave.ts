@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { dataBackend, errorCodeOf, isPermanentError } from "../data";
+export { draftRestoreMode } from "./draftRestore";
 
 /**
  * saved — всё подтверждено сервером; saving — запись в пути; offline — связи нет, правки
  * ждут в очереди на устройстве; error — сервер отказал, повторяем; conflict — пока правили, это изменил
  * другой человек: запись остановлена, правки ждут решения («Открыть свежую версию» / «Сохранить мою поверх»);
  * denied — сервер отказал насовсем (игру удалили, нет доступа, вышли из аккаунта): повторять бесполезно, правки
- * остались в черновике на устройстве.
+ * остались в черновике на устройстве; slow — связь есть и сервер отвечает, но запись идёт дольше обычного (не «нет связи»).
  */
-export type SaveStatus = "saved" | "saving" | "offline" | "error" | "conflict" | "denied";
+export type SaveStatus = "saved" | "saving" | "slow" | "offline" | "error" | "conflict" | "denied";
 
 /** Через сколько после последней правки уходит запись. */
 const SAVE_DELAY_MS = 700;
-/** Если сервер молчит дольше, связи, скорее всего, нет. */
+/** Сервер молчит дольше при живой связи — «сохраняется дольше обычного». */
 const OFFLINE_AFTER_MS = 5000;
 const RETRY_DELAY_MS = 4000;
 
@@ -20,9 +21,9 @@ const DRAFT_PREFIX = "joyrest.draft.";
 
 /**
  * Неподтверждённые правки, оставшиеся на устройстве (вкладку закрыли без связи). `at` — когда записаны (часы телефона,
- * только чтобы показать человеку); `base` — версия на сервере, с которой начаты правки (`updatedAt` игры при открытии;
- * undefined — черновик старого формата, версия неизвестна); `saved` — до этих правок в том же открытии что-то уже
- * сохранилось (тогда версия на сервере — наша, а не `base`).
+ * только чтобы показать человеку); `base` — версия на сервере, поверх которой лежат правки: `updatedAt` игры при открытии,
+ * а после каждого подтверждённого сохранения — версия, которую вернул сервер (undefined — версия неизвестна: черновик
+ * старого формата или сервер версию не вернул); `saved` — в том же открытии что-то уже сохранялось (только для справки).
  */
 export interface Draft<Patch> {
   at: number;
@@ -67,10 +68,14 @@ function isOnline(): boolean {
  * бы записать старую пачку поверх новой.
  */
 export function useAutosave<Patch extends object>(
-  save: (patch: Patch) => Promise<void>,
+  /** Запись на сервер; число в ответе — новая версия игры на сервере (свой сервер), её запоминает черновик. */
+  save: (patch: Patch) => Promise<number | null | void>,
   /** Ключ черновика: неподтверждённые правки лежат на устройстве и переживают закрытие вкладки без связи. */
   draftKey?: string,
-  /** Версия на сервере при открытии (`updatedAt`): пишется в черновик, чтобы потом понять, меняли ли игру без нас. */
+  /**
+   * Версия на сервере при открытии (`updatedAt`): пишется в черновик, чтобы потом понять, меняли ли игру без нас. После
+   * каждого подтверждённого сохранения черновик берёт версию из ответа сервера; сервер её не вернул — версия неизвестна.
+   */
   draftBase?: number | null,
 ): {
   status: SaveStatus;
@@ -94,8 +99,10 @@ export function useAutosave<Patch extends object>(
   const conflict = useRef(false);
   /** Сервер отказал насовсем — не повторяем каждые 4 с, ждём решения человека. */
   const denied = useRef<string | null>(null);
-  /** В этом открытии сервер уже что-то подтвердил: версия на сервере — наша. */
+  /** В этом открытии сервер уже что-то подтвердил. */
   const confirmedAny = useRef(false);
+  /** Версия на сервере, поверх которой лежат неподтверждённые правки (undefined — неизвестна). */
+  const base = useRef<number | null | undefined>(draftBase);
   const [online, setOnline] = useState(isOnline);
   const [slow, setSlow] = useState(false);
   const saveRef = useRef(save);
@@ -106,11 +113,11 @@ export function useAutosave<Patch extends object>(
     if (!draftKey) return;
     try {
       if (Object.keys(unsent.current).length === 0) localStorage.removeItem(DRAFT_PREFIX + draftKey);
-      else localStorage.setItem(DRAFT_PREFIX + draftKey, JSON.stringify({ at: Date.now(), base: draftBase ?? null, saved: confirmedAny.current, patch: unsent.current }));
+      else localStorage.setItem(DRAFT_PREFIX + draftKey, JSON.stringify({ at: Date.now(), base: base.current, saved: confirmedAny.current, patch: unsent.current }));
     } catch {
       // Хранилище переполнено или закрыто — правки живут до закрытия вкладки.
     }
-  }, [draftKey, draftBase]);
+  }, [draftKey]);
   /** Нет связи (сбой сети, сервер недоступен) — это не «сервер отказал». */
   const networkFail = useRef(false);
 
@@ -134,15 +141,16 @@ export function useAutosave<Patch extends object>(
     update();
     saveRef
       .current(patch)
-      .then(() => {
+      .then((version) => {
         failed.current = false;
         networkFail.current = false;
         confirmedAny.current = true;
+        // Версия на сервере теперь наша: черновик с оставшимися правками должен ссылаться на неё, а не на версию при
+        // открытии (иначе потом не понять, правил ли игру кто-то после нас). Версию не вернули — она неизвестна.
+        base.current = typeof version === "number" ? version : undefined;
         // Всё отправленное дошло — черновик на устройстве больше не нужен.
-        if (!pending.current && inFlight.current <= 1) {
-          unsent.current = {};
-          writeDraft();
-        }
+        if (!pending.current && inFlight.current <= 1) unsent.current = {};
+        writeDraft();
       })
       .catch((error: unknown) => {
         failed.current = true;
@@ -189,7 +197,7 @@ export function useAutosave<Patch extends object>(
     [flush, update, writeDraft],
   );
 
-  // Сервер долго не подтверждает запись — показываем «Нет связи».
+  // Сервер долго не подтверждает запись, а связь есть — «сохраняется дольше обычного» (не «нет связи»).
   useEffect(() => {
     if (oldestSent.current === null) return;
     const wait = Math.max(0, oldestSent.current + OFFLINE_AFTER_MS - Date.now());
@@ -234,7 +242,7 @@ export function useAutosave<Patch extends object>(
   let status: SaveStatus = "saved";
   if (conflict.current) status = "conflict";
   else if (denied.current) status = "denied";
-  else if (busy) status = failed.current && !networkFail.current ? "error" : !online || slow || networkFail.current ? "offline" : "saving";
+  else if (busy) status = failed.current && !networkFail.current ? "error" : !online || networkFail.current ? "offline" : slow ? "slow" : "saving";
 
   const pendingChanges = useCallback(() => pending.current !== null || inFlight.current > 0, []);
 

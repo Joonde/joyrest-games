@@ -26,8 +26,10 @@ export function useTechBreakAutoEnd(slide: SlideState | null, current: () => Sli
   useEffect(() => {
     if (!due || !shouldCloseTechBreak(due, read.current(), closed.current)) return;
     closed.current = due;
-    // Не вышло (нет связи) — попробуем снова на следующем тике.
-    void apply.current({ state: { slide: null } }).catch(() => {
+    // Сервер убирает перерыв, только если на экране всё ещё он (`expect.slide`): второй пульт мог за ту же секунду
+    // показать другой слайд — тогда 409, и чужой слайд остаётся. Не вышло (нет связи) — попробуем снова на следующем
+    // тике (а после 409 свежий слайд уже другой, и `shouldCloseTechBreak` повторять не даст).
+    void apply.current({ state: { slide: null }, expect: { slide: due } }).catch(() => {
       if (closed.current === due) closed.current = null;
     });
   }, [due, now]);

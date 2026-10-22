@@ -81,23 +81,26 @@ export async function changeStatus(
   if (from === to) return;
   const whoName = who.name.slice(0, CLIENT_LIMITS.name);
   if (from === "new") {
-    const [before] = await t<{ taken_at: Date | null }[]>`select taken_at from clients where id = ${id}`;
-    if (before && before.taken_at === null) {
+    const [before] = await t<{ taken_at: Date | null; timer_by_contact: boolean }[]>`select taken_at, timer_by_contact from clients where id = ${id}`;
+    if (before && before.taken_at === null && before.timer_by_contact) {
       const [row] = await t<{ taken_ms: string | number | null }[]>`
         update clients set status = ${to}, updated_at = now(), taken_at = now(), taken_by = ${whoName},
-          taken_ms = greatest(0, floor(extract(epoch from now() - coalesce(new_since, last_contact_at)) * 1000))::bigint, new_since = null
+          taken_ms = greatest(0, floor(extract(epoch from now() - coalesce(new_since, last_contact_at)) * 1000))::bigint, new_since = null,
+          timer_by_contact = false
         where id = ${id} returning taken_ms`;
       const waited = Number(row?.taken_ms ?? 0);
       await t`insert into client_responses (id, client_id, user_id, user_name, waited_ms)
         values (${newId("r")}, ${id}, ${who.id}, ${whoName}, ${waited})`;
     } else {
-      // На это обращение уже ответили (в «Новый» вернули вручную) — второй раз скорость ответа не считаем.
-      await t`update clients set status = ${to}, updated_at = now(), new_since = null where id = ${id}`;
+      // На это обращение уже ответили или «Новый» поставили вручную — скорость ответа не считаем.
+      await t`update clients set status = ${to}, updated_at = now(), new_since = null, timer_by_contact = false where id = ${id}`;
     }
   } else if (to === "new" && options.reopen) {
-    await t`update clients set status = 'new', updated_at = now(), new_since = now(), taken_at = null, taken_ms = null, taken_by = '' where id = ${id}`;
+    await t`update clients set status = 'new', updated_at = now(), new_since = now(), taken_at = null, taken_ms = null, taken_by = '',
+      timer_by_contact = true where id = ${id}`;
   } else if (to === "new") {
-    await t`update clients set status = 'new', updated_at = now(), new_since = now() where id = ${id}`;
+    // Вручную вернули в «Новый»: таймер на карточке идёт, но это не обращение клиента — в скорость ответа не попадёт.
+    await t`update clients set status = 'new', updated_at = now(), new_since = now(), timer_by_contact = false where id = ${id}`;
   } else {
     await t`update clients set status = ${to}, updated_at = now() where id = ${id}`;
   }
@@ -229,11 +232,18 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
         await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status', ${eventLine.slice(0, CLIENT_LIMITS.summary)})`;
       }
     }
+    // Это обращение уже в истории? Уникальный индекс `client_contacts_ref` — (source, ref) без клиента, поэтому ищем так
+    // же. Запись висит на другом клиенте (в мероприятии сменили телефон) — переносим её этому: для него это первое
+    // обращение (knownRef = false один раз), а следующие правки того же мероприятия — уже учтённые (повторная проверка
+    // QA 22 октября 2026: прежде запись оставалась у первого клиента, и каждая правка возвращала второго из «Провели»,
+    // «Отказа» и архива).
+    if (input.ref) {
+      const [seen] = await t<{ id: string; client_id: string }[]>`
+        select id, client_id from client_contacts where source = ${input.source} and ref = ${input.ref} limit 1 for update`;
+      if (seen && seen.client_id === id) knownRef = true;
+      else if (seen) await t`update client_contacts set client_id = ${id} where id = ${seen.id}`;
+    }
     if (!created) {
-      if (input.ref) {
-        const seen = await t`select 1 from client_contacts where client_id = ${id} and source = ${input.source} and ref = ${input.ref} limit 1`;
-        knownRef = seen.length > 0;
-      }
       const [row] = found ? [found] : await t<Found[]>`select id, links, name, phone, status, phone_key from clients where id = ${id}`;
       const merged = cleanLinks([...(Array.isArray(row?.links) ? row.links : []), ...links]);
       // Ключ городского номера в прежнем виде (без «7») — переводим в новый.
@@ -266,6 +276,12 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     } else if (found && !knownRef && input.source !== "event" && input.source !== "status" && REOPEN_STATUSES.includes(current)) {
       // Снова написал тот, с кем не договорились или кому уже провели праздник, — снова «Новый», таймер с нуля.
       await changeStatus(t, id, current, "new", { id: null, name: "" }, "Новый · повторное обращение", { reopen: true });
+    } else if (found && !knownRef && input.source !== "event" && input.source !== "status" && current === "new") {
+      // Клиент в «Новом», которого туда вернули вручную (или на прошлое обращение уже ответили), написал снова — это
+      // новое обращение: таймер с нуля и в скорость ответа (как повторное обращение). Ждёт ответа на прежнее — таймер
+      // идёт дальше, не сбрасываем.
+      await t`update clients set new_since = now(), taken_at = null, taken_ms = null, taken_by = '', timer_by_contact = true
+        where id = ${id} and (taken_at is not null or not timer_by_contact)`;
     }
     return id;
   });

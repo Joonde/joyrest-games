@@ -34,7 +34,33 @@ function publish(decks: Deck[]) {
   for (const l of listeners) l(decks);
 }
 
+// Перечитывание списка — одно на страницу пульта: плашка сверху и панель «Слайды» видят один и тот же пропавший показ,
+// а запрос уходит один (повторная проверка QA 22 октября 2026). Сбой сети — повтор через `DECK_RELOAD_MS`, пока показ
+// кому-то нужен.
 let lastReload = 0;
+let reloadTimer: number | null = null;
+let reloadBusy = false;
+const reloadWanted = new Set<symbol>();
+
+function scheduleDeckReload(delay: number): void {
+  if (reloadTimer !== null || reloadBusy || reloadWanted.size === 0) return;
+  reloadTimer = window.setTimeout(() => {
+    reloadTimer = null;
+    if (reloadWanted.size === 0) return;
+    reloadBusy = true;
+    lastReload = Date.now();
+    loadDecks(true).then(
+      (decks) => {
+        reloadBusy = false;
+        publish(decks);
+      },
+      () => {
+        reloadBusy = false;
+        scheduleDeckReload(DECK_RELOAD_MS);
+      },
+    );
+  }, delay);
+}
 
 /**
  * На экране показ, которого нет в списке (загрузили с другого пульта, QA 22 октября 2026, M9) — перечитываем список,
@@ -45,12 +71,16 @@ function useMissingDeckReload(decks: Deck[] | null, media: SlideState["media"]):
   const key = media ? `${media.deck}:${media.count}` : "";
   useEffect(() => {
     if (!missing) return;
-    const wait = Math.max(0, lastReload + DECK_RELOAD_MS - Date.now());
-    const timer = window.setTimeout(() => {
-      lastReload = Date.now();
-      loadDecks(true).then(publish, () => undefined);
-    }, wait);
-    return () => window.clearTimeout(timer);
+    const token = Symbol(key);
+    reloadWanted.add(token);
+    scheduleDeckReload(Math.max(0, lastReload + DECK_RELOAD_MS - Date.now()));
+    return () => {
+      reloadWanted.delete(token);
+      if (reloadWanted.size === 0 && reloadTimer !== null) {
+        window.clearTimeout(reloadTimer);
+        reloadTimer = null;
+      }
+    };
   }, [missing, key]);
 }
 

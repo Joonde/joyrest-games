@@ -35,7 +35,16 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
     const location = latest.current.locations[i];
     if (!location) return;
     onChange({ ...latest.current, locations: latest.current.locations.filter((_, k) => k !== i) });
-    offer(`Локация ${location.name.trim() ? `«${location.name.trim()}»` : i + 1} убрана`, () => onChange({ ...latest.current, locations: insertBack(latest.current.locations, { item: location, index: i }) }));
+    // Ключ — название локации (у локаций нет id; одинаковые названия проверка и так не пускает): двойное «Вернуть»
+    // не добавит её дважды. Без названия ключа нет — второй раз не даёт сам флаг `returned`.
+    const name = location.name.trim().toLowerCase();
+    const key = name ? (l: SpyLocation) => l.name.trim().toLowerCase() : undefined;
+    let returned = false;
+    offer(`Локация ${location.name.trim() ? `«${location.name.trim()}»` : i + 1} убрана`, () => {
+      if (returned) return;
+      returned = true;
+      onChange({ ...latest.current, locations: insertBack(latest.current.locations, { item: location, index: i }, key) });
+    });
   };
   const addLocation = () => onChange({ ...latest.current, locations: [...latest.current.locations, { name: "", roles: [] }] });
   const missingDefaults = DEFAULT_LOCATIONS.filter((d) => !content.locations.some((l) => l.name.trim().toLowerCase() === d.name.toLowerCase()));

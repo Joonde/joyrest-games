@@ -312,7 +312,7 @@ function ClientBase({ profile }: { profile: UserProfile }) {
           const code = errorCode(e);
           if (code === "failed-precondition" || code === "already-exists" || code === "not-found") {
             retry();
-            showToast(clientErrorText(e, "убрать в архив"));
+            showToast(clientErrorText(e, c.archived ? "вернуть из архива" : "убрать в архив"));
             return;
           }
           throw e;

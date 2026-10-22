@@ -29,6 +29,29 @@ export function pendingDays(plan: RepeatPlan, days: string[]): string[] {
   return days.filter((d) => !plan.saved.includes(d));
 }
 
+/** «2026-11-05» → «05.11.2026». */
+function dayText(day: string): string {
+  const [y, m, d] = day.split("-");
+  return y && m && d ? `${d}.${m}.${y}` : day;
+}
+
+/**
+ * Текст ошибки сохранения (повторная проверка QA 22 октября 2026): постоянный отказ сервера — понятной причиной, а не
+ * «проверьте интернет» (повтор его не исправит). 429 — в этот день уже `PER_DAY_MAX` записей; 400 — дата вне окна
+ * календаря (повтор на много недель вперёд). Остальное — сеть: `partialText`.
+ */
+export function saveErrorText(error: unknown, saved: number, total: number, day: string, perDayMax: number): string {
+  const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code: unknown }).code) : "";
+  const done = saved > 0 ? `Сохранено ${saved} из ${total}. ` : "";
+  if (code === "resource-exhausted") {
+    return `${done}На ${dayText(day)} у вас уже ${perDayMax} записей — больше в один день нельзя. Уберите лишние отметки этого дня.`;
+  }
+  if (code === "invalid-argument") {
+    return `${done}${dayText(day)} отметить нельзя: календарь принимает даты не дальше двух лет вперёд. Выберите меньше недель или другую дату.`;
+  }
+  return partialText(saved, total);
+}
+
 /** Текст после частичной ошибки: сколько сохранилось и сколько нет. */
 export function partialText(saved: number, total: number): string {
   const left = total - saved;

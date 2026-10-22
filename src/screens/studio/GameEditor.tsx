@@ -20,7 +20,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { TopBar } from "../../components/TopBar";
-import { dropDraft, readDraft, useAutosave, type Draft, type SaveStatus } from "../../components/useAutosave";
+import { draftRestoreMode, dropDraft, readDraft, useAutosave, type Draft, type SaveStatus } from "../../components/useAutosave";
 import { gameMediaIds, stepsLabel, getMechanic, mechanicTitle, supportedPlayMode, validateGame } from "../../mechanics/registry";
 import { getTheme, THEME_HINTS, themesForRating } from "../../themes/registry";
 
@@ -38,6 +38,7 @@ const PLAY_MODES: Array<{ id: PlayMode; title: string; hint: string }> = [
 const SAVE_TEXT: Record<SaveStatus, string> = {
   saved: "Все изменения сохранены автоматически",
   saving: "Сохраняется…",
+  slow: "Сохраняется дольше обычного — сервер отвечает медленно",
   offline: "Нет связи — правки сохранятся, когда появится интернет",
   error: "Не удалось сохранить — пробуем ещё раз",
   conflict: "Игру изменил другой человек — ваши правки ждут решения",
@@ -48,6 +49,7 @@ const SAVE_TEXT: Record<SaveStatus, string> = {
 const SAVE_SHORT: Record<SaveStatus, string> = {
   saved: "✓ Сохранено",
   saving: "Сохраняется…",
+  slow: "Сохраняется…",
   offline: "Нет связи",
   error: "Пробуем ещё раз",
   conflict: "Нужно решение",
@@ -62,6 +64,14 @@ function deniedText(code: string | null): string {
   return "Сервер не принимает эти правки — они остались на этом телефоне. Обновите страницу или напишите владельцу.";
 }
 
+/** Выход без сохранения при отказе сервера: правки не уйдут сами — честно говорим, где они остались. */
+function deniedLeaveText(code: string | null): string {
+  if (code === "unauthenticated") return "Правки не сохранены: вы вышли из аккаунта. Они остались только на этом телефоне — войдите снова и откройте игру.";
+  if (code === "resource-exhausted") return "Правки не сохранены: на сервере закончилось место. Они остались только на этом телефоне.";
+  if (code === "not-found" || code === "permission-denied") return "Правки не сохранены: игру удалили или у вас нет доступа. Они остались только на этом телефоне.";
+  return "Правки не сохранены: сервер их не принял. Они остались только на этом телефоне.";
+}
+
 /** Время черновика для человека: «22 октября, 14:05». */
 function draftTime(at: number): string {
   try {
@@ -72,7 +82,7 @@ function draftTime(at: number): string {
 }
 
 /** Что мешает уйти из игры: правки ещё не на сервере. */
-type LeaveIssue = "error" | "offline" | "conflict" | "denied";
+type LeaveIssue = "error" | "offline" | "slow" | "conflict" | "denied";
 
 /** Плашка статуса прилипла к верху (страницу прокрутили ниже неё). */
 function useStuck() {
@@ -91,8 +101,16 @@ function useStuck() {
 /** Кто-то правил игру за последние 10 минут — предупредить, что можно столкнуться правками. */
 const RECENT_EDIT_MS = 10 * 60_000;
 
-/** Где конструкторы помечают ошибки: общий класс `edit-issue` и прежние метки. */
-const ISSUE_SELECTOR = ".edit-issue, .q-card__issue, .has-error, [aria-invalid='true'], .field .error, p.error";
+/**
+ * Где конструкторы помечают ошибки: общий класс `edit-issue` и прежние метки. Сообщения окна «вставить списком»
+ * («Не разобрали строки…») помечены `import-note` — это не ошибки игры, туда «Показать, что исправить» не ведёт.
+ */
+const ISSUE_SELECTOR = ".edit-issue, .q-card__issue, .has-error, [aria-invalid='true'], .field .error:not(.import-note), p.error:not(.import-note)";
+
+/** Первое место с ошибкой игры (не сообщение окна импорта). */
+function findIssue(): HTMLElement | null {
+  return Array.from(document.querySelectorAll<HTMLElement>(ISSUE_SELECTOR)).find((el) => !el.closest(".import-note, .import-list")) ?? null;
+}
 
 export function GameEditor() {
   const { gameId = "" } = useParams();
@@ -137,10 +155,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       dropDraft(draftKey);
       return { restore: null, ask: null };
     }
-    const sameBase = d.base !== undefined && d.base === initial.updatedAt;
-    // До этих правок в том же открытии уже сохранялось — версия на сервере наша, если последним правил этот же человек.
-    const ownLater = d.base !== undefined && d.saved && Boolean(initial.editedBy) && initial.editedBy === profile.uid;
-    return sameBase || ownLater ? { restore: d.patch, ask: null } : { restore: null, ask: d };
+    // Молча — только если версия на сервере та же, поверх которой лежат правки (после своих сохранений черновик помнит
+    // новую версию). Иначе спрашиваем — даже если последним правил сам человек: с другого устройства он мог сделать новее.
+    return draftRestoreMode(d, initial.updatedAt) === "restore" ? { restore: d.patch, ask: null } : { restore: null, ask: d };
   });
   const draft = draftChoice.restore;
   const [draftAsk, setDraftAsk] = useState<Draft<GamePatch> | null>(draftChoice.ask);
@@ -229,8 +246,9 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   /** Что мешает уйти сейчас (null — всё на сервере). */
   function issueNow(): LeaveIssue | null {
     const st = statusRef.current;
-    if (st === "conflict" || st === "denied" || st === "error") return st;
-    if (st !== "saved" || pendingChanges()) return "offline";
+    if (st === "conflict" || st === "denied" || st === "error" || st === "offline") return st;
+    // Связь есть, сервер отвечает, но запись ещё идёт — «сохраняется дольше обычного», а не «нет связи».
+    if (st !== "saved" || pendingChanges()) return typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "slow";
     return null;
   }
 
@@ -252,6 +270,20 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   /** «Выйти всё равно» без связи: правки лежат в черновике на этом телефоне. */
   function leaveAnyway() {
     setLeaveIssue(null);
+    // Сервер отказал насовсем — сами правки не уйдут: не обещаем «когда появится интернет».
+    if (statusRef.current === "denied") {
+      navigate(afterIssue.current === "save" ? (game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine") : leaveTo.current, {
+        state: { toast: deniedLeaveText(deniedCode) },
+      });
+      return;
+    }
+    // Запись ещё идёт (связь есть) — она может успеть; не успеет — правки на этом телефоне.
+    if (statusRef.current === "slow" || statusRef.current === "saving") {
+      navigate(afterIssue.current === "save" ? (game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine") : leaveTo.current, {
+        state: { toast: "Правки ещё сохранялись. Если не успели — они остались на этом телефоне и уйдут, когда вы снова откроете игру" },
+      });
+      return;
+    }
     if (afterIssue.current === "save") {
       const where = game.scope === "agency" ? "библиотеке" : "ваших играх";
       navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", {
@@ -266,6 +298,14 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   function overwriteAndContinue() {
     gamesRepo.overwriteNext?.(initial.id);
     resume();
+    setLeaveIssue(null);
+    setRestoring(true);
+    if (afterIssue.current === "save") void finishSave();
+    else leaveWhenSettled();
+  }
+
+  /** «Подождать»: запись идёт дольше обычного — ждём ещё и уходим, когда дойдёт. */
+  function waitMore() {
     setLeaveIssue(null);
     setRestoring(true);
     if (afterIssue.current === "save") void finishSave();
@@ -358,7 +398,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
     window.dispatchEvent(new CustomEvent("joyrest:reveal-issues"));
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        const el = document.querySelector<HTMLElement>(ISSUE_SELECTOR);
+        const el = findIssue();
         if (!el) {
           setIssuesList(true);
           return;
@@ -380,7 +420,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           node = parent;
         }
         requestAnimationFrame(() => {
-          const target = document.querySelector<HTMLElement>(ISSUE_SELECTOR) ?? el;
+          const target = findIssue() ?? el;
           const field = target.matches("input, textarea, select") ? target : target.querySelector<HTMLElement>("[aria-invalid='true'], input, textarea, select, button");
           target.scrollIntoView({ block: "center" });
           (field ?? target).focus({ preventScroll: true });
@@ -736,6 +776,20 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         onCancel={() => setLeaveIssue(null)}
       >
         <p role="alert">Нет связи — правки сохранятся на этом телефоне и уйдут, когда появится интернет и вы снова откроете эту игру.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={leaveIssue === "slow"}
+        title="Правки ещё сохраняются"
+        confirmLabel="Подождать"
+        cancelLabel="Выйти всё равно"
+        busy={restoring}
+        onConfirm={waitMore}
+        onCancel={leaveAnyway}
+      >
+        <p role="status">
+          Связь есть, но сервер отвечает дольше обычного. Подождите несколько секунд — выйдем, как только правки сохранятся. Выйдете сейчас —
+          недошедшие правки останутся на этом телефоне.
+        </p>
       </ConfirmDialog>
       <ConfirmDialog
         open={leaveIssue === "conflict"}

@@ -38,16 +38,32 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
   // иначе «Сделать фото» молча заменит уже снятое (в том числе со второго пульта).
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // Поколение записей: растёт в начале и в конце каждого сохранения и удаления. Список, запрошенный до последней записи
+  // (закрыли и открыли блок, пока фото сохранялось), устарел — его ответ не затирает только что снятое фото, а список
+  // перечитывается заново (повторная проверка QA 22 октября 2026).
+  const generation = useRef(0);
   useEffect(() => {
     if (!photosRepo || !open) return;
     let alive = true;
+    const asked = generation.current;
     setFailed(false);
     // Каждое открытие — свежий список: второй пульт мог уже снять фото.
     photosRepo
       .list(sessionId)
-      .then((list) => alive && setPhotos(list))
+      .then((list) => {
+        if (!alive) return;
+        if (asked !== generation.current) {
+          setAttempt((n) => n + 1);
+          return;
+        }
+        setPhotos(list);
+      })
       .catch(() => {
         if (!alive) return;
+        if (asked !== generation.current) {
+          setAttempt((n) => n + 1);
+          return;
+        }
         setPhotos(null);
         setFailed(true);
       });
@@ -72,6 +88,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
     const slot = target.current;
     setBusySlot(slot);
     setError(null);
+    generation.current += 1;
     try {
       const blob = await shrinkImage(file, { maxSide: 1600, targetBytes: 800 * 1024, maxBytes: 1400 * 1024 });
       const { width, height } = await dimensions(blob);
@@ -80,6 +97,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
     } catch (e) {
       setError(e instanceof ImageError ? e.message : "Не получилось сохранить фото. Проверьте интернет и попробуйте ещё раз.");
     } finally {
+      generation.current += 1;
       setBusySlot(null);
     }
   }
@@ -89,12 +107,14 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
     setToDelete(null);
     setBusySlot(slot);
     setError(null);
+    generation.current += 1;
     try {
       await photosRepo.remove(sessionId, slot);
       setPhotos((list) => (list ?? []).filter((p) => p.slot !== slot));
     } catch {
       setError("Не получилось удалить фото. Проверьте интернет.");
     } finally {
+      generation.current += 1;
       setBusySlot(null);
     }
   }

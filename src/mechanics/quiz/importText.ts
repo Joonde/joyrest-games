@@ -1,6 +1,6 @@
 import { LIMITS, newQuestion, parseRound, type QuizQuestion } from "./content";
 import { validateQuestion } from "./validate";
-import { markedText, parseNumberText, parseOption, splitAnswers, splitLines, stripBold } from "./listText";
+import { listedOption, markedText, newListedRun, nextLines, parseNumberText, parseOption, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "./listText";
 
 export { markedText, parseNumberText, parseOption, splitAnswers, splitLines, stripBold };
 
@@ -41,21 +41,16 @@ export interface ImportResult {
   skipped: number[];
 }
 
-/** Нумерация в начале вопроса: «1.», «2)», «Вопрос 3:», «#4», «№ 5.». */
-const NUMBERING = /^\s*(?:(?:вопрос|#|№)\s*\d{1,3}\s*[.):]?|\d{1,3}\s*[.):])\s*/i;
-
-/** Вариант с буквой или цифрой: «а) Москва», «Б. Питер», «1) Казань», «2. Самара». */
-const LISTED = /^(\*\s*)?([a-zа-яё]|\d{1,2})\s*[).]\s+(.*)$/i;
-
-type ListStyle = "letter" | "digit";
+const NUMBERING = QUESTION_NUMBERING;
 
 interface Draft {
   line: number;
   text: string;
   options: Array<{ text: string; correct: boolean }>;
-  /** Как пронумерованы варианты: «а)» или «1.»; последний номер цифрой. */
-  listStyle: ListStyle | null;
-  lastDigit: number;
+  /** Как пронумерованы варианты «а)» / «1.». */
+  run: ListedRun;
+  /** Есть варианты «- …», «* …» или «**…**»: строка «N. …» дальше — уже новый вопрос. */
+  dashed: boolean;
   answers: string[];
   /** «> карточка» — «Расставь по порядку», карточки в верном порядке. */
   cards: string[];
@@ -65,35 +60,23 @@ interface Draft {
   round: string | null;
 }
 
-/** «# Раунд: Кино», «# Кино» → «Кино». */
-const ROUND_LINE = /^#+\s*(?:раунд(?:\s*\d+)?\s*[:.—-]?\s*)?/i;
+/** «# Раунд: Кино», «# Кино», «#1 Раунд: Кино», «#2 Кино» → «Кино»; «#1 раунд» → без названия. */
+const ROUND_LINE = /^#+\s*(?:\d{1,3}(?:\s*[.)]\s*|\s+))?(?:раунд(?:\s*\d+)?\s*[:.—-]?\s*)?/i;
 
-/** «#1 Какой город?», «#1. …», «# 2) …» — это номер вопроса, а не раунд. */
+/**
+ * «#1 Какой город?», «#1. Город», «# 2) Город?» — номер вопроса, а не раунд. Со словом «раунд» («#1 раунд», «#1 Раунд:
+ * Кино») — всегда раунд.
+ */
 function isNumberedQuestion(line: string): boolean {
-  if (/^#\d/.test(line)) return true;
-  return /^#+\s*\d{1,3}\s*[.):]?\s+\S/.test(line) && /[?？]\s*$/.test(line);
+  if (/раунд/i.test(line)) return false;
+  if (/^#+\s*\d{1,3}\s*[.):]?\s*\S/.test(line) && /[?？]\s*$/.test(line)) return true;
+  return /^#\d{1,3}[.)]\s*\S/.test(line);
 }
 
-/** Строку «а) …» / «1. …» считаем вариантом текущего вопроса, а не новым вопросом. */
-function listedOption(line: string, current: Draft | null): { text: string; correct: boolean; style: ListStyle; n: number } | null {
-  if (!current) return null;
-  const match = LISTED.exec(line);
-  if (!match) return null;
-  const body = match[3] ?? "";
-  // Вопрос обычно заканчивается «?» — «2. Какой город?» остаётся вопросом.
-  if (/[?？]\s*\*?\s*$/.test(body)) return null;
-  if (current.answers.length > 0 || current.cards.length > 0 || current.number) return null;
-  const marker = match[2] ?? "";
-  const style: ListStyle = /\d/.test(marker) ? "digit" : "letter";
-  const n = style === "digit" ? Number(marker) : 0;
-  if (current.listStyle && current.listStyle !== style) return null;
-  if (style === "digit") {
-    // Варианты цифрами идут с 1 подряд; «2.» без «1.» — следующий вопрос.
-    const expected = current.listStyle === "digit" ? current.lastDigit + 1 : 1;
-    if (n !== expected) return null;
-  }
-  const marked = markedText(body);
-  return { text: marked.text, correct: Boolean(match[1]) || marked.correct, style, n };
+/** У вопроса уже есть варианты «-», ответ, карточки или число — строка «N. …» дальше не вариант. */
+function listRun(draft: Draft | null): ListedRun | null {
+  if (!draft || draft.dashed || draft.answers.length > 0 || draft.cards.length > 0 || draft.number) return null;
+  return draft.run;
 }
 
 function toQuestion(draft: Draft): ImportedQuestion {
@@ -157,8 +140,8 @@ export function parseImport(input: string): ImportResult {
       line: lineNo,
       text: text.replace(NUMBERING, "").trim(),
       options: [],
-      listStyle: null,
-      lastDigit: 0,
+      run: newListedRun(),
+      dashed: false,
       answers: [],
       cards: [],
       number: null,
@@ -168,7 +151,9 @@ export function parseImport(input: string): ImportResult {
     drafts.push(current);
   };
 
-  splitLines(input).forEach((raw, index) => {
+  const lines = splitLines(input);
+  const ahead = nextLines(lines);
+  lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const original = raw.trim();
     if (!original) return;
@@ -179,6 +164,8 @@ export function parseImport(input: string): ImportResult {
     if (line.startsWith("#") && !isNumberedQuestion(line)) {
       // Название раунда: «# Раунд 2: Кино». Без названия — «Раунд N».
       round = parseRound(line.replace(ROUND_LINE, "")) ?? `Раунд ${drafts.filter((d) => d.round !== null).length + 1}`;
+      // Новый раунд — нумерация вопросов начинается заново: «1. …» после заголовка — вопрос, а не вариант.
+      current = null;
       return;
     }
 
@@ -204,16 +191,16 @@ export function parseImport(input: string): ImportResult {
     // «**Москва**» под вопросом — вариант (жирный — не пометка верного).
     if (bold && current !== null && !/[?？]\s*$/.test(line)) {
       const marked = markedText(line);
-      if (marked.text) (current as Draft).options.push(marked);
+      const draft: Draft = current;
+      draft.dashed = true;
+      if (marked.text) draft.options.push(marked);
       return;
     }
 
-    const listed = listedOption(line, current);
+    const listed = listedOption(line, listRun(current), ahead[index]);
     if (listed && current) {
       const draft: Draft = current;
-      draft.listStyle = listed.style;
-      if (listed.style === "digit") draft.lastDigit = listed.n;
-      if (listed.text) draft.options.push({ text: listed.text, correct: listed.correct });
+      if (listed.text) draft.options.push(listed);
       return;
     }
 
@@ -224,7 +211,9 @@ export function parseImport(input: string): ImportResult {
         if (/[?？]\s*$/.test(option.text) && !option.correct) return startQuestion(option.text, lineNo);
         return skipped.push(lineNo);
       }
-      if (option.text) current.options.push(option);
+      const draft: Draft = current;
+      draft.dashed = true;
+      if (option.text) draft.options.push(option);
       return;
     }
 

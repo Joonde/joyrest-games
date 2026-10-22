@@ -93,7 +93,7 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
             </p>
           )}
           {result.questions.length > room && (
-            <p className="error small">
+            <p className="error small import-note">
               В игре не больше {LIMITS.questions} вопросов: добавятся первые {room}.
             </p>
           )}
@@ -140,7 +140,7 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
                   </ul>
                 )}
                 {problems.map((p) => (
-                  <p key={p} className="error small">
+                  <p key={p} className="error small import-note">
                     {p}
                   </p>
                 ))}

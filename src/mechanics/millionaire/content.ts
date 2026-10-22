@@ -1,7 +1,7 @@
 // «Миллион на кону»: лестница из 12 или 15 вопросов (4 варианта, один верный), у каждой команды
 // своя полоска на экране зала. Несгораемые ступени (по умолчанию 4-я и 8-я): ошибка роняет до
 // последней пройденной. Подсказки — по одной каждого вида на команду за игру.
-import { listOption, splitLines, stripBold } from "../quiz/listText";
+import { listedOption, listOption, newListedRun, nextLines, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
 
 /** Сколько ступеней может быть в лестнице: 12 (прежние игры) или 15 (новые и шаблон, решение владельца 14 октября 2026). */
@@ -168,8 +168,8 @@ export interface MillionaireImport {
 }
 
 /**
- * Список: «Вопрос?» с новой строки, варианты «- …», верный — «* …», «- … *» или «- *…» (звёздочка убирается из
- * текста), «# Ступень 5» — с какой ступени дальше (по умолчанию каждая новая строка-вопрос — следующая ступень по
+ * Список: «Вопрос?» с новой строки (нумерация «1.» снимается), варианты «- …» или «а)», «1.», верный — «* …», «- … *»
+ * или «- *…» (звёздочка убирается из текста), «# Ступень 5» — с какой ступени дальше (по умолчанию каждая новая строка-вопрос — следующая ступень по
  * кругу 1–12). Без «*» верный вариант не отмечен — проверка игры попросит отметить.
  */
 export function parseMillionaireImport(text: string, size: number = 12): MillionaireImport {
@@ -178,11 +178,16 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
   let level = 0;
   let current: MillionaireQuestion | null = null;
   let fixed: number | null = null;
+  /** Варианты «а)» / «1.» текущего вопроса; `dashed` — уже были варианты «- …». */
+  let run: ListedRun = newListedRun();
+  let dashed = false;
   const flush = () => {
     if (current && current.text) out.push(current);
     current = null;
   };
-  splitLines(text).forEach((raw, index) => {
+  const lines = splitLines(text);
+  const ahead = nextLines(lines);
+  lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const line = stripBold(raw.trim()).trim();
     if (!line) return;
@@ -192,7 +197,11 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
       fixed = Math.min(size, Math.max(1, Number(head[1])));
       return;
     }
-    const opt = listOption(raw);
+    const dash = listOption(raw);
+    const cur0 = current as MillionaireQuestion | null;
+    const room = cur0 !== null && cur0.options.some((o) => !o);
+    const opt = dash ?? listedOption(line, cur0 && room && !dashed ? run : null, ahead[index]);
+    if (dash) dashed = true;
     if (opt) {
       if (!current) {
         skipped.push(lineNo);
@@ -210,7 +219,9 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
     }
     flush();
     level = fixed ?? (level % size) + 1;
-    current = { ...newMillionaireQuestion(level), text: line.slice(0, MILLIONAIRE_LIMITS.text) };
+    run = newListedRun();
+    dashed = false;
+    current = { ...newMillionaireQuestion(level), text: line.replace(QUESTION_NUMBERING, "").trim().slice(0, MILLIONAIRE_LIMITS.text) };
   });
   flush();
   return { questions: out.slice(0, MILLIONAIRE_LIMITS.maxQuestions), skipped };

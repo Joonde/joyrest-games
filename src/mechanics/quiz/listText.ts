@@ -82,14 +82,98 @@ export function listOption(raw: string): { text: string; correct: boolean } | nu
   return parseOption(line);
 }
 
+/** Год, а не очки: «Пушкин (1799)». */
+const YEAR_FROM = 1000;
+const YEAR_TO = 2100;
+
 /**
- * Очки (урон) в конце строки: «(150)», «(150 очков)», «(150 баллов)», «(150 урона)». Год в скобках — «Пушкин (1799)» —
- * не очки: число без слова считаем очками только до 999. `max` — потолок очков игры.
+ * Очки (урон) в конце строки: «(150)», «(150 очков)», «(150 баллов)», «(150 урона)». `max` — потолок очков игры.
+ * Число без слова: до 999 — очки (больше `max` — `max`); 4 цифры и больше — очки, только если это не похоже на год
+ * (1000–2100) и не больше `max`. Иначе скобки остаются в тексте, а `note` объясняет ведущему, почему очки не поставлены
+ * (`missing` — «очки не поставлены» / «урон не поставлен»).
  */
-export function pointsSuffix(line: string, max: number): { body: string; points: number | null } {
+export function pointsSuffix(line: string, max: number, missing = "очки не поставлены"): { body: string; points: number | null; note?: string } {
   const match = /\(\s*(\d{1,5})\s*(оч\S*|балл\S*|урон\S*)?\s*\)\s*$/i.exec(line);
   if (!match) return { body: line, points: null };
   const n = Number(match[1]);
-  if (!match[2] && n >= 1000) return { body: line, points: null };
-  return { body: line.slice(0, match.index).trim(), points: Math.min(max, n) };
+  const body = line.slice(0, match.index).trim();
+  if (!match[2] && n >= 1000) {
+    if (n >= YEAR_FROM && n <= YEAR_TO) return { body: line, points: null, note: `«(${n})» похоже на год — ${missing}. Нужны очки — напишите «(${n} очков)».` };
+    if (n > max) return { body: line, points: null, note: `«(${n})» больше ${max} — ${missing}.` };
+    return { body, points: n };
+  }
+  return { body, points: Math.min(max, n) };
+}
+
+/** Нумерация в начале вопроса: «1.», «2)», «Вопрос 3:», «#4», «№ 5.». */
+export const QUESTION_NUMBERING = /^\s*(?:(?:вопрос|#|№)\s*\d{1,3}\s*[.):]?|\d{1,3}\s*[.):])\s*/i;
+
+/** Вариант с буквой или цифрой: «а) Москва», «Б. Питер», «1) Казань», «2. Самара», «*1. Да» (верный). */
+const LISTED = /^(\*\s*)?([a-zа-яё]|\d{1,2})\s*[).]\s+(.*)$/i;
+
+export type ListStyle = "letter" | "digit";
+
+/** Как пронумерованы варианты текущего вопроса: «а)» или «1.» и последний номер цифрой. */
+export interface ListedRun {
+  style: ListStyle | null;
+  lastDigit: number;
+}
+
+export function newListedRun(): ListedRun {
+  return { style: null, lastDigit: 0 };
+}
+
+/** Следующая строка показывает, что строка «N. X» перед ней — вопрос, а не вариант. */
+function nextMakesQuestion(style: ListStyle, n: number, next: string | undefined): boolean {
+  if (next === undefined) return false;
+  const m = LISTED.exec(next);
+  if (m) {
+    if (style !== "digit") return false;
+    const nextDigit = /\d/.test(m[2] ?? "");
+    // «1. Назовите цвет» → «а) Красный»: варианты буквами у вопроса с номером.
+    if (!nextDigit) return true;
+    // «1. Назовите цвет» → «1. Красный»: варианты начинаются заново с 1.
+    return n === 1 && Number(m[2]) === 1;
+  }
+  // Под строкой — варианты «- …», «* …», ответ «=», число «~», карточка «>».
+  return /^[-–—•*=~≈>]/.test(next);
+}
+
+/**
+ * Строка «а) …» / «1. …» — вариант текущего вопроса, а не новый вопрос. `run` — у текущего вопроса ещё нет вариантов
+ * «-»/«*», ответов «=», карточек «>», числа «~» (иначе null — и строка с номером становится вопросом). `next` — следующая
+ * непустая строка: если под строкой стоят «- …», «а)», «=», «~», «>», это вопрос. Варианты цифрами идут с 1 подряд;
+ * «2.» без «1.» — следующий вопрос; строка с «?» в конце — вопрос. Принятый вариант продолжает `run`.
+ */
+export function listedOption(line: string, run: ListedRun | null, next?: string): { text: string; correct: boolean } | null {
+  if (!run) return null;
+  const match = LISTED.exec(line);
+  if (!match) return null;
+  const body = match[3] ?? "";
+  // Вопрос обычно заканчивается «?» — «2. Какой город?» остаётся вопросом.
+  if (/[?？]\s*\*?\s*$/.test(body)) return null;
+  const marker = match[2] ?? "";
+  const style: ListStyle = /\d/.test(marker) ? "digit" : "letter";
+  const n = style === "digit" ? Number(marker) : 0;
+  if (run.style && run.style !== style) return null;
+  if (style === "digit" && n !== (run.style === "digit" ? run.lastDigit + 1 : 1)) return null;
+  if (nextMakesQuestion(style, n, next)) return null;
+  // «А. С. Пушкин» — инициалы, а не буква варианта: текст целиком.
+  const initials = style === "letter" && /^[a-zа-яё]\./i.test(line.replace(/^\*\s*/, "")) && /^[A-ZА-ЯЁ]\.\s/.test(body);
+  const marked = markedText(initials ? line.replace(/^\*\s*/, "") : body);
+  run.style = style;
+  if (style === "digit") run.lastDigit = n;
+  return { text: marked.text, correct: Boolean(match[1]) || marked.correct };
+}
+
+/** Для каждой строки — следующая непустая строка (обрезанная), чтобы смотреть на шаг вперёд. */
+export function nextLines(lines: readonly string[]): Array<string | undefined> {
+  const out: Array<string | undefined> = new Array(lines.length);
+  let next: string | undefined;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    out[i] = next;
+    const t = (lines[i] ?? "").trim();
+    if (t) next = t;
+  }
+  return out;
 }

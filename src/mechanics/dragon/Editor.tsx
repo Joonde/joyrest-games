@@ -117,7 +117,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
           </div>
         {importing && (
           <div className="stack stack--tight">
-            <p className="muted small">«# Бой: Огненный дракон 2000» — новый бой и его здоровье. Задание — «Ум: вопрос?» с вариантами «- …» и верным «* …»; «Сила: …» и «Харизма: …» — задание; «Удача» — кубик. «(150)» в конце — урон. Верный вариант можно пометить и так: «- Париж *».</p>
+            <p className="muted small">«# Бой: Огненный дракон 2000» — новый бой и его здоровье. Задание — «Ум: вопрос?» с вариантами «- …» и верным «* …»; «Сила: …» и «Харизма: …» — задание; «Удача» — кубик. Варианты можно и «а)», «1.». «(150)» в конце — урон (год вроде «(1799)» уроном не считаем). Верный вариант можно пометить и так: «- Париж *».</p>
             <textarea value={text} rows={10} placeholder={"# Бой: Огненный дракон 2000\nУм: Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nСила: 10 приседаний всей командой (150)\nУдача: бросок!"} onChange={(e) => setText(e.target.value)} />
             {text.trim() !== "" && (
               <div className="stack stack--tight" aria-live="polite">
@@ -126,9 +126,18 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
                   {unmarked > 0 ? ` Вопросов без отмеченного верного варианта: ${unmarked} — отметьте «*» или потом кружком.` : ""}
                 </p>
                 {parsed.skipped.length > 0 && (
-                  <p className="error small">
+                  <p className="error small import-note">
                     Не разобрали строки: {parsed.skipped.join(", ")}. Вариант должен стоять под вопросом («Ум: …» или «Ловкость: …»), у вопроса — не больше 4 вариантов, в бою — не больше {DRAGON_LIMITS.maxTasks} заданий.
                   </p>
+                )}
+                {parsed.notes.length > 0 && (
+                  <ul className="muted small import-note">
+                    {parsed.notes.map((n) => (
+                      <li key={n.line}>
+                        Строка {n.line}: {n.text}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             )}

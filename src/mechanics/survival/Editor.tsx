@@ -115,7 +115,7 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
           </div>
         {importing && (
           <div className="stack stack--tight">
-            <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …» («Задание: для команд || для каждого сам» — второй текст в режиме «каждый сам»). «(150)» или «(150 очков)» в конце — очки; верный вариант можно пометить и так: «- Париж *».</p>
+            <p className="muted small">Раунд с новой строки. Вопрос с вариантами — строки «- вариант» (или «а)», «1.») и «* верный»; открытый — «Вопрос? = ответ | ответ2»; задание — «Задание: …» («Задание: для команд || для каждого сам» — второй текст в режиме «каждый сам»). «(150)» или «(150 очков)» в конце — очки (год вроде «(1799)» очками не считаем); верный вариант можно пометить и так: «- Париж *».</p>
             <textarea value={text} rows={10} placeholder={"Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nЗадание: спойте гимн команды (200)"} onChange={(e) => setText(e.target.value)} />
             {text.trim() !== "" && (
               <div className="stack stack--tight" aria-live="polite">
@@ -124,9 +124,18 @@ export function SurvivalEditor({ content, onChange, editable }: EditorProps<Surv
                   {unmarked > 0 ? ` Вопросов без отмеченного верного варианта: ${unmarked} — отметьте «*» или потом кружком.` : ""}
                 </p>
                 {parsed.skipped.length > 0 && (
-                  <p className="error small">
+                  <p className="error small import-note">
                     Не разобрали строки: {parsed.skipped.join(", ")}. Вариант должен стоять под вопросом, у вопроса — не больше 4 вариантов.
                   </p>
+                )}
+                {parsed.notes.length > 0 && (
+                  <ul className="muted small import-note">
+                    {parsed.notes.map((n) => (
+                      <li key={n.line}>
+                        Строка {n.line}: {n.text}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             )}

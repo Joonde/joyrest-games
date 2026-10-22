@@ -177,6 +177,31 @@ describe.skipIf(!url)("видео JoyRest на PostgreSQL", () => {
     expect((await app.inject({ method: "DELETE", url: "/api/videos/fold1", headers: headers(deputy) })).statusCode).toBe(200);
   });
 
+  it("папку с чужими видео заместитель не переименовывает и не удаляет — только владелец", async () => {
+    expect((await post("/api/videos", owner, { id: "ownf", title: "Видео владельца", folder: "Общая", size: 100_000 })).statusCode).toBe(200);
+    expect((await post("/api/videos", deputy, { id: "depf", title: "Видео зама", folder: "Общая", size: 100_000 })).statusCode).toBe(200);
+    const rename = await post("/api/video-folders/rename", deputy, { from: "Общая", to: "Моя" });
+    expect(rename.statusCode).toBe(403);
+    expect(rename.json()).toEqual({ error: "permission-denied", reason: "foreign-videos" });
+    const remove = await post("/api/video-folders/delete", deputy, { name: "Общая" });
+    expect(remove.statusCode).toBe(403);
+    expect(remove.json()).toMatchObject({ reason: "foreign-videos" });
+    const folderOf = async (id: string) => ((await get("/api/videos", owner)).json().videos as Array<{ id: string; folder: string }>).find((v) => v.id === id)?.folder;
+    expect(await folderOf("ownf")).toBe("Общая");
+    expect(await folderOf("depf")).toBe("Общая");
+    // Папку только со своими видео заместитель переименовывает.
+    expect((await post("/api/videos", deputy, { id: "depg", title: "Ещё видео зама", folder: "Зам", size: 100_000 })).statusCode).toBe(200);
+    expect((await post("/api/video-folders/rename", deputy, { from: "Зам", to: "Зам 2" })).statusCode).toBe(200);
+    expect(await folderOf("depg")).toBe("Зам 2");
+    // Владелец — любую.
+    expect((await post("/api/video-folders/rename", owner, { from: "Общая", to: "Общая 2" })).statusCode).toBe(200);
+    expect(await folderOf("ownf")).toBe("Общая 2");
+    expect(await folderOf("depf")).toBe("Общая 2");
+    for (const id of ["ownf", "depf", "depg"]) {
+      expect((await app.inject({ method: "DELETE", url: `/api/videos/${id}`, headers: headers(owner) })).statusCode).toBe(200);
+    }
+  });
+
   it("ночная уборка: файл без ссылок и брошенная загрузка", async () => {
     const dir = join(mediaDir, "video");
     await post("/api/videos", owner, { id: "half", title: "Брошено", size: 200_000 });

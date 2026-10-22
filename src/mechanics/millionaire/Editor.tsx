@@ -202,7 +202,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           </div>
         {importing && (
           <div className="stack stack--tight">
-            <p className="muted small">Вопрос с новой строки, варианты — «- …», верный — «* …». «# Ступень 5» — следующие вопросы на 5-ю ступень; без неё вопросы идут по ступеням 1, 2, 3…</p>
+            <p className="muted small">Вопрос с новой строки, варианты — «- …» (или «а)», «1.»), верный — «* …». «# Ступень 5» — следующие вопросы на 5-ю ступень; без неё вопросы идут по ступеням 1, 2, 3…</p>
             <textarea value={text} rows={10} placeholder={"# Ступень 1\nСтолица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид"} onChange={(e) => setText(e.target.value)} />
             {text.trim() !== "" && (
               <div className="stack stack--tight" aria-live="polite">
@@ -211,7 +211,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                   {unmarked > 0 ? ` Без отмеченного верного варианта: ${unmarked} — отметьте «*» или потом кружком.` : ""}
                 </p>
                 {parsed.skipped.length > 0 && (
-                  <p className="error small">
+                  <p className="error small import-note">
                     Не разобрали строки: {parsed.skipped.join(", ")}. Вариант должен стоять под вопросом, у вопроса — не больше 4 вариантов.
                   </p>
                 )}

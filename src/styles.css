@@ -2181,7 +2181,7 @@ legend {
 
 .toast__action {
   flex: none;
-  min-height: 44px;
+  min-height: 52px;
   padding: 0 16px;
   border: 1.5px solid var(--color-bg);
   border-radius: 999px;
@@ -22888,4 +22888,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 /* «Больше N синонимов не берём — лишние: …» под полем синонимов табло. */
 .hd-editor__syn-extra {
   flex-basis: 100%;
+}
+
+/* Автосохранение: сервер отвечает, но дольше обычного (QA 22 октября 2026, Р7) — не «нет связи», точка мигает. */
+.save-status--slow .save-status__dot {
+  background: var(--color-highlight);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
 }

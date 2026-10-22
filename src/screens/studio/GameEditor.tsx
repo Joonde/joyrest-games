@@ -182,7 +182,6 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   // Какой игра была при открытии: «← К играм» предложит сохранить правки или вернуть как было.
   const original = useRef<GamePatch>({ title: initial.title, content: mechanic ? mechanic.parse(initial.content) : initial.content, themeId: initial.themeId, ageRating: initial.ageRating, playMode: initial.playMode });
   const edited = useRef(false);
-  const [leaving, setLeaving] = useState(false);
   const [restoring, setRestoring] = useState(false);
   /** Что мешает уйти и что делать после решения: выйти или закончить «Готово — назвать игру». */
   const [leaveIssue, setLeaveIssue] = useState<LeaveIssue | null>(null);
@@ -219,7 +218,6 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   function goBack(to: string = back) {
     leaveTo.current = to;
     if (!editable || !edited.current) return navigate(to);
-    setLeaving(true);
     setRestoring(true);
     flush(true);
     leaveWhenSettled();
@@ -247,7 +245,6 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         setLeaveIssue(issue);
         return;
       }
-      setLeaving(false);
       navigate(leaveTo.current, edited.current ? { state: { toast: "Изменения сохранены" } } : undefined);
     });
   }
@@ -255,7 +252,6 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   /** «Выйти всё равно» без связи: правки лежат в черновике на этом телефоне. */
   function leaveAnyway() {
     setLeaveIssue(null);
-    setLeaving(false);
     if (afterIssue.current === "save") {
       const where = game.scope === "agency" ? "библиотеке" : "ваших играх";
       navigate(game.scope === "agency" ? "/studio?tab=agency" : "/studio?tab=mine", {
@@ -699,7 +695,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         onConfirm={() => void saveGame()}
         onCancel={() => setSaveStep(null)}
       >
-        <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти в своих играх (например, «Квиз на свадьбу Ани и Димы»).</p>
+        <p className="muted small">Игра сделана под вас — назовите её так, чтобы легко найти {game.scope === "agency" ? "в библиотеке JoyRest" : "в своих играх"} (например, «Квиз на свадьбу Ани и Димы»).</p>
         {/* «Готово» на клавиатуре телефона сохраняет. */}
         <form
           onSubmit={(e) => {
@@ -725,10 +721,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         cancelLabel="Остаться в игре"
         busy={restoring}
         onConfirm={retryAndContinue}
-        onCancel={() => {
-          setLeaving(false);
-          setLeaveIssue(null);
-        }}
+        onCancel={() => setLeaveIssue(null)}
       >
         <p className="error" role="alert">
           Сервер не принял изменения. Проверьте интернет и нажмите ещё раз — правки не потеряются, пока вы в игре.
@@ -740,10 +733,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         confirmLabel="Выйти всё равно"
         cancelLabel="Остаться"
         onConfirm={leaveAnyway}
-        onCancel={() => {
-          setLeaving(false);
-          setLeaveIssue(null);
-        }}
+        onCancel={() => setLeaveIssue(null)}
       >
         <p role="alert">Нет связи — правки сохранятся на этом телефоне и уйдут, когда появится интернет и вы снова откроете эту игру.</p>
       </ConfirmDialog>
@@ -754,10 +744,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         cancelLabel="Остаться в игре"
         busy={restoring}
         onConfirm={overwriteAndContinue}
-        onCancel={() => {
-          setLeaving(false);
-          setLeaveIssue(null);
-        }}
+        onCancel={() => setLeaveIssue(null)}
       >
         <p>
           Пока вы правили, эту игру изменил(а) {conflictBy ?? "другой человек"}. Ваши правки не потерялись — они на этом устройстве. Выберите, чью

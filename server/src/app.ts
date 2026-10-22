@@ -28,7 +28,7 @@ import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
 import { registerPhotos } from "./photos";
 import { registerBranding } from "./branding";
 import { registerDecks, type DecksOptions } from "./decks";
-import { registerDrawings } from "./drawings";
+import { registerDrawings, type DrawingsOptions } from "./drawings";
 import { registerPolls } from "./polls";
 import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
@@ -73,6 +73,8 @@ export interface AppOptions {
   games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
   /** Показы (фото и PDF) — настройки для тестов (лимит места ведущего, свободное место на диске). */
   decks?: Omit<DecksOptions, "sql" | "isSite" | "mediaDir">;
+  /** Рисунки «Аквариума и Ёлки» (тесты подменяют свободное место). */
+  drawings?: Omit<DrawingsOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
   live?: Omit<LiveOptions, "sql" | "isSite">;
   /**
@@ -177,7 +179,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerPhotos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerBranding(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDecks(app, { ...options.decks, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerDrawings(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerDrawings(app, { ...options.drawings, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerPolls(app, { sql: options.sql, isSite });
   }
   // Разделы агентства (CRM, команда, площадки, Telegram) — только в платформе агентства.

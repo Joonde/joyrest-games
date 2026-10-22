@@ -382,7 +382,6 @@ function Final({ session, content, r }: { session: Session; content: BunkerConte
 
 // ——————————————————————————————————————————— телефон
 
-/** Своя карта: undefined — ещё открываем, null — на этом телефоне не открыть (нет ключа или карты). */
 /** Свой отказ на «сыграть особое условие» (зашифрован ключом этого телефона). */
 function usePhoneRefusal(key: string | null, sealed: string | undefined): SealedRefusal | null {
   const [got, setGot] = useState<SealedRefusal | null>(null);
@@ -402,6 +401,7 @@ function usePhoneRefusal(key: string | null, sealed: string | undefined): Sealed
   return got;
 }
 
+/** Своя карта: undefined — ещё открываем, null — на этом телефоне не открыть (нет ключа или карты). */
 function usePhoneCard(key: string | null, sealed: string | undefined, dealt: boolean): PhoneCard | null | undefined {
   const [card, setCard] = useState<PhoneCard | null | undefined>(undefined);
   useEffect(() => {

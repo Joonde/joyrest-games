@@ -61,7 +61,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
   return (
     <div className="stack">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           {levelsOf(content)} вопросов с четырьмя вариантами. Команды ходят по очереди, у каждой на экране своя полоска-лестница: верный ответ — ступенью выше, ошибка — вниз до несгораемой. Капитан отвечает с телефона, подсказку просит там же или у ведущего; каждая подсказка — один раз за игру.
         </p>

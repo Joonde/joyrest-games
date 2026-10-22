@@ -180,7 +180,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
   return (
     <div className="stack hd-editor">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <fieldset disabled={!editable}>
           <legend>Режим</legend>
           <label className="choice">

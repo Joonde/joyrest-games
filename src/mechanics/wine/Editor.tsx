@@ -30,7 +30,7 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
   return (
     <div className="stack">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           Гости пробуют вино и раскладывают фишки на телефоне, как на поле рулетки: цвет, Старый или Новый Свет, сладость, страна, сорт, год. «Открыть
           бутылку» — на экране паспорт вина, фишки на верных ответах приносят цену фишки × коэффициент. Игра 18+.

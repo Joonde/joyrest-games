@@ -31,7 +31,7 @@ export function SpyEditor({ content, onChange, editable }: EditorProps<SpyConten
   return (
     <div className="stack sp-editor">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           Все игроки, кроме шпиона, получают на телефон одну и ту же локацию и свою роль в ней. Шпион не знает, где все. По очереди задаём друг другу вопросы: город ищет шпиона, шпион — пытается понять локацию. В любой момент шпион может нажать «Я знаю, где мы!». Голосованием город обвиняет подозреваемого. Игра для {SPY_LIMITS.minPlayers}–{SPY_LIMITS.maxPlayers} игроков, каждый за себя.
         </p>

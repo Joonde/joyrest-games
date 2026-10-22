@@ -14,7 +14,7 @@ export function AquariumEditor({ content, onChange, editable }: EditorProps<Aqua
   return (
     <div className="stack">
       <section className="card stack">
-        <h2>Как играем</h2>
+        <h2>⚙️ Правила и настройки</h2>
         <p className="muted small">
           Перерыв с раскраской на 10–15 минут — для детей и взрослых. Гости по QR раскрашивают на телефоне рыбку или ёлочную игрушку, подписывают имя и отправляют: рисунок оживает на большом экране. Ведущий меняет сцену, кормит рыбок, переключает гирлянду и убирает неудачные рисунки.
         </p>

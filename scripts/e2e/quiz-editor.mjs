@@ -504,8 +504,8 @@ async function main() {
     }
     await card.waitFor({ timeout: WAIT });
     const cut = await card.locator(".actions .btn").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2).map((el) => el.textContent.trim()));
-    const labels = await card.locator(".actions .btn").allInnerTexts();
-    check(labels.some((t) => t.includes("✍️ Редактировать")) && labels.some((t) => t.includes("▶ Запустить игру")), `Карточка: ${labels.join(" · ")}`, `Кнопки карточки: ${labels.join(" · ")}`);
+    const cardLabels = await card.locator(".actions .btn").allInnerTexts();
+    check(cardLabels.some((t) => t.includes("✍️ Редактировать")) && cardLabels.some((t) => t.includes("▶ Запустить игру")), `Карточка: ${cardLabels.join(" · ")}`, `Кнопки карточки: ${cardLabels.join(" · ")}`);
     check(cut.length === 0, "Текст кнопок карточки не обрезан", `Обрезано: ${cut.join("; ")}`);
     check(await page.locator(".guide-pins__item", { hasText: "Как создавать игры" }).isVisible(), "Сверху студии закреплено «Как создавать игры»");
     await card.scrollIntoViewIfNeeded();

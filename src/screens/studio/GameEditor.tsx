@@ -43,6 +43,29 @@ const SAVE_TEXT: Record<SaveStatus, string> = {
   conflict: "Игру изменил другой человек — ваши правки ждут решения",
 };
 
+/** Короткий статус, когда плашка прилипла к верху экрана: не закрывает кнопки и текст под ней. */
+const SAVE_SHORT: Record<SaveStatus, string> = {
+  saved: "✓ Сохранено",
+  saving: "Сохраняется…",
+  offline: "Нет связи",
+  error: "Пробуем ещё раз",
+  conflict: "Нужно решение",
+};
+
+/** Плашка статуса прилипла к верху (страницу прокрутили ниже неё). */
+function useStuck() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setStuck(Boolean(entry && !entry.isIntersecting && entry.boundingClientRect.top < 0)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, stuck] as const;
+}
+
 /** Кто-то правил игру за последние 10 минут — предупредить, что можно столкнуться правками. */
 const RECENT_EDIT_MS = 10 * 60_000;
 
@@ -74,6 +97,7 @@ function EditorLoader({ gameId, profile }: { gameId: string; profile: UserProfil
 }
 
 function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
+  const [statusSentinel, statusStuck] = useStuck();
   const navigate = useNavigate();
   const mechanic = getMechanic(initial.mechanic);
   // Содержимое сразу приводим к формату механики: дальше с ним работает только она.
@@ -264,9 +288,10 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       )}
       {editable ? (
         <>
-          <p className={`save-status save-status--${status}`} role="status" aria-live="polite">
+          <span ref={statusSentinel} className="save-status__sentinel" aria-hidden="true" />
+          <p className={`save-status save-status--${status}${statusStuck ? " is-stuck" : ""}`} role="status" aria-live="polite" title={SAVE_TEXT[status]}>
             <span className="save-status__dot" aria-hidden="true" />
-            {SAVE_TEXT[status]}
+            {statusStuck ? SAVE_SHORT[status] : SAVE_TEXT[status]}
           </p>
           {recentEditor && status !== "conflict" && (
             <p className="small clients-late" role="status">

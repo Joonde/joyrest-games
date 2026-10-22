@@ -21,7 +21,9 @@ export interface EventProgram {
 export const PROGRAM_FORMATS = ["Квиз", "Музыкальный", "Игровой вечер", "Шоу-вечер", "Танцевальный", "Активные настолки", "Под ключ"] as const;
 export const PROGRAM_EXTENSIONS = ["30 мин", "1 ч", "1,5 ч", "2 ч"] as const;
 /** Допы калькулятора (`ADDONS` в pricing.js) — сверяет тест. */
-export const PROGRAM_ADDONS = ["Квиз под компанию", "Логотип на экранах", "Призы и медали", "Танцевальная пауза", "Игра на открытом воздухе", "Выезд за Московскую область"] as const;
+export const PROGRAM_ADDONS = ["Квиз под компанию", "Логотип на экранах", "Призы и медали", "Танцевальная пауза", "Игра на открытом воздухе", "Выезд за город"] as const;
+/** Прежние названия допов (программы, записанные раньше) → нынешние. */
+const ADDON_RENAMES: Record<string, string> = { "Выезд за Московскую область": "Выезд за город" };
 
 const known = <T extends string>(list: readonly T[], value: unknown): value is T => typeof value === "string" && (list as readonly string[]).includes(value);
 
@@ -32,7 +34,7 @@ export function cleanProgram(raw: unknown): EventProgram | null {
   const program: EventProgram = {
     formats: list(r.formats, PROGRAM_FORMATS).slice(0, 4),
     extension: known(PROGRAM_EXTENSIONS, r.extension) ? r.extension : "",
-    addons: list(r.addons, PROGRAM_ADDONS),
+    addons: list((Array.isArray(r.addons) ? r.addons : []).map((a) => (typeof a === "string" && ADDON_RENAMES[a]) || a), PROGRAM_ADDONS),
     duration: typeof r.duration === "string" ? r.duration.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 40) : "",
   };
   return isEmptyProgram(program) ? null : program;
@@ -50,6 +52,8 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  */
 export function programFromCalc(text: string): EventProgram | null {
   let rest = text.replace(/ /g, " ");
+  // Старый расчёт мог назвать выезд «Выезд за Московскую область».
+  for (const [was, now] of Object.entries(ADDON_RENAMES)) rest = rest.replace(new RegExp(escape(was), "gi"), now);
   const addons = PROGRAM_ADDONS.filter((a) => new RegExp(escape(a), "i").test(rest));
   // «Квиз под компанию» — доп, а не пакет «Квиз»: убираем допы из текста, прежде чем искать пакеты.
   for (const a of addons) rest = rest.replace(new RegExp(escape(a), "gi"), " ");
@@ -82,7 +86,7 @@ export function prepareHints(p: EventProgram | null | undefined): string[] {
     else if (a === "Квиз под компанию") out.push("📝 Квиз под компанию — вопросы под эту компанию, факты пришлёт менеджер.");
     else if (a === "Танцевальная пауза") out.push("💃 Танцевальная пауза между играми — короткий батл под клипы.");
     else if (a === "Игра на открытом воздухе") out.push("🌳 Игра на открытом воздухе — экран и звук для улицы.");
-    else if (a === "Выезд за Московскую область") out.push("🚗 Выезд за Московскую область — уточните дорогу у менеджера.");
+    else if (a === "Выезд за город") out.push("🚗 Выезд за город — уточните дорогу и такси у менеджера.");
   }
   return out;
 }

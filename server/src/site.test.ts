@@ -494,7 +494,8 @@ describe("тексты и устройство страницы", () => {
     expect(t).toContain("Время программы считаем целиком, вместе с перерывами.");
     expect(t).toContain("Продление — 3 900 ₽ за 30 минут.");
     expect(t).toContain("Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость. Отмена за 2 дня и раньше — возвращаем.");
-    expect(t).toContain("Москва и Подмосковье — выезд включён, другие города — по договорённости.");
+    expect(t).toContain("По Москве выезд включён; если рядом с местом праздника нет метро (дальше 10–15 минут пешком) — такси ведущему по факту.");
+    expect(t).toContain("Города Подмосковья (Химки, Мытищи, Балашиха и другие) — +2 000 ₽ и такси ведущему; в праздничные дни — 5 000 ₽, с 19 декабря по 1 января — 7 000 ₽.");
     expect(t).toContain("Подробные условия — в договоре.");
     expect(plain).toContain("Утверждаем программу и тайминг. Бронь даты — предоплата 2 000 ₽, засчитывается в стоимость.");
     expect(plain).toContain("Пакеты рассчитаны на 1,5–2 часа. Нужно дольше — добавьте продление");
@@ -532,8 +533,14 @@ describe("тексты и устройство страницы", () => {
     expect(html.indexOf('<script src="js/pricing.js"></script>')).toBeLessThan(html.indexOf('<script src="js/script.js"></script>'));
     expect(plain).toContain("Больше двух дополнительных игр — индивидуальный заказ:");
     expect(plain).toContain("Каждые следующие 30 минут — 3 900 ₽.");
-    expect(plain).toContain("Это итог за весь вечер — без скрытых доплат. Отдельно только такси при выезде за область.");
-    expect(plain).toContain("Выезд по Москве и Подмосковью");
+    expect(plain).toContain("Это итог за весь вечер — без скрытых доплат. Отдельно только такси ведущему — за город и туда, где рядом нет метро.");
+    expect(plain).toContain("Выезд по Москве");
+    // Праздничная цена (22 октября 2026): дата праздника, причина и подсказка, блок ранней брони.
+    for (const id of ["calcDate", "calcDateInfo", "calcDateClear", "calcSeason", "calcSeasonTitle", "calcSeasonBadge", "calcSeasonText", "calcSeasonEarly", "calcSeasonHint", "calcNoDate", "earlyPromo", "earlyCalc"]) {
+      expect(html, id).toContain(`id="${id}"`);
+    }
+    expect(plain).toContain("Праздничная цена зависит от даты праздника, а не от дня брони");
+    expect(plain).toContain("Новый год дешевле — если забронировать заранее!");
     expect(js).toContain("window.JoyPricing");
     // Старого почасового калькулятора нет.
     for (const old of ["calcHours", "calcGuests", "calcCustom", "calcComplexity", "calcQuiz", "calcHostLevel", "isWeekend ? 8500"]) {
@@ -569,7 +576,7 @@ describe("тексты и устройство страницы", () => {
 
   it("география — строкой в контактах, без карты", () => {
     expect(html).not.toContain("coverage-map");
-    expect(plain).toContain("Москва и Подмосковье — выезд включён, другие города — по договорённости");
+    expect(plain).toContain("Москва — выезд включён, Подмосковье — +2 000 ₽ и такси, другие регионы — по договорённости");
   });
 
   it("окна правил и политики: закрываются кнопкой, фоном и Escape, фокус возвращается", () => {

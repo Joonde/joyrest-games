@@ -344,6 +344,34 @@ button.level:not(.level--top):hover{ border-color: var(--btn-outline); }
 .level__badge{ min-height: 14px; font-size: 11px; line-height: 1.2; font-weight: 600; color: var(--green-text); }
 .level__price{ margin-top: 4px; font-family: 'Cormorant Garamond', serif; font-size: clamp(20px, 2.2vw, 28px); font-weight: 600; line-height: 1.1; white-space: nowrap; }
 .level--top .level__price{ color: var(--total); }
+.level__calc{ margin-top: 2px; font-size: 11px; line-height: 1.25; color: var(--ink-soft); white-space: normal; }
+/* Праздничная цена (решение владельца 22 октября 2026): дата праздника, плашка причины, подсказка «успейте». */
+.datebox{ display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.datebox__input{ min-height: 52px; min-width: 0; flex: 1 1 220px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--btn-outline); background: var(--card); color: var(--ink); font: inherit; font-size: 16px; }
+.datebox__input:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 2px; }
+.datebox__info{ margin-bottom: 12px; }
+.datebox__info b{ color: var(--ink); font-weight: 600; }
+#calcDays .chip:disabled{ opacity: .55; cursor: default; }
+.season{ margin: 12px 0 0; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--accent-text); background: var(--bg-alt); }
+.season[hidden], .season-hint[hidden], .summary__nodate[hidden], .early[hidden]{ display: none; }
+.season__title{ display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin: 0; font-weight: 600; color: var(--ink); }
+.season__badge{ color: var(--accent-text); white-space: nowrap; }
+.season__text{ margin: 6px 0 0; font-size: 14.5px; color: var(--ink-soft); }
+.season__early{ margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--green-text); font-size: 14.5px; font-weight: 600; color: var(--green-text); }
+.season__note{ margin: 8px 0 0; font-size: 13px; color: var(--ink-soft); }
+.season-hint{ margin: 12px 0 0; padding: 10px 14px; border-radius: 14px; border: 1px dashed var(--green-text); font-size: 14.5px; color: var(--green-text); }
+.summary__nodate{ margin: 0 0 8px; font-size: 14px; color: var(--ink-soft); }
+.early{ position: relative; margin: 0 0 28px; padding: 24px 22px; border-radius: 22px; border: 2px solid var(--btn-outline); background: radial-gradient(120% 90% at 100% 0%, var(--spot), transparent 70%), var(--card); display: grid; gap: 12px; max-width: 640px; }
+.early__tag{ justify-self: start; margin: 0; padding: 6px 14px; border-radius: 999px; background: var(--btn-primary-bg); color: var(--on-accent); font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.early__title{ margin: 0; font-family: 'Cormorant Garamond', serif; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.08; color: var(--total); }
+.early__text, .early__note{ margin: 0; color: var(--ink-soft); }
+.early__rows{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.early__rows li{ display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-alt); color: var(--ink); }
+.early__rows s{ color: var(--ink-soft); }
+.early__rows b{ color: var(--green-text); }
+.early__full{ color: var(--accent-text); white-space: nowrap; }
+.early .btn{ justify-self: start; }
+@media (max-width: 760px){ .early .btn{ justify-self: stretch; } }
 .duration{ display: flex; gap: 14px; align-items: flex-start; margin: 16px 0 4px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--green-text); background: linear-gradient(120deg, rgba(147,168,134,.22), rgba(199,167,104,.16)); }
 .duration__icon{ display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--emerald); color: var(--on-accent); }
 .duration__label{ margin: 0; font-size: 13px; color: var(--ink-soft); }

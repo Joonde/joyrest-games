@@ -77,6 +77,11 @@
         ctx.textAlign = 'left';
         y += h + 18;
       });
+      if (summary.season) {
+        ctx.fillStyle = C.rose; ctx.font = '500 30px ' + SANS;
+        wrap(ctx, 'Праздничная цена уже в итоге: ' + summary.season.replace(/^праздничная цена /, ''), W - PAD * 2).forEach(function (l) { ctx.fillText(l, PAD, y + 30); y += 40; });
+        y += 10;
+      }
     } else {
       ctx.fillStyle = C.gold; ctx.font = '700 60px ' + SERIF;
       ctx.fillText('Цена — обсудим индивидуально', PAD, y + 60);
@@ -84,7 +89,7 @@
 
     var fy = Math.max(y + 70, 1000);
     ctx.fillStyle = C.soft; ctx.font = '400 28px ' + SANS;
-    ctx.fillText('Цены предварительные · Москва и Подмосковье — выезд включён', PAD, fy);
+    ctx.fillText('Цены предварительные · по Москве выезд включён', PAD, fy);
     ctx.fillStyle = C.gold; ctx.font = '600 30px ' + SANS;
     ctx.fillText('joy-rest.ru  ·  t.me/JoyRest', PAD, fy + 50);
     var out = document.createElement('canvas');

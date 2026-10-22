@@ -1,292 +1,152 @@
 # Ревизор — что видят ведущий и гости
 
-Прогонов: 36 · видов игры проверено: 2010 · разных находок: 28
+Прогонов: 36 · видов игры проверено: 1092 · разных находок: 14
 
 Размеры: Телевизор Full HD (1920x1080); Проектор 4:3, маленький телефон, длинные имена (1024x768); Ноутбук 16:10, большой зал, длинные имена (1280x800).
 
-## Мешает игре — 6
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 10 px — «· вопрос 1 — 500 очков»
-
-- где: `main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who`, этап `playing/6/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![за краем экрана](shots/millionaire-0-teams-projector-hall-3.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 10 px — «🐺»
-
-- где: `div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.name-emoji`, этап `playing/6/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![за краем экрана](shots/millionaire-0-teams-projector-hall-4.jpg)
-
-### за краем экрана · экран зала
-
-текст выходит за край экрана по высоте на 10 px — «Северные волки отдела IT»
-
-- где: `div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span`, этап `playing/6/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![за краем экрана](shots/millionaire-0-teams-projector-hall-5.jpg)
-
-### закрыт другим элементом · телефон
-
-«0%» закрыт элементом span.mil-option__text — «0%»
-
-- где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct`, этап `playing/4/reveal/reveal`
-- игры (1): millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![закрыт другим элементом](shots/millionaire-0-teams-laptop-phones-2.jpg)
+## Мешает игре — 3
 
 ### закрыт другим элементом · экран зала
 
-«Ответ зафиксирован — C» закрыт элементом p.stage-code — «Ответ зафиксирован — C»
+«Вход: localhost:40707/j · код 123 456» закрыт элементом li.wager-slot.wager-slot--low — «Вход: localhost:40707/j · код 123 456»
 
-- где: `main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big`, этап `playing/6/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
+- где: `div.hall > main.quiz-stage > p.stage-code`, этап `playing/2/reveal/answer`
+- игры (1): wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, каждый сам ×4, телевизор full hd
+- раз: 2
 
-![закрыт другим элементом](shots/millionaire-0-teams-projector-hall-8.jpg)
+![закрыт другим элементом](shots/wager-0-solo-tv-hall-2.jpg)
 
 ### надписи наезжают · экран зала
 
-«Ответ зафиксирован — C» и «Вход: localhost:38905/j · код » друг на друге — «Ответ зафиксирован — C \| Вход: localhost:38905/j · код 123 456»
+«Ближе всех» и «Вход: localhost:40707/j · код » друг на друге — «Ближе всех \| Вход: localhost:40707/j · код 123 456»
 
-- где: `main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big`, этап `playing/6/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![надписи наезжают](shots/millionaire-0-teams-projector-hall-7.jpg)
-
-## Заметно — 21
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 8 px (span.hd-row__text) — «Букет невесты»
-
-- где: `div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text`, этап `playing/3/reveal/play`
-- игры (1): hundred 1-й шаблон, команды ×4, телевизор full hd; hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена …
-- раз: 180
-
-![обрезан текст](shots/hundred-0-teams-tv-hall-1.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 39 px (span.mil-bar__name) — «Северные волки отдела IT»
-
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 16
-
-![обрезан текст](shots/millionaire-0-teams-projector-hall-1.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 5 px (span.mil-bar__points) — «0»
-
-- где: `div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__points`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 13
-
-![обрезан текст](shots/millionaire-0-teams-tv-hall-1.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 18 px (span.mil-bar__name) — «Команда 2»
-
-- где: `div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__name`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 12
-
-![обрезан текст](shots/millionaire-0-teams-tv-hall-2.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (p.podium__name) — «Опоздал 6»
-
-- где: `div.podium__stage > div.podium__slot > div.podium__names > p.podium__name`, этап `finished/10/podium/bigDone`
-- игры (1): hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 2-й шаблон, каждый сам ×4, телевизор full hd; hundred 3-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 9
-
-![обрезан текст](shots/hundred-0-solo-tv-hall-2.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 12 px (span.mil-bar__name) — «🐻»
-
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji`, этап `playing/0/ready/turn`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 8
-
-![обрезан текст](shots/millionaire-0-teams-projector-hall-2.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (p.podium__name) — «🦁»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `finished/10/podium/bigDone`
-- игры (1): hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 3-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![обрезан текст](shots/hundred-0-solo-projector-hall-2.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 4 px (p.podium__name) — «Валентина Белозерская»
-
-- где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `finished/10/podium/bigDone`
-- игры (1): hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; hundred 3-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 6
-
-![обрезан текст](shots/hundred-0-solo-projector-hall-3.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 27 px (span.mil-bar__name) — «· пропуск хода»
-
-- где: `div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag`, этап `playing/6/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- где: `div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag`, этап `playing/2/reveal/answer`
+- игры (1): wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, каждый сам ×4, телевизор full hd
 - раз: 2
 
-![обрезан текст](shots/millionaire-0-teams-projector-hall-6.jpg)
+![надписи наезжают](shots/wager-0-solo-projector-hall-1.jpg)
+
+### надписи наезжают · экран зала
+
+«🐻» и «Максимилиан Рождественский» друг на друге — «🐻 \| Максимилиан Рождественский»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `playing/7/podium/`
+- игры (1): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![надписи наезжают](shots/quiz-0-solo-projector-hall-3.jpg)
+
+## Заметно — 5
+
+### обрезан текст · телефон
+
+текст обрезан по высоте на 5 px (span.lotto-card__artist) — «Ирина Аллегрова»
+
+- где: `div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist`, этап `playing/0/question/`
+- игры (1): lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 31
+
+![обрезан текст](shots/lotto-0-solo-projector-phones-5.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (div.podium__names) — «🦊»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name > span.name-emoji`, этап `playing/7/podium/`
+- игры (1): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
+- раз: 5
+
+![обрезан текст](shots/quiz-0-solo-projector-hall-1.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 6 px (div.podium__names) — «Гость 1»
+
+- где: `div.podium__stage > div.podium__slot > div.podium__names > p.podium__name`, этап `playing/7/podium/`
+- игры (1): quiz 1-й шаблон, каждый сам ×4, телевизор full hd
+- раз: 3
+
+![обрезан текст](shots/quiz-0-solo-tv-hall-1.jpg)
+
+### обрезан текст · экран зала
+
+текст обрезан по высоте на 4 px (div.podium__names) — «Владимир Преображенский»
+
+- где: `div.podium__slot > div.podium__names > p.podium__name > span`, этап `playing/7/podium/`
+- игры (1): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![обрезан текст](shots/quiz-0-solo-projector-hall-2.jpg)
 
 ### прячется за прокруткой · экран зала
 
-на экране зала текст виден только прокруткой (по высоте на 12 px) — «и ещё 3»
+на экране зала текст виден только прокруткой (по высоте на 7 px) — «и ещё 2»
 
-- где: `div.final > div.final__board > div.board-view > p.board-view__more`, этап `finished/10/podium/bigDone`
-- игры (1): hundred 1-й шаблон, команды ×4, телевизор full hd; hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 1-й шаблон, каждый сам ×4, телевизор full hd; hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена …
-- раз: 18
+- где: `div.final > div.final__board > div.board-view > p.board-view__more`, этап `finished/7/podium/`
+- игры (2): quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; quiz 1-й шаблон, каждый сам ×4, телевизор full hd; quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; quiz 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; quiz 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; quiz 3-й шаблон, команды ×4, телевизор full hd …
+- раз: 13
 
-![прячется за прокруткой](shots/hundred-0-teams-projector-hall-2.jpg)
+![прячется за прокруткой](shots/quiz-0-solo-projector-hall-4.jpg)
 
-### бледный текст · телефон
+## Мелочи — 6
 
-контраст 1.01 (нужно от 4.5) — «33%»
+### мелкий текст · телефон
 
-- где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct`, этап `playing/13/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 95
+шрифт 10.0 px (нужно от 12) — «Серебро»
 
-![бледный текст](shots/millionaire-0-teams-tv-phones-3.jpg)
+- где: `div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist`, этап `playing/0/question/`
+- игры (1): lotto 1-й шаблон, каждый сам ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 2505
 
-### бледный текст · телефон
+![мелкий текст](shots/lotto-0-solo-tv-phones-3.jpg)
 
-контраст 1.01 (нужно от 4.5) — «Зелёного»
+### мелкий текст · телефон
 
-- где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text`, этап `playing/2/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 62
+шрифт 10.0 px (нужно от 12) — «Звезда по имени Солнце»
 
-![бледный текст](shots/millionaire-0-teams-tv-phones-2.jpg)
+- где: `div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title`, этап `playing/0/question/`
+- игры (1): lotto 1-й шаблон, каждый сам ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 2283
 
-### бледный текст · телефон
+![мелкий текст](shots/lotto-0-solo-tv-phones-2.jpg)
 
-контраст 1.04 (нужно от 4.5) — «A»
+### мелкий текст · телефон
 
-- где: `div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter`, этап `playing/2/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, телевизор full hd; millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 55
+шрифт 10.0 px (нужно от 12) — «Одна линия»
 
-![бледный текст](shots/millionaire-0-teams-tv-phones-1.jpg)
+- где: `div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule`, этап `playing/0/question/`
+- игры (1): lotto 1-й шаблон, каждый сам ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, телевизор full hd; lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 186
 
-### бледный текст · пульт
-
-контраст 3.55 (нужно от 4.5) — «Восемь»
-
-- где: `div.stack.host-quiz > div.card.stack > ol.mil-host-options > li`, этап `playing/5/reveal/reveal`
-- игры (1): millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-![бледный текст](shots/millionaire-0-solo-tv-phones-3.jpg)
-
-### бледный текст · пульт
-
-контраст 3.55 (нужно от 4.5) — «D»
-
-- где: `div.card.stack > ol.mil-host-options > li > strong`, этап `playing/5/reveal/reveal`
-- игры (1): millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; millionaire 1-й шаблон, каждый сам ×4, телевизор full hd; millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
-- раз: 11
-
-![бледный текст](shots/millionaire-0-solo-projector-phones-4.jpg)
-
-### бледный текст · пульт
-
-контраст 3.42 (нужно от 4.5) — «мимо ✕»
-
-- где: `section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state`, этап `playing/7/question/buzz`
-- игры (1): board 1-й шаблон, каждый сам ×4, телевизор full hd; board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 7
-
-![бледный текст](shots/board-0-solo-projector-phones-2.jpg)
-
-### бледный текст · экран зала
-
-контраст 1.05 (нужно от 4.5) — «Вход: localhost:38905/j · код 123 456»
-
-- где: `div.hall > main.quiz-stage > p.stage-code`, этап `playing/1/reveal/done`
-- игры (1): hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; hundred 3-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 3
-
-![бледный текст](shots/hundred-0-teams-laptop-hall-2.jpg)
-
-### бледный текст · пульт
-
-контраст 1.07 (нужно от 4.5) — «Начальник»
-
-- где: `li > button.hd-host__row > span.hd-host__text > strong`, этап `playing/3/reveal/play`
-- игры (1): hundred 2-й шаблон, команды ×4, телевизор full hd
-- раз: 3
-
-![бледный текст](shots/hundred-1-teams-tv-phones-1.jpg)
-
-### бледный текст · пульт
-
-контраст 1.85 (нужно от 4.5) — «ещё: столы»
-
-- где: `li > button.hd-host__row > span.hd-host__text > small`, этап `playing/3/reveal/play`
-- игры (1): hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 2
-
-![бледный текст](shots/hundred-1-teams-projector-phones-1.jpg)
-
-### бледный текст · телефон
-
-контраст 1.85 (нужно от 4.5) — «Подсказки»
-
-- где: `div.card > div.quiz-phone > section.stack.stack--tight > p.eyebrow`, этап `playing/2/question/question`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![бледный текст](shots/millionaire-0-teams-projector-phones-1.jpg)
-
-### бледный текст · телефон
-
-контраст 1.52 (нужно от 4.5) — «Они ответили верно!»
-
-- где: `main.page.page--play > div.card > div.quiz-phone.mil-watch > p.success`, этап `playing/8/reveal/reveal`
-- игры (1): millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
-- раз: 1
-
-![бледный текст](shots/millionaire-0-teams-projector-phones-4.jpg)
-
-## Мелочи — 1
+![мелкий текст](shots/lotto-0-solo-tv-phones-1.jpg)
 
 ### мелкий текст · пульт
 
-шрифт 11.0 px (нужно от 12) — «кот»
+шрифт 11.0 px (нужно от 12) — «Меньше всех»
 
-- где: `div.board-host__grid > div.board-host__row > button.board-host__cell > small`, этап `playing/0/ready/`
-- игры (1): board 1-й шаблон, каждый сам ×4, телевизор full hd; board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×4, телевизор full hd; board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена; board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
-- раз: 91
+- где: `div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value`, этап `playing/2/question/bet`
+- игры (1): wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, команды ×4, телевизор full hd; wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена; wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, каждый сам ×4, телевизор full hd; wager 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена
+- раз: 29
 
-![мелкий текст](shots/board-0-solo-projector-phones-1.jpg)
+![мелкий текст](shots/wager-0-teams-tv-phones-1.jpg)
+
+### мелкий текст · телефон
+
+шрифт 11.0 px (нужно от 12) — «Меньше всех»
+
+- где: `div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value`, этап `playing/2/question/bet`
+- игры (1): wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена; wager 1-й шаблон, команды ×4, телевизор full hd; wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена
+- раз: 5
+
+![мелкий текст](shots/wager-0-teams-tv-phones-2.jpg)
+
+### мелкая кнопка · телефон
+
+кнопка 45×36 px (пальцу нужно от 40×40) — «Звезда по имени Солнце»
+
+- где: `div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell`, этап `playing/0/question/`
+- игры (1): lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена; lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена
+- раз: 960
+
+![мелкая кнопка](shots/lotto-0-solo-projector-phones-4.jpg)
 

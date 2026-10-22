@@ -1,773 +1,499 @@
 {
  "runs": [
   {
-   "name": "board-0-solo-projector",
-   "views": 72,
-   "findings": 2,
-   "finished": false
+   "name": "quiz-0-solo-projector",
+   "views": 46,
+   "findings": 4,
+   "finished": true
   },
   {
-   "name": "board-0-solo-tv",
-   "views": 72,
+   "name": "quiz-0-solo-laptop",
+   "views": 40,
    "findings": 2,
-   "finished": false
+   "finished": true
   },
   {
-   "name": "board-0-teams-tv",
-   "views": 72,
+   "name": "quiz-0-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-solo-tv",
+   "views": 46,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-laptop",
+   "views": 44,
    "findings": 1,
-   "finished": false
+   "finished": true
   },
   {
-   "name": "millionaire-0-teams-tv",
-   "views": 36,
+   "name": "quiz-1-solo-laptop",
+   "views": 28,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-laptop",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-laptop",
+   "views": 32,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-tv",
+   "views": 40,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-projector",
+   "views": 40,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-tv",
+   "views": 28,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-laptop",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-projector",
+   "views": 28,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-laptop",
+   "views": 30,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-projector",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-tv",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-laptop",
+   "views": 34,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-tv",
+   "views": 30,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-projector",
+   "views": 30,
    "findings": 5,
    "finished": true
   },
   {
-   "name": "board-0-solo-laptop",
-   "views": 76,
-   "findings": 2,
-   "finished": false
-  },
-  {
-   "name": "millionaire-0-teams-projector",
-   "views": 36,
-   "findings": 13,
+   "name": "lotto-0-teams-tv",
+   "views": 20,
+   "findings": 3,
    "finished": true
   },
   {
-   "name": "millionaire-0-teams-laptop",
+   "name": "lotto-0-solo-laptop",
+   "views": 32,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "wager-0-teams-projector",
    "views": 18,
-   "findings": 7,
-   "finished": true
-  },
-  {
-   "name": "board-0-teams-projector",
-   "views": 72,
-   "findings": 1,
-   "finished": false
-  },
-  {
-   "name": "millionaire-0-solo-projector",
-   "views": 24,
-   "findings": 8,
-   "finished": true
-  },
-  {
-   "name": "millionaire-0-solo-tv",
-   "views": 24,
-   "findings": 8,
-   "finished": true
-  },
-  {
-   "name": "millionaire-0-solo-laptop",
-   "views": 22,
-   "findings": 9,
-   "finished": true
-  },
-  {
-   "name": "board-0-teams-laptop",
-   "views": 78,
-   "findings": 2,
-   "finished": false
-  },
-  {
-   "name": "hundred-0-teams-projector",
-   "views": 78,
    "findings": 2,
    "finished": true
   },
   {
-   "name": "hundred-0-teams-tv",
-   "views": 78,
+   "name": "wager-0-teams-tv",
+   "views": 18,
    "findings": 2,
    "finished": true
   },
   {
-   "name": "hundred-0-solo-tv",
-   "views": 56,
-   "findings": 3,
+   "name": "lotto-0-teams-projector",
+   "views": 20,
+   "findings": 5,
    "finished": true
   },
   {
-   "name": "hundred-0-teams-laptop",
-   "views": 70,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-0-solo-projector",
-   "views": 56,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "hundred-0-solo-laptop",
-   "views": 58,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-teams-projector",
-   "views": 78,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-teams-tv",
-   "views": 78,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-solo-tv",
-   "views": 56,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-teams-laptop",
-   "views": 70,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-solo-projector",
-   "views": 56,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "hundred-1-solo-laptop",
-   "views": 58,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-teams-tv",
-   "views": 78,
+   "name": "wager-0-teams-laptop",
+   "views": 16,
    "findings": 2,
    "finished": true
   },
   {
-   "name": "hundred-2-teams-projector",
-   "views": 78,
-   "findings": 2,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-solo-tv",
-   "views": 56,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-teams-laptop",
-   "views": 70,
-   "findings": 3,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-solo-projector",
-   "views": 56,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "hundred-2-solo-laptop",
-   "views": 58,
-   "findings": 4,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-teams-tv",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-teams-projector",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-solo-tv",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-teams-laptop",
-   "views": 38,
-   "findings": 1,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-solo-projector",
-   "views": 38,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "hundred-3-solo-laptop",
+   "name": "wager-0-solo-projector",
    "views": 30,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "wager-0-solo-tv",
+   "views": 30,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-laptop",
+   "views": 28,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "wager-0-solo-laptop",
+   "views": 18,
    "findings": 1,
    "finished": true
   }
  ],
  "findings": [
   {
-   "key": "пульт|мелкий текст|div.board-host__grid > div.board-host__row > button.board-host__cell > small|",
-   "area": "пульт",
-   "kind": "мелкий текст",
-   "message": "шрифт 11.0 px (нужно от 12)",
-   "path": "div.board-host__grid > div.board-host__row > button.board-host__cell > small",
-   "text": "кот",
-   "at": "playing/0/ready/",
-   "count": 91,
-   "shot": "shots/board-0-solo-projector-phones-1.jpg",
-   "where": [
-    "board 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "board 1-й шаблон, команды ×4, телевизор full hd",
-    "board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "board 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "board"
-   ]
-  },
-  {
-   "key": "пульт|бледный текст|section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 3.42 (нужно от 4.5)",
-   "path": "section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state",
-   "text": "мимо ✕",
-   "at": "playing/7/question/buzz",
-   "count": 7,
-   "shot": "shots/board-0-solo-projector-phones-2.jpg",
-   "where": [
-    "board 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "board"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__points|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (span.mil-bar__points)",
-   "path": "div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__points",
-   "text": "0",
-   "at": "playing/0/ready/turn",
-   "count": 13,
-   "shot": "shots/millionaire-0-teams-tv-hall-1.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__name|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 18 px (span.mil-bar__name)",
-   "path": "div.mil-bars-window > div.mil-carousel > div.mil-bar > span.mil-bar__name",
-   "text": "Команда 2",
-   "at": "playing/0/ready/turn",
-   "count": 12,
-   "shot": "shots/millionaire-0-teams-tv-hall-2.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter|",
-   "area": "телефон",
-   "kind": "бледный текст",
-   "message": "контраст 1.04 (нужно от 4.5)",
-   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter",
-   "text": "A",
-   "at": "playing/2/question/question",
-   "count": 55,
-   "shot": "shots/millionaire-0-teams-tv-phones-1.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text|",
-   "area": "телефон",
-   "kind": "бледный текст",
-   "message": "контраст 1.01 (нужно от 4.5)",
-   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text",
-   "text": "Зелёного",
-   "at": "playing/2/question/question",
-   "count": 62,
-   "shot": "shots/millionaire-0-teams-tv-phones-2.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct|",
-   "area": "телефон",
-   "kind": "бледный текст",
-   "message": "контраст 1.01 (нужно от 4.5)",
-   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct",
-   "text": "33%",
-   "at": "playing/13/question/question",
-   "count": 95,
-   "shot": "shots/millionaire-0-teams-tv-phones-3.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "телефон|бледный текст|div.card > div.quiz-phone > section.stack.stack--tight > p.eyebrow|",
-   "area": "телефон",
-   "kind": "бледный текст",
-   "message": "контраст 1.85 (нужно от 4.5)",
-   "path": "div.card > div.quiz-phone > section.stack.stack--tight > p.eyebrow",
-   "text": "Подсказки",
-   "at": "playing/2/question/question",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-phones-1.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "телефон|бледный текст|main.page.page--play > div.card > div.quiz-phone.mil-watch > p.success|",
-   "area": "телефон",
-   "kind": "бледный текст",
-   "message": "контраст 1.52 (нужно от 4.5)",
-   "path": "main.page.page--play > div.card > div.quiz-phone.mil-watch > p.success",
-   "text": "Они ответили верно!",
-   "at": "playing/8/reveal/reveal",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-phones-4.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.mil-carousel > div.mil-bar > span.mil-bar__name > span|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 39 px (span.mil-bar__name)",
-   "path": "div.mil-carousel > div.mil-bar > span.mil-bar__name > span",
-   "text": "Северные волки отдела IT",
-   "at": "playing/0/ready/turn",
-   "count": 16,
-   "shot": "shots/millionaire-0-teams-projector-hall-1.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 12 px (span.mil-bar__name)",
-   "path": "div.mil-carousel > div.mil-bar > span.mil-bar__name > span.name-emoji",
-   "text": "🐻",
-   "at": "playing/0/ready/turn",
-   "count": 8,
-   "shot": "shots/millionaire-0-teams-projector-hall-2.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|за краем экрана|main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who|",
-   "area": "экран зала",
-   "kind": "за краем экрана",
-   "message": "текст выходит за край экрана по высоте на 10 px",
-   "path": "main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who",
-   "text": "· вопрос 1 — 500 очков",
-   "at": "playing/6/question/question",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-hall-3.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|за краем экрана|div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.name-emoji|",
-   "area": "экран зала",
-   "kind": "за краем экрана",
-   "message": "текст выходит за край экрана по высоте на 10 px",
-   "path": "div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.name-emoji",
-   "text": "🐺",
-   "at": "playing/6/question/question",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-hall-4.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|за краем экрана|div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span|",
-   "area": "экран зала",
-   "kind": "за краем экрана",
-   "message": "текст выходит за край экрана по высоте на 10 px",
-   "path": "div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span",
-   "text": "Северные волки отдела IT",
-   "at": "playing/6/question/question",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-hall-5.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 27 px (span.mil-bar__name)",
-   "path": "div.mil-carousel > div.mil-bar > span.mil-bar__name > span.mil-bar__tag",
-   "text": "· пропуск хода",
-   "at": "playing/6/question/question",
-   "count": 2,
-   "shot": "shots/millionaire-0-teams-projector-hall-6.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Ответ зафиксирован — C» и «Вход: localhost:38905/j · код » друг на друге",
-   "path": "main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big",
-   "text": "Ответ зафиксирован — C | Вход: localhost:38905/j · код 123 456",
-   "at": "playing/6/question/question",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-hall-7.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Ответ зафиксирован — C» закрыт элементом p.stage-code",
-   "path": "main.quiz-stage > div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__note.mil-screen__note--big",
-   "text": "Ответ зафиксирован — C",
-   "at": "playing/6/question/question",
-   "count": 1,
-   "shot": "shots/millionaire-0-teams-projector-hall-8.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "телефон|закрыт другим элементом|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct|",
-   "area": "телефон",
-   "kind": "закрыт другим элементом",
-   "message": "«0%» закрыт элементом span.mil-option__text",
-   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct",
-   "text": "0%",
-   "at": "playing/4/reveal/reveal",
-   "count": 6,
-   "shot": "shots/millionaire-0-teams-laptop-phones-2.jpg",
-   "where": [
-    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "пульт|бледный текст|div.stack.host-quiz > div.card.stack > ol.mil-host-options > li|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 3.55 (нужно от 4.5)",
-   "path": "div.stack.host-quiz > div.card.stack > ol.mil-host-options > li",
-   "text": "Восемь",
-   "at": "playing/5/reveal/reveal",
-   "count": 11,
-   "shot": "shots/millionaire-0-solo-tv-phones-3.jpg",
-   "where": [
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "пульт|бледный текст|div.card.stack > ol.mil-host-options > li > strong|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 3.55 (нужно от 4.5)",
-   "path": "div.card.stack > ol.mil-host-options > li > strong",
-   "text": "D",
-   "at": "playing/5/reveal/reveal",
-   "count": 11,
-   "shot": "shots/millionaire-0-solo-projector-phones-4.jpg",
-   "where": [
-    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "millionaire"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 8 px (span.hd-row__text)",
-   "path": "div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text",
-   "text": "Букет невесты",
-   "at": "playing/3/reveal/play",
-   "count": 180,
-   "shot": "shots/hundred-0-teams-tv-hall-1.jpg",
-   "where": [
-    "hundred 1-й шаблон, команды ×4, телевизор full hd",
-    "hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, команды ×4, телевизор full hd",
-    "hundred 2-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "hundred"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|div.final > div.final__board > div.board-view > p.board-view__more|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 12 px)",
-   "path": "div.final > div.final__board > div.board-view > p.board-view__more",
-   "text": "и ещё 3",
-   "at": "finished/10/podium/bigDone",
-   "count": 18,
-   "shot": "shots/hundred-0-teams-projector-hall-2.jpg",
-   "where": [
-    "hundred 1-й шаблон, команды ×4, телевизор full hd",
-    "hundred 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, команды ×4, телевизор full hd",
-    "hundred 2-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "hundred"
-   ]
-  },
-  {
-   "key": "экран зала|бледный текст|div.hall > main.quiz-stage > p.stage-code|",
-   "area": "экран зала",
-   "kind": "бледный текст",
-   "message": "контраст 1.05 (нужно от 4.5)",
-   "path": "div.hall > main.quiz-stage > p.stage-code",
-   "text": "Вход: localhost:38905/j · код 123 456",
-   "at": "playing/1/reveal/done",
-   "count": 3,
-   "shot": "shots/hundred-0-teams-laptop-hall-2.jpg",
-   "where": [
-    "hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 3-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "hundred"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|div.podium__stage > div.podium__slot > div.podium__names > p.podium__name|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (p.podium__name)",
-   "path": "div.podium__stage > div.podium__slot > div.podium__names > p.podium__name",
-   "text": "Опоздал 6",
-   "at": "finished/10/podium/bigDone",
-   "count": 9,
-   "shot": "shots/hundred-0-solo-tv-hall-2.jpg",
-   "where": [
-    "hundred 1-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 2-й шаблон, каждый сам ×4, телевизор full hd",
-    "hundred 3-й шаблон, каждый сам ×4, телевизор full hd"
-   ],
-   "games": [
-    "hundred"
-   ]
-  },
-  {
    "key": "экран зала|обрезан текст|div.podium__slot > div.podium__names > p.podium__name > span.name-emoji|",
    "area": "экран зала",
    "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (p.podium__name)",
+   "message": "текст обрезан по высоте на 4 px (div.podium__names)",
    "path": "div.podium__slot > div.podium__names > p.podium__name > span.name-emoji",
-   "text": "🦁",
-   "at": "finished/10/podium/bigDone",
-   "count": 6,
-   "shot": "shots/hundred-0-solo-projector-hall-2.jpg",
+   "text": "🦊",
+   "at": "playing/7/podium/",
+   "count": 5,
+   "shot": "shots/quiz-0-solo-projector-hall-1.jpg",
    "where": [
-    "hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 3-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
-    "hundred"
+    "quiz"
    ]
   },
   {
    "key": "экран зала|обрезан текст|div.podium__slot > div.podium__names > p.podium__name > span|",
    "area": "экран зала",
    "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 4 px (p.podium__name)",
+   "message": "текст обрезан по высоте на 4 px (div.podium__names)",
    "path": "div.podium__slot > div.podium__names > p.podium__name > span",
-   "text": "Валентина Белозерская",
-   "at": "finished/10/podium/bigDone",
-   "count": 6,
-   "shot": "shots/hundred-0-solo-projector-hall-3.jpg",
+   "text": "Владимир Преображенский",
+   "at": "playing/7/podium/",
+   "count": 1,
+   "shot": "shots/quiz-0-solo-projector-hall-2.jpg",
    "where": [
-    "hundred 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 2-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
-    "hundred 3-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
-    "hundred 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "hundred"
+    "quiz"
    ]
   },
   {
-   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > small|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 1.85 (нужно от 4.5)",
-   "path": "li > button.hd-host__row > span.hd-host__text > small",
-   "text": "ещё: столы",
-   "at": "playing/3/reveal/play",
-   "count": 2,
-   "shot": "shots/hundred-1-teams-projector-phones-1.jpg",
+   "key": "экран зала|надписи наезжают|div.podium__slot > div.podium__names > p.podium__name > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«🐻» и «Максимилиан Рождественский» друг на друге",
+   "path": "div.podium__slot > div.podium__names > p.podium__name > span.name-emoji",
+   "text": "🐻 | Максимилиан Рождественский",
+   "at": "playing/7/podium/",
+   "count": 1,
+   "shot": "shots/quiz-0-solo-projector-hall-3.jpg",
    "where": [
-    "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
    ],
    "games": [
-    "hundred"
+    "quiz"
    ]
   },
   {
-   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > strong|",
-   "area": "пульт",
-   "kind": "бледный текст",
-   "message": "контраст 1.07 (нужно от 4.5)",
-   "path": "li > button.hd-host__row > span.hd-host__text > strong",
-   "text": "Начальник",
-   "at": "playing/3/reveal/play",
+   "key": "экран зала|прячется за прокруткой|div.final > div.final__board > div.board-view > p.board-view__more|",
+   "area": "экран зала",
+   "kind": "прячется за прокруткой",
+   "message": "на экране зала текст виден только прокруткой (по высоте на 7 px)",
+   "path": "div.final > div.final__board > div.board-view > p.board-view__more",
+   "text": "и ещё 2",
+   "at": "finished/7/podium/",
+   "count": 13,
+   "shot": "shots/quiz-0-solo-projector-hall-4.jpg",
+   "where": [
+    "quiz 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quiz 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "quiz 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 3-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 3-й шаблон, команды ×4, телевизор full hd",
+    "quiz 3-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quiz 4-й шаблон, каждый сам ×4, телевизор full hd",
+    "quiz 4-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "quiz 4-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "quiz 4-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "quiz",
+    "lotto"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.podium__stage > div.podium__slot > div.podium__names > p.podium__name|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (div.podium__names)",
+   "path": "div.podium__stage > div.podium__slot > div.podium__names > p.podium__name",
+   "text": "Гость 1",
+   "at": "playing/7/podium/",
    "count": 3,
-   "shot": "shots/hundred-1-teams-tv-phones-1.jpg",
+   "shot": "shots/quiz-0-solo-tv-hall-1.jpg",
    "where": [
-    "hundred 2-й шаблон, команды ×4, телевизор full hd"
+    "quiz 1-й шаблон, каждый сам ×4, телевизор full hd"
    ],
    "games": [
-    "hundred"
+    "quiz"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-ticket__head > p.lotto-ticket__rule",
+   "text": "Одна линия",
+   "at": "playing/0/question/",
+   "count": 186,
+   "shot": "shots/lotto-0-solo-tv-phones-1.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, телевизор full hd",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__title",
+   "text": "Звезда по имени Солнце",
+   "at": "playing/0/question/",
+   "count": 2283,
+   "shot": "shots/lotto-0-solo-tv-phones-2.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, телевизор full hd",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 10.0 px (нужно от 12)",
+   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist",
+   "text": "Серебро",
+   "at": "playing/0/question/",
+   "count": 2505,
+   "shot": "shots/lotto-0-solo-tv-phones-3.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, телевизор full hd",
+    "lotto 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "телефон|мелкая кнопка|div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell|",
+   "area": "телефон",
+   "kind": "мелкая кнопка",
+   "message": "кнопка 45×36 px (пальцу нужно от 40×40)",
+   "path": "div.quiz-phone.lotto-phone > div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell",
+   "text": "Звезда по имени Солнце",
+   "at": "playing/0/question/",
+   "count": 960,
+   "shot": "shots/lotto-0-solo-projector-phones-4.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "телефон|обрезан текст|div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist|",
+   "area": "телефон",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (span.lotto-card__artist)",
+   "path": "div.lotto-ticket.lotto-ticket--evening > div.lotto-card > button.lotto-card__cell > span.lotto-card__artist",
+   "text": "Ирина Аллегрова",
+   "at": "playing/0/question/",
+   "count": 31,
+   "shot": "shots/lotto-0-solo-projector-phones-5.jpg",
+   "where": [
+    "lotto 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "lotto 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "lotto"
+   ]
+  },
+  {
+   "key": "пульт|мелкий текст|div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value|",
+   "area": "пульт",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.stack.stack--tight > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value",
+   "text": "Меньше всех",
+   "at": "playing/2/question/bet",
+   "count": 29,
+   "shot": "shots/wager-0-teams-tv-phones-1.jpg",
+   "where": [
+    "wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "wager 1-й шаблон, команды ×4, телевизор full hd",
+    "wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "wager 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "wager 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.0 px (нужно от 12)",
+   "path": "div.quiz-phone > ol.wager-board.wager-board--compact > li.wager-slot.wager-slot--low > span.wager-slot__value",
+   "text": "Меньше всех",
+   "at": "playing/2/question/bet",
+   "count": 5,
+   "shot": "shots/wager-0-teams-tv-phones-2.jpg",
+   "where": [
+    "wager 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "wager 1-й шаблон, команды ×4, телевизор full hd",
+    "wager 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|надписи наезжают|div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag|",
+   "area": "экран зала",
+   "kind": "надписи наезжают",
+   "message": "«Ближе всех» и «Вход: localhost:40707/j · код » друг на друге",
+   "path": "div.wager-table__felt > ol.wager-board > li.wager-slot.wager-slot--low > span.wager-slot__flag",
+   "text": "Ближе всех | Вход: localhost:40707/j · код 123 456",
+   "at": "playing/2/reveal/answer",
+   "count": 2,
+   "shot": "shots/wager-0-solo-projector-hall-1.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "wager 1-й шаблон, каждый сам ×4, телевизор full hd"
+   ],
+   "games": [
+    "wager"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > p.stage-code|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Вход: localhost:40707/j · код 123 456» закрыт элементом li.wager-slot.wager-slot--low",
+   "path": "div.hall > main.quiz-stage > p.stage-code",
+   "text": "Вход: localhost:40707/j · код 123 456",
+   "at": "playing/2/reveal/answer",
+   "count": 2,
+   "shot": "shots/wager-0-solo-tv-hall-2.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "wager 1-й шаблон, каждый сам ×4, телевизор full hd"
+   ],
+   "games": [
+    "wager"
    ]
   }
  ]

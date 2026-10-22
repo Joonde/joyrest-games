@@ -6,7 +6,7 @@
  * Telegram с готовым сообщением) и «Ответил «да»» (согласие на новости, дальше кнопки — сообщение со скидкой).
  */
 import { useMemo, useRef, useState } from "react";
-import { phoneKey, phoneLabel } from "../../core/clients";
+import { phoneKey, phoneLabel, telegramPhoneHref, whatsappHref } from "../../core/clients";
 import { cleanName, pastClientMessage, pastClientYesMessage, scanContacts, type ContactMatch } from "../../core/contactsImport";
 import { clientsRepo, useLoad, type ClientRecord, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -296,10 +296,9 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
       ) : (
         <ul className="contacts-list">
           {past.map((c) => {
-            const key = phoneKey(c.phone);
             // Согласился на новости — сообщение со скидкой, иначе — первое сообщение (спасибо, ссылки, вопрос о новостях).
             const yes = c.marketing === "yes";
-            const text = encodeURIComponent(yes ? yesMessage : message);
+            const text = yes ? yesMessage : message;
             return (
               <li key={c.id} className="card contacts-past">
                 <span className="contacts-row__name">{c.name || "Без имени"}</span>
@@ -310,10 +309,10 @@ export function ContactsTab({ profile }: { profile: UserProfile }) {
                 </span>
                 {yes && <span className="small">Сообщение со скидкой 10%:</span>}
                 <div className="contacts-past__actions" role="group" aria-label={`Написать: ${c.name}`}>
-                  <a className="btn btn--secondary" href={`https://wa.me/${key}?text=${text}`} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
+                  <a className="btn btn--secondary" href={whatsappHref(c.phone, text)} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
                     WhatsApp
                   </a>
-                  <a className="btn btn--secondary" href={`https://t.me/+${key}?text=${text}`} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
+                  <a className="btn btn--secondary" href={telegramPhoneHref(c.phone, text)} target="_blank" rel="noopener noreferrer" onClick={() => !yes && markSent(c.id)}>
                     Telegram
                   </a>
                   {!yes && (

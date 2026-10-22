@@ -3,6 +3,7 @@
  * процентом совпадения; выбор галочками → «Предложение клиенту» (ссылка, «Поделиться», PDF).
  */
 import { useEffect, useMemo, useState } from "react";
+import { telHref } from "../../core/clients";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   DISTRICTS,
@@ -124,7 +125,7 @@ function RequestView({ request, canArchive, onChange }: { request: VenueRequestR
               <dt>Клиент</dt>
               <dd>{r.name}</dd>
               <dt>Телефон</dt>
-              <dd>{r.phone ? <a href={`tel:${r.phone.replace(/[^\d+]/g, "")}`}>{r.phone}</a> : "—"}</dd>
+              <dd>{r.phone ? <a href={telHref(r.phone) || undefined}>{r.phone}</a> : "—"}</dd>
               <dt>Что</dt>
               <dd>{[r.eventType, formatLabel(r.format)].filter(Boolean).join(", ") || "—"}</dd>
               <dt>Когда</dt>

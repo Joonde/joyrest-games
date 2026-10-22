@@ -3,6 +3,7 @@
  * контакты, фото и меню, наш статус, оценка и заметки, правка и удаление.
  */
 import { useEffect, useState, type ReactNode } from "react";
+import { telHref } from "../../core/clients";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { emptyVenue, findDuplicates, VENUE_FILES, VENUE_STATUSES, venueMissing, venueStatusInfo, type VenueData, type VenueStatus } from "../../core/venues";
 import { permissions, useLoad, venuesRepo, type VenueRecord, type VenueUpload } from "../../data";
@@ -410,7 +411,7 @@ function VenueCard({ venue, owner, canArchive, onChange, twin }: { venue: VenueR
         <h3>Связь</h3>
         <dl className="kv">
           <Row label="Контакт" value={[v.person, v.role].filter(Boolean).join(", ")} />
-          <Row label="Телефон" value={v.phone && <a href={`tel:${v.phone.replace(/[^\d+]/g, "")}`}>{v.phone}</a>} />
+          <Row label="Телефон" value={v.phone && <a href={telHref(v.phone) || undefined}>{v.phone}</a>} />
           <Row label="Мессенджер" value={v.messenger} />
           <Row label="Почта" value={v.email && <a href={`mailto:${v.email}`}>{v.email}</a>} />
           <Row label="Сайт" value={v.site && <ExternalLink href={v.site} />} />

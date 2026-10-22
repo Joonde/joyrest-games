@@ -15,6 +15,10 @@ import {
   parseLinks,
   phoneKey,
   phoneLabel,
+  phoneIssueText,
+  telHref,
+  whatsappHref,
+  telegramPhoneHref,
   SOURCE_TITLES,
   type ClientSource,
   type ClientStatus,
@@ -449,12 +453,11 @@ function ClientBase({ profile }: { profile: UserProfile }) {
 
 /** Как связаться: звонок, WhatsApp и Telegram по номеру (российский или международный). */
 function contactLinks(phone: string): { label: string; href: string }[] {
-  const key = phoneKey(phone);
-  if (!key) return [];
+  if (!phoneKey(phone)) return [];
   return [
-    { label: "📞 Позвонить", href: `tel:+${key}` },
-    { label: "WhatsApp", href: `https://wa.me/${key}` },
-    { label: "Telegram", href: `https://t.me/+${key}` },
+    { label: "📞 Позвонить", href: telHref(phone) },
+    { label: "WhatsApp", href: whatsappHref(phone) },
+    { label: "Telegram", href: telegramPhoneHref(phone) },
   ];
 }
 
@@ -781,7 +784,7 @@ function ClientCard({
               <>
                 <dt>Телефон</dt>
                 <dd>
-                  <a href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}>{phoneLabel(c.phone)}</a>
+                  {telHref(c.phone) ? <a href={telHref(c.phone)}>{phoneLabel(c.phone)}</a> : phoneLabel(c.phone)}
                 </dd>
               </>
             )}
@@ -977,7 +980,7 @@ function ClientForm({
           onChange={(e) => setPhone(e.target.value)}
         />
       </label>
-      {phoneBad && <p className="error small">Телефон неполный: нужно 11 цифр с 8 или +7, например +7 915 241-59-99.</p>}
+      {phoneBad && <p className="error small">{phoneIssueText(phone)}</p>}
       {key !== "" && phoneLabel(phone) !== phone.trim() && <p className="muted small">Сохранится как {phoneLabel(phone)}</p>}
       <label className="field">
         <span className="field__label">Соцсети (Telegram, ВКонтакте, Instagram, WhatsApp)</span>

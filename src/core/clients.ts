@@ -52,21 +52,65 @@ export function isMarketing(value: unknown): value is Marketing {
 }
 
 /**
- * 10 цифр без «7» и «8» с российским кодом: 9xx — мобильные, 3xx и 4xx — города (Москва 495, 499), 8xx — города и 800
- * (Санкт-Петербург 812). Решение владельца 22 октября 2026: «495…» без семёрки — тот же номер, что «+7 495…».
- * Кода 89x нет: 10 цифр «89…» — это «8 9xx» без последней цифры (повторная проверка QA 22 октября 2026).
+ * 10 цифр без «7» и «8» с российским кодом: 9xx — мобильные, 3xx и 4xx — города (Москва 495, 499), 800–809 —
+ * бесплатные и федеральные. Решение владельца 22 октября 2026: «495…» без семёрки — тот же номер, что «+7 495…».
+ * Третья проверка QA 22 октября 2026: 10 цифр с «8» (кроме 800–809) — это «8 + номер» без последней цифры
+ * («8 495 123 45 6», «8 915 123 45 6»), а не код 8xx: такая опечатка встречается чаще, чем Петербург без семёрки.
  */
-const RU_TEN_DIGITS = /^(?:[349]\d|8[0-8])\d{8}$/;
-/** 10 цифр, начинающихся с «7» или «89», — российский номер без последней цифры («+7 915 123 45 6», «8 915 123 45 6»). */
-const RU_SHORT = /^(?:7\d{9}|89\d{8})$/;
+const RU_TEN_DIGITS = /^(?:[349]\d|80)\d{8}$/;
+/** 10 цифр, начинающихся с «7» или «8» (кроме 800–809), — российский номер без последней цифры. */
+const RU_SHORT = /^(?:7\d{9}|8[1-9]\d{8})$/;
 
 /** Телефон → ключ «7XXXXXXXXXX» (Россия) или все цифры для других стран; неполный номер — пусто. */
 export function phoneKey(raw: string): string {
   const digits = raw.replace(/\D/g, "");
   if (digits.length === 11 && (digits.startsWith("8") || digits.startsWith("7"))) return `7${digits.slice(1)}`;
+  // 12 цифр с «7» или «8» — российский номер с лишней цифрой («8-916-123-45-678»), а не иностранный.
+  if (digits.length === 12 && (digits.startsWith("8") || digits.startsWith("7"))) return "";
   if (digits.length === 10 && RU_SHORT.test(digits)) return "";
   if (digits.length === 10 && RU_TEN_DIGITS.test(digits)) return `7${digits}`;
   return digits.length >= 10 && digits.length <= 15 ? digits : "";
+}
+
+/** Что не так с номером, у которого нет ключа: «long» — лишняя цифра, «short» — не хватает цифр; null — номер в порядке. */
+export function phoneIssue(raw: string): "short" | "long" | null {
+  if (raw.trim() === "" || phoneKey(raw) !== "") return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length > 15 || (digits.length === 12 && /^[78]/.test(digits))) return "long";
+  return "short";
+}
+
+/** Подсказка под полем телефона, когда номер не годится; пусто — номер в порядке. */
+export function phoneIssueText(raw: string): string {
+  const issue = phoneIssue(raw);
+  if (issue === "long") return "В номере лишняя цифра: нужно 11 цифр с 8 или +7, например +7 915 241-59-99.";
+  if (issue === "short") return "Телефон неполный: нужно 11 цифр с 8 или +7, например +7 915 241-59-99.";
+  return "";
+}
+
+/**
+ * Ссылка «Позвонить»: распознанный номер — `tel:+<ключ>` (так «495 123-45-67» набирается как +7 495…, а не как
+ * 4951234567); иначе — цифры и «+» как ввели. Пусто — звонить некуда.
+ */
+export function telHref(raw: string): string {
+  const key = phoneKey(raw);
+  if (key) return `tel:+${key}`;
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  return /\d/.test(cleaned) ? `tel:${cleaned}` : "";
+}
+
+/** WhatsApp по номеру (с готовым текстом); номер не распознан — пусто (ссылку не показываем). */
+export function whatsappHref(raw: string, text = ""): string {
+  const key = phoneKey(raw);
+  if (!key) return "";
+  return `https://wa.me/${key}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+}
+
+/** Telegram по номеру (с готовым текстом); номер не распознан — пусто. */
+export function telegramPhoneHref(raw: string, text = ""): string {
+  const key = phoneKey(raw);
+  if (!key) return "";
+  return `https://t.me/+${key}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 }
 
 /**

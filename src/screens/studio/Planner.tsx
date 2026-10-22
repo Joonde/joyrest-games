@@ -36,7 +36,7 @@ import {
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
 import { matchesSearch } from "../../core/search";
-import { durationLabel, originStats, phoneKey, responseStats } from "../../core/clients";
+import { durationLabel, originStats, phoneIssueText, phoneKey, responseStats, telHref } from "../../core/clients";
 import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
@@ -852,7 +852,7 @@ function EventCard({
               <>
                 <dt>Телефон</dt>
                 <dd>
-                  <a href={`tel:${event.clientPhone.replace(/[^\d+]/g, "")}`}>{event.clientPhone}</a>
+                  {telHref(event.clientPhone) ? <a href={telHref(event.clientPhone)}>{event.clientPhone}</a> : event.clientPhone}
                 </dd>
               </>
             )}
@@ -1258,7 +1258,7 @@ export function EventForm({
           />
         </label>
         {phoneIncomplete && (
-          <p className="small plan-warn">Телефон неполный: нужно 11 цифр с 8 или +7 (например, 8 915 123-45-67). Мероприятие записать можно, но клиент не попадёт в «Клиенты».</p>
+          <p className="small plan-warn">{phoneIssueText(clientPhone)} Мероприятие записать можно, но клиент не попадёт в «Клиенты».</p>
         )}
         {nameOnly && <p className="muted small">Без телефона клиент не попадёт в «Клиенты» — добавьте телефон, если он есть.</p>}
         <label className="field">

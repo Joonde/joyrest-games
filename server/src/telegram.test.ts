@@ -14,6 +14,8 @@ import { answerHoursOpen, startBot, type Bot } from "./telegram";
 interface Sent {
   chat: number;
   text: string;
+  /** callback_data кнопок под сообщением. */
+  buttons: string[];
 }
 
 /** Telegram понарошку: getMe, getUpdates (очередь входящих), sendMessage (журнал отправленного). */
@@ -27,7 +29,8 @@ function fakeTelegram() {
     const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
     if (url.endsWith("/getMe")) return reply({ username: "joyrest_test_bot" });
     if (url.endsWith("/sendMessage")) {
-      sent.push({ chat: Number(body.chat_id), text: String(body.text) });
+      const markup = body.reply_markup as { inline_keyboard?: Array<Array<{ callback_data?: string }>> } | undefined;
+      sent.push({ chat: Number(body.chat_id), text: String(body.text), buttons: (markup?.inline_keyboard ?? []).flat().map((b) => String(b.callback_data ?? "")) });
       return reply({ message_id: 1 });
     }
     if (url.endsWith("/getUpdates")) {
@@ -161,6 +164,50 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     await until(() => to(BORIS).length === before.boris + 2, "отмена Борису");
     expect(to(BORIS).at(-1)).toContain("Мероприятие отменено");
     expect(to(ANNA)).toHaveLength(before.anna + 3);
+  });
+
+  it("«Принял, готовлюсь»: кнопка в Telegram и в студии — одна отметка; новая программа — новая кнопка, старая не засчитывается", async () => {
+    const program = { formats: ["Квиз", "Музыкальный"], extension: "30 мин", addons: ["Призы и медали"], duration: "≈ 3–3,5 часа" };
+    const event = { id: "ev5", hostId: borisId, day: day(11), start: 1140, end: 1350, title: "Корпоратив", clientName: "Ольга", clientPhone: "+7 999 555-44-33", place: "", guests: 40, note: "", program };
+    const n = to(BORIS).length;
+    expect((await post("/api/events", owner, event)).statusCode).toBe(200);
+    await until(() => to(BORIS).length === n + 1, "назначение с программой");
+    const msg = tg.sent.filter((m) => m.chat === BORIS).at(-1);
+    expect(msg?.text).toContain("🎯 Программа: Квиз + Музыкальный · продление 30 мин");
+    expect(msg?.text).not.toContain("Ольга");
+    expect(msg?.buttons).toEqual(["acc:ev5:1"]);
+    const mine = async () => ((await get("/api/events?scope=upcoming", boris)).json().events as Array<{ id: string; acceptedAt: number | null; acceptRev: number; program: unknown }>).find((e) => e.id === "ev5");
+    expect(await mine()).toMatchObject({ acceptedAt: null, acceptRev: 1, program });
+
+    // Нажал в Telegram — отметка ставится; ещё раз в студии — время первого нажатия не меняется.
+    tg.update({ callback_query: { id: "cb1", from: { id: BORIS }, data: "acc:ev5:1", message: { message_id: 1, chat: { id: BORIS } } } });
+    await until(async () => Boolean((await mine())?.acceptedAt), "принял в Telegram");
+    const first = (await mine())?.acceptedAt;
+    expect((await post("/api/events/ev5/accept", boris, { rev: 1 })).statusCode).toBe(200);
+    expect((await mine())?.acceptedAt).toBe(first);
+    expect((await post("/api/events/ev5/accept", anna, { rev: 1 })).statusCode).toBe(403);
+
+    // Комментарий поменяли — отметка остаётся, сообщений нет.
+    await post("/api/events", owner, { ...event, note: "торт в 22:00" });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(to(BORIS)).toHaveLength(n + 1);
+    expect((await mine())?.acceptedAt).toBe(first);
+
+    // Программу поменяли — отметка снимается, новое сообщение с новой кнопкой; старая кнопка не засчитывается.
+    await post("/api/events", owner, { ...event, note: "торт в 22:00", program: { ...program, extension: "1 ч" } });
+    await until(() => to(BORIS).length === n + 2, "«изменено» с новой кнопкой");
+    expect(tg.sent.filter((m) => m.chat === BORIS).at(-1)?.buttons).toEqual(["acc:ev5:2"]);
+    expect(await mine()).toMatchObject({ acceptedAt: null, acceptRev: 2 });
+    tg.update({ callback_query: { id: "cb2", from: { id: BORIS }, data: "acc:ev5:1", message: { message_id: 1, chat: { id: BORIS } } } });
+    await new Promise((r) => setTimeout(r, 300));
+    expect((await mine())?.acceptedAt).toBeNull();
+    expect((await post("/api/events/ev5/accept", boris, { rev: 1 })).statusCode).toBe(409);
+    expect((await post("/api/events/ev5/accept", boris, { rev: 2 })).statusCode).toBe(200);
+    expect((await mine())?.acceptedAt).toBeGreaterThan(0);
+
+    // Отменили — принять нельзя.
+    await post("/api/events/ev5/cancel", owner);
+    expect((await post("/api/events/ev5/accept", boris, { rev: 2 })).statusCode).toBe(409);
   });
 
   it("напоминание за сутки — один раз; начавшееся скоро сразу после назначения — без дубля", async () => {

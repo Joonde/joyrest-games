@@ -81,7 +81,7 @@ function CalendarPage({ profile }: { profile: UserProfile }) {
             {tab === "who" ? (
               <WhoCan onToast={showToast} />
             ) : tab === "events" ? (
-              <Planner owner={permissions.canManageEvents(profile)} admin={permissions.canViewEventStats(profile)} onToast={showToast} />
+              <Planner owner={permissions.canManageEvents(profile)} admin={permissions.canViewEventStats(profile)} me={profile.uid} onToast={showToast} />
             ) : (
               <MyCalendar onToast={showToast} />
             )}

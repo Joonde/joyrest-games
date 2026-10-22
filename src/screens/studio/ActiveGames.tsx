@@ -5,6 +5,8 @@ import { formatSessionCode } from "../../core/code";
 import { mechanicTitle } from "../../mechanics/registry";
 import { sessionsRepo, useLoad, type SessionSummary } from "../../data";
 import { Icon } from "../../components/Icon";
+import { useServerNow } from "../../components/live/useServerNow";
+import { clockOf, lengthOf, overtimeOf, overtimeText } from "../../core/overtime";
 
 const NONE: SessionSummary[] = [];
 
@@ -41,6 +43,8 @@ async function fetchOverview(hostId: string): Promise<SessionSummary[]> {
     updatedAt: s.createdAt ?? 0,
     startedAt: null,
     stale: false,
+    finishedAt: null,
+    planEnd: null,
   }));
 }
 
@@ -77,6 +81,50 @@ function ago(ms: number): string {
   const h = Math.floor(min / 60);
   if (h < 24) return `${h} ч назад`;
   return new Date(ms).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
+const clockAt = (ms: number) => new Date(ms).toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
+
+/**
+ * Сколько идёт игра (решение владельца 22 октября 2026): таймер с момента, когда ведущий открыл игру (экран с QR), после
+ * завершения — «Завершилась в 21:47 · шла 2 ч 41 мин»; есть мероприятие в планировщике — сверх плана и доплата.
+ */
+function GameTime({ game }: { game: SessionSummary }) {
+  const live = game.phase !== "finished" && !game.stale;
+  const now = useServerNow(1000, live);
+  if (!game.createdAt) return null;
+  const end = game.phase === "finished" ? (game.finishedAt ?? game.updatedAt) : now;
+  const over = game.planEnd ? overtimeOf(end, game.planEnd) : null;
+  const overLine = over && over.minutes > 0 ? `${over.blocks > 0 ? "💰" : "✅"} ${overtimeText(over)}` : "";
+  if (game.phase === "finished") {
+    return (
+      <span className="game-row__time small">
+        🏁 Завершилась в {clockAt(end)} · шла {lengthOf(end - game.createdAt)}
+        {game.planEnd ? ` · 📅 по плану до ${clockAt(game.planEnd)}` : ""}
+        {overLine && <span className={over && over.blocks > 0 ? "game-row__over is-pay" : "game-row__over"}>{overLine}</span>}
+      </span>
+    );
+  }
+  if (!live) return null;
+  return (
+    <span className="game-row__time small">
+      {game.planEnd && !overLine ? `📅 по плану до ${clockAt(game.planEnd)}` : ""}
+      {overLine && <span className={over && over.blocks > 0 ? "game-row__over is-pay" : "game-row__over"}>{overLine}</span>}
+    </span>
+  );
+}
+
+function Timer({ game }: { game: SessionSummary }) {
+  const live = game.phase !== "finished" && !game.stale;
+  const now = useServerNow(1000, live);
+  if (!live || !game.createdAt) return null;
+  const over = game.planEnd ? overtimeOf(now, game.planEnd) : null;
+  const tone = !over || over.minutes === 0 ? "" : over.blocks > 0 ? " is-pay" : " is-near";
+  return (
+    <span className={`game-row__timer${tone}`} aria-label={`Идёт ${lengthOf(now - game.createdAt)}`}>
+      ⏱ {clockOf(now - game.createdAt)}
+    </span>
+  );
 }
 
 /**
@@ -156,6 +204,7 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
             <span className="game-row__dot" aria-hidden="true" />
             {status}
             {!own && game.hostName ? ` · ${game.hostName}` : ""}
+            <Timer game={game} />
           </span>
           <span className="game-row__title">
             <span className="game-row__name">{title}</span>
@@ -165,6 +214,7 @@ export function GameRow({ game, own, admin = false, helper = false, onChanged }:
             {game.players > 0 ? `гостей: ${game.players} · ` : ""}
             {live ? ago(game.updatedAt) : `закончилась ${ago(game.updatedAt)}`}
           </span>
+          <GameTime game={game} />
         </div>
         {hasActions && (
           <button type="button" className="btn btn--quiet game-row__more" aria-expanded={open} aria-label={`Действия: ${title}`} onClick={() => setOpen((v) => !v)}>

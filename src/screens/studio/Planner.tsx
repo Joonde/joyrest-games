@@ -35,6 +35,7 @@ import {
   type TimelineCluster,
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
+import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, type EventProgram } from "../../core/eventProgram";
 import { matchesSearch } from "../../core/search";
 import { durationLabel, originStats, responseStats } from "../../core/clients";
 import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
@@ -112,7 +113,7 @@ type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string };
  * `owner` — записывает и правит мероприятия (владелец и менеджер по продажам), `admin` — ещё «Итоги» и «Удалить навсегда»
  * (только владелец).
  */
-export function Planner({ owner, admin = owner, onToast }: { owner: boolean; admin?: boolean; onToast: (text: string) => void }) {
+export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boolean; admin?: boolean; me?: string; onToast: (text: string) => void }) {
   const today = todayMoscow();
   const [view, setView] = useState<View>("day");
   const [day, setDay] = useState(today);
@@ -184,6 +185,21 @@ export function Planner({ owner, admin = owner, onToast }: { owner: boolean; adm
     }
   }
 
+  // «Принял, готовлюсь» — ведущий этого мероприятия; то же, что кнопка в Telegram.
+  async function accept(event: AgencyEvent) {
+    if (!eventsRepo) return;
+    try {
+      replace(await eventsRepo.accept(event.id, event.acceptRev ?? 0));
+      onToast("Принято — менеджер видит, что вы готовитесь");
+    } catch (e) {
+      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      if (code === "changed") {
+        onToast("Программу только что поменяли — посмотрите её и нажмите ещё раз");
+        retry();
+      } else onToast("Не получилось отметить. Проверьте интернет.");
+    }
+  }
+
   if (form) {
     return (
       <EventForm
@@ -212,7 +228,9 @@ export function Planner({ owner, admin = owner, onToast }: { owner: boolean; adm
       now={now}
       owner={owner}
       admin={admin}
+      me={me}
       defaultOpen={open}
+      onAccept={() => void accept(e)}
       onEdit={() => setForm({ event: e, day: e.day })}
       onCopy={() => setForm({ template: e, day: e.day < today ? today : e.day })}
       onCancel={() => cancel(e)}
@@ -794,7 +812,9 @@ function EventCard({
   now,
   owner,
   admin,
+  me,
   defaultOpen,
+  onAccept,
   onEdit,
   onCopy,
   onCancel,
@@ -806,7 +826,9 @@ function EventCard({
   now: number;
   owner: boolean;
   admin: boolean;
+  me: string;
   defaultOpen: boolean;
+  onAccept: () => void;
   onEdit: () => void;
   onCopy: () => void;
   onCancel: () => void;
@@ -819,6 +841,10 @@ function EventCard({
   const pill = statusPill(event, now);
   const started = !event.cancelled && (status === "now" || status === "past");
   const detailsId = `plan-card-${event.id}`;
+  // Отметку «принял» спрашиваем у мероприятий, записанных или изменённых после 22 октября 2026 (`acceptRev` > 0).
+  const ahead = !event.cancelled && status === "upcoming" && (event.acceptRev ?? 0) > 0;
+  const mine = Boolean(me) && me === event.hostId;
+  const accepted = Boolean(event.acceptedAt);
   return (
     <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}>
       <button type="button" className="plan-card__head" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
@@ -832,6 +858,11 @@ function EventCard({
         <span className="plan-card__host">
           Ведёт: <b>{event.hostName || "—"}</b>
         </span>
+        {ahead && (owner || mine) && (
+          <span className="plan-card__accept">
+            <Pill color={accepted ? brand.sage : brand.gold}>{accepted ? (mine ? "✅ Вы приняли" : "✅ Ведущий принял") : mine ? "👉 Примите программу" : "⏳ Не подтвердил"}</Pill>
+          </span>
+        )}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
         </span>
@@ -872,7 +903,20 @@ function EventCard({
               </>
             )}
           </dl>
-          {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && <p className="muted small">Подробностей нет.</p>}
+          {!event.clientName && !event.clientPhone && !event.place && event.guests === null && !event.note && isEmptyProgram(event.program) && <p className="muted small">Подробностей нет.</p>}
+          <ProgramView program={event.program ?? null} />
+          {ahead && mine && (
+            accepted ? (
+              <p className="small plan-accepted">✅ Вы приняли {event.acceptedAt ? acceptedLabel(event.acceptedAt) : ""}. Поменяют программу — придёт сообщение, примите заново.</p>
+            ) : (
+              <button type="button" className="btn btn--block" onClick={onAccept}>
+                ✅ Принял, готовлюсь
+              </button>
+            )
+          )}
+          {ahead && owner && !mine && (
+            <p className="muted small">{accepted ? `✅ Ведущий принял ${event.acceptedAt ? acceptedLabel(event.acceptedAt) : ""}.` : "⏳ Ведущий ещё не нажал «Принял, готовлюсь». За сутки до начала без отметки придёт напоминание."}</p>
+          )}
           {eventsRepo && !event.cancelled && !started && (
             <a className="btn btn--secondary btn--block" href={eventsRepo.icsUrl(event.id)}>
               📅 Добавить в календарь телефона
@@ -925,6 +969,113 @@ function EventCard({
         </div>
       )}
     </article>
+  );
+}
+
+/** «Пт 22 окт, 17:42» — когда ведущий принял программу (по Москве). */
+function acceptedLabel(ms: number): string {
+  return new Date(ms).toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Программа в карточке: форматы, продление, длительность, допы и что подготовить. Цены нет. */
+function ProgramView({ program }: { program: EventProgram | null }) {
+  if (!program || isEmptyProgram(program)) return null;
+  const hints = prepareHints(program);
+  return (
+    <div className="plan-program stack stack--tight">
+      <p className="plan-program__title">🎯 Программа</p>
+      {programLines(program).map((line) => (
+        <p key={line} className="small">
+          {line}
+        </p>
+      ))}
+      {hints.length > 0 && (
+        <>
+          <p className="plan-program__title">🧰 Подготовить</p>
+          <ul className="plan-program__prep small">
+            {hints.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Программа в форме мероприятия: менеджер вставляет расчёт клиента — форматы, продление и допы отмечаются сами
+ * (решение владельца 22 октября 2026). Нет расчёта — те же кнопки вручную. Цена в программу не попадает.
+ */
+function ProgramField({ program, onChange }: { program: EventProgram | null; onChange: (p: EventProgram | null) => void }) {
+  const [text, setText] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+  const p: EventProgram = program ?? { formats: [], extension: "", addons: [], duration: "" };
+  const set = (next: Partial<EventProgram>) => onChange(cleanProgram({ ...p, ...next }));
+  const toggle = (list: string[], value: string) => (list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  return (
+    <fieldset className="stack stack--tight">
+      <legend>🎯 Программа</legend>
+      <p className="muted small">Вставьте расчёт, который клиент прислал из калькулятора, — форматы, продление и допы отметятся сами. Ведущий увидит программу и подтвердит, что принял. Цена в программу не попадает.</p>
+      <label className="field">
+        <span className="field__label">Расчёт клиента</span>
+        <textarea rows={3} value={text} placeholder="🧮 Расчёт JoyRest…" onChange={(e) => setText(e.target.value)} />
+      </label>
+      <button
+        type="button"
+        className="btn btn--secondary btn--block"
+        disabled={!text.trim()}
+        onClick={() => {
+          const found = programFromCalc(text);
+          if (found) {
+            onChange(found);
+            setNote(`✅ Нашлось: ${programLines(found).join("; ")}. Проверьте кнопки ниже.`);
+          } else setNote("🤔 В тексте не нашлось ни пакета, ни допов — отметьте программу кнопками.");
+        }}
+      >
+        🧮 Разобрать расчёт
+      </button>
+      {note && (
+        <p className="small plan-filled" role="status">
+          {note}
+        </p>
+      )}
+      <span className="field__label">🎲 Форматы по порядку вечера</span>
+      <div className="plan-quick" role="group" aria-label="Форматы">
+        {PROGRAM_FORMATS.map((f) => {
+          const at = p.formats.indexOf(f);
+          return (
+            <button key={f} type="button" className={at >= 0 ? "seg__btn is-on" : "seg__btn"} aria-pressed={at >= 0} onClick={() => set({ formats: toggle(p.formats, f) })}>
+              {at >= 0 ? `${at + 1} · ${f}` : f}
+            </button>
+          );
+        })}
+      </div>
+      <span className="field__label">⏱ Продление</span>
+      <div className="plan-quick" role="group" aria-label="Продление">
+        {["", ...PROGRAM_EXTENSIONS].map((x) => (
+          <button key={x || "none"} type="button" className={p.extension === x ? "seg__btn is-on" : "seg__btn"} aria-pressed={p.extension === x} onClick={() => set({ extension: x })}>
+            {x ? `+${x}` : "Нет"}
+          </button>
+        ))}
+      </div>
+      <span className="field__label">🎁 Допы</span>
+      <div className="plan-quick" role="group" aria-label="Допы">
+        {PROGRAM_ADDONS.map((a) => (
+          <button key={a} type="button" className={p.addons.includes(a) ? "seg__btn is-on" : "seg__btn"} aria-pressed={p.addons.includes(a)} onClick={() => set({ addons: toggle(p.addons, a) })}>
+            {a}
+          </button>
+        ))}
+      </div>
+      {p.duration && (
+        <p className="small">
+          ⌛ Длительность по расчёту: {p.duration}{" "}
+          <button type="button" className="btn btn--quiet plan-inline" onClick={() => set({ duration: "" })}>
+            убрать
+          </button>
+        </p>
+      )}
+    </fieldset>
   );
 }
 
@@ -1009,6 +1160,7 @@ export function EventForm({
   const [place, setPlace] = useState(base?.place ?? "");
   const [guests, setGuests] = useState(base?.guests != null ? String(base.guests) : "");
   const [note, setNote] = useState(base?.note ?? "");
+  const [program, setProgram] = useState<EventProgram | null>(base?.program ?? null);
   const [allTeam, setAllTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1034,8 +1186,8 @@ export function EventForm({
   }, [pastEvents]);
   const places = useMemo(() => [...new Set(pastEvents.map((e) => e.place).filter(Boolean))].slice(0, 30), [pastEvents]);
 
-  const initialSnapshot = useState(() => JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note]))[0];
-  const dirty = JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note]) !== initialSnapshot;
+  const initialSnapshot = useState(() => JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program]))[0];
+  const dirty = JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program]) !== initialSnapshot;
 
   const statusOf = (uid: string) =>
     availabilityOf(
@@ -1089,6 +1241,7 @@ export function EventForm({
           place: place.trim(),
           guests: guestsNum,
           note: note.trim(),
+          program,
           // Правка — с версией, с которой открыли форму (владелец и менеджер могут править одно мероприятие).
           ...(initial?.updatedAt ? { expect: initial.updatedAt } : {}),
         }),
@@ -1212,6 +1365,8 @@ export function EventForm({
         </label>
       </fieldset>
 
+      <ProgramField program={program} onChange={setProgram} />
+
       <fieldset className="stack stack--tight">
         <legend>Клиент и место</legend>
         <label className="field">
@@ -1248,10 +1403,10 @@ export function EventForm({
           ))}
         </datalist>
         <label className="field">
-          <span className="field__label">Комментарий (программа, пожелания)</span>
+          <span className="field__label">Комментарий ведущему (пожелания, особенности)</span>
           <textarea rows={3} maxLength={EVENT_LIMITS.note} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
-        <p className="muted small">Имя и телефон клиента видят только вы и ведущий этого мероприятия.</p>
+        <p className="muted small">Имя и телефон клиента видят только вы и ведущий этого мероприятия. Программу и комментарий ведущий видит в студии, программу — ещё в Telegram (без клиента).</p>
       </fieldset>
 
       {!ready && <p className="muted small">Осталось указать: {missing.join(", ")}.</p>}

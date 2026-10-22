@@ -4,6 +4,8 @@
  * (таймлайн), 7 дней, месяц, а также списки «Предстоящие», «Идут сейчас», «Архив», «Отменённые».
  * У ведущего время мероприятия занято в календаре. Чистые функции: их же проверяет сервер.
  */
+import { cleanProgram, programLines, type EventProgram } from "./eventProgram";
+import type { Overtime } from "./overtime";
 import type { AgencyEvent } from "../data/types";
 import { cleanNote, DAY_MINUTES, dayIndex, dayInWindow, dayTitle, endAfter, MAX_END, rangeLabel, TIME_STEP, todayMoscow, validTime } from "./calendar";
 
@@ -62,6 +64,8 @@ export interface EventInput {
   place: string;
   guests: number | null;
   note: string;
+  /** Программа (форматы, продление, допы); `undefined` — форма её не прислала, прежняя остаётся. */
+  program?: EventProgram | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
@@ -93,6 +97,7 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
     place: cleanText(b.place, EVENT_LIMITS.place),
     guests,
     note: cleanText(b.note, EVENT_LIMITS.note),
+    ...("program" in b ? { program: cleanProgram(b.program) } : {}),
   };
   if (!input.title && !input.clientName) return null;
   return input;
@@ -402,7 +407,7 @@ export function reminderDue(startsAt: number, now: number): "day" | "hours" | nu
  */
 export function noticeText(
   kind: NoticeKind,
-  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">,
+  e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end"> & Pick<Partial<AgencyEvent>, "program">,
   platformUrl: string,
   now = Date.now(),
   /** Время начала из базы (по нему срабатывают напоминания); нет — по дате и времени мероприятия. */
@@ -418,7 +423,39 @@ export function noticeText(
       : kind === "after"
         ? `\n\nОдно касание в студии — «Проведено» или «Не состоялось»:\n${platformUrl}/studio`
         : `\n\nКлиент, телефон и подробности — в студии:\n${platformUrl}/studio/calendar?tab=events`;
-  return `${head}\n\n${what}\n${when}${tail}`;
+  // Программа — ведущему при назначении, изменении и в напоминаниях (без цены и без клиента).
+  const lines = kind === "removed" || kind === "cancelled" || kind === "after" ? [] : programLines(e.program);
+  const program = lines.length ? `\n\n🎯 Программа: ${lines.join("\n")}` : "";
+  return `${head}\n\n${what}\n${when}${program}${tail}`;
+}
+
+/** Владельцу и менеджерам: ведущий не нажал «Принял, готовлюсь», а до начала меньше суток. Без клиента. */
+export function unacceptedText(e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">, hostName: string, platformUrl: string): string {
+  const what = `${e.title || "Мероприятие"}${e.guests ? ` · ${e.guests} гостей` : ""}`;
+  return `⏰ Ведущий не подтвердил мероприятие\n\n${what}\n${dayTitle(e.day)}, ${rangeLabel(e.start, e.end)}\nВедёт: ${hostName || "—"}\n\nДо начала меньше суток. Напишите ведущему или проверьте в студии:\n${platformUrl}/studio/calendar?tab=events`;
+}
+
+/**
+ * Игра идёт дольше мероприятия по плану (решение владельца 22 октября 2026): ведущему и владельцу в Telegram — сверх
+ * 20 минут и потом каждые 30 минут, со стоимостью продления по калькулятору. Без клиента.
+ */
+export function overtimeNoticeText(e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">, over: Overtime, hostName: string, forHost: boolean, platformUrl: string): string {
+  const what = `${e.title || "Мероприятие"}${e.guests ? ` · ${e.guests} гостей` : ""}`;
+  const planned = e.end > e.start ? e.end - e.start : e.end + 1440 - e.start;
+  const length = planned + over.minutes;
+  const money = over.price === null ? "больше 2 часов сверх плана — обсудите доплату с клиентом" : `продление ${over.extension} — ${over.price.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₽`;
+  const head = `⏰ Мероприятие идёт дольше плана\n\n${what}\n${dayTitle(e.day)}, по плану ${rangeLabel(e.start, e.end)} (${hoursText(planned)})`;
+  const now = `\n⌛ Идёт уже ${hoursText(length)} — сверх плана ${over.minutes} мин.\n💰 По условиям: ${money}.`;
+  const tail = forHost
+    ? "\n\n🙋 Предупредите заказчика: продление — только с его согласия. Не продлеваете — пора завершать."
+    : `\n\n🎤 Ведёт: ${hostName || "—"}\n${platformUrl}/studio`;
+  return head + now + tail;
+}
+
+function hoursText(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h} ч${m ? ` ${m} мин` : ""}` : `${m} мин`;
 }
 
 // ───────────── Итоги: неделя, месяц, квартал, год ─────────────

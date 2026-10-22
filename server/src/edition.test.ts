@@ -125,9 +125,12 @@ const AGENCY_PATHS = [
   "/api/team",
   "/api/proposals?mine=1",
   "/api/users/x/points",
+  "/api/reviews",
+  "/api/photos",
+  "/api/brandings",
 ];
 // Игры, сессии, музыка, видео, показы — общие для обеих редакций.
-const SHARED_PATHS = ["/api/auth/me", "/api/games?scope=agency", "/api/tracks", "/api/videos", "/api/decks", "/api/brandings", "/api/time"];
+const SHARED_PATHS = ["/api/auth/me", "/api/games?scope=agency", "/api/tracks", "/api/videos", "/api/decks", "/api/time"];
 
 const url = process.env.TEST_DATABASE_URL;
 describe.skipIf(!url)("редакция Лайт на PostgreSQL: разделов агентства нет", () => {
@@ -157,6 +160,13 @@ describe.skipIf(!url)("редакция Лайт на PostgreSQL: раздело
       expect((await get(agency, path)).statusCode, `агентство ${path}`).not.toBe(404);
       expect((await get(lite, path)).statusCode, `Лайт ${path}`).toBe(404);
     }
+  });
+
+  it("Лайт не сохраняет оформление под заказчика в сессии (платный шаблон), агентство — сохраняет", () => {
+    const live = readFileSync(resolve(import.meta.dirname, "live.ts"), "utf8");
+    expect(live).toContain('const branding = options.brandings === false ? null : parseBranding(body.branding ?? null);');
+    const app = readFileSync(resolve(import.meta.dirname, "app.ts"), "utf8");
+    expect(app).toContain("registerLive(app, { ...options.live, sql: options.sql, isSite, brandings: !lite });");
   });
 
   it("игры, музыка, видео и показы есть в обеих редакциях", async () => {

@@ -35,6 +35,11 @@ export interface LiveOptions {
   now?: () => number;
   /** Пауза между «я жив» в потоке, мс. */
   keepAliveMs?: number;
+  /**
+   * Оформление под заказчика в сессиях (по умолчанию да). В Лайте нет: это платный «Фирменный шаблон», в тариф не
+   * входит — сервер такое оформление не сохраняет, что бы ни прислал браузер.
+   */
+  brandings?: boolean;
 }
 
 // ------------------------------------------------------------------ рассылка
@@ -693,7 +698,7 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         mechanic = program.blocks[0]?.mechanic ?? null;
         snapshot = program.snapshots[0] ?? null;
       }
-      const branding = parseBranding(body.branding ?? null);
+      const branding = options.brandings === false ? null : parseBranding(body.branding ?? null);
       for (let attempt = 0; attempt < 10; attempt++) {
         const code = generateSessionCode();
         // Код занят незавершённой сессией — уникальный индекс не даст записать, пробуем другой.

@@ -168,16 +168,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const isSite = site ? site.isSite : undefined;
     registerAuth(app, { ...options.auth, sql: options.sql, isSite });
     registerGames(app, { ...options.games, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerLive(app, { ...options.live, sql: options.sql, isSite });
+    registerLive(app, { ...options.live, sql: options.sql, isSite, brandings: !lite });
     if (!lite) {
       registerProposals(app, { sql: options.sql, isSite });
       registerStaff(app, { sql: options.sql, isSite });
     }
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerFinale(app, { sql: options.sql, isSite });
-    registerPhotos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerBranding(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDecks(app, { ...options.decks, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDrawings(app, { ...options.drawings, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerPolls(app, { sql: options.sql, isSite });
@@ -185,6 +182,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Разделы агентства (CRM, команда, площадки, Telegram) — только в платформе агентства.
   if (options.sql && !lite) {
     const isSite = site ? site.isSite : undefined;
+    // Конец игры с отзывами и ссылками JoyRest, фотоотчёт для канала и сайта агентства, оформление под заказчика
+    // (в Лайте — платный «Фирменный шаблон», не тариф) — только у агентства (решение владельца 22 октября 2026).
+    registerFinale(app, { sql: options.sql, isSite });
+    registerPhotos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerBranding(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });

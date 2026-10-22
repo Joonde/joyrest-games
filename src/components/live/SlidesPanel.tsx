@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { linesFromText, slideTemplate, SLIDE_TEMPLATES } from "../../core/slides";
+import { linesFromText, slideDefaults, slideTemplate, SLIDE_TEMPLATES } from "../../core/slides";
 import { rulesFor } from "../../core/rules";
 import { Icon, type IconName } from "../Icon";
 import { DeckPanel } from "./Decks";
-import { clock, SLIDE_LIMITS, type Session, type SessionChange, type SlideKind, type SlideState } from "../../data";
+import { clock, edition, SLIDE_LIMITS, type Session, type SessionChange, type SlideKind, type SlideState } from "../../data";
 
 const DRAFT_KEY = "joyrest.slides";
 
@@ -36,7 +36,8 @@ export function slideId(): string {
 }
 
 function defaultDraft(kind: SlideKind, session?: Pick<Session, "mechanic" | "playMode">): Draft {
-  const d = slideTemplate(kind).defaults;
+  // В Лайте вечер ведёт подписчик — тексты шаблонов без «команды JoyRest».
+  const d = slideDefaults(kind, edition() === "lite");
   // Правила — свои у каждого формата игры и режима (каждый сам за себя или команды).
   if (kind === "rules" && session) {
     const rules = rulesFor(session.mechanic, session.playMode);

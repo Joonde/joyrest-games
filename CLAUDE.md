@@ -326,6 +326,12 @@ Firebase удаляются, Firebase-код удаляется отдельны
   Сервер Лайта их адресов не регистрирует (404, `server/src/app.ts`, `main.ts` не запускает бота и канал), в браузере их
   хранилища — null (`src/data/active.ts`, `agency`), поэтому экраны и меню прячут их так же, как в Firebase-версии.
   Новый раздел агентства — сразу за `agency` в `active.ts` и `!lite` в `app.ts`; проверяет `server/src/edition.test.ts`.
+  Ещё скрыто в Лайте (решение владельца 22 октября 2026): фотоотчёты, отзывы и все ссылки JoyRest конца игры (чаевые, Авито,
+  канал, сайт, QR на «Спасибо» — `JOYREST_LINKS` в `Finale.tsx`), «Оформление под заказчика» (это платный «Фирменный шаблон»
+  за 30 000 ₽: сервер Лайта не сохраняет `branding` сессии — `LiveOptions.brandings`), профессии и роли доступа в `/admin`
+  (`TEAM_ROLES`). Тексты слайдов без «команды JoyRest» (`slideDefaults(kind, true)`). Страницы агентства в Лайте — «не
+  найдено» (маршруты в `App.tsx` под `agency`; `App.tsx` читает метку лёгким `src/data/edition.ts` — исключение
+  `boundary.test.ts`). «Показы» в Лайте остаются. Проверяет `src/data/edition.test.ts`.
 - **Лайт для проверки — на текущем сервере** (до отдельного сервера перед бетой): `app-lite-test` в compose — образ
   `APP_TEST_IMAGE` (выкладывается вместе с app-test из веток `claude/*`, `start_env test`), `EDITION: lite`, своя база
   `joyrest_lite_test` (тестовая роль, создаёт `ensure_test_db`, миграции — `run_migrations lite` при выкладке test; ошибка

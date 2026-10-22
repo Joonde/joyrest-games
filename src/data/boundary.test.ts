@@ -20,7 +20,8 @@ const FIREBASE_IMPORT = /from\s+["'](firebase(\/[^"']*)?|@firebase\/[^"']+)["']|
 const DATA_INTERNALS = /from\s+["'](\.{1,2}\/)+data\/(?!index["']|types["'])[^"']+["']/g;
 // Исключение: main.tsx заранее качает SDK через лёгкий загрузчик, не таща весь слой данных
 // в общий чанк главной и /j.
-const ALLOWED_INTERNALS: Record<string, string[]> = { "main.tsx": ['from "./data/firebase"'] };
+// и App.tsx читает метку редакции (Лайт) лёгким модулем без слоя данных, чтобы маршруты агентства в Лайте не открывались.
+const ALLOWED_INTERNALS: Record<string, string[]> = { "main.tsx": ['from "./data/firebase"'], "App.tsx": ['from "./data/edition"'] };
 
 describe("граница слоя данных", () => {
   const outside = files(SRC).filter((f) => !relative(SRC, f).startsWith(`data${sep}`));

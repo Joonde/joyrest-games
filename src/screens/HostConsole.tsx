@@ -12,6 +12,7 @@ import { isOnline } from "../core/presence";
 import { awardNow, canAwardNow, hasPodium } from "../core/podium";
 import { presentationDone, teamOrder, teamsReveal } from "../core/teams";
 import {
+  edition,
   answersRepo,
   errorCodeOf,
   clock,
@@ -273,7 +274,7 @@ function Console({ session }: { session: Session }) {
       // Ведущий может убрать слайд — под ним итоги игры.
       // Закрыли в лобби без игроков — благодарить не за что, слайда нет.
       if (Object.keys(latest.current.leaderboard).length > 0) {
-        void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId()) } }).catch(() => undefined);
+        void sessionsRepo.apply(session.id, { state: { slide: thanksSlide(slideId(), edition() === "lite") } }).catch(() => undefined);
       }
     } catch {
       setError("Не удалось завершить игру. Проверьте интернет.");
@@ -535,7 +536,7 @@ function Console({ session }: { session: Session }) {
                   <button
                     type="button"
                     className="btn btn--quiet btn--block"
-                    onClick={() => void apply({ state: { slide: slide?.kind === "thanks" ? null : thanksSlide(slideId()) } }).catch(() => undefined)}
+                    onClick={() => void apply({ state: { slide: slide?.kind === "thanks" ? null : thanksSlide(slideId(), edition() === "lite") } }).catch(() => undefined)}
                   >
                     {slide?.kind === "thanks" ? "Убрать «Спасибо» — показать итоги" : "«Спасибо» с QR чаевых, отзыва и канала — на экран"}
                   </button>

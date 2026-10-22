@@ -6,6 +6,10 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { Home } from "./screens/Home";
 import { JoinByCode } from "./screens/JoinByCode";
 import { NotFound } from "./screens/NotFound";
+// Только метка редакции из index.html — лёгкий модуль без слоя данных (главная и /j не тянут Firebase).
+import { edition } from "./data/edition";
+
+const agency = edition() !== "lite";
 
 // Экраны грузятся по отдельности: телефону гостя не нужен код пульта и студии.
 const Studio = lazy(() => import("./screens/studio/Studio").then((m) => ({ default: m.Studio })));
@@ -60,38 +64,43 @@ export function App() {
           <Route path="/studio/launch/:gameId" element={<Launch />} />
           <Route path="/studio/rehearsal/:gameId" element={<Rehearsal />} />
           <Route path="/studio/password" element={<ChangePassword />} />
-          <Route path="/studio/team" element={<Team />} />
-          <Route path="/studio/calendar" element={<Calendar />} />
-          <Route path="/studio/clients" element={<Clients />} />
-          <Route path="/studio/reviews" element={<Reviews />} />
-          <Route path="/studio/photos" element={<Photos />} />
           <Route path="/studio/decks" element={<Decks />} />
-          <Route path="/studio/privacy" element={<PrivacySearch />} />
           <Route path="/studio/guide" element={<Guide />} />
           <Route path="/studio/editor-guide" element={<EditorGuide />} />
-          <Route path="/studio/sales-guide" element={<SalesGuide />} />
-          <Route path="/studio/abilities" element={<Abilities />} />
           <Route path="/studio/host-games" element={<HostGames />} />
-          <Route path="/studio/profile" element={<Profile />} />
-          <Route path="/studio/qr" element={<VenueQrPage />} />
           <Route path="/admin" element={<Team manage />} />
-          <Route path="/venues" element={<VenuesHome />} />
-          <Route path="/venues/new" element={<NewVenue />} />
-          <Route path="/venues/v/:venueId" element={<VenueDetail />} />
-          <Route path="/venues/r/:requestId" element={<RequestDetail />} />
-          <Route path="/v" element={<VenueForm />} />
-          <Route path="/r" element={<RequestForm />} />
-          <Route path="/o/:offerId" element={<OfferPage />} />
           <Route path="/host/:code" element={<HostConsole />} />
           <Route path="/screen/:code" element={<HallScreen />} />
           <Route path="/play/:code" element={<Play />} />
           <Route path="/vote/:code" element={<AudienceVote />} />
-          <Route path="/review/:sessionId" element={<ReviewPage />} />
           <Route path="/poll/:pollId" element={<PollPage />} />
           <Route path="/j" element={<JoinByCode />} />
           <Route path="/s" element={<JoinByCode target="screen" />} />
           <Route path="/results/:resultId" element={<Results />} />
           <Route path="/brand" element={<Brand />} />
+          {/* Разделы агентства (команда, клиенты, площадки, отзывы, фотоотчёты) — только у агентства; в Лайте — «не найдено». */}
+          {agency && (
+            <>
+              <Route path="/studio/team" element={<Team />} />
+              <Route path="/studio/calendar" element={<Calendar />} />
+              <Route path="/studio/clients" element={<Clients />} />
+              <Route path="/studio/reviews" element={<Reviews />} />
+              <Route path="/studio/photos" element={<Photos />} />
+              <Route path="/studio/privacy" element={<PrivacySearch />} />
+              <Route path="/studio/sales-guide" element={<SalesGuide />} />
+              <Route path="/studio/abilities" element={<Abilities />} />
+              <Route path="/studio/profile" element={<Profile />} />
+              <Route path="/studio/qr" element={<VenueQrPage />} />
+              <Route path="/venues" element={<VenuesHome />} />
+              <Route path="/venues/new" element={<NewVenue />} />
+              <Route path="/venues/v/:venueId" element={<VenueDetail />} />
+              <Route path="/venues/r/:requestId" element={<RequestDetail />} />
+              <Route path="/v" element={<VenueForm />} />
+              <Route path="/r" element={<RequestForm />} />
+              <Route path="/o/:offerId" element={<OfferPage />} />
+              <Route path="/review/:sessionId" element={<ReviewPage />} />
+            </>
+          )}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

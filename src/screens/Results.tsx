@@ -3,7 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { formatClock, formatDate } from "../core/format";
 import { participantsLabel } from "../core/results";
 import { resultsRepo, useAuth, useLoad, type GameResult } from "../data";
-import { FinaleLinks } from "../components/live/Finale";
+import { FinaleLinks, JOYREST_LINKS } from "../components/live/Finale";
 import { Logo } from "../components/Logo";
 import { ResultsTable, ShareResults } from "../components/Results";
 import { PlaySkeleton } from "../components/Skeleton";
@@ -53,7 +53,7 @@ function ResultsView({ result }: { result: GameResult }) {
         <ResultsTable result={result} />
       </section>
       <ShareResults result={result} onToast={showToast} primary />
-      {!host && (
+      {!host && JOYREST_LINKS && (
         <section className="card stack">
           <h2>Понравилось?</h2>
           <FinaleLinks />

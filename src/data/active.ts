@@ -101,15 +101,15 @@ export const gameFoldersRepo: typeof serverGameFolders | null = server ? serverG
 /** Музыка — только свой сервер. */
 export const tracksRepo: TracksRepository | null = server ? serverTracksRepository : null;
 /** Фотоотчёт мероприятия — только свой сервер. */
-export const photosRepo: EventPhotosRepository | null = server ? serverEventPhotosRepository : null;
-export const brandingsRepo: BrandingsRepository | null = server ? serverBrandingsRepository : null;
+export const photosRepo: EventPhotosRepository | null = agency ? serverEventPhotosRepository : null;
+export const brandingsRepo: BrandingsRepository | null = agency ? serverBrandingsRepository : null;
 export const decksRepo: DecksRepository | null = server ? serverDecksRepository : null;
 /** Рисунки гостей «Аквариума и Ёлки» — только свой сервер. */
 export const drawingsRepo: DrawingsRepository | null = server ? serverDrawingsRepository : null;
 /** «Опрос гостей заранее» для «Что скажет большинство» — только свой сервер. */
 export const pollsRepo: PollsRepository | null = server ? serverPollsRepository : null;
 /** Конец игры: чаевые и отзывы — только свой сервер. */
-export const finaleRepo: FinaleRepository | null = server ? serverFinaleRepository : null;
+export const finaleRepo: FinaleRepository | null = agency ? serverFinaleRepository : null;
 /** Видео JoyRest — только свой сервер. */
 export const videosRepo: VideosRepository | null = server ? serverVideosRepository : null;
 /** «Команда JoyRest» — только свой сервер. */

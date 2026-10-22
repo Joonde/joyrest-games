@@ -2,7 +2,7 @@
 // подпись по желанию. Там же — чаевые ведущему и «Мы на связи» (Авито, канал, сайт — `FinaleLinks`). Игру уже убрали
 // (сессии живут 30 дней) — «уже в архиве» и те же ссылки; сеть не ответила — «Повторить». Только свой сервер (`finaleRepo`).
 import { useParams } from "react-router-dom";
-import { FinaleLinks, ReviewForm, TIPS_URL, TipsButton, useFinale } from "../components/live/Finale";
+import { FinaleLinks, JOYREST_LINKS, ReviewForm, TIPS_URL, TipsButton, useFinale } from "../components/live/Finale";
 import { Logo } from "../components/Logo";
 import { PlaySkeleton } from "../components/Skeleton";
 import { LoadFailed, Message, Pending } from "../components/Status";
@@ -14,7 +14,7 @@ export function ReviewPage() {
   if (!finaleRepo) {
     return (
       <Message title="Спасибо!">
-        <p>Оставить отзыв можно на Авито или в нашем Telegram-канале.</p>
+        <p>{JOYREST_LINKS ? "Оставить отзыв можно на Авито или в нашем Telegram-канале." : "Спасибо, что были с нами!"}</p>
         <FinaleLinks />
       </Message>
     );

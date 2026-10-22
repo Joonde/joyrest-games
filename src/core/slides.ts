@@ -104,9 +104,22 @@ export function techSlide(id: string): SlideState {
   return { id, kind: "tech", title: d.title, text: d.text, lines: [], endsAt: null };
 }
 
+/** Тексты без JoyRest для Лайта: вечер ведёт подписчик, а не команда JoyRest (решение владельца 22 октября 2026). */
+const NEUTRAL_TEXTS: Partial<Record<SlideKind, string>> = {
+  intro: "Сегодня играем вместе!",
+  thanks: "Спасибо, что были с нами!",
+};
+
+/** Тексты шаблона по умолчанию; `neutral` — без упоминания JoyRest (Лайт). */
+export function slideDefaults(kind: SlideKind, neutral = false): SlideTemplate["defaults"] {
+  const d = slideTemplate(kind).defaults;
+  const text = neutral ? NEUTRAL_TEXTS[kind] : undefined;
+  return text === undefined ? d : { ...d, text };
+}
+
 /** «Спасибо» после «Завершить игру»: чаевые, отзыв и канал (решение владельца 15 октября 2026). */
-export function thanksSlide(id: string): SlideState {
-  const d = slideTemplate("thanks").defaults;
+export function thanksSlide(id: string, neutral = false): SlideState {
+  const d = slideDefaults("thanks", neutral);
   return { id, kind: "thanks", title: d.title, text: d.text, lines: [], endsAt: null };
 }
 

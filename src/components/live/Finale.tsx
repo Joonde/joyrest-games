@@ -6,7 +6,7 @@
  * Только свой сервер (`finaleRepo`); у Firebase — один QR канала, как раньше.
  */
 import { useCallback, useEffect, useState } from "react";
-import { errorCodeOf, finaleRepo, type Finale } from "../../data";
+import { edition, errorCodeOf, finaleRepo, type Finale } from "../../data";
 import { QrCode } from "../QrCode";
 
 export const CHANNEL_URL = "https://t.me/JoyRest";
@@ -24,6 +24,12 @@ export const TIPS_URL = "https://tips.yandex.ru/guest/payment/4035386?is_from_qr
 export const TIPS_TEXT =
   "Огромное спасибо, что играли с нами! Если вечер понравился и есть желание поддержать ведущего и команду JoyRest — можно оставить чаевые.";
 
+/**
+ * Ссылки JoyRest в конце игры (чаевые, Авито, канал, сайт, QR на «Спасибо») — только у агентства. В Лайте гости ведущих-
+ * подписчиков их не видят (решение владельца 22 октября 2026); свои ссылки подписчика — позже.
+ */
+export const JOYREST_LINKS = edition() !== "lite";
+
 export function reviewUrl(sessionId: string): string {
   return `${window.location.origin}/review/${sessionId}`;
 }
@@ -33,6 +39,7 @@ export function reviewUrl(sessionId: string): string {
  * кнопка Авито уже стоит рядом (отзыв отправлен — `ReviewForm` зовёт на Авито сам).
  */
 export function FinaleLinks({ avito = true }: { avito?: boolean }) {
+  if (!JOYREST_LINKS) return null;
   return (
     <div className="stack stack--tight finale-links">
       {avito && (
@@ -100,6 +107,10 @@ export function useFinale(
 
 /** Экран зала: QR-коды на слайде «Спасибо». */
 export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined }) {
+  return JOYREST_LINKS ? <FinaleQrsJoyRest sessionId={sessionId} /> : null;
+}
+
+function FinaleQrsJoyRest({ sessionId }: { sessionId: string | null | undefined }) {
   const [finale] = useFinale(sessionId);
   // Ждём ссылку для чаевых до 4 с, чтобы QR-коды не перестраивались на глазах у зала; нет ответа — без чаевых.
   const [waited, setWaited] = useState(false);
@@ -158,6 +169,7 @@ export function FinaleQrs({ sessionId }: { sessionId: string | null | undefined 
 
 /** Чаевые на телефоне гостя: благодарность и кнопка. */
 export function TipsButton({ url = TIPS_URL }: { url?: string }) {
+  if (!JOYREST_LINKS) return null;
   return (
     <div className="stack stack--tight finale-tips">
       <p className="small">{TIPS_TEXT}</p>
@@ -184,6 +196,7 @@ function TipsQr({ url }: { url: string }) {
 /** Телефон гостя после игры: те же дела кнопками, отзыв — прямо здесь. */
 export function FinalePhone({ sessionId }: { sessionId: string }) {
   const [finale, setFinale] = useFinale(sessionId);
+  if (!JOYREST_LINKS) return null;
   if (!finaleRepo) {
     if (!TIPS_URL) return null;
     return (

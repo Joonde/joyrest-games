@@ -26,13 +26,40 @@ describe("редакция в браузере", () => {
     expect(edition()).toBe("agency");
   });
 
+  it("страницы агентства в Лайте не открываются: маршруты — только у агентства", () => {
+    const app = readFileSync(resolve(import.meta.dirname, "../App.tsx"), "utf8");
+    const start = app.indexOf("{agency && (");
+    const end = app.indexOf(")}", start);
+    expect(start).toBeGreaterThan(0);
+    const block = app.slice(start, end);
+    // Точное совпадение с кавычкой и пробелом: "/studio" не путается с "/studio/clients".
+    const route = (path: string) => `path="${path}" `;
+    for (const path of ["/studio/clients", "/studio/calendar", "/studio/team", "/studio/reviews", "/studio/photos", "/venues", "/v", "/r", "/o/:offerId", "/review/:sessionId", "/studio/qr"]) {
+      expect(block, path).toContain(route(path));
+      expect(app.indexOf(route(path)), path).toBe(app.lastIndexOf(route(path)));
+    }
+    for (const path of ["/studio", "/admin", "/host/:code", "/play/:code", "/screen/:code", "/studio/decks", "/results/:resultId"]) {
+      expect(block, path).not.toContain(route(path));
+      expect(app, path).toContain(route(path));
+    }
+  });
+
+  it("слайды Лайта — без «команды JoyRest»", async () => {
+    const { slideDefaults, thanksSlide } = await import("../core/slides");
+    expect(slideDefaults("thanks").text).toContain("JoyRest");
+    expect(slideDefaults("thanks", true).text).not.toContain("JoyRest");
+    expect(slideDefaults("intro", true).text).not.toContain("JoyRest");
+    expect(thanksSlide("a", true).text).not.toContain("JoyRest");
+    expect(slideDefaults("rules", true)).toEqual(slideDefaults("rules"));
+  });
+
   it("разделы агентства в Лайте отключены, общие — нет", () => {
     const active = readFileSync(resolve(import.meta.dirname, "active.ts"), "utf8");
     expect(active).toContain('const agency = server && edition() !== "lite";');
-    for (const repo of ["proposalsRepo", "staffRepo", "teamRepo", "venuesRepo", "calendarRepo", "eventsRepo", "clientsRepo", "noticesRepo", "telegramRepo"]) {
+    for (const repo of ["proposalsRepo", "staffRepo", "teamRepo", "venuesRepo", "calendarRepo", "eventsRepo", "clientsRepo", "noticesRepo", "telegramRepo", "finaleRepo", "photosRepo", "brandingsRepo"]) {
       expect(active, repo).toMatch(new RegExp(`export const ${repo}: [^=]+= agency \\?`));
     }
-    for (const repo of ["gamesRepo", "sessionsRepo", "tracksRepo", "videosRepo", "decksRepo", "brandingsRepo", "finaleRepo", "photosRepo", "pollsRepo"]) {
+    for (const repo of ["gamesRepo", "sessionsRepo", "tracksRepo", "videosRepo", "decksRepo", "pollsRepo", "drawingsRepo"]) {
       expect(active, repo).not.toMatch(new RegExp(`export const ${repo}: [^=]+= agency \\?`));
     }
   });

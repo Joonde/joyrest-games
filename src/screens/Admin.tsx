@@ -6,6 +6,7 @@ import { ACCESS_ROLES, accessRoleTitle, isAccessRole, type AccessRole } from "..
 import { PROFESSIONS, professionOf, professionTitle, type Profession } from "../core/professions";
 import { retentionCutoff, SESSION_RETENTION_DAYS } from "../core/retention";
 import {
+  edition,
   authService,
   permissions,
   sessionsRepo,
@@ -55,6 +56,9 @@ function useSessionCleanup(): CleanupState {
   }, []);
   return state;
 }
+
+/** Профессии и роли доступа — команда агентства; в Лайте их нет (там подписчики — ведущие). */
+const TEAM_ROLES = edition() !== "lite";
 
 /**
  * Все действия владельца с человеком команды — одно меню «⋯» и окна (решение владельца 15 октября 2026: те же действия и
@@ -168,10 +172,10 @@ export function useHostAdmin(profile: UserProfile, update: (fn: (list: HostAccou
             { label: "Баллы", onClick: () => setToPoints(host) },
           ]
         : []),
-      ...(usersRepo.setProfession && permissions.canSetHostActive(profile, host)
+      ...(TEAM_ROLES && usersRepo.setProfession && permissions.canSetHostActive(profile, host)
         ? [{ label: "Профессия", onClick: () => { setDialogError(null); setToProfession({ host, value: professionOf(host.profession) }); } }]
         : []),
-      ...(usersRepo.setAccessRole && permissions.canSetAccessRole(profile, host)
+      ...(TEAM_ROLES && usersRepo.setAccessRole && permissions.canSetAccessRole(profile, host)
         ? [{ label: "Роль доступа", onClick: () => { setDialogError(null); setToRole({ host, value: isAccessRole(host.accessRole) ? host.accessRole : null }); } }]
         : []),
       ...(venuesRepo && permissions.canGrantVenueAccess(profile, host)
@@ -497,7 +501,7 @@ function AddHostForm({ onCreated }: { onCreated: (created: CreatedHost) => void 
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      {usersRepo.setProfession && (
+      {TEAM_ROLES && usersRepo.setProfession && (
         <fieldset className="stack stack--tight">
           <legend>Профессия</legend>
           <ProfessionPicker value={profession} onChange={setProfession} />

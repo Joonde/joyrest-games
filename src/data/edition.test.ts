@@ -44,6 +44,12 @@ describe("редакция в браузере", () => {
     }
   });
 
+  it("«Итоги игр» в Лайте ведут назад к «Ведущим», а не на скрытую «Команду»", () => {
+    const page = readFileSync(resolve(import.meta.dirname, "../screens/studio/HostGames.tsx"), "utf8");
+    expect(page).toContain('teamRepo ? { label: "К команде", to: "/studio/team?tab=manage" } : { label: "К ведущим", to: "/admin" }');
+    expect(page.match(/\/studio\/team/g)?.length).toBe(1);
+  });
+
   it("слайды Лайта — без «команды JoyRest»", async () => {
     const { slideDefaults, thanksSlide } = await import("../core/slides");
     expect(slideDefaults("thanks").text).toContain("JoyRest");

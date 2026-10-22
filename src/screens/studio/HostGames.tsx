@@ -9,7 +9,7 @@ import { dayTitle, rangeLabel } from "../../core/calendar";
 import { formatDate } from "../../core/format";
 import { hostGamesSummary, recentResults, upcomingOf } from "../../core/hostOverview";
 import { experienceLabel, levelTitle } from "../../core/levels";
-import { eventsRepo, permissions, resultsRepo, useLoad, usersRepo, type AgencyEvent, type HostAccount, type UserProfile } from "../../data";
+import { eventsRepo, permissions, teamRepo, resultsRepo, useLoad, usersRepo, type AgencyEvent, type HostAccount, type UserProfile } from "../../data";
 import { HostGate } from "../../components/HostGate";
 import { ListSkeleton, StudioSkeleton } from "../../components/Skeleton";
 import { LoadFailedInline } from "../../components/Status";
@@ -19,13 +19,15 @@ import { ResultCard } from "./History";
 import { studioActions } from "./Studio";
 
 const PAGE = 10;
+/** Назад к списку людей: у агентства — «Команда → Управление», без «Команды» (Лайт, Firebase) — «Ведущие» (`/admin`). */
+const TEAM_BACK = teamRepo ? { label: "К команде", to: "/studio/team?tab=manage" } : { label: "К ведущим", to: "/admin" };
 
 export function HostGames() {
   return (
     <HostGate skeleton={<StudioSkeleton />}>
       {(_user, profile) => (
         <main className="page">
-          <TopBar title="Итоги игр" actions={[{ label: "К команде", to: "/studio/team?tab=manage" }, ...studioActions(profile)]} />
+          <TopBar title="Итоги игр" actions={[TEAM_BACK, ...studioActions(profile)]} />
           {permissions.canManageHosts(profile) ? <HostGamesFor profile={profile} /> : <p className="muted">Этот раздел — только для владельца JoyRest.</p>}
         </main>
       )}

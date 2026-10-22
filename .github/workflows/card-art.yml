@@ -85,6 +85,6 @@ jobs:
         run: |
           git config user.name "joyrest-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art public/quest/art public/covers/art docs/site-extras/art site/img
+          git add public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art public/quest/art public/covers/art public/super/art docs/site-extras/art site/img
           git commit -m "Картинки: скачано $ADDED [no-test]"
           git push

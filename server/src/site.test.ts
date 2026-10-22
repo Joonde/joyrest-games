@@ -691,6 +691,9 @@ describe("поисковики: главная, страницы услуг, sit
       expect(`${title} ${description}`, word).toContain(word);
     }
     expect(JSON.stringify(ld(html))).toContain('"Московская область"');
+    // Подтверждение прав в Яндекс Вебмастере — на главной (и в витрине, она собирается из неё).
+    expect(html).toContain('<meta name="yandex-verification" content="3d43ff22d0fc43dd">');
+    expect(html).toContain('<meta name="google-site-verification" content="Ter0pWYDr5FiCEQqDWRFaFRQlDQUyMNk-qzEGYNxcsw">');
   });
 
   it("каждая страница услуги — своя: адрес, заголовок, описание, разметка, ссылка в подвале и в sitemap", () => {

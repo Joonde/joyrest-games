@@ -140,7 +140,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           </div>
           <p className="muted small">
             Таймер на экране зала, последние 10 секунд тикают, на нуле — «Время вышло» и телефоны больше не отвечают (ведущий может отметить ответ сам).
-            «Окончательный ответ» останавливает часы, подсказка запускает их заново.
+            Фиксация ответа останавливает часы, подсказка запускает их заново.
           </p>
         </fieldset>
         <div className="row board-editor__size">

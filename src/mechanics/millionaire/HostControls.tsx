@@ -210,7 +210,7 @@ export function MillionaireHostControls({ session, content, answers, participant
             <p className={r.locked ? "mil-host-live is-locked" : "mil-host-live"} role="status">
               <span className="mil-host-live__letter">{LETTERS[pick]}</span>
               <span>
-                {r.locked ? "Окончательный ответ" : r.hostPick === null ? (solo ? "Игрок выбрал на телефоне" : "Команда выбрала на телефоне") : "Вы отметили ответ"}: <strong>{q.options[pick]}</strong>
+                {r.locked ? "Ответ зафиксирован" : r.hostPick === null ? (solo ? "Игрок выбрал на телефоне" : "Команда выбрала на телефоне") : "Вы отметили ответ"}: <strong>{q.options[pick]}</strong>
                 {pick === q.correct ? " ★ верно" : " — неверно"}
               </span>
             </p>
@@ -234,7 +234,7 @@ export function MillionaireHostControls({ session, content, answers, participant
               )}
               {q.note && <p className="muted small">{q.note}</p>}
               {stage === "question" && r.mode === "question" && r.locked && (
-                <p className="mil-host-locked">Окончательный ответ — {LETTERS[r.chosen ?? 0]}. «Назад» снимет фиксацию.</p>
+                <p className="mil-host-locked">Ответ зафиксирован — {LETTERS[r.chosen ?? 0]}. «Назад» снимет фиксацию.</p>
               )}
               {stage === "question" && r.mode === "question" && !r.locked && (
                 <>

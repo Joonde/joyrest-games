@@ -111,13 +111,52 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
   const rounds = useMemo(() => quizRounds({ questions }), [questions]);
   const room = LIMITS.questions - questions.length;
 
+  /**
+   * Каждая запись — от свежего содержимого (`latest`), а не от списка этого рендера: колбэки, которые
+   * срабатывают позже (догрузился трек, сжалась картинка), не откатывают правки, сделанные за это время (QA M6).
+   * `latest` сразу получает новое значение — две записи подряд в одном касании не теряют друг друга.
+   */
+  function commit(next: QuizContent) {
+    latest.current = next;
+    onChange(next);
+  }
+
   function setQuestions(next: QuizQuestion[]) {
-    onChange({ ...content, questions: next });
+    commit({ ...latest.current, questions: next });
   }
 
   function updateQuestion(id: string, patch: Partial<QuizQuestion> | ((q: QuizQuestion) => QuizQuestion)) {
-    setQuestions(questions.map((q) => (q.id === id ? (typeof patch === "function" ? patch(q) : { ...q, ...patch }) : q)));
+    const current = latest.current;
+    commit({ ...current, questions: current.questions.map((q) => (q.id === id ? (typeof patch === "function" ? patch(q) : { ...q, ...patch }) : q)) });
   }
+
+  // «Показать, что исправить» (GameEditor шлёт событие и ищет `.edit-issue`): свёрнутые раунды с ошибками раскрываются.
+  const issueRounds = useMemo(() => {
+    const keys = new Set<string>();
+    rounds.forEach((r) => {
+      if (questions.slice(r.from, r.to + 1).some((q) => errorsFor(errors, q.id).length > 0)) keys.add(foldKey(r));
+    });
+    return keys;
+  }, [rounds, questions, errors]);
+  const issueRoundsRef = useRef(issueRounds);
+  issueRoundsRef.current = issueRounds;
+  useEffect(() => {
+    function reveal() {
+      const keys = issueRoundsRef.current;
+      setFolded((prev) => {
+        if (![...prev].some((k) => keys.has(k))) return prev;
+        const next = new Set([...prev].filter((k) => !keys.has(k)));
+        try {
+          localStorage.setItem(foldStore, JSON.stringify([...next]));
+        } catch {
+          // Нет хранилища — свёрнутое живёт до перезагрузки.
+        }
+        return next;
+      });
+    }
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, [foldStore]);
 
   /** Убирает картинку из базы, если она загружена сейчас и больше ни в одном вопросе. */
   function releaseImage(mediaId: string | null, remaining: QuizQuestion[]) {
@@ -332,7 +371,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
       const found = current.questions.find((q) => q.id === question.id);
       const previous = found ? slotImage(found, slot) : null;
       const next = current.questions.map((q) => (q.id === question.id ? withSlotImage(q, slot, mediaId) : q));
-      onChange({ ...current, questions: next });
+      commit({ ...current, questions: next });
       releaseImage(previous, next);
       saved.catch(() => showToast("Картинка не сохранилась. Проверьте интернет и выберите её ещё раз."));
     } catch (error) {
@@ -379,7 +418,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
           </p>
         </div>
         {editable && generalErrors.map((e) => (
-          <p key={e.message} className="error small">
+          <p key={e.message} className="error small edit-issue">
             {e.message}
           </p>
         ))}
@@ -389,7 +428,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
               Добавить вопрос
             </button>
             <button type="button" className="btn btn--secondary btn--block" disabled={room <= 0} onClick={() => setImportOpen(true)}>
-              Вставить списком
+              Добавить списком
             </button>
           </div>
         )}
@@ -411,6 +450,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
           rounds={rounds}
           openIndex={questions.findIndex((q) => q.id === openId)}
           editable={editable}
+          issueFrom={editable ? new Set(rounds.filter((r) => issueRounds.has(foldKey(r))).map((r) => r.from)) : undefined}
           onPick={pick}
           onSplit={() => startRound(Math.min(questions.length - 1, Math.max(1, Math.ceil(questions.length / 2))))}
         />
@@ -455,6 +495,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                 onFold={() => toggleFold(roundKey)}
                 onRename={(title) => renameRound(index, title)}
                 onRemove={() => dropRound(index)}
+                issues={editable ? questions.slice(round.from, round.to + 1).reduce((n, x) => n + errorsFor(errors, x.id).length, 0) : 0}
               />
             );
             const addRow = editable && round && round.to === index && room > 0 && (
@@ -528,7 +569,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
                         {round ? ` · ${index - round.from + 1}\u00a0из\u00a0${round.to - round.from + 1}` : ""}
                       </span>
                       {isSuper && !superLate && <span className="q-card__super-badge">👑 {round ? "Финал раунда" : "Финал игры"}</span>}
-                      {editable && own.length > 0 && <span className="q-card__issue">Нужно исправить: {own.length}</span>}
+                      {editable && own.length > 0 && <span className="q-card__issue edit-issue">Нужно исправить: {own.length}</span>}
                       {expanded && <span className="q-card__editing">✎ Вы правите вопрос {index + 1}</span>}
                     </span>
                   </button>
@@ -755,7 +796,7 @@ function FieldErrors({ errors, field, questionId }: { errors: ValidationError[];
   const own = errorsFor(errors, questionId, field);
   if (own.length === 0) return null;
   return (
-    <span className="error small" id={`q-${questionId}-${field}-error`}>
+    <span className="error small edit-issue" id={`q-${questionId}-${field}-error`}>
       {own.map((e) => e.message).join(" ")}
     </span>
   );

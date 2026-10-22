@@ -28,6 +28,8 @@ import {
   durationLabel,
   responseStats,
   ANSWER_LIMIT_MS,
+  appendMyNote,
+  forcedStatusAndMarketing,
 } from "../../core/clients";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
@@ -69,6 +71,20 @@ const dateTimeLabel = (ms: number) =>
   new Date(ms).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
 const isFilter = (v: string | null): v is Filter => v !== null && v in FILTER_TITLES;
 /** Новую анкету ждут ответа не дольше 30 минут (инструкция менеджера, «Сроки»). */
+/** Код ошибки сервера (`ApiError.code`): «already-exists», «failed-precondition», «not-found»… */
+function errorCode(e: unknown): string {
+  return typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+}
+
+/** Понятный текст ошибки действия с клиентом: интернет виноват только при сбое связи. */
+function clientErrorText(e: unknown, what: string): string {
+  const code = errorCode(e);
+  if (code === "failed-precondition" || code === "already-exists") return "Клиента только что изменил другой человек — обновите список и попробуйте ещё раз.";
+  if (code === "not-found") return "Этого клиента уже нет — обновите список.";
+  if (code === "permission-denied") return "Нет доступа к этому действию.";
+  return `Не получилось ${what}. Проверьте интернет и нажмите ещё раз.`;
+}
+
 const ANSWER_MS = ANSWER_LIMIT_MS;
 
 /** «12 мин», «3 ч», «2 дн» — сколько прошло. */
@@ -288,8 +304,19 @@ function ClientBase({ profile }: { profile: UserProfile }) {
       confirmLabel: c.archived ? "Вернуть" : "В архив",
       run: async () => {
         if (!clientsRepo) return;
-        if (c.archived) await clientsRepo.restore(c.id);
-        else await clientsRepo.archive(c.id);
+        try {
+          if (c.archived) await clientsRepo.restore(c.id);
+          else await clientsRepo.archive(c.id);
+        } catch (e) {
+          // Не сбой связи (клиента изменили или убрали на другом устройстве) — обновляем список и говорим, что случилось.
+          const code = errorCode(e);
+          if (code === "failed-precondition" || code === "already-exists" || code === "not-found") {
+            retry();
+            showToast(clientErrorText(e, "убрать в архив"));
+            return;
+          }
+          throw e;
+        }
         update((data) => data.filter((x) => x.id !== c.id));
         showToast(c.archived ? "Клиент возвращён" : "Клиент в архиве");
       },
@@ -465,6 +492,20 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
       cancelLabel: "Нет, оставить",
       run: () => onPick("lost"),
     });
+  // Вернуть в «Новый» — тоже через вопрос: таймер ответа пойдёт заново, «кто взял» останется в истории.
+  const pick = (st: ClientStatus) => {
+    if (st === "new" && c.status !== "new") {
+      ask({
+        title: "Вернуть клиента в «Новый»?",
+        text: `«${name}» снова будет ждать ответа: таймер пойдёт с нуля. Кто брал клиента — останется в истории. Обычно так делают, только если статус поставили по ошибке.`,
+        confirmLabel: "Да, в «Новый»",
+        cancelLabel: "Нет, оставить",
+        run: () => onPick("new"),
+      });
+      return;
+    }
+    onPick(st);
+  };
   const next = index >= 0 && index < PATH.length - 1 ? PATH[index + 1] : null;
   return (
     <section
@@ -494,7 +535,7 @@ function StatusPanel({ client: c, busy, onPick }: { client: ClientRecord; busy: 
             className={["clients-status__step", c.status === st ? "is-on" : "", index > i ? "is-done" : ""].filter(Boolean).join(" ")}
             aria-pressed={c.status === st}
             disabled={busy}
-            onClick={() => onPick(st)}
+            onClick={() => pick(st)}
           >
             {CLIENT_STATUS_TITLES[st]}
           </button>
@@ -570,8 +611,8 @@ function ClientCard({
     setError(null);
     try {
       onChanged(await clientsRepo.setStatus(c.id, status), `Статус: ${CLIENT_STATUS_TITLES[status]}`);
-    } catch {
-      setError("Не получилось сменить статус. Проверьте интернет и нажмите ещё раз.");
+    } catch (e) {
+      setError(clientErrorText(e, "сменить статус"));
     } finally {
       setBusy(false);
     }
@@ -709,7 +750,7 @@ function ClientCard({
               </p>
               <p className="clients-history__text">{conflict || "(пусто)"}</p>
               <p className="small muted">Ваш текст — в поле выше, он не потерян.</p>
-              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(`${conflict}\n${note}`.trim(), conflict)}>
+              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void saveNote(appendMyNote(conflict, note, noteBase), conflict)}>
                 Добавить мой текст в конец
               </button>
               <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void saveNote(note, conflict)}>
@@ -847,34 +888,62 @@ function ClientForm({
     origin !== (initial?.origin ?? "") ||
     request.trim() !== "";
 
-  async function save(force = false) {
+  /**
+   * Сохранить. «Мои правки поверх» (`force`): карточку за это время изменил другой — берём свежую версию, и статус с
+   * согласием на рассылку отправляем свои, только если их меняли в этой форме (иначе — свежие): чужая смена статуса
+   * («кто взял», таймер ответа) и согласие «да» не откатываются (22 октября 2026, QA M1).
+   */
+  async function write(force: boolean) {
     if (!clientsRepo || !ready) return;
     setBusy(true);
     setError(null);
     setProblem(null);
     try {
+      let chosen = { status, marketing };
+      let version = initial?.updatedAt;
+      if (initial && force) {
+        const fresh = await clientsRepo.get(initial.id);
+        chosen = forcedStatusAndMarketing({ status, marketing }, { status: initial.status, marketing: initial.marketing }, fresh);
+        version = fresh.updatedAt;
+      }
       onSaved(
         await clientsRepo.save({
           id,
           name: name.trim(),
           phone: phone.trim(),
           links: parsedLinks,
-          status,
-          marketing,
+          status: chosen.status,
+          marketing: chosen.marketing,
           notes,
           origin,
           ...(initial ? {} : { request: request.trim() }),
-          ...(initial && !force ? { expect: initial.updatedAt } : {}),
+          ...(initial && version ? { expect: version } : {}),
         }),
       );
     } catch (e) {
-      const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+      const code = errorCode(e);
       if (code === "already-exists") setProblem("duplicate");
       else if (code === "failed-precondition") setProblem("changed");
+      else if (code === "not-found") setError("Этого клиента уже нет — закройте форму и обновите список.");
       else setError("Не получилось сохранить. Проверьте интернет и нажмите ещё раз.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function save(force = false) {
+    // Вернуть в «Новый» — через вопрос: таймер ответа пойдёт заново.
+    if (initial && initial.status !== "new" && status === "new") {
+      ask({
+        title: "Вернуть клиента в «Новый»?",
+        text: "Клиент снова будет ждать ответа: таймер пойдёт с нуля. Кто брал клиента — останется в истории. Обычно так делают, только если статус поставили по ошибке.",
+        confirmLabel: "Да, в «Новый»",
+        cancelLabel: "Нет, оставить",
+        run: () => write(force),
+      });
+      return;
+    }
+    void write(force);
   }
 
   function cancel() {

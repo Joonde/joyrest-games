@@ -3,7 +3,7 @@
  * Готовит устройство ведущего: фото — WebP до 1920 px, PDF — каждая страница картинкой (pdf.js); сервер файлы не
  * перекодирует. Общие правила для сервера и браузера.
  */
-import type { DeckPage } from "../data/types";
+import type { Deck, DeckPage, SlideMedia } from "../data/types";
 
 export const DECK_LIMITS = {
   title: 80,
@@ -18,7 +18,10 @@ export const DECK_LIMITS = {
 
 const SHA = /^[0-9a-f]{64}$/;
 
-/** Страницы из данных: только понятные, не больше лимита. */
+/**
+ * Страницы из данных: только понятные, не больше лимита. `size` из запроса браузера — только подсказка: сервер при
+ * сохранении показа ставит настоящий размер файла с диска (QA 22 октября 2026), лимит места считается по нему.
+ */
 export function parseDeckPages(raw: unknown): DeckPage[] {
   if (!Array.isArray(raw)) return [];
   const int = (n: unknown, max: number) => (typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= max ? n : null);
@@ -45,4 +48,17 @@ export function cleanDeckTitle(raw: unknown): string {
 /** Название по имени файла: «Меню банкета.pdf» → «Меню банкета». */
 export function titleFromFile(name: string): string {
   return cleanDeckTitle(name.replace(/\.[A-Za-z0-9]{2,5}$/, "").replace(/[_]+/g, " ")) || "Показ";
+}
+
+/** Как часто пульт перечитывает список показов, если на экране показ, которого в нём нет. */
+export const DECK_RELOAD_MS = 10_000;
+
+/**
+ * Нужно ли перечитать список показов (QA 22 октября 2026, M9): на экране страница показа, которого в списке нет
+ * (его загрузили с другого пульта), или в списке у него меньше страниц, чем на экране (дозагрузили с другого пульта).
+ */
+export function needsDeckReload(decks: readonly Deck[] | null, media: SlideMedia | null | undefined): boolean {
+  if (!decks || !media) return false;
+  const deck = decks.find((d) => d.id === media.deck);
+  return !deck || deck.pages.length < media.count;
 }

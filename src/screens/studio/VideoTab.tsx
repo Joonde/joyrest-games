@@ -188,21 +188,24 @@ export function VideoTab({ profile, onToast }: Props) {
   }
 
   function row(video: LibraryVideo) {
-    const actions: MenuAction[] = canUpload
-      ? [
-          { label: "Название", onClick: () => { setDialogError(null); setEditing({ video, title: video.title }); } },
-          {
-            label: video.folder ? "Другая папка" : "В папку",
-            onClick: () => {
-              setDialogError(null);
-              setFolderDraft(video.folder);
-              setMoveFor(video);
+    // Чужое видео переименовать, переложить и убрать может только владелец агентства; заместитель — только своё
+    // (так же проверяет сервер, QA 22 октября 2026).
+    const mine = permissions.isAdmin(profile) || video.ownerId === profile.uid;
+    const actions: MenuAction[] =
+      canUpload && mine
+        ? [
+            { label: "Название", onClick: () => { setDialogError(null); setEditing({ video, title: video.title }); } },
+            {
+              label: video.folder ? "Другая папка" : "В папку",
+              onClick: () => {
+                setDialogError(null);
+                setFolderDraft(video.folder);
+                setMoveFor(video);
+              },
             },
-          },
-          // Убрать видео у всех — владелец агентства; заместитель — только своё.
-          ...(permissions.isAdmin(profile) || video.ownerId === profile.uid ? [{ label: "Убрать видео", onClick: () => { setDialogError(null); setToDelete(video); } }] : []),
-        ]
-      : [];
+            { label: "Убрать видео", onClick: () => { setDialogError(null); setToDelete(video); } },
+          ]
+        : [];
     return (
       <li key={video.id} className="track">
         <button

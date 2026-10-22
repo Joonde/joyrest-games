@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { cleanLinks, clientsCsv, durationLabel, linkTitle, parseLinks, phoneKey, phoneLabel, reachable, responseStats, timerOf, timerSortKey, waitingOf, originOf, originStats } from "./clients";
+import {
+  appendMyNote,
+  cleanLinks,
+  clientsCsv,
+  durationLabel,
+  forcedStatusAndMarketing,
+  linkTitle,
+  parseLinks,
+  phoneKey,
+  phoneKeyVariants,
+  phoneLabel,
+  reachable,
+  responseStats,
+  statusAfterEvent,
+  timerOf,
+  timerSortKey,
+  waitingOf,
+  originOf,
+  originStats,
+} from "./clients";
 
 describe("база клиентов: телефон — ключ", () => {
   it("8…, +7…, 9… и с разделителями — один и тот же человек", () => {
@@ -9,6 +28,61 @@ describe("база клиентов: телефон — ключ", () => {
     expect(phoneKey("12345")).toBe("");
     expect(phoneKey("+375 29 123 45 67")).toBe("375291234567");
     expect(phoneLabel("89152415999")).toBe("+7 915 241-59-99");
+  });
+
+  it("городской без семёрки (495, 499, 812, 3xx) — тот же номер, что с +7", () => {
+    expect(phoneKey("495 123-45-67")).toBe("74951234567");
+    expect(phoneKey("(499) 123 45 67")).toBe("74991234567");
+    expect(phoneKey("+7 (495) 123-45-67")).toBe("74951234567");
+    expect(phoneKey("8 495 123 45 67")).toBe("74951234567");
+    expect(phoneKey("812 123 45 67")).toBe("78121234567");
+    expect(phoneKey("343 123 45 67")).toBe("73431234567");
+    expect(phoneLabel("4951234567")).toBe("+7 495 123-45-67");
+    // Не российский код из 10 цифр — как есть.
+    expect(phoneKey("1234567890")).toBe("1234567890");
+    expect(phoneKey("5551234567")).toBe("5551234567");
+  });
+
+  it("варианты ключа: городской мог лежать в базе без семёрки, мобильный — нет", () => {
+    expect(phoneKeyVariants("74951234567")).toEqual(["74951234567", "4951234567"]);
+    expect(phoneKeyVariants("78121234567")).toEqual(["78121234567", "8121234567"]);
+    expect(phoneKeyVariants("79152415999")).toEqual(["79152415999"]);
+    expect(phoneKeyVariants("375291234567")).toEqual(["375291234567"]);
+    expect(phoneKeyVariants("")).toEqual([]);
+  });
+});
+
+describe("база клиентов: споры за заметку и статус", () => {
+  it("«Добавить мой текст в конец» — только дописанное, без повтора общего текста", () => {
+    expect(appendMyNote("квиз\nперезвонить в 18:00", "квиз\n30 гостей", "квиз")).toBe("квиз\nперезвонить в 18:00\n30 гостей");
+    // Ничего своего не дописал — их версия как есть.
+    expect(appendMyNote("квиз\nперезвонить", "квиз", "квиз")).toBe("квиз\nперезвонить");
+    // Правил строку внутри — новая строка добавляется, общие строки — нет.
+    expect(appendMyNote("квиз\nперезвонить", "квиз, 30 гостей", "квиз")).toBe("квиз\nперезвонить\nквиз, 30 гостей");
+    // Тот же текст уже есть у них — не дублируем (регистр и пробелы не важны).
+    expect(appendMyNote("квиз\nПерезвонить  в 18:00", "квиз\nперезвонить в 18:00", "квиз")).toBe("квиз\nПерезвонить  в 18:00");
+    // Пустая основа и пустая их версия.
+    expect(appendMyNote("", "новая заметка", "")).toBe("новая заметка");
+    expect(appendMyNote("их текст", "мой текст", "")).toBe("их текст\nмой текст");
+  });
+
+  it("«Сохранить мои правки поверх»: статус и согласие — свои, только если их меняли", () => {
+    const opened = { status: "new", marketing: "unknown" };
+    const fresh = { status: "client", marketing: "yes" };
+    expect(forcedStatusAndMarketing({ status: "new", marketing: "unknown" }, opened, fresh)).toEqual({ status: "client", marketing: "yes" });
+    expect(forcedStatusAndMarketing({ status: "work", marketing: "unknown" }, opened, fresh)).toEqual({ status: "work", marketing: "yes" });
+    expect(forcedStatusAndMarketing({ status: "new", marketing: "no" }, opened, fresh)).toEqual({ status: "client", marketing: "no" });
+  });
+
+  it("мероприятие и статус: новое — «Клиент» (и из «Провели»), правка учтённого — только из «Новый» и «В работе»", () => {
+    expect(statusAfterEvent("new", false)).toBe("client");
+    expect(statusAfterEvent("held", false)).toBe("client");
+    expect(statusAfterEvent("lost", false)).toBe("client");
+    expect(statusAfterEvent("client", false)).toBeNull();
+    expect(statusAfterEvent("held", true)).toBeNull();
+    expect(statusAfterEvent("lost", true)).toBeNull();
+    expect(statusAfterEvent("work", true)).toBe("client");
+    expect(statusAfterEvent("new", true)).toBe("client");
   });
 });
 

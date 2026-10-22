@@ -276,7 +276,7 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
   return {
     id: newQuestionId(),
     kind,
-    text: kind === "buzz" ? "Угадайте мелодию" : kind === "super" ? "Суперигра" : "",
+    text: kind === "buzz" ? "Узнайте песню" : kind === "super" ? "Суперигра" : "",
     options: hasOptions(kind) ? ["", ""] : kind === "order" ? ["", "", ""] : [],
     correct: hasOptions(kind) ? 0 : -1,
     alsoCorrect: [],
@@ -309,7 +309,6 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
   const next: QuizQuestion = { ...question, kind };
   if (hasOptions(kind) && next.options.length < LIMITS.minOptions) {
     next.options = [...next.options, "", ""].slice(0, Math.max(LIMITS.minOptions, next.options.length));
-    if (next.correct < 0) next.correct = 0;
   }
   if (hasAnswers(kind) && next.answers.length === 0) {
     const fromOption = question.options[question.correct];
@@ -321,7 +320,7 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
     const first = have[0] ?? { imageId: question.imageId, answers: question.answers.length > 0 ? [...question.answers] : [""] };
     next.pictures = [first, ...have.slice(1), newPicture()].slice(0, Math.max(LIMITS.minPictures, have.length));
   }
-  if (kind === "buzz" && !next.text.trim()) next.text = "Угадайте мелодию";
+  if (kind === "buzz" && !next.text.trim()) next.text = "Узнайте песню";
   if (kind === "order") {
     // Варианты становятся карточками: первый верный — первым.
     const first = question.options[question.correct];

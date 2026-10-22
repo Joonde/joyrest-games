@@ -311,6 +311,8 @@ export function registerVideos(app: FastifyInstance, options: VideosOptions): vo
       if (!user) return reply;
       const video = await findVideo(request.params.id);
       if (!video) return fail(reply, 404, "not-found");
+      // Переименовать и переложить чужое видео — только владелец агентства, как убрать (QA 22 октября 2026).
+      if (video.owner_id !== user.id && !permissions.isAdmin(actorOf(user))) return fail(reply, 403, "permission-denied");
       const body = isRecord(request.body) ? request.body : {};
       const title = body.title === undefined ? video.title : cleanLine(body.title, TITLE_MAX);
       if (!title) return fail(reply, 400, "invalid-argument");

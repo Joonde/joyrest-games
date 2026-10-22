@@ -464,6 +464,11 @@ export interface Answer {
 }
 
 export interface NewSessionOptions {
+  /**
+   * id сессии от браузера (только свой сервер): форма запуска держит его, пока она открыта, — повтор «Создать сессию»
+   * после обрыва связи возвращает ту же сессию, а не создаёт вторую. Firebase-версия его не использует.
+   */
+  id?: string;
   gameId: string | null;
   gameTitle: string;
   playMode: PlayMode;

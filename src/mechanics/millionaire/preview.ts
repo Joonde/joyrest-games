@@ -24,9 +24,11 @@ export const millionairePreview: PreviewDriver<MillionaireContent> = ({ session,
         if (index === 1 && level === 1 && !used.includes("mistake")) {
           return { label: "Подсказка «Право на ошибку»", change: applyLifeline(session, content, answers, "mistake", session.state.startedAt ?? 0) };
         }
-        const wrong = [0, 1, 2, 3].find((i) => i !== q.correct && !r.removed.includes(i)) ?? q.correct;
+        // Верный не отмечен (игра ещё с ошибкой проверки) — предпросмотр всё равно идёт: выбираем A.
+        const right = q.correct >= 0 && q.correct <= 3 ? q.correct : 0;
+        const wrong = [0, 1, 2, 3].find((i) => i !== right && !r.removed.includes(i)) ?? right;
         // С «Правом на ошибку» сначала ошибаются — видно, как подсказка спасает.
-        return { label: "Капитан выбрал ответ", answers: [{ pid: team, value: { choice: r.shield ? wrong : q.correct } }] };
+        return { label: "Капитан выбрал ответ", answers: [{ pid: team, value: { choice: r.shield ? wrong : right } }] };
       }
       if (r.chosen === null) return { label: "На экране — выбор команды (оранжевая рамка)", change: syncChosen(session, answers) };
       return { label: "«Фиксируем ответ?» — «Да, фиксируем»", change: lockAnswer(session, answers) };

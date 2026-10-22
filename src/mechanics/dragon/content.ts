@@ -3,6 +3,8 @@
 // свойству героя. Не справились — дракон отнимает жизнь; жизни кончились — команда теряет очки боя и
 // ждёт следующего; дракон дожил до конца боя — все теряют очки боя.
 
+import { listOption, pointsSuffix, splitLines, stripBold } from "../quiz/listText";
+
 export type Stat = "str" | "mind" | "agi" | "luck" | "cha";
 
 export const STATS: Array<{ id: Stat; title: string; icon: string; hint: string }> = [
@@ -91,7 +93,7 @@ function id(prefix: string): string {
 }
 
 export function newDragonTask(kind: DragonTaskKind = "choice", stat: Stat = kind === "dice" ? "luck" : kind === "task" ? "str" : "mind"): DragonTask {
-  return { id: id("t"), kind, stat, text: kind === "dice" ? "Бросайте кубик — бейте наудачу!" : "", solo: "", options: ["", "", "", ""], correct: 0, power: 100, seconds: kind === "choice" ? 30 : 0 };
+  return { id: id("t"), kind, stat, text: kind === "dice" ? "Бросайте кубик — бейте наудачу!" : "", solo: "", options: ["", "", "", ""], correct: -1, power: 100, seconds: kind === "choice" ? 30 : 0 };
 }
 
 export function newBattle(n = 1): DragonBattle {
@@ -120,7 +122,7 @@ function parseTask(raw: unknown, i: number, seen: Set<string>): DragonTask {
     text: str(t.text, DRAGON_LIMITS.text),
     solo: str(t.solo, DRAGON_LIMITS.text),
     options: Array.from({ length: 4 }, (_, k) => str(Array.isArray(t.options) ? t.options[k] : "", DRAGON_LIMITS.option)),
-    correct: int(t.correct, 0, 0, 3),
+    correct: int(t.correct, -1, -1, 3),
     power: int(t.power, 100, 0, DRAGON_LIMITS.maxPower),
     seconds: int(t.seconds, kind === "choice" ? 30 : 0, 0, DRAGON_LIMITS.maxSeconds),
   };
@@ -166,51 +168,75 @@ export function statTitle(s: Stat): string {
   return STATS.find((x) => x.id === s)?.title ?? s;
 }
 
+export interface DragonImport {
+  battles: DragonBattle[];
+  /** Номера строк (с 1), которые не удалось разобрать: вариант без вопроса, пятый вариант, лишнее задание. */
+  skipped: number[];
+}
+
 /**
  * Список: «# Бой: Огненный дракон 2000» — новый бой (число — здоровье). Дальше задания: «Ум: вопрос?» и
- * строки «- вариант», «* верный»; «Сила: задание» / «Харизма: …» — задание (засчитывает ведущий); «Удача» —
- * кубик. «(150)» в конце — урон. «Задание для команд || задание для каждого сам» — второй текст в режиме «каждый сам».
+ * строки «- вариант», «* верный» (или «- верный *»); «Сила: задание» / «Харизма: …» — задание (засчитывает ведущий);
+ * «Удача» — кубик. «(150)» в конце — урон. «Задание для команд || задание для каждого сам» — второй текст в режиме
+ * «каждый сам». Без «*» верный вариант не отмечен — проверка попросит отметить.
  */
-export function parseDragonList(text: string): DragonBattle[] {
+export function parseDragonImport(text: string): DragonImport {
   const battles: DragonBattle[] = [];
+  const skipped: number[] = [];
   let battle: DragonBattle | null = null;
   let task: DragonTask | null = null;
   const statByWord: Record<string, Stat> = { сила: "str", ум: "mind", ловкость: "agi", удача: "luck", харизма: "cha" };
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
+  splitLines(text).forEach((raw, index) => {
+    const lineNo = index + 1;
+    const line = stripBold(raw.trim()).trim();
+    if (!line) return;
     const head = line.match(/^#\s*бой\s*[:.]?\s*(.*?)\s*(\d{2,6})?\s*$/i);
     if (head) {
       battle = { id: id("b"), name: (head[1] ?? "").trim().slice(0, 60) || "Дракон", hp: Math.min(DRAGON_LIMITS.maxHp, Number(head[2] ?? 1500) || 1500), tasks: [] };
       battles.push(battle);
       task = null;
-      continue;
+      return;
     }
-    if (!battle) {
-      battle = { id: id("b"), name: "Дракон", hp: 1500, tasks: [] };
-      battles.push(battle);
-    }
-    const opt = line.match(/^([-*•])\s*(.+)$/);
-    if (opt && task && task.kind === "choice") {
-      const free = task.options.findIndex((o) => !o);
-      if (free >= 0) {
-        task.options[free] = (opt[2] ?? "").slice(0, DRAGON_LIMITS.option);
-        if (opt[1] === "*") task.correct = free;
+    const opt = listOption(raw);
+    if (opt) {
+      const cur = task as DragonTask | null;
+      if (!cur || cur.kind !== "choice") {
+        skipped.push(lineNo);
+        return;
       }
-      continue;
+      const free = cur.options.findIndex((o) => !o);
+      if (free < 0 || !opt.text) {
+        skipped.push(lineNo);
+        return;
+      }
+      cur.options[free] = opt.text.slice(0, DRAGON_LIMITS.option);
+      if (opt.correct && cur.correct < 0) cur.correct = free;
+      return;
     }
-    const pts = line.match(/\((\d{1,4})\)\s*$/);
-    const body = (pts ? line.slice(0, pts.index) : line).trim();
+    let target = battle as DragonBattle | null;
+    if (!target) {
+      target = { id: id("b"), name: "Дракон", hp: 1500, tasks: [] };
+      battle = target;
+      battles.push(target);
+    }
+    const { body, points } = pointsSuffix(line, DRAGON_LIMITS.maxPower);
     const m = body.match(/^(сила|ум|ловкость|удача|харизма)\s*[:.]\s*(.*)$/i);
     const stat = m ? (statByWord[(m[1] ?? "").toLowerCase()] ?? "mind") : "mind";
     // «текст для команд || текст для режима „каждый сам“».
     const [teamPart = "", soloPart = ""] = (m ? (m[2] ?? "") : body).split(/\s*\|\|\s*/);
     const textPart = teamPart.slice(0, DRAGON_LIMITS.text);
     const kind: DragonTaskKind = stat === "luck" ? "dice" : stat === "str" || stat === "cha" ? "task" : "choice";
-    task = { ...newDragonTask(kind, stat), text: textPart || (kind === "dice" ? "Бросайте кубик!" : ""), solo: soloPart.trim().slice(0, DRAGON_LIMITS.text), power: pts ? Math.min(DRAGON_LIMITS.maxPower, Number(pts[1])) : 100 };
-    if (battle.tasks.length < DRAGON_LIMITS.maxTasks) battle.tasks.push(task);
-  }
-  return battles.filter((b) => b.tasks.length > 0).slice(0, DRAGON_LIMITS.maxBattles);
+    const next: DragonTask = { ...newDragonTask(kind, stat), text: textPart || (kind === "dice" ? "Бросайте кубик!" : ""), solo: soloPart.trim().slice(0, DRAGON_LIMITS.text), power: points ?? 100 };
+    task = next;
+    if (target.tasks.length < DRAGON_LIMITS.maxTasks) target.tasks.push(next);
+    else skipped.push(lineNo);
+  });
+  return { battles: battles.filter((b) => b.tasks.length > 0).slice(0, DRAGON_LIMITS.maxBattles), skipped };
+}
+
+/** То же, только бои (шаблоны и старые вызовы). */
+export function parseDragonList(text: string): DragonBattle[] {
+  return parseDragonImport(text).battles;
 }
 export const LETTERS_RU = ["A", "B", "C", "D"];
 

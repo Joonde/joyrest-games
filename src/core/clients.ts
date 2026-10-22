@@ -51,12 +51,71 @@ export function isMarketing(value: unknown): value is Marketing {
   return value === "yes" || value === "no" || value === "unknown";
 }
 
+/**
+ * 10 цифр без «7» и «8» с российским кодом: 9xx — мобильные, 3xx и 4xx — города (Москва 495, 499), 8xx — города и 800
+ * (Санкт-Петербург 812). Решение владельца 22 октября 2026: «495…» без семёрки — тот же номер, что «+7 495…».
+ */
+const RU_TEN_DIGITS = /^[3489]\d{9}$/;
+
 /** Телефон → ключ «7XXXXXXXXXX» (Россия) или все цифры для других стран; меньше 10 цифр — пусто. */
 export function phoneKey(raw: string): string {
   const digits = raw.replace(/\D/g, "");
   if (digits.length === 11 && (digits.startsWith("8") || digits.startsWith("7"))) return `7${digits.slice(1)}`;
-  if (digits.length === 10 && digits.startsWith("9")) return `7${digits}`;
+  if (digits.length === 10 && RU_TEN_DIGITS.test(digits)) return `7${digits}`;
   return digits.length >= 10 && digits.length <= 15 ? digits : "";
+}
+
+/**
+ * Под какими ключами этот номер мог лечь в базу: до 22 октября 2026 городской «495…» без семёрки хранился как
+ * 10 цифр («4951234567»). Сервер ищет клиента по всем вариантам, чтобы не завести двойника (миграцию данных не делаем).
+ */
+export function phoneKeyVariants(key: string): string[] {
+  if (/^7[348]\d{9}$/.test(key)) return [key, key.slice(1)];
+  return key ? [key] : [];
+}
+
+/**
+ * «Добавить мой текст в конец» при споре за заметку: к их версии дописываются только строки, которые человек сам
+ * добавил к тексту, с которого начал править (`base`), и которых у них ещё нет. Общий текст не дублируется.
+ */
+export function appendMyNote(theirs: string, mine: string, base: string): string {
+  const norm = (line: string) => line.trim().replace(/\s+/g, " ").toLowerCase();
+  const known = new Set([...base.split("\n"), ...theirs.split("\n")].map(norm).filter(Boolean));
+  const added: string[] = [];
+  for (const line of mine.split("\n")) {
+    const key = norm(line);
+    if (!key || known.has(key)) continue;
+    known.add(key);
+    added.push(line.trim());
+  }
+  return [theirs.trim(), ...added].filter(Boolean).join("\n");
+}
+
+/**
+ * Что прислать при «Сохранить мои правки поверх» (форма открыта по старой версии карточки): статус и согласие на
+ * рассылку — свои, только если человек их менял в форме; иначе — свежие с сервера (чужую смену статуса и согласие
+ * «да» не затираем).
+ */
+export function forcedStatusAndMarketing<S extends string, M extends string>(
+  form: { status: S; marketing: M },
+  opened: { status: S; marketing: M },
+  fresh: { status: S; marketing: M },
+): { status: S; marketing: M } {
+  return {
+    status: form.status !== opened.status ? form.status : fresh.status,
+    marketing: form.marketing !== opened.marketing ? form.marketing : fresh.marketing,
+  };
+}
+
+/**
+ * Как записанное мероприятие меняет статус клиента. Новое мероприятие (такого `ref` в истории клиента ещё нет) —
+ * «Клиент» из любого статуса (и из «Провели»: снова праздник). Правка или повтор уже учтённого — только «Новый» и
+ * «В работе» становятся «Клиентом», остальное не трогаем. null — статус не меняется.
+ */
+export function statusAfterEvent(current: ClientStatus, knownRef: boolean): ClientStatus | null {
+  if (current === "client") return null;
+  if (!knownRef) return "client";
+  return current === "new" || current === "work" ? "client" : null;
 }
 
 /** Красивый вид российского номера: +7 915 241-59-99; другие — как ввели. */

@@ -38,11 +38,18 @@ export function NoticeBell() {
     };
   }, [open]);
 
+  // Поколение ответов: открыли колокольчик и отметили прочитанным — ответы на запросы, ушедшие раньше, устарели
+  // (в них прежнее число новых) и не должны вернуть погасшее число после закрытия (22 октября 2026, QA).
+  const generation = useRef(0);
+
   const refresh = useCallback(() => {
     if (!noticesRepo || document.visibilityState !== "visible") return;
+    const asked = generation.current;
     noticesRepo
       .load()
-      .then(setState)
+      .then((fresh) => {
+        if (asked === generation.current) setState(fresh);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -72,24 +79,45 @@ export function NoticeBell() {
     };
   }, [open]);
 
+  /** Новое прочитано: на колокольчике остаются только ждущие ответа, точки у строк гаснут. */
+  const markReadLocally = () =>
+    setState((s) =>
+      s ? { ...s, unread: s.items.filter((i) => i.kind === "waiting").length, items: s.items.map((i) => (i.kind === "new" ? { ...i, unread: false } : i)) } : s,
+    );
+
+  // Закрыли любым способом (кнопка, касание мимо, Escape, переход к клиенту) — новое прочитано и здесь.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) markReadLocally();
+    wasOpen.current = open;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   function toggle() {
     const next = !open;
     setOpen(next);
     if (!next || !noticesRepo) return;
     // Открыли — новое прочитано: точки у строк остаются до закрытия, число на колокольчике гаснет.
     const repo = noticesRepo;
+    generation.current += 1;
+    const asked = generation.current;
     repo
       .load()
       .then((fresh) => {
+        if (asked !== generation.current) return;
         setState(fresh);
-        if (fresh.items.some((n) => n.unread && n.kind === "new")) return repo.markSeen();
+        if (!fresh.items.some((n) => n.unread && n.kind === "new")) return;
+        return repo.markSeen().then(() => {
+          // Отметка дошла до сервера: всё, что было запрошено до неё, — устарело.
+          generation.current += 1;
+          markReadLocally();
+        });
       })
       .catch(() => undefined);
   }
 
   function go(n: Notice) {
     setOpen(false);
-    setState((s) => (s ? { ...s, unread: s.items.filter((i) => i.kind === "waiting").length } : s));
     navigate(`/studio/clients?id=${encodeURIComponent(n.clientId)}`);
   }
 

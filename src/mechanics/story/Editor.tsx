@@ -2,17 +2,40 @@
 import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
+import { useDebouncedCommit } from "../../components/useDebouncedCommit";
 import type { EditorProps } from "../types";
 import { createStory, SECTION_HINTS, SECTION_KINDS, SECTION_TITLES, STORY_LIMITS, type SectionKind, type StoryContent } from "./content";
 import { validateStory } from "./validate";
 
-/** Список по строкам: правится свободно, применяется, когда поле теряет фокус. */
-function LinesField({ label, hint, value, disabled, rows, onCommit }: { label: string; hint?: string; value: string; disabled: boolean; rows: number; onCommit: (text: string) => void }) {
+/**
+ * Список по строкам: пока поле в фокусе, текст — черновик (пустые строки и пробелы не «съедаются» на ходу),
+ * в игру уходит через 0,4 с после последней буквы и сразу при сворачивании приложения (QA 22 октября 2026).
+ * `warn` — что из текста не войдёт в игру (лишние строки, строки без «:»): показываем, а не режем молча.
+ */
+function LinesField({
+  label,
+  hint,
+  value,
+  disabled,
+  rows,
+  onCommit,
+  warn,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  disabled: boolean;
+  rows: number;
+  onCommit: (text: string) => void;
+  warn?: (text: string) => string | null;
+}) {
   const [draft, setDraft] = useState(value);
   const [editing, setEditing] = useState(false);
+  const { schedule, flush } = useDebouncedCommit(onCommit);
   useEffect(() => {
     if (!editing) setDraft(value);
   }, [value, editing]);
+  const note = warn ? warn(draft) : null;
   return (
     <label className="field">
       {label}
@@ -23,17 +46,47 @@ function LinesField({ label, hint, value, disabled, rows, onCommit }: { label: s
         value={draft}
         disabled={disabled}
         onFocus={() => setEditing(true)}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          schedule(e.target.value);
+        }}
         onBlur={() => {
+          flush();
           setEditing(false);
-          onCommit(draft);
         }}
       />
+      {note && (
+        <span className="muted small" role="status">
+          {note}
+        </span>
+      )}
     </label>
   );
 }
 
 const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+/** «Больше N строк не берём — лишние: …» или null. */
+function tooMany(text: string, max: number): string | null {
+  const extra = lines(text).slice(max);
+  if (extra.length === 0) return null;
+  const shown = extra.slice(0, 3).map((l) => `«${l.length > 40 ? `${l.slice(0, 40)}…` : l}»`).join(", ");
+  return `Больше ${max} строк не берём — лишние: ${shown}${extra.length > 3 ? ` и ещё ${extra.length - 3}` : ""}.`;
+}
+
+/** Что из банка слов не войдёт в игру: строки без «:» и слова сверх лимита. */
+function bankWarning(text: string): string | null {
+  const notes: string[] = [];
+  const noColon = lines(text).filter((l) => l.indexOf(":") <= 0);
+  if (noColon.length > 0) notes.push(`Строки без «пропуск:» не берём: ${noColon.slice(0, 3).map((l) => `«${l.slice(0, 30)}»`).join(", ")}${noColon.length > 3 ? ` и ещё ${noColon.length - 3}` : ""}.`);
+  for (const line of lines(text)) {
+    const at = line.indexOf(":");
+    if (at <= 0) continue;
+    const words = line.slice(at + 1).split(",").map((w) => w.trim()).filter(Boolean);
+    if (words.length > STORY_LIMITS.words) notes.push(`«${line.slice(0, at).trim()}»: больше ${STORY_LIMITS.words} слов не берём — лишние: ${words.slice(STORY_LIMITS.words).join(", ")}.`);
+  }
+  return notes.length > 0 ? notes.join(" ") : null;
+}
 
 function bankText(bank: Record<string, string[]>): string {
   return Object.entries(bank).map(([k, v]) => `${k}: ${v.join(", ")}`).join("\n");
@@ -50,6 +103,9 @@ function parseBank(text: string): Record<string, string[]> {
   }
   return out;
 }
+
+/** Вопросов «Кто это сказал?» в игре не больше. */
+const SAID_MAX = 20;
 
 export function StoryEditor({ content, onChange, editable }: EditorProps<StoryContent>) {
   const latest = useRef(content);
@@ -140,7 +196,7 @@ export function StoryEditor({ content, onChange, editable }: EditorProps<StoryCo
             Подсказка гостям: о чём писать
             <input className="input" maxLength={STORY_LIMITS.prompt} value={content.prompt} disabled={!editable} onChange={(e) => set({ prompt: e.target.value })} />
           </label>
-          <LinesField label="Примеры под полем (каждый с новой строки)" value={content.examples.join("\n")} rows={4} disabled={!editable} onCommit={(t) => set({ examples: lines(t).map((x) => x.slice(0, STORY_LIMITS.example)).slice(0, STORY_LIMITS.examples) })} />
+          <LinesField label="Примеры под полем (каждый с новой строки)" value={content.examples.join("\n")} rows={4} disabled={!editable} onCommit={(t) => set({ examples: lines(t).map((x) => x.slice(0, STORY_LIMITS.example)).slice(0, STORY_LIMITS.examples) })} warn={(t) => tooMany(t, STORY_LIMITS.examples)} />
           <div className="row board-editor__size">{num("Сколько историй играть (0 — все)", "maxStories", 0, STORY_LIMITS.maxStories)}</div>
         </section>
       )}
@@ -149,8 +205,8 @@ export function StoryEditor({ content, onChange, editable }: EditorProps<StoryCo
         <section className="card stack">
           <h2>{SECTION_TITLES.words}</h2>
           <p className="muted small">В предложении пропуски в [квадратных скобках]. Каждому гостю достаётся бумажка со словами для одного пропуска — он выбирает смешное слово, рулетка выбирает, кто покажет историю, зал ставит звёзды.</p>
-          <LinesField label="Предложения (каждое с новой строки)" hint="Например: Однажды [кто] отправился в [куда]…" value={content.templates.join("\n")} rows={6} disabled={!editable} onCommit={(t) => set({ templates: lines(t).map((x) => x.slice(0, STORY_LIMITS.template)).slice(0, STORY_LIMITS.templates) })} />
-          <LinesField label="Банк слов: «пропуск: слово, слово, …»" hint="Названия пропусков — как в скобках." value={bankText(content.bank)} rows={8} disabled={!editable} onCommit={(t) => set({ bank: parseBank(t) })} />
+          <LinesField label="Предложения (каждое с новой строки)" hint="Например: Однажды [кто] отправился в [куда]…" value={content.templates.join("\n")} rows={6} disabled={!editable} onCommit={(t) => set({ templates: lines(t).map((x) => x.slice(0, STORY_LIMITS.template)).slice(0, STORY_LIMITS.templates) })} warn={(t) => tooMany(t, STORY_LIMITS.templates)} />
+          <LinesField label="Банк слов: «пропуск: слово, слово, …»" hint="Названия пропусков — как в скобках." value={bankText(content.bank)} rows={8} disabled={!editable} onCommit={(t) => set({ bank: parseBank(t) })} warn={bankWarning} />
           <div className="row board-editor__size">
             {num("Слов на бумажке", "paperWords", 2, 8)}
             {num("Секунд на звёзды", "rateSeconds", STORY_LIMITS.minSeconds, STORY_LIMITS.maxSeconds)}
@@ -182,13 +238,13 @@ export function StoryEditor({ content, onChange, editable }: EditorProps<StoryCo
       {on("said") && (
         <section className="card stack">
           <h2>{SECTION_TITLES.said}</h2>
-          <LinesField label="Вопросы (каждый с новой строки)" value={content.saidQuestions.join("\n")} rows={8} disabled={!editable} onCommit={(t) => set({ saidQuestions: lines(t).map((x) => x.slice(0, STORY_LIMITS.prompt)).slice(0, 20) })} />
+          <LinesField label="Вопросы (каждый с новой строки)" value={content.saidQuestions.join("\n")} rows={8} disabled={!editable} onCommit={(t) => set({ saidQuestions: lines(t).map((x) => x.slice(0, STORY_LIMITS.prompt)).slice(0, SAID_MAX) })} warn={(t) => tooMany(t, SAID_MAX)} />
           <div className="row board-editor__size">{num("Ответов на экран на вопрос", "saidShown", 2, 15)}</div>
         </section>
       )}
 
       {errors.length > 0 && (
-        <ul className="error small">
+        <ul className="error small edit-issue">
           {errors.slice(0, 3).map((e, i) => (
             <li key={i}>{e.message}</li>
           ))}

@@ -8,10 +8,18 @@ import { parseSlide } from "../../src/data/cues";
 import { setAdminPassword } from "./admin-password";
 import { buildApp } from "./app";
 import { cleanupDeckPages } from "./cleanup";
+import { deckBytes } from "./decks";
 import { migrate } from "./migrate";
 
 const webp = (fill: number) => Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4, 0), Buffer.from("WEBP"), Buffer.alloc(300, fill)]);
 const SHA = "a".repeat(64);
+
+describe("место под показы", () => {
+  it("одинаковые файлы считаются один раз", () => {
+    expect(deckBytes(new Map([["a", 100], ["b", 50]]))).toBe(150);
+    expect(deckBytes(new Map())).toBe(0);
+  });
+});
 
 describe("слайд «фото и PDF»", () => {
   it("страница показа проходит проверку сервера; без файла или с чужим номером — нет", () => {
@@ -105,6 +113,13 @@ describe.skipIf(!url)("показы на PostgreSQL", () => {
     expect((await post("/api/decks", anna, { id: "d2", title: "Лишний", pages: [p1] })).statusCode).toBe(200);
     expect((await app.inject({ method: "DELETE", url: "/api/decks/d2", headers: headers(anna) })).statusCode).toBe(200);
     expect((await get("/api/decks", anna)).json().decks).toHaveLength(1);
+  });
+
+  it("размер страницы — с диска, а не из запроса (лимит места не обмануть)", async () => {
+    const saved = (await post("/api/decks", anna, { id: "d3", title: "Маленький", pages: [{ ...p1, size: 1 }] })).json();
+    expect(saved.pages[0].size).toBe(p1.size);
+    expect(p1.size).toBe(webp(1).length);
+    expect((await app.inject({ method: "DELETE", url: "/api/decks/d3", headers: headers(anna) })).statusCode).toBe(200);
   });
 
   it("страница на экране зала: пульт показывает, после «Завершить игру» тоже можно", async () => {

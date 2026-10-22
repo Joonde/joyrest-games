@@ -4,7 +4,7 @@
  * и время мероприятия и сразу видит, кто свободен, кто занят и кто ничего не отметил; закрепляет
  * время за ведущим («Мероприятие JoyRest» — у ведущего это время становится занятым).
  */
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   addDays,
@@ -39,6 +39,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { TopBar } from "../../components/TopBar";
 import { brand } from "../../themes/brand";
 import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
+import { partialText, pendingDays, planRepeat, repeatKey, type RepeatPlan } from "./calendarRepeat";
 import { EventForm, Planner, type EventDraft } from "./Planner";
 import { studioActions } from "./Studio";
 
@@ -400,19 +401,31 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
   const [error, setError] = useState<string | null>(null);
   const past = (dayIndex(day) ?? 0) < (dayIndex(today) ?? 0);
 
+  // id всех недель — один раз на попытку: повтор после обрыва не плодит дубли (QA 22 октября 2026, M4).
+  const plan = useRef<RepeatPlan | null>(null);
+
   async function save(k: "free" | "busy", s: number, e: number, w: number, n: string) {
     if (!calendarRepo) return;
     setBusy(true);
     setError(null);
+    const days = weeklyDays(day, w);
+    const current = planRepeat(plan.current, repeatKey(day, k, s, e, w, n), days, newId);
+    plan.current = current;
+    const added: AvailabilityEntry[] = [];
     try {
-      const days = weeklyDays(day, w);
-      const added: AvailabilityEntry[] = [];
-      for (const d of days) added.push(await calendarRepo.save({ id: newId(), day: d, start: s, end: e, kind: k, note: n }));
+      for (const d of pendingDays(current, days)) {
+        const id = current.ids[d] ?? newId();
+        added.push(await calendarRepo.save({ id, day: d, start: s, end: e, kind: k, note: n }));
+        current.saved.push(d);
+      }
       const what = `${k === "free" ? "Свободен" : "Занят"} ${rangeLabel(s, e)}`;
       onSaved(added, days.length > 1 ? `${what} — ${days.length} недель` : what);
+      plan.current = null;
       setNote("");
     } catch {
-      setError("Не получилось сохранить. Проверьте интернет и попробуйте ещё раз.");
+      // Сохранённые недели сразу видны в календаре, текст говорит, сколько не сохранилось.
+      if (added.length > 0) onSaved(added, `Сохранено ${current.saved.length} из ${days.length}`);
+      setError(partialText(current.saved.length, days.length));
     } finally {
       setBusy(false);
     }

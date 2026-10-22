@@ -21,6 +21,8 @@ import {
   isMarketing,
   CLIENT_STATUS_TITLES,
   phoneKey,
+  phoneKeyVariants,
+  statusAfterEvent,
   type ClientSource,
   isOrigin,
   REOPEN_STATUSES,
@@ -58,6 +60,10 @@ export interface ClientInput {
  * Сменить статус внутри транзакции (решение владельца 17 октября 2026). Ушёл из «Нового» — таймер останавливается:
  * сколько ждал и кто взял — в карточку и строкой в `client_responses` (среднее время ответа). Вернулся в «Новый» —
  * таймер с нуля. Любой статус, кроме «Нового», снимает «ждёт ответа в Telegram». В историю — «В работе · Мария».
+ *
+ * 22 октября 2026 (QA): строка `client_responses` пишется только за первый ответ на обращение. Ручной возврат в
+ * «Новый» (`reopen` не задан) не стирает «кто взял» и сколько ждали, а следующий уход из «Нового» не считается
+ * новым ответом. Сбрасывает таймер только новое обращение клиента (`reopen: true` — повторная заявка).
  */
 export async function changeStatus(
   t: Sql,
@@ -66,18 +72,28 @@ export async function changeStatus(
   to: ClientStatus,
   who: { id: string | null; name: string },
   line?: string,
+  options: { reopen?: boolean } = {},
 ): Promise<void> {
   if (from === to) return;
+  const whoName = who.name.slice(0, CLIENT_LIMITS.name);
   if (from === "new") {
-    const [row] = await t<{ taken_ms: string | number | null }[]>`
-      update clients set status = ${to}, updated_at = now(), taken_at = now(), taken_by = ${who.name.slice(0, CLIENT_LIMITS.name)},
-        taken_ms = greatest(0, floor(extract(epoch from now() - coalesce(new_since, last_contact_at)) * 1000))::bigint, new_since = null
-      where id = ${id} returning taken_ms`;
-    const waited = Number(row?.taken_ms ?? 0);
-    await t`insert into client_responses (id, client_id, user_id, user_name, waited_ms)
-      values (${newId("r")}, ${id}, ${who.id}, ${who.name.slice(0, CLIENT_LIMITS.name)}, ${waited})`;
-  } else if (to === "new") {
+    const [before] = await t<{ taken_at: Date | null }[]>`select taken_at from clients where id = ${id}`;
+    if (before && before.taken_at === null) {
+      const [row] = await t<{ taken_ms: string | number | null }[]>`
+        update clients set status = ${to}, updated_at = now(), taken_at = now(), taken_by = ${whoName},
+          taken_ms = greatest(0, floor(extract(epoch from now() - coalesce(new_since, last_contact_at)) * 1000))::bigint, new_since = null
+        where id = ${id} returning taken_ms`;
+      const waited = Number(row?.taken_ms ?? 0);
+      await t`insert into client_responses (id, client_id, user_id, user_name, waited_ms)
+        values (${newId("r")}, ${id}, ${who.id}, ${whoName}, ${waited})`;
+    } else {
+      // На это обращение уже ответили (в «Новый» вернули вручную) — второй раз скорость ответа не считаем.
+      await t`update clients set status = ${to}, updated_at = now(), new_since = null where id = ${id}`;
+    }
+  } else if (to === "new" && options.reopen) {
     await t`update clients set status = 'new', updated_at = now(), new_since = now(), taken_at = null, taken_ms = null, taken_by = '' where id = ${id}`;
+  } else if (to === "new") {
+    await t`update clients set status = 'new', updated_at = now(), new_since = now() where id = ${id}`;
   } else {
     await t`update clients set status = ${to}, updated_at = now() where id = ${id}`;
   }
@@ -85,6 +101,11 @@ export async function changeStatus(
   if (to !== "new") await t`update tg_chats set waiting_since = null, notified_at = null, updated_at = now() where client_id = ${id}`;
   const text = line ?? `${CLIENT_STATUS_TITLES[to]}${who.name ? ` · ${who.name}` : ""}`;
   await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status', ${text.slice(0, CLIENT_LIMITS.summary)})`;
+}
+
+/** Нарушение уникального индекса PostgreSQL (одновременно завели клиента с тем же телефоном). */
+export function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "23505";
 }
 
 interface Row {
@@ -157,45 +178,70 @@ export function cleanSummary(value: unknown): string {
 /**
  * Записать обращение: найти клиента по телефону или ссылке, дополнить (имя, ссылки, согласие) или создать.
  * Без телефона и ссылок — не записываем (связаться не с кем). Возвращает id клиента или null.
+ *
+ * Правка или повтор уже учтённого обращения (тот же `ref` в истории клиента — например, правка мероприятия) не
+ * возвращает клиента из архива и не сдвигает «последнее обращение». Клиент, которого сразу создаёт записанное
+ * мероприятие, — сразу «Клиент» без таймера ответа (он ответа не ждал).
  */
 export async function upsertClient(sql: Sql, input: ClientInput): Promise<string | null> {
   const name = cleanLine(input.name, CLIENT_LIMITS.name);
   const phone = cleanLine(input.phone, CLIENT_LIMITS.phone);
   const key = phoneKey(phone);
+  const keys = phoneKeyVariants(key);
   const links = cleanLinks(input.links ?? []);
   if (!key && links.length === 0) return null;
   const summary = cleanSummary(input.summary);
   const origin = isOrigin(input.origin) ? input.origin : "";
+  const by = input.by ?? { id: null, name: "" };
+  const eventLine = `Клиент · мероприятие записано${by.name ? ` · ${by.name}` : ""}`;
   return sql.begin(async (tx) => {
     const t = tx as unknown as Sql;
-    // Один и тот же человек по телефону, иначе — по любой из ссылок.
-    type Found = { id: string; links: unknown; name: string; phone: string; status: string };
+    // Один и тот же человек по телефону (и по прежнему виду ключа городского номера), иначе — по любой из ссылок.
+    type Found = { id: string; links: unknown; name: string; phone: string; status: string; phone_key: string };
     let [found] = key ? await t<Found[]>`
-      select id, links, name, phone, status from clients where phone_key = ${key} for update` : [];
+      select id, links, name, phone, status, phone_key from clients where phone_key in ${t(keys)}
+      order by (phone_key = ${key}) desc limit 1 for update` : [];
     if (!found && links.length > 0) {
       [found] = await t<Found[]>`
-        select id, links, name, phone, status from clients where links ?| ${t.array(links)} order by created_at limit 1 for update`;
+        select id, links, name, phone, status, phone_key from clients where links ?| ${t.array(links)} order by created_at limit 1 for update`;
     }
     let id = found?.id ?? newId("k");
+    let created = false;
+    let knownRef = false;
     if (!found) {
-      // Новый клиент — сразу «Новый», таймер ответа пошёл.
-      const made = await t<{ id: string }[]>`insert into clients (id, name, phone, phone_key, links, origin, new_since)
-        values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${origin}, now()) on conflict do nothing returning id`;
+      // Новый клиент — сразу «Новый», таймер ответа пошёл. Мероприятие записано сразу — «Клиент», таймера нет.
+      const asClient = input.promote === true;
+      const made = await t<{ id: string }[]>`insert into clients (id, name, phone, phone_key, links, origin, status, new_since)
+        values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${origin}, ${asClient ? "client" : "new"}, ${asClient ? null : new Date()})
+        on conflict do nothing returning id`;
+      created = made.length > 0;
       // Одновременная заявка с тем же телефоном уже создала клиента — пишем обращение ему.
-      if (made.length === 0 && key) {
-        const [other] = await t<{ id: string }[]>`select id from clients where phone_key = ${key}`;
+      if (!created) {
+        if (!key) return null;
+        const [other] = await t<{ id: string }[]>`select id from clients where phone_key in ${t(keys)} order by (phone_key = ${key}) desc limit 1 for update`;
         if (!other) return null;
         id = other.id;
+      } else if (asClient) {
+        await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status', ${eventLine.slice(0, CLIENT_LIMITS.summary)})`;
       }
-    } else {
-      const merged = cleanLinks([...(Array.isArray(found.links) ? found.links : []), ...links]);
+    }
+    if (!created) {
+      if (input.ref) {
+        const seen = await t`select 1 from client_contacts where client_id = ${id} and source = ${input.source} and ref = ${input.ref} limit 1`;
+        knownRef = seen.length > 0;
+      }
+      const [row] = found ? [found] : await t<Found[]>`select id, links, name, phone, status, phone_key from clients where id = ${id}`;
+      const merged = cleanLinks([...(Array.isArray(row?.links) ? row.links : []), ...links]);
+      // Ключ городского номера в прежнем виде (без «7») — переводим в новый.
+      const legacyKey = row !== undefined && key !== "" && row.phone_key !== key && keys.includes(row.phone_key);
       await t`update clients set
           name = case when name = '' then ${name} else name end,
           phone = case when phone_key = '' and ${key} <> '' then ${phone} else phone end,
-          phone_key = case when phone_key = '' and ${key} <> '' then ${key} else phone_key end,
+          ${legacyKey ? t`phone_key = ${key},` : t`phone_key = case when phone_key = '' and ${key} <> '' then ${key} else phone_key end,`}
           links = ${t.json(merged)},
           origin = case when origin = '' then ${origin} else origin end,
-          last_contact_at = now(), updated_at = now(), archived_at = null
+          updated_at = now()
+          ${knownRef ? t`` : t`, last_contact_at = now(), archived_at = null`}
         where id = ${id}`;
     }
     if (input.marketing === true) {
@@ -205,16 +251,17 @@ export async function upsertClient(sql: Sql, input: ClientInput): Promise<string
     await t`insert into client_contacts (id, client_id, source, summary, ref)
       values (${newId("c")}, ${id}, ${input.source}, ${summary}, ${input.ref ?? null})
       on conflict do nothing`;
+    if (created) return id;
     const [now] = await t<{ status: string }[]>`select status from clients where id = ${id}`;
-    const current = now?.status ?? "new";
+    const current: ClientStatus = now && isClientStatus(now.status) ? now.status : "new";
     if (input.promote) {
-      // Мероприятие записано — «Клиент» (уже «Провели» — не откатываем назад).
-      if (current !== "client" && current !== "held") {
-        await changeStatus(t, id, current, "client", input.by ?? { id: null, name: "" }, `Клиент · мероприятие записано${input.by?.name ? ` · ${input.by.name}` : ""}`);
-      }
-    } else if (found && input.source !== "event" && input.source !== "status" && (REOPEN_STATUSES as string[]).includes(current)) {
+      // Мероприятие записано — «Клиент». Новое мероприятие — и из «Провели» (снова праздник); правка уже учтённого —
+      // статус, который поставили люди («Провели», «Отказ»), не трогаем.
+      const next = statusAfterEvent(current, knownRef);
+      if (next) await changeStatus(t, id, current, next, by, eventLine);
+    } else if (found && !knownRef && input.source !== "event" && input.source !== "status" && REOPEN_STATUSES.includes(current)) {
       // Снова написал тот, с кем не договорились или кому уже провели праздник, — снова «Новый», таймер с нуля.
-      await changeStatus(t, id, current, "new", { id: null, name: "" }, "Новый · повторное обращение");
+      await changeStatus(t, id, current, "new", { id: null, name: "" }, "Новый · повторное обращение", { reopen: true });
     }
     return id;
   });
@@ -338,49 +385,66 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const phone = cleanLine(b.phone, CLIENT_LIMITS.phone);
       const key = phoneKey(phone);
       const links = cleanLinks(b.links);
-      const status = isClientStatus(b.status) ? b.status : "new";
-      const asked = isMarketing(b.marketing) ? b.marketing : "unknown";
+      // Статус и согласие не прислали — у существующего не трогаем (форма «Сохранить мои правки поверх» шлёт их, только
+      // если человек их менял; 22 октября 2026: прежде «по умолчанию „Новый“» откатывало чужую смену статуса).
+      const askedStatus = isClientStatus(b.status) ? b.status : null;
+      const asked = isMarketing(b.marketing) ? b.marketing : null;
       const notes = cleanNotes(b.notes);
       // Откуда пришёл — вручную в карточке; не прислали — не трогаем (пустое — «не указан»).
       const origin = b.origin === "" || isOrigin(b.origin) ? b.origin : null;
       if (!id || (!key && links.length === 0 && !name)) return fail(reply, 400, "invalid-argument");
+      const keys = phoneKeyVariants(key);
       if (key) {
-        const [other] = await sql<{ id: string }[]>`select id from clients where phone_key = ${key} and id <> ${id}`;
+        const [other] = await sql<{ id: string }[]>`select id from clients where phone_key in ${sql(keys)} and id <> ${id} limit 1`;
         if (other) return reply.code(409).send({ error: "already-exists", id: other.id });
       }
-      const [existing] = await sql<{ marketing: string; status: string; updated_at: Date }[]>`select marketing, status, updated_at from clients where id = ${id}`;
-      // Владелец и менеджер работают одновременно: форма шлёт `expect` — версию, с которой её открыли.
-      // Карточку за это время изменили — 409, ничего не затираем (браузер покажет свежую версию).
-      if (existing && typeof b.expect === "number" && Math.floor(existing.updated_at.getTime()) !== b.expect) {
-        return fail(reply, 409, "failed-precondition");
-      }
-      // Согласие «да» вручную ставит только владелец: менеджер может отметить «нет» (отказался), но не «да».
-      const before = existing && isMarketing(existing.marketing) ? existing.marketing : "unknown";
-      const marketing = asked === "yes" && before !== "yes" && !permissions.canSetMarketingConsent(actorOf(user)) ? before : asked;
-      const marketingChanged = existing?.marketing !== marketing;
+      const expect = typeof b.expect === "number" ? b.expect : null;
+      const canConsent = permissions.canSetMarketingConsent(actorOf(user));
       // Что хочет клиент («Свадьба, 12 июня, 60 гостей») — первая запись истории нового клиента.
       const request0 = cleanSummary(b.request);
-      await sql.begin(async (tx) => {
-        const t = tx as unknown as Sql;
-        // Статус существующего меняет `changeStatus` (таймер ответа, история), здесь — только поля карточки.
-        await t`
-          insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes, origin, new_since)
-          values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${status}, ${marketing},
-            ${marketing === "yes" ? new Date() : null}, ${marketing === "yes" ? "вручную владельцем" : ""}, ${notes}, ${origin ?? ""},
-            ${status === "new" ? new Date() : null})
-          on conflict (id) do update set name = excluded.name, phone = excluded.phone, phone_key = excluded.phone_key,
-            links = excluded.links, notes = excluded.notes, updated_at = now()
-            ${origin !== null ? t`, origin = excluded.origin` : t``}
-            ${marketingChanged ? t`, marketing = excluded.marketing, marketing_at = excluded.marketing_at, marketing_source = excluded.marketing_source` : t``}`;
-        if (!existing) {
-          await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual',
-            ${(request0 ? `${request0}\n— добавлен вручную · ${user.name}` : `Добавлен вручную · ${user.name}`).slice(0, CLIENT_LIMITS.summary)})`;
-        } else if (existing.status !== status) {
-          // Кто и когда сменил статус — в историю клиента: владелец видит, как идёт работа с заявкой.
-          await changeStatus(t, id, existing.status, status, { id: user.id, name: user.name });
-        }
-      });
-      request.log.info({ clients: existing ? "edit" : "create" }, "clients");
+      type Existing = { marketing: string; status: string; updated_at: Date };
+      let outcome: { kind: "ok"; existed: boolean } | { kind: "changed" };
+      try {
+        outcome = await sql.begin(async (tx) => {
+          const t = tx as unknown as Sql;
+          const [existing] = await t<Existing[]>`select marketing, status, updated_at from clients where id = ${id} for update`;
+          // Владелец и менеджер работают одновременно: форма шлёт `expect` — версию, с которой её открыли.
+          // Карточку за это время изменили — 409, ничего не затираем (браузер покажет свежую версию).
+          if (existing && expect !== null && Math.floor(existing.updated_at.getTime()) !== expect) return { kind: "changed" as const };
+          // Согласие «да» вручную ставит только владелец: менеджер может отметить «нет» (отказался), но не «да».
+          const before = existing && isMarketing(existing.marketing) ? existing.marketing : "unknown";
+          const wanted = asked ?? before;
+          const marketing = wanted === "yes" && before !== "yes" && !canConsent ? before : wanted;
+          const marketingChanged = !existing || existing.marketing !== marketing;
+          const status: ClientStatus = askedStatus ?? (existing && isClientStatus(existing.status) ? existing.status : "new");
+          // Статус существующего меняет `changeStatus` (таймер ответа, история), здесь — только поля карточки.
+          await t`
+            insert into clients (id, name, phone, phone_key, links, status, marketing, marketing_at, marketing_source, notes, origin, new_since)
+            values (${id}, ${name}, ${phone}, ${key}, ${t.json(links)}, ${status}, ${marketing},
+              ${marketing === "yes" ? new Date() : null}, ${marketing === "yes" ? "вручную владельцем" : ""}, ${notes}, ${origin ?? ""},
+              ${status === "new" ? new Date() : null})
+            on conflict (id) do update set name = excluded.name, phone = excluded.phone, phone_key = excluded.phone_key,
+              links = excluded.links, notes = excluded.notes, updated_at = now()
+              ${origin !== null ? t`, origin = excluded.origin` : t``}
+              ${marketingChanged ? t`, marketing = excluded.marketing, marketing_at = excluded.marketing_at, marketing_source = excluded.marketing_source` : t``}`;
+          if (!existing) {
+            await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual',
+              ${(request0 ? `${request0}\n— добавлен вручную · ${user.name}` : `Добавлен вручную · ${user.name}`).slice(0, CLIENT_LIMITS.summary)})`;
+          } else if (existing.status !== status) {
+            // Кто и когда сменил статус — в историю клиента: владелец видит, как идёт работа с заявкой.
+            await changeStatus(t, id, existing.status, status, { id: user.id, name: user.name });
+          }
+          return { kind: "ok" as const, existed: Boolean(existing) };
+        });
+      } catch (error) {
+        // Одновременно завели клиента с тем же телефоном (двойное касание, владелец и менеджер) — уникальный индекс
+        // телефона: не 500, а «уже есть» с его id, как при обычной проверке.
+        if (!isUniqueViolation(error) || !key) throw error;
+        const [other] = await sql<{ id: string }[]>`select id from clients where phone_key in ${sql(keys)} and id <> ${id} limit 1`;
+        return reply.code(409).send({ error: "already-exists", ...(other ? { id: other.id } : {}) });
+      }
+      if (outcome.kind === "changed") return fail(reply, 409, "failed-precondition");
+      request.log.info({ clients: outcome.existed ? "edit" : "create" }, "clients");
       return (await details(id)) ?? fail(reply, 500, "internal");
     });
 
@@ -437,8 +501,9 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       api.post<{ Params: { id: string } }>(`/api/clients/:id/${action}`, { bodyLimit: 1024 }, async (request, reply) => {
         if (!(await allowed(request, reply))) return reply;
         if (!ID.test(request.params.id)) return fail(reply, 404, "not-found");
-        await sql`update clients set archived_at = ${action === "archive" ? sql`coalesce(archived_at, now())` : null}, updated_at = now()
-          where id = ${request.params.id}`;
+        const done = await sql`update clients set archived_at = ${action === "archive" ? sql`coalesce(archived_at, now())` : null}, updated_at = now()
+          where id = ${request.params.id} returning id`;
+        if (done.length === 0) return fail(reply, 404, "not-found");
         request.log.info({ clients: action }, "clients");
         return { ok: true };
       });

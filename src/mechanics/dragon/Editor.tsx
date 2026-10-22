@@ -1,11 +1,11 @@
 // Конструктор «Боя с драконом»: бои (имя и здоровье дракона), задания полосками со свойством (Ум, Ловкость —
 // вопрос; Сила, Харизма — задание; Удача — кубик), жизни команд, бонусы; шаблоны «Классика» и «Для детей».
 import { Fold } from "../../components/Fold";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import type { EditorProps } from "../types";
-import { DRAGON_LIMITS, HEROES, LETTERS_RU, newBattle, newDragonTask, parseDragonList, STATS, type DragonBattle, type DragonContent, type DragonTask, type Stat } from "./content";
+import { DRAGON_LIMITS, HEROES, LETTERS_RU, newBattle, newDragonTask, parseDragonImport, STATS, type DragonBattle, type DragonContent, type DragonTask, type Stat } from "./content";
 import { DEMO_DRAGON, DEMO_DRAGON_KIDS } from "./demo";
 import { validateDragon } from "./validate";
 
@@ -37,6 +37,20 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
       },
     });
   }
+
+  const parsed = useMemo(() => parseDragonImport(text), [text]);
+  const unmarked = parsed.battles.reduce((a, b) => a + b.tasks.filter((t) => t.kind === "choice" && t.correct < 0).length, 0);
+
+  // «Показать, что исправить» в шапке конструктора: открыть первое задание с ошибкой.
+  useEffect(() => {
+    const reveal = () => {
+      const errs = validateDragon(latest.current);
+      const bad = latest.current.battles.flatMap((b) => b.tasks).find((t) => errs.some((e) => e.path.startsWith(`tasks/${t.id}/`)));
+      if (bad) setOpenId(bad.id);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
 
   function removeTask(bid: string, tid: string) {
     confirm({
@@ -103,9 +117,22 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
           </div>
         {importing && (
           <div className="stack stack--tight">
-            <p className="muted small">«# Бой: Огненный дракон 2000» — новый бой и его здоровье. Задание — «Ум: вопрос?» с вариантами «- …» и верным «* …»; «Сила: …» и «Харизма: …» — задание; «Удача» — кубик. «(150)» в конце — урон.</p>
+            <p className="muted small">«# Бой: Огненный дракон 2000» — новый бой и его здоровье. Задание — «Ум: вопрос?» с вариантами «- …» и верным «* …»; «Сила: …» и «Харизма: …» — задание; «Удача» — кубик. «(150)» в конце — урон. Верный вариант можно пометить и так: «- Париж *».</p>
             <textarea value={text} rows={10} placeholder={"# Бой: Огненный дракон 2000\nУм: Столица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид\nСила: 10 приседаний всей командой (150)\nУдача: бросок!"} onChange={(e) => setText(e.target.value)} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replace(parseDragonList(text), "Заменить бои списком")}>
+            {text.trim() !== "" && (
+              <div className="stack stack--tight" aria-live="polite">
+                <p className="small">
+                  {parsed.battles.length > 0 ? `Распознано боёв: ${parsed.battles.length}, заданий: ${parsed.battles.reduce((a, b) => a + b.tasks.length, 0)}.` : "Заданий не нашли."}
+                  {unmarked > 0 ? ` Вопросов без отмеченного верного варианта: ${unmarked} — отметьте «*» или потом кружком.` : ""}
+                </p>
+                {parsed.skipped.length > 0 && (
+                  <p className="error small">
+                    Не разобрали строки: {parsed.skipped.join(", ")}. Вариант должен стоять под вопросом («Ум: …» или «Ловкость: …»), у вопроса — не больше 4 вариантов, в бою — не больше {DRAGON_LIMITS.maxTasks} заданий.
+                  </p>
+                )}
+              </div>
+            )}
+            <button type="button" className="btn btn--block" disabled={parsed.battles.length === 0} onClick={() => replace(parsed.battles, "Заменить бои списком")}>
               Заменить бои
             </button>
           </div>
@@ -135,7 +162,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
               const mine = errors.filter((e) => e.path.startsWith(`tasks/${task.id}/`));
               const stat = STATS.find((s) => s.id === task.stat);
               return (
-                <li key={task.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error" : ""}`}>
+                <li key={task.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error edit-issue" : ""}`}>
                   <button type="button" className="quest-strip__head" aria-expanded={open} onClick={() => setOpenId(open ? null : task.id)}>
                     <span className="quest-strip__n">{ti + 1}</span>
                     <span aria-hidden="true">{stat?.icon}</span>
@@ -188,7 +215,7 @@ export function DragonEditor({ content, onChange, editable }: EditorProps<Dragon
                         )}
                       </div>
                       {mine.map((e) => (
-                        <p key={e.message} className="error small">
+                        <p key={e.message} className="error small edit-issue">
                           {e.message}
                         </p>
                       ))}

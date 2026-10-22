@@ -233,7 +233,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
             ♪{" "}
           </span>
         )}
-        {cell.text || (cell.trackId ? "Угадайте мелодию" : "Вопрос")}
+        {cell.text || (cell.trackId ? "Узнайте песню" : "Вопрос")}
       </h2>
       {cell.imageId && <MediaImage className="board-screen__image" gameId={session.gameId} mediaId={cell.imageId} variant="full" alt="" />}
       {revealed ? (
@@ -438,7 +438,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
   return (
     <div className="quiz-phone quiz-phone--center">
       {title}
-      {noScreen && <h2 className="quiz-phone__question">{cell.text || "Угадайте мелодию"}</h2>}
+      {noScreen && <h2 className="quiz-phone__question">{cell.text || "Узнайте песню"}</h2>}
       {noScreen && cell.imageId && <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={cell.imageId} variant="small" alt="" />}
       {result.catStep && stage === "question" ? (
         <div className="buzz">

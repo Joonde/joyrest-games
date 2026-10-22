@@ -322,6 +322,109 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect((await find())?.status).toBe("new");
   });
 
+  // ───── Исправления по QA 22 октября 2026 ─────
+  type ClientRow = { id: string; status: string; archived_at: Date | null; last_contact_at: Date; taken_ms: string | number | null };
+  const byKey = async (key: string) =>
+    (await sql<ClientRow[]>`select id, status, archived_at, last_contact_at, taken_ms from clients where phone_key = ${key}`)[0];
+  const responsesOf = async (id: string) => Number((await sql<{ n: number }[]>`select count(*)::int as n from client_responses where client_id = ${id}`)[0]?.n ?? 0);
+  const statusLines = async (id: string) => Number((await sql<{ n: number }[]>`select count(*)::int as n from client_contacts where client_id = ${id} and source = 'status'`)[0]?.n ?? 0);
+
+  it("M1: правка без статуса и согласия (мои правки поверх) не откатывает чужой статус и согласие «да»", async () => {
+    const base = { id: "kforce", name: "Рита", phone: "+7 921 100-20-30", links: [], notes: "" };
+    expect((await post("/api/clients", owner, { ...base, status: "new", marketing: "unknown" })).statusCode).toBe(200);
+    const taken = (await post("/api/clients/kforce/status", owner, { status: "client" })).json();
+    const consent = await post("/api/clients", owner, { ...base, status: "client", marketing: "yes", expect: taken.updatedAt });
+    expect(consent.json()).toMatchObject({ status: "client", marketing: "yes" });
+    const linesBefore = await statusLines("kforce");
+    // Форма менеджера, открытая раньше: свои правки поверх — без статуса и согласия.
+    const forced = await post("/api/clients", owner, { ...base, name: "Рита Н.", notes: "моя правка" });
+    expect(forced.statusCode).toBe(200);
+    expect(forced.json()).toMatchObject({ name: "Рита Н.", notes: "моя правка", status: "client", marketing: "yes" });
+    expect(await statusLines("kforce")).toBe(linesBefore);
+    expect(await responsesOf("kforce")).toBe(1);
+  });
+
+  it("ручной «Новый» не стирает «кто взял» и не дублирует скорость ответа", async () => {
+    await post("/api/clients", owner, { id: "kback", name: "Зоя", phone: "+7 921 200-30-40", links: [], status: "new", marketing: "unknown", notes: "" });
+    const first = (await post("/api/clients/kback/status", owner, { status: "work" })).json();
+    expect(first.takenBy).toBeTruthy();
+    const back = (await post("/api/clients/kback/status", owner, { status: "new" })).json();
+    expect(back).toMatchObject({ status: "new", takenBy: first.takenBy, takenMs: first.takenMs });
+    expect(back.newSince).toBeGreaterThan(0);
+    await post("/api/clients/kback/status", owner, { status: "work" });
+    expect(await responsesOf("kback")).toBe(1);
+  });
+
+  it("M2: мероприятие с неполным телефоном или только с именем — сохранено, а ответ говорит, что клиент не записан", async () => {
+    const ev = { id: "evhalf", hostId: annaId, day: day(45), start: 1080, end: 1200, title: "Квиз", clientName: "Анна", clientPhone: "8915", place: "", guests: 20, note: "" };
+    const half = await post("/api/events", owner, ev);
+    expect(half.statusCode).toBe(200);
+    expect(half.json()).toMatchObject({ id: "evhalf", clientNotSaved: true, clientIncomplete: true });
+    const nameOnly = await post("/api/events", owner, { ...ev, id: "evname", clientPhone: "" });
+    expect(nameOnly.json()).toMatchObject({ clientNotSaved: true, clientIncomplete: true });
+    // Без клиента вовсе — ничего не говорим.
+    const none = (await post("/api/events", owner, { ...ev, id: "evnone", clientName: "", clientPhone: "" })).json();
+    expect(none.clientNotSaved).toBeUndefined();
+    // Двойное касание «Записать»: оба ответа — успех, запись одна.
+    const twice = await Promise.all([post("/api/events", owner, { ...ev, id: "evtwice", clientName: "", clientPhone: "" }), post("/api/events", owner, { ...ev, id: "evtwice", clientName: "", clientPhone: "" })]);
+    expect(twice.map((r) => r.statusCode)).toEqual([200, 200]);
+    expect(await sql`select 1 from events where id = 'evtwice'`).toHaveLength(1);
+  });
+
+  it("клиент, созданный мероприятием, — сразу «Клиент» без «ответили за 0 с»", async () => {
+    const ev = { id: "evfresh", hostId: annaId, day: day(46), start: 1080, end: 1200, title: "Свадьба", clientName: "Нина", clientPhone: "+7 921 300-40-50", place: "", guests: 60, note: "" };
+    expect((await post("/api/events", owner, ev)).json().clientNotSaved).toBeUndefined();
+    const nina = await byKey("79213004050");
+    expect(nina?.status).toBe("client");
+    expect(nina?.taken_ms).toBeNull();
+    expect(await responsesOf(nina?.id ?? "")).toBe(0);
+    expect(await statusLines(nina?.id ?? "")).toBe(1);
+  });
+
+  it("«Провели» + новое мероприятие — снова «Клиент»; правка прежнего — статус, архив и «последнее обращение» не трогает", async () => {
+    const PHONE = "+7 921 400-50-60";
+    const past = { id: "evonce", hostId: annaId, day: day(-3), start: 1080, end: 1200, title: "Юбилей", clientName: "Ефим", clientPhone: PHONE, place: "", guests: 30, note: "" };
+    expect((await post("/api/events", owner, past)).statusCode).toBe(200);
+    expect((await post("/api/events/evonce/held", owner, { held: true })).statusCode).toBe(200);
+    const efim = await byKey("79214005060");
+    expect(efim?.status).toBe("held");
+    // Правка того же мероприятия — «Провели» остаётся.
+    expect((await post("/api/events", owner, { ...past, note: "поправили заметку" })).statusCode).toBe(200);
+    expect((await byKey("79214005060"))?.status).toBe("held");
+    // Клиента убрали в архив; правка прежнего мероприятия его не возвращает и не сдвигает «последнее обращение».
+    expect((await post(`/api/clients/${efim?.id}/archive`, owner)).statusCode).toBe(200);
+    const archived = await byKey("79214005060");
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await post("/api/events", owner, { ...past, note: "ещё правка" })).statusCode).toBe(200);
+    const still = await byKey("79214005060");
+    expect(still?.archived_at).not.toBeNull();
+    expect(still?.last_contact_at.getTime()).toBe(archived?.last_contact_at.getTime());
+    // Новое мероприятие — снова «Клиент» и из архива.
+    expect((await post("/api/events", owner, { ...past, id: "evagain", day: day(50) })).statusCode).toBe(200);
+    const again = await byKey("79214005060");
+    expect(again).toMatchObject({ status: "client", archived_at: null });
+    // Архив несуществующего — 404, а не «успех».
+    expect((await post("/api/clients/knothing/archive", owner)).statusCode).toBe(404);
+  });
+
+  it("городской без семёрки — тот же клиент, что и с +7, в том числе записанный по-старому", async () => {
+    // Карточка из прежней версии: ключ «4951234567» без семёрки.
+    await sql`insert into clients (id, name, phone, phone_key, links, new_since) values ('klegacy', 'Город', '495 123-45-67', '4951234567', '[]', now())`;
+    const id = await upsertClient(sql, { phone: "+7 (495) 123-45-67", source: "site", summary: "Квиз" });
+    expect(id).toBe("klegacy");
+    expect((await sql<{ phone_key: string }[]>`select phone_key from clients where id = 'klegacy'`)[0]?.phone_key).toBe("74951234567");
+    const dup = await post("/api/clients", owner, { id: "kcity2", name: "Двойник", phone: "8 495 123 45 67", links: [], status: "new", marketing: "unknown", notes: "" });
+    expect(dup.statusCode).toBe(409);
+    expect(dup.json()).toMatchObject({ error: "already-exists", id: "klegacy" });
+  });
+
+  it("два одновременных клиента с одним телефоном — один сохранён, второй 409, без 500", async () => {
+    const body = (id: string) => ({ id, name: "Одновременно", phone: "+7 921 500-60-70", links: [], status: "new", marketing: "unknown", notes: "" });
+    const res = await Promise.all([post("/api/clients", owner, body("krace1")), post("/api/clients", owner, body("krace2"))]);
+    expect(res.map((r) => r.statusCode).sort()).toEqual([200, 409]);
+    expect(await sql`select 1 from clients where phone_key = '79215006070'`).toHaveLength(1);
+  });
+
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {
     expect((await get("/api/telegram/me", anna)).json()).toEqual({ available: false, linked: false, username: "" });
     expect((await post("/api/telegram/link", anna)).statusCode).toBe(503);

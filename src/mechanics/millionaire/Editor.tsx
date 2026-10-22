@@ -1,12 +1,12 @@
 // Конструктор «Миллиона на кону»: лестница из 12 ступеней (очки, несгораемые), подсказки в игре, вопросы по
 // ступеням полосками (каждой команде нужен свой вопрос на ступень, плюс запасные для «Замены вопроса»).
 import { Fold } from "../../components/Fold";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { pointsLabel } from "../../core/results";
 import type { EditorProps } from "../types";
-import { ANSWER_TIME_CHOICES, ATTEMPT_CHOICES, LETTERS, LIFELINES, levelsOf, MILLIONAIRE_LIMITS, resizeLadder, newMillionaireQuestion, parseMillionaireList, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
+import { ANSWER_TIME_CHOICES, ATTEMPT_CHOICES, LETTERS, LIFELINES, levelsOf, MILLIONAIRE_LIMITS, resizeLadder, newMillionaireQuestion, parseMillionaireImport, questionsOf, type MillionaireContent, type MillionaireQuestion } from "./content";
 import { DEMO_MILLIONAIRE } from "./demo";
 import { teamsCovered, validateMillionaire } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
@@ -57,6 +57,18 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
   }
 
   const covered = teamsCovered(content);
+  const parsed = useMemo(() => parseMillionaireImport(text, levelsOf(content)), [text, content]);
+  const unmarked = parsed.questions.filter((q) => q.correct < 0).length;
+
+  // «Показать, что исправить» в шапке конструктора: открыть первый вопрос с ошибкой.
+  useEffect(() => {
+    const reveal = () => {
+      const bad = latest.current.questions.find((q) => validateMillionaire(latest.current).some((e) => e.path.startsWith(`questions/${q.id}/`)));
+      if (bad) setOpenId(bad.id);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
 
   return (
     <div className="stack">
@@ -110,7 +122,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
               </button>
             ))}
           </div>
-          <p className="muted small">15 — как в телеигре (несгораемые 5 и 10), 12 — короче (4 и 8). Очки ступеней можно поменять ниже.</p>
+          <p className="muted small">15 — длинная лестница (несгораемые 5 и 10), 12 — короче (4 и 8). Очки ступеней можно поменять ниже.</p>
         </fieldset>
         <fieldset disabled={!editable}>
           <legend>Попыток после ошибки</legend>
@@ -173,7 +185,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
             })}
           </ol>
           {errors.filter((e) => e.path === "ladder").map((e) => (
-            <p key={e.message} className="error small">
+            <p key={e.message} className="error small edit-issue">
               {e.message}
             </p>
           ))}
@@ -192,7 +204,20 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           <div className="stack stack--tight">
             <p className="muted small">Вопрос с новой строки, варианты — «- …», верный — «* …». «# Ступень 5» — следующие вопросы на 5-ю ступень; без неё вопросы идут по ступеням 1, 2, 3…</p>
             <textarea value={text} rows={10} placeholder={"# Ступень 1\nСтолица Франции?\n- Рим\n* Париж\n- Берлин\n- Мадрид"} onChange={(e) => setText(e.target.value)} />
-            <button type="button" className="btn btn--block" disabled={!text.trim()} onClick={() => replaceAll(parseMillionaireList(text, levelsOf(content)), "Заменить вопросы списком")}>
+            {text.trim() !== "" && (
+              <div className="stack stack--tight" aria-live="polite">
+                <p className="small">
+                  {parsed.questions.length > 0 ? `Распознано вопросов: ${parsed.questions.length}.` : "Вопросов не нашли."}
+                  {unmarked > 0 ? ` Без отмеченного верного варианта: ${unmarked} — отметьте «*» или потом кружком.` : ""}
+                </p>
+                {parsed.skipped.length > 0 && (
+                  <p className="error small">
+                    Не разобрали строки: {parsed.skipped.join(", ")}. Вариант должен стоять под вопросом, у вопроса — не больше 4 вариантов.
+                  </p>
+                )}
+              </div>
+            )}
+            <button type="button" className="btn btn--block" disabled={parsed.questions.length === 0} onClick={() => replaceAll(parsed.questions, "Заменить вопросы списком")}>
               Заменить вопросы
             </button>
           </div>
@@ -214,7 +239,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                 const open = openId === q.id;
                 const mine = errors.filter((e) => e.path.startsWith(`questions/${q.id}/`));
                 return (
-                  <li key={q.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error" : ""}`}>
+                  <li key={q.id} className={`quest-strip${open ? " is-open" : ""}${mine.length > 0 ? " has-error edit-issue" : ""}`}>
                     <button type="button" className="quest-strip__head" aria-expanded={open} onClick={() => setOpenId(open ? null : q.id)}>
                       <span className="quest-strip__n">{level}</span>
                       <span className="quest-strip__text line-clamp">
@@ -239,7 +264,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                             <input aria-label={`Вариант ${LETTERS[k]}`} maxLength={MILLIONAIRE_LIMITS.option} value={o} disabled={!editable} onChange={(e) => update(q.id, { options: q.options.map((x, j) => (j === k ? e.target.value : x)) })} />
                           </div>
                         ))}
-                        <p className="muted small">Кружок — верный вариант (сейчас {LETTERS[q.correct]}).</p>
+                        <p className="muted small">Кружок — верный вариант ({q.correct >= 0 ? `сейчас ${LETTERS[q.correct] ?? "—"}` : "пока не отмечен"}).</p>
                         <label className="field">
                           💡 Подсказка ведущему — для «Совета ведущего»
                           <textarea rows={2} maxLength={MILLIONAIRE_LIMITS.hint} value={q.hint ?? ""} disabled={!editable} placeholder="Не ответ, а направление мысли. Например: вспомните, где проходила Олимпиада-80" onChange={(e) => update(q.id, { hint: e.target.value })} />
@@ -254,7 +279,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
                           <input maxLength={MILLIONAIRE_LIMITS.note} value={q.note} disabled={!editable} onChange={(e) => update(q.id, { note: e.target.value })} />
                         </label>
                         {mine.map((e) => (
-                          <p key={e.message} className="error small">
+                          <p key={e.message} className="error small edit-issue">
                             {e.message}
                           </p>
                         ))}
@@ -278,7 +303,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
         );
       })}
       {errors.some((e) => e.path === "questions") && (
-        <div className="notice" role="note">
+        <div className="notice edit-issue" role="note">
           {errors.filter((e) => e.path === "questions").map((e) => (
             <p key={e.message}>{e.message}</p>
           ))}

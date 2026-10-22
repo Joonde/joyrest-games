@@ -1,7 +1,9 @@
 // Конструктор «Винного казино»: паспорта вин, страны и сорта на поле, коэффициенты, фишки и время на ставки.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
+import { insertBack } from "../../components/undoRemove";
+import { useUndoRemove } from "../../components/useUndoRemove";
 import type { EditorProps } from "../types";
 import {
   CATEGORIES,
@@ -26,6 +28,29 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
   latest.current = content;
   const [openId, setOpenId] = useState<string | null>(content.wines[0]?.id ?? null);
   const update = (id: string, patch: Partial<Wine>) => onChange({ ...latest.current, wines: latest.current.wines.map((w) => (w.id === id ? { ...w, ...patch } : w)) });
+  const { offer, bar } = useUndoRemove();
+  const fieldErrors = errors.filter((e) => e.path === "countries" || e.path === "grapes" || e.path === "wines");
+
+  // «Показать, что исправить»: бутылка с замечанием раскрывается.
+  const firstBad = useRef<string | null>(null);
+  firstBad.current = content.wines.find((w) => errors.some((e) => e.path.startsWith(`wines/${w.id}/`)))?.id ?? null;
+  useEffect(() => {
+    const reveal = () => {
+      if (firstBad.current) setOpenId(firstBad.current);
+    };
+    window.addEventListener("joyrest:reveal-issues", reveal);
+    return () => window.removeEventListener("joyrest:reveal-issues", reveal);
+  }, []);
+
+  /** Удалить вино — 7 секунд «Вернуть» на то же место. */
+  function removeWine(wine: Wine) {
+    const index = latest.current.wines.findIndex((x) => x.id === wine.id);
+    if (index < 0) return;
+    onChange({ ...latest.current, wines: latest.current.wines.filter((x) => x.id !== wine.id) });
+    offer(`Бутылка ${index + 1}${wine.name.trim() ? ` «${wine.name.trim()}»` : ""} удалена`, () =>
+      onChange({ ...latest.current, wines: insertBack(latest.current.wines, { item: wine, index }, (x) => x.id) }),
+    );
+  }
 
   return (
     <div className="stack">
@@ -38,21 +63,21 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
         <div className="row board-editor__size">
           <label className="field">
             Фишек на бутылку
-            <ClampedNumber value={content.chips} min={WINE_LIMITS.chipsMin} max={WINE_LIMITS.chipsMax} fallback={5} disabled={!editable} onChange={(chips) => onChange({ ...content, chips })} />
+            <ClampedNumber value={content.chips} min={WINE_LIMITS.chipsMin} max={WINE_LIMITS.chipsMax} fallback={5} disabled={!editable} onChange={(chips) => onChange({ ...latest.current, chips })} />
           </label>
           <label className="field">
             Цена фишки
-            <ClampedNumber value={content.chipValue} min={WINE_LIMITS.valueMin} max={WINE_LIMITS.valueMax} fallback={10} disabled={!editable} onChange={(chipValue) => onChange({ ...content, chipValue })} />
+            <ClampedNumber value={content.chipValue} min={WINE_LIMITS.valueMin} max={WINE_LIMITS.valueMax} fallback={10} disabled={!editable} onChange={(chipValue) => onChange({ ...latest.current, chipValue })} />
           </label>
         </div>
         <div className="row board-editor__size">
           <label className="field">
             Секунд на ставки
-            <ClampedNumber value={content.betTime} min={WINE_LIMITS.timeMin} max={WINE_LIMITS.timeMax} fallback={90} disabled={!editable} onChange={(betTime) => onChange({ ...content, betTime })} />
+            <ClampedNumber value={content.betTime} min={WINE_LIMITS.timeMin} max={WINE_LIMITS.timeMax} fallback={90} disabled={!editable} onChange={(betTime) => onChange({ ...latest.current, betTime })} />
           </label>
           <label className="field">
             Годы на поле — с
-            <ClampedNumber value={content.yearFrom} min={1950} max={new Date().getFullYear()} fallback={new Date().getFullYear() - 10} disabled={!editable} onChange={(yearFrom) => onChange({ ...content, yearFrom })} />
+            <ClampedNumber value={content.yearFrom} min={1950} max={new Date().getFullYear()} fallback={new Date().getFullYear() - 10} disabled={!editable} onChange={(yearFrom) => onChange({ ...latest.current, yearFrom })} />
           </label>
         </div>
       </section>
@@ -80,6 +105,13 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
           <p className="muted small">Через запятую, до {WINE_LIMITS.options}. Вино не из списка выигрывает ячейку «Другая» / «Другой».</p>
           <ListField label="Страны" value={content.countries} disabled={!editable} onChange={(countries) => onChange({ ...latest.current, countries })} />
           <ListField label="Сорта" value={content.grapes} disabled={!editable} onChange={(grapes) => onChange({ ...latest.current, grapes })} />
+          {fieldErrors
+            .filter((e) => e.path !== "wines")
+            .map((e) => (
+              <p key={e.path} className="error small edit-issue">
+                {e.message}
+              </p>
+            ))}
         </div>
       </Fold>
 
@@ -134,12 +166,12 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
                     <input value={w.note} maxLength={WINE_LIMITS.note} disabled={!editable} placeholder="Чем интересно это вино" onChange={(e) => update(w.id, { note: e.target.value })} />
                   </label>
                   {wErrors.map((e) => (
-                    <p key={e.path} className="error small">
+                    <p key={e.path} className="error small edit-issue">
                       {e.message}
                     </p>
                   ))}
                   {editable && content.wines.length > 1 && (
-                    <button type="button" className="btn btn--quiet" onClick={() => onChange({ ...content, wines: content.wines.filter((x) => x.id !== w.id) })}>
+                    <button type="button" className="btn btn--quiet" onClick={() => removeWine(w)}>
                       Удалить вино
                     </button>
                   )}
@@ -168,7 +200,7 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
             disabled={content.wines.length >= WINE_LIMITS.wines}
             onClick={() => {
               const wine = newWine();
-              onChange({ ...content, wines: [...content.wines, wine] });
+              onChange({ ...latest.current, wines: [...latest.current.wines, wine] });
               setOpenId(wine.id);
             }}
           >
@@ -176,6 +208,14 @@ export function WineEditor({ content, onChange, editable }: EditorProps<WineCont
           </button>
         </div>
       )}
+      {fieldErrors
+        .filter((e) => e.path === "wines")
+        .map((e) => (
+          <p key={e.path} className="error small edit-issue">
+            {e.message}
+          </p>
+        ))}
+      {bar}
     </div>
   );
 }
@@ -198,6 +238,12 @@ function Seg<T extends string>({ label, value, titles, disabled, onChange }: { l
 /** Список через запятую: правка текстом, в игру — без пустых и повторов. */
 function ListField({ label, value, disabled, onChange }: { label: string; value: string[]; disabled: boolean; onChange: (v: string[]) => void }) {
   const [text, setText] = useState(value.join(", "));
+  const distinct: string[] = [];
+  for (const raw of text.split(",")) {
+    const s = raw.trim().slice(0, WINE_LIMITS.option);
+    if (s && !distinct.some((x) => x.toLowerCase() === s.toLowerCase())) distinct.push(s);
+  }
+  const extra = distinct.slice(WINE_LIMITS.options);
   return (
     <label className="field">
       {label}
@@ -215,6 +261,11 @@ function ListField({ label, value, disabled, onChange }: { label: string; value:
           onChange(items.slice(0, WINE_LIMITS.options));
         }}
       />
+      {extra.length > 0 && (
+        <span className="muted small" role="status">
+          Больше {WINE_LIMITS.options} на поле не берём — лишние: {extra.join(", ")}
+        </span>
+      )}
     </label>
   );
 }

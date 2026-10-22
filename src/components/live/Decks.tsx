@@ -5,10 +5,11 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { DECK_LIMITS, titleFromFile } from "../../core/decks";
+import { DECK_LIMITS, DECK_RELOAD_MS, needsDeckReload, titleFromFile } from "../../core/decks";
 import { imageSlide } from "../../core/slides";
 import { decksRepo, type Deck, type DeckPage, type SessionChange, type SlideState } from "../../data";
 import { Fold } from "../Fold";
+import { DISK_FULL_TEXT, isServerDiskFull } from "../Status";
 import { ImageError } from "../media/compressImage";
 import { prepareDeckFiles } from "../media/deckFiles";
 import { slideId } from "./SlidesPanel";
@@ -31,6 +32,26 @@ function loadDecks(force = false): Promise<Deck[]> {
 function publish(decks: Deck[]) {
   cache = Promise.resolve(decks);
   for (const l of listeners) l(decks);
+}
+
+let lastReload = 0;
+
+/**
+ * На экране показ, которого нет в списке (загрузили с другого пульта, QA 22 октября 2026, M9) — перечитываем список,
+ * но не чаще раза в `DECK_RELOAD_MS`: чужой показ (владелец ведёт игру ведущего) в списке так и не появится.
+ */
+function useMissingDeckReload(decks: Deck[] | null, media: SlideState["media"]): void {
+  const missing = needsDeckReload(decks, media);
+  const key = media ? `${media.deck}:${media.count}` : "";
+  useEffect(() => {
+    if (!missing) return;
+    const wait = Math.max(0, lastReload + DECK_RELOAD_MS - Date.now());
+    const timer = window.setTimeout(() => {
+      lastReload = Date.now();
+      loadDecks(true).then(publish, () => undefined);
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [missing, key]);
 }
 
 export function useDecks(): { decks: Deck[] | null; failed: boolean; reload: () => void; set: (decks: Deck[]) => void } {
@@ -88,6 +109,7 @@ export async function uploadToDeck(
 export function uploadErrorText(e: unknown): string {
   if (e instanceof ImageError) return e.message;
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+  if (isServerDiskFull(e)) return DISK_FULL_TEXT;
   if (code === "resource-exhausted") return "Места под показы не хватает: уберите старые показы в студии («Показы») и попробуйте снова.";
   return "Не получилось загрузить. Проверьте интернет и попробуйте ещё раз — уже загруженные страницы сохранятся.";
 }
@@ -96,6 +118,7 @@ export function uploadErrorText(e: unknown): string {
 export function DeckStepper({ slide, onApply }: { slide: SlideState; onApply: (change: SessionChange) => Promise<void> }) {
   const { decks } = useDecks();
   const media = slide.media;
+  useMissingDeckReload(decks, media);
   if (!media) return null;
   const deck = decks?.find((d) => d.id === media.deck) ?? null;
   const go = (page: number) => {
@@ -124,6 +147,7 @@ export function DeckPanel({ current, onApply }: { current: SlideState | null; on
   const [error, setError] = useState<string | null>(null);
   // Только что загруженный показ — раскрыт: следующую страницу сразу видно.
   const [fresh, setFresh] = useState<string | null>(null);
+  useMissingDeckReload(decks, current?.kind === "image" ? current.media : null);
   if (!decksRepo) return null;
   const repo = decksRepo;
   const shownDeck = current?.kind === "image" ? current.media?.deck : null;

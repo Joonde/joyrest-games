@@ -102,6 +102,14 @@ function CardVideo({ card, paused, replay }: { card: DanceCard; paused: boolean;
   const ref = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Адрес файла, выбранного здесь же (blob:), освобождается при замене и при уходе с экрана — иначе
+  // каждое «Выбрать видео» держит в памяти весь файл до перезагрузки (QA 22 октября 2026).
+  useEffect(() => {
+    if (!url?.startsWith("blob:")) return;
+    const own = url;
+    return () => URL.revokeObjectURL(own);
+  }, [url]);
+
   useEffect(() => {
     if (card.video.source !== "file") return;
     let made: string | null = null;

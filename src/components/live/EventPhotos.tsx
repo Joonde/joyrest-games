@@ -34,17 +34,27 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
   const input = useRef<HTMLInputElement>(null);
   const target = useRef<number>(1);
 
+  // Список не загрузился — это не «фото нет» (QA 22 октября 2026, M10): показываем «Повторить», а снимать нельзя,
+  // иначе «Сделать фото» молча заменит уже снятое (в том числе со второго пульта).
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (!photosRepo || !open || photos) return;
+    if (!photosRepo || !open) return;
     let alive = true;
+    setFailed(false);
+    // Каждое открытие — свежий список: второй пульт мог уже снять фото.
     photosRepo
       .list(sessionId)
       .then((list) => alive && setPhotos(list))
-      .catch(() => alive && setPhotos([]));
+      .catch(() => {
+        if (!alive) return;
+        setPhotos(null);
+        setFailed(true);
+      });
     return () => {
       alive = false;
     };
-  }, [open, photos, sessionId]);
+  }, [open, attempt, sessionId]);
 
   if (!photosRepo) return null;
   const bySlot = new Map((photos ?? []).map((p) => [p.slot, p]));
@@ -94,7 +104,7 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
       <details className="fold event-photos" onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className="fold__head">
           <span className="fold__title">📷 Общее фото для фотоотчёта</span>
-          <span className="fold__value">{photos ? `${count} из ${PHOTO_SLOTS.length}` : "до 3 фото"}</span>
+          <span className="fold__value">{failed ? "не загрузилось" : photos ? `${count} из ${PHOTO_SLOTS.length}` : "до 3 фото"}</span>
           <span className="fold__chev" aria-hidden="true" />
         </summary>
         <div className="fold__body stack stack--tight">
@@ -110,6 +120,15 @@ export function EventPhotosCard({ sessionId }: { sessionId: string }) {
             tabIndex={-1}
             onChange={(e) => void save(e.target.files?.[0] ?? null)}
           />
+          {failed && (
+            <div className="stack stack--tight" role="alert">
+              <p className="error small">Фото этой игры не загрузились — снимать пока нельзя, чтобы не заменить уже снятое.</p>
+              <button type="button" className="btn btn--secondary btn--block" onClick={() => setAttempt((n) => n + 1)}>
+                Не загрузилось — Повторить
+              </button>
+            </div>
+          )}
+          {!failed && photos === null && open && <p className="muted small">Загружаем фото этой игры…</p>}
           <div className="event-photos__grid">
             {PHOTO_SLOTS.map((slot) => {
               const photo = bySlot.get(slot);

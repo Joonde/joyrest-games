@@ -13876,13 +13876,20 @@ button.dance-card:active {
   text-align: left;
 }
 
+/* На телефоне — одна колонка: длинные названия («Кто хочет стать миллионером») не рвутся посреди слова. */
 .eg-pick {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 560px) {
+  .eg-pick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
   .eg-pick {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -13916,8 +13923,7 @@ button.dance-card:active {
 
 .eg-pick__title {
   min-width: 0;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 .eg-part {

@@ -171,10 +171,12 @@ export function EditorGuideScreen({ profile }: { profile: UserProfile }) {
   const [query, setQuery] = useState("");
   const q = normalizeSearch(query.trim());
   // Ссылка из конструктора (#quiz) открывает и показывает раздел игры.
+  // Выбрали игру — страница с её инструкцией открывается сверху; общий раздел (#save) — прокрутка к нему.
+  const isGame = EDITOR_GUIDES.some((g) => g.mechanic === target);
   useEffect(() => {
-    if (!target) return window.scrollTo(0, 0);
+    if (!target || isGame) return window.scrollTo(0, 0);
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ block: "start" }), 50);
-  }, [target]);
+  }, [target, isGame]);
   const basics = useMemo(() => EDITOR_BASICS.filter((b) => matches(b, q)), [q]);
   const games = useMemo(() => EDITOR_GUIDES.filter((g) => matches(g, q)), [q]);
   // Выбрали игру (#quiz) — на странице только её инструкция и «← Все игры».

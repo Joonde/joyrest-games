@@ -139,7 +139,7 @@ export function newListedRun(): ListedRun {
 }
 
 /** Следующая строка показывает, что строка «N. X» перед ней — вопрос, а не вариант. */
-function nextMakesQuestion(style: ListStyle, n: number, next: string | undefined): boolean {
+function nextMakesQuestion(style: ListStyle, next: string | undefined, next2: string | undefined): boolean {
   if (next === undefined) return false;
   const m = LISTED.exec(next);
   if (m) {
@@ -147,8 +147,11 @@ function nextMakesQuestion(style: ListStyle, n: number, next: string | undefined
     const nextDigit = /\d/.test(m[2] ?? "");
     // «1. Назовите цвет» → «а) Красный»: варианты буквами у вопроса с номером.
     if (!nextDigit) return true;
-    // «1. Назовите цвет» → «1. Красный»: варианты начинаются заново с 1.
-    return Number(m[2]) === 1;
+    // «1. Назовите цвет» → «1. Красный» → «2. Синий»: варианты начинаются заново с 1. А «3. Лена» → «1. Назовите
+    // город» → «1. Москва»: нумерация вопросов началась заново — вопрос «1.», а строка перед ним — ещё вариант.
+    if (Number(m[2]) !== 1) return false;
+    const after = next2 === undefined ? null : LISTED.exec(next2);
+    return after !== null && Number(after[2]) === 2;
   }
   // Под строкой — варианты «- …», «* …», ответ «=», число «~», карточка «>».
   return /^[-–—•*=~≈>]/.test(next);
@@ -160,7 +163,7 @@ function nextMakesQuestion(style: ListStyle, n: number, next: string | undefined
  * непустая строка: если под строкой стоят «- …», «а)», «=», «~», «>», это вопрос. Варианты цифрами идут с 1 подряд;
  * «2.» без «1.» — следующий вопрос; строка с «?» в конце — вопрос. Принятый вариант продолжает `run`.
  */
-export function listedOption(line: string, run: ListedRun | null, next?: string): { text: string; correct: boolean } | null {
+export function listedOption(line: string, run: ListedRun | null, next?: string, next2?: string): { text: string; correct: boolean } | null {
   if (!run) return null;
   const match = LISTED.exec(line);
   if (!match) return null;
@@ -172,7 +175,7 @@ export function listedOption(line: string, run: ListedRun | null, next?: string)
   const n = style === "digit" ? Number(marker) : 0;
   if (run.style && run.style !== style) return null;
   if (style === "digit" && n !== (run.style === "digit" ? run.lastDigit + 1 : 1)) return null;
-  if (nextMakesQuestion(style, n, next)) return null;
+  if (nextMakesQuestion(style, next, next2)) return null;
   // «А. С. Пушкин» — инициалы, а не буква варианта: текст целиком.
   const initials = style === "letter" && /^[a-zа-яё]\./i.test(line.replace(/^\*\s*/, "")) && /^[A-ZА-ЯЁ]\.\s/.test(body);
   const marked = markedText(initials ? line.replace(/^\*\s*/, "") : body);
@@ -181,14 +184,38 @@ export function listedOption(line: string, run: ListedRun | null, next?: string)
   return { text: marked.text, correct: Boolean(match[1]) || marked.correct };
 }
 
-/** Для каждой строки — следующая непустая строка (обрезанная), чтобы смотреть на шаг вперёд. */
-export function nextLines(lines: readonly string[]): Array<string | undefined> {
+/** Для каждой строки — следующая непустая строка (обрезанная), чтобы смотреть на шаг вперёд; `skip` = 1 — через одну. */
+export function nextLines(lines: readonly string[], skip = 0): Array<string | undefined> {
   const out: Array<string | undefined> = new Array(lines.length);
-  let next: string | undefined;
+  const seen: string[] = [];
   for (let i = lines.length - 1; i >= 0; i--) {
-    out[i] = next;
+    out[i] = seen[seen.length - 1 - skip];
     const t = (lines[i] ?? "").trim();
-    if (t) next = t;
+    if (t) seen.push(t);
   }
   return out;
+}
+
+/** Группа знака варианта: дефис, длинное тире (– и — — одно и то же, их ставит автозамена), точка «•», звёздочка. */
+function dashGroup(mark: string): string {
+  return mark === "—" || mark === "–" ? "long" : mark;
+}
+
+/** Знак варианта в начале строки («- Москва» → «-»), без жирного; нет знака — null. */
+export function dashMark(raw: string): string | null {
+  const m = /^([-–—•*])/.exec(stripBold(raw.trim()).trim());
+  return m ? (m[1] ?? null) : null;
+}
+
+/**
+ * «— Какого цвета снег?» после вариантов «- 4», «- 3» — новый вопрос, хотя у текущего ещё есть место для варианта:
+ * строка кончается «?», без «*», её знак другой, чем у вариантов текущего вопроса (`optionMark`), а под ней — вариант.
+ */
+export function dashStartsQuestion(raw: string, optionMark: string | null, next: string | undefined): boolean {
+  const mark = dashMark(raw);
+  if (!mark || mark === "*" || !optionMark || dashGroup(mark) === dashGroup(optionMark)) return false;
+  const option = parseOption(stripBold(raw.trim()).trim());
+  if (!option || option.correct || !/[?？]\s*$/.test(option.text)) return false;
+  if (next === undefined) return false;
+  return /^[-–—•*]/.test(stripBold(next).trim()) || LISTED.test(stripBold(next).trim());
 }

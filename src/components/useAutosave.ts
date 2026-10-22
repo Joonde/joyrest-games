@@ -131,6 +131,15 @@ export function useAutosave<Patch extends object>(
       // Хранилище переполнено или закрыто — правки живут до закрытия вкладки.
     }
   }, [draftKey]);
+  /** Черновик на устройстве всё ещё тот, что положил этот экземпляр (без черновика — да). */
+  const draftStillOurs = useCallback(() => {
+    if (!draftKey) return true;
+    try {
+      return localStorage.getItem(DRAFT_PREFIX + draftKey) === lastDraft.current;
+    } catch {
+      return true;
+    }
+  }, [draftKey]);
   /** Нет связи (сбой сети, сервер недоступен) — это не «сервер отказал». */
   const networkFail = useRef(false);
 
@@ -195,14 +204,15 @@ export function useAutosave<Patch extends object>(
         if (!alive.current) {
           // Ушли со страницы, пока ждали ответа: накопленное досылаем один раз (без повторов по таймеру) — иначе
           // последние правки остались бы только в черновике, а запуск взял бы старую версию игры (QA 22 октября, круг 4).
-          if (pending.current && !failed.current && !conflict.current && !denied.current) flush();
+          // Но только если черновик всё ещё наш: игру уже открыли снова и правят — старое значение не должно лечь поверх.
+          if (pending.current && !failed.current && !conflict.current && !denied.current && draftStillOurs()) flush();
           return;
         }
         update();
         // Пока ждали ответа, накопились правки — отправляем их сразу.
         if (pending.current && timer.current === null && !failed.current && !conflict.current && !denied.current) flush();
       });
-  }, [update, writeDraft]);
+  }, [update, writeDraft, draftStillOurs]);
 
   const change = useCallback(
     (patch: Patch) => {

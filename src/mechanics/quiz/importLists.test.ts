@@ -370,3 +370,31 @@ describe("Круг 4: нумерация и тире", () => {
     expect(parseDragonImport(text).battles[0]?.tasks[0]?.text).toBe("Как зовут кота?");
   });
 });
+
+describe("Круг 5: тире у вопроса и нумерация заново", () => {
+  const text = "— Сколько лап у кота?\n- 4 *\n- 3\n- 5\n— Какого цвета снег?\n- Белый *\n- Синий";
+  it("квиз: «— Вопрос?» после вариантов с дефисом — новый вопрос", () => {
+    const r = parseImport(text);
+    expect(r.skipped).toEqual([]);
+    expect(r.questions.map((q) => [q.question.text, q.question.options])).toEqual([
+      ["Сколько лап у кота?", ["4", "3", "5"]],
+      ["Какого цвета снег?", ["Белый", "Синий"]],
+    ]);
+  });
+  it("«Миллион», «Гонка», «Дракон»: второй вопрос с тире не становится четвёртым вариантом", () => {
+    expect(parseMillionaireImport(text).questions.map((q) => q.text)).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+    expect(parseSurvivalImport(text).rounds.map((q) => q.text)).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+    expect(parseDragonImport(text).battles.flatMap((b) => b.tasks.map((t) => t.text))).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+  });
+  it("тот же знак у вопроса и вариантов — строка с «?» остаётся вариантом", () => {
+    const r = parseImport("Что сказал кот?\n- Мяу *\n- Гав?\n- Кря");
+    expect(r.questions.map((q) => q.question.options)).toEqual([["Мяу", "Гав?", "Кря"]]);
+  });
+  it("нумерация вопросов заново: «3. Лена» → «1. Назовите город» → «1. Москва» — Лена остаётся вариантом", () => {
+    const r = parseImport("Назовите реку\n1. Волга *\n2. Обь\n3. Лена\n1. Назовите город\n1. Москва *\n2. Тула");
+    expect(r.questions.map((q) => [q.question.text, q.question.options])).toEqual([
+      ["Назовите реку", ["Волга", "Обь", "Лена"]],
+      ["Назовите город", ["Москва", "Тула"]],
+    ]);
+  });
+});

@@ -112,6 +112,9 @@ function findIssue(): HTMLElement | null {
   return Array.from(document.querySelectorAll<HTMLElement>(ISSUE_SELECTOR)).find((el) => !el.closest(".import-note, .import-list")) ?? null;
 }
 
+/** Подсказка в окнах выхода, когда ведущий нажал «▶ Запустить игру» или «Репетиция», а правки ещё не дошли. */
+const LAUNCH_OLD = "Запустится версия, которая уже есть на сервере, — без правок, которые ещё не дошли. Чтобы запустить с ними, дождитесь сохранения.";
+
 export function GameEditor() {
   const { gameId = "" } = useParams();
   return (
@@ -234,7 +237,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
    */
   function goBack(to: string = back) {
     leaveTo.current = to;
-    if (!editable || !edited.current) return navigate(to);
+    // После «↶ Отменить правки» пометка «правок нет», а запись ещё в пути — ждём и её.
+    if (!editable || (!edited.current && !pendingChanges())) return navigate(to);
     setRestoring(true);
     flush(true);
     leaveWhenSettled();
@@ -242,6 +246,8 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   /** «Отменить правки»: вернуть игру к виду на момент открытия (с подтверждением). */
   const [undoAsk, setUndoAsk] = useState(false);
   const leaveTo = useRef(back);
+  /** Уходим на запуск или репетицию: «Выйти всё равно» запустит версию с сервера — без недошедших правок. */
+  const launching = /^\/studio\/(launch|rehearsal)\//.test(leaveTo.current);
 
   /** Что мешает уйти сейчас (null — всё на сервере). */
   function issueNow(): LeaveIssue | null {
@@ -785,18 +791,19 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       <ConfirmDialog
         open={leaveIssue === "offline"}
         title="Нет связи"
-        confirmLabel="Выйти всё равно"
+        confirmLabel={launching ? "Запустить версию с сервера" : "Выйти всё равно"}
         cancelLabel="Остаться"
         onConfirm={leaveAnyway}
         onCancel={() => setLeaveIssue(null)}
       >
         <p role="alert">Нет связи — правки сохранятся на этом телефоне и уйдут, когда появится интернет и вы снова откроете эту игру.</p>
+        {launching && <p>{LAUNCH_OLD}</p>}
       </ConfirmDialog>
       <ConfirmDialog
         open={leaveIssue === "slow"}
         title="Правки ещё сохраняются"
         confirmLabel="Подождать"
-        cancelLabel="Выйти всё равно"
+        cancelLabel={launching ? "Запустить версию с сервера" : "Выйти всё равно"}
         busy={restoring}
         onConfirm={waitMore}
         onCancel={leaveAnyway}
@@ -805,6 +812,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           Связь есть, но сервер отвечает дольше обычного. Подождите несколько секунд — выйдем, как только правки сохранятся. Выйдете сейчас —
           недошедшие правки останутся на этом телефоне.
         </p>
+        {launching && <p>{LAUNCH_OLD}</p>}
       </ConfirmDialog>
       <ConfirmDialog
         open={leaveIssue === "conflict"}
@@ -834,7 +842,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         open={leaveIssue === "denied"}
         title="Правки не сохраняются"
         confirmLabel="Попробовать ещё раз"
-        cancelLabel="Выйти"
+        cancelLabel={launching ? "Запустить версию с сервера" : "Выйти"}
         busy={restoring}
         onConfirm={retryAndContinue}
         onCancel={leaveAnyway}
@@ -842,6 +850,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
         <p className="error" role="alert">
           {deniedText(deniedCode)}
         </p>
+        {launching && <p>{LAUNCH_OLD}</p>}
       </ConfirmDialog>
       <ConfirmDialog
         open={draftAsk !== null}

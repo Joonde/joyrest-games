@@ -1,7 +1,7 @@
 // «Миллион на кону»: лестница из 12 или 15 вопросов (4 варианта, один верный), у каждой команды
 // своя полоска на экране зала. Несгораемые ступени (по умолчанию 4-я и 8-я): ошибка роняет до
 // последней пройденной. Подсказки — по одной каждого вида на команду за игру.
-import { isQuestionHeader, listedOption, listOption, newListedRun, nextLines, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
+import { dashMark, dashStartsQuestion, isQuestionHeader, listedOption, listOption, newListedRun, nextLines, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
 
 /** Сколько ступеней может быть в лестнице: 12 (прежние игры) или 15 (новые и шаблон, решение владельца 14 октября 2026). */
@@ -187,6 +187,8 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
   };
   const lines = splitLines(text);
   const ahead = nextLines(lines);
+  const ahead2 = nextLines(lines, 1);
+  let mark: string | null = null;
   lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const line = stripBold(raw.trim()).trim();
@@ -203,9 +205,12 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
     const cur0 = current as MillionaireQuestion | null;
     const room = cur0 !== null && cur0.options.some((o) => !o);
     // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
-    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && (cur0 === null || !room) ? dash.text : null;
-    const opt = dashQuestion ? null : (dash ?? listedOption(line, cur0 && room && !dashed ? run : null, ahead[index]));
-    if (dash && !dashQuestion) dashed = true;
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && ((cur0 === null || !room) || dashStartsQuestion(raw, mark, ahead[index])) ? dash.text : null;
+    const opt = dashQuestion ? null : (dash ?? listedOption(line, cur0 && room && !dashed ? run : null, ahead[index], ahead2[index]));
+    if (dash && !dashQuestion) {
+      dashed = true;
+      mark ??= dashMark(raw);
+    }
     if (opt) {
       if (!current) {
         skipped.push(lineNo);
@@ -225,6 +230,7 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
     level = fixed ?? (level % size) + 1;
     run = newListedRun();
     dashed = false;
+    mark = null;
     current = { ...newMillionaireQuestion(level), text: (dashQuestion ?? line).replace(QUESTION_NUMBERING, "").trim().slice(0, MILLIONAIRE_LIMITS.text) };
   });
   flush();

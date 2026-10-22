@@ -3,7 +3,7 @@
 // победитель забирает банк (ставки + приз, растущий 100, 200, 300…). После второй войнушки в раундах,
 // которые отметил ведущий (до 3), — аукцион «билета освобождения»: билет позволяет один раз пропустить
 // войнушку без ставки.
-import { isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "../quiz/listText";
+import { dashMark, dashStartsQuestion, isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SURVIVAL_LOOK, parseShowLook, SURVIVAL_LOOKS, type ShowLook } from "../showLook";
 
 export type SurvivalKind = "choice" | "open" | "task";
@@ -194,6 +194,8 @@ export function parseSurvivalImport(text: string): SurvivalImport {
   };
   const lines = splitLines(text);
   const ahead = nextLines(lines);
+  const ahead2 = nextLines(lines, 1);
+  let mark: string | null = null;
   lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const line = raw.trim();
@@ -204,9 +206,12 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     const cur0 = current as SurvivalRound | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
     // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
-    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && !room ? dash.text : null;
-    const opt = dashQuestion ? null : dash ?? listedOption(stripBold(line).trim(), room && !dashed ? run : null, ahead[index]);
-    if (dash && !dashQuestion) dashed = true;
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && (!room || dashStartsQuestion(raw, mark, ahead[index])) ? dash.text : null;
+    const opt = dashQuestion ? null : dash ?? listedOption(stripBold(line).trim(), room && !dashed ? run : null, ahead[index], ahead2[index]);
+    if (dash && !dashQuestion) {
+      dashed = true;
+      mark ??= dashMark(raw);
+    }
     if (opt) {
       const cur = current as SurvivalRound | null;
       if (!cur || cur.kind !== "choice") {
@@ -225,6 +230,7 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     flush();
     run = newListedRun();
     dashed = false;
+    mark = null;
     const { body: numbered, points: given, note } = pointsSuffix(stripBold(dashQuestion ?? line), SURVIVAL_LIMITS.maxPoints);
     if (note) notes.push({ line: lineNo, text: note });
     const body = numbered.replace(QUESTION_NUMBERING, "").trim();

@@ -3,7 +3,7 @@
 // свойству героя. Не справились — дракон отнимает жизнь; жизни кончились — команда теряет очки боя и
 // ждёт следующего; дракон дожил до конца боя — все теряют очки боя.
 
-import { isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
+import { dashMark, dashStartsQuestion, isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 
 export type Stat = "str" | "mind" | "agi" | "luck" | "cha";
 
@@ -209,6 +209,8 @@ export function parseDragonImport(text: string): DragonImport {
   const statByWord: Record<string, Stat> = { сила: "str", ум: "mind", ловкость: "agi", удача: "luck", харизма: "cha" };
   const lines = splitLines(text);
   const ahead = nextLines(lines);
+  const ahead2 = nextLines(lines, 1);
+  let mark: string | null = null;
   lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const line = stripBold(raw.trim()).trim();
@@ -226,9 +228,12 @@ export function parseDragonImport(text: string): DragonImport {
     const cur0 = task as DragonTask | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
     // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
-    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && !room ? dash.text : null;
-    const opt = dashQuestion ? null : dash ?? listedOption(line, room && !dashed ? run : null, ahead[index]);
-    if (dash && !dashQuestion) dashed = true;
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && (!room || dashStartsQuestion(raw, mark, ahead[index])) ? dash.text : null;
+    const opt = dashQuestion ? null : dash ?? listedOption(line, room && !dashed ? run : null, ahead[index], ahead2[index]);
+    if (dash && !dashQuestion) {
+      dashed = true;
+      mark ??= dashMark(raw);
+    }
     if (opt) {
       const cur = task as DragonTask | null;
       if (!cur || cur.kind !== "choice") {
@@ -252,6 +257,7 @@ export function parseDragonImport(text: string): DragonImport {
     }
     run = newListedRun();
     dashed = false;
+    mark = null;
     const { body: numbered, points, note } = pointsSuffix(dashQuestion ?? line, DRAGON_LIMITS.maxPower, "урон не поставлен");
     if (note) notes.push({ line: lineNo, text: note });
     const body = numbered.replace(QUESTION_NUMBERING, "").trim();

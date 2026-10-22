@@ -1,6 +1,6 @@
 import { LIMITS, newQuestion, parseRound, type QuizQuestion } from "./content";
 import { validateQuestion } from "./validate";
-import { isQuestionHeader, listedOption, markedText, newListedRun, nextLines, parseNumberText, parseOption, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "./listText";
+import { dashMark, dashStartsQuestion, isQuestionHeader, listedOption, markedText, newListedRun, nextLines, parseNumberText, parseOption, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "./listText";
 
 export { markedText, parseNumberText, parseOption, splitAnswers, splitLines, stripBold };
 
@@ -51,6 +51,8 @@ interface Draft {
   run: ListedRun;
   /** Есть варианты «- …», «* …» или «**…**»: строка «N. …» дальше — уже новый вопрос. */
   dashed: boolean;
+  /** Знак вариантов «- …» этого вопроса: строка «— Вопрос?» с другим знаком — уже новый вопрос. */
+  mark: string | null;
   answers: string[];
   /** «> карточка» — «Расставь по порядку», карточки в верном порядке. */
   cards: string[];
@@ -143,6 +145,7 @@ export function parseImport(input: string): ImportResult {
       options: [],
       run: newListedRun(),
       dashed: false,
+      mark: null,
       answers: [],
       cards: [],
       number: null,
@@ -154,6 +157,7 @@ export function parseImport(input: string): ImportResult {
 
   const lines = splitLines(input);
   const ahead = nextLines(lines);
+  const ahead2 = nextLines(lines, 1);
   lines.forEach((raw, index) => {
     const lineNo = index + 1;
     const original = raw.trim();
@@ -208,7 +212,7 @@ export function parseImport(input: string): ImportResult {
       return;
     }
 
-    const listed = listedOption(line, listRun(current), ahead[index]);
+    const listed = listedOption(line, listRun(current), ahead[index], ahead2[index]);
     if (listed && current) {
       const draft: Draft = current;
       if (listed.text) draft.options.push(listed);
@@ -223,7 +227,10 @@ export function parseImport(input: string): ImportResult {
         return skipped.push(lineNo);
       }
       const draft: Draft = current;
+      // «— Какого цвета снег?» после вариантов «- 4», «- 3» — следующий вопрос, а не ещё один вариант.
+      if (dashStartsQuestion(original, draft.mark, ahead[index])) return startQuestion(option.text, lineNo);
       draft.dashed = true;
+      draft.mark ??= dashMark(original);
       if (option.text) draft.options.push(option);
       return;
     }

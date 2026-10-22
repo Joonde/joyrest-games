@@ -558,21 +558,21 @@ export const SAMPLES: Partial<Record<SampleName, string>> = {
   dragonBattle: "/sounds/dragon-battle-1.mp3",
   /** «Представить команды». */
   teamsIntro: "/sounds/teams-intro-1.mp3",
-  /** Напряжение, пока открыт вопрос («Миллионер», «Своя игра»): своя музыка, создана кодом (`scripts/sounds/millionaire.py`). */
+  /** Напряжение, пока открыт вопрос («Миллион на кону», «Ставка на знания»): своя музыка, создана кодом (`scripts/sounds/millionaire.py`). */
   thinkLow: "/sounds/millionaire-think-low-1.mp3",
-  /** То же на старших ступенях «Миллионера» — быстрее и плотнее. */
+  /** То же на старших ступенях «Миллиона на кону» — быстрее и плотнее. */
   thinkHigh: "/sounds/millionaire-think-high-1.mp3",
-  /** «Миллионер»: вопрос на экране, «окончательный ответ», верно, неверно, подсказка. */
+  /** «Миллион на кону»: вопрос на экране, «окончательный ответ», верно, неверно, подсказка. */
   milQuestion: "/sounds/millionaire-question-1.mp3",
   milLock: "/sounds/millionaire-lock-1.mp3",
   milRight: "/sounds/millionaire-right-1.mp3",
   milWrong: "/sounds/millionaire-wrong-1.mp3",
   milLifeline: "/sounds/millionaire-lifeline-1.mp3",
-  /** «Миллионер»: гости входят и появляются поля (до первого вопроса); фон вопроса — от показа до последних 10 секунд.
+  /** «Миллион на кону»: гости входят и появляются поля (до первого вопроса); фон вопроса — от показа до последних 10 секунд.
    * Файлы прислал владелец и попросил встроить (решение 14 октября 2026, `public/sounds/SOURCES.md`). */
   milStart: "/sounds/millionaire-start-1.mp3",
   milBed: "/sounds/millionaire-bed-1.mp3",
-  /** «Миллионер»: помощь зала — пока зал голосует (прислал владелец, 14 октября 2026). */
+  /** «Миллион на кону»: помощь зала — пока зал голосует (прислал владелец, 14 октября 2026). */
   milVote: "/sounds/millionaire-vote-1.mp3",
   /** Музыкальное лото: заставка «Откройте карточки» — лёгкий фон, своя мелодия (`scripts/sounds/lotto-intro.py`). */
   lottoIntro: "/sounds/lotto-intro-1.mp3",
@@ -762,7 +762,7 @@ export async function playMusic(url: string, fromStart: boolean, clip?: { start:
   if (!ctx) return false;
   const el = musicElement();
   if (!el) return false;
-  // Ведущий включил музыку — фрагмент «Угадай мелодию» замолкает, музыка уже не «ждёт» его.
+  // Ведущий включил музыку — фрагмент «Узнай по нотам» замолкает, музыка уже не «ждёт» его.
   silenceFragment();
   // Музыка ведущего главнее встроенной (перерыв, представление команд).
   if (builtinKey) stopBuiltinMusic(1.5);
@@ -937,7 +937,7 @@ export function stopBuiltinMusic(fade = FADE_OUT): void {
   }
 }
 
-// ---------- Фрагмент трека («Угадай мелодию», музыкальное лото, гонка, «Своя игра») ----------
+// ---------- Фрагмент трека («Узнай по нотам», музыкальное лото, гонка, «Ставка на знания») ----------
 
 let fragmentEl: HTMLAudioElement | null = null;
 let fragmentGain: GainNode | null = null;

@@ -1,4 +1,4 @@
-// Тайные карты «Бункера» на пульте: каждому телефону — его персонаж своим ключом, всё тайное игры —
+// Тайные карты «Убежища» на пульте: каждому телефону — его персонаж своим ключом, всё тайное игры —
 // ключом ведущего. Шифрование то же, что в «Мафии» (`../mafia/seal`).
 import { CATS } from "./decks";
 import type { Secrets } from "./logic";
@@ -95,7 +95,7 @@ export async function openPhoneCard(key: string, sealed: unknown): Promise<Phone
   return char ? { char, notes: Array.isArray(notes) ? notes.filter((x): x is string => typeof x === "string") : [] } : null;
 }
 
-/** Второй пульт без ключа ведущего: персонажи по картам телефонов (тайное бункера ему не видно). */
+/** Второй пульт без ключа ведущего: персонажи по картам телефонов (тайное убежища ему не видно). */
 export async function charsFromCards(sealed: Record<string, string>, keys: Record<string, string>): Promise<Record<string, Character>> {
   const out: Record<string, Character> = {};
   for (const [pid, text] of Object.entries(sealed)) {

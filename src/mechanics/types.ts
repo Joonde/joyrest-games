@@ -57,7 +57,7 @@ export interface PlayerViewProps<Content, AnswerValue> extends ViewProps<Content
   onAnswer: (value: AnswerValue) => void;
   /**
    * Режим команд: свой ответ этого телефона (не за команду) на тот же шаг — один на шаг. Так капитан
-   * просит подсказку, а участники голосуют («Помощь зала» в «Миллионере»). В режиме solo — нет.
+   * просит подсказку, а участники голосуют («Помощь зала» в «Миллионе на кону»). В режиме solo — нет.
    */
   personal?: PersonalAnswer;
 }
@@ -150,7 +150,7 @@ export interface Mechanic<Content, AnswerValue, S extends Step = Step> {
   music?: (session: Session, content: Content) => MusicMoment | null;
   /**
    * Жеребьёвка на пульте выбрала участника: сделать его первым ходящим (например, право выбора клетки в
-   * «Своей игре»). null — в этой игре жребий только объявляется на экране.
+   * «Ставке на знания»). null — в этой игре жребий только объявляется на экране.
    */
   firstTurn?: (session: Session, content: Content, pid: string) => SessionChange | null;
   /** Предпросмотр в конструкторе: игра проходит сама с тестовыми командами (`src/mechanics/preview.ts`). */

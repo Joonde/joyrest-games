@@ -15,7 +15,7 @@ function session(): Session {
   return { id: "s", code: "1", hostId: "h", gameId: "g", gameTitle: "П", mechanic: "perudo", gameSnapshot: null, themeId: "joyrest", playMode: "solo", screenMode: "laptop", state: { ...startState(), phase: "playing" }, leaderboard: {}, createdAt: 0 } as Session;
 }
 
-describe("перудо: ставки", () => {
+describe("кости лжеца: ставки", () => {
   it("поднять: больше костей или старше грань; единицы — половина, обратно — вдвое плюс одна; открыть единицами нельзя", () => {
     expect(minQty(null, 1, false)).toBeNull();
     expect(minQty(null, 3, false)).toBe(1);
@@ -71,7 +71,7 @@ describe("перудо: ставки", () => {
   });
 });
 
-describe("перудо: партия", () => {
+describe("кости лжеца: партия", () => {
   it("раздача → ставки → «Не верю» → кость теряет ошибившийся → до последнего стакана; очки; «Назад»", () => {
     const content = { ...createPerudo(), startDice: 2, placePoints: 50, winPoints: 200 };
     let s = session();

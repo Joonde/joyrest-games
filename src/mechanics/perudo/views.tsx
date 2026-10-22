@@ -1,4 +1,4 @@
-// «Перудо»: экран зала (стол со стаканами, ставка крупно, вскрытие) и телефон (свои кости, ставка, «Не верю!»).
+// «Кости лжеца»: экран зала (стол со стаканами, ставка крупно, вскрытие) и телефон (свои кости, ставка, «Не верю!»).
 import { useEffect, useMemo, useState } from "react";
 import { storeScope } from "../../core/program";
 import { NameText } from "../../components/NameText";
@@ -94,7 +94,7 @@ export function PerudoScreenView({ session, content }: ViewProps<PerudoContent>)
   if (!started || r.seats.length === 0) {
     main = (
       <div className="pr-intro">
-        <span className="quiz-screen__badge">Перудо · кости лжеца</span>
+        <span className="quiz-screen__badge">Кости лжеца · кости лжеца</span>
         <h2 className="pr-title">Скоро стаканы на стол</h2>
         <p className="pr-note">У каждого {content.startDice} костей под стаканом — видите только свои, на телефоне. Ставьте, сколько на столе костей одной грани. Не верите — «Не верю!». Единицы — джокеры.</p>
       </div>
@@ -102,7 +102,7 @@ export function PerudoScreenView({ session, content }: ViewProps<PerudoContent>)
   } else if (r.mode === "deal") {
     main = (
       <div className="pr-intro">
-        <span className="quiz-screen__badge">{content.parties > 1 ? `Партия ${r.party} из ${content.parties}` : "Перудо"}</span>
+        <span className="quiz-screen__badge">{content.parties > 1 ? `Партия ${r.party} из ${content.parties}` : "Кости лжеца"}</span>
         <h2 className="pr-title">Стаканы на стол!</h2>
         <p className="pr-note">Свои кости увидите на телефоне. Держите его так, чтобы соседи не подглядели.</p>
       </div>
@@ -293,7 +293,7 @@ export function PerudoPlayerView({ session, content, pid, role, myAnswer, sendin
 
   const head = (
     <p className="eyebrow">
-      Перудо{content.parties > 1 && started ? ` · партия ${r.party}` : ""}
+      Кости лжеца{content.parties > 1 && started ? ` · партия ${r.party}` : ""}
       {r.round > 0 && r.mode !== "deal" ? ` · раунд ${r.round}` : ""}
       {seated ? ` · у вас ${diceWord(r.dice[pid] ?? 0)}` : ""}
     </p>

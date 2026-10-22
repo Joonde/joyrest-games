@@ -23,7 +23,7 @@ function session(): Session {
 const scores = (s: Session) => Object.fromEntries(Object.entries(s.leaderboard).map(([k, v]) => [k, v.score]));
 const R = (s: Session) => parseBunkerResult(s.state.result);
 
-describe("бункер: правила", () => {
+describe("убежище: правила", () => {
   it("мест — половина игроков, как в таблице правил", () => {
     expect([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(placesFor)).toEqual([2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8]);
   });
@@ -61,7 +61,7 @@ describe("бункер: правила", () => {
   });
 });
 
-describe("бункер: тайные карты", () => {
+describe("убежище: тайные карты", () => {
   it("каждый телефон открывает только свою карту, все шифры одной длины", async () => {
     const sec = dealSecrets(["p1", "p2"], createBunker(), rnd);
     sec.notes.p1 = ["Игрок 2 · Здоровье|h:3"];
@@ -89,7 +89,7 @@ function setup(content = createBunker()) {
   return { s, sec, content };
 }
 
-describe("бункер: ход игры", () => {
+describe("убежище: ход игры", () => {
   it("раздача → катастрофа → раунд → круг открытия (в первом раунде профессия) → обсуждение", () => {
     let { s, sec, content } = setup();
     expect(R(s).places).toBe(3);
@@ -171,7 +171,7 @@ describe("бункер: ход игры", () => {
   });
 });
 
-describe("бункер: особые условия", () => {
+describe("убежище: особые условия", () => {
   function withSpecial(special: Character["special"]) {
     const g = setup();
     let { s } = g;
@@ -258,7 +258,7 @@ describe("бункер: особые условия", () => {
   });
 });
 
-describe("бункер: несколько партий", () => {
+describe("убежище: несколько партий", () => {
   it("после итога — следующая партия: все снова в игре, номер партии, очки на месте", () => {
     let { s, sec, content } = setup({ ...createBunker(), threats: 0, parties: 2 });
     for (let i = 0; i < 5; i++) s = applyChange(s, startRound(s, content, sec), 3 + i);
@@ -279,7 +279,7 @@ describe("бункер: несколько партий", () => {
   });
 });
 
-describe("бункер: исправления проверки", () => {
+describe("убежище: исправления проверки", () => {
   it("открывать нечего — только речь, ход не зависает", async () => {
     const { turnDone, speakOnly } = await import("./logic");
     let { s, sec, content } = setup();
@@ -294,7 +294,7 @@ describe("бункер: исправления проверки", () => {
     expect(R(s).speakEndsAt).toBe(1000 + content.firstSpeechSeconds * 1000);
   });
 
-  it("стаж не больше лет после 18, раундов не больше карт бункера", () => {
+  it("стаж не больше лет после 18, раундов не больше карт убежища", () => {
     for (let k = 0; k < 20; k++) {
       const sec = dealSecrets(players.map((p) => p.id), createBunker(), rnd);
       for (const c of Object.values(sec.chars)) {

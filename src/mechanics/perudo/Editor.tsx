@@ -1,4 +1,4 @@
-// Конструктор «Перудо»: сколько костей, «Ровно!», «Палифико», очки, партии.
+// Конструктор «Кости лжеца»: сколько костей, «Ровно!», «Палифико», очки, партии.
 import { ClampedNumber } from "../../components/ClampedNumber";
 import type { EditorProps } from "../types";
 import { PERUDO_LIMITS, type PerudoContent } from "./content";

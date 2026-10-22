@@ -1,4 +1,4 @@
-// Конструктор «Just Dance / Караоке на поле»: категории и плитки, у плитки — очки, кто выходит (или кто против кого),
+// Конструктор «Танцуй как звезда / Караоке на поле»: категории и плитки, у плитки — очки, кто выходит (или кто против кого),
 // трек, задание и видео (ссылка или файл на устройстве экрана зала).
 import { useRef, useState } from "react";
 import { ClampedNumber } from "../../components/ClampedNumber";
@@ -36,7 +36,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
           ))}
         </div>
         <p className="muted small">
-          Поле как в «Своей игре»: команды по очереди называют категорию и очки, плитка переворачивается и показывает, кто выходит {karaoke ? "петь" : "танцевать"}, — и на экране зала включается видео. Вы управляете им с пульта: пауза, перемотка, на весь экран. Батл — зал голосует с телефонов, на экране перетягивание каната.
+          Поле как в «Ставке на знания»: команды по очереди называют категорию и очки, плитка переворачивается и показывает, кто выходит {karaoke ? "петь" : "танцевать"}, — и на экране зала включается видео. Вы управляете им с пульта: пауза, перемотка, на весь экран. Батл — зал голосует с телефонов, на экране перетягивание каната.
         </p>
         <div className="row board-editor__size">
           <label className="field">
@@ -250,7 +250,7 @@ function TileForm({ tile, karaoke, editable, errors, onChange, onRemove }: { til
         <input value={tile.note} maxLength={STAGE_LIMITS.note} disabled={!editable} placeholder={karaoke ? "Команда — на подпевках" : "Повторяйте движения за экраном"} onChange={(e) => onChange({ note: e.target.value })} />
       </label>
       <fieldset className="stack stack--tight">
-        <legend>Видео {karaoke ? "караоке" : "Just Dance"}</legend>
+        <legend>Видео {karaoke ? "караоке" : "танца"}</legend>
         <div className="seg" role="group" aria-label="Откуда видео">
           {videoSources().map((s) => (
             <button key={s} type="button" className={tile.video.source === s ? "seg__btn is-on" : "seg__btn"} aria-pressed={tile.video.source === s} disabled={!editable} onClick={() => setSource(s)}>

@@ -99,7 +99,7 @@ export const brandingsRepo: BrandingsRepository | null = server ? serverBranding
 export const decksRepo: DecksRepository | null = server ? serverDecksRepository : null;
 /** Рисунки гостей «Аквариума и Ёлки» — только свой сервер. */
 export const drawingsRepo: DrawingsRepository | null = server ? serverDrawingsRepository : null;
-/** «Опрос гостей заранее» для «100 к 1» — только свой сервер. */
+/** «Опрос гостей заранее» для «Что скажет большинство» — только свой сервер. */
 export const pollsRepo: PollsRepository | null = server ? serverPollsRepository : null;
 /** Конец игры: чаевые и отзывы — только свой сервер. */
 export const finaleRepo: FinaleRepository | null = server ? serverFinaleRepository : null;

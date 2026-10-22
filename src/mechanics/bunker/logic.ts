@@ -1,10 +1,10 @@
-// «Бункер» — чистые функции хода игры (правила — docs/bunker-rules.md).
+// «Убежище» — чистые функции хода игры (правила — docs/bunker-rules.md).
 //
-// Раздача → катастрофа → раунды (карта бункера → круг открытия карт, в первом раунде — профессия →
+// Раздача → катастрофа → раунды (карта убежища → круг открытия карт, в первом раунде — профессия →
 // обсуждение → тайное голосование; ничья — оправдание и переголосование, снова ничья — жребий) →
 // финал: открываются все карты спасшихся, проверка «Возрождения» и угрозы «Истории выживания».
 //
-// Тайное (персонажи всех игроков, закрытые карты бункера, угрозы) хранится в `hostSeal` — ключом
+// Тайное (персонажи всех игроков, закрытые карты убежища, угрозы) хранится в `hostSeal` — ключом
 // ведущего; карта каждого телефона — его ключом (`sealed`). Открытые карты лежат в `shown` открыто.
 import { leaderboardAdditions } from "../../core/leaderboard";
 import { podiumBack } from "../../core/podium";
@@ -19,7 +19,7 @@ export type Mode = "deal" | "catastrophe" | "bunker" | "open" | "discuss" | "vot
 /** Тайное игры: только у ведущего. */
 export interface Secrets {
   chars: Record<string, Character>;
-  /** Карты бункера (номера в колоде) по раундам. */
+  /** Карты убежища (номера в колоде) по раундам. */
   bunker: number[];
   threats: number[];
   /** Личные заметки (Шпион): видит только сам игрок. */
@@ -54,7 +54,7 @@ export interface BunkerResult {
   catastrophe: number;
   years: number;
   area: number;
-  /** Открытые карты бункера (номера в колоде) по порядку раундов. */
+  /** Открытые карты убежища (номера в колоде) по порядку раундов. */
   bunkerShown: number[];
   open: Record<string, Cat[]>;
   /** Тексты открытых карт (ссылки). */
@@ -355,7 +355,7 @@ export function quota(content: BunkerContent, r: BunkerResult): number {
   return quotaNow(r.round, content.rounds, r.alive.length, r.places, r.done);
 }
 
-/** «Раунд N»: открывается карта бункера этого раунда. */
+/** «Раунд N»: открывается карта убежища этого раунда. */
 export function startRound(session: Session, content: BunkerContent, secrets: Secrets): SessionChange {
   const r = parseBunkerResult(session.state.result);
   const round = r.round + 1;
@@ -536,7 +536,7 @@ export function hasPair(chars: Record<string, Character>, people: string[]): boo
   return fit("m") && fit("f");
 }
 
-/** «Финал»: открываются все карты спасшихся и все карты бункера, дальше — угрозы. */
+/** «Финал»: открываются все карты спасшихся и все карты убежища, дальше — угрозы. */
 export function startFinal(session: Session, content: BunkerContent, secrets: Secrets): SessionChange {
   const r = parseBunkerResult(session.state.result);
   const pay = roundPay(session, content, r);
@@ -564,7 +564,7 @@ export function judgeThreat(session: Session, beaten: boolean): SessionChange {
   return { state: { result: { ...r, verdicts } } };
 }
 
-/** «Итог»: бункер выжил — очки спасшимся. */
+/** «Итог»: убежище выжило — очки спасшимся. */
 export function finishBunker(session: Session, content: BunkerContent, chars: Record<string, Character>): SessionChange {
   const r = parseBunkerResult(session.state.result);
   const rebirth = content.rebirth ? hasPair(chars, r.alive) : null;
@@ -593,7 +593,7 @@ export const ACTION_LABELS: Record<BunkerAction, string> = {
   count: "Подсчитать голоса",
   revote: "Переголосовать",
   moreVote: "Ещё одно голосование",
-  final: "Финал: кто в бункере",
+  final: "Финал: кто в убежище",
   threat: "Открыть угрозу",
   judge: "Решить угрозу",
   outcome: "Итог игры",
@@ -656,7 +656,7 @@ export interface UseResult {
 }
 
 /**
- * Сыграть особое условие игрока: меняет тайное (персонажи, бункер) и открытое (открытые карты, места,
+ * Сыграть особое условие игрока: меняет тайное (персонажи, убежище) и открытое (открытые карты, места,
  * кто в игре), пишет строку в журнал. Отказ — причина в `refused` (телефон покажет её).
  */
 export function applyUse(session: Session, content: BunkerContent, secrets: Secrets, pid: string, use: Use, name: (pid: string) => string, random: () => number = Math.random): UseResult | { refusal: Refusal; change: SessionChange } {

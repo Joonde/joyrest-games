@@ -1,4 +1,4 @@
-// «Бункер» — настройки игры. Правила — docs/bunker-rules.md и CLAUDE.md (раздел «Бункер»).
+// «Убежище» — настройки игры. Правила — docs/bunker-rules.md и CLAUDE.md (раздел «Убежище»).
 import { CATASTROPHES } from "./decks";
 
 export interface BunkerContent {
@@ -24,7 +24,7 @@ export interface BunkerContent {
   threats: number;
   /** Катастрофа: номер или null — случайная. */
   catastrophe: number | null;
-  /** Очки: каждому, кто пережил раунд, и каждому спасшемуся при победе бункера. */
+  /** Очки: каждому, кто пережил раунд, и каждому спасшемуся при победе убежища. */
   roundPoints: number;
   winPoints: number;
   /** Партий за игру: после финала — «Следующая партия», новые персонажи и катастрофа, очки копятся. */
@@ -83,7 +83,7 @@ export function parseBunker(raw: unknown): BunkerContent {
   };
 }
 
-/** Мест в бункере — половина игроков (округление вниз), как в таблице правил: 4 → 2, 5 → 2, 16 → 8. */
+/** Мест в убежище — половина игроков (округление вниз), как в таблице правил: 4 → 2, 5 → 2, 16 → 8. */
 export function placesFor(players: number): number {
   return Math.max(1, Math.floor(players / 2));
 }

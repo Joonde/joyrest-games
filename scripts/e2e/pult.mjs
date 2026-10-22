@@ -35,21 +35,21 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const notKaraoke = (c) => c?.variant !== "karaoke";
 const GAMES = [
-  { key: "quiz", name: "Квиз", mech: "quiz", players: 12, pick: (g) => !/мелод|формат|число|порядк/i.test(g.title) },
+  { key: "quiz", name: "Квиз", mech: "quiz", players: 12, pick: (g) => !/мелод|по нотам|формат|число|порядк/i.test(g.title) },
   { key: "lotto", name: "Музыкальное лото", mech: "lotto" },
   { key: "dragon", name: "Бой с драконом", mech: "dragon", pick: (g) => !/дет/i.test(g.title) },
-  { key: "justdance", name: "Just Dance на поле", mech: "stage", pick: (g) => notKaraoke(g.content) },
-  { key: "millionaire", name: "Кто хочет стать миллионером", mech: "millionaire" },
-  { key: "board", name: "Своя игра", mech: "board" },
-  { key: "hundred", name: "100 к 1", mech: "hundred", pick: (g) => g.content?.mode !== "hall" },
+  { key: "justdance", name: "Танцуй как звезда", mech: "stage", pick: (g) => notKaraoke(g.content) },
+  { key: "millionaire", name: "Миллион на кону", mech: "millionaire" },
+  { key: "board", name: "Ставка на знания", mech: "board" },
+  { key: "hundred", name: "Что скажет большинство", mech: "hundred", pick: (g) => g.content?.mode !== "hall" },
   { key: "quest", name: "Активная настолка", mech: "quest", pick: (g) => !/18|алког/i.test(g.title) },
   { key: "truth", name: "Правда или действие", mech: "truth", pick: (g) => !/18/.test(g.title) },
   { key: "karaoke", name: "Караоке на поле", mech: "stage", pick: (g) => g.content?.variant === "karaoke" },
-  { key: "melody", name: "Угадай мелодию", mech: "quiz", pick: (g) => /мелод/i.test(g.title) },
+  { key: "melody", name: "Узнай по нотам", mech: "quiz", pick: (g) => /мелод|по нотам/i.test(g.title) },
   { key: "spy", name: "Шпион", mech: "spy", mode: "solo", players: 5 },
   { key: "wager", name: "Держи пари", mech: "wager" },
   { key: "wine", name: "Винное казино", mech: "wine", mode: "solo", players: 3 },
-  { key: "perudo", name: "Перудо", mech: "perudo", mode: "solo", players: 3 },
+  { key: "perudo", name: "Кости лжеца", mech: "perudo", mode: "solo", players: 3 },
   { key: "dance", name: "Танцевальный батл", mech: "dance" },
 ];
 const ONLY = (process.env.PULT_GAMES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -661,7 +661,7 @@ async function runGame(browser, token, spec, game) {
         await sleep(600);
         const s2 = await state();
         if (s2.state.slide) run.bug(`«${on}» → убрать: на экране осталось (${s2.state.slide.kind})`);
-        // Жеребьёвка вправе передать право хода («Своя игра») — сравниваем только этап, шаг и очки.
+        // Жеребьёвка вправе передать право хода («Ставка на знания») — сравниваем только этап, шаг и очки.
         const a = { ...s0, state: { ...s0.state } };
         await sameGame(`«${on}» и обратно`, a, kind === "draw" ? undefined : keys0);
         run.count(`поверх игры: ${kind}`);

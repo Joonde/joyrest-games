@@ -192,7 +192,7 @@ describe("игры", () => {
     expect(p.canEditGame({ uid: "host-1", role: "host", active: false }, myGame)).toBe(false);
   });
 
-  it("опрос гостей к «100 к 1»: заводит тот, кто правит игру; ответы видят он и владелец", () => {
+  it("опрос гостей к «Что скажет большинство»: заводит тот, кто правит игру; ответы видят он и владелец", () => {
     expect(p.canCreatePoll(host, myGame)).toBe(true);
     expect(p.canCreatePoll(other, myGame)).toBe(false);
     expect(p.canCreatePoll(host, agencyGame)).toBe(false);

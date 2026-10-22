@@ -64,7 +64,7 @@ function started(content = game()) {
   return { s, content };
 }
 
-describe("Кто хочет стать миллионером: содержимое", () => {
+describe("Миллион на кону: содержимое", () => {
   it("новая игра — 15 ступеней (несгораемые 5 и 10), 2 попытки; старые без лестницы — 12", () => {
     const c = createMillionaire();
     expect(levelsOf(c)).toBe(15);
@@ -107,7 +107,7 @@ describe("Кто хочет стать миллионером: содержим�
   });
 });
 
-describe("Кто хочет стать миллионером: ход", () => {
+describe("Миллион на кону: ход", () => {
   it("очередь команд, вопрос своей ступени, верно — выше, неверно — до несгораемой", () => {
     let { s, content } = started();
     let r = parseMillionaireResult(s.state.result);
@@ -172,7 +172,7 @@ describe("Кто хочет стать миллионером: ход", () => {
   });
 });
 
-describe("Кто хочет стать миллионером: подсказки", () => {
+describe("Миллион на кону: подсказки", () => {
   function atQuestion() {
     let { s, content } = started();
     s = apply(s, showQuestion(s, content));
@@ -328,7 +328,7 @@ describe("Кто хочет стать миллионером: подсказк�
   });
 });
 
-describe("оформление экрана зала «Миллионера»", () => {
+describe("оформление экрана зала «Миллиона на кону»", () => {
   it("старые игры без поля и неизвестные значения — «Классика», шаблон и новые игры — «Студия»", () => {
     const old: Record<string, unknown> = { ...createMillionaire() };
     delete old.look;
@@ -345,7 +345,7 @@ describe("оформление экрана зала «Миллионера»", 
   });
 });
 
-describe("Кто хочет стать миллионером: после ошибки решает ведущий", () => {
+describe("Миллион на кону: после ошибки решает ведущий", () => {
   function wrongAt(level: number) {
     let { s, content } = started();
     const r0 = parseMillionaireResult(s.state.result);
@@ -411,7 +411,7 @@ describe("Кто хочет стать миллионером: после оши
   });
 });
 
-describe("Кто хочет стать миллионером: попытки после ошибки и 15 ступеней", () => {
+describe("Миллион на кону: попытки после ошибки и 15 ступеней", () => {
   function attemptsGame(attempts: number | null) {
     const content = { ...game(), attempts };
     let s = session();

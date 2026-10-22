@@ -12,7 +12,7 @@ export function builtinMusicOf(session: Session, moment: MusicMoment | null): Bu
   // Перерыв и технический перерыв — спокойная музыка перерыва по кругу.
   if (slide?.kind === "break" || slide?.kind === "tech") return { key: `break:${slide.id}`, urls: [...BUILTIN_MUSIC.break] };
   if (session.state.phase === "lobby" && session.state.teams?.shown != null) return { key: "teams", urls: [...BUILTIN_MUSIC.teams] };
-  // Фон всей партии («Дурак», «Миллионер», бой с драконом): один ключ на игру — шаги не перезапускают трек.
+  // Фон всей партии («Дурак», «Миллион на кону», бой с драконом): один ключ на игру — шаги не перезапускают трек.
   if (moment && !slide && CONTINUOUS.has(moment)) return { key: moment, urls: [...BUILTIN_MUSIC[moment]], volume: BUILTIN_VOLUME[moment] ?? 1 };
   // Момент игры (заставка вопроса, выбор в суперигре): каждый новый шаг — трек с начала.
   if (moment && !slide) return { key: `${moment}:${session.state.step}:${session.state.startedAt ?? 0}`, urls: [...BUILTIN_MUSIC[moment]] };

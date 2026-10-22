@@ -51,7 +51,7 @@ for (const [m, cfg] of Object.entries(MECHANICS)) {
       for (const profile of wanted) {
         const p = PROFILES[profile];
         const max = cfg.players ? Math.max(...cfg.players) : null;
-        // Большой праздник: игры с тайными ролями — сколько позволяют правила (Мафия до 30, Шпион до 20, Бункер до 16).
+        // Большой праздник: игры с тайными ролями — сколько позволяют правила (Мафия до 30, Шпион до 20, Убежище до 16).
         const big = { mafia: 20, spy: 20, bunker: 16 }[m];
         const n = p.crowd === "big" ? (big ?? (max && max < 6 ? max : mode === "teams" ? 10 : 40)) : (max ?? (p.crowd ? (mode === "teams" ? 8 : 16) : 4));
         jobs.push({ m, demo, mode, n, profile });

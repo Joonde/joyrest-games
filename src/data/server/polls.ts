@@ -1,4 +1,4 @@
-/** «Опрос гостей заранее» для «100 к 1» на своём сервере: `/api/polls…` (`server/src/polls.ts`). */
+/** «Опрос гостей заранее» для «Что скажет большинство» на своём сервере: `/api/polls…` (`server/src/polls.ts`). */
 import { parsePollEdits, parsePollQuestions } from "../../core/polls";
 import type { PollsRepository } from "../contracts";
 import type { PollForm, PollSummary } from "../types";

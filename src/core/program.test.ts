@@ -4,7 +4,7 @@ import { blockWinners, eveningTable, EVENING_MECHANIC, eveningScore, moveProgram
 
 const blocks = [
   { title: "Квиз", mechanic: "quiz", snapshot: { content: { q: 1 } } },
-  { title: "Своя игра", mechanic: "board", snapshot: { content: { b: 1 } } },
+  { title: "Ставка на знания", mechanic: "board", snapshot: { content: { b: 1 } } },
   { title: "Мафия", mechanic: "mafia", snapshot: { content: { m: 1 } } },
 ];
 

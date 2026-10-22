@@ -9,10 +9,10 @@ import { HundredPlayerView, HundredScreenView, type HundredAnswerValue } from ".
 
 const HundredEditor = lazy(() => import("./Editor").then((m) => ({ default: m.HundredEditor })));
 
-/** «100 к 1»: табло популярных ответов, розыгрыш «Жми первым!», три ошибки и шанс соперника, «Большая игра», «Весь зал». */
+/** «Что скажет большинство»: табло популярных ответов, розыгрыш «Жми первым!», три ошибки и шанс соперника, «Большая игра», «Весь зал». */
 export const hundred: Mechanic<HundredContent, HundredAnswerValue, HundredStep> = {
   id: "hundred",
-  title: "100 к 1",
+  title: "Что скажет большинство",
   supports: { solo: true, teams: true, noScreen: true },
   create: createHundred,
   parse: parseHundred,

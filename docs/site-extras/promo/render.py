@@ -2,7 +2,9 @@ import sys, pathlib, subprocess
 from playwright.sync_api import sync_playwright
 P = pathlib.Path(sys.argv[1]); mode = sys.argv[2]
 R = 'file:///home/claude/joyrest-games'
-X = 'file:///tmp/claude-0/-home-claude/b9162ab0-6753-5a18-a24b-0dbb58c7c7b4/scratchpad/shots/shots'
+import os
+# Папка снимков «Снимки игр» (ветка e2e-shots, папка shots/): SHOTS=/путь python3 render.py <папка> preview|frames
+X = 'file://' + os.environ.get('SHOTS', '/tmp/shots')
 html = (P/'promo.html').read_text().replace('url(R/', f'url({R}/').replace('"S/', f'"{R}/').replace("'S/", f"'{R}/").replace('"X/', f'"{X}/').replace("'X/", f"'{X}/")
 (P/'_r.html').write_text(html)
 with sync_playwright() as p:

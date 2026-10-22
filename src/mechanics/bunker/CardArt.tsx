@@ -1,6 +1,6 @@
-// Карты «Бункера»: личное дело выжившего. У каждой колоды — свой цвет, свой знак и своя рамка:
+// Карты «Убежища»: личное дело выжившего. У каждой колоды — свой цвет, свой знак и своя рамка:
 // характеристики — карточки досье на плотной бумаге, особые условия — чёрное золото с молнией,
-// катастрофа — тревожная красная с полосами, бункер — синий чертёж, угроза — жёлтый знак опасности.
+// катастрофа — тревожная красная с полосами, убежище — синий чертёж, угроза — жёлтый знак опасности.
 // Рубашка — чёрно-жёлтые полосы и эмблема JoyRest в люке. Рисунки — свои, простые линии.
 import type { ReactNode } from "react";
 import { Logo } from "../../components/Logo";
@@ -203,7 +203,7 @@ export function Icon({ name, className }: { name: string; className?: string }) 
 }
 
 /** Рубашка: чёрно-жёлтые полосы, люк с эмблемой JoyRest, надпись трафаретом. */
-export function CardBack({ label = "Бункер", small = false }: { label?: string; small?: boolean }) {
+export function CardBack({ label = "Убежище", small = false }: { label?: string; small?: boolean }) {
   return (
     <div className={`bk-card bk-back${small ? " bk-card--small" : ""}`} aria-label="Закрытая карта">
       <div className="bk-in">
@@ -293,7 +293,7 @@ export function CatastropheCard({ id, years, places, area, compact = false }: { 
         )}
         <span className="bk-cata__facts">
           <span>
-            <b>{years}</b> {years === 1 ? "год" : years < 5 ? "года" : "лет"} в бункере
+            <b>{years}</b> {years === 1 ? "год" : years < 5 ? "года" : "лет"} в убежище
           </span>
           {places !== undefined && (
             <span>
@@ -312,12 +312,12 @@ export function CatastropheCard({ id, years, places, area, compact = false }: { 
   );
 }
 
-/** Карта бункера: синий чертёж — сетка, план отсека, знак комнаты. Закрыта — люк. */
+/** Карта убежища: синий чертёж — сетка, план отсека, знак комнаты. Закрыта — люк. */
 export function BunkerCard({ index, n, small = false, fresh = false }: { index: number | null; n: number; small?: boolean; fresh?: boolean }) {
   const card = index === null ? null : BUNKER_CARDS[index];
   if (!card) {
     return (
-      <div className={`bk-card bk-plan bk-plan--closed${small ? " bk-card--small" : ""}`} aria-label={`Карта бункера ${n}: закрыта`}>
+      <div className={`bk-card bk-plan bk-plan--closed${small ? " bk-card--small" : ""}`} aria-label={`Карта убежища ${n}: закрыта`}>
         <div className="bk-in">
           <span className="bk-plan__num">{n}</span>
           <Icon name="hatch" className="bk-icon bk-plan__hatch" />

@@ -9,10 +9,10 @@ import { StagePlayerView, StageScreenView, type StageAnswerValue } from "./views
 
 const StageEditor = lazy(() => import("./Editor").then((m) => ({ default: m.StageEditor })));
 
-/** «Just Dance и Караоке на поле»: плитки с очками, кто выходит, видео с пульта, симпатия зала и батлы. */
+/** «Танцуй как звезда и Караоке на поле»: плитки с очками, кто выходит, видео с пульта, симпатия зала и батлы. */
 export const stage: Mechanic<StageContent, StageAnswerValue> = {
   id: "stage",
-  title: "Just Dance и Караоке на поле",
+  title: "Танцуй как звезда и Караоке на поле",
   supports: { solo: false, teams: true, noScreen: false },
   // Счётчик «Ответили» пульт механики пишет сам.
   ownAnswered: true,
@@ -28,6 +28,6 @@ export const stage: Mechanic<StageContent, StageAnswerValue> = {
   validate: validateStage,
   preview: { driver: stagePreview, teams: 3, limit: 40 },
   firstTurn: (session, _content, pid) => stageFirstTurn(session, pid),
-  // «Караоке на поле» — сцена с микрофоном; «Just Dance» — пока без фона (картинка ещё не скачана из Figma).
+  // «Караоке на поле» — сцена с микрофоном; «Танцуй как звезда» — пока без фона (картинка ещё не скачана из Figma).
   art: (content) => (content.variant === "karaoke" ? "karaoke" : null),
 };

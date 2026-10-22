@@ -6,7 +6,7 @@ describe("категории библиотеки", () => {
   it("квиз с треками — музыкальный, без треков — квиз", () => {
     expect(categoryOf({ mechanic: "quiz", content: { questions: [{ kind: "choice", text: "?" }] } })).toBe("quiz");
     expect(categoryOf({ mechanic: "quiz", content: { questions: [{ kind: "open", text: "?", trackId: "t1" }] } })).toBe("music");
-    expect(categoryOf({ mechanic: "quiz", content: { questions: [] }, title: "Угадай мелодию: 90-е" })).toBe("music");
+    expect(categoryOf({ mechanic: "quiz", content: { questions: [] }, title: "Узнай по нотам: 90-е" })).toBe("music");
     expect(categoryOf({ mechanic: "unknown", content: null })).toBe("other");
   });
 
@@ -28,7 +28,7 @@ describe("«Популярные» над разделами", () => {
     const g = (id: string, mechanic: string, content: unknown = {}, title = id) => ({ id, mechanic, content, title });
     const list = [
       g("board", "board"),
-      g("melody", "quiz", { questions: [] }, "Угадай мелодию"),
+      g("melody", "quiz", { questions: [] }, "Узнай по нотам"),
       g("quiz", "quiz", { questions: [] }, "Квиз"),
       g("karaoke", "stage", { variant: "karaoke" }),
       g("dance", "stage", { variant: "dance" }),

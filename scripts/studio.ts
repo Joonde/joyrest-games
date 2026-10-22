@@ -533,7 +533,7 @@ async function main() {
   check(stillThere.title === "Проверка: правка после принятия", "игры ведущего сохранились");
 
   // ------------------------------------------------ шаблоны библиотеки
-  say("\n— Шаблоны библиотеки: квиз, «Угадай мелодию», лото, «Своя игра», шашки, батл, настолка, «Миллионер», «Гонка», «Дракон» —");
+  say("\n— Шаблоны библиотеки: квиз, «Узнай по нотам», лото, «Ставка на знания», шашки, батл, настолка, «Миллион на кону», «Гонка», «Дракон» —");
   const templates = [
     { mechanic: "quiz", ...DEMO_QUIZ },
     { mechanic: "quiz", ...DEMO_MELODY },
@@ -543,7 +543,7 @@ async function main() {
     { mechanic: "dance", ...DEMO_DANCE },
     { mechanic: "quest", ...DEMO_QUEST },
     { mechanic: "quest", ...DEMO_QUEST_ADULT },
-    { mechanic: "millionaire", title: "Кто хочет стать миллионером", content: DEMO_MILLIONAIRE },
+    { mechanic: "millionaire", title: "Миллион на кону", content: DEMO_MILLIONAIRE },
     { mechanic: "survival", title: "Гонка на выживание", content: DEMO_SURVIVAL },
     { mechanic: "dragon", title: "Бой с драконом", content: DEMO_DRAGON },
     { mechanic: "dragon", title: "Бой с драконом: для детей", content: DEMO_DRAGON_KIDS },
@@ -637,7 +637,7 @@ async function main() {
     check(result.board[0]?.name === "🎵 Лотошник", "итоги лото сохранены со смайликом");
   }
 
-  // «Своя игра»: клетка → два нажатия → «Неверно» первому → «Верно» второму → клетка гаснет;
+  // «Ставка на знания»: клетка → два нажатия → «Неверно» первому → «Верно» второму → клетка гаснет;
   // «Кот в мешке»: ставки, нажатие, «Верно» — ставка победителю, второй ставивший теряет свою.
   {
     const game = parseBoard(DEMO_BOARD.content);
@@ -652,7 +652,7 @@ async function main() {
     const u2 = (await g2.call<{ uid: string }>("POST", "/api/auth/device")).uid;
     await g1.call("POST", `/api/sessions/${sid}/participants/${u1}/join`, { name: "🦊 Первый", teamId: null });
     await g2.call("POST", `/api/sessions/${sid}/participants/${u2}/join`, { name: "🐻 Второй", teamId: null });
-    check(Boolean(created.code), "«Своя игра» создана");
+    check(Boolean(created.code), "«Ставка на знания» создана");
     const get = () => back.call<Session>("GET", `/api/sessions/${sid}`);
     const act = async (change: object) => {
       const cur = await get();
@@ -692,7 +692,7 @@ async function main() {
       const final = await get();
       check((final.leaderboard[u1]?.score ?? 0) === 300, "«Кот в мешке»: верно — плюс цена", String(final.leaderboard[u1]?.score));
     }
-    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Своя игра» завершена");
+    check((await back.status("POST", `/api/sessions/${sid}/finish`)) === 200, "«Ставка на знания» завершена");
   }
 
   // «Шашки»: две «команды» (гостя), ходы по очереди — белые, потом чёрные; ход проверяет пульт.

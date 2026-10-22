@@ -40,12 +40,12 @@ export const DEMO_QUIZ: { title: string; content: QuizContent } = {
 };
 
 /**
- * Шаблон «Угадай мелодию»: на экране зала звучит фрагмент, гости выбирают песню. Треки ведущий
+ * Шаблон «Узнай по нотам»: на экране зала звучит фрагмент, гости выбирают песню. Треки ведущий
  * выбирает в копии игры (вопрос → «Музыка на экране зала»); без трека — включает песню сам,
  * верный ответ виден на пульте.
  */
 export const DEMO_MELODY: { title: string; content: QuizContent } = {
-  title: "Угадай мелодию: шаблон",
+  title: "Узнай по нотам: шаблон",
   content: {
     settings: { intro: false, board: "rounds", phoneImages: false, raceTarget: 5 },
     questions: [

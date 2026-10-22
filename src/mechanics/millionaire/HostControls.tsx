@@ -49,7 +49,7 @@ function millionaireMoment(s: Session): string {
 }
 
 /**
- * Пульт «Миллионера»: «Начать игру» → «Показать вопрос» команды → капитан выбирает на телефоне (или
+ * Пульт «Миллиона на кону»: «Начать игру» → «Показать вопрос» команды → капитан выбирает на телефоне (или
  * ведущий отмечает ответ команды) — выбор сразу подсвечивается на экране → ведущий переспрашивает «Это
  * окончательный ответ?» и фиксирует → «Показать ответ» → «Следующая команда». Подсказки — плитками: каждая
  * у команды один раз; игрок может попросить подсказку с телефона — ведущий переспрашивает и включает.
@@ -141,7 +141,7 @@ export function MillionaireHostControls({ session, content, answers, participant
 
   return (
     <div className="stack host-quiz">
-      <p className="eyebrow">Кто хочет стать миллионером · {content.players === "one" ? (solo ? "один игрок" : "одна команда") : `${u.plNom} по очереди`}</p>
+      <p className="eyebrow">Миллион на кону · {content.players === "one" ? (solo ? "один игрок" : "одна команда") : `${u.plNom} по очереди`}</p>
       {stage === "podium" ? (
         <PodiumHostList session={session} />
       ) : r.order.length === 0 ? (
@@ -362,9 +362,9 @@ export function MillionaireHostControls({ session, content, answers, participant
         )}
         {action === "lock" && (
           <>
-            {pick !== null && <p className="muted small">Спросите: «{LETTERS[pick]} — это ваш окончательный ответ?»</p>}
+            {pick !== null && <p className="muted small">Спросите: «{LETTERS[pick]} — фиксируем ответ?»</p>}
             <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || pick === null} onClick={() => void run((s) => control.freshAnswers(step).then((fresh) => lockAnswer(s, fresh.length > 0 ? fresh : answers)))}>
-              {pick === null ? `Ждём ответ ${u.gen}` : `Да, окончательный — ${LETTERS[pick]}`}
+              {pick === null ? `Ждём ответ ${u.gen}` : `Да, фиксируем — ${LETTERS[pick]}`}
             </button>
           </>
         )}

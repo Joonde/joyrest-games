@@ -9,6 +9,7 @@ describe("музыкальный фрагмент", () => {
       start: 0,
       length: 120,
       chorusStart: 65,
+      chorusLength: 12,
       confetti: false,
     });
     const clip = { ...DEFAULT_CLIP, trackId: "t2", chorusStart: 70, fadeIn: 2 };
@@ -26,5 +27,22 @@ describe("музыкальный фрагмент", () => {
     expect(moveHandle({ ...clip, start: 150 }, "end", 500, 180)).toMatchObject({ length: 30 });
     // Припев не уезжает за край трека.
     expect(moveHandle(clip, "chorus", 300, 200).chorusStart).toBe(190);
+  });
+
+  it("припев — любой промежуток: два ползунка, 3–120 с, не за край трека", () => {
+    const clip = { ...DEFAULT_CLIP, chorusStart: 60, chorusLength: 10 };
+    // Конец тянут дальше — припев длиннее, начало на месте.
+    expect(moveHandle(clip, "chorusEnd", 87, 200)).toMatchObject({ chorusStart: 60, chorusLength: 27 });
+    expect(moveHandle(clip, "chorusEnd", 61, 200)).toMatchObject({ chorusStart: 60, chorusLength: 3 });
+    expect(moveHandle(clip, "chorusEnd", 999, 200)).toMatchObject({ chorusStart: 60, chorusLength: 120 });
+    expect(moveHandle({ ...clip, chorusStart: 190 }, "chorusEnd", 999, 200)).toMatchObject({ chorusStart: 190, chorusLength: 10 });
+    // Начало тянут — конец на месте.
+    expect(moveHandle(clip, "chorusStart", 45, 200)).toMatchObject({ chorusStart: 45, chorusLength: 25 });
+    expect(moveHandle(clip, "chorusStart", 69, 200)).toMatchObject({ chorusStart: 67, chorusLength: 3 });
+    expect(moveHandle(clip, "chorusStart", -5, 200)).toMatchObject({ chorusStart: 0, chorusLength: 70 });
+    // Сохраняется любая длина, старые 5/10/15 читаются как раньше.
+    expect(parseClip({ chorusStart: 30, chorusLength: 27 }).chorusLength).toBe(27);
+    expect(parseClip({ chorusStart: 30, chorusLength: 15 }).chorusLength).toBe(15);
+    expect(parseClip({ chorusStart: 30, chorusLength: 1 }).chorusLength).toBe(3);
   });
 });

@@ -426,7 +426,11 @@ reload_caddy() {
 # отключает set -e внутри функций, поэтому на него здесь не полагаемся.
 fetch_release() {
   local sha=$1 digest cid incoming="$ROOT_DIR/releases/.incoming-$1"
-  docker pull -q "$APP_REPO:sha-$sha" >/dev/null || return 1
+  # Образ мог уйти из GHCR (там хранятся 3 последние версии, cleanup-images.yml) — тогда
+  # берём копию, которая осталась на сервере (последние KEEP_RELEASES выкладок основной версии).
+  docker pull -q "$APP_REPO:sha-$sha" >/dev/null \
+    || docker image inspect "$APP_REPO:sha-$sha" >/dev/null 2>&1 \
+    || return 1
   digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$APP_REPO:sha-$sha" \
     | grep -m1 "^$APP_REPO@sha256:" || true)
   [ -n "$digest" ] || digest="$APP_REPO:sha-$sha"

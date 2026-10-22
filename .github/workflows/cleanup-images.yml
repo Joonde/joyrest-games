@@ -1,6 +1,8 @@
 # Уборка старых образов в GHCR: каждая выкладка добавляет образ, старые копятся и занимают
-# место. Оставляем 12 последних версий (откат на прошлую — всегда есть) и теги main,
-# test-release; служебные части без тега удаляются вместе со своими образами.
+# место. Оставляем 3 последние версии (решение владельца 22 октября 2026: место в GHCR
+# ограничено) и теги main, test-release; служебные части без тега удаляются вместе со своими
+# образами. Откат не зависит от GHCR: сервер хранит у себя образы 3 последних выкладок
+# основной версии (KEEP_RELEASES в deploy/bin/joyrest) и берёт их, если в GHCR образа уже нет.
 name: Уборка старых образов
 
 on:
@@ -27,7 +29,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           owner: Joonde
           package: joyrest-app
-          keep-n-tagged: 12
+          keep-n-tagged: 3
           exclude-tags: main,test-release,release
           delete-untagged: true
           delete-partial-images: true

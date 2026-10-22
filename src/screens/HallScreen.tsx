@@ -21,10 +21,12 @@ import { useScreenReport } from "../components/live/screenStatus";
 import {
   playSound,
   preloadSamples,
+  setBedVolume,
   setMuted,
   setSoundSet,
   stopAllSounds,
   unlockSound,
+  useBedVolume,
   useMuted,
   useSoundReady,
   useSoundUnlock,
@@ -101,9 +103,10 @@ function SoundOffIcon() {
 }
 
 /** Полноэкранный режим, звук и (ведущему) «Пульт или экран» и «В студию»: кнопки в углу экрана зала. */
-function ScreenControls({ toStudio, toPick }: { toStudio: (() => void) | null; toPick: (() => void) | null }) {
+function ScreenControls({ toStudio, toPick, bed }: { toStudio: (() => void) | null; toPick: (() => void) | null; bed: boolean }) {
   const muted = useMuted();
   const ready = useSoundReady();
+  const bedVolume = useBedVolume();
   const [full, setFull] = useState(() => document.fullscreenElement !== null);
   const canFullscreen = typeof document.documentElement.requestFullscreen === "function";
 
@@ -133,6 +136,24 @@ function ScreenControls({ toStudio, toPick }: { toStudio: (() => void) | null; t
         {/* Подпись — что сделает кнопка, а не что сейчас: «Звук включён» путало ведущих. */}
         {muted || !ready ? "Включить звук" : "Выключить звук"}
       </button>
+      {/* Громкость только фоновой музыки (лобби, перерыв): остальной звук мероприятия не тише (22 октября 2026). */}
+      {bed && !muted && (
+        <label className="screen-bed" title="Только фоновая музыка платформы. Музыка ведущего и звуки игры — как были.">
+          <span className="screen-bed__label">🎵 Фон {bedVolume}%</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={bedVolume}
+            aria-label="Громкость фоновой музыки"
+            onChange={(e) => {
+              unlockSound();
+              setBedVolume(Number(e.target.value));
+            }}
+          />
+        </label>
+      )}
       {canFullscreen && (
         <button type="button" className="btn btn--secondary" onClick={toggleFullscreen}>
           {full ? "Выйти из полного экрана" : "Во весь экран"}
@@ -227,6 +248,7 @@ export function Screen({ session, isHost }: { session: Session; isHost: boolean 
       <ScreenControls
         toStudio={isHost && phase !== "finished" ? () => setLeaving(true) : null}
         toPick={isHost && phase !== "finished" ? () => setRepicking(true) : null}
+        bed={builtinNow && soundReady}
       />
       {isHost && (
         <ConfirmDialog

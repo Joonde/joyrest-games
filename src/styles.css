@@ -3049,6 +3049,30 @@ kbd {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
+/* Громкость фоновой музыки на экране зала — рядом с «Выключить звук», та же высота кнопки. */
+.screen-bed {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--control-height);
+  padding: 0 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.screen-bed__label {
+  min-width: 6.5em;
+  white-space: nowrap;
+}
+
+.screen-bed input[type="range"] {
+  width: clamp(120px, 16vw, 220px);
+  accent-color: var(--color-primary);
+}
+
 .hall.is-idle .screen-controls {
   opacity: 0;
   pointer-events: none;

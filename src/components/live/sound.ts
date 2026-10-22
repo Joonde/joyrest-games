@@ -822,11 +822,68 @@ const CROSSFADE = 4;
 const FADE_IN = 2.5;
 const FADE_OUT = 1.5;
 
+// ---------- Громкость фоновой музыки на этом экране ----------
+// Решение владельца 22 октября 2026: музыка лобби «орёт», а «Выключить звук» глушит всё. Отдельный ползунок
+// на экране зала — только встроенная фоновая музыка платформы (лобби, перерыв, музыка момента игры); музыка
+// ведущего, микшер пульта и звуки эффектов от него не зависят. Запоминается на этом устройстве.
+const BED_KEY = "joyrest.hall.bed";
+function readBed(): number {
+  try {
+    const raw = window.localStorage.getItem(BED_KEY);
+    const n = raw === null ? NaN : Number(raw);
+    return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : 100;
+  } catch {
+    return 100;
+  }
+}
+let bedPercent = typeof window === "undefined" ? 100 : readBed();
+let bedBus: GainNode | null = null;
+const bedListeners = new Set<(v: number) => void>();
+
+function bedOut(): GainNode | null {
+  const bus = musicOut();
+  if (!ctx || !bus) return null;
+  if (!bedBus) {
+    bedBus = ctx.createGain();
+    bedBus.gain.value = bedPercent / 100;
+    bedBus.connect(bus);
+  }
+  return bedBus;
+}
+
+/** Громкость фоновой музыки на этом экране, 0–100. */
+export function bedVolume(): number {
+  return bedPercent;
+}
+
+export function setBedVolume(value: number): void {
+  bedPercent = Math.min(100, Math.max(0, Math.round(value)));
+  try {
+    window.localStorage.setItem(BED_KEY, String(bedPercent));
+  } catch {
+    // Нет хранилища (приватный режим, телевизор) — громкость живёт до перезагрузки.
+  }
+  if (ctx && bedBus) bedBus.gain.setTargetAtTime(bedPercent / 100, ctx.currentTime, 0.1);
+  for (const l of bedListeners) l(bedPercent);
+}
+
+export function useBedVolume(): number {
+  const [value, setValue] = useState(bedPercent);
+  useEffect(() => {
+    bedListeners.add(setValue);
+    setValue(bedPercent);
+    return () => {
+      bedListeners.delete(setValue);
+    };
+  }, []);
+  return value;
+}
+
 function deck(i: number): Deck | null {
   if (!ctx) return null;
   const have = decks[i];
   if (have) return have;
-  const bus = musicOut();
+  const bus = bedOut();
   if (!bus) return null;
   const el = new Audio();
   el.preload = "auto";

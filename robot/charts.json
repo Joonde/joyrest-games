@@ -57,15 +57,15 @@
   "mechanic": "millionaire",
   "runs": 6,
   "finished": 6,
-  "ticks": 218,
+  "ticks": 214,
   "problems": [],
   "edges": {
-   "ready/turn → question/question": 32,
+   "ready/turn → question/question": 31,
    "question/question → question/question": 29,
    "question/question → question/audience": 5,
    "question/audience → question/question": 5,
-   "question/question → reveal/reveal": 35,
-   "reveal/reveal → ready/turn": 22,
+   "question/question → reveal/reveal": 34,
+   "reveal/reveal → ready/turn": 21,
    "reveal/reveal → question/question": 7,
    "reveal/reveal → reveal/over": 6,
    "question/question → ready/turn": 4,
@@ -73,8 +73,8 @@
    "podium/reveal → reveal/reveal": 1
   },
   "actions": {
-   "пульт: главная": 158,
-   "телефон: кнопка": 76,
+   "пульт: главная": 154,
+   "телефон: кнопка": 75,
    "пульт: другая": 48,
    "QR для опоздавших": 14,
    "таблица на экран": 7,
@@ -82,7 +82,7 @@
    "технический перерыв": 6,
    "пульт: Назад": 18,
    "убрать слайд": 7,
-   "телефон переподключился": 4,
+   "телефон переподключился": 3,
    "экран зала перезагрузили": 3,
    "опоздавший гость": 5,
    "пульт открыли заново": 5,
@@ -151,8 +151,8 @@
    "завершить игру": 24,
    "наградить сейчас": 33,
    "назад с награждения": 33,
-   "+10 секунд": 12,
-   "убрать таблицу": 5
+   "убрать таблицу": 5,
+   "+10 секунд": 12
   },
   "demos": [
    "Что скажет большинство: Свадьба",

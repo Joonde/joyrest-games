@@ -47,12 +47,18 @@ export interface BoardContent {
   betTime: number;
   /** Сколько секунд жать кнопку после «Запустить отсчёт» (ведущий сначала читает вопрос). */
   buzzTime: number;
+  /** Сколько секунд у того, кто нажал, на ответ; не отметили «Верно» / «Неверно» — «Неверно» само. 0 — без отсчёта. */
+  answerTime: number;
   /** Оформление экрана зала (`../showLook.ts`). Старые игры без поля — «Классика». */
   look: ShowLook;
 }
 
 /** Время на вопрос после «Запустить отсчёт» — выбор ведущего в конструкторе. */
 export const BUZZ_TIMES = [5, 10, 15, 20, 30] as const;
+
+/** Время на ответ того, кто нажал (решение владельца 22 октября 2026, по умолчанию 10 с; 0 — без отсчёта). */
+export const ANSWER_TIMES = [0, 5, 10, 15, 20, 30] as const;
+export const DEFAULT_ANSWER_TIME = 10;
 
 export const BOARD_LIMITS = {
   minRows: 1,
@@ -131,6 +137,7 @@ export function createBoard(): BoardContent {
     penalty: false,
     betTime: 30,
     buzzTime: 15,
+    answerTime: DEFAULT_ANSWER_TIME,
     look: DEFAULT_BOARD_LOOK,
   };
 }
@@ -220,6 +227,7 @@ export function parseBoard(raw: unknown): BoardContent {
     penalty: d.penalty === true,
     betTime: int(d.betTime, 30, BOARD_LIMITS.minBetTime, BOARD_LIMITS.maxBetTime),
     buzzTime: (BUZZ_TIMES as readonly number[]).includes(d.buzzTime as number) ? (d.buzzTime as number) : 15,
+    answerTime: (ANSWER_TIMES as readonly number[]).includes(d.answerTime as number) ? (d.answerTime as number) : DEFAULT_ANSWER_TIME,
     look: parseShowLook(d.look, TABLE_LOOKS),
   };
 }

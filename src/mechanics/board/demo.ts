@@ -105,6 +105,7 @@ const content: BoardContent = {
   penalty: false,
   betTime: 30,
   buzzTime: 15,
+  answerTime: 10,
   look: "table",
 };
 

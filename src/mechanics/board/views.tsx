@@ -15,7 +15,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { allCells, findCell, roundCategories, roundsOf, type BoardCell, type BoardContent } from "./content";
-import { maxBet, parseBoardResult, type BoardResult } from "./logic";
+import { maxBet, parseBoardResult, speakLeft, type BoardResult } from "./logic";
 import { showStageClass } from "../showLook";
 
 /** Ответ гостя: нажатие кнопки или ставка в «Коте в мешке». */
@@ -83,7 +83,7 @@ export function BoardGrid({ content, result, small = false }: { content: BoardCo
     <div className={small ? "board-grid board-grid--small" : "board-grid"} style={{ ["--board-cols" as string]: columns }} role="table" aria-label="Поле «Ставки на знания»">
       {categories.map((category) => (
         <div key={category.id} className="board-grid__row" role="row">
-          <div className="board-grid__title" role="rowheader">
+          <div className={(category.title || "").length > 14 ? "board-grid__title is-long" : "board-grid__title"} role="rowheader">
             <span className="line-clamp">{category.title || "Категория"}</span>
           </div>
           {category.cells.map((cell) => {
@@ -140,6 +140,10 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   useSoundOnChange(stage === "question" && result.armed && !result.catStep ? `${step}:armed` : "", "whoosh");
   useCellMedia(session, content, cell, result);
   useSoundOnChange(result.buzz.current ?? "", "gong");
+  // Отсчёт на ответ тому, кто нажал (решение владельца 22 октября 2026): кольцо и тиканье последних секунд.
+  const speakNow = useServerNow(250, stage === "question" && Boolean(result.buzz.current) && result.speakSince !== null);
+  const answerLeft = speakLeft(session, content, speakNow);
+  useCountdownSounds(answerLeft, 3);
   useSoundOnChange(stage === "reveal" && result.buzz.winner ? `${step}:win` : "", "correct");
   useSoundOnChange(stage === "question" && (result.mode === "bet" || result.mode === "auction") ? `${step}:cat` : "", "whoosh");
   useSoundOnChange(stage === "ready" ? `round:${result.round}` : "", "fanfare");
@@ -259,6 +263,16 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
           <strong>
             <NameText name={speaker} />
           </strong>
+          {answerLeft !== null && (
+            <span
+              className={answerLeft <= 3 ? "board-screen__speak-time is-low" : "board-screen__speak-time"}
+              style={{ ["--left" as string]: Math.min(1, answerLeft / Math.max(1, content.answerTime)) }}
+              role="timer"
+              aria-label={`Осталось ${answerLeft} с на ответ`}
+            >
+              <span>{answerLeft}</span>
+            </span>
+          )}
         </div>
       ) : !result.armed ? (
         <p className="board-screen__hint board-screen__hint--wait">Слушаем вопрос — кнопки включатся, когда ведущий запустит отсчёт</p>
@@ -465,7 +479,14 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
           </div>
         </div>
       ) : (
-        <BuzzButton state={phone.state} place={phone.place} speaker={speaker} sending={sending} onPress={() => onAnswer({ buzz: true })} />
+        <>
+          <BuzzButton state={phone.state} place={phone.place} speaker={speaker} sending={sending} onPress={() => onAnswer({ buzz: true })} />
+          {phone.state === "turn" && speakLeft(session, content, now) !== null && (
+            <p className="buzz__time" role="timer">
+              ⏱ {speakLeft(session, content, now) || 0} с на ответ — говорите ведущему
+            </p>
+          )}
+        </>
       )}
       {stage === "reveal" && (
         <p>

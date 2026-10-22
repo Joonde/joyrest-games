@@ -206,7 +206,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
     if (!round) return;
     setRounds(latest.current.rounds.filter((_, j) => j !== index));
     const questions = round.questions.length;
-    offer(`Раунд ${index + 1} · ${ROUND_TITLES[round.kind]} убран${questions > 1 ? ` (${questions} вопросов)` : ""}`, () =>
+    offer(`Раунд ${index + 1} · ${ROUND_TITLES[round.kind]} убран${questions > 1 ? ` (вопросов: ${questions})` : ""}`, () =>
       setRounds(insertBack(latest.current.rounds, { item: round, index }, (r) => r.id)),
     );
   }

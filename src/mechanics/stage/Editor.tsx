@@ -60,7 +60,7 @@ export function StageEditor({ content, onChange, editable }: EditorProps<StageCo
     offer(`Категория ${name} убрана${removed.length > 0 ? ` вместе с плитками (${removed.length})` : ""}`, () => {
       const now = latest.current;
       if (now.categories.some((c) => c.id === catId)) return;
-      const tiles = removed.reduce((list, r) => insertBack(list, r, (t) => t.id), now.tiles);
+      const tiles = removed.reduce<StageTile[]>((list, r) => insertBack(list, r, (t) => t.id), now.tiles);
       set({ categories: insertBack(now.categories, { item: category, index }), tiles });
     });
   }

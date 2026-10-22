@@ -117,7 +117,8 @@ function useCellMedia(session: Session, content: BoardContent, cell: BoardCell |
     // eslint-disable-next-line react-hooks/exhaustive-deps -- раз на открытие поля
   }, [session.gameId, result.opened.length]);
   const music = cell && cell.trackId && result.mode === "buzz" ? cell : null;
-  const chorus = stage === "reveal" && Boolean(result.buzz.winner) && music?.chorusStart !== null && music?.chorusStart !== undefined;
+  // Ответ открыт — припев, и когда угадали, и когда никто не угадал (решение владельца 22 октября 2026).
+  const chorus = stage === "reveal" && music?.chorusStart !== null && music?.chorusStart !== undefined;
   // Ключ — клетка, а не шаг: «Запустить отсчёт» (новый шаг) не перезапускает фрагмент.
   const key = !music ? null : stage === "question" ? `q:${result.openStep ?? step}:${result.cell}:${result.replay}` : stage === "reveal" ? `r:${step}:${result.replay}` : null;
   useFragment(
@@ -247,7 +248,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
             </>
           ) : (
             <>
-              <span className="board-screen__answer-who">Никто не ответил. Правильный ответ:</span>
+              <span className="board-screen__answer-who">Никто не угадал. Правильный ответ:</span>
               <strong>{cell.answer || "—"}</strong>
             </>
           )}

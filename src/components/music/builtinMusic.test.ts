@@ -83,6 +83,14 @@ describe("встроенная музыка экрана зала", () => {
     expect(at({ phase: "playing", stage: "ready", step: 5, result: result(8, "turn") })).toBeNull();
   });
 
+  it("«Ставка на знания»: на поле — тихий фон (~20%), на вопросе с треком — без него", async () => {
+    const { board } = await import("../../mechanics/board");
+    const content = board.create();
+    const at = (state: Partial<SessionState>) => builtinMusicOf(session(state), board.music?.(session(state), content) ?? null);
+    expect(at({ phase: "playing", stage: "ready", step: 0 })).toMatchObject({ key: "boardBed", volume: 0.2 });
+    expect(at({ phase: "playing", stage: "reveal", step: 0 })).toBeNull();
+  });
+
   it("музыкальное лото: на заставке «Откройте карточки» — лёгкая музыка, песни — без неё", async () => {
     const { lotto } = await import("../../mechanics/lotto");
     const at = (state: Partial<SessionState>) => builtinMusicOf(session(state), lotto.music?.(session(state), {} as never) ?? null);

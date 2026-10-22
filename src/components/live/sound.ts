@@ -600,10 +600,12 @@ export const BUILTIN_MUSIC = {
   // «Аквариум и Ёлка» (решение владельца 18 октября 2026): у рыбок — три лоу-фай трека, у ёлки — три новогодних, по очереди.
   aquaMusic: [SAMPLES.lobbyTokyo, SAMPLES.lobbyFocus, SAMPLES.lobbyLofi].filter((u): u is string => Boolean(u)),
   treeMusic: [SAMPLES.treeChristmas, SAMPLES.treeLullaby, SAMPLES.treeFireplace].filter((u): u is string => Boolean(u)),
+  // «Ставка на знания»: тихий фон, пока на экране поле (решение владельца 22 октября 2026, ~20%).
+  boardBed: [SAMPLES.lobbyLofi, SAMPLES.lobbyFocus, SAMPLES.lobbyTokyo].filter((u): u is string => Boolean(u)),
 } as const;
 
 /** Громкость встроенной музыки момента (1 — как обычно); фон за столом и фон боя — тихо. */
-export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6 };
+export const BUILTIN_VOLUME: Partial<Record<keyof typeof BUILTIN_MUSIC, number>> = { durakTable: 0.35, thinkLow: 0.55, thinkHigh: 0.6, dragonBattle: 0.75, milBed: 0.7, lottoIntro: 0.6, boardBed: 0.2 };
 
 
 const sampleBuffers = new Map<SampleName, Promise<AudioBuffer | null>>();
@@ -822,11 +824,68 @@ const CROSSFADE = 4;
 const FADE_IN = 2.5;
 const FADE_OUT = 1.5;
 
+// ---------- Громкость фоновой музыки на этом экране ----------
+// Решение владельца 22 октября 2026: музыка лобби «орёт», а «Выключить звук» глушит всё. Отдельный ползунок
+// на экране зала — только встроенная фоновая музыка платформы (лобби, перерыв, музыка момента игры); музыка
+// ведущего, микшер пульта и звуки эффектов от него не зависят. Запоминается на этом устройстве.
+const BED_KEY = "joyrest.hall.bed";
+function readBed(): number {
+  try {
+    const raw = window.localStorage.getItem(BED_KEY);
+    const n = raw === null ? NaN : Number(raw);
+    return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : 100;
+  } catch {
+    return 100;
+  }
+}
+let bedPercent = typeof window === "undefined" ? 100 : readBed();
+let bedBus: GainNode | null = null;
+const bedListeners = new Set<(v: number) => void>();
+
+function bedOut(): GainNode | null {
+  const bus = musicOut();
+  if (!ctx || !bus) return null;
+  if (!bedBus) {
+    bedBus = ctx.createGain();
+    bedBus.gain.value = bedPercent / 100;
+    bedBus.connect(bus);
+  }
+  return bedBus;
+}
+
+/** Громкость фоновой музыки на этом экране, 0–100. */
+export function bedVolume(): number {
+  return bedPercent;
+}
+
+export function setBedVolume(value: number): void {
+  bedPercent = Math.min(100, Math.max(0, Math.round(value)));
+  try {
+    window.localStorage.setItem(BED_KEY, String(bedPercent));
+  } catch {
+    // Нет хранилища (приватный режим, телевизор) — громкость живёт до перезагрузки.
+  }
+  if (ctx && bedBus) bedBus.gain.setTargetAtTime(bedPercent / 100, ctx.currentTime, 0.1);
+  for (const l of bedListeners) l(bedPercent);
+}
+
+export function useBedVolume(): number {
+  const [value, setValue] = useState(bedPercent);
+  useEffect(() => {
+    bedListeners.add(setValue);
+    setValue(bedPercent);
+    return () => {
+      bedListeners.delete(setValue);
+    };
+  }, []);
+  return value;
+}
+
 function deck(i: number): Deck | null {
   if (!ctx) return null;
   const have = decks[i];
   if (have) return have;
-  const bus = musicOut();
+  const bus = bedOut();
   if (!bus) return null;
   const el = new Audio();
   el.preload = "auto";

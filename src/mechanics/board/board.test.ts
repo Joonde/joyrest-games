@@ -313,3 +313,40 @@ describe("оформление экрана зала «Ставки на зна�
     expect(parseShowLook(undefined)).toBe("classic");
   });
 });
+
+describe("«Ставка на знания»: пока отвечают — время и трек замирают", () => {
+  it("«Неверно» — отсчёт продолжается с того места, где нажали, кнопки снова открыты", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    expect(s.state.timeLimit).toBe(c.buzzTime);
+    // Нажал через 3 с после отсчёта — время на этом месте замирает.
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, start + 3000)], start + 3100));
+    expect(parseBoardResult(s.state.result).pausedAt).toBe(start + 3000);
+    // Отвечал 40 с (таймер давно бы вышел) — ведущий «Неверно»: к таймеру прибавились те 40 с.
+    s = apply(s, boardWrong(s, c, start + 43000));
+    const r = parseBoardResult(s.state.result);
+    expect(r.buzz.current).toBeNull();
+    expect(r.buzz.out).toEqual(["p1"]);
+    expect(r.pausedAt).toBeNull();
+    expect(s.state.timeLimit).toBe(c.buzzTime + 40);
+    // Осталось столько же, сколько было в момент нажатия.
+    expect((s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000 - (start + 43000)).toBe((c.buzzTime - 3) * 1000);
+  });
+
+  it("нажал в последнюю секунду — остальным всё равно не меньше 5 секунд; очередь — время стоит дальше", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    const late = start + c.buzzTime * 1000 + 2000;
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, late), press("p2", s.state.step, late + 100)], late));
+    s = apply(s, boardWrong(s, c, late + 10_000));
+    // Слово перешло к p2 из очереди — таймер не трогаем, он всё ещё стоит.
+    expect(parseBoardResult(s.state.result).buzz.current).toBe("p2");
+    expect(s.state.timeLimit).toBe(c.buzzTime);
+    expect(parseBoardResult(s.state.result).pausedAt).toBe(late);
+    s = apply(s, boardWrong(s, c, late + 20_000));
+    const deadline = (s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000;
+    expect(deadline - (late + 20_000)).toBeGreaterThanOrEqual(5000);
+  });
+});

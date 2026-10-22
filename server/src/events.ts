@@ -198,7 +198,6 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
         return reply.code(409).send({ error: "changed" });
       }
-<<<<<<< HEAD
       // Программа: форма её не прислала (старая страница) — остаётся прежняя.
       const given = input.program !== undefined;
       const oldProgram = existing ? cleanProgram(existing.program) : null;
@@ -216,33 +215,23 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           existing?.title !== input.title ||
           existing?.guests !== input.guests);
       const programJson = newProgram ? sql.json(newProgram as never) : null;
-      await sql.begin(async (tx) => {
-        await tx`
-          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, program, accept_rev, created_by)
-=======
       // Двойное касание «Сохранить»: два одинаковых запроса почти одновременно. «Назначено» в Telegram — только тому,
       // чей запрос действительно создал запись (`xmax = 0` — вставка, а не правка), иначе ведущему пришло бы два.
       const inserted = await sql.begin(async (tx) => {
         const t = tx as unknown as Sql;
         const [row] = await t<{ inserted: boolean }[]>`
-          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, created_by)
->>>>>>> origin/main
+          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, program, accept_rev, created_by)
           values (${input.id}, ${input.hostId}, ${input.day}, ${input.start}, ${input.end}, ${new Date(span.from)}, ${new Date(span.to)},
             ${input.clientName}, ${input.clientPhone}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id})
           on conflict (id) do update set host_id = excluded.host_id, day = excluded.day, start_min = excluded.start_min,
             end_min = excluded.end_min, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
             client_name = excluded.client_name, client_phone = excluded.client_phone, title = excluded.title,
-<<<<<<< HEAD
             place = excluded.place, guests = excluded.guests, note = excluded.note, program = excluded.program,
             accepted_at = case when ${reaccept} then null else events.accepted_at end,
-            accept_rev = events.accept_rev + case when ${reaccept} then 1 else 0 end, updated_at = now()`;
-        await book(tx as unknown as Sql, input, user.id);
-=======
-            place = excluded.place, guests = excluded.guests, note = excluded.note, updated_at = now()
+            accept_rev = events.accept_rev + case when ${reaccept} then 1 else 0 end, updated_at = now()
           returning (xmax = 0) as inserted`;
         await book(t, input, user.id);
         return row?.inserted === true;
->>>>>>> origin/main
       });
       request.log.info({ events: existing ? "edit" : "create" }, "events");
       const saved = await one(input.id);

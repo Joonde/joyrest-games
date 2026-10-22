@@ -203,9 +203,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const publicDir = options.publicDir;
   if (publicDir && existsSync(join(publicDir, "index.html"))) {
     // Страница приложения собирается один раз при запуске: файл в образе не меняется.
-    const indexHtml = withEdition(
-      withDataBackend(readFileSync(join(publicDir, "index.html"), "utf8"), options.dataBackend ?? "firebase"),
-      options.edition ?? "agency",
+    const indexHtml = withDataBackend(
+      withEdition(readFileSync(join(publicDir, "index.html"), "utf8"), options.edition ?? "agency"),
+      options.dataBackend ?? "firebase",
     );
     const sendIndex = (reply: FastifyReply) => reply.header("Cache-Control", "no-cache").type("text/html; charset=utf-8").send(indexHtml);
 

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { copyOfGame } from "../../core/games";
+import { copyOfGame, HOST_GAMES_FOLDER } from "../../core/games";
 import { gameFoldersRepo, gamesRepo, permissions, proposalsRepo, useLoad, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { ListSkeleton } from "../../components/Skeleton";
+import { Tabs } from "../../components/Tabs";
 import { LoadFailedInline, NOT_YET_TEXT } from "../../components/Status";
 import { demoGames, gameMediaIds } from "../../mechanics/registry";
 import { groupByCategory, popularGames, type CategoryId } from "../../mechanics/categories";
@@ -82,7 +83,30 @@ export function GameList({ scope, profile, onToast }: Props) {
   const folderNamesAll = foldersOn
     ? [...new Set([...(folderList.status === "ready" ? folderList.data : []), ...games.map((g) => (g.folder ?? "").trim()).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "ru"))
     : [];
-  const loose = foldersOn ? games.filter((g) => !(g.folder ?? "").trim()) : games;
+  // Библиотека: принятые игры ведущих — своей папкой внизу, не по разделам форматов (решение владельца 22 октября 2026).
+  const hostGames = scope === "agency" ? games.filter((g) => g.folder === HOST_GAMES_FOLDER) : [];
+  const loose = foldersOn ? games.filter((g) => !(g.folder ?? "").trim()) : scope === "agency" ? games.filter((g) => g.folder !== HOST_GAMES_FOLDER) : games;
+  const [hostOpen, setHostOpen] = useState(false);
+
+  // Владельцу на вкладке библиотеки — две странички: игры и предложения ведущих.
+  const reviewing = scope === "agency" && proposalsRepo !== null && permissions.canReviewProposals(profile);
+  const [page, setPage] = useState<"games" | "proposals">("games");
+  const [pending, retryPending, updatePending] = useLoad(
+    () => (reviewing && proposalsRepo ? proposalsRepo.listPending() : Promise.resolve(NO_PROPOSALS)),
+    [reviewing],
+  );
+  const pendingCount = pending.status === "ready" ? pending.data.length : 0;
+
+  async function moveLibraryGame(game: Game) {
+    const folder = game.folder === HOST_GAMES_FOLDER ? "" : HOST_GAMES_FOLDER;
+    try {
+      await gamesRepo.update(game.id, { folder });
+      update((list) => list.map((g) => (g.id === game.id ? { ...g, folder } : g)));
+      onToast(folder ? `«${game.title}» — в папке «${HOST_GAMES_FOLDER}»` : `«${game.title}» — в общих разделах библиотеки`);
+    } catch {
+      onToast("Не удалось перенести. Проверьте интернет.");
+    }
+  }
 
   async function saveMove() {
     if (!moveFor) return;
@@ -253,6 +277,7 @@ export function GameList({ scope, profile, onToast }: Props) {
       }}
       proposal={latest.get(game.id) ?? null}
       onPropose={proposing ? () => void propose(game) : undefined}
+      onLibraryFolder={reviewing ? () => void moveLibraryGame(game) : undefined}
       onFolder={
         foldersOn
           ? () => {
@@ -279,9 +304,44 @@ export function GameList({ scope, profile, onToast }: Props) {
         )}
       </section>
 
-      {scope === "agency" && proposalsRepo && permissions.canReviewProposals(profile) && (
-        <ProposalsBlock onAccepted={retry} onToast={onToast} />
+      {reviewing && (
+        <Tabs
+          idPrefix="library"
+          label="Библиотека JoyRest"
+          value={page}
+          onChange={(id) => {
+            setPage(id);
+            if (id === "proposals") retryPending();
+          }}
+          items={[
+            { id: "games", label: "Игры" },
+            { id: "proposals", label: pendingCount > 0 ? `Предложения ведущих · ${pendingCount}` : "Предложения ведущих" },
+          ]}
+        />
       )}
+
+      {reviewing && page === "proposals" && (
+        <div id="library-panel-proposals" role="tabpanel">
+          {pending.status === "loading" && <ListSkeleton />}
+          {pending.status === "error" && <LoadFailedInline onRetry={retryPending} />}
+          {pending.status === "ready" && (
+            <ProposalsBlock
+              proposals={pending.data}
+              onRemoved={(id) => updatePending((list) => list.filter((p) => p.id !== id))}
+              onAccepted={retry}
+              onOpenFolder={() => {
+                setPage("games");
+                setHostOpen(true);
+                window.setTimeout(() => document.getElementById("host-games")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+              }}
+              onToast={onToast}
+            />
+          )}
+        </div>
+      )}
+
+      {(!reviewing || page === "games") && (
+        <div id="library-panel-games" role={reviewing ? "tabpanel" : undefined} className="stack">
 
       {templateGames.length > 0 && (
         <section className="card stack stack--tight">
@@ -381,14 +441,14 @@ export function GameList({ scope, profile, onToast }: Props) {
           })}
         </section>
       )}
-      {state.status === "ready" && scope === "agency" && popularGames(state.data).length > 0 && (
+      {state.status === "ready" && scope === "agency" && popularGames(loose).length > 0 && (
         <section className="card popular" aria-labelledby={`popular-${scope}`}>
           <h2 id={`popular-${scope}`} className="popular__title">
             <span aria-hidden="true">⭐</span> Популярные
           </h2>
           <p className="muted small">Самые востребованные игры JoyRest — они же есть в своих разделах ниже.</p>
           <ul className="cards">
-            {popularGames(state.data).map((game) => (
+            {popularGames(loose).map((game) => (
               <li key={game.id}>{card(game)}</li>
             ))}
           </ul>
@@ -431,6 +491,37 @@ export function GameList({ scope, profile, onToast }: Props) {
             <li key={game.id}>{card(game)}</li>
           ))}
         </ul>
+      )}
+      {state.status === "ready" && scope === "agency" && (hostGames.length > 0 || reviewing) && (
+        <section id="host-games" className={hostOpen ? "card category category--hosts is-open" : "card category category--hosts"}>
+          <button type="button" className="category-row" aria-expanded={hostOpen} aria-controls="cat-host-games" onClick={() => setHostOpen((v) => !v)}>
+            <span className="category-row__icon" aria-hidden="true">
+              👥
+            </span>
+            <span className="category-row__text">
+              <span className="category-row__title">{HOST_GAMES_FOLDER}</span>
+              <span className="category-row__hint">Игры, которые придумали ведущие и предложили в библиотеку</span>
+            </span>
+            <span className="category-row__count" aria-label={`игр: ${hostGames.length}`}>
+              {hostGames.length}
+            </span>
+            <span className="category-row__chevron" aria-hidden="true" />
+          </button>
+          {hostOpen &&
+            (hostGames.length === 0 ? (
+              <p className="muted small" id="cat-host-games">
+                Пока пусто. Примите предложение ведущего на страничке «Предложения ведущих» — игра появится здесь.
+              </p>
+            ) : (
+              <ul className="cards category__games" id="cat-host-games">
+                {hostGames.map((game) => (
+                  <li key={game.id}>{card(game)}</li>
+                ))}
+              </ul>
+            ))}
+        </section>
+      )}
+        </div>
       )}
 
       <ConfirmDialog

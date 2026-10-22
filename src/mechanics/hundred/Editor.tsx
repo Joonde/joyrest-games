@@ -5,7 +5,7 @@ import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
 import type { EditorProps } from "../types";
 import { ShowLookPicker } from "../ShowLookPicker";
-import { TABLE_LOOKS, type ShowLook } from "../showLook";
+import { SHOW_LOOK_TITLES, TABLE_LOOKS, type ShowLook } from "../showLook";
 import {
   HUNDRED_LIMITS,
   IMPORT_EXAMPLE,
@@ -238,7 +238,7 @@ export function HundredEditor({ gameId, content, onChange, editable }: EditorPro
             <p className="muted small">Команда получает очки ответов обоих игроков; набрали цель — ещё бонус.</p>
           </Fold>
         )}
-        <Fold title="Оформление экрана зала" value={content.look === "classic" ? "Классика" : content.look === "evening" ? "Вечер JoyRest" : "Студия"}>
+        <Fold title="Оформление экрана зала" value={SHOW_LOOK_TITLES[content.look] ?? "Студия"}>
           <ShowLookPicker game="hundred" looks={TABLE_LOOKS} value={content.look} hints={LOOK_HINTS} editable={editable} onChange={(look) => onChange({ ...latest.current, look })} />
         </Fold>
       </section>

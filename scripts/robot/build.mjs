@@ -19,7 +19,7 @@ const result = await build({
   loader: { ".woff2": "file", ".svg": "text", ".png": "file", ".jpg": "file", ".webp": "file", ".mp3": "file" },
   nodePaths: process.env.ROBOT_NODE_PATH ? [process.env.ROBOT_NODE_PATH] : [],
   // Firebase-версия роботу не нужна (динамическая загрузка SDK не выполняется).
-  external: ["firebase/*", "/fonts/*", "/olymp/*", "/brand/*", "/sounds/*", "/cards/*", "/shows/*", "/stage/*", "/spy/*", "/dance/*", "/quest/*", "/covers/*"],
+  external: ["firebase/*", "/fonts/*", "/olymp/*", "/brand/*", "/sounds/*", "/cards/*", "/shows/*", "/stage/*", "/spy/*", "/dance/*", "/quest/*", "/covers/*", "/super/*"],
   define: { "import.meta.env.DEV": "false", "import.meta.env.PROD": "true" },
   plugins: [
     {

@@ -84,7 +84,7 @@ export function abilitiesOf(actor: Actor, p: Permissions): Abilities {
   ]);
 
   add("Игры", [
-    p.canCreateSession(actor) && { text: "Проводить игры: запуск, пульт, экран зала, гости по QR, музыка и звуки, слайды.", where: "«Студия» → игра → «Запустить»" },
+    p.canCreateSession(actor) && { text: "Проводить игры: запуск, пульт, экран зала, гости по QR, музыка и звуки, слайды.", where: "«Студия» → игра → «▶ Запустить игру»" },
     p.canCreateGame(actor, "personal", uid) && { text: "Создавать и править свои игры в конструкторе: картинки, импорт списком, предпросмотр.", where: "«Студия» → «Мои игры»" },
     p.canUseGames(actor) && { text: "Смотреть библиотеку JoyRest и репетировать игры.", where: "«Студия» → «Библиотека JoyRest»" },
     p.canCopyToPersonal(actor, AGENCY) && { text: "Копировать игру библиотеки себе и править копию." },
@@ -127,6 +127,7 @@ export function abilitiesOf(actor: Actor, p: Permissions): Abilities {
 
   const guides: { title: string; to: string }[] = [];
   if (p.canReadSalesGuide(actor)) guides.push({ title: "Инструкция менеджера", to: "/studio/sales-guide" });
+  if (p.canUseGames(actor)) guides.push({ title: "Как создавать игры", to: "/studio/editor-guide" });
   if (p.canUseGames(actor)) guides.push({ title: "Как проводить игры", to: "/studio/guide" });
 
   const summary = admin

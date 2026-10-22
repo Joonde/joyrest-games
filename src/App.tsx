@@ -25,6 +25,7 @@ const Decks = lazy(() => import("./screens/studio/Decks").then((m) => ({ default
 const Reviews = lazy(() => import("./screens/studio/Reviews").then((m) => ({ default: m.Reviews })));
 const Clients = lazy(() => import("./screens/studio/Clients").then((m) => ({ default: m.Clients })));
 const PrivacySearch = lazy(() => import("./screens/studio/PrivacySearch").then((m) => ({ default: m.PrivacySearch })));
+const EditorGuide = lazy(() => import("./screens/studio/EditorGuide").then((m) => ({ default: m.EditorGuidePage })));
 const Guide = lazy(() => import("./screens/studio/Guide").then((m) => ({ default: m.Guide })));
 const SalesGuide = lazy(() => import("./screens/studio/SalesGuide").then((m) => ({ default: m.SalesGuide })));
 const Abilities = lazy(() => import("./screens/studio/Abilities").then((m) => ({ default: m.Abilities })));
@@ -67,6 +68,7 @@ export function App() {
           <Route path="/studio/decks" element={<Decks />} />
           <Route path="/studio/privacy" element={<PrivacySearch />} />
           <Route path="/studio/guide" element={<Guide />} />
+          <Route path="/studio/editor-guide" element={<EditorGuide />} />
           <Route path="/studio/sales-guide" element={<SalesGuide />} />
           <Route path="/studio/abilities" element={<Abilities />} />
           <Route path="/studio/host-games" element={<HostGames />} />

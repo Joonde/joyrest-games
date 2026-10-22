@@ -39,7 +39,7 @@ function RehearsalLoader({ gameId, profile }: { gameId: string; profile: UserPro
         <p>{errors[0]?.message}</p>
         <div className="actions">
           <Link className="btn btn--block" to={`/studio/games/${game.id}`}>
-            Открыть игру
+            ✍️ Редактировать игру
           </Link>
         </div>
       </Message>
@@ -91,7 +91,7 @@ function RehearsalRun({ game, hostId, launchable }: { game: Game; hostId: string
 
   return (
     <main className="page page--wide">
-      <TopBar title="Репетиция" actions={[{ label: "К игре", to: `/studio/games/${game.id}` }]} leaveWarning="Репетиция закончится, её можно начать заново." />
+      <TopBar title="Репетиция" actions={[{ label: "✍️ Редактировать игру", to: `/studio/games/${game.id}` }]} leaveWarning="Репетиция закончится, её можно начать заново." />
       <p className="muted small">
         Прогон игры без гостей: ничего не сохраняется, никто не подключается. Так игра пойдёт на экране зала и на пульте.
       </p>

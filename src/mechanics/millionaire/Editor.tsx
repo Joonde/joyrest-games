@@ -182,7 +182,7 @@ export function MillionaireEditor({ content, onChange, editable }: EditorProps<M
           <Fold title="Шаблоны и вставка списком">
           <div className="actions">
             <button type="button" className="btn btn--secondary btn--block" onClick={() => replaceAll(DEMO_MILLIONAIRE.questions, "Заполнить шаблоном")}>
-              Заполнить шаблоном (36 вопросов)
+              Заполнить шаблоном ({DEMO_MILLIONAIRE.questions.length} вопросов)
             </button>
             <button type="button" className="btn btn--quiet btn--block" onClick={() => setImporting((v) => !v)}>
               {importing ? "Скрыть вставку списком" : "Заполнить из списка"}

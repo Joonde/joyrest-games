@@ -1605,6 +1605,21 @@ legend {
   line-height: 1.6;
 }
 
+/* Прилипла к верху экрана: короткая плашка у правого края, чтобы не закрывать кнопки и текст под ней. */
+.save-status.is-stuck {
+  align-self: flex-end;
+  padding: 2px 12px;
+  font-size: 13px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+}
+
+.save-status__sentinel {
+  display: block;
+  height: 0;
+  /* Не добавляет лишний промежуток колонки страницы. */
+  margin-bottom: -16px;
+}
+
 .save-status__dot {
   flex: none;
   width: 10px;
@@ -13793,6 +13808,346 @@ button.dance-card:active {
   }
 }
 
+/* ---------- «Как создавать игры» (/studio/editor-guide) и закреплённые инструкции в студии ---------- */
+.guide-pins {
+  display: grid;
+  gap: 12px;
+}
+
+.guide-pins__title {
+  margin: 0;
+}
+
+.guide-pins__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .guide-pins__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.guide-pins__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-highlight);
+  background: color-mix(in srgb, var(--color-highlight) 10%, var(--color-surface));
+  color: var(--color-text);
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.guide-pins__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.guide-pins__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.guide-pins__text strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.guide-pins__text span {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.guide-pins__item:focus-visible {
+  outline: 3px solid var(--color-focus, var(--color-highlight));
+  outline-offset: 2px;
+}
+
+.editor-guide-link {
+  display: block;
+  text-align: left;
+}
+
+/* На телефоне — одна колонка: длинные названия («Кто хочет стать миллионером») не рвутся посреди слова. */
+.eg-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 560px) {
+  .eg-pick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .eg-pick {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.eg-pick__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.eg-pick__item:hover,
+.eg-pick__item:focus-visible {
+  border-color: var(--color-highlight);
+}
+
+.eg-pick__icon {
+  flex: none;
+  font-size: 22px;
+}
+
+.eg-pick__title {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.eg-part {
+  margin: 8px 0 0;
+}
+
+.eg-section {
+  scroll-margin-top: 16px;
+}
+
+.eg-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.eg-section__head::-webkit-details-marker {
+  display: none;
+}
+
+.eg-section__head::after {
+  content: "";
+  margin-left: auto;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.eg-section[open] > .eg-section__head {
+  margin-bottom: 16px;
+}
+
+.eg-section[open] > .eg-section__head::after {
+  transform: rotate(225deg);
+}
+
+.eg-section h3 {
+  margin: 8px 0 0;
+}
+
+/* Схема-стрелки: столбиком на телефоне, в ряд на широком экране. */
+.eg-flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 20px;
+}
+
+.eg-flow__step {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--color-highlight) 60%, transparent);
+  background: color-mix(in srgb, var(--color-highlight) 8%, var(--color-surface));
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.eg-flow__step span {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.eg-flow__step:not(:last-child)::after {
+  content: "↓";
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%);
+  color: var(--color-highlight);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+@media (min-width: 900px) {
+  .eg-flow {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .eg-flow__step:not(:last-child)::after {
+    content: "→";
+    left: auto;
+    right: -20px;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+}
+
+.eg-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.eg-steps__item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.eg-steps__item p {
+  margin: 4px 0 0;
+}
+
+.eg-steps__n {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary, #221e1b);
+  font-weight: 700;
+}
+
+.eg-fields {
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+  padding: 0 16px;
+}
+
+.eg-fields > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.eg-fields dl {
+  margin: 0 0 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.eg-fields__row {
+  display: grid;
+  gap: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.eg-fields__row dt {
+  font-weight: 600;
+  color: var(--color-highlight);
+}
+
+.eg-fields__row dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.eg-example {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+}
+
+.eg-example h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.eg-example__grid {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.eg-example__row {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eg-example__row dt {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.eg-example__row dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.eg-example__row--setup dd {
+  padding-left: 10px;
+  border-left: 3px solid var(--color-highlight);
+}
+
+@media (min-width: 900px) {
+  .eg-example__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .eg-example__row--setup {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ---------- «Как проводить игры» (/studio/guide) ---------- */
 .guide .guide-game {
   scroll-margin-top: 16px;
@@ -14284,15 +14639,140 @@ button.dance-card:active {
   height: 44px;
 }
 
-.super-phone__icon svg {
-  width: 72px;
-  height: 72px;
+.super-phone__icon svg,
+.super-phone__icon img {
+  width: 96px;
+  height: 96px;
 }
 
 .super-icon {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.super-icon--art {
+  object-fit: contain;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Сокровищница (Canva, public/super/art/web/vault*.webp): фон на весь кадр, затемнение под текстом. */
+.super-screen--vault {
+  --show-art: url("/super/art/web/vault-1280.webp");
+  --show-shade: radial-gradient(ellipse 72% 70% at 50% 52%, rgba(14, 11, 9, 0.62), rgba(14, 11, 9, 0.34) 78%, rgba(14, 11, 9, 0.18));
+}
+
+@media (min-width: 1400px) {
+  .super-screen--vault {
+    --show-art: url("/super/art/web/vault.webp");
+  }
+}
+
+.super-screen--vault .super-level {
+  background: linear-gradient(170deg, color-mix(in srgb, var(--lvl) 14%, rgba(36, 30, 25, 0.9)), rgba(24, 20, 17, 0.88));
+  border-color: color-mix(in srgb, var(--lvl) 55%, transparent);
+  box-shadow: 0 1.2cqh 3cqh rgba(0, 0, 0, 0.45);
+}
+
+.super-screen--vault .super-level.is-picked {
+  box-shadow: 0 0 3.2cqh color-mix(in srgb, var(--lvl) 50%, transparent), 0 1.2cqh 3cqh rgba(0, 0, 0, 0.45);
+}
+
+.super-screen--vault .super-level__icon {
+  position: relative;
+  width: 16cqh;
+  height: 16cqh;
+  filter: drop-shadow(0 1cqh 1.6cqh rgba(0, 0, 0, 0.55));
+}
+
+.super-screen--vault.super-screen--intro .super-level__icon {
+  width: 24cqh;
+  height: 24cqh;
+}
+
+/* Ключ — высокая картинка: чуть крупнее, чтобы не терялся рядом с сундуками. */
+.super-screen--keys .super-level__icon {
+  transform-origin: 50% 20%;
+}
+
+/* Блик по картинке на заставке — раз в несколько секунд, по очереди. */
+.super-glint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 246, 220, 0.75) 50%, transparent 65%);
+  background-size: 300% 100%;
+  background-position: 120% 0;
+  mix-blend-mode: plus-lighter;
+  -webkit-mask: var(--glint-mask) center / contain no-repeat;
+  mask: var(--glint-mask) center / contain no-repeat;
+  animation: super-glint 4.2s ease-in-out infinite;
+}
+
+/* Верный ответ: картинка вспыхивает и чуть подпрыгивает, за ней — свет. */
+.super-level.is-won .super-level__icon {
+  animation: super-won 0.9s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.super-level.is-won .super-level__icon::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 226, 150, 0.75), rgba(255, 200, 90, 0.25) 45%, transparent 70%);
+  animation: super-halo 2.4s ease-in-out 0.3s infinite;
+}
+
+/* Ключ поворачивается, как в замке; корона и кубок — блеск сверху вниз. */
+.super-screen--keys .super-level.is-won .super-icon--art {
+  animation: super-turn 1.1s ease-in-out 0.25s both;
+}
+
+.super-screen--crowns .super-level.is-won .super-icon--art,
+.super-screen--cups .super-level.is-won .super-icon--art {
+  animation: super-flash 1.4s ease-out 0.2s both;
+}
+
+/* Монеты (у сундуков) и искры (у остальных) разлетаются из картинки. */
+.super-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.super-burst span {
+  position: absolute;
+  left: 42%;
+  top: 38%;
+  width: 16%;
+  height: 16%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff4c8, #f2c560 45%, #b8862f 80%);
+  box-shadow: 0 0 1cqh rgba(255, 210, 110, 0.7);
+  opacity: 0;
+  animation: super-coin 1.3s cubic-bezier(0.15, 0.7, 0.4, 1) both;
+}
+
+.super-screen--keys .super-burst span,
+.super-screen--crowns .super-burst span,
+.super-screen--cups .super-burst span {
+  width: 9%;
+  height: 9%;
+  border-radius: 0;
+  background: #fff6dc;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+}
+
+/* Никто не угадал — картинка тускнеет и вздрагивает. */
+.super-level.is-lost .super-level__icon {
+  animation: super-shake 0.5s ease-in-out 0.9s both;
+}
+
+.super-level.is-lost .super-icon {
+  filter: grayscale(0.7) brightness(0.6);
+  transition: filter 0.6s ease 0.9s;
 }
 
 .super-pick__name {
@@ -14341,6 +14821,41 @@ button.dance-card:active {
   to { opacity: 1; transform: none; }
 }
 
+@keyframes super-glint {
+  0%, 60% { background-position: 120% 0; }
+  85%, 100% { background-position: -20% 0; }
+}
+
+@keyframes super-won {
+  0% { transform: scale(0.85); filter: brightness(1.8); }
+  55% { transform: translateY(-1.2cqh) scale(1.12); }
+  100% { transform: none; filter: none; }
+}
+
+@keyframes super-halo {
+  0%, 100% { opacity: 0.65; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes super-turn {
+  0% { transform: rotate(0deg); }
+  40% { transform: rotate(-28deg); }
+  70% { transform: rotate(8deg); }
+  100% { transform: none; }
+}
+
+@keyframes super-flash {
+  0% { filter: brightness(2.2) saturate(1.2); }
+  100% { filter: none; }
+}
+
+@keyframes super-coin {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 3), calc(var(--dy) * 3 + 120%)) scale(0.9) rotate(200deg); }
+}
+
 @keyframes super-shake {
   0%, 100% { transform: none; }
   20%, 60% { transform: translateX(-0.6cqh); }
@@ -14354,8 +14869,14 @@ button.dance-card:active {
   .super-level,
   .super-level__icon,
   .super-level__question,
-  .super-chip {
+  .super-chip,
+  .super-icon--art,
+  .super-level__icon::before {
     animation: none !important;
+  }
+  .super-glint,
+  .super-burst {
+    display: none;
   }
   .super-sparkles {
     display: none;

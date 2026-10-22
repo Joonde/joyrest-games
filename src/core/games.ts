@@ -2,6 +2,13 @@ import type { AgeRating, Game, GameScope, NewGame } from "../data/types";
 
 export const GAME_TITLE_MAX_LENGTH = 80;
 
+/**
+ * Папка библиотеки JoyRest, куда попадают принятые предложения ведущих (решение владельца 22 октября 2026):
+ * такие игры — отдельным разделом внизу библиотеки, не по разделам форматов. Владелец может перенести игру
+ * в общие разделы (папка '').
+ */
+export const HOST_GAMES_FOLDER = "Игры от ведущих JoyRest";
+
 export const AGE_RATINGS: AgeRating[] = ["0+", "12+", "18+"];
 
 export function cleanGameTitle(input: string): string {

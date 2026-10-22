@@ -82,7 +82,7 @@ export function studioActions(profile: UserProfile): TopBarAction[] {
     ...(venuesRepo && permissions.canShowVenueQr(profile) ? [{ label: "QR-анкеты", to: "/studio/qr" }] : []),
     ...(teamRepo ? [{ label: "Мой профиль", to: "/studio/profile" }] : []),
     // Без «Команды» (Firebase) вкладки «Инструкции» нет — инструкция ведущим остаётся в меню.
-    ...(teamRepo ? [] : [{ label: "Как проводить игры", to: "/studio/guide" }]),
+    ...(teamRepo ? [] : [{ label: "Как создавать игры", to: "/studio/editor-guide" }, { label: "Как проводить игры", to: "/studio/guide" }]),
     { label: "Пароль", to: "/studio/password" },
     { label: "Выйти", onClick: () => void authService.signOut() },
   ];
@@ -147,6 +147,27 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
       {clientsRepo && permissions.isSalesManager(profile) && <SalesDesk />}
       {!permissions.hostsGames(profile) && (
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
+      )}
+      {permissions.canUseGames(profile) && (
+        <nav className="card guide-pins" aria-labelledby="guide-pins-title">
+          <h2 id="guide-pins-title" className="guide-pins__title">📘 Инструкции</h2>
+          <div className="guide-pins__grid">
+            <Link className="guide-pins__item" to="/studio/editor-guide">
+              <span className="guide-pins__icon" aria-hidden="true">✍️</span>
+              <span className="guide-pins__text">
+                <strong>Как создавать игры</strong>
+                <span>Конструктор: выберите игру — шаги, поля, примеры</span>
+              </span>
+            </Link>
+            <Link className="guide-pins__item" to="/studio/guide">
+              <span className="guide-pins__icon" aria-hidden="true">🎤</span>
+              <span className="guide-pins__text">
+                <strong>Как проводить игры</strong>
+                <span>Пульт, что видят гости, как объяснить правила</span>
+              </span>
+            </Link>
+          </div>
+        </nav>
       )}
       {tabs.length > 0 && <Tabs
         items={tabs}

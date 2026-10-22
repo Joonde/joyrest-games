@@ -16,6 +16,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
 import type { AgeRating, Game, GameScope, MediaVariant, PlayMode } from "../../src/data/types";
+import { HOST_GAMES_FOLDER } from "../../src/core/games";
 import { actorOf, apiGuard, identityOf, sessionUser, type SessionRow, uploadGuard } from "./auth";
 
 /** Лимиты места (CLAUDE.md, «Медиа»). */
@@ -368,6 +369,11 @@ export function registerGames(app: FastifyInstance, options: GamesOptions): void
         if (patch.playMode !== undefined) await tx`update games set play_mode = ${parsePlay(patch.playMode)} where id = ${game.id}`;
         // Папка в «Моих играх» (решение владельца 15 октября 2026) — только личные игры.
         if (patch.folder !== undefined && game.scope === "personal") await tx`update games set folder = ${folderName(patch.folder)} where id = ${game.id}`;
+        // Библиотека: владелец переносит игру ведущего в общие разделы и обратно — только эти две «папки».
+        if (patch.folder !== undefined && game.scope === "agency" && permissions.canReviewProposals(actorOf(user))) {
+          const folder = folderName(patch.folder) === HOST_GAMES_FOLDER ? HOST_GAMES_FOLDER : "";
+          await tx`update games set folder = ${folder} where id = ${game.id}`;
+        }
         if ("content" in patch) {
           // Игра библиотеки: личные треки — в общую музыку (их автор мог бы удалить), ссылки — на общие копии.
           const content = game.scope === "agency" ? (await promoteGameTracks(tx, patch.content ?? null, user.id, title ?? game.title, onlyOwn(user))).content : (patch.content ?? null);

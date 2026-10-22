@@ -129,22 +129,38 @@ function GameSection({ g }: { g: GameGuide }) {
 
 export function GuidePage({ profile }: { profile: UserProfile }) {
   const { hash } = useLocation();
-  // Ссылка из конструктора ведёт сразу к разделу игры.
+  // Выбрали игру (#quiz, в том числе по ссылке из конструктора) — на странице только её раздел.
+  const selected = GAME_GUIDES.find((g) => g.mechanic === hash.slice(1));
   useEffect(() => {
-    if (!hash) return;
+    if (!hash || selected) return window.scrollTo(0, 0);
     document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
-  }, [hash]);
+  }, [hash, selected]);
+  if (selected) {
+    return (
+      <main className="page page--wide guide">
+        <TopBar title="Как проводить игры" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
+        <Link className="btn btn--secondary btn--block" to="/studio/guide">
+          ← Все игры
+        </Link>
+        <GameSection g={selected} />
+        <Link className="btn btn--secondary btn--block" to="/studio/guide">
+          ← Все игры
+        </Link>
+      </main>
+    );
+  }
   return (
     <main className="page page--wide guide">
       <TopBar title="Как проводить игры" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
+      <h2 className="eg-part">🎲 Выберите игру</h2>
       <nav className="card guide-toc" aria-label="Игры">
         <a href="#start" className="guide-toc__item">
           🚀 Перед вечером
         </a>
         {GAME_GUIDES.map((g) => (
-          <a key={g.mechanic} href={`#${g.mechanic}`} className="guide-toc__item">
+          <Link key={g.mechanic} to={`/studio/guide#${g.mechanic}`} className="guide-toc__item">
             {g.icon} {g.title}
-          </a>
+          </Link>
         ))}
         <a href="#trouble" className="guide-toc__item">
           🛟 Если что-то пошло не так
@@ -174,9 +190,6 @@ export function GuidePage({ profile }: { profile: UserProfile }) {
         ))}
       </section>
 
-      {GAME_GUIDES.map((g) => (
-        <GameSection key={g.mechanic} g={g} />
-      ))}
 
       <section id="trouble" className="card stack guide-game">
         <h2>🛟 Если что-то пошло не так</h2>

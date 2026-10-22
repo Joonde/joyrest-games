@@ -7,6 +7,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { promoteGameTracks } from "./libraryTracks";
 import type { Sql } from "postgres";
 import * as permissions from "../../src/data/permissions";
+import { HOST_GAMES_FOLDER } from "../../src/core/games";
 import { actorOf, apiGuard, newUserId, sessionUser, type SessionRow } from "./auth";
 
 export interface ProposalsOptions {
@@ -176,9 +177,9 @@ export function registerProposals(app: FastifyInstance, options: ProposalsOption
         } else {
           target = newUserId();
           await tx`
-            insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content)
+            insert into games (id, scope, owner_id, title, mechanic, theme_id, age_rating, play_mode, content, folder)
             values (${target}, 'agency', ${user.id}, ${source.title}, ${source.mechanic}, ${source.theme_id},
-                    ${source.age_rating}, ${source.play_mode}, ${content})`;
+                    ${source.age_rating}, ${source.play_mode}, ${content}, ${HOST_GAMES_FOLDER})`;
         }
         // Картинки — те же файлы: копируются только ссылки, которых у игры библиотеки ещё нет.
         await tx`

@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { GamePreview } from "./GamePreview";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { editorGuideFor } from "../../core/editorGuideSkip";
 import { AGE_RATINGS, cleanGameTitle, copyOfGame, GAME_TITLE_MAX_LENGTH, isValidGameTitle } from "../../core/games";
 import {
   gamesRepo,
@@ -42,6 +43,29 @@ const SAVE_TEXT: Record<SaveStatus, string> = {
   conflict: "Игру изменил другой человек — ваши правки ждут решения",
 };
 
+/** Короткий статус, когда плашка прилипла к верху экрана: не закрывает кнопки и текст под ней. */
+const SAVE_SHORT: Record<SaveStatus, string> = {
+  saved: "✓ Сохранено",
+  saving: "Сохраняется…",
+  offline: "Нет связи",
+  error: "Пробуем ещё раз",
+  conflict: "Нужно решение",
+};
+
+/** Плашка статуса прилипла к верху (страницу прокрутили ниже неё). */
+function useStuck() {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setStuck(Boolean(entry && !entry.isIntersecting && entry.boundingClientRect.top < 0)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, stuck] as const;
+}
+
 /** Кто-то правил игру за последние 10 минут — предупредить, что можно столкнуться правками. */
 const RECENT_EDIT_MS = 10 * 60_000;
 
@@ -73,6 +97,7 @@ function EditorLoader({ gameId, profile }: { gameId: string; profile: UserProfil
 }
 
 function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
+  const [statusSentinel, statusStuck] = useStuck();
   const navigate = useNavigate();
   const mechanic = getMechanic(initial.mechanic);
   // Содержимое сразу приводим к формату механики: дальше с ним работает только она.
@@ -256,11 +281,17 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       <button type="button" className="btn btn--quiet back-link" onClick={() => goBack()}>
         ← К играм
       </button>
+      {editable && editorGuideFor(game.mechanic) && (
+        <Link className="btn btn--quiet back-link editor-guide-link" to={`/studio/editor-guide#${game.mechanic}`}>
+          ✍️ Как создавать эту игру — инструкция
+        </Link>
+      )}
       {editable ? (
         <>
-          <p className={`save-status save-status--${status}`} role="status" aria-live="polite">
+          <span ref={statusSentinel} className="save-status__sentinel" aria-hidden="true" />
+          <p className={`save-status save-status--${status}${statusStuck ? " is-stuck" : ""}`} role="status" aria-live="polite" title={SAVE_TEXT[status]}>
             <span className="save-status__dot" aria-hidden="true" />
-            {SAVE_TEXT[status]}
+            {statusStuck ? SAVE_SHORT[status] : SAVE_TEXT[status]}
           </p>
           {recentEditor && status !== "conflict" && (
             <p className="small clients-late" role="status">
@@ -344,13 +375,13 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           {editable ? (
             launchBlocked ? (
               <button type="button" className="btn btn--block" disabled>
-                Запустить
+                ▶ Запустить игру
               </button>
             ) : (
               <>
                 {launchable && (
                   <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
-                    Запустить
+                    ▶ Запустить игру
                   </Link>
                 )}
                 <Link className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"} to={`/studio/rehearsal/${game.id}`}>
@@ -369,7 +400,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
                 <>
                   {launchable && (
                     <Link className="btn btn--secondary btn--block" to={`/studio/launch/${game.id}`}>
-                      Запустить как есть
+                      ▶ Запустить как есть
                     </Link>
                   )}
                   <Link className="btn btn--quiet btn--block" to={`/studio/rehearsal/${game.id}`}>
@@ -392,6 +423,11 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
           <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
             Как проводить эту игру
           </Link>
+          {editorGuideFor(game.mechanic) && (
+            <Link className="btn btn--quiet btn--block" to={`/studio/editor-guide#${game.mechanic}`}>
+              Как создавать эту игру
+            </Link>
+          )}
           <GamePreview open={previewOpen} onClose={() => setPreviewOpen(false)} mechanic={mechanic} gameId={game.id} content={game.content} playMode={supportedPlayMode(game.mechanic, game.playMode)} themeId={game.themeId} />
         </section>
       )}
@@ -415,6 +451,11 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
       {!(canPreview && mechanic) && (
         <Link className="btn btn--quiet btn--block" to={`/studio/guide#${game.mechanic}`}>
           Как проводить эту игру
+        </Link>
+      )}
+      {!(canPreview && mechanic) && editorGuideFor(game.mechanic) && (
+        <Link className="btn btn--quiet btn--block" to={`/studio/editor-guide#${game.mechanic}`}>
+          Как создавать эту игру
         </Link>
       )}
 

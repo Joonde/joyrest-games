@@ -1,5 +1,95 @@
 [
  {
+  "mechanic": "quiz",
+  "runs": 24,
+  "finished": 24,
+  "ticks": 904,
+  "problems": [],
+  "edges": {
+   "ready → question": 165,
+   "question → reveal": 191,
+   "reveal → board": 147,
+   "board → reveal": 25,
+   "board → ready": 116,
+   "ready → board": 20,
+   "question → ready": 28,
+   "reveal → podium": 5,
+   "podium → reveal": 5,
+   "reveal → question": 52,
+   "board → podium": 26,
+   "podium → board": 8,
+   "ready → podium": 3,
+   "podium → ready": 3,
+   "board → question": 2,
+   "ready → reveal": 5,
+   "reveal → ready": 22
+  },
+  "actions": {
+   "пульт: главная": 781,
+   "телефон: кнопка": 456,
+   "технический перерыв": 30,
+   "пульт: Назад": 117,
+   "убрать слайд": 37,
+   "таблица на экран": 34,
+   "телефон переподключился": 12,
+   "наградить сейчас": 12,
+   "назад с награждения": 12,
+   "QR для опоздавших": 59,
+   "опоздавший гость": 24,
+   "завершить игру": 24,
+   "пульт открыли заново": 13,
+   "экран зала перезагрузили": 16,
+   "жеребьёвка": 15,
+   "+10 секунд": 5,
+   "пульт: другая": 30
+  },
+  "demos": [
+   "Демо-квиз: Новогодняя вечеринка",
+   "Квиз: порядок и числа",
+   "Узнай по нотам: шаблон",
+   "Робот: раунды и суперигра"
+  ],
+  "modes": [
+   "teams ×3",
+   "solo ×3"
+  ]
+ },
+ {
+  "mechanic": "lotto",
+  "runs": 6,
+  "finished": 6,
+  "ticks": 463,
+  "problems": [],
+  "edges": {
+   "ready → question": 6,
+   "question → reveal": 226,
+   "reveal → question": 220,
+   "reveal → podium": 4
+  },
+  "actions": {
+   "телефон: кнопка": 2235,
+   "пульт: главная": 411,
+   "пульт: Назад": 58,
+   "таблица на экран": 22,
+   "технический перерыв": 11,
+   "жеребьёвка": 6,
+   "QR для опоздавших": 27,
+   "опоздавший гость": 18,
+   "экран зала перезагрузили": 6,
+   "пульт открыли заново": 5,
+   "убрать слайд": 19,
+   "завершить игру": 6,
+   "телефон переподключился": 17
+  },
+  "demos": [
+   "Музыкальное лото: хиты на русском"
+  ],
+  "modes": [
+   "solo ×3",
+   "teams ×3"
+  ]
+ },
+ {
   "mechanic": "dance",
   "runs": 3,
   "finished": 3,
@@ -8,27 +98,27 @@
   "edges": {
    "ready → question/pick": 3,
    "question/pick → reveal/perform": 32,
+   "reveal/perform → question/pick": 5,
    "reveal/perform → question/vote": 31,
-   "question/vote → reveal/perform": 4,
    "question/vote → reveal/result": 32,
    "reveal/result → question/pick": 26,
-   "question/pick → reveal/result": 2,
-   "reveal/perform → question/pick": 5,
+   "question/vote → reveal/perform": 4,
    "reveal/result → question/vote": 5,
-   "reveal/result → podium/result": 3
+   "reveal/result → podium/result": 3,
+   "question/pick → reveal/result": 2
   },
   "actions": {
    "пульт: главная": 102,
    "телефон: кнопка": 109,
    "пульт: другая": 42,
-   "технический перерыв": 1,
    "пульт: Назад": 16,
-   "убрать слайд": 3,
-   "жеребьёвка": 3,
-   "таблица на экран": 7,
-   "опоздавший гость": 7,
    "QR для опоздавших": 6,
+   "жеребьёвка": 3,
+   "опоздавший гость": 7,
+   "убрать слайд": 3,
    "завершить игру": 3,
+   "технический перерыв": 1,
+   "таблица на экран": 7,
    "экран зала перезагрузили": 1,
    "пульт открыли заново": 2,
    "телефон переподключился": 1
@@ -59,10 +149,10 @@
    "reveal/result → question/perform": 20,
    "reveal/pick → reveal/result": 30,
    "reveal/result → podium/result": 14,
-   "podium/result → reveal/result": 8,
    "reveal/pick → podium/pick": 6,
    "podium/pick → reveal/pick": 6,
-   "reveal/result → question/vote": 2
+   "reveal/result → question/vote": 2,
+   "podium/result → reveal/result": 8
   },
   "actions": {
    "пульт: главная": 394,
@@ -95,38 +185,38 @@
   "mechanic": "quest",
   "runs": 6,
   "finished": 6,
-  "ticks": 582,
+  "ticks": 561,
   "problems": [],
   "edges": {
    "ready → question/roll": 6,
-   "question/roll → reveal/cell": 235,
-   "reveal/done → question/roll": 231,
-   "reveal/cell → question/roll": 39,
-   "question/roll → reveal/done": 35,
-   "reveal/cell → podium/cell": 5,
-   "podium/cell → reveal/cell": 5,
-   "question/roll → reveal/finish": 6,
-   "reveal/finish → podium/finish": 7,
-   "podium/finish → reveal/finish": 1,
-   "reveal/done → podium/done": 3,
-   "podium/done → reveal/done": 3
+   "question/roll → reveal/cell": 217,
+   "reveal/done → question/roll": 237,
+   "reveal/cell → question/roll": 26,
+   "question/roll → reveal/done": 46,
+   "reveal/done → podium/done": 7,
+   "podium/done → reveal/done": 7,
+   "question/roll → reveal/finish": 9,
+   "reveal/finish → podium/finish": 6,
+   "reveal/finish → question/roll": 3,
+   "reveal/cell → podium/cell": 6,
+   "podium/cell → reveal/cell": 6
   },
   "actions": {
-   "пульт: главная": 398,
-   "телефон: кнопка": 194,
-   "пульт: Назад": 64,
-   "жеребьёвка": 9,
-   "пульт: другая": 126,
+   "пульт: главная": 408,
+   "телефон: кнопка": 198,
+   "пульт: Назад": 53,
+   "жеребьёвка": 13,
+   "пульт: другая": 106,
    "убрать слайд": 20,
-   "QR для опоздавших": 33,
-   "таблица на экран": 29,
-   "наградить сейчас": 9,
-   "назад с награждения": 9,
-   "телефон переподключился": 16,
-   "технический перерыв": 19,
-   "опоздавший гость": 11,
+   "QR для опоздавших": 39,
+   "таблица на экран": 16,
+   "наградить сейчас": 13,
+   "назад с награждения": 13,
+   "телефон переподключился": 20,
+   "технический перерыв": 15,
+   "опоздавший гость": 14,
    "завершить игру": 6,
-   "экран зала перезагрузили": 6,
+   "экран зала перезагрузили": 7,
    "пульт открыли заново": 2
   },
   "demos": [
@@ -141,85 +231,43 @@
   "mechanic": "survival",
   "runs": 3,
   "finished": 3,
-  "ticks": 417,
+  "ticks": 438,
   "problems": [],
   "edges": {
-   "ready → question": 123,
-   "question → reveal": 113,
-   "reveal → question": 14,
-   "reveal → ready": 96,
-   "question → ready": 24,
-   "question → question": 19,
-   "reveal → podium": 8,
-   "podium → reveal": 5,
+   "ready → question": 119,
+   "question → reveal": 112,
+   "reveal → question": 13,
+   "reveal → ready": 107,
+   "question → ready": 20,
+   "question → question": 20,
+   "ready → reveal": 11,
    "reveal → reveal": 3,
+   "reveal → podium": 6,
+   "podium → reveal": 3,
    "ready → podium": 1,
    "podium → ready": 1
   },
   "actions": {
-   "пульт: главная": 371,
-   "телефон: кнопка": 362,
-   "пульт: Назад": 38,
-   "пульт: другая": 11,
-   "QR для опоздавших": 26,
-   "экран зала перезагрузили": 5,
-   "телефон переподключился": 13,
-   "пульт открыли заново": 4,
+   "пульт: главная": 383,
+   "телефон: кнопка": 412,
+   "пульт: Назад": 48,
+   "пульт: другая": 10,
+   "QR для опоздавших": 31,
+   "экран зала перезагрузили": 8,
+   "телефон переподключился": 14,
+   "пульт открыли заново": 8,
    "таблица на экран": 18,
-   "жеребьёвка": 4,
-   "наградить сейчас": 6,
-   "назад с награждения": 6,
-   "убрать слайд": 11,
+   "опоздавший гость": 8,
+   "убрать слайд": 15,
    "технический перерыв": 15,
-   "+10 секунд": 4,
-   "опоздавший гость": 6,
-   "завершить игру": 3
+   "+10 секунд": 3,
+   "жеребьёвка": 9,
+   "завершить игру": 3,
+   "наградить сейчас": 4,
+   "назад с награждения": 4
   },
   "demos": [
    "Гонка на выживание"
-  ],
-  "modes": [
-   "teams ×3"
-  ]
- },
- {
-  "mechanic": "dragon",
-  "runs": 6,
-  "finished": 6,
-  "ticks": 322,
-  "problems": [],
-  "edges": {
-   "ready → question": 103,
-   "question → ready": 24,
-   "question → reveal": 83,
-   "reveal → ready": 73,
-   "reveal → podium": 5,
-   "podium → reveal": 4,
-   "reveal → reveal": 6,
-   "reveal → question": 4,
-   "ready → podium": 1,
-   "podium → ready": 1
-  },
-  "actions": {
-   "пульт: главная": 288,
-   "телефон: кнопка": 157,
-   "пульт: другая": 16,
-   "пульт: Назад": 24,
-   "жеребьёвка": 4,
-   "убрать слайд": 8,
-   "QR для опоздавших": 15,
-   "таблица на экран": 10,
-   "наградить сейчас": 5,
-   "назад с награждения": 5,
-   "телефон переподключился": 6,
-   "завершить игру": 6,
-   "технический перерыв": 3,
-   "опоздавший гость": 8,
-   "пульт открыли заново": 6
-  },
-  "demos": [
-   "Бой с драконом",
-   "Бой с драконом: для детей"
   ],
   "modes": [
    "teams ×3"
@@ -267,6 +315,97 @@
   ],
   "modes": [
    "teams ×2"
+  ]
+ },
+ {
+  "mechanic": "dragon",
+  "runs": 6,
+  "finished": 6,
+  "ticks": 358,
+  "problems": [],
+  "edges": {
+   "ready → question": 101,
+   "question → ready": 21,
+   "question → reveal": 89,
+   "reveal → ready": 89,
+   "ready → reveal": 15,
+   "reveal → question": 9,
+   "ready → podium": 4,
+   "podium → ready": 4,
+   "reveal → reveal": 6,
+   "reveal → podium": 1
+  },
+  "actions": {
+   "пульт: главная": 307,
+   "телефон: кнопка": 157,
+   "пульт: другая": 17,
+   "пульт: Назад": 40,
+   "жеребьёвка": 4,
+   "убрать слайд": 15,
+   "QR для опоздавших": 19,
+   "таблица на экран": 10,
+   "опоздавший гость": 12,
+   "наградить сейчас": 4,
+   "назад с награждения": 4,
+   "пульт открыли заново": 1,
+   "экран зала перезагрузили": 5,
+   "завершить игру": 6,
+   "технический перерыв": 12,
+   "телефон переподключился": 10
+  },
+  "demos": [
+   "Бой с драконом",
+   "Бой с драконом: для детей"
+  ],
+  "modes": [
+   "teams ×3"
+  ]
+ },
+ {
+  "mechanic": "wager",
+  "runs": 6,
+  "finished": 6,
+  "ticks": 238,
+  "problems": [],
+  "edges": {
+   "ready → question/guess": 6,
+   "question/guess → question/bet": 49,
+   "question/bet → reveal/answer": 49,
+   "reveal/answer → question/bet": 7,
+   "reveal/answer → ready/guess": 42,
+   "ready/guess → question/guess": 45,
+   "question/guess → ready/guess": 9,
+   "reveal/answer → podium/answer": 9,
+   "ready/guess → reveal/answer": 6,
+   "ready/guess → podium/guess": 1,
+   "podium/guess → ready/guess": 1,
+   "podium/answer → reveal/answer": 3,
+   "question/bet → question/guess": 7
+  },
+  "actions": {
+   "пульт: главная": 212,
+   "телефон: кнопка": 132,
+   "пульт: Назад": 32,
+   "QR для опоздавших": 11,
+   "экран зала перезагрузили": 3,
+   "телефон переподключился": 4,
+   "пульт открыли заново": 3,
+   "технический перерыв": 10,
+   "завершить игру": 6,
+   "таблица на экран": 6,
+   "наградить сейчас": 2,
+   "назад с награждения": 2,
+   "опоздавший гость": 9,
+   "жеребьёвка": 5,
+   "+10 секунд": 2,
+   "убрать слайд": 3
+  },
+  "demos": [
+   "Держи пари: угадай число"
+  ],
+  "modes": [
+   "teams ×3",
+   "solo ×3"
   ]
  }
 ]

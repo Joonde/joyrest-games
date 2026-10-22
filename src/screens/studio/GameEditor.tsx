@@ -247,7 +247,7 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
   const [undoAsk, setUndoAsk] = useState(false);
   const leaveTo = useRef(back);
   /** Уходим на запуск или репетицию: «Выйти всё равно» запустит версию с сервера — без недошедших правок. */
-  const launching = /^\/studio\/(launch|rehearsal)\//.test(leaveTo.current);
+  const launching = afterIssue.current === "leave" && /^\/studio\/(launch|rehearsal)\//.test(leaveTo.current);
 
   /** Что мешает уйти сейчас (null — всё на сервере). */
   function issueNow(): LeaveIssue | null {

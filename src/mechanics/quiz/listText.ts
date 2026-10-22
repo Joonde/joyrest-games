@@ -203,7 +203,8 @@ function dashGroup(mark: string): string {
 
 /** Знак варианта в начале строки («- Москва» → «-»), без жирного; нет знака — null. */
 export function dashMark(raw: string): string | null {
-  const m = /^([-–—•*])/.exec(stripBold(raw.trim()).trim());
+  // «*» — пометка верного, а не знак списка: «* Назад в будущее», «- Титаник» — один вопрос (QA 22 октября, круг 6).
+  const m = /^([-–—•])/.exec(stripBold(raw.trim()).trim());
   return m ? (m[1] ?? null) : null;
 }
 
@@ -216,6 +217,8 @@ export function dashStartsQuestion(raw: string, optionMark: string | null, next:
   if (!mark || mark === "*" || !optionMark || dashGroup(mark) === dashGroup(optionMark)) return false;
   const option = parseOption(stripBold(raw.trim()).trim());
   if (!option || option.correct || !/[?？]\s*$/.test(option.text)) return false;
-  if (next === undefined) return false;
-  return /^[-–—•*]/.test(stripBold(next).trim()) || LISTED.test(stripBold(next).trim());
+  // Под строкой — вариант с тем же знаком, что у вариантов текущего вопроса («- 4», «- 3» … «— Вопрос?» → «- Белый»).
+  // Строку «N.» под ней не считаем: «2. Следующий вопрос» — не повод делать вопросом вариант с «?».
+  const nextMark = next === undefined ? null : dashMark(next);
+  return nextMark !== null && dashGroup(nextMark) === dashGroup(optionMark);
 }

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { formatDate } from "../../core/format";
+import { HOST_GAMES_FOLDER } from "../../core/games";
 import { permissions, type Game, type GameScope, type LibraryProposal, type UserProfile } from "../../data";
 import { ActionMenu, type MenuAction } from "../../components/Menu";
 import { mechanicTitle, stepsLabel, validateGame } from "../../mechanics/registry";
@@ -16,6 +17,8 @@ interface Props {
   onPropose?: () => void;
   /** Есть — «В папку» (папки «Моих игр», только свой сервер). */
   onFolder?: () => void;
+  /** Есть — владелец переносит игру библиотеки между «Играми от ведущих JoyRest» и общими разделами. */
+  onLibraryFolder?: () => void;
 }
 
 const PROPOSAL_LABEL: Record<LibraryProposal["status"], string> = {
@@ -25,7 +28,7 @@ const PROPOSAL_LABEL: Record<LibraryProposal["status"], string> = {
 };
 
 /** Карточка игры: название, механика, тема, число вопросов, дата и действия. */
-export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPropose, onFolder }: Props) {
+export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPropose, onFolder, onLibraryFolder }: Props) {
   const editable = permissions.canEditGame(profile, game);
   const date = game.updatedAt ?? game.createdAt;
   const ready = validateGame(game.mechanic, game.content).length === 0;
@@ -48,6 +51,9 @@ export function GameCard({ game, profile, onDuplicate, onDelete, proposal, onPro
     menu.push({ label: proposal?.status === "accepted" ? "Предложить обновление в библиотеку" : "Предложить в библиотеку", onClick: onPropose });
   }
   if (onFolder && game.scope === "personal") menu.push({ label: game.folder ? "Другая папка" : "В папку", onClick: onFolder });
+  if (onLibraryFolder && game.scope === "agency") {
+    menu.push({ label: game.folder === HOST_GAMES_FOLDER ? "Перенести в общие разделы библиотеки" : `В папку «${HOST_GAMES_FOLDER}»`, onClick: onLibraryFolder });
+  }
   if (permissions.canDeleteGame(profile, game)) menu.push({ label: "Удалить", onClick: onDelete });
 
   return (

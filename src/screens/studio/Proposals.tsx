@@ -1,32 +1,35 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../core/format";
-import { errorCodeOf, proposalsRepo, useLoad, type LibraryProposal } from "../../data";
+import { HOST_GAMES_FOLDER } from "../../core/games";
+import { errorCodeOf, proposalsRepo, type LibraryProposal } from "../../data";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 interface Props {
+  /** Ждущие проверки предложения (грузит список библиотеки — ему нужно их число для вкладки). */
+  proposals: LibraryProposal[];
+  /** Предложение решено — убрать из списка. */
+  onRemoved: (id: string) => void;
   /** Принятая игра появилась в библиотеке — список библиотеки надо обновить. */
   onAccepted: () => void;
+  /** Открыть папку «Игры от ведущих JoyRest» в библиотеке. */
+  onOpenFolder: () => void;
   onToast: (text: string) => void;
 }
 
-const NONE: LibraryProposal[] = [];
-
 /**
- * Предложения ведущих в библиотеку (CLAUDE.md, раздел 3) — блок на вкладке «Библиотека JoyRest»
- * у владельца. Нет предложений — блока нет.
+ * Предложения ведущих в библиотеку (CLAUDE.md, раздел 3) — своя страничка вкладки «Библиотека JoyRest» у владельца
+ * (решение владельца 22 октября 2026). Принятая игра ложится в папку «Игры от ведущих JoyRest» внизу библиотеки.
  */
-export function ProposalsBlock({ onAccepted, onToast }: Props) {
+export function ProposalsBlock({ proposals, onRemoved, onAccepted, onOpenFolder, onToast }: Props) {
   const repo = proposalsRepo;
-  const [state, , update] = useLoad(() => (repo ? repo.listPending() : Promise.resolve(NONE)), [repo]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toReject, setToReject] = useState<LibraryProposal | null>(null);
   const [reason, setReason] = useState("");
   const [dialogError, setDialogError] = useState<string | null>(null);
 
-  if (!repo || state.status !== "ready" || state.data.length === 0) return null;
-  const proposals = state.data;
-  const remove = (id: string) => update((list) => list.filter((p) => p.id !== id));
+  if (!repo) return null;
+  const remove = onRemoved;
 
   async function accept(proposal: LibraryProposal) {
     if (!repo) return;
@@ -35,7 +38,7 @@ export function ProposalsBlock({ onAccepted, onToast }: Props) {
       await repo.accept(proposal.id);
       remove(proposal.id);
       onAccepted();
-      onToast(`«${proposal.title}» в библиотеке`);
+      onToast(`«${proposal.title}» — в папке «${HOST_GAMES_FOLDER}»`);
     } catch (error) {
       if (isGone(error) || errorCodeOf(error) === "failed-precondition") {
         // Игру удалили или предложение уже решено — убираем его из списка.
@@ -65,11 +68,18 @@ export function ProposalsBlock({ onAccepted, onToast }: Props) {
 
   return (
     <section className="card" aria-labelledby="proposals-title">
-      <h2 id="proposals-title">Предложения ведущих: {proposals.length}</h2>
+      <h2 id="proposals-title">{proposals.length > 0 ? `Предложения ведущих: ${proposals.length}` : "Предложения ведущих"}</h2>
       <p className="muted">
-        Ведущие предлагают свои игры в библиотеку. Принятая игра копируется в библиотеку JoyRest, у ведущего она
-        остаётся.
+        Ведущие предлагают свои игры в библиотеку. Принятая игра копируется в папку «{HOST_GAMES_FOLDER}» внизу библиотеки — её
+        сразу видят все ведущие, у автора игра остаётся. Из папки игру можно перенести в общие разделы: «⋯ → Перенести в общие
+        разделы библиотеки».
       </p>
+      {proposals.length === 0 && <p className="muted empty">Новых предложений нет.</p>}
+      <div className="actions">
+        <button type="button" className="btn btn--secondary btn--block" onClick={onOpenFolder}>
+          Открыть папку «{HOST_GAMES_FOLDER}»
+        </button>
+      </div>
       <ul className="proposals">
         {proposals.map((p) => (
           <li key={p.id} className="proposals__item">

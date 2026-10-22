@@ -108,6 +108,14 @@ describe.skipIf(!url)("предложения в библиотеку на Postg
       select scope, owner_id, title, play_mode from games where id = ${libraryId}`;
     expect(copy).toEqual({ scope: "agency", owner_id: ADMIN_UID, title: "Квиз Анны", play_mode: "teams" });
     expect((await sql`select 1 from media where game_id = ${libraryId}`).length).toBe(2);
+    // Принятая игра — в папке «Игры от ведущих JoyRest»; ведущий папку игры библиотеки не меняет, владелец переносит.
+    expect((await sql`select folder from games where id = ${libraryId}`)[0]?.folder).toBe("Игры от ведущих JoyRest");
+    await app.inject({ method: "PATCH", url: `/api/games/${libraryId}`, headers: headers(anna), payload: { folder: "" } });
+    expect((await sql`select folder from games where id = ${libraryId}`)[0]?.folder).toBe("Игры от ведущих JoyRest");
+    await app.inject({ method: "PATCH", url: `/api/games/${libraryId}`, headers: headers(owner), payload: { folder: "Что угодно" } });
+    expect((await sql`select folder from games where id = ${libraryId}`)[0]?.folder).toBe("");
+    await app.inject({ method: "PATCH", url: `/api/games/${libraryId}`, headers: headers(owner), payload: { folder: "Игры от ведущих JoyRest" } });
+    expect((await sql`select folder from games where id = ${libraryId}`)[0]?.folder).toBe("Игры от ведущих JoyRest");
     // Игра ведущего осталась у него.
     expect((await sql`select scope from games where id = 'annaGame'`)[0]?.scope).toBe("personal");
     // Повтор после обрыва связи — то же.

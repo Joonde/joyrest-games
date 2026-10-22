@@ -354,3 +354,19 @@ describe("«Гонка»: ответ после «=»", () => {
     expect(openAnswerSplit("2+2=?")).toBeNull();
   });
 });
+
+describe("Круг 4: нумерация и тире", () => {
+  it("«N. Вопрос» без «?», за которым варианты снова с «1.», — новый вопрос", () => {
+    const r = parseImport("4. Назовите реку\n1. Волга *\n2. Обь\n3. Лена\n5. Назовите город\n1. Москва *\n2. Тула");
+    expect(r.questions.map((q) => [q.question.text, q.question.options])).toEqual([
+      ["Назовите реку", ["Волга", "Обь", "Лена"]],
+      ["Назовите город", ["Москва", "Тула"]],
+    ]);
+  });
+  it("«— Вопрос?» с тире начинает вопрос в «Миллионе», «Гонке» и «Драконе»", () => {
+    const text = "— Как зовут кота?\n- Мурзик\n- Барсик *\n- Пушок\n- Рыжик";
+    expect(parseMillionaireImport(text).questions[0]?.text).toBe("Как зовут кота?");
+    expect(parseSurvivalImport(text).rounds[0]?.text).toBe("Как зовут кота?");
+    expect(parseDragonImport(text).battles[0]?.tasks[0]?.text).toBe("Как зовут кота?");
+  });
+});

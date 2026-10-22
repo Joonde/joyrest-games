@@ -540,12 +540,27 @@ function Editor({ initial, profile }: { initial: Game; profile: UserProfile }) {
               </button>
             ) : (
               <>
+                {/* Запуск и репетиция — после того, как правки дошли до сервера (иначе запустится старая версия игры). */}
                 {launchable && (
-                  <Link className="btn btn--block" to={`/studio/launch/${game.id}`}>
+                  <Link
+                    className="btn btn--block"
+                    to={`/studio/launch/${game.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      goBack(`/studio/launch/${game.id}`);
+                    }}
+                  >
                     ▶ Запустить игру
                   </Link>
                 )}
-                <Link className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"} to={`/studio/rehearsal/${game.id}`}>
+                <Link
+                  className={launchable ? "btn btn--secondary btn--block" : "btn btn--block"}
+                  to={`/studio/rehearsal/${game.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    goBack(`/studio/rehearsal/${game.id}`);
+                  }}
+                >
                   Репетиция без гостей
                 </Link>
               </>

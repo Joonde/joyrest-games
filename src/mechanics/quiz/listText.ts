@@ -148,7 +148,7 @@ function nextMakesQuestion(style: ListStyle, n: number, next: string | undefined
     // «1. Назовите цвет» → «а) Красный»: варианты буквами у вопроса с номером.
     if (!nextDigit) return true;
     // «1. Назовите цвет» → «1. Красный»: варианты начинаются заново с 1.
-    return n === 1 && Number(m[2]) === 1;
+    return Number(m[2]) === 1;
   }
   // Под строкой — варианты «- …», «* …», ответ «=», число «~», карточка «>».
   return /^[-–—•*=~≈>]/.test(next);

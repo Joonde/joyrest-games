@@ -203,8 +203,10 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     const dash = listOption(line);
     const cur0 = current as SurvivalRound | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
-    const opt = dash ?? listedOption(stripBold(line).trim(), room && !dashed ? run : null, ahead[index]);
-    if (dash) dashed = true;
+    // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && !room ? dash.text : null;
+    const opt = dashQuestion ? null : dash ?? listedOption(stripBold(line).trim(), room && !dashed ? run : null, ahead[index]);
+    if (dash && !dashQuestion) dashed = true;
     if (opt) {
       const cur = current as SurvivalRound | null;
       if (!cur || cur.kind !== "choice") {
@@ -223,7 +225,7 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     flush();
     run = newListedRun();
     dashed = false;
-    const { body: numbered, points: given, note } = pointsSuffix(stripBold(line), SURVIVAL_LIMITS.maxPoints);
+    const { body: numbered, points: given, note } = pointsSuffix(stripBold(dashQuestion ?? line), SURVIVAL_LIMITS.maxPoints);
     if (note) notes.push({ line: lineNo, text: note });
     const body = numbered.replace(QUESTION_NUMBERING, "").trim();
     const points = given ?? 100;

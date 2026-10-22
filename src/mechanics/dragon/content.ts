@@ -225,8 +225,10 @@ export function parseDragonImport(text: string): DragonImport {
     const dash = listOption(raw);
     const cur0 = task as DragonTask | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);
-    const opt = dash ?? listedOption(line, room && !dashed ? run : null, ahead[index]);
-    if (dash) dashed = true;
+    // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && !room ? dash.text : null;
+    const opt = dashQuestion ? null : dash ?? listedOption(line, room && !dashed ? run : null, ahead[index]);
+    if (dash && !dashQuestion) dashed = true;
     if (opt) {
       const cur = task as DragonTask | null;
       if (!cur || cur.kind !== "choice") {
@@ -250,7 +252,7 @@ export function parseDragonImport(text: string): DragonImport {
     }
     run = newListedRun();
     dashed = false;
-    const { body: numbered, points, note } = pointsSuffix(line, DRAGON_LIMITS.maxPower, "урон не поставлен");
+    const { body: numbered, points, note } = pointsSuffix(dashQuestion ?? line, DRAGON_LIMITS.maxPower, "урон не поставлен");
     if (note) notes.push({ line: lineNo, text: note });
     const body = numbered.replace(QUESTION_NUMBERING, "").trim();
     const m = statLine(body);

@@ -192,7 +192,12 @@ export function useAutosave<Patch extends object>(
           oldestSent.current = null;
           setSlow(false);
         }
-        if (!alive.current) return;
+        if (!alive.current) {
+          // Ушли со страницы, пока ждали ответа: накопленное досылаем один раз (без повторов по таймеру) — иначе
+          // последние правки остались бы только в черновике, а запуск взял бы старую версию игры (QA 22 октября, круг 4).
+          if (pending.current && !failed.current && !conflict.current && !denied.current) flush();
+          return;
+        }
         update();
         // Пока ждали ответа, накопились правки — отправляем их сразу.
         if (pending.current && timer.current === null && !failed.current && !conflict.current && !denied.current) flush();

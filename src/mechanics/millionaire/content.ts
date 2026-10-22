@@ -202,8 +202,10 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
     const dash = listOption(raw);
     const cur0 = current as MillionaireQuestion | null;
     const room = cur0 !== null && cur0.options.some((o) => !o);
-    const opt = dash ?? listedOption(line, cur0 && room && !dashed ? run : null, ahead[index]);
-    if (dash) dashed = true;
+    // «— Как зовут кота?» (с тире, со знаком вопроса, без «*») там, где вариант не нужен, — новый вопрос, а не вариант.
+    const dashQuestion = dash && !dash.correct && /[?？]\s*$/.test(dash.text) && (cur0 === null || !room) ? dash.text : null;
+    const opt = dashQuestion ? null : (dash ?? listedOption(line, cur0 && room && !dashed ? run : null, ahead[index]));
+    if (dash && !dashQuestion) dashed = true;
     if (opt) {
       if (!current) {
         skipped.push(lineNo);
@@ -223,7 +225,7 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
     level = fixed ?? (level % size) + 1;
     run = newListedRun();
     dashed = false;
-    current = { ...newMillionaireQuestion(level), text: line.replace(QUESTION_NUMBERING, "").trim().slice(0, MILLIONAIRE_LIMITS.text) };
+    current = { ...newMillionaireQuestion(level), text: (dashQuestion ?? line).replace(QUESTION_NUMBERING, "").trim().slice(0, MILLIONAIRE_LIMITS.text) };
   });
   flush();
   return { questions: out.slice(0, MILLIONAIRE_LIMITS.maxQuestions), skipped };

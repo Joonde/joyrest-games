@@ -7,7 +7,7 @@ import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { pointsLabel } from "../../core/results";
 import { resultKey, secondsLeft } from "../../core/session";
-import { audienceRepo } from "../../data";
+import { audienceRepo, clock } from "../../data";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { LETTERS, levelsOf, LIFELINES, lifelineTitle, pointsAt, type LifelineId, type MillionaireContent } from "./content";
@@ -135,7 +135,8 @@ export function MillionaireHostControls({ session, content, answers, participant
       title: `Подсказка «${lifelineTitle(id)}»?`,
       text: `${l?.hint ?? ""}. У ${u.gen} «${name(r.turn)}» она пропадёт до конца игры.`,
       confirmLabel: "Взять подсказку",
-      run: () => run((s) => applyLifeline(s, content, answers, id, now)),
+      // Время звонка — с момента подтверждения, а не открытия окна.
+      run: () => run((s) => applyLifeline(s, content, answers, id, Date.now() + clock.offset())),
     });
   }
 

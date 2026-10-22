@@ -47,7 +47,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const players = Object.keys(session.leaderboard).filter((id) => participants.some((p) => p.id === id));
   const everyoneOut = players.length > 0 && players.every((id) => result.buzz.out.includes(id));
   const nobodyLeft =
-    stage === "question" && result.mode === "buzz" && result.armed && !result.catStep && !result.buzz.current && !result.buzz.winner && (left === 0 || everyoneOut);
+    stage === "question" && result.mode === "buzz" && result.armed && !result.catStep && !result.noAuto && !result.buzz.current && !result.buzz.winner && (left === 0 || everyoneOut);
   const nobodyKey = nobodyLeft ? `${step}:${result.cell}:${result.buzz.out.length}:${everyoneOut ? "out" : "time"}` : "";
   useEffect(() => {
     if (!nobodyKey || busy) return;
@@ -55,7 +55,7 @@ export function BoardHostControls({ session, content, answers, participants, con
       () =>
         void quiet((cur) => {
           const r = parseBoardResult(cur.state.result);
-          if (cur.state.stage !== "question" || cur.state.step !== step || r.buzz.current || r.buzz.winner || r.mode !== "buzz") return null;
+          if (cur.state.stage !== "question" || cur.state.step !== step || r.noAuto || r.buzz.current || r.buzz.winner || r.mode !== "buzz") return null;
           const rest = secondsLeft(cur.state, Date.now() + clock.offset());
           const allOut = players.length > 0 && players.every((id) => r.buzz.out.includes(id));
           return rest === 0 || allOut ? boardReveal(cur, content, participants, false) : null;

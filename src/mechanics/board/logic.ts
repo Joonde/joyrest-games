@@ -69,6 +69,11 @@ export interface BoardResult {
    * («Кот в мешке», «Аукцион», «Назад» к ответу).
    */
   speakSince: number | null;
+  /**
+   * Ведущий вернулся «Назад» с ответа — пульт больше сам не показывает «Никто не угадал» на этом вопросе
+   * (иначе время по-прежнему вышло и ответ снова открылся бы через секунду). Сбрасывает новый отсчёт.
+   */
+  noAuto: boolean;
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -124,6 +129,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     round: typeof d.round === "number" && Number.isInteger(d.round) && d.round >= 1 && d.round <= 3 ? d.round : 1,
     pausedAt: typeof d.pausedAt === "number" && Number.isFinite(d.pausedAt) && d.pausedAt > 0 ? d.pausedAt : null,
     speakSince: typeof d.speakSince === "number" && Number.isFinite(d.speakSince) && d.speakSince > 0 ? d.speakSince : null,
+    noAuto: d.noAuto === true,
   };
 }
 
@@ -213,7 +219,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
   const auction = found.cell.kind === "auction";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false };
   return {
     state: {
       stage: "question",
@@ -344,7 +350,7 @@ export function armBuzz(session: Session, content: BoardContent): SessionChange 
       timeLimit: content.buzzTime,
       revealed: false,
       answered: 0,
-      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true, pausedAt: null, speakSince: null }),
+      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true, pausedAt: null, speakSince: null, noAuto: false }),
     },
   };
 }
@@ -459,7 +465,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false }),
     },
   };
 }
@@ -488,7 +494,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     if (found) for (const d of playDeltas(found.cell, result)) if (d.delta !== 0) minus[d.pid] = -d.delta;
     const buzz = result.buzz.winner ? { ...result.buzz, current: result.buzz.winner, winner: null } : result.buzz;
     // Отсчёт на ответ после «Назад» не идёт: ведущий уже слышал ответ и решает сам.
-    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore, speakSince: null }) } };
+    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore, speakSince: null, noAuto: true }) } };
     if (Object.keys(minus).length > 0) change.addScore = minus;
     return { change };
   }
@@ -499,7 +505,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
     const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null }) },
+      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
     return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };

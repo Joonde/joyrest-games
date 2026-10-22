@@ -417,3 +417,25 @@ describe("«Ставка на знания»: время на ответ том�
     expect(speakLeft(t, c, t0 + 60_000)).toBeNull();
   });
 });
+
+describe("«Ставка на знания»: «Назад» после «Никто не угадал» (QA 22 октября 2026)", () => {
+  it("с ответа «Назад» — пульт больше сам ответ не показывает; следующая клетка — как обычно", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    s = apply(s, boardReveal(s, c, participants, false));
+    expect(parseBoardResult(s.state.result).noAuto).toBe(false);
+    const back = boardBack(s, c);
+    if (!back) throw new Error("назад");
+    s = apply(s, back.change);
+    expect(s.state.stage).toBe("question");
+    expect(parseBoardResult(s.state.result).noAuto).toBe(true);
+    // Ведущий решает сам: снова «Показать ответ» или к полю — следующая клетка уже без отметки.
+    s = apply(s, boardReveal(s, c, participants, false));
+    s = apply(s, toBoard(s, c));
+    expect(parseBoardResult(s.state.result).noAuto).toBe(false);
+  });
+
+  it("старые сессии без поля — авто-показ как раньше", () => {
+    expect(parseBoardResult({}).noAuto).toBe(false);
+  });
+});

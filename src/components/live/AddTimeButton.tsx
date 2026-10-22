@@ -11,7 +11,11 @@ export function AddTimeButton({ session, now, onApply }: { session: Session; now
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const { phase, stage, timeLimit, revealed } = session.state;
-  const open = phase === "playing" && stage === "question" && !revealed && timeLimit !== null;
+  // Время стоит, пока кто-то отвечает («Ставка на знания»: `result.pausedAt`) — продлевать нечего, время и так
+  // вернётся после «Неверно»; иначе пауза засчиталась бы дважды.
+  const raw = session.state.result;
+  const frozen = typeof raw === "object" && raw !== null && typeof (raw as Record<string, unknown>).pausedAt === "number";
+  const open = phase === "playing" && stage === "question" && !revealed && timeLimit !== null && !frozen;
   // Перерисовка раз в секунду: кнопка гаснет, когда продлевать уже нечего.
   useServerNow(1000, open);
   if (!open) return null;

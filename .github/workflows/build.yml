@@ -297,7 +297,8 @@ jobs:
             echo "::warning::Telegram: TELEGRAM_CHAT_ID должен быть числом (например 123456789 или -100…) — сейчас «$chat»"; exit 0
           fi
 
-          title=$(printf '%s' "$TITLE" | head -n 1 | cut -c1-80)
+          # 80 символов, а не байт: cut режет русскую букву пополам — Telegram не принимает сообщение.
+          title=$(printf '%s' "$TITLE" | head -n 1 | python3 -c 'import sys; print(sys.stdin.read().strip()[:80])')
           if [ "$HEALTH" = success ]; then
             way=$([ "$SSH" = success ] && echo "по SSH" || echo "сервер забрал сам")
             text="✅ Выложено на $HOST: ${SHA:0:7} «$title» ($way)"

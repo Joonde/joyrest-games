@@ -20,6 +20,9 @@ import {
   playDeltas,
   setCat,
   catGiveOf,
+  speakLeft,
+  speakMore,
+  speakTimeout,
   startCatQuestion,
   toBoard,
 } from "./logic";
@@ -348,5 +351,69 @@ describe("«Ставка на знания»: пока отвечают — вр
     s = apply(s, boardWrong(s, c, late + 20_000));
     const deadline = (s.state.startedAt ?? 0) + (s.state.timeLimit ?? 0) * 1000;
     expect(deadline - (late + 20_000)).toBeGreaterThanOrEqual(5000);
+  });
+});
+
+describe("«Ставка на знания»: время на ответ тому, кто нажал", () => {
+  it("10 с по умолчанию, старые игры тоже; 0 — без отсчёта", () => {
+    expect(createBoard().answerTime).toBe(10);
+    expect(parseBoard({}).answerTime).toBe(10);
+    expect(parseBoard({ answerTime: 0 }).answerTime).toBe(0);
+    expect(parseBoard({ answerTime: 7 }).answerTime).toBe(10);
+  });
+
+  it("ведущий не отметил за 10 с — «Неверно» само, кнопки снова горят; раньше — ничего", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, start + 2000)], start + 2300));
+    const since = parseBoardResult(s.state.result).speakSince ?? 0;
+    expect(since).toBe(start + 2300);
+    expect(speakLeft(s, c, since + 4000)).toBe(6);
+    expect(speakTimeout(s, c, "p1", since, since + 9000)).toBeNull();
+    expect(speakTimeout(s, c, "p2", since, since + 10_000)).toBeNull();
+    s = apply(s, speakTimeout(s, c, "p1", since, since + 10_000));
+    const r = parseBoardResult(s.state.result);
+    expect(r.buzz.current).toBeNull();
+    expect(r.buzz.out).toEqual(["p1"]);
+    expect(r.speakSince).toBeNull();
+    // Штраф — как у «Неверно» ведущего.
+    expect(s.leaderboard.p1?.score).toBe(-(findCell(c, "a0")?.cell.points ?? 0));
+    // Повтор того же истёкшего отсчёта ничего не делает.
+    expect(speakTimeout(s, c, "p1", since, since + 11_000)).toBeNull();
+  });
+
+  it("слово следующему из очереди — у него свой отсчёт с этой минуты; «Ещё время» — заново", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    const start = s.state.startedAt ?? 0;
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, start + 1000), press("p2", s.state.step, start + 1200)], start + 1500));
+    const first = parseBoardResult(s.state.result).speakSince ?? 0;
+    s = apply(s, speakTimeout(s, c, "p1", first, first + 10_000));
+    const r = parseBoardResult(s.state.result);
+    expect(r.buzz.current).toBe("p2");
+    expect(r.speakSince).toBe(first + 10_000);
+    s = apply(s, speakMore(s, first + 15_000));
+    expect(speakLeft(s, c, first + 15_000)).toBe(10);
+  });
+
+  it("без отсчёта, у «Кота в мешке» и после «Назад» к ответу — ничего само не засчитывается", () => {
+    const off = { ...content(), answerTime: 0 };
+    let s = openArmed(session(), off, "a0");
+    const start = s.state.startedAt ?? 0;
+    s = apply(s, boardBuzzSync(s, [press("p1", s.state.step, start + 1000)], start + 1000));
+    expect(speakLeft(s, off, start + 60_000)).toBeNull();
+    expect(speakTimeout(s, off, "p1", start + 1000, start + 60_000)).toBeNull();
+
+    const c = content();
+    let t = openArmed(session(), c, "a0");
+    const t0 = t.state.startedAt ?? 0;
+    t = apply(t, boardBuzzSync(t, [press("p1", t.state.step, t0 + 1000)], t0 + 1000));
+    t = apply(t, boardReveal(t, c, participants, true));
+    const back = boardBack(t, c);
+    if (!back) throw new Error("назад");
+    t = apply(t, back.change);
+    expect(parseBoardResult(t.state.result).buzz.current).toBe("p1");
+    expect(speakLeft(t, c, t0 + 60_000)).toBeNull();
   });
 });

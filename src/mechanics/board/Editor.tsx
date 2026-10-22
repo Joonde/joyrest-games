@@ -8,7 +8,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { clipFields, parseClip } from "../../core/clip";
 import { mediaRepo } from "../../data";
 import type { EditorProps } from "../types";
-import { allCells, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, MAX_ROUNDS, resizeBoard, roundCategories, roundsOf, setRounds, type BoardCell, type BoardContent, type CellKind } from "./content";
+import { allCells, ANSWER_TIMES, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, MAX_ROUNDS, resizeBoard, roundCategories, roundsOf, setRounds, type BoardCell, type BoardContent, type CellKind } from "./content";
 import { validateBoard } from "./validate";
 import { ShowLookPicker } from "../ShowLookPicker";
 import { TABLE_LOOKS, type ShowLook } from "../showLook";
@@ -130,6 +130,17 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
             {BUZZ_TIMES.map((t) => (
               <button key={t} type="button" className="pick-chip" role="radio" aria-checked={content.buzzTime === t} aria-pressed={content.buzzTime === t} disabled={!editable} onClick={() => onChange({ ...latest.current, buzzTime: t })}>
                 {t} с
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="stack stack--tight">
+          <legend>Время на ответ тому, кто нажал</legend>
+          <p className="muted small">Пошёл отсчёт у отвечающего (виден на экране и пульте). Ведущий не отметил «Верно» или «Неверно» — ответ не засчитан сам, кнопки у остальных снова горят.</p>
+          <div className="row" role="radiogroup" aria-label="Секунд на ответ тому, кто нажал">
+            {ANSWER_TIMES.map((t) => (
+              <button key={t} type="button" className="pick-chip" role="radio" aria-checked={content.answerTime === t} aria-pressed={content.answerTime === t} disabled={!editable} onClick={() => onChange({ ...latest.current, answerTime: t })}>
+                {t === 0 ? "Без отсчёта" : `${t} с`}
               </button>
             ))}
           </div>

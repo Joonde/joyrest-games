@@ -63,6 +63,12 @@ export interface BoardResult {
    * пока человек отвечает, время и трек замирают). «Неверно» и слово никому — отсчёт идёт дальше с того же места.
    */
   pausedAt: number | null;
+  /**
+   * Время сервера (мс), когда слово досталось тому, кто отвечает сейчас (`buzz.current`): у него `answerTime` секунд
+   * (решение владельца 22 октября 2026); ведущий не отметил — пульт сам засчитывает «Неверно». null — без отсчёта
+   * («Кот в мешке», «Аукцион», «Назад» к ответу).
+   */
+  speakSince: number | null;
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -117,6 +123,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     catPrice: typeof d.catPrice === "number" && Number.isFinite(d.catPrice) ? Math.min(CAT_MAX, Math.max(1, Math.round(d.catPrice))) : 0,
     round: typeof d.round === "number" && Number.isInteger(d.round) && d.round >= 1 && d.round <= 3 ? d.round : 1,
     pausedAt: typeof d.pausedAt === "number" && Number.isFinite(d.pausedAt) && d.pausedAt > 0 ? d.pausedAt : null,
+    speakSince: typeof d.speakSince === "number" && Number.isFinite(d.speakSince) && d.speakSince > 0 ? d.speakSince : null,
   };
 }
 
@@ -206,7 +213,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
   const auction = found.cell.kind === "auction";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null };
   return {
     state: {
       stage: "question",
@@ -270,7 +277,7 @@ export function startCatQuestion(session: Session, content: BoardContent): Sessi
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, mode: "buzz", buzz: { order: [result.catTo], current: result.catTo, out: [], winner: null }, bets: { [result.catTo]: price }, catStep: true, armed: true }),
+      result: write({ ...result, mode: "buzz", buzz: { order: [result.catTo], current: result.catTo, out: [], winner: null }, bets: { [result.catTo]: price }, catStep: true, armed: true, speakSince: null }),
     },
   };
 }
@@ -304,7 +311,7 @@ export function startAuction(session: Session, content: BoardContent, answers: A
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, mode: "buzz", buzz: { order: [who], current: who, out: [], winner: null }, bets: { [who]: price }, catStep: true, armed: true, catTo: who, catPrice: price }),
+      result: write({ ...result, mode: "buzz", buzz: { order: [who], current: who, out: [], winner: null }, bets: { [who]: price }, catStep: true, armed: true, catTo: who, catPrice: price, speakSince: null }),
     },
   };
 }
@@ -337,7 +344,7 @@ export function armBuzz(session: Session, content: BoardContent): SessionChange 
       timeLimit: content.buzzTime,
       revealed: false,
       answered: 0,
-      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true, pausedAt: null }),
+      result: write({ ...result, buzz: EMPTY_BUZZ, armed: true, pausedAt: null, speakSince: null }),
     },
   };
 }
@@ -355,11 +362,38 @@ export function boardBuzzSync(session: Session, answers: Answer[], now?: number)
   const next = syncBuzz(result.buzz, order);
   if (!next) return null;
   let pausedAt = result.pausedAt;
-  if (!result.buzz.current && next.current && pausedAt === null) {
+  let speakSince = result.speakSince;
+  if (next.current && next.current !== result.buzz.current) {
     const at = answers.find((a) => a.step === session.state.step && a.pid === next.current)?.submittedAt ?? null;
-    pausedAt = at ?? now ?? null;
-  }
-  return { state: { result: write({ ...result, buzz: next, pausedAt }) } };
+    if (pausedAt === null) pausedAt = at ?? now ?? null;
+    // Отсчёт на ответ — с нажатия, но не раньше, чем слово освободилось (очередь после «Неверно»).
+    speakSince = result.catStep ? null : Math.max(at ?? 0, now ?? 0) || null;
+  } else if (!next.current) speakSince = null;
+  return { state: { result: write({ ...result, buzz: next, pausedAt, speakSince }) } };
+}
+
+/** Сколько секунд осталось на ответ тому, у кого слово; null — отсчёта нет (выключен, кот, «Назад»). */
+export function speakLeft(session: Session, content: BoardContent, now: number): number | null {
+  if (session.state.stage !== "question" || content.answerTime <= 0) return null;
+  const result = parseBoardResult(session.state.result);
+  if (result.mode !== "buzz" || result.catStep || !result.buzz.current || result.speakSince === null) return null;
+  return Math.max(0, Math.ceil((result.speakSince + content.answerTime * 1000 - now) / 1000));
+}
+
+/** Время на ответ вышло, ведущий не отметил — «Неверно» сам (тот же отвечающий и тот же отсчёт); null — рано или уже не он. */
+export function speakTimeout(session: Session, content: BoardContent, speaker: string, since: number, now: number): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  if (result.buzz.current !== speaker || result.speakSince !== since) return null;
+  const left = speakLeft(session, content, now);
+  if (left === null || left > 0) return null;
+  return boardWrong(session, content, now);
+}
+
+/** «Ещё время на ответ»: отсчёт отвечающего заново с этой минуты. */
+export function speakMore(session: Session, now: number): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  if (session.state.stage !== "question" || !result.buzz.current || result.speakSince === null) return null;
+  return { state: { result: write({ ...result, speakSince: now }) } };
 }
 
 /** Сколько секунд даём остальным после «Неверно», даже если отвечавший нажал в самом конце. */
@@ -377,7 +411,8 @@ export function boardWrong(session: Session, content: BoardContent, now?: number
   if (!who) return {};
   const fine = content.penalty && found && found.cell.kind !== "cat" ? found.cell.points : 0;
   const buzz = buzzWrong(result.buzz);
-  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines };
+  // Слово следующему из очереди — у него свой отсчёт на ответ с этой минуты.
+  const next: BoardResult = { ...result, buzz, fines: fine > 0 ? { ...result.fines, [who]: fine } : result.fines, speakSince: buzz.current && !result.catStep && now !== undefined ? now : null };
   const state: SessionChange["state"] = {};
   const { startedAt, timeLimit } = session.state;
   if (!buzz.current && now !== undefined && typeof startedAt === "number" && timeLimit !== null) {
@@ -406,7 +441,7 @@ export function boardReveal(session: Session, content: BoardContent, participant
     leaderboard[pid] = { ...entry, score: entry.score + delta, last: delta };
   }
   return {
-    state: { stage: "reveal", revealed: true, result: write({ ...result, buzz, picker: buzz.winner ?? result.picker }) },
+    state: { stage: "reveal", revealed: true, result: write({ ...result, buzz, picker: buzz.winner ?? result.picker, speakSince: null }) },
     leaderboard,
   };
 }
@@ -424,7 +459,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null }),
     },
   };
 }
@@ -452,7 +487,8 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     const minus: Record<string, number> = {};
     if (found) for (const d of playDeltas(found.cell, result)) if (d.delta !== 0) minus[d.pid] = -d.delta;
     const buzz = result.buzz.winner ? { ...result.buzz, current: result.buzz.winner, winner: null } : result.buzz;
-    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore }) } };
+    // Отсчёт на ответ после «Назад» не идёт: ведущий уже слышал ответ и решает сам.
+    const change: SessionChange = { state: { stage: "question", revealed: false, result: write({ ...result, buzz, picker: result.pickerBefore, speakSince: null }) } };
     if (Object.keys(minus).length > 0) change.addScore = minus;
     return { change };
   }
@@ -463,7 +499,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
     const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0 }) },
+      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
     return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };
@@ -479,7 +515,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
         step: step - 1,
         stage: "reveal",
         revealed: true,
-        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep, round: prevRound }),
+        result: write({ ...result, opened: result.opened.filter((c) => c !== prev.cell), cell: prev.cell, mode: "buzz", buzz: prev.buzz, bets: prev.bets, fines: prev.fines, picker: prev.picker, pickerBefore: prev.pickerBefore, catStep: prev.catStep, prev: null, armed: true, openStep: prev.openStep, round: prevRound, speakSince: null }),
       },
     },
   };

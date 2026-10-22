@@ -7549,6 +7549,23 @@ ul.chips {
   line-height: 1.15;
 }
 
+.buzz__time {
+  margin: 0;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.host-buzz__timer {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.host-buzz__timer.is-low {
+  color: #e3aa9c;
+}
+
 .host-buzz__verdict {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8214,10 +8231,26 @@ ul.chips {
 .board-grid__title {
   justify-items: start;
   padding: 0 2cqw;
+  line-height: 1.12;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
   font-weight: 600;
   font-size: 3.4cqh;
+}
+
+/* Название категории — в две строки целиком, длинное мельче: не обрезается по краям клетки (22 октября 2026). */
+.board-grid__title > .line-clamp {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.board-grid__title.is-long {
+  font-size: 2.7cqh;
 }
 
 .board-grid__cell {
@@ -8264,6 +8297,10 @@ ul.chips {
   font-size: 12px;
   padding: 6px 8px;
   border-radius: 8px;
+}
+
+.board-grid--small .board-grid__title.is-long {
+  font-size: 11px;
 }
 
 .board-grid--small .board-grid__cell {
@@ -8340,6 +8377,36 @@ ul.chips {
 .board-screen__speaker strong {
   font-size: 9cqh;
   line-height: 1.1;
+}
+
+/* Отсчёт на ответ у того, кто нажал: кольцо тает по секундам. */
+.board-screen__speak-time {
+  --left: 1;
+  display: grid;
+  place-items: center;
+  width: 9cqh;
+  height: 9cqh;
+  border-radius: 50%;
+  margin-top: 0.4cqh;
+  background: conic-gradient(#221e1b calc(var(--left) * 360deg), rgba(34, 30, 27, 0.18) 0);
+  font-family: "Cormorant Garamond", serif;
+  font-size: 5cqh;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.board-screen__speak-time span {
+  display: grid;
+  place-items: center;
+  width: 7.4cqh;
+  height: 7.4cqh;
+  border-radius: 50%;
+  background: #e3aa9c;
+  color: #221e1b;
+}
+
+.board-screen__speak-time.is-low span {
+  background: #fbf6f1;
 }
 
 .board-screen__answer {
@@ -18029,12 +18096,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-size: 2.7cqh;
   font-weight: 600;
   line-height: 1.12;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   box-shadow: 0 0 1.4cqh var(--show-cell-halo);
 }
 
 /* Клетка — светящаяся панель с золотой ценой. */
+.show-stage .board-grid__title.is-long {
+  font-size: 2.2cqh;
+  letter-spacing: 0.02em;
+}
+
 .show-stage .board-grid__cell {
   border: 0.25cqh solid var(--show-cell-line);
   border-radius: 1cqh;

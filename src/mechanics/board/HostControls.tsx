@@ -9,7 +9,7 @@ import { clock } from "../../data";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
-import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, startAuction, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, speakLeft, speakMore, speakTimeout, startAuction, startCatQuestion, toBoard } from "./logic";
 
 /** Момент игры для повтора касания: без нажатий кнопки и выбора «Кота в мешке» (их пишет фон пульта). */
 function boardMoment(s: Session): string {
@@ -31,6 +31,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const timed = stage === "question" && ((result.armed && !result.catStep) || result.mode === "auction");
   const now = useServerNow(250, timed);
   const left = timed ? secondsLeft(session.state, now) : null;
+  const answerLeft = speakLeft(session, content, now);
 
   // Пришло нажатие — слово первому, кто ещё не ошибся (пишет любой открытый пульт, `expect` их мирит).
   const syncKey = stage === "question" && result.mode === "buzz" ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
@@ -64,6 +65,18 @@ export function BoardHostControls({ session, content, answers, participants, con
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- новое «никто не угадал»
   }, [nobodyKey, busy]);
+
+  // Время на ответ вышло (решение владельца 22 октября 2026): ведущий не отметил «Верно» / «Неверно» — «Неверно» само,
+  // слово следующему или кнопки у остальных снова горят. Запас 0,7 с — касание ведущего в последнюю секунду успеет.
+  const speaker = stage === "question" ? result.buzz.current : null;
+  const since = result.speakSince;
+  const answerKey = speaker && since !== null && answerLeft === 0 ? `${step}:${speaker}:${since}` : "";
+  useEffect(() => {
+    if (!answerKey || busy || !speaker || since === null) return;
+    const timer = window.setTimeout(() => void quiet((cur) => speakTimeout(cur, content, speaker, since, Date.now() + clock.offset())), 700);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый «время на ответ вышло»
+  }, [answerKey, busy]);
 
   // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
   const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
@@ -319,6 +332,11 @@ export function BoardHostControls({ session, content, answers, participants, con
           <span className="host-buzz__name">
             <NameText name={nameOf(speaking)} />
           </span>
+          {answerLeft !== null && (
+            <span className={answerLeft <= 3 ? "host-buzz__timer is-low" : "host-buzz__timer"} role="timer">
+              ⏱ {answerLeft > 0 ? `${answerLeft} с на ответ` : "Время на ответ вышло"}
+            </span>
+          )}
           <div className="host-buzz__verdict">
             <button type="button" className="btn" disabled={busy} onClick={() => void run((s) => (sameSpeaker(s) ? boardReveal(s, content, participants, true) : null))}>
               Верно
@@ -333,6 +351,11 @@ export function BoardHostControls({ session, content, answers, participants, con
               Неверно
             </button>
           </div>
+          {answerLeft !== null && (
+            <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => (sameSpeaker(s) ? speakMore(s, Date.now() + clock.offset()) : null))}>
+              Ещё {content.answerTime} с на ответ
+            </button>
+          )}
         </div>
       )}
       {header}

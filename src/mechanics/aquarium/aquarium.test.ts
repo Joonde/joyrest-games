@@ -115,7 +115,7 @@ describe("«Аквариум и Ёлка»: учёт рисунков без п�
       for (const i of pending) shown.set(itemKey(i.pid, i.id), (shown.get(itemKey(i.pid, i.id)) ?? 0) + 1);
       const change = releaseItems(s, many, pending);
       if (!change) break;
-      s = applyChange(s, change);
+      s = applyChange(s, change, 1_000_000);
     }
     expect(shown.size).toBe(700);
     expect([...shown.values()].every((n) => n === 1)).toBe(true);
@@ -138,7 +138,7 @@ describe("«Аквариум и Ёлка»: учёт рисунков без п�
         const pending = pendingItems(s, answers, many);
         shownTimes += pending.length;
         const change = releaseItems(s, many, pending);
-        if (change) s = applyChange(s, change);
+        if (change) s = applyChange(s, change, 1_000_000);
       }
     expect(shownTimes).toBe(700);
     expect(JSON.stringify(s.state.result).length).toBeLessThan(20000);
@@ -148,18 +148,18 @@ describe("«Аквариум и Ёлка»: учёт рисунков без п�
     const answers = [answer("p1", [fish("a"), fish("b"), fish("c")])];
     const s0 = session();
     const [a, b, c] = pendingItems(s0, answers, content);
-    const s1 = applyChange(s0, releaseItems(s0, content, [c!])!);
+    const s1 = applyChange(s0, releaseItems(s0, content, [c!])!, 1_000_000);
     expect(parseAquaResult(s1.state.result).skip).toEqual({ p1: [2] });
     expect(pendingItems(s1, answers, content).map((i) => i.id)).toEqual(["a", "b"]);
-    const s2 = applyChange(s1, hideItem(s1, content, a!)!);
+    const s2 = applyChange(s1, hideItem(s1, content, a!)!, 1_000_000);
     expect(hideItem(s2, content, a!)).toBeNull();
-    const s3 = applyChange(s2, releaseItems(s2, content, [b!])!);
+    const s3 = applyChange(s2, releaseItems(s2, content, [b!])!, 1_000_000);
     const r = parseAquaResult(s3.state.result);
     expect(r.seen).toEqual({ p1: 3 });
     expect(r.skip).toEqual({});
     expect(pendingItems(s3, answers, content)).toEqual([]);
     // «Убрать» с экрана — рисунок уходит и не возвращается.
-    const s4 = applyChange(s3, hideItem(s3, content, c!)!);
+    const s4 = applyChange(s3, hideItem(s3, content, c!)!, 1_000_000);
     expect(parseAquaResult(s4.state.result).items.map((i) => i.id)).toEqual(["b"]);
     expect(pendingItems(s4, answers, content)).toEqual([]);
   });

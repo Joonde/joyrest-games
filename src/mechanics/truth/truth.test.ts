@@ -112,13 +112,13 @@ describe("правда или действие: очередь и колода (
 
   /** Сыграть ход и перейти к следующему с данным составом. */
   function play(s: Session, parts: Participant[]): Session {
-    let n = applyChange(s, choose(s, content, "truth", first));
-    n = applyChange(n, resolve(n, content, "done"));
-    return applyChange(n, nextTurn(n, parts));
+    let n = applyChange(s, choose(s, content, "truth", first), 1_000_000);
+    n = applyChange(n, resolve(n, content, "done"), 1_000_000);
+    return applyChange(n, nextTurn(n, parts), 1_000_000);
   }
 
   it("опоздавший встаёт в конец круга: никто не ходит дважды и никого не пропускают", () => {
-    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c"])));
+    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c"])), 1_000_000);
     const seq: string[] = [];
     for (let t = 0; t < 8; t++) {
       seq.push(turnPid(parseTruthResult(s.state.result)) ?? "");

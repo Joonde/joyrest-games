@@ -96,9 +96,82 @@ export function actionLabel(session: Session, content: QuizContent, action: Quiz
  * Старт прошлого раунда (`prevRoundBase`) едет в `result` через все этапы первого вопроса раунда,
  * чтобы «Назад» с любого этапа вернул общий счёт прошлого раунда.
  */
-function carry(session: Session): { prevRoundBase?: unknown } {
-  const prev = asRecord(session.state.result).prevRoundBase;
-  return prev === undefined ? {} : { prevRoundBase: prev };
+function carry(session: Session): { prevRoundBase?: unknown; history?: unknown } {
+  const result = asRecord(session.state.result);
+  return {
+    ...(result.prevRoundBase === undefined ? {} : { prevRoundBase: result.prevRoundBase }),
+    ...(result.history === undefined ? {} : { history: result.history }),
+  };
+}
+
+// ---------------------------------------------------------------- «Назад» через несколько вопросов
+
+/**
+ * Снимок пройденного шага (кладёт «Следующий вопрос» в `result.history`): этап, с которого ушли, итоги шага на экране
+ * и прибавки участников (`last`, `move`). «Назад» с заставки возвращает ровно его: очки этого шага снимаются точно,
+ * даже если с тех пор показывали другие вопросы, а кнопка гонки, итоги суперигры и «Угадай число» не пропадают.
+ */
+export interface StepSnapshot {
+  step: number;
+  stage: "reveal" | "board";
+  answered: number;
+  result: Record<string, unknown>;
+  /** Прибавка за шаг (только ненулевые). */
+  last: Record<string, number>;
+  /** Сдвиг по местам после шага (только ненулевые). */
+  move: Record<string, number>;
+}
+
+/** Сколько шагов помним: вся игра, но не больше этого числа и этого размера (state уходит всем телефонам). */
+export const HISTORY_MAX = 100;
+export const HISTORY_CHARS = 40_000;
+
+function numbers(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(asRecord(value))) if (typeof v === "number" && Number.isFinite(v) && v !== 0) out[k] = v;
+  return out;
+}
+
+/** Стопка снимков из result; что не похоже на снимок — пропускается (без исключений). */
+export function historyOf(result: unknown): StepSnapshot[] {
+  const raw = asRecord(result).history;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item): StepSnapshot[] => {
+    const r = asRecord(item);
+    if (typeof r.step !== "number" || !Number.isInteger(r.step) || r.step < 0) return [];
+    return [
+      {
+        step: r.step,
+        stage: r.stage === "reveal" ? "reveal" : "board",
+        answered: typeof r.answered === "number" ? r.answered : 0,
+        result: asRecord(r.result),
+        last: numbers(r.last),
+        move: numbers(r.move),
+      },
+    ];
+  });
+}
+
+/** Снимок текущего шага + прежняя стопка; старые снимки уходят, если стопка слишком велика. */
+function pushHistory(session: Session): StepSnapshot[] {
+  const { history: _history, ...result } = asRecord(session.state.result);
+  const last: Record<string, number> = {};
+  const move: Record<string, number> = {};
+  for (const [pid, entry] of Object.entries(session.leaderboard)) {
+    if (entry.last) last[pid] = entry.last;
+    if (entry.move) move[pid] = entry.move;
+  }
+  const snapshot: StepSnapshot = {
+    step: session.state.step,
+    stage: session.state.stage === "reveal" ? "reveal" : "board",
+    answered: session.state.answered,
+    result,
+    last,
+    move,
+  };
+  const list = [...historyOf(session.state.result), snapshot];
+  while (list.length > 1 && (list.length > HISTORY_MAX || JSON.stringify(list).length > HISTORY_CHARS)) list.shift();
+  return list;
 }
 
 /** Открыть вопрос: время старта ставит сервер, с ним считается скорость. */
@@ -249,10 +322,11 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
   const q = content.questions[step];
   // Суперигра всегда с заставкой: лучи, сундуки и музыка.
   const direct = !settingsOf(content).intro && !newRound && q !== undefined && q.kind !== "super";
+  const history = pushHistory(session);
   return {
     ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
     state: direct
-      ? { step, stage: "question", startedAt: "server", timeLimit: limitOf(q), revealed: false, answered: 0, result: { ...startResult(q) } }
+      ? { step, stage: "question", startedAt: "server", timeLimit: limitOf(q), revealed: false, answered: 0, result: { ...startResult(q), history } }
       : {
           step,
           stage: "ready",
@@ -260,7 +334,7 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
           timeLimit: null,
           revealed: false,
           answered: 0,
-          result: newRound ? { prevRoundBase } : null,
+          result: newRound ? { prevRoundBase, history } : { history },
         },
   };
 }
@@ -311,6 +385,30 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
   }
   if (step === 0) return null;
   const prevRoundBase = asRecord(asRecord(session.state.result).prevRoundBase);
+  if (Array.isArray(asRecord(session.state.result).history)) {
+    // Ровно тот этап, итоги и прибавки, с которыми ушли с прошлого шага.
+    const history = historyOf(session.state.result);
+    const snap = history[history.length - 1];
+    // Снимка нет (ушёл из слишком длинной стопки) — назад дальше нельзя: иначе очки снимутся неверно.
+    if (!snap || snap.step !== step - 1) return null;
+    const leaderboard: Record<string, LeaderboardEntry> = {};
+    for (const [pid, entry] of Object.entries(session.leaderboard)) {
+      const base = prevRoundBase[pid];
+      const roundBase = typeof base === "number" ? base : (entry.roundBase ?? 0);
+      const last = snap.last[pid] ?? 0;
+      const move = snap.move[pid] ?? 0;
+      if (last !== (entry.last ?? 0) || move !== (entry.move ?? 0) || roundBase !== (entry.roundBase ?? 0)) {
+        leaderboard[pid] = { ...entry, last, move, ...(typeof base === "number" ? { roundBase } : {}) };
+      }
+    }
+    return {
+      change: {
+        state: { step: snap.step, stage: snap.stage, revealed: true, answered: snap.answered, result: { ...snap.result, history: history.slice(0, -1) } },
+        leaderboard,
+      },
+    };
+  }
+  // Сессии, начатые до снимков шагов.
   if (Object.keys(prevRoundBase).length > 0) {
     // С заставки нового раунда — на «Общий счёт» прошлого, со счётом раунда как был.
     const leaderboard: Record<string, LeaderboardEntry> = {};

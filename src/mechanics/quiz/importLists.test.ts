@@ -419,3 +419,63 @@ describe("Круг 7: «— Вопрос?», под которым верный 
     expect(parseDragonImport(text).battles.flatMap((b) => b.tasks.map((t) => t.text))).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
   });
 });
+
+describe("импорт: число в начале вопроса — не номер (QA 23 октября 2026)", () => {
+  const texts = ["1.5 литра — это сколько стаканов?", "3.14 — что это за число?", "1:0 — с каким счётом закончился финал?"];
+
+  it("квиз", () => {
+    for (const t of texts) expect(first(`${t}\n- Да\n* Нет`)?.question.text).toBe(t);
+    // Обычная нумерация по-прежнему снимается.
+    expect(first("1. Столица Франции?\n- Рим\n* Париж")?.question.text).toBe("Столица Франции?");
+    expect(first("2) 1.5 литра — это сколько?\n- 6\n* 7")?.question.text).toBe("1.5 литра — это сколько?");
+  });
+
+  it("«Держи пари»", async () => {
+    const { importWager } = await import("../wager/importText");
+    expect(importWager("1.5 литра — сколько миллилитров? = 1500 мл").questions[0]?.text).toBe("1.5 литра — сколько миллилитров?");
+    expect(importWager("3. Высота башни? = 330 м").questions[0]?.text).toBe("Высота башни?");
+  });
+
+  it("«Гонка», «Бой с драконом», «Миллион на кону»", () => {
+    for (const t of texts) {
+      expect(parseSurvivalImport(`${t}\n- Да\n* Нет`).rounds[0]?.text).toBe(t);
+      expect(parseDragonImport(`${t}\n- Да\n* Нет`).battles[0]?.tasks[0]?.text).toBe(t);
+      expect(parseMillionaireImport(`${t}\n- А\n* Б\n- В\n- Г`).questions[0]?.text).toBe(t);
+    }
+  });
+});
+
+describe("импорт: строки разного вида у одного вопроса и «Вопрос N» без текста (QA 23 октября 2026)", () => {
+  it("варианты вместе с карточками или числом — замечание, а не молчаливая потеря", () => {
+    const cards = first("Порядок?\n- Да\n> Первое\n> Второе\n> Третье");
+    expect(cards?.question.kind).toBe("order");
+    expect(cards?.problems.join(" ")).toMatch(/и карточки.*и варианты/);
+    const num = first("Сколько?\n~ 1665\n- Да\n* Нет");
+    expect(num?.question.kind).toBe("number");
+    expect(num?.problems.join(" ")).toMatch(/и число.*варианты/);
+    // Без смеси — замечаний про это нет.
+    expect(first("Сколько?\n~ 1665")?.problems).toEqual([]);
+  });
+
+  it("«Вопрос 2» и сразу варианты — отдельный вопрос без текста с замечанием; прошлому вопросу варианты не достаются", () => {
+    const r = parseImport("Вопрос 1\nСтолица Франции?\n- Рим\n* Париж\nВопрос 2\n- Да\n* Нет");
+    expect(r.questions).toHaveLength(2);
+    expect(r.questions[0]?.question.options).toEqual(["Рим", "Париж"]);
+    expect(r.questions[1]?.question.text).toBe("");
+    expect(r.questions[1]?.question.options).toEqual(["Да", "Нет"]);
+    expect(r.questions[1]?.line).toBe(5);
+    expect(r.questions[1]?.problems.join(" ")).toMatch(/нет текста вопроса/);
+  });
+
+  it("«Миллион», «Гонка», «Дракон»: варианты сразу под «Вопрос N» — в «Не разобрали строки», а не прошлому вопросу", () => {
+    const m = parseMillionaireImport("Столица Франции?\n- Рим\n* Париж\nВопрос 2\n- Да\n- Нет");
+    expect(m.questions[0]?.options).toEqual(["Рим", "Париж", "", ""]);
+    expect(m.skipped).toEqual([5, 6]);
+    const s = parseSurvivalImport("Столица Франции?\n- Рим\n* Париж\nВопрос 2\n- Да");
+    expect(s.rounds[0]?.options.filter(Boolean)).toEqual(["Рим", "Париж"]);
+    expect(s.skipped).toEqual([5]);
+    const d = parseDragonImport("Столица Франции?\n- Рим\n* Париж\nВопрос 2\n- Да");
+    expect(d.battles[0]?.tasks[0]?.options.filter(Boolean)).toEqual(["Рим", "Париж"]);
+    expect(d.skipped).toEqual([5]);
+  });
+});

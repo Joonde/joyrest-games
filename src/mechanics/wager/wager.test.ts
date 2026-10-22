@@ -141,3 +141,42 @@ describe("Держи пари: вопрос целиком", () => {
     expect(validateWager(parseWager({ questions: [] })).length).toBeGreaterThan(0);
   });
 });
+
+describe("Держи пари: стартовые фишки и несгораемая (QA 23 октября 2026)", () => {
+  it("гости, внесённые пультом в таблицу ещё в лобби с нулём, получают 2 фишки при первом показе — один раз", () => {
+    let s: Session = { ...session(), leaderboard: { A: { name: "Команда A", kind: "team", score: 0, colorIndex: 0, captainUid: "uA" }, B: { name: "Команда B", kind: "team", score: 0, colorIndex: 1, captainUid: "uB" } } };
+    s = apply(s, showQuestion(s, content, teams.slice(0, 2)));
+    expect(s.leaderboard.A?.score).toBe(2);
+    expect(s.leaderboard.B?.score).toBe(2);
+    // «Назад» к заставке и снова «Показать вопрос» — фишки не выдаются второй раз.
+    s = apply(s, wagerBack(s, content)?.change ?? {});
+    expect(s.state.stage).toBe("ready");
+    s = apply(s, showQuestion(s, content, teams.slice(0, 2)));
+    expect(s.leaderboard.A?.score).toBe(2);
+    // Вопрос сыгран, следующий — опоздавшая команда C получает свои 2, у A и B не прибавляется.
+    s = apply(s, openBets(s, content, []));
+    s = apply(s, revealAnswer(s, content, []));
+    s = apply(s, nextQuestion(s));
+    s = apply(s, showQuestion(s, content, teams.slice(0, 3)));
+    expect(s.leaderboard.A?.score).toBe(2);
+    expect(s.leaderboard.C?.score).toBe(2);
+    expect(parseWagerResult(s.state.result).seeded?.sort()).toEqual(["A", "B", "C"]);
+  });
+
+  it("старая сессия без списка (идёт второй вопрос): фишки получают только новые", () => {
+    const old: Session = {
+      ...session(),
+      state: { ...startState(), step: 2, stage: "ready", result: { q: 1, mode: "guess" } },
+      leaderboard: { A: { name: "Команда A", kind: "team", score: 5, colorIndex: 0, captainUid: "uA" } },
+    };
+    const s = apply(old, showQuestion(old, content, teams.slice(0, 2)));
+    expect(s.leaderboard.A?.score).toBe(5);
+    expect(s.leaderboard.B?.score).toBe(2);
+  });
+
+  it("проигрыш с 0 или 1 фишкой — без прибыли, ниже одной не опускает", () => {
+    const slots = layoutSlots([{ pid: "A", value: 50 }]);
+    const board = { Z: { name: "Z", kind: "team" as const, score: 0 }, O: { name: "O", kind: "team" as const, score: 1 }, T: { name: "T", kind: "team" as const, score: 3 } };
+    expect(payoutsOf({ ...content, authorBonus: 0 }, slots, { Z: [{ slot: -1, stake: 1 }], O: [{ slot: -1, stake: 1 }], T: [{ slot: -1, stake: 3 }] }, 0, board)).toEqual({ T: -2 });
+  });
+});

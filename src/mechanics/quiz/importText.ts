@@ -60,6 +60,8 @@ interface Draft {
   number: { value: number | null; unit: string } | null;
   /** Перед вопросом была строка «# Раунд: …» — с него начинается раунд. */
   round: string | null;
+  /** Строка «Вопрос N» без текста, а сразу под ней варианты — вопрос без текста (ведущий допишет). */
+  untitled?: boolean;
 }
 
 /** «# Раунд: Кино», «# Кино», «#1 Раунд: Кино», «#2 Кино» → «Кино»; «#1 раунд» → без названия. */
@@ -86,12 +88,18 @@ function toQuestion(draft: Draft): ImportedQuestion {
   const hasAnswers = draft.answers.length > 0;
   let question: QuizQuestion;
 
+  if (draft.untitled) problems.push("После «Вопрос N» нет текста вопроса — допишите его.");
   if (draft.number) {
     question = { ...newQuestion("number"), number: draft.number.value, unit: draft.number.unit.slice(0, LIMITS.unit) };
     if (draft.number.value === null) problems.push("После «~» не нашли число — напишите его цифрами, например «~ 1665 ступеней».");
+    // Строки другого вида у того же вопроса не теряем молча.
+    const extra = [hasOptions && "варианты («-»)", draft.cards.length > 0 && "карточки («>»)", hasAnswers && "ответ («=»)"].filter(Boolean);
+    if (extra.length > 0) problems.push(`Есть и число («~»), и ${extra.join(", ")} — оставлено число, остальное не добавлено.`);
   } else if (draft.cards.length > 0) {
     question = { ...newQuestion("order"), options: draft.cards.slice(0, LIMITS.maxOptions).map((c) => c.slice(0, LIMITS.option)) };
     if (draft.cards.length > LIMITS.maxOptions) problems.push(`Больше ${LIMITS.maxOptions} карточек — лишние не добавлены.`);
+    const extra = [hasOptions && "варианты («-»)", hasAnswers && "ответ («=»)"].filter(Boolean);
+    if (extra.length > 0) problems.push(`Есть и карточки («>»), и ${extra.join(", ")} — оставлены карточки, остальное не добавлено.`);
   } else if (hasAnswers && !hasOptions) {
     question = { ...newQuestion("open"), answers: draft.answers.slice(0, LIMITS.answers) };
     if (draft.answers.length > LIMITS.answers) problems.push(`Больше ${LIMITS.answers} ответов — лишние не добавлены.`);
@@ -137,8 +145,9 @@ export function parseImport(input: string): ImportResult {
   let round: string | null = null;
   /** Была строка «Вопрос 1» без текста: следующая строка — текст этого вопроса. */
   let header = false;
+  let headerLine = 0;
 
-  const startQuestion = (text: string, lineNo: number) => {
+  const startQuestion = (text: string, lineNo: number, untitled = false) => {
     current = {
       line: lineNo,
       text: text.replace(NUMBERING, "").trim(),
@@ -150,6 +159,7 @@ export function parseImport(input: string): ImportResult {
       cards: [],
       number: null,
       round,
+      ...(untitled ? { untitled: true } : {}),
     };
     round = null;
     drafts.push(current);
@@ -169,11 +179,16 @@ export function parseImport(input: string): ImportResult {
     // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — следующая строка (не пустой вопрос «Вопрос 1»).
     if (isQuestionHeader(line)) {
       header = true;
+      headerLine = lineNo;
       return;
     }
     if (header) {
       header = false;
       if (!/^[-–—•*=~≈>#]/.test(line)) return startQuestion(line, lineNo);
+      // Сразу варианты, ответ, карточки или число — вопрос без текста (иначе они ушли бы прошлому вопросу).
+      if (!line.startsWith("#")) {
+        startQuestion("", headerLine, true);
+      }
     }
 
     if (line.startsWith("#") && !isNumberedQuestion(line)) {

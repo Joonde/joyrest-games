@@ -52,6 +52,11 @@ export interface WagerResult {
   guessStartedAt: number | null;
   /** Итог прошлого вопроса — «Назад» с заставки следующего. */
   prev: Prev | null;
+  /**
+   * Кто уже получил стартовые фишки (едет через все вопросы). null — сессия начата до этого поля: при первом показе
+   * фишки получают все, позже — только новые участники.
+   */
+  seeded: string[] | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -99,6 +104,7 @@ export function parseWagerResult(raw: unknown): WagerResult {
       typeof p.q === "number"
         ? { q: p.q, slots: slotsOf(p.slots), win: winOf(p.win) ?? -1, payouts: nums(p.payouts), guessed: ids(p.guessed), bets: betsOf(p.bets) }
         : null,
+    seeded: Array.isArray(d.seeded) ? [...new Set(d.seeded.filter((x): x is string => typeof x === "string" && ID.test(x)))].slice(0, 2000) : null,
   };
 }
 
@@ -187,7 +193,8 @@ export function payoutsOf(content: WagerContent, slots: Slot[], bets: Record<str
   if (win >= 0) for (const author of slots[win]?.authors ?? []) add(author, content.authorBonus);
   for (const [pid, n] of Object.entries(out)) {
     const have = board[pid] ? Math.round(board[pid].score) : START_CHIPS;
-    const floor = SAFE_CHIPS - have;
+    // Проигрыш не опускает ниже несгораемой фишки, но и не превращается в прибыль (у кого и так ≤ 1 — просто 0).
+    const floor = Math.min(0, SAFE_CHIPS - have);
     if (n < floor) out[pid] = floor;
     if (out[pid] === 0) delete out[pid];
   }
@@ -207,18 +214,39 @@ export function wagerPrimary(session: Session, content: WagerContent): WagerActi
   return hasPodium(session.leaderboard) ? "podium" : "finish";
 }
 
-function fresh(q: number, prev: Prev | null): WagerResult {
-  return { q, mode: "guess", guessed: [], slots: [], chips: {}, bets: {}, win: null, payouts: {}, changeable: false, guessStartedAt: null, prev };
+function fresh(q: number, prev: Prev | null, seeded: string[] | null): WagerResult {
+  return { q, mode: "guess", guessed: [], slots: [], chips: {}, bets: {}, win: null, payouts: {}, changeable: false, guessStartedAt: null, prev, seeded };
 }
 
 /** «Показать вопрос»: новый шаг, таймер догадки. */
 export function showQuestion(session: Session, content: WagerContent, participants: Participant[]): SessionChange {
   const r = parseWagerResult(session.state.result);
   if (session.state.stage !== "ready" || !content.questions[r.q]) return {};
+  // Стартовые фишки — каждому, кто их ещё не получал: и тем, кого пульт внёс в таблицу ещё в лобби (с нулём),
+  // и опоздавшим (при следующем показе вопроса).
+  const known = new Set(r.seeded ?? (session.state.step > 0 ? Object.keys(session.leaderboard) : []));
+  const additions = leaderboardAdditions(session.leaderboard, participants, session.playMode);
+  const leaderboard: Record<string, LeaderboardEntry> = {};
+  for (const [pid, entry] of Object.entries({ ...session.leaderboard, ...additions })) {
+    const added = additions[pid] !== undefined;
+    if (known.has(pid)) {
+      if (added) leaderboard[pid] = entry;
+      continue;
+    }
+    leaderboard[pid] = { ...entry, score: (session.leaderboard[pid] ? entry.score : 0) + START_CHIPS };
+    known.add(pid);
+  }
   return {
-    state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: content.guessTime, revealed: false, answered: 0, result: write({ ...fresh(r.q, r.prev), changeable: true }) },
-    // Новые игроки получают стартовые фишки.
-    leaderboard: Object.fromEntries(Object.entries(leaderboardAdditions(session.leaderboard, participants, session.playMode)).map(([p, e]) => [p, session.leaderboard[p] ? e : { ...e, score: START_CHIPS }])),
+    state: {
+      step: session.state.step + 1,
+      stage: "question",
+      startedAt: "server",
+      timeLimit: content.guessTime,
+      revealed: false,
+      answered: 0,
+      result: write({ ...fresh(r.q, r.prev, [...known]), changeable: true }),
+    },
+    leaderboard,
   };
 }
 
@@ -279,7 +307,7 @@ export function nextQuestion(session: Session): SessionChange {
   const r = parseWagerResult(session.state.result);
   if (r.mode !== "answer") return {};
   const prev: Prev = { q: r.q, slots: r.slots, win: r.win ?? -1, payouts: r.payouts, guessed: r.guessed, bets: r.bets };
-  return { state: { stage: "ready", revealed: false, startedAt: null, timeLimit: null, answered: 0, result: write(fresh(r.q + 1, prev)) } };
+  return { state: { stage: "ready", revealed: false, startedAt: null, timeLimit: null, answered: 0, result: write(fresh(r.q + 1, prev, r.seeded)) } };
 }
 
 export interface WagerBack {
@@ -297,9 +325,9 @@ export function wagerBack(session: Session, content: WagerContent): WagerBack | 
     if (!r.prev) return null;
     const p = r.prev;
     // Назад к ответу прошлого вопроса: очки остаются начисленными.
-    return { change: { state: { stage: "reveal", revealed: true, startedAt: null, timeLimit: null, result: write({ ...fresh(p.q, null), mode: "answer", slots: p.slots, win: p.win, payouts: p.payouts, guessed: p.guessed, bets: p.bets, chips: chipCounts(p.bets) }) } } };
+    return { change: { state: { stage: "reveal", revealed: true, startedAt: null, timeLimit: null, result: write({ ...fresh(p.q, null, r.seeded), mode: "answer", slots: p.slots, win: p.win, payouts: p.payouts, guessed: p.guessed, bets: p.bets, chips: chipCounts(p.bets) }) } } };
   }
-  if (r.mode === "guess") return { change: { state: { step: step - 1, stage: "ready", revealed: false, startedAt: null, timeLimit: null, answered: 0, result: write(fresh(r.q, r.prev)) } }, clear: [step] };
+  if (r.mode === "guess") return { change: { state: { step: step - 1, stage: "ready", revealed: false, startedAt: null, timeLimit: null, answered: 0, result: write(fresh(r.q, r.prev, r.seeded)) } }, clear: [step] };
   if (r.mode === "bet") {
     // К догадкам: поле убирается, догадки остаются (считаются с первого показа — guessStartedAt), таймер заново.
     return { change: { state: { step: step - 1, stage: "question", startedAt: "server", timeLimit: content.guessTime, revealed: false, answered: r.guessed.length, result: write({ ...r, mode: "guess", slots: [], chips: {}, changeable: true }) } }, clear: [step] };

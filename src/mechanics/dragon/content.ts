@@ -222,8 +222,12 @@ export function parseDragonImport(text: string): DragonImport {
       task = null;
       return;
     }
-    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
-    if (isQuestionHeader(line)) return;
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке. Прошлый вопрос закончен: варианты
+    // сразу под заголовком не достаются ему, а попадают в «Не разобрали строки».
+    if (isQuestionHeader(line)) {
+      task = null;
+      return;
+    }
     const dash = listOption(raw);
     const cur0 = task as DragonTask | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);

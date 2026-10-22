@@ -409,3 +409,13 @@ describe("Круг 6: «*» в начале — пометка верного, �
     expect(r.questions.map((q) => q.question.text)).toEqual(["Песня группы Кино?", "Кто поёт «Ветер»?"]);
   });
 });
+
+describe("Круг 7: «— Вопрос?», под которым верный «* …»", () => {
+  const text = "Сколько лап у кота?\n- 4 *\n- 3\n— Какого цвета снег?\n* Белый\n- Чёрный";
+  it("квиз, «Миллион», «Гонка», «Дракон» — два вопроса", () => {
+    expect(parseImport(text).questions.map((q) => q.question.text)).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+    expect(parseMillionaireImport(text).questions.map((q) => q.text)).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+    expect(parseSurvivalImport(text).rounds.map((q) => q.text)).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+    expect(parseDragonImport(text).battles.flatMap((b) => b.tasks.map((t) => t.text))).toEqual(["Сколько лап у кота?", "Какого цвета снег?"]);
+  });
+});

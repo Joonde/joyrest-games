@@ -219,6 +219,9 @@ export function dashStartsQuestion(raw: string, optionMark: string | null, next:
   if (!option || option.correct || !/[?？]\s*$/.test(option.text)) return false;
   // Под строкой — вариант с тем же знаком, что у вариантов текущего вопроса («- 4», «- 3» … «— Вопрос?» → «- Белый»).
   // Строку «N.» под ней не считаем: «2. Следующий вопрос» — не повод делать вопросом вариант с «?».
-  const nextMark = next === undefined ? null : dashMark(next);
-  return nextMark !== null && dashGroup(nextMark) === dashGroup(optionMark);
+  if (next === undefined) return false;
+  const nextMark = dashMark(next);
+  if (nextMark !== null) return dashGroup(nextMark) === dashGroup(optionMark);
+  // «* Белый» — верный вариант следующего вопроса.
+  return /^\*/.test(stripBold(next).trim());
 }

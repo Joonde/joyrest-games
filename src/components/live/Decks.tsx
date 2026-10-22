@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { DECK_LIMITS, DECK_RELOAD_MS, needsDeckReload, titleFromFile } from "../../core/decks";
+import { DECK_LIMITS, DECK_RELOAD_MS, deckReloadKey, shouldReloadDecks, titleFromFile } from "../../core/decks";
 import { imageSlide } from "../../core/slides";
 import { decksRepo, type Deck, type DeckPage, type SessionChange, type SlideState } from "../../data";
 import { Fold } from "../Fold";
@@ -41,6 +41,9 @@ let lastReload = 0;
 let reloadTimer: number | null = null;
 let reloadBusy = false;
 const reloadWanted = new Set<symbol>();
+// Страницы (`deckReloadKey`), для которых список перечитали, а их в нём нет: больше не перечитываем, пока на экране
+// не сменится показ или страница (показ удалили — не крутим запрос раз в 10 с до конца вечера).
+const reloadTried = new Set<string>();
 
 function scheduleDeckReload(delay: number): void {
   if (reloadTimer !== null || reloadBusy || reloadWanted.size === 0) return;
@@ -52,6 +55,8 @@ function scheduleDeckReload(delay: number): void {
     loadDecks(true).then(
       (decks) => {
         reloadBusy = false;
+        // Все, кто ждал перечитывания, получили ответ: если их страницы в списке нет — второй раз не просим.
+        for (const token of reloadWanted) if (token.description) reloadTried.add(token.description);
         publish(decks);
       },
       () => {
@@ -67,8 +72,8 @@ function scheduleDeckReload(delay: number): void {
  * но не чаще раза в `DECK_RELOAD_MS`: чужой показ (владелец ведёт игру ведущего) в списке так и не появится.
  */
 function useMissingDeckReload(decks: Deck[] | null, media: SlideState["media"]): void {
-  const missing = needsDeckReload(decks, media);
-  const key = media ? `${media.deck}:${media.count}` : "";
+  const missing = shouldReloadDecks(decks, media, reloadTried);
+  const key = media ? deckReloadKey(media) : "";
   useEffect(() => {
     if (!missing) return;
     const token = Symbol(key);

@@ -62,3 +62,17 @@ export function needsDeckReload(decks: readonly Deck[] | null, media: SlideMedia
   const deck = decks.find((d) => d.id === media.deck);
   return !deck || deck.pages.length < media.count;
 }
+
+/** Какая страница на экране — для «уже перечитывали, не нашли». */
+export function deckReloadKey(media: SlideMedia): string {
+  return `${media.deck}:${media.page}:${media.count}`;
+}
+
+/**
+ * Перечитывать ли список ещё раз (третья проверка QA 22 октября 2026): список уже перечитали, а этой страницы в нём так и
+ * нет (показ удалили, или он чужой) — больше не перечитываем каждые 10 с, ждём смены показа или страницы на экране.
+ * `tried` — страницы (`deckReloadKey`), для которых перечитанный список пришёл без них.
+ */
+export function shouldReloadDecks(decks: readonly Deck[] | null, media: SlideMedia | null | undefined, tried: ReadonlySet<string>): boolean {
+  return needsDeckReload(decks, media) && !!media && !tried.has(deckReloadKey(media));
+}

@@ -8,7 +8,7 @@ name: Картинки карт
 on:
   push:
     branches: ["claude/**"]
-    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/dance/art/manifest.json, public/quest/art/manifest.json, public/covers/art/manifest.json, docs/site-extras/art/manifest.json]
+    paths: [public/cards/art/manifest.json, public/olymp/art/manifest.json, public/shows/art/manifest.json, public/stage/art/manifest.json, public/spy/art/manifest.json, public/dance/art/manifest.json, public/quest/art/manifest.json, public/covers/art/manifest.json, public/super/art/manifest.json, docs/site-extras/art/manifest.json]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           added=0
-          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art public/quest/art public/covers/art docs/site-extras/art; do
+          for dir in public/cards/art public/olymp/art public/shows/art public/stage/art public/spy/art public/dance/art public/quest/art public/covers/art public/super/art docs/site-extras/art; do
             [ -f "$dir/manifest.json" ] || continue
             while IFS=$'\t' read -r file url; do
               case "$file" in (*/*|.*|"") echo "Плохое имя файла: $file"; exit 1;; esac

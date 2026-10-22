@@ -327,7 +327,8 @@ Firebase удаляются, Firebase-код удаляется отдельны
   (`siteMode`: только точные `on` и `showcase`, остальное — `off`; `SiteOptions.showcase`). Сайт виден целиком — пакеты,
   калькулятор, ведущие, игры, условия, вопросы, Telegram, лента опубликованных отзывов (`/api/site/reviews` — при `on`
   и `showcase`), но **ничего не собирает**: нет формы заявки, «Задать вопрос» и формы отзыва, `/api/lead` — 404,
-  поисковикам закрыт (индексация — только при `on`; `site showcase` и `site off` сбрасывают `SITE_INDEXING` в `off`).
+  поисковикам по умолчанию закрыт (`site showcase` и `site off` сбрасывают `SITE_INDEXING` в `off`; открыть витрину —
+  `sudo joyrest site-indexing on`, решение владельца 22 октября 2026: искаться по «ведущий», «квиз», «праздник» уже до ИП).
   Сборка кладёт рядом с `index.html` `build/site/showcase.html` — та же страница с `data-site-mode="showcase"` у `<html>`;
   сервер в витрине отдаёт её на «/» (`/index.html` с формами — 404). В разметке: `.no-showcase` — скрыто в витрине (форма
   `#leadForm`, «Задать вопрос», фраза в FAQ, строка телефона в контактах), `.showcase-only` — только в витрине (блок
@@ -353,10 +354,21 @@ Firebase удаляются, Firebase-код удаляется отдельны
 - Кэш: `css/`, `js/`, `img/`, `fonts/` — год (`immutable`), `index.html` и `robots.txt` —
   `no-cache`. Сжатие — Caddy (`encode zstd gzip`).
 - Поисковики: `SITE_INDEXING` в `/srv/joyrest/settings.env`, переключает
-  `sudo joyrest site-indexing on|off` — включить можно только при `site on`, `site off`
-  сбрасывает индексацию в `off`; по умолчанию `off` — `robots.txt` Disallow и
-  `X-Robots-Tag: noindex, nofollow` на всех ответах сайта и заглушки. test.joy-rest.ru закрыт всегда.
-  Открывает владелец сам, когда решены юридические вопросы (политика, ФИО, ИНН).
+  `sudo joyrest site-indexing on|off` — включить можно при `site on` или `site showcase` (`site_public`; решение владельца
+  22 октября 2026 — витрину открываем поисковикам до ИП, формы появятся с `site on`), `site off` и `site showcase`
+  сбрасывают индексацию в `off`; по умолчанию `off` — `robots.txt` Disallow и `X-Robots-Tag: noindex, nofollow` на всех
+  ответах сайта и заглушки. Открыто — `robots.txt` «Allow: /» и `Sitemap: https://joy-rest.ru/sitemap.xml`. Заглушка
+  «скоро» поисковикам закрыта всегда, test.joy-rest.ru — тоже.
+- **Страницы услуг для поисковиков** (решение владельца 22 октября 2026: «квиз», «викторина», «ведущий», «праздник»,
+  «новогодний корпоратив», «интерактивное шоу» и т. д., Москва и Подмосковье): `site/<адрес>/index.html` — ведущий на
+  праздник, корпоратив, новогодний корпоратив, квиз и викторина, интерактивное шоу, день рождения, детский праздник; и
+  `site/sitemap.xml`. Готовый HTML в репозитории, генератор — `docs/site-extras/seo-pages.py` (тексты — только факты с
+  главной: пакеты и цены «от» из `pricing.js`, игры, условия; без площадок, диджеев и чужих названий телешоу). На странице:
+  `canonical`, Open Graph, JSON-LD (`Service`, `BreadcrumbList`, `FAQPage`), одна `h1`, кнопки — калькулятор `/calc/` и связь
+  (Telegram, WhatsApp, почта, Авито), форм нет — работают и в витрине. Стили — `css/landing.css` (только токены `style.css`),
+  логотипы и отпечатки файлов проставляет сборка (`PAGES` в `build-site.ts`: все `.html`, кроме `/calc/`). Ссылки на страницы —
+  в подвале главной (`.footer__links`). На главной — `canonical`, Open Graph и JSON-LD `EntertainmentBusiness` (Москва и
+  Московская область). Проверяет `site.test.ts` («поисковики: …»).
 - Заявки (только при `site on`): формы шлют `POST /api/lead` (тот же домен, без CORS; только с адресов сайта)
   — типы `question`, `review`, `lead` (`server/src/lead.ts`). Тело ≤ 8 КБ, проверка полей и
   длины, управляющие символы вырезаются (кроме переводов строк), согласие обязательно,

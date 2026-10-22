@@ -5,7 +5,8 @@
  * «скоро» (deploy/caddy/soon), заявки не принимаются. Включает только владелец:
  * `sudo joyrest site on` (настройка на сервере, settings.env). test.joy-rest.ru — всегда сайт.
  * Витрина до ИП (`sudo joyrest site showcase`, решение владельца 16 октября 2026): сайт виден целиком, но на «/»
- * отдаётся showcase.html (без форм заявки, вопроса и отзыва), /api/lead — 404, поисковикам закрыт.
+ * отдаётся showcase.html (без форм заявки, вопроса и отзыва), /api/lead — 404. Поисковикам витрину можно открыть
+ * (решение владельца 22 октября 2026: искаться по «ведущий», «праздник» уже до ИП) — `sudo joyrest site-indexing on`.
  *
  * Кэш: css/, js/, img/ — с отпечатком содержимого в имени (собирает scripts/build-site.ts),
  * fonts/ — под тем же именем не меняются (CLAUDE.md, раздел 8), поэтому хранятся год.
@@ -26,9 +27,9 @@ export interface SiteOptions {
   stubDir: string | null;
   /** Адреса сайта без порта: joy-rest.ru (основное), test.joy-rest.ru (тестовое). */
   hosts: string[];
-  /** true — сайт открыт поисковикам (только при enabled). `sudo joyrest site-indexing on|off`. */
+  /** true — сайт открыт поисковикам (при enabled или витрине). `sudo joyrest site-indexing on|off`. */
   indexing: boolean;
-  /** true — витрина (SITE_ENABLED=showcase): сайт без форм, заявки не принимаются, индексации нет. */
+  /** true — витрина (SITE_ENABLED=showcase): сайт без форм, заявки не принимаются; индексация — по `indexing`. */
   showcase?: boolean;
 }
 
@@ -69,8 +70,11 @@ const NOT_FOUND_PAGE =
 export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
   const pattern = hostPattern(options.hosts);
   const isSite = (request: FastifyRequest) => pattern.test(request.headers.host ?? "");
-  // Заглушку поисковикам тоже не показываем: открыть можно только включённый сайт.
-  const indexing = options.enabled && options.indexing;
+  // Витрина — только когда сайт не включён полностью: включённый сайт сильнее.
+  const showcase = !options.enabled && options.showcase === true && existsSync(join(options.dir, "showcase.html"));
+  // Заглушку поисковикам не показываем: открыть можно включённый сайт или витрину.
+  const indexing = (options.enabled || showcase) && options.indexing;
+  const sitemap = `https://${options.hosts[0] ?? "joy-rest.ru"}/sitemap.xml`;
 
   if (!indexing) {
     app.addHook("onSend", async (request, reply, payload) => {
@@ -81,11 +85,9 @@ export function registerSite(app: FastifyInstance, options: SiteOptions): Site {
 
   app.get("/robots.txt", { constraints: { host: pattern } }, async (_request, reply) => {
     reply.type("text/plain; charset=utf-8").header("Cache-Control", "no-cache");
-    return indexing ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n";
+    return indexing ? `User-agent: *\nAllow: /\n\nSitemap: ${sitemap}\n` : "User-agent: *\nDisallow: /\n";
   });
 
-  // Витрина — только когда сайт не включён полностью: включённый сайт сильнее.
-  const showcase = !options.enabled && options.showcase === true && existsSync(join(options.dir, "showcase.html"));
   const dir = options.enabled || showcase ? options.dir : options.stubDir;
   const indexFile = showcase ? "showcase.html" : "index.html";
   if (dir && existsSync(join(dir, indexFile))) {

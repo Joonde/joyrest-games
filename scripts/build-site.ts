@@ -86,9 +86,14 @@ writeFileSync(join(OUT, "apple-touch-icon.png"), png(favicon.replace(/(<rect wid
 mkdirSync(join(OUT, "img"), { recursive: true });
 writeFileSync(join(OUT, "img", "joyrest-emblem-mask.svg"), brandSvg("joyrest-emblem").split('"currentColor"').join('"#000"'));
 
+// Страницы сайта: главная и страницы услуг (/korporativ/ …, генератор docs/site-extras/seo-pages.py).
+// Калькулятор /calc/ — отдельно: его стили и скрипты уже встроены, ссылки на файлы с отпечатком ему не нужны.
+const PAGES = walk(OUT)
+  .filter((file) => extname(file) === ".html" && urlPath(file) !== "calc/index.html")
+  .sort();
+
 // Логотипы: встраиваем в разметку, у каждого экземпляра свои id в clipPath.
-{
-  const indexFile = join(OUT, "index.html");
+for (const indexFile of PAGES) {
   let count = 0;
   let html = readFileSync(indexFile, "utf8").replace(
     /(<(\w+)\b[^>]*\bdata-brand-svg="([a-z-]+)"[^>]*>)(<\/\2>)/g,
@@ -108,7 +113,7 @@ writeFileSync(join(OUT, "img", "joyrest-emblem-mask.svg"), brandSvg("joyrest-emb
     return open + qrSvg(url.replace(/&amp;/g, "&"), monogram).svg + close;
   });
   if (html.includes("data-brand-svg") && count !== (html.match(/data-brand-svg=/g) ?? []).length) {
-    throw new Error("Элемент data-brand-svg должен быть пустым: <span data-brand-svg=\"…\"></span>");
+    throw new Error(`${urlPath(indexFile)}: элемент data-brand-svg должен быть пустым: <span data-brand-svg="…"></span>`);
   }
   writeFileSync(indexFile, html);
 }
@@ -151,7 +156,7 @@ for (const dir of HASHED_DIRS) {
     renamed.set(urlPath(file), urlPath(target));
   }
 }
-rewrite(join(OUT, "index.html"));
+for (const page of PAGES) rewrite(page);
 
 // Витрина до ИП (`sudo joyrest site showcase`, решение владельца 16 октября 2026): та же страница, но у <html>
 // data-site-mode="showcase" — CSS прячет формы заявки, вопроса и отзыва, скрипт отправляет расчёт текстом.

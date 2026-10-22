@@ -577,6 +577,10 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 
 .footer{ padding: 36px 0 calc(36px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: 14px; }
 .footer__row{ display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+/* Страницы услуг (для поисковиков и гостей): строка ссылок над подписью. */
+.footer__links{ display: flex; flex-wrap: wrap; gap: 4px 18px; margin-bottom: 18px; }
+.footer__links a{ display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.footer__links a:hover{ color: var(--accent-text); }
 
 /* ---------- Анимации ---------- */
 @keyframes shimmer{ 0%{ background-position: 0% 50%; } 50%{ background-position: 100% 50%; } 100%{ background-position: 0% 50%; } }

@@ -1167,6 +1167,11 @@ site_enabled() {
   [ "$(env_value "$SETTINGS_FILE" SITE_ENABLED)" = on ]
 }
 
+# Сайт виден посетителям: включён (on) или витрина до ИП (showcase). Только такой можно открыть поисковикам.
+site_public() {
+  case "$(env_value "$SETTINGS_FILE" SITE_ENABLED)" in on|showcase) return 0 ;; *) return 1 ;; esac
+}
+
 # Сайт на joy-rest.ru: off (по умолчанию) — заглушка «скоро», заявки не принимаются (404).
 # showcase — витрина до ИП: сайт виден целиком, но без форм, заявки не принимаются, поисковикам закрыт.
 cmd_site() {
@@ -1182,7 +1187,7 @@ cmd_site() {
   [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
   ensure_no_game "$force" "site $value"
   set_env_value "$SETTINGS_FILE" SITE_ENABLED "$value" || die "Не удалось записать $SETTINGS_FILE."
-  # Выключенный сайт и витрина поисковикам не открыты: при следующем включении индексацию — заново.
+  # Смена режима (кроме полного включения) закрывает сайт от поисковиков: открыть заново — site-indexing on.
   if [ "$value" != on ]; then
     set_env_value "$SETTINGS_FILE" SITE_INDEXING off || die "Не удалось записать $SETTINGS_FILE."
   fi
@@ -1195,6 +1200,7 @@ cmd_site() {
     echo "Поисковикам сайт закрыт; открыть — sudo joyrest site-indexing on"
   elif [ "$value" = showcase ]; then
     echo "✅ Витрина на https://joy-rest.ru: сайт виден, заявки не принимаются (форма скрыта), поисковикам закрыт."
+    echo "Открыть поисковикам — sudo joyrest site-indexing on"
   else
     echo "✅ Сайт выключен: на https://joy-rest.ru заглушка «скоро», заявки не принимаются."
   fi
@@ -1267,21 +1273,22 @@ cmd_site_indexing() {
   current=$(env_value "$SETTINGS_FILE" SITE_INDEXING)
   if [ -z "$value" ]; then
     echo "Индексация joy-rest.ru: ${current:-off} (on — открыт поисковикам, off — закрыт)"
-    site_enabled || echo "Сайт выключен (sudo joyrest site) — поисковикам закрыт в любом случае."
+    site_public || echo "Сайт выключен (sudo joyrest site) — поисковикам закрыт в любом случае."
     return 0
   fi
   need_root site-indexing
   case "$value" in on|off) ;; *) die "Значение — on или off: sudo joyrest site-indexing on" ;; esac
   [ -z "$force" ] || [ "$force" = force ] || die "Второй аргумент — только force."
-  if [ "$value" = on ] && ! site_enabled; then
-    die "Сайт выключен — открыть поисковикам можно только включённый сайт: сначала sudo joyrest site on"
+  if [ "$value" = on ] && ! site_public; then
+    die "Сайт выключен — открыть поисковикам можно включённый сайт или витрину: сначала sudo joyrest site showcase (или site on)"
   fi
   ensure_no_game "$force" "site-indexing $value"
   set_env_value "$SETTINGS_FILE" SITE_INDEXING "$value" || die "Не удалось записать $SETTINGS_FILE."
   log "Индексация сайта: ${current:-off} → $value"
   recreate_apps app-prod
   if [ "$value" = on ]; then
-    echo "✅ Сайт открыт поисковикам. Проверка: https://joy-rest.ru/robots.txt — должно быть «Allow: /»."
+    echo "✅ Сайт открыт поисковикам. Проверка: https://joy-rest.ru/robots.txt — должно быть «Allow: /» и строка Sitemap."
+    echo "Дальше — добавить сайт в Яндекс Вебмастер и Google Search Console (RUNBOOK, «Поисковики»)."
   else
     echo "✅ Сайт закрыт от поисковиков. Проверка: https://joy-rest.ru/robots.txt — должно быть «Disallow: /»."
   fi

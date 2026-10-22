@@ -401,7 +401,8 @@ export function DragonStage({ session, content }: ViewProps<DragonContent>) {
   const columns = [r.order.slice(0, half), r.order.slice(half)];
   const rows = Math.max(1, half);
   const rowH = Math.min(9.6, (38 - 0.8 * (rows - 1)) / rows);
-  const compact = rowH < 6.2;
+  // Полная карточка (имя, герой, жизни и урон крупным шрифтом) помещается от ~8.2 --u; ниже — без строки героя.
+  const compact = rowH < 8.2;
   const colStyle = { "--row": rowH } as CSSProperties;
 
   const intent = useMemo(() => {

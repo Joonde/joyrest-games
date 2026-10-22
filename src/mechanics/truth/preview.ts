@@ -1,6 +1,6 @@
 import type { PreviewDriver } from "../preview";
 import type { TruthContent, TruthKind } from "./content";
-import { choiceOf, choose, chooseFromAnswers, handleSuggestion, nextTurn, parseTruthResult, pendingSuggestions, resolve, startTruth, suggestionOf, truthPrimary, turnPid } from "./logic";
+import { choiceOf, choose, chooseFromAnswers, handleSuggestion, nextPid, nextTurn, parseTruthResult, pendingSuggestions, resolve, startTruth, suggestionOf, truthPrimary, turnPid } from "./logic";
 
 /** Сколько ходов показать. */
 const TURNS = 6;
@@ -34,7 +34,7 @@ export const truthPreview: PreviewDriver<TruthContent> = ({ session, content, pa
       // Пока идёт первый ход, другой гость присылает своё задание, ведущий берёт его в колоду.
       if (content.guestCards && r.turn === 0 && !answers.some((a) => suggestionOf(a.value))) {
         // Присылает тот, кто ходит не следующим: его задание выпадет другому.
-        const following = r.order[(r.turn + 1) % Math.max(1, r.order.length)];
+        const following = nextPid(r);
         const phones = participants.filter((p) => p.kind === "player" && (p.teamId ?? p.id) !== who);
         const phone = phones.find((p) => (p.teamId ?? p.id) !== following) ?? phones.at(0);
         if (phone) return { label: `${phoneName(phone.id)} присылает своё задание`, answers: [{ pid: phone.id, value: { suggest: { kind: "dare", text: GUEST_DARE } } }] };

@@ -274,12 +274,16 @@ export function startGuessing(session: Session, content: StoryContent, answers: 
   };
 }
 
-/** Подсчёт голосов истории: голос автора и голоса за себя не считаются. */
-export function tallyGuesses(answers: Answer[], step: number, author: string | null): { counts: Record<string, number>; right: string[] } {
+/**
+ * Подсчёт голосов истории: голос автора и голоса за себя не считаются. В командах не считаются и голоса команды
+ * автора (`teamOf` — команда телефона): сокомандники знают, чья это история.
+ */
+export function tallyGuesses(answers: Answer[], step: number, author: string | null, teamOf: (pid: string) => string = (p) => p): { counts: Record<string, number>; right: string[] } {
   const counts: Record<string, number> = {};
   const right: string[] = [];
+  const authorTeam = author ? teamOf(author) : null;
   for (const a of answers) {
-    if (a.step !== step || a.pid === author) continue;
+    if (a.step !== step || a.pid === author || (authorTeam !== null && teamOf(a.pid) === authorTeam)) continue;
     const g = guessOf(a.value);
     if (!g || g === a.pid) continue;
     counts[g] = (counts[g] ?? 0) + 1;
@@ -294,7 +298,7 @@ export function revealAuthor(session: Session, content: StoryContent, answers: A
   const story = r.stories[r.current];
   if (!story) return {};
   const author = authorOf(story.text, written);
-  const { counts, right } = tallyGuesses(answers, session.state.step, author);
+  const { counts, right } = tallyGuesses(answers, session.state.step, author, teamOf);
   const deltas: Record<string, number> = {};
   for (const p of right) {
     const to = teamOf(p);

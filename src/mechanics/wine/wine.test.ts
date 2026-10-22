@@ -88,3 +88,17 @@ describe("Винное казино: бутылка целиком", () => {
     expect(validateWine(parseWine({ wines: [{ id: "x" }] })).length).toBeGreaterThan(0);
   });
 });
+
+describe("винное казино: год вина (QA 23 октября 2026)", () => {
+  it("год позже текущего — проверка просит исправить; текущий и «без года» — можно, и ячейка есть на поле", () => {
+    const c = createWine();
+    const later = { ...c.wines[0]!, name: "X", year: 2027 };
+    expect(validateWine({ ...c, wines: [later] }, 2026).map((e) => e.path)).toEqual([`wines/${later.id}/year`]);
+    for (const year of [2026, null]) {
+      const w = { ...later, year };
+      expect(validateWine({ ...c, wines: [w] }, 2026)).toEqual([]);
+      const key = winningKeys(c, w, 2026).year;
+      expect(boardOf(c, 2026).year.some((o) => o.key === key)).toBe(true);
+    }
+  });
+});

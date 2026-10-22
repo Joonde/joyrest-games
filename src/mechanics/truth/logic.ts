@@ -27,8 +27,12 @@ export interface GuestCard extends DrawnCard {
 
 export interface TruthResult {
   order: string[];
-  /** Номер хода с начала игры (круг = turn / order.length). */
+  /** Номер хода с начала игры (для «ход N»). */
   turn: number;
+  /** Чей ход. Следующий — тот, кто стоит после него в текущей очереди (опоздавшие — в конце круга). */
+  who: string | null;
+  /** Номер круга (с 1): растёт, когда очередь доходит до конца и начинается сначала. */
+  round: number;
   mode: TruthMode;
   choice: TruthKind | null;
   card: DrawnCard | null;
@@ -59,9 +63,16 @@ function drawn(v: unknown): DrawnCard | null {
 
 function parseFlat(raw: unknown): Omit<TruthResult, "prev"> {
   const d = rec(raw);
+  const order = ids(d.order, 200);
+  const turn = typeof d.turn === "number" && d.turn >= 0 ? Math.floor(d.turn) : 0;
+  // Старые сессии без `who` и `round`: как раньше, по номеру хода.
+  const who = typeof d.who === "string" && ID.test(d.who) ? d.who : order.length > 0 ? (order[turn % order.length] ?? null) : null;
+  const round = typeof d.round === "number" && d.round >= 1 ? Math.floor(d.round) : order.length > 0 ? Math.floor(turn / order.length) + 1 : 1;
   return {
-    order: ids(d.order, 200),
-    turn: typeof d.turn === "number" && d.turn >= 0 ? Math.floor(d.turn) : 0,
+    order,
+    turn,
+    who,
+    round,
     mode: d.mode === "card" || d.mode === "done" ? d.mode : "pick",
     choice: kindOf(d.choice),
     card: drawn(d.card),
@@ -96,12 +107,38 @@ export function score(): ScoreDelta[] {
 
 /** Чья очередь. */
 export function turnPid(r: TruthResult): string | null {
-  return r.order.length > 0 ? (r.order[r.turn % r.order.length] ?? null) : null;
+  return r.order.length > 0 ? r.who : null;
 }
 
 /** Номер круга (с 1). */
 export function roundOf(r: TruthResult): number {
-  return r.order.length > 0 ? Math.floor(r.turn / r.order.length) + 1 : 1;
+  return r.round;
+}
+
+/**
+ * Кто ходит после `who` в очереди `order` (`prev` — очередь, в которой ходил `who`: ведущий мог его убрать).
+ * Дошли до конца — круг заканчивается, `wrap` = true, ходит первый.
+ */
+function following(prev: string[], order: string[], who: string | null): { pid: string | null; wrap: boolean } {
+  if (order.length === 0) return { pid: null, wrap: false };
+  const live = new Set(order);
+  const at = who ? prev.indexOf(who) : -1;
+  if (who && live.has(who)) {
+    const i = order.indexOf(who);
+    return i + 1 < order.length ? { pid: order[i + 1] ?? null, wrap: false } : { pid: order[0] ?? null, wrap: true };
+  }
+  // Того, кто ходил, убрали: следующий — первый оставшийся после него, потом опоздавшие (их нет в прежней очереди).
+  const after = at >= 0 ? prev.slice(at + 1).find((p) => live.has(p)) : undefined;
+  if (after) return { pid: after, wrap: false };
+  const known = new Set(prev);
+  const late = order.find((p) => !known.has(p));
+  if (late && at >= 0) return { pid: late, wrap: false };
+  return { pid: order[0] ?? null, wrap: true };
+}
+
+/** Кто ходит следующим (по нынешней очереди, без опоздавших — они встанут в конец при «Следующий»). */
+export function nextPid(r: TruthResult): string | null {
+  return following(r.order, r.order, r.who).pid;
 }
 
 function orderOf(session: Session, participants: Participant[], r: TruthResult): string[] {
@@ -137,7 +174,7 @@ export type TruthAction = "start" | "waitChoice" | "resolve" | "next" | "podium"
 
 /** Все круги сыграны. */
 export function roundsDone(content: TruthContent, r: TruthResult): boolean {
-  return content.rounds > 0 && r.order.length > 0 && r.turn + 1 >= content.rounds * r.order.length;
+  return content.rounds > 0 && r.order.length > 0 && r.round >= content.rounds && following(r.order, r.order, r.who).wrap;
 }
 
 export function truthPrimary(session: Session, content: TruthContent): TruthAction {
@@ -151,12 +188,14 @@ export function truthPrimary(session: Session, content: TruthContent): TruthActi
   return "next";
 }
 
+const firstTurn = (order: string[]) => ({ order, who: order[0] ?? null, round: 1 });
+
 /** «Начать игру»: очередь по порядку входа, ходит первый. */
 export function startTruth(session: Session, participants: Participant[]): SessionChange {
   const r = parseTruthResult(session.state.result);
   return {
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
-    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...r, order: orderOf(session, participants, r), turn: 0, mode: "pick", choice: null, card: null, outcome: null, delta: 0, prev: null } },
+    state: { stage: "question", startedAt: "server", timeLimit: null, revealed: false, answered: 0, result: { ...r, ...firstTurn(orderOf(session, participants, r)), turn: 0, mode: "pick", choice: null, card: null, outcome: null, delta: 0, prev: null } },
   };
 }
 
@@ -171,9 +210,11 @@ export function draw(content: TruthContent, r: TruthResult, kind: TruthKind, ran
   let left = deck.filter((c) => !r.used.includes(c.id) && c.id !== skip);
   let used = r.used;
   if (left.length === 0) {
-    // Колода этого вида кончилась — по новой (без только что выпавшей).
+    // Колода этого вида кончилась — по новой, но без только что выпавшей (и без той, что сейчас меняют).
+    const last = [...r.used].reverse().find((id) => deck.some((c) => c.id === id)) ?? null;
     used = r.used.filter((id) => !deck.some((c) => c.id === id));
-    left = deck.filter((c) => c.id !== skip);
+    left = deck.filter((c) => c.id !== skip && c.id !== last);
+    if (left.length === 0) left = deck.filter((c) => c.id !== skip);
   }
   if (left.length === 0) return { card: null, used, extra: r.extra };
   const pick = left[Math.min(left.length - 1, Math.floor(random() * left.length))] as (typeof left)[number];
@@ -219,9 +260,11 @@ export function resolve(session: Session, content: TruthContent, outcome: "done"
   };
 }
 
-/** Следующий игрок (новые гости встают в конец очереди). */
+/** Следующий игрок — после того, кто ходил (новые гости встают в конец очереди, в этот же круг). */
 export function nextTurn(session: Session, participants: Participant[]): SessionChange {
   const r = parseTruthResult(session.state.result);
+  const order = orderOf(session, participants, r);
+  const next = following(r.order, order, r.who);
   return {
     leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode),
     state: {
@@ -231,7 +274,7 @@ export function nextTurn(session: Session, participants: Participant[]): Session
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: { ...r, order: orderOf(session, participants, r), turn: r.turn + 1, mode: "pick", choice: null, card: null, outcome: null, delta: 0, prev: flat(r) },
+      result: { ...r, order, who: next.pid, round: r.round + (next.wrap ? 1 : 0), turn: r.turn + 1, mode: "pick", choice: null, card: null, outcome: null, delta: 0, prev: flat(r) },
     },
   };
 }

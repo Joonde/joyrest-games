@@ -150,7 +150,7 @@ export const storyPreview: PreviewDriver<StoryContent> = ({ session, content, pa
       const e = r.ending;
       if (!e) return null;
       if (answers.length === 0) return { label: "Гости пишут начало истории и чем всё кончилось", answers: endings.map((x) => ({ pid: x.pid, value: { start: x.start, end: x.end } })) };
-      const m = endingStart(session, content, e, answers, random);
+      const m = endingStart(session, content, e, answers, random, teamOf);
       return m ? { label: "Пульт: «Начать» — на экране начало истории", change: withEnding(session, m.ending, m.change) } : null;
     }
     case "endingVote": {
@@ -198,7 +198,7 @@ export const storyPreview: PreviewDriver<StoryContent> = ({ session, content, pa
       const l = r.lies;
       if (!l) return null;
       if (answers.length === 0) return { label: "Гости пишут три факта о себе, один — выдумка", answers: facts.map((f) => ({ pid: f.pid, value: { facts: f.facts, lie: f.lie } })) };
-      const m = liesStart(session, content, l, answers, random);
+      const m = liesStart(session, content, l, answers, random, teamOf);
       return m ? { label: "Пульт: «Показать игроков» — три карточки на экране", change: withLies(session, m.lies, m.change) } : null;
     }
     case "liesReveal": {

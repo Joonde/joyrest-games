@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { startState } from "../../core/session";
+import { applyChange, startState } from "../../core/session";
 import type { Answer, Session } from "../../data/types";
 import { createAquarium, parseAquarium } from "./content";
 import { FISH, ORN, figureById } from "./figures";
@@ -97,5 +97,79 @@ describe("«Аквариум и Ёлка»: ход", () => {
     const g1 = session(nextGarland(s, content).state?.result);
     const g2 = session(nextGarland(g1, content).state?.result);
     expect(parseAquaResult(nextGarland(g2, content).state?.result).garland).toBe(0);
+  });
+});
+
+describe("«Аквариум и Ёлка»: учёт рисунков без повторов (QA 23 октября 2026)", () => {
+  const many = { ...content, perGuest: 10 };
+  const crowd = (guests: number, per: number): Answer[] =>
+    Array.from({ length: guests }, (_, g) => answer(`p${g}`, Array.from({ length: per }, (_, i) => fish(`i${i}`)), g));
+
+  it("70 гостей × 10 рисунков: каждый на экране ровно один раз, ушедшие со сцены не возвращаются", () => {
+    const answers = crowd(70, 10);
+    let s = session();
+    const shown = new Map<string, number>();
+    for (let round = 0; round < 50; round++) {
+      const pending = pendingItems(s, answers, many);
+      if (pending.length === 0) break;
+      for (const i of pending) shown.set(itemKey(i.pid, i.id), (shown.get(itemKey(i.pid, i.id)) ?? 0) + 1);
+      const change = releaseItems(s, many, pending);
+      if (!change) break;
+      s = applyChange(s, change);
+    }
+    expect(shown.size).toBe(700);
+    expect([...shown.values()].every((n) => n === 1)).toBe(true);
+    const r = parseAquaResult(s.state.result);
+    expect(r.items).toHaveLength(SCENE_CAP);
+    expect(r.gone).toEqual([]);
+    expect(Object.values(r.seen).every((n) => n === 10)).toBe(true);
+    expect(r.skip).toEqual({});
+  });
+
+  it("рисунки приходят по одному: учёт не растёт, повторов нет", () => {
+    let s = session();
+    const lists = new Map<string, unknown[]>();
+    let shownTimes = 0;
+    for (let k = 0; k < 10; k++)
+      for (let g = 0; g < 70; g++) {
+        const list = [...(lists.get(`p${g}`) ?? []), fish(`i${k}`)];
+        lists.set(`p${g}`, list);
+        const answers = [...lists.entries()].map(([pid, items], i) => answer(pid, items, i));
+        const pending = pendingItems(s, answers, many);
+        shownTimes += pending.length;
+        const change = releaseItems(s, many, pending);
+        if (change) s = applyChange(s, change);
+      }
+    expect(shownTimes).toBe(700);
+    expect(JSON.stringify(s.state.result).length).toBeLessThan(20000);
+  });
+
+  it("ведущий выпускает не по порядку и скрывает: разобранные не возвращаются, номера сворачиваются", () => {
+    const answers = [answer("p1", [fish("a"), fish("b"), fish("c")])];
+    const s0 = session();
+    const [a, b, c] = pendingItems(s0, answers, content);
+    const s1 = applyChange(s0, releaseItems(s0, content, [c!])!);
+    expect(parseAquaResult(s1.state.result).skip).toEqual({ p1: [2] });
+    expect(pendingItems(s1, answers, content).map((i) => i.id)).toEqual(["a", "b"]);
+    const s2 = applyChange(s1, hideItem(s1, content, a!)!);
+    expect(hideItem(s2, content, a!)).toBeNull();
+    const s3 = applyChange(s2, releaseItems(s2, content, [b!])!);
+    const r = parseAquaResult(s3.state.result);
+    expect(r.seen).toEqual({ p1: 3 });
+    expect(r.skip).toEqual({});
+    expect(pendingItems(s3, answers, content)).toEqual([]);
+    // «Убрать» с экрана — рисунок уходит и не возвращается.
+    const s4 = applyChange(s3, hideItem(s3, content, c!)!);
+    expect(parseAquaResult(s4.state.result).items.map((i) => i.id)).toEqual(["b"]);
+    expect(pendingItems(s4, answers, content)).toEqual([]);
+  });
+
+  it("старая сессия с `gone` и рисунками без номера читается: убранные не возвращаются", () => {
+    const old = session({ items: [{ ...fish("a"), pid: "p1" }], gone: ["p1:b"] });
+    const answers = [answer("p1", [fish("a"), fish("b"), fish("c")])];
+    expect(pendingItems(old, answers, content).map((i) => i.id)).toEqual(["c"]);
+    const r = parseAquaResult({ seen: { p1: 2, "": 3, p2: -1, p3: "x" }, skip: { p1: [1, 4, 4, "x"], p2: [0] } });
+    expect(r.seen).toEqual({ p1: 2 });
+    expect(r.skip).toEqual({ p1: [4], p2: [0] });
   });
 });

@@ -107,3 +107,27 @@ export async function charsFromCards(sealed: Record<string, string>, keys: Recor
   return out;
 }
 
+
+/** Отказ на просьбу «сыграть»: отпечаток просьбы и причина. */
+export interface SealedRefusal {
+  sig: string;
+  reason: string;
+}
+
+/** Длина отказа до шифрования (в байтах): по длине шифра не понять причину. */
+const REFUSAL_BYTES = 160;
+
+/** Зашифровать отказ ключом телефона (без телефона — ключом ведущего). */
+export async function sealRefusal(key: string, refusal: SealedRefusal): Promise<string> {
+  const base = { sig: refusal.sig.slice(0, 40), reason: refusal.reason.slice(0, 20), _: "" };
+  return seal(key, { ...base, _: "#".repeat(Math.max(0, REFUSAL_BYTES - bytes(base))) });
+}
+
+/** Открыть отказ своим ключом; чужой ключ — null. */
+export async function openRefusal(key: string | null, sealed: unknown): Promise<SealedRefusal | null> {
+  if (!key) return null;
+  const d = await unseal(key, sealed);
+  if (typeof d !== "object" || d === null) return null;
+  const { sig, reason } = d as Record<string, unknown>;
+  return typeof sig === "string" && typeof reason === "string" ? { sig, reason } : null;
+}

@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Participant, Session } from "../../data/types";
 import { createBunker, parseBunker, placesFor, quotaNow } from "./content";
-import { openPhoneCard, padAll, sealAll, secretsFromHost } from "./deal";
+import { openPhoneCard, openRefusal, padAll, sealAll, sealRefusal, secretsFromHost } from "./deal";
 import { cardText, CATS, isRef } from "./decks";
-import { applyUse, bunkerBack, bunkerPrimary, countVotes, dealSecrets, dealt, finishBunker, hasPair, judgeThreat, nextSpeaker, nextThreat, openable, openCard, parseBunkerResult, quota, startDeal, startDiscuss, startFinal, startOpening, startRound, startVote, tallyVotes, type Secrets } from "./logic";
+import { applyUse, bunkerBack, bunkerPrimary, countVotes, dealSecrets, dealt, finishBunker, hasPair, judgeThreat, nextSpeaker, nextThreat, openable, openCard, parseBunkerResult, quota, refusalChange, startDeal, startDiscuss, startFinal, startOpening, startRound, startVote, tallyVotes, type Secrets } from "./logic";
 import { newKey } from "../mafia/seal";
 import type { Character } from "./specials";
 
@@ -303,5 +303,44 @@ describe("убежище: исправления проверки", () => {
       }
     }
     expect(parseBunker({ rounds: 7 }).rounds).toBe(5);
+  });
+});
+
+describe("убежище: отказ на особое условие видит только его телефон (QA 23 октября 2026)", () => {
+  it("в общем итоге шага нет ни отпечатка просьбы, ни причины — только шифр ключом телефона одной длины", async () => {
+    const g = setup();
+    let { s } = g;
+    s = applyChange(s, startRound(s, g.content, g.sec), 3);
+    const sec: Secrets = { ...g.sec, chars: { ...g.sec.chars, p1: { ...(g.sec.chars.p1 as Character), special: "immunity" } } };
+    const out = applyUse(s, g.content, sec, "p1", { target: null, cat: null }, name);
+    if (!("refusal" in out)) throw new Error("ждали отказ");
+    expect(out.refusal).toBe("time");
+    expect("change" in out).toBe(false);
+    const key = newKey();
+    const sealed = await sealRefusal(key, { sig: out.sig, reason: out.refusal });
+    const s2 = applyChange(s, refusalChange(s, "p1", sealed), 4);
+    const raw = JSON.stringify(s2.state.result);
+    expect(raw).not.toContain(out.sig);
+    expect(raw).not.toContain('"time"');
+    expect(R(s2).refused).toEqual({});
+    expect(await openRefusal(key, R(s2).refusedSeal.p1)).toEqual({ sig: out.sig, reason: "time" });
+    expect(await openRefusal(newKey(), R(s2).refusedSeal.p1)).toBeNull();
+    // По длине шифра причину не понять.
+    const other = await sealRefusal(key, { sig: "x", reason: "target" });
+    expect(other.length).toBe(sealed.length);
+  });
+
+  it("старая сессия с открытым `refused` читается; сыгранное условие убирает и шифр отказа", async () => {
+    const old = parseBunkerResult({ refused: { p1: { sig: "abc", reason: "time" } }, refusedSeal: { p2: "zzz", "../x": "y" } });
+    expect(old.refused.p1).toEqual({ sig: "abc", reason: "time" });
+    expect(old.refusedSeal).toEqual({ p2: "zzz" });
+    const g = setup();
+    let { s } = g;
+    s = applyChange(s, startRound(s, g.content, g.sec), 3);
+    s = applyChange(s, refusalChange(s, "p1", await sealRefusal(newKey(), { sig: "a", reason: "target" })), 4);
+    const sec: Secrets = { ...g.sec, chars: { ...g.sec.chars, p1: { ...(g.sec.chars.p1 as Character), special: "swapBaggage" } } };
+    const ok = applyUse(s, g.content, sec, "p1", { target: "p2", cat: null }, name);
+    if ("refusal" in ok) throw new Error(ok.refusal);
+    expect(R(applyChange(s, ok.change, 5)).refusedSeal).toEqual({});
   });
 });

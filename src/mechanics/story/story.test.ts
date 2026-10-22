@@ -164,3 +164,68 @@ describe("разделы по порядку", () => {
     expect(parseStoryResult(s.state.result).mode).toBe("write");
   });
 });
+
+describe("режим команд: голоса команды автора не считаются (QA 23 октября 2026)", () => {
+  const team: Record<string, string> = { a1: "T1", a2: "T1", b1: "T2", b2: "T2", c1: "T3" };
+  const teamOf = (p: string) => team[p] ?? p;
+  function teamSession(result: unknown = {}): Session {
+    return {
+      ...session(),
+      playMode: "teams",
+      state: { ...startState(), phase: "playing", step: 2, stage: "question", result },
+      leaderboard: { T1: { name: "Т1", kind: "team", score: 0 }, T2: { name: "Т2", kind: "team", score: 0 }, T3: { name: "Т3", kind: "team", score: 0 } },
+    } as Session;
+  }
+
+  it("«Чья история?»: сокомандник автора не получает очки за «угадал», бонус автору — если чужие не угадали", () => {
+    const content = { ...createStory(), sections: ["author" as const] };
+    const s = teamSession({ part: 0, mode: "guess", writeStep: 1, stories: [{ id: "s1", text: "Я прыгнул с парашютом" }], current: 0, hidden: [], history: [] });
+    const written = [{ pid: "a1", text: "Я прыгнул с парашютом" }];
+    const onlyMate = revealAuthor(s, content, [ans(2, "a2", { guess: "a1" })], written, teamOf);
+    expect(onlyMate.addScore?.T1 ?? 0).toBe(content.authorBonus);
+    const both = revealAuthor(s, content, [ans(2, "a2", { guess: "a1" }), ans(2, "b1", { guess: "a1" })], written, teamOf);
+    expect(both.addScore).toEqual({ T2: content.guessPoints });
+  });
+
+  it("«Две правды и ложь»: команда автора не голосует и не «обманывается»", () => {
+    const content = { ...createStory(), sections: ["lies" as const] };
+    let s = teamSession();
+    const w = liesWrite(s);
+    s = applyChange(s, withLies(s, w.lies, w.change), 1);
+    const facts = [ans(s.state.step, "a1", { facts: ["Был в Китае", "Умею жонглировать", "Боюсь кошек"], lie: 2 })];
+    const st = liesStart(s, content, w.lies, facts, first, teamOf);
+    if (!st) throw new Error("нет фактов");
+    expect(st.lies.items[0]?.team).toBe("T1");
+    s = applyChange(s, withLies(s, st.lies, st.change), 2);
+    const lieAt = st.lies.items[0]?.facts.indexOf("Боюсь кошек") ?? -1;
+    const votes = [ans(s.state.step, "a2", { pick: lieAt }), ans(s.state.step, "b1", { pick: (lieAt + 1) % 3 }), ans(s.state.step, "c1", { pick: lieAt })];
+    const rv = liesReveal(s, content, st.lies, votes, writtenFacts(facts, w.lies.writeStep), teamOf);
+    expect(rv.lies.reveal?.right).toEqual(["c1"]);
+    expect(rv.change.addScore).toEqual({ T3: content.guessPoints, T1: Math.round(content.foolPoints / 2) });
+  });
+
+  it("«Что было дальше?»: команда автора не голосует, голос за выдумку своей команды не в счёт", () => {
+    const content = { ...createStory(), sections: ["ending" as const] };
+    let s = teamSession();
+    const w = endingWrite(s);
+    s = applyChange(s, withEnding(s, w.ending, w.change), 1);
+    const stories = [ans(s.state.step, "a1", { start: "Однажды я заблудился в лесу под Тверью", end: "вышел к лагерю олимпийцев" })];
+    const st = endingStart(s, content, w.ending, stories, first, teamOf);
+    if (!st) throw new Error("нет историй");
+    expect(st.ending.items[0]?.team).toBe("T1");
+    s = applyChange(s, withEnding(s, st.ending, st.change), 2);
+    const fakes = [ans(s.state.step, "b1", { fake: "встретил медведя" }), ans(s.state.step, "c1", { fake: "нашёл клад" })];
+    const written = writtenEndings(stories, w.ending.writeStep);
+    const vote = endingVote(s, content, st.ending, fakes, written, first);
+    s = applyChange(s, withEnding(s, vote.ending, vote.change), 3);
+    const id = (t: string) => vote.ending.options.find((o) => o.text === t)?.id ?? "";
+    const votes = [
+      ans(s.state.step, "a2", { pick: id("вышел к лагерю олимпийцев") }), // команда автора — не считается
+      ans(s.state.step, "b2", { pick: id("встретил медведя") }), // выдумка своей команды — не считается
+      ans(s.state.step, "c1", { pick: id("встретил медведя") }), // обманут чужой выдумкой
+    ];
+    const rv = endingReveal(s, content, vote.ending, votes, fakes, written, teamOf);
+    expect(rv.ending.reveal?.right).toEqual([]);
+    expect(rv.change.addScore).toEqual({ T2: content.foolPoints, T1: content.authorBonus });
+  });
+});

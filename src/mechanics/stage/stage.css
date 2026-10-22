@@ -226,29 +226,42 @@
   gap: 8px;
 }
 
+/* Категория — строкой над плитками, плитки — во всю ширину пульта: на телефоне 320–360 px
+   плитка не уже 44 px, «100» и «🔒 батл» стоят друг под другом, а не друг на друге. */
 .stage-field--compact .stage-field__row {
-  grid-template-columns: 28% repeat(var(--cols, 5), minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
   gap: 6px;
 }
 
 .stage-field--compact .stage-field__cat {
+  grid-column: 1 / -1;
   font-size: 14px;
+  padding-right: 0;
   color: var(--color-text);
 }
 
 .stage-field--compact .stage-tile {
-  min-height: 48px;
+  min-height: 52px;
+  min-width: 0;
   border-radius: 10px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 2px;
 }
 
 .stage-field--compact .stage-tile__points {
   font-size: 16px;
+  line-height: 1.1;
 }
 
 .stage-field--compact .stage-tile__tag {
-  font-size: 9px;
-  top: 2px;
-  right: 4px;
+  position: static;
+  font-size: 12px;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: center;
+  color: rgba(18, 14, 24, 0.8);
 }
 
 .stage-field--compact .stage-tile.is-played {
@@ -257,14 +270,31 @@
 }
 
 .stage-field--compact .stage-tile__who {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.15;
+  padding: 0 2px;
+  overflow-wrap: anywhere;
 }
 
 /* Счёт команд внизу поля */
 .stage-teams {
   display: flex;
-  gap: 1cqw;
+  flex-wrap: wrap;
+  gap: 1cqh 1cqw;
   position: relative;
+}
+
+/* Больше четырёх команд — по четыре в ряд: длинное имя видно, а не только смайлик и «…». */
+.stage-teams:has(> :nth-child(5)) .stage-teams__one {
+  flex: 1 1 calc(25% - 1cqw);
+  padding-block: 0.8cqh;
+}
+
+.stage-teams:has(> :nth-child(5)) .stage-teams__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 2.3cqh;
+  line-height: 1.15;
 }
 
 .stage-teams__one {
@@ -917,7 +947,16 @@
   }
 }
 
+/* Полоса голосов и итог — поверх фигурок: ноги танцоров при длинных именах (поле ниже) уходят под полосу,
+   а не закрывают «50% · 0». */
+.stage-tug__bar,
+.stage-screen--battle .stage-screen__scores {
+  position: relative;
+  z-index: 2;
+}
+
 .stage-tug__bar {
+  flex: none;
   height: 6cqh;
   border-radius: 3cqh;
   overflow: hidden;

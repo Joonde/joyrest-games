@@ -12,6 +12,8 @@ export const FACT_MAX = 120;
 export interface LiesItem {
   pid: string;
   facts: string[];
+  /** Команда автора (только в режиме команд): её телефоны не голосуют. */
+  team?: string;
 }
 
 export interface LiesReveal {
@@ -54,7 +56,9 @@ export function parseLies(raw: unknown): LiesState | null {
     writeStep: typeof d.writeStep === "number" ? d.writeStep : 0,
     items: (Array.isArray(d.items) ? d.items : []).flatMap((x) => {
       const i = rec(x);
-      return typeof i.pid === "string" && Array.isArray(i.facts) ? [{ pid: i.pid, facts: i.facts.map((f) => cleanText(f, FACT_MAX)).slice(0, 3) }] : [];
+      if (typeof i.pid !== "string" || !Array.isArray(i.facts)) return [];
+      const facts = i.facts.map((f) => cleanText(f, FACT_MAX)).slice(0, 3);
+      return [typeof i.team === "string" && i.team !== i.pid ? { pid: i.pid, facts, team: i.team } : { pid: i.pid, facts }];
     }),
     current: typeof d.current === "number" ? d.current : 0,
     reveal: parseReveal(d.reveal),
@@ -109,11 +113,11 @@ export function writtenFacts(answers: Answer[], step: number): Array<{ pid: stri
 }
 
 /** «Показать игроков»: случайный порядок, у каждого — факты вперемешку. */
-export function liesStart(session: Session, content: StoryContent, l: LiesState, answers: Answer[], random: () => number = Math.random): { lies: LiesState; change: Pick<SessionChange, "state"> } | null {
+export function liesStart(session: Session, content: StoryContent, l: LiesState, answers: Answer[], random: () => number = Math.random, teamOf: (pid: string) => string = (p) => p): { lies: LiesState; change: Pick<SessionChange, "state"> } | null {
   const list = shuffle(writtenFacts(answers, l.writeStep), random).slice(0, content.liesMax);
   if (list.length === 0) return null;
   return {
-    lies: { ...l, phase: "show", items: list.map((w) => ({ pid: w.pid, facts: shuffle(w.facts, random) })), current: 0, reveal: null, history: [] },
+    lies: { ...l, phase: "show", items: list.map((w) => ({ pid: w.pid, facts: shuffle(w.facts, random), ...(teamOf(w.pid) !== w.pid ? { team: teamOf(w.pid) } : {}) })), current: 0, reveal: null, history: [] },
     change: { state: { step: session.state.step + 1, stage: "question", startedAt: "server", timeLimit: content.guessSeconds, revealed: false, answered: 0 } },
   };
 }
@@ -128,8 +132,10 @@ export function liesReveal(session: Session, content: StoryContent, l: LiesState
   const counts = [0, 0, 0];
   const right: string[] = [];
   let fooled = 0;
+  const authorTeam = teamOf(item.pid);
   for (const a of answers) {
-    if (a.step !== session.state.step || a.pid === item.pid) continue;
+    // Автор и его команда (они знают, где ложь) не голосуют.
+    if (a.step !== session.state.step || a.pid === item.pid || teamOf(a.pid) === authorTeam) continue;
     const p = pickOf(a.value);
     if (p === null) continue;
     counts[p] = (counts[p] ?? 0) + 1;

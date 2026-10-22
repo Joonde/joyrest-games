@@ -6,7 +6,7 @@
  * Карточки свёрнуты: что, когда, кто ведёт; касание — клиент, телефон, место, гости, комментарий.
  * Время «идёт сейчас» — по часам сервера (часы телефона могут спешить).
  */
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { addDays, availabilityOf, dayIndex, dayTitle, DEFAULT_QUERY, rangeLabel, STATUS_ORDER, STATUS_TITLES, timeLabel, todayMoscow, type MemberStatus } from "../../core/calendar";
 import {
   bookingId,
@@ -185,9 +185,12 @@ export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boo
     }
   }
 
+  const accepting = useRef(new Set<string>());
   // «Принял, готовлюсь» — ведущий этого мероприятия; то же, что кнопка в Telegram.
   async function accept(event: AgencyEvent) {
-    if (!eventsRepo) return;
+    // Двойное касание — один запрос.
+    if (!eventsRepo || accepting.current.has(event.id)) return;
+    accepting.current.add(event.id);
     try {
       replace(await eventsRepo.accept(event.id, event.acceptRev ?? 0));
       onToast("Принято — менеджер видит, что вы готовитесь");
@@ -197,6 +200,8 @@ export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boo
         onToast("Программу только что поменяли — посмотрите её и нажмите ещё раз");
         retry();
       } else onToast("Не получилось отметить. Проверьте интернет.");
+    } finally {
+      accepting.current.delete(event.id);
     }
   }
 

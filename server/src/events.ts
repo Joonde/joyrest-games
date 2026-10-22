@@ -307,7 +307,9 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!host?.active) return fail(reply, 409, "failed-precondition");
       await sql.begin(async (tx) => {
         // Вернули — ведущему снова «Назначено» с новой кнопкой: прежняя отметка не считается.
-        await tx`update events set cancelled_at = null, accepted_at = null, accept_rev = accept_rev + 1, updated_at = now() where id = ${id}`;
+        // Повтор «Вернуть» (двойное касание, повтор запроса) отметку не трогает: сообщения ведущему тогда нет.
+        await tx`update events set accepted_at = case when cancelled_at is not null then null else accepted_at end,
+          accept_rev = accept_rev + case when cancelled_at is not null then 1 else 0 end, cancelled_at = null, updated_at = now() where id = ${id}`;
         await book(tx as unknown as Sql, { ...event, id, guests: event.guests }, user.id);
       });
       request.log.info({ events: "restore" }, "events");
@@ -474,6 +476,8 @@ export async function acceptEvent(sql: Sql, id: string, userId: string, rev: num
   if (rev !== null && rev !== row.accept_rev) return "changed";
   if (row.past) return "past";
   if (row.accepted) return "already";
-  await sql`update events set accepted_at = coalesce(accepted_at, now()) where id = ${id} and accept_rev = ${row.accept_rev}`;
-  return "ok";
+  // Программу поменяли между чтением и записью — отметка не ставится, ведущему придёт новое сообщение.
+  const done = await sql`update events set accepted_at = coalesce(accepted_at, now())
+    where id = ${id} and accept_rev = ${row.accept_rev} and cancelled_at is null returning 1`;
+  return done.length > 0 ? "ok" : "changed";
 }

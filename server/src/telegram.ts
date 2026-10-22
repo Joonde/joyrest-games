@@ -233,6 +233,12 @@ export function startBot(options: BotOptions): Bot {
     await setKeyboard(m[1] ?? "", Number(m[2]), label);
   }
 
+  /**
+   * Нужна ли кнопка «Принял, готовлюсь»: не принято, мероприятие новое (`accept_rev` > 0) и это окружение читает
+   * нажатия (основная версия). Тестовая шлёт тем же ботом, но нажатия читает основная — кнопка там не сработала бы.
+   */
+  const asks = (acceptedAt: number | null, rev: number) => options.polling && !acceptedAt && rev > 0;
+
   /** Сообщение ведущему с кнопкой «Принял, готовлюсь»: прежнюю кнопку убрать, номер нового сообщения запомнить. */
   async function sendAsk(userId: string, text: string, e: NoticeEvent): Promise<boolean> {
     const [link] = await sql<{ chat_id: string }[]>`select chat_id::text from tg_links where user_id = ${userId}`;
@@ -275,7 +281,7 @@ export function startBot(options: BotOptions): Bot {
       for (const k of kinds) await sql`insert into event_notices (event_id, kind, starts_at) values (${event.id}, ${k}, ${startsAt}) on conflict do nothing`;
     }
     const text = noticeText(kind, event, platformUrl, now(), startsAt.getTime());
-    if ((kind === "created" || kind === "changed") && !event.acceptedAt && (event.acceptRev ?? 0) > 0) {
+    if ((kind === "created" || kind === "changed") && asks(event.acceptedAt ?? null, event.acceptRev ?? 0)) {
       await sendAsk(userId, text, event);
       return;
     }
@@ -309,7 +315,7 @@ export function startBot(options: BotOptions): Bot {
       const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev };
       const text = noticeText(kind, e, platformUrl, now(), r.starts_at.getTime());
       // Ещё не принял — кнопка переезжает в напоминание (у прошлого сообщения убирается).
-      if (!r.accepted && r.accept_rev > 0) await sendAsk(r.host_id, text, e);
+      if (asks(r.accepted ? 1 : null, r.accept_rev)) await sendAsk(r.host_id, text, e);
       else await sendTo(r.host_id, text);
     }
     // Игра идёт дольше мероприятия по плану: сверх 20 минут и потом каждые 30 — ведущему и владельцу (по одному разу на
@@ -336,8 +342,8 @@ export function startBot(options: BotOptions): Bot {
     // Ведущий не нажал «Принял, готовлюсь», а до начала меньше суток — владельцу и менеджерам один раз (днём).
     // Мероприятие записали или поменяли меньше часа назад — ведущему сначала дать время.
     if (answerHoursOpen(now())) {
-      const silent = await sql<{ id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null }[]>`
-        select e.id, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name
+      const silent = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null }[]>`
+        select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name
         from events e left join users u on u.id = e.host_id
         where e.cancelled_at is null and e.accepted_at is null and e.accept_rev > 0 and e.starts_at > now()
           and e.starts_at <= now() + interval '24 hours' and e.updated_at < now() - interval '1 hour'`;
@@ -345,7 +351,7 @@ export function startBot(options: BotOptions): Bot {
         const staff = await sql<{ user_id: string }[]>`
           select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and (u.role = 'admin' or u.access_role = 'sales')`;
         for (const r of silent) {
-          const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, 'unaccepted', ${r.starts_at})
+          const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${`unaccepted${r.accept_rev}`}, ${r.starts_at})
             on conflict do nothing returning 1`;
           if (fresh.length === 0) continue;
           const text = unacceptedText({ title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, r.host_name ?? "", platformUrl);

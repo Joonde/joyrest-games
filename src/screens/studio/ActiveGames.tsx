@@ -105,7 +105,7 @@ function GameTime({ game }: { game: SessionSummary }) {
       </span>
     );
   }
-  if (!live) return null;
+  if (!live || (!game.planEnd && !overLine)) return null;
   return (
     <span className="game-row__time small">
       {game.planEnd && !overLine ? `📅 по плану до ${clockAt(game.planEnd)}` : ""}

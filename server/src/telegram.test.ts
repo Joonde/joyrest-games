@@ -22,6 +22,8 @@ interface Sent {
 function fakeTelegram() {
   const inbox: Array<{ update_id: number } & Record<string, object | number>> = [];
   const sent: Sent[] = [];
+  /** Кнопки, которые бот поменял под отправленными сообщениями (номер сообщения = номер в `sent` с 1). */
+  const edits: Array<{ chat: number; message: number; label: string | null }> = [];
   let id = 0;
   const reply = (body: unknown) => new Response(JSON.stringify({ ok: true, result: body }), { status: 200, headers: { "content-type": "application/json" } });
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -31,8 +33,14 @@ function fakeTelegram() {
     if (url.endsWith("/sendMessage")) {
       const markup = body.reply_markup as { inline_keyboard?: Array<Array<{ callback_data?: string }>> } | undefined;
       sent.push({ chat: Number(body.chat_id), text: String(body.text), buttons: (markup?.inline_keyboard ?? []).flat().map((b) => String(b.callback_data ?? "")) });
-      return reply({ message_id: 1 });
+      return reply({ message_id: sent.length });
     }
+    if (url.endsWith("/editMessageReplyMarkup")) {
+      const markup = body.reply_markup as { inline_keyboard?: Array<Array<{ text?: string }>> } | undefined;
+      edits.push({ chat: Number(body.chat_id), message: Number(body.message_id), label: (markup?.inline_keyboard ?? []).flat()[0]?.text ?? null });
+      return reply(true);
+    }
+    if (url.endsWith("/answerCallbackQuery")) return reply(true);
     if (url.endsWith("/getUpdates")) {
       const offset = Number(body.offset ?? 0);
       const ready = inbox.filter((u) => u.update_id >= offset);
@@ -44,6 +52,7 @@ function fakeTelegram() {
   return {
     fetchImpl,
     sent,
+    edits,
     push(chat: number, text: string, extra: object = {}) {
       id += 1;
       inbox.push({ update_id: id, message: { message_id: id, chat: { id: chat, type: "private" }, from: { username: `user${chat}` }, text, ...extra } });
@@ -205,9 +214,37 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect((await post("/api/events/ev5/accept", boris, { rev: 2 })).statusCode).toBe(200);
     expect((await mine())?.acceptedAt).toBeGreaterThan(0);
 
-    // Отменили — принять нельзя.
+    // Принял в студии — кнопка последнего сообщения в Telegram стала «✅ Принято …».
+    const askMsg = tg.sent.lastIndexOf(tg.sent.filter((m) => m.chat === BORIS).at(-1) as Sent) + 1;
+    await until(() => tg.edits.some((e) => e.message === askMsg && e.label?.startsWith("✅ Принято") === true), "кнопка «Принято» после студии");
+
+    // Отменили — принять нельзя, кнопка убрана.
+    const n2 = to(BORIS).length;
     await post("/api/events/ev5/cancel", owner);
     expect((await post("/api/events/ev5/accept", boris, { rev: 2 })).statusCode).toBe(409);
+    await until(() => to(BORIS).length === n2 + 1 && tg.edits.some((e) => e.message === askMsg && e.label === null), "отмена убрала кнопку");
+
+    // Вернули — снова «Назначено» с новой кнопкой; повтор «Вернуть» (двойное касание) отметку не снимает и не пишет.
+    expect((await post("/api/events/ev5/restore", owner)).statusCode).toBe(200);
+    await until(() => to(BORIS).length === n2 + 2, "вернули — назначено");
+    expect(tg.sent.filter((m) => m.chat === BORIS).at(-1)?.buttons).toEqual(["acc:ev5:3"]);
+    expect((await post("/api/events/ev5/accept", boris, { rev: 3 })).statusCode).toBe(200);
+    const accepted = (await mine())?.acceptedAt;
+    expect((await post("/api/events/ev5/restore", owner)).statusCode).toBe(200);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await mine()).toMatchObject({ acceptedAt: accepted, acceptRev: 3 });
+    expect(to(BORIS)).toHaveLength(n2 + 2);
+
+    // Окружение, которое не читает нажатия (тестовая версия): сообщение без кнопки — «Принял» только в студии.
+    const quiet = startBot({ sql, token: "test-token", log, polling: false, platformUrl: "https://games.test", fetchImpl: tg.fetchImpl });
+    try {
+      const sent = tg.sent.length;
+      await quiet.eventNotice("changed", borisId, { id: "ev5", title: "Выпускной", guests: 40, day: day(11), start: 1140, end: 1350, acceptedAt: null, acceptRev: 4 }, new Date(Date.now() + 11 * 86_400_000));
+      expect(tg.sent.length).toBe(sent + 1);
+      expect(tg.sent.at(-1)?.buttons).toEqual([]);
+    } finally {
+      quiet.stop();
+    }
   });
 
   it("напоминание за сутки — один раз; начавшееся скоро сразу после назначения — без дубля", async () => {

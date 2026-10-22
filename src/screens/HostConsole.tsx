@@ -45,7 +45,7 @@ import { SlidesPanel, slideId } from "../components/live/SlidesPanel";
 import { joinSlide, thanksSlide } from "../core/slides";
 import { EventPhotosCard } from "../components/live/EventPhotos";
 import { HeldPrompt } from "./studio/HeldPrompt";
-import { TechBreak } from "../components/live/TechBreak";
+import { TechBreak, useTechBreakAutoEnd } from "../components/live/TechBreak";
 import { drawSlide, drawWinner } from "../core/draw";
 import { MusicPanel } from "../components/music/MusicPanel";
 import { TopBar } from "../components/TopBar";
@@ -77,10 +77,29 @@ function HostConsoleContent({ code, user }: { code: string; user: AuthUser }) {
   const [state, retry] = useSessionByCode(code, { hostId: user.uid });
 
   if (state.status === "loading") return <Pending skeleton={<ConsoleSkeleton />} label="Открываем пульт" />;
-  if (state.status === "notFound") return <Message title="Сессия не найдена">Проверьте код: {code}</Message>;
+  if (state.status === "notFound")
+    return (
+      <Message title="Сессия не найдена">
+        <p>Проверьте код: {code}</p>
+        <div className="actions">
+          <Link className="btn btn--secondary btn--block" to="/studio">
+            В студию
+          </Link>
+        </div>
+      </Message>
+    );
   if (state.status === "error") return <LoadFailed onRetry={retry}>{state.message}</LoadFailed>;
   if (!permissions.canControlSession(user.uid, state.session)) {
-    return <Message title="Чужая сессия">Эту сессию запускал другой ведущий.</Message>;
+    return (
+      <Message title="Чужая сессия">
+        <p>Эту сессию запускал другой ведущий.</p>
+        <div className="actions">
+          <Link className="btn btn--secondary btn--block" to="/studio">
+            В студию
+          </Link>
+        </div>
+      </Message>
+    );
   }
   return <Console session={state.session} />;
 }
@@ -338,6 +357,8 @@ function Console({ session }: { session: Session }) {
     }
   }
   const slide = session.state.slide ?? null;
+  // Перерыв на время уходит сам, даже если пульт на вкладке «Музыка» или «Гости» (QA 22 октября 2026, M3).
+  useTechBreakAutoEnd(slide, () => latest.current.state.slide ?? null, apply);
   const screen = useScreenStatus(session.id, withScreen && phase !== "finished");
   // Телефон ведущего не гаснет, пока идёт вечер.
   useWakeLock(phase !== "finished");

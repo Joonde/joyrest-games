@@ -172,51 +172,63 @@ export function EditorGuideScreen({ profile }: { profile: UserProfile }) {
   const q = normalizeSearch(query.trim());
   // Ссылка из конструктора (#quiz) открывает и показывает раздел игры.
   useEffect(() => {
-    if (!target) return;
+    if (!target) return window.scrollTo(0, 0);
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ block: "start" }), 50);
   }, [target]);
   const basics = useMemo(() => EDITOR_BASICS.filter((b) => matches(b, q)), [q]);
   const games = useMemo(() => EDITOR_GUIDES.filter((g) => matches(g, q)), [q]);
+  // Выбрали игру (#quiz) — на странице только её инструкция и «← Все игры».
+  const selected = !q ? EDITOR_GUIDES.find((g) => g.mechanic === target) : undefined;
 
   return (
     <main className="page page--wide guide">
       <TopBar title="Как создавать игры" actions={[{ label: "В студию", to: "/studio" }, ...studioActions(profile)]} />
-      <section className="card stack stack--tight">
-        <h2>✍️ Как создавать игры в конструкторе</h2>
-        <p>
-          Здесь — всё про конструктор: где редактировать и где запускать, как сохраняется игра, как добавить картинку, музыку и видео, и что увидят зал и
-          гости. Ниже — каждая игра по шагам, со всеми полями и примерами «что будет, если…».
-        </p>
-        <label className="field">
-          Найти в инструкции
-          <input type="search" value={query} placeholder="Например: картинка, трек, раунд, 18+" autoComplete="off" onChange={(e) => setQuery(e.target.value)} />
-        </label>
-        {q && basics.length === 0 && games.length === 0 && <p className="muted">Ничего не нашли. Попробуйте другое слово.</p>}
-      </section>
+      {selected ? (
+        <>
+          <Link className="btn btn--secondary btn--block" to="/studio/editor-guide">
+            ← Все игры и общие правила
+          </Link>
+          <GameSection key={selected.mechanic} g={selected} open />
+          <Link className="btn btn--secondary btn--block" to="/studio/editor-guide">
+            ← Все игры и общие правила
+          </Link>
+        </>
+      ) : (
+        <>
+          <section className="card stack stack--tight">
+            <h2>✍️ Как создавать игры в конструкторе</h2>
+            <p>Выберите игру — откроется её инструкция: с чего начать, шаги, все поля и примеры «что будет на экране и телефонах». Ниже — общие правила для всех игр.</p>
+            <label className="field">
+              Найти в инструкции
+              <input type="search" value={query} placeholder="Например: картинка, трек, раунд, 18+" autoComplete="off" onChange={(e) => setQuery(e.target.value)} />
+            </label>
+            {q && basics.length === 0 && games.length === 0 && <p className="muted">Ничего не нашли. Попробуйте другое слово.</p>}
+          </section>
 
-      {!q && (
-        <nav className="card guide-toc" aria-label="Разделы">
-          {EDITOR_BASICS.map((b) => (
-            <a key={b.id} href={`#${b.id}`} className="guide-toc__item">
-              {b.icon} {b.title}
-            </a>
+          {!q && (
+            <section className="card stack stack--tight" aria-labelledby="eg-pick">
+              <h2 id="eg-pick">🎲 Выберите игру</h2>
+              <div className="eg-pick">
+                {EDITOR_GUIDES.map((g) => (
+                  <Link key={g.mechanic} to={`/studio/editor-guide#${g.mechanic}`} className="eg-pick__item">
+                    <span className="eg-pick__icon" aria-hidden="true">
+                      {g.icon}
+                    </span>
+                    <span className="eg-pick__title">{g.title}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {basics.length > 0 && <h2 className="eg-part">📘 Общее для всех игр</h2>}
+          {basics.map((b) => (
+            <Basics key={`${b.id}:${q}:${target}`} b={b} open={Boolean(q) || target === b.id} />
           ))}
-          {EDITOR_GUIDES.map((g) => (
-            <a key={g.mechanic} href={`#${g.mechanic}`} className="guide-toc__item">
-              {g.icon} {g.title}
-            </a>
-          ))}
-        </nav>
+          {q && games.length > 0 && <h2 className="eg-part">🎲 Игры</h2>}
+          {q && games.map((g) => <GameSection key={`${g.mechanic}:${q}`} g={g} open />)}
+        </>
       )}
-
-      {basics.length > 0 && <h2 className="eg-part">📘 Общее для всех игр</h2>}
-      {basics.map((b, i) => (
-        <Basics key={`${b.id}:${q}:${target}`} b={b} open={Boolean(q) || target === b.id || (!target && i === 0)} />
-      ))}
-      {games.length > 0 && <h2 className="eg-part">🎲 Каждая игра по шагам</h2>}
-      {games.map((g) => (
-        <GameSection key={`${g.mechanic}:${q}:${target}`} g={g} open={Boolean(q) || target === g.mechanic} />
-      ))}
     </main>
   );
 }

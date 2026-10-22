@@ -149,13 +149,24 @@ function StudioContent({ user, profile }: { user: AuthUser; profile: UserProfile
         <p className="muted small">Роль: {accessRoleTitle(profile.accessRole) ?? professionTitle(profile.profession)}. Проводить игры для гостей могут только ведущие.</p>
       )}
       {permissions.canUseGames(profile) && (
-        <nav className="guide-pins" aria-label="Инструкции">
-          <Link className="guide-pins__item" to="/studio/editor-guide">
-            <span aria-hidden="true">✍️</span> Как создавать игры
-          </Link>
-          <Link className="guide-pins__item" to="/studio/guide">
-            <span aria-hidden="true">🎤</span> Как проводить игры
-          </Link>
+        <nav className="card guide-pins" aria-labelledby="guide-pins-title">
+          <h2 id="guide-pins-title" className="guide-pins__title">📘 Инструкции</h2>
+          <div className="guide-pins__grid">
+            <Link className="guide-pins__item" to="/studio/editor-guide">
+              <span className="guide-pins__icon" aria-hidden="true">✍️</span>
+              <span className="guide-pins__text">
+                <strong>Как создавать игры</strong>
+                <span>Конструктор: выберите игру — шаги, поля, примеры</span>
+              </span>
+            </Link>
+            <Link className="guide-pins__item" to="/studio/guide">
+              <span className="guide-pins__icon" aria-hidden="true">🎤</span>
+              <span className="guide-pins__text">
+                <strong>Как проводить игры</strong>
+                <span>Пульт, что видят гости, как объяснить правила</span>
+              </span>
+            </Link>
+          </div>
         </nav>
       )}
       {tabs.length > 0 && <Tabs

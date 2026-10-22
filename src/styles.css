@@ -13811,26 +13811,59 @@ button.dance-card:active {
 /* ---------- «Как создавать игры» (/studio/editor-guide) и закреплённые инструкции в студии ---------- */
 .guide-pins {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
+}
+
+.guide-pins__title {
+  margin: 0;
+}
+
+.guide-pins__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .guide-pins__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .guide-pins__item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 52px;
-  padding: 8px 12px;
+  gap: 14px;
+  min-height: 72px;
+  padding: 12px 16px;
   border-radius: var(--radius-md);
   border: 1.5px solid var(--color-highlight);
   background: color-mix(in srgb, var(--color-highlight) 10%, var(--color-surface));
   color: var(--color-text);
-  font-weight: 600;
-  text-align: center;
   text-decoration: none;
-  line-height: 1.25;
+  line-height: 1.3;
+}
+
+.guide-pins__icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.guide-pins__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.guide-pins__text strong {
+  font-size: 17px;
   overflow-wrap: anywhere;
+}
+
+.guide-pins__text span {
+  color: var(--color-text-muted);
+  font-size: 14px;
 }
 
 .guide-pins__item:focus-visible {
@@ -13838,15 +13871,53 @@ button.dance-card:active {
   outline-offset: 2px;
 }
 
-@media (max-width: 380px) {
-  .guide-pins {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .editor-guide-link {
   display: block;
   text-align: left;
+}
+
+.eg-pick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 720px) {
+  .eg-pick {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.eg-pick__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.eg-pick__item:hover,
+.eg-pick__item:focus-visible {
+  border-color: var(--color-highlight);
+}
+
+.eg-pick__icon {
+  flex: none;
+  font-size: 22px;
+}
+
+.eg-pick__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .eg-part {

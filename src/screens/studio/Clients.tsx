@@ -34,6 +34,9 @@ import {
   ANSWER_LIMIT_MS,
   appendMyNote,
   forcedStatusAndMarketing,
+  clientErrorText,
+  errorCode,
+  errorReason,
 } from "../../core/clients";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
@@ -75,20 +78,6 @@ const dateTimeLabel = (ms: number) =>
   new Date(ms).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" });
 const isFilter = (v: string | null): v is Filter => v !== null && v in FILTER_TITLES;
 /** Новую анкету ждут ответа не дольше 30 минут (инструкция менеджера, «Сроки»). */
-/** Код ошибки сервера (`ApiError.code`): «already-exists», «failed-precondition», «not-found»… */
-function errorCode(e: unknown): string {
-  return typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-}
-
-/** Понятный текст ошибки действия с клиентом: интернет виноват только при сбое связи. */
-function clientErrorText(e: unknown, what: string): string {
-  const code = errorCode(e);
-  if (code === "failed-precondition" || code === "already-exists") return "Клиента только что изменил другой человек — обновите список и попробуйте ещё раз.";
-  if (code === "not-found") return "Этого клиента уже нет — обновите список.";
-  if (code === "permission-denied") return "Нет доступа к этому действию.";
-  return `Не получилось ${what}. Проверьте интернет и нажмите ещё раз.`;
-}
-
 const ANSWER_MS = ANSWER_LIMIT_MS;
 
 /** «12 мин», «3 ч», «2 дн» — сколько прошло. */
@@ -634,7 +623,8 @@ function ClientCard({
       onChanged(saved, "Заметка сохранена");
     } catch (e) {
       const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-      if (code === "failed-precondition" && clientsRepo) {
+      if (code === "failed-precondition" && errorReason(e) === "archived") setError("Клиент в архиве — верните его, чтобы править заметку.");
+      else if (code === "failed-precondition" && clientsRepo) {
         const fresh = await clientsRepo.get(c.id).catch(() => null);
         if (fresh) {
           setConflict(fresh.notes);

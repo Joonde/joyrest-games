@@ -109,11 +109,24 @@ export function useAutosave<Patch extends object>(
   saveRef.current = save;
   /** Все правки, которые сервер ещё не подтвердил (для черновика на устройстве). */
   const unsent = useRef<Partial<Patch>>({});
+  /** Экран открыт. После ухода со страницы — ни повторов по таймеру, ни чужого черновика (QA 22 октября 2026, третий круг). */
+  const alive = useRef(true);
+  /** Что этот экземпляр последним положил в черновик: после ухода трогаем черновик, только если он всё ещё наш. */
+  const lastDraft = useRef<string | null>(null);
   const writeDraft = useCallback(() => {
     if (!draftKey) return;
     try {
-      if (Object.keys(unsent.current).length === 0) localStorage.removeItem(DRAFT_PREFIX + draftKey);
-      else localStorage.setItem(DRAFT_PREFIX + draftKey, JSON.stringify({ at: Date.now(), base: base.current, saved: confirmedAny.current, patch: unsent.current }));
+      const key = DRAFT_PREFIX + draftKey;
+      // Ушли со страницы, а ответ пришёл позже: ту же игру могли открыть снова — её черновик не стираем и не переписываем.
+      if (!alive.current && localStorage.getItem(key) !== lastDraft.current) return;
+      if (Object.keys(unsent.current).length === 0) {
+        localStorage.removeItem(key);
+        lastDraft.current = null;
+      } else {
+        const value = JSON.stringify({ at: Date.now(), base: base.current, saved: confirmedAny.current, patch: unsent.current });
+        localStorage.setItem(key, value);
+        lastDraft.current = value;
+      }
     } catch {
       // Хранилище переполнено или закрыто — правки живут до закрытия вкладки.
     }
@@ -170,7 +183,8 @@ export function useAutosave<Patch extends object>(
           denied.current = errorCodeOf(error) || "permission-denied";
           return;
         }
-        if (timer.current === null) timer.current = window.setTimeout(flush, RETRY_DELAY_MS);
+        // Ушли со страницы — не повторяем: правки в черновике, новый экран отправит их сам.
+        if (timer.current === null && alive.current) timer.current = window.setTimeout(flush, RETRY_DELAY_MS);
       })
       .finally(() => {
         inFlight.current -= 1;
@@ -178,6 +192,7 @@ export function useAutosave<Patch extends object>(
           oldestSent.current = null;
           setSlow(false);
         }
+        if (!alive.current) return;
         update();
         // Пока ждали ответа, накопились правки — отправляем их сразу.
         if (pending.current && timer.current === null && !failed.current && !conflict.current && !denied.current) flush();
@@ -228,6 +243,18 @@ export function useAutosave<Patch extends object>(
       flush(true);
     };
   }, [flush]);
+
+  // Уход со страницы: последняя пачка уже ушла (flush выше), повторы по таймеру гасим.
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      if (timer.current !== null) {
+        window.clearTimeout(timer.current);
+        timer.current = null;
+      }
+    };
+  }, []);
 
   /** После «Сохранить мою поверх»: снять остановку и отправить правки. */
   const resume = useCallback(() => {

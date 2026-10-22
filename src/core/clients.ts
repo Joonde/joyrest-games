@@ -452,3 +452,24 @@ export function clientsCsv(rows: ClientCsvRow[]): string {
   );
   return `﻿${[head.join(";"), ...lines].join("\r\n")}\r\n`;
 }
+
+/** Код ошибки сервера (`ApiError.code`): «already-exists», «failed-precondition», «not-found»… */
+export function errorCode(e: unknown): string {
+  return typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
+}
+
+/** Уточнение сервера к коду (`ApiError.reason`): «archived» — клиент в архиве. */
+export function errorReason(e: unknown): string {
+  return typeof e === "object" && e !== null && "reason" in e ? String((e as { reason: unknown }).reason) : "";
+}
+
+/** Понятный текст ошибки действия с клиентом: интернет виноват только при сбое связи. */
+export function clientErrorText(e: unknown, what: string): string {
+  const code = errorCode(e);
+  // 409 у архивного клиента — не чужая правка: сначала его нужно вернуть (третья проверка QA 22 октября 2026).
+  if (code === "failed-precondition" && errorReason(e) === "archived") return `Клиент в архиве — верните его, чтобы ${what}.`;
+  if (code === "failed-precondition" || code === "already-exists") return "Клиента только что изменил другой человек — обновите список и попробуйте ещё раз.";
+  if (code === "not-found") return "Этого клиента уже нет — обновите список.";
+  if (code === "permission-denied") return "Нет доступа к этому действию.";
+  return `Не получилось ${what}. Проверьте интернет и нажмите ещё раз.`;
+}

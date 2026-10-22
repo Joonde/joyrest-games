@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { partialText, pendingDays, planRepeat, repeatKey, saveErrorText } from "./calendarRepeat";
+import { alreadyText, entryKey, partialText, pendingDays, planRepeat, repeatKey, saveErrorText, splitSaved } from "./calendarRepeat";
 
 const days = ["2026-11-02", "2026-11-09", "2026-11-16"];
 
@@ -31,6 +31,27 @@ describe("повтор каждую неделю", () => {
     const other = planRepeat(first, repeatKey(days[0]!, "busy", 0, 1440, 3, ""), days, make);
     expect(other.ids[days[0]!]).not.toBe(first.ids[days[0]!]);
     expect(other.saved).toEqual([]);
+  });
+
+  it("после ошибки поменяли форму (заметку, недели) — сохранённые с тем же видом и временем не отправляются снова", () => {
+    const make = counter();
+    // Первая попытка: 3 недели, сохранилась одна, потом обрыв.
+    const first = planRepeat(null, repeatKey(days[0]!, "free", 600, 1200, 3, ""), days, make);
+    const done = new Set<string>([entryKey(days[0]!, "free", 600, 1200)]);
+    first.saved.push(days[0]!);
+    // Дописали заметку — новая попытка с новыми id…
+    const second = planRepeat(first, repeatKey(days[0]!, "free", 600, 1200, 3, "свадьба"), days, make);
+    expect(second.saved).toEqual([]);
+    // …но первую неделю не отправляем: она уже сохранена ранее.
+    const split = splitSaved(pendingDays(second, days), done, "free", 600, 1200);
+    expect(split.send).toEqual(days.slice(1));
+    expect(split.already).toEqual([days[0]]);
+    expect(alreadyText(split.already.length)).toBe("1 неделя уже сохранена ранее");
+    // Другое время или вид — это другая запись, её отправляем.
+    expect(splitSaved(days, done, "busy", 600, 1200).send).toEqual(days);
+    expect(splitSaved(days, done, "free", 600, 1260).send).toEqual(days);
+    expect(alreadyText(0)).toBe("");
+    expect(alreadyText(3)).toBe("3 нед. уже сохранено ранее");
   });
 
   it("текст частичной ошибки называет, сколько не сохранилось", () => {

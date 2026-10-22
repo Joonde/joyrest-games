@@ -122,6 +122,31 @@ describe.skipIf(!url)("показы на PostgreSQL", () => {
     expect((await app.inject({ method: "DELETE", url: "/api/decks/d3", headers: headers(anna) })).statusCode).toBe(200);
   });
 
+  it("лимит места ведущего (413) и мало места на диске (507) — и в PUT /api/decks/page", async () => {
+    const base = { version: "t", publicDir: null, checkDatabase: async () => true, sql, mediaDir };
+    // Места под показы — меньше двух страниц: первая проходит, новая вторая — 413 (уже лежащая — не считается дважды).
+    const tight = buildApp({ ...base, decks: { totalBytes: webp(1).length + 10, freeBytes: async () => 100 * 1024 ** 3 } });
+    const full = buildApp({ ...base, decks: { freeBytes: async () => 1024 ** 3 } });
+    const send = (target: typeof app, body: Buffer) =>
+      target.inject({ method: "PUT", url: "/api/decks/page", headers: { ...headers(boris), "content-type": "image/webp", "x-width": "10", "x-height": "10" }, payload: body });
+    const first = await send(tight, webp(41));
+    expect(first.statusCode).toBe(200);
+    expect((await post("/api/decks", boris, { id: "dq", title: "Лимит", pages: [first.json()] })).statusCode).toBe(200);
+    const quota = await send(tight, webp(42));
+    expect(quota.statusCode).toBe(413);
+    expect(quota.json()).toEqual({ error: "resource-exhausted" });
+    // Та же страница повторно — не новый файл, лимит не превышен.
+    expect((await send(tight, webp(41))).statusCode).toBe(200);
+    // Свободного места на диске меньше 3 ГБ — новый файл не принимаем; уже лежащий — можно.
+    const disk = await send(full, webp(43));
+    expect(disk.statusCode).toBe(507);
+    expect(disk.json()).toEqual({ error: "resource-exhausted" });
+    expect((await send(full, webp(41))).statusCode).toBe(200);
+    expect((await app.inject({ method: "DELETE", url: "/api/decks/dq", headers: headers(boris) })).statusCode).toBe(200);
+    await tight.close();
+    await full.close();
+  });
+
   it("страница на экране зала: пульт показывает, после «Завершить игру» тоже можно", async () => {
     await post("/api/sessions", anna, { id: "s1", gameTitle: "Квиз", mechanic: "quiz", gameSnapshot: {}, themeId: "joyrest", playMode: "solo", screenMode: "laptop" });
     const slide = imageSlide("x1", { id: "d1", title: "Меню", pages: [p2, p1] }, 1);

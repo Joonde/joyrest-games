@@ -29,6 +29,35 @@ export function pendingDays(plan: RepeatPlan, days: string[]): string[] {
   return days.filter((d) => !plan.saved.includes(d));
 }
 
+/**
+ * Что уже сохранено в прошлых попытках этой формы (третья проверка QA 22 октября 2026): после частичной ошибки человек
+ * поменял, например, заметку или число недель — это новая попытка с новыми id, и уже сохранённые недели легли бы второй
+ * раз. Форма помнит сохранённые «день + вид + время» и такие дни больше не отправляет.
+ */
+export function entryKey(day: string, kind: string, start: number, end: number): string {
+  return `${day}|${kind}|${start}|${end}`;
+}
+
+/** Делит дни попытки: что отправить и что уже сохранено ранее с тем же видом и временем. */
+export function splitSaved(
+  days: string[],
+  done: ReadonlySet<string>,
+  kind: string,
+  start: number,
+  end: number,
+): { send: string[]; already: string[] } {
+  const send: string[] = [];
+  const already: string[] = [];
+  for (const d of days) (done.has(entryKey(d, kind, start, end)) ? already : send).push(d);
+  return { send, already };
+}
+
+/** «Уже сохранено ранее» — к сообщению об успехе; 0 — пусто. */
+export function alreadyText(count: number): string {
+  if (count <= 0) return "";
+  return count === 1 ? "1 неделя уже сохранена ранее" : `${count} нед. уже сохранено ранее`;
+}
+
 /** «2026-11-05» → «05.11.2026». */
 function dayText(day: string): string {
   const [y, m, d] = day.split("-");

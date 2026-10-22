@@ -24,6 +24,8 @@ export interface DecksOptions {
   freeBytes?: (dir: string) => Promise<number>;
   /** Меньше — новые страницы не принимаем (507), как у картинок и музыки. */
   minFreeBytes?: number;
+  /** Место под показы ведущего (по умолчанию `DECK_LIMITS.totalBytes`, 500 МБ; тесты уменьшают). */
+  totalBytes?: number;
 }
 
 const MIN_FREE_BYTES = 3 * 1024 ** 3;
@@ -55,6 +57,7 @@ export function registerDecks(app: FastifyInstance, options: DecksOptions): void
   const dir = options.mediaDir ? join(options.mediaDir, "slides") : null;
   const freeBytes = options.freeBytes ?? diskFree;
   const minFree = options.minFreeBytes ?? MIN_FREE_BYTES;
+  const totalBytes = options.totalBytes ?? DECK_LIMITS.totalBytes;
 
   /** Настоящий размер файла страницы на диске (размеру из запроса не верим — QA 22 октября 2026); нет файла — null. */
   async function fileSize(sha: string): Promise<number | null> {
@@ -122,7 +125,7 @@ export function registerDecks(app: FastifyInstance, options: DecksOptions): void
       // Место: страницы всех показов ведущего (одинаковые файлы — один раз).
       const used = await usedPages(user.id, id);
       for (const p of pages) used.set(p.sha, p.size);
-      if (deckBytes(used) > DECK_LIMITS.totalBytes) return fail(reply, 413, "resource-exhausted");
+      if (deckBytes(used) > totalBytes) return fail(reply, 413, "resource-exhausted");
       const rows = await sql<Row[]>`
         insert into decks (id, owner_id, title, pages) values (${id}, ${user.id}, ${title}, ${sql.json(pages as never)})
         on conflict (id) do update set title = excluded.title, pages = excluded.pages, updated_at = now() where decks.owner_id = ${user.id}
@@ -157,7 +160,7 @@ export function registerDecks(app: FastifyInstance, options: DecksOptions): void
       const used = await usedPages(user.id, null);
       if (!used.has(sha)) {
         used.set(sha, bytes.length);
-        if (deckBytes(used) > DECK_LIMITS.totalBytes) return fail(reply, 413, "resource-exhausted");
+        if (deckBytes(used) > totalBytes) return fail(reply, 413, "resource-exhausted");
       }
       await mkdir(dir, { recursive: true });
       const path = join(dir, sha);

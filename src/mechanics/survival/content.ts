@@ -3,7 +3,7 @@
 // победитель забирает банк (ставки + приз, растущий 100, 200, 300…). После второй войнушки в раундах,
 // которые отметил ведущий (до 3), — аукцион «билета освобождения»: билет позволяет один раз пропустить
 // войнушку без ставки.
-import { listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "../quiz/listText";
+import { isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SURVIVAL_LOOK, parseShowLook, SURVIVAL_LOOKS, type ShowLook } from "../showLook";
 
 export type SurvivalKind = "choice" | "open" | "task";
@@ -161,7 +161,11 @@ export interface SurvivalImport {
  * «Если x=5, сколько x+1?» — не ответ).
  */
 export function openAnswerSplit(body: string): { question: string; answers: string[] } | null {
-  const at = body.lastIndexOf("=");
+  // Ответ начинается с первого «=» после вопросительного знака («Формула? = E=mc2» → «E=mc2»); без «?» — с « = »
+  // с пробелами, иначе с последнего «=».
+  const q = Math.max(body.lastIndexOf("?"), body.lastIndexOf("？"));
+  const spaced = body.indexOf(" = ");
+  const at = q >= 0 ? body.indexOf("=", q) : spaced >= 0 ? spaced + 1 : body.lastIndexOf("=");
   if (at < 0) return null;
   const tail = body.slice(at + 1).trim();
   if (!tail || /[?？]\s*$/.test(tail)) return null;
@@ -171,7 +175,7 @@ export function openAnswerSplit(body: string): { question: string; answers: stri
 
 /**
  * Список: строка — раунд по порядку. «Вопрос?» и строки «- вариант», «* верный» (или «- верный *») — вопрос с
- * вариантами; «Вопрос? = ответ | ответ2» (или «/») — открытый; «Задание: …» — задание («Задание: … = слон | жираф» —
+ * вариантами; «Вопрос? = ответ | ответ2» (или « / » с пробелами; «AC/DC» — один ответ) — открытый; «Задание: …» — задание («Задание: … = слон | жираф» —
  * тайные слова командам; «Задание: для команд || для каждого сам = слова» — второй текст в режиме «каждый сам»).
  * «(150)» или «(150 очков)» в конце — очки («(1799)» без слова — похоже на год: очки не ставим, пишем замечание).
  * Варианты — и «а)», «1.»; нумерация «1.» перед вопросом снимается. Без «*» верный вариант не отмечен — проверка попросит
@@ -194,6 +198,8 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     const lineNo = index + 1;
     const line = raw.trim();
     if (!line) return;
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
+    if (isQuestionHeader(line)) return;
     const dash = listOption(line);
     const cur0 = current as SurvivalRound | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);

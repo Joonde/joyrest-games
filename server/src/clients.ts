@@ -486,7 +486,8 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         return "ok" as const;
       });
       if (result === "not-found") return fail(reply, 404, "not-found");
-      if (result === "archived") return fail(reply, 409, "failed-precondition");
+      // Архивного клиента статусом не поменять: браузер по `reason` говорит «верните из архива», а не «изменил другой».
+      if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
       request.log.info({ clients: "status" }, "clients");
       return (await details(id)) ?? fail(reply, 404, "not-found");
     });
@@ -512,6 +513,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         return "ok" as const;
       });
       if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result === "archived") return reply.code(409).send({ error: "failed-precondition", reason: "archived" });
       if (result !== "ok") return fail(reply, 409, "failed-precondition");
       request.log.info({ clients: "notes" }, "clients");
       return (await details(id)) ?? fail(reply, 404, "not-found");

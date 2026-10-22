@@ -6,7 +6,7 @@ import { validateDragon } from "../dragon/validate";
 import { newMillionaireQuestion, parseMillionaire, parseMillionaireImport } from "../millionaire/content";
 import { DEMO_MILLIONAIRE } from "../millionaire/demo";
 import { validateMillionaire } from "../millionaire/validate";
-import { newSurvivalRound, parseSurvival, parseSurvivalImport } from "../survival/content";
+import { newSurvivalRound, openAnswerSplit, parseSurvival, parseSurvivalImport } from "../survival/content";
 import { DEMO_SURVIVAL } from "../survival/demo";
 import { validateSurvival } from "../survival/validate";
 import { changeKind, newQuestion } from "./content";
@@ -83,6 +83,52 @@ describe("квиз: частый ввод", () => {
   it("ответы через «|» и «/», «1/2» не делится; «= ?» — не ответ", () => {
     expect(first("Сколько?\n= 30 / тридцать | 1/2")?.question.answers).toEqual(["30", "тридцать", "1/2"]);
     expect(splitAnswers("?")).toEqual([]);
+  });
+
+  it("третий круг: слитное «/» — часть ответа, делит только « / » с пробелами и «|»", () => {
+    expect(first("Группа?\n= AC/DC")?.question.answers).toEqual(["AC/DC"]);
+    expect(first("Скорость?\n= 300 км/ч")?.question.answers).toEqual(["300 км/ч"]);
+    expect(first("Какой?\n= б/у")?.question.answers).toEqual(["б/у"]);
+    expect(first("Откуда поезд?\n= Ж/Д вокзал | вокзал")?.question.answers).toEqual(["Ж/Д вокзал", "вокзал"]);
+    expect(first("Город?\n= Москва / Питер")?.question.answers).toEqual(["Москва", "Питер"]);
+    expect(first("Половина?\n= 1/2")?.question.answers).toEqual(["1/2"]);
+    expect(splitAnswers("AC/DC / ЭйСи-ДиСи|ACDC")).toEqual(["AC/DC", "ЭйСи-ДиСи", "ACDC"]);
+    // «Гонка»: открытый вопрос в одну строку.
+    expect(parseSurvivalImport("Группа с молнией? = AC/DC | ЭйСи").rounds[0]).toMatchObject({ kind: "open", text: "Группа с молнией?", answer: "AC/DC | ЭйСи" });
+  });
+
+  it("третий круг: «Вопрос N» — номер снимается только перед «.», «)», «:» или тире", () => {
+    expect(first("Вопрос 1?\n= да")?.question.text).toBe("Вопрос 1?");
+    expect(first("Вопрос 5 — самый сложный: сколько?\n= 5")?.question.text).toBe("самый сложный: сколько?");
+    expect(first("Вопрос 1 – Какой город?\n= Москва")?.question.text).toBe("Какой город?");
+    expect(first("Вопрос 2: Какая река?\n= Волга")?.question.text).toBe("Какая река?");
+    expect(first("Вопрос №3. Столица?\n= Москва")?.question.text).toBe("Столица?");
+    expect(first("№4 Столица?\n= Москва")?.question.text).toBe("Столица?");
+    expect(first("1 января какой праздник?\n= Новый год")?.question.text).toBe("1 января какой праздник?");
+    expect(first("**Вопрос 1.** Столица?\n- Москва *\n- Питер")?.question.text).toBe("Столица?");
+  });
+
+  it("третий круг: строка «Вопрос 1» без текста — заголовок, текст вопроса — следующая строка", () => {
+    const { questions, skipped } = parseImport("Вопрос 1\nКакой город столица?\n- Москва *\n- Питер\nВопрос 2\nНазовите реку\n- Волга *\n- Нил");
+    expect(skipped).toEqual([]);
+    expect(questions.map((q) => [q.question.text, q.question.options, q.question.correct, q.line])).toEqual([
+      ["Какой город столица?", ["Москва", "Питер"], 0, 2],
+      ["Назовите реку", ["Волга", "Нил"], 0, 6],
+    ]);
+    expect(parseMillionaireImport("Вопрос 1\nСтолица?\n- а\n- б *\n- в\n- г").questions.map((q) => q.text)).toEqual(["Столица?"]);
+    expect(parseSurvivalImport("Вопрос 1\nСтолица? = Москва").rounds.map((r) => r.text)).toEqual(["Столица?"]);
+    expect(parseDragonImport("Вопрос 1\nУм: Столица?\n- а *\n- б").battles[0]?.tasks.map((t) => t.text)).toEqual(["Столица?"]);
+  });
+
+  it("третий круг: «#N …» без «?» — раунд, как раньше; с «?» — вопрос", () => {
+    const { questions } = parseImport("#1. Кино\nФильм?\n= Мимино\n#2 Музыка\nПесня?\n= да\n#3. Назовите город\nА?\n= а\n#4. Назовите город?\n= Москва\n#5 Вопрос?\n= да");
+    expect(questions.map((q) => [q.question.text, q.question.round])).toEqual([
+      ["Фильм?", "Кино"],
+      ["Песня?", "Музыка"],
+      ["А?", "Назовите город"],
+      ["Назовите город?", null],
+      ["Вопрос?", null],
+    ]);
   });
 
   it("переводы строк «\\r» и «\\r\\n»", () => {
@@ -297,5 +343,14 @@ describe("«Миллион», «Гонка», «Дракон»: варианты
       ["dice", "luck", "Бросайте кубик!", -1],
       ["choice", "mind", "Сила тока измеряется в", 0],
     ]);
+  });
+});
+
+describe("«Гонка»: ответ после «=»", () => {
+  it("ответ — с первого «=» после «?»; без «?» — с « = »", () => {
+    expect(openAnswerSplit("Формула? = E=mc2")).toEqual({ question: "Формула?", answers: ["E=mc2"] });
+    expect(openAnswerSplit("Если x=5, сколько x+1? = 6")).toEqual({ question: "Если x=5, сколько x+1?", answers: ["6"] });
+    expect(openAnswerSplit("Сколько будет 2+2 = 4")).toEqual({ question: "Сколько будет 2+2", answers: ["4"] });
+    expect(openAnswerSplit("2+2=?")).toBeNull();
   });
 });

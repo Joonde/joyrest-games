@@ -1635,6 +1635,7 @@ legend {
 
 .save-status--offline,
 .save-status--error,
+.save-status--denied,
 .save-status--conflict {
   color: var(--color-text);
   border-color: var(--color-danger);
@@ -1642,6 +1643,7 @@ legend {
 
 .save-status--offline .save-status__dot,
 .save-status--error .save-status__dot,
+.save-status--denied .save-status__dot,
 .save-status--conflict .save-status__dot {
   background: var(--color-danger);
 }

@@ -10,7 +10,13 @@ import {
   phoneKey,
   phoneKeyVariants,
   phoneLabel,
+  phoneIssue,
+  phoneIssueText,
+  telHref,
+  whatsappHref,
+  telegramPhoneHref,
   reachable,
+  clientErrorText,
   responseStats,
   statusAfterEvent,
   timerOf,
@@ -30,12 +36,12 @@ describe("база клиентов: телефон — ключ", () => {
     expect(phoneLabel("89152415999")).toBe("+7 915 241-59-99");
   });
 
-  it("городской без семёрки (495, 499, 812, 3xx) — тот же номер, что с +7", () => {
+  it("городской без семёрки (495, 499, 3xx) — тот же номер, что с +7", () => {
     expect(phoneKey("495 123-45-67")).toBe("74951234567");
     expect(phoneKey("(499) 123 45 67")).toBe("74991234567");
     expect(phoneKey("+7 (495) 123-45-67")).toBe("74951234567");
     expect(phoneKey("8 495 123 45 67")).toBe("74951234567");
-    expect(phoneKey("812 123 45 67")).toBe("78121234567");
+    expect(phoneKey("8 812 123 45 67")).toBe("78121234567");
     expect(phoneKey("343 123 45 67")).toBe("73431234567");
     expect(phoneLabel("4951234567")).toBe("+7 495 123-45-67");
     // Не российский код из 10 цифр — как есть.
@@ -43,17 +49,49 @@ describe("база клиентов: телефон — ключ", () => {
     expect(phoneKey("5551234567")).toBe("5551234567");
   });
 
-  it("10 цифр с «7» или «89» — российский номер без последней цифры, ключа нет", () => {
+  it("10 цифр с «7» или «8» (кроме 800–809) — российский номер без последней цифры, ключа нет", () => {
     expect(phoneKey("8 915 123 45 6")).toBe("");
     expect(phoneKey("+7 915 123 45 6")).toBe("");
     expect(phoneKey("7495123456")).toBe("");
-    // 80x–88x — коды (800, 812), 3xx, 4xx, 9xx — тоже.
+    expect(phoneKey("8 495 123 45 6")).toBe("");
+    expect(phoneKey("8121234567")).toBe("");
+    expect(phoneKey("8811234567")).toBe("");
+    expect(phoneIssue("8 495 123 45 6")).toBe("short");
+    // 800–809 — бесплатные и федеральные номера без семёрки; 3xx, 4xx, 9xx — тоже коды.
     expect(phoneKey("8001234567")).toBe("78001234567");
-    expect(phoneKey("8811234567")).toBe("78811234567");
+    expect(phoneKey("8091234567")).toBe("78091234567");
     expect(phoneKey("9152415999")).toBe("79152415999");
     // Полный номер с 8 и +7 — как раньше.
     expect(phoneKey("8 915 123 45 67")).toBe("79151234567");
     expect(phoneKey("+7 915 123 45 67")).toBe("79151234567");
+  });
+
+  it("12 цифр с «7» или «8» — лишняя цифра, не иностранный номер", () => {
+    expect(phoneKey("8-916-123-45-678")).toBe("");
+    expect(phoneKey("+7 916 123 45 678")).toBe("");
+    expect(phoneIssue("8-916-123-45-678")).toBe("long");
+    expect(phoneIssueText("+7 916 123 45 678")).toMatch(/лишняя цифра/);
+    expect(phoneIssueText("8 915 123 45 6")).toMatch(/неполный/);
+    expect(phoneIssueText("8 915 123 45 67")).toBe("");
+    expect(phoneIssueText("")).toBe("");
+    // Иностранные 12 цифр — как раньше.
+    expect(phoneKey("+375 29 123 45 67")).toBe("375291234567");
+  });
+
+  it("ссылки звонка и мессенджеров по номеру", () => {
+    expect(telHref("495 123-45-67")).toBe("tel:+74951234567");
+    expect(telHref("8 (915) 241-59-99")).toBe("tel:+79152415999");
+    expect(telHref("+375 29 123 45 67")).toBe("tel:+375291234567");
+    // Неполный — как ввели (цифры и «+»), пусто — некуда.
+    expect(telHref("8 915 123 45 6")).toBe("tel:8915123456");
+    expect(telHref("+7 915 123 45 6")).toBe("tel:+7915123456");
+    expect(telHref("нет")).toBe("");
+    expect(whatsappHref("495 123-45-67")).toBe("https://wa.me/74951234567");
+    expect(whatsappHref("89152415999", "Привет & спасибо")).toBe(`https://wa.me/79152415999?text=${encodeURIComponent("Привет & спасибо")}`);
+    expect(whatsappHref("8 915 123 45 6")).toBe("");
+    expect(telegramPhoneHref("+7 915 241-59-99")).toBe("https://t.me/+79152415999");
+    expect(telegramPhoneHref("+7 915 241-59-99", "Да")).toBe("https://t.me/+79152415999?text=%D0%94%D0%B0");
+    expect(telegramPhoneHref("12")).toBe("");
   });
 
   it("варианты ключа: городской мог лежать в базе без семёрки, мобильный — нет", () => {
@@ -217,5 +255,17 @@ describe("база клиентов: таймер ответа", () => {
       ["Олег", 1, 20 * 60_000],
     ]);
     expect(responseStats([])).toMatchObject({ count: 0, avgMs: 0, medianMs: 0 });
+  });
+});
+
+describe("база клиентов: тексты ошибок действий", () => {
+  it("409 у клиента в архиве — «верните его», а не «изменил другой человек»", () => {
+    expect(clientErrorText({ code: "failed-precondition", reason: "archived" }, "сменить статус")).toBe(
+      "Клиент в архиве — верните его, чтобы сменить статус.",
+    );
+    expect(clientErrorText({ code: "failed-precondition", reason: "" }, "сменить статус")).toMatch(/изменил другой человек/);
+    expect(clientErrorText({ code: "already-exists" }, "сменить статус")).toMatch(/изменил другой человек/);
+    expect(clientErrorText({ code: "not-found" }, "сменить статус")).toMatch(/уже нет/);
+    expect(clientErrorText(new Error("сеть"), "сменить статус")).toMatch(/Проверьте интернет/);
   });
 });

@@ -1,7 +1,7 @@
 // «Миллион на кону»: лестница из 12 или 15 вопросов (4 варианта, один верный), у каждой команды
 // своя полоска на экране зала. Несгораемые ступени (по умолчанию 4-я и 8-я): ошибка роняет до
 // последней пройденной. Подсказки — по одной каждого вида на команду за игру.
-import { listedOption, listOption, newListedRun, nextLines, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
+import { isQuestionHeader, listedOption, listOption, newListedRun, nextLines, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 import { DEFAULT_SHOW_LOOK, parseShowLook, type ShowLook } from "../showLook";
 
 /** Сколько ступеней может быть в лестнице: 12 (прежние игры) или 15 (новые и шаблон, решение владельца 14 октября 2026). */
@@ -197,6 +197,8 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
       fixed = Math.min(size, Math.max(1, Number(head[1])));
       return;
     }
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
+    if (isQuestionHeader(line)) return;
     const dash = listOption(raw);
     const cur0 = current as MillionaireQuestion | null;
     const room = cur0 !== null && cur0.options.some((o) => !o);

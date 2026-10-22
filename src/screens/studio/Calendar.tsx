@@ -40,7 +40,7 @@ import { Toast, useToast } from "../../components/Toast";
 import { TopBar } from "../../components/TopBar";
 import { brand } from "../../themes/brand";
 import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
-import { pendingDays, planRepeat, repeatKey, saveErrorText, type RepeatPlan } from "./calendarRepeat";
+import { alreadyText, entryKey, pendingDays, planRepeat, repeatKey, saveErrorText, splitSaved, type RepeatPlan } from "./calendarRepeat";
 import { EventForm, Planner, type EventDraft } from "./Planner";
 import { studioActions } from "./Studio";
 
@@ -404,6 +404,8 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
 
   // id всех недель — один раз на попытку: повтор после обрыва не плодит дубли (QA 22 октября 2026, M4).
   const plan = useRef<RepeatPlan | null>(null);
+  // Что уже сохранилось в прошлых попытках (день + вид + время): после ошибки и правки формы не отправляем повторно.
+  const done = useRef<Set<string>>(new Set());
 
   async function save(k: "free" | "busy", s: number, e: number, w: number, n: string) {
     if (!calendarRepo) return;
@@ -414,21 +416,29 @@ function AddEntry({ day, today, onSaved }: { day: string; today: string; onSaved
     plan.current = current;
     const added: AvailabilityEntry[] = [];
     let at = day;
+    const { already } = splitSaved(days, done.current, k, s, e);
     try {
       for (const d of pendingDays(current, days)) {
+        if (done.current.has(entryKey(d, k, s, e))) continue;
         at = d;
         const id = current.ids[d] ?? newId();
         added.push(await calendarRepo.save({ id, day: d, start: s, end: e, kind: k, note: n }));
         current.saved.push(d);
+        done.current.add(entryKey(d, k, s, e));
       }
       const what = `${k === "free" ? "Свободен" : "Занят"} ${rangeLabel(s, e)}`;
-      onSaved(added, days.length > 1 ? `${what} — ${days.length} недель` : what);
+      const earlier = alreadyText(already.length);
+      const text = days.length > 1 ? `${what} — ${days.length} недель` : what;
+      onSaved(added, earlier ? `${text} (${earlier})` : text);
       plan.current = null;
+      done.current = new Set();
       setNote("");
-    } catch (e) {
+    } catch (err) {
       // Сохранённые недели сразу видны в календаре, текст говорит, сколько не сохранилось и почему.
-      if (added.length > 0) onSaved(added, `Сохранено ${current.saved.length} из ${days.length}`);
-      setError(saveErrorText(e, current.saved.length, days.length, at, PER_DAY_MAX));
+      // Считаем и недели, сохранённые в прошлых попытках с тем же видом и временем.
+      const savedCount = days.filter((d) => done.current.has(entryKey(d, k, s, e))).length;
+      if (added.length > 0) onSaved(added, `Сохранено ${savedCount} из ${days.length}`);
+      setError(saveErrorText(err, savedCount, days.length, at, PER_DAY_MAX));
     } finally {
       setBusy(false);
     }

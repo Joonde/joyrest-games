@@ -176,7 +176,13 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     await post("/api/clients/kshared/status", owner, { status: "work" });
     expect(((await get("/api/clients/kshared", owner)).json().history as Array<{ source: string }>).filter((h) => h.source === "status")).toHaveLength(1);
     await post("/api/clients/kshared/archive", owner);
-    expect((await post("/api/clients/kshared/status", nika, { status: "lost" })).statusCode).toBe(409);
+    const inArchive = await post("/api/clients/kshared/status", nika, { status: "lost" });
+    expect(inArchive.statusCode).toBe(409);
+    // Причина — архив, а не чужая правка: браузер говорит «верните из архива».
+    expect(inArchive.json()).toEqual({ error: "failed-precondition", reason: "archived" });
+    const noteInArchive = await post("/api/clients/kshared/notes", nika, { notes: "новое", base: now.notes });
+    expect(noteInArchive.statusCode).toBe(409);
+    expect(noteInArchive.json()).toMatchObject({ reason: "archived" });
     expect((await post("/api/clients/kshared/status", nika, { status: "мимо" })).statusCode).toBe(400);
     // Мероприятие: владелец и менеджер открыли форму правки одной версии — второй не затрёт первого.
     const ev = { id: "evshared", hostId: annaId, day: day(30), start: 1080, end: 1200, title: "Корпоратив", clientName: "", clientPhone: "", place: "", guests: 20, note: "" };
@@ -257,6 +263,25 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     // Повторный поиск — пусто.
     const again = (await get(`/api/privacy?q=${encodeURIComponent(PHONE)}`, owner)).json();
     expect([...again.clients, ...again.requests, ...again.events, ...again.venues]).toHaveLength(0);
+  });
+
+  it("«Данные по номеру»: неполный номер (ключа нет) находит записи с той же опечаткой и удаляет их", async () => {
+    const now = new Date();
+    await sql`insert into venue_requests (id, data) values ('rq-short', ${sql.json({ name: "Лена", phone: "8 916 777 66 5" })}),
+      ('rq-short-other', ${sql.json({ name: "Не она", phone: "8 916 777 66 55" })})`;
+    await sql`insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, title, client_name, client_phone)
+      values ('ev-short', ${annaId}, ${day(31)}, 1080, 1200, ${now}, ${now}, 'Квиз', 'Лена', '+7 916 777-66-5')`;
+    const found = await get(`/api/privacy?q=${encodeURIComponent("8916777665")}`, owner);
+    expect(found.statusCode).toBe(200);
+    const body = found.json();
+    expect(body.label).toBe("916777665 (номер неполный)");
+    expect(body.requests.map((r: { id: string }) => r.id)).toEqual(["rq-short"]);
+    expect(body.events.map((e: { id: string }) => e.id)).toEqual(["ev-short"]);
+    expect((await post("/api/privacy/erase", owner, { q: "8916777665" })).json()).toEqual({ clients: 0, requests: 1, events: 1, venues: 0 });
+    expect(await sql`select 1 from venue_requests where id = 'rq-short'`).toHaveLength(0);
+    expect(await sql`select 1 from venue_requests where id = 'rq-short-other'`).toHaveLength(1);
+    const [ev] = await sql<{ client_phone: string }[]>`select client_phone from events where id = 'ev-short'`;
+    expect(ev?.client_phone).toBe("");
   });
 
   it("таймер ответа: идёт с прихода заявки, встаёт на «В работе» с именем; среднее — по ответам; повтор от «Отказа» — снова «Новый»", async () => {

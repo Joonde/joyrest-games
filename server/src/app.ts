@@ -27,7 +27,7 @@ import { registerVideos } from "./videos";
 import { registerFinale, registerSiteReviews, saveSiteReview } from "./finale";
 import { registerPhotos } from "./photos";
 import { registerBranding } from "./branding";
-import { registerDecks } from "./decks";
+import { registerDecks, type DecksOptions } from "./decks";
 import { registerDrawings } from "./drawings";
 import { registerPolls } from "./polls";
 import { registerVenues, type VenuesOptions } from "./venues";
@@ -71,6 +71,8 @@ export interface AppOptions {
   mediaDir?: string | null;
   /** Игры и картинки — настройки для тестов (лимиты, свободное место). */
   games?: Omit<GamesOptions, "sql" | "isSite" | "mediaDir">;
+  /** Показы (фото и PDF) — настройки для тестов (лимит места ведущего, свободное место на диске). */
+  decks?: Omit<DecksOptions, "sql" | "isSite" | "mediaDir">;
   /** Игра в реальном времени — настройки для тестов (часы, «я жив» в потоке). */
   live?: Omit<LiveOptions, "sql" | "isSite">;
   /**
@@ -174,7 +176,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerFinale(app, { sql: options.sql, isSite });
     registerPhotos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerBranding(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
-    registerDecks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
+    registerDecks(app, { ...options.decks, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDrawings(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerPolls(app, { sql: options.sql, isSite });
   }

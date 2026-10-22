@@ -3,7 +3,7 @@
 // свойству героя. Не справились — дракон отнимает жизнь; жизни кончились — команда теряет очки боя и
 // ждёт следующего; дракон дожил до конца боя — все теряют очки боя.
 
-import { listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
+import { isQuestionHeader, listedOption, listOption, newListedRun, nextLines, pointsSuffix, QUESTION_NUMBERING, splitLines, stripBold, type ListedRun } from "../quiz/listText";
 
 export type Stat = "str" | "mind" | "agi" | "luck" | "cha";
 
@@ -220,6 +220,8 @@ export function parseDragonImport(text: string): DragonImport {
       task = null;
       return;
     }
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
+    if (isQuestionHeader(line)) return;
     const dash = listOption(raw);
     const cur0 = task as DragonTask | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);

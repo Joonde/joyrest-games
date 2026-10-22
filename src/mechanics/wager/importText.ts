@@ -1,5 +1,5 @@
 // «Держи пари» — разбор вставки списком: строка «Вопрос? = 330 м» (после «=» — число, потом единицы).
-import { parseNumberText, QUESTION_NUMBERING, splitLines } from "../quiz/listText";
+import { isQuestionHeader, parseNumberText, QUESTION_NUMBERING, splitLines } from "../quiz/listText";
 import { cleanNumber, newQuestion, WAGER_LIMITS, type WagerQuestion } from "./content";
 
 export interface WagerImport {
@@ -18,7 +18,8 @@ export function importWager(text: string): WagerImport {
   const skipped: WagerImport["skipped"] = [];
   splitLines(text).forEach((raw, i) => {
     const line = raw.trim();
-    if (!line) return;
+    // «Вопрос 1» отдельной строкой — заголовок, не вопрос: пропускаем молча.
+    if (!line || isQuestionHeader(line)) return;
     const at = line.lastIndexOf("=");
     const question = at > 0 ? line.slice(0, at).replace(QUESTION_NUMBERING, "").trim() : "";
     const parsed = at > 0 ? parseNumberText(line.slice(at + 1)) : null;

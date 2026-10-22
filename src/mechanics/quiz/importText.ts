@@ -1,6 +1,6 @@
 import { LIMITS, newQuestion, parseRound, type QuizQuestion } from "./content";
 import { validateQuestion } from "./validate";
-import { listedOption, markedText, newListedRun, nextLines, parseNumberText, parseOption, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "./listText";
+import { isQuestionHeader, listedOption, markedText, newListedRun, nextLines, parseNumberText, parseOption, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "./listText";
 
 export { markedText, parseNumberText, parseOption, splitAnswers, splitLines, stripBold };
 
@@ -64,13 +64,12 @@ interface Draft {
 const ROUND_LINE = /^#+\s*(?:\d{1,3}(?:\s*[.)]\s*|\s+))?(?:раунд(?:\s*\d+)?\s*[:.—-]?\s*)?/i;
 
 /**
- * «#1 Какой город?», «#1. Город», «# 2) Город?» — номер вопроса, а не раунд. Со словом «раунд» («#1 раунд», «#1 Раунд:
- * Кино») — всегда раунд.
+ * «#1 Какой город?», «#1. Назовите город?», «# 2) Город?» — номер вопроса, а не раунд: только с «?» в конце. Без «?»
+ * («#1. Кино», «#2 Музыка») и со словом «раунд» («#1 раунд», «#1 Раунд: Кино») — раунд, как раньше.
  */
 function isNumberedQuestion(line: string): boolean {
   if (/раунд/i.test(line)) return false;
-  if (/^#+\s*\d{1,3}\s*[.):]?\s*\S/.test(line) && /[?？]\s*$/.test(line)) return true;
-  return /^#\d{1,3}[.)]\s*\S/.test(line);
+  return /^#+\s*\d{1,3}\s*[.):]?\s*\S/.test(line) && /[?？]\s*$/.test(line);
 }
 
 /** У вопроса уже есть варианты «-», ответ, карточки или число — строка «N. …» дальше не вариант. */
@@ -134,6 +133,8 @@ export function parseImport(input: string): ImportResult {
   const skipped: number[] = [];
   let current: Draft | null = null;
   let round: string | null = null;
+  /** Была строка «Вопрос 1» без текста: следующая строка — текст этого вопроса. */
+  let header = false;
 
   const startQuestion = (text: string, lineNo: number) => {
     current = {
@@ -160,6 +161,16 @@ export function parseImport(input: string): ImportResult {
     const bold = original.startsWith("**") || original.startsWith("__");
     const line = stripBold(original).trim();
     if (!line) return;
+
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — следующая строка (не пустой вопрос «Вопрос 1»).
+    if (isQuestionHeader(line)) {
+      header = true;
+      return;
+    }
+    if (header) {
+      header = false;
+      if (!/^[-–—•*=~≈>#]/.test(line)) return startQuestion(line, lineNo);
+    }
 
     if (line.startsWith("#") && !isNumberedQuestion(line)) {
       // Название раунда: «# Раунд 2: Кино». Без названия — «Раунд N».

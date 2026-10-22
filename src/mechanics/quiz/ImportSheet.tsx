@@ -52,7 +52,8 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
             Варианты можно писать и так: <kbd>а) Москва</kbd>, <kbd>1. Москва</kbd>.
           </li>
           <li>
-            Открытый ответ — строка <kbd>= ответ1 | ответ2</kbd> (или через <kbd>/</kbd>).
+            Открытый ответ — строка <kbd>= ответ1 | ответ2</kbd>; варианты ответа — через <kbd>|</kbd> или <kbd> / </kbd> с
+            пробелами (слитное «AC/DC», «300 км/ч» — один ответ).
           </li>
           <li>
             «Расставь по порядку» — карточки через <kbd>&gt;</kbd> в верном порядке, «Угадай число» — <kbd>~ 1665 ступеней</kbd>.
@@ -112,7 +113,11 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
                   <span className="muted small"> · {KIND_TITLES[question.kind]}</span>
                 </p>
                 {question.kind === "open" ? (
-                  <p className="small">Верные ответы: {question.answers.join(" / ")}</p>
+                  <p className="small">
+                    {/* Каждый ответ в кавычках через «|»: видно, как разбили («AC/DC» — один ответ). */}
+                    {question.answers.length === 1 ? "Верный ответ" : `Верные ответы (${question.answers.length})`}:{" "}
+                    {question.answers.length > 0 ? question.answers.map((a) => `«${a}»`).join(" | ") : "—"}
+                  </p>
                 ) : question.kind === "number" ? (
                   <p className="small">
                     Верное число:{" "}

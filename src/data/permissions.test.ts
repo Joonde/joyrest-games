@@ -112,6 +112,12 @@ describe("календарь", () => {
     expect(p.canMarkEventHeld(other, { hostId: "host-1" })).toBe(false);
     expect(p.canMarkEventHeld(off, { hostId: "off" })).toBe(false);
   });
+  it("«Принял, готовлюсь» — только ведущий этого мероприятия", () => {
+    expect(p.canAcceptEvent(host, { hostId: "host-1" })).toBe(true);
+    expect(p.canAcceptEvent(owner, { hostId: "host-1" })).toBe(false);
+    expect(p.canAcceptEvent(other, { hostId: "host-1" })).toBe(false);
+    expect(p.canAcceptEvent(off, { hostId: "off" })).toBe(false);
+  });
 
   it("база клиентов — только владелец; Telegram подключает любой активный", () => {
     expect(p.canManageClients(owner)).toBe(true);

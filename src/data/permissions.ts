@@ -277,6 +277,11 @@ export function canMarkEventHeld(actor: Actor, event: { hostId: string }): boole
   return isActiveHost(actor) && actor?.uid === event.hostId;
 }
 
+/** «Принял, готовлюсь» — только тот, кто ведёт это мероприятие (решение владельца 22 октября 2026). */
+export function canAcceptEvent(actor: Actor, event: { hostId: string }): boolean {
+  return isActiveHost(actor) && actor?.uid === event.hostId;
+}
+
 /** База клиентов (заявки, телефоны, статусы, заметки, архив) — владелец и менеджер по продажам. */
 export function canManageClients(actor: Actor): boolean {
   return isAdmin(actor) || isSalesManager(actor);

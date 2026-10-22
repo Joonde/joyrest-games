@@ -760,17 +760,27 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
       if (!who.user) return fail(reply, 403, "permission-denied");
       const all = permissions.canSeeAllSessions(actor(who));
       const rows = await sql<
-        { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null; stale: boolean }[]
+        { id: string; code: string; host_id: string; host_name: string | null; game_title: string; mechanic: string | null; phase: string; screen_mode: string; players: number; created_at: Date; updated_at: Date; started_at: Date | null; stale: boolean; finished_at: Date | null; plan_end: Date | null; plan_title: string | null }[]
       >`
         select s.id, s.code, s.host_id, u.name as host_name, s.game_title, s.mechanic, s.phase, s.screen_mode, s.created_at, s.updated_at, s.started_at,
                (s.phase in ('lobby', 'playing') and s.updated_at < now() - interval '12 hours') as stale,
-               (select count(*)::int from participants p where p.session_id = s.id and p.kind = 'player') as players
+               (select count(*)::int from participants p where p.session_id = s.id and p.kind = 'player') as players,
+               (select r.finished_at from results r where r.id = s.id) as finished_at,
+               plan.ends_at as plan_end, plan.title as plan_title
         from (
           select *, row_number() over (partition by host_id, phase = 'finished' order by updated_at desc) as n
           from sessions
           where (${all}::boolean or host_id = ${who.uid}) and created_at > now() - interval '30 days' and hidden_at is null
         ) s
         left join users u on u.id = s.host_id
+        -- Мероприятие этого ведущего в планировщике на этот вечер (игру открыли за 3 часа до начала и до конца): по нему
+        -- «Игры сейчас» считают, сколько игра идёт сверх плана (решение владельца 22 октября 2026).
+        left join lateral (
+          select e.ends_at, e.title from events e
+          where e.host_id = s.host_id and e.cancelled_at is null
+            and s.created_at between e.starts_at - interval '3 hours' and e.ends_at
+          order by abs(extract(epoch from (e.starts_at - s.created_at))) limit 1
+        ) plan on true
         where s.phase in ('lobby', 'playing') or s.n <= 2
         order by s.updated_at desc
         limit 300`;
@@ -789,6 +799,10 @@ export function registerLive(app: FastifyInstance, options: LiveOptions): Hub {
         updatedAt: r.updated_at.getTime(),
         startedAt: r.started_at ? r.started_at.getTime() : null,
         stale: r.stale,
+        // Завершена: время из итогов, без итогов — последнее действие пульта.
+        finishedAt: r.phase === "finished" ? (r.finished_at ?? r.updated_at).getTime() : null,
+        planEnd: r.plan_end ? r.plan_end.getTime() : null,
+        planTitle: r.plan_title ?? "",
       }));
     });
 

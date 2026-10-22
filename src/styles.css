@@ -22843,6 +22843,81 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   padding: 8px 12px;
 }
 
+/* Программа мероприятия и «Принял, готовлюсь» (22 октября 2026). */
+.plan-card__accept {
+  display: block;
+  margin-top: 2px;
+}
+.plan-program {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+}
+.plan-program p {
+  margin: 0;
+}
+.plan-program__title {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.plan-program__prep {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+.plan-accepted {
+  margin: 0;
+}
+.btn.plan-inline {
+  display: inline-flex;
+  min-height: 32px;
+  padding: 0 8px;
+}
+
+/* «Игры сейчас»: таймер в углу строки и время после завершения (22 октября 2026). */
+.game-row__status {
+  width: 100%;
+}
+.game-row__timer {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.game-row__timer.is-near {
+  border-color: var(--color-highlight);
+  color: var(--color-highlight);
+}
+.game-row__timer.is-pay {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.game-row__time {
+  display: grid;
+  gap: 2px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+.game-row__time:empty {
+  display: none;
+}
+.game-row__over {
+  color: var(--color-text);
+}
+.game-row__over.is-pay {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
 /* ── Конструкторы: исправления по QA 22 октября 2026 ── */
 
 /* Кнопки блока раунда квиза — не меньше 52 px (правило интерфейса); «Отмена» переименования — словом, не ✕. */

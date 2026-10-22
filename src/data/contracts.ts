@@ -304,6 +304,8 @@ export interface EventsRepository {
   period(from: string, to: string): Promise<AgencyEvent[]>;
   /** «Проведено» (true), «Не состоялось» (false), снять отметку (null) — после начала. */
   setHeld(id: string, held: boolean | null): Promise<AgencyEvent>;
+  /** «Принял, готовлюсь» — ведущий этого мероприятия; `rev` — версия программы, которую он видел (поменяли — `changed`). */
+  accept(id: string, rev: number): Promise<AgencyEvent>;
   cancel(id: string): Promise<AgencyEvent>;
   restore(id: string): Promise<AgencyEvent>;
   /** Удалить навсегда — только отменённое. */

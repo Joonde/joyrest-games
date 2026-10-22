@@ -23,7 +23,10 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { ORIGIN_TITLES, originOf, parseLinks } from "../../src/core/clients";
-import { AFTER_EVENT_DAYS, AFTER_EVENT_MS, noticeText, parseLeadText, reminderDue, type NoticeKind } from "../../src/core/events";
+import { AFTER_EVENT_DAYS, AFTER_EVENT_MS, noticeText, overtimeNoticeText, parseLeadText, reminderDue, unacceptedText, type NoticeKind } from "../../src/core/events";
+import { OVERTIME_FREE_MIN, overtimeOf } from "../../src/core/overtime";
+import { cleanProgram } from "../../src/core/eventProgram";
+import { acceptEvent } from "./events";
 import { todayMoscow } from "../../src/core/calendar";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent, TelegramStatus } from "../../src/data/types";
@@ -76,7 +79,9 @@ export interface Bot {
   username(): Promise<string | null>;
   sendTo(userId: string, text: string): Promise<boolean>;
   /** Уведомить ведущего о мероприятии и отметить уже наступившие напоминания, чтобы они не пришли следом. */
-  eventNotice(kind: NoticeKind, userId: string, event: Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end">, startsAt: Date): Promise<void>;
+  eventNotice(kind: NoticeKind, userId: string, event: NoticeEvent, startsAt: Date): Promise<void>;
+  /** Ведущий принял в студии: кнопка последнего сообщения о мероприятии становится «✅ Принято». */
+  acceptMarked(eventId: string): Promise<void>;
   /** Менеджерам по продажам с подключённым Telegram — о новой заявке (без данных клиента). Ответ — скольким ушло. */
   salesNotice(kind: SalesLeadKind): Promise<number>;
   /** Напомнить о клиентах, которые ждут ответа в Telegram (раз в минуту — само; для проверок). */
@@ -101,6 +106,23 @@ export interface BotOptions {
   now?: () => number;
   /** Команды владельца о канале (/channel, /pause, /resume, /skip_N): ответ или null — не о канале. */
   commands?: (chatId: number, text: string) => Promise<string | null>;
+}
+
+/** Мероприятие для сообщения ведущему: программа и кнопка «Принял, готовлюсь» (если ещё не принял). */
+export type NoticeEvent = Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end"> & Partial<Pick<AgencyEvent, "program" | "acceptedAt" | "acceptRev">>;
+
+/** Кнопка под сообщением: `acc:<мероприятие>:<версия>` — старая кнопка после правки программы не засчитывается. */
+export function acceptButton(e: NoticeEvent): object {
+  return { inline_keyboard: [[{ text: "✅ Принял, готовлюсь", callback_data: `acc:${e.id}:${e.acceptRev ?? 0}` }]] };
+}
+
+const moscowClock = (ms: number) => new Date(ms).toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
+
+interface TgCallback {
+  id: string;
+  from: TgUser;
+  data?: string;
+  message?: { message_id: number; chat: { id: number } };
 }
 
 interface TgUser {
@@ -174,13 +196,59 @@ export function startBot(options: BotOptions): Bot {
     return { ok: res.ok && data.ok === true, status: res.status, result: data.result };
   }
 
-  async function sendChat(chatId: number | string, text: string): Promise<number> {
+  async function sendChat(chatId: number | string, text: string, markup?: object): Promise<number> {
     try {
-      const r = await call("sendMessage", { chat_id: chatId, text, link_preview_options: { is_disabled: true } });
+      const r = await call("sendMessage", { chat_id: chatId, text, link_preview_options: { is_disabled: true }, ...(markup ? { reply_markup: markup } : {}) });
       return r.ok ? 200 : r.status;
     } catch {
       return 0;
     }
+  }
+
+  /** Отправить и узнать номер сообщения (чтобы потом поменять его кнопку). */
+  async function sendChatMsg(chatId: number | string, text: string, markup: object): Promise<{ status: number; id: number | null }> {
+    try {
+      const r = await call("sendMessage", { chat_id: chatId, text, link_preview_options: { is_disabled: true }, reply_markup: markup });
+      const id = (r.result as { message_id?: number } | undefined)?.message_id;
+      return { status: r.ok ? 200 : r.status, id: r.ok && typeof id === "number" ? id : null };
+    } catch {
+      return { status: 0, id: null };
+    }
+  }
+
+  async function setKeyboard(chat: string | number, message: number, label: string | null): Promise<void> {
+    await call("editMessageReplyMarkup", {
+      chat_id: chat,
+      message_id: message,
+      reply_markup: { inline_keyboard: label ? [[{ text: label, callback_data: "done" }]] : [] },
+    }).catch(() => undefined);
+  }
+
+  /** Кнопка прошлого сообщения о мероприятии: убрать (null) или показать «✅ Принято …». Рабочая кнопка — одна. */
+  async function settleAsk(eventId: string, label: string | null): Promise<void> {
+    const [row] = await sql<{ accept_msg: string | null }[]>`select accept_msg from events where id = ${eventId}`;
+    const m = /^(-?\d+):(\d+)$/.exec(row?.accept_msg ?? "");
+    if (!m) return;
+    if (!label) await sql`update events set accept_msg = null where id = ${eventId} and accept_msg = ${row?.accept_msg ?? ""}`;
+    await setKeyboard(m[1] ?? "", Number(m[2]), label);
+  }
+
+  /**
+   * Нужна ли кнопка «Принял, готовлюсь»: не принято, мероприятие новое (`accept_rev` > 0) и это окружение читает
+   * нажатия (основная версия). Тестовая шлёт тем же ботом, но нажатия читает основная — кнопка там не сработала бы.
+   */
+  const asks = (acceptedAt: number | null, rev: number) => options.polling && !acceptedAt && rev > 0;
+
+  /** Сообщение ведущему с кнопкой «Принял, готовлюсь»: прежнюю кнопку убрать, номер нового сообщения запомнить. */
+  async function sendAsk(userId: string, text: string, e: NoticeEvent): Promise<boolean> {
+    const [link] = await sql<{ chat_id: string }[]>`select chat_id::text from tg_links where user_id = ${userId}`;
+    if (!link) return false;
+    await settleAsk(e.id, null);
+    const sent = await sendChatMsg(link.chat_id, text, acceptButton(e));
+    if (sent.status === 403) await sql`delete from tg_links where user_id = ${userId}`;
+    if (sent.id !== null) await sql`update events set accept_msg = ${`${link.chat_id}:${sent.id}`} where id = ${e.id}`;
+    log.info({ telegram: "send", result: sent.status }, "telegram");
+    return sent.status === 200;
   }
 
   async function username(): Promise<string | null> {
@@ -195,24 +263,31 @@ export function startBot(options: BotOptions): Bot {
     return me;
   }
 
-  async function sendTo(userId: string, text: string): Promise<boolean> {
+  async function sendTo(userId: string, text: string, markup?: object): Promise<boolean> {
     const [link] = await sql<{ chat_id: string }[]>`select chat_id::text from tg_links where user_id = ${userId}`;
     if (!link) return false;
-    const status = await sendChat(link.chat_id, text);
+    const status = await sendChat(link.chat_id, text, markup);
     // Человек заблокировал бота — отвязываем, чтобы в студии было видно «не подключён».
     if (status === 403) await sql`delete from tg_links where user_id = ${userId}`;
     log.info({ telegram: "send", result: status }, "telegram");
     return status === 200;
   }
 
-  async function eventNotice(kind: NoticeKind, userId: string, event: Pick<AgencyEvent, "id" | "title" | "guests" | "day" | "start" | "end">, startsAt: Date): Promise<void> {
+  async function eventNotice(kind: NoticeKind, userId: string, event: NoticeEvent, startsAt: Date): Promise<void> {
     if (kind === "created" || kind === "changed") {
       // Сутки или 2 часа уже наступили — отдельное напоминание следом не нужно.
       const due = reminderDue(startsAt.getTime(), now());
       const kinds = due === "hours" ? ["day", "hours"] : due === "day" ? ["day"] : [];
       for (const k of kinds) await sql`insert into event_notices (event_id, kind, starts_at) values (${event.id}, ${k}, ${startsAt}) on conflict do nothing`;
     }
-    await sendTo(userId, noticeText(kind, event, platformUrl, now(), startsAt.getTime()));
+    const text = noticeText(kind, event, platformUrl, now(), startsAt.getTime());
+    if ((kind === "created" || kind === "changed") && asks(event.acceptedAt ?? null, event.acceptRev ?? 0)) {
+      await sendAsk(userId, text, event);
+      return;
+    }
+    // Снято с ведущего или отменено — кнопка прошлого сообщения больше не нужна.
+    if (kind === "removed" || kind === "cancelled") await settleAsk(event.id, null);
+    await sendTo(userId, text);
   }
 
   async function salesNotice(kind: SalesLeadKind): Promise<number> {
@@ -226,8 +301,9 @@ export function startBot(options: BotOptions): Bot {
 
   // ───── напоминания ─────
   async function remind(): Promise<void> {
-    const rows = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date }[]>`
-      select e.id, e.host_id, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at
+    const rows = await sql<{ id: string; host_id: string; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; program: unknown; accepted: boolean; accept_rev: number }[]>`
+      select e.id, e.host_id, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at,
+        e.program, (e.accepted_at is not null) as accepted, e.accept_rev
       from events e join tg_links l on l.user_id = e.host_id
       where e.cancelled_at is null and e.starts_at > now() and e.starts_at <= now() + interval '24 hours'`;
     for (const r of rows) {
@@ -236,7 +312,52 @@ export function startBot(options: BotOptions): Bot {
       const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${kind}, ${r.starts_at})
         on conflict do nothing returning 1`;
       if (fresh.length === 0) continue;
-      await sendTo(r.host_id, noticeText(kind, { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, platformUrl, now(), r.starts_at.getTime()));
+      const e: NoticeEvent = { id: r.id, title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min, program: cleanProgram(r.program), acceptRev: r.accept_rev };
+      const text = noticeText(kind, e, platformUrl, now(), r.starts_at.getTime());
+      // Ещё не принял — кнопка переезжает в напоминание (у прошлого сообщения убирается).
+      if (asks(r.accepted ? 1 : null, r.accept_rev)) await sendAsk(r.host_id, text, e);
+      else await sendTo(r.host_id, text);
+    }
+    // Игра идёт дольше мероприятия по плану: сверх 20 минут и потом каждые 30 — ведущему и владельцу (по одному разу на
+    // каждые полчаса). Игра — открытая (ждёт гостей или идёт) у этого ведущего этим вечером, с действием пульта за полчаса.
+    const late = await sql<{ id: string; host_id: string; host_name: string | null; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; ends_at: Date }[]>`
+      select e.id, e.host_id, u.name as host_name, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, e.ends_at
+      from events e left join users u on u.id = e.host_id
+      where e.cancelled_at is null and e.ends_at < now() - make_interval(mins => ${OVERTIME_FREE_MIN}) and e.ends_at > now() - interval '6 hours'
+        and exists (select 1 from sessions s where s.host_id = e.host_id and s.phase in ('lobby', 'playing') and s.hidden_at is null
+          and s.created_at between e.starts_at - interval '3 hours' and e.ends_at and s.updated_at > now() - interval '30 minutes')`;
+    if (late.length > 0) {
+      const owners = await sql<{ user_id: string }[]>`select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and u.role = 'admin'`;
+      for (const r of late) {
+        const over = overtimeOf(now(), r.ends_at.getTime());
+        if (over.blocks === 0) continue;
+        const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${`over${over.blocks}`}, ${r.starts_at})
+          on conflict do nothing returning 1`;
+        if (fresh.length === 0) continue;
+        const e = { title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min };
+        await sendTo(r.host_id, overtimeNoticeText(e, over, r.host_name ?? "", true, platformUrl));
+        for (const o of owners) if (o.user_id !== r.host_id) await sendTo(o.user_id, overtimeNoticeText(e, over, r.host_name ?? "", false, platformUrl));
+      }
+    }
+    // Ведущий не нажал «Принял, готовлюсь», а до начала меньше суток — владельцу и менеджерам один раз (днём).
+    // Мероприятие записали или поменяли меньше часа назад — ведущему сначала дать время.
+    if (answerHoursOpen(now())) {
+      const silent = await sql<{ id: string; accept_rev: number; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; host_name: string | null }[]>`
+        select e.id, e.accept_rev, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, u.name as host_name
+        from events e left join users u on u.id = e.host_id
+        where e.cancelled_at is null and e.accepted_at is null and e.accept_rev > 0 and e.starts_at > now()
+          and e.starts_at <= now() + interval '24 hours' and e.updated_at < now() - interval '1 hour'`;
+      if (silent.length > 0) {
+        const staff = await sql<{ user_id: string }[]>`
+          select l.user_id from tg_links l join users u on u.id = l.user_id where u.active and (u.role = 'admin' or u.access_role = 'sales')`;
+        for (const r of silent) {
+          const fresh = await sql`insert into event_notices (event_id, kind, starts_at) values (${r.id}, ${`unaccepted${r.accept_rev}`}, ${r.starts_at})
+            on conflict do nothing returning 1`;
+          if (fresh.length === 0) continue;
+          const text = unacceptedText({ title: r.title, guests: r.guests, day: r.day, start: r.start_min, end: r.end_min }, r.host_name ?? "", platformUrl);
+          for (const s of staff) await sendTo(s.user_id, text);
+        }
+      }
     }
     // Мероприятие прошло, а «Проведено» не отмечено — ведущему один раз (днём): отметка сама ставит клиенту «Провели».
     if (!answerHoursOpen(now())) return;
@@ -343,6 +464,47 @@ export function startBot(options: BotOptions): Bot {
       return;
     }
     await saveClient(m, chatId, text);
+  }
+
+  /** Кнопка «Принял, готовлюсь» под сообщением ведущему: та же отметка, что в студии. */
+  async function handleCallback(c: TgCallback): Promise<void> {
+    const answer = (text: string) => call("answerCallbackQuery", { callback_query_id: c.id, text }).catch(() => undefined);
+    const setButton = (label: string | null) => (c.message ? setKeyboard(c.message.chat.id, c.message.message_id, label) : Promise.resolve());
+    if (c.data === "done") {
+      await answer("Уже принято ✓");
+      return;
+    }
+    const m = /^acc:([A-Za-z0-9_-]{1,60}):(\d{1,9})$/.exec(c.data ?? "");
+    if (!m || !c.from.id) return void (await answer("Кнопка устарела — откройте мероприятие в студии."));
+    const [link] = await sql<{ user_id: string; role: string; active: boolean; access_role: string | null }[]>`
+      select l.user_id, u.role, u.active, u.access_role from tg_links l join users u on u.id = l.user_id where l.chat_id = ${c.from.id}`;
+    if (!link) return void (await answer("Сначала подключите Telegram в студии: «Мой профиль» → «Уведомления в Telegram»."));
+    const actor = { uid: link.user_id, role: link.role === "admin" ? ("admin" as const) : ("host" as const), active: link.active, accessRole: link.access_role };
+    const result = await acceptEvent(sql, m[1] ?? "", link.user_id, Number(m[2]), (hostId) => permissions.canAcceptEvent(actor, { hostId }));
+    log.info({ telegram: "accept", result }, "telegram");
+    if (result === "ok") {
+      await answer("Готово: менеджер видит, что вы приняли ✓");
+      await setButton(`✅ Принято ${moscowClock(now())}`);
+      await settleAsk(m[1] ?? "", `✅ Принято ${moscowClock(now())}`);
+    } else if (result === "already") {
+      await answer("Уже принято ✓");
+      await setButton("✅ Принято");
+    } else if (result === "changed") {
+      await answer("Программа изменилась — посмотрите новое сообщение и примите её.");
+      await setButton(null);
+    } else if (result === "cancelled") {
+      await answer("Это мероприятие отменено.");
+      await setButton(null);
+    } else if (result === "past") {
+      await answer("Мероприятие уже прошло.");
+      await setButton(null);
+    } else if (result === "not-found") {
+      await answer("Мероприятие удалено.");
+      await setButton(null);
+    } else {
+      await answer("Это мероприятие больше не ваше — подробности в студии.");
+      await setButton(null);
+    }
   }
 
   /** Владелец переслал сообщение клиента или текст заявки — клиент в базу. */
@@ -490,7 +652,7 @@ export function startBot(options: BotOptions): Bot {
     let offset = Number(state?.value) || 0;
     while (!stopped) {
       try {
-        const r = await call("getUpdates", { offset, timeout: POLL_TIMEOUT_S, allowed_updates: ["message", "business_connection", "business_message"] }, (POLL_TIMEOUT_S + 10) * 1000);
+        const r = await call("getUpdates", { offset, timeout: POLL_TIMEOUT_S, allowed_updates: ["message", "business_connection", "business_message", "callback_query"] }, (POLL_TIMEOUT_S + 10) * 1000);
         if (r.status === 409) pollState = "conflict";
         else if (r.ok) {
           pollState = "ok";
@@ -507,7 +669,7 @@ export function startBot(options: BotOptions): Bot {
           continue;
         }
         const updates = Array.isArray(r.result)
-          ? (r.result as Array<{ update_id: number; message?: TgMessage; business_connection?: TgBusinessConnection; business_message?: TgMessage }>)
+          ? (r.result as Array<{ update_id: number; message?: TgMessage; business_connection?: TgBusinessConnection; business_message?: TgMessage; callback_query?: TgCallback }>)
           : [];
         for (const u of updates) {
           offset = u.update_id + 1;
@@ -515,6 +677,7 @@ export function startBot(options: BotOptions): Bot {
           if (u.message) await handle(u.message).catch(fail);
           if (u.business_connection) await handleConnection(u.business_connection).catch(fail);
           if (u.business_message) await handleBusiness(u.business_message).catch(fail);
+          if (u.callback_query) await handleCallback(u.callback_query).catch(fail);
         }
         if (updates.length > 0) {
           await sql`insert into tg_state (key, value) values ('offset', ${String(offset)}) on conflict (key) do update set value = excluded.value`;
@@ -536,6 +699,10 @@ export function startBot(options: BotOptions): Bot {
     username,
     sendTo,
     eventNotice,
+    async acceptMarked(eventId: string) {
+      const [row] = await sql<{ accepted_at: Date | null }[]>`select accepted_at from events where id = ${eventId}`;
+      await settleAsk(eventId, `✅ Принято ${moscowClock((row?.accepted_at ?? new Date(now())).getTime())}`);
+    },
     salesNotice,
     waitingNow: waiting,
     stop() {

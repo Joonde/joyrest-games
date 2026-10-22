@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
 import { bookingId, bookingNote, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
+import { cleanProgram, sameProgram } from "../../src/core/eventProgram";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
 import { dayTitle } from "../../src/core/calendar";
@@ -50,6 +51,9 @@ interface Row {
   cancelled: boolean;
   held: boolean | null;
   updated_at?: Date | null;
+  program?: unknown;
+  accepted_at?: Date | null;
+  accept_rev?: number;
 }
 
 /** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
@@ -78,6 +82,9 @@ export function eventOf(row: Row): AgencyEvent {
     cancelled: row.cancelled,
     held: row.held,
     updatedAt: row.updated_at ? row.updated_at.getTime() : 0,
+    program: cleanProgram(row.program),
+    acceptedAt: row.accepted_at ? row.accepted_at.getTime() : null,
+    acceptRev: row.accept_rev ?? 0,
   };
 }
 
@@ -87,11 +94,15 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
   const bot = options.bot ?? null;
 
   /** Уведомление в Telegram — не задерживает ответ и не ломает запись, если Telegram недоступен. */
+  /** Уведомления идут по очереди: при смене ведущего «снято» прежнему — раньше «назначено» новому (кнопка одна). */
+  let queue: Promise<void> = Promise.resolve();
   function notice(request: FastifyRequest, kind: Parameters<Bot["eventNotice"]>[0], userId: string, event: AgencyEvent) {
     if (!bot) return;
     const span = eventSpan(event);
     if (!span) return;
-    void bot.eventNotice(kind, userId, event, new Date(span.from)).catch(() => request.log.warn({ events: "notice" }, "events: уведомление не отправилось"));
+    queue = queue
+      .then(() => bot.eventNotice(kind, userId, event, new Date(span.from)))
+      .catch(() => request.log.warn({ events: "notice" }, "events: уведомление не отправилось"));
   }
 
   app.register(async (api) => {
@@ -116,7 +127,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
 
     const select = sql`
       select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
-        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at
+        e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at,
+        e.program, e.accepted_at, e.accept_rev
       from events e left join users u on u.id = e.host_id`;
 
     async function one(id: string): Promise<AgencyEvent | null> {
@@ -177,8 +189,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date }[]>`
-        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program
         from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
       // Владелец и менеджер правят одно мероприятие: форма шлёт `expect` — версию, с которой её открыли.
@@ -186,18 +198,37 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (existing && typeof expect === "number" && Math.floor(existing.updated_at.getTime()) !== expect) {
         return reply.code(409).send({ error: "changed" });
       }
+      // Программа: форма её не прислала (старая страница) — остаётся прежняя.
+      const given = input.program !== undefined;
+      const oldProgram = existing ? cleanProgram(existing.program) : null;
+      const newProgram = given ? (input.program ?? null) : oldProgram;
+      const programChanged = Boolean(existing) && !sameProgram(oldProgram, newProgram);
+      // «Принял, готовлюсь» снимается, если поменяли программу, ведущего, дату или время: ведущему — новое сообщение.
+      // Ровно то, о чём ведущему приходит «Изменено» (и смена ведущего): тогда же — новая кнопка и новая отметка.
+      const reaccept =
+        Boolean(existing) &&
+        (programChanged ||
+          existing?.host_id !== input.hostId ||
+          existing?.day !== input.day ||
+          existing?.start_min !== input.start ||
+          existing?.end_min !== input.end ||
+          existing?.title !== input.title ||
+          existing?.guests !== input.guests);
+      const programJson = newProgram ? sql.json(newProgram as never) : null;
       // Двойное касание «Сохранить»: два одинаковых запроса почти одновременно. «Назначено» в Telegram — только тому,
       // чей запрос действительно создал запись (`xmax = 0` — вставка, а не правка), иначе ведущему пришло бы два.
       const inserted = await sql.begin(async (tx) => {
         const t = tx as unknown as Sql;
         const [row] = await t<{ inserted: boolean }[]>`
-          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, created_by)
+          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, program, accept_rev, created_by)
           values (${input.id}, ${input.hostId}, ${input.day}, ${input.start}, ${input.end}, ${new Date(span.from)}, ${new Date(span.to)},
-            ${input.clientName}, ${input.clientPhone}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${user.id})
+            ${input.clientName}, ${input.clientPhone}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id})
           on conflict (id) do update set host_id = excluded.host_id, day = excluded.day, start_min = excluded.start_min,
             end_min = excluded.end_min, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
             client_name = excluded.client_name, client_phone = excluded.client_phone, title = excluded.title,
-            place = excluded.place, guests = excluded.guests, note = excluded.note, updated_at = now()
+            place = excluded.place, guests = excluded.guests, note = excluded.note, program = excluded.program,
+            accepted_at = case when ${reaccept} then null else events.accepted_at end,
+            accept_rev = events.accept_rev + case when ${reaccept} then 1 else 0 end, updated_at = now()
           returning (xmax = 0) as inserted`;
         await book(t, input, user.id);
         return row?.inserted === true;
@@ -215,7 +246,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
         existing.start_min !== saved.start ||
         existing.end_min !== saved.end ||
         existing.title !== saved.title ||
-        existing.guests !== saved.guests
+        existing.guests !== saved.guests ||
+        programChanged
       ) {
         notice(request, "changed", saved.hostId, saved);
       }
@@ -284,7 +316,10 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${event.hostId}`;
       if (!host?.active) return fail(reply, 409, "failed-precondition");
       await sql.begin(async (tx) => {
-        await tx`update events set cancelled_at = null, updated_at = now() where id = ${id}`;
+        // Вернули — ведущему снова «Назначено» с новой кнопкой: прежняя отметка не считается.
+        // Повтор «Вернуть» (двойное касание, повтор запроса) отметку не трогает: сообщения ведущему тогда нет.
+        await tx`update events set accepted_at = case when cancelled_at is not null then null else accepted_at end,
+          accept_rev = accept_rev + case when cancelled_at is not null then 1 else 0 end, cancelled_at = null, updated_at = now() where id = ${id}`;
         await book(tx as unknown as Sql, { ...event, id, guests: event.guests }, user.id);
       });
       request.log.info({ events: "restore" }, "events");
@@ -292,6 +327,26 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!restored) return fail(reply, 500, "internal");
       if (event.cancelled) notice(request, "created", restored.hostId, restored);
       return restored;
+    });
+
+    // «Принял, готовлюсь» — ведущий этого мероприятия (из студии; из Telegram — кнопкой бота). Повтор — успех, время — первое.
+    // `rev` — версия программы, которую видел ведущий: её успели поменять — 409 `changed`, принять заново.
+    api.post<{ Params: { id: string }; Body: unknown }>("/api/events/:id/accept", { bodyLimit: 1024 }, async (request, reply) => {
+      const user = await requireUser(request, reply, canSee);
+      if (!user) return reply;
+      const id = request.params.id;
+      if (!ID.test(id)) return fail(reply, 404, "not-found");
+      const rev = (request.body as Record<string, unknown> | null)?.rev;
+      const result = await acceptEvent(sql, id, user.id, typeof rev === "number" ? rev : null, (hostId) => permissions.canAcceptEvent(actorOf(user), { hostId }));
+      if (result === "not-found") return fail(reply, 404, "not-found");
+      if (result === "denied") return fail(reply, 403, "permission-denied");
+      if (result === "changed") return reply.code(409).send({ error: "changed" });
+      if (result === "cancelled" || result === "past") return fail(reply, 409, "failed-precondition");
+      // «already» — тоже успех: отметка уже стоит, время первого нажатия не меняется.
+      request.log.info({ events: "accept" }, "events");
+      // Кнопка в Telegram становится «✅ Принято» — второй раз нажимать нечего.
+      if (bot && result === "ok") void bot.acceptMarked(id).catch(() => request.log.warn({ events: "accept-sync" }, "events: кнопка в Telegram не обновилась"));
+      return (await one(id)) ?? fail(reply, 404, "not-found");
     });
 
     // «Проведено» / «Не состоялось» (или снять отметку) — после начала мероприятия, владелец или ведущий.
@@ -414,4 +469,26 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       return { ok: true };
     });
   });
+}
+
+export type AcceptResult = "ok" | "already" | "not-found" | "denied" | "changed" | "cancelled" | "past";
+
+/**
+ * «Принял, готовлюсь»: одна отметка на мероприятие, из студии или из Telegram. Время — первого нажатия (повтор ничего
+ * не меняет). `rev` — версия, которую видел ведущий; программу, ведущего или время с тех пор поменяли — `changed`.
+ */
+export async function acceptEvent(sql: Sql, id: string, userId: string, rev: number | null, allowed: (hostId: string) => boolean): Promise<AcceptResult> {
+  const [row] = await sql<{ host_id: string; accept_rev: number; cancelled: boolean; accepted: boolean; past: boolean }[]>`
+    select host_id, accept_rev, (cancelled_at is not null) as cancelled, (accepted_at is not null) as accepted,
+      ends_at <= now() as past from events where id = ${id}`;
+  if (!row) return "not-found";
+  if (row.host_id !== userId || !allowed(row.host_id)) return "denied";
+  if (row.cancelled) return "cancelled";
+  if (rev !== null && rev !== row.accept_rev) return "changed";
+  if (row.past) return "past";
+  if (row.accepted) return "already";
+  // Программу поменяли между чтением и записью — отметка не ставится, ведущему придёт новое сообщение.
+  const done = await sql`update events set accepted_at = coalesce(accepted_at, now())
+    where id = ${id} and accept_rev = ${row.accept_rev} and cancelled_at is null returning 1`;
+  return done.length > 0 ? "ok" : "changed";
 }

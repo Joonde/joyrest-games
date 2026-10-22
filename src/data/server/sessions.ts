@@ -201,7 +201,7 @@ export const serverSessionsRepository: SessionsRepository = {
       const phase: SessionPhase = d.phase === "playing" || d.phase === "finished" ? d.phase : "lobby";
       const screenMode: ScreenMode = d.screenMode === "none" || d.screenMode === "remote" ? d.screenMode : "laptop";
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-      return [{ id, code, hostId: asText(d.hostId), hostName: asText(d.hostName), gameTitle: asText(d.gameTitle), mechanic: typeof d.mechanic === "string" ? d.mechanic : null, phase, screenMode, players: num(d.players), createdAt: num(d.createdAt), updatedAt: num(d.updatedAt), startedAt: typeof d.startedAt === "number" ? d.startedAt : null, stale: d.stale === true }];
+      return [{ id, code, hostId: asText(d.hostId), hostName: asText(d.hostName), gameTitle: asText(d.gameTitle), mechanic: typeof d.mechanic === "string" ? d.mechanic : null, phase, screenMode, players: num(d.players), createdAt: num(d.createdAt), updatedAt: num(d.updatedAt), startedAt: typeof d.startedAt === "number" ? d.startedAt : null, stale: d.stale === true, finishedAt: typeof d.finishedAt === "number" ? d.finishedAt : null, planEnd: typeof d.planEnd === "number" ? d.planEnd : null, planTitle: asText(d.planTitle) }];
     });
   },
 

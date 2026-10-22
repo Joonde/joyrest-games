@@ -408,6 +408,7 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
       eventNotice: async (kind, userId, event) => {
         notices.push(`${kind}:${userId}:${event.id}`);
       },
+      acceptMarked: async () => undefined,
       salesNotice: async () => 0,
       waitingNow: async () => 0,
       stop: () => undefined,

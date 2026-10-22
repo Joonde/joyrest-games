@@ -2,6 +2,7 @@
 import type { EventsRepository } from "../contracts";
 import type { AgencyEvent } from "../types";
 import { api, asRecord, asText } from "./api";
+import { cleanProgram } from "../../core/eventProgram";
 
 export function parseEvent(value: unknown): AgencyEvent {
   const d = asRecord(value);
@@ -22,6 +23,9 @@ export function parseEvent(value: unknown): AgencyEvent {
     cancelled: d.cancelled === true,
     held: d.held === true ? true : d.held === false ? false : null,
     updatedAt: typeof d.updatedAt === "number" ? d.updatedAt : 0,
+    program: cleanProgram(d.program),
+    acceptedAt: typeof d.acceptedAt === "number" ? d.acceptedAt : null,
+    acceptRev: typeof d.acceptRev === "number" ? d.acceptRev : 0,
     ...(d.clientNotSaved === true ? { clientNotSaved: true } : {}),
     ...(d.clientIncomplete === true ? { clientIncomplete: true } : {}),
   };
@@ -47,6 +51,9 @@ export const serverEventsRepository: EventsRepository = {
   },
   async period(from, to) {
     return list(await api("GET", `/api/events?stats=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`));
+  },
+  async accept(id, rev) {
+    return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/accept`, { rev }));
   },
   async setHeld(id, held) {
     return parseEvent(await api("POST", `/api/events/${encodeURIComponent(id)}/held`, { held }));

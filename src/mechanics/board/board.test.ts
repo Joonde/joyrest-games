@@ -433,7 +433,7 @@ describe("«Ставка на знания»: «Назад» после «Ник
     expect(parseBoardResult(s.state.result).noAuto).toBe(true);
     // Ведущий решает сам: снова «Показать ответ» или к полю — следующая клетка уже без отметки.
     s = apply(s, boardReveal(s, c, participants, false));
-    s = apply(s, toBoard(s, c));
+    s = apply(s, toBoard(s));
     expect(parseBoardResult(s.state.result).noAuto).toBe(false);
   });
 
@@ -469,7 +469,7 @@ describe("«Ставка на знания»: когда показать кар
     // Новая клетка — снова скрыта.
     s = apply(s, setImageShown(s, c, true));
     s = apply(s, boardReveal(s, c, participants, false));
-    s = apply(s, toBoard(s, c));
+    s = apply(s, toBoard(s));
     expect(parseBoardResult(s.state.result).imageShown).toBe(false);
     // Картинки к ответу копируются вместе с игрой.
     expect(boardMediaIds(c)).toEqual(expect.arrayContaining(["q1", "a1"]));

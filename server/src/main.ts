@@ -7,9 +7,13 @@ import { startChannel } from "./channel";
 import { startBot, telegramPolling, type BotLog } from "./telegram";
 import { isOn, siteMode } from "./site";
 import { venueFormsOpen } from "./venues";
+import { parseEdition } from "./edition";
 
 const port = Number(process.env.PORT ?? 8080);
 const databaseUrl = process.env.DATABASE_URL;
+// Редакция: lite — подписочная платформа без CRM, бота и сайта агентства (server/src/edition.ts).
+const edition = parseEdition(process.env.EDITION);
+const lite = edition === "lite";
 const sql = databaseUrl ? postgres(databaseUrl, { max: 5, idle_timeout: 60, connect_timeout: 5 }) : null;
 
 /** Значение переменной без пробелов и \r по краям; пустое — null. */
@@ -35,10 +39,10 @@ const botLog: BotLog = { info: (d, m) => logTarget.info(d, m), warn: (d, m) => l
 // Публикации в Telegram-канал (CHANNEL_POSTS=on и CHANNEL_CHAT — только основная версия; очередь — channel/ в образе).
 const channelChat = env("CHANNEL_CHAT");
 const channel =
-  sql && leadToken && channelChat && isOn(process.env.CHANNEL_POSTS)
+  !lite && sql && leadToken && channelChat && isOn(process.env.CHANNEL_POSTS)
     ? startChannel({ sql, token: leadToken, chat: channelChat, ownerChat: leadChat, dir: resolve(env("CHANNEL_DIR") ?? "/app/channel"), mediaDir, log: botLog })
     : null;
-const bot = sql && leadToken
+const bot = !lite && sql && leadToken
   ? startBot({
       sql,
       token: leadToken,
@@ -56,7 +60,7 @@ const app = buildApp({
   trustedProxies: env("TRUSTED_PROXIES")?.split(",").map((p) => p.trim()) ?? undefined,
   // Сайт включается только явным SITE_ENABLED=on (sudo joyrest site on); showcase — витрина без заявок; иначе — заглушка.
   site:
-    siteDir && siteHosts.length > 0
+    !lite && siteDir && siteHosts.length > 0
       ? {
           dir: siteDir,
           enabled: isOn(process.env.SITE_ENABLED),
@@ -74,6 +78,7 @@ const app = buildApp({
   // Слой данных в браузере: app-test — свой сервер, app-prod — Firebase до переключения
   // (CLAUDE.md, «Платформа на своём сервере»).
   dataBackend: parseDataBackend(process.env.DATA_BACKEND),
+  edition,
   sql,
   mediaDir,
   // Анкеты площадок и заявки клиентов без входа — только явным VENUE_FORMS=on (sudo joyrest venues on).
@@ -85,7 +90,7 @@ const app = buildApp({
   },
 });
 
-if (siteDir && siteHosts.length > 0 && isOn(process.env.SITE_ENABLED) && !(leadToken && leadChat)) {
+if (!lite && siteDir && siteHosts.length > 0 && isOn(process.env.SITE_ENABLED) && !(leadToken && leadChat)) {
   app.log.warn("Уведомления о заявках в Telegram выключены: нет LEAD_TELEGRAM_TOKEN или LEAD_TELEGRAM_CHAT_ID (sudo joyrest lead-bot). Заявки и вопросы сохраняются в «Клиенты»");
 }
 

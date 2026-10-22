@@ -60,7 +60,7 @@ usage() {
 Команды:
   joyrest status              версии, здоровье, последние выкладки, диск и память
   joyrest logs [сервис] [N]   последние N строк логов (по умолчанию все сервисы, 100 строк)
-                              сервисы: app-prod, app-test, caddy, postgres
+                              сервисы: app-prod, app-test, app-lite-test, caddy, postgres
   joyrest restart [сервис]    перезапуск (без сервиса — всё)
   joyrest up                  запустить всё в текущих версиях
   joyrest deploy <коммит> [force]       выложить версию на основной адрес
@@ -247,13 +247,16 @@ wait_postgres() {
   done
 }
 
+# Тестовые базы: joyrest_test (app-test) и joyrest_lite_test (app-lite-test, JoyRest Лайт).
 ensure_test_db() {
-  local count
-  count=$(psql_prod "select count(*) from pg_database where datname = 'joyrest_test'") || return 1
-  if [ "$count" = 0 ]; then
-    psql_prod "create database joyrest_test owner joyrest" >/dev/null || return 1
-    log "Создана база joyrest_test"
-  fi
+  local count db
+  for db in joyrest_test joyrest_lite_test; do
+    count=$(psql_prod "select count(*) from pg_database where datname = '$db'") || return 1
+    if [ "$count" = 0 ]; then
+      psql_prod "create database $db owner joyrest" >/dev/null || return 1
+      log "Создана база $db"
+    fi
+  done
   db_role_grants
 }
 
@@ -276,7 +279,8 @@ db_role_grants() {
   local db role exists
   exists=$(psql_in postgres "select count(*) from pg_roles where rolname in ('$DB_ROLE_PROD', '$DB_ROLE_TEST')" 2>/dev/null) || return 0
   [ "$exists" = 2 ] || return 0
-  for db in joyrest_prod joyrest_test; do
+  # joyrest_lite_test (Лайт для проверки) — та же тестовая роль: там код тех же веток.
+  for db in joyrest_prod joyrest_test joyrest_lite_test; do
     role=$([ "$db" = joyrest_prod ] && echo "$DB_ROLE_PROD" || echo "$DB_ROLE_TEST")
     [ "$(psql_in postgres "select count(*) from pg_database where datname = '$db'")" = 1 ] || continue
     psql_stdin postgres <<SQL || return 1
@@ -335,9 +339,9 @@ SQL
   prod_pass=""
   test_pass=""
   echo "Перезапускаю приложения на новых ролях (несколько секунд)…"
-  if ! ( recreate_apps app-prod app-test ); then
+  if ! ( recreate_apps app-prod app-test app-lite-test ); then
     mv -f "$ROOT_DIR/secrets.env.before-db-roles" "$ROOT_DIR/secrets.env"
-    dc up -d --no-deps app-prod app-test >/dev/null 2>&1 || true
+    dc up -d --no-deps app-prod app-test app-lite-test >/dev/null 2>&1 || true
     die "Приложения не поднялись на новых ролях — вернул как было. Пришлите: joyrest logs app-prod 100"
   fi
   rm -f "$ROOT_DIR/secrets.env.before-db-roles"
@@ -358,7 +362,7 @@ ensure_dirs() {
   install -d -m 700 "$SITE_AUTH_DIR"
   # Картинки игр: файлы вне базы, пишет приложение (пользователь node в образе, uid 1000).
   install -d -m 755 "$ROOT_DIR/media"
-  install -d -m 700 -o 1000 -g 1000 "$ROOT_DIR/media/prod" "$ROOT_DIR/media/test"
+  install -d -m 700 -o 1000 -g 1000 "$ROOT_DIR/media/prod" "$ROOT_DIR/media/test" "$ROOT_DIR/media/lite-test"
 }
 
 # Системные файлы из текущего релиза: команды, привратник, службы systemd, Caddy.
@@ -453,7 +457,11 @@ fetch_release() {
 # процессов и в docker inspect.
 run_migrations() {
   local env=$1 image=$2 db password envfile code=0
-  db=$([ "$env" = prod ] && echo joyrest_prod || echo joyrest_test)
+  case "$env" in
+    prod) db=joyrest_prod ;;
+    lite) db=joyrest_lite_test ;;
+    *) db=joyrest_test ;;
+  esac
   password=$(sed -n 's/^POSTGRES_PASSWORD=//p' "$ROOT_DIR/secrets.env")
   envfile=$(umask 077 && mktemp "$ROOT_DIR/.migrate-env.XXXXXX") || return 1
   printf 'DATABASE_URL=postgres://joyrest:%s@postgres:5432/%s\n' "$password" "$db" > "$envfile"
@@ -496,7 +504,8 @@ start_env() {
   if [ "$1" = prod ]; then
     if install_system; then dc up -d --remove-orphans; reload_caddy; else dc up -d --remove-orphans; fi
   else
-    dc up -d --no-deps app-test
+    # Лайт для проверки — тот же образ, что у app-test (deploy/compose.yml).
+    dc up -d --no-deps app-test app-lite-test
   fi
 }
 
@@ -579,6 +588,10 @@ deploy_env() {
     echo "$sha" > "$DEPLOY_DIR/failed-$env"
     log "[$env] $sha: ошибка миграции"
     return 1
+  fi
+  # База Лайта для проверки: ошибка не останавливает выкладку test (Лайт — только проверка), но пишется в журнал.
+  if [ "$env" = test ] && ! run_migrations lite "$(sed -n 's/^APP_IMAGE=//p' "$ROOT_DIR/releases/$sha/release.env")"; then
+    log "[test] $sha: ошибка миграции базы Лайта (joyrest_lite_test) — app-lite-test может не подняться"
   fi
 
   # Ошибку переключения или запуска ловит проверка /health ниже и откатывает.
@@ -949,7 +962,7 @@ cmd_status() {
 cmd_logs() {
   local service="${1:-}" lines="${2:-100}"
   if [[ "$service" =~ ^[0-9]+$ ]]; then lines="$service"; service=""; fi
-  case "$service" in ""|app-prod|app-test|caddy|postgres) ;; *) die "Нет сервиса $service" ;; esac
+  case "$service" in ""|app-prod|app-test|app-lite-test|caddy|postgres) ;; *) die "Нет сервиса $service" ;; esac
   [[ "$lines" =~ ^[0-9]+$ ]] || die "N — число строк"
   if [ -n "$service" ]; then
     dc logs --no-color --timestamps --tail "$lines" "$service"
@@ -962,7 +975,7 @@ cmd_restart() {
   need_root restart
   case "${1:-}" in
     "") dc restart ;;
-    app-prod|app-test|caddy|postgres) dc restart "$1" ;;
+    app-prod|app-test|app-lite-test|caddy|postgres) dc restart "$1" ;;
     *) die "Нет сервиса $1" ;;
   esac
 }

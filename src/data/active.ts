@@ -36,6 +36,7 @@ import type {
 import { answersRepository } from "./answers";
 import { authService as firebaseAuthService } from "./auth";
 import { dataBackend } from "./backend";
+import { edition } from "./edition";
 import { clockService as firestoreClock } from "./clock";
 import { gamesRepository } from "./games";
 import { mediaRepository } from "./media";
@@ -73,6 +74,12 @@ import { sessionsRepository } from "./sessions";
 import { usersRepository } from "./users";
 
 const server = dataBackend() === "server";
+/**
+ * Разделы агентства (CRM, команда, баллы, площадки, Telegram, предложения в библиотеку) — только на
+ * своём сервере в платформе агентства. В Лайте их хранилища null: экраны и меню прячут их так же,
+ * как в Firebase-версии, а сервер Лайта их адресов не регистрирует (server/src/app.ts).
+ */
+const agency = server && edition() !== "lite";
 
 export const authService: AuthService = server ? serverAuthService : firebaseAuthService;
 export const usersRepo: UsersRepository = server ? serverUsersRepository : usersRepository;
@@ -85,10 +92,10 @@ export const resultsRepo: ResultsRepository = server ? serverResultsRepository :
 export const clock: ClockService = server ? serverClock : firestoreClock;
 
 /** Предложения в библиотеку — только на своём сервере. */
-export const proposalsRepo: ProposalsRepository | null = server ? serverProposalsRepository : null;
+export const proposalsRepo: ProposalsRepository | null = agency ? serverProposalsRepository : null;
 
 /** Квалификация, стаж и баллы ведущих — только на своём сервере. */
-export const staffRepo: StaffRepository | null = server ? serverStaffRepository : null;
+export const staffRepo: StaffRepository | null = agency ? serverStaffRepository : null;
 /** Папки «Моих игр» — только свой сервер. */
 export const gameFoldersRepo: typeof serverGameFolders | null = server ? serverGameFolders : null;
 /** Музыка — только свой сервер. */
@@ -106,19 +113,19 @@ export const finaleRepo: FinaleRepository | null = server ? serverFinaleReposito
 /** Видео JoyRest — только свой сервер. */
 export const videosRepo: VideosRepository | null = server ? serverVideosRepository : null;
 /** «Команда JoyRest» — только свой сервер. */
-export const teamRepo: TeamRepository | null = server ? serverTeamRepository : null;
+export const teamRepo: TeamRepository | null = agency ? serverTeamRepository : null;
 /** Экран зала сообщает пульту, что он на связи и звук разрешён, — только свой сервер. */
 export const screenRepo: ScreenStatusRepository | null = server ? serverScreenStatusRepository : null;
 /** «Помощь зала» по QR — только свой сервер. */
 export const audienceRepo: AudienceRepository | null = server ? serverAudienceRepository : null;
 /** База площадок, анкеты и предложения клиентам — только свой сервер. */
-export const venuesRepo: VenuesRepository | null = server ? serverVenuesRepository : null;
+export const venuesRepo: VenuesRepository | null = agency ? serverVenuesRepository : null;
 /** Календарь команды — только свой сервер. */
-export const calendarRepo: CalendarRepository | null = server ? serverCalendarRepository : null;
+export const calendarRepo: CalendarRepository | null = agency ? serverCalendarRepository : null;
 /** Планировщик мероприятий — только свой сервер. */
-export const eventsRepo: EventsRepository | null = server ? serverEventsRepository : null;
+export const eventsRepo: EventsRepository | null = agency ? serverEventsRepository : null;
 /** База клиентов — только свой сервер. */
-export const clientsRepo: ClientsRepository | null = server ? serverClientsRepository : null;
-export const noticesRepo: NoticesRepository | null = server ? serverNoticesRepository : null;
+export const clientsRepo: ClientsRepository | null = agency ? serverClientsRepository : null;
+export const noticesRepo: NoticesRepository | null = agency ? serverNoticesRepository : null;
 /** Свой Telegram для уведомлений — только свой сервер. */
-export const telegramRepo: TelegramRepository | null = server ? serverTelegramRepository : null;
+export const telegramRepo: TelegramRepository | null = agency ? serverTelegramRepository : null;

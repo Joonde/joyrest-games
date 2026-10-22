@@ -156,6 +156,34 @@ services:
     mem_limit: 256m
     logging: *logging
 
+  # JoyRest Лайт для проверки (lite-test.joy-rest.ru): тот же образ, что у app-test (выкладывается вместе
+  # с ним из веток claude/*), редакция lite — без CRM, бота, сайта агентства. Своя база joyrest_lite_test
+  # (та же тестовая роль, что у app-test) и своя папка файлов. Памяти меньше всех: только проверка
+  # (CLAUDE.md, «JoyRest Лайт»); подписчики Лайта — на отдельном сервере.
+  app-lite-test:
+    image: ${APP_TEST_IMAGE}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${TEST_DB_USER:-joyrest}:${TEST_DB_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/joyrest_lite_test
+      PUBLIC_DIR: /app/public
+      NODE_OPTIONS: --max-old-space-size=120
+      EDITION: lite
+      DATA_BACKEND: server
+      MEDIA_DIR: /app/media
+    volumes:
+      - /srv/joyrest/media/lite-test:/app/media
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [web-test, db-test]
+    mem_limit: 192m
+    logging: *logging
+
 networks:
   web: {}
   web-test: {}

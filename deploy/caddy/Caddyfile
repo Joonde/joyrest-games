@@ -49,6 +49,17 @@ test.games.joy-rest.ru {
 	}
 }
 
+# JoyRest Лайт для проверки (app-lite-test, редакция lite). Поисковикам не показываем.
+lite-test.joy-rest.ru {
+	import security
+	import body_limits
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+	reverse_proxy app-lite-test:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+}
+
 # Сайт агентства: файлы из того же образа, что и платформа (app-prod выбирает сайт по Host),
 # поэтому выкладка, откат и уведомления общие. По умолчанию сайт ВЫКЛЮЧЕН: app-prod отдаёт
 # заглушку «скоро» (deploy/caddy/soon) и не принимает заявки. Включает только владелец —

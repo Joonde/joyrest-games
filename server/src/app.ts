@@ -32,6 +32,7 @@ import { registerDrawings } from "./drawings";
 import { registerPolls } from "./polls";
 import { registerVenues, type VenuesOptions } from "./venues";
 import { hostPattern, registerSite, type SiteOptions } from "./site";
+import { withEdition, type Edition } from "./edition";
 
 export interface AppOptions {
   /** Версия (коммит) — выкладка сверяет её через /health. */
@@ -54,6 +55,12 @@ export interface AppOptions {
    * переезда). Сервер сообщает её меткой в index.html; по умолчанию — Firebase.
    */
   dataBackend?: DataBackend;
+  /**
+   * Редакция: `agency` (по умолчанию) — платформа агентства, `lite` — подписочная без CRM
+   * (server/src/edition.ts). В Лайте нет сайта агентства, заявок, клиентов, мероприятий,
+   * календаря, площадок, Telegram, команды, баллов и предложений в библиотеку.
+   */
+  edition?: Edition;
   /**
    * База для API платформы (вход и ведущие — PR 3.1); null — API нет (тесты без базы).
    * `auth` — настройки для тестов (часы, лимиты).
@@ -112,10 +119,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return { ok: database, version: options.version, database: database ? "ok" : "error" };
   });
 
-  // Сайт агентства и заявки — только на его адресах (ограничение маршрутов по Host).
-  const site = options.site ? registerSite(app, options.site) : null;
+  const lite = options.edition === "lite";
+  // Сайт агентства и заявки — только на его адресах (ограничение маршрутов по Host). В Лайте сайта агентства нет.
+  const siteOptions = lite ? null : options.site;
+  const site = siteOptions ? registerSite(app, siteOptions) : null;
   // Заявки — только у включённого сайта: при `joyrest site off` и в витрине (`site showcase`) /api/lead отвечает 404.
-  if (options.site?.enabled && options.lead) {
+  if (siteOptions?.enabled && options.lead) {
     const sql = options.sql;
     // Заявка и вопрос с сайта — клиент в базу клиентов (CLAUDE.md, «База клиентов»).
     const onLead = sql
@@ -144,11 +153,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
           }
         }
       : undefined;
-    registerLead(app, { ...options.lead, hosts: options.site.hosts, onLead }, { constraints: { host: hostPattern(options.site.hosts) } });
+    registerLead(app, { ...options.lead, hosts: siteOptions.hosts, onLead }, { constraints: { host: hostPattern(siteOptions.hosts) } });
   }
   // Лента отзывов — у включённого сайта и в витрине, только на его адресах (принимать отзывы витрина не умеет).
-  if ((options.site?.enabled || options.site?.showcase) && options.sql) {
-    registerSiteReviews(app, options.sql, { constraints: { host: hostPattern(options.site.hosts) } });
+  if ((siteOptions?.enabled || siteOptions?.showcase) && options.sql) {
+    registerSiteReviews(app, options.sql, { constraints: { host: hostPattern(siteOptions.hosts) } });
   }
   // API платформы: вход ведущих и управление ведущими. На адресах сайта агентства — 404.
   if (options.sql) {
@@ -156,8 +165,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerAuth(app, { ...options.auth, sql: options.sql, isSite });
     registerGames(app, { ...options.games, sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerLive(app, { ...options.live, sql: options.sql, isSite });
-    registerProposals(app, { sql: options.sql, isSite });
-    registerStaff(app, { sql: options.sql, isSite });
+    if (!lite) {
+      registerProposals(app, { sql: options.sql, isSite });
+      registerStaff(app, { sql: options.sql, isSite });
+    }
     registerTracks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerVideos(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerFinale(app, { sql: options.sql, isSite });
@@ -166,6 +177,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
     registerDecks(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerDrawings(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerPolls(app, { sql: options.sql, isSite });
+  }
+  // Разделы агентства (CRM, команда, площадки, Telegram) — только в платформе агентства.
+  if (options.sql && !lite) {
+    const isSite = site ? site.isSite : undefined;
     registerTeam(app, { sql: options.sql, isSite, mediaDir: options.mediaDir ?? null });
     registerCalendar(app, { sql: options.sql, isSite, bot: options.bot ?? null });
     registerEvents(app, { sql: options.sql, isSite, bot: options.bot ?? null });
@@ -188,7 +203,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const publicDir = options.publicDir;
   if (publicDir && existsSync(join(publicDir, "index.html"))) {
     // Страница приложения собирается один раз при запуске: файл в образе не меняется.
-    const indexHtml = withDataBackend(readFileSync(join(publicDir, "index.html"), "utf8"), options.dataBackend ?? "firebase");
+    const indexHtml = withEdition(
+      withDataBackend(readFileSync(join(publicDir, "index.html"), "utf8"), options.dataBackend ?? "firebase"),
+      options.edition ?? "agency",
+    );
     const sendIndex = (reply: FastifyReply) => reply.header("Cache-Control", "no-cache").type("text/html; charset=utf-8").send(indexHtml);
 
     app.register(fastifyStatic, {

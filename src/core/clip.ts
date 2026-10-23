@@ -100,7 +100,7 @@ export function clipFields(clip: Clip): Record<string, unknown> {
  * угадывания, начало или конец припева, `chorus` — весь припев целиком (длина та же).
  * Длина трека неизвестна — без правого края.
  */
-export function moveHandle(clip: Clip, which: "start" | "end" | "chorus" | "chorusStart" | "chorusEnd", seconds: number, duration: number | null): Clip {
+export function moveHandle(clip: Clip, which: "start" | "end" | "guess" | "chorus" | "chorusStart" | "chorusEnd", seconds: number, duration: number | null): Clip {
   const max = duration && duration > 0 ? Math.floor(duration) : CLIP_LIMITS.maxStart + CLIP_LIMITS.maxLength;
   const s = Math.max(0, Math.round(seconds));
   if (which === "start") {
@@ -109,9 +109,15 @@ export function moveHandle(clip: Clip, which: "start" | "end" | "chorus" | "chor
     const length = Math.min(CLIP_LIMITS.maxLength, end - Math.max(0, start));
     return { ...clip, start: Math.max(0, end - length), length };
   }
+  if (which === "guess") {
+    // Поле «С секунды»: весь фрагмент угадывания сдвигается, длина та же.
+    return { ...clip, start: Math.max(0, Math.min(s, max - clip.length)) };
+  }
   if (which === "end") {
-    const end = Math.min(max, Math.max(clip.start + CLIP_LIMITS.minLength, Math.min(s, clip.start + CLIP_LIMITS.maxLength)));
-    return { ...clip, length: end - clip.start };
+    // Начало за концом трека (трек заменили на короче) — сначала подвигаем начало, длина не бывает меньше минимума.
+    const from = Math.max(0, Math.min(clip.start, max - CLIP_LIMITS.minLength));
+    const end = Math.min(max, Math.max(from + CLIP_LIMITS.minLength, Math.min(s, from + CLIP_LIMITS.maxLength)));
+    return { ...clip, start: from, length: Math.max(CLIP_LIMITS.minLength, end - from) };
   }
   const from = clip.chorusStart ?? 0;
   if (which === "chorusStart") {
@@ -120,8 +126,9 @@ export function moveHandle(clip: Clip, which: "start" | "end" | "chorus" | "chor
     return { ...clip, chorusStart: start, chorusLength: end - start };
   }
   if (which === "chorusEnd") {
-    const end = Math.min(max, Math.max(from + CLIP_LIMITS.minLength, Math.min(s, from + CLIP_LIMITS.maxLength)));
-    return { ...clip, chorusStart: from, chorusLength: Math.max(CLIP_LIMITS.minLength, end - from) };
+    const at = Math.max(0, Math.min(from, max - CLIP_LIMITS.minLength));
+    const end = Math.min(max, Math.max(at + CLIP_LIMITS.minLength, Math.min(s, at + CLIP_LIMITS.maxLength)));
+    return { ...clip, chorusStart: at, chorusLength: Math.max(CLIP_LIMITS.minLength, end - at) };
   }
   const chorus = Math.min(Math.max(0, max - clip.chorusLength), s);
   return { ...clip, chorusStart: chorus };

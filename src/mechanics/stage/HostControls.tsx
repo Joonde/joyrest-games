@@ -250,15 +250,18 @@ export function StageHostControls({ session, content, answers, participants, con
           {r.mode === "result" && tile.kind === "battle" && (
             <div className="stack stack--tight">
               <p className="muted small">Зал решил иначе (аплодисментами)? Поправьте итог:</p>
-              <div className="row">
+              {/* Столбиком во всю ширину: «Победил: длинное имя» на телефоне 320 px не выталкивает пульт вбок. */}
+              <div className="actions">
                 {[r.performer, r.opponent].map((p) =>
                   p ? (
-                    <button key={p} type="button" className={r.winner === p ? "btn" : "btn btn--secondary"} disabled={busy} onClick={() => void run((s) => setBattleWinner(s, content, p))}>
-                      Победил: <NameText name={name(p)} />
+                    <button key={p} type="button" className={r.winner === p ? "btn" : "btn btn--secondary"} aria-pressed={r.outcome === "win" && r.winner === p} disabled={busy} onClick={() => void run((s) => setBattleWinner(s, content, p))}>
+                      <span>
+                        Победил: <NameText name={name(p)} />
+                      </span>
                     </button>
                   ) : null,
                 )}
-                <button type="button" className={r.outcome === "tie" ? "btn" : "btn btn--secondary"} disabled={busy} onClick={() => void run((s) => setBattleWinner(s, content, "tie"))}>
+                <button type="button" className={r.outcome === "tie" ? "btn" : "btn btn--secondary"} aria-pressed={r.outcome === "tie"} disabled={busy} onClick={() => void run((s) => setBattleWinner(s, content, "tie"))}>
                   Ничья
                 </button>
               </div>

@@ -131,6 +131,41 @@ function decorative(el: Element, root: Element): boolean {
   return false;
 }
 
+/**
+ * Повёрнут ли элемент или его предок до области (`transform` с поворотом или наклоном — матрица с b ≠ 0 или c ≠ 0,
+ * свойство `rotate`): карты «Дурака» веером, козырь на 90°. У повёрнутого элемента getBoundingClientRect — внешняя
+ * рамка повёрнутого прямоугольника, она шире самого элемента, и «обрезан» / «за краем» по ней — ложная находка.
+ */
+function rotated(el: Element, root: Element): boolean {
+  for (let cur: Element | null = el; cur && cur !== root.parentElement; cur = cur.parentElement) {
+    const cs = getComputedStyle(cur);
+    if (cs.rotate && cs.rotate !== "none" && !/^0(deg|rad|turn)?$/.test(cs.rotate.trim())) return true;
+    const t = cs.transform;
+    if (t && t !== "none") {
+      const m = t.match(/^matrix(3d)?\(([^)]+)\)$/);
+      if (m) {
+        const v = (m[2] ?? "").split(",").map(Number);
+        // matrix(a, b, c, d, e, f); matrix3d: b — 2-е, c — 5-е число.
+        const b = v[1];
+        const c = m[1] ? v[4] : v[2];
+        if (Math.abs(b ?? 0) > 0.01 || Math.abs(c ?? 0) > 0.01) return true;
+      }
+    }
+    if (cur === root) break;
+  }
+  return false;
+}
+
+/** Сложная форма: clip-path у элемента или предка до области (половинки рубашки «Правда или действие»). */
+function shaped(el: Element, root: Element): boolean {
+  for (let cur: Element | null = el; cur && cur !== root.parentElement; cur = cur.parentElement) {
+    const cp = getComputedStyle(cur).clipPath;
+    if (cp && cp !== "none" && !cp.includes("inset(50%")) return true;
+    if (cur === root) break;
+  }
+  return false;
+}
+
 /** Видно ли элемент вообще: display, visibility, прозрачность, закрытый <details> (content-visibility). */
 function shown(el: Element): boolean {
   const check = (el as Element & { checkVisibility?: (o: object) => boolean }).checkVisibility;
@@ -242,7 +277,7 @@ export function inspectArea(o: InspectOptions): Raw[] {
   const { root, area } = o;
   const rootRect = root.getBoundingClientRect();
   if (rootRect.width < 2 || rootRect.height < 2) return out;
-  const leaves: { el: Element; text: string; rect: Box; lines: Box[]; cs: CSSStyleDeclaration }[] = [];
+  const leaves: { el: Element; text: string; rect: Box; lines: Box[]; cs: CSSStyleDeclaration; turned: boolean; shape: boolean }[] = [];
   const add = (kind: string, message: string, el: Element, rect: Box, text = "") =>
     out.push({ kind, message, el, path: cssPath(el, root), text: text.slice(0, 80), rect });
 
@@ -256,7 +291,7 @@ export function inspectArea(o: InspectOptions): Raw[] {
     if (!r || visuallyHidden(el, r)) continue;
     if (opacityChain(el, root) < 0.15) continue;
     const cs = getComputedStyle(el);
-    leaves.push({ el, text, rect: r, lines: textLines(el), cs });
+    leaves.push({ el, text, rect: r, lines: textLines(el), cs, turned: rotated(el, root), shape: shaped(el, root) });
   }
 
   // 1. Мусор вместо текста. Смотрим и подписи кнопок (aria-label, title) — их читают и видят.
@@ -269,6 +304,8 @@ export function inspectArea(o: InspectOptions): Raw[] {
 
   // 2. Обрезано или уехало: текст выходит за родителя, который его обрезает (overflow), или за саму область.
   for (const l of leaves) {
+    // Повёрнутый текст: рамка шире самого текста — по ней не судим (см. `rotated`).
+    if (l.turned) continue;
     const r = l.rect;
     for (let cur = l.el.parentElement as Element | null, self: Element | null = l.el; self && self !== root.parentElement; self = cur, cur = cur?.parentElement ?? null) {
       const c = self === l.el ? l.cs : getComputedStyle(self);
@@ -307,6 +344,8 @@ export function inspectArea(o: InspectOptions): Raw[] {
     for (let j = i + 1; j < leaves.length; j++) {
       const b = leaves[j];
       if (!b || a.el.contains(b.el) || b.el.contains(a.el) || b.el.closest(LAYERED)) continue;
+      // Повёрнутые (веер карт) и вырезанные по форме (clip-path) — рамки строк не совпадают с видимым текстом.
+      if (a.turned || b.turned || a.shape || b.shape) continue;
       // По строкам: имя в две строки рядом со смайликом — не наложение.
       let hit = false;
       for (const la of a.lines)
@@ -325,6 +364,11 @@ export function inspectArea(o: InspectOptions): Raw[] {
     if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue;
     const top = document.elementFromPoint(cx, cy);
     // Кнопки экрана зала («Во весь экран») сами прячутся через 3 с без мыши — их не считаем.
+    // Кнопка сложной формы (clip-path): центр её рамки может лежать на соседней половинке — сверху «другой» элемент,
+    // хотя видимая часть открыта. Сам текст или потомок той же кнопки — тоже не «закрыт».
+    const ownButton = a.el.closest("button, [role=button]");
+    if (top && ownButton && ownButton.contains(top)) continue;
+    if (top && (a.shape || shaped(top, root))) continue;
     if (top && top !== a.el && !a.el.contains(top) && !top.contains(a.el) && root.contains(top) && !top.closest(SERVICE)) {
       const tcs = getComputedStyle(top);
       const bg = rgba(tcs.backgroundColor);

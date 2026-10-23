@@ -10,7 +10,7 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { isKey, newKey, storedKey, storeKey } from "../mafia/seal";
 import { quotaNow, type BunkerContent } from "./content";
 import { BunkerCard, CardBack, CatastropheCard, Dossier, Icon, SpecialCard, ThreatCard, TraitCard } from "./CardArt";
-import { openPhoneCard, type PhoneCard } from "./deal";
+import { openPhoneCard, openRefusal, type PhoneCard, type SealedRefusal } from "./deal";
 import { CAT_TITLES, CATS, cardText, type Cat } from "./decks";
 import { answerOf, openable, parseBunkerResult, useSig, type BunkerAnswer, type BunkerResult } from "./logic";
 import { REFUSALS, SPECIAL_BY_ID, type Refusal } from "./specials";
@@ -78,12 +78,18 @@ function Dossiers({ session, r, highlight }: { session: Session; r: BunkerResult
   const cols = r.seats.length <= 8 ? r.seats.length : Math.ceil(r.seats.length / 2);
   const rows = r.seats.length <= 8 ? 1 : 2;
   // Размер — и по ширине колонки, и по высоте: досье (до 16 строк текста) не залезают на таймер и карту хода.
-  const fs = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, ${rows === 1 ? 2.8 : 1.35}cqh)`;
+  // В один ряд — не мельче 1,95cqh: строки досье (0,9em) читаются с другого конца зала и на проекторе 4:3 (Ревизор).
+  // В два ряда (9–16 игроков) — компактные досье (`dense`): закрытые карты значками в одну строку, открытые — по строке
+  // текста. Размер — 2cqh (строка карты 0,9em = 1,8% высоты экрана) и на телевизоре, и на проекторе 4:3; узкая
+  // колонка обрезает длинный текст многоточием, а не уменьшает шрифт.
+  const dense = rows === 2;
+  const base = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, 2.8cqh)`;
+  const fs = dense ? "2cqh" : `max(1.95cqh, ${base})`;
   return (
-    <ol className="bk-screen__dossiers" style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
+    <ol className={`bk-screen__dossiers${dense ? " is-dense" : ""}`} style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
       {r.seats.map((p, i) => (
         <li key={p}>
-          <Dossier name={nameOf(session, p)} seat={i + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} exiled={r.exiled.includes(p)} speaking={highlight === p} />
+          <Dossier name={nameOf(session, p)} seat={i + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} exiled={r.exiled.includes(p)} speaking={highlight === p} dense={dense} />
         </li>
       ))}
     </ol>
@@ -279,7 +285,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
   }
 
   return (
-    <div className={`bk-screen${big ? " bk-screen--big" : ""}`}>
+    <div className={`bk-screen${big ? " bk-screen--big" : ""}${!big && r.seats.length > 8 ? " bk-screen--dense" : ""}`}>
       <header className="bk-screen__top">
         <div className="bk-screen__cata">
           <CatastropheCard id={r.catastrophe} years={r.years} places={r.places} compact />
@@ -382,6 +388,25 @@ function Final({ session, content, r }: { session: Session; content: BunkerConte
 
 // ——————————————————————————————————————————— телефон
 
+/** Свой отказ на «сыграть особое условие» (зашифрован ключом этого телефона). */
+function usePhoneRefusal(key: string | null, sealed: string | undefined): SealedRefusal | null {
+  const [got, setGot] = useState<SealedRefusal | null>(null);
+  useEffect(() => {
+    if (!key || !sealed) {
+      setGot(null);
+      return;
+    }
+    let live = true;
+    void openRefusal(key, sealed)
+      .catch(() => null)
+      .then((x) => live && setGot(x));
+    return () => {
+      live = false;
+    };
+  }, [key, sealed]);
+  return got;
+}
+
 /** Своя карта: undefined — ещё открываем, null — на этом телефоне не открыть (нет ключа или карты). */
 function usePhoneCard(key: string | null, sealed: string | undefined, dealt: boolean): PhoneCard | null | undefined {
   const [card, setCard] = useState<PhoneCard | null | undefined>(undefined);
@@ -429,6 +454,8 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
   }, [dealing, myAnswer, sending]);
 
   const card = usePhoneCard(key, r.sealed[pid], r.mode !== "deal" && r.hostSeal !== null);
+  const sealedRefusal = usePhoneRefusal(key, r.refusedSeal[pid]);
+  const refused = r.refused[pid] ?? sealedRefusal ?? undefined;
   const now = useServerNow(500, r.speakEndsAt !== null || r.voteEndsAt !== null);
   const seated = r.seats.includes(pid);
   const alive = r.alive.includes(pid);
@@ -571,7 +598,7 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
           <span>Ведущий видит их на пульте — подойдите к нему тихо.</span>
         </p>
       ) : card ? (
-        <MyCards session={session} content={content} r={r} pid={pid} card={card} mine={mine} sending={sending} send={send} />
+        <MyCards session={session} content={content} r={r} pid={pid} card={card} mine={mine} refused={refused} sending={sending} send={send} />
       ) : (
         <p className="muted">Открываем ваши карты…</p>
       )}
@@ -620,14 +647,13 @@ export function BunkerPlayerView({ session, content, pid, myAnswer, sending, onA
 }
 
 /** Свои карты и особое условие. */
-function MyCards({ session, content, r, pid, card, mine, sending, send }: { session: Session; content: BunkerContent; r: BunkerResult; pid: string; card: PhoneCard; mine: BunkerAnswer; sending: boolean; send: (p: BunkerAnswer) => void }) {
+function MyCards({ session, content, r, pid, card, mine, refused, sending, send }: { session: Session; content: BunkerContent; r: BunkerResult; pid: string; card: PhoneCard; mine: BunkerAnswer; refused: SealedRefusal | undefined; sending: boolean; send: (p: BunkerAnswer) => void }) {
   const [target, setTarget] = useState<string>("");
   const [cat, setCat] = useState<Cat | "">("");
   const [choosing, setChoosing] = useState(false);
   const s = SPECIAL_BY_ID[card.char.special];
   const used = !!r.used[pid];
   const alive = r.alive.includes(pid);
-  const refused = r.refused[pid];
   const others = r.alive.filter((p) => p !== pid);
   const closedOf = (p: string) => CATS.filter((c) => !(r.open[p] ?? []).includes(c));
   const ready = s.target === "none" || (target && (s.target === "player" || cat));

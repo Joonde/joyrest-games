@@ -413,7 +413,7 @@ export function StoryHostControls({ session, content, answers, participants, con
           </button>
         )}
         {action === "liesStart" && l && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || facts.length < 2} onClick={() => void run(async () => { const list = rehearsal ? source : await control.freshAnswers(l.writeStep).catch(() => source); const m = liesStart(latest.current, content, l, list.length ? list : source); return m ? withLies(latest.current, m.lies, m.change) : null; })}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || facts.length < 2} onClick={() => void run(async () => { const list = rehearsal ? source : await control.freshAnswers(l.writeStep).catch(() => source); const m = liesStart(latest.current, content, l, list.length ? list : source, Math.random, teamOf); return m ? withLies(latest.current, m.lies, m.change) : null; })}>
             Показать игроков ({Math.min(facts.length, content.liesMax)})
           </button>
         )}
@@ -433,7 +433,7 @@ export function StoryHostControls({ session, content, answers, participants, con
           </button>
         )}
         {action === "endingStart" && e && (
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || endings.length < 1} onClick={() => void run(async () => { const list = rehearsal ? source : await control.freshAnswers(e.writeStep).catch(() => source); const m = endingStart(latest.current, content, e, list.length ? list : source); return m ? withEnding(latest.current, m.ending, m.change) : null; })}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy || endings.length < 1} onClick={() => void run(async () => { const list = rehearsal ? source : await control.freshAnswers(e.writeStep).catch(() => source); const m = endingStart(latest.current, content, e, list.length ? list : source, Math.random, teamOf); return m ? withEnding(latest.current, m.ending, m.change) : null; })}>
             Начать ({Math.min(endings.length, content.endingMax)} ист.)
           </button>
         )}

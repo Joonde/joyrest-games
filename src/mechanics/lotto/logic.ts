@@ -93,6 +93,16 @@ export interface LottoResult {
   replay: number;
   /** Видео песни на экране зала: команда пульта `n` (новая — выполнить), пауза сейчас. */
   video: LottoVideo;
+  /**
+   * Победы по песням: номер шага и приз каждого победителя. «Назад» через несколько песен снимает ровно эти очки и
+   * победы (по `last` в таблице нельзя — следующий показ его обнуляет). Нет у сессий, начатых до этого поля.
+   */
+  wins: LottoWin[];
+}
+
+export interface LottoWin {
+  step: number;
+  prizes: Record<string, number>;
 }
 
 /** Команды видео с пульта — как у «Танцуй как звезда»: пауза, дальше, −10 с, +10 с, остановить. */
@@ -120,9 +130,21 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
+function parseWins(value: unknown): LottoWin[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): LottoWin[] => {
+    const w = typeof item === "object" && item !== null ? (item as Record<string, unknown>) : {};
+    if (typeof w.step !== "number" || !Number.isInteger(w.step) || w.step < 0) return [];
+    const prizes: Record<string, number> = {};
+    const raw = typeof w.prizes === "object" && w.prizes !== null && !Array.isArray(w.prizes) ? (w.prizes as Record<string, unknown>) : {};
+    for (const [pid, n] of Object.entries(raw)) if (typeof n === "number" && Number.isFinite(n)) prizes[pid] = n;
+    return [{ step: w.step, prizes }];
+  });
+}
+
 export function parseLottoResult(raw: unknown): LottoResult {
   const r = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
-  return { winners: strings(r.winners), last: strings(r.last), rejected: strings(r.rejected), replay: typeof r.replay === "number" ? r.replay : 0, video: parseVideo(r.video) };
+  return { winners: strings(r.winners), last: strings(r.last), rejected: strings(r.rejected), replay: typeof r.replay === "number" ? r.replay : 0, video: parseVideo(r.video), wins: parseWins(r.wins) };
 }
 
 /** Заявка «Лото!» с телефона: отмеченные песни. */
@@ -172,8 +194,9 @@ export function lottoPrimary(session: Session, content: LottoContent): LottoActi
   return hasPodium(session.leaderboard) ? "podium" : "finish";
 }
 
-function carryWinners(session: Session): Pick<LottoResult, "winners"> {
-  return { winners: parseLottoResult(session.state.result).winners };
+function carryWinners(session: Session): Pick<LottoResult, "winners" | "wins"> {
+  const r = parseLottoResult(session.state.result);
+  return { winners: r.winners, wins: r.wins };
 }
 
 /** Включить песню: заявки принимаются, пока она звучит, и до показа названия. */
@@ -221,7 +244,14 @@ export function revealSong(session: Session, content: LottoContent, answers: Ans
       revealed: true,
       answered: own.length,
       // Видео дальше идёт как шло: название появляется поверх, караоке не обрывается.
-      result: { winners: [...prior.winners, ...deltas.map((d) => d.pid)], last: deltas.map((d) => d.pid), rejected: claimed.filter((pid) => !won.has(pid) && !prior.winners.includes(pid)), replay: prior.replay, video: prior.video },
+      result: {
+        winners: [...prior.winners, ...deltas.map((d) => d.pid)],
+        last: deltas.map((d) => d.pid),
+        rejected: claimed.filter((pid) => !won.has(pid) && !prior.winners.includes(pid)),
+        replay: prior.replay,
+        video: prior.video,
+        wins: [...prior.wins.filter((w) => w.step !== session.state.step), ...(deltas.length > 0 ? [{ step: session.state.step, prizes: Object.fromEntries(won) }] : [])],
+      },
     },
     leaderboard,
   };
@@ -255,25 +285,51 @@ export function lottoBack(session: Session): LottoBack | null {
     // Снимаем очки этой песни и её победителей: при повторном показе всё посчитается заново.
     const result = parseLottoResult(session.state.result);
     const leaderboard: Record<string, LeaderboardEntry> = {};
+    const win = result.wins.find((w) => w.step === step);
+    // Победы записаны по песням — снимаем ровно их; у старых сессий — по `last` в таблице.
+    const prizes: Record<string, number> = win
+      ? win.prizes
+      : Object.fromEntries(Object.entries(session.leaderboard).flatMap(([pid, e]) => (e.last ? [[pid, e.last]] : [])));
+    const lost = win ? Object.keys(win.prizes) : result.last;
     for (const [pid, entry] of Object.entries(session.leaderboard)) {
-      if (entry.last) leaderboard[pid] = { ...entry, score: entry.score - entry.last, last: 0 };
+      const prize = prizes[pid] ?? 0;
+      if (prize !== 0 || entry.last) leaderboard[pid] = { ...entry, score: entry.score - prize, last: 0 };
     }
-    const winners = result.winners.filter((pid) => !result.last.includes(pid));
-    return { change: { state: { stage: "question", revealed: false, result: { winners, last: [], rejected: [], replay: result.replay, video: result.video } }, leaderboard } };
+    const winners = result.winners.filter((pid) => !lost.includes(pid));
+    const wins = result.wins.filter((w) => w.step !== step);
+    return { change: { state: { stage: "question", revealed: false, result: { winners, last: [], rejected: [], replay: result.replay, video: result.video, wins } }, leaderboard } };
   }
   if (stage === "question") {
     if (step === 0) {
       return { change: { state: { stage: "ready", startedAt: null, revealed: false, answered: 0, result: carryWinners(session) } }, clearAnswers: step };
     }
     // Песня ещё не дозвучала — на название прошлой песни (её победители остаются).
-    // Победители прошлой песни — у кого в таблице её очки (`last`): «Назад» с её названия снимет
-    // и очки, и победу, иначе победитель остался бы в списке без очков.
-    const winners = parseLottoResult(session.state.result).winners;
-    const last = Object.entries(session.leaderboard)
-      .filter(([pid, e]) => (e.last ?? 0) > 0 && winners.includes(pid))
-      .map(([pid]) => pid);
+    const result = parseLottoResult(session.state.result);
+    const winners = result.winners;
+    const win = result.wins.find((w) => w.step === step - 1);
+    const leaderboard: Record<string, LeaderboardEntry> = {};
+    let last: string[];
+    if (win) {
+      // Победители прошлой песни и их «+300» на экране — как были при показе её названия.
+      last = winners.filter((pid) => win.prizes[pid] !== undefined);
+      for (const [pid, entry] of Object.entries(session.leaderboard)) {
+        const want = win.prizes[pid] ?? 0;
+        if ((entry.last ?? 0) !== want) leaderboard[pid] = { ...entry, last: want };
+      }
+    } else {
+      // Старые сессии: победители прошлой песни — у кого в таблице её очки (`last`).
+      last = Object.entries(session.leaderboard)
+        .filter(([pid, e]) => (e.last ?? 0) > 0 && winners.includes(pid))
+        .map(([pid]) => pid);
+    }
     // Видео прошлой песни — на паузе: ведущий сам решит, включать ли его снова.
-    return { change: { state: { step: step - 1, stage: "reveal", revealed: true, answered: 0, result: { winners, last, rejected: [], replay: 0, video: { n: 0, cmd: "pause", paused: true } } } }, clearAnswers: step };
+    return {
+      change: {
+        state: { step: step - 1, stage: "reveal", revealed: true, answered: 0, result: { winners, last, rejected: [], replay: 0, video: { n: 0, cmd: "pause", paused: true }, wins: result.wins } },
+        ...(Object.keys(leaderboard).length > 0 ? { leaderboard } : {}),
+      },
+      clearAnswers: step,
+    };
   }
   // «ready» бывает только перед первой песней.
   return null;

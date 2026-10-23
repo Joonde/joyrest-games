@@ -46,3 +46,21 @@ describe("музыкальный фрагмент", () => {
     expect(parseClip({ chorusStart: 30, chorusLength: 1 }).chorusLength).toBe(3);
   });
 });
+
+describe("поле «С секунды» и короткий трек (QA 22 октября 2026)", () => {
+  const base = parseClip({ start: 0, length: 15, chorusStart: 100, chorusLength: 10 });
+  it("«С секунды» сдвигает весь фрагмент, длина та же", () => {
+    expect(moveHandle(base, "guess", 45, 200)).toMatchObject({ start: 45, length: 15 });
+    expect(moveHandle(base, "guess", 195, 200)).toMatchObject({ start: 185, length: 15 });
+  });
+  it("начало за концом трека — длина не уходит в минус", () => {
+    const far = { ...base, start: 100 };
+    const r = moveHandle(far, "end", 110, 60);
+    expect(r.length).toBeGreaterThanOrEqual(3);
+    expect(r.start + r.length).toBeLessThanOrEqual(60);
+    const ch = moveHandle(base, "chorusEnd", 120, 60);
+    expect(ch.chorusLength).toBeGreaterThanOrEqual(3);
+    expect((ch.chorusStart ?? 0) + ch.chorusLength).toBeLessThanOrEqual(60);
+  });
+});
+

@@ -230,3 +230,65 @@ describe("оформление экрана зала «Гонки на выжи�
     expect(showStageClass("track")).toBe(" show-stage show-stage--track");
   });
 });
+
+describe("Гонка на выживание: «Назад» с заставки (QA 22 октября 2026)", () => {
+  it("заставка раунда — к итогу прошлого раунда (очки остаются), ещё раз — показ отменён", () => {
+    let { s, content } = started();
+    s = apply(s, showRound(s, content, teams));
+    s = apply(s, revealRound(s, content, [ans(s, "A", { choice: 1 })], teams));
+    const shown = s;
+    s = apply(s, nextRound(s, content, teams));
+    expect(parseSurvivalResult(s.state.result)).toMatchObject({ phase: "intro", round: 1 });
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(parseSurvivalResult(s.state.result)).toMatchObject({ phase: "reveal", round: 0, deltas: { A: 100 } });
+    expect(s.state).toMatchObject({ step: shown.state.step, stage: "reveal", revealed: true });
+    expect(s.leaderboard.A?.score).toBe(100);
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(parseSurvivalResult(s.state.result).phase).toBe("play");
+    expect(s.leaderboard.A?.score).toBe(0);
+    // Заставка первого раунда — к «Начать игру».
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(parseSurvivalResult(s.state.result).phase).toBe("intro");
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(survivalPrimary(s, content)).toBe("start");
+    expect(survivalBack(s, content, teams)).toBeNull();
+  });
+
+  it("заставка после аукциона — к итогу аукциона: билет и списанные очки остаются", () => {
+    let { s, content } = started();
+    content.tickets = [11];
+    s = skipTo(s, content, 11);
+    s = apply(s, { addScore: { B: 300 } });
+    expect(survivalPrimary(s, content)).toBe("auction");
+    s = apply(s, openAuction(s, content));
+    s = apply(s, finishAuction(s, [ans(s, "B", { bid: 120 })], teams));
+    s = apply(s, afterAuction(s));
+    expect(parseSurvivalResult(s.state.result).phase).toBe("intro");
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(parseSurvivalResult(s.state.result)).toMatchObject({ phase: "auctionDone", tickets: { B: 1 }, bid: { pid: "B", amount: 120 } });
+    expect(s.leaderboard.B?.score).toBe(180);
+    // Ещё «Назад» — аукцион снова открыт, ставка возвращена.
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(parseSurvivalResult(s.state.result).phase).toBe("auction");
+    expect(s.leaderboard.B?.score).toBe(300);
+  });
+
+  it("конец гонки — к итогу последнего раунда", () => {
+    let { s, content } = started();
+    s = skipTo(s, content, content.rounds.length);
+    // Последний раунд до конца.
+    while (parseSurvivalResult(s.state.result).phase !== "reveal") {
+      const a = survivalPrimary(s, content);
+      if (a === "bets") s = apply(s, openBets(s, content));
+      else if (a === "betsDone") s = apply(s, closeBets(s, content, [], teams));
+      else if (a === "show") s = apply(s, showRound(s, content, teams));
+      else s = apply(s, revealRound(s, content, [], teams));
+    }
+    const last = s;
+    s = apply(s, nextRound(s, content, teams));
+    expect(parseSurvivalResult(s.state.result).phase).toBe("over");
+    s = apply(s, survivalBack(s, content, teams)?.change ?? null);
+    expect(parseSurvivalResult(s.state.result)).toMatchObject({ phase: "reveal", round: content.rounds.length - 1 });
+    expect(s.leaderboard).toEqual(last.leaderboard);
+  });
+});

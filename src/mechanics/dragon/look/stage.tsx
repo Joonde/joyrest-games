@@ -48,7 +48,17 @@ function restart(el: Element | null, cls: string): void {
   el.classList.add(cls);
 }
 
-function Hearts({ lives, max }: { lives: number; max: number }) {
+function Hearts({ lives, max, compact = false }: { lives: number; max: number; compact?: boolean }) {
+  // Компактная карточка (9+ команд): одно сердце и число — ряд из 3–5 мелких сердец не читался с задних рядов.
+  if (compact)
+    return (
+      <span className="dg-hearts dg-hearts--n" aria-label={`Жизни: ${lives} из ${max}`}>
+        <span className={lives > 0 ? "is-on" : ""} aria-hidden="true">
+          ♥
+        </span>
+        <b aria-hidden="true">{lives}</b>
+      </span>
+    );
   return (
     <span className="dg-hearts" aria-label={`Жизни: ${lives} из ${max}`}>
       {Array.from({ length: Math.min(max, 12) }, (_, i) => (
@@ -401,7 +411,8 @@ export function DragonStage({ session, content }: ViewProps<DragonContent>) {
   const columns = [r.order.slice(0, half), r.order.slice(half)];
   const rows = Math.max(1, half);
   const rowH = Math.min(9.6, (38 - 0.8 * (rows - 1)) / rows);
-  const compact = rowH < 6.2;
+  // Полная карточка (имя, герой, жизни и урон крупным шрифтом) помещается от ~8.2 --u; ниже — без строки героя.
+  const compact = rowH < 8.2;
   const colStyle = { "--row": rowH } as CSSProperties;
 
   const intent = useMemo(() => {
@@ -478,12 +489,13 @@ export function DragonStage({ session, content }: ViewProps<DragonContent>) {
                   </span>
                   {!compact && <span className="dg-team__hero">{hero ? `${hero.name} · ${hero.ability}` : "Герой выбирается"}</span>}
                   <span className="dg-team__row">
-                    {fighting ? <Hearts lives={livesOf(p)} max={maxLives(content, h)} /> : <span />}
+                    {fighting ? <Hearts lives={livesOf(p)} max={maxLives(content, h)} compact={compact} /> : <span />}
                     <span className="dg-team__dm">
                       {roll ? <span className="dg-team__roll">🎲 {roll}</span> : null}
                       {fighting ? (
                         <>
-                          {kids ? "помогли " : "урон "}
+                          {compact ? "" : kids ? "помогли " : "урон "}
+                          {compact && <span aria-hidden="true">{kids ? "✨ " : "⚔ "}</span>}
                           <b>{(r.dmg[p] ?? 0).toLocaleString("ru-RU")}</b>
                         </>
                       ) : null}

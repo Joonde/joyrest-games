@@ -28,8 +28,19 @@ function partyLabel(content: DurakContent, r: DurakResult): string {
 const SUIT_WORD: Record<Suit, string> = { S: "пики", H: "червы", D: "бубны", C: "трефы" };
 const isTrump = (card: string, trump: Suit) => suitOf(card) === trump;
 
-/** Рука в несколько рядов: в ряду не больше 10 карт, иначе на телефоне их не различить. */
-const ROW_MAX = 10;
+/** Рука в несколько рядов: в ряду не больше 7 карт. Больше карт — в несколько рядов: веер из 8+ карт на телефоне 320 px сжимал карты так, что угол не читался. */
+const ROW_MAX = 7;
+/** Наибольший наклон крайней карты веера, градусы. */
+const FAN_MAX_DEG = 12;
+
+/** Насколько крайняя карта веера уходит вбок от наклона (в ширинах карты): поворот вокруг точки 1,3 высоты
+ * под верхом карты (transform-origin 50% 130%, высота = 1,4 ширины). Идёт в расчёт ширины карты (`--reach`),
+ * чтобы веер не вылезал за край телефона. */
+function fanReach(cards: number): number {
+  const deg = Math.min(FAN_MAX_DEG, 4.5 * Math.max(0, cards - 1));
+  const t = (deg * Math.PI) / 180;
+  return Math.max(0, 0.5 * Math.cos(t) + 1.82 * Math.sin(t) - 0.5);
+}
 function handRows(cards: string[]): string[][] {
   if (cards.length <= ROW_MAX) return [cards];
   const rows = Math.ceil(cards.length / ROW_MAX);
@@ -87,7 +98,7 @@ export function DurakScreenView({ session, content }: ViewProps<DurakContent>) {
   }, [r.last, seats, n]);
 
   return (
-    <div className={`dk-hall ${FELT[content.table]}`}>
+    <div className={`dk-hall ${FELT[content.table]}${r.mode === "vote" && r.vote ? " dk-hall--vote" : ""}`}>
       <div className="dk-hall__top">
         <div className="dk-croupier">
           <img src={CROUPIER_ART} alt="Крупье" className="dk-croupier__img" />
@@ -242,7 +253,7 @@ function DeckVoteScreen({ r, left }: { r: DurakResult; left: number | null }) {
           return (
             <div key={d.id} className={`dk-vote__tile${n > 0 && n === top ? " is-lead" : ""}${r.deckStyle === d.id ? " is-current" : ""}`}>
               <CardArt card={null} deck={d.id} width="12cqh" className="dk-bob" />
-              <CardArt card="KH" deck={d.id} width="7cqh" className="dk-vote__face" />
+              <CardArt card="KH" deck={d.id} width="9cqh" className="dk-vote__face" />
               <span className="dk-vote__name">{d.title}</span>
               <span className="dk-vote__bar">
                 <span style={{ width: `${pct}%` }} />
@@ -562,12 +573,16 @@ export function DurakPlayerView({ session, content, pid, role, myAnswer, sending
       <div className={`dk-hand${rows.length > 1 ? " dk-hand--rows" : ""}${canDrag ? " is-draggable" : ""}`} role="group" aria-label="Ваши карты">
         {hand === null && <p className="buzz__plate">Карты не открыть на этом телефоне — скажите ведущему.</p>}
         {rows.map((row, ri) => (
-          <div key={ri} className="dk-hand__row" style={{ "--n": Math.max(1, row.length - 1) } as CSSProperties}>
+          <div
+            key={ri}
+            className="dk-hand__row"
+            style={{ "--n": Math.max(1, row.length - 1), "--reach": rows.length > 1 ? 0 : fanReach(row.length).toFixed(3) } as CSSProperties}
+          >
             {row.map((c, i) => {
               const k = row.length;
               const off = i - (k - 1) / 2;
               // В несколько рядов карты лежат ровно: наклон веера поднимал крайние над соседним рядом.
-              const spread = rows.length > 1 ? 0 : Math.min(9, 60 / Math.max(1, k));
+              const spread = rows.length > 1 || k < 2 ? 0 : Math.min(FAN_MAX_DEG, 4.5 * (k - 1)) / ((k - 1) / 2);
               const dim = canPlay !== null && !canPlay.has(c);
               const sel = picked.includes(c);
               return (

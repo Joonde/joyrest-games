@@ -15,7 +15,7 @@ import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
 import { allCells, findCell, roundCategories, roundsOf, type BoardCell, type BoardContent } from "./content";
-import { maxBet, parseBoardResult, speakLeft, type BoardResult } from "./logic";
+import { cellImageOf, maxBet, parseBoardResult, speakLeft, type BoardResult } from "./logic";
 import { showStageClass } from "../showLook";
 
 /** Ответ гостя: нажатие кнопки или ставка в «Коте в мешке». */
@@ -112,7 +112,7 @@ function useCellMedia(session: Session, content: BoardContent, cell: BoardCell |
   // Заранее — картинки и треки всех клеток, что ещё не сыграны (поле небольшое).
   useEffect(() => {
     const left = allCells(content).filter(({ cell: c }) => !result.opened.includes(c.id));
-    preloadMedia(session.gameId, left.map(({ cell: c }) => c.imageId), "full");
+    preloadMedia(session.gameId, left.flatMap(({ cell: c }) => [c.imageId, c.answerImageId]), "full");
     left.slice(0, 6).forEach(({ cell: c }) => preloadTrack(c.trackId));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- раз на открытие поля
   }, [session.gameId, result.opened.length]);
@@ -228,10 +228,17 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
   const winner = name(result.buzz.winner);
   const revealed = stage === "reveal";
   const confetti = revealed && winner && cell.confetti ? <Confetti burst={`board:${step}`} /> : null;
+  // Картинка: сразу с вопросом, по кнопке ведущего или своя — к ответу (решение владельца 22 октября 2026).
+  const image = cellImageOf(cell, result, revealed);
   return (
-    <div className={`board-screen board-screen--question${cell.imageId ? " board-screen--image" : ""}${look}`}>
+    <div className={`board-screen board-screen--question${image ? " board-screen--image" : ""}${look}`}>
       {confetti}
       {head}
+      {result.auctionTie.length > 1 && (
+        <p className="board-screen__hint board-screen__tie" role="status">
+          Ставки равны ({result.catPrice}) у {result.auctionTie.length} — жребий выбрал: <NameText name={name(result.catTo) ?? ""} />
+        </p>
+      )}
       <h2 className="board-screen__question">
         {cell.trackId && (
           <span className="quiz-screen__note" aria-hidden="true">
@@ -240,7 +247,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
         )}
         {cell.text || (cell.trackId ? "Узнайте песню" : "Вопрос")}
       </h2>
-      {cell.imageId && <MediaImage className="board-screen__image" gameId={session.gameId} mediaId={cell.imageId} variant="full" alt="" />}
+      {image && <MediaImage key={image} className={revealed && image === cell.answerImageId ? "board-screen__image board-screen__image--answer" : "board-screen__image"} gameId={session.gameId} mediaId={image} variant="full" alt="" />}
       {revealed ? (
         <div className="board-screen__answer" role="status">
           {winner ? (
@@ -442,6 +449,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
     );
   }
 
+  const phoneImage = cellImageOf(cell, result, stage === "reveal");
   const pressed = myAnswer !== null && myAnswer !== undefined && isBuzz(myAnswer.value);
   // В «Коте в мешке» отвечает только тот, кому отдали вопрос; кнопки ни у кого нет.
   const noBet = result.catStep && !result.bets[pid];
@@ -454,7 +462,7 @@ export function BoardPlayerView({ session, content, pid, role, myAnswer, sending
     <div className="quiz-phone quiz-phone--center">
       {title}
       {noScreen && <h2 className="quiz-phone__question">{cell.text || "Узнайте песню"}</h2>}
-      {noScreen && cell.imageId && <MediaImage className="quiz-phone__image" gameId={session.gameId} mediaId={cell.imageId} variant="small" alt="" />}
+      {noScreen && phoneImage && <MediaImage key={phoneImage} className="quiz-phone__image" gameId={session.gameId} mediaId={phoneImage} variant="small" alt="" />}
       {result.catStep && stage === "question" ? (
         <div className="buzz">
           <div className={myBet ? "buzz__plate buzz__plate--glow" : "buzz__plate"} role="status">

@@ -228,7 +228,7 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
           <div className="q-numbers">
             <label className="field">
               С секунды
-              <ClampedNumber value={clip.start} min={0} max={3600} fallback={0} disabled={disabled} onChange={(v) => onChange(moveHandle(clip, "start", v, knownDuration))} />
+              <ClampedNumber value={clip.start} min={0} max={3600} fallback={0} disabled={disabled} onChange={(v) => onChange(moveHandle(clip, "guess", v, knownDuration))} />
             </label>
             <label className="field">
               Играть, секунд

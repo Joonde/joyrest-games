@@ -2,8 +2,11 @@
 //
 // Вся игра — один шаг (`question`, без таймера, ответы можно менять — `result.changeable`): гости раскрашивают фигуры на
 // телефонах и присылают их ответом `{ items: [...] }` (у каждого рисунка свой id, список растёт). Пульт ставит новые
-// рисунки на экран записью `result.items` (сразу или после просмотра ведущим), «Убрать» — в `result.gone`, повторно
-// рисунок не появится. Сцену (аквариум или ёлка), корм и режим гирлянды переключает пульт. Очков нет — в конце
+// рисунки на экран записью `result.items` (сразу или после просмотра ведущим). Какие рисунки уже разобраны (выпущены или
+// «Не показывать»), пульт помнит по порядку прихода: у каждого телефона список только растёт, поэтому `result.seen[pid]` —
+// сколько первых его рисунков разобрано, `result.skip[pid]` — разобранные не по порядку (ведущий выпустил третий раньше
+// второго). Убранный с экрана рисунок уже разобран и не вернётся. Ничего не забывается и не растёт без края: на телефон —
+// одно число и до `perGuest` номеров. `result.gone` — только у старых сессий (id убранных до этого учёта). Сцену (аквариум или ёлка), корм и режим гирлянды переключает пульт. Очков нет — в конце
 // «Завершить игру».
 import { leaderboardAdditions } from "../../core/leaderboard";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
@@ -13,8 +16,10 @@ import { figureById, figuresOf } from "./figures";
 
 /** Сколько фигур на сцене одновременно (ёлка — по числу мест, тоже до 40). */
 export const SCENE_CAP = 40;
-/** Сколько id убранных рисунков помним (чтобы не вернулись). */
+/** Старые сессии: сколько id убранных рисунков читаем из `result.gone`. */
 const GONE_CAP = 600;
+/** Сколько телефонов помним в `seen` (больше, чем гостей в одной игре). */
+const SEEN_CAP = 2000;
 export const NAME_MAX = 16;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const SHA = /^[0-9a-f]{64}$/;
@@ -34,13 +39,20 @@ export interface PhoneItem {
 export interface AquaItem extends PhoneItem {
   /** Чей рисунок (кто прислал ответ). */
   pid: string;
+  /** Номер рисунка в списке этого телефона (с 0); нет — рисунок старой сессии. */
+  n?: number;
 }
 
 export interface AquaResult {
   changeable: true;
   scene: SceneId;
   items: AquaItem[];
+  /** Старые сессии: ключи убранных рисунков. Новые записи сюда не идут (только если у рисунка нет номера). */
   gone: string[];
+  /** Сколько первых рисунков каждого телефона разобрано (выпущены или скрыты). */
+  seen: Record<string, number>;
+  /** Разобранные не по порядку: номера от `seen[pid]` и дальше. */
+  skip: Record<string, number[]>;
   /** Сколько раз покормили рыбок (экран кормит на каждое новое значение). */
   feed: number;
   /** Режим гирлянды: 0 — мерцание, 1 — волна, 2 — тёплый свет. */
@@ -66,7 +78,61 @@ function phoneItemOf(v: unknown): PhoneItem | null {
 function itemOf(v: unknown): AquaItem | null {
   const base = phoneItemOf(v);
   const pid = rec(v).pid;
-  return base && typeof pid === "string" && pid.length > 0 && pid.length <= 128 ? { ...base, pid } : null;
+  if (!base || typeof pid !== "string" || pid.length === 0 || pid.length > 128) return null;
+  const n = rec(v).n;
+  return typeof n === "number" && Number.isInteger(n) && n >= 0 && n < 1000 ? { ...base, pid, n } : { ...base, pid };
+}
+
+const PID_OK = (k: string) => k.length > 0 && k.length <= 128;
+
+function seenOf(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  let count = 0;
+  for (const [k, n] of Object.entries(rec(v))) {
+    if (!PID_OK(k) || typeof n !== "number" || !Number.isInteger(n) || n <= 0 || n > 1000) continue;
+    out[k] = n;
+    if (++count >= SEEN_CAP) break;
+  }
+  return out;
+}
+
+function skipOf(v: unknown, seen: Record<string, number>): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  let count = 0;
+  for (const [k, list] of Object.entries(rec(v))) {
+    if (!PID_OK(k) || !Array.isArray(list)) continue;
+    const from = seen[k] ?? 0;
+    const nums = [...new Set(list.filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n >= from && n < 1000))].sort((a, b) => a - b).slice(0, 50);
+    if (nums.length === 0) continue;
+    out[k] = nums;
+    if (++count >= SEEN_CAP) break;
+  }
+  return out;
+}
+
+/** Разобран ли рисунок номер `n` телефона `pid`. */
+function isHandled(r: Pick<AquaResult, "seen" | "skip">, pid: string, n: number): boolean {
+  return n < (r.seen[pid] ?? 0) || (r.skip[pid]?.includes(n) ?? false);
+}
+
+/** Отметить рисунки разобранными: номер — в `skip`, подряд идущие от начала сворачиваются в `seen`. */
+function markHandled(r: Pick<AquaResult, "seen" | "skip">, list: { pid: string; n: number }[]): Pick<AquaResult, "seen" | "skip"> {
+  const seen = { ...r.seen };
+  const skip: Record<string, number[]> = { ...r.skip };
+  for (const { pid, n } of list) {
+    let cur = seen[pid] ?? 0;
+    if (n < cur) continue;
+    const set = new Set(skip[pid] ?? []);
+    set.add(n);
+    while (set.has(cur)) {
+      set.delete(cur);
+      cur += 1;
+    }
+    if (cur > 0) seen[pid] = cur;
+    if (set.size > 0) skip[pid] = [...set].sort((a, b) => a - b);
+    else delete skip[pid];
+  }
+  return { seen, skip };
 }
 
 /** Рисунки из ответа телефона (не больше `limit`). */
@@ -88,11 +154,14 @@ export function parseAquaResult(raw: unknown, content?: AquariumContent): AquaRe
   const d = rec(raw);
   const items = (Array.isArray(d.items) ? d.items : []).map(itemOf).filter((x): x is AquaItem => x !== null);
   const gone = (Array.isArray(d.gone) ? d.gone : []).filter((x): x is string => typeof x === "string" && x.length <= 200).slice(-GONE_CAP);
+  const seen = seenOf(d.seen);
   return {
     changeable: true,
     scene: d.scene === "aqua" || d.scene === "tree" ? d.scene : (content?.scene ?? "aqua"),
     items,
     gone,
+    seen,
+    skip: skipOf(d.skip, seen),
     feed: typeof d.feed === "number" && Number.isFinite(d.feed) ? Math.max(0, Math.floor(d.feed)) : 0,
     garland: typeof d.garland === "number" && Number.isFinite(d.garland) ? ((Math.floor(d.garland) % 3) + 3) % 3 : 0,
   };
@@ -110,47 +179,67 @@ export function score(): ScoreDelta[] {
   return [];
 }
 
-/** Рисунки, что прислали телефоны и ещё нет на экране (и их не убирали). `limit` — сколько с одного телефона. */
+/** Рисунки, что прислали телефоны и ещё не разобраны (не выпущены и не скрыты). Не больше `perGuest` с одного телефона. */
 export function pendingItems(session: Session, answers: Answer[], content: AquariumContent): AquaItem[] {
   const r = parseAquaResult(session.state.result, content);
+  // Старые сессии: рисунки на экране без номера и `gone` узнаются по ключу.
   const known = new Set([...r.items.map(keyOf), ...r.gone]);
   const out: AquaItem[] = [];
   const ordered = [...answers].filter((a) => a.step === session.state.step).sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0));
   for (const a of ordered) {
-    for (const item of phoneItems(a.value, content.perGuest)) {
+    phoneItems(a.value, content.perGuest).forEach((item, n) => {
       const key = itemKey(a.pid, item.id);
-      if (known.has(key)) continue;
+      if (isHandled(r, a.pid, n) || known.has(key)) return;
       known.add(key);
-      out.push({ ...item, pid: a.pid });
-    }
+      out.push({ ...item, pid: a.pid, n });
+    });
   }
   return out;
 }
 
-/** На экран: новые рисунки в конец, на сцене — не больше `SCENE_CAP` (самые старые уходят и не вернутся). */
+/** На экран: новые рисунки в конец, на сцене — не больше `SCENE_CAP` (самые старые уходят и не вернутся — они уже разобраны). */
 export function releaseItems(session: Session, content: AquariumContent, add: AquaItem[]): SessionChange | null {
   const r = parseAquaResult(session.state.result, content);
   const known = new Set([...r.items.map(keyOf), ...r.gone]);
-  const fresh = add.filter((i) => !known.has(keyOf(i)));
+  const fresh: AquaItem[] = [];
+  for (const i of add) {
+    const key = keyOf(i);
+    if (known.has(key) || (i.n !== undefined && isHandled(r, i.pid, i.n))) continue;
+    known.add(key);
+    fresh.push(i);
+  }
   if (fresh.length === 0) return null;
   let items = [...r.items, ...fresh];
   const gone = [...r.gone];
   for (const scene of ["aqua", "tree"] as const) {
     const of = items.filter((i) => i.scene === scene);
     if (of.length > SCENE_CAP) {
-      const drop = new Set(of.slice(0, of.length - SCENE_CAP).map(keyOf));
-      gone.push(...drop);
+      const dropped = of.slice(0, of.length - SCENE_CAP);
+      const drop = new Set(dropped.map(keyOf));
+      // Рисунок без номера (старая сессия) помним по ключу, как раньше.
+      gone.push(...dropped.filter((i) => i.n === undefined).map(keyOf));
       items = items.filter((i) => !drop.has(keyOf(i)));
     }
   }
-  return { state: { result: { ...r, items, gone: gone.slice(-GONE_CAP) } } };
+  const marked = markHandled(r, fresh.filter((i): i is AquaItem & { n: number } => i.n !== undefined));
+  return { state: { result: { ...r, ...marked, items, gone: gone.slice(-GONE_CAP) } } };
 }
 
-/** «Не показывать» или «Убрать с экрана». */
-export function hideItem(session: Session, content: AquariumContent, key: string): SessionChange | null {
+/** «Не показывать» (рисунок ждёт показа) или «Убрать с экрана». Рисунок разобран и больше не появится. */
+export function hideItem(session: Session, content: AquariumContent, item: AquaItem | string): SessionChange | null {
   const r = parseAquaResult(session.state.result, content);
-  if (r.gone.includes(key) && !r.items.some((i) => keyOf(i) === key)) return null;
-  return { state: { result: { ...r, items: r.items.filter((i) => keyOf(i) !== key), gone: [...r.gone.filter((g) => g !== key), key].slice(-GONE_CAP) } } };
+  const key = typeof item === "string" ? item : keyOf(item);
+  const onScreen = r.items.find((i) => keyOf(i) === key);
+  const n = onScreen?.n ?? (typeof item === "string" ? undefined : item.n);
+  const pid = onScreen?.pid ?? (typeof item === "string" ? undefined : item.pid);
+  const items = r.items.filter((i) => keyOf(i) !== key);
+  if (n !== undefined && pid !== undefined) {
+    if (!onScreen && isHandled(r, pid, n)) return null;
+    return { state: { result: { ...r, ...markHandled(r, [{ pid, n }]), items } } };
+  }
+  // Без номера (старая сессия) — по ключу в `gone`.
+  if (r.gone.includes(key) && !onScreen) return null;
+  return { state: { result: { ...r, items, gone: [...r.gone.filter((g) => g !== key), key].slice(-GONE_CAP) } } };
 }
 
 export function setScene(session: Session, content: AquariumContent, scene: SceneId): SessionChange | null {

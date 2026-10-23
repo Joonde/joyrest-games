@@ -105,11 +105,11 @@ function Fan({ count }: { count: number }) {
   );
 }
 
-function Tally({ session, r }: { session: Session; r: MafiaResult }) {
+function Tally({ session, r, phone = false }: { session: Session; r: MafiaResult; phone?: boolean }) {
   const rows = [...r.nominees, "none"];
   const max = Math.max(1, ...rows.map((p) => r.tally?.[p] ?? 0));
   return (
-    <ul className="mf-tally">
+    <ul className={phone ? "mf-tally mf-tally--phone" : "mf-tally"}>
       {rows.map((p) => {
         const n = r.tally?.[p] ?? 0;
         return (
@@ -647,7 +647,7 @@ export function MafiaPlayerView({ session, content, pid, myAnswer, sending, onAn
   } else if (r.mode === "verdict") {
     body = (
       <div className="stack">
-        <Tally session={session} r={r} />
+        <Tally session={session} r={r} phone />
         <p className="mf-phone__news">{r.out === pid ? "Город выгоняет вас. Последнее слово!" : r.out ? <>Город выгоняет <Who session={session} r={r} pid={r.out} /></> : "Никто не уходит"}</p>
       </div>
     );

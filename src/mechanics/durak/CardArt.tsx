@@ -170,7 +170,11 @@ export function CardArt({ card, deck, width, className, style, trump }: CardArtP
       ) : !faceArt ? (
         <span className={r === 14 ? "dk-pip dk-pip--ace" : "dk-pip"}>{glyph}</span>
       ) : null}
-      {r === 14 && <span className="dk-brand">J✦R</span>}
+      {r === 14 && (
+        <span className="dk-brand" aria-hidden="true">
+          J✦R
+        </span>
+      )}
       {trump && (
         <span className="dk-trumpmark" aria-hidden="true">
           ★

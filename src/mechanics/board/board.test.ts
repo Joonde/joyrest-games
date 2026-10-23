@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
-import { createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
+import { boardMediaIds, createBoard, findCell, parseBoard, resizeBoard, roundsOf, setRounds, type BoardContent } from "./content";
 import {
   armBuzz,
+  cellImageOf,
+  setImageShown,
   boardBack,
   boardFirstTurn,
   boardBuzzSync,
@@ -417,3 +419,120 @@ describe("«Ставка на знания»: время на ответ том�
     expect(speakLeft(t, c, t0 + 60_000)).toBeNull();
   });
 });
+
+describe("«Ставка на знания»: «Назад» после «Никто не угадал» (QA 22 октября 2026)", () => {
+  it("с ответа «Назад» — пульт больше сам ответ не показывает; следующая клетка — как обычно", () => {
+    const c = content();
+    let s = openArmed(session(), c, "a0");
+    s = apply(s, boardReveal(s, c, participants, false));
+    expect(parseBoardResult(s.state.result).noAuto).toBe(false);
+    const back = boardBack(s, c);
+    if (!back) throw new Error("назад");
+    s = apply(s, back.change);
+    expect(s.state.stage).toBe("question");
+    expect(parseBoardResult(s.state.result).noAuto).toBe(true);
+    // Ведущий решает сам: снова «Показать ответ» или к полю — следующая клетка уже без отметки.
+    s = apply(s, boardReveal(s, c, participants, false));
+    s = apply(s, toBoard(s));
+    expect(parseBoardResult(s.state.result).noAuto).toBe(false);
+  });
+
+  it("старые сессии без поля — авто-показ как раньше", () => {
+    expect(parseBoardResult({}).noAuto).toBe(false);
+  });
+});
+
+describe("«Ставка на знания»: когда показать картинку (22 октября 2026)", () => {
+  it("старые клетки — картинка сразу; картинка к ответу — по умолчанию нет", () => {
+    const cell = parseBoard({ categories: [{ title: "Т", cells: [{ text: "?", imageId: "m1" }] }] }).categories[0]?.cells[0];
+    expect(cell?.imageShow).toBe("now");
+    expect(cell?.answerImageId).toBeNull();
+  });
+
+  it("по кнопке ведущего: скрыта до «Показать картинку», на ответе видна; к ответу — своя картинка", () => {
+    const c = content();
+    const first = c.categories[0]?.cells[0];
+    if (!first) throw new Error("клетка");
+    first.imageId = "q1";
+    first.imageShow = "host";
+    first.answerImageId = "a1";
+    let s = apply(session(), openCell(session(), c, first.id));
+    let r = parseBoardResult(s.state.result);
+    expect(cellImageOf(first, r, false)).toBeNull();
+    s = apply(s, setImageShown(s, c, true));
+    r = parseBoardResult(s.state.result);
+    expect(cellImageOf(first, r, false)).toBe("q1");
+    expect(setImageShown(s, c, true)).toBeNull();
+    expect(cellImageOf(first, r, true)).toBe("a1");
+    s = apply(s, setImageShown(s, c, false));
+    expect(cellImageOf(first, parseBoardResult(s.state.result), false)).toBeNull();
+    // Новая клетка — снова скрыта.
+    s = apply(s, setImageShown(s, c, true));
+    s = apply(s, boardReveal(s, c, participants, false));
+    s = apply(s, toBoard(s));
+    expect(parseBoardResult(s.state.result).imageShown).toBe(false);
+    // Картинки к ответу копируются вместе с игрой.
+    expect(boardMediaIds(c)).toEqual(expect.arrayContaining(["q1", "a1"]));
+  });
+
+  it("сразу с вопросом — кнопки нет, картинка видна", () => {
+    const c = content();
+    const first = c.categories[0]?.cells[0];
+    if (!first) throw new Error("клетка");
+    first.imageId = "q1";
+    const s = apply(session(), openCell(session(), c, first.id));
+    expect(setImageShown(s, c, true)).toBeNull();
+    expect(cellImageOf(first, parseBoardResult(s.state.result), false)).toBe("q1");
+  });
+});
+
+describe("«Ставка на знания»: «Аукцион», равные ставки — жребий (23 октября 2026)", () => {
+  function auction(c: BoardContent) {
+    const cell = c.categories[0]?.cells[0];
+    if (!cell) throw new Error("клетка");
+    cell.kind = "auction";
+    let s = session();
+    s = { ...s, leaderboard: { p1: { name: "Игрок 1", kind: "player", score: 500 }, p2: { name: "Игрок 2", kind: "player", score: 500 }, p3: { name: "Игрок 3", kind: "player", score: 500 } } };
+    s = apply(s, openCell(s, c, cell.id));
+    return s;
+  }
+  const bet = (pid: string, step: number, value: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { bet: value }, submittedAt: at });
+
+  it("самая большая ставка у троих — монетка среди них, победитель отвечает за свою ставку", () => {
+    const c = content();
+    const s = auction(c);
+    const step = s.state.step;
+    const answers = [bet("p1", step, 300, 1), bet("p2", step, 300, 2), bet("p3", step, 300, 3)];
+    const change = startAuction(s, c, answers, { id: "auctest", now: 1000, name: (pid) => pid, pick: (pool) => pool[2] ?? null });
+    const r = parseBoardResult(change?.state?.result);
+    expect(r.catTo).toBe("p3");
+    expect(r.catPrice).toBe(300);
+    expect(r.auctionTie).toEqual(["p1", "p2", "p3"]);
+    expect(change?.state?.slide?.kind).toBe("draw");
+    expect(change?.state?.slide?.title).toBe("p3");
+  });
+
+  it("ставки разные — без монетки; двое равных, но не самые большие — без жребия", () => {
+    const c = content();
+    const s = auction(c);
+    const step = s.state.step;
+    const answers = [bet("p1", step, 200, 1), bet("p2", step, 200, 2), bet("p3", step, 400, 3)];
+    const change = startAuction(s, c, answers, { id: "auctest", now: 1000, name: (pid) => pid });
+    expect(parseBoardResult(change?.state?.result).catTo).toBe("p3");
+    expect(parseBoardResult(change?.state?.result).auctionTie).toEqual([]);
+    expect(change?.state?.slide).toBeUndefined();
+  });
+
+  it("«Назад» с вопроса убирает монетку жребия", () => {
+    const c = content();
+    let s = auction(c);
+    const step = s.state.step;
+    s = apply(s, startAuction(s, c, [bet("p1", step, 300, 1), bet("p2", step, 300, 2)], { id: "auctest", now: 1000, name: (pid) => pid, pick: (pool) => pool[0] ?? null }));
+    expect(s.state.slide?.id).toBe("auctest");
+    const back = boardBack(s, c);
+    if (!back) throw new Error("назад");
+    s = apply(s, back.change);
+    expect(s.state.slide ?? null).toBeNull();
+  });
+});
+

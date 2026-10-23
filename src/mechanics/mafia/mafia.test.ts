@@ -312,3 +312,14 @@ describe("мафия: несколько партий", () => {
     expect(parse(s.state.result)).toMatchObject({ party: 1, mode: "over" });
   });
 });
+
+describe("мафия: история лечения (QA 23 октября 2026)", () => {
+  it("недопустимое лечение не считается: на следующую ночь того же игрока лечить можно", () => {
+    // Ночь 1 — лечит e, ночь 2 — снова e (ввод ведущего, не сработало), ночь 3 — снова e: можно.
+    const history = healHistory("d", [{ d: "e" }, { d: "e" }]);
+    expect(history).toEqual(["e", null]);
+    expect(canHeal("d", "e", history)).toBe(true);
+    // Себя — один раз: второй раз не считается, но и не мешает лечить другого.
+    expect(healHistory("d", [{ d: "d" }, { d: "e" }, { d: "d" }, { d: "f" }])).toEqual(["d", "e", null, "f"]);
+  });
+});

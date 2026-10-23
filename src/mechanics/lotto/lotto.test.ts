@@ -305,3 +305,60 @@ describe("лото: что собрать для победы", () => {
   });
 });
 
+
+describe("«Назад» через несколько песен (QA 23 октября 2026)", () => {
+  const c = game();
+  const base: Session = {
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "lotto",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: startState(),
+    leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
+    createdAt: 0,
+  };
+  const back = (s: Session, t: number) => {
+    const plan = lottoBack(s);
+    if (!plan) throw new Error("нет шага назад");
+    return applyChange(s, plan.change, t);
+  };
+
+  it("победа на песне, название следующей показано → «Назад» до победной песни снимает 300 и победу", () => {
+    let win = -1;
+    for (let k = 0; k < c.songs.length && win < 0; k++) if (isWin(cardFor(c, "a"), playedUpTo(c, k), c.size, c.rule)) win = k;
+    expect(win).toBeGreaterThanOrEqual(0);
+    expect(win).toBeLessThan(c.songs.length - 1);
+    let s = applyChange(base, playSong(base), 1);
+    for (let k = 0; k < win; k++) {
+      s = applyChange(s, revealSong(s, c, [], []), 2);
+      s = applyChange(s, nextSong(s), 3);
+    }
+    s = applyChange(s, revealSong(s, c, [claim(win, "a")], []), 4);
+    expect(s.leaderboard.a?.score).toBe(300);
+    s = applyChange(s, nextSong(s), 5);
+    s = applyChange(s, revealSong(s, c, [], []), 6);
+    expect(s.leaderboard.a).toMatchObject({ score: 300, last: 0 });
+    s = back(s, 7); // название следующей → она звучит
+    s = back(s, 8); // → название победной песни
+    expect(s.state).toMatchObject({ step: win, stage: "reveal" });
+    expect(parseLottoResult(s.state.result).last).toEqual(["a"]);
+    expect(s.leaderboard.a).toMatchObject({ score: 300, last: 300 });
+    s = back(s, 9); // → победная песня звучит: очки и победа сняты
+    expect(s.leaderboard.a).toMatchObject({ score: 0, last: 0 });
+    expect(parseLottoResult(s.state.result).winners).toEqual([]);
+    // Повторный показ названия — снова 300, не 600.
+    s = applyChange(s, revealSong(s, c, [claim(win, "a")], []), 10);
+    expect(s.leaderboard.a?.score).toBe(300);
+  });
+
+  it("старые итоги без побед по песням читаются без ошибок", () => {
+    expect(parseLottoResult({ winners: ["a"], wins: [{ step: "x" }, { step: 2, prizes: { a: 300, b: "x" } }] }).wins).toEqual([{ step: 2, prizes: { a: 300 } }]);
+    expect(parseLottoResult(null).wins).toEqual([]);
+  });
+});

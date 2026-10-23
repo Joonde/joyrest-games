@@ -99,7 +99,7 @@ const content: BoardContent = {
       id: k === 0 ? `k${r + 1}` : `r2k${r + 1}`,
       title,
       round: k + 1,
-      cells: cells.map(([text, answer, kind], c) => ({ id: k === 0 ? `c${r + 1}${c + 1}` : `r2c${r + 1}${c + 1}`, points: (c + 1) * 100 * (k + 1), kind: kind ?? "question", text, answer, imageId: null, ...clip })),
+      cells: cells.map(([text, answer, kind], c) => ({ id: k === 0 ? `c${r + 1}${c + 1}` : `r2c${r + 1}${c + 1}`, points: (c + 1) * 100 * (k + 1), kind: kind ?? "question", text, answer, imageId: null, imageShow: "now" as const, answerImageId: null, ...clip })),
     })),
   ),
   penalty: false,

@@ -6,15 +6,22 @@ import { NameText } from "../../components/NameText";
 import { awardNow, podiumNext } from "../../core/podium";
 import { secondsLeft } from "../../core/session";
 import { clock } from "../../data";
+import { MediaImage } from "../../components/media/MediaImage";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
-import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, speakLeft, speakMore, speakTimeout, startAuction, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, setImageShown, speakLeft, speakMore, speakTimeout, startAuction, AUCTION_DRAW_HOLD_MS, startCatQuestion, toBoard } from "./logic";
 
 /** Момент игры для повтора касания: без нажатий кнопки и выбора «Кота в мешке» (их пишет фон пульта). */
 function boardMoment(s: Session): string {
   const r = parseBoardResult(s.state.result);
   return JSON.stringify([r.mode, r.cell, r.opened.length, r.round, r.catStep, r.armed, r.picker]);
+}
+
+/** Момент для «Ещё N с на ответ»: та же клетка и тот же отвечающий (очередь нажатий и время отсчёта — не в счёт). */
+function speakMoment(s: Session): string {
+  const r = parseBoardResult(s.state.result);
+  return JSON.stringify([r.cell, r.buzz.current]);
 }
 
 /**
@@ -47,7 +54,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   const players = Object.keys(session.leaderboard).filter((id) => participants.some((p) => p.id === id));
   const everyoneOut = players.length > 0 && players.every((id) => result.buzz.out.includes(id));
   const nobodyLeft =
-    stage === "question" && result.mode === "buzz" && result.armed && !result.catStep && !result.buzz.current && !result.buzz.winner && (left === 0 || everyoneOut);
+    stage === "question" && result.mode === "buzz" && result.armed && !result.catStep && !result.noAuto && !result.buzz.current && !result.buzz.winner && (left === 0 || everyoneOut);
   const nobodyKey = nobodyLeft ? `${step}:${result.cell}:${result.buzz.out.length}:${everyoneOut ? "out" : "time"}` : "";
   useEffect(() => {
     if (!nobodyKey || busy) return;
@@ -55,7 +62,7 @@ export function BoardHostControls({ session, content, answers, participants, con
       () =>
         void quiet((cur) => {
           const r = parseBoardResult(cur.state.result);
-          if (cur.state.stage !== "question" || cur.state.step !== step || r.buzz.current || r.buzz.winner || r.mode !== "buzz") return null;
+          if (cur.state.stage !== "question" || cur.state.step !== step || r.noAuto || r.buzz.current || r.buzz.winner || r.mode !== "buzz") return null;
           const rest = secondsLeft(cur.state, Date.now() + clock.offset());
           const allOut = players.length > 0 && players.every((id) => r.buzz.out.includes(id));
           return rest === 0 || allOut ? boardReveal(cur, content, participants, false) : null;
@@ -77,6 +84,20 @@ export function BoardHostControls({ session, content, answers, participants, con
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- новый «время на ответ вышло»
   }, [answerKey, busy]);
+
+  // Жребий «Аукциона» (равные ставки): монетка докрутилась и постояла — убираем сами, на экране вопрос.
+  const drawSlideNow = session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? session.state.slide : null;
+  useEffect(() => {
+    if (!drawSlideNow) return;
+    const wait = Math.max(0, (drawSlideNow.endsAt ?? 0) + AUCTION_DRAW_HOLD_MS - (Date.now() + clock.offset()));
+    const id = drawSlideNow.id;
+    const timer = window.setTimeout(() => {
+      if (latest.current.state.slide?.id !== id) return;
+      void control.apply({ state: { slide: null }, expect: { slide: id } }).catch(() => undefined);
+    }, wait);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый слайд жребия
+  }, [drawSlideNow?.id]);
 
   // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
   const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
@@ -229,7 +250,7 @@ export function BoardHostControls({ session, content, answers, participants, con
     return (
       <div className="stack host-quiz board-host">
         {header}
-        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один (при равных — кто раньше). Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку.</p>
+        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один; у нескольких одинаково больше всех — жребий монеткой на экране. Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку.</p>
         <div className="host-quiz__live" aria-live="polite">
           <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
             {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
@@ -254,7 +275,7 @@ export function BoardHostControls({ session, content, answers, participants, con
         )}
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers), { id: `auc${Math.random().toString(36).slice(2, 12)}`, now: Date.now() + clock.offset(), name: (pid) => s.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок" }))}>
             Ставки сделаны — показать вопрос
           </button>
           {backButton}
@@ -328,7 +349,10 @@ export function BoardHostControls({ session, content, answers, participants, con
       {/* Кто нажал первым — сразу сверху, над текстом вопроса (14 октября 2026). */}
       {speaking && (
         <div className="host-buzz" role="status" aria-live="assertive">
-          <span className="host-buzz__label">Отвечает{result.catStep && result.bets[speaking] ? ` · ставка ${result.bets[speaking]}` : ""}</span>
+          <span className="host-buzz__label">
+            Отвечает{result.catStep && result.bets[speaking] ? ` · ставка ${result.bets[speaking]}` : ""}
+            {result.auctionTie.length > 1 ? ` · жребий среди ${result.auctionTie.length} равных ставок` : ""}
+          </span>
           <span className="host-buzz__name">
             <NameText name={nameOf(speaking)} />
           </span>
@@ -352,7 +376,13 @@ export function BoardHostControls({ session, content, answers, participants, con
             </button>
           </div>
           {answerLeft !== null && (
-            <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => (sameSpeaker(s) ? speakMore(s, Date.now() + clock.offset()) : null))}>
+            <button
+              type="button"
+              className="btn btn--quiet"
+              disabled={busy}
+              // Безопасно повторить, пока отвечает тот же человек: фон пульта пишет очередь нажатий телефонов.
+              onClick={() => void run((s) => (sameSpeaker(s) ? speakMore(s, Date.now() + clock.offset()) : null), { attempts: 4, moment: speakMoment })}
+            >
               Ещё {content.answerTime} с на ответ
             </button>
           )}
@@ -360,6 +390,21 @@ export function BoardHostControls({ session, content, answers, participants, con
       )}
       {header}
       {peekButton}
+      {/* Картинка по кнопке ведущего (решение владельца 22 октября 2026): сначала вопрос, картинка — когда скажете. */}
+      {stage === "question" && cell?.imageId && cell.imageShow === "host" && (
+        <div className="board-host__image">
+          <MediaImage className="board-host__thumb" gameId={session.gameId} mediaId={cell.imageId} variant="small" alt="" />
+          <button
+            type="button"
+            className={result.imageShown ? "btn btn--quiet btn--block" : "btn btn--secondary btn--block"}
+            disabled={busy}
+            onClick={() => void run((s) => setImageShown(s, content, !parseBoardResult(s.state.result).imageShown))}
+          >
+            {result.imageShown ? "Убрать картинку с экрана" : "🖼 Показать картинку на экране"}
+          </button>
+        </div>
+      )}
+      {stage === "reveal" && cell?.answerImageId && <p className="muted small">🖼 На экране — картинка к ответу.</p>}
       {stage === "question" && !result.armed && (
         <div className="board-host__arm">
           <p>Прочитайте вопрос вслух. Кнопки у гостей пока не активны — фальстарта не будет.</p>

@@ -360,9 +360,28 @@ export function ThreatCard({ index, verdict }: { index: number; verdict: boolean
 }
 
 /** Досье игрока на экране: имя, шесть строк характеристик, особое условие. */
-export function Dossier({ name, seat, shown, used, exiled = false, speaking = false, big = false }: { name: string; seat: number; shown: Partial<Record<Cat, string>>; used: SpecialId | null; exiled?: boolean; speaking?: boolean; big?: boolean }) {
+export function Dossier({
+  name,
+  seat,
+  shown,
+  used,
+  exiled = false,
+  speaking = false,
+  big = false,
+  dense = false,
+}: {
+  name: string;
+  seat: number;
+  shown: Partial<Record<Cat, string>>;
+  used: SpecialId | null;
+  exiled?: boolean;
+  speaking?: boolean;
+  big?: boolean;
+  /** 9–16 игроков (досье в два ряда): закрытые карты — только значок, открытые — текстом крупно. */
+  dense?: boolean;
+}) {
   return (
-    <article className={`bk-dossier${exiled ? " is-exiled" : ""}${speaking ? " is-speaking" : ""}${big ? " bk-dossier--big" : ""}`}>
+    <article className={`bk-dossier${exiled ? " is-exiled" : ""}${speaking ? " is-speaking" : ""}${big ? " bk-dossier--big" : ""}${dense ? " bk-dossier--dense" : ""}`}>
       <header className="bk-dossier__head">
         <span className="bk-dossier__seat">№{seat}</span>
         <span className="bk-dossier__name">
@@ -370,12 +389,18 @@ export function Dossier({ name, seat, shown, used, exiled = false, speaking = fa
         </span>
       </header>
       <ul className="bk-dossier__rows">
-        {(["profession", "biology", "health", "hobby", "baggage", "fact"] as Cat[]).map((cat) => (
-          <li key={cat} className={`bk-row bk-row--${cat}${shown[cat] ? "" : " is-closed"}`}>
-            <Icon name={cat} />
-            <span className="bk-row__text">{shown[cat] ? cardText(shown[cat]) : CAT_TITLES[cat]}</span>
-          </li>
-        ))}
+        {(["profession", "biology", "health", "hobby", "baggage", "fact"] as Cat[]).map((cat) =>
+          dense && !shown[cat] ? (
+            <li key={cat} className={`bk-row bk-row--${cat} is-closed`} title={CAT_TITLES[cat]} aria-label={`${CAT_TITLES[cat]} — закрыта`}>
+              <Icon name={cat} />
+            </li>
+          ) : (
+            <li key={cat} className={`bk-row bk-row--${cat}${shown[cat] ? "" : " is-closed"}`}>
+              <Icon name={cat} />
+              <span className="bk-row__text">{shown[cat] ? cardText(shown[cat]) : CAT_TITLES[cat]}</span>
+            </li>
+          ),
+        )}
       </ul>
       {used && (
         <p className="bk-dossier__used">

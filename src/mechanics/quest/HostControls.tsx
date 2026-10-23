@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useHostRun } from "../../components/live/useHostRun";
@@ -25,6 +25,9 @@ export function QuestHostControls({ session, content, answers, participants, con
   const [dialog, confirm] = useConfirm();
   const { stage, step } = session.state;
   const r = parseQuestResult(session.state.result);
+
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
 
   // Капитан бросил кубик — ставим фишку (любой открытый пульт; `expect` мирит).
   const rollKey = stage === "question" && r.mode === "roll" ? answers.filter((a) => a.step === step && a.pid === r.mover).map((a) => a.id).join(",") : "";
@@ -104,7 +107,7 @@ export function QuestHostControls({ session, content, answers, participants, con
         {action === "waitRoll" && (
           <>
             <p className="muted small">{teams ? "Ждём бросок капитана. Если телефона нет — бросьте за команду." : "Ждём бросок игрока. Если телефона нет — бросьте за него."}</p>
-            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => applyRoll(s, content, hostRoll(), participants))}>
+            <button type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run((s) => rollChange(s, content, answersRef.current, participants) ?? applyRoll(s, content, hostRoll(), participants))}>
               🎲 {teams ? "Бросить за команду" : "Бросить за игрока"}
             </button>
           </>

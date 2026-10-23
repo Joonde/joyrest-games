@@ -199,8 +199,12 @@ export function parseMillionaireImport(text: string, size: number = 12): Million
       fixed = Math.min(size, Math.max(1, Number(head[1])));
       return;
     }
-    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
-    if (isQuestionHeader(line)) return;
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке. Прошлый вопрос закончен: варианты
+    // сразу под заголовком не достаются ему, а попадают в «Не разобрали строки».
+    if (isQuestionHeader(line)) {
+      flush();
+      return;
+    }
     const dash = listOption(raw);
     const cur0 = current as MillionaireQuestion | null;
     const room = cur0 !== null && cur0.options.some((o) => !o);

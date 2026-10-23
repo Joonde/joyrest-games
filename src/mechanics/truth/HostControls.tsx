@@ -7,7 +7,7 @@ import type { Session, SessionChange } from "../../data/types";
 import { scoringParticipants } from "../../core/leaderboard";
 import type { HostControlsProps } from "../types";
 import { KIND_TITLES, type TruthContent } from "./content";
-import { choose, chooseFromAnswers, handleSuggestion, nextTurn, parseTruthResult, pendingSuggestions, redraw, resolve, roundOf, startTruth, truthBack, truthPrimary, turnPid } from "./logic";
+import { choose, chooseFromAnswers, handleSuggestion, nextPid, nextTurn, parseTruthResult, pendingSuggestions, redraw, resolve, roundOf, startTruth, truthBack, truthPrimary, turnPid } from "./logic";
 
 /**
  * Пульт «Правды или действия»: «Начать игру» → игрок выбирает на телефоне (или ведущий за него) →
@@ -74,7 +74,7 @@ export function TruthHostControls({ session, content, answers, participants, con
   const action = truthPrimary(session, content);
   const back = truthBack(session);
   const pending = content.guestCards ? pendingSuggestions(r, answers, step) : [];
-  const nextWho = r.order.length > 0 ? (r.order[(r.turn + 1) % r.order.length] ?? null) : null;
+  const nextWho = nextPid(r);
 
   return (
     <div className="stack host-quiz">

@@ -1,6 +1,7 @@
 // «Активная настолка»: поле из 40–100 клеток на экране зала, фишки команд, кубик. В клетке —
 // задание, вопрос, танец, караоке, бонус («+3»), ловушка («−2») или пропуск хода. Ведущий решает,
 // выполнено ли задание.
+import { openAnswerSplit } from "../survival/content";
 import { clipFields, parseClip, type Clip } from "../../core/clip";
 
 export type QuestKind = "task" | "question" | "dance" | "karaoke" | "bonus" | "trap" | "skip" | "empty";
@@ -120,6 +121,9 @@ export function resizeQuest(content: QuestContent, n: number): QuestContent {
   return { ...content, cells };
 }
 
+/** «Пропуск» / «Пропуск хода» отдельным словом (не «Пропускаем апельсин…»). */
+const SKIP = /^пропуск(?:\s+хода)?(?=$|[\s:.!,—–-])/i;
+
 /**
  * «Заполнить из списка»: строка — клетка по порядку. «Вопрос: текст = ответ», «Танец: …»,
  * «Караоке: …», «+3» / «Бонус +3», «−2» / «Ловушка −2», «Пропуск», «Пусто», иначе — задание.
@@ -144,11 +148,13 @@ export function parseQuestList(text: string): QuestCell[] {
         const n = Math.min(QUEST_LIMITS.maxMove, Number(move[2]));
         const back = move[1] !== "+";
         cell = { ...newQuestCell(back ? "trap" : "bonus"), move: back ? -n : n, text: body.replace(move[0], "").trim() };
-      } else if (/^пропуск/.test(lower)) cell = { ...newQuestCell("skip"), text: body.replace(/^пропуск(\s*хода)?[:.\s]*/i, "") };
+      } else if (SKIP.test(body)) cell = { ...newQuestCell("skip"), text: body.replace(SKIP, "").replace(/^[\s:.!,—–-]+/, "") };
       else if (/^(пусто|пустая)(\s|$|[.!:])/.test(lower)) cell = newQuestCell("empty");
       else if (/^вопрос\s*[:.]/.test(lower)) {
-        const [q, a] = body.replace(/^вопрос\s*[:.]\s*/i, "").split("=");
-        cell = { ...newQuestCell("question"), text: (q ?? "").trim().slice(0, QUEST_LIMITS.text), answer: (a ?? "").trim().slice(0, QUEST_LIMITS.answer) };
+        // Ответ — как в «Гонке»: с первого «=» после «?» («Формула? = E=mc2», «2+2=? = 4»), без «?» — с « = ».
+        const rest = body.replace(/^вопрос\s*[:.]\s*/i, "");
+        const open = openAnswerSplit(rest);
+        cell = { ...newQuestCell("question"), text: (open ? open.question : rest).trim().slice(0, QUEST_LIMITS.text), answer: (open ? open.answers.join(" | ") : "").slice(0, QUEST_LIMITS.answer) };
       } else if (/^танец\s*[:.]/.test(lower)) cell = { ...newQuestCell("dance"), text: body.replace(/^танец\s*[:.]\s*/i, "") };
       else if (/^караоке\s*[:.]/.test(lower)) cell = { ...newQuestCell("karaoke"), text: body.replace(/^караоке\s*[:.]\s*/i, "") };
       else cell = { ...newQuestCell("task"), text: body.replace(/^задание\s*[:.]\s*/i, "") };

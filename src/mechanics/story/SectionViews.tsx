@@ -141,14 +141,18 @@ export function LiesPhone({ session, l, me, scoreKey, myAnswer, sending, onAnswe
   }
   const item = l.items[l.current];
   const pick = myAnswer ? pickOf(myAnswer.value) : null;
-  const mine = item?.pid === me;
+  const own = item?.pid === me;
+  // Факты сокомандника: команда знает, где ложь, — голосуют другие.
+  const ours = !own && item?.team !== undefined && item.team === scoreKey;
+  const mine = own || ours;
   const rev = l.reveal;
   return (
     <>
       <p className="st-phone__author">
         <NameText name={personName(session, item?.pid ?? null)} />
       </p>
-      {mine && !rev && <p className="buzz__plate"><strong>Это ваши факты! 🤫</strong><span>Молчите и сохраняйте покерфейс.</span></p>}
+      {own && !rev && <p className="buzz__plate"><strong>Это ваши факты! 🤫</strong><span>Молчите и сохраняйте покерфейс.</span></p>}
+      {ours && !rev && <p className="buzz__plate"><strong>Это факты вашей команды 🤫</strong><span>Голосуют другие команды — молчите.</span></p>}
       <div className="sl-row sl-row--phone">
         {item?.facts.map((f, i) =>
           !mine && !rev && pick === null && open ? (
@@ -280,6 +284,8 @@ export function EndingPhone({ session, e, me, scoreKey, myAnswer, sending, onAns
   }
   const item = e.items[e.current];
   const mine = item?.pid === me;
+  // История сокомандника: команда знает правду — голосуют другие.
+  const ours = !mine && item?.team !== undefined && item.team === scoreKey;
   if (e.phase === "fake" && !e.reveal) {
     const sent = myAnswer ? fakeOf(myAnswer.value) : "";
     return (
@@ -324,14 +330,14 @@ export function EndingPhone({ session, e, me, scoreKey, myAnswer, sending, onAns
           const own = myFake !== "" && sameText(myFake, o.text);
           const real = rev?.realId === o.id;
           return (
-            <button key={o.id} type="button" className={`se-phone-option${pick === o.id ? " is-picked" : ""}${rev ? (real ? " is-real" : " is-fake") : ""}`} disabled={sending || mine || own || pick !== null || !!rev || !open} onClick={() => onAnswer({ pick: o.id })}>
+            <button key={o.id} type="button" className={`se-phone-option${pick === o.id ? " is-picked" : ""}${rev ? (real ? " is-real" : " is-fake") : ""}`} disabled={sending || mine || ours || own || pick !== null || !!rev || !open} onClick={() => onAnswer({ pick: o.id })}>
               <strong>{i + 1}.</strong> {o.text}
               {own && <em> — ваша</em>}
             </button>
           );
         })}
       </div>
-      {!rev && <p className="muted small">{mine ? "Это ваша история — молчите 🤫" : pick ? "Голос принят" : "Какая концовка — правда?"}</p>}
+      {!rev && <p className="muted small">{mine ? "Это ваша история — молчите 🤫" : ours ? "Это история вашей команды — голосуют другие 🤫" : pick ? "Голос принят" : "Какая концовка — правда?"}</p>}
       {rev && <p className={rev.deltas[scoreKey] ? "success" : "muted"}>{rev.deltas[scoreKey] ? `+${rev.deltas[scoreKey]} очков` : pick === rev.realId ? "Угадали!" : "Не угадали"}</p>}
     </>
   );

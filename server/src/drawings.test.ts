@@ -19,12 +19,15 @@ describe.skipIf(!url)("рисунки «Аквариума и Ёлки» на Po
   const sql = postgres(url ?? "", { max: 3, onnotice: () => {}, connection: { search_path: SCHEMA } });
   const HOST = "games.test";
   const mediaDir = mkdtempSync(join(tmpdir(), "joyrest-drawings-"));
+  // Свободное место на диске: тест уменьшает его, чтобы проверить отказ 507.
+  let free = 100 * 1024 ** 3;
   const app = buildApp({
     version: "t",
     publicDir: null,
     checkDatabase: async () => true,
     sql,
     mediaDir,
+    drawings: { freeBytes: async () => free },
     auth: { limits: { perAccount: 1000, perIp: 1000, deviceDelayMs: () => 0 } },
   });
   let host = "";
@@ -93,6 +96,43 @@ describe.skipIf(!url)("рисунки «Аквариума и Ёлки» на Po
     expect((await call("GET", `/api/drawings/../etc`, screen.cookie)).statusCode).toBe(404);
     // Ведущий своей игры тоже может прислать.
     expect((await upload("aqua1", host, webp(3))).statusCode).toBe(200);
+  });
+
+  it("рисунки — только в «Аквариум и Ёлку»: в другую идущую игру — отказ (QA 23 октября 2026)", async () => {
+    const res = await call("POST", "/api/sessions", host, {
+      id: "quiz1",
+      gameId: null,
+      gameTitle: "Квиз",
+      playMode: "solo",
+      screenMode: "laptop",
+      themeId: "joyrest",
+      mechanic: "quiz",
+      gameSnapshot: { title: "Квиз", content: { questions: [] } },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const guest = await device();
+    expect((await call("POST", `/api/sessions/quiz1/participants/${guest.uid}/join`, guest.cookie, { name: "Гоша", teamId: null })).statusCode).toBe(200);
+    const quiz = await upload("quiz1", guest.cookie, webp(50));
+    expect(quiz.statusCode).toBe(409);
+    expect(quiz.json().error).toBe("failed-precondition");
+    // Ведущий своей игры — тоже нет.
+    expect((await upload("quiz1", host, webp(51))).statusCode).toBe(409);
+  });
+
+  it("мало места на диске — новый рисунок не принимаем (507), уже сохранённый — тот же файл (QA 23 октября 2026)", async () => {
+    const guest = await device();
+    await call("POST", `/api/sessions/aqua1/participants/${guest.uid}/join`, guest.cookie, { name: "Дина", teamId: null });
+    const saved = await upload("aqua1", guest.cookie, webp(60));
+    expect(saved.statusCode).toBe(200);
+    free = 1024 ** 3;
+    try {
+      const low = await upload("aqua1", guest.cookie, webp(61));
+      expect(low.statusCode).toBe(507);
+      expect(low.json().error).toBe("resource-exhausted");
+      expect((await upload("aqua1", guest.cookie, webp(60))).json().sha).toBe(saved.json().sha);
+    } finally {
+      free = 100 * 1024 ** 3;
+    }
   });
 
   it("с одного телефона — не больше 20 рисунков за 10 минут", async () => {

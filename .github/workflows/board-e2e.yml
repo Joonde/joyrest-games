@@ -1,0 +1,69 @@
+# Проверка конструктора «Ставки на знания» (жалоба ведущего 22 октября 2026): настоящий браузер на test.games.joy-rest.ru
+# под входом ведущего: клетка, вид, вопрос и ответ по буквам, картинка к вопросу и к ответу, стоимость, перезагрузка.
+# Только вручную (Run workflow) или коммитом с [board] в ветке claude/* (~4 минуты).
+# Итог — аннотацией; снимки экранов — в ветку e2e-shots (папка board-editor/), чтобы их можно было посмотреть.
+name: Проверка конструктора «Ставки на знания»
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  quiz:
+    name: Конструктор квиза на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[board]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/board-editor.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 40); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Ведущий в конструкторе
+        working-directory: /tmp/e2e
+        run: node board-editor.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          E2E_SHOTS: /tmp/e2e/shots
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/e2e/shots ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf board-editor && mkdir -p board-editor && cp /tmp/e2e/shots/*.png board-editor/ 2>/dev/null || true
+          git add -A board-editor
+          if git commit -qm "Снимки конструктора «Ставки на знания» ${GITHUB_SHA::7}"; then
+            sent=""
+            for i in 1 2 3 4 5; do
+              if out=$(git push -q origin HEAD:e2e-shots 2>&1); then sent=1; break; fi
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+            [ -n "$sent" ] || echo "::warning::Не отправлено в e2e-shots: $(echo "$out" | tr '\n' ' ' | cut -c1-300)"
+          else
+            echo "::notice::Нечего отправлять в e2e-shots"
+          fi

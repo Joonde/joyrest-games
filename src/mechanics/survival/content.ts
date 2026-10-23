@@ -200,8 +200,12 @@ export function parseSurvivalImport(text: string): SurvivalImport {
     const lineNo = index + 1;
     const line = raw.trim();
     if (!line) return;
-    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
-    if (isQuestionHeader(line)) return;
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке. Прошлый вопрос закончен: варианты
+    // сразу под заголовком не достаются ему, а попадают в «Не разобрали строки».
+    if (isQuestionHeader(line)) {
+      flush();
+      return;
+    }
     const dash = listOption(line);
     const cur0 = current as SurvivalRound | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);

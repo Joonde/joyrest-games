@@ -215,15 +215,20 @@ export function parseDragonImport(text: string): DragonImport {
     const lineNo = index + 1;
     const line = stripBold(raw.trim()).trim();
     if (!line) return;
-    const head = line.match(/^#\s*бой\s*[:.]?\s*(.*?)\s*(\d{2,6})?\s*$/i);
+    // «# Бой 2: Ледяной дракон 3000» — номер боя («2», «№2») снимается, число в конце — здоровье.
+    const head = line.match(/^#\s*бой\s*(?:№\s*)?(?:\d{1,2}(?=\s*[:.—–-]|\s+\D|\s*$))?\s*[:.—–-]?\s*(.*?)\s*(\d{2,6})?\s*$/i);
     if (head) {
       battle = { id: id("b"), name: (head[1] ?? "").trim().slice(0, 60) || "Дракон", hp: Math.min(DRAGON_LIMITS.maxHp, Number(head[2] ?? 1500) || 1500), tasks: [] };
       battles.push(battle);
       task = null;
       return;
     }
-    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке.
-    if (isQuestionHeader(line)) return;
+    // «Вопрос 1» отдельной строкой — заголовок: текст вопроса — на следующей строке. Прошлый вопрос закончен: варианты
+    // сразу под заголовком не достаются ему, а попадают в «Не разобрали строки».
+    if (isQuestionHeader(line)) {
+      task = null;
+      return;
+    }
     const dash = listOption(raw);
     const cur0 = task as DragonTask | null;
     const room = cur0 !== null && cur0.kind === "choice" && cur0.options.some((o) => !o);

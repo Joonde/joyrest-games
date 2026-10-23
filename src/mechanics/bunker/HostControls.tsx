@@ -10,7 +10,7 @@ import { resultKey } from "../../core/session";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { BUNKER_LIMITS, placesFor, type BunkerContent } from "./content";
-import { charsFromCards, hostKey, keysOf, sealAll, secretsFromHost } from "./deal";
+import { charsFromCards, hostKey, keysOf, openRefusal, sealAll, sealRefusal, secretsFromHost, type SealedRefusal } from "./deal";
 import { CAT_TITLES, CATS, cardText, type Cat } from "./decks";
 import {
   ACTION_LABELS,
@@ -19,6 +19,7 @@ import {
   bunkerBack,
   bunkerPrimary,
   canSkip,
+  refusalChange,
   countVotes,
   dealSecrets,
   dealt,
@@ -124,6 +125,34 @@ export function BunkerHostControls({ session, content, answers, participants, co
     };
   }, [r.hostSeal, sealedKey, keys, session.id]);
   const keyless = r.seats.filter((p) => !keys[p]);
+
+  // Отказы на «сыграть особое условие» зашифрованы ключом телефона (или ведущего) — пульт открывает их сам.
+  const [refusals, setRefusals] = useState<{ of: string; list: Record<string, SealedRefusal> }>({ of: "", list: {} });
+  const refusedLocal = useRef<Record<string, string>>({});
+  const refusalKey = JSON.stringify(r.refusedSeal) + "|" + Object.keys(keys).length;
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const list: Record<string, SealedRefusal> = { ...r.refused };
+      for (const [pid, sealed] of Object.entries(r.refusedSeal)) {
+        const got = (await openRefusal(keys[pid] ?? null, sealed).catch(() => null)) ?? (await openRefusal(hostKey(session.id), sealed).catch(() => null));
+        if (got) list[pid] = got;
+      }
+      if (live) setRefusals({ of: refusalKey, list });
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refusalKey собран из r.refusedSeal и ключей
+  }, [refusalKey, session.id]);
+  const refusalsReady = refusals.of === refusalKey;
+  /** Эту просьбу уже отклонили: этот пульт сам или (открыто из итога шага) другой. */
+  const refusedAlready = (pid: string, sig: string) => refusedLocal.current[pid] === sig || refusals.list[pid]?.sig === sig;
+  /** Зашифровать отказ: ключом телефона, без телефона — ключом ведущего. */
+  async function sealedRefusal(cur: Session, pid: string, out: { refusal: string; sig: string }): Promise<SessionChange> {
+    refusedLocal.current[pid] = out.sig;
+    return refusalChange(cur, pid, await sealRefusal(keys[pid] ?? hostKey(session.id), { sig: out.sig, reason: out.refusal }));
+  }
   const secretsRef = useRef<Secrets | null>(null);
   secretsRef.current = secrets;
 
@@ -169,7 +198,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
   const working = useRef(false);
   const [manualUse, setManualUse] = useState<{ pid: string; target: string; cat: Cat | "" }>({ pid: "", target: "", cat: "" });
   useEffect(() => {
-    if (!started || !secrets || partial || working.current || stage !== "question" || r.mode === "deal") return;
+    if (!started || !secrets || partial || !refusalsReady || working.current || stage !== "question" || r.mode === "deal") return;
     const job = pendingJob(own);
     if (!job) return;
     working.current = true;
@@ -182,7 +211,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
           if (ch.state) await control.apply({ ...ch, expect });
         } else {
           const out = applyUse(cur, content, secrets, job.pid, job.use, nm);
-          if ("refusal" in out) await control.apply({ ...out.change, expect });
+          if ("refusal" in out) await control.apply({ ...(await sealedRefusal(cur, job.pid, out)), expect });
           else {
             const change = await resealed(out.secrets, out.change);
             await control.apply({ ...change, expect });
@@ -195,13 +224,13 @@ export function BunkerHostControls({ session, content, answers, participants, co
         working.current = false;
       }
     })();
-  }, [own, secrets, r.mode, step, stage, partial]);
+  }, [own, secrets, r.mode, step, stage, partial, refusalsReady]);
 
   function pendingJob(list: Answer[]): { kind: "open"; pid: string; cat: Cat } | { kind: "use"; pid: string; use: { target: string | null; cat: Cat | null } } | null {
     for (const a of list) {
       const v = answerOf(a.value);
       if (v.use && content.specials && !r.used[a.pid]) {
-        if (r.refused[a.pid]?.sig !== useSig(step, v.use)) return { kind: "use", pid: a.pid, use: v.use };
+        if (!refusedAlready(a.pid, useSig(step, v.use))) return { kind: "use", pid: a.pid, use: v.use };
       }
     }
     if (r.mode === "open" && r.speaker && r.speakEndsAt === null) {
@@ -558,7 +587,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
             </label>
             {manualUse.pid && secrets.chars[manualUse.pid] && (() => {
               const sp = SPECIAL_BY_ID[(secrets.chars[manualUse.pid] as { special: keyof typeof SPECIAL_BY_ID }).special];
-              const refused = r.refused[manualUse.pid];
+              const refused = r.used[manualUse.pid] ? undefined : refusals.list[manualUse.pid];
               return (
                 <>
                   <p className="small">{sp.text}</p>
@@ -602,7 +631,7 @@ export function BunkerHostControls({ session, content, answers, participants, co
                         run: () =>
                           run(async () => {
                             const out = applyUse(latest.current, content, secretsRef.current ?? secrets, manualUse.pid, { target: manualUse.target || null, cat: manualUse.cat || null }, nm);
-                            if ("refusal" in out) return out.change;
+                            if ("refusal" in out) return sealedRefusal(latest.current, manualUse.pid, out);
                             const change = await resealed(out.secrets, out.change);
                             setSecrets(out.secrets);
                             setManualUse({ pid: "", target: "", cat: "" });

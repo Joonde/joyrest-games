@@ -17,6 +17,8 @@ const MAX_OPTIONS = 6;
 export interface EndingItem {
   pid: string;
   start: string;
+  /** Команда автора (только в режиме команд): её телефоны не голосуют. */
+  team?: string;
 }
 
 export interface EndingOption {
@@ -68,7 +70,9 @@ export function parseEnding(raw: unknown): EndingState | null {
     writeStep: typeof d.writeStep === "number" ? d.writeStep : 0,
     items: (Array.isArray(d.items) ? d.items : []).flatMap((x) => {
       const i = rec(x);
-      return typeof i.pid === "string" && typeof i.start === "string" ? [{ pid: i.pid, start: cleanText(i.start, START_MAX) }] : [];
+      if (typeof i.pid !== "string" || typeof i.start !== "string") return [];
+      const start = cleanText(i.start, START_MAX);
+      return [typeof i.team === "string" && i.team !== i.pid ? { pid: i.pid, start, team: i.team } : { pid: i.pid, start }];
     }),
     current: typeof d.current === "number" ? d.current : 0,
     fakeStep: typeof d.fakeStep === "number" ? d.fakeStep : null,
@@ -135,11 +139,11 @@ export function writtenEndings(answers: Answer[], step: number): Array<{ pid: st
 }
 
 /** «Начать»: истории в случайном порядке, первая — все придумывают концовку. */
-export function endingStart(session: Session, content: StoryContent, e: EndingState, answers: Answer[], random: () => number = Math.random): { ending: EndingState; change: Pick<SessionChange, "state"> } | null {
+export function endingStart(session: Session, content: StoryContent, e: EndingState, answers: Answer[], random: () => number = Math.random, teamOf: (pid: string) => string = (p) => p): { ending: EndingState; change: Pick<SessionChange, "state"> } | null {
   const list = shuffle(writtenEndings(answers, e.writeStep), random).slice(0, content.endingMax);
   if (list.length === 0) return null;
   const step = session.state.step + 1;
-  return { ending: { ...e, phase: "fake", items: list.map((w) => ({ pid: w.pid, start: w.start })), current: 0, fakeStep: step, options: [], reveal: null, history: [] }, change: fakeStepChange(step, content) };
+  return { ending: { ...e, phase: "fake", items: list.map((w) => ({ pid: w.pid, start: w.start, ...(teamOf(w.pid) !== w.pid ? { team: teamOf(w.pid) } : {}) })), current: 0, fakeStep: step, options: [], reveal: null, history: [] }, change: fakeStepChange(step, content) };
 }
 
 /** «Голосуем»: настоящая концовка и до 5 выдуманных вперемешку. */
@@ -174,18 +178,18 @@ export function endingReveal(session: Session, content: StoryContent, e: EndingS
     const to = teamOf(pid);
     if (n !== 0 && session.leaderboard[to]) deltas[to] = (deltas[to] ?? 0) + n;
   };
+  const authorTeam = item ? teamOf(item.pid) : null;
   for (const a of votes) {
-    if (a.step !== session.state.step || a.pid === item?.pid) continue;
+    // Автор и его команда знают правду; голос за выдумку своей команды — тоже не в счёт.
+    if (a.step !== session.state.step || a.pid === item?.pid || (authorTeam !== null && teamOf(a.pid) === authorTeam)) continue;
     const p = endingPickOf(a.value);
-    if (!p || !e.options.some((o) => o.id === p) || owners[p] === a.pid) continue;
+    const owner = p ? owners[p] : undefined;
+    if (!p || !e.options.some((o) => o.id === p) || owner === a.pid || (owner && teamOf(owner) === teamOf(a.pid))) continue;
     counts[p] = (counts[p] ?? 0) + 1;
     if (p === realId) {
       right.push(a.pid);
       add(a.pid, content.guessPoints);
-    } else {
-      const owner = owners[p];
-      if (owner) add(owner, content.foolPoints);
-    }
+    } else if (owner) add(owner, content.foolPoints);
   }
   if (right.length === 0 && item) add(item.pid, content.authorBonus);
   return { ending: { ...e, reveal: { realId, owners, counts, right, deltas } }, change: { state: { stage: "reveal", revealed: true }, ...(Object.keys(deltas).length > 0 ? { addScore: deltas } : {}) } };

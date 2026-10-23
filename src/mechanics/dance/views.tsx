@@ -46,7 +46,7 @@ export function ArtCard({ kind, styleId = "", hint, n, className = "", style, ch
       <span className="db-card__label">
         <span className="db-card__name">{KIND_TITLES[kind]}</span>
         {st && (
-          <span className="db-card__style">
+          <span className="db-card__style" title={st.title}>
             {st.emoji} {st.title}
           </span>
         )}

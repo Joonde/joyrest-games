@@ -185,6 +185,8 @@ function Console({ session }: { session: Session }) {
     return () => window.clearInterval(timer);
   }, [session.id, session.playMode, session.state.phase]);
 
+  // Идёт запись «Начать игру» — фоновые записи лобби (звёздочки команд) её не перебивают.
+  const starting = useRef(false);
   // Названия команд скрыты: экран зала показывает «Команда 1 ★★★» — звёздочки по числу телефонов.
   const reveal = teamsReveal(session.state);
   const sizesKey = sizesString(
@@ -199,6 +201,9 @@ function Console({ session }: { session: Session }) {
     // Сравнение без учёта порядка ключей: база (jsonb) возвращает их в своём порядке.
     if (sizesString(reveal.sizes ?? {}) === sizesKey) return;
     const timer = window.setTimeout(() => {
+      // Ведущий как раз жмёт «Начать игру» (или игра уже началась) — звёздочки больше не нужны, а запись
+      // получила бы отказ сразу после касания.
+      if (starting.current || latest.current.state.phase !== "lobby") return;
       const current = teamsReveal(latest.current.state);
       if (!current.hidden) return;
       void sessionsRepo
@@ -241,6 +246,7 @@ function Console({ session }: { session: Session }) {
   );
 
   async function start() {
+    starting.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -251,6 +257,7 @@ function Console({ session }: { session: Session }) {
     } catch (e) {
       if (errorCodeOf(e) !== "failed-precondition") setError("Не удалось начать игру. Проверьте интернет.");
     } finally {
+      starting.current = false;
       setBusy(false);
     }
   }

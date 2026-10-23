@@ -73,7 +73,7 @@ export function AquariumHostControls({ session, content, answers, participants, 
                 <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => releaseItems(s, content, [i]))}>
                   На экран
                 </button>
-                <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => hideItem(s, content, keyOf(i)))}>
+                <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => hideItem(s, content, i))}>
                   Не показывать
                 </button>
               </ItemRow>
@@ -102,7 +102,7 @@ export function AquariumHostControls({ session, content, answers, participants, 
                       title: "Убрать рисунок с экрана?",
                       text: "Он исчезнет со сцены и больше не появится.",
                       confirmLabel: "Убрать",
-                      run: () => run((s) => hideItem(s, content, keyOf(i))),
+                      run: () => run((s) => hideItem(s, content, i)),
                     })
                   }
                 >

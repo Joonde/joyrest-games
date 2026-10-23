@@ -42,6 +42,22 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
   const errorCells = new Set(errors.map((e) => e.path.split("/")[1]).filter(Boolean));
   const open = findCell(content, openId);
 
+  // Форма клетки — под полем: на телефоне её не видно, и кажется, что клетка «не отвечает» (жалоба ведущего
+  // 22 октября 2026). Открыли клетку — форма сразу на экране.
+  useEffect(() => {
+    if (!openId) return;
+    const t = window.setTimeout(() => {
+      const form = document.querySelector(".board-cell-form");
+      if (!form) return;
+      const r = form.getBoundingClientRect();
+      if (r.top < 0 || r.top > window.innerHeight * 0.25) {
+        const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        form.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+      }
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [openId]);
+
   // «Показать, что исправить»: открывается первая клетка с замечанием (форма клетки показывается под полем).
   const firstBad = useRef<string | null>(null);
   firstBad.current = allCells(content).find(({ cell }) => errors.some((e) => e.path.startsWith(`cells/${cell.id}/`)))?.cell.id ?? null;
@@ -70,18 +86,18 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
 
   function releaseImage(mediaId: string | null) {
     if (!mediaId || !uploadedHere.current.has(mediaId)) return;
-    if (allCells(latest.current).some(({ cell }) => cell.imageId === mediaId)) return;
+    if (allCells(latest.current).some(({ cell }) => cell.imageId === mediaId || cell.answerImageId === mediaId)) return;
     uploadedHere.current.delete(mediaId);
     void mediaRepo.remove(gameId, mediaId).catch(() => undefined);
   }
 
-  async function pickImage(cell: BoardCell, file: File) {
+  async function pickImage(cell: BoardCell, file: File, field: "imageId" | "answerImageId" = "imageId") {
     try {
       const image = await compressImage(file);
       const { mediaId, saved } = mediaRepo.upload(gameId, image);
       uploadedHere.current.add(mediaId);
-      const previous = findCell(latest.current, cell.id)?.cell.imageId ?? null;
-      updateCell(cell.id, { imageId: mediaId });
+      const previous = findCell(latest.current, cell.id)?.cell[field] ?? null;
+      updateCell(cell.id, { [field]: mediaId });
       releaseImage(previous);
       saved.catch(() => showToast("Картинка не сохранилась. Проверьте интернет и выберите её ещё раз."));
     } catch (error) {
@@ -203,10 +219,10 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
           editable={editable}
           errors={errors.filter((e) => e.path.startsWith(`cells/${open.cell.id}/`)).map((e) => e.message)}
           onChange={(patch) => updateCell(open.cell.id, patch)}
-          onPickImage={(file) => pickImage(open.cell, file)}
-          onRemoveImage={() => {
-            const before = open.cell.imageId;
-            updateCell(open.cell.id, { imageId: null });
+          onPickImage={(file, field) => pickImage(open.cell, file, field)}
+          onRemoveImage={(field) => {
+            const before = open.cell[field];
+            updateCell(open.cell.id, { [field]: null });
             releaseImage(before);
           }}
           onClose={() => setOpenId(null)}
@@ -239,12 +255,10 @@ function CellForm({
   editable: boolean;
   errors: string[];
   onChange: (patch: Partial<BoardCell> | ((cell: BoardCell) => BoardCell)) => void;
-  onPickImage: (file: File) => Promise<void>;
-  onRemoveImage: () => void;
+  onPickImage: (file: File, field: "imageId" | "answerImageId") => Promise<void>;
+  onRemoveImage: (field: "imageId" | "answerImageId") => void;
   onClose: () => void;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [processing, setProcessing] = useState(false);
   return (
     <section className="card board-cell-form" aria-label={`Клетка: ${title}, ${cell.points}`}>
       <div className="row board-cell-form__head">
@@ -279,43 +293,40 @@ function CellForm({
         <input value={cell.answer} maxLength={BOARD_LIMITS.answer} disabled={!editable} onChange={(e) => onChange({ answer: e.target.value })} />
       </label>
 
-      <div className="field">
-        <span>Картинка{cell.kind === "picture" ? "" : " (необязательно)"}</span>
-        {cell.imageId ? (
-          <div className="stack stack--tight">
-            <MediaImage className="board-cell-form__image" gameId={gameId} mediaId={cell.imageId} variant="small" alt="" />
-            {editable && (
-              <div className="actions">
-                <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
-                  Заменить картинку
-                </button>
-                <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={onRemoveImage}>
-                  Убрать картинку
-                </button>
-              </div>
-            )}
+      <ImageSlot
+        label={`Картинка к вопросу${cell.kind === "picture" ? "" : " (необязательно)"}`}
+        gameId={gameId}
+        mediaId={cell.imageId}
+        editable={editable}
+        onPick={(file) => onPickImage(file, "imageId")}
+        onRemove={() => onRemoveImage("imageId")}
+      />
+      {cell.imageId && (
+        <fieldset>
+          <legend>Когда картинка на экране зала</legend>
+          <div className="seg" role="group" aria-label="Когда картинка на экране зала">
+            {IMAGE_SHOWS.map(([value, label]) => (
+              <button key={value} type="button" className={cell.imageShow === value ? "seg__btn is-on" : "seg__btn"} aria-pressed={cell.imageShow === value} disabled={!editable} onClick={() => onChange({ imageShow: value })}>
+                {label}
+              </button>
+            ))}
           </div>
-        ) : (
-          editable && (
-            <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
-              {processing ? "Сжимаем…" : "Добавить картинку"}
-            </button>
-          )
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (!file) return;
-            setProcessing(true);
-            void onPickImage(file).finally(() => setProcessing(false));
-          }}
-        />
-      </div>
+          <p className="muted small">
+            {cell.imageShow === "host"
+              ? "Сначала на экране только вопрос. На пульте появится «Показать картинку» — нажмите, когда нужна подсказка. Картинку можно и убрать."
+              : "Картинка появляется на экране вместе с вопросом."}
+          </p>
+        </fieldset>
+      )}
+      <ImageSlot
+        label="Картинка к ответу (необязательно)"
+        hint="Появится на экране вместе с правильным ответом — например, фото того, что загадано."
+        gameId={gameId}
+        mediaId={cell.answerImageId}
+        editable={editable}
+        onPick={(file) => onPickImage(file, "answerImageId")}
+        onRemove={() => onRemoveImage("answerImageId")}
+      />
 
       {(cell.kind === "track" || cell.trackId) && (
         <TrackTimeline clip={parseClip(cell)} disabled={!editable} onChange={(clip) => onChange((c) => ({ ...c, ...(clipFields(clip) as Partial<BoardCell>) }))} />
@@ -333,3 +344,71 @@ function CellForm({
     </section>
   );
 }
+
+const IMAGE_SHOWS: Array<[BoardCell["imageShow"], string]> = [
+  ["now", "Сразу с вопросом"],
+  ["host", "По кнопке ведущего"],
+];
+
+/** Одна картинка клетки: добавить, заменить, убрать (сжимает телефон). */
+function ImageSlot({
+  label,
+  hint,
+  gameId,
+  mediaId,
+  editable,
+  onPick,
+  onRemove,
+}: {
+  label: string;
+  hint?: string;
+  gameId: string;
+  mediaId: string | null;
+  editable: boolean;
+  onPick: (file: File) => Promise<void>;
+  onRemove: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [processing, setProcessing] = useState(false);
+  return (
+    <div className="field">
+      <span>{label}</span>
+      {hint && <span className="muted small">{hint}</span>}
+      {mediaId ? (
+        <div className="stack stack--tight">
+          <MediaImage className="board-cell-form__image" gameId={gameId} mediaId={mediaId} variant="small" alt="" />
+          {editable && (
+            <div className="actions">
+              <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
+                {processing ? "Сжимаем…" : "Заменить картинку"}
+              </button>
+              <button type="button" className="btn btn--quiet btn--block" disabled={processing} onClick={onRemove}>
+                Убрать картинку
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        editable && (
+          <button type="button" className="btn btn--secondary btn--block" disabled={processing} onClick={() => fileRef.current?.click()}>
+            {processing ? "Сжимаем…" : "Добавить картинку"}
+          </button>
+        )
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          setProcessing(true);
+          void onPick(file).finally(() => setProcessing(false));
+        }}
+      />
+    </div>
+  );
+}
+

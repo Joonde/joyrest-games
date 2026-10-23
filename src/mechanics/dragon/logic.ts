@@ -7,6 +7,7 @@
 // последний удар и выжившим; дожил до конца боя — все теряют очки боя. Дальше — следующий бой (новый дракон,
 // погибшие оживают) или награждение.
 import { leaderboardAdditions, scoringParticipants } from "../../core/leaderboard";
+import { beforeChange, makeBefore, parseBefore, type Before } from "../../core/backStack";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import { MAX_SCORE_DELTA } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
@@ -57,6 +58,8 @@ export interface DragonResult extends Snapshot {
   prev: Snapshot | null;
   /** Итог боя «дракон победил»: удар последнего задания (для «Назад» дальше). */
   stash: { deltas: Record<string, number>; prev: Snapshot | null } | null;
+  /** Прошлый этап целиком — «Назад» с заставки задания или боя и с конца игры (`core/backStack`). */
+  before: Before | null;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -113,6 +116,7 @@ export function parseDragonResult(raw: unknown): DragonResult {
       const sp = rec(st.prev);
       return { deltas: nums(st.deltas, true), prev: Object.keys(sp).length > 0 ? parseSnapshot(sp) : null };
     })(),
+    before: parseBefore(d.before),
   };
 }
 
@@ -222,7 +226,7 @@ export function closeHeroes(session: Session, content: DragonContent, answers: A
     heroes[p] = r.heroes[p] ?? heroFromAnswer(byPid.get(p), i);
   });
   const next = battleStart(content, { ...r, order, heroes }, 0);
-  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write(next) } };
+  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...next, before: makeBefore("question", write(r), session.state.answered) }) } };
 }
 
 /** Показать задание. */
@@ -355,18 +359,19 @@ export function nextTask(session: Session, content: DragonContent, participants:
       ...applyDeltas(session, participants, deltas),
     };
   }
-  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, phase: "intro", task: r.task + 1, marks: [], last: {}, deltas: {}, prev: null }) } };
+  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, phase: "intro", task: r.task + 1, marks: [], last: {}, deltas: {}, prev: null, before: makeBefore("reveal", write(r), session.state.answered) }) } };
 }
 
 /** Следующий бой (новый дракон, все живы) или конец игры. */
 export function nextBattle(session: Session, content: DragonContent, participants: Participant[]): SessionChange {
   const r = parseDragonResult(session.state.result);
   const order = orderOf(session, participants, r);
+  const before = makeBefore("reveal", write(r), session.state.answered);
   if (r.battle + 1 >= content.battles.length) {
-    return { state: { step: session.state.step + 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, answered: 0, result: write({ ...r, order, phase: "over", deltas: {}, prev: null }) } };
+    return { state: { step: session.state.step + 1, stage: "reveal", revealed: true, startedAt: null, timeLimit: null, answered: 0, result: write({ ...r, order, phase: "over", deltas: {}, prev: null, before }) } };
   }
   const next = battleStart(content, { ...r, order }, r.battle + 1);
-  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write(next) }, leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode) };
+  return { state: { step: session.state.step + 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...next, before }) }, leaderboard: leaderboardAdditions(session.leaderboard, participants, session.playMode) };
 }
 
 export interface DragonBack {
@@ -388,5 +393,10 @@ export function dragonBack(session: Session, participants: Participant[]): Drago
   if (r.phase === "task") {
     return { change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...r, phase: "intro", marks: [] }) } }, clear: [step] };
   }
+  // Заставка задания или боя, конец игры — к итогу прошлого задания (боя), первая заставка — к выбору героев:
+  // заставка очков не начисляла, возвращается прошлый этап целиком.
+  if ((r.phase === "intro" || r.phase === "over") && r.before) return { change: beforeChange(step, r.before), clear: [step] };
+  // Выбор героев — к «Начать игру» (очков ещё нет).
+  if (r.phase === "heroes" && stage === "question") return { change: { state: { step: step - 1, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: {} } }, clear: [step] };
   return null;
 }

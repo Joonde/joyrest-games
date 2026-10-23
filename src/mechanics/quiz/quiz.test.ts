@@ -815,3 +815,155 @@ describe("шаблон «Квиз: порядок и числа»", () => {
     expect(content.questions.map((q) => q.kind)).toEqual(["order", "number", "order", "number", "order", "number"]);
   });
 });
+
+describe("«Назад» через несколько вопросов (QA 23 октября 2026)", () => {
+  const player = (id: string, name: string) => ({ id, name, kind: "player" as const, teamId: null, captainUid: id, joinedAt: 1 });
+  const people = [player("a", "Аня"), player("b", "Боря")];
+  const ans = (step: number, pid: string, value: unknown, submittedAt = 5) => ({ id: `${step}_${pid}`, step, pid, uid: pid, value, submittedAt });
+  const base = (): Session => ({
+    id: "s",
+    code: "123456",
+    hostId: "h",
+    gameId: "g",
+    gameTitle: "",
+    mechanic: "quiz",
+    gameSnapshot: null,
+    themeId: "joyrest",
+    playMode: "solo",
+    screenMode: "laptop",
+    state: { ...startState(), phase: "playing" },
+    leaderboard: { a: { name: "Аня", kind: "player", score: 0 }, b: { name: "Боря", kind: "player", score: 0 } },
+    createdAt: 0,
+  });
+  /** «Назад», пока не дойдём до нужного этапа нужного шага. */
+  function backTo(s: Session, content: QuizContent, step: number, stage: string): Session {
+    let t = s;
+    for (let i = 0; i < 40 && !(t.state.step === step && t.state.stage === stage); i++) {
+      const plan = back(t, content);
+      if (!plan) throw new Error(`назад некуда: шаг ${t.state.step}, ${t.state.stage}`);
+      t = applyChange(t, plan.change, 100 + i);
+    }
+    return t;
+  }
+
+  it("Аня верно на 1-м, 2-й до таблицы, заставка 3-го → назад до 1-го → «Показать ответ» — снова 100, не 200", () => {
+    const content: QuizContent = { questions: [choice({ points: 100 }), choice({ points: 100 }), choice({ points: 100 })] };
+    const a1 = [ans(0, "a", 0)];
+    let s = base();
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, a1, people), 2);
+    s = applyChange(s, showBoard(s, content), 3);
+    s = applyChange(s, nextQuestion(s, content), 4);
+    s = applyChange(s, showQuestion(s, content), 5);
+    s = applyChange(s, reveal(s, content, [ans(1, "a", 1), ans(1, "b", 0)], people), 6);
+    s = applyChange(s, showBoard(s, content), 7);
+    s = applyChange(s, nextQuestion(s, content), 8);
+    expect(s.leaderboard.a?.score).toBe(100);
+    expect(s.leaderboard.b?.score).toBe(100);
+    s = backTo(s, content, 0, "question");
+    expect(s.leaderboard.a?.score).toBe(0);
+    expect(s.leaderboard.b?.score).toBe(0);
+    s = applyChange(s, reveal(s, content, a1, people), 50);
+    expect(s.leaderboard.a?.score).toBe(100);
+    expect(s.leaderboard.b?.score).toBe(0);
+  });
+
+  it("назад до таблицы прошлого шага — ровно тот этап, итоги и стрелки", () => {
+    const content: QuizContent = { questions: [choice(), choice(), choice()] };
+    let s = base();
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [ans(0, "b", 0)], people), 2);
+    s = applyChange(s, showBoard(s, content), 3);
+    const atBoard = s;
+    s = applyChange(s, nextQuestion(s, content), 4);
+    s = applyChange(s, showQuestion(s, content), 5);
+    s = applyChange(s, reveal(s, content, [ans(1, "a", 0)], people), 6);
+    s = applyChange(s, nextQuestion(s, content), 7);
+    s = backTo(s, content, 0, "board");
+    expect(s.leaderboard.b).toMatchObject({ score: 100, last: 100, move: atBoard.leaderboard.b?.move ?? 0 });
+    expect(s.leaderboard.a).toMatchObject({ score: 0, last: 0 });
+    const { history: _h, ...rest } = (s.state.result ?? {}) as Record<string, unknown>;
+    const { history: _h0, ...was } = (atBoard.state.result ?? {}) as Record<string, unknown>;
+    expect(rest).toEqual(was);
+  });
+
+  it("гонка: после «Назад» через заставку кнопка и победитель на месте, деления снимаются один раз", () => {
+    const race: QuizQuestion = { ...newQuestion("buzz"), id: "r1", answers: ["Queen"], points: 100, steps: 2 };
+    const content: QuizContent = { questions: [race, choice()], settings: { ...DEFAULT_SETTINGS, raceTarget: 5 } };
+    const presses = [{ id: "0_a", step: 0, pid: "a", uid: "a", value: { buzz: true }, submittedAt: 10 }];
+    let s = base();
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, buzzSync(s, presses) ?? {}, 2);
+    s = applyChange(s, buzzRightAnswer(s, content, presses, people), 3);
+    expect(s.leaderboard.a).toMatchObject({ score: 100, race: 2 });
+    s = applyChange(s, showBoard(s, content), 4);
+    s = applyChange(s, nextQuestion(s, content), 5);
+    s = applyChange(s, back(s, content)!.change, 6);
+    expect(s.state).toMatchObject({ step: 0, stage: "board" });
+    expect(parseResult(s.state.result).buzz).toMatchObject({ winner: "a", order: ["a"] });
+    s = backTo(s, content, 0, "question");
+    expect(s.leaderboard.a).toMatchObject({ score: 0, race: 0 });
+    expect(parseResult(s.state.result).buzz).toMatchObject({ current: "a", winner: null });
+  });
+
+  it("суперигра и «Угадай число»: итоги шага возвращаются вместе с этапом", () => {
+    const num: QuizQuestion = { ...newQuestion("number"), id: "n1", text: "Ступеней?", number: 1665, points: 100 };
+    const content: QuizContent = { questions: [num, choice()] };
+    let s = base();
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [ans(0, "a", { guess: 1600 }), ans(0, "b", { guess: 1665 })], people), 2);
+    s = applyChange(s, showBoard(s, content), 3);
+    s = applyChange(s, nextQuestion(s, content), 4);
+    s = applyChange(s, back(s, content)!.change, 5);
+    expect(parseResult(s.state.result).guesses).toEqual({ a: 1600, b: 1665 });
+    expect(s.leaderboard.b).toMatchObject({ score: 150, last: 150 });
+  });
+
+  it("таблица «по кнопке» и «в конце раунда»: назад с заставки — на ответ, таблицу не показывали", () => {
+    for (const board of ["manual", "rounds"] as const) {
+      const content: QuizContent = { questions: [choice(), choice()], settings: { ...DEFAULT_SETTINGS, board } };
+      let s = base();
+      s = applyChange(s, showQuestion(s, content), 1);
+      s = applyChange(s, reveal(s, content, [ans(0, "a", 0)], people), 2);
+      expect(primaryAction(s, content)).toBe("next");
+      s = applyChange(s, nextQuestion(s, content), 3);
+      s = applyChange(s, back(s, content)!.change, 4);
+      expect(s.state).toMatchObject({ step: 0, stage: "reveal" });
+      expect(parseResult(s.state.result).counts).toEqual([1, 0]);
+    }
+  });
+
+  it("без заставки: назад с открытого вопроса через «готовы?» — к прошлому шагу", () => {
+    const content: QuizContent = { questions: [choice(), choice()], settings: { ...DEFAULT_SETTINGS, intro: false } };
+    let s = base();
+    s = applyChange(s, showQuestion(s, content), 1);
+    s = applyChange(s, reveal(s, content, [ans(0, "a", 0)], people), 2);
+    s = applyChange(s, showBoard(s, content), 3);
+    s = applyChange(s, nextQuestion(s, content), 4);
+    expect(s.state.stage).toBe("question");
+    s = backTo(s, content, 0, "question");
+    expect(s.leaderboard.a?.score).toBe(0);
+  });
+
+  it("длинная игра: стопка ограничена по размеру, назад за её край нельзя (очки не портятся)", () => {
+    const content: QuizContent = { questions: Array.from({ length: 30 }, () => choice()) };
+    const crowd: Record<string, Session["leaderboard"][string]> = {};
+    for (let i = 0; i < 500; i++) crowd[`guest-${String(i).padStart(24, "0")}`] = { name: `Гость ${i}`, kind: "player", score: 0 };
+    let s: Session = { ...base(), leaderboard: crowd };
+    for (let step = 0; step < 29; step++) {
+      s = applyChange(s, showQuestion(s, content), step * 10 + 1);
+      const all = Object.keys(crowd).map((pid) => ans(step, pid, 0));
+      s = applyChange(s, reveal(s, content, all, []), step * 10 + 2);
+      s = applyChange(s, showBoard(s, content), step * 10 + 3);
+      s = applyChange(s, nextQuestion(s, content), step * 10 + 4);
+    }
+    expect(JSON.stringify(s.state.result).length).toBeLessThan(45_000);
+    let guard = 0;
+    for (let plan = back(s, content); plan && guard < 400; plan = back(s, content), guard++) s = applyChange(s, plan.change, 1000 + guard);
+    const first = Object.values(s.leaderboard)[0];
+    // Снимали ровно столько шагов, сколько помнили: очки = 100 × число не снятых шагов.
+    expect((first?.score ?? 0) % 100).toBe(0);
+    expect(s.state.step).toBeGreaterThan(0);
+    expect(first?.score).toBe(s.state.step * 100);
+  });
+});

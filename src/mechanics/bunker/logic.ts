@@ -77,8 +77,13 @@ export interface BunkerResult {
   cancelled: boolean;
   /** Сыгранные особые условия (открыты всем). */
   used: Record<string, SpecialId>;
-  /** Отказ на просьбу «сыграть» (`шаг:цель:карта`), чтобы не повторять. */
+  /** Старые сессии: отказ открытым текстом. Новые записи сюда не идут — см. `refusedSeal`. */
   refused: Record<string, { sig: string; reason: string }>;
+  /**
+   * Отказ на просьбу «сыграть» — зашифрован ключом телефона этого игрока (без телефона — ключом ведущего):
+   * отпечаток просьбы и причину видят только он и пульт, остальные телефоны — нет.
+   */
+  refusedSeal: Record<string, string>;
   log: string[];
   /** Финал: открытые угрозы и решения ведущего. */
   threatsShown: number[];
@@ -142,6 +147,7 @@ export function emptyResult(): BunkerResult {
     cancelled: false,
     used: {},
     refused: {},
+    refusedSeal: {},
     log: [],
     threatsShown: [],
     verdicts: [],
@@ -172,6 +178,8 @@ export function parseBunkerResult(raw: unknown): BunkerResult {
     const x = rec(v);
     if (ID.test(k) && typeof x.sig === "string" && typeof x.reason === "string") refused[k] = { sig: x.sig, reason: x.reason };
   }
+  const refusedSeal: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rec(d.refusedSeal))) if (ID.test(k) && typeof v === "string" && v.length <= 2000) refusedSeal[k] = v;
   const outcome = rec(d.outcome);
   const undo = rec(d.undo);
   return {
@@ -207,6 +215,7 @@ export function parseBunkerResult(raw: unknown): BunkerResult {
     cancelled: d.cancelled === true,
     used,
     refused,
+    refusedSeal,
     log: Array.isArray(d.log) ? d.log.filter((x): x is string => typeof x === "string").slice(-20) : [],
     threatsShown: nums(d.threatsShown).filter((i) => i < THREATS.length),
     verdicts: Array.isArray(d.verdicts) ? d.verdicts.map((v) => (typeof v === "boolean" ? v : null)) : [],
@@ -246,8 +255,8 @@ export function answerOf(value: unknown): BunkerAnswer {
 }
 
 /**
- * Отпечаток просьбы «сыграть» (шаг, цель, карта) — короткий хэш: в открытом `refused` не видно,
- * на кого и на какую карту игрок пытался сыграть условие.
+ * Отпечаток просьбы «сыграть» (шаг, цель, карта): пульт не повторяет отклонённую просьбу. Хэш перебирается
+ * по открытым данным, поэтому в общий итог шага он не попадает — только зашифрованным (`refusedSeal`).
  */
 export function useSig(step: number, use: Use): string {
   const text = `${step}:${use.target ?? "-"}:${use.cat ?? "-"}`;
@@ -655,14 +664,20 @@ export interface UseResult {
   note: { pid: string; text: string } | null;
 }
 
+/** Отказ: причину и отпечаток пульт шифрует ключом телефона и пишет `refusalChange`. */
+export interface UseRefusal {
+  refusal: Refusal;
+  sig: string;
+}
+
 /**
  * Сыграть особое условие игрока: меняет тайное (персонажи, убежище) и открытое (открытые карты, места,
- * кто в игре), пишет строку в журнал. Отказ — причина в `refused` (телефон покажет её).
+ * кто в игре), пишет строку в журнал. Отказ — `UseRefusal`: в общий итог он идёт только зашифрованным.
  */
-export function applyUse(session: Session, content: BunkerContent, secrets: Secrets, pid: string, use: Use, name: (pid: string) => string, random: () => number = Math.random): UseResult | { refusal: Refusal; change: SessionChange } {
+export function applyUse(session: Session, content: BunkerContent, secrets: Secrets, pid: string, use: Use, name: (pid: string) => string, random: () => number = Math.random): UseResult | UseRefusal {
   const r = parseBunkerResult(session.state.result);
   const sig = useSig(session.state.step, use);
-  const refuse = (refusal: Refusal) => ({ refusal, change: { state: { result: { ...r, refused: { ...r.refused, [pid]: { sig, reason: refusal } } } } } });
+  const refuse = (refusal: Refusal): UseRefusal => ({ refusal, sig });
   if (!content.specials || !secrets.chars[pid]) return refuse("dead");
   if (r.used[pid]) return refuse("used");
   if (r.mode === "deal" || r.mode === "final") return refuse("time");
@@ -673,6 +688,7 @@ export function applyUse(session: Session, content: BunkerContent, secrets: Secr
   const id = (secrets.chars[pid] as Character).special;
   const bunkerShown = r.bunkerShown.map((card, i) => (i === r.bunkerShown.length - 1 && w.bunker[i] !== undefined ? (w.bunker[i] as number) : card));
   const { [pid]: _gone, ...refused } = r.refused;
+  const { [pid]: _sealedGone, ...refusedSeal } = r.refusedSeal;
   const next: BunkerResult = {
     ...r,
     alive: w.alive,
@@ -683,6 +699,7 @@ export function applyUse(session: Session, content: BunkerContent, secrets: Secr
     bunkerShown,
     used: { ...r.used, [pid]: id },
     refused,
+    refusedSeal,
     log: [...r.log, out.log].slice(-20),
     immune: out.vote === "immunity" ? [...r.immune, pid] : r.immune,
     doubled: out.vote === "doubleVote" ? [...r.doubled, pid] : r.doubled,
@@ -690,4 +707,11 @@ export function applyUse(session: Session, content: BunkerContent, secrets: Secr
   };
   const notes = out.note ? { ...secrets.notes, [out.note.pid]: [...(secrets.notes[out.note.pid] ?? []), out.note.text] } : secrets.notes;
   return { secrets: { ...secrets, chars: w.chars, bunker: w.bunker, notes }, change: { state: { result: next } }, note: out.note };
+}
+
+/** Записать отказ (уже зашифрованный ключом телефона или ведущего); прежний открытый отказ игрока убирается. */
+export function refusalChange(session: Session, pid: string, sealed: string): SessionChange {
+  const r = parseBunkerResult(session.state.result);
+  const { [pid]: _old, ...refused } = r.refused;
+  return { state: { result: { ...r, refused, refusedSeal: { ...r.refusedSeal, [pid]: sealed } } } };
 }

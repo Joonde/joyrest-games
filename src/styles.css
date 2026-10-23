@@ -3101,7 +3101,7 @@ kbd {
 /* Строка «Вход: … · код» лежит внизу кадра поверх игры. У игр, где низ занят (очередь «Правды или действия»,
    плашки «Что скажет большинство», история песен лото, места «Мафии»), — отступ под неё: строка ложилась на имена гостей
    (Ревизор, 17 октября 2026). */
-.quiz-stage > :is(.td-screen, .hd-screen, .lotto-screen, .mf-screen, .pr-screen, .st-screen) {
+.quiz-stage > :is(.td-screen, .hd-screen, .lotto-screen, .mf-screen, .pr-screen, .st-screen, .wager-screen) {
   padding-bottom: 6.5cqh;
 }
 
@@ -3404,7 +3404,20 @@ kbd {
 }
 
 .final__board .board-view__row {
-  padding: 0.8cqh 2cqw;
+  padding: 0.5cqh 2cqw;
+}
+
+/* «и ещё N» под таблицей финала — в кадре, без прокрутки: на проекторе 4:3 строка уходила за низ на 7 px (Ревизор,
+   23 октября 2026). Пьедестал финала ниже, строки плотнее, снизу отступ меньше (строки «Вход» в финале нет). */
+.final__board .board-view__more {
+  margin: 0;
+  font-size: 2.8cqh;
+  line-height: 1.2;
+}
+
+.quiz-stage > .final {
+  gap: 2cqh;
+  padding-bottom: max(3cqh, var(--safe-bottom));
 }
 
 /* Музыка: строка трека — кнопка прослушивания, название и плашки, меню «⋯». */
@@ -4802,17 +4815,27 @@ kbd {
 }
 
 .podium__name {
+  /* Имя — не больше двух строк, переносится по словам, дальше многоточие; не сжимается по высоте (иначе низ букв и
+     смайлик срезало на 4–6 px), строка — с запасом под смайлик (при 1.05 смайлик ложился на вторую строку). Размер — и
+     от ширины ступени: на проекторе 4:3 «Рождественский» не помещался и рвался посреди слова (Ревизор, 23 октября 2026). */
+  flex: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
   max-width: 100%;
+  padding-block: 0.05em;
   font-family: var(--font-display);
-  font-size: 6cqh;
+  font-size: min(6cqh, 3.4cqw);
   font-weight: 700;
-  line-height: 1.05;
-  overflow-wrap: anywhere;
+  line-height: 1.3;
+  overflow-wrap: break-word;
   color: var(--color-text);
 }
 
 .podium__slot--1 .podium__name {
-  font-size: 8cqh;
+  font-size: min(8cqh, 3.9cqw);
   background: var(--gradient-code);
   -webkit-background-clip: text;
   background-clip: text;
@@ -4821,9 +4844,14 @@ kbd {
 
 .podium__name--team,
 .podium__slot--1 .podium__name--team {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   padding: 0.6cqh 2cqw;
   border-radius: 999px;
-  font-size: 5cqh;
+  font-size: min(5cqh, 3cqw);
   background: var(--team-color);
   -webkit-background-clip: border-box;
   background-clip: border-box;
@@ -4834,6 +4862,35 @@ kbd {
 .podium__score {
   font-size: 3cqh;
   color: var(--color-text-muted);
+}
+
+/* Несколько имён на одной ступени (ничья) — мельче, три имени — по одной строке: ступень первого места невысокая. */
+.podium:not(.podium--final) .podium__names:has(> .podium__name + .podium__name) .podium__name:not(.podium__name--team) {
+  font-size: min(4.8cqh, 3cqw);
+}
+
+.podium:not(.podium--final) .podium__slot--1 .podium__names:has(> .podium__name + .podium__name) .podium__name:not(.podium__name--team) {
+  font-size: min(6cqh, 3.4cqw);
+}
+
+.podium:not(.podium--final) .podium__names:has(> .podium__name + .podium__name + .podium__name) .podium__name:not(.podium__name--team) {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+/* Ничья команд на ступени (до трёх плашек и «и ещё N»): плашки мельче, иначе в финале верхняя срезалась на полплашки
+   (Ревизор: «Правда или действие», «Мафия», 23 октября 2026). */
+.podium__names:has(> .podium__name + .podium__name) {
+  gap: 0.6cqh;
+}
+.podium__names:has(> .podium__name + .podium__name) > .podium__name--team {
+  font-size: min(3.6cqh, 2.4cqw);
+  padding: 0.3cqh 1.6cqw;
+}
+.podium--final .podium__names:has(> .podium__name + .podium__name) > .podium__name:not(.podium__name--team) {
+  font-size: min(3.2cqh, 2.6cqw);
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
 }
 
 .podium__step {
@@ -4927,14 +4984,21 @@ kbd {
 }
 
 .final > .podium--final {
-  height: 36cqh;
+  height: 32cqh;
   flex: none;
   padding: 0 6cqw;
 }
 
-/* В финале под пьедесталом ещё таблица: имя — одной строкой с многоточием (полностью — в таблице). */
+/* В финале под пьедесталом ещё таблица: имя — одной строкой с многоточием (полностью — в таблице). Высота строки —
+   с запасом под низ букв и смайлик: при 1.05 обрезались на 4 px (Ревизор, 22 октября 2026). */
 .podium--final .podium__name {
+  flex: none;
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
   font-size: 4cqh;
+  line-height: 1.3;
+  padding-block: 0.05em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4959,6 +5023,36 @@ kbd {
 
 .podium--final .podium__step {
   padding-top: 1cqh;
+}
+
+/* Финал, ничья многих (у «Убежища» и «Мафии» все победители с одинаковыми очками): до трёх имён, а «и ещё N» и очки —
+   одной строкой под ними; список целиком помещается над ступенью и не уходит под «Победители» (Ревизор, 23 октября 2026). */
+.podium--final .podium__slot {
+  gap: 1cqh;
+}
+.podium--final .podium__names:has(> .podium__more) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: center;
+  justify-items: center;
+  align-content: end;
+  column-gap: 1cqw;
+  row-gap: 0.4cqh;
+}
+.podium--final .podium__names:has(> .podium__more) > .podium__name {
+  grid-column: 1 / -1;
+  max-width: 100%;
+}
+.podium--final .podium__names:has(> .podium__more) > .podium__more {
+  justify-self: end;
+}
+.podium--final .podium__names:has(> .podium__more) > .podium__score {
+  justify-self: start;
+}
+.podium--final .podium__more,
+.podium--final .podium__score {
+  margin: 0;
+  line-height: 1.3;
 }
 
 /* Цифра места должна помещаться в ступень: у третьей было 5% высоты при цифре 5% и отступе 2% — цифру срезало. */
@@ -6934,25 +7028,58 @@ ul.chips {
 }
 
 /* Рисованные карточки лото «Вечер» и «День» (content.cardStyle): фон 3:4 из public/cards/art/web/,
-   заголовок сверху, сетка — в пустой середине рисунка. Цвета и места — переменные оформления. */
+   заголовок сверху, сетка — в пустой середине рисунка. Цвета и места — переменные оформления.
+   Заголовок и сетка — в потоке (отступы в cqw — доли ширины карточки, как места на рисунке): на маленьком телефоне
+   клетки с подписями от 12 px выше, чем середина рисунка, — карточка вытягивается вниз (Ревизор, 23 октября 2026:
+   клетки 45×36 px, исполнителя срезало по высоте, подписи 10 px). Рисунок не растягивается: верхняя половина — сверху
+   (::before), нижняя — снизу (::after), между ними — середина рисунка, вытянутая по высоте (боковые линии рамки). */
 .lotto-ticket {
-  --lotto-head-top: 21.5%;
-  --lotto-grid-top: 31.5%;
-  --lotto-grid-bottom: 17.5%;
-  --lotto-grid-side: 8.5%;
+  --lotto-head-top: 28.67cqw;
+  --lotto-grid-gap-top: 2.33cqw;
+  --lotto-grid-bottom: 23.33cqw;
+  --lotto-grid-side: 8.5cqw;
   --lotto-gap: 1.7cqw;
   --lotto-title-size: 4.4cqw;
-  --lotto-artist-size: max(10px, 2.9cqw);
+  --lotto-artist-size: max(12px, 2.9cqw);
+  --lotto-cell-min: 44px;
   position: relative;
+  isolation: isolate;
   container-type: inline-size;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 520px;
   margin-inline: auto;
   aspect-ratio: 3 / 4;
   border-radius: 5% / 3.75%;
-  overflow: hidden;
-  background: var(--lotto-art) center / cover no-repeat, var(--lotto-paper);
+  background: var(--lotto-art) center / 100% 1000% no-repeat, var(--lotto-paper);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.lotto-ticket::before,
+.lotto-ticket::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  aspect-ratio: 3 / 2;
+  background-image: var(--lotto-art);
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.lotto-ticket::before {
+  top: 0;
+  background-position: top;
+  border-radius: 5% 5% 0 0 / 7.5% 7.5% 0 0;
+}
+
+.lotto-ticket::after {
+  bottom: 0;
+  background-position: bottom;
+  border-radius: 0 0 5% 5% / 0 0 7.5% 7.5%;
 }
 
 .lotto-ticket--evening {
@@ -6971,8 +7098,7 @@ ul.chips {
 .lotto-ticket--day {
   --lotto-art: url("/cards/art/web/loto-day.webp");
   --lotto-paper: #f6efe4;
-  --lotto-head-top: 22.5%;
-  --lotto-grid-top: 32.5%;
+  --lotto-head-top: 30cqw;
   --lotto-heading: #8a5148;
   --lotto-rule: #6b6256;
   --lotto-cell: rgba(255, 255, 255, 0.78);
@@ -6986,20 +7112,19 @@ ul.chips {
 .lotto-ticket--s3 {
   --lotto-gap: 2.4cqw;
   --lotto-title-size: 5.6cqw;
-  --lotto-artist-size: max(11px, 3.5cqw);
+  --lotto-artist-size: max(12px, 3.5cqw);
 }
 
 .lotto-ticket--s5 {
-  --lotto-grid-bottom: 16.5%;
+  --lotto-grid-bottom: 22cqw;
   --lotto-gap: 1.1cqw;
-  --lotto-title-size: max(11px, 3.6cqw);
+  --lotto-title-size: 3.6cqw;
+  --lotto-cell-min: 40px;
 }
 
 .lotto-ticket__head {
-  position: absolute;
-  top: var(--lotto-head-top);
-  left: 12%;
-  right: 12%;
+  flex: none;
+  margin: var(--lotto-head-top) 12cqw 0;
   text-align: center;
 }
 
@@ -7016,27 +7141,26 @@ ul.chips {
 
 .lotto-ticket__rule {
   margin: 1.2cqw 0 0;
-  font-size: max(10px, 2.3cqw);
+  font-size: max(12px, 2.3cqw);
   font-weight: 500;
-  letter-spacing: 0.22em;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--lotto-rule);
-  white-space: nowrap;
+  text-wrap: balance;
 }
 
+/* Строки — не ниже пальца и не ниже текста клетки; лишнее место середины рисунка делится поровну. */
 .lotto-ticket > .lotto-card {
-  position: absolute;
-  top: var(--lotto-grid-top);
-  bottom: var(--lotto-grid-bottom);
-  left: var(--lotto-grid-side);
-  right: var(--lotto-grid-side);
+  flex: 1 1 auto;
+  margin: var(--lotto-grid-gap-top) var(--lotto-grid-side) var(--lotto-grid-bottom);
   gap: var(--lotto-gap);
-  grid-auto-rows: minmax(0, 1fr);
+  grid-auto-rows: minmax(min-content, 1fr);
 }
 
 .lotto-ticket .lotto-card__cell {
   position: relative;
-  min-height: 0;
+  min-height: var(--lotto-cell-min);
   aspect-ratio: auto;
   padding: 0.8cqw 0.9cqw;
   border-radius: 16px;
@@ -7051,14 +7175,21 @@ ul.chips {
 .lotto-ticket .lotto-card__title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: max(10px, calc(var(--lotto-title-size) * var(--fit, 1)));
-  line-height: 1.08;
-  overflow-wrap: anywhere;
+  flex: none;
+  font-size: max(12px, calc(var(--lotto-title-size) * var(--fit, 1)));
+  line-height: 1.1;
+  max-width: 100%;
+  /* Длинное слово — сначала по слогам с дефисом (lang="ru" у <html>), и только если и так не влезло — по буквам:
+     на 5×5 при 320 px длинные слова рвались посреди слова без дефиса (`anywhere`). */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 .lotto-ticket .lotto-card__artist {
+  flex: none;
   font-size: var(--lotto-artist-size);
-  line-height: 1.15;
+  line-height: 1.2;
   color: var(--lotto-ink-soft);
   opacity: 1;
   max-width: 100%;
@@ -8352,6 +8483,29 @@ ul.chips {
   justify-self: center;
 }
 
+/* Картинка появляется по кнопке ведущего или вместе с ответом — мягко, без сдвига вопроса. */
+@media (prefers-reduced-motion: no-preference) {
+  .board-screen__image {
+    animation: board-image-in 0.45s ease-out both;
+  }
+}
+
+@keyframes board-image-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.board-screen__image--answer {
+  outline: 0.4cqh solid var(--color-highlight);
+  outline-offset: 0.6cqh;
+}
+
 .board-screen__hint {
   color: var(--color-text-muted);
   margin: 0;
@@ -8589,7 +8743,7 @@ ul.chips {
 
 .board-host__cell small,
 .board-editor__cell small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
 }
@@ -8682,9 +8836,25 @@ ul.chips {
   border-radius: 2cqh;
 }
 
+/* На телефоне доска выходит за поля карточки почти на всю ширину экрана: клетка 8×8 на 360 px — ~43 px
+   под палец (внутри карточки было 28 px). Поля считаются от ширины карточки, так что вбок страница не едет. */
 .checkers--phone {
-  width: min(100%, 420px);
-  margin-inline: auto;
+  --board: min(calc(100vw - 16px), 420px);
+  width: var(--board);
+  max-width: none;
+  margin-inline: calc((100% - var(--board)) / 2);
+  border-width: 3px;
+}
+
+/* Узкий телефон (320–359 px): доска во всю ширину окна без рамки и скруглений — 320 / 8 = 40 px на клетку
+   (с полями 8 px и рамкой 3 px было ~37 px). Края — тень и сама клетчатая доска. */
+@media (max-width: 359px) {
+  .checkers--phone {
+    --board: 100vw;
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
 }
 
 .checkers__cell {
@@ -9052,7 +9222,7 @@ button.dance-card:active {
 }
 
 .dance-card__n {
-  font-size: 0.75em;
+  font-size: max(0.75em, 12px);
   font-weight: 500;
   color: #cfc5bb;
 }
@@ -9439,6 +9609,27 @@ button.dance-card:active {
   font-size: calc(var(--db-w) * 0.14 * var(--u));
 }
 
+/* Стиль и номер карточки на экране зала — не мельче 1,3 --u (с задних рядов и на проекторе 4:3). */
+.db-pick__cards .db-card__style,
+.db-pick__cards .db-card__n {
+  font-size: max(0.56em, calc(1.3 * var(--u)));
+}
+
+.db-pick__cards .db-card__style {
+  padding-inline: 0.5em;
+}
+
+/* Экран зала: стиль на карточке — одной строкой с многоточием. После увеличения шрифта
+   «🎸 Рок-н-ролл и твист» переносился в две строки и закрывал низ рисунка. */
+.db-stage .db-card__style {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+
 .db-card.is-played {
   opacity: 0.4;
   filter: saturate(0.5) brightness(0.7);
@@ -9601,9 +9792,9 @@ button.dance-card:active {
   top: calc(1.2 * var(--u));
   z-index: 1;
   pointer-events: none;
-  font-size: calc(1.05 * var(--u));
+  font-size: calc(1.3 * var(--u));
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   padding: 0.3em 0.8em;
   border-radius: 999px;
   background: var(--db-coral);
@@ -9620,7 +9811,8 @@ button.dance-card:active {
 .db-side .db-kicker {
   display: block;
   margin-bottom: calc(0.8 * var(--u));
-  font-size: calc(1.05 * var(--u));
+  font-size: calc(1.3 * var(--u));
+  letter-spacing: 0.24em;
 }
 
 .db-who {
@@ -9656,7 +9848,7 @@ button.dance-card:active {
 }
 
 .db-mini__text span {
-  font-size: calc(1.15 * var(--u));
+  font-size: calc(1.3 * var(--u));
   color: var(--db-soft);
 }
 
@@ -9700,7 +9892,7 @@ button.dance-card:active {
 
 .db-hint {
   margin: 0;
-  font-size: calc(1.2 * var(--u));
+  font-size: calc(1.35 * var(--u));
   color: var(--db-soft);
   line-height: 1.4;
 }
@@ -10067,6 +10259,12 @@ button.dance-card:active {
   width: 100%;
   font-size: clamp(18px, 7cqw, 28px);
   border-radius: 18px;
+}
+
+/* Стиль и номер на телефоне — не мельче 13 px (было 10 и 8 px на узком телефоне). */
+.db-swipe__item .db-card__style,
+.db-swipe__item .db-card__n {
+  font-size: max(0.56em, 13px);
 }
 
 .db-swipe__item.is-on {
@@ -10745,7 +10943,8 @@ button.dance-card:active {
 .qx-row__cell {
   color: #cfc3ae;
   font-weight: 400;
-  font-size: 1.5cqh;
+  /* Не мельче 1,85cqh, как вся строка: 1,5cqh на проекторе — 11 px, с задних рядов не видно. */
+  font-size: 1.85cqh;
   white-space: nowrap;
 }
 
@@ -10758,7 +10957,7 @@ button.dance-card:active {
 .qx-panel__more {
   margin: 0.6cqh 0 0;
   color: #cfc3ae;
-  font: 500 1.6cqh Jost, sans-serif;
+  font: 500 1.85cqh Jost, sans-serif;
 }
 
 /* Чей ход и кубик — сверху по центру. */
@@ -10786,8 +10985,8 @@ button.dance-card:active {
 }
 
 .qx-turn__label {
-  font: 500 1.4cqh Jost, sans-serif;
-  letter-spacing: 0.12em;
+  font: 500 1.9cqh Jost, sans-serif;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #cfc3ae;
 }
@@ -11297,10 +11496,29 @@ button.dance-card:active {
   text-wrap: balance;
 }
 
+/* Кто ходит — одной строкой: длинное имя команды сокращается многоточием, «· вопрос N — очки» и таймер видны всегда
+   (на проекторе 4:3 имя в две строки выталкивало строку за верх кадра — Ревизор, 22 октября 2026). */
 .mil-screen__who {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  min-width: 0;
   font-size: 4.2cqh;
   font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
   margin: 0;
+}
+
+.mil-screen__team {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mil-screen__label,
+.mil-screen__who > .mil-timer {
+  flex: none;
 }
 
 .mil-screen__note {
@@ -11359,6 +11577,12 @@ button.dance-card:active {
 
 .mil-carousel > .mil-bar:not(.is-turn) {
   filter: saturate(0.6);
+}
+
+/* У соседей вполоборота подпись и очки повёрнуты, наполовину закрыты центральной полоской и не читаются — прячем
+   (Ревизор, 22 октября 2026: «текст обрезан по высоте»). Чьи это лестницы — видно в подсказках над вопросом. */
+.mil-carousel > .mil-bar:not(.is-turn) :is(.mil-bar__name, .mil-bar__points) {
+  visibility: hidden;
 }
 
 /* Центральная полоска непрозрачна: соседние не просвечивают сквозь неё. */
@@ -11497,6 +11721,53 @@ button.dance-card:active {
   font-size: 3cqh;
 }
 
+/* Проектор 4:3 и другие «квадратные» экраны (Ревизор, 22 октября 2026): под вопросом сразу звонок, совет, право на ошибку и
+   «Ответ зафиксирован» — не помещались, низ наезжал на строку «Вход: … · код», верх уходил за кадр. Пока под вопросом
+   что-то идёт, над вопросом — подсказки только того, кто ходит; совет ведущего — компактной строкой. */
+@container (max-aspect-ratio: 3 / 2) {
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-lifeboard {
+    grid-template-columns: minmax(0, 36cqw);
+    justify-content: center;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-lifeboard__team:not(.is-turn) {
+    display: none;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) {
+    gap: 1cqh;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip {
+    gap: 1.4cqw;
+    padding: 0.6cqh 1.6cqw;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip__icon {
+    width: 4cqh;
+    height: 4cqh;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip__title {
+    font-size: 2cqh;
+  }
+
+  .mil-screen__main:has(> .mil-call, > .mil-screen__note--big) .mil-tip__text {
+    margin-top: 0.2cqh;
+    font-size: 2.6cqh;
+    line-height: 1.25;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-call,
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-screen__note--big {
+    font-size: 3.4cqh;
+  }
+
+  .mil-screen__main:has(> .mil-tip, > .mil-call, > .mil-screen__note--big) .mil-screen__note {
+    line-height: 1.3;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mil-carousel > .mil-bar {
     transition: none;
@@ -11517,9 +11788,12 @@ button.dance-card:active {
   opacity: 1;
 }
 
+/* Имя и очки обрезаются только многоточием по ширине: высота строки с запасом под низ кириллицы и смайлик. */
 .mil-bar__points {
   font-weight: 700;
   font-size: 2.6cqh;
+  line-height: 1.35;
+  padding-block: 0.1em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -11586,9 +11860,15 @@ button.dance-card:active {
 .mil-bar__name {
   font-weight: 600;
   font-size: 2.4cqh;
+  line-height: 1.35;
+  padding-block: 0.1em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.mil-bar__name .name-emoji {
+  line-height: 1;
 }
 
 .mil-lifelines {
@@ -12260,10 +12540,12 @@ button.dance-card:active {
   gap: 4px;
 }
 
+/* Убранные «50 на 50» — зачёркнуты и второстепенным цветом, без прозрачности (контраст ≥ 4.5 — Ревизор, 22 октября 2026). */
 .mil-host-options .is-gone {
-  opacity: 0.4;
+  color: var(--color-text-muted);
   text-decoration: line-through;
 }
+
 
 .mil-host-options .is-correct {
   color: var(--color-success);
@@ -13480,12 +13762,14 @@ button.dance-card:active {
 }
 
 .dr-pick__name {
-  font-size: 11px;
+  /* Не мельче 12 px; длинное имя героя («Волшебница») — в две строки с переносом, а не «Волш…». */
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.15;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: center;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .dr-stats {
@@ -15279,7 +15563,7 @@ button.dance-card:active {
   top: 5.6cqi;
   padding: 0.6cqi 3cqi;
   border-radius: 999px;
-  font-size: 4cqi;
+  font-size: max(4cqi, 12px);
   font-weight: 600;
   letter-spacing: 0.04em;
   background: rgb(0 0 0 / 0.45);
@@ -15315,7 +15599,7 @@ button.dance-card:active {
   margin: 0;
   flex: none;
   max-width: 100%;
-  font-size: 4.3cqi;
+  font-size: max(4.3cqi, 12px);
   line-height: 1.35;
   color: rgb(251 246 241 / 0.88);
   text-wrap: balance;
@@ -15329,7 +15613,7 @@ button.dance-card:active {
   padding: 1.2cqi 3cqi;
   border-radius: 10px;
   background: rgb(0 0 0 / 0.4);
-  font-size: 4cqi;
+  font-size: max(4cqi, 12px);
   font-weight: 600;
   color: #ffb3b9;
 }
@@ -15470,7 +15754,9 @@ button.dance-card:active {
 .mf-seat__name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .mf-seat__role { grid-area: role; font-size: 2cqh; color: #c8bfb6; }
 .mf-seat__role.is-mafia { color: #ff8a92; }
-.mf-seat.is-dead { opacity: 0.45; border-style: dashed; }
+/* Выбывший: приглушены имя и роль, номер остаётся читаемым (вся плашка на 45% давала номеру контраст 2,4). */
+.mf-seat.is-dead { border-style: dashed; }
+.mf-seat.is-dead > :not(.mf-seat__num) { opacity: 0.6; }
 .mf-seat.is-dead .mf-seat__name { text-decoration: line-through; }
 .mf-seat.is-dead .mf-seat__num { background: #6b625b; color: #fbf6f1; }
 .mf-seat.is-nominee { border-color: #ff5a66; background: rgb(255 90 102 / 0.16); }
@@ -15521,6 +15807,13 @@ button.dance-card:active {
 .mf-tally__fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e3c68c, #a3c2aa); transform-origin: left; animation: mf-grow 1.2s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
 .mf-tally__row.is-out .mf-tally__fill { background: linear-gradient(90deg, #ff8a92, #c4364a); }
 .mf-tally__n { font-variant-numeric: tabular-nums; text-align: right; }
+/* Телефон: имя целиком (до двух строк) и число голосов в первой строке, полоса — под ними; в px, а не в единицах зала —
+   на телефоне число голосов и полоса закрывали длинное имя (Ревизор). */
+.mf-tally--phone { width: 100%; gap: 12px; }
+.mf-tally--phone .mf-tally__row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name n" "bar bar"; gap: 4px 12px; font-size: 16px; }
+.mf-tally--phone .mf-tally__name { grid-area: name; white-space: normal; overflow-wrap: anywhere; }
+.mf-tally--phone .mf-tally__bar { grid-area: bar; height: 10px; }
+.mf-tally--phone .mf-tally__n { grid-area: n; font-size: 18px; }
 
 .mf-reveal { display: grid; grid-template-columns: repeat(auto-fit, minmax(16cqw, 1fr)); gap: 1.4cqh 1.2cqw; width: 100%; margin: 0; padding: 0; list-style: none; }
 .mf-reveal__item {
@@ -15803,7 +16096,7 @@ button.dance-card:active {
   text-wrap: balance;
   overflow: hidden;
 }
-.td-face__from { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(var(--td-band) + 9cqi); text-align: center; font-size: 4.4cqi; opacity: 0.85; }
+.td-face__from { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(var(--td-band) + 9cqi); text-align: center; font-size: max(4.4cqi, 12px); opacity: 0.85; }
 .td-stamp {
   position: absolute;
   z-index: 6;
@@ -15853,7 +16146,8 @@ button.dance-card:active {
 .td-suggest__kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .td-chip { min-height: 52px; border-radius: 14px; border: 1.5px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font: inherit; font-weight: 600; }
 .td-chip[aria-checked="true"] { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }
-.td-host__pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.td-host__pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.td-host__pick > .btn { min-width: 0; padding-inline: 12px; white-space: normal; overflow-wrap: anywhere; }
 .td-host__card { padding: 12px 16px; border-radius: 12px; }
 .td-host__card p { margin: 4px 0 0; font-size: 18px; }
 .td-host__card--truth { background: #4a1626; color: #fbf6f1; }
@@ -16243,16 +16537,16 @@ button.dance-card:active {
   border-top: 0.35em solid #6B5A3A; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; gap: 0.35em; overflow: hidden;
 }
 .bk-dossier__head { display: flex; align-items: baseline; gap: 0.35em; min-width: 0; }
-.bk-dossier__seat { font-size: 0.8em; color: #6B5A3A; font-weight: 600; }
+.bk-dossier__seat { font-size: 0.9em; color: #6B5A3A; font-weight: 600; }
 .bk-dossier__name { font-weight: 600; font-size: 1.1em; line-height: 1.15; min-width: 0; overflow-wrap: anywhere; }
 .bk-dossier__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2em; }
-.bk-row { display: flex; align-items: center; gap: 0.35em; border-radius: 0.3em; padding: 0.15em 0.35em; font-size: 0.8em; line-height: 1.2; background: color-mix(in srgb, var(--bk-c) 60%, #F2EBDC); min-width: 0; min-height: 1.7em; }
+.bk-row { display: flex; align-items: center; gap: 0.35em; border-radius: 0.3em; padding: 0.15em 0.35em; font-size: 0.9em; line-height: 1.2; background: color-mix(in srgb, var(--bk-c) 60%, #F2EBDC); min-width: 0; min-height: 1.7em; }
 .bk-row .bk-icon { width: 1.1em; height: 1.1em; }
 .bk-row__text { min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .bk-row.is-closed { background: repeating-linear-gradient(-45deg, #DCD3C2 0 0.3em, #E8E0D0 0.3em 0.6em); color: #6E6253; }
-.bk-dossier__used { margin: 0; display: flex; align-items: center; gap: 0.3em; font-size: 0.75em; font-weight: 600; color: #6B4E12; }
-.bk-dossier__stamp { top: 0.55em; left: auto; right: 0.45em; transform: rotate(-6deg); font-size: 0.75em; border-width: 0.12em; padding: 0.1em 0.5em; letter-spacing: 0.12em; }
-.bk-dossier.is-exiled .bk-dossier__name { padding-right: 5.5em; }
+.bk-dossier__used { margin: 0; display: flex; align-items: center; gap: 0.3em; font-size: 0.9em; font-weight: 600; color: #6B4E12; }
+.bk-dossier__stamp { top: 0.55em; left: auto; right: 0.45em; transform: rotate(-6deg); font-size: 0.9em; border-width: 0.12em; padding: 0.1em 0.5em; letter-spacing: 0.12em; }
+.bk-dossier.is-exiled .bk-dossier__name { padding-right: 6.5em; }
 .bk-dossier.is-exiled { filter: grayscale(0.85); opacity: 0.65; }
 .bk-dossier.is-speaking { box-shadow: 0 0 0 0.25em #F1C230, 0 6px 18px rgba(0, 0, 0, 0.3); }
 @media (prefers-reduced-motion: reduce) {
@@ -16262,8 +16556,11 @@ button.dance-card:active {
 /* «Убежище»: экран зала */
 .bk-screen {
   position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: 2.4cqh 2.4cqw; overflow: hidden; border-radius: inherit;
-  display: grid; grid-template-rows: auto minmax(22cqh, 1fr) auto; gap: 1.6cqh; color: #FBF6F1; font-size: 2.6cqh;
-  padding-bottom: 6.5cqh; /* место под строку особого условия: она не закрывает досье */
+  /* Средний ряд (текст этапа) не уже своего содержимого (min-content): досье не наезжают на таймер и пояснение,
+     а лишнее место по-прежнему достаётся этапу (Ревизор, 23 октября 2026). */
+  display: grid; grid-template-rows: auto minmax(min-content, 1fr) auto; gap: 1.6cqh; color: #FBF6F1; font-size: 2.6cqh;
+  /* Внизу — строка «Вход · код» (6,5cqh), над ней — строка особого условия: ни одна не закрывает досье и друг друга. */
+  padding-bottom: 12cqh;
   background: radial-gradient(120% 90% at 50% 0%, #2B2A22, #14130F 70%);
 }
 .bk-screen::before {
@@ -16278,7 +16575,7 @@ button.dance-card:active {
 .bk-screen__status { margin: 0; display: grid; gap: 0.4cqh; font-size: 2.1cqh; color: #D9CFC4; white-space: nowrap; }
 .bk-screen__status b { color: #F1C230; font-size: 1.3em; }
 .bk-screen__bunker { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.8cqw; justify-content: flex-end; align-items: center; }
-.bk-screen__bunker > li { width: 6.2cqw; }
+.bk-screen__bunker > li { width: max(6.2cqw, 10cqh); }
 .bk-screen__rounds { display: none; }
 .bk-screen__stage { display: grid; place-items: center; }
 .bk-screen--big { grid-template-rows: auto minmax(0, 1fr); }
@@ -16286,7 +16583,38 @@ button.dance-card:active {
 /* На экране зала строка досье — до двух строк текста, дальше многоточие внутри рамки. */
 .bk-screen__dossiers .bk-row__text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bk-screen__dossiers .bk-dossier__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.bk-screen__log { margin: 0; position: absolute; left: 50%; bottom: 1.2cqh; transform: translateX(-50%); background: #16130Fe6; border: 2px solid #E3C68C; color: #F3DFAE; padding: 0.6cqh 1.6cqw; border-radius: 999px; font-size: 2.2cqh; display: flex; align-items: center; gap: 0.6cqw; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: bk-log 6s ease both; }
+/* 9–16 игроков, досье в два ряда (`--bk-fs: 2cqh`): весь видимый текст ≥ 1,7% высоты экрана.
+   Закрытые карты — значками в одну строку внизу, без подписей; открытые — по строке текста (пока открыто
+   не больше двух — до двух строк). Имя — одной строкой, штамп «Изгнан» — строкой внизу, а не поверх имени.
+   Самое высокое досье (6 открытых, особое условие, штамп) — ~14em = 28cqh, два ряда помещаются под шапкой. */
+.bk-screen--dense { grid-template-rows: auto minmax(min-content, 1fr) auto; }
+/* 9–16 игроков: под текст этапа остаётся ~9% высоты — он в две строки: «раунд · заголовок», дальше пояснение, таймер и
+   «Снова ничья» в одну строку (заголовок мельче, всё ≥ 1,7% высоты экрана). Ряд этапа — по содержимому (min-content),
+   поэтому длинный список имён при ничьей сдвигает досье вниз, а не ложится на них. */
+.bk-screen--dense .bk-stage--turn .bk-stage__text { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0.6cqh 1.6cqw; max-width: 100%; }
+.bk-screen--dense .bk-stage--turn .bk-stage__text::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
+.bk-screen--dense .bk-stage--turn .bk-stage__text > :not(.bk-kicker, .bk-title) { order: 2; }
+.bk-screen--dense .bk-stage--turn .bk-title { font-size: 4.2cqh; }
+.bk-screen--dense .bk-stage--turn .bk-title--many { font-size: 3.2cqh; }
+.bk-screen--dense .bk-stage--turn .bk-lead { font-size: 2.4cqh; line-height: 1.25; }
+.bk-screen--dense .bk-stage--turn .bk-lead--muted { font-size: 2cqh; }
+.bk-screen--dense .bk-stage--turn .bk-timer { font-size: 3.8cqh; }
+.bk-screen--dense .bk-stage--turn .bk-timer span { font-size: 1.9cqh; }
+.bk-screen--dense .bk-stage--turn .bk-chip { font-size: 2cqh; }
+.bk-dossier--dense { padding: 0.45em 0.5em; gap: 0.25em; border-top-width: 0.3em; }
+.bk-dossier--dense .bk-dossier__head { flex-wrap: nowrap; }
+.bk-dossier--dense .bk-dossier__seat { flex: none; }
+.bk-screen__dossiers .bk-dossier--dense .bk-dossier__name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-dossier--dense .bk-dossier__rows { display: flex; flex-wrap: wrap; gap: 0.15em 0.2em; }
+.bk-dossier--dense .bk-row { flex: 1 1 100%; min-height: 1.35em; padding: 0.1em 0.3em; }
+.bk-dossier--dense .bk-row.is-closed { order: 1; flex: 0 0 auto; justify-content: center; width: 1.6em; min-height: 1.6em; padding: 0; }
+.bk-dossier--dense .bk-row.is-closed .bk-icon { width: 1.15em; height: 1.15em; }
+.bk-screen__dossiers .bk-dossier--dense .bk-row__text { -webkit-line-clamp: 1; }
+.bk-screen__dossiers .bk-dossier--dense .bk-dossier__rows:not(:has(> .bk-row:not(.is-closed) ~ .bk-row:not(.is-closed) ~ .bk-row:not(.is-closed))) .bk-row__text { -webkit-line-clamp: 2; }
+.bk-dossier--dense .bk-dossier__used { min-width: 0; line-height: 1.2; }
+.bk-dossier--dense.is-exiled .bk-dossier__name { padding-right: 0; }
+.bk-dossier--dense .bk-dossier__stamp { position: static; align-self: flex-start; transform: rotate(-3deg); margin-top: 0.1em; }
+.bk-screen__log { margin: 0; position: absolute; left: 50%; bottom: 6.8cqh; transform: translateX(-50%); background: #16130Fe6; border: 2px solid #E3C68C; color: #F3DFAE; padding: 0.6cqh 1.6cqw; border-radius: 999px; font-size: 2.2cqh; display: flex; align-items: center; gap: 0.6cqw; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: bk-log 6s ease both; }
 @keyframes bk-log { 0% { opacity: 0; transform: translate(-50%, 1cqh); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .bk-stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 3cqw; min-height: 0; }
 .bk-stage__card { height: 100%; max-height: 66cqh; aspect-ratio: 5 / 7; display: flex; }
@@ -16300,10 +16628,10 @@ button.dance-card:active {
 .bk-title { margin: 0; font-family: var(--font-display, "Cormorant Garamond", serif); font-weight: 700; font-size: 6cqh; line-height: 1.05; text-wrap: balance; }
 .bk-title--many { font-size: 3.4cqh; }
 .bk-lead { margin: 0; font-size: 2.8cqh; line-height: 1.35; color: #E8E0D6; text-wrap: pretty; }
-.bk-lead--muted { color: #B5ABA2; font-size: 2.2cqh; }
+.bk-lead--muted { color: #CFC5BB; font-size: 2.2cqh; }
 .bk-num { color: #F1C230; }
 .bk-timer { margin: 0; display: inline-flex; align-items: baseline; gap: 1cqw; font-size: 6cqh; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: #F3DFAE; }
-.bk-timer span { font-size: 2.2cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #B5ABA2; font-weight: 500; }
+.bk-timer span { font-size: 2.2cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #CFC5BB; font-weight: 500; }
 .bk-timer.is-low { color: #F08A75; }
 .bk-chip { margin: 0; display: inline-flex; align-items: center; gap: 0.6em; padding: 0.3em 0.9em; border-radius: 999px; font-size: 2.2cqh; }
 .bk-chip--gold { background: #E3C68C; color: #221E1B; }
@@ -16325,9 +16653,27 @@ button.dance-card:active {
 .bk-final__survivors { align-content: start; }
 .bk-final__side { display: grid; gap: 1.6cqh; align-content: start; }
 .bk-final__bunker { justify-content: flex-start; flex-wrap: wrap; }
-.bk-final__bunker > li { width: 5.2cqw; }
+.bk-final__bunker > li { width: max(5.2cqw, 9cqh); }
 .bk-final__threats { list-style: none; margin: 0; padding: 0; display: flex; gap: 1cqw; }
-.bk-final__threats > li { width: 12cqw; }
+.bk-final__threats > li { width: max(12cqw, 22cqh); }
+.bk-final__threats { flex-wrap: wrap; }
+/* Угроза в финале — текст крупный для зала, поэтому карта растёт по тексту, а не обрезает его (финал листается). */
+.bk-final__threats .bk-card { display: grid; overflow: clip; min-height: min-content; }
+.bk-final__threats .bk-card > .bk-in { position: relative; inset: auto; }
+
+/* Экран зала: подписи маленьких карт (убежище в шапке и в финале, угрозы, катастрофа) — не мельче 1,75% высоты кадра,
+   иначе с другого конца зала не прочитать (Ревизор, 23 октября 2026). */
+.bk-screen .bk-plan__num { font-size: max(7cqi, 1.75cqh); }
+.bk-screen .bk-card--small .bk-plan__title { font-size: max(12cqi, 1.75cqh); letter-spacing: 0; overflow-wrap: anywhere; hyphens: auto; }
+/* Маленькая карта убежища: поля по бокам уже — «Библиотека», «Мастерская» помещаются целиком; слово длиннее
+   («Музыкальная», «Радиостанция») переносится (с дефисом, где браузер умеет), а не уходит за край карты. */
+.bk-screen .bk-card--small.bk-plan > .bk-in { padding-inline: 2.5cqi; }
+.bk-screen .bk-cata--compact .bk-cata__facts { font-size: max(5cqi, 1.75cqh); }
+.bk-screen .bk-cata--compact .bk-cata__facts b { font-size: max(6cqi, 2.1cqh); }
+.bk-screen .bk-threat__kicker, .bk-screen .bk-threat__text, .bk-screen .bk-threat__helps { font-size: max(6.6cqi, 1.75cqh); }
+.bk-screen .bk-threat__title { font-size: max(10cqi, 2.2cqh); }
+.bk-screen .bk-threat__stamp { font-size: max(8cqi, 1.9cqh); }
+.bk-screen .bk-trait__band { font-size: max(7.5cqi, 1.75cqh); }
 
 /* «Убежище»: телефон */
 .bk-phone { gap: 16px; }
@@ -16354,7 +16700,27 @@ button.dance-card:active {
 .bk-phone__mine { display: grid; gap: 12px; }
 .bk-phone__cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bk-phone__cards > li { display: grid; gap: 4px; }
-.bk-phone__state { font-size: 12px; text-align: center; color: var(--color-text-muted); }
+.bk-phone__state { position: relative; z-index: 1; justify-self: center; font-size: 13px; text-align: center; color: var(--color-text); background: var(--color-surface); border-radius: 999px; padding: 1px 8px; }
+/* Телефон: карты узкие (две в ряд на 320 px), поэтому подписи не мельче 12 px; карта растёт по тексту (grid + clip:
+   минимальная высота — по содержимому), а не обрезает его. */
+.bk-phone .bk-card { display: grid; overflow: clip; min-height: min-content; }
+.bk-phone .bk-card > .bk-in { position: relative; inset: auto; min-height: 0; }
+/* Особое условие на телефоне — текст длинный: карта по высоте текста, а не по пропорции 5:7 (иначе низ обрезан). */
+.bk-phone .bk-special { aspect-ratio: auto; min-height: 15rem; }
+.bk-phone .bk-trait__band { font-size: max(7.5cqi, 12px); letter-spacing: 0.06em; flex-wrap: wrap; }
+.bk-phone .bk-trait__text { font-size: max(10.5cqi, 13px); }
+.bk-phone .bk-trait__stamp { font-size: max(5.5cqi, 12px); }
+.bk-phone .bk-special__band { font-size: max(6.5cqi, 12px); letter-spacing: 0.04em; flex-wrap: wrap; }
+.bk-phone .bk-special__title { font-size: max(10cqi, 15px); }
+.bk-phone .bk-special__text { font-size: max(6.6cqi, 12px); }
+.bk-phone .bk-special__when { font-size: max(5.5cqi, 12px); letter-spacing: 0.04em; }
+.bk-phone .bk-special__stamp { font-size: max(9cqi, 12px); }
+.bk-phone .bk-back__word { font-size: max(8.5cqi, 12px); letter-spacing: 0.2em; padding-left: 0.2em; }
+.bk-phone .bk-plan__num { font-size: max(7cqi, 12px); }
+.bk-phone .bk-plan__text, .bk-phone .bk-threat__text, .bk-phone .bk-threat__helps, .bk-phone .bk-cata__text { font-size: max(6.6cqi, 12px); }
+.bk-phone .bk-threat__kicker, .bk-phone .bk-cata__kicker, .bk-phone .bk-cata__facts { font-size: max(5.5cqi, 12px); }
+.bk-phone .bk-card--small .bk-plan__title, .bk-phone .bk-plan__title { font-size: max(12cqi, 12px); }
+.bk-phone .bk-threat__title, .bk-phone .bk-threat__stamp { font-size: max(9cqi, 13px); }
 .bk-phone__cards > li.is-open .bk-phone__state { color: var(--color-highlight); }
 .bk-phone__special { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; align-items: start; }
 .bk-phone__notes p { margin: 4px 0; display: flex; gap: 6px; align-items: center; }
@@ -16824,14 +17190,17 @@ button.dance-card:active {
   30% { transform: translateX(-6cqh) rotate(-12deg); }
   60% { transform: translateX(6cqh) rotate(12deg); }
 }
-.dk-seat { position: absolute; z-index: 3; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; width: 22cqh; }
+.dk-seat { position: absolute; z-index: 3; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; width: 24cqh; }
 .dk-seat .dk-backfan { margin-bottom: -1.6cqh; position: relative; z-index: 1; }
 .dk-seat__card {
+  position: relative;
+  z-index: 2;
   width: 100%;
   box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1cqh;
+  gap: 0.6cqh 1cqh;
   padding: 1cqh 1.2cqh;
   border-radius: 1.6cqh;
   background: rgba(20, 16, 22, 0.94);
@@ -16842,9 +17211,10 @@ button.dance-card:active {
 .dk-team--0 { background: #d89aa0; }
 .dk-team--1 { background: #d9b877; }
 .dk-seat__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.dk-seat__name { font-size: 2.1cqh; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dk-seat__meta { font-size: 1.6cqh; color: #d9b877; }
-.dk-seat__status { flex: none; font-size: 1.5cqh; padding: 0.3cqh 0.8cqh; border-radius: 0.8cqh; background: rgba(217, 184, 119, 0.14); color: #e8d9b5; }
+/* Имя — до двух строк (на проекторе 4:3 длинное имя сжималось до смайлика), статус — своей строкой под ним. */
+.dk-seat__name { font-size: 2.1cqh; font-weight: 500; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.dk-seat__meta { font-size: 1.9cqh; color: #d9b877; }
+.dk-seat__status { flex: 1 0 100%; box-sizing: border-box; text-align: center; font-size: 1.9cqh; padding: 0.3cqh 0.8cqh; border-radius: 0.8cqh; background: rgba(217, 184, 119, 0.14); color: #e8d9b5; }
 .dk-seat.is-active .dk-seat__card { border: 0.25cqh solid #e8c77e; animation: dk-glow 1.8s ease-in-out infinite; }
 .dk-seat.is-active .dk-seat__status { background: #e8c77e; color: #1b1a22; font-weight: 600; }
 .dk-seat--take .dk-seat__status { background: #7a1e2e; color: #f3e3bc; }
@@ -16865,31 +17235,34 @@ button.dance-card:active {
 .dk-over__places li { display: flex; align-items: center; gap: 1cqh; padding: 1cqh 2cqh; border-radius: 1.4cqh; background: rgba(255, 255, 255, 0.06); }
 .dk-over__places li > span { display: grid; place-items: center; width: 4cqh; height: 4cqh; border-radius: 50%; background: #e8c77e; color: #1b1a22; font-weight: 700; font-size: 2.2cqh; }
 .dk-over__places b { color: #e8c77e; }
-.dk-vote { position: absolute; inset: 0; z-index: 7; padding: 4cqh 4cqw; display: flex; flex-direction: column; gap: 3cqh; background: rgba(14, 12, 16, 0.94); animation: dk-pop 0.35s ease-out; }
+/* Голосование за колоду — во весь кадр над столом, но выше строки «Вход · код» (её не закрываем); стол и подписи под ним
+   на это время прячутся — иначе сквозь полупрозрачный фон наезжали на заголовок. */
+.dk-hall--vote > :not(.dk-vote) { visibility: hidden; }
+.dk-vote { position: absolute; inset: 0 0 7cqh; z-index: 7; padding: 4cqh 4cqw; display: flex; flex-direction: column; gap: 3cqh; background: rgba(14, 12, 16, 0.94); animation: dk-pop 0.35s ease-out; }
 .dk-vote__head h2 { margin: 0; font-family: "Cormorant Garamond", serif; font-size: 6cqh; color: #f3e3bc; }
 .dk-vote__head p { margin: 0.6cqh 0 0; font-size: 2.2cqh; color: #b9ae9c; letter-spacing: 0.08em; text-transform: uppercase; }
-.dk-vote__grid { flex: 1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2.4cqh 2cqw; align-content: center; }
+.dk-vote__grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2cqh 2cqw; align-content: center; }
 .dk-vote__tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1cqh; padding: 1.6cqh 1cqh; border-radius: 2cqh; transition: transform 0.3s; }
 .dk-vote__tile.is-lead { background: rgba(232, 199, 126, 0.08); box-shadow: 0 0 0 0.25cqh #e8c77e, 0 0 5cqh rgba(232, 199, 126, 0.25); transform: translateY(-1cqh); }
-.dk-vote__face { position: absolute; top: 3.5cqh; right: 18%; transform: rotate(10deg); }
+.dk-vote__face { position: absolute; top: 3cqh; right: 12%; }
 .dk-vote__name { font-size: 2.4cqh; color: #f3e3bc; }
 .dk-vote__bar { width: 80%; height: 0.7cqh; border-radius: 0.4cqh; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
 .dk-vote__bar span { display: block; height: 100%; background: linear-gradient(90deg, #b08a45, #f6e3a6); transition: width 0.5s; }
-.dk-vote__pct { font-size: 2cqh; color: #b9ae9c; }
+.dk-vote__pct { font-size: 2.2cqh; color: #b9ae9c; }
 .dk-bob { animation: dk-bob 5s ease-in-out infinite; }
 @keyframes dk-bob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-0.8cqh) rotate(1.5deg); } }
 
 /* ---------------------------------------------------------------- «Дурак»: телефон гостя */
 
-.dk-phone { gap: 12px; --cw: clamp(68px, 23vw, 104px); }
+.dk-phone { gap: 12px; --hw: clamp(68px, 23vw, 104px); --cw: var(--hw); }
 .dk-phone__deal { display: flex; justify-content: center; padding: 24px 0; }
-.dk-phone__opps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.dk-phone__opps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; min-width: 0; max-width: 100%; }
 .dk-opp { flex: none; display: flex; flex-direction: column; padding: 6px 10px; border-radius: 12px; background: var(--color-surface-alt); border: 1px solid var(--color-border); font-size: 13px; min-width: 76px; }
 .dk-opp__name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 .dk-opp__n { color: var(--color-text-muted); }
 .dk-opp--turn, .dk-opp--defend { border-color: #e8c77e; box-shadow: 0 0 0 2px rgba(232, 199, 126, 0.25); }
 .dk-opp--out { opacity: 0.55; }
-.dk-mini { --mw: 54px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 104px; align-items: center; transition: box-shadow 0.2s; }
+.dk-mini { --mw: 60px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 104px; align-items: center; transition: box-shadow 0.2s; }
 .dk-mini.is-drop { box-shadow: inset 0 0 0 2px rgba(232, 199, 126, 0.7); }
 .dk-mini.is-over { box-shadow: inset 0 0 0 3px #e8c77e, inset 0 0 24px rgba(232, 199, 126, 0.35); }
 .dk-mini--empty { gap: 12px; color: #f3e3bc; }
@@ -16916,9 +17289,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .dk-stock__suit.is-red span { color: #9c1934; }
 .dk-phone__status { margin: 0; text-align: center; font-weight: 500; }
 .dk-phone__status--turn, .dk-phone__status--defend { color: var(--color-highlight, #e3c68c); }
-.dk-hand { display: flex; flex-direction: column; margin-top: auto; padding-top: 34px; container-type: inline-size; }
-.dk-hand--rows { --cw: clamp(60px, 18vw, 86px); }
-.dk-hand__row { position: relative; z-index: 0; height: calc(var(--cw) * 1.4 + 18px); }
+.dk-hand { display: flex; flex-direction: column; margin-top: auto; padding-top: 34px; container-type: inline-size; min-width: 0; }
+.dk-hand--rows { --hw: clamp(60px, 18vw, 86px); }
+/* Ширина карты в ряду: не больше обычной, но так, чтобы ряд с наклоном веера (--reach) помещался в ширину руки,
+   а у каждой карты оставалось видно не меньше трети — угол с достоинством и мастью (телефон 320 px, 7 карт). */
+.dk-hand__row { --cw: min(var(--hw), (100cqw - 8px) / (1 + 2 * var(--reach, 0) + 0.36 * var(--n, 1))); position: relative; z-index: 0; height: calc(var(--cw) * 1.4 + 28px); }
 .dk-hand--rows .dk-hand__row { height: calc(var(--cw) * 1.4 + 4px); }
 .dk-hand--rows .dk-hand__row + .dk-hand__row { margin-top: calc(var(--cw) * -0.72); }
 .dk-hand.is-draggable .dk-hand__slot { touch-action: none; }
@@ -16932,8 +17307,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border: 0;
   background: none;
   cursor: pointer;
-  transform-origin: 50% 160%;
-  transform: translateX(calc(-50% + var(--off) * min(clamp(22px, 7.5vw, 38px), (100cqw - var(--cw) - 8px) / var(--n, 1)))) translateY(var(--lift)) rotate(var(--rot));
+  transform-origin: 50% 130%;
+  transform: translateX(calc(-50% + var(--off) * min(clamp(22px, 7.5vw, 38px), (100cqw - var(--cw) * (1 + 2 * var(--reach, 0)) - 8px) / var(--n, 1)))) translateY(var(--lift)) rotate(var(--rot));
   transition: transform 0.25s ease;
 }
 .dk-hand__slot > .dk-card { transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1), box-shadow 0.25s, filter 0.25s; }
@@ -16950,8 +17325,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 /* ---------------------------------------------------------------- «Дурак»: пульт и конструктор */
 
 .dk-host__seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.dk-host__seats li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--color-surface-alt); }
-.dk-host__bot { min-height: 40px; font-size: 14px; }
+.dk-host__seats li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--color-surface-alt); min-width: 0; }
+.dk-host__seats li > * { min-width: 0; overflow-wrap: anywhere; }
+.dk-host__bot { min-height: 40px; font-size: 14px; max-width: 100%; white-space: normal; }
 .dk-editor__felts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
 .dk-editor__felt, .dk-editor__deck { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface-alt); color: var(--color-text); font: inherit; cursor: pointer; min-height: 52px; }
 .dk-editor__felt.is-on, .dk-editor__deck.is-on { border: 2px solid var(--color-highlight, #e3c68c); }
@@ -17307,7 +17683,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .pr-cup.is-out {
-  opacity: 0.45;
+  /* Выбывший стакан — пунктир и приглушённое имя; «выбыл» читается (прозрачность всей плашки давала контраст 2,5). */
+  border-style: dashed;
+}
+
+.pr-cup.is-out .pr-cup__name {
+  opacity: 0.7;
 }
 
 .pr-cup.is-lost {
@@ -17345,8 +17726,16 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .pr-cup.is-lost .pr-cup__mark {
-  color: var(--color-danger);
+  justify-self: start;
+  padding: 0.2cqh 0.8cqw;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-danger) 28%, var(--color-surface));
+  color: var(--color-text);
   font-weight: 600;
+}
+
+.pr-cup.is-out .pr-cup__out {
+  color: var(--color-text);
 }
 
 .pr-die {
@@ -17407,8 +17796,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .pr-faces {
+  /* Шесть граней в ряд, а на узком пульте — в два ряда: кнопка не уже 48 px (было 25 px). */
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
   gap: 6px;
 }
 
@@ -20023,7 +20413,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wager-board--compact .wager-slot--low .wager-slot__value {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 .wager-board--compact .wager-chip {
@@ -20312,10 +20703,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-cell__label {
+  /* Без overflow: hidden — при line-height 1.1 низ кириллицы срезало на 3–4 px (Ревизор). */
   max-width: 100%;
-  overflow: hidden;
   font-size: 1.9cqh;
-  line-height: 1.1;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
@@ -20344,7 +20735,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-cell.is-lost {
-  opacity: 0.35;
+  /* Проигравшая ячейка — пунктир и приглушённый, но читаемый текст (прозрачность 35% давала контраст 3). */
+  border-style: dashed;
+  color: color-mix(in srgb, var(--wine-felt-text) 72%, var(--wine-felt));
+}
+.wine-cell.is-lost .wine-cell__chips {
+  opacity: 0.6;
 }
 
 .wine-passport {
@@ -20405,12 +20801,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-table--compact .wine-row {
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: 76px 1fr;
   gap: 6px;
 }
 
 .wine-table--compact .wine-row__title {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .wine-table--compact .wine-row__odds {
@@ -20418,7 +20814,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-table--compact .wine-row__cells {
-  grid-auto-columns: minmax(48px, 1fr);
+  grid-auto-columns: minmax(60px, 1fr);
   gap: 3px;
 }
 
@@ -20428,15 +20824,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-table--compact .wine-cell__label {
-  font-size: 10px;
+  font-size: 12px;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .wine-table--compact .wine-cell__chips {
   top: -6px;
   right: -4px;
-  min-width: 16px;
-  height: 16px;
-  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 12px;
 }
 
 .wine-phone__left {
@@ -20549,11 +20947,16 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   right: 6cqw;
 }
 
+/* На телефоне процент — обычная плашка в конце строки варианта (не поверх): поверх он заходил на текст варианта
+   (Ревизор, 22 октября 2026). */
 .mil-question--phone .mil-option__pct {
-  top: 2px;
-  right: 14px;
+  position: relative !important;
+  top: auto;
+  right: auto;
+  flex: none;
+  margin-left: auto;
   padding: 1px 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* «Миллион на кону» на телефоне, когда ходит другая команда: только смотреть. */
@@ -20579,10 +20982,15 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   text-align: center;
 }
 
+/* Чужой вопрос — без прозрачности (с ней тёмный текст на оранжевой и зелёной заливке и проценты становились
+   нечитаемыми — Ревизор, 22 октября 2026): «только смотреть» видно по пунктирным рамкам и приглушённому вопросу. */
 .mil-watch__question {
-  opacity: 0.6;
   pointer-events: none;
   user-select: none;
+}
+
+.mil-watch__question .mil-question__text {
+  color: var(--color-text-muted);
 }
 
 .mil-watch__question .mil-option {
@@ -21555,10 +21963,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .sp-card__face--place { background-image: url("/spy/art/web/place.webp"); padding-top: 22cqw; }
 .sp-card__title { font-family: var(--font-display); font-size: 12cqw; line-height: 1.05; color: var(--sp-ink); text-wrap: balance; }
 .sp-card__face--spy .sp-card__title { color: var(--sp-danger); font-size: 8.5cqw; }
-.sp-card__face--spy .sp-card__hint { font-size: 4.1cqw; }
+.sp-card__face--spy .sp-card__hint { font-size: max(4.1cqw, 12px); }
 .sp-card__role { font-size: 8cqw; color: var(--sp-ink); text-wrap: balance; }
 .sp-card__label { font-size: 5cqw; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sp-gold); }
-.sp-card__hint { font-size: 4.6cqw; line-height: 1.3; color: var(--sp-ink-soft); text-wrap: balance; }
+.sp-card__hint { font-size: max(4.6cqw, 12px); line-height: 1.3; color: var(--sp-ink-soft); text-wrap: balance; }
 .sp-card__rule { width: 30cqw; height: 1px; margin: 3cqw 0; background: var(--sp-gold); opacity: 0.6; }
 .sp-card__seat { position: absolute; top: 4cqw; left: 6cqw; z-index: 1; font-size: 6cqw; color: var(--sp-ink-soft); font-variant-numeric: tabular-nums; pointer-events: none; }
 
@@ -21887,21 +22295,25 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   color: var(--show-price, var(--color-highlight));
 }
 
+/* Высота строки — с запасом под низ кириллицы (при 1.1 срезались «у», «д», «р» на 8 px — Ревизор, 22 октября 2026);
+   ответ и «угадали» вместе — 3,6 × 1,3 + 2,2 × 1,3 ≈ 7,5cqh внутри строки табло 9cqh. */
 .hd-row__text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   font-weight: 600;
   font-size: 3.6cqh;
-  line-height: 1.1;
+  line-height: 1.3;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .hd-row__hits {
   font-weight: 400;
   font-size: 2.2cqh;
+  line-height: 1.3;
   color: var(--color-text-muted);
 }
 
@@ -22107,8 +22519,13 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   background: var(--color-surface-alt);
 }
 
+/* Открыто без очков — пунктирной рамкой, без прозрачности (бледный текст на пульте — Ревизор, 22 октября 2026). */
 .hd-host__row.is-shown {
-  opacity: 0.7;
+  border-style: dashed;
+}
+
+.hd-host__text strong {
+  color: var(--color-text);
 }
 
 .hd-host__n {
@@ -22744,6 +23161,118 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   }
 }
 
+/* Стол целиком выше строки «Вход: … · код» (Ревизор, 23 октября 2026: на ответе стол и плашка «Ближе всех» уходили под
+ * строку входа на телевизоре и проекторе). Экран — колонка: вопрос, ответ и выигрыши своего роста, стол занимает остаток
+ * (снизу — место под строку входа), ячейки тянутся по высоте стола, а не задают её. Стопка фишек не помещается — верхние
+ * фишки прячутся под край ячейки, число фишек остаётся видно. Плашка «Ближе всех» — внутри сукна (`overflow: hidden`). */
+.wager-screen:not(.wager-screen--intro) {
+  display: flex;
+  flex-direction: column;
+}
+
+.wager-screen:not(.wager-screen--intro) > * {
+  flex-shrink: 0;
+}
+
+.wager-screen > .wager-table {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.wager-table__felt {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.wager-table .wager-board {
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.wager-table .wager-slot {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.wager-table .wager-slot__pile {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Ответ открыт: блок ответа и стол плотнее — над столом ещё правильный ответ и выигрыши. */
+.wager-screen--answer {
+  gap: 1.6cqh;
+}
+
+.wager-screen--answer .wager-answer {
+  gap: 0.4cqh;
+}
+
+.wager-screen--answer .wager-answer__label {
+  font-size: 2.2cqh;
+}
+
+.wager-screen--answer .wager-answer__value {
+  font-size: 7cqh;
+}
+
+.wager-screen--answer .wager-answer__win {
+  font-size: 2.8cqh;
+}
+
+.wager-screen--answer .wager-answer__note {
+  font-size: 2.4cqh;
+}
+
+.wager-screen--answer .wager-gains li {
+  font-size: 2.4cqh;
+}
+
+.wager-screen--answer .wager-table__felt {
+  gap: 1.4cqh;
+  padding-top: 1.6cqh;
+}
+
+.wager-screen--answer .wager-table__rule {
+  font-size: 2.2cqh;
+}
+
+.wager-screen--answer .wager-table .wager-slot {
+  gap: 0.8cqh;
+  padding-top: 1.2cqh;
+}
+
+.wager-screen--answer .wager-table .wager-slot__odds {
+  width: 7cqh;
+  height: 7cqh;
+  font-size: 3.4cqh;
+}
+
+.wager-screen--answer .wager-table .wager-slot__value {
+  font-size: 2.8cqh;
+}
+
+.wager-screen--answer .wager-table .wager-slot--low .wager-slot__value {
+  font-size: 2.2cqh;
+}
+
+.wager-screen--answer .wager-chip3 {
+  width: 5cqh;
+  height: 5cqh;
+  margin-top: -4cqh;
+}
+
+.wager-screen--answer .wager-chip3:last-child {
+  margin-top: 0;
+}
+
+.wager-screen--answer .wager-table .wager-slot.is-win .wager-slot__pile {
+  padding-bottom: 2cqh;
+}
+
 /* Телефон капитана: ячейки выбора — тоже маленькое сукно с медальоном. */
 .wager-pick__btn {
   border-color: color-mix(in srgb, #e3c68c 70%, transparent);
@@ -23067,4 +23596,24 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .save-status--slow .save-status__dot {
   background: var(--color-highlight);
   animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Пульт «Ставки на знания»: картинка по кнопке ведущего. */
+.board-host__image {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.board-host__thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Форма клетки «Ставки на знания» при открытии прокручивается к началу экрана — не под липкую шапку. */
+.board-cell-form {
+  scroll-margin-top: 88px;
 }

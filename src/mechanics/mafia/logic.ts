@@ -396,9 +396,19 @@ export function nightChoices(answers: Array<{ pid: string; value: unknown }>, al
   return { choices, donCheck };
 }
 
-/** Кого лечил Доктор в прошлые ночи (по порядку): нужен для правила «не две ночи подряд». */
+/**
+ * Кого Доктор на самом деле вылечил в прошлые ночи (по порядку): нужен для правила «не две ночи подряд» и
+ * «себя — один раз». Считаются только принятые лечения: недопустимый выбор (тот же, что прошлой ночью, или себя
+ * второй раз — например, ввод ведущего) в ту ночь не сработал и следующую ночь не запрещает.
+ */
 export function healHistory(doctor: string | null, pastNights: Array<Record<string, string | null>>): Array<string | null> {
-  return doctor ? pastNights.map((c) => c[doctor] ?? null) : [];
+  if (!doctor) return [];
+  const out: Array<string | null> = [];
+  for (const c of pastNights) {
+    const want = c[doctor] ?? null;
+    out.push(want && canHeal(doctor, want, out) ? want : null);
+  }
+  return out;
 }
 
 /** Подсказка каждому живому с телефоном: мафии — голоса семьи, Дону и Комиссару — проверка, Доктору — прошлое лечение. */

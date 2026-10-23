@@ -35,6 +35,18 @@
       "what": "Фон экрана зала — караоке: сцена с микрофоном и звездой, бархатные шторы (Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, узел 13:34)",
       "url": "https://www.figma.com/api/mcp/asset/9392c522-446e-41c0-9f24-aee99fc18bea",
       "expires": "2026-10-24"
+    },
+    {
+      "file": "quiz-musicdance.png",
+      "what": "Фон экрана зала (Canva AI) — квиз с музыкой и танцами: граммофон, ноты, пара",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0024-4543526024425541417.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261023%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261023T143801Z&X-Amz-Expires=12603&X-Amz-Signature=be28e49d6ef30eb2f969015e3391f065bc36c0594baa40d0e1783bae461a69b2&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2023%20Oct%202026%2018%3A08%3A04%20GMT",
+      "expires": "2026-10-23"
+    },
+    {
+      "file": "melody-notes.png",
+      "what": "Фон экрана зала (Canva AI) — «Узнай по нотам»: рояль, золотая нота, гости у звонка",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0025-4543526024425541417.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261022%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261022T233931Z&X-Amz-Expires=65993&X-Amz-Signature=8e7ece89ab1e3e78277a3eac6e72f131c3b0bfe4e2efc3bc3d67dd2367372156&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2023%20Oct%202026%2017%3A59%3A24%20GMT",
+      "expires": "2026-10-23"
     }
   ]
 }

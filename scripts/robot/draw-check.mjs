@@ -55,9 +55,9 @@ for (const view of [{ width: 1920, height: 1080 }, { width: 1024, height: 768 }]
         if (effectual === "wheel") {
           const w = document.querySelector(".draw-wheel__seg.is-win text")?.textContent ?? "";
           if (!winner.startsWith(w.replace("…", ""))) bad.push(`под стрелкой «${w}»`);
-          // Стрелка над серединой выигравшего сектора: центр сектора ближе всех к верхней точке колеса.
+          // Стрелка над выигравшим сектором: центр его надписи — выше центров остальных.
           const svg = document.querySelector(".draw-wheel__svg").getBoundingClientRect();
-          const segs = [...document.querySelectorAll(".draw-wheel__seg text")].map((t) => ({ t: t.textContent, y: t.getBoundingClientRect().top }));
+          const segs = [...document.querySelectorAll(".draw-wheel__seg text")].map((t) => { const r = t.getBoundingClientRect(); return { t: t.textContent, y: r.top + r.height / 2 }; });
           const top = segs.sort((a, b) => a.y - b.y)[0];
           if (top && !winner.startsWith(top.t.replace("…", ""))) bad.push(`сверху сектор «${top.t}»`);
           if (svg.top < 0 || svg.bottom > vh) bad.push("колесо за краем экрана");

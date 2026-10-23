@@ -1,31 +1,1484 @@
 {
  "runs": [
   {
+   "name": "quiz-0-solo-projector",
+   "views": 46,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-solo-laptop",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-solo-tv",
+   "views": 46,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-0-teams-laptop",
+   "views": 44,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-solo-laptop",
+   "views": 28,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-1-teams-laptop",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-projector",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-solo-laptop",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-tv",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-projector",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-2-teams-laptop",
+   "views": 39,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-tv",
+   "views": 52,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-projector",
+   "views": 52,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-solo-laptop",
+   "views": 44,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-tv",
+   "views": 48,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-projector",
+   "views": 48,
+   "findings": 7,
+   "finished": true
+  },
+  {
+   "name": "quiz-3-teams-laptop",
+   "views": 50,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-tv",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-projector",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-tv",
+   "views": 20,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-solo-laptop",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-projector",
+   "views": 20,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "lotto-0-teams-laptop",
+   "views": 28,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "board-0-solo-tv",
+   "views": 72,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "board-0-solo-projector",
+   "views": 72,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "board-0-solo-laptop",
+   "views": 76,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "board-0-teams-tv",
+   "views": 72,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "board-0-teams-projector",
+   "views": 72,
+   "findings": 0,
+   "finished": false
+  },
+  {
+   "name": "board-0-teams-laptop",
+   "views": 76,
+   "findings": 1,
+   "finished": false
+  },
+  {
+   "name": "checkers-0-teams-projector",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "checkers-0-teams-tv",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dance-0-teams-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dance-0-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dance-0-teams-laptop",
+   "views": 34,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "checkers-0-teams-laptop",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "stage-0-teams-laptop",
+   "views": 44,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "stage-0-teams-projector",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "stage-0-teams-tv",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-tv",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-laptop",
+   "views": 44,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "stage-1-teams-projector",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-0-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-0-teams-projector",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-1-teams-tv",
+   "views": 45,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-1-teams-projector",
+   "views": 46,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "quest-0-teams-laptop",
+   "views": 49,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-teams-tv",
+   "views": 36,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-teams-laptop",
+   "views": 18,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-teams-projector",
+   "views": 36,
+   "findings": 5,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-solo-tv",
+   "views": 24,
+   "findings": 4,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-solo-projector",
+   "views": 24,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "millionaire-0-solo-laptop",
+   "views": 22,
+   "findings": 3,
+   "finished": true
+  },
+  {
+   "name": "quest-1-teams-laptop",
+   "views": 51,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-teams-tv",
+   "views": 78,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-teams-projector",
+   "views": 78,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-solo-tv",
+   "views": 56,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-teams-laptop",
+   "views": 70,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-solo-projector",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-0-solo-laptop",
+   "views": 58,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-teams-tv",
+   "views": 78,
+   "findings": 2,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-teams-projector",
+   "views": 78,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-solo-tv",
+   "views": 56,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-teams-laptop",
+   "views": 70,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-solo-projector",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-1-solo-laptop",
+   "views": 58,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-teams-projector",
+   "views": 78,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-teams-tv",
+   "views": 78,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-solo-tv",
+   "views": 56,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-teams-laptop",
+   "views": 70,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-solo-projector",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-2-solo-laptop",
+   "views": 58,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-teams-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-teams-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-solo-tv",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-teams-laptop",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-solo-projector",
+   "views": 38,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "hundred-3-solo-laptop",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-tv",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-projector",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-0-teams-tv",
+   "views": 26,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-0-teams-projector",
+   "views": 31,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "survival-0-teams-laptop",
+   "views": 44,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-0-teams-laptop",
+   "views": 35,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-tv",
+   "views": 29,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-projector",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "dragon-1-teams-laptop",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
    "name": "mafia-0-solo-tv",
-   "views": 93,
+   "views": 91,
    "findings": 0,
    "finished": true
   },
   {
    "name": "mafia-0-solo-projector",
-   "views": 90,
+   "views": 93,
    "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "mafia-0-solo-laptop",
+   "views": 83,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "spy-0-solo-tv",
+   "views": 50,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "spy-0-solo-projector",
+   "views": 50,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "spy-0-solo-laptop",
+   "views": 50,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "durak-0-solo-tv",
+   "views": 47,
+   "findings": 1,
    "finished": true
   },
   {
    "name": "bunker-0-solo-tv",
    "views": 81,
-   "findings": 0,
+   "findings": 3,
    "finished": false
   },
   {
    "name": "bunker-0-solo-projector",
-   "views": 76,
-   "findings": 1,
+   "views": 78,
+   "findings": 2,
    "finished": false
+  },
+  {
+   "name": "truth-0-solo-tv",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-0-solo-projector",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "durak-0-solo-projector",
+   "views": 45,
+   "findings": 9,
+   "finished": true
+  },
+  {
+   "name": "durak-0-solo-laptop",
+   "views": 45,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "truth-0-teams-tv",
+   "views": 42,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "bunker-0-solo-laptop",
+   "views": 84,
+   "findings": 3,
+   "finished": false
+  },
+  {
+   "name": "truth-0-teams-projector",
+   "views": 42,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-1-solo-tv",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-1-solo-projector",
+   "views": 40,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-0-solo-laptop",
+   "views": 56,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "truth-1-teams-tv",
+   "views": 42,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-1-teams-projector",
+   "views": 42,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-0-teams-laptop",
+   "views": 54,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-solo-projector",
+   "views": 49,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-solo-tv",
+   "views": 49,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-1-solo-laptop",
+   "views": 56,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-solo-laptop",
+   "views": 47,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "truth-1-teams-laptop",
+   "views": 54,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-teams-tv",
+   "views": 48,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wager-0-teams-tv",
+   "views": 22,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wager-0-teams-projector",
+   "views": 22,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-teams-projector",
+   "views": 49,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wager-0-teams-laptop",
+   "views": 20,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "perudo-0-teams-laptop",
+   "views": 48,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wager-0-solo-tv",
+   "views": 36,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-tv",
+   "views": 14,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wager-0-solo-projector",
+   "views": 36,
+   "findings": 1,
+   "finished": true
+  },
+  {
+   "name": "wager-0-solo-laptop",
+   "views": 32,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-projector",
+   "views": 14,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-solo-laptop",
+   "views": 8,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-teams-projector",
+   "views": 12,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-teams-tv",
+   "views": 12,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "wine-0-teams-laptop",
+   "views": 18,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "story-0-solo-laptop",
+   "views": 30,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "story-0-teams-tv",
+   "views": 34,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "story-0-solo-tv",
+   "views": 47,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "story-0-solo-projector",
+   "views": 43,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "story-0-teams-projector",
+   "views": 34,
+   "findings": 0,
+   "finished": true
+  },
+  {
+   "name": "story-0-teams-laptop",
+   "views": 34,
+   "findings": 0,
+   "finished": true
   }
  ],
  "findings": [
+  {
+   "key": "экран зала|обрезан текст|div.quiz-screen > div.quiz-screen__top > span.quiz-auction__plate > span.quiz-auction__who|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (span.quiz-auction__who)",
+   "path": "div.quiz-screen > div.quiz-screen__top > span.quiz-auction__plate > span.quiz-auction__who",
+   "text": "Отвечает · ставка 200 очков",
+   "at": "playing/6/reveal/",
+   "count": 2,
+   "shot": "shots/quiz-3-teams-tv-hall-1.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd",
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.quiz-screen__top > span.quiz-auction__plate > span.quiz-auction__who > strong|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 5 px (span.quiz-auction__who)",
+   "path": "div.quiz-screen__top > span.quiz-auction__plate > span.quiz-auction__who > strong",
+   "text": "Команда 2",
+   "at": "playing/6/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-tv-hall-2.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, телевизор full hd"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|span.quiz-auction__plate > span.quiz-auction__who > strong > span.name-emoji|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.quiz-auction__who)",
+   "path": "span.quiz-auction__plate > span.quiz-auction__who > strong > span.name-emoji",
+   "text": "🐺",
+   "at": "playing/6/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-2.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|span.quiz-auction__plate > span.quiz-auction__who > strong > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.quiz-auction__who)",
+   "path": "span.quiz-auction__plate > span.quiz-auction__who > strong > span",
+   "text": "Северные волки отдела IT",
+   "at": "playing/6/reveal/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-3.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (li.super-level.super-level--bronze)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--bronze > span.super-level__points",
+   "text": "100 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-4.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (li.super-level.super-level--silver)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--silver > span.super-level__points",
+   "text": "200 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-5.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (li.super-level.super-level--gold)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--gold > span.super-level__points",
+   "text": "300 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-6.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__points|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 6 px (li.super-level.super-level--diamond)",
+   "path": "div.super-screen.super-screen--intro > ol.super-levels.super-levels--intro > li.super-level.super-level--diamond > span.super-level__points",
+   "text": "500 очков",
+   "at": "playing/7/ready/",
+   "count": 1,
+   "shot": "shots/quiz-3-teams-projector-hall-7.jpg",
+   "where": [
+    "quiz 4-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "quiz"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 3.42 (нужно от 4.5)",
+   "path": "section.stack.stack--tight > ol.buzz-queue > li > span.buzz-queue__state",
+   "text": "мимо ✕",
+   "at": "playing/7/question/buzz",
+   "count": 7,
+   "shot": "shots/board-0-solo-tv-phones-1.jpg",
+   "where": [
+    "board 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "board 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "board 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "board 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "board"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.stage-teams > div.stage-teams__one > span.stage-teams__name > span|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 3 px (span.stage-teams__name)",
+   "path": "div.stage-teams > div.stage-teams__one > span.stage-teams__name > span",
+   "text": "Единороги из бухгалтерии",
+   "at": "playing/8/reveal/pick",
+   "count": 16,
+   "shot": "shots/stage-0-teams-laptop-hall-1.jpg",
+   "where": [
+    "stage 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "stage 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "stage"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.mil-screen__team|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.mil-screen__team)",
+   "path": "div.mil-screen.show-stage > section.mil-screen__main > p.mil-screen__who > span.mil-screen__team",
+   "text": "Команда 1",
+   "at": "playing/0/ready/turn",
+   "count": 6,
+   "shot": "shots/millionaire-0-teams-tv-hall-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
+    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.10 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__letter",
+   "text": "A",
+   "at": "playing/2/question/question",
+   "count": 55,
+   "shot": "shots/millionaire-0-teams-tv-phones-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
+    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.00 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__text",
+   "text": "Зелёного",
+   "at": "playing/2/question/question",
+   "count": 62,
+   "shot": "shots/millionaire-0-teams-tv-phones-2.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
+    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.00 (нужно от 4.5)",
+   "path": "div.mil-question.mil-question--phone > ol.mil-options > li.mil-option > span.mil-option__pct",
+   "text": "33%",
+   "at": "playing/13/question/question",
+   "count": 95,
+   "shot": "shots/millionaire-0-teams-tv-phones-3.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×4, телевизор full hd",
+    "millionaire 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена",
+    "millionaire 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "millionaire 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "millionaire 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.card > div.quiz-phone > section.stack.stack--tight > p.eyebrow|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.85 (нужно от 4.5)",
+   "path": "div.card > div.quiz-phone > section.stack.stack--tight > p.eyebrow",
+   "text": "Подсказки",
+   "at": "playing/2/question/question",
+   "count": 1,
+   "shot": "shots/millionaire-0-teams-projector-phones-1.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|main.page.page--play > div.card > div.quiz-phone.mil-watch > p.success|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 1.52 (нужно от 4.5)",
+   "path": "main.page.page--play > div.card > div.quiz-phone.mil-watch > p.success",
+   "text": "Они ответили верно!",
+   "at": "playing/8/reveal/reveal",
+   "count": 1,
+   "shot": "shots/millionaire-0-teams-projector-phones-4.jpg",
+   "where": [
+    "millionaire 1-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "millionaire"
+   ]
+  },
+  {
+   "key": "экран зала|обрезан текст|div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text|",
+   "area": "экран зала",
+   "kind": "обрезан текст",
+   "message": "текст обрезан по высоте на 4 px (span.hd-row__text)",
+   "path": "div.hd-row > div.hd-row__inner > div.hd-row__face.hd-row__face--open > span.hd-row__text",
+   "text": "Букет невесты",
+   "at": "playing/3/reveal/play",
+   "count": 45,
+   "shot": "shots/hundred-0-teams-tv-hall-1.jpg",
+   "where": [
+    "hundred 1-й шаблон, команды ×4, телевизор full hd",
+    "hundred 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "hundred 2-й шаблон, команды ×4, телевизор full hd",
+    "hundred 2-й шаблон, каждый сам ×4, телевизор full hd",
+    "hundred 3-й шаблон, команды ×4, телевизор full hd",
+    "hundred 3-й шаблон, каждый сам ×4, телевизор full hd"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|div.hall > main.quiz-stage > p.stage-code|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.05 (нужно от 4.5)",
+   "path": "div.hall > main.quiz-stage > p.stage-code",
+   "text": "Вход: localhost:45575/j · код 123 456",
+   "at": "playing/1/reveal/done",
+   "count": 3,
+   "shot": "shots/hundred-0-teams-laptop-hall-1.jpg",
+   "where": [
+    "hundred 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "hundred 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "hundred 3-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > strong|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 1.07 (нужно от 4.5)",
+   "path": "li > button.hd-host__row > span.hd-host__text > strong",
+   "text": "Начальник",
+   "at": "playing/3/reveal/play",
+   "count": 3,
+   "shot": "shots/hundred-1-teams-tv-phones-1.jpg",
+   "where": [
+    "hundred 2-й шаблон, команды ×4, телевизор full hd"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|li > button.hd-host__row > span.hd-host__text > small|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 1.85 (нужно от 4.5)",
+   "path": "li > button.hd-host__row > span.hd-host__text > small",
+   "text": "ещё: столы",
+   "at": "playing/3/reveal/play",
+   "count": 2,
+   "shot": "shots/hundred-1-teams-projector-phones-1.jpg",
+   "where": [
+    "hundred 2-й шаблон, команды ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "hundred"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--place > span.sp-card__label|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.5 px (нужно от 12)",
+   "path": "button.sp-card > span.sp-card__inner > span.sp-card__face.sp-card__face--place > span.sp-card__label",
+   "text": "Локация",
+   "at": "playing/0/reveal/cards",
+   "count": 4,
+   "shot": "shots/spy-0-solo-projector-phones-1.jpg",
+   "where": [
+    "spy 1-й шаблон, каждый сам ×11, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "spy"
+   ]
+  },
+  {
+   "key": "телефон|бледный текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "бледный текст",
+   "message": "контраст 3.34 (нужно от 4.5)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "9",
+   "at": "playing/67/question/play",
+   "count": 4,
+   "shot": "shots/durak-0-solo-tv-phones-1.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, телевизор full hd",
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена",
+    "durak 1-й шаблон, каждый сам ×4, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Первым ходит» закрыт элементом div.draw-coin__rays",
+   "path": "div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow",
+   "text": "Первым ходит",
+   "at": "playing/47/question/exile",
+   "count": 6,
+   "shot": "shots/bunker-0-solo-projector-hall-1.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd",
+    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена",
+    "truth 1-й шаблон, каждый сам ×16, ноутбук 16:10, большой зал, длинные имена",
+    "truth 1-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена",
+    "truth 2-й шаблон, команды ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "bunker",
+    "truth"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Проголосовали: 0 из 8» закрыт элементом article.bk-dossier.bk-dossier--dense",
+   "path": "section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead",
+   "text": "Проголосовали: 0 из 8",
+   "at": "playing/120/question/vote",
+   "count": 1,
+   "shot": "shots/bunker-0-solo-tv-hall-2.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|закрыт другим элементом|div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span|",
+   "area": "экран зала",
+   "kind": "закрыт другим элементом",
+   "message": "«Голосование» закрыт элементом article.bk-dossier.bk-dossier--dense",
+   "path": "div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span",
+   "text": "Голосование",
+   "at": "playing/120/question/vote",
+   "count": 1,
+   "shot": "shots/bunker-0-solo-tv-hall-3.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "экран зала|бледный текст|section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted|",
+   "area": "экран зала",
+   "kind": "бледный текст",
+   "message": "контраст 1.43 (нужно от 4.5)",
+   "path": "section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted",
+   "text": "Снова ничья — решит жребий.",
+   "at": "playing/33/question/justify",
+   "count": 2,
+   "shot": "shots/bunker-0-solo-projector-hall-2.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена",
+    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx",
+   "text": "6",
+   "at": "playing/52/question/play",
+   "count": 14,
+   "shot": "shots/durak-0-solo-projector-phones-1.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--wedding > span.dk-idx.dk-idx--b",
+   "text": "6",
+   "at": "playing/52/question/play",
+   "count": 14,
+   "shot": "shots/durak-0-solo-projector-phones-2.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx",
+   "text": "6",
+   "at": "playing/54/question/play",
+   "count": 7,
+   "shot": "shots/durak-0-solo-projector-phones-3.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--gothic > span.dk-idx.dk-idx--b",
+   "text": "6",
+   "at": "playing/54/question/play",
+   "count": 7,
+   "shot": "shots/durak-0-solo-projector-phones-4.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx",
+   "text": "6",
+   "at": "playing/65/question/play",
+   "count": 7,
+   "shot": "shots/durak-0-solo-projector-phones-6.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b",
+   "text": "6",
+   "at": "playing/65/question/play",
+   "count": 7,
+   "shot": "shots/durak-0-solo-projector-phones-7.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx",
+   "text": "6",
+   "at": "playing/90/question/play",
+   "count": 7,
+   "shot": "shots/durak-0-solo-projector-phones-8.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "телефон|мелкий текст|div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b|",
+   "area": "телефон",
+   "kind": "мелкий текст",
+   "message": "шрифт 11.4 px (нужно от 12)",
+   "path": "div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--classic > span.dk-idx.dk-idx--b",
+   "text": "6",
+   "at": "playing/90/question/play",
+   "count": 7,
+   "shot": "shots/durak-0-solo-projector-phones-9.jpg",
+   "where": [
+    "durak 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "durak"
+   ]
+  },
+  {
+   "key": "экран зала|мелко для зала|div.bk-stage__card.bk-stage__card--small > div.bk-card.bk-trait > div.bk-in > span.bk-trait__text|",
+   "area": "экран зала",
+   "kind": "мелко для зала",
+   "message": "шрифт 10.5 px — 14 px на Full HD (нужно от 18)",
+   "path": "div.bk-stage__card.bk-stage__card--small > div.bk-card.bk-trait > div.bk-in > span.bk-trait__text",
+   "text": "Полностью здоров",
+   "at": "playing/103/question/open",
+   "count": 1,
+   "shot": "shots/bunker-0-solo-laptop-hall-1.jpg",
+   "where": [
+    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
+   ],
+   "games": [
+    "bunker"
+   ]
+  },
   {
    "key": "экран зала|надписи наезжают|section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted|",
    "area": "экран зала",
@@ -33,14 +1486,31 @@
    "message": "«Снова ничья — решит жребий.» и «Екатерина Воскресенская» друг на друге",
    "path": "section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted",
    "text": "Снова ничья — решит жребий. | Екатерина Воскресенская",
-   "at": "playing/125/question/justify",
+   "at": "playing/136/question/justify",
    "count": 3,
-   "shot": "shots/bunker-0-solo-projector-hall-1.jpg",
+   "shot": "shots/bunker-0-solo-laptop-hall-2.jpg",
    "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
+    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
    ],
    "games": [
     "bunker"
+   ]
+  },
+  {
+   "key": "пульт|бледный текст|section.card > div.stack.host-quiz > div.actions > button.btn.btn--secondary|",
+   "area": "пульт",
+   "kind": "бледный текст",
+   "message": "контраст 1.07 (нужно от 4.5)",
+   "path": "section.card > div.stack.host-quiz > div.actions > button.btn.btn--secondary",
+   "text": "Назад",
+   "at": "playing/6/reveal/answer",
+   "count": 1,
+   "shot": "shots/wager-0-solo-projector-phones-1.jpg",
+   "where": [
+    "wager 1-й шаблон, каждый сам ×4, проектор 4:3, маленький телефон, длинные имена"
+   ],
+   "games": [
+    "wager"
    ]
   }
  ]

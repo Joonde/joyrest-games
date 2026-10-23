@@ -10,6 +10,7 @@ import { mediaRepo } from "../../data";
 import type { EditorProps } from "../types";
 import { allCells, ANSWER_TIMES, BOARD_LIMITS, BUZZ_TIMES, CELL_MARKS, CELL_TITLES, columnsOf, defaultPoints, findCell, MAX_ROUNDS, resizeBoard, roundCategories, roundsOf, setRounds, type BoardCell, type BoardContent, type CellKind } from "./content";
 import { validateBoard } from "./validate";
+import { DRAW_EFFECTS } from "../../core/draw";
 import { ShowLookPicker } from "../ShowLookPicker";
 import { TABLE_LOOKS, type ShowLook } from "../showLook";
 
@@ -157,6 +158,17 @@ export function BoardEditor({ gameId, content, onChange, editable }: EditorProps
             {ANSWER_TIMES.map((t) => (
               <button key={t} type="button" className="pick-chip" role="radio" aria-checked={content.answerTime === t} aria-pressed={content.answerTime === t} disabled={!editable} onClick={() => onChange({ ...latest.current, answerTime: t })}>
                 {t === 0 ? "Без отсчёта" : `${t} с`}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="stack stack--tight">
+          <legend>Жребий в «Аукционе» при равных ставках</legend>
+          <p className="muted small">Самая большая ставка у нескольких — на экране зала жребий между ними, выпавший отвечает. Ведущий может сменить эффект и на пульте, прямо перед «Ставки сделаны».</p>
+          <div className="row" role="radiogroup" aria-label="Эффект жребия">
+            {DRAW_EFFECTS.map((f) => (
+              <button key={f.id} type="button" className="pick-chip" role="radio" aria-checked={content.drawEffect === f.id} aria-pressed={content.drawEffect === f.id} disabled={!editable} title={f.hint} onClick={() => onChange({ ...latest.current, drawEffect: f.id })}>
+                {f.title}
               </button>
             ))}
           </div>

@@ -8,7 +8,7 @@ import { leaderboardAdditions } from "../../core/leaderboard";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type BuzzState } from "../../core/buzz";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import { MAX_TIME_LIMIT } from "../../core/session";
-import { drawSlide, drawWinner } from "../../core/draw";
+import { drawSlide, drawWinner, type DrawEffect } from "../../core/draw";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
 import { allCells, findCell, roundsOf, type BoardCell, type BoardContent } from "./content";
@@ -307,6 +307,8 @@ export function startCatQuestion(session: Session, content: BoardContent): Sessi
 export interface AuctionDraw {
   /** id слайда монетки (начинается с `auc`, чтобы пульт убрал его сам). */
   id: string;
+  /** Эффект жребия (выбор ведущего на пульте; нет — из настроек игры). */
+  effect?: DrawEffect;
   /** Часы сервера на пульте. */
   now: number;
   name: (pid: string) => string;
@@ -359,10 +361,10 @@ export function startAuction(session: Session, content: BoardContent, answers: A
     const n = tie.length;
     state.slide = drawSlide(draw.id, tie.map(draw.name), draw.name(who), draw.now, {
       spinEyebrow: `Аукцион · ставки равны`,
-      spinText: `Одинаковая ставка у ${n}: по ${price} — монетка решит, кто отвечает`,
+      spinText: `Одинаковая ставка у ${n}: по ${price} — жребий решит, кто отвечает`,
       doneEyebrow: "Аукцион разыгрывает",
       doneText: `Ставка ${price} · отвечает на вопрос`,
-    });
+    }, draw.effect ?? content.drawEffect);
   }
   return { state };
 }

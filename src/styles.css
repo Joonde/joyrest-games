@@ -4356,6 +4356,113 @@ kbd {
   opacity: 0.45;
 }
 
+/* Колесо фортуны. */
+.draw-wheel {
+  display: grid;
+  justify-items: center;
+  gap: 1cqh;
+  margin: 1cqh 0;
+}
+
+.draw-wheel__svg {
+  width: 52cqh;
+  height: 52cqh;
+  overflow: visible;
+  filter: drop-shadow(0 2cqh 4cqh rgba(0, 0, 0, 0.45));
+}
+
+.draw-wheel__seg {
+  transition: opacity 0.4s;
+}
+
+.draw-wheel__seg.is-out {
+  opacity: 0.5;
+}
+
+.draw-wheel__now {
+  min-height: 5cqh;
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 4.4cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80cqw;
+}
+
+.draw-wheel.is-done .draw-wheel__now {
+  display: none;
+}
+
+/* Барабан: окно на три строки, лента имён бежит снизу вверх. */
+.draw-reel {
+  --reel-row: 9cqh;
+  margin: 2cqh 0;
+}
+
+.draw-reel__window {
+  position: relative;
+  width: min(70cqw, 90cqh);
+  height: calc(var(--reel-row) * 3);
+  overflow: hidden;
+  border: 0.6cqh solid var(--color-highlight);
+  border-radius: 3cqh;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.1) 35%, rgba(0, 0, 0, 0.1) 65%, rgba(0, 0, 0, 0.55));
+  box-shadow: 0 2cqh 6cqh rgba(0, 0, 0, 0.45);
+}
+
+.draw-reel__window::after {
+  content: "";
+  position: absolute;
+  inset: var(--reel-row) 0;
+  border-block: 0.4cqh solid var(--color-highlight);
+  background: rgba(227, 198, 140, 0.12);
+  pointer-events: none;
+}
+
+.draw-reel__row {
+  display: grid;
+  place-items: center;
+  height: var(--reel-row);
+  padding: 0 4cqh;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 5cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.55;
+}
+
+.draw-reel__row.is-now {
+  opacity: 1;
+}
+
+.draw-reel.is-done .draw-reel__window {
+  box-shadow: 0 0 8cqh rgba(243, 223, 174, 0.6);
+}
+
+.draw-reel__mark {
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-block: 1.4cqh solid transparent;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.draw-reel__mark--l {
+  left: 0;
+  border-left: 2cqh solid var(--color-highlight);
+}
+
+.draw-reel__mark--r {
+  right: 0;
+  border-right: 2cqh solid var(--color-highlight);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .draw-coin__face,
   .draw-coin__face.is-final,

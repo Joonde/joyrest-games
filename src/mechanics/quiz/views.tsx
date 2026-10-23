@@ -495,8 +495,11 @@ export function QuizPlayerView({
       return (
         <div className="quiz-phone quiz-phone--center" aria-live="polite">
           <p className="eyebrow">Аукцион</p>
+          <p>
+            Отвечал(а): <strong><NameText name={(auction.who && session.leaderboard[auction.who]?.name) || "Игрок"} /></strong>
+          </p>
           <p className={last > 0 ? "quiz-phone__verdict is-right" : "quiz-phone__verdict is-wrong"}>
-            <NameText name={(auction.who && session.leaderboard[auction.who]?.name) || "Игрок"} />: {last > 0 ? "верно" : "неверно"} {signed(last)}
+            {last > 0 ? "Верно" : "Неверно"} {signed(last)}
           </p>
           <p>
             Правильный ответ: <strong>{correctText(q) || "—"}</strong>

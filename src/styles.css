@@ -3195,10 +3195,12 @@ kbd {
 
 .quiz-auction__plate {
   margin-left: auto;
-  padding: 0.4em 1em;
-  border: 0.3cqh solid var(--color-highlight);
+  padding: 0.35em 1em;
+  border: 0.4cqh solid var(--color-highlight);
   border-radius: 999px;
+  background: var(--color-surface);
   color: var(--color-text);
+  font-size: 4.4cqh;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;

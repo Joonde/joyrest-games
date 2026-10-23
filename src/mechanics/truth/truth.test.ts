@@ -129,7 +129,7 @@ describe("правда или действие: очередь и колода (
   });
 
   it("опоздавший в середине круга ходит в этом же круге, после последнего", () => {
-    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c"])));
+    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c"])), 1_000_000);
     s = play(s, mk(["a", "b", "c", "d"]));
     const seq = [turnPid(parseTruthResult(s.state.result))];
     for (let t = 0; t < 3; t++) {
@@ -141,7 +141,7 @@ describe("правда или действие: очередь и колода (
   });
 
   it("ведущий убрал того, кто ходил, или следующего — очередь идёт дальше без пропусков", () => {
-    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c", "d"])));
+    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c", "d"])), 1_000_000);
     s = play(s, mk(["a", "b", "c", "d"])); // ходит b
     const lb = { ...s.leaderboard };
     delete lb.b;
@@ -157,13 +157,13 @@ describe("правда или действие: очередь и колода (
 
   it("круги считаются по проходу очереди: 2 круга по 3 игрока — 6 ходов, с опоздавшим — 7", () => {
     const two = { ...content, rounds: 2 };
-    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c"])));
+    let s = applyChange(session(), startTruth(session(), mk(["a", "b", "c"])), 1_000_000);
     let turns = 1;
     for (; turns < 20; turns++) {
-      let n = applyChange(s, choose(s, two, "truth", first));
-      n = applyChange(n, resolve(n, two, "done"));
+      let n = applyChange(s, choose(s, two, "truth", first), 1_000_000);
+      n = applyChange(n, resolve(n, two, "done"), 1_000_000);
       if (roundsDone(two, parseTruthResult(n.state.result))) break;
-      s = applyChange(n, nextTurn(n, turns >= 4 ? mk(["a", "b", "c", "d"]) : mk(["a", "b", "c"])));
+      s = applyChange(n, nextTurn(n, turns >= 4 ? mk(["a", "b", "c", "d"]) : mk(["a", "b", "c"])), 1_000_000);
     }
     expect(turns).toBe(7);
   });

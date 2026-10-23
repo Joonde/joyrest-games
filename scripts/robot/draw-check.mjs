@@ -75,7 +75,8 @@ for (const view of [{ width: 1920, height: 1080 }, { width: 1024, height: 768 }]
       }
       for (const el of document.querySelectorAll(".slide *")) {
         const b = el.getBoundingClientRect();
-        if (!b.width || !b.height || el.closest("svg") || el.closest(".confetti")) continue;
+        // Лучи за монетой — украшение под маской: крутятся, их рамка шире видимой части.
+        if (!b.width || !b.height || el.closest("svg") || el.closest(".confetti") || el.matches(".draw-coin__rays")) continue;
         if (b.left < -1 || b.right > vw + 1 || b.top < -1 || b.bottom > vh + 1) bad.push(`за краем: ${el.className || el.tagName} «${(el.textContent ?? "").slice(0, 30)}»`);
         const cs = getComputedStyle(el);
         if (el.scrollWidth > el.clientWidth + 2 && cs.textOverflow !== "ellipsis" && cs.overflow !== "visible" && el.children.length === 0) bad.push(`обрезан текст: ${el.className}`);

@@ -5,6 +5,7 @@
 // Дракоша, удар — самолётик или воздушный змей, атаки — радужный луч и облако бабочек).
 // Логика игры не меняется: экран только показывает переход reveal/victory/defeat анимацией, пока экран открыт.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { HallTimer } from "../../../components/live/HallTimer";
 import { Confetti } from "../../../components/live/Confetti";
 import { playSample, playSound, preloadSamples } from "../../../components/live/sound";
 import { useCountdownSounds } from "../../../components/live/useCountdownSounds";
@@ -75,12 +76,8 @@ function TaskBox({ task, r, reveal, left, kids, session, content }: { task: Drag
   const stat = task ? STATS.find((s) => s.id === task.stat) : null;
   const timer =
     left !== null ? (
-      <div className="dg-timer" aria-label={`Осталось ${left} с`}>
-        <svg viewBox="0 0 44 44">
-          <circle cx="22" cy="22" r="19" className="dg-timer__track" />
-          <circle cx="22" cy="22" r="19" className="dg-timer__ring" style={{ strokeDashoffset: 119.4 * (1 - Math.max(0, Math.min(1, left / Math.max(1, task?.seconds || 1)))) }} />
-        </svg>
-        <span>{left}</span>
+      <div className="dg-timer">
+        <HallTimer left={left} total={session.state.timeLimit ?? task?.seconds ?? null} size="calc(4.4 * var(--u))" />
       </div>
     ) : null;
   if (r.order.length === 0 || r.phase === "heroes") {

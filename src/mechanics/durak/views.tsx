@@ -1,6 +1,7 @@
 // «Дурак»: экран зала — стол с крупье, места игроков с веером рубашек, колода с козырем, бой и бито;
 // телефон — своя рука веером (касание поднимает карту), мини-стол и кнопки хода.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -212,7 +213,7 @@ export function DurakScreenView({ session, content }: ViewProps<DurakContent>) {
         </p>
       )}
 
-      {r.mode === "vote" && r.vote && <DeckVoteScreen r={r} left={left} />}
+      {r.mode === "vote" && r.vote && <DeckVoteScreen r={r} left={left} total={session.state.timeLimit} />}
 
       {r.mode === "over" && session.state.stage !== "podium" && (
         <div className="dk-over" role="status">
@@ -236,7 +237,7 @@ export function DurakScreenView({ session, content }: ViewProps<DurakContent>) {
   );
 }
 
-function DeckVoteScreen({ r, left }: { r: DurakResult; left: number | null }) {
+function DeckVoteScreen({ r, left, total }: { r: DurakResult; left: number | null; total: number | null }) {
   const vote = r.vote;
   if (!vote) return null;
   const top = Math.max(0, ...Object.values(vote.tally));
@@ -244,7 +245,10 @@ function DeckVoteScreen({ r, left }: { r: DurakResult; left: number | null }) {
     <div className="dk-vote">
       <div className="dk-vote__head">
         <h2>Какой колодой играем?</h2>
-        <p>Голосуйте на телефонах{left !== null ? ` · ${left} с` : ""} · проголосовали {vote.total}</p>
+        <p className="hall-timer-row">
+          Голосуйте на телефонах · проголосовали {vote.total}
+          {left !== null && <HallTimer left={left} total={total} size="9cqh" />}
+        </p>
       </div>
       <div className="dk-vote__grid">
         {DECKS.map((d) => {

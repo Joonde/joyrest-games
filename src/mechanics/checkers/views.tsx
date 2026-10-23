@@ -1,5 +1,6 @@
 // «Шашки»: доска на экране зала, вопрос, ход капитана на телефоне.
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
@@ -169,7 +170,7 @@ export function CheckersScreenView({ session, content }: ViewProps<CheckersConte
           <div className="checkers-screen__question">
             <div className="row checkers-screen__qtop">
               <span className="quiz-screen__badge">Потеряли шашку — отвечайте</span>
-              {left !== null && <span className="checkers-screen__timer">{left === 0 ? "Время!" : `${left} с`}</span>}
+              {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="9cqh" stopText="Время!" />}
             </div>
             <h2>{q.text}</h2>
             {q.imageId && <MediaImage className="checkers-screen__image" gameId={session.gameId} mediaId={q.imageId} variant="full" alt="" />}

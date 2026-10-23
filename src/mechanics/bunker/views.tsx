@@ -1,6 +1,7 @@
 // «Убежище»: экран зала — катастрофа, карты убежища, досье всех игроков, ход, голосование, изгнание,
 // финал; телефон — свои шесть карт и особое условие (видит только хозяин), ход, тайный голос.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { HallTimer, useCountdownTotal } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -46,10 +47,20 @@ function quotaOf(content: BunkerContent, r: BunkerResult): number {
 }
 
 /** Таймер речи, обсуждения или голосования (по часам сервера). */
-function Timer({ endsAt, now, label }: { endsAt: number | null; now: number; label: string }) {
+function Timer({ endsAt, now, label, hall = false }: { endsAt: number | null; now: number; label: string; hall?: boolean }) {
   const left = endsAt === null ? null : Math.max(0, Math.ceil((endsAt - now) / 1000));
   useCountdownSounds(left);
+  const total = useCountdownTotal(endsAt, left);
   if (endsAt === null) return null;
+  if (hall) {
+    // Экран зала — таймер под тему вечера, на телефоне и пульте — как раньше, текстом.
+    return (
+      <div className="bk-timer bk-timer--hall" aria-live="off">
+        <span>{label}</span>
+        <HallTimer left={left} total={total} size="11cqh" />
+      </div>
+    );
+  }
   return (
     <p className={`bk-timer${left !== null && left <= 5 ? " is-low" : ""}`} aria-live="off">
       <span>{label}</span> {clock(endsAt - now)}
@@ -173,7 +184,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
             </p>
             <h2 className="bk-title">{sp ? <Who session={session} r={r} pid={sp} /> : "—"}</h2>
             <p className="bk-lead">{opened ? "Убедите всех, что вы нужны в убежище" : r.round <= 1 ? "Открывает профессию" : "Выбирает, какую карту открыть"}</p>
-            <Timer endsAt={r.speakEndsAt} now={now} label="Речь" />
+            <Timer hall endsAt={r.speakEndsAt} now={now} label="Речь" />
           </div>
           {opened && last && sp && (
             <div className="bk-stage__card bk-stage__card--small" key={`${sp}-${last}`}>
@@ -190,7 +201,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
           <div className="bk-stage__text">
             <p className="bk-kicker">Раунд {r.round} · обсуждение</p>
             <h2 className="bk-title">{quota > 0 ? `Кого не берём? Изгоняем: ${quota}` : "В этом раунде без изгнания"}</h2>
-            <Timer endsAt={r.speakEndsAt} now={now} label="Обсуждение" />
+            <Timer hall endsAt={r.speakEndsAt} now={now} label="Обсуждение" />
           </div>
         </div>
       );
@@ -222,7 +233,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
               </p>
             )}
             {r.cancelled && <p className="bk-chip bk-chip--red">Голосование будет отменено</p>}
-            <Timer endsAt={r.voteEndsAt} now={now} label="Голосование" />
+            <Timer hall endsAt={r.voteEndsAt} now={now} label="Голосование" />
           </div>
         </div>
       );
@@ -247,7 +258,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
                 Говорит <Who session={session} r={r} pid={r.speaker} />
               </p>
             )}
-            <Timer endsAt={r.speakEndsAt} now={now} label="Речь" />
+            <Timer hall endsAt={r.speakEndsAt} now={now} label="Речь" />
             <p className="bk-lead bk-lead--muted">Снова ничья — решит жребий.</p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 // «Винное казино»: экран зала — сукно рулетки с категориями и фишками гостей, после «Открыть бутылку» — паспорт
 // вина и выигравшие ячейки; телефон — свои фишки на поле.
 import { useEffect, useRef, useState } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { NameText } from "../../components/NameText";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -120,7 +121,7 @@ export function WineScreenView({ session, content }: ViewProps<WineContent>) {
             Поставили: <b>{r.bettors.length}</b> из {total}
           </span>
         )}
-        {left !== null && <span className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"}>{left}</span>}
+        {left !== null && <HallTimer left={left} total={session.state.timeLimit} />}
       </div>
       {open && <Passport wine={wine} />}
       <WineTable content={content} r={r} win={open ? winningKeys(content, wine, r.year) : null} />

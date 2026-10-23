@@ -1,5 +1,6 @@
 // Раздел «Сочиняем историю»: предложение с пропусками-бумажками, рулетка с именами, звёзды зала.
 import { useEffect, useRef, useState } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
@@ -130,9 +131,11 @@ export function WordsScreen({ session, w, part }: { session: Session; w: WordsSt
     <div className="st-screen">
       {w.mode === "rated" && (w.avg ?? 0) >= 4 && <Confetti burst={`sw:${step}`} count={40} />}
       <section className="st-screen__main">
-        <span className="quiz-screen__badge">
-          История {w.sentence}
-          {left !== null ? ` · ${left} с` : ""}
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">
+            История {w.sentence}
+          </span>
+          {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
         </span>
         {w.mode === "spin" ? (
           <Wheel session={session} w={w} />

@@ -1,6 +1,7 @@
 // «Мафия»: экран зала — город днём и ночью, места игроков, речь с таймером, голосование, утро, итог;
 // телефон — своя карта (переворот касанием), ночной ход своей роли, тайное голосование.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HallTimer, useCountdownTotal } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
@@ -127,6 +128,8 @@ function Tally({ session, r, phone = false }: { session: Session; r: MafiaResult
 }
 
 function Speaker({ session, r, now }: { session: Session; r: MafiaResult; now: number }) {
+  const secs = r.speaker && r.speakEndsAt !== null ? Math.max(0, Math.ceil((r.speakEndsAt - now) / 1000)) : null;
+  const total = useCountdownTotal(r.speakEndsAt, secs);
   if (!r.speaker || r.speakEndsAt === null) return null;
   const left = r.speakEndsAt - now;
   return (
@@ -135,7 +138,7 @@ function Speaker({ session, r, now }: { session: Session; r: MafiaResult; now: n
       <span className="mf-speaker__name">
         <Who session={session} r={r} pid={r.speaker} />
       </span>
-      <span className="mf-speaker__time">{clock(left)}</span>
+      <HallTimer left={secs} total={total} size="12cqh" />
     </div>
   );
 }
@@ -227,9 +230,9 @@ export function MafiaScreenView({ session, content }: ViewProps<MafiaContent>) {
   } else if (r.mode === "vote") {
     main = (
       <>
-        <span className="quiz-screen__badge">
-          {r.revote ? "Переголосование" : "Голосование"}
-          {left !== null ? ` · ${left} с` : ""}
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">{r.revote ? "Переголосование" : "Голосование"}</span>
+          {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
         </span>
         <h2 className="mf-title">Кого город выгоняет?</h2>
         <ul className="mf-nominees">

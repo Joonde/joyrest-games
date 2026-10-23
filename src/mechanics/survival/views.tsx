@@ -1,6 +1,7 @@
 // «Гонка на выживание»: на экране зала — дорожки команд (кто впереди по очкам), счётчик раундов, до
 // войнушки, билеты 🎟; вопрос или задание раунда, ставки и банк войнушки, аукцион билета.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
@@ -165,15 +166,23 @@ function TaskTimer({ session, timer }: { session: Session; timer: { pid: string;
   const now = useServerNow(200, true);
   const left = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
   useCountdownSounds(left);
-  // Доля оставшегося времени — кольцо круглого таймера в оформлении телешоу.
-  const frac = Math.max(0, Math.min(1, (timer.endsAt - now) / TASK_MS));
   return (
-    <div className={left === 0 ? "sv-task-timer is-over" : "sv-task-timer"} role="timer" style={{ ["--frac" as string]: String(frac) }}>
+    <div className={left === 0 ? "sv-task-timer is-over" : "sv-task-timer"}>
       <span className="sv-task-timer__who">
         Показывает <NameText name={nameOf(session, timer.pid)} />
       </span>
-      <span className="sv-task-timer__n">{left === 0 ? "Время!" : left}</span>
+      <HallTimer left={left} total={Math.round(TASK_MS / 1000)} size="13cqh" stopText="Время!" />
     </div>
+  );
+}
+
+/** Плашка этапа и рядом таймер под тему вечера (пока идёт отсчёт). */
+function TimedBadge({ left, total, children }: { left: number | null; total: number | null; children: ReactNode }) {
+  return (
+    <span className="hall-timer-row">
+      <span className="quiz-screen__badge">{children}</span>
+      {left !== null && <HallTimer left={left} total={total} size="10cqh" />}
+    </span>
   );
 }
 
@@ -255,7 +264,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
   } else if (r.phase === "auction" || r.phase === "auctionDone") {
     main = (
       <>
-        <span className="quiz-screen__badge">Аукцион{left !== null && r.phase === "auction" ? ` · ${left} с` : ""}</span>
+        <TimedBadge left={r.phase === "auction" ? left : null} total={session.state.timeLimit}>Аукцион</TimedBadge>
         {show ? <Ticket price={r.phase === "auctionDone" && r.bid ? r.bid.amount : null} /> : <h2 className="sv-title">🎟 Билет освобождения</h2>}
         {r.phase === "auction" ? (
           <p className="sv-note">{session.playMode === "teams" ? "Капитаны, ставьте очки на телефонах!" : "Ставьте очки на телефонах!"} Кто больше — тот и забирает.</p>
@@ -271,7 +280,7 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
   } else if (r.phase === "bet") {
     main = (
       <>
-        <span className="quiz-screen__badge">⚔️ Войнушка · ставки{left !== null ? ` · ${left} с` : ""}</span>
+        <TimedBadge left={left} total={session.state.timeLimit}>⚔️ Войнушка · ставки</TimedBadge>
         <h2 className="sv-title">Делайте ставки!</h2>
         {show && (
           <div className="sv-bank">
@@ -285,10 +294,9 @@ export function SurvivalScreenView({ session, content }: ViewProps<SurvivalConte
   } else if (round) {
     main = (
       <>
-        <span className="quiz-screen__badge">
+        <TimedBadge left={stage === "question" && !(round.kind === "task" && r.taskTimer) ? left : null} total={session.state.timeLimit}>
           {war ? `⚔️ Банк ${pointsLabel(r.bank)}` : `Раунд ${roundNumber(r)} · ${pointsLabel(round.points)}`}
-          {left !== null && stage === "question" ? ` · ${left} с` : ""}
-        </span>
+        </TimedBadge>
         {round.kind === "task" && <p className="sv-kind">Задание</p>}
         {show && war && (
           <div className="sv-bank sv-bank--row">

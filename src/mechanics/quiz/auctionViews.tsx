@@ -1,5 +1,6 @@
 // «Аукцион» в квизе: заставка и ставки на экране зала, ставка и ответ на телефоне, панель пульта.
 import { useState, type FormEvent } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { NameText } from "../../components/NameText";
 import { useServerNow } from "../../components/live/useServerNow";
 import { DRAW_EFFECTS, type DrawEffect } from "../../core/draw";
@@ -53,9 +54,7 @@ export function AuctionScreenSplash({
         <span className="quiz-screen__counter">{counter}</span>
         <span className="quiz-screen__badge">Аукцион</span>
         {betting && (
-          <span className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"} role="timer">
-            {left === null ? (q.betTime ?? 30) : left === 0 ? "Стоп" : left}
-          </span>
+          <HallTimer left={left} total={session.state.timeLimit ?? q.betTime ?? 30} />
         )}
       </div>
       <h2 className="quiz-screen__intro quiz-auction__title">{betting ? "Делайте ставки!" : "Аукцион!"}</h2>

@@ -1,5 +1,6 @@
 // «Ставка на знания»: экран зала (поле, вопрос, кот в мешке, ответ) и телефон гостя (кнопка, ставка).
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { BuzzButton } from "../../components/live/BuzzButton";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
@@ -193,9 +194,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
         </h2>
         <p className="board-screen__hint">Ставьте очки на телефонах: на сколько играете. Кто поставит больше всех — отвечает на сложный вопрос. Верно — ставка ваша, неверно — минус ставка.</p>
         {auctionLeft !== null && (
-          <span className={auctionLeft === 0 ? "board-screen__count is-over" : "board-screen__count"} role="timer">
-            {auctionLeft === 0 ? "Ставки сделаны" : auctionLeft}
-          </span>
+          <HallTimer left={auctionLeft} total={session.state.timeLimit ?? content.betTime} size="16cqh" stopText="Ставки сделаны" />
         )}
         <p className="board-screen__hint">Ставок: {session.state.answered ?? 0}</p>
       </div>
@@ -271,14 +270,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
             <NameText name={speaker} />
           </strong>
           {answerLeft !== null && (
-            <span
-              className={answerLeft <= 3 ? "board-screen__speak-time is-low" : "board-screen__speak-time"}
-              style={{ ["--left" as string]: Math.min(1, answerLeft / Math.max(1, content.answerTime)) }}
-              role="timer"
-              aria-label={`Осталось ${answerLeft} с на ответ`}
-            >
-              <span>{answerLeft}</span>
-            </span>
+            <HallTimer left={answerLeft} total={Math.max(answerLeft, content.answerTime)} size="11cqh" />
           )}
         </div>
       ) : !result.armed ? (
@@ -286,9 +278,7 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
       ) : (
         <div className="board-screen__go">
           {left !== null && (
-            <span className={left === 0 ? "board-screen__count is-over" : "board-screen__count"} role="timer">
-              {left === 0 ? "Время вышло" : left}
-            </span>
+            <HallTimer left={left} total={session.state.timeLimit ?? content.buzzTime} size="16cqh" stopText="Время вышло" />
           )}
           <p className="board-screen__hint">Знаете ответ — жмите кнопку на телефоне! Нажали: {result.buzz.order.length}</p>
         </div>

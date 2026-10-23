@@ -1,0 +1,387 @@
+/* Таймер экрана зала под тему вечера (HallTimer.tsx). Размер — --ht-size, цвета кольца — из темы. */
+.hall-timer {
+  --ht-size: 12cqh;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  height: var(--ht-size);
+  aspect-ratio: 1;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+/* Плашка этапа и таймер рядом («Голосование» · таймер). */
+.hall-timer-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2cqw;
+  max-width: 100%;
+}
+
+.hall-timer__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hall-timer__digits {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(var(--ht-size) * 0.34);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.hall-timer__digits--long {
+  font-size: calc(var(--ht-size) * 0.25);
+}
+
+.hall-timer__digits--stop {
+  font-size: calc(var(--ht-size) * 0.19);
+  letter-spacing: 0.02em;
+}
+
+.hall-timer.is-urgent .hall-timer__art {
+  animation: ht-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ht-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+/* ---------- Кольцо JoyRest: цвета темы ---------- */
+.ht-ring__bezel {
+  stroke: var(--color-highlight);
+  stroke-width: 3;
+}
+.ht-ring__bezel-thin {
+  stroke: var(--color-highlight);
+  stroke-width: 1.4;
+  opacity: 0.7;
+}
+.ht-ring__tick {
+  stroke: var(--color-highlight);
+  stroke-opacity: 0.18;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  transition: stroke-opacity 0.4s;
+}
+.ht-ring__tick.is-major {
+  stroke-width: 2.6;
+  stroke-opacity: 0.28;
+}
+.ht-ring__tick.is-lit {
+  stroke-opacity: 1;
+}
+.ht-ring__track {
+  stroke: var(--color-highlight);
+  stroke-opacity: 0.14;
+  stroke-width: 7;
+}
+.ht-ring__arc {
+  stroke: var(--color-highlight);
+  stroke-width: 7;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear, stroke 0.3s;
+  filter: drop-shadow(0 0 3px var(--color-highlight));
+}
+.ht-ring__inner {
+  stroke: var(--color-highlight);
+  stroke-opacity: 0.35;
+  stroke-width: 0.8;
+  stroke-dasharray: 1.5 3.2;
+}
+.ht-ring__head {
+  transform-box: view-box;
+  transform-origin: 110px 110px;
+  transition: transform 1s linear, opacity 0.3s;
+}
+.ht-ring__comet {
+  fill: var(--color-text);
+  filter: drop-shadow(0 0 4px var(--color-highlight));
+}
+.ht-ring__trail,
+.ht-ring__marker {
+  fill: var(--color-highlight);
+}
+.hall-timer--ring.is-urgent .ht-ring__arc,
+.hall-timer--ring.is-over .ht-ring__arc {
+  stroke: var(--color-danger);
+  filter: drop-shadow(0 0 5px var(--color-danger));
+}
+.hall-timer--ring.is-urgent .ht-ring__tick.is-lit,
+.hall-timer--ring.is-urgent .ht-ring__marker,
+.hall-timer--ring.is-urgent .ht-ring__trail {
+  stroke: var(--color-danger);
+  fill: var(--color-danger);
+}
+.hall-timer--ring.is-urgent .hall-timer__digits,
+.hall-timer--ring.is-over .hall-timer__digits {
+  color: var(--color-danger);
+}
+
+/* ---------- Песочные часы и свеча: картинка слева, цифры справа ---------- */
+.hall-timer--hourglass,
+.hall-timer--candle {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ht-size) * 0.08);
+  aspect-ratio: auto;
+}
+.hall-timer--hourglass .hall-timer__art,
+.hall-timer--candle .hall-timer__art {
+  position: static;
+  height: 100%;
+  width: auto;
+}
+.hall-timer--hourglass .hall-timer__art {
+  aspect-ratio: 200 / 270;
+  filter: drop-shadow(0 0 calc(var(--ht-size) * 0.04) rgba(233, 207, 147, 0.3));
+}
+.hall-timer--candle .hall-timer__art {
+  aspect-ratio: 200 / 250;
+}
+.hall-timer--hourglass .hall-timer__digits,
+.hall-timer--candle .hall-timer__digits {
+  font-size: calc(var(--ht-size) * 0.42);
+}
+.hall-timer--hourglass .hall-timer__digits--long,
+.hall-timer--candle .hall-timer__digits--long {
+  font-size: calc(var(--ht-size) * 0.34);
+}
+.hall-timer--hourglass .hall-timer__digits--stop,
+.hall-timer--candle .hall-timer__digits--long {
+  font-size: calc(var(--ht-size) * 0.25);
+}
+
+.hall-timer__digits--stop {
+  font-size: calc(var(--ht-size) * 0.24);
+}
+.hall-timer--hourglass .hall-timer__digits {
+  color: #e9cf93;
+}
+.hall-timer--hourglass.is-urgent .hall-timer__digits,
+.hall-timer--hourglass.is-over .hall-timer__digits {
+  color: #ffe3a3;
+  text-shadow: 0 0 calc(var(--ht-size) * 0.08) rgba(255, 214, 130, 0.7);
+}
+
+.ht-glass__shadow {
+  fill: rgba(0, 0, 0, 0.35);
+}
+.ht-glass__glass {
+  stroke: rgba(255, 248, 230, 0.55);
+  stroke-width: 1.4;
+}
+.ht-glass__shine {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+}
+.ht-glass__top {
+  transform-box: view-box;
+  transform-origin: 100px 146px;
+  transition: transform 1s linear;
+}
+.ht-glass__pile {
+  transform-box: view-box;
+  transform-origin: 100px 246px;
+  transition: transform 1s linear;
+}
+.ht-glass__stream {
+  stroke: #f2d49a;
+  stroke-width: 2;
+  stroke-dasharray: 2 3;
+  animation: ht-stream 0.35s linear infinite;
+}
+@keyframes ht-stream {
+  to {
+    stroke-dashoffset: -5;
+  }
+}
+.ht-glass__body {
+  transform-box: view-box;
+  transform-origin: 100px 142px;
+}
+.ht-glass__body.is-flipping {
+  animation: ht-flip 0.9s ease-in-out;
+}
+@keyframes ht-flip {
+  from {
+    transform: rotate(-180deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.hall-timer--candle .hall-timer__digits {
+  font-style: italic;
+  color: #9a5148;
+}
+.hall-timer--candle.is-urgent .hall-timer__digits,
+.hall-timer--candle.is-over .hall-timer__digits {
+  color: #8a3f36;
+}
+.ht-candle__wax {
+  transform-box: view-box;
+  transform-origin: 100px 212px;
+  transition: transform 1s linear;
+}
+.ht-candle__top {
+  transition: transform 1s linear;
+}
+.ht-candle__flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ht-flicker 0.22s ease-in-out infinite alternate;
+}
+.hall-timer--candle.is-urgent .ht-candle__flame {
+  animation-duration: 0.12s;
+}
+@keyframes ht-flicker {
+  from {
+    transform: scale(0.94, 1.06) rotate(-2deg);
+  }
+  to {
+    transform: scale(1.04, 0.96) rotate(2deg);
+  }
+}
+.ht-candle__glow {
+  animation: ht-glow 1.6s ease-in-out infinite alternate;
+}
+@keyframes ht-glow {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ht-candle__smoke {
+  fill: none;
+  stroke: #b9afa7;
+  stroke-width: 2;
+  stroke-linecap: round;
+  animation: ht-smoke 2.2s ease-out infinite;
+}
+@keyframes ht-smoke {
+  from {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+}
+.ht-candle__spark {
+  fill: #e9cf93;
+  animation: ht-twinkle 1.6s ease-in-out infinite alternate;
+}
+.ht-candle__spark--2 {
+  animation-delay: 0.8s;
+}
+@keyframes ht-twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- Неон «Диско» ---------- */
+.hall-timer--neon .hall-timer__art {
+  filter: drop-shadow(0 0 calc(var(--ht-size) * 0.03) #ff4fd8);
+}
+.ht-neon__seg {
+  fill: rgba(255, 255, 255, 0.08);
+}
+.ht-neon__seg.is-on {
+  fill: var(--seg);
+}
+.hall-timer--neon.is-urgent .ht-neon__seg.is-on {
+  fill: #ff3b6b;
+}
+.hall-timer--neon.is-urgent .hall-timer__art {
+  animation: ht-blink 0.5s steps(2, jump-none) infinite;
+  filter: drop-shadow(0 0 calc(var(--ht-size) * 0.04) #ff3b6b);
+}
+@keyframes ht-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
+.hall-timer--neon .hall-timer__digits {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-weight: 600;
+  color: #fff6fd;
+  text-shadow:
+    0 0 calc(var(--ht-size) * 0.03) #ff4fd8,
+    0 0 calc(var(--ht-size) * 0.08) #ff4fd8;
+}
+.hall-timer--neon.is-urgent .hall-timer__digits,
+.hall-timer--neon.is-over .hall-timer__digits {
+  text-shadow:
+    0 0 calc(var(--ht-size) * 0.03) #ff3b6b,
+    0 0 calc(var(--ht-size) * 0.08) #ff3b6b;
+}
+
+/* ---------- Гирлянда «Нового года» ---------- */
+.hall-timer--garland .hall-timer__art {
+  filter: drop-shadow(0 0 calc(var(--ht-size) * 0.025) rgba(255, 220, 150, 0.55));
+}
+.ht-garland__flake {
+  fill: none;
+  stroke: rgba(159, 211, 255, 0.22);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform-origin: 160px 160px;
+  animation: ht-spin 40s linear infinite;
+}
+@keyframes ht-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ht-garland__bulb {
+  fill: #2a3a52;
+}
+.ht-garland__bulb.is-on {
+  fill: var(--bulb);
+  animation: ht-twinkle 1.8s ease-in-out infinite alternate;
+}
+.hall-timer--garland.is-urgent .ht-garland__bulb.is-on {
+  animation-duration: 0.35s;
+}
+.hall-timer--garland .hall-timer__digits {
+  color: #eef4ff;
+  text-shadow: 0 0 calc(var(--ht-size) * 0.04) rgba(159, 211, 255, 0.55);
+}
+.hall-timer--garland.is-urgent .hall-timer__digits,
+.hall-timer--garland.is-over .hall-timer__digits {
+  color: #ffd166;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hall-timer,
+  .hall-timer * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

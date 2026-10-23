@@ -18,7 +18,7 @@ export const newYear: Theme = {
   kind: "seasonal",
   ageRating: "0+",
   sounds: {},
-  effects: { scene: "snow", garland: true, shine: true, soundSet: "bells", particle: "#FFFFFF", glow: "rgba(245, 247, 251, 0.25)" },
+  effects: { scene: "snow", garland: true, timer: "garland", shine: true, soundSet: "bells", particle: "#FFFFFF", glow: "rgba(245, 247, 251, 0.25)" },
   tokens: {
     scheme: "dark",
     colors: {
@@ -60,7 +60,7 @@ export const gatsby: Theme = {
   kind: "occasion",
   ageRating: "0+",
   sounds: {},
-  effects: { scene: "deco", shine: true, soundSet: "jazz", particle: "#F3DFAE", glow: "rgba(212, 175, 90, 0.28)" },
+  effects: { scene: "deco", timer: "hourglass", shine: true, soundSet: "jazz", particle: "#F3DFAE", glow: "rgba(212, 175, 90, 0.28)" },
   tokens: {
     scheme: "dark",
     colors: {
@@ -144,7 +144,7 @@ export const disco: Theme = {
   kind: "occasion",
   ageRating: "0+",
   sounds: {},
-  effects: { scene: "disco", shine: true, soundSet: "disco", particle: "#FFFFFF", glow: "rgba(127, 212, 255, 0.3)" },
+  effects: { scene: "disco", timer: "neon", shine: true, soundSet: "disco", particle: "#FFFFFF", glow: "rgba(127, 212, 255, 0.3)" },
   tokens: {
     scheme: "dark",
     colors: {
@@ -186,7 +186,7 @@ export const wedding: Theme = {
   kind: "occasion",
   ageRating: "0+",
   sounds: {},
-  effects: { scene: "petals", shine: true, soundSet: "soft", particle: "#EBB8B0", glow: "rgba(201, 161, 95, 0.18)" },
+  effects: { scene: "petals", timer: "candle", shine: true, soundSet: "soft", particle: "#EBB8B0", glow: "rgba(201, 161, 95, 0.18)" },
   tokens: {
     scheme: "light",
     colors: {
@@ -365,7 +365,7 @@ export const winter = darkTheme(
     stops: ["#E3F1FD", "#A9D4F5"],
     background: "radial-gradient(120% 70% at 50% 0%, #1C2C47 0%, #0E1625 65%)",
   },
-  { scene: "snow", shine: true, soundSet: "bells", particle: "#FFFFFF", glow: "rgba(207, 230, 250, 0.22)" },
+  { scene: "snow", timer: "garland", shine: true, soundSet: "bells", particle: "#FFFFFF", glow: "rgba(207, 230, 250, 0.22)" },
 );
 
 // ---------- Под игру ----------
@@ -433,7 +433,7 @@ export const dancefloor = darkTheme(
     stops: ["#5EF2D6", "#FF7AD9"],
     background: "radial-gradient(120% 80% at 50% 100%, #2A1660 0%, #0D0B1F 65%)",
   },
-  { scene: "disco", shine: true, soundSet: "disco", particle: "#FFFFFF", glow: "rgba(94, 242, 214, 0.28)" },
+  { scene: "disco", timer: "neon", shine: true, soundSet: "disco", particle: "#FFFFFF", glow: "rgba(94, 242, 214, 0.28)" },
 );
 
 /** «Активная настолка»: приключение — старая карта, тропинка, компас. */

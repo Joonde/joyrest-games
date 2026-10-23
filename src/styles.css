@@ -4901,13 +4901,10 @@ kbd {
 }
 
 .slide__timer {
+  display: flex;
+  justify-content: center;
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 24cqh;
-  font-weight: 700;
   line-height: 1;
-  font-variant-numeric: lining-nums tabular-nums;
-  color: var(--color-highlight);
 }
 
 .slide__channel {
@@ -12023,6 +12020,7 @@ button.dance-card:active {
 .mil-screen__label,
 .mil-screen__who > .mil-timer {
   flex: none;
+  align-self: center;
 }
 
 .mil-screen__note {
@@ -12106,35 +12104,8 @@ button.dance-card:active {
 
 /* Время на ответ: последние 10 секунд — красным и пульсирует. */
 .mil-timer {
-  display: inline-block;
   margin-left: 1.2cqw;
-  padding: 0.2cqh 1.2cqw;
-  border-radius: 999px;
-  border: 2px solid var(--color-highlight);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.mil-timer.is-low {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  animation: mil-timer-pulse 1s ease-in-out infinite;
-}
-
-.mil-timer.is-out {
-  animation: none;
-}
-
-@keyframes mil-timer-pulse {
-  50% {
-    transform: scale(1.08);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mil-timer.is-low {
-    animation: none;
-  }
+  vertical-align: middle;
 }
 
 /* Подсказки всех команд над вопросом. */
@@ -13470,15 +13441,6 @@ button.dance-card:active {
   font-weight: 600;
 }
 
-.sv-task-timer__n {
-  font-family: "Cormorant Garamond", serif;
-  font-weight: 700;
-  font-size: 10cqh;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  min-width: 12cqh;
-  text-align: center;
-}
 
 .sv-task-timer.is-over {
   border-color: var(--color-danger);
@@ -16283,8 +16245,6 @@ button.dance-card:active {
 
 .mf-speaker__label { font-size: 2.6cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #e3c68c; }
 .mf-speaker__name { font-size: 6cqh; font-family: var(--font-display); font-weight: 700; }
-.mf-speaker__time { font-size: 8cqh; font-weight: 600; font-variant-numeric: tabular-nums; }
-.mf-speaker.is-ending .mf-speaker__time { color: #ff8a92; animation: mf-pulse 1s ease-in-out infinite; }
 
 .mf-news { display: grid; gap: 1cqh; padding: 2cqh 4cqw; border-radius: 3cqh; background: rgb(255 255 255 / 0.08); animation: mf-rise 0.8s ease both; }
 .mf-news.is-dark { background: rgb(74 15 23 / 0.6); border: 0.3cqh solid rgb(255 90 102 / 0.5); }
@@ -17103,7 +17063,8 @@ button.dance-card:active {
 .bk-screen--dense .bk-stage--turn .bk-lead { font-size: 2.4cqh; line-height: 1.25; }
 .bk-screen--dense .bk-stage--turn .bk-lead--muted { font-size: 2cqh; }
 .bk-screen--dense .bk-stage--turn .bk-timer { font-size: 3.8cqh; }
-.bk-screen--dense .bk-stage--turn .bk-timer span { font-size: 1.9cqh; }
+.bk-screen--dense .bk-stage--turn .bk-timer > span:not(.hall-timer) { font-size: 1.9cqh; }
+.bk-screen--dense .bk-stage--turn .bk-timer--hall .hall-timer { --ht-size: 8cqh !important; }
 .bk-screen--dense .bk-stage--turn .bk-chip { font-size: 2cqh; }
 .bk-dossier--dense { padding: 0.45em 0.5em; gap: 0.25em; border-top-width: 0.3em; }
 .bk-dossier--dense .bk-dossier__head { flex-wrap: nowrap; }
@@ -17143,7 +17104,8 @@ button.dance-card:active {
 .bk-lead--muted { color: #CFC5BB; font-size: 2.2cqh; }
 .bk-num { color: #F1C230; }
 .bk-timer { margin: 0; display: inline-flex; align-items: baseline; gap: 1cqw; font-size: 6cqh; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: #F3DFAE; }
-.bk-timer span { font-size: 2.2cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #CFC5BB; font-weight: 500; }
+.bk-timer--hall { align-items: center; gap: 1.6cqw; }
+.bk-timer > span:not(.hall-timer) { font-size: 2.2cqh; letter-spacing: 0.2em; text-transform: uppercase; color: #CFC5BB; font-weight: 500; }
 .bk-timer.is-low { color: #F08A75; }
 .bk-chip { margin: 0; display: inline-flex; align-items: center; gap: 0.6em; padding: 0.3em 0.9em; border-radius: 999px; font-size: 2.2cqh; }
 .bk-chip--gold { background: #E3C68C; color: #221E1B; }
@@ -19774,27 +19736,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   text-shadow: 0 0.2cqh 1cqh rgba(0, 0, 0, 0.8);
 }
 
-.show-stage .sv-task-timer__n {
-  display: grid;
-  place-items: center;
-  width: 18cqh;
-  min-width: 0;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, var(--show-timer) 0 63%, transparent 64%),
-    conic-gradient(var(--show-line) calc(var(--frac, 1) * 360deg), rgba(255, 255, 255, 0.12) 0);
-  box-shadow: 0 0 3cqh var(--show-halo);
-  color: var(--show-ink);
-  font-size: 8cqh;
-  font-variant-numeric: lining-nums tabular-nums;
-}
 
-.show-stage .sv-task-timer.is-over .sv-task-timer__n {
-  color: var(--color-danger);
-  font-size: 4.2cqh;
-  box-shadow: 0 0 3cqh var(--show-alarm);
-}
 
 /* Аукцион: билет освобождения — купон с отрывным корешком. */
 .show-stage .sv-ticket {

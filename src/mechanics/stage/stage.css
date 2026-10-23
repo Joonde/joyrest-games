@@ -756,7 +756,7 @@
      («Выключить звук», «Во весь экран», «В студию» — fixed, top 16 px, высота 56 px). */
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: flex-start;
   column-gap: 1.2em;
   row-gap: 0.4em;

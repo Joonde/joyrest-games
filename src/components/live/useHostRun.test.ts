@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, meetsExpect, startState } from "../../core/session";
 import type { Session, SessionChange } from "../../data/types";
-import { runHostChange, type HostMake, type HostRunDeps, type HostRunOptions } from "./useHostRun";
+import { chainQuiet, runHostChange, type HostMake, type HostRunDeps, type HostRunOptions } from "./useHostRun";
 
 const base: Session = {
   id: "s",
@@ -180,4 +180,86 @@ describe("запись пульта (runHostChange)", () => {
     expect(bases).toHaveLength(1);
     expect(h.server().state.result).toEqual({ mode: "result", gifts: ["b"] });
   });
+
+  it("«Назад» со своим моментом и попытками: фон дважды перебил очередь — проходит с первого касания, ответы стёрты", async () => {
+    const h = harness();
+    let applies = 0;
+    const apply = h.deps.apply;
+    h.deps.moment = (s) => JSON.stringify((s.state.result as { gifts?: string[] } | null)?.gifts ?? []);
+    h.deps.apply = async (change) => {
+      if (applies++ < 2) h.setServer({ ...h.server(), state: { ...h.server().state, result: { mode: "perform", gifts: [`g${applies}`] } } });
+      return apply(change);
+    };
+    const back = () => ({ state: { stage: "ready" as const, result: null } });
+    // Общий момент (очередь) сменился — без своего момента «Игра изменилась».
+    expect(await run(back, h, { clear: [0] })).toBe("conflict");
+    applies = 0;
+    h.setServer(base);
+    expect(await run(back, h, { clear: [0], attempts: 4, moment: () => "назад" })).toBe("done");
+    expect(h.server().state.stage).toBe("ready");
+    expect(h.cleared.length).toBeGreaterThan(0);
+  });
 });
+
+describe("фоновые записи пульта по одной (chainQuiet)", () => {
+  function quietHarness() {
+    let server: Session = { ...base, state: { ...base.state, result: { mode: "perform", gifts: [] } } };
+    let latest = server;
+    const conflicts: number[] = [];
+    const sent: SessionChange[] = [];
+    let busy = false;
+    let echo: Session | null = null;
+    const deps = {
+      current: () => latest,
+      busy: () => busy,
+      echoPending: () => echo !== null && echo === latest,
+      // Запись возвращается потоком: свежая сессия приходит к пульту.
+      nextSession: async () => {
+        latest = server;
+        echo = null;
+      },
+      apply: async (change: SessionChange) => {
+        await Promise.resolve();
+        if (!meetsExpect(server.state, change.expect)) {
+          conflicts.push(1);
+          throw Object.assign(new Error("changed"), { code: "failed-precondition" });
+        }
+        sent.push(change);
+        server = applyChange(server, change, 0);
+      },
+      written: (s: Session) => {
+        if (latest === s) echo = s;
+      },
+    };
+    return { deps, conflicts, sent, setBusy: (b: boolean) => (busy = b), server: () => server };
+  }
+  const addGift = (name: string) => (s: Session): SessionChange | null => {
+    const r = s.state.result as { gifts: string[] };
+    return r.gifts.includes(name) ? null : { state: { result: { ...r, gifts: [...r.gifts, name] } } };
+  };
+
+  it("два нажатия подряд: вторая запись ждёт первую и её возвращение — без отказа 409, оба подарка на месте", async () => {
+    const q = quietHarness();
+    const first = chainQuiet(addGift("a"), null, q.deps);
+    const second = chainQuiet(addGift("b"), first, q.deps);
+    expect(await first).toBe(true);
+    expect(await second).toBe(true);
+    expect(q.conflicts).toHaveLength(0);
+    expect((q.server().state.result as { gifts: string[] }).gifts).toEqual(["a", "b"]);
+  });
+
+  it("без очереди вторая запись с того же вида получила бы отказ", async () => {
+    const q = quietHarness();
+    const [a, b] = await Promise.all([chainQuiet(addGift("a"), null, q.deps), chainQuiet(addGift("b"), null, q.deps)]);
+    expect([a, b]).toEqual([true, false]);
+    expect(q.conflicts).toHaveLength(1);
+  });
+
+  it("ведущий нажимает — фоновая запись пропускается", async () => {
+    const q = quietHarness();
+    q.setBusy(true);
+    expect(await chainQuiet(addGift("a"), null, q.deps)).toBe(false);
+    expect(q.sent).toHaveLength(0);
+  });
+});
+

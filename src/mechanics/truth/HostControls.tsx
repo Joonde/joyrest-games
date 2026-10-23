@@ -74,7 +74,7 @@ export function TruthHostControls({ session, content, answers, participants, con
   const action = truthPrimary(session, content);
   const back = truthBack(session);
   const pending = content.guestCards ? pendingSuggestions(r, answers, step) : [];
-  const nextWho = nextPid(r);
+  const nextWho = nextPid(r, Object.keys(session.leaderboard));
 
   return (
     <div className="stack host-quiz">

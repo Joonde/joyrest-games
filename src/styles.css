@@ -4892,6 +4892,15 @@ kbd {
   -webkit-line-clamp: 1;
   line-clamp: 1;
 }
+/* Финал, три имени на ступени (у «Мафии» все победители с одинаковыми очками): имена мельче и плотнее — иначе три строки,
+   очки и ступень первого места не помещались в 32cqh и верхнее имя срезало на 3 px (Ревизор, 23 октября 2026). */
+.podium--final .podium__names:has(> .podium__name + .podium__name + .podium__name) {
+  gap: 0.2cqh;
+  row-gap: 0.2cqh;
+}
+.podium--final .podium__names:has(> .podium__name + .podium__name + .podium__name) > .podium__name:not(.podium__name--team) {
+  font-size: min(2.8cqh, 2.3cqw);
+}
 
 .podium__step {
   flex: none;
@@ -16612,8 +16621,16 @@ button.dance-card:active {
 .bk-screen__dossiers .bk-dossier--dense .bk-row__text { -webkit-line-clamp: 1; }
 .bk-screen__dossiers .bk-dossier--dense .bk-dossier__rows:not(:has(> .bk-row:not(.is-closed) ~ .bk-row:not(.is-closed) ~ .bk-row:not(.is-closed))) .bk-row__text { -webkit-line-clamp: 2; }
 .bk-dossier--dense .bk-dossier__used { min-width: 0; line-height: 1.2; }
+.bk-screen__dossiers .bk-dossier__used { min-width: 0; }
 .bk-dossier--dense.is-exiled .bk-dossier__name { padding-right: 0; }
 .bk-dossier--dense .bk-dossier__stamp { position: static; align-self: flex-start; transform: rotate(-3deg); margin-top: 0.1em; }
+/* Экран зала, любое число игроков: штамп «Изгнан» — строкой под досье, а не поверх имени (на проекторе 4:3 в узкой
+   колонке он закрывал смайлик). Особое условие — до двух строк с переносом, дальше многоточие, а не за край досье
+   («Перепланировка» в колонке 115 px). Ревизор, 23 октября 2026. */
+.bk-screen__dossiers .bk-dossier.is-exiled .bk-dossier__name { padding-right: 0; }
+.bk-screen__dossiers .bk-dossier__stamp { position: static; align-self: flex-start; transform: rotate(-3deg); margin-top: 0.1em; }
+.bk-dossier__used-text { min-width: 0; overflow-wrap: anywhere; }
+.bk-screen__dossiers .bk-dossier__used-text { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; hyphens: auto; }
 .bk-screen__log { margin: 0; position: absolute; left: 50%; bottom: 6.8cqh; transform: translateX(-50%); background: #16130Fe6; border: 2px solid #E3C68C; color: #F3DFAE; padding: 0.6cqh 1.6cqw; border-radius: 999px; font-size: 2.2cqh; display: flex; align-items: center; gap: 0.6cqw; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: bk-log 6s ease both; }
 @keyframes bk-log { 0% { opacity: 0; transform: translate(-50%, 1cqh); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .bk-stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 3cqw; min-height: 0; }
@@ -16658,8 +16675,10 @@ button.dance-card:active {
 .bk-final__threats > li { width: max(12cqw, 22cqh); }
 .bk-final__threats { flex-wrap: wrap; }
 /* Угроза в финале — текст крупный для зала, поэтому карта растёт по тексту, а не обрезает его (финал листается). */
-.bk-final__threats .bk-card { display: grid; overflow: clip; min-height: min-content; }
-.bk-final__threats .bk-card > .bk-in { position: relative; inset: auto; }
+/* Высота карты — от `.bk-in`: не меньше 7/5 ширины карты (140cqi — от ширины самой карты, она контейнер), а длинный
+   текст удлиняет карту. `aspect-ratio` с `min-height: min-content` срезал низ «Поможет: …» на 5 px (проектор 4:3). */
+.bk-final__threats .bk-card { display: grid; overflow: clip; aspect-ratio: auto; height: auto; }
+.bk-final__threats .bk-card > .bk-in { position: relative; inset: auto; min-height: 140cqi; overflow: visible; }
 
 /* Экран зала: подписи маленьких карт (убежище в шапке и в финале, угрозы, катастрофа) — не мельче 1,75% высоты кадра,
    иначе с другого конца зала не прочитать (Ревизор, 23 октября 2026). */

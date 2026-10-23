@@ -1,6 +1,7 @@
 // «Что скажет большинство»: экран зала (табло, плашки команд, крестики, банк; «Большая игра»; «Весь зал») и телефон гостя
 // («Жми первым!» у капитанов играющей пары, до трёх ответов в «Весь зал»).
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { playSound } from "../../components/live/sound";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -204,9 +205,7 @@ export function HundredScreenView({ session, content }: ViewProps<HundredContent
         <span className="quiz-screen__badge">{hallNo ? `Весь зал · вопрос ${hallNo.n} из ${hallNo.total}${mult > 1 ? ` · очки ×${mult}` : ""}` : roundLine(round.kind)}</span>
         <span className="hd-screen__source">{sourceLine(question)}</span>
         {left !== null && (
-          <span className={left === 0 ? "hd-screen__count is-over" : "hd-screen__count"} role="timer">
-            {left === 0 ? "Время вышло" : hallMode ? timeText(left) : left}
-          </span>
+          <HallTimer left={left} total={session.state.timeLimit} stopText="Время вышло" />
         )}
       </div>
       <h2 className="hd-screen__question">{question.text}</h2>
@@ -274,9 +273,7 @@ function BigScreen({ session, content, r, left, look }: { session: Session; cont
         </span>
         <span className="hd-screen__source">{done ? `Итог: ${total} из ${content.bigGoal}` : `${player === 0 ? "Первый" : "Второй"} ${session.playMode === "solo" ? "заход" : "игрок"} · ${content.bigTimes[player]} секунд`}</span>
         {left !== null && (
-          <span className={left === 0 ? "hd-screen__count is-over" : "hd-screen__count"} role="timer">
-            {left === 0 ? "Время вышло" : left}
-          </span>
+          <HallTimer left={left} total={session.state.timeLimit} stopText="Время вышло" />
         )}
       </div>
       <div className="hd-big" role="table" aria-label="Ответы Большой игры">

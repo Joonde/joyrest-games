@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { HallTimer, useCountdownTotal } from "./HallTimer";
 import { decksRepo, type SessionBranding, type SlideMedia } from "../../data";
 import { ClientLogo } from "../ClientLogo";
 import { drawCaptionsOf, drawEffectOf, drawFrame, drawNames, drawPool, reelFrame, wheelFrame } from "../../core/draw";
@@ -288,6 +289,8 @@ function TemplateSlide({ slide, preview, code, sessionId, branding }: { slide: S
   }, [slide.id, slide.kind, preview]);
 
   const timer = slide.kind === "break" || slide.kind === "tech" ? countdownLabel(slide, now) : null;
+  const timerLeft = timer !== null && slide.endsAt !== null ? Math.max(0, Math.ceil((slide.endsAt - now) / 1000)) : null;
+  const timerTotal = useCountdownTotal(timer !== null ? slide.endsAt : null, timerLeft);
 
   return (
     <div className={`slide slide--${slide.kind}`}>
@@ -308,9 +311,9 @@ function TemplateSlide({ slide, preview, code, sessionId, branding }: { slide: S
         </ol>
       )}
       {timer && (
-        <p className="slide__timer" role="timer">
-          {timer}
-        </p>
+        <div className="slide__timer">
+          <HallTimer left={timerLeft} total={timerTotal} size="40cqh" stopText="Продолжаем!" />
+        </div>
       )}
       {slide.text && <p className="slide__text">{slide.text}</p>}
       {slide.kind === "join" && code && (

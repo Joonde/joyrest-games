@@ -3,6 +3,7 @@
 // «Батл», «Танец», «Караоке» (Canva AI, public/dance/art/), золото и пыльная роза JoyRest. Только вид:
 // ход игры, очки и ответы телефонов — в logic.ts, они не менялись.
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -408,7 +409,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
             <span>
               Проголосовали {answered} из {voters.length} · {teams ? "капитаны голосуют" : "голосуют"} на телефонах, за себя нельзя
             </span>
-            {timer && <span className="db-timer" role="timer">{timer}</span>}
+            {left !== null ? <HallTimer left={left} total={session.state.timeLimit} size="calc(9 * var(--u))" stopText="Голосование закрыто" /> : timer && <span className="db-timer">{timer}</span>}
           </div>
         </div>
       );
@@ -438,7 +439,7 @@ export function DanceScreenView({ session, content }: ViewProps<DanceContent>) {
             ))}
             {voters.length > 10 && <span className="db-chip">и ещё {voters.length - 10}</span>}
           </div>
-          {timer && <span className="db-timer" role="timer">{timer}</span>}
+          {left !== null ? <HallTimer left={left} total={session.state.timeLimit} size="calc(9 * var(--u))" stopText="Голосование закрыто" /> : timer && <span className="db-timer">{timer}</span>}
         </div>
         <p className="db-foot">
           {KIND_EMOJI[card.kind]} {kindLabel(card)}

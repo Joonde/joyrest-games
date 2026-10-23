@@ -1,6 +1,7 @@
 // «Танцуй как звезда / Караоке на поле»: поле плиток, переворот плитки с фигурками, видео (на весь экран по кнопке пульта),
 // зрительская симпатия и батл с перетягиванием каната — на экране зала; сердце «Подарить» и голос — на телефоне.
 import { useEffect, useRef, type CSSProperties } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -185,9 +186,10 @@ function TugOfWar({ session, r, content, left: timeLeft }: { session: Session; r
     <div className="stage-tug">
       <div className="stage-tug__head">
         <span className="stage-tug__badge">Батл · {tile?.points ?? 0}</span>
-        <span className="stage-tug__timer" role="timer">
-          {r.mode === "vote" ? (timeLeft === null ? "Голосует зал" : timeLeft === 0 ? "Голосование закрыто" : `Голосует зал · ${timeLeft} с`) : r.outcome === "tie" ? "Ничья — очки пополам" : "Итог батла"}
+        <span className="stage-tug__timer">
+          {r.mode === "vote" ? (timeLeft === 0 ? "Голосование закрыто" : "Голосует зал") : r.outcome === "tie" ? "Ничья — очки пополам" : "Итог батла"}
         </span>
+        {r.mode === "vote" && timeLeft !== null && <HallTimer left={timeLeft} total={session.state.timeLimit} size="9cqh" stopText="Стоп" />}
       </div>
       <div className="stage-tug__names">
         <span className={winner === r.performer ? "is-win" : ""} style={sideStyle(session, r.performer)}>

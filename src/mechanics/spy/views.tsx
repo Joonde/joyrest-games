@@ -2,6 +2,7 @@
 // шпиона, итог; телефон — своя карта (локация и роль или «Вы — шпион»), догадка шпиона, тайное голосование.
 // Карты — рисунки Canva AI (`public/spy/art/web/*.webp`: рубашка, шпион, фон локации), текст поверх.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
@@ -216,7 +217,7 @@ export function SpyScreenView({ session, content }: ViewProps<SpyContent>) {
       <>
         <div className={`sp-timer${r.paused ? " is-paused" : ""}${(talkMs ?? 0) <= 30_000 ? " is-ending" : ""}`}>
           <span className="sp-timer__label">{r.paused ? "Пауза" : "Обсуждение"}</span>
-          <span className="sp-timer__time">{clock(talkMs ?? 0)}</span>
+          <HallTimer left={Math.ceil((talkMs ?? 0) / 1000)} total={Math.max(Math.ceil((talkMs ?? 0) / 1000), content.roundMinutes * 60)} size="16cqh" stopText="Время!" />
         </div>
         {r.firstAsker && (
           <p className="sp-note">
@@ -229,7 +230,10 @@ export function SpyScreenView({ session, content }: ViewProps<SpyContent>) {
   } else if (r.mode === "vote") {
     main = (
       <>
-        <span className="quiz-screen__badge">Голосование{voteLeft !== null ? ` · ${voteLeft} с` : ""}</span>
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">Голосование</span>
+          {voteLeft !== null && <HallTimer left={voteLeft} total={session.state.timeLimit} size="10cqh" />}
+        </span>
         <h2 className="sp-title">Кто шпион?</h2>
         <p className="sp-note">Голосуйте тайно на телефоне — голос можно поменять, пока идёт время.</p>
         <p className="sp-note">
@@ -257,7 +261,10 @@ export function SpyScreenView({ session, content }: ViewProps<SpyContent>) {
   } else if (r.mode === "last") {
     main = (
       <>
-        <span className="quiz-screen__badge">Последний шанс{voteLeft !== null ? ` · ${voteLeft} с` : ""}</span>
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">Последний шанс</span>
+          {voteLeft !== null && <HallTimer left={voteLeft} total={session.state.timeLimit} size="10cqh" />}
+        </span>
         <h2 className="sp-title sp-title--small">{r.accused ? <Who session={session} r={r} pid={r.accused} /> : null} — шпион!</h2>
         <p className="sp-note">Угадает локацию — шпион всё равно победит.</p>
         <Locations content={content} size="screen" />

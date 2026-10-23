@@ -55,8 +55,13 @@ export type SceneEffect = "none" | "snow" | "deco" | "spotlights" | "disco" | "p
 /** Набор синтезированных звуков экрана зала (`src/components/live/sound.ts`). */
 export type SoundSet = "classic" | "bells" | "jazz" | "disco" | "soft";
 
+/** Вид таймера экрана зала (`HallTimer`, решение владельца 23 октября 2026): кольцо JoyRest — по умолчанию. */
+export type TimerLook = "ring" | "hourglass" | "candle" | "neon" | "garland";
+
 export interface ThemeEffects {
   scene: SceneEffect;
+  /** Вид таймера экрана зала; нет — кольцо JoyRest. */
+  timer?: TimerLook;
   /** Мигающая гирлянда по верхнему краю. */
   garland?: boolean;
   /** Блеск крупных надписей (код игры, заставки, пьедестал) — бегущий блик по градиенту `code`. */

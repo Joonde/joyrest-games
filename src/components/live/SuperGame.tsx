@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { HallTimer } from "./HallTimer";
 import { NameText } from "../NameText";
 import { MediaImage } from "../media/MediaImage";
 import { Confetti } from "./Confetti";
@@ -221,9 +222,7 @@ export function SuperScreen(props: SuperScreenProps) {
           <span className="quiz-screen__answered">Выбрали: {pickCount}</span>
         )}
         {!revealed && (
-          <span className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"} role="timer">
-            {left === null ? timeLimit : left === 0 ? "Стоп" : left}
-          </span>
+          <HallTimer left={left} total={timeLimit} />
         )}
       </div>
       <h2 className="super-screen__head">{revealed ? "Ответы суперигры" : "Выберите уровень и ответьте"}</h2>

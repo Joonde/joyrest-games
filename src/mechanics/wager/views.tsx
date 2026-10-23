@@ -2,6 +2,7 @@
 // (догадка числом, фишки из своего запаса на одну-две ячейки).
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { NameText } from "../../components/NameText";
+import { HallTimer } from "../../components/live/HallTimer";
 import { playSound } from "../../components/live/sound";
 import { useServerNow } from "../../components/live/useServerNow";
 import { pointsLabel } from "../../core/results";
@@ -21,9 +22,9 @@ const teamColor = (session: Session, p: string): CSSProperties | undefined => {
   return color ? ({ "--team-color": color } as CSSProperties) : undefined;
 };
 
-function Timer({ left }: { left: number | null }) {
+function Timer({ left, total }: { left: number | null; total: number | null }) {
   if (left === null) return null;
-  return <span className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"}>{left}</span>;
+  return <HallTimer left={left} total={total} />;
 }
 
 /** Цвета фишек на столе по кругу (анонимные фишки — только для красоты стопки). */
@@ -143,7 +144,7 @@ export function WagerScreenView({ session, content }: ViewProps<WagerContent>) {
       <div className="wager-screen">
         <div className="wager-screen__top">
           <span className="quiz-screen__badge">Вопрос {r.q + 1} из {content.questions.length}</span>
-          <Timer left={left} />
+          <Timer left={left} total={session.state.timeLimit} />
         </div>
         <h2 className="wager-screen__question">{question.text}</h2>
         <p className="wager-screen__lead">
@@ -171,7 +172,7 @@ export function WagerScreenView({ session, content }: ViewProps<WagerContent>) {
       <div className="wager-screen__top">
         <span className="quiz-screen__badge">Вопрос {r.q + 1} из {content.questions.length}</span>
         {r.mode === "bet" ? <span className="wager-screen__hint">Ставьте фишки на ответ, который ближе всех, но не больше правды</span> : null}
-        <Timer left={left} />
+        <Timer left={left} total={session.state.timeLimit} />
       </div>
       <h2 className="wager-screen__question wager-screen__question--small">{question.text}</h2>
       {r.mode === "answer" && (

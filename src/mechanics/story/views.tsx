@@ -1,6 +1,7 @@
 // «Давайте знакомиться»: экран зала — письмо с историей (кремовая бумага, золотая рамка, сургучная печать с
 // эмблемой), голосование, «Это история…»; телефон — написать свою историю, угадать автора.
 import { useEffect, useRef, useState } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
@@ -131,9 +132,11 @@ export function StoryScreenView({ session, content }: ViewProps<StoryContent>) {
     <div className="st-screen">
       {stage === "reveal" && nobody && author && <Confetti burst={`st:${step}`} count={40} />}
       <section className="st-screen__main">
-        <span className="quiz-screen__badge">
-          {said ? `Ответ ${r.current + 1} из ${r.stories.length}` : `История ${r.current + 1} из ${r.stories.length}`}
-          {left !== null ? ` · ${left} с` : ""}
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">
+            {said ? `Ответ ${r.current + 1} из ${r.stories.length}` : `История ${r.current + 1} из ${r.stories.length}`}
+          </span>
+          {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
         </span>
         {said && <p className="st-prompt">{prompt}</p>}
         {story && <Letter text={story.text} label={stage === "reveal" ? (said ? "Это ответ" : "Это история") : said ? "Чей это ответ?" : "Чья это история?"} open={stage === "reveal"} />}

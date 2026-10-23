@@ -1,5 +1,6 @@
 // Разделы «Две правды и ложь» и «Что было дальше?»: экран зала и телефон.
 import { useEffect, useRef, useState } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { Confetti } from "../../components/live/Confetti";
 import { playSound } from "../../components/live/sound";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
@@ -73,9 +74,11 @@ export function LiesScreen({ session, l, part }: { session: Session; l: LiesStat
     <div className="st-screen">
       {rev && rev.right.length === 0 && <Confetti burst={`sl:${step}`} count={40} />}
       <section className="st-screen__main">
-        <span className="quiz-screen__badge">
-          {l.current + 1} из {l.items.length}
-          {left !== null ? ` · ${left} с` : ""}
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">
+            {l.current + 1} из {l.items.length}
+          </span>
+          {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
         </span>
         <p className="st-author">
           <NameText name={personName(session, item?.pid ?? null)} />
@@ -197,9 +200,11 @@ export function EndingScreen({ session, content, e, part }: { session: Session; 
     return (
       <div className="st-screen">
         <section className="st-screen__main">
-          <span className="quiz-screen__badge">
-            История {e.current + 1} из {e.items.length}
-            {left !== null ? ` · ${left} с` : ""}
+          <span className="hall-timer-row">
+            <span className="quiz-screen__badge">
+              История {e.current + 1} из {e.items.length}
+            </span>
+            {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
           </span>
           {item && <Letter text={`${item.start}…`} label={`История: ${personName(session, item.pid)}`} />}
           <p className="st-note">
@@ -213,9 +218,11 @@ export function EndingScreen({ session, content, e, part }: { session: Session; 
     <div className="st-screen">
       {rev && rev.right.length === 0 && <Confetti burst={`se:${step}`} count={40} />}
       <section className="st-screen__main">
-        <span className="quiz-screen__badge">
-          {rev ? "Правда!" : "Какая концовка настоящая?"}
-          {left !== null ? ` · ${left} с` : ""}
+        <span className="hall-timer-row">
+          <span className="quiz-screen__badge">
+            {rev ? "Правда!" : "Какая концовка настоящая?"}
+          </span>
+          {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="10cqh" />}
         </span>
         {item && <p className="se-start">«{item.start}…»</p>}
         <ol className="se-options">

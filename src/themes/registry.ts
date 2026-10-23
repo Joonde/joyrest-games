@@ -34,6 +34,8 @@ export function themeVars(theme: Theme): Record<string, string> {
   vars["--font-display"] = fonts.display;
   for (const [name, value] of Object.entries(radius)) vars[`--radius-${name}`] = value;
   vars["--background"] = background;
+  // Вид таймера экрана зала — тоже переменная: работает и для всей страницы, и для блока предпросмотра (`themeStyle`).
+  vars["--timer-look"] = theme.effects?.timer ?? "ring";
   return vars;
 }
 

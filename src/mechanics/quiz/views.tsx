@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { BoardView } from "../../components/live/BoardView";
 import { BuzzButton } from "../../components/live/BuzzButton";
 import { Confetti } from "../../components/live/Confetti";
@@ -294,9 +295,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
             <span className="quiz-screen__answered">Ответили: {session.state.answered}</span>
           )}
           {!revealed && (
-            <span className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"} role="timer">
-              {left === null ? q.timeLimit : left === 0 ? "Стоп" : left}
-            </span>
+            <HallTimer left={left} total={session.state.timeLimit ?? q.timeLimit} />
           )}
         </div>
         <h2 className="quiz-screen__question">{q.text || "Что на картинках?"}</h2>
@@ -336,13 +335,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
           <span className="quiz-screen__answered">Ответили: {session.state.answered}</span>
         )}
         {!revealed && (
-          <span
-            className={left === 0 ? "quiz-screen__timer is-over" : "quiz-screen__timer"}
-            role="timer"
-            aria-label={left === null ? `На ответ ${q.timeLimit} секунд` : `Осталось ${left} секунд`}
-          >
-            {left === null ? q.timeLimit : left === 0 ? "Стоп" : left}
-          </span>
+          <HallTimer left={left} total={session.state.timeLimit ?? q.timeLimit} />
         )}
       </div>
       <h2 className="quiz-screen__question">

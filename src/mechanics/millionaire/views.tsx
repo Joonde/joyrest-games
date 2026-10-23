@@ -5,6 +5,7 @@
 // радужной рамкой с салютом. «Помощь зала» — QR на экране: голосуют и гости вне игры, проценты растут сами.
 // Телефон: игрок выбирает вариант (до фиксации можно передумать) и просит подсказку — ведущий подтверждает.
 import { useEffect, useRef, type CSSProperties } from "react";
+import { HallTimer } from "../../components/live/HallTimer";
 import { useCountdownSounds } from "../../components/live/useCountdownSounds";
 import { Confetti } from "../../components/live/Confetti";
 import { playSample, playSound } from "../../components/live/sound";
@@ -290,9 +291,7 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
                 &nbsp;· вопрос {level} — {pointsLabel(pointsAt(content, level))}
               </span>
               {answerLeft !== null && (
-                <span className={`mil-timer${answerLeft <= 10 ? " is-low" : ""}${answerLeft === 0 ? " is-out" : ""}`} role="timer" aria-label={`Осталось ${answerLeft} с`}>
-                  {answerLeft === 0 ? "Время вышло" : `${answerLeft} с`}
-                </span>
+                <HallTimer className="mil-timer" left={answerLeft} total={session.state.timeLimit ?? content.answerSeconds} size="8cqh" stopText="Время вышло" />
               )}
             </p>
             {!audience && <LifelineBoard session={session} content={content} result={r} />}
@@ -309,8 +308,8 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
                   <p>Наведите камеру и выберите ответ</p>
                   <p className="mil-audience__count">
                     {r.votes} {votesWord(r.votes)}
-                    {left !== null ? ` · ${left} с` : ""}
                   </p>
+                  {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="9cqh" />}
                 </div>
               </div>
             )}
@@ -323,12 +322,12 @@ export function MillionaireScreenView({ session, content }: ViewProps<Millionair
                   <p className="mil-audience__hint">{audienceRepo ? "Наведите камеру и голосуйте" : "Голосуйте на телефонах"}</p>
                   <p className="mil-audience__count">
                     {r.votes} {votesWord(r.votes)}
-                    {left !== null ? ` · ${left} с` : ""}
                   </p>
+                  {left !== null && <HallTimer left={left} total={session.state.timeLimit} size="9cqh" />}
                 </aside>
               )}
             </div>
-            {r.callEndsAt !== null && r.callEndsAt > now && stage === "question" && <p className="mil-call">📞 Звонок другу · {clockLeft(r.callEndsAt - now)}</p>}
+            {r.callEndsAt !== null && r.callEndsAt > now && stage === "question" && <p className="mil-call hall-timer-row">📞 Звонок другу <HallTimer left={Math.ceil((r.callEndsAt - now) / 1000)} total={content.callSeconds} size="7cqh" /></p>}
             {r.tip && stage === "question" && (
               <div className="mil-tip" role="status">
                 <span className="mil-tip__icon">

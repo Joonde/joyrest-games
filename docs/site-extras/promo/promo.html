@@ -125,7 +125,7 @@ window.setT = function (t) {
     }
     if (i === 4) { set($('c1'), ease(l / 0.6), `translateY(${(1 - ease(l / 0.6)) * -60}px) scale(${1 + p * 0.03})`); set($('c2'), ease((l - 0.5) / 0.6), `translateY(${(1 - ease((l - 0.5) / 0.6)) * 80}px) rotate(${-3 + 3 * ease((l - 0.5) / 0.6)}deg)`); }
     if (i === 5) set($('l1'), ease(l / 0.7), `scale(${0.9 + 0.1 * ease(l / 0.7) + p * 0.04}) rotate(${-2 + 2 * ease(l / 0.7)}deg)`);
-    if (i === 7) { [...tiles.children].forEach((tl, k) => set(tl, ease((l - k * 0.08) / 0.4) * 0.55, `scale(${0.8 + 0.2 * ease((l - k * 0.08) / 0.4)})`)); $('num').textContent = Math.round(33 * ease(l / 1.6)); }
+    if (i === 7) { [...tiles.children].forEach((tl, k) => set(tl, ease((l - k * 0.08) / 0.4) * 0.55, `scale(${0.8 + 0.2 * ease((l - k * 0.08) / 0.4)})`)); $('num').textContent = Math.round(37 * ease(l / 1.6)); }
     if (i === 8) set($('em8'), ease(l / 1), `scale(${0.88 + 0.12 * ease(l / 1)})`);
   }
 };

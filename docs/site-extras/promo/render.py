@@ -2,13 +2,13 @@ import sys, pathlib, subprocess
 from playwright.sync_api import sync_playwright
 P = pathlib.Path(sys.argv[1]); mode = sys.argv[2]
 R = 'file:///home/claude/joyrest-games'
-import os
+import os, glob
 # Папка снимков «Снимки игр» (ветка e2e-shots, папка shots/): SHOTS=/путь python3 render.py <папка> preview|frames
 X = 'file://' + os.environ.get('SHOTS', '/tmp/shots')
 html = (P/'promo.html').read_text().replace('url(R/', f'url({R}/').replace('"S/', f'"{R}/').replace("'S/", f"'{R}/").replace('"X/', f'"{X}/').replace("'X/", f"'{X}/")
 (P/'_r.html').write_text(html)
 with sync_playwright() as p:
-    b = p.chromium.launch(executable_path='/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args=['--allow-file-access-from-files'])
+    b = p.chromium.launch(executable_path=sorted(glob.glob('/opt/pw-browsers/chromium-*/chrome-linux*/chrome'))[-1], args=['--allow-file-access-from-files'])
     pg = b.new_page(viewport={'width':720,'height':1280}, device_scale_factor=1.5)
     pg.goto((P/'_r.html').as_uri()); pg.wait_for_timeout(1500)
     if mode == 'preview':

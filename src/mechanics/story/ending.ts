@@ -191,7 +191,9 @@ export function endingReveal(session: Session, content: StoryContent, e: EndingS
       add(a.pid, content.guessPoints);
     } else if (owner) add(owner, content.foolPoints);
   }
-  if (right.length === 0 && item) add(item.pid, content.authorBonus);
+  // Бонус «никто не угадал» — только если голосовали чужие (решение владельца 23 октября 2026).
+  const counted = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  if (right.length === 0 && counted > 0 && item) add(item.pid, content.authorBonus);
   return { ending: { ...e, reveal: { realId, owners, counts, right, deltas } }, change: { state: { stage: "reveal", revealed: true }, ...(Object.keys(deltas).length > 0 ? { addScore: deltas } : {}) } };
 }
 

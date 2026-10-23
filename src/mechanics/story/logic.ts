@@ -305,7 +305,10 @@ export function revealAuthor(session: Session, content: StoryContent, answers: A
     if (session.leaderboard[to]) deltas[to] = (deltas[to] ?? 0) + content.guessPoints;
   }
   const authorTo = author ? teamOf(author) : null;
-  if (right.length === 0 && authorTo && session.leaderboard[authorTo] && content.authorBonus > 0) deltas[authorTo] = (deltas[authorTo] ?? 0) + content.authorBonus;
+  // Бонус «никто не угадал» — только если угадывали чужие: голоса своей команды не считаются, а без чужих голосов
+  // «не угадал» никто (решение владельца 23 октября 2026).
+  const counted = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  if (right.length === 0 && counted > 0 && authorTo && session.leaderboard[authorTo] && content.authorBonus > 0) deltas[authorTo] = (deltas[authorTo] ?? 0) + content.authorBonus;
   const add = Object.fromEntries(Object.entries(deltas).filter(([, d]) => d !== 0));
   return {
     state: { stage: "reveal", revealed: true, result: { ...r, reveal: { author, counts, right, deltas } } },

@@ -190,3 +190,16 @@ describe("правда или действие: очередь и колода (
     expect(draw(one, { ...parseTruthResult({}), used: d1.used }, "truth", first).card?.text).toBe("1");
   });
 });
+
+describe("«Правда или действие»: опоздавший на последнем ходу (23 октября 2026)", () => {
+  it("вошёл во время последнего хода и ещё не ходил — ходит перед награждением", () => {
+    const one = { ...parseTruth({}), rounds: 1 };
+    const base = { order: ["a", "b"], who: "b", round: 1 };
+    const r = { ...parseTruthResult({}), ...base };
+    expect(roundsDone(one, r, ["a", "b"])).toBe(true);
+    expect(roundsDone(one, r, ["a", "b", "c"])).toBe(false);
+    const after = { ...r, order: ["a", "b", "c"], who: "c" };
+    expect(roundsDone(one, after, ["a", "b", "c"])).toBe(true);
+  });
+});
+

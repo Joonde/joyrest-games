@@ -177,12 +177,15 @@ describe("режим команд: голоса команды автора не
     } as Session;
   }
 
-  it("«Чья история?»: сокомандник автора не получает очки за «угадал», бонус автору — если чужие не угадали", () => {
+  it("«Чья история?»: сокомандник автора не получает очки за «угадал», бонус автору — только если чужие голосовали и не угадали", () => {
     const content = { ...createStory(), sections: ["author" as const] };
     const s = teamSession({ part: 0, mode: "guess", writeStep: 1, stories: [{ id: "s1", text: "Я прыгнул с парашютом" }], current: 0, hidden: [], history: [] });
     const written = [{ pid: "a1", text: "Я прыгнул с парашютом" }];
     const onlyMate = revealAuthor(s, content, [ans(2, "a2", { guess: "a1" })], written, teamOf);
-    expect(onlyMate.addScore?.T1 ?? 0).toBe(content.authorBonus);
+    // Голосовали только свои — бонуса «никто не угадал» нет (решение владельца 23 октября 2026).
+    expect(onlyMate.addScore?.T1 ?? 0).toBe(0);
+    const missed = revealAuthor(s, content, [ans(2, "a2", { guess: "a1" }), ans(2, "b1", { guess: "c1" })], written, teamOf);
+    expect(missed.addScore?.T1 ?? 0).toBe(content.authorBonus);
     const both = revealAuthor(s, content, [ans(2, "a2", { guess: "a1" }), ans(2, "b1", { guess: "a1" })], written, teamOf);
     expect(both.addScore).toEqual({ T2: content.guessPoints });
   });

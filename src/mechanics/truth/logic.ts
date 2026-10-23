@@ -136,9 +136,10 @@ function following(prev: string[], order: string[], who: string | null): { pid: 
   return { pid: order[0] ?? null, wrap: true };
 }
 
-/** Кто ходит следующим (по нынешней очереди, без опоздавших — они встанут в конец при «Следующий»). */
-export function nextPid(r: TruthResult): string | null {
-  return following(r.order, r.order, r.who).pid;
+/** Кто ходит следующим; `live` — кто сейчас в таблице (опоздавшие встают в конец круга). */
+export function nextPid(r: TruthResult, live?: string[]): string | null {
+  const now = live ? [...r.order.filter((p) => live.includes(p)), ...live.filter((p) => !r.order.includes(p))] : r.order;
+  return following(r.order, now.length > 0 ? now : r.order, r.who).pid;
 }
 
 function orderOf(session: Session, participants: Participant[], r: TruthResult): string[] {
@@ -172,9 +173,14 @@ export function pendingSuggestions(r: TruthResult, answers: Answer[], step: numb
 
 export type TruthAction = "start" | "waitChoice" | "resolve" | "next" | "podium" | "podiumNext" | "finish";
 
-/** Все круги сыграны. */
-export function roundsDone(content: TruthContent, r: TruthResult): boolean {
-  return content.rounds > 0 && r.order.length > 0 && r.round >= content.rounds && following(r.order, r.order, r.who).wrap;
+/**
+ * Все круги сыграны. `live` — кто сейчас в таблице: опоздавший, вошедший во время последнего хода и ещё не ходивший,
+ * получает свой ход перед награждением (решение владельца 23 октября 2026).
+ */
+export function roundsDone(content: TruthContent, r: TruthResult, live?: string[]): boolean {
+  if (content.rounds <= 0 || r.order.length === 0 || r.round < content.rounds) return false;
+  const now = live ? [...r.order.filter((p) => live.includes(p)), ...live.filter((p) => !r.order.includes(p))] : r.order;
+  return following(r.order, now.length > 0 ? now : r.order, r.who).wrap;
 }
 
 export function truthPrimary(session: Session, content: TruthContent): TruthAction {
@@ -184,7 +190,7 @@ export function truthPrimary(session: Session, content: TruthContent): TruthActi
   if (stage === "ready") return "start";
   if (r.mode === "pick") return "waitChoice";
   if (r.mode === "card") return "resolve";
-  if (roundsDone(content, r)) return hasPodium(session.leaderboard) ? "podium" : "finish";
+  if (roundsDone(content, r, Object.keys(session.leaderboard))) return hasPodium(session.leaderboard) ? "podium" : "finish";
   return "next";
 }
 

@@ -78,7 +78,9 @@ function Dossiers({ session, r, highlight }: { session: Session; r: BunkerResult
   const cols = r.seats.length <= 8 ? r.seats.length : Math.ceil(r.seats.length / 2);
   const rows = r.seats.length <= 8 ? 1 : 2;
   // Размер — и по ширине колонки, и по высоте: досье (до 16 строк текста) не залезают на таймер и карту хода.
-  const fs = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, ${rows === 1 ? 2.8 : 1.35}cqh)`;
+  // В один ряд — не мельче 1,95cqh: строки досье (0,9em) читаются с другого конца зала и на проекторе 4:3 (Ревизор).
+  const base = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, ${rows === 1 ? 2.8 : 1.35}cqh)`;
+  const fs = rows === 1 ? `max(1.95cqh, ${base})` : base;
   return (
     <ol className="bk-screen__dossiers" style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
       {r.seats.map((p, i) => (

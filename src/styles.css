@@ -4878,6 +4878,21 @@ kbd {
   line-clamp: 1;
 }
 
+/* Ничья команд на ступени (до трёх плашек и «и ещё N»): плашки мельче, иначе в финале верхняя срезалась на полплашки
+   (Ревизор: «Правда или действие», «Мафия», 23 октября 2026). */
+.podium__names:has(> .podium__name + .podium__name) {
+  gap: 0.6cqh;
+}
+.podium__names:has(> .podium__name + .podium__name) > .podium__name--team {
+  font-size: min(3.6cqh, 2.4cqw);
+  padding: 0.3cqh 1.6cqw;
+}
+.podium--final .podium__names:has(> .podium__name + .podium__name) > .podium__name:not(.podium__name--team) {
+  font-size: min(4cqh, 2.6cqw);
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
 .podium__step {
   flex: none;
   display: flex;
@@ -15491,7 +15506,7 @@ button.dance-card:active {
   top: 5.6cqi;
   padding: 0.6cqi 3cqi;
   border-radius: 999px;
-  font-size: 4cqi;
+  font-size: max(4cqi, 12px);
   font-weight: 600;
   letter-spacing: 0.04em;
   background: rgb(0 0 0 / 0.45);
@@ -15527,7 +15542,7 @@ button.dance-card:active {
   margin: 0;
   flex: none;
   max-width: 100%;
-  font-size: 4.3cqi;
+  font-size: max(4.3cqi, 12px);
   line-height: 1.35;
   color: rgb(251 246 241 / 0.88);
   text-wrap: balance;
@@ -15541,7 +15556,7 @@ button.dance-card:active {
   padding: 1.2cqi 3cqi;
   border-radius: 10px;
   background: rgb(0 0 0 / 0.4);
-  font-size: 4cqi;
+  font-size: max(4cqi, 12px);
   font-weight: 600;
   color: #ffb3b9;
 }
@@ -15682,7 +15697,9 @@ button.dance-card:active {
 .mf-seat__name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .mf-seat__role { grid-area: role; font-size: 2cqh; color: #c8bfb6; }
 .mf-seat__role.is-mafia { color: #ff8a92; }
-.mf-seat.is-dead { opacity: 0.45; border-style: dashed; }
+/* Выбывший: приглушены имя и роль, номер остаётся читаемым (вся плашка на 45% давала номеру контраст 2,4). */
+.mf-seat.is-dead { border-style: dashed; }
+.mf-seat.is-dead > :not(.mf-seat__num) { opacity: 0.6; }
 .mf-seat.is-dead .mf-seat__name { text-decoration: line-through; }
 .mf-seat.is-dead .mf-seat__num { background: #6b625b; color: #fbf6f1; }
 .mf-seat.is-nominee { border-color: #ff5a66; background: rgb(255 90 102 / 0.16); }
@@ -15733,6 +15750,13 @@ button.dance-card:active {
 .mf-tally__fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e3c68c, #a3c2aa); transform-origin: left; animation: mf-grow 1.2s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
 .mf-tally__row.is-out .mf-tally__fill { background: linear-gradient(90deg, #ff8a92, #c4364a); }
 .mf-tally__n { font-variant-numeric: tabular-nums; text-align: right; }
+/* Телефон: имя целиком (до двух строк) и число голосов в первой строке, полоса — под ними; в px, а не в единицах зала —
+   на телефоне число голосов и полоса закрывали длинное имя (Ревизор). */
+.mf-tally--phone { width: 100%; gap: 12px; }
+.mf-tally--phone .mf-tally__row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name n" "bar bar"; gap: 4px 12px; font-size: 16px; }
+.mf-tally--phone .mf-tally__name { grid-area: name; white-space: normal; overflow-wrap: anywhere; }
+.mf-tally--phone .mf-tally__bar { grid-area: bar; height: 10px; }
+.mf-tally--phone .mf-tally__n { grid-area: n; font-size: 18px; }
 
 .mf-reveal { display: grid; grid-template-columns: repeat(auto-fit, minmax(16cqw, 1fr)); gap: 1.4cqh 1.2cqw; width: 100%; margin: 0; padding: 0; list-style: none; }
 .mf-reveal__item {
@@ -16015,7 +16039,7 @@ button.dance-card:active {
   text-wrap: balance;
   overflow: hidden;
 }
-.td-face__from { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(var(--td-band) + 9cqi); text-align: center; font-size: 4.4cqi; opacity: 0.85; }
+.td-face__from { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(var(--td-band) + 9cqi); text-align: center; font-size: max(4.4cqi, 12px); opacity: 0.85; }
 .td-stamp {
   position: absolute;
   z-index: 6;
@@ -16065,7 +16089,8 @@ button.dance-card:active {
 .td-suggest__kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .td-chip { min-height: 52px; border-radius: 14px; border: 1.5px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font: inherit; font-weight: 600; }
 .td-chip[aria-checked="true"] { border-color: var(--color-control-checked); box-shadow: 0 0 0 2px var(--color-highlight); }
-.td-host__pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.td-host__pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.td-host__pick > .btn { min-width: 0; padding-inline: 12px; white-space: normal; overflow-wrap: anywhere; }
 .td-host__card { padding: 12px 16px; border-radius: 12px; }
 .td-host__card p { margin: 4px 0 0; font-size: 18px; }
 .td-host__card--truth { background: #4a1626; color: #fbf6f1; }
@@ -16455,16 +16480,16 @@ button.dance-card:active {
   border-top: 0.35em solid #6B5A3A; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; gap: 0.35em; overflow: hidden;
 }
 .bk-dossier__head { display: flex; align-items: baseline; gap: 0.35em; min-width: 0; }
-.bk-dossier__seat { font-size: 0.8em; color: #6B5A3A; font-weight: 600; }
+.bk-dossier__seat { font-size: 0.9em; color: #6B5A3A; font-weight: 600; }
 .bk-dossier__name { font-weight: 600; font-size: 1.1em; line-height: 1.15; min-width: 0; overflow-wrap: anywhere; }
 .bk-dossier__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2em; }
-.bk-row { display: flex; align-items: center; gap: 0.35em; border-radius: 0.3em; padding: 0.15em 0.35em; font-size: 0.8em; line-height: 1.2; background: color-mix(in srgb, var(--bk-c) 60%, #F2EBDC); min-width: 0; min-height: 1.7em; }
+.bk-row { display: flex; align-items: center; gap: 0.35em; border-radius: 0.3em; padding: 0.15em 0.35em; font-size: 0.9em; line-height: 1.2; background: color-mix(in srgb, var(--bk-c) 60%, #F2EBDC); min-width: 0; min-height: 1.7em; }
 .bk-row .bk-icon { width: 1.1em; height: 1.1em; }
 .bk-row__text { min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .bk-row.is-closed { background: repeating-linear-gradient(-45deg, #DCD3C2 0 0.3em, #E8E0D0 0.3em 0.6em); color: #6E6253; }
-.bk-dossier__used { margin: 0; display: flex; align-items: center; gap: 0.3em; font-size: 0.75em; font-weight: 600; color: #6B4E12; }
-.bk-dossier__stamp { top: 0.55em; left: auto; right: 0.45em; transform: rotate(-6deg); font-size: 0.75em; border-width: 0.12em; padding: 0.1em 0.5em; letter-spacing: 0.12em; }
-.bk-dossier.is-exiled .bk-dossier__name { padding-right: 5.5em; }
+.bk-dossier__used { margin: 0; display: flex; align-items: center; gap: 0.3em; font-size: 0.9em; font-weight: 600; color: #6B4E12; }
+.bk-dossier__stamp { top: 0.55em; left: auto; right: 0.45em; transform: rotate(-6deg); font-size: 0.9em; border-width: 0.12em; padding: 0.1em 0.5em; letter-spacing: 0.12em; }
+.bk-dossier.is-exiled .bk-dossier__name { padding-right: 6.5em; }
 .bk-dossier.is-exiled { filter: grayscale(0.85); opacity: 0.65; }
 .bk-dossier.is-speaking { box-shadow: 0 0 0 0.25em #F1C230, 0 6px 18px rgba(0, 0, 0, 0.3); }
 @media (prefers-reduced-motion: reduce) {
@@ -16474,8 +16499,9 @@ button.dance-card:active {
 /* «Убежище»: экран зала */
 .bk-screen {
   position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: 2.4cqh 2.4cqw; overflow: hidden; border-radius: inherit;
-  display: grid; grid-template-rows: auto minmax(22cqh, 1fr) auto; gap: 1.6cqh; color: #FBF6F1; font-size: 2.6cqh;
-  padding-bottom: 6.5cqh; /* место под строку особого условия: она не закрывает досье */
+  display: grid; grid-template-rows: auto minmax(18cqh, 1fr) auto; gap: 1.6cqh; color: #FBF6F1; font-size: 2.6cqh;
+  /* Внизу — строка «Вход · код» (6,5cqh), над ней — строка особого условия: ни одна не закрывает досье и друг друга. */
+  padding-bottom: 12cqh;
   background: radial-gradient(120% 90% at 50% 0%, #2B2A22, #14130F 70%);
 }
 .bk-screen::before {
@@ -16490,7 +16516,7 @@ button.dance-card:active {
 .bk-screen__status { margin: 0; display: grid; gap: 0.4cqh; font-size: 2.1cqh; color: #D9CFC4; white-space: nowrap; }
 .bk-screen__status b { color: #F1C230; font-size: 1.3em; }
 .bk-screen__bunker { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.8cqw; justify-content: flex-end; align-items: center; }
-.bk-screen__bunker > li { width: 6.2cqw; }
+.bk-screen__bunker > li { width: max(6.2cqw, 10cqh); }
 .bk-screen__rounds { display: none; }
 .bk-screen__stage { display: grid; place-items: center; }
 .bk-screen--big { grid-template-rows: auto minmax(0, 1fr); }
@@ -16498,7 +16524,7 @@ button.dance-card:active {
 /* На экране зала строка досье — до двух строк текста, дальше многоточие внутри рамки. */
 .bk-screen__dossiers .bk-row__text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bk-screen__dossiers .bk-dossier__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.bk-screen__log { margin: 0; position: absolute; left: 50%; bottom: 1.2cqh; transform: translateX(-50%); background: #16130Fe6; border: 2px solid #E3C68C; color: #F3DFAE; padding: 0.6cqh 1.6cqw; border-radius: 999px; font-size: 2.2cqh; display: flex; align-items: center; gap: 0.6cqw; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: bk-log 6s ease both; }
+.bk-screen__log { margin: 0; position: absolute; left: 50%; bottom: 6.8cqh; transform: translateX(-50%); background: #16130Fe6; border: 2px solid #E3C68C; color: #F3DFAE; padding: 0.6cqh 1.6cqw; border-radius: 999px; font-size: 2.2cqh; display: flex; align-items: center; gap: 0.6cqw; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; animation: bk-log 6s ease both; }
 @keyframes bk-log { 0% { opacity: 0; transform: translate(-50%, 1cqh); } 8%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .bk-stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; gap: 3cqw; min-height: 0; }
 .bk-stage__card { height: 100%; max-height: 66cqh; aspect-ratio: 5 / 7; display: flex; }
@@ -16537,9 +16563,24 @@ button.dance-card:active {
 .bk-final__survivors { align-content: start; }
 .bk-final__side { display: grid; gap: 1.6cqh; align-content: start; }
 .bk-final__bunker { justify-content: flex-start; flex-wrap: wrap; }
-.bk-final__bunker > li { width: 5.2cqw; }
+.bk-final__bunker > li { width: max(5.2cqw, 9cqh); }
 .bk-final__threats { list-style: none; margin: 0; padding: 0; display: flex; gap: 1cqw; }
-.bk-final__threats > li { width: 12cqw; }
+.bk-final__threats > li { width: max(12cqw, 22cqh); }
+.bk-final__threats { flex-wrap: wrap; }
+/* Угроза в финале — текст крупный для зала, поэтому карта растёт по тексту, а не обрезает его (финал листается). */
+.bk-final__threats .bk-card { display: grid; overflow: clip; }
+.bk-final__threats .bk-card > .bk-in { position: relative; inset: auto; }
+
+/* Экран зала: подписи маленьких карт (убежище в шапке и в финале, угрозы, катастрофа) — не мельче 1,75% высоты кадра,
+   иначе с другого конца зала не прочитать (Ревизор, 23 октября 2026). */
+.bk-screen .bk-plan__num { font-size: max(7cqi, 1.75cqh); }
+.bk-screen .bk-card--small .bk-plan__title { font-size: max(12cqi, 1.75cqh); overflow-wrap: normal; hyphens: auto; }
+.bk-screen .bk-cata--compact .bk-cata__facts { font-size: max(5cqi, 1.75cqh); }
+.bk-screen .bk-cata--compact .bk-cata__facts b { font-size: max(6cqi, 2.1cqh); }
+.bk-screen .bk-threat__kicker, .bk-screen .bk-threat__text, .bk-screen .bk-threat__helps { font-size: max(6.6cqi, 1.75cqh); }
+.bk-screen .bk-threat__title { font-size: max(10cqi, 2.2cqh); }
+.bk-screen .bk-threat__stamp { font-size: max(8cqi, 1.9cqh); }
+.bk-screen .bk-trait__band { font-size: max(7.5cqi, 1.75cqh); }
 
 /* «Убежище»: телефон */
 .bk-phone { gap: 16px; }
@@ -16566,7 +16607,25 @@ button.dance-card:active {
 .bk-phone__mine { display: grid; gap: 12px; }
 .bk-phone__cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bk-phone__cards > li { display: grid; gap: 4px; }
-.bk-phone__state { font-size: 12px; text-align: center; color: var(--color-text-muted); }
+.bk-phone__state { font-size: 13px; text-align: center; color: var(--color-text); }
+/* Телефон: карты узкие (две в ряд на 320 px), поэтому подписи не мельче 12 px; карта растёт по тексту (grid + clip:
+   минимальная высота — по содержимому), а не обрезает его. */
+.bk-phone .bk-card { display: grid; overflow: clip; }
+.bk-phone .bk-card > .bk-in { position: relative; inset: auto; min-height: 0; }
+.bk-phone .bk-trait__band { font-size: max(7.5cqi, 12px); letter-spacing: 0.06em; flex-wrap: wrap; }
+.bk-phone .bk-trait__text { font-size: max(10.5cqi, 13px); }
+.bk-phone .bk-trait__stamp { font-size: max(5.5cqi, 12px); }
+.bk-phone .bk-special__band { font-size: max(6.5cqi, 12px); letter-spacing: 0.04em; flex-wrap: wrap; }
+.bk-phone .bk-special__title { font-size: max(10cqi, 15px); }
+.bk-phone .bk-special__text { font-size: max(6.6cqi, 12px); }
+.bk-phone .bk-special__when { font-size: max(5.5cqi, 12px); letter-spacing: 0.04em; }
+.bk-phone .bk-special__stamp { font-size: max(9cqi, 12px); }
+.bk-phone .bk-back__word { font-size: max(8.5cqi, 12px); letter-spacing: 0.2em; padding-left: 0.2em; }
+.bk-phone .bk-plan__num { font-size: max(7cqi, 12px); }
+.bk-phone .bk-plan__text, .bk-phone .bk-threat__text, .bk-phone .bk-threat__helps, .bk-phone .bk-cata__text { font-size: max(6.6cqi, 12px); }
+.bk-phone .bk-threat__kicker, .bk-phone .bk-cata__kicker, .bk-phone .bk-cata__facts { font-size: max(5.5cqi, 12px); }
+.bk-phone .bk-card--small .bk-plan__title, .bk-phone .bk-plan__title { font-size: max(12cqi, 12px); }
+.bk-phone .bk-threat__title, .bk-phone .bk-threat__stamp { font-size: max(9cqi, 13px); }
 .bk-phone__cards > li.is-open .bk-phone__state { color: var(--color-highlight); }
 .bk-phone__special { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; align-items: start; }
 .bk-phone__notes p { margin: 4px 0; display: flex; gap: 6px; align-items: center; }
@@ -17036,14 +17095,17 @@ button.dance-card:active {
   30% { transform: translateX(-6cqh) rotate(-12deg); }
   60% { transform: translateX(6cqh) rotate(12deg); }
 }
-.dk-seat { position: absolute; z-index: 3; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; width: 22cqh; }
+.dk-seat { position: absolute; z-index: 3; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; width: 24cqh; }
 .dk-seat .dk-backfan { margin-bottom: -1.6cqh; position: relative; z-index: 1; }
 .dk-seat__card {
+  position: relative;
+  z-index: 2;
   width: 100%;
   box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1cqh;
+  gap: 0.6cqh 1cqh;
   padding: 1cqh 1.2cqh;
   border-radius: 1.6cqh;
   background: rgba(20, 16, 22, 0.94);
@@ -17054,9 +17116,10 @@ button.dance-card:active {
 .dk-team--0 { background: #d89aa0; }
 .dk-team--1 { background: #d9b877; }
 .dk-seat__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.dk-seat__name { font-size: 2.1cqh; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dk-seat__meta { font-size: 1.6cqh; color: #d9b877; }
-.dk-seat__status { flex: none; font-size: 1.5cqh; padding: 0.3cqh 0.8cqh; border-radius: 0.8cqh; background: rgba(217, 184, 119, 0.14); color: #e8d9b5; }
+/* Имя — до двух строк (на проекторе 4:3 длинное имя сжималось до смайлика), статус — своей строкой под ним. */
+.dk-seat__name { font-size: 2.1cqh; font-weight: 500; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.dk-seat__meta { font-size: 1.9cqh; color: #d9b877; }
+.dk-seat__status { flex: 1 0 100%; box-sizing: border-box; text-align: center; font-size: 1.9cqh; padding: 0.3cqh 0.8cqh; border-radius: 0.8cqh; background: rgba(217, 184, 119, 0.14); color: #e8d9b5; }
 .dk-seat.is-active .dk-seat__card { border: 0.25cqh solid #e8c77e; animation: dk-glow 1.8s ease-in-out infinite; }
 .dk-seat.is-active .dk-seat__status { background: #e8c77e; color: #1b1a22; font-weight: 600; }
 .dk-seat--take .dk-seat__status { background: #7a1e2e; color: #f3e3bc; }
@@ -17077,31 +17140,34 @@ button.dance-card:active {
 .dk-over__places li { display: flex; align-items: center; gap: 1cqh; padding: 1cqh 2cqh; border-radius: 1.4cqh; background: rgba(255, 255, 255, 0.06); }
 .dk-over__places li > span { display: grid; place-items: center; width: 4cqh; height: 4cqh; border-radius: 50%; background: #e8c77e; color: #1b1a22; font-weight: 700; font-size: 2.2cqh; }
 .dk-over__places b { color: #e8c77e; }
-.dk-vote { position: absolute; inset: 0; z-index: 7; padding: 4cqh 4cqw; display: flex; flex-direction: column; gap: 3cqh; background: rgba(14, 12, 16, 0.94); animation: dk-pop 0.35s ease-out; }
+/* Голосование за колоду — во весь кадр над столом, но выше строки «Вход · код» (её не закрываем); стол и подписи под ним
+   на это время прячутся — иначе сквозь полупрозрачный фон наезжали на заголовок. */
+.dk-hall--vote > :not(.dk-vote) { visibility: hidden; }
+.dk-vote { position: absolute; inset: 0 0 7cqh; z-index: 7; padding: 4cqh 4cqw; display: flex; flex-direction: column; gap: 3cqh; background: rgba(14, 12, 16, 0.94); animation: dk-pop 0.35s ease-out; }
 .dk-vote__head h2 { margin: 0; font-family: "Cormorant Garamond", serif; font-size: 6cqh; color: #f3e3bc; }
 .dk-vote__head p { margin: 0.6cqh 0 0; font-size: 2.2cqh; color: #b9ae9c; letter-spacing: 0.08em; text-transform: uppercase; }
-.dk-vote__grid { flex: 1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2.4cqh 2cqw; align-content: center; }
+.dk-vote__grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2cqh 2cqw; align-content: center; }
 .dk-vote__tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1cqh; padding: 1.6cqh 1cqh; border-radius: 2cqh; transition: transform 0.3s; }
 .dk-vote__tile.is-lead { background: rgba(232, 199, 126, 0.08); box-shadow: 0 0 0 0.25cqh #e8c77e, 0 0 5cqh rgba(232, 199, 126, 0.25); transform: translateY(-1cqh); }
-.dk-vote__face { position: absolute; top: 3.5cqh; right: 18%; transform: rotate(10deg); }
+.dk-vote__face { position: absolute; top: 3cqh; right: 12%; }
 .dk-vote__name { font-size: 2.4cqh; color: #f3e3bc; }
 .dk-vote__bar { width: 80%; height: 0.7cqh; border-radius: 0.4cqh; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
 .dk-vote__bar span { display: block; height: 100%; background: linear-gradient(90deg, #b08a45, #f6e3a6); transition: width 0.5s; }
-.dk-vote__pct { font-size: 2cqh; color: #b9ae9c; }
+.dk-vote__pct { font-size: 2.2cqh; color: #b9ae9c; }
 .dk-bob { animation: dk-bob 5s ease-in-out infinite; }
 @keyframes dk-bob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-0.8cqh) rotate(1.5deg); } }
 
 /* ---------------------------------------------------------------- «Дурак»: телефон гостя */
 
-.dk-phone { gap: 12px; --cw: clamp(68px, 23vw, 104px); }
+.dk-phone { gap: 12px; --hw: clamp(68px, 23vw, 104px); --cw: var(--hw); }
 .dk-phone__deal { display: flex; justify-content: center; padding: 24px 0; }
-.dk-phone__opps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.dk-phone__opps { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; min-width: 0; max-width: 100%; }
 .dk-opp { flex: none; display: flex; flex-direction: column; padding: 6px 10px; border-radius: 12px; background: var(--color-surface-alt); border: 1px solid var(--color-border); font-size: 13px; min-width: 76px; }
 .dk-opp__name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 .dk-opp__n { color: var(--color-text-muted); }
 .dk-opp--turn, .dk-opp--defend { border-color: #e8c77e; box-shadow: 0 0 0 2px rgba(232, 199, 126, 0.25); }
 .dk-opp--out { opacity: 0.55; }
-.dk-mini { --mw: 54px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 104px; align-items: center; transition: box-shadow 0.2s; }
+.dk-mini { --mw: 60px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; padding: 14px 10px; border-radius: 18px; background: var(--felt, radial-gradient(ellipse at 50% 40%, #7a2236, #340c17)); box-shadow: inset 0 0 0 1px rgba(217, 184, 119, 0.4); min-height: 104px; align-items: center; transition: box-shadow 0.2s; }
 .dk-mini.is-drop { box-shadow: inset 0 0 0 2px rgba(232, 199, 126, 0.7); }
 .dk-mini.is-over { box-shadow: inset 0 0 0 3px #e8c77e, inset 0 0 24px rgba(232, 199, 126, 0.35); }
 .dk-mini--empty { gap: 12px; color: #f3e3bc; }
@@ -17128,9 +17194,11 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .dk-stock__suit.is-red span { color: #9c1934; }
 .dk-phone__status { margin: 0; text-align: center; font-weight: 500; }
 .dk-phone__status--turn, .dk-phone__status--defend { color: var(--color-highlight, #e3c68c); }
-.dk-hand { display: flex; flex-direction: column; margin-top: auto; padding-top: 34px; container-type: inline-size; }
-.dk-hand--rows { --cw: clamp(60px, 18vw, 86px); }
-.dk-hand__row { position: relative; z-index: 0; height: calc(var(--cw) * 1.4 + 18px); }
+.dk-hand { display: flex; flex-direction: column; margin-top: auto; padding-top: 34px; container-type: inline-size; min-width: 0; }
+.dk-hand--rows { --hw: clamp(60px, 18vw, 86px); }
+/* Ширина карты в ряду: не больше обычной, но так, чтобы ряд с наклоном веера (--reach) помещался в ширину руки,
+   а у каждой карты оставалось видно не меньше трети — угол с достоинством и мастью (телефон 320 px, 7 карт). */
+.dk-hand__row { --cw: min(var(--hw), (100cqw - 8px) / (1 + 2 * var(--reach, 0) + 0.36 * var(--n, 1))); position: relative; z-index: 0; height: calc(var(--cw) * 1.4 + 28px); }
 .dk-hand--rows .dk-hand__row { height: calc(var(--cw) * 1.4 + 4px); }
 .dk-hand--rows .dk-hand__row + .dk-hand__row { margin-top: calc(var(--cw) * -0.72); }
 .dk-hand.is-draggable .dk-hand__slot { touch-action: none; }
@@ -17144,8 +17212,8 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   border: 0;
   background: none;
   cursor: pointer;
-  transform-origin: 50% 160%;
-  transform: translateX(calc(-50% + var(--off) * min(clamp(22px, 7.5vw, 38px), (100cqw - var(--cw) - 8px) / var(--n, 1)))) translateY(var(--lift)) rotate(var(--rot));
+  transform-origin: 50% 130%;
+  transform: translateX(calc(-50% + var(--off) * min(clamp(22px, 7.5vw, 38px), (100cqw - var(--cw) * (1 + 2 * var(--reach, 0)) - 8px) / var(--n, 1)))) translateY(var(--lift)) rotate(var(--rot));
   transition: transform 0.25s ease;
 }
 .dk-hand__slot > .dk-card { transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1), box-shadow 0.25s, filter 0.25s; }
@@ -17162,8 +17230,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 /* ---------------------------------------------------------------- «Дурак»: пульт и конструктор */
 
 .dk-host__seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.dk-host__seats li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--color-surface-alt); }
-.dk-host__bot { min-height: 40px; font-size: 14px; }
+.dk-host__seats li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--color-surface-alt); min-width: 0; }
+.dk-host__seats li > * { min-width: 0; overflow-wrap: anywhere; }
+.dk-host__bot { min-height: 40px; font-size: 14px; max-width: 100%; white-space: normal; }
 .dk-editor__felts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
 .dk-editor__felt, .dk-editor__deck { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface-alt); color: var(--color-text); font: inherit; cursor: pointer; min-height: 52px; }
 .dk-editor__felt.is-on, .dk-editor__deck.is-on { border: 2px solid var(--color-highlight, #e3c68c); }
@@ -17519,7 +17588,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .pr-cup.is-out {
-  opacity: 0.45;
+  /* Выбывший стакан — пунктир и приглушённое имя; «выбыл» читается (прозрачность всей плашки давала контраст 2,5). */
+  border-style: dashed;
+}
+
+.pr-cup.is-out .pr-cup__name {
+  opacity: 0.7;
 }
 
 .pr-cup.is-lost {
@@ -17557,8 +17631,16 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .pr-cup.is-lost .pr-cup__mark {
-  color: var(--color-danger);
+  justify-self: start;
+  padding: 0.2cqh 0.8cqw;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-danger) 28%, var(--color-surface));
+  color: var(--color-text);
   font-weight: 600;
+}
+
+.pr-cup.is-out .pr-cup__out {
+  color: var(--color-text);
 }
 
 .pr-die {
@@ -17619,8 +17701,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .pr-faces {
+  /* Шесть граней в ряд, а на узком пульте — в два ряда: кнопка не уже 48 px (было 25 px). */
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
   gap: 6px;
 }
 
@@ -20525,10 +20608,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-cell__label {
+  /* Без overflow: hidden — при line-height 1.1 низ кириллицы срезало на 3–4 px (Ревизор). */
   max-width: 100%;
-  overflow: hidden;
   font-size: 1.9cqh;
-  line-height: 1.1;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
@@ -20557,7 +20640,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-cell.is-lost {
-  opacity: 0.35;
+  /* Проигравшая ячейка — пунктир и приглушённый, но читаемый текст (прозрачность 35% давала контраст 3). */
+  border-style: dashed;
+  color: color-mix(in srgb, var(--wine-felt-text) 72%, var(--wine-felt));
+}
+.wine-cell.is-lost .wine-cell__chips {
+  opacity: 0.6;
 }
 
 .wine-passport {
@@ -20618,12 +20706,12 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-table--compact .wine-row {
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: 76px 1fr;
   gap: 6px;
 }
 
 .wine-table--compact .wine-row__title {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .wine-table--compact .wine-row__odds {
@@ -20631,7 +20719,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-table--compact .wine-row__cells {
-  grid-auto-columns: minmax(48px, 1fr);
+  grid-auto-columns: minmax(60px, 1fr);
   gap: 3px;
 }
 
@@ -20641,15 +20729,17 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .wine-table--compact .wine-cell__label {
-  font-size: 10px;
+  font-size: 12px;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .wine-table--compact .wine-cell__chips {
   top: -6px;
   right: -4px;
-  min-width: 16px;
-  height: 16px;
-  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 12px;
 }
 
 .wine-phone__left {
@@ -21778,10 +21868,10 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .sp-card__face--place { background-image: url("/spy/art/web/place.webp"); padding-top: 22cqw; }
 .sp-card__title { font-family: var(--font-display); font-size: 12cqw; line-height: 1.05; color: var(--sp-ink); text-wrap: balance; }
 .sp-card__face--spy .sp-card__title { color: var(--sp-danger); font-size: 8.5cqw; }
-.sp-card__face--spy .sp-card__hint { font-size: 4.1cqw; }
+.sp-card__face--spy .sp-card__hint { font-size: max(4.1cqw, 12px); }
 .sp-card__role { font-size: 8cqw; color: var(--sp-ink); text-wrap: balance; }
 .sp-card__label { font-size: 5cqw; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sp-gold); }
-.sp-card__hint { font-size: 4.6cqw; line-height: 1.3; color: var(--sp-ink-soft); text-wrap: balance; }
+.sp-card__hint { font-size: max(4.6cqw, 12px); line-height: 1.3; color: var(--sp-ink-soft); text-wrap: balance; }
 .sp-card__rule { width: 30cqw; height: 1px; margin: 3cqw 0; background: var(--sp-gold); opacity: 0.6; }
 .sp-card__seat { position: absolute; top: 4cqw; left: 6cqw; z-index: 1; font-size: 6cqw; color: var(--sp-ink-soft); font-variant-numeric: tabular-nums; pointer-events: none; }
 

@@ -811,8 +811,9 @@
 .dg-stage--kid .dg-q__ans li:nth-child(4) b {
   background: #3fd39b;
 }
+/* Буквы ответов — тёмные: белая на розовой, голубой, жёлтой и мятной плашке — 1,7–2,6:1 (Ревизор, 23 октября 2026). */
 .dg-stage--kid .dg-q__ans b {
-  color: #fff;
+  color: var(--dk-ink, #3b2a63);
 }
 .dg-stage--kid .dg-q__ans .is-ok {
   background: #dcfff0;

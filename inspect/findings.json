@@ -1,291 +1,43 @@
 {
  "runs": [
   {
-   "name": "dragon-1-teams-projector",
-   "views": 33,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-projector",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-1-teams-tv",
-   "views": 33,
-   "findings": 0,
-   "finished": true
-  },
-  {
-   "name": "dragon-0-teams-tv",
-   "views": 26,
-   "findings": 0,
-   "finished": true
-  },
-  {
    "name": "mafia-0-solo-tv",
-   "views": 87,
-   "findings": 1,
+   "views": 93,
+   "findings": 0,
    "finished": true
   },
   {
    "name": "mafia-0-solo-projector",
-   "views": 91,
+   "views": 90,
    "findings": 0,
    "finished": true
   },
   {
    "name": "bunker-0-solo-tv",
-   "views": 75,
-   "findings": 4,
+   "views": 81,
+   "findings": 0,
    "finished": false
   },
   {
    "name": "bunker-0-solo-projector",
-   "views": 83,
-   "findings": 12,
+   "views": 76,
+   "findings": 1,
    "finished": false
   }
  ],
  "findings": [
   {
-   "key": "экран зала|обрезан текст|div.podium__stage > div.podium__slot > div.podium__names > p.podium__name|",
+   "key": "экран зала|надписи наезжают|section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted|",
    "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 3 px (div.podium__names)",
-   "path": "div.podium__stage > div.podium__slot > div.podium__names > p.podium__name",
-   "text": "Гость 1",
-   "at": "finished/66/podium/over",
-   "count": 1,
-   "shot": "shots/mafia-0-solo-tv-hall-1.jpg",
-   "where": [
-    "mafia 1-й шаблон, каждый сам ×9, телевизор full hd"
-   ],
-   "games": [
-    "mafia"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан вбок на 24 px (article.bk-dossier)",
-   "path": "ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used",
-   "text": "Перепланировка",
-   "at": "playing/16/question/open",
-   "count": 5,
+   "kind": "надписи наезжают",
+   "message": "«Снова ничья — решит жребий.» и «Екатерина Воскресенская» друг на друге",
+   "path": "section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted",
+   "text": "Снова ничья — решит жребий. | Екатерина Воскресенская",
+   "at": "playing/125/question/justify",
+   "count": 3,
    "shot": "shots/bunker-0-solo-projector-hall-1.jpg",
    "where": [
     "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span.name-emoji|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«🐻» закрыт элементом span.bk-dossier__stamp",
-   "path": "article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span.name-emoji",
-   "text": "🐻",
-   "at": "playing/48/question/justify",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-2.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 41 px)",
-   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text",
-   "text": "Генератор на бензине",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-3.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 107 px)",
-   "path": "ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used",
-   "text": "Допрос",
-   "at": "playing/152/reveal/final",
-   "count": 2,
-   "shot": "shots/bunker-0-solo-tv-hall-1.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|обрезан текст|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps|",
-   "area": "экран зала",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 5 px (div.bk-in)",
-   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps",
-   "text": "Поможет: врач, медсестра, аптечка, антибиотики",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-5.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 12 px)",
-   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker",
-   "text": "Угроза",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-6.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__title|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 39 px)",
-   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__title",
-   "text": "Кончилась еда",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-7.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 94 px)",
-   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text",
-   "text": "Крысы добрались до склада, еды осталось на неделю.",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-8.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|прячется за прокруткой|li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps|",
-   "area": "экран зала",
-   "kind": "прячется за прокруткой",
-   "message": "на экране зала текст виден только прокруткой (по высоте на 151 px)",
-   "path": "li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps",
-   "text": "Поможет: фермер, охотник, семена, повар",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-9.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Прыгал с парашютом 50 раз» закрыт элементом p.stage-code",
-   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text",
-   "text": "Прыгал с парашютом 50 раз",
-   "at": "playing/152/reveal/final",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-projector-hall-10.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "телефон|обрезан текст|div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text|",
-   "area": "телефон",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 25 px (div.bk-in)",
-   "path": "div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text",
-   "text": "Последний изгнанный возвращается в игру.",
-   "at": "playing/1/question/catastrophe",
-   "count": 204,
-   "shot": "shots/bunker-0-solo-tv-phones-1.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd",
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "телефон|обрезан текст|div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when|",
-   "area": "телефон",
-   "kind": "обрезан текст",
-   "message": "текст обрезан по высоте на 80 px (div.bk-in)",
-   "path": "div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when",
-   "text": "во время голосования",
-   "at": "playing/1/question/catastrophe",
-   "count": 27,
-   "shot": "shots/bunker-0-solo-projector-phones-2.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd",
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Вязание» закрыт элементом p.stage-code",
-   "path": "article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text",
-   "text": "Вязание",
-   "at": "playing/143/reveal/final",
-   "count": 2,
-   "shot": "shots/bunker-0-solo-tv-hall-2.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
    ],
    "games": [
     "bunker"

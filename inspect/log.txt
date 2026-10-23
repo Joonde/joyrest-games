@@ -1,9 +1,5 @@
-✓ dragon-1-teams-projector: видов 33, находок 0
-✓ dragon-0-teams-projector: видов 26, находок 0
-✓ dragon-1-teams-tv: видов 33, находок 0
-✓ dragon-0-teams-tv: видов 26, находок 0
-• mafia-0-solo-tv: видов 87, находок 1
-✓ mafia-0-solo-projector: видов 91, находок 0
-• bunker-0-solo-tv: видов 75, находок 4 (до финала не дошла)
-• bunker-0-solo-projector: видов 83, находок 12 (до финала не дошла)
-Ревизор: 14 находок → /tmp/inspect/README.md
+✓ mafia-0-solo-tv: видов 93, находок 0
+✓ mafia-0-solo-projector: видов 90, находок 0
+✓ bunker-0-solo-tv: видов 81, находок 0 (до финала не дошла)
+• bunker-0-solo-projector: видов 76, находок 1 (до финала не дошла)
+Ревизор: 1 находок → /tmp/inspect/README.md

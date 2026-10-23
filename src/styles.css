@@ -17064,7 +17064,7 @@ button.dance-card:active {
 .bk-screen--dense .bk-stage--turn .bk-lead--muted { font-size: 2cqh; }
 .bk-screen--dense .bk-stage--turn .bk-timer { font-size: 3.8cqh; }
 .bk-screen--dense .bk-stage--turn .bk-timer > span:not(.hall-timer) { font-size: 1.9cqh; }
-.bk-screen--dense .bk-stage--turn .bk-timer--hall .hall-timer { --ht-size: 6cqh !important; }
+.bk-screen--dense .bk-stage--turn .bk-timer--hall .hall-timer { --ht-size: 5.2cqh !important; }
 .bk-screen--dense .bk-stage--turn .bk-chip { font-size: 2cqh; }
 .bk-dossier--dense { padding: 0.45em 0.5em; gap: 0.25em; border-top-width: 0.3em; }
 .bk-dossier--dense .bk-dossier__head { flex-wrap: nowrap; }

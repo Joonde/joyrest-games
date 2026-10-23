@@ -57,7 +57,7 @@ function Timer({ endsAt, now, label, hall = false }: { endsAt: number | null; no
     return (
       <div className="bk-timer bk-timer--hall" aria-live="off">
         <span>{label}</span>
-        <HallTimer left={left} total={total} size="7cqh" />
+        <HallTimer left={left} total={total} size="6cqh" />
       </div>
     );
   }

@@ -145,8 +145,12 @@ function DrawWheel({ pool, angle, active, done, still }: { pool: string[]; angle
     const a = ((deg - 90) * Math.PI) / 180;
     return `${(rad * Math.cos(a)).toFixed(2)} ${(rad * Math.sin(a)).toFixed(2)}`;
   };
-  const short = (s: string) => (s.length > 14 ? `${s.slice(0, 13)}…` : s);
-  const font = n <= 4 ? 13 : n <= 8 ? 11 : 9;
+  // До 4 секторов надпись поперёк сектора, больше — вдоль радиуса (узкий сектор). Надпись всегда читается сверху вниз
+  // и слева направо: на левой половине экрана — перевёрнута (по углу сектора с учётом поворота колеса).
+  const radial = n > 4;
+  const max = radial ? (n <= 8 ? 13 : 11) : 14;
+  const short = (s: string) => (Array.from(s).length > max ? `${Array.from(s).slice(0, max - 1).join("")}…` : s);
+  const font = n <= 4 ? 13 : n <= 8 ? 10.5 : 9;
   return (
     <div className={`draw-wheel${done ? " is-done" : ""}`} aria-hidden={!done}>
       <svg className="draw-wheel__svg" viewBox="-112 -118 224 230" role="img">
@@ -159,7 +163,7 @@ function DrawWheel({ pool, angle, active, done, still }: { pool: string[]; angle
             return (
               <g key={`${name}-${i}`} className={(done || still) && i === active ? "draw-wheel__seg is-win" : done || still ? "draw-wheel__seg is-out" : "draw-wheel__seg"}>
                 <path d={d} fill={WHEEL_COLORS[i % WHEEL_COLORS.length]} stroke="#221E1B" strokeWidth="1.2" />
-                <text transform={`rotate(${mid}) translate(0 ${-r * 0.6}) rotate(${mid > 90 && mid < 270 ? 180 : 0})`} textAnchor="middle" dominantBaseline="middle" fontSize={font} fontWeight="700" fill="#221E1B">
+                <text transform={labelTransform(mid, angle, radial, r)} textAnchor="middle" dominantBaseline="middle" fontSize={font} fontWeight="700" fill="#221E1B">
                   {short(name)}
                 </text>
               </g>
@@ -176,6 +180,17 @@ function DrawWheel({ pool, angle, active, done, still }: { pool: string[]; angle
       <p className="draw-wheel__now">{pool[active] ?? ""}</p>
     </div>
   );
+}
+
+/** Поворот надписи сектора: по экранному углу (сектор + поворот колеса), чтобы не было вверх ногами. */
+function labelTransform(mid: number, angle: number, radial: boolean, r: number): string {
+  const screen = (((mid + angle) % 360) + 360) % 360;
+  if (radial) {
+    // Вдоль радиуса: справа — от центра наружу, слева — снаружи к центру.
+    const flip = screen > 180;
+    return `rotate(${mid}) translate(0 ${-r * 0.58}) rotate(${flip ? 90 : -90})`;
+  }
+  return `rotate(${mid}) translate(0 ${-r * 0.6}) rotate(${screen > 90 && screen < 270 ? 180 : 0})`;
 }
 
 /** Барабан: имена бегут вертикальной лентой, в окне — текущее; к концу останавливается на победителе. */

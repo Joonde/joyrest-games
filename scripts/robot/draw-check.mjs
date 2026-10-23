@@ -42,6 +42,8 @@ for (const view of [{ width: 1920, height: 1080 }, { width: 1024, height: 768 }]
     await page.clock.runFor(200);
     await page.waitForSelector(".slide--draw");
     await page.evaluate(() => document.fonts.ready);
+    // Появление надписей (CSS-анимации идут по настоящему времени) — дождаться, чтобы снимок был как на экране.
+    await page.waitForTimeout(1300);
     const r = await page.evaluate(({ effect, n, done }) => {
       const bad = [];
       const winner = window.drawWinner;

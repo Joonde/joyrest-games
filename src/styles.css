@@ -4408,7 +4408,9 @@ kbd {
   overflow: hidden;
   border: 0.6cqh solid var(--color-highlight);
   border-radius: 3cqh;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.1) 35%, rgba(0, 0, 0, 0.1) 65%, rgba(0, 0, 0, 0.55));
+  background:
+    linear-gradient(180deg, var(--color-bg), transparent 38%, transparent 62%, var(--color-bg)),
+    var(--color-surface);
   box-shadow: 0 2cqh 6cqh rgba(0, 0, 0, 0.45);
 }
 

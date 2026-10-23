@@ -340,7 +340,12 @@ function Tally({ session, r }: { session: Session; r: BunkerResult }) {
 
 function Final({ session, content, r }: { session: Session; content: BunkerContent; r: BunkerResult }) {
   const o = r.outcome;
-  const cols = Math.max(1, Math.min(r.alive.length, 4));
+  // До 4 спасшихся — один ряд крупных досье. Больше (до 8: мест — половина из 16) — два ряда компактных (`dense`, как
+  // при 9–16 игроках): два ряда по ~28cqh помещаются под шапкой и над строкой «Вход · код», а не уходят под неё
+  // (Ревизор, 23 октября 2026: 6 спасшихся в два ряда крупных досье заходили под нижнюю строку).
+  const dense = r.alive.length > 4;
+  const cols = dense ? Math.ceil(r.alive.length / 2) : Math.max(1, Math.min(r.alive.length, 4));
+  const fs = dense ? "2cqh" : `min(${Math.min(1.5, 7 / cols)}cqw, 2.4cqh)`;
   return (
     <div className="bk-screen bk-screen--final">
       {o?.won && <Confetti burst={`bk:${session.state.step}`} />}
@@ -356,10 +361,10 @@ function Final({ session, content, r }: { session: Session; content: BunkerConte
         )}
       </header>
       <div className="bk-final__body">
-        <ol className="bk-screen__dossiers bk-final__survivors" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, ["--bk-fs" as string]: `${Math.min(1.5, 7 / cols)}cqw` }}>
+        <ol className={`bk-screen__dossiers bk-final__survivors${dense ? " is-dense" : ""}`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
           {r.alive.map((p) => (
             <li key={p}>
-              <Dossier name={nameOf(session, p)} seat={r.seats.indexOf(p) + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} />
+              <Dossier name={nameOf(session, p)} seat={r.seats.indexOf(p) + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} dense={dense} />
             </li>
           ))}
         </ol>

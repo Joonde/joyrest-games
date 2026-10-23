@@ -126,6 +126,42 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
   }
 }
 
+export interface QuietDeps {
+  /** Свежая сессия (последнее, что пришло с сервера). */
+  current: () => Session;
+  /** Ведущий сейчас записывает своё касание. */
+  busy: () => boolean;
+  /** Прошлая фоновая запись ушла, а её возвращения потоком ещё нет. */
+  echoPending: () => boolean;
+  nextSession: () => Promise<void>;
+  apply: (change: SessionChange) => Promise<void>;
+  /** Запись прошла (по этой сессии). */
+  written: (s: Session) => void;
+}
+
+/**
+ * Одна фоновая запись пульта после предыдущей (`prev`) и её возвращения: запись собирается по свежей сессии, с
+ * отпечатком итогов шага. Ведущий нажимает — пропускается. Отказ — молча (false).
+ */
+export async function chainQuiet(make: HostMake, prev: Promise<boolean> | null, deps: QuietDeps): Promise<boolean> {
+  if (prev) {
+    await prev.catch(() => false);
+    if (deps.echoPending()) await deps.nextSession();
+  }
+  if (deps.busy()) return false;
+  const s = deps.current();
+  try {
+    const change = typeof make === "function" ? await make(s) : make;
+    if (!change || isEmptyChange(change) || deps.busy()) return false;
+    const { phase, step, stage } = s.state;
+    await deps.apply({ ...change, expect: { phase, step, stage, result: resultKey(s.state.result) } });
+    deps.written(s);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Пульт механики: `run` — касание ведущего (кнопки гаснут, пока запись не вернётся, не дольше 3 с),
  * `setup.moment` — момент игры внутри этапа (см. `HostRunDeps.moment`), `quiet` — фоновая запись (ход с телефона,
@@ -213,29 +249,27 @@ export function useHostRun(session: Session, control: SessionControl, rehearsal:
   /**
    * Фоновая запись по свежей сессии; пока ведущий записывает своё — пропускается (эффект повторит: у него в
    * зависимостях `busy`). Отказ сервера — молча: фон посчитает заново по свежей сессии. true — записано.
+   * Фоновые записи идут по одной (`chainQuiet`): частые нажатия телефонов не шлют две записи с одного вида игры —
+   * вторая получила бы отказ 409 и могла перебить касание ведущего.
    */
-  async function quiet(make: SessionChange | null | ((s: Session) => SessionChange | null | Promise<SessionChange | null>)): Promise<boolean> {
-    if (inFlight.current) return false;
-    const s = latest.current;
-    const job = (async () => {
-      try {
-        const change = typeof make === "function" ? await make(s) : make;
-        if (!change || isEmptyChange(change) || inFlight.current) return false;
-        const { phase, step, stage } = s.state;
-        await control.apply({ ...change, expect: { phase, step, stage, result: resultKey(s.state.result) } });
+  function quiet(make: SessionChange | null | ((s: Session) => SessionChange | null | Promise<SessionChange | null>)): Promise<boolean> {
+    if (inFlight.current) return Promise.resolve(false);
+    const job = chainQuiet(make, quietPending.current, {
+      current: () => latest.current,
+      busy: () => inFlight.current,
+      echoPending: () => !rehearsal && quietEcho.current !== null && quietEcho.current === latest.current,
+      nextSession,
+      apply: (change) => control.apply(change),
+      written: (s) => {
         // Пока запись не вернулась потоком, касание ведущего подождёт её (`settle`), а не получит отказ.
         if (latest.current === s) quietEcho.current = s;
-        return true;
-      } catch {
-        return false;
-      }
-    })();
+      },
+    });
     quietPending.current = job;
-    try {
-      return await job;
-    } finally {
+    void job.finally(() => {
       if (quietPending.current === job) quietPending.current = null;
-    }
+    });
+    return job;
   }
 
   return { busy, error, setError, latest, inFlight, nextSession, run, quiet };

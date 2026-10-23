@@ -25,6 +25,15 @@ function speakMoment(s: Session): string {
 }
 
 /**
+ * Момент для «Назад»: тот же момент игры и то же число открытых мест пьедестала. Очередь нажатий «кто первый» (её
+ * часто пишет фон пульта) не в счёт — «Назад» по свежей сессии делает то же самое.
+ */
+function backMoment(s: Session): string {
+  const podium = (s.state.result as { podium?: unknown } | null)?.podium ?? null;
+  return JSON.stringify([boardMoment(s), podium]);
+}
+
+/**
  * Пульт «Ставки на знания»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
  * «кто первый» у гостей → «Верно» / «Неверно» → «К полю» (клетка гаснет). Крупная кнопка
  * «Таблица очков на экран» — в любой момент, потом «Убрать таблицу».
@@ -131,6 +140,8 @@ export function BoardHostControls({ session, content, answers, participants, con
   const primary = boardPrimary(session, content);
   const backPlan = boardBack(session, content);
 
+  // «Таблица очков на экран» — без отпечатка итогов шага (`expect`): таблица поверх игры от них не зависит, поэтому
+  // частые нажатия телефонов (фон пульта пишет очередь) не дают отказ — проходит с первого касания.
   const peekButton = session.screenMode !== "none" && (
     <button
       type="button"
@@ -143,7 +154,7 @@ export function BoardHostControls({ session, content, answers, participants, con
   );
 
   const backButton = (
-    <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => boardBack(s, content)?.change ?? null, backPlan.clear)}>
+    <button type="button" className="btn btn--secondary btn--block" disabled={busy || backPlan === null} onClick={() => backPlan && void run((s) => boardBack(s, content)?.change ?? null, { clear: backPlan.clear, attempts: 4, moment: backMoment })}>
       Назад
     </button>
   );

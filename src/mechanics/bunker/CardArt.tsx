@@ -404,7 +404,7 @@ export function Dossier({
       </ul>
       {used && (
         <p className="bk-dossier__used">
-          <Icon name="bolt" /> {SPECIAL_BY_ID[used].title}
+          <Icon name="bolt" /> <span className="bk-dossier__used-text">{SPECIAL_BY_ID[used].title}</span>
         </p>
       )}
       {exiled && <span className="bk-dossier__stamp">Изгнан</span>}

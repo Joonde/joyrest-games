@@ -128,7 +128,7 @@ def cover(key):
 
 out = os.path.join(os.path.dirname(__file__), "..", "..", "site", "img")
 # Рисованные обложки (23 октября 2026) — WebP из docs/site-extras/art, SVG для них больше не пишем.
-DRAWN = {"quiz-author", "quiz-company", "quiz-games", "quiz-musicdance", "melody"}
+DRAWN = {"quiz-author", "quiz-company", "quiz-games", "quiz-musicdance", "melody", "sing"}
 for k in M:
     if k in DRAWN: continue
     with open(os.path.join(out, f"cover-{k}.svg"), "w") as f:

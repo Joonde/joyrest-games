@@ -36,6 +36,7 @@ import {
   type QuizContent,
   type QuizQuestion,
   type QuizSettings,
+  QUIZ_ARTS,
 } from "./content";
 import { ImportSheet } from "./ImportSheet";
 import { RoundHeader, RoundMap, roundColor, roundName } from "./RoundBlocks";
@@ -777,6 +778,21 @@ function SettingsCard({ settings, hasRace, hasAuction, onChange }: { settings: Q
           <span className="choice__hint">Уменьшенная картинка над вариантами. В режиме «без экрана» показывается всегда.</span>
         </span>
       </label>
+      <Fold title="Фон экрана зала" value={QUIZ_ARTS.find((x) => x.id === (settings.art ?? "auto"))?.title}>
+        <fieldset className="stack stack--tight" aria-label="Фон экрана зала">
+          <p className="muted small">Картина под игрой в темах JoyRest (вечерней и дневной) и темах «под игру». Праздничные темы остаются со своим фоном.</p>
+          {QUIZ_ARTS.map((x) => (
+            <label key={x.id} className="choice show-look">
+              <input type="radio" name="quiz-art" checked={(settings.art ?? "auto") === x.id} onChange={() => onChange({ ...settings, art: x.id })} />
+              <span className="choice__text">
+                <span className="choice__title">{x.title}</span>
+                <span className="choice__hint">{x.hint}</span>
+              </span>
+              {x.id !== "auto" && <span className="show-look__thumb" style={{ backgroundImage: `url("/covers/art/web/${x.id}-1280.webp")` }} aria-hidden="true" />}
+            </label>
+          ))}
+        </fieldset>
+      </Fold>
       {hasRace && (
         <label className="field">
           Гонка «Кто быстрее»: делений до финиша

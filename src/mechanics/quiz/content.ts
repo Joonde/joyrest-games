@@ -139,6 +139,36 @@ export interface QuizSettings {
   raceTarget: number;
   /** «Аукцион»: чем тянуть жребий при равных ставках. Нет — монетка (игры до 23 октября 2026). */
   drawEffect?: DrawEffect;
+  /**
+   * Нарисованный фон экрана зала (решение владельца 23 октября 2026): `auto` или нет — по игре («Узнай по нотам» — рояль,
+   * остальные — стол с кубком), иначе выбранная картина `public/covers/art/web/<id>.webp`.
+   */
+  art?: QuizArt;
+}
+
+/** Фоны квиза: id картины и подпись в конструкторе. */
+export const QUIZ_ARTS = [
+  { id: "auto", title: "Сам по игре", hint: "Квиз с треками — рояль, остальные — стол с кубком" },
+  { id: "quiz-office", title: "Стол с кубком", hint: "Классический квиз" },
+  { id: "quiz-author", title: "Кабинет с пером", hint: "Авторский квиз" },
+  { id: "quiz-company", title: "Команда за столом", hint: "Квиз под компанию, корпоратив" },
+  { id: "quiz-games", title: "Кубики и колесо", hint: "Квиз с элементами игр" },
+  { id: "quiz-musicdance", title: "Граммофон и танцы", hint: "Квиз с музыкой и танцами" },
+  { id: "melody-notes", title: "Рояль и нота", hint: "«Узнай по нотам»" },
+  { id: "melody", title: "Микрофон и клавиши", hint: "Прежний фон «Узнай по нотам»" },
+] as const;
+
+export type QuizArt = (typeof QUIZ_ARTS)[number]["id"];
+
+export function parseQuizArt(value: unknown): QuizArt {
+  return QUIZ_ARTS.some((a) => a.id === value) ? (value as QuizArt) : "auto";
+}
+
+/** Какую картину ставить фоном экрана зала. */
+export function quizArtOf(content: QuizContent): string {
+  const art = settingsOf(content).art ?? "auto";
+  if (art !== "auto") return art;
+  return isMelodyQuiz(content) ? "melody-notes" : "quiz-office";
 }
 
 export const DEFAULT_SETTINGS: QuizSettings = { intro: true, board: "each", phoneImages: false, raceTarget: 5 };
@@ -554,6 +584,7 @@ export function parseSettings(raw: unknown): QuizSettings {
     phoneImages: data.phoneImages === true,
     raceTarget: int(data.raceTarget, DEFAULT_SETTINGS.raceTarget, LIMITS.minRace, LIMITS.maxRace),
     ...(typeof data.drawEffect === "string" ? { drawEffect: parseDrawEffect(data.drawEffect) } : {}),
+    ...(data.art !== undefined && parseQuizArt(data.art) !== "auto" ? { art: parseQuizArt(data.art) } : {}),
   };
 }
 

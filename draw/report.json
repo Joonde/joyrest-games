@@ -1,17 +1,4 @@
 {
  "cases": 72,
- "problems": [
-  "coin-2-joyrest-done-1920: за краем: draw-coin__rays «»",
-  "coin-2-joyrest-day-done-1920: за краем: draw-coin__rays «»",
-  "coin-3-joyrest-done-1920: за краем: draw-coin__rays «»",
-  "coin-3-joyrest-day-done-1920: за краем: draw-coin__rays «»",
-  "coin-4-joyrest-done-1920: за краем: draw-coin__rays «»",
-  "coin-4-joyrest-day-done-1920: за краем: draw-coin__rays «»",
-  "coin-8-joyrest-done-1920: за краем: draw-coin__rays «»",
-  "coin-8-joyrest-day-done-1920: за краем: draw-coin__rays «»",
-  "coin-2-joyrest-done-1024: за краем: draw-coin__rays «»",
-  "coin-3-joyrest-done-1024: за краем: draw-coin__rays «»",
-  "coin-4-joyrest-done-1024: за краем: draw-coin__rays «»",
-  "coin-8-joyrest-done-1024: за краем: draw-coin__rays «»"
- ]
+ "problems": []
 }

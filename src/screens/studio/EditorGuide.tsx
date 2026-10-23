@@ -4,13 +4,19 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
-import { EDITOR_BASICS, EDITOR_GUIDES as ALL_GUIDES, type EditorBasics, type EditorExample, type EditorGuide } from "../../core/editorGuide";
+import { EDITOR_BASICS as AGENCY_BASICS, EDITOR_GUIDES as AGENCY_GUIDES, type EditorBasics, type EditorExample, type EditorGuide } from "../../core/editorGuide";
+import { forLite } from "../../core/guideEdition";
 import { normalizeSearch } from "../../core/search";
 import { HIDDEN_MECHANICS } from "../../mechanics/hidden";
-import type { UserProfile } from "../../data";
+import { edition, type UserProfile } from "../../data";
 import { rich } from "./Guide";
 import { studioActions } from "./Studio";
 
+// В Лайте — без разделов агентства (предложения в библиотеку, роли команды) и со своим адресом (`core/guideEdition.ts`).
+const LITE = edition() === "lite";
+const HOST = typeof window === "undefined" ? "" : window.location.host;
+const EDITOR_BASICS = LITE ? forLite(AGENCY_BASICS, HOST) : AGENCY_BASICS;
+const ALL_GUIDES = LITE ? forLite(AGENCY_GUIDES, HOST) : AGENCY_GUIDES;
 const EDITOR_GUIDES = ALL_GUIDES.filter((g) => !HIDDEN_MECHANICS.has(g.mechanic));
 
 /**

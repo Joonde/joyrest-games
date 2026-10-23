@@ -337,6 +337,10 @@ Firebase удаляются, Firebase-код удаляется отдельны
   (`TEAM_ROLES`). Тексты слайдов без «команды JoyRest» (`slideDefaults(kind, true)`). Страницы агентства в Лайте — «не
   найдено» (маршруты в `App.tsx` под `agency`; `App.tsx` читает метку лёгким `src/data/edition.ts` — исключение
   `boundary.test.ts`). «Показы» в Лайте остаются. Проверяет `src/data/edition.test.ts`.
+  Инструкции «Как проводить игры» и «Как создавать игры» в Лайте — те же тексты агентства через `forLite`
+  (`src/core/guideEdition.ts`, решение владельца 23 октября 2026): правила `LITE_RULES` убирают фотоотчёт, «Спасибо» с QR,
+  отзывы, календарь, «Оформление под заказчика», предложения в библиотеку и роли «владелец и заместитель», адрес
+  games.joy-rest.ru — свой. Поменяли такой текст в guide.ts или editorGuide/ — `guideEdition.test.ts` подскажет поправить правило.
 - **Лайт для проверки — на текущем сервере** (до отдельного сервера перед бетой): `app-lite-test` в compose — образ
   `APP_TEST_IMAGE` (выкладывается вместе с app-test из веток `claude/*`, `start_env test`), `EDITION: lite`, своя база
   `joyrest_lite_test` (тестовая роль, создаёт `ensure_test_db`, миграции — `run_migrations lite` при выкладке test; ошибка

@@ -538,7 +538,7 @@ function Console({ session }: { session: Session }) {
                     className="btn btn--quiet btn--block"
                     onClick={() => void apply({ state: { slide: slide?.kind === "thanks" ? null : thanksSlide(slideId(), edition() === "lite") } }).catch(() => undefined)}
                   >
-                    {slide?.kind === "thanks" ? "Убрать «Спасибо» — показать итоги" : "«Спасибо» с QR чаевых, отзыва и канала — на экран"}
+                    {slide?.kind === "thanks" ? "Убрать «Спасибо» — показать итоги" : (edition() === "lite" ? "«Спасибо» — на экран" : "«Спасибо» с QR чаевых, отзыва и канала — на экран")}
                   </button>
                 )}
               </section>

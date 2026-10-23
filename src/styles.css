@@ -4547,7 +4547,9 @@ kbd {
 }
 
 .draw-wheel__seg.is-win path {
-  filter: brightness(1.25);
+  filter: brightness(1.3) drop-shadow(0 0 3px #f3dfae);
+  stroke: #fff3c4;
+  stroke-width: 2.5px;
 }
 
 .draw-wheel__bulb {

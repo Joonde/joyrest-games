@@ -7148,7 +7148,12 @@ ul.chips {
   flex: none;
   font-size: max(12px, calc(var(--lotto-title-size) * var(--fit, 1)));
   line-height: 1.1;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  /* Длинное слово — сначала по слогам с дефисом (lang="ru" у <html>), и только если и так не влезло — по буквам:
+     на 5×5 при 320 px длинные слова рвались посреди слова без дефиса (`anywhere`). */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 .lotto-ticket .lotto-card__artist {

@@ -538,7 +538,71 @@ async function main() {
   } catch (error) {
     bad(`Сценарий прервался: ${String(error?.message ?? error).split("\n")[0]}`);
     await snap("oshibka").catch(() => {});
+  }
+  // «Аукцион» (23 октября 2026): отдельная пустая игра — вопрос из конструктора и из списка, запуск становится доступен.
+  const auctionId = `e2ea${rid()}${rid()}`;
+  try {
+    const made = await api("POST", "/api/games", host.cookie, {
+      id: auctionId,
+      scope: "personal",
+      ownerId: host.uid,
+      title: "Проверка аукциона (робот)",
+      mechanic: "quiz",
+      themeId: "joyrest",
+      ageRating: "0+",
+      playMode: "solo",
+      content: { questions: [] },
+    });
+    if (made.status !== 200 && made.status !== 201) throw new Error(`игра аукциона не создалась: ${made.status}`);
+    const saved = async () => (await api("GET", `/api/games/${auctionId}`, host.cookie)).data?.content?.questions ?? [];
+    await page.goto(`${BASE}/studio/games/${auctionId}`);
+    await page.getByRole("button", { name: "Добавить вопрос", exact: true }).first().waitFor({ timeout: WAIT });
+    check(await page.getByRole("button", { name: "▶ Запустить игру" }).isDisabled().catch(() => false), "Аукцион: пустая игра — «▶ Запустить игру» неактивна");
+    await page.getByRole("button", { name: "Добавить вопрос", exact: true }).first().click();
+    await page.locator(".add-question summary", { hasText: "Ставки" }).click();
+    await page.locator(".add-question").getByRole("button", { name: /Аукцион: ставки/ }).click();
+    await openCard().waitFor({ timeout: WAIT });
+    await page.getByLabel("Тема — видна до ставок").fill("Кино 90-х");
+    await page.getByLabel("Вопрос — после ставок").fill("В каком году вышел «Титаник»?");
+    await page.getByLabel("Вариант A", { exact: true }).fill("1997");
+    await page.getByLabel("Вариант B", { exact: true }).fill("1999");
+    await page.getByLabel("Вариант A — правильный").check();
+    await page.getByRole("group", { name: "Секунд на ставки" }).getByRole("button", { name: "20 с" }).click();
+    await settle();
+    let qs = await saved();
+    const a1 = qs[0] ?? {};
+    check(
+      qs.length === 1 && a1.kind === "auction" && a1.topic === "Кино 90-х" && a1.auctionAnswer === "choice" && a1.correct === 0 && a1.betTime === 20 && a1.options?.join("|") === "1997|1999",
+      "Аукцион из конструктора сохранён: тема, варианты, верный, ставки 20 с",
+      `Аукцион на сервере: ${JSON.stringify({ kind: a1.kind, topic: a1.topic, answer: a1.auctionAnswer, correct: a1.correct, betTime: a1.betTime, options: a1.options })}`,
+    );
+    await page.getByRole("link", { name: "▶ Запустить игру" }).waitFor({ timeout: WAIT }).then(() => ok("Аукцион заполнен — «▶ Запустить игру» активна")).catch(() => bad("«▶ Запустить игру» не стала активной после аукциона"));
+    await snap("aukcion-konstruktor");
+    // Импорт списком: «# Аукцион: тема».
+    await page.getByRole("button", { name: "Добавить списком" }).first().click();
+    await page.getByLabel("Текст с вопросами").fill("# Аукцион: Музыка\nКто спел «Yesterday»?\n= Beatles | Битлз");
+    await page.getByText("Тема аукциона: «Музыка»").waitFor({ timeout: WAIT }).then(() => ok("Окно импорта: «Тема аукциона: «Музыка»»")).catch(() => bad("Окно импорта не показало тему аукциона"));
+    await snap("aukcion-import");
+    await page.getByRole("button", { name: /^Добавить 1 вопрос/ }).click();
+    await settle();
+    qs = await saved();
+    const a2 = qs[1] ?? {};
+    check(
+      qs.length === 2 && a2.kind === "auction" && a2.topic === "Музыка" && a2.auctionAnswer === "open" && (a2.answers ?? []).join("|") === "Beatles|Битлз",
+      "Импорт «# Аукцион: Музыка»: аукцион с открытым ответом на сервере",
+      `Импорт на сервере: ${JSON.stringify({ n: qs.length, kind: a2.kind, topic: a2.topic, answer: a2.auctionAnswer, answers: a2.answers })}`,
+    );
+    check(await page.getByRole("link", { name: "▶ Запустить игру" }).isVisible().catch(() => false), "После импорта «▶ Запустить игру» по-прежнему активна");
+    const wideA = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    check(!wideA, "Аукцион в конструкторе — без прокрутки вбок");
+  } catch (error) {
+    bad(`Аукцион: сценарий прервался: ${String(error?.message ?? error).split("\n")[0]}`);
+    await snap("aukcion-oshibka").catch(() => {});
   } finally {
+    const delA = await api("DELETE", `/api/games/${auctionId}`, host.cookie).catch(() => ({ status: 0 }));
+    say(delA.status < 300 ? "Игра аукциона удалена" : `Игру аукциона удалить не вышло: ${delA.status}`);
+  }
+  {
     await browser.close();
     const del = await api("DELETE", `/api/games/${gameId}`, host.cookie);
     say(del.status < 300 ? "Игра проверки удалена" : `Игру проверки удалить не вышло: ${del.status}`);

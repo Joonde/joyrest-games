@@ -94,6 +94,50 @@ for (const view of [{ width: 1920, height: 1080 }, { width: 1024, height: 768 }]
     for (const x of [...r, ...errors]) problems.push(`${name}: ${x}`);
     await page.close();
   }
+// «Аукцион» квиза: экран зала и телефон на всех этапах (настоящие компоненты, сессия — функциями пульта).
+const HALL = ["splash", "bets", "draw-spin", "draw-done", "answer", "reveal-right", "reveal-wrong", "all"];
+const PHONE = ["phone-ready", "phone-bets", "phone-bet-sent", "phone-spin", "phone-win", "phone-watch", "phone-reveal-me", "phone-reveal-other"];
+let quizFrames = 0;
+for (const theme of ["joyrest", "joyrest-day"])
+  for (const open of [0, 1])
+    for (const scene of [...HALL, ...PHONE]) {
+      if (theme !== "joyrest" && open) continue;
+      const phone = scene.startsWith("phone");
+      const page = await browser.newPage({ viewport: phone ? { width: 390, height: 844 } : { width: 1920, height: 1080 }, deviceScaleFactor: phone ? 2 : 1 });
+      const errors = [];
+      page.on("pageerror", (e) => errors.push(String(e)));
+      page.on("console", (m) => m.type() === "error" && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
+      await page.clock.install({ time: new Date("2026-10-23T12:00:00Z") });
+      const name = `quiz-${scene}${open ? "-open" : ""}-${theme}`;
+      await page.goto(`http://127.0.0.1:${port}/?quiz=${scene}&open=${open}&theme=${theme}`);
+      await page.clock.runFor(300);
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(1300);
+      const bad = await page.evaluate((isPhone) => {
+        const out = [];
+        const vw = innerWidth;
+        const vh = innerHeight;
+        if (document.documentElement.scrollWidth > vw + 1) out.push("прокрутка вбок");
+        const text = document.body.innerText;
+        if (/undefined|NaN|\[object|null/.test(text)) out.push("мусор в тексте");
+        if (!text.trim()) out.push("пустой экран");
+        for (const el of document.querySelectorAll(".quiz-screen *, .slide *, .quiz-phone *")) {
+          const b = el.getBoundingClientRect();
+          if (!b.width || !b.height || el.closest("svg") || el.closest(".confetti")) continue;
+          if (!isPhone && (b.left < -1 || b.right > vw + 1 || b.top < -1 || b.bottom > vh + 1)) out.push(`за краем: ${el.className || el.tagName} «${(el.textContent ?? "").slice(0, 30)}»`);
+          if (isPhone && (b.left < -1 || b.right > vw + 1)) out.push(`за краем вбок: ${el.className || el.tagName}`);
+          const cs = getComputedStyle(el);
+          if (el.children.length === 0 && el.scrollWidth > el.clientWidth + 2 && cs.textOverflow !== "ellipsis" && cs.overflow !== "visible") out.push(`обрезан текст: ${el.className}`);
+        }
+        return [...new Set(out)].slice(0, 6);
+      }, phone);
+      await page.screenshot({ path: path.join(shots, `${name}.png`), fullPage: phone });
+      quizFrames++;
+      for (const x of [...bad, ...errors]) problems.push(`${name}: ${x}`);
+      await page.close();
+    }
+console.log(`Кадров аукциона квиза: ${quizFrames}`);
+
 await browser.close();
 server.close();
 fs.writeFileSync(path.join(shots, "report.json"), JSON.stringify({ cases: cases.length, problems }, null, 1));

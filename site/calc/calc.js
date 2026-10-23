@@ -6,7 +6,7 @@
   var P = window.JoyPricing;
   if (!P) return;
   var KEY = 'jr-calc-page';
-  var state = { pkg: 'quiz', tier: 1, weekend: false, date: '', extras: [], ext: 0, addons: [], level: 'standard' };
+  var state = { pkg: 'quiz', tier: 1, weekend: false, date: '', time: '', extras: [], ext: 0, addons: [], level: 'standard' };
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && typeof saved === 'object') for (var k in state) if (k in saved) state[k] = saved[k];
@@ -14,8 +14,9 @@
   // Сегодня по Москве: ранняя бронь и прошедшие даты. Прошедшая или кривая дата из памяти не возвращается.
   function today() { return P.moscowToday(); }
   if (typeof state.date !== 'string' || !P.parseDate(state.date) || state.date < today()) state.date = '';
+  state.time = P.cleanTime(state.time);
   function opts() {
-    return { pkg: state.pkg, tier: state.tier, weekend: state.weekend, date: state.date, today: today(), extras: state.extras, ext: state.ext, addons: state.addons };
+    return { pkg: state.pkg, tier: state.tier, weekend: state.weekend, date: state.date, time: state.time, today: today(), extras: state.extras, ext: state.ext, addons: state.addons };
   }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -80,6 +81,7 @@
     var dateEl = $('date');
     dateEl.min = today();
     if (dateEl.value !== state.date) dateEl.value = state.date;
+    if ($('time').value !== state.time) $('time').value = state.time;
     var info = $('dateInfo');
     info.textContent = '';
     if (r.date) {
@@ -310,6 +312,9 @@
   var setDate = function () { var v = $('date').value; set({ date: P.parseDate(v) ? v : '' }); };
   $('date').addEventListener('change', setDate);
   $('date').addEventListener('input', setDate);
+  var setTime = function () { set({ time: P.cleanTime($('time').value) }); };
+  $('time').addEventListener('change', setTime);
+  $('time').addEventListener('input', setTime);
   // Ранняя бронь Нового года — с 1 сентября по 15 ноября по Москве.
   (function () {
     var t = today(), y = t.slice(0, 4);

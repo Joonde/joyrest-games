@@ -350,6 +350,10 @@ button.level:not(.level--top):hover{ border-color: var(--btn-outline); }
 .datebox__input{ min-height: 52px; min-width: 0; flex: 1 1 220px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--btn-outline); background: var(--card); color: var(--ink); font: inherit; font-size: 16px; }
 .datebox__input:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 2px; }
 .datebox__info{ margin-bottom: 12px; }
+.timebox{ display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin-top: 10px; }
+.timebox__label{ flex: 1 0 100%; font-size: 15px; font-weight: 500; color: var(--ink); }
+.timebox__label span{ font-weight: 400; color: var(--ink-soft); }
+.timebox__input{ flex: 0 1 180px; }
 .datebox__info b{ color: var(--ink); font-weight: 600; }
 #calcDays .chip:disabled{ opacity: .55; cursor: default; }
 .season{ margin: 12px 0 0; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--accent-text); background: var(--bg-alt); }
@@ -401,6 +405,11 @@ button.level:not(.level--top):hover{ border-color: var(--btn-outline); }
 .host__list li{ margin-bottom: 6px; }
 .host__choose{ margin-top: auto; align-self: flex-start; }
 .hosts__note{ margin: 24px 0 0; max-width: 70ch; color: var(--ink-soft); font-size: 15px; }
+.busy{ display: flex; gap: 16px; align-items: flex-start; margin: 24px 0 0; padding: 20px 22px; max-width: 820px; border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 18px; background: var(--card); }
+.busy__icon{ flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--spot); color: var(--accent-text); }
+.busy__title{ margin: 0 0 6px; font-size: 20px; }
+.busy__text{ margin: 0; color: var(--ink-soft); font-size: 15px; }
+@media (max-width: 560px){ .busy{ padding: 16px; gap: 12px; } .busy__icon{ width: 38px; height: 38px; } .busy__title{ font-size: 18px; } }
 
 /* ---------- Обзор игр ---------- */
 /* Промо-ролик в начале «Обзора игр»: превью 9:16 и текст; плеер — поверх страницы (.vmodal). */

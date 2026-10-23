@@ -23,6 +23,18 @@
       "what": "Обложка сайта (Canva AI) — Живой оркестр: дирижёр и гости с бубном и маракасами",
       "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0017-5491533004475315632.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261015%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261015T165950Z&X-Amz-Expires=72923&X-Amz-Signature=5aed2eaad422183aee495cecf5688a84e110abfe87cf058c289a259173591511&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2016%20Oct%202026%2013%3A15%3A13%20GMT",
       "expires": "2026-10-16"
+    },
+    {
+      "file": "cover-quiz-musicdance.png",
+      "what": "Обложка сайта (Canva AI) — Квиз с музыкой и танцами",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0024-4543526024425541417.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261023%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261023T143801Z&X-Amz-Expires=12603&X-Amz-Signature=be28e49d6ef30eb2f969015e3391f065bc36c0594baa40d0e1783bae461a69b2&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2023%20Oct%202026%2018%3A08%3A04%20GMT",
+      "expires": "2026-10-23"
+    },
+    {
+      "file": "cover-melody.png",
+      "what": "Обложка сайта (Canva AI) — Узнай по нотам",
+      "url": "https://export-download.canva.com/f0XxM/DAHYFkf0XxM/-1/0/0025-4543526024425541417.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAQYCGKMUH5AO7UJ26%2F20261022%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261022T233931Z&X-Amz-Expires=65993&X-Amz-Signature=8e7ece89ab1e3e78277a3eac6e72f131c3b0bfe4e2efc3bc3d67dd2367372156&X-Amz-SignedHeaders=host%3Bx-amz-expected-bucket-owner&response-expires=Fri%2C%2023%20Oct%202026%2017%3A59%3A24%20GMT",
+      "expires": "2026-10-23"
     }
   ]
 }

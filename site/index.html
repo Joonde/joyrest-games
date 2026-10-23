@@ -109,6 +109,7 @@
       <dd>Ваш праздник станет для ведущего одним из первых. Сценарий готовят с опытным ведущим и заранее репетируют — максимальный эксперимент и максимальная скидка.</dd>
     </dl>
     <p class="send-sheet__hint">Хотите без сюрпризов — выбирайте «Опытный». За эксперимент и экономию — «Новые лица» или «Первый старт».</p>
+    <p class="send-sheet__hint">Ведущих ограниченное число, поэтому на вашу дату какой-то формат может быть уже занят — это нормально. Менеджер скажет, кто свободен, и предложит варианты.</p>
     <div class="send-sheet__actions">
       <a class="hbtn hbtn--secondary" id="levelsMore" href="#hosts">Подробнее о ведущих</a>
       <button type="button" class="send-sheet__close" id="levelsClose">Понятно</button>
@@ -314,9 +315,11 @@
           <div class="step-q">
             <p class="step-q__label"><span class="step-q__n">3</span><label for="calcDate">Дата праздника</label></p>
             <div class="datebox"><input type="date" id="calcDate" class="datebox__input" aria-describedby="calcDateInfo"><button type="button" class="chip" id="calcDateClear" hidden>Убрать дату</button></div>
+            <div class="timebox"><label class="timebox__label" for="calcTime">Время начала <span>— по желанию</span></label><input type="time" id="calcTime" class="datebox__input timebox__input" step="900"><button type="button" class="chip" id="calcTimeClear" hidden>Убрать время</button></div>
             <p class="hint datebox__info" id="calcDateInfo">Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.</p>
             <div class="chips" id="calcDays" role="group" aria-label="День"></div>
             <p class="hint">В пятницу, субботу и воскресенье стоимость на 10% выше: это самые востребованные дни. В декабре, перед 14 февраля, 23 февраля и 8 марта и в сами праздники действует праздничная цена.</p>
+            <p class="hint">Время начала на цену не влияет. Менеджер проверит, какие ведущие свободны в этот день и час, и подтвердит время в переписке.</p>
           </div>
           <div class="step-q">
             <p class="step-q__label"><span class="step-q__n">4</span>Ещё игра в этот вечер</p>
@@ -412,6 +415,14 @@
         </article>
       </div>
       <p class="hosts__note">Хотите без сюрпризов — выберите обычный формат с опытным ведущим. А если вы за эксперимент и хотите сэкономить — эти форматы для вас.</p>
+      <!-- Занятость ведущих (решение владельца 23 октября 2026): ведущих ограниченное число, формат может быть занят на дату. -->
+      <aside class="busy" aria-labelledby="busyTitle">
+        <span class="busy__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4M9.5 14.5l2 2 3.5-4"/></svg></span>
+        <div>
+          <h3 class="busy__title" id="busyTitle">Ведущий может быть уже занят — это нормально</h3>
+          <p class="busy__text">Ведущих у нас ограниченное число, и на популярные даты разбирают их быстро. Поэтому на ваш день один или даже несколько форматов могут быть уже заняты. Менеджер сразу скажет, кто свободен, и предложит варианты: другой формат, другое время или соседнюю дату. Чтобы выбор был шире — пишите заранее.</p>
+        </div>
+      </aside>
       <a class="next" href="#games"><span class="next__k">Дальше · 3</span><span class="next__t">Игры: выберите, во что играть</span><span class="next__a" aria-hidden="true">↓</span></a>
     </div>
   </section>
@@ -452,7 +463,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz" data-phone>
-          <div class="game__media game__media--art"><img src="img/cover-quiz-author.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/cover-quiz-author.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Обложка «Авторского квиза»: письменный стол с золотой лампой-вопросом, пером и пионами"></div>
           <div class="game__body">
             <p class="game__cat">Квизы<span class="game__phone"> · с телефонов</span></p>
             <h3>Авторский квиз</h3>
@@ -461,7 +472,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz" data-phone>
-          <div class="game__media game__media--art"><img src="img/cover-quiz-company.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/cover-quiz-company.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Обложка «Квиза под компанию»: коллеги за круглым столом поднимают руки, в центре звонок и кубок"></div>
           <div class="game__body">
             <p class="game__cat">Квизы<span class="game__phone"> · с телефонов</span></p>
             <h3>Квиз под компанию</h3>
@@ -470,7 +481,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz">
-          <div class="game__media game__media--art"><img src="img/cover-quiz-games.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/cover-quiz-games.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Обложка «Квиза с элементами игр»: кубики, карты, колесо фортуны и песочные часы"></div>
           <div class="game__body">
             <p class="game__cat">Квизы</p>
             <h3>Квиз с элементами игр</h3>
@@ -479,7 +490,7 @@
           </div>
         </article>
         <article class="game" data-cat="quiz">
-          <div class="game__media game__media--art"><img src="img/cover-quiz-musicdance.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/cover-quiz-musicdance.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Обложка «Квиза с музыкой и танцами»: граммофон с нотами-вопросами и танцующая пара"></div>
           <div class="game__body">
             <p class="game__cat">Квизы</p>
             <h3>Квиз с музыкой и танцами</h3>
@@ -524,7 +535,7 @@
           </div>
         </article>
         <article class="game" data-cat="music" data-phone>
-          <div class="game__media game__media--art"><img src="img/cover-melody.svg" width="640" height="400" loading="lazy" decoding="async" alt=""></div>
+          <div class="game__media"><img src="img/cover-melody.webp" width="1280" height="720" loading="lazy" decoding="async" alt="Обложка «Узнай по нотам»: рояль под прожектором, золотая нота с вопросом и гости у звонков"></div>
           <div class="game__body">
             <p class="game__cat">Музыкальные<span class="game__phone"> · с телефонов</span></p>
             <h3>Узнай по нотам</h3>
@@ -663,7 +674,7 @@
           <div class="game__body">
             <p class="game__cat">Активные настолки</p>
             <h3>Сладкие приключения</h3>
-            <p>Ходилка без градуса: фишки — стаканчики сока. Для детей и семей.</p>
+            <p>Настольная игра-ходилка для детей: кубик, весёлые задания, танцы и мини-игры на клетках.</p>
             <div class="game__foot"><span class="game__pack">Пакет: Активные настолки</span><button type="button" class="game__rules" data-rule-key="sweet-adventure">Правила</button></div>
           </div>
         </article>
@@ -881,8 +892,12 @@
           <p>Да. В калькуляторе отметьте «Ещё игра в этот вечер» — например, квиз, а после — Мафия. Каждая добавленная игра — за полцены своего пакета и около часа. Больше двух дополнительных игр соберём в программу индивидуально.</p>
         </details>
         <details class="faq__item">
+          <summary>Почему на мою дату может не быть ведущего?</summary>
+          <p>Ведущих у нас ограниченное число, и у каждого формата — «Опытный», «Новые лица», «Первый старт» — своя команда. На популярные даты, особенно в декабре и по выходным, один или несколько форматов могут быть уже заняты. Это нормально: менеджер сразу скажет, кто свободен, и предложит другой формат, другое время или соседнюю дату. Чем раньше напишете, тем шире выбор.</p>
+        </details>
+        <details class="faq__item">
           <summary>Есть ли программы для детей?</summary>
-          <p>Да. Например, «Сладкие приключения» — ходилка с фишками-стаканчиками сока, а у «Боя с драконом» есть вариант для детей. Напишите возраст гостей в заявке — подберём игры.</p>
+          <p>Да, и детей мы ничем не ограничиваем. Для них есть настольная игра «Сладкие приключения», детский вариант «Боя с драконом» и квизы для детей. А любое наше телешоу — «Миллион на кону», «Ставка на знания», «Что скажет большинство» и другие — подберём специально для ребёнка с вопросами по возрасту или с теми, что попросите вы. Напишите возраст гостей — соберём программу.</p>
         </details>
       </div>
       <a class="next" href="#reviews"><span class="next__k">Дальше · 8</span><span class="next__t">Отзывы и наш Telegram</span><span class="next__a" aria-hidden="true">↓</span></a>
@@ -1120,7 +1135,7 @@
           <ol class="showcase-steps">
             <li>Соберите вечер в <a class="link" href="#calculator">калькуляторе</a> и нажмите «Отправить расчёт менеджеру».</li>
             <li>Выберите, куда написать: Telegram, WhatsApp, почта или Авито — расчёт придёт нам готовым текстом.</li>
-            <li>Ответим, предложим программу и забронируем дату.</li>
+            <li>Менеджер проверит, какие ведущие свободны на вашу дату, согласует время, предложит программу и забронирует праздник.</li>
           </ol>
           <div class="showcase-contact__actions">
             <a class="hbtn hbtn--primary" href="https://t.me/+79857822689" target="_blank" rel="noopener">Написать в Telegram</a>

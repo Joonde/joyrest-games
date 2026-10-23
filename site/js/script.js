@@ -237,7 +237,7 @@
 
   // ---------- Калькулятор ----------
   const P = window.JoyPricing;
-  const calc = { pkg: 'quiz', tier: 0, weekend: false, date: '', extras: {}, ext: 0, addons: {}, info: '' };
+  const calc = { pkg: 'quiz', tier: 0, weekend: false, date: '', time: '', extras: {}, ext: 0, addons: {}, info: '' };
   // Сегодня по Москве — для ранней брони и чтобы не выбрать прошедшую дату.
   const today = () => P.moscowToday();
   const money = (n) => P.money(n);
@@ -286,6 +286,12 @@
   dateInput.addEventListener('change', setDate);
   dateInput.addEventListener('input', setDate);
   $('calcDateClear').addEventListener('click', () => { dateInput.value = ''; calc.date = ''; update(); dateInput.focus(); });
+  // Время начала — по желанию, на цену не влияет (решение владельца 23 октября 2026), только строка менеджеру.
+  const timeInput = $('calcTime');
+  const setTime = () => { calc.time = P.cleanTime(timeInput.value); update(); };
+  timeInput.addEventListener('change', setTime);
+  timeInput.addEventListener('input', setTime);
+  $('calcTimeClear').addEventListener('click', () => { timeInput.value = ''; calc.time = ''; update(); timeInput.focus(); });
   [['Будни (пн–чт)', false], ['Пятница–воскресенье · +10%', true]].forEach(([label, wk]) => {
     const b = el('button', 'chip', label);
     b.type = 'button';
@@ -374,6 +380,8 @@
     ui.days.forEach(([wk, b]) => { pressable(b, wk === r.weekend); b.disabled = !!r.date; });
     if(dateInput.value !== calc.date) dateInput.value = calc.date;
     $('calcDateClear').hidden = !calc.date;
+    if(timeInput.value !== (calc.time || '')) timeInput.value = calc.time || '';
+    $('calcTimeClear').hidden = !calc.time;
     $('calcDateInfo').innerHTML = r.date
       ? `<b>${esc(r.date.label.replace(/, [а-я]+$/, ''))}, ${esc(r.date.weekday)}</b> — ${r.weekend ? 'пятница–воскресенье, +10%' : 'будний день'}${r.season ? ' · ' + esc(r.season.title.toLowerCase()) : ''}.${calc.date < today() ? ' Эта дата уже прошла — проверьте.' : ''}`
       : 'Укажите дату — день недели и праздничную цену посчитаем сами. Дата ещё не известна — выберите день ниже.';
@@ -460,7 +468,7 @@
   // калькулятором. Касание цены в карточке выбирает формат ведущего. Расчёт помнит телефон (jr-calc), после
   // отправки заявки — забывает. В /api/lead уходит полем calc.
   const CALC_KEY = 'jr-calc';
-  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
+  function calcOpts(){ return { pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, time: calc.time || '', today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() }; }
   function saveCalc(opts){
     try{ if(opts) localStorage.setItem(CALC_KEY, JSON.stringify(opts)); else localStorage.removeItem(CALC_KEY); }catch(_){ /* приватный режим — расчёт до перезагрузки */ }
   }
@@ -684,6 +692,7 @@
     calc.pkg = saved.pkg; calc.tier = tier; calc.weekend = saved.weekend === true; calc.ext = ext;
     // Дата возвращается, только если она ещё не прошла.
     calc.date = typeof saved.date === 'string' && P.parseDate(saved.date) && saved.date >= today() ? saved.date : '';
+    calc.time = P.cleanTime(saved.time);
     calc.extras = {}; calc.addons = {};
     (Array.isArray(saved.extras) ? saved.extras : []).forEach((id) => { if(typeof id === 'string' && P.pkgById(id) && id !== calc.pkg) calc.extras[id] = true; });
     (Array.isArray(saved.addons) ? saved.addons : []).forEach((id) => { if(P.ADDONS.some((a) => a.id === id)) calc.addons[id] = true; });
@@ -749,7 +758,7 @@
     'danceloto': { title: 'Танцевальное лото', text: 'Тот же принцип, что и музыкальное лото, но в ячейках — танцевальные движения. Чтобы закрыть клетку, нужно реально исполнить движение, а не просто узнать его.' },
     'dancekuraj': { title: 'Танцевальный кураж', text: 'Под каждый трек команда получает готовую связку движений и должна повторить её слаженно и вовремя — это баттл между командами: кто точнее и с большим драйвом воспроизведёт хореографию, тот получает баллы от зала. Раунды можно разнообразить: «Зеркальный баттл» — пары повторяют движения друг друга; тематические треки из известных фильмов и клипов на угадывание; раунд-фант, где сбившиеся выполняют весёлое задание; и финальный фристайл капитанов — импровизация без заготовки под общий трек.' },
     'alcohol': { title: 'Алкогольные приключения', text: 'Настольная игра-ходилка на 60 клеток с фишками-рюмками. На клетках — выпить, станцевать, спеть, сыграть в мини-игру или выполнить необычный фант. Две версии по градусу раскрепощённости: Lite и Intense. Только для гостей 18+.' },
-    'sweet-adventure': { title: 'Сладкие приключения', text: 'Настольная игра-ходилка на 60 клеток без градуса: вместо рюмок — фишки-стаканчики сока или лимонада. На клетках — выпить сок, станцевать, спеть, сыграть в мини-игру или выполнить весёлый фант. Подходит для детских праздников и семейных мероприятий.' },
+    'sweet-adventure': { title: 'Сладкие приключения', text: 'Настольная игра-ходилка для детей на большом экране. Команды по очереди бросают кубик и двигают фишки по полю, а на клетках их ждут весёлые задания: станцевать, спеть, ответить на вопрос, сыграть в мини-игру или выполнить смешной фант. Подходит для детских праздников и семейных мероприятий.' },
     'snowball': { title: 'Снежный десант', text: 'Команды бросают снежки по мишеням разного номинала на скорость и точность. Короткие раунды, не утомляет, расстояние регулируется под возраст. Сезонная игра — зима.' },
     'waterballoon': { title: 'Не урони каплю', text: 'Пары перебрасывают друг другу водный шарик, после каждой удачной ловли делая шаг назад. Побеждает пара, продержавшаяся на наибольшей дистанции. Сезонная игра — лето.' }
   };

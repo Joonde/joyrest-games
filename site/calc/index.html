@@ -207,8 +207,11 @@
     <h2 id="h-day"><label for="date">Когда праздник?</label></h2>
     <input type="date" id="date" class="date" aria-describedby="dateInfo">
     <p class="info" id="dateInfo"></p>
+    <p class="small muted"><label for="time">Время начала — по желанию</label></p>
+    <input type="time" id="time" class="date" step="900">
     <div class="grid" id="days" role="group" aria-label="День недели"></div>
     <p class="small muted">Пятница–воскресенье — +10%. В декабре, перед 14 февраля, 23 февраля и 8 марта и в сами праздники — праздничная цена.</p>
+    <p class="small muted">Время начала на цену не влияет. Менеджер проверит, какие ведущие свободны в этот день и час, и подтвердит время.</p>
   </section>
 
   <section aria-labelledby="h-extra" id="extraSection">
@@ -235,6 +238,7 @@
       <button type="button" class="btn btn--secondary" id="copy">Скопировать расчёт</button>
     </div>
     <p class="small muted">Выберите, куда написать: WhatsApp, Telegram, почта или Авито — расчёт придёт нам готовым текстом.</p>
+    <p class="small muted">Ведущих у нас ограниченное число, поэтому на вашу дату какой-то формат ведущего может быть уже занят — это нормально. Менеджер скажет, кто свободен, и предложит варианты.</p>
   </section>
 
   <footer>
@@ -264,6 +268,7 @@
       <dd>Ваш праздник станет для ведущего одним из первых. Сценарий готовят с опытным ведущим и заранее репетируют — максимальный эксперимент и максимальная скидка.</dd>
     </dl>
     <p class="small muted">Хотите без сюрпризов — выбирайте «Опытный». За эксперимент и экономию — «Новые лица» или «Первый старт».</p>
+    <p class="small muted">Ведущих ограниченное число, поэтому на вашу дату какой-то формат может быть уже занят — это нормально.</p>
     <button type="button" class="btn" id="lvClose">Понятно</button>
   </div>
 </div>

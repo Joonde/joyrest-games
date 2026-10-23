@@ -561,7 +561,7 @@ describe("тексты и устройство страницы", () => {
     expect(keys).toHaveLength(37);
     for (const key of keys) expect(js, key).toContain(`'${key}': { title:`);
     // Снимки — настоящие экраны и карточки платформы, с понятным описанием.
-    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "cards-durak", "cards-loto", "game-board", "game-millionaire", "game-dragon", "game-checkers", "game-survival", "game-sweet", "game-alco", "game-meet", "game-hundred", "game-perudo", "game-wager", "game-wine", "cards-spy", "game-dance", "cover-toasts", "cover-freeze", "cover-silent", "cover-orchestra"]) {
+    for (const img of ["platform-hall", "platform-phone", "cards-mafia", "cards-bunker", "cards-truth", "cards-durak", "cards-loto", "game-board", "game-millionaire", "game-dragon", "game-checkers", "game-survival", "game-sweet", "game-alco", "game-meet", "game-hundred", "game-perudo", "game-wager", "game-wine", "cards-spy", "game-dance", "cover-toasts", "cover-freeze", "cover-silent", "cover-orchestra", "cover-quiz-author", "cover-quiz-company", "cover-quiz-games", "cover-quiz-musicdance", "cover-melody"]) {
       expect(html).toMatch(new RegExp(`<img src="img/${img}\\.webp" width="\\d+" height="\\d+" loading="lazy"[^>]* alt="[^"]{20,}"`));
     }
     // У каждой игры картинка: снимок платформы или своя обложка, без латинской подписи «JOYREST».

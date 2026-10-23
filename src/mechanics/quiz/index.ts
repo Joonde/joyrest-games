@@ -1,7 +1,7 @@
 import { lazy } from "react";
 import type { Mechanic } from "../types";
 import { quizPreview } from "./previewDriver";
-import { createContent, isMelodyQuiz, mediaIds, parseContent, type QuizContent } from "./content";
+import { createContent, mediaIds, parseContent, quizArtOf, type QuizContent } from "./content";
 import { score, steps, type QuizStep } from "./logic";
 import { validateContent } from "./validate";
 import { QuizHostControls } from "./HostControls";
@@ -34,6 +34,6 @@ export const quiz: Mechanic<QuizContent, QuizAnswerValue, QuizStep> = {
     if (session.state.stage === "question" && q.kind === "super") return "superPick";
     return null;
   },
-  // «Узнай по нотам» (есть треки или вопросы с «♪») — микрофон и клавиши, остальные квизы — стол с кубком.
-  art: (content) => (isMelodyQuiz(content) ? "melody" : "quiz-office"),
+  // Фон экрана зала: выбранный в «Настройках показа», иначе «Узнай по нотам» — рояль, остальные квизы — стол с кубком.
+  art: (content) => quizArtOf(content),
 };

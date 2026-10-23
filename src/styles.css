@@ -3204,8 +3204,9 @@ kbd {
   font-weight: 600;
   display: inline-flex;
   align-items: baseline;
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 64cqw;
+  max-width: 54cqw;
 }
 
 /* Имя отвечающего режется многоточием, «+300» после ответа видно всегда. */

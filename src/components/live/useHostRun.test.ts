@@ -134,4 +134,50 @@ describe("запись пульта (runHostChange)", () => {
     expect(calls).toBe(2);
     expect(h.cleared).toEqual([0]);
   });
+  it("attempts: безопасное действие повторяется, пока фон пишет итоги шага (кнопки телефонов)", async () => {
+    const h = harness();
+    let applies = 0;
+    const apply = h.deps.apply;
+    // Первые две записи перебивает фон (очередь «кто первый»).
+    h.deps.apply = async (change) => {
+      if (applies++ < 2) h.setServer({ ...h.server(), state: { ...h.server().state, result: { mode: "perform", gifts: [`g${applies}`] } } });
+      return apply(change);
+    };
+    expect(await run((s) => done(s), h)).toBe("conflict");
+    applies = 0;
+    h.setServer(base);
+    expect(await run((s) => done(s), h, { attempts: 4 })).toBe("done");
+    expect(h.applied).toHaveLength(1);
+  });
+
+  it("свой момент касания: общий момент изменился, а для этого действия — нет — повтор проходит", async () => {
+    const h = harness({ onFirstApply: (s) => ({ ...s, state: { ...s.state, result: { mode: "other", gifts: [] } } }) });
+    h.deps.moment = (s) => String((s.state.result as { mode?: string } | null)?.mode);
+    expect(await run((s) => ({ state: { result: { ...(s.state.result as object), extra: 1 } } }), h, { moment: () => "тот же" })).toBe("done");
+  });
+
+  it("settle: фон уже увёл игру дальше (телефон бросил кубик) — молча, без записи", async () => {
+    const h = harness();
+    h.deps.settle = async () => {
+      h.setServer({ ...h.server(), state: { ...h.server().state, stage: "reveal", revealed: true } });
+    };
+    expect(await run((s) => done(s), h)).toBe("moved");
+    expect(h.applied).toHaveLength(0);
+  });
+
+  it("settle: фон записал итоги без смены этапа — запись собирается по свежей сессии с первого раза", async () => {
+    const h = harness();
+    h.deps.settle = async () => {
+      h.setServer(gift(h.server()));
+    };
+    const bases: Session[] = [];
+    expect(
+      await run((s) => {
+        bases.push(s);
+        return done(s);
+      }, h),
+    ).toBe("done");
+    expect(bases).toHaveLength(1);
+    expect(h.server().state.result).toEqual({ mode: "result", gifts: ["b"] });
+  });
 });

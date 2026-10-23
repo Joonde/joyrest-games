@@ -18,6 +18,12 @@ function boardMoment(s: Session): string {
   return JSON.stringify([r.mode, r.cell, r.opened.length, r.round, r.catStep, r.armed, r.picker]);
 }
 
+/** Момент для «Ещё N с на ответ»: та же клетка и тот же отвечающий (очередь нажатий и время отсчёта — не в счёт). */
+function speakMoment(s: Session): string {
+  const r = parseBoardResult(s.state.result);
+  return JSON.stringify([r.cell, r.buzz.current]);
+}
+
 /**
  * Пульт «Ставки на знания»: поле с метками клеток (видит только ведущий) → касание клетки → кнопка
  * «кто первый» у гостей → «Верно» / «Неверно» → «К полю» (клетка гаснет). Крупная кнопка
@@ -370,7 +376,13 @@ export function BoardHostControls({ session, content, answers, participants, con
             </button>
           </div>
           {answerLeft !== null && (
-            <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void run((s) => (sameSpeaker(s) ? speakMore(s, Date.now() + clock.offset()) : null))}>
+            <button
+              type="button"
+              className="btn btn--quiet"
+              disabled={busy}
+              // Безопасно повторить, пока отвечает тот же человек: фон пульта пишет очередь нажатий телефонов.
+              onClick={() => void run((s) => (sameSpeaker(s) ? speakMore(s, Date.now() + clock.offset()) : null), { attempts: 4, moment: speakMoment })}
+            >
               Ещё {content.answerTime} с на ответ
             </button>
           )}

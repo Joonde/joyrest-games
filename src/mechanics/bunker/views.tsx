@@ -79,13 +79,17 @@ function Dossiers({ session, r, highlight }: { session: Session; r: BunkerResult
   const rows = r.seats.length <= 8 ? 1 : 2;
   // Размер — и по ширине колонки, и по высоте: досье (до 16 строк текста) не залезают на таймер и карту хода.
   // В один ряд — не мельче 1,95cqh: строки досье (0,9em) читаются с другого конца зала и на проекторе 4:3 (Ревизор).
-  const base = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, ${rows === 1 ? 2.8 : 1.35}cqh)`;
-  const fs = rows === 1 ? `max(1.95cqh, ${base})` : base;
+  // В два ряда (9–16 игроков) — компактные досье (`dense`): закрытые карты значками в одну строку, открытые — по строке
+  // текста. Размер — 2cqh (строка карты 0,9em = 1,8% высоты экрана) и на телевизоре, и на проекторе 4:3; узкая
+  // колонка обрезает длинный текст многоточием, а не уменьшает шрифт.
+  const dense = rows === 2;
+  const base = `min(${Math.min(1.2, 9 / Math.max(cols, 6)).toFixed(3)}cqw, 2.8cqh)`;
+  const fs = dense ? "2cqh" : `max(1.95cqh, ${base})`;
   return (
-    <ol className="bk-screen__dossiers" style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
+    <ol className={`bk-screen__dossiers${dense ? " is-dense" : ""}`} style={{ gridTemplateColumns: `repeat(${Math.max(1, cols)}, minmax(0, 1fr))`, ["--bk-fs" as string]: fs }}>
       {r.seats.map((p, i) => (
         <li key={p}>
-          <Dossier name={nameOf(session, p)} seat={i + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} exiled={r.exiled.includes(p)} speaking={highlight === p} />
+          <Dossier name={nameOf(session, p)} seat={i + 1} shown={r.shown[p] ?? {}} used={r.used[p] ?? null} exiled={r.exiled.includes(p)} speaking={highlight === p} dense={dense} />
         </li>
       ))}
     </ol>
@@ -281,7 +285,7 @@ export function BunkerScreenView({ session, content }: ViewProps<BunkerContent>)
   }
 
   return (
-    <div className={`bk-screen${big ? " bk-screen--big" : ""}`}>
+    <div className={`bk-screen${big ? " bk-screen--big" : ""}${!big && r.seats.length > 8 ? " bk-screen--dense" : ""}`}>
       <header className="bk-screen__top">
         <div className="bk-screen__cata">
           <CatastropheCard id={r.catastrophe} years={r.years} places={r.places} compact />

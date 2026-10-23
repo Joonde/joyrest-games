@@ -923,14 +923,43 @@
   height: calc(var(--s) * 0.62);
   font-size: calc(var(--s) * 0.34);
 }
-.dg-teams.is-compact .dg-team__nm {
-  font-size: calc(var(--s) * 0.26);
+/* Компактная карточка (9–12 команд): только значок, имя и строка «♥ 3 · ⚔ 1 200».
+   Всё не мельче 1,35 --u: на телевизоре ≥ 1,7% высоты (≈ 25 px из 1080), на проекторе 4:3 — ≈ 13,8 px из 768. */
+.dg-teams.is-compact .dg-team {
+  row-gap: 0;
+  padding-block: calc(var(--s) * 0.07);
+}
+.dg-teams.is-compact .dg-team__nm,
+.dg-stage--adult .dg-teams.is-compact .dg-team__nm {
+  font-size: max(calc(var(--s) * 0.28), calc(1.6 * var(--u)));
+  line-height: 1.3;
 }
 .dg-teams.is-compact .dg-hearts {
-  font-size: calc(var(--s) * 0.2);
+  font-size: max(calc(var(--s) * 0.22), calc(1.35 * var(--u)));
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+.dg-hearts--n {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(0.3 * var(--u));
+}
+.dg-hearts--n b {
+  color: var(--dg-name, currentColor);
+  font-variant-numeric: tabular-nums;
+}
+.dg-stage--kid .dg-hearts--n b {
+  color: #5f4f86;
 }
 .dg-teams.is-compact .dg-team__dm {
-  font-size: calc(var(--s) * 0.18);
+  font-size: max(calc(var(--s) * 0.22), calc(1.35 * var(--u)));
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.dg-teams.is-compact .dg-team__dm b {
+  font-weight: 700;
 }
 .dg-stage--adult .dg-team {
   background: rgba(20, 12, 9, 0.74);

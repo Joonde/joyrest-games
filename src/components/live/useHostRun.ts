@@ -25,6 +25,14 @@ export interface HostRunOptions {
   emptyText?: string;
   /** Свой текст ошибки (null — общий «Не получилось…»). */
   errorText?: (error: unknown) => string | null;
+  /**
+   * Сколько раз всего пробовать, если сервер отказывает только из-за итогов шага (по умолчанию 2: касание и один
+   * повтор). Больше — для безопасных действий, которые фон пульта перебивает часто («Ещё 10 с на ответ», пока
+   * телефоны жмут кнопку и пульт пишет очередь).
+   */
+  attempts?: number;
+  /** Свой «момент» для этого касания вместо общего `setup.moment` (см. `HostRunDeps.moment`). */
+  moment?: (s: Session) => string;
 }
 
 /** Итог одной записи пульта (для проверок без React). */
@@ -45,6 +53,11 @@ export interface HostRunDeps {
    * только если момент тот же, что видел ведущий: иначе «Выполнено» второго пульта не засчитается дважды.
    */
   moment?: (s: Session) => string;
+  /**
+   * Дождаться фоновой записи пульта, которая уже ушла на сервер (ход с телефона, голоса), и её возвращения: иначе
+   * касание ведущего сразу получит отказ из-за неё. Вызывается один раз перед первой попыткой.
+   */
+  settle?: () => Promise<void>;
 }
 
 export const GAME_CHANGED_TEXT = "Игра изменилась — нажмите ещё раз.";
@@ -73,6 +86,13 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
   const at = deps.seen.state;
   const rebuild = typeof make === "function" && options.retry !== false;
   const clear = options.clear ?? [];
+  const moment = options.moment ?? deps.moment;
+  const attempts = Math.max(1, options.attempts ?? 2);
+  if (deps.settle) {
+    await deps.settle();
+    // Фон успел увести игру на другой этап или шаг (телефон уже бросил кубик) — молча, касание больше не нужно.
+    if (!samePlace(deps.current().state, at)) return "moved";
+  }
   for (let attempt = 0; ; attempt++) {
     const basis = typeof make === "function" ? deps.current() : deps.seen;
     const change = typeof make === "function" ? await make(basis) : make;
@@ -98,11 +118,11 @@ export async function runHostChange(make: HostMake, options: HostRunOptions, dep
         return "done";
       }
     }
-    if (attempt >= 1 || !rebuild) return samePlace(deps.current().state, at) ? "conflict" : "moved";
+    if (attempt >= attempts - 1 || !rebuild) return samePlace(deps.current().state, at) ? "conflict" : "moved";
     // Свежие итоги шага ещё не пришли — ждём их, потом собираем запись заново.
     if (resultKey(deps.current().state.result) === key) await deps.nextSession();
     if (!samePlace(deps.current().state, at)) return "moved";
-    if (deps.moment && deps.moment(deps.current()) !== deps.moment(deps.seen)) return "conflict";
+    if (moment && moment(deps.current()) !== moment(deps.seen)) return "conflict";
   }
 }
 
@@ -123,9 +143,14 @@ export function useHostRun(session: Session, control: SessionControl, rehearsal:
   const inFlight = useRef(false);
   const waiters = useRef<Array<() => void>>([]);
   const noticeTimer = useRef<number | undefined>(undefined);
+  /** Фоновая запись, которая сейчас идёт на сервер (`quiet`). */
+  const quietPending = useRef<Promise<boolean> | null>(null);
+  /** Сессия, по которой фон записал своё, пока его запись ещё не вернулась потоком событий. */
+  const quietEcho = useRef<Session | null>(null);
 
   useEffect(() => {
     latest.current = session;
+    if (quietEcho.current && quietEcho.current !== session) quietEcho.current = null;
     const done = waiters.current;
     waiters.current = [];
     done.forEach((w) => w());
@@ -163,6 +188,10 @@ export function useHostRun(session: Session, control: SessionControl, rehearsal:
         clearAnswers: (step) => control.clearAnswers(step),
         rehearsal,
         moment: setup.moment,
+        settle: async () => {
+          if (quietPending.current) await quietPending.current;
+          if (!rehearsal && quietEcho.current && quietEcho.current === latest.current) await nextSession();
+        },
       });
       if (outcome === "none") {
         if (opts.emptyText) setError(opts.emptyText);
@@ -188,14 +217,24 @@ export function useHostRun(session: Session, control: SessionControl, rehearsal:
   async function quiet(make: SessionChange | null | ((s: Session) => SessionChange | null | Promise<SessionChange | null>)): Promise<boolean> {
     if (inFlight.current) return false;
     const s = latest.current;
+    const job = (async () => {
+      try {
+        const change = typeof make === "function" ? await make(s) : make;
+        if (!change || isEmptyChange(change) || inFlight.current) return false;
+        const { phase, step, stage } = s.state;
+        await control.apply({ ...change, expect: { phase, step, stage, result: resultKey(s.state.result) } });
+        // Пока запись не вернулась потоком, касание ведущего подождёт её (`settle`), а не получит отказ.
+        if (latest.current === s) quietEcho.current = s;
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    quietPending.current = job;
     try {
-      const change = typeof make === "function" ? await make(s) : make;
-      if (!change || isEmptyChange(change) || inFlight.current) return false;
-      const { phase, step, stage } = s.state;
-      await control.apply({ ...change, expect: { phase, step, stage, result: resultKey(s.state.result) } });
-      return true;
-    } catch {
-      return false;
+      return await job;
+    } finally {
+      if (quietPending.current === job) quietPending.current = null;
     }
   }
 

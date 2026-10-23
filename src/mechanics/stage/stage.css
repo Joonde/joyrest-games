@@ -183,6 +183,11 @@
   position: absolute;
   top: 0.8cqh;
   right: 1cqh;
+  /* Одной строкой: «🔒 батл» в узкой плитке переносился и закрывал очки. */
+  max-width: calc(100% - 2cqh);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 1.8cqh;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -256,6 +261,7 @@
 
 .stage-field--compact .stage-tile__tag {
   position: static;
+  max-width: 100%;
   font-size: 12px;
   line-height: 1.1;
   letter-spacing: 0;
@@ -746,9 +752,22 @@
 }
 
 .stage-tug__head {
+  /* Таймер — рядом с «Батл · N» слева, а не в правом углу: там кнопки экрана зала
+     («Выключить звук», «Во весь экран», «В студию» — fixed, top 16 px, высота 56 px). */
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  column-gap: 1.2em;
+  row-gap: 0.4em;
   font-size: 2.6cqh;
+}
+
+/* Строка батла — ниже кнопок экрана зала (16 + 56 px + запас), даже если они в два ряда на проекторе:
+   на 1080 это 84 px вместо 43 px, канат и счёт ужимаются (flex: 1). Только настоящий экран зала (.hall) —
+   в предпросмотре студии кнопок нет. */
+.hall .stage-screen--battle {
+  padding-top: max(4cqh, calc(84px + var(--safe-top, 0px)));
 }
 
 .stage-tug__badge {

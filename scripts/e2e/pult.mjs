@@ -164,21 +164,42 @@ const LAYOUT = () => {
     return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && cs.opacity !== "0";
   };
   const name = (el) => ((el.getAttribute("aria-label") || el.textContent || el.tagName).replace(/\s+/g, " ").trim().slice(0, 30));
+  /** Кнопка сложной формы: clip-path у неё самой или у предка (не «спрятано для экранного чтеца» — inset(50%)). */
+  const shaped = (el) => {
+    for (let cur = el; cur && cur !== document.body; cur = cur.parentElement) {
+      const cp = getComputedStyle(cur).clipPath;
+      if (cp && cp !== "none" && !cp.includes("inset(50%")) return true;
+    }
+    return false;
+  };
   const out = { overflow: doc.scrollWidth - doc.clientWidth, small: [], overlap: [], covered: [], errors: [] };
   const btns = [...document.querySelectorAll("button, a.btn, input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not(.visually-hidden), select, textarea")].filter(vis);
   for (const b of btns) {
     const r = b.getBoundingClientRect();
     if (r.height < 40 && b.tagName !== "TEXTAREA" && !b.closest(".deck-grid")) out.small.push(name(b));
-    // Под чем-то: центр кнопки в видимой части экрана, а сверху другой элемент.
+    // Под чем-то: центр кнопки в видимой части экрана, а сверху другой элемент. У кнопки сложной формы (clip-path:
+    // половинки рубашки «Правда или действие», разрезанные по диагонали) центр рамки может лежать на соседней
+    // половинке — тогда ищем свою видимую часть по сетке точек: попали хоть раз в саму кнопку — не закрыта.
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
     if (cy > 0 && cy < innerHeight && cx > 0 && cx < innerWidth) {
+      const mine = (top) => !top || top === b || b.contains(top) || top.contains(b) || !!top.closest("dialog[open]") || !!(top.closest("label") && top.closest("label").contains(b));
       const top = document.elementFromPoint(cx, cy);
-      if (top && top !== b && !b.contains(top) && !top.contains(b) && !top.closest("dialog[open]") && !(top.closest("label") && top.closest("label").contains(b))) out.covered.push(`${name(b)} ← ${name(top)}`);
+      let ok = mine(top);
+      if (!ok && shaped(b))
+        for (const fx of [0.2, 0.35, 0.5, 0.65, 0.8])
+          for (const fy of [0.2, 0.35, 0.5, 0.65, 0.8]) {
+            const x = r.left + r.width * fx;
+            const y = r.top + r.height * fy;
+            if (!ok && y > 0 && y < innerHeight && x > 0 && x < innerWidth && mine(document.elementFromPoint(x, y))) ok = true;
+          }
+      if (!ok) out.covered.push(`${name(b)} ← ${name(top)}`);
     }
   }
   for (let i = 0; i < btns.length; i++)
     for (let j = i + 1; j < btns.length; j++) {
+      // Кнопки сложной формы (clip-path) нарочно лежат рамками друг на друге, а видимые части — рядом.
+      if (shaped(btns[i]) || shaped(btns[j])) continue;
       const a = btns[i].getBoundingClientRect();
       const c = btns[j].getBoundingClientRect();
       if (btns[i].contains(btns[j]) || btns[j].contains(btns[i])) continue;
@@ -387,9 +408,13 @@ async function runGame(browser, token, spec, game) {
     const controlButtons = async () =>
       controls()
         .evaluate((root) =>
+          // i — номер среди всех кнопок карточки (по нему нажимаем кнопку без текста), а не среди отобранных.
+          // Уже выбранные (aria-pressed: соперник батла, «Победил: …», «Ничья») — не новое действие: касание ничего не
+          // меняет, это не «не откликнулась». Неактивные (disabled, aria-disabled) не трогаем.
           [...root.querySelectorAll("button")]
-            .filter((b) => !b.disabled && b.getClientRects().length > 0)
-            .map((b, i) => ({ i, text: (b.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60), primary: b.classList.contains("host-quiz__primary") || (b.classList.contains("btn") && !b.classList.contains("btn--secondary") && !b.classList.contains("btn--quiet")) })),
+            .map((b, i) => ({ b, i }))
+            .filter(({ b }) => !b.disabled && b.getAttribute("aria-disabled") !== "true" && b.getAttribute("aria-pressed") !== "true" && b.getClientRects().length > 0)
+            .map(({ b, i }) => ({ i, text: (b.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60), primary: b.classList.contains("host-quiz__primary") || (b.classList.contains("btn") && !b.classList.contains("btn--secondary") && !b.classList.contains("btn--quiet")) })),
         )
         .catch(() => []);
     // Что видно на пульте: разметка без строки статуса (там часы вечера) — ловит и подсветку плиток, и плашки сверху.
@@ -405,6 +430,17 @@ async function runGame(browser, token, spec, game) {
         .catch(() => "");
     const dialogOpen = () => host.locator("dialog[open]").count().then((n) => n > 0).catch(() => false);
     const buttonsKey = async () => (await controlButtons()).map((b) => b.text).join(" | ");
+
+    /** Запись фона пульта: в state только `answered` и/или `teams`, без очков и таблицы. */
+    const isBackgroundWrite = (body) => {
+      try {
+        const b = JSON.parse(body);
+        const keys = Object.keys(b.state ?? {});
+        return keys.length > 0 && keys.every((k) => k === "answered" || k === "teams") && !b.addScore && !b.leaderboard && !b.rename;
+      } catch {
+        return false;
+      }
+    };
 
     /** Нажать и измерить: что произошло, сколько ждали. */
     async function press(locator, label, { double = false } = {}) {
@@ -441,7 +477,9 @@ async function runGame(browser, token, spec, game) {
         if (reqs.length === 0) run.bug(`«${label}» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с`, { where: label });
         else if (reqs.every((r) => r.status < 300)) run.bug(`«${label}»: сервер принял (${reqs.map((r) => r.path.split("/").pop()).join(", ")}), а пульт не изменился за 6 с`);
       } else if (ms > 2500 && kind === "changed") run.note(`«${label}»: пульт обновился только через ${(ms / 1000).toFixed(1)} с`);
-      const single409 = reqs.filter((r) => r.status === 409);
+      // Фоновые записи пульта (счётчик «Ответили», звёздочки команд в лобби) идут сами по себе и получают отказ, когда
+      // касание ведущего уже увело игру дальше, — это не отказ касанию.
+      const single409 = reqs.filter((r) => r.status === 409 && !isBackgroundWrite(r.body));
       if (!double && single409.length) {
         const exp = single409.map((r) => {
           try {
@@ -801,7 +839,7 @@ async function runGame(browser, token, spec, game) {
       run.say(`${double ? "двойное касание" : "касание"} «${label}» [${where(s0)}]`);
       run.count(double ? "двойное касание" : chosen === back ? "Назад" : chosen === primary ? "главная кнопка" : "другая кнопка");
       const tClick = Date.now();
-      const target = chosen.text ? controls().locator("button:enabled").filter({ hasText: chosen.text }).first() : controls().locator("button").nth(chosen.i);
+      const target = chosen.text ? controls().locator("button:enabled:not([aria-pressed=true])").filter({ hasText: chosen.text }).first() : controls().locator("button").nth(chosen.i);
       const res = await press(target, label, { double });
       if (res.kind === "dialog") await handleDialog(label);
       if (double) {

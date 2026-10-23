@@ -1,11 +1,4 @@
 {
  "cases": 72,
- "problems": [
-  "wheel-8-joyrest-done-1920: сверху сектор «🎉 Игрок 7»",
-  "wheel-8-joyrest-day-done-1920: сверху сектор «🎉 Игрок 7»",
-  "wheel-12-joyrest-done-1920: сверху сектор «🎉 Игрок 11»",
-  "wheel-12-joyrest-day-done-1920: сверху сектор «🎉 Игрок 11»",
-  "wheel-8-joyrest-done-1024: сверху сектор «🎉 Игрок 7»",
-  "wheel-12-joyrest-done-1024: сверху сектор «🎉 Игрок 11»"
- ]
+ "problems": []
 }

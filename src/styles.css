@@ -16705,6 +16705,8 @@ button.dance-card:active {
    минимальная высота — по содержимому), а не обрезает его. */
 .bk-phone .bk-card { display: grid; overflow: clip; min-height: min-content; }
 .bk-phone .bk-card > .bk-in { position: relative; inset: auto; min-height: 0; }
+/* Особое условие на телефоне — текст длинный: карта по высоте текста, а не по пропорции 5:7 (иначе низ обрезан). */
+.bk-phone .bk-special { aspect-ratio: auto; min-height: 15rem; }
 .bk-phone .bk-trait__band { font-size: max(7.5cqi, 12px); letter-spacing: 0.06em; flex-wrap: wrap; }
 .bk-phone .bk-trait__text { font-size: max(10.5cqi, 13px); }
 .bk-phone .bk-trait__stamp { font-size: max(5.5cqi, 12px); }

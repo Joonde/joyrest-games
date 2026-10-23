@@ -1,1895 +1,1021 @@
 {
   "base": "https://test.games.joy-rest.ru",
-  "at": "2026-10-23T00:01:31.304Z",
+  "at": "2026-10-23T05:50:29.171Z",
   "budget": 90,
   "health": {
-    "checks": 375,
+    "checks": 203,
     "down": [],
     "versions": [
-      "88cd387cb1ebefa856ad7d953034c9f662ce8da1"
+      "03ff9ccda1db9ba6a19e72c45e7bd150e05351b6"
     ]
   },
   "results": [
     {
-      "key": "quiz",
-      "name": "Квиз",
+      "key": "board",
+      "name": "Ставка на знания",
       "source": "библиотека test",
-      "title": "Test",
-      "session": "pultmvk6zzsdfx89",
-      "actions": 8,
-      "finished": true,
-      "counts": {
-        "главная кнопка": 7,
-        "окно: отмена": 1,
-        "окно: да": 1
-      },
-      "lag": {
-        "median": 114,
-        "p95": 208,
-        "max": 208,
-        "n": 11
-      },
-      "server": {
-        "median": 145,
-        "p95": 179,
-        "max": 210,
-        "n": 21,
-        "status": {
-          "200": 26
-        }
-      },
-      "phones": 12,
-      "playMode": "teams",
-      "delivery": {
-        "Телефон 2 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 1 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 3 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 4 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 0,
-          "p95": 6,
-          "max": 6,
-          "n": 7
-        },
-        "Телефон 6 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 7 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 8 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 10 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 9 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 11 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Телефон 12 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 7
-        },
-        "Экран зала": {
-          "median": 0,
-          "p95": 3,
-          "max": 3,
-          "n": 7
-        }
-      },
-      "misses": 0,
-      "stageShots": [
-        {
-          "base": "quiz-этап-01",
-          "where": "lobby/ready/шаг 0",
-          "after": "лобби"
-        },
-        {
-          "base": "quiz-этап-02",
-          "where": "playing/question/шаг 0",
-          "after": "Показать вопрос"
-        },
-        {
-          "base": "quiz-этап-03",
-          "where": "playing/reveal/шаг 0",
-          "after": "Показать ответ"
-        },
-        {
-          "base": "quiz-этап-04",
-          "where": "playing/board/шаг 0",
-          "after": "Таблица"
-        },
-        {
-          "base": "quiz-этап-05",
-          "where": "playing/podium/шаг 0",
-          "after": "Награждение"
-        },
-        {
-          "base": "quiz-этап-06",
-          "where": "finished/podium/шаг 0",
-          "after": "Завершить игру"
-        }
-      ],
-      "problems": [],
-      "shots": [
-        "quiz-01-финал.png"
-      ],
-      "log": [
-        "1: касание «Показать вопрос» [playing/ready/шаг 0]",
-        "2: касание «Показать ответ» [playing/question/шаг 0]",
-        "3: касание «Таблица» [playing/reveal/шаг 0]",
-        "4: касание «Награждение» [playing/board/шаг 0]",
-        "5: касание «Показать 1 место» [playing/podium/шаг 0]",
-        "6: касание «Завершить игру» [playing/podium/шаг 0]",
-        "7: касание «Завершить игру» [playing/podium/шаг 0]"
-      ]
-    },
-    {
-      "key": "lotto",
-      "name": "Музыкальное лото",
-      "source": "библиотека test",
-      "title": "Музыкальное лото: хиты на русском",
-      "session": "pultmvk702vev5fr",
+      "title": "Ставка на знания: кино, география, праздники, еда",
+      "session": "pultmvkjo4qo8sek",
       "actions": 91,
       "finished": false,
       "counts": {
-        "главная кнопка": 38,
+        "главная кнопка": 39,
         "другая кнопка": 15,
         "Назад": 5,
-        "двойное касание": 5,
-        "поверх игры: tech": 1,
-        "поверх игры: draw": 3,
-        "звук": 3,
-        "вкладки по кругу": 6,
-        "перезагрузка пульта": 2,
-        "слайд": 2,
-        "таблица на экран": 2,
-        "поверх игры: join": 3
+        "двойное касание": 4,
+        "перезагрузка пульта": 4,
+        "звук": 2,
+        "вкладки по кругу": 4,
+        "поверх игры: draw": 1,
+        "окно: да": 1,
+        "наградить сейчас и назад": 1,
+        "слайд": 1,
+        "поверх игры: join": 1,
+        "окно: отмена": 1
       },
       "lag": {
-        "median": 125,
-        "p95": 253,
-        "max": 284,
-        "n": 92
+        "median": 215,
+        "p95": 255,
+        "max": 290,
+        "n": 79
       },
       "server": {
         "median": 144,
-        "p95": 154,
-        "max": 168,
-        "n": 102,
+        "p95": 155,
+        "max": 167,
+        "n": 94,
         "status": {
-          "200": 113
+          "200": 98,
+          "409": 4
         }
       },
       "phones": 6,
       "playMode": "solo",
       "delivery": {
         "Телефон 1": {
-          "median": 3,
-          "p95": 9,
-          "max": 11,
+          "median": 0,
+          "p95": 4,
+          "max": 6,
+          "n": 64
+        },
+        "Телефон 4": {
+          "median": 0,
+          "p95": 0,
+          "max": 2,
           "n": 64
         },
         "Телефон 2": {
           "median": 0,
-          "p95": 1,
-          "max": 3,
-          "n": 64
-        },
-        "Телефон 4": {
-          "median": 4,
-          "p95": 7,
-          "max": 9,
-          "n": 64
-        },
-        "Телефон 3": {
-          "median": 4,
-          "p95": 8,
-          "max": 14,
-          "n": 64
-        },
-        "Телефон 6": {
-          "median": 2,
-          "p95": 6,
-          "max": 8,
+          "p95": 0,
+          "max": 4,
           "n": 64
         },
         "Телефон 5": {
-          "median": 5,
-          "p95": 9,
-          "max": 11,
+          "median": 0,
+          "p95": 1,
+          "max": 5,
           "n": 64
         },
-        "Экран зала": {
-          "median": 3,
-          "p95": 7,
+        "Телефон 3": {
+          "median": 0,
+          "p95": 4,
+          "max": 5,
+          "n": 64
+        },
+        "Телефон 6": {
+          "median": 0,
+          "p95": 4,
           "max": 8,
           "n": 64
-        }
-      },
-      "misses": 0,
-      "stageShots": [
-        {
-          "base": "lotto-этап-01",
-          "where": "lobby/ready/шаг 0",
-          "after": "лобби"
-        },
-        {
-          "base": "lotto-этап-02",
-          "where": "playing/question/шаг 0",
-          "after": "Включить первую песню"
-        },
-        {
-          "base": "lotto-этап-03",
-          "where": "playing/reveal/шаг 0",
-          "after": "Показать название"
-        },
-        {
-          "base": "lotto-этап-04",
-          "where": "playing/ready/шаг 0",
-          "after": "Назад"
-        }
-      ],
-      "problems": [],
-      "shots": [
-        "lotto-01-финал.png"
-      ],
-      "log": [
-        "1: касание «Включить первую песню» [playing/ready/шаг 0]",
-        "2: касание «Показать название» [playing/question/шаг 0]",
-        "3: касание «Следующая песня» [playing/reveal/шаг 0]",
-        "4: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "5: касание «↺ Видео сначала» [playing/question/шаг 1]",
-        "6: касание «Назад» [playing/question/шаг 1]",
-        "7: касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "8: касание «⏸ Пауза» [playing/reveal/шаг 0]",
-        "9: двойное касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "10: проверка: overlay [playing/reveal/шаг 0]",
-        "11: касание «⏸ Пауза» [playing/reveal/шаг 0]",
-        "12: касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "13: касание «⏸ Пауза» [playing/reveal/шаг 0]",
-        "14: касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "15: касание «−10 с» [playing/reveal/шаг 0]",
-        "16: касание «⏸ Пауза» [playing/reveal/шаг 0]",
-        "17: касание «Следующая песня» [playing/reveal/шаг 0]",
-        "18: касание «+10 с» [playing/question/шаг 1]",
-        "19: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "20: касание «⏹ Остановить — видео в начало» [playing/question/шаг 1]",
-        "21: двойное касание «▶ Дальше» [playing/question/шаг 1]",
-        "22: проверка: overlay [playing/question/шаг 1]",
-        "23: касание «+10 с» [playing/question/шаг 1]",
-        "24: проверка: sound [playing/question/шаг 1]",
-        "25: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "26: касание «▶ Дальше» [playing/question/шаг 1]",
-        "27: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "28: касание «⏹ Остановить — видео в начало» [playing/question/шаг 1]",
-        "29: проверка: tabs [playing/question/шаг 1]",
-        "30: проверка: award [playing/question/шаг 1]",
-        "31: касание «+10 с» [playing/question/шаг 1]",
-        "32: проверка: overlay [playing/question/шаг 1]",
-        "33: проверка: tabs [playing/question/шаг 1]",
-        "34: проверка: addTime [playing/question/шаг 1]",
-        "35: касание «▶ Дальше» [playing/question/шаг 1]",
-        "36: касание «⏹ Остановить — видео в начало» [playing/question/шаг 1]",
-        "37: проверка: reload [playing/question/шаг 1]",
-        "38: касание «▶ Дальше» [playing/question/шаг 1]",
-        "39: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "40: касание «▶ Дальше» [playing/question/шаг 1]",
-        "41: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "42: проверка: award [playing/question/шаг 1]",
-        "43: касание «▶ Дальше» [playing/question/шаг 1]",
-        "44: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "45: двойное касание «▶ Дальше» [playing/question/шаг 1]",
-        "46: проверка: slide [playing/question/шаг 1]",
-        "47: касание «⏸ Пауза» [playing/question/шаг 1]",
-        "48: касание «▶ Дальше» [playing/question/шаг 1]",
-        "49: касание «Назад» [playing/question/шаг 1]",
-        "50: проверка: peek [playing/reveal/шаг 0]",
-        "51: двойное касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "52: проверка: peek [playing/reveal/шаг 0]",
-        "53: проверка: overlay [playing/reveal/шаг 0]",
-        "54: проверка: overlay [playing/reveal/шаг 0]",
-        "55: касание «⏹ Остановить — видео в начало» [playing/reveal/шаг 0]",
-        "56: двойное касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "57: касание «Назад» [playing/reveal/шаг 0]",
-        "58: проверка: tabs [playing/question/шаг 0]",
-        "59: проверка: slide [playing/question/шаг 0]",
-        "60: касание «−10 с» [playing/question/шаг 0]",
-        "61: касание «⏸ Пауза» [playing/question/шаг 0]",
-        "62: проверка: tabs [playing/question/шаг 0]",
-        "63: касание «▶ Дальше» [playing/question/шаг 0]",
-        "64: проверка: award [playing/question/шаг 0]",
-        "65: касание «⏸ Пауза» [playing/question/шаг 0]",
-        "66: касание «↺ Видео сначала» [playing/question/шаг 0]",
-        "67: касание «⏸ Пауза» [playing/question/шаг 0]",
-        "68: касание «▶ Дальше» [playing/question/шаг 0]",
-        "69: касание «⏸ Пауза» [playing/question/шаг 0]",
-        "70: касание «▶ Дальше» [playing/question/шаг 0]",
-        "71: проверка: reload [playing/question/шаг 0]",
-        "72: проверка: overlay [playing/question/шаг 0]",
-        "73: касание «Назад» [playing/question/шаг 0]",
-        "74: касание «Включить первую песню» [playing/ready/шаг 0]",
-        "75: касание «⏸ Пауза» [playing/question/шаг 0]",
-        "76: проверка: tabs [playing/question/шаг 0]",
-        "77: касание «▶ Дальше» [playing/question/шаг 0]",
-        "78: проверка: tabs [playing/question/шаг 0]",
-        "79: проверка: sound [playing/question/шаг 0]",
-        "80: касание «Назад» [playing/question/шаг 0]",
-        "81: касание «Включить первую песню» [playing/ready/шаг 0]",
-        "82: касание «⏸ Пауза» [playing/question/шаг 0]",
-        "83: проверка: overlay [playing/question/шаг 0]",
-        "84: касание «Показать название» [playing/question/шаг 0]",
-        "85: проверка: addTime [playing/reveal/шаг 0]",
-        "86: касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "87: касание «⏸ Пауза» [playing/reveal/шаг 0]",
-        "88: касание «▶ Дальше» [playing/reveal/шаг 0]",
-        "89: проверка: sound [playing/reveal/шаг 0]",
-        "90: касание «⏸ Пауза» [playing/reveal/шаг 0]"
-      ]
-    },
-    {
-      "key": "dragon",
-      "name": "Бой с драконом",
-      "source": "библиотека test",
-      "title": "Бой с драконом",
-      "session": "pultmvk719nibgy2",
-      "actions": 70,
-      "finished": true,
-      "counts": {
-        "двойное касание": 4,
-        "Назад": 3,
-        "главная кнопка": 36,
-        "слайд": 3,
-        "другая кнопка": 1,
-        "окно: да": 2,
-        "таблица на экран": 2,
-        "поверх игры: join": 2,
-        "звук": 6,
-        "вкладки по кругу": 7,
-        "поверх игры: tech": 1,
-        "перезагрузка пульта": 2
-      },
-      "lag": {
-        "median": 141,
-        "p95": 254,
-        "max": 312,
-        "n": 71
-      },
-      "server": {
-        "median": 148,
-        "p95": 157,
-        "max": 163,
-        "n": 86,
-        "status": {
-          "200": 95
-        }
-      },
-      "phones": 6,
-      "playMode": "teams",
-      "delivery": {
-        "Телефон 1 (капитан)": {
-          "median": 5,
-          "p95": 12,
-          "max": 14,
-          "n": 45
-        },
-        "Телефон 2 (капитан)": {
-          "median": 0,
-          "p95": 5,
-          "max": 13,
-          "n": 45
-        },
-        "Телефон 3 (капитан)": {
-          "median": 0,
-          "p95": 7,
-          "max": 10,
-          "n": 45
-        },
-        "Телефон 4 (участник команды)": {
-          "median": 3,
-          "p95": 12,
-          "max": 16,
-          "n": 45
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 45
-        },
-        "Телефон 6 (участник команды)": {
-          "median": 0,
-          "p95": 7,
-          "max": 10,
-          "n": 45
         },
         "Экран зала": {
-          "median": 0,
-          "p95": 0,
-          "max": 5,
-          "n": 45
-        }
-      },
-      "misses": 0,
-      "stageShots": [
-        {
-          "base": "dragon-этап-01",
-          "where": "lobby/ready/шаг 0",
-          "after": "лобби"
-        },
-        {
-          "base": "dragon-этап-02",
-          "where": "playing/question/шаг 1",
-          "after": "Выбор героев"
-        },
-        {
-          "base": "dragon-этап-03",
-          "where": "playing/ready/шаг 0",
-          "after": "Назад"
-        },
-        {
-          "base": "dragon-этап-04",
-          "where": "playing/ready/шаг 2",
-          "after": "Начать без 3 команд"
-        },
-        {
-          "base": "dragon-этап-05",
-          "where": "playing/question/шаг 3",
-          "after": "Показать задание"
-        },
-        {
-          "base": "dragon-этап-06",
-          "where": "playing/reveal/шаг 3",
-          "after": "Удар!"
-        },
-        {
-          "base": "dragon-этап-07",
-          "where": "playing/reveal/шаг 13",
-          "after": "Итог боя"
-        },
-        {
-          "base": "dragon-этап-08",
-          "where": "playing/reveal/шаг 26",
-          "after": "К награждению"
-        },
-        {
-          "base": "dragon-этап-09",
-          "where": "finished/reveal/шаг 26",
-          "after": "Завершить игру"
-        }
-      ],
-      "problems": [
-        {
-          "level": "note",
-          "text": "Телефон 1 (капитан): на экране ошибка «Дракон ранил: −1 ❤️» [playing/reveal/шаг 3]",
-          "at": 9
-        },
-        {
-          "level": "note",
-          "text": "Телефон 2 (капитан): на экране ошибка «Дракон ранил: −1 ❤️» [playing/reveal/шаг 3]",
-          "at": 9
-        },
-        {
-          "level": "note",
-          "text": "Телефон 3 (капитан): на экране ошибка «Дракон ранил: −1 ❤️» [playing/reveal/шаг 3]",
-          "at": 9
-        },
-        {
-          "level": "note",
-          "text": "Телефон 4 (участник команды): на экране ошибка «Дракон ранил: −1 ❤️» [playing/reveal/шаг 3]",
-          "at": 9
-        },
-        {
-          "level": "note",
-          "text": "Телефон 5 (участник команды): на экране ошибка «Дракон ранил: −1 ❤️» [playing/reveal/шаг 3]",
-          "at": 9
-        },
-        {
-          "level": "note",
-          "text": "Телефон 6 (участник команды): на экране ошибка «Дракон ранил: −1 ❤️» [playing/reveal/шаг 3]",
-          "at": 9
-        }
-      ],
-      "shots": [
-        "dragon-01-финал.png"
-      ],
-      "log": [
-        "1: двойное касание «Выбор героев» [playing/ready/шаг 0]",
-        "2: касание «Назад» [playing/question/шаг 1]",
-        "3: касание «Выбор героев» [playing/ready/шаг 0]",
-        "4: проверка: slide [playing/question/шаг 1]",
-        "5: касание «Начать без 3 команд» [playing/question/шаг 1]",
-        "6: касание «Показать задание» [playing/ready/шаг 2]",
-        "7: проверка: peek [playing/question/шаг 3]",
-        "8: проверка: overlay [playing/question/шаг 3]",
-        "9: касание «Удар!» [playing/question/шаг 3]",
-        "10: проверка: award [playing/reveal/шаг 3]",
-        "11: проверка: peek [playing/reveal/шаг 3]",
-        "12: касание «Следующее задание» [playing/reveal/шаг 3]",
-        "13: касание «Показать задание» [playing/ready/шаг 4]",
-        "14: проверка: sound [playing/question/шаг 5]",
-        "15: касание «Удар!» [playing/question/шаг 5]",
-        "16: касание «Следующее задание» [playing/reveal/шаг 5]",
-        "17: проверка: sound [playing/ready/шаг 6]",
-        "18: проверка: sound [playing/ready/шаг 6]",
-        "19: проверка: tabs [playing/ready/шаг 6]",
-        "20: касание «Показать задание» [playing/ready/шаг 6]",
-        "21: проверка: overlay [playing/question/шаг 7]",
-        "22: касание «Удар!» [playing/question/шаг 7]",
-        "23: касание «Следующее задание» [playing/reveal/шаг 7]",
-        "24: касание «Показать задание» [playing/ready/шаг 8]",
-        "25: проверка: reload [playing/question/шаг 9]",
-        "26: проверка: reload [playing/question/шаг 9]",
-        "27: касание «Удар!» [playing/question/шаг 9]",
-        "28: касание «Следующее задание» [playing/reveal/шаг 9]",
-        "29: проверка: addTime [playing/ready/шаг 10]",
-        "30: проверка: tabs [playing/ready/шаг 10]",
-        "31: касание «Показать задание» [playing/ready/шаг 10]",
-        "32: касание «Удар!» [playing/question/шаг 11]",
-        "33: проверка: sound [playing/reveal/шаг 11]",
-        "34: касание «Следующее задание» [playing/reveal/шаг 11]",
-        "35: касание «Показать задание» [playing/ready/шаг 12]",
-        "36: касание «Удар!» [playing/question/шаг 13]",
-        "37: касание «Итог боя» [playing/reveal/шаг 13]",
-        "38: проверка: tabs [playing/reveal/шаг 13]",
-        "39: проверка: slide [playing/reveal/шаг 13]",
-        "40: проверка: tabs [playing/reveal/шаг 13]",
-        "41: касание «Следующий бой» [playing/reveal/шаг 13]",
-        "42: касание «Показать задание» [playing/ready/шаг 14]",
-        "43: касание «Удар!» [playing/question/шаг 15]",
-        "44: касание «Следующее задание» [playing/reveal/шаг 15]",
-        "45: проверка: sound [playing/ready/шаг 16]",
-        "46: касание «Показать задание» [playing/ready/шаг 16]",
-        "47: проверка: tabs [playing/question/шаг 17]",
-        "48: касание «Удар!» [playing/question/шаг 17]",
-        "49: проверка: sound [playing/reveal/шаг 17]",
-        "50: двойное касание «Следующее задание» [playing/reveal/шаг 17]",
-        "51: двойное касание «Показать задание» [playing/ready/шаг 18]",
-        "52: проверка: slide [playing/question/шаг 19]",
-        "53: касание «Удар!» [playing/question/шаг 19]",
-        "54: касание «Следующее задание» [playing/reveal/шаг 19]",
-        "55: касание «Показать задание» [playing/ready/шаг 20]",
-        "56: касание «Удар!» [playing/question/шаг 21]",
-        "57: проверка: tabs [playing/reveal/шаг 21]",
-        "58: касание «Следующее задание» [playing/reveal/шаг 21]",
-        "59: проверка: tabs [playing/ready/шаг 22]",
-        "60: касание «Показать задание» [playing/ready/шаг 22]",
-        "61: касание «Назад» [playing/question/шаг 23]",
-        "62: касание «Показать задание» [playing/ready/шаг 23]",
-        "63: проверка: overlay [playing/question/шаг 24]",
-        "64: касание «Назад» [playing/question/шаг 24]",
-        "65: касание «Показать задание» [playing/ready/шаг 24]",
-        "66: двойное касание «Удар!» [playing/question/шаг 25]",
-        "67: касание «Итог боя» [playing/reveal/шаг 25]",
-        "68: касание «К награждению» [playing/reveal/шаг 25]",
-        "69: касание «Завершить игру» [playing/reveal/шаг 26]"
-      ]
-    },
-    {
-      "key": "justdance",
-      "name": "Танцуй как звезда",
-      "source": "библиотека test",
-      "title": "Танцуй как звезда",
-      "session": "pultmvk7413dgycp",
-      "actions": 91,
-      "finished": false,
-      "counts": {
-        "двойное касание": 9,
-        "поверх игры: join": 4,
-        "слайд": 5,
-        "вкладки по кругу": 8,
-        "другая кнопка": 24,
-        "главная кнопка": 25,
-        "звук": 3,
-        "таблица на экран": 2,
-        "поверх игры: draw": 1,
-        "окно: да": 1,
-        "наградить сейчас и назад": 1,
-        "Назад": 4
-      },
-      "lag": {
-        "median": 131,
-        "p95": 218,
-        "max": 237,
-        "n": 81
-      },
-      "server": {
-        "median": 132,
-        "p95": 143,
-        "max": 156,
-        "n": 82,
-        "status": {
-          "200": 89
-        }
-      },
-      "phones": 6,
-      "playMode": "teams",
-      "delivery": {
-        "Телефон 1 (капитан)": {
-          "median": 13,
-          "p95": 20,
-          "max": 24,
-          "n": 42
-        },
-        "Телефон 4 (участник команды)": {
-          "median": 6,
-          "p95": 14,
-          "max": 18,
-          "n": 42
-        },
-        "Телефон 3 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 1,
-          "n": 42
-        },
-        "Телефон 2 (капитан)": {
-          "median": 11,
-          "p95": 19,
-          "max": 23,
-          "n": 42
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 4,
-          "p95": 8,
-          "max": 14,
-          "n": 42
-        },
-        "Телефон 6 (участник команды)": {
-          "median": 9,
-          "p95": 17,
-          "max": 17,
-          "n": 42
-        },
-        "Экран зала": {
-          "median": 6,
-          "p95": 18,
-          "max": 24,
-          "n": 42
-        }
-      },
-      "misses": 0,
-      "stageShots": [
-        {
-          "base": "justdance-этап-01",
-          "where": "lobby/ready/шаг 0",
-          "after": "лобби"
-        },
-        {
-          "base": "justdance-этап-02",
-          "where": "playing/reveal/шаг 0",
-          "after": "Начать игру"
-        },
-        {
-          "base": "justdance-этап-03",
-          "where": "playing/question/шаг 1",
-          "after": "500"
-        },
-        {
-          "base": "justdance-этап-04",
-          "where": "playing/reveal/шаг 1",
-          "after": "Выступили · +500"
-        },
-        {
-          "base": "justdance-этап-05",
-          "where": "playing/question/шаг 16",
-          "after": "Голосование зала"
-        }
-      ],
-      "problems": [
-        {
-          "level": "bug",
-          "text": "«🐸 Лисы» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 33,
-          "where": "🐸 Лисы"
-        },
-        {
-          "level": "bug",
-          "text": "«🦄 Ежи» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 42,
-          "where": "🦄 Ежи"
-        },
-        {
-          "level": "bug",
-          "text": "«Ничья» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 58,
-          "where": "Ничья"
-        },
-        {
-          "level": "bug",
-          "text": "«Победил: 🦄 Ежи» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 74,
-          "where": "Победил: 🦄 Ежи"
-        }
-      ],
-      "shots": [
-        "justdance-01-финал.png"
-      ],
-      "log": [
-        "1: двойное касание «Начать игру» [playing/ready/шаг 0]",
-        "2: проверка: overlay [playing/reveal/шаг 0]",
-        "3: проверка: slide [playing/reveal/шаг 0]",
-        "4: проверка: tabs [playing/reveal/шаг 0]",
-        "5: касание «500» [playing/reveal/шаг 0]",
-        "6: двойное касание «Выступили · +500» [playing/question/шаг 1]",
-        "7: касание «Следующая команда» [playing/reveal/шаг 1]",
-        "8: проверка: sound [playing/reveal/шаг 2]",
-        "9: касание «500» [playing/reveal/шаг 2]",
-        "10: проверка: tabs [playing/question/шаг 3]",
-        "11: касание «Выступили · +500» [playing/question/шаг 3]",
-        "12: проверка: sound [playing/reveal/шаг 3]",
-        "13: касание «Следующая команда» [playing/reveal/шаг 3]",
-        "14: проверка: slide [playing/reveal/шаг 4]",
-        "15: касание «100» [playing/reveal/шаг 4]",
-        "16: двойное касание «Выступили · +100» [playing/question/шаг 5]",
-        "17: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "18: проверка: peek [playing/reveal/шаг 6]",
-        "19: касание «200» [playing/reveal/шаг 6]",
-        "20: касание «Выступили · +200» [playing/question/шаг 7]",
-        "21: двойное касание «Следующая команда» [playing/reveal/шаг 7]",
-        "22: касание «100» [playing/reveal/шаг 8]",
-        "23: проверка: award [playing/question/шаг 9]",
-        "24: двойное касание «Выступили · +100» [playing/question/шаг 9]",
-        "25: проверка: peek [playing/reveal/шаг 9]",
-        "26: касание «Следующая команда» [playing/reveal/шаг 9]",
-        "27: касание «500» [playing/reveal/шаг 10]",
-        "28: проверка: tabs [playing/question/шаг 11]",
-        "29: касание «Не вышли · 0» [playing/question/шаг 11]",
-        "30: двойное касание «Следующая команда» [playing/reveal/шаг 11]",
-        "31: касание «300батл» [playing/reveal/шаг 12]",
-        "32: проверка: tabs [playing/reveal/шаг 12]",
-        "33: двойное касание «🐸 Лисы» [playing/reveal/шаг 12]",
-        "34: касание «🐸 Лисы» [playing/reveal/шаг 12]",
-        "35: проверка: overlay [playing/reveal/шаг 12]",
-        "36: двойное касание «🐸 Лисы» [playing/reveal/шаг 12]",
-        "37: проверка: overlay [playing/reveal/шаг 12]",
-        "38: проверка: award [playing/reveal/шаг 12]",
-        "39: проверка: slide [playing/reveal/шаг 12]",
-        "40: проверка: overlay [playing/reveal/шаг 12]",
-        "41: касание «🦄 Ежи» [playing/reveal/шаг 12]",
-        "42: касание «🦄 Ежи» [playing/reveal/шаг 12]",
-        "43: касание «Другая плитка» [playing/reveal/шаг 12]",
-        "44: касание «400» [playing/reveal/шаг 12]",
-        "45: проверка: tabs [playing/question/шаг 13]",
-        "46: проверка: sound [playing/question/шаг 13]",
-        "47: касание «Другая плитка — эта останется на поле» [playing/question/шаг 13]",
-        "48: касание «Назад» [playing/reveal/шаг 12]",
-        "49: касание «Следующая команда» [playing/reveal/шаг 11]",
-        "50: проверка: addTime [playing/reveal/шаг 12]",
-        "51: касание «400» [playing/reveal/шаг 12]",
-        "52: касание «Выступили · +400» [playing/question/шаг 13]",
-        "53: касание «Следующая команда» [playing/reveal/шаг 13]",
-        "54: касание «200батл» [playing/reveal/шаг 14]",
-        "55: касание «Открыть батл» [playing/reveal/шаг 14]",
-        "56: касание «Голосование зала» [playing/question/шаг 15]",
-        "57: касание «Подсчитать голоса» [playing/question/шаг 16]",
-        "58: касание «Ничья» [playing/reveal/шаг 16]",
-        "59: касание «Победил: 🐸 Лисы» [playing/reveal/шаг 16]",
-        "60: проверка: addTime [playing/reveal/шаг 16]",
-        "61: касание «Ничья» [playing/reveal/шаг 16]",
-        "62: касание «Ничья» [playing/reveal/шаг 16]",
-        "63: касание «Следующая команда» [playing/reveal/шаг 16]",
-        "64: касание «100батл» [playing/reveal/шаг 17]",
-        "65: проверка: overlay [playing/reveal/шаг 17]",
-        "66: проверка: tabs [playing/reveal/шаг 17]",
-        "67: касание «Назад» [playing/reveal/шаг 17]",
-        "68: касание «Ничья» [playing/reveal/шаг 16]",
-        "69: проверка: tabs [playing/reveal/шаг 16]",
-        "70: проверка: slide [playing/reveal/шаг 16]",
-        "71: проверка: slide [playing/reveal/шаг 16]",
-        "72: касание «Победил: 🦄 Ежи» [playing/reveal/шаг 16]",
-        "73: проверка: tabs [playing/reveal/шаг 16]",
-        "74: касание «Победил: 🦄 Ежи» [playing/reveal/шаг 16]",
-        "75: двойное касание «Победил: 🦄 Ежи» [playing/reveal/шаг 16]",
-        "76: касание «Победил: 🦄 Ежи» [playing/reveal/шаг 16]",
-        "77: касание «Победил: 🦄 Ежи» [playing/reveal/шаг 16]",
-        "78: касание «Ничья» [playing/reveal/шаг 16]",
-        "79: касание «Победил: 🦄 Ежи» [playing/reveal/шаг 16]",
-        "80: касание «Назад» [playing/reveal/шаг 16]",
-        "81: касание «Подсчитать голоса» [playing/question/шаг 16]",
-        "82: касание «Ничья» [playing/reveal/шаг 16]",
-        "83: касание «Ничья» [playing/reveal/шаг 16]",
-        "84: проверка: addTime [playing/reveal/шаг 16]",
-        "85: касание «Ничья» [playing/reveal/шаг 16]",
-        "86: касание «Назад» [playing/reveal/шаг 16]",
-        "87: касание «Подсчитать голоса» [playing/question/шаг 16]",
-        "88: касание «Ничья» [playing/reveal/шаг 16]",
-        "89: касание «Следующая команда» [playing/reveal/шаг 16]",
-        "90: касание «🐸 Лисы» [playing/reveal/шаг 17]"
-      ]
-    },
-    {
-      "key": "quest",
-      "name": "Активная настолка",
-      "source": "библиотека test",
-      "title": "Сладкие приключения",
-      "session": "pultmvk74k6a3fkj",
-      "actions": 77,
-      "finished": true,
-      "counts": {
-        "главная кнопка": 28,
-        "другая кнопка": 22,
-        "Назад": 3,
-        "двойное касание": 3,
-        "поверх игры: tech": 2,
-        "вкладки по кругу": 4,
-        "звук": 2,
-        "окно: отмена": 2,
-        "таблица на экран": 2,
-        "поверх игры: draw": 2,
-        "поверх игры: join": 2,
-        "слайд": 2,
-        "окно: да": 3
-      },
-      "lag": {
-        "median": 119,
-        "p95": 211,
-        "max": 233,
-        "n": 86
-      },
-      "server": {
-        "median": 145,
-        "p95": 156,
-        "max": 170,
-        "n": 114,
-        "status": {
-          "200": 101,
-          "409": 20
-        }
-      },
-      "phones": 6,
-      "playMode": "teams",
-      "delivery": {
-        "Телефон 1 (капитан)": {
-          "median": 0,
-          "p95": 3,
-          "max": 4,
-          "n": 44
-        },
-        "Телефон 2 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 44
-        },
-        "Телефон 4 (участник команды)": {
           "median": 0,
           "p95": 2,
           "max": 7,
-          "n": 44
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 0,
-          "p95": 2,
-          "max": 6,
-          "n": 44
-        },
-        "Телефон 3 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 44
-        },
-        "Телефон 6 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 4,
-          "n": 44
-        },
-        "Экран зала": {
-          "median": 0,
-          "p95": 5,
-          "max": 6,
-          "n": 44
+          "n": 64
         }
       },
       "misses": 0,
       "stageShots": [
         {
-          "base": "quest-этап-01",
+          "base": "board-этап-01",
           "where": "lobby/ready/шаг 0",
           "after": "лобби"
         },
         {
-          "base": "quest-этап-02",
+          "base": "board-этап-02",
+          "where": "playing/ready/шаг 0",
+          "after": "Таблица очков на экран"
+        },
+        {
+          "base": "board-этап-03",
           "where": "playing/question/шаг 0",
-          "after": "Начать игру"
+          "after": "400"
         },
         {
-          "base": "quest-этап-03",
-          "where": "playing/reveal/шаг 0",
-          "after": "🎲 Бросить за команду"
+          "base": "board-этап-04",
+          "where": "playing/ready/шаг 0",
+          "after": "Назад"
         },
         {
-          "base": "quest-этап-04",
-          "where": "playing/reveal/шаг 0",
-          "after": "Не выполнено"
+          "base": "board-этап-05",
+          "where": "playing/question/шаг 1",
+          "after": "Показать вопрос — отвечает 🐧 Егор, цена 400"
         },
         {
-          "base": "quest-этап-05",
-          "where": "playing/podium/шаг 16",
-          "after": "Закончить досрочно"
-        },
-        {
-          "base": "quest-этап-06",
-          "where": "finished/podium/шаг 16",
-          "after": "Завершить игру"
+          "base": "board-этап-06",
+          "where": "playing/reveal/шаг 1",
+          "after": "Верно"
         }
       ],
       "problems": [
         {
           "level": "bug",
-          "text": "«Начать игру»: касание получило отказ 409 ×1 (expect {\"phase\":\"lobby\"} · меняли teams); после отказа успешных записей: 0",
-          "at": 0
+          "text": "«Ещё 10 с на ответ»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":3,\"stage\":\"question\",\"result\":\"oqupp.91kg1p.lu\"} · меняли result); после отказа успешных записей: 1",
+          "at": 32
+        }
+      ],
+      "shots": [
+        "board-01-финал.png"
+      ],
+      "log": [
+        "1: касание «Таблица очков на экран» [playing/ready/шаг 0]",
+        "2: касание «400» [playing/ready/шаг 0]",
+        "3: касание «600» [playing/question/шаг 0]",
+        "4: касание «400» [playing/question/шаг 0]",
+        "5: касание «1000» [playing/question/шаг 0]",
+        "6: касание «Назад» [playing/question/шаг 0]",
+        "7: касание «Таблица очков на экран» [playing/ready/шаг 0]",
+        "8: касание «Убрать таблицу с экрана» [playing/ready/шаг 0]",
+        "9: двойное касание «Таблица очков на экран» [playing/ready/шаг 0]",
+        "10: проверка: overlay [playing/ready/шаг 0]",
+        "11: касание «Убрать таблицу с экрана» [playing/ready/шаг 0]",
+        "12: двойное касание «Таблица очков на экран» [playing/ready/шаг 0]",
+        "13: проверка: overlay [playing/ready/шаг 0]",
+        "14: касание «400» [playing/ready/шаг 0]",
+        "15: касание «🐧 Егор» [playing/question/шаг 0]",
+        "16: касание «Показать вопрос — отвечает 🐧 Егор, цена 400» [playing/question/шаг 0]",
+        "17: касание «Верно» [playing/question/шаг 1]",
+        "18: проверка: peek [playing/reveal/шаг 1]",
+        "19: касание «К полю» [playing/reveal/шаг 1]",
+        "20: проверка: reload [playing/ready/шаг 2]",
+        "21: касание «400» [playing/ready/шаг 2]",
+        "22: двойное касание «Таблица очков на экран» [playing/question/шаг 2]",
+        "23: проверка: overlay [playing/question/шаг 2]",
+        "24: касание «Убрать таблицу с экрана» [playing/question/шаг 2]",
+        "25: проверка: sound [playing/question/шаг 2]",
+        "26: касание «Таблица очков на экран» [playing/question/шаг 2]",
+        "27: касание «Убрать таблицу с экрана» [playing/question/шаг 2]",
+        "28: касание «Таблица очков на экран» [playing/question/шаг 2]",
+        "29: касание «Запустить отсчёт · 15 с» [playing/question/шаг 2]",
+        "30: проверка: tabs [playing/question/шаг 3]",
+        "31: проверка: award [playing/question/шаг 3]",
+        "32: касание «Ещё 10 с на ответ» [playing/question/шаг 3]",
+        "33: проверка: overlay [playing/question/шаг 3]",
+        "34: проверка: tabs [playing/question/шаг 3]",
+        "35: проверка: addTime [playing/question/шаг 3]",
+        "36: касание «Верно» [playing/question/шаг 3]",
+        "37: касание «К полю» [playing/reveal/шаг 3]",
+        "38: проверка: reload [playing/ready/шаг 4]",
+        "39: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "40: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "41: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "42: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "43: проверка: award [playing/ready/шаг 4]",
+        "44: проверка: addTime [playing/ready/шаг 4]",
+        "45: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "46: двойное касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "47: проверка: slide [playing/ready/шаг 4]",
+        "48: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "49: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "50: касание «Назад» [playing/ready/шаг 4]",
+        "51: проверка: peek [playing/reveal/шаг 3]",
+        "52: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "53: касание «Убрать таблицу с экрана» [playing/reveal/шаг 3]",
+        "54: проверка: overlay [playing/reveal/шаг 3]",
+        "55: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "56: касание «Убрать таблицу с экрана» [playing/reveal/шаг 3]",
+        "57: проверка: reload [playing/reveal/шаг 3]",
+        "58: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "59: проверка: tabs [playing/reveal/шаг 3]",
+        "60: проверка: tabs [playing/reveal/шаг 3]",
+        "61: касание «Назад» [playing/reveal/шаг 3]",
+        "62: касание «Таблица очков на экран» [playing/question/шаг 3]",
+        "63: касание «Никто не угадал — показать ответ» [playing/question/шаг 3]",
+        "64: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "65: касание «Убрать таблицу с экрана» [playing/reveal/шаг 3]",
+        "66: касание «К полю» [playing/reveal/шаг 3]",
+        "67: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "68: проверка: overlay [playing/ready/шаг 4]",
+        "69: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "70: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "71: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "72: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "73: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "74: касание «Таблица очков на экран» [playing/ready/шаг 4]",
+        "75: касание «Убрать таблицу с экрана» [playing/ready/шаг 4]",
+        "76: касание «Назад» [playing/ready/шаг 4]",
+        "77: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "78: проверка: slide [playing/reveal/шаг 3]",
+        "79: проверка: award [playing/reveal/шаг 3]",
+        "80: касание «Убрать таблицу с экрана» [playing/reveal/шаг 3]",
+        "81: касание «К полю» [playing/reveal/шаг 3]",
+        "82: касание «Назад» [playing/ready/шаг 4]",
+        "83: проверка: addTime [playing/reveal/шаг 3]",
+        "84: проверка: sound [playing/reveal/шаг 3]",
+        "85: проверка: reload [playing/reveal/шаг 3]",
+        "86: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "87: проверка: addTime [playing/reveal/шаг 3]",
+        "88: касание «Убрать таблицу с экрана» [playing/reveal/шаг 3]",
+        "89: касание «Таблица очков на экран» [playing/reveal/шаг 3]",
+        "90: касание «Убрать таблицу с экрана» [playing/reveal/шаг 3]"
+      ]
+    },
+    {
+      "key": "truth",
+      "name": "Правда или действие",
+      "source": "библиотека test",
+      "title": "Правда или действие",
+      "session": "pultmvkjo7tqm4uf",
+      "actions": 91,
+      "finished": false,
+      "counts": {
+        "главная кнопка": 35,
+        "другая кнопка": 30,
+        "поверх игры: join": 2,
+        "поверх игры: draw": 3,
+        "Назад": 5,
+        "звук": 5,
+        "слайд": 3,
+        "окно: да": 1,
+        "наградить сейчас и назад": 1,
+        "таблица на экран": 1,
+        "двойное касание": 1,
+        "вкладки по кругу": 3,
+        "окно: отмена": 1
+      },
+      "lag": {
+        "median": 146,
+        "p95": 245,
+        "max": 366,
+        "n": 101
+      },
+      "server": {
+        "median": 150,
+        "p95": 160,
+        "max": 200,
+        "n": 157,
+        "status": {
+          "200": 166,
+          "409": 2
+        }
+      },
+      "phones": 6,
+      "playMode": "solo",
+      "delivery": {
+        "Телефон 1": {
+          "median": 0,
+          "p95": 5,
+          "max": 42,
+          "n": 71
+        },
+        "Телефон 2": {
+          "median": 0,
+          "p95": 0,
+          "max": 36,
+          "n": 71
+        },
+        "Телефон 4": {
+          "median": 0,
+          "p95": 1,
+          "max": 39,
+          "n": 71
+        },
+        "Телефон 5": {
+          "median": 0,
+          "p95": 0,
+          "max": 31,
+          "n": 71
+        },
+        "Телефон 6": {
+          "median": 0,
+          "p95": 0,
+          "max": 33,
+          "n": 71
+        },
+        "Телефон 3": {
+          "median": 0,
+          "p95": 0,
+          "max": 38,
+          "n": 71
+        },
+        "Экран зала": {
+          "median": 0,
+          "p95": 0,
+          "max": 31,
+          "n": 71
+        }
+      },
+      "misses": 0,
+      "stageShots": [
+        {
+          "base": "truth-этап-01",
+          "where": "lobby/ready/шаг 0",
+          "after": "лобби"
+        },
+        {
+          "base": "truth-этап-02",
+          "where": "playing/question/шаг 0",
+          "after": "Начать игру"
+        },
+        {
+          "base": "truth-этап-03",
+          "where": "playing/question/шаг 0",
+          "after": "В колоду"
+        },
+        {
+          "base": "truth-этап-04",
+          "where": "playing/reveal/шаг 0",
+          "after": "Выполнено (+100)"
+        }
+      ],
+      "problems": [
+        {
+          "level": "bug",
+          "text": "Телефон 1: кнопки наезжают друг на друга: Выбрать: Правда × Выбрать: Действие [playing/question/шаг 0]",
+          "at": 1
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":1,\"stage\":\"question\",\"result\":\"72h80z.plz1wp.ro\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 5
+          "text": "Телефон 1: кнопку закрывает другой элемент: Выбрать: Правда ← SPAN [playing/question/шаг 0]",
+          "at": 1
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":4,\"stage\":\"question\",\"result\":\"zcs4k2.1hevlck.1yw\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 17
+          "text": "Телефон 3: кнопки наезжают друг на друга: Выбрать: Правда × Выбрать: Действие [playing/question/шаг 2]",
+          "at": 10
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":5,\"stage\":\"question\",\"result\":\"1citacc.1cetra.2ee\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 19
+          "text": "Телефон 3: кнопку закрывает другой элемент: Выбрать: Правда ← SPAN [playing/question/шаг 2]",
+          "at": 10
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×2 (expect {\"step\":6,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
-          "at": 23
-        },
-        {
-          "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×2 (expect {\"step\":7,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
-          "at": 27
-        },
-        {
-          "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":8,\"stage\":\"question\",\"result\":\"135xovi.k9yfxc.2ho\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
+          "text": "«Выполнено (+100)»: касание получило отказ 409 ×1 (expect {\"step\":5,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
           "at": 29
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×2 (expect {\"step\":9,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
-          "at": 37
+          "text": "Телефон 4: кнопки наезжают друг на друга: Выбрать: Правда × Выбрать: Действие [playing/question/шаг 9]",
+          "at": 43
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×2 (expect {\"step\":10,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
-          "at": 41
+          "text": "Телефон 4: кнопку закрывает другой элемент: Выбрать: Правда ← SPAN [playing/question/шаг 9]",
+          "at": 43
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×2 (expect {\"step\":11,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
-          "at": 46
+          "text": "Телефон 1: кнопки наезжают друг на друга: Выбрать: Правда × Выбрать: Действие [playing/question/шаг 12]",
+          "at": 59
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":12,\"stage\":\"question\",\"result\":\"58d686.18z0gfu.2gx\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 48
+          "text": "Телефон 1: кнопку закрывает другой элемент: Выбрать: Правда ← SPAN [playing/question/шаг 12]",
+          "at": 59
         },
         {
           "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":14,\"stage\":\"question\",\"result\":\"pflyj7.14iy6q5.2ff\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 60
-        },
-        {
-          "level": "bug",
-          "text": "«🎲 Бросить за команду»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":15,\"stage\":\"question\",\"result\":\"1md03bk.1whpzia.2eb\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 65
-        },
-        {
-          "level": "bug",
-          "text": "«Закончить досрочно»: касание получило отказ 409 ×1 (expect {\"step\":16,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
-          "at": 68
+          "text": "««Спасибо» (убрать/показать)»: касание получило отказ 409 ×1 (expect {\"step\":16,\"stage\":\"question\"} · меняли answered); после отказа успешных записей: 0",
+          "at": 91
         }
       ],
       "shots": [
-        "quest-01-финал.png"
+        "truth-01-финал.png"
       ],
       "log": [
         "1: касание «Начать игру» [playing/ready/шаг 0]",
-        "2: касание «🎲 Бросить за команду» [playing/question/шаг 0]",
-        "3: касание «Не выполнено» [playing/reveal/шаг 0]",
-        "4: касание «Следующая команда» [playing/reveal/шаг 0]",
-        "5: касание «🎲 Бросить за команду» [playing/question/шаг 1]",
-        "6: касание «Назад» [playing/reveal/шаг 1]",
-        "7: касание «🎲 Бросить за команду» [playing/question/шаг 1]",
-        "8: касание «Выполнено» [playing/reveal/шаг 1]",
-        "9: двойное касание «Следующая команда» [playing/reveal/шаг 1]",
-        "10: проверка: overlay [playing/question/шаг 2]",
-        "11: касание «Выполнено» [playing/reveal/шаг 2]",
-        "12: касание «Следующая команда» [playing/reveal/шаг 2]",
-        "13: касание «🎲 Бросить за команду» [playing/question/шаг 3]",
-        "14: проверка: tabs [playing/reveal/шаг 3]",
-        "15: касание «Не выполнено» [playing/reveal/шаг 3]",
-        "16: касание «Следующая команда» [playing/reveal/шаг 3]",
-        "17: касание «🎲 Бросить за команду» [playing/question/шаг 4]",
-        "18: касание «Следующая команда» [playing/reveal/шаг 4]",
-        "19: касание «🎲 Бросить за команду» [playing/question/шаг 5]",
-        "20: касание «Не выполнено» [playing/reveal/шаг 5]",
-        "21: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "22: проверка: sound [playing/question/шаг 6]",
-        "23: касание «🎲 Бросить за команду» [playing/question/шаг 6]",
-        "24: проверка: sound [playing/reveal/шаг 6]",
-        "25: касание «Выполнено» [playing/reveal/шаг 6]",
-        "26: касание «Следующая команда» [playing/reveal/шаг 6]",
-        "27: касание «🎲 Бросить за команду» [playing/question/шаг 7]",
-        "28: касание «Следующая команда» [playing/reveal/шаг 7]",
-        "29: касание «🎲 Бросить за команду» [playing/question/шаг 8]",
-        "30: проверка: award [playing/reveal/шаг 8]",
-        "31: проверка: peek [playing/reveal/шаг 8]",
-        "32: проверка: overlay [playing/reveal/шаг 8]",
-        "33: проверка: tabs [playing/reveal/шаг 8]",
-        "34: проверка: addTime [playing/reveal/шаг 8]",
-        "35: касание «Выполнено» [playing/reveal/шаг 8]",
-        "36: касание «Следующая команда» [playing/reveal/шаг 8]",
-        "37: касание «🎲 Бросить за команду» [playing/question/шаг 9]",
-        "38: касание «Выполнено» [playing/reveal/шаг 9]",
-        "39: проверка: addTime [playing/reveal/шаг 9]",
-        "40: касание «Следующая команда» [playing/reveal/шаг 9]",
-        "41: касание «🎲 Бросить за команду» [playing/question/шаг 10]",
-        "42: проверка: overlay [playing/reveal/шаг 10]",
-        "43: касание «Выполнено» [playing/reveal/шаг 10]",
-        "44: проверка: overlay [playing/reveal/шаг 10]",
-        "45: касание «Следующая команда» [playing/reveal/шаг 10]",
-        "46: касание «🎲 Бросить за команду» [playing/question/шаг 11]",
-        "47: касание «Следующая команда» [playing/reveal/шаг 11]",
-        "48: касание «🎲 Бросить за команду» [playing/question/шаг 12]",
-        "49: касание «Не выполнено» [playing/reveal/шаг 12]",
-        "50: двойное касание «Следующая команда» [playing/reveal/шаг 12]",
-        "51: проверка: peek [playing/question/шаг 13]",
-        "52: проверка: overlay [playing/question/шаг 13]",
-        "53: проверка: overlay [playing/reveal/шаг 13]",
-        "54: касание «Не выполнено» [playing/reveal/шаг 13]",
-        "55: двойное касание «Следующая команда» [playing/reveal/шаг 13]",
-        "56: касание «Назад» [playing/question/шаг 14]",
-        "57: проверка: tabs [playing/reveal/шаг 13]",
-        "58: проверка: slide [playing/reveal/шаг 13]",
-        "59: касание «Следующая команда» [playing/reveal/шаг 13]",
-        "60: касание «🎲 Бросить за команду» [playing/question/шаг 14]",
-        "61: проверка: tabs [playing/reveal/шаг 14]",
-        "62: касание «Выполнено» [playing/reveal/шаг 14]",
-        "63: проверка: award [playing/reveal/шаг 14]",
-        "64: касание «Следующая команда» [playing/reveal/шаг 14]",
-        "65: касание «🎲 Бросить за команду» [playing/question/шаг 15]",
-        "66: касание «Выполнено» [playing/reveal/шаг 15]",
-        "67: касание «Следующая команда» [playing/reveal/шаг 15]",
-        "68: касание «Закончить досрочно» [playing/question/шаг 16]",
-        "69: касание «Закончить досрочно» [playing/reveal/шаг 16]",
-        "70: касание «Открыть следующее место» [playing/podium/шаг 16]",
-        "71: касание «Открыть следующее место» [playing/podium/шаг 16]",
-        "72: касание «Открыть следующее место» [playing/podium/шаг 16]",
-        "73: касание «Назад» [playing/podium/шаг 16]",
-        "74: касание «Открыть следующее место» [playing/podium/шаг 16]",
-        "75: проверка: slide [playing/podium/шаг 16]",
-        "76: касание «Завершить игру» [playing/podium/шаг 16]"
+        "2: касание «В колоду» [playing/question/шаг 0]",
+        "3: касание «В колоду» [playing/question/шаг 0]",
+        "4: касание «Выполнено (+100)» [playing/question/шаг 0]",
+        "5: касание «Следующий: 🦁 Борис» [playing/reveal/шаг 0]",
+        "6: проверка: overlay [playing/question/шаг 1]",
+        "7: касание «Другая карточка» [playing/question/шаг 1]",
+        "8: проверка: overlay [playing/question/шаг 1]",
+        "9: касание «Выполнено (+50)» [playing/question/шаг 1]",
+        "10: касание «Следующий: 🦁 Вика» [playing/reveal/шаг 1]",
+        "11: касание «В колоду» [playing/question/шаг 2]",
+        "12: касание «Назад» [playing/question/шаг 2]",
+        "13: проверка: overlay [playing/question/шаг 2]",
+        "14: касание «Правда» [playing/question/шаг 2]",
+        "15: касание «Выполнено (+50)» [playing/question/шаг 2]",
+        "16: касание «Следующий: 🎯 Гоша» [playing/reveal/шаг 2]",
+        "17: касание «Действие» [playing/question/шаг 3]",
+        "18: касание «Выполнено (+100)» [playing/question/шаг 3]",
+        "19: касание «Следующий: 🎉 Даша» [playing/reveal/шаг 3]",
+        "20: касание «Действие» [playing/question/шаг 4]",
+        "21: касание «В колоду» [playing/question/шаг 4]",
+        "22: проверка: overlay [playing/question/шаг 4]",
+        "23: касание «В колоду» [playing/question/шаг 4]",
+        "24: проверка: sound [playing/question/шаг 4]",
+        "25: касание «Выполнено (+100)» [playing/question/шаг 4]",
+        "26: касание «Следующий: 🍕 Егор» [playing/reveal/шаг 4]",
+        "27: касание «В колоду» [playing/question/шаг 5]",
+        "28: касание «В колоду» [playing/question/шаг 5]",
+        "29: касание «Выполнено (+100)» [playing/question/шаг 5]",
+        "30: касание «В колоду» [playing/reveal/шаг 5]",
+        "31: проверка: sound [playing/reveal/шаг 5]",
+        "32: касание «Следующий: 🐙 Аня» [playing/reveal/шаг 5]",
+        "33: касание «Правда» [playing/question/шаг 6]",
+        "34: касание «Выполнено (+50)» [playing/question/шаг 6]",
+        "35: касание «Следующий: 🦁 Борис» [playing/reveal/шаг 6]",
+        "36: проверка: slide [playing/question/шаг 7]",
+        "37: касание «Выполнено (+50)» [playing/question/шаг 7]",
+        "38: касание «Следующий: 🦁 Вика» [playing/reveal/шаг 7]",
+        "39: касание «Правда» [playing/question/шаг 8]",
+        "40: касание «Выполнено (+50)» [playing/question/шаг 8]",
+        "41: проверка: award [playing/reveal/шаг 8]",
+        "42: проверка: addTime [playing/reveal/шаг 8]",
+        "43: касание «Следующий: 🎯 Гоша» [playing/reveal/шаг 8]",
+        "44: касание «В колоду» [playing/question/шаг 9]",
+        "45: проверка: slide [playing/question/шаг 9]",
+        "46: касание «В колоду» [playing/question/шаг 9]",
+        "47: касание «В колоду» [playing/question/шаг 9]",
+        "48: касание «Назад» [playing/question/шаг 9]",
+        "49: проверка: peek [playing/question/шаг 9]",
+        "50: касание «Действие» [playing/question/шаг 9]",
+        "51: касание «Выполнено (+100)» [playing/question/шаг 9]",
+        "52: касание «Следующий: 🎉 Даша» [playing/reveal/шаг 9]",
+        "53: касание «Правда» [playing/question/шаг 10]",
+        "54: касание «Выполнено (+50)» [playing/question/шаг 10]",
+        "55: касание «В колоду» [playing/reveal/шаг 10]",
+        "56: касание «Следующий: 🍕 Егор» [playing/reveal/шаг 10]",
+        "57: касание «Правда» [playing/question/шаг 11]",
+        "58: касание «Выполнено (+50)» [playing/question/шаг 11]",
+        "59: касание «Следующий: 🐙 Аня» [playing/reveal/шаг 11]",
+        "60: касание «Действие» [playing/question/шаг 12]",
+        "61: касание «Выполнено (+100)» [playing/question/шаг 12]",
+        "62: касание «Следующий: 🦁 Борис» [playing/reveal/шаг 12]",
+        "63: касание «Правда» [playing/question/шаг 13]",
+        "64: касание «Выполнено (+50)» [playing/question/шаг 13]",
+        "65: проверка: overlay [playing/reveal/шаг 13]",
+        "66: касание «Следующий: 🦁 Вика» [playing/reveal/шаг 13]",
+        "67: касание «Правда» [playing/question/шаг 14]",
+        "68: касание «В колоду» [playing/question/шаг 14]",
+        "69: касание «Выполнено (+50)» [playing/question/шаг 14]",
+        "70: двойное касание «Следующий: 🎯 Гоша» [playing/reveal/шаг 14]",
+        "71: касание «Назад» [playing/question/шаг 15]",
+        "72: касание «Следующий: 🎯 Гоша» [playing/reveal/шаг 14]",
+        "73: касание «В колоду» [playing/question/шаг 15]",
+        "74: проверка: tabs [playing/question/шаг 15]",
+        "75: касание «Выполнено (+100)» [playing/question/шаг 15]",
+        "76: проверка: tabs [playing/reveal/шаг 15]",
+        "77: проверка: sound [playing/reveal/шаг 15]",
+        "78: касание «Назад» [playing/reveal/шаг 15]",
+        "79: касание «Не брать» [playing/question/шаг 15]",
+        "80: касание «Выполнено (+100)» [playing/question/шаг 15]",
+        "81: касание «Закончить и наградить» [playing/reveal/шаг 15]",
+        "82: проверка: slide [playing/reveal/шаг 15]",
+        "83: касание «Следующий: 🎉 Даша» [playing/reveal/шаг 15]",
+        "84: касание «Назад» [playing/question/шаг 16]",
+        "85: проверка: sound [playing/reveal/шаг 15]",
+        "86: проверка: tabs [playing/reveal/шаг 15]",
+        "87: проверка: sound [playing/reveal/шаг 15]",
+        "88: касание «Следующий: 🎉 Даша» [playing/reveal/шаг 15]",
+        "89: касание «В колоду» [playing/question/шаг 16]",
+        "90: касание «Правда» [playing/question/шаг 16]"
       ]
     },
     {
-      "key": "karaoke",
-      "name": "Караоке на поле",
+      "key": "spy",
+      "name": "Шпион",
       "source": "библиотека test",
-      "title": "Караоке на поле",
-      "session": "pultmvk77vy6s2e7",
-      "actions": 91,
-      "finished": false,
-      "counts": {
-        "главная кнопка": 30,
-        "другая кнопка": 24,
-        "вкладки по кругу": 5,
-        "звук": 4,
-        "поверх игры: draw": 4,
-        "двойное касание": 4,
-        "слайд": 5,
-        "Назад": 8,
-        "таблица на экран": 4
-      },
-      "lag": {
-        "median": 132,
-        "p95": 222,
-        "max": 303,
-        "n": 87
-      },
-      "server": {
-        "median": 157,
-        "p95": 168,
-        "max": 180,
-        "n": 88,
-        "status": {
-          "200": 102
-        }
-      },
-      "phones": 6,
-      "playMode": "teams",
-      "delivery": {
-        "Телефон 2 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 45
-        },
-        "Телефон 4 (участник команды)": {
-          "median": 0,
-          "p95": 3,
-          "max": 5,
-          "n": 45
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 0,
-          "p95": 7,
-          "max": 15,
-          "n": 45
-        },
-        "Телефон 3 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 45
-        },
-        "Телефон 1 (капитан)": {
-          "median": 0,
-          "p95": 2,
-          "max": 5,
-          "n": 45
-        },
-        "Телефон 6 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 45
-        },
-        "Экран зала": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 45
-        }
-      },
-      "misses": 0,
-      "stageShots": [
-        {
-          "base": "karaoke-этап-01",
-          "where": "lobby/ready/шаг 0",
-          "after": "лобби"
-        },
-        {
-          "base": "karaoke-этап-02",
-          "where": "playing/reveal/шаг 0",
-          "after": "Начать игру"
-        },
-        {
-          "base": "karaoke-этап-03",
-          "where": "playing/question/шаг 1",
-          "after": "100"
-        },
-        {
-          "base": "karaoke-этап-04",
-          "where": "playing/reveal/шаг 1",
-          "after": "Выступили · +100"
-        },
-        {
-          "base": "karaoke-этап-05",
-          "where": "playing/question/шаг 8",
-          "after": "Голосование зала"
-        }
-      ],
-      "problems": [
-        {
-          "level": "bug",
-          "text": "«🦋 Лисы» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 19,
-          "where": "🦋 Лисы"
-        },
-        {
-          "level": "bug",
-          "text": "«🐧 Ежи» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 37,
-          "where": "🐧 Ежи"
-        },
-        {
-          "level": "bug",
-          "text": "«Победил: 🐧 Ежи» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
-          "at": 76,
-          "where": "Победил: 🐧 Ежи"
-        }
-      ],
-      "shots": [
-        "karaoke-01-финал.png"
-      ],
-      "log": [
-        "1: проверка: addTime [playing/ready/шаг 0]",
-        "2: касание «Начать игру» [playing/ready/шаг 0]",
-        "3: касание «100» [playing/reveal/шаг 0]",
-        "4: проверка: tabs [playing/question/шаг 1]",
-        "5: проверка: sound [playing/question/шаг 1]",
-        "6: касание «Выступили · +100» [playing/question/шаг 1]",
-        "7: касание «Следующая команда» [playing/reveal/шаг 1]",
-        "8: касание «200» [playing/reveal/шаг 2]",
-        "9: касание «Выступили · +200» [playing/question/шаг 3]",
-        "10: проверка: overlay [playing/reveal/шаг 3]",
-        "11: двойное касание «Следующая команда» [playing/reveal/шаг 3]",
-        "12: касание «300» [playing/reveal/шаг 4]",
-        "13: проверка: slide [playing/question/шаг 5]",
-        "14: касание «Выступили · +300» [playing/question/шаг 5]",
-        "15: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "16: касание «500» [playing/reveal/шаг 6]",
-        "17: касание «Другая плитка — эта останется на поле» [playing/question/шаг 7]",
-        "18: касание «400батл» [playing/reveal/шаг 6]",
-        "19: двойное касание «🦋 Лисы» [playing/reveal/шаг 6]",
-        "20: касание «Другая плитка» [playing/reveal/шаг 6]",
-        "21: касание «Назад» [playing/reveal/шаг 6]",
-        "22: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "23: касание «200батл» [playing/reveal/шаг 6]",
-        "24: касание «Назад» [playing/reveal/шаг 6]",
-        "25: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "26: проверка: sound [playing/reveal/шаг 6]",
-        "27: проверка: tabs [playing/reveal/шаг 6]",
-        "28: касание «🦋 Лисы» [playing/reveal/шаг 6]",
-        "29: касание «🦋 Лисы» [playing/reveal/шаг 6]",
-        "30: проверка: slide [playing/reveal/шаг 6]",
-        "31: касание «🦋 Лисы» [playing/reveal/шаг 6]",
-        "32: касание «🐧 Ежи» [playing/reveal/шаг 6]",
-        "33: касание «Назад» [playing/reveal/шаг 6]",
-        "34: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "35: касание «Назад» [playing/reveal/шаг 6]",
-        "36: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "37: касание «🐧 Ежи» [playing/reveal/шаг 6]",
-        "38: проверка: overlay [playing/reveal/шаг 6]",
-        "39: касание «Открыть батл» [playing/reveal/шаг 6]",
-        "40: касание «Голосование зала» [playing/question/шаг 7]",
-        "41: касание «Подсчитать голоса» [playing/question/шаг 8]",
-        "42: касание «Победил: 🐧 Ежи» [playing/reveal/шаг 8]",
-        "43: касание «Назад» [playing/reveal/шаг 8]",
-        "44: касание «Подсчитать голоса» [playing/question/шаг 8]",
-        "45: касание «Следующая команда» [playing/reveal/шаг 8]",
-        "46: касание «400батл» [playing/reveal/шаг 9]",
-        "47: касание «🦋 Лисы» [playing/reveal/шаг 9]",
-        "48: проверка: peek [playing/reveal/шаг 9]",
-        "49: проверка: tabs [playing/reveal/шаг 9]",
-        "50: касание «🦋 Лисы» [playing/reveal/шаг 9]",
-        "51: касание «🦋 Лисы» [playing/reveal/шаг 9]",
-        "52: проверка: overlay [playing/reveal/шаг 9]",
-        "53: касание «Открыть батл» [playing/reveal/шаг 9]",
-        "54: касание «Другая плитка — эта останется на поле» [playing/question/шаг 10]",
-        "55: касание «400батл» [playing/reveal/шаг 9]",
-        "56: касание «🐧 Ежи» [playing/reveal/шаг 9]",
-        "57: касание «🐧 Ежи» [playing/reveal/шаг 9]",
-        "58: касание «🌈 Совы» [playing/reveal/шаг 9]",
-        "59: проверка: tabs [playing/reveal/шаг 9]",
-        "60: касание «Другая плитка» [playing/reveal/шаг 9]",
-        "61: касание «300батл» [playing/reveal/шаг 9]",
-        "62: проверка: peek [playing/reveal/шаг 9]",
-        "63: касание «🐧 Ежи» [playing/reveal/шаг 9]",
-        "64: касание «Открыть батл» [playing/reveal/шаг 9]",
-        "65: проверка: addTime [playing/question/шаг 10]",
-        "66: касание «Голосование зала» [playing/question/шаг 10]",
-        "67: проверка: peek [playing/question/шаг 11]",
-        "68: проверка: sound [playing/question/шаг 11]",
-        "69: касание «Назад» [playing/question/шаг 11]",
-        "70: двойное касание «Голосование зала» [playing/question/шаг 10]",
-        "71: касание «Подсчитать голоса» [playing/question/шаг 11]",
-        "72: касание «Победил: 🐧 Ежи» [playing/reveal/шаг 11]",
-        "73: проверка: slide [playing/reveal/шаг 11]",
-        "74: проверка: overlay [playing/reveal/шаг 11]",
-        "75: проверка: slide [playing/reveal/шаг 11]",
-        "76: касание «Победил: 🐧 Ежи» [playing/reveal/шаг 11]",
-        "77: касание «Победил: 🐧 Ежи» [playing/reveal/шаг 11]",
-        "78: проверка: peek [playing/reveal/шаг 11]",
-        "79: касание «Назад» [playing/reveal/шаг 11]",
-        "80: касание «Подсчитать голоса» [playing/question/шаг 11]",
-        "81: касание «Назад» [playing/reveal/шаг 11]",
-        "82: проверка: slide [playing/question/шаг 11]",
-        "83: двойное касание «Подсчитать голоса» [playing/question/шаг 11]",
-        "84: проверка: sound [playing/reveal/шаг 11]",
-        "85: проверка: tabs [playing/reveal/шаг 11]",
-        "86: касание «Победил: 🐧 Ежи» [playing/reveal/шаг 11]",
-        "87: касание «Ничья» [playing/reveal/шаг 11]",
-        "88: касание «Победил: 🐧 Ежи» [playing/reveal/шаг 11]",
-        "89: касание «Следующая команда» [playing/reveal/шаг 11]",
-        "90: касание «300» [playing/reveal/шаг 12]"
-      ]
-    },
-    {
-      "key": "melody",
-      "name": "Узнай по нотам",
-      "source": "библиотека test",
-      "title": "Узнай по нотам: шаблон",
-      "session": "pultmvk79wifcnp3",
-      "actions": 61,
+      "title": "Шпион",
+      "session": "pultmvkjrl6y7tpw",
+      "actions": 77,
       "finished": true,
       "counts": {
-        "двойное касание": 2,
-        "Назад": 2,
-        "главная кнопка": 31,
-        "слайд": 4,
-        "другая кнопка": 4,
-        "таблица на экран": 3,
-        "вкладки по кругу": 4,
-        "звук": 3,
-        "поверх игры: tech": 1,
-        "перезагрузка пульта": 4,
-        "+10 секунд": 2,
-        "окно: отмена": 2,
-        "окно: да": 1
+        "вкладки по кругу": 5,
+        "главная кнопка": 49,
+        "Назад": 4,
+        "звук": 4,
+        "двойное касание": 3,
+        "другая кнопка": 5,
+        "перезагрузка пульта": 1,
+        "слайд": 1,
+        "окно: да": 3
       },
       "lag": {
-        "median": 113,
-        "p95": 211,
-        "max": 280,
-        "n": 63
+        "median": 112,
+        "p95": 157,
+        "max": 204,
+        "n": 73
       },
       "server": {
-        "median": 145,
-        "p95": 158,
-        "max": 178,
-        "n": 76,
+        "median": 140,
+        "p95": 148,
+        "max": 159,
+        "n": 88,
         "status": {
-          "200": 83,
-          "409": 1
+          "200": 97
         }
       },
-      "phones": 6,
+      "phones": 5,
       "playMode": "solo",
       "delivery": {
         "Телефон 1": {
           "median": 0,
           "p95": 0,
-          "max": 1,
-          "n": 37
+          "max": 293,
+          "n": 62
         },
         "Телефон 2": {
           "median": 0,
           "p95": 0,
-          "max": 0,
-          "n": 37
+          "max": 293,
+          "n": 62
         },
         "Телефон 3": {
           "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 37
-        },
-        "Телефон 4": {
-          "median": 0,
-          "p95": 3,
-          "max": 3,
-          "n": 37
+          "p95": 6,
+          "max": 302,
+          "n": 62
         },
         "Экран зала": {
           "median": 0,
           "p95": 0,
-          "max": 0,
-          "n": 37
+          "max": 292,
+          "n": 62
+        },
+        "Телефон 4": {
+          "median": 0,
+          "p95": 0,
+          "max": 293,
+          "n": 62
         },
         "Телефон 5": {
           "median": 0,
-          "p95": 3,
-          "max": 5,
-          "n": 37
-        },
-        "Телефон 6": {
-          "median": 0,
           "p95": 0,
-          "max": 0,
-          "n": 37
+          "max": 295,
+          "n": 62
         }
       },
       "misses": 0,
       "stageShots": [
         {
-          "base": "melody-этап-01",
+          "base": "spy-этап-01",
           "where": "lobby/ready/шаг 0",
           "after": "лобби"
         },
         {
-          "base": "melody-этап-02",
+          "base": "spy-этап-02",
           "where": "playing/question/шаг 0",
-          "after": "Показать вопрос"
+          "after": "Собрать телефоны"
         },
         {
-          "base": "melody-этап-03",
-          "where": "playing/ready/шаг 0",
-          "after": "Назад"
-        },
-        {
-          "base": "melody-этап-04",
+          "base": "spy-этап-03",
           "where": "playing/reveal/шаг 0",
-          "after": "Показать ответ"
+          "after": "Раздать карты"
         },
         {
-          "base": "melody-этап-05",
-          "where": "playing/board/шаг 0",
-          "after": "Показать таблицу"
+          "base": "spy-этап-04",
+          "where": "playing/question/шаг 1",
+          "after": "Начать обсуждение · 8 мин"
         },
         {
-          "base": "melody-этап-06",
-          "where": "playing/board/шаг 2",
-          "after": "Итоги раунда"
+          "base": "spy-этап-05",
+          "where": "playing/question/шаг 2",
+          "after": "Голосование"
         },
         {
-          "base": "melody-этап-07",
-          "where": "playing/board/шаг 2",
-          "after": "Общий счёт"
+          "base": "spy-этап-06",
+          "where": "playing/reveal/шаг 2",
+          "after": "Подсчитать голоса"
         },
         {
-          "base": "melody-этап-08",
-          "where": "playing/podium/шаг 7",
-          "after": "Награждение"
+          "base": "spy-этап-07",
+          "where": "playing/reveal/шаг 20",
+          "after": "Открыть карту обвиняемого"
         },
         {
-          "base": "melody-этап-09",
-          "where": "finished/podium/шаг 7",
+          "base": "spy-этап-08",
+          "where": "playing/podium/шаг 29",
+          "after": "Закончить и наградить"
+        },
+        {
+          "base": "spy-этап-09",
+          "where": "finished/podium/шаг 29",
           "after": "Завершить игру"
         }
       ],
       "problems": [
         {
-          "level": "bug",
-          "text": "«Ещё не ответили: 1»: не нажать — locator.click: Timeout 4000ms exceeded.",
-          "at": 13
+          "level": "note",
+          "text": "Двойное касание «Подсчитать голоса»: две разные записи подряд [playing/question/шаг 18] — проверить",
+          "at": 46
         }
       ],
       "shots": [
-        "melody-01-не-нажать.png",
-        "melody-02-финал.png"
+        "spy-01-финал.png"
       ],
       "log": [
-        "1: двойное касание «Показать вопрос» [playing/ready/шаг 0]",
-        "2: касание «Назад» [playing/question/шаг 0]",
-        "3: касание «Показать вопрос» [playing/ready/шаг 0]",
-        "4: проверка: slide [playing/question/шаг 0]",
-        "5: касание «Показать ответ» [playing/question/шаг 0]",
-        "6: касание «Показать таблицу» [playing/reveal/шаг 0]",
-        "7: проверка: peek [playing/board/шаг 0]",
-        "8: касание «Следующий вопрос» [playing/board/шаг 0]",
-        "9: проверка: tabs [playing/question/шаг 1]",
-        "10: касание «Показать ответ» [playing/question/шаг 1]",
-        "11: проверка: slide [playing/reveal/шаг 1]",
-        "12: касание «Следующий вопрос» [playing/reveal/шаг 1]",
-        "13: касание «Ещё не ответили: 1» [playing/question/шаг 2]",
-        "14: проверка: sound [playing/question/шаг 2]",
-        "15: касание «Показать ответ» [playing/question/шаг 2]",
-        "16: касание «Итоги раунда» [playing/reveal/шаг 2]",
-        "17: проверка: peek [playing/board/шаг 2]",
-        "18: касание «Назад» [playing/board/шаг 2]",
-        "19: проверка: tabs [playing/reveal/шаг 2]",
-        "20: касание «Итоги раунда» [playing/reveal/шаг 2]",
-        "21: проверка: overlay [playing/board/шаг 2]",
-        "22: касание «Общий счёт» [playing/board/шаг 2]",
-        "23: касание «Следующий вопрос» [playing/board/шаг 2]",
-        "24: касание «Начать раунд» [playing/ready/шаг 3]",
-        "25: проверка: reload [playing/question/шаг 3]",
-        "26: проверка: reload [playing/question/шаг 3]",
-        "27: касание «Показать ответ» [playing/question/шаг 3]",
-        "28: касание «Следующий вопрос» [playing/reveal/шаг 3]",
-        "29: проверка: addTime [playing/question/шаг 4]",
-        "30: проверка: tabs [playing/question/шаг 4]",
-        "31: касание «Показать ответ» [playing/question/шаг 4]",
-        "32: касание «Следующий вопрос» [playing/reveal/шаг 4]",
-        "33: проверка: sound [playing/question/шаг 5]",
-        "34: касание «Ещё не ответили: 1» [playing/question/шаг 5]",
-        "35: касание «Показать ответ» [playing/question/шаг 5]",
-        "36: касание «Итоги раунда» [playing/reveal/шаг 5]",
-        "37: проверка: peek [playing/board/шаг 5]",
-        "38: проверка: reload [playing/board/шаг 5]",
-        "39: касание «Общий счёт» [playing/board/шаг 5]",
-        "40: касание «Следующий вопрос» [playing/board/шаг 5]",
-        "41: проверка: reload [playing/ready/шаг 6]",
-        "42: двойное касание «Начать раунд» [playing/ready/шаг 6]",
-        "43: проверка: addTime [playing/question/шаг 6]",
-        "44: касание «Показать ответ» [playing/question/шаг 6]",
-        "45: проверка: sound [playing/reveal/шаг 6]",
-        "46: касание «Показать таблицу» [playing/reveal/шаг 6]",
-        "47: касание «Следующий вопрос» [playing/board/шаг 6]",
-        "48: касание «Показать ответ» [playing/question/шаг 7]",
-        "49: касание «Итоги раунда» [playing/reveal/шаг 7]",
-        "50: касание «Общий счёт» [playing/board/шаг 7]",
-        "51: проверка: slide [playing/board/шаг 7]",
-        "52: проверка: slide [playing/board/шаг 7]",
-        "53: касание «Награждение» [playing/board/шаг 7]",
-        "54: касание «Показать 3 место» [playing/podium/шаг 7]",
-        "55: касание «Показать 2 место» [playing/podium/шаг 7]",
-        "56: касание «Показать 1 место» [playing/podium/шаг 7]",
-        "57: касание «Завершить игру» [playing/podium/шаг 7]",
-        "58: касание «Завершить игру» [playing/podium/шаг 7]",
-        "59: проверка: tabs [playing/podium/шаг 7]",
-        "60: касание «Завершить игру» [playing/podium/шаг 7]"
+        "1: проверка: tabs [playing/ready/шаг 0]",
+        "2: касание «Собрать телефоны» [playing/ready/шаг 0]",
+        "3: касание «Раздать карты» [playing/question/шаг 0]",
+        "4: проверка: peek [playing/reveal/шаг 0]",
+        "5: проверка: tabs [playing/reveal/шаг 0]",
+        "6: касание «Начать обсуждение · 8 мин» [playing/reveal/шаг 0]",
+        "7: касание «Голосование» [playing/question/шаг 1]",
+        "8: касание «Подсчитать голоса» [playing/question/шаг 2]",
+        "9: проверка: tabs [playing/reveal/шаг 2]",
+        "10: касание «Продолжить обсуждение» [playing/reveal/шаг 2]",
+        "11: касание «Голосование» [playing/question/шаг 3]",
+        "12: касание «Назад» [playing/question/шаг 4]",
+        "13: касание «Голосование» [playing/question/шаг 3]",
+        "14: касание «Подсчитать голоса» [playing/question/шаг 4]",
+        "15: проверка: sound [playing/reveal/шаг 4]",
+        "16: касание «Продолжить обсуждение» [playing/reveal/шаг 4]",
+        "17: двойное касание «Голосование» [playing/question/шаг 5]",
+        "18: касание «Назад» [playing/question/шаг 6]",
+        "19: касание «Голосование» [playing/question/шаг 5]",
+        "20: касание «Подсчитать голоса» [playing/question/шаг 6]",
+        "21: проверка: peek [playing/reveal/шаг 6]",
+        "22: касание «Продолжить обсуждение» [playing/reveal/шаг 6]",
+        "23: касание «Голосование» [playing/question/шаг 7]",
+        "24: касание «Подсчитать голоса» [playing/question/шаг 8]",
+        "25: касание «Продолжить обсуждение» [playing/reveal/шаг 8]",
+        "26: касание «Пауза» [playing/question/шаг 9]",
+        "27: касание «Голосование» [playing/question/шаг 9]",
+        "28: касание «Подсчитать голоса» [playing/question/шаг 10]",
+        "29: касание «Продолжить обсуждение» [playing/reveal/шаг 10]",
+        "30: касание «Голосование» [playing/question/шаг 11]",
+        "31: касание «Подсчитать голоса» [playing/question/шаг 12]",
+        "32: двойное касание «Продолжить обсуждение» [playing/reveal/шаг 12]",
+        "33: касание «+1 минута» [playing/question/шаг 13]",
+        "34: касание «Голосование» [playing/question/шаг 13]",
+        "35: касание «Подсчитать голоса» [playing/question/шаг 14]",
+        "36: касание «Продолжить обсуждение» [playing/reveal/шаг 14]",
+        "37: касание «Назад» [playing/question/шаг 15]",
+        "38: касание «Продолжить обсуждение» [playing/reveal/шаг 14]",
+        "39: проверка: sound [playing/question/шаг 15]",
+        "40: проверка: sound [playing/question/шаг 15]",
+        "41: касание «Голосование» [playing/question/шаг 15]",
+        "42: касание «Подсчитать голоса» [playing/question/шаг 16]",
+        "43: касание «Продолжить обсуждение» [playing/reveal/шаг 16]",
+        "44: касание «Голосование» [playing/question/шаг 17]",
+        "45: проверка: reload [playing/question/шаг 18]",
+        "46: двойное касание «Подсчитать голоса» [playing/question/шаг 18]",
+        "47: касание «Продолжить обсуждение» [playing/reveal/шаг 18]",
+        "48: касание «Голосование» [playing/question/шаг 19]",
+        "49: касание «Подсчитать голоса» [playing/question/шаг 20]",
+        "50: касание «Назад» [playing/reveal/шаг 20]",
+        "51: касание «Подсчитать голоса» [playing/question/шаг 20]",
+        "52: касание «Открыть карту обвиняемого» [playing/reveal/шаг 20]",
+        "53: касание «Партия 2 из 3: собрать телефоны» [playing/reveal/шаг 20]",
+        "54: касание «Раздать карты» [playing/question/шаг 21]",
+        "55: касание «Начать обсуждение · 8 мин» [playing/reveal/шаг 21]",
+        "56: касание «Голосование» [playing/question/шаг 22]",
+        "57: проверка: sound [playing/question/шаг 23]",
+        "58: касание «Подсчитать голоса» [playing/question/шаг 23]",
+        "59: касание «Продолжить обсуждение» [playing/reveal/шаг 23]",
+        "60: проверка: peek [playing/question/шаг 24]",
+        "61: касание «Пауза» [playing/question/шаг 24]",
+        "62: проверка: tabs [playing/question/шаг 24]",
+        "63: проверка: tabs [playing/question/шаг 24]",
+        "64: касание «Голосование» [playing/question/шаг 24]",
+        "65: касание «Подсчитать голоса» [playing/question/шаг 25]",
+        "66: касание «Продолжить обсуждение» [playing/reveal/шаг 25]",
+        "67: проверка: addTime [playing/question/шаг 26]",
+        "68: касание «Голосование» [playing/question/шаг 26]",
+        "69: касание «Подсчитать голоса» [playing/question/шаг 27]",
+        "70: касание «Продолжить обсуждение» [playing/reveal/шаг 27]",
+        "71: касание «Голосование» [playing/question/шаг 28]",
+        "72: проверка: slide [playing/question/шаг 29]",
+        "73: касание «Закончить досрочно» [playing/question/шаг 29]",
+        "74: касание «Закончить и наградить» [playing/reveal/шаг 29]",
+        "75: касание «Открыть следующее место» [playing/podium/шаг 29]",
+        "76: касание «Завершить игру» [playing/podium/шаг 29]"
       ]
     },
     {
-      "key": "wager",
-      "name": "Держи пари",
+      "key": "wine",
+      "name": "Винное казино",
       "source": "библиотека test",
-      "title": "Держи пари: угадай число",
-      "session": "pultmvk7cqe47xw6",
-      "actions": 43,
+      "title": "Винное казино: 4 бутылки",
+      "session": "pultmvkjrzwlngyd",
+      "actions": 20,
       "finished": true,
       "counts": {
-        "главная кнопка": 31,
-        "поверх игры: draw": 2,
-        "вкладки по кругу": 3,
-        "звук": 2,
-        "+10 секунд": 1,
-        "слайд": 2,
+        "двойное касание": 2,
+        "главная кнопка": 12,
+        "Назад": 1,
+        "перезагрузка пульта": 2,
         "окно: отмена": 1,
+        "вкладки по кругу": 1,
         "окно: да": 1
       },
       "lag": {
-        "median": 116,
-        "p95": 212,
-        "max": 284,
-        "n": 46
+        "median": 108,
+        "p95": 215,
+        "max": 215,
+        "n": 19
       },
       "server": {
-        "median": 140,
-        "p95": 146,
-        "max": 242,
-        "n": 49,
+        "median": 136,
+        "p95": 160,
+        "max": 160,
+        "n": 17,
         "status": {
-          "200": 53
+          "200": 22
         }
       },
-      "phones": 6,
-      "playMode": "teams",
+      "phones": 3,
+      "playMode": "solo",
       "delivery": {
-        "Телефон 1 (капитан)": {
-          "median": 1,
-          "p95": 5,
-          "max": 5,
-          "n": 31
-        },
-        "Телефон 2 (капитан)": {
-          "median": 3,
-          "p95": 9,
-          "max": 10,
-          "n": 31
-        },
-        "Телефон 3 (капитан)": {
+        "Телефон 1": {
           "median": 0,
           "p95": 0,
           "max": 0,
-          "n": 31
+          "n": 15
         },
-        "Телефон 6 (участник команды)": {
-          "median": 6,
-          "p95": 11,
-          "max": 12,
-          "n": 31
+        "Телефон 2": {
+          "median": 0,
+          "p95": 2,
+          "max": 2,
+          "n": 15
         },
-        "Телефон 4 (участник команды)": {
-          "median": 4,
-          "p95": 11,
-          "max": 13,
-          "n": 31
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 3,
-          "p95": 10,
-          "max": 11,
-          "n": 31
+        "Телефон 3": {
+          "median": 5,
+          "p95": 8,
+          "max": 8,
+          "n": 15
         },
         "Экран зала": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 31
+          "median": 4,
+          "p95": 6,
+          "max": 6,
+          "n": 15
         }
       },
       "misses": 0,
       "stageShots": [
         {
-          "base": "wager-этап-01",
+          "base": "wine-этап-01",
           "where": "lobby/ready/шаг 0",
           "after": "лобби"
         },
         {
-          "base": "wager-этап-02",
+          "base": "wine-этап-02",
           "where": "playing/question/шаг 1",
-          "after": "Показать вопрос 1 из 7"
+          "after": "Открыть ставки · бутылка 1 из 4"
         },
         {
-          "base": "wager-этап-03",
-          "where": "playing/question/шаг 2",
-          "after": "Разложить ответы и открыть ставки"
+          "base": "wine-этап-03",
+          "where": "playing/reveal/шаг 1",
+          "after": "Открыть бутылку"
         },
         {
-          "base": "wager-этап-04",
-          "where": "playing/reveal/шаг 2",
-          "after": "Показать ответ"
+          "base": "wine-этап-04",
+          "where": "playing/ready/шаг 1",
+          "after": "Следующая бутылка · 2"
         },
         {
-          "base": "wager-этап-05",
-          "where": "playing/ready/шаг 2",
-          "after": "Следующий вопрос · 2"
-        },
-        {
-          "base": "wager-этап-06",
-          "where": "playing/podium/шаг 14",
-          "after": "Вопросы кончились — награждение"
-        },
-        {
-          "base": "wager-этап-07",
-          "where": "finished/podium/шаг 14",
+          "base": "wine-этап-05",
+          "where": "finished/reveal/шаг 4",
           "after": "Завершить игру"
         }
       ],
       "problems": [],
       "shots": [
-        "wager-01-финал.png"
+        "wine-01-финал.png"
       ],
       "log": [
-        "1: касание «Показать вопрос 1 из 7» [playing/ready/шаг 0]",
-        "2: касание «Разложить ответы и открыть ставки» [playing/question/шаг 1]",
-        "3: касание «Показать ответ» [playing/question/шаг 2]",
-        "4: касание «Следующий вопрос · 2» [playing/reveal/шаг 2]",
-        "5: проверка: overlay [playing/ready/шаг 2]",
-        "6: касание «Показать вопрос 2 из 7» [playing/ready/шаг 2]",
-        "7: касание «Разложить ответы и открыть ставки» [playing/question/шаг 3]",
-        "8: касание «Показать ответ» [playing/question/шаг 4]",
-        "9: касание «Следующий вопрос · 3» [playing/reveal/шаг 4]",
-        "10: касание «Показать вопрос 3 из 7» [playing/ready/шаг 4]",
-        "11: касание «Разложить ответы и открыть ставки» [playing/question/шаг 5]",
-        "12: касание «Показать ответ» [playing/question/шаг 6]",
-        "13: касание «Следующий вопрос · 4» [playing/reveal/шаг 6]",
-        "14: касание «Показать вопрос 4 из 7» [playing/ready/шаг 6]",
-        "15: проверка: tabs [playing/question/шаг 7]",
-        "16: касание «Разложить ответы и открыть ставки» [playing/question/шаг 7]",
-        "17: проверка: tabs [playing/question/шаг 8]",
-        "18: касание «Показать ответ» [playing/question/шаг 8]",
-        "19: касание «Следующий вопрос · 5» [playing/reveal/шаг 8]",
-        "20: касание «Показать вопрос 5 из 7» [playing/ready/шаг 8]",
-        "21: касание «Разложить ответы и открыть ставки» [playing/question/шаг 9]",
-        "22: касание «Показать ответ» [playing/question/шаг 10]",
-        "23: проверка: sound [playing/reveal/шаг 10]",
-        "24: касание «Следующий вопрос · 6» [playing/reveal/шаг 10]",
-        "25: проверка: sound [playing/ready/шаг 10]",
-        "26: касание «Показать вопрос 6 из 7» [playing/ready/шаг 10]",
-        "27: касание «Разложить ответы и открыть ставки» [playing/question/шаг 11]",
-        "28: касание «Показать ответ» [playing/question/шаг 12]",
-        "29: касание «Следующий вопрос · 7» [playing/reveal/шаг 12]",
-        "30: касание «Показать вопрос 7 из 7» [playing/ready/шаг 12]",
-        "31: проверка: award [playing/question/шаг 13]",
-        "32: касание «Разложить ответы и открыть ставки» [playing/question/шаг 13]",
-        "33: проверка: overlay [playing/question/шаг 14]",
-        "34: проверка: tabs [playing/question/шаг 14]",
-        "35: проверка: addTime [playing/question/шаг 14]",
-        "36: касание «Показать ответ» [playing/question/шаг 14]",
-        "37: касание «Вопросы кончились — награждение» [playing/reveal/шаг 14]",
-        "38: проверка: slide [playing/podium/шаг 14]",
-        "39: касание «Открыть следующее место» [playing/podium/шаг 14]",
-        "40: касание «Завершить игру» [playing/podium/шаг 14]",
-        "41: проверка: slide [playing/podium/шаг 14]",
-        "42: касание «Завершить игру» [playing/podium/шаг 14]"
+        "1: двойное касание «Открыть ставки · бутылка 1 из 4» [playing/ready/шаг 0]",
+        "2: касание «Открыть бутылку» [playing/question/шаг 1]",
+        "3: касание «Следующая бутылка · 2» [playing/reveal/шаг 1]",
+        "4: проверка: addTime [playing/ready/шаг 1]",
+        "5: касание «Открыть ставки · бутылка 2 из 4» [playing/ready/шаг 1]",
+        "6: касание «Открыть бутылку» [playing/question/шаг 2]",
+        "7: касание «Следующая бутылка · 3» [playing/reveal/шаг 2]",
+        "8: касание «Открыть ставки · бутылка 3 из 4» [playing/ready/шаг 2]",
+        "9: касание «Назад» [playing/question/шаг 3]",
+        "10: двойное касание «Открыть ставки · бутылка 3 из 4» [playing/ready/шаг 2]",
+        "11: проверка: reload [playing/question/шаг 3]",
+        "12: касание «Открыть бутылку» [playing/question/шаг 3]",
+        "13: касание «Следующая бутылка · 4» [playing/reveal/шаг 3]",
+        "14: проверка: reload [playing/ready/шаг 3]",
+        "15: касание «Открыть ставки · бутылка 4 из 4» [playing/ready/шаг 3]",
+        "16: касание «Открыть бутылку» [playing/question/шаг 4]",
+        "17: касание «Завершить игру» [playing/reveal/шаг 4]",
+        "18: проверка: tabs [playing/reveal/шаг 4]",
+        "19: касание «Завершить игру» [playing/reveal/шаг 4]"
       ]
     },
     {
-      "key": "dance",
-      "name": "Танцевальный батл",
+      "key": "perudo",
+      "name": "Кости лжеца",
       "source": "библиотека test",
-      "title": "Танцевальный батл: латина",
-      "session": "pultmvk7dltr425e",
-      "actions": 49,
-      "finished": true,
+      "title": "Кости лжеца",
+      "session": "pultmvkjsy78qum6",
+      "actions": 91,
+      "finished": false,
       "counts": {
-        "главная кнопка": 19,
-        "другая кнопка": 10,
+        "главная кнопка": 22,
         "поверх игры: tech": 2,
-        "поверх игры: draw": 2,
-        "звук": 2,
+        "Назад": 10,
+        "другая кнопка": 26,
+        "звук": 3,
+        "поверх игры: draw": 1,
+        "вкладки по кругу": 9,
+        "перезагрузка пульта": 2,
         "двойное касание": 2,
-        "слайд": 2,
-        "таблица на экран": 1,
-        "вкладки по кругу": 2,
-        "окно: да": 2,
-        "наградить сейчас и назад": 1
+        "поверх игры: join": 2,
+        "таблица на экран": 3,
+        "слайд": 4
       },
       "lag": {
-        "median": 128,
-        "p95": 212,
-        "max": 222,
-        "n": 54
+        "median": 112,
+        "p95": 210,
+        "max": 292,
+        "n": 87
       },
       "server": {
-        "median": 144,
-        "p95": 158,
-        "max": 161,
-        "n": 59,
+        "median": 155,
+        "p95": 165,
+        "max": 176,
+        "n": 88,
         "status": {
-          "200": 62,
+          "200": 97,
           "409": 1
         }
       },
-      "phones": 6,
-      "playMode": "teams",
+      "phones": 3,
+      "playMode": "solo",
       "delivery": {
-        "Телефон 1 (капитан)": {
+        "Телефон 1": {
+          "median": 3,
+          "p95": 7,
+          "max": 426,
+          "n": 40
+        },
+        "Телефон 2": {
           "median": 0,
           "p95": 0,
-          "max": 0,
-          "n": 31
+          "max": 415,
+          "n": 40
         },
-        "Телефон 6 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 31
-        },
-        "Телефон 3 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 31
-        },
-        "Телефон 4 (участник команды)": {
-          "median": 0,
-          "p95": 1,
-          "max": 1,
-          "n": 31
-        },
-        "Телефон 5 (участник команды)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 31
-        },
-        "Телефон 2 (капитан)": {
-          "median": 0,
-          "p95": 0,
-          "max": 0,
-          "n": 31
+        "Телефон 3": {
+          "median": 2,
+          "p95": 4,
+          "max": 426,
+          "n": 40
         },
         "Экран зала": {
           "median": 0,
           "p95": 0,
-          "max": 0,
-          "n": 31
+          "max": 423,
+          "n": 40
         }
       },
       "misses": 0,
       "stageShots": [
         {
-          "base": "dance-этап-01",
+          "base": "perudo-этап-01",
           "where": "lobby/ready/шаг 0",
           "after": "лобби"
         },
         {
-          "base": "dance-этап-02",
+          "base": "perudo-этап-02",
           "where": "playing/question/шаг 0",
-          "after": "Начать игру"
+          "after": "Собрать стаканы"
         },
         {
-          "base": "dance-этап-03",
-          "where": "playing/reveal/шаг 0",
-          "after": "⚡ БатлЛатина№ 5"
-        },
-        {
-          "base": "dance-этап-04",
+          "base": "perudo-этап-03",
           "where": "playing/question/шаг 1",
-          "after": "Голосовать: кто победил"
+          "after": "Бросить кости"
         },
         {
-          "base": "dance-этап-05",
+          "base": "perudo-этап-04",
           "where": "playing/reveal/шаг 1",
-          "after": "Показать итог"
-        },
-        {
-          "base": "dance-этап-06",
-          "where": "playing/podium/шаг 11",
-          "after": "Все карточки сыграны — награждение"
-        },
-        {
-          "base": "dance-этап-07",
-          "where": "finished/podium/шаг 11",
-          "after": "Завершить игру"
+          "after": "«Не верю!» за 🍩 Вика"
         }
       ],
       "problems": [
         {
           "level": "bug",
-          "text": "«💃 ТанецЛатина№ 3»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":6,\"stage\":\"question\",\"result\":\"10nrlwg.37uwj6.8a\"} · меняли stage,revealed,result); после отказа успешных записей: 0",
-          "at": 22
+          "text": "«(кнопка без текста)»: не нажать — element is not enabled",
+          "at": 27
+        },
+        {
+          "level": "bug",
+          "text": "«(кнопка без текста)» не откликнулась: ни изменения на пульте, ни окна, ни запроса за 6 с",
+          "at": 36,
+          "where": "(кнопка без текста)"
+        },
+        {
+          "level": "bug",
+          "text": "«Назад»: касание получило отказ 409 ×1 (expect {\"phase\":\"playing\",\"step\":6,\"stage\":\"question\",\"result\":\"1d5hywk.lxe1k0.17j\"} · меняли step,stage,revealed,result); после отказа успешных записей: 0",
+          "at": 69
         }
       ],
       "shots": [
-        "dance-01-финал.png"
+        "perudo-01-не-нажать.png",
+        "perudo-02-не-нажать.png",
+        "perudo-03-не-нажать.png",
+        "perudo-04-финал.png"
       ],
       "log": [
-        "1: касание «Начать игру» [playing/ready/шаг 0]",
-        "2: касание «⚡ БатлЛатина№ 5» [playing/question/шаг 0]",
-        "3: касание «⟲ Сначала» [playing/reveal/шаг 0]",
-        "4: касание «Голосовать: кто победил» [playing/reveal/шаг 0]",
-        "5: касание «Показать итог» [playing/question/шаг 1]",
-        "6: касание «Следующая команда» [playing/reveal/шаг 1]",
-        "7: проверка: overlay [playing/question/шаг 2]",
-        "8: касание «💃 ТанецЛатина№ 2» [playing/question/шаг 2]",
-        "9: проверка: overlay [playing/reveal/шаг 2]",
-        "10: проверка: addTime [playing/reveal/шаг 2]",
-        "11: касание «⏸ Пауза» [playing/reveal/шаг 2]",
-        "12: проверка: overlay [playing/reveal/шаг 2]",
-        "13: касание «Оценивать выступление» [playing/reveal/шаг 2]",
-        "14: проверка: sound [playing/question/шаг 3]",
-        "15: касание «Показать итог» [playing/question/шаг 3]",
-        "16: двойное касание «Следующая команда» [playing/reveal/шаг 3]",
-        "17: касание «💃 ТанецЛатина№ 1» [playing/question/шаг 4]",
-        "18: проверка: slide [playing/reveal/шаг 4]",
-        "19: касание «Оценивать выступление» [playing/reveal/шаг 4]",
-        "20: касание «Показать итог» [playing/question/шаг 5]",
-        "21: касание «Следующая команда» [playing/reveal/шаг 5]",
-        "22: касание «💃 ТанецЛатина№ 3» [playing/question/шаг 6]",
-        "23: проверка: peek [playing/reveal/шаг 6]",
-        "24: касание «⏸ Пауза» [playing/reveal/шаг 6]",
-        "25: проверка: sound [playing/reveal/шаг 6]",
-        "26: касание «Оценивать выступление» [playing/reveal/шаг 6]",
-        "27: касание «Показать итог» [playing/question/шаг 7]",
-        "28: касание «Следующая команда» [playing/reveal/шаг 7]",
-        "29: касание «⚡ БатлЛатина№ 4» [playing/question/шаг 8]",
-        "30: проверка: tabs [playing/reveal/шаг 8]",
-        "31: проверка: award [playing/reveal/шаг 8]",
-        "32: касание «⏸ Пауза» [playing/reveal/шаг 8]",
-        "33: проверка: overlay [playing/reveal/шаг 8]",
-        "34: проверка: tabs [playing/reveal/шаг 8]",
-        "35: проверка: addTime [playing/reveal/шаг 8]",
-        "36: касание «Голосовать: кто победил» [playing/reveal/шаг 8]",
-        "37: касание «Показать итог» [playing/question/шаг 9]",
-        "38: касание «Следующая команда» [playing/reveal/шаг 9]",
-        "39: касание «💃 ТанецЛатина№ 6» [playing/question/шаг 10]",
-        "40: проверка: addTime [playing/reveal/шаг 10]",
-        "41: касание «Оценивать выступление» [playing/reveal/шаг 10]",
-        "42: касание «Показать итог» [playing/question/шаг 11]",
-        "43: проверка: award [playing/reveal/шаг 11]",
-        "44: проверка: addTime [playing/reveal/шаг 11]",
-        "45: касание «Все карточки сыграны — награждение» [playing/reveal/шаг 11]",
-        "46: двойное касание «Открыть следующее место» [playing/podium/шаг 11]",
-        "47: проверка: slide [playing/podium/шаг 11]",
-        "48: касание «Завершить игру» [playing/podium/шаг 11]"
+        "1: касание «Собрать стаканы» [playing/ready/шаг 0]",
+        "2: проверка: overlay [playing/question/шаг 0]",
+        "3: касание «Бросить кости» [playing/question/шаг 0]",
+        "4: касание «Назад» [playing/question/шаг 1]",
+        "5: касание «Бросить кости» [playing/question/шаг 0]",
+        "6: касание «Ставка за стакан: одна тройка» [playing/question/шаг 1]",
+        "7: касание «Назад» [playing/question/шаг 1]",
+        "8: касание «Ставка за стакан: одна тройка» [playing/question/шаг 1]",
+        "9: проверка: sound [playing/question/шаг 1]",
+        "10: касание ««Не верю!» за 🍩 Вика» [playing/question/шаг 1]",
+        "11: проверка: sound [playing/reveal/шаг 1]",
+        "12: касание «Следующий раунд» [playing/reveal/шаг 1]",
+        "13: касание «Назад» [playing/question/шаг 2]",
+        "14: проверка: overlay [playing/reveal/шаг 1]",
+        "15: касание «Следующий раунд» [playing/reveal/шаг 1]",
+        "16: касание «(кнопка без текста)» [playing/question/шаг 2]",
+        "17: касание «Назад» [playing/question/шаг 2]",
+        "18: проверка: tabs [playing/reveal/шаг 1]",
+        "19: касание «Следующий раунд» [playing/reveal/шаг 1]",
+        "20: проверка: tabs [playing/question/шаг 2]",
+        "21: касание «Ставка за стакан: одна тройка» [playing/question/шаг 2]",
+        "22: касание «(кнопка без текста)» [playing/question/шаг 2]",
+        "23: проверка: tabs [playing/question/шаг 2]",
+        "24: касание «Ставка за стакан: 2 двойки» [playing/question/шаг 2]",
+        "25: касание ««Не верю!» за 🍕 Борис» [playing/question/шаг 2]",
+        "26: касание «Следующий раунд» [playing/reveal/шаг 2]",
+        "27: касание «(кнопка без текста)» [playing/question/шаг 3]",
+        "28: касание «Ставка за стакан: одна тройка» [playing/question/шаг 3]",
+        "29: касание «(кнопка без текста)» [playing/question/шаг 3]",
+        "30: проверка: reload [playing/question/шаг 3]",
+        "31: касание ««Не верю!» за 🍩 Вика» [playing/question/шаг 3]",
+        "32: касание «Следующий раунд» [playing/reveal/шаг 3]",
+        "33: касание «+» [playing/question/шаг 4]",
+        "34: проверка: reload [playing/question/шаг 4]",
+        "35: касание «−» [playing/question/шаг 4]",
+        "36: касание «(кнопка без текста)» [playing/question/шаг 4]",
+        "37: касание «+» [playing/question/шаг 4]",
+        "38: касание «(кнопка без текста)» [playing/question/шаг 4]",
+        "39: касание «Назад» [playing/question/шаг 4]",
+        "40: двойное касание «Следующий раунд» [playing/reveal/шаг 3]",
+        "41: касание «(кнопка без текста)» [playing/question/шаг 4]",
+        "42: касание «(кнопка без текста)» [playing/question/шаг 4]",
+        "43: касание ««Не верю!» за 🦊 Аня» [playing/question/шаг 4]",
+        "44: касание «Следующий раунд» [playing/reveal/шаг 4]",
+        "45: касание «(кнопка без текста)» [playing/question/шаг 5]",
+        "46: касание «Назад» [playing/question/шаг 5]",
+        "47: проверка: overlay [playing/reveal/шаг 4]",
+        "48: касание «Следующий раунд» [playing/reveal/шаг 4]",
+        "49: касание «(кнопка без текста)» [playing/question/шаг 5]",
+        "50: касание «(кнопка без текста)» [playing/question/шаг 5]",
+        "51: проверка: tabs [playing/question/шаг 5]",
+        "52: касание «(кнопка без текста)» [playing/question/шаг 5]",
+        "53: касание «(кнопка без текста)» [playing/question/шаг 5]",
+        "54: касание «+» [playing/question/шаг 5]",
+        "55: касание «Ставка за стакан: 2 тройки» [playing/question/шаг 5]",
+        "56: проверка: peek [playing/question/шаг 5]",
+        "57: касание ««Не верю!» за 🍕 Борис» [playing/question/шаг 5]",
+        "58: проверка: slide [playing/reveal/шаг 5]",
+        "59: проверка: slide [playing/reveal/шаг 5]",
+        "60: проверка: slide [playing/reveal/шаг 5]",
+        "61: проверка: award [playing/reveal/шаг 5]",
+        "62: проверка: tabs [playing/reveal/шаг 5]",
+        "63: проверка: addTime [playing/reveal/шаг 5]",
+        "64: касание «Назад» [playing/reveal/шаг 5]",
+        "65: проверка: peek [playing/question/шаг 5]",
+        "66: двойное касание ««Не верю!» за 🍕 Борис» [playing/question/шаг 5]",
+        "67: касание «Следующий раунд» [playing/reveal/шаг 5]",
+        "68: касание «(кнопка без текста)» [playing/question/шаг 6]",
+        "69: касание «Назад» [playing/question/шаг 6]",
+        "70: касание ««Не верю!» за 🍩 Вика» [playing/question/шаг 6]",
+        "71: проверка: overlay [playing/reveal/шаг 6]",
+        "72: касание «Следующий раунд» [playing/reveal/шаг 6]",
+        "73: касание «(кнопка без текста)» [playing/question/шаг 7]",
+        "74: проверка: peek [playing/question/шаг 7]",
+        "75: проверка: tabs [playing/question/шаг 7]",
+        "76: проверка: tabs [playing/question/шаг 7]",
+        "77: проверка: tabs [playing/question/шаг 7]",
+        "78: касание «Назад» [playing/question/шаг 7]",
+        "79: проверка: tabs [playing/question/шаг 7]",
+        "80: касание ««Не верю!» за 🍕 Борис» [playing/question/шаг 7]",
+        "81: касание «Назад» [playing/reveal/шаг 7]",
+        "82: касание ««Не верю!» за 🍕 Борис» [playing/question/шаг 7]",
+        "83: проверка: slide [playing/reveal/шаг 7]",
+        "84: проверка: addTime [playing/reveal/шаг 7]",
+        "85: касание «Следующий раунд» [playing/reveal/шаг 7]",
+        "86: проверка: overlay [playing/question/шаг 8]",
+        "87: проверка: sound [playing/question/шаг 8]",
+        "88: проверка: addTime [playing/question/шаг 8]",
+        "89: касание «(кнопка без текста)» [playing/question/шаг 8]",
+        "90: касание ««Не верю!» за 🍩 Вика» [playing/question/шаг 8]"
       ]
     }
   ]

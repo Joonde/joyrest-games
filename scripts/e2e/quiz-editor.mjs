@@ -402,6 +402,33 @@ async function main() {
     check(order.note !== null && order.note < order.image, "«Заметка ведущему» — выше «Картинки» и «Трека»", `Порядок: ${JSON.stringify(order)}`);
     check(order.imageOpen === false, "«Картинка к вопросу» свёрнута, пока картинки нет");
     check(order.track === null || order.trackOpen === false, "«Трек к вопросу» свёрнут, пока трека нет");
+    // «🎵 Музыка на ответ»: свёрнута, раскрывается, выбор трека уходит на сервер (если у ведущего есть треки).
+    const answerFold = openCard().locator("details.fold").filter({ hasText: "Музыка на ответ" });
+    if ((await answerFold.count()) === 0) {
+      check(order.track === null, "«Музыка на ответ» есть там же, где «Трек к вопросу»");
+    } else {
+      check(!(await answerFold.first().evaluate((d) => d.open)), "«Музыка на ответ» свёрнута, пока музыки нет");
+      await answerFold.first().locator("summary").click();
+      const answerSelect = answerFold.first().locator("select");
+      await answerSelect.waitFor({ timeout: 10000 });
+      await page.waitForFunction((el) => !el.disabled, await answerSelect.elementHandle(), { timeout: 15000 }).catch(() => {});
+      const values = await answerSelect.locator("option").evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+      if (values.length === 0) {
+        console.log("::notice::У ведущего на test нет треков — выбор «Музыки на ответ» не проверен");
+      } else {
+        await answerSelect.selectOption(values[0]);
+        await answerFold.first().getByRole("button", { name: "▶ Послушать отрывок" }).waitFor({ timeout: 5000 });
+        await settle();
+        const ga = await api("GET", `/api/games/${gameId}`, host.cookie);
+        const am = ga.data?.content?.questions?.[0]?.answerMusic;
+        check(am?.trackId === values[0], "На сервере: «Музыка на ответ» с выбранным треком", `answerMusic: ${JSON.stringify(am)}`);
+        await snap("muzyka-na-otvet");
+        await answerSelect.selectOption("");
+        await settle();
+        const gb = await api("GET", `/api/games/${gameId}`, host.cookie);
+        check(!gb.data?.content?.questions?.[0]?.answerMusic, "«Без музыки» убирает «Музыку на ответ»");
+      }
+    }
     // Удалить вариант — «Вернуть».
     const countNow = await rows.count();
     const removedText = await rows.nth(1).inputValue();

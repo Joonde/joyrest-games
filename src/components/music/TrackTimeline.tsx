@@ -57,7 +57,10 @@ const JOIN_LABELS: Record<ClipJoin, string> = { cut: "Сразу", cross: "Ск�
 
 type Handle = "start" | "end" | "chorusStart" | "chorusEnd";
 
-export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChange: (clip: Clip) => void; disabled?: boolean }) {
+/**
+ * `answer` — «Музыка на ответ»: один отрывок, который играет на показе верного ответа (без угадывания, припева и конфетти).
+ */
+export function TrackTimeline({ clip, onChange, disabled, answer = false }: { clip: Clip; onChange: (clip: Clip) => void; disabled?: boolean; answer?: boolean }) {
   const { tracks, failed } = useTrackList();
   const [peaks, setPeaks] = useState<number[] | null>(null);
   const [drag, setDrag] = useState<Handle | null>(null);
@@ -139,7 +142,7 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
   return (
     <div className="timeline">
       <label className="field">
-        <span>Трек на экране зала</span>
+        <span>{answer ? "Трек на ответ" : "Трек на экране зала"}</span>
         {failed ? (
           <span className="muted small">Не удалось загрузить музыку. Проверьте интернет.</span>
         ) : (
@@ -221,7 +224,7 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
           <div className="timeline__legend">
             <span className="timeline__dot timeline__dot--guess" aria-hidden="true" />
             <span>
-              Угадывание · {clock(clip.start)}–{clock(guessEnd)}
+              {answer ? "Играет на ответе" : "Угадывание"} · {clock(clip.start)}–{clock(guessEnd)}
             </span>
             <strong>{clip.length} с</strong>
           </div>
@@ -236,6 +239,7 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
             </label>
           </div>
 
+          {!answer && (<>
           <div className="timeline__legend">
             <span className="timeline__dot timeline__dot--chorus" aria-hidden="true" />
             <span>{clip.chorusStart === null ? "Припев при верном ответе — нет" : `Припев при верном · ${clock(clip.chorusStart)}–${clock(chorusEnd)}`}</span>
@@ -289,10 +293,11 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
               </div>
             </>
           )}
+          </>)}
 
           <div className="actions actions--row">
             <button type="button" className="btn btn--secondary" aria-pressed={listening === "guess"} onClick={() => listen("guess")}>
-              {listening === "guess" ? "■ Стоп" : "▶ Угадывание"}
+              {listening === "guess" ? "■ Стоп" : answer ? "▶ Послушать отрывок" : "▶ Угадывание"}
             </button>
             {clip.chorusStart !== null && (
               <button type="button" className="btn btn--secondary" aria-pressed={listening === "chorus"} onClick={() => listen("chorus")}>
@@ -331,12 +336,14 @@ export function TrackTimeline({ clip, onChange, disabled }: { clip: Clip; onChan
                 </div>
               </>
             )}
+            {!answer && (
             <label className="choice">
               <input type="checkbox" checked={clip.confetti} onChange={(e) => set({ confetti: e.target.checked })} />
               <span className="choice__text">
                 <span className="choice__title">Конфетти на экране при верном ответе</span>
               </span>
             </label>
+            )}
           </fieldset>
         </>
       )}

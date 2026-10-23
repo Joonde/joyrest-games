@@ -99,6 +99,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
     const images = [q?.imageId ?? null, next?.imageId ?? null, ...(q?.pictures ?? []).map((p) => p.imageId), ...(next?.pictures ?? []).map((p) => p.imageId)];
     preloadMedia(session.gameId, images, "full");
     preloadTrack(q?.trackId);
+    preloadTrack(q?.answerMusic?.trackId);
     preloadTrack(next?.trackId);
   }, [session.gameId, q, next]);
 
@@ -108,14 +109,29 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
   const buzz = parsed.buzz ?? null;
   const replay = typeof (session.state.result as { replay?: unknown } | null)?.replay === "number" ? (session.state.result as { replay: number }).replay : 0;
   const clip = q ? clipOf(q) : null;
-  const chorus = stage === "reveal" && clip?.chorusStart !== null && clip?.chorusStart !== undefined;
-  const fragmentKey = !clip?.trackId ? null : stage === "question" ? `q:${step}:${session.state.startedAt ?? 0}:${replay}` : stage === "reveal" ? `r:${step}:${replay}` : null;
+  // «Музыка на ответ» (решение владельца 23 октября 2026): у вопроса есть свой отрывок на ответ — на показе ответа играет он,
+  // вместо припева трека вопроса.
+  const answerMusic = stage === "reveal" ? (q?.answerMusic ?? null) : null;
+  const chorus = !answerMusic && stage === "reveal" && clip?.chorusStart !== null && clip?.chorusStart !== undefined;
+  const fragmentKey = answerMusic
+    ? `a:${step}:${replay}`
+    : !clip?.trackId
+      ? null
+      : stage === "question"
+        ? `q:${step}:${session.state.startedAt ?? 0}:${replay}`
+        : stage === "reveal"
+          ? `r:${step}:${replay}`
+          : null;
   useFragment(
-    clip?.trackId ?? null,
-    chorus ? (clip?.chorusStart ?? 0) : (clip?.start ?? 0),
-    chorus ? (clip?.chorusLength ?? 10) : stage === "reveal" ? Math.max(20, clip?.length ?? 0) : (clip?.length ?? 15),
+    answerMusic ? answerMusic.trackId : (clip?.trackId ?? null),
+    answerMusic ? answerMusic.start : chorus ? (clip?.chorusStart ?? 0) : (clip?.start ?? 0),
+    answerMusic ? answerMusic.length : chorus ? (clip?.chorusLength ?? 10) : stage === "reveal" ? Math.max(20, clip?.length ?? 0) : (clip?.length ?? 15),
     fragmentKey,
-    { options: { fadeIn: clip?.fadeIn ?? 0, fadeOut: clip?.fadeOut ?? 0 }, chorus: chorus ? clip?.join : undefined, paused: stage === "question" && Boolean(buzz?.current) },
+    {
+      options: answerMusic ? { fadeIn: answerMusic.fadeIn, fadeOut: answerMusic.fadeOut } : { fadeIn: clip?.fadeIn ?? 0, fadeOut: clip?.fadeOut ?? 0 },
+      chorus: chorus ? clip?.join : undefined,
+      paused: stage === "question" && Boolean(buzz?.current),
+    },
   );
   // Кто-то нажал кнопку — короткий звук «слово ему».
   useSoundOnChange(buzz?.current ?? "", "gong", isSet);

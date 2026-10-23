@@ -55,6 +55,11 @@ export interface QuizQuestion {
   chorusLength?: number;
   join?: ClipJoin;
   confetti?: boolean;
+  /**
+   * «Музыка на ответ» (решение владельца 23 октября 2026): у любого вопроса — отрывок трека, который играет на экране зала,
+   * когда ведущий показал верный ответ. Есть — играет он (вместо припева трека вопроса); нет — как раньше.
+   */
+  answerMusic?: AnswerMusic | null;
   /** Гонка: сколько делений к финишу даёт верный ответ (1–3, 3 — «супер»). */
   steps?: number;
   /** Несколько картинок: 2–4, у каждой свои верные ответы. */
@@ -81,6 +86,32 @@ export interface QuizQuestion {
   auctionAnswer?: AuctionAnswer;
   /** Секунды на ставки. */
   betTime?: number;
+}
+
+/** Отрывок «Музыки на ответ»: трек, с какой секунды, сколько секунд, плавное начало и конец. */
+export interface AnswerMusic {
+  trackId: string;
+  start: number;
+  length: number;
+  fadeIn: number;
+  fadeOut: number;
+}
+
+/** Разбор «Музыки на ответ»: без трека — null. */
+export function parseAnswerMusic(raw: unknown): AnswerMusic | null {
+  const clip = parseClip(raw);
+  if (!clip.trackId) return null;
+  return { trackId: clip.trackId, start: clip.start, length: clip.length, fadeIn: clip.fadeIn, fadeOut: clip.fadeOut };
+}
+
+/** «Музыка на ответ» как фрагмент для таймлайна (без припева). */
+export function answerClipOf(q: QuizQuestion): Clip {
+  return { ...parseClip(q.answerMusic ?? {}), chorusStart: null };
+}
+
+/** Фрагмент с таймлайна → «Музыка на ответ» вопроса («Без музыки» — null). */
+export function withAnswerClip(q: QuizQuestion, clip: Clip): QuizQuestion {
+  return { ...q, answerMusic: clip.trackId ? { trackId: clip.trackId, start: clip.start, length: clip.length, fadeIn: clip.fadeIn, fadeOut: clip.fadeOut } : null };
 }
 
 /** Музыкальный фрагмент вопроса (трек, угадывание, припев, звучание). */
@@ -495,6 +526,7 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     points: int(data.points, DEFAULTS[kind].points, LIMITS.minPoints, LIMITS.maxPoints),
     imageId: typeof data.imageId === "string" && data.imageId.length > 0 ? data.imageId : null,
     ...(clipFields(parseClip(data)) as Partial<QuizQuestion>),
+    answerMusic: parseAnswerMusic(data.answerMusic),
     steps: int(data.steps, 1, 1, LIMITS.maxSteps),
     pictures: kind === "pictures" ? parsePictures(data.pictures) : [],
     ...(kind === "super" ? { levels: parseLevels(data.levels), superStyle: parseStyle(data.superStyle), penalty: parsePenalty(data.penalty) } : {}),
@@ -544,7 +576,7 @@ export function mediaIds(content: QuizContent): string[] {
 
 /** Треки игры (чтобы экран зала скачал их заранее). */
 export function trackIds(content: QuizContent): string[] {
-  return [...new Set(content.questions.flatMap((q) => (q.trackId ? [q.trackId] : [])))];
+  return [...new Set(content.questions.flatMap((q) => [q.trackId, q.answerMusic?.trackId].filter((id): id is string => Boolean(id))))];
 }
 
 /** Музыкальный квиз («Узнай по нотам»): есть треки или хотя бы половина вопросов начинается с «♪» (шаблон без треков). */

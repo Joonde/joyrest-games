@@ -355,12 +355,20 @@ export function startAuction(session: Session, content: BoardContent, answers: A
     answered: 0,
     result: write({ ...result, mode: "buzz", buzz: { order: [who], current: who, out: [], winner: null }, bets: { [who]: price }, catStep: true, armed: true, catTo: who, catPrice: price, speakSince: null, auctionTie: tie }),
   };
-  if (tie.length > 1 && draw) state.slide = drawSlide(draw.id, tie.map(draw.name), draw.name(who), draw.now);
+  if (tie.length > 1 && draw) {
+    const n = tie.length;
+    state.slide = drawSlide(draw.id, tie.map(draw.name), draw.name(who), draw.now, {
+      spinEyebrow: `Аукцион · ставки равны`,
+      spinText: `Одинаковая ставка у ${n}: по ${price} — монетка решит, кто отвечает`,
+      doneEyebrow: "Аукцион разыгрывает",
+      doneText: `Ставка ${price} · отвечает на вопрос`,
+    });
+  }
   return { state };
 }
 
 /** Монетка жребия «Аукциона» докрутилась и постояла — пульт убирает её сам. */
-export const AUCTION_DRAW_HOLD_MS = 3000;
+export const AUCTION_DRAW_HOLD_MS = 4500;
 
 /** Раунд кончился: клетка гаснет, на экране — поле следующего раунда (дороже). */
 export function nextRound(session: Session, content: BoardContent): SessionChange | null {

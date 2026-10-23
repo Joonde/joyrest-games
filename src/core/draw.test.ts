@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DRAW_MS, drawFrame, drawNames, drawSlide, drawWinner } from "./draw";
+import { DRAW_MS, drawCaptionsOf as capsOf, drawFrame, drawNames, drawSlide, drawSlide as slideOf, drawWinner } from "./draw";
 
 describe("жеребьёвка", () => {
   it("жребий — один из участников; пусто — никого", () => {
@@ -30,5 +30,13 @@ describe("жеребьёвка", () => {
     const slide = drawSlide("d", many, "Игрок 199", 0);
     expect(slide.text.length).toBeLessThanOrEqual(400);
     expect(drawNames(slide).at(-1)).toBe("Игрок 199");
+  });
+});
+
+describe("подписи монетки", () => {
+  it("без подписей — «кто ходит первым», с подписями — свои", () => {
+    expect(capsOf(slideOf("d1", ["А", "Б"], "А", 0)).doneEyebrow).toBe("Первым ходит");
+    const s = slideOf("auc1", ["А", "Б"], "Б", 0, { spinEyebrow: "Аукцион", spinText: "равны", doneEyebrow: "Отвечает", doneText: "Ставка 300" });
+    expect(capsOf(s)).toEqual({ spinEyebrow: "Аукцион", spinText: "равны", doneEyebrow: "Отвечает", doneText: "Ставка 300" });
   });
 });

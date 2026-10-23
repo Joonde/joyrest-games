@@ -4321,6 +4321,41 @@ kbd {
   animation: mil-flash 0.8s ease-out;
 }
 
+/* Между кем жребий (у «Аукциона» — равные ставки): плашки под монеткой, после остановки — победитель светится. */
+.draw-pool {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2cqh 1.6cqh;
+  max-width: 90cqw;
+  margin: 1.6cqh 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draw-pool__name {
+  max-width: 28cqw;
+  padding: 0.8cqh 2.2cqh;
+  border: 0.3cqh solid var(--color-highlight);
+  border-radius: 999px;
+  font-size: 3.2cqh;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.4s, transform 0.4s;
+}
+
+.draw-pool__name.is-win {
+  background: var(--color-highlight);
+  color: var(--color-bg);
+  transform: scale(1.08);
+}
+
+.draw-pool__name.is-out {
+  opacity: 0.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .draw-coin__face,
   .draw-coin__face.is-final,

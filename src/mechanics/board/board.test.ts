@@ -1,3 +1,4 @@
+import { drawCaptionsOf, drawPool } from "../../core/draw";
 import { describe, expect, it } from "vitest";
 import { applyChange, startState } from "../../core/session";
 import type { Answer, Participant, Session, SessionChange } from "../../data/types";
@@ -510,6 +511,11 @@ describe("«Ставка на знания»: «Аукцион», равные �
     expect(r.auctionTie).toEqual(["p1", "p2", "p3"]);
     expect(change?.state?.slide?.kind).toBe("draw");
     expect(change?.state?.slide?.title).toBe("p3");
+    const caps = drawCaptionsOf(change!.state!.slide!);
+    expect(caps.spinEyebrow).toContain("Аукцион");
+    expect(caps.spinText).toContain("у 3: по 300");
+    expect(caps.doneText).toContain("Ставка 300");
+    expect(drawPool(change!.state!.slide!)).toEqual(["p1", "p2", "p3"]);
   });
 
   it("ставки разные — без монетки; двое равных, но не самые большие — без жребия", () => {

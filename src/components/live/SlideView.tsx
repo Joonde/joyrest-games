@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { decksRepo, type SessionBranding, type SlideMedia } from "../../data";
 import { ClientLogo } from "../ClientLogo";
-import { drawFrame, drawNames } from "../../core/draw";
+import { drawCaptionsOf, drawFrame, drawNames, drawPool } from "../../core/draw";
 import { countdownLabel } from "../../core/slides";
 import type { SlideState } from "../../data";
 import { Logo } from "../Logo";
@@ -79,6 +79,8 @@ function ImageSlide({ media, title }: { media: SlideMedia; title: string }) {
  */
 function DrawSlide({ slide, preview }: { slide: SlideState; preview: boolean }) {
   const names = drawNames(slide);
+  const caps = drawCaptionsOf(slide);
+  const pool = drawPool(slide);
   const endsAt = slide.endsAt ?? 0;
   const now = useServerNow(50, !preview);
   const left = preview ? 0 : endsAt - now;
@@ -97,13 +99,23 @@ function DrawSlide({ slide, preview }: { slide: SlideState; preview: boolean }) 
   return (
     <div className={`slide slide--draw${done ? " is-done" : ""}`}>
       {done && sawSpin.current && <Confetti burst={`draw:${slide.id}`} count={90} />}
-      <p className="slide__eyebrow">{done ? "Первым ходит" : "Жеребьёвка"}</p>
+      <p className="slide__eyebrow">{done ? caps.doneEyebrow : caps.spinEyebrow}</p>
       <div className="draw-coin" aria-hidden={!done}>
         <div key={flips} className={`draw-coin__face${done ? " is-final" : ""}`}>
           <span className="draw-coin__name">{names[index] ?? slide.title}</span>
         </div>
       </div>
-      {done ? <h2 className="slide__title draw-winner">{slide.title}</h2> : <p className="slide__text">Монетка решит, кто начинает</p>}
+      {done ? <h2 className="slide__title draw-winner">{slide.title}</h2> : <p className="slide__text">{caps.spinText}</p>}
+      {done && caps.doneText && <p className="slide__text">{caps.doneText}</p>}
+      {pool.length > 1 && pool.length <= 8 && (
+        <ul className="draw-pool" aria-label="Между кем жребий">
+          {pool.map((n) => (
+            <li key={n} className={`draw-pool__name${done ? (n === slide.title ? " is-win" : " is-out") : ""}`}>
+              {n}
+            </li>
+          ))}
+        </ul>
+      )}
       <Logo kind="monogram" className="slide__mark" title="" />
     </div>
   );

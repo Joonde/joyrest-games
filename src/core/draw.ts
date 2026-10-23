@@ -20,8 +20,19 @@ function cryptoRandom(): number {
   return Math.random();
 }
 
+/**
+ * Подписи монетки (в `lines` слайда): пока крутится — надзаголовок и строка под монеткой, после — надзаголовок и
+ * строка под именем. Без подписей — жеребьёвка «кто ходит первым».
+ */
+export interface DrawCaptions {
+  spinEyebrow: string;
+  spinText: string;
+  doneEyebrow: string;
+  doneText: string;
+}
+
 /** Слайд жеребьёвки; `serverNow` — часы сервера на пульте. */
-export function drawSlide(id: string, names: string[], winner: string, serverNow: number): SlideState {
+export function drawSlide(id: string, names: string[], winner: string, serverNow: number, captions?: DrawCaptions): SlideState {
   const list = names.map((n) => n.replace(/\n/g, " ").trim()).filter(Boolean);
   // Текст слайда ограничен — длинный список обрезаем, победитель всегда в списке (и в заголовке).
   const lines: string[] = [];
@@ -31,7 +42,21 @@ export function drawSlide(id: string, names: string[], winner: string, serverNow
     lines.push(n);
     size += n.length + 1;
   }
-  return { id, kind: "draw", title: winner.slice(0, 120), text: lines.join("\n"), lines: [], endsAt: serverNow + DRAW_MS };
+  const caps = captions ? [captions.spinEyebrow, captions.spinText, captions.doneEyebrow, captions.doneText].map((c) => c.replace(/\n/g, " ").slice(0, 140) || " ") : [];
+  return { id, kind: "draw", title: winner.slice(0, 120), text: lines.join("\n"), lines: caps, endsAt: serverNow + DRAW_MS };
+}
+
+/** Подписи слайда жеребьёвки (свои — у «Аукциона», иначе «кто ходит первым»). */
+export function drawCaptionsOf(slide: Pick<SlideState, "lines">): DrawCaptions {
+  const [a, b, c, d] = slide.lines.map((l) => l.trim());
+  if (a && b && c && d) return { spinEyebrow: a, spinText: b, doneEyebrow: c, doneText: d };
+  return { spinEyebrow: "Жеребьёвка", spinText: "Монетка решит, кто начинает", doneEyebrow: "Первым ходит", doneText: "" };
+}
+
+/** Все, между кем жребий (по алфавиту — порядок не выдаёт победителя). */
+export function drawPool(slide: Pick<SlideState, "title" | "text">): string[] {
+  const names = slide.text.split("\n").map((n) => n.trim()).filter(Boolean);
+  return (names.length ? names : [slide.title]).slice().sort((x, y) => x.localeCompare(y, "ru"));
 }
 
 /** Имена на монетке по порядку (победитель — не первым, чтобы не выдать заранее). */

@@ -1510,7 +1510,9 @@ interface Mechanic<Content, Answer> {
 `table` (`DEFAULT_BOARD_LOOK`).
 Нарисованные фоны других игр (`Mechanic.art`, решение владельца 17 октября 2026; Figma AI, файл 94GFxr7d2uoMdZQVrke1d9, оригиналы
 `public/covers/art/`, WebP `web/<имя>.webp` и `-1280`): «Правда или действие» — `truth`, музыкальное лото — `lotto`, квиз с треками
-(«Узнай по нотам») — `melody`, остальные квизы — `quiz-office`, «Караоке на поле» — `karaoke`. Экран зала во время игры (`Playing`
+(«Узнай по нотам») — `melody-notes` (рояль, 23 октября 2026; прежний `melody` — на выбор), остальные квизы — `quiz-office`, «Караоке на поле» — `karaoke`.
+У квиза фон выбирается в «⚙️ Настройках показа» (`settings.art`, `QUIZ_ARTS`, `quizArtOf`; ещё `quiz-author`, `quiz-company`, `quiz-games`,
+`quiz-musicdance` — те же картины, что рисованные обложки сайта; `auto` и старые игры — по игре). Экран зала во время игры (`Playing`
 в `HallScreen`) кладёт картину под игру с затемнением (`.hall-art`, палитра `.show-stage--evening`) — в базовых темах
 `joyrest` / `joyrest-day` и темах «под игру» (`studio`, `chess`, `dancefloor`, `adventure` — темы шаблонов): сезонные и праздничные темы остаются со своим живым фоном. Фоны «Танцевального батла» (два танцора) и
 «Танцуй как звезда» (туфли и пол) ещё не скачаны — кончился лимит Figma.

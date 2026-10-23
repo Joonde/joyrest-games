@@ -47,3 +47,4 @@ export function useGuestSignIn(): [{ status: "loading" }, () => void] {
 export function useSessionByCode(): [{ status: "loading" }, () => void] {
   return [{ status: "loading" }, () => undefined];
 }
+export function edition(): "agency" | "lite" { return "agency"; }

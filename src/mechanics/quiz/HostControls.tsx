@@ -5,7 +5,12 @@ import { secondsLeft } from "../../core/session";
 import { useServerNow } from "../../components/live/useServerNow";
 import type { Answer, Session, SessionChange } from "../../data/types";
 import type { HostControlsProps } from "../types";
-import { correctSet, KIND_TITLES, roundAt, roundTitle, settingsOf, type QuizContent } from "./content";
+import { correctSet, drawEffectOfSettings, KIND_TITLES, roundAt, roundTitle, settingsOf, usesAnswers, usesOptions, type QuizContent } from "./content";
+import { clock } from "../../data";
+import { resultKey } from "../../core/session";
+import type { DrawEffect } from "../../core/draw";
+import { auctionSync, closeBets, isAuctionDraw, parseBet, QUIZ_AUCTION_HOLD_MS } from "./auction";
+import { AuctionHostPanel } from "./auctionViews";
 import { NameText } from "../../components/NameText";
 import { PodiumHostList } from "../../components/live/Podium";
 import { podiumNext, startPodium } from "../../core/podium";
@@ -27,7 +32,7 @@ import {
   toggleAccepted,
   type QuizAction,
 } from "./flow";
-import { groupOpenAnswers, parseResult } from "./logic";
+import { auctionAnswers, groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 import { SuperHostAnswers } from "../../components/live/SuperGame";
 import { parseSuperAnswer, superGroups } from "../../core/supergame";
@@ -78,6 +83,52 @@ export function QuizHostControls({ session, content, answers, participants, cont
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых выборах
   }, [superKey, busy]);
 
+  // Аукцион: кто уже поставил — на экран (без сумм).
+  const auctionPhase = q?.kind === "auction" ? parseResult(session.state.result).auction?.phase : undefined;
+  const auctionKey = q?.kind === "auction" && stage === "question" && auctionPhase === "bets" ? answers.filter((a) => a.step === step && parseBet(a.value) !== null).map((a) => `${a.pid}:${a.submittedAt ?? 0}`).sort().join(",") : "";
+  useEffect(() => {
+    if (!auctionKey || busy || !q) return;
+    const change = auctionSync(latest.current, q, answers);
+    if (!change) return;
+    const { phase, step: atStep, stage: atStage } = latest.current.state;
+    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, result: resultKey(latest.current.state.result) } }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых ставках
+  }, [auctionKey, busy]);
+
+  // Эффект жребия: из настроек игры, ведущий меняет на пульте (помнит это устройство).
+  const effectKey = `joyrest.quiz.draw.${session.id}`;
+  const [drawEffect, setDrawEffectState] = useState<DrawEffect>(() => {
+    try {
+      const v = window.localStorage.getItem(effectKey);
+      if (v === "coin" || v === "wheel" || v === "reel") return v;
+    } catch {
+      // нет хранилища — из настроек игры
+    }
+    return drawEffectOfSettings(content);
+  });
+  const setDrawEffect = (v: DrawEffect) => {
+    setDrawEffectState(v);
+    try {
+      window.localStorage.setItem(effectKey, v);
+    } catch {
+      // не запомнилось — не страшно
+    }
+  };
+
+  // Жребий «Аукциона» докрутился и постоял — убираем сами, на экране вопрос.
+  const drawSlideNow = isAuctionDraw(session) ? session.state.slide : null;
+  useEffect(() => {
+    if (!drawSlideNow) return;
+    const wait = Math.max(0, (drawSlideNow.endsAt ?? 0) + QUIZ_AUCTION_HOLD_MS - (Date.now() + clock.offset()));
+    const id = drawSlideNow.id;
+    const timer = window.setTimeout(() => {
+      if (latest.current.state.slide?.id !== id) return;
+      void control.apply({ state: { slide: null }, expect: { slide: id } }).catch(() => undefined);
+    }, wait);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый слайд жребия
+  }, [drawSlideNow?.id]);
+
   if (!q) return <p className="muted">В игре нет вопросов.</p>;
 
   const total = content.questions.length;
@@ -86,7 +137,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const nextRound = next?.round ? `новый раунд «${next.round}»` : null;
   const left = stage === "question" ? secondsLeft(session.state, now) : null;
   const result = parseResult(session.state.result);
-  const own = answers.filter((a) => a.step === step);
+  const stepAnswers = answers.filter((a) => a.step === step);
+  // Аукцион: после ставок ответы — только свежие (ставки того же шага — не ответы).
+  const own = q.kind === "auction" && result.auction && result.auction.phase !== "bets" ? auctionAnswers(stepAnswers, session.state.startedAt) : stepAnswers;
   const answeredIds = new Set(own.map((a) => a.pid));
   // Кто должен ответить: все в таблице и те, кого пульт ещё не успел в неё внести.
   // Участники, добавленные ведущим вручную (без телефона), не отвечают — их не ждём.
@@ -121,7 +174,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       const change = typeof make === "function" ? await make() : make;
       if (!change) return;
       const arrived = rehearsal ? Promise.resolve() : nextSession();
-      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } });
+      await control.apply({ ...change, expect: { phase, step: atStep, stage: atStage, ...(change.expect ?? {}) } });
       // Ответы убираем после закрытия вопроса: новые гости уже не успеют ответить.
       if (afterClear !== undefined) await control.clearAnswers(afterClear);
       await arrived;
@@ -149,8 +202,32 @@ export function QuizHostControls({ session, content, answers, participants, cont
     return reveal(latest.current, content, all, participants);
   }
 
+  /** «Ставки сделаны» — по свежим ставкам с сервера и свежей сессии; второй пульт не повторит жребий. */
+  async function closeChange(): Promise<SessionChange | null> {
+    let all: Answer[] = stepAnswers;
+    try {
+      all = await control.freshAnswers(step);
+    } catch {
+      // Нет связи — по тому, что уже пришло.
+    }
+    const cur = latest.current;
+    const curQ = content.questions[cur.state.step];
+    if (!curQ) return null;
+    const change = closeBets(cur, curQ, all, {
+      id: `auc${Math.random().toString(36).slice(2, 12)}`,
+      now: Date.now() + clock.offset(),
+      effect: drawEffect,
+      name: (pid) => cur.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок",
+    });
+    return change ? { ...change, expect: { result: resultKey(cur.state.result) } } : null;
+  }
+
   function perform(action: QuizAction) {
     if (action === "show") void run(showQuestion(session, content));
+    if (action === "reveal" && q?.kind === "auction" && result.auction?.phase === "bets") {
+      void run(closeChange);
+      return;
+    }
     if (action === "reveal") void run(revealChange);
     if (action === "board") void run(showBoard(session, content));
     if (action === "total") void run(showTotal(session));
@@ -163,7 +240,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
   const onPrimary = () => perform(action);
   const extra = extraAction(session, content);
   const backPlan = back(session, content);
-  const groups = q.kind === "open" ? groupOpenAnswers(q, own, result.accepted) : [];
+  const groups = q.kind === "open" || (q.kind === "auction" && usesAnswers(q)) ? groupOpenAnswers(q, own, result.accepted) : [];
   const pictureGroups = q.kind === "pictures" ? (q.pictures ?? []).map((_, i) => groupOpenAnswers(q, own, result.accepted, i)) : [];
   const buzz = result.buzz ?? null;
   const nameOf = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
@@ -269,6 +346,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
         <p className="muted small">
           Верный ответ: <strong className="host-quiz__answer">{correctText(q) || "—"}</strong>
         </p>
+        {q.kind === "auction" && (
+          <AuctionHostPanel session={session} q={q} auction={result.auction} answers={stepAnswers} expected={expected.size} effect={drawEffect} onEffect={setDrawEffect} rehearsal={rehearsal} />
+        )}
         {q.note?.trim() && (
           <p className="host-note">
             <span className="host-note__label">Заметка</span>
@@ -294,7 +374,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </div>
       )}
 
-      {stage === "question" && missing.length > 0 && !rehearsal && q.kind !== "buzz" && (
+      {stage === "question" && missing.length > 0 && !rehearsal && q.kind !== "buzz" && q.kind !== "auction" && (
         <div className="stack stack--tight">
           <button type="button" className="btn btn--quiet host-quiz__toggle" aria-expanded={showMissing} onClick={() => setShowMissing((v) => !v)}>
             {showMissing ? "Скрыть, кто ещё не ответил" : `Ещё не ответили: ${missing.length}`}
@@ -302,9 +382,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
           {showMissing && <p className="muted small host-quiz__missing">{missing.join(", ")}</p>}
         </div>
       )}
-      {stage === "question" && missing.length === 0 && expected.size > 0 && q.kind !== "buzz" && <p className="success">Ответили все!</p>}
+      {stage === "question" && missing.length === 0 && expected.size > 0 && q.kind !== "buzz" && q.kind !== "auction" && <p className="success">Ответили все!</p>}
 
-      {q.kind === "open" && (stage === "question" || stage === "reveal") && groups.length > 0 && (
+      {groups.length > 0 && (stage === "question" || stage === "reveal") && (
         <section className="stack stack--tight" aria-label="Ответы гостей">
           <h3 className="host-quiz__subtitle">Ответы гостей</h3>
           {stage === "question" && (
@@ -416,7 +496,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
       )}
 
       {stage === "reveal" && (q.kind === "order" || q.kind === "number") && <OrderNumberHost q={q} own={own} leaderboard={session.leaderboard} />}
-      {stage === "reveal" && q.kind !== "open" && q.kind !== "buzz" && q.kind !== "pictures" && q.kind !== "super" && q.kind !== "order" && q.kind !== "number" && (
+      {stage === "reveal" && usesOptions(q) && q.kind !== "buzz" && q.kind !== "pictures" && q.kind !== "super" && q.kind !== "order" && q.kind !== "number" && (
         <ul className="host-quiz__dist">
           {q.options.map((o, i) => (
             <li key={i} className={correctSet(q).includes(i) ? "is-correct" : undefined}>

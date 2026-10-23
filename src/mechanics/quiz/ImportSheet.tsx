@@ -61,6 +61,9 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
           <li>
             Новый раунд — строка <kbd># Раунд: Кино</kbd>.
           </li>
+          <li>
+            Аукцион — строка <kbd># Аукцион: тема</kbd> перед вопросом (с вариантами или ответом).
+          </li>
           <li>Тип «на скорость», картинку, время и очки можно поменять после добавления.</li>
         </ul>
         <pre className="import-example">{IMPORT_EXAMPLE}</pre>
@@ -112,7 +115,10 @@ export function ImportSheet({ open, room, onClose, onAdd }: Props) {
                   </strong>
                   <span className="muted small"> · {KIND_TITLES[question.kind]}</span>
                 </p>
-                {question.kind === "open" ? (
+                {question.kind === "auction" && (
+                  <p className="small">Тема аукциона: {question.topic?.trim() ? `«${question.topic.trim()}»` : "скрыта"}</p>
+                )}
+                {question.kind === "open" || (question.kind === "auction" && question.auctionAnswer === "open") ? (
                   <p className="small">
                     {/* Каждый ответ в кавычках через «|»: видно, как разбили («AC/DC» — один ответ). */}
                     {question.answers.length === 1 ? "Верный ответ" : `Верные ответы (${question.answers.length})`}:{" "}

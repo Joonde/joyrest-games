@@ -1,6 +1,7 @@
 // Формат содержимого квиза. Хранится в games/{id}.content и в снимке сессии.
 // Картинок здесь нет — только imageId (документ games/{id}/media/{imageId}).
 import { clipFields, parseClip, type Clip, type ClipJoin } from "../../core/clip";
+import { parseDrawEffect, type DrawEffect } from "../../core/draw";
 import { newLevels, parseLevels, parsePenalty, parseStyle, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
 /**
@@ -8,7 +9,10 @@ import { newLevels, parseLevels, parsePenalty, parseStyle, type SuperLevel, type
  * слово первому нажавшему, ведущий решает «Верно» или «Неверно». Картинки (`pictures`): 2–4 фото, у
  * каждого свой ответ.
  */
-export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures" | "super" | "order" | "number";
+export type QuestionKind = "choice" | "open" | "speed" | "buzz" | "pictures" | "super" | "order" | "number" | "auction";
+
+/** «Аукцион»: как отвечает выигравший ставку — вариантами или своими словами. */
+export type AuctionAnswer = "choice" | "open";
 
 /** «Угадай число»: только ближайший — все очки; по близости — 1-е место 100%, 2-е 60%, 3-е 30%. */
 export type NumberScoring = "closest" | "places";
@@ -69,6 +73,14 @@ export interface QuizQuestion {
   number?: number | null;
   unit?: string;
   scoring?: NumberScoring;
+  /**
+   * «Аукцион» (решение владельца 23 октября 2026): тема видна до ставок, сам вопрос — после. Ставят все, отвечает
+   * сделавший самую большую ставку (равные — жребий на экране), на своём телефоне: верно — +ставка, неверно — −ставка.
+   */
+  topic?: string;
+  auctionAnswer?: AuctionAnswer;
+  /** Секунды на ставки. */
+  betTime?: number;
 }
 
 /** Музыкальный фрагмент вопроса (трек, угадывание, припев, звучание). */
@@ -94,6 +106,8 @@ export interface QuizSettings {
   phoneImages: boolean;
   /** Гонка «Кто быстрее»: сколько делений до финиша. */
   raceTarget: number;
+  /** «Аукцион»: чем тянуть жребий при равных ставках. Нет — монетка (игры до 23 октября 2026). */
+  drawEffect?: DrawEffect;
 }
 
 export const DEFAULT_SETTINGS: QuizSettings = { intro: true, board: "each", phoneImages: false, raceTarget: 5 };
@@ -106,6 +120,21 @@ export interface QuizContent {
 
 export function settingsOf(content: QuizContent): QuizSettings {
   return content.settings ?? DEFAULT_SETTINGS;
+}
+
+/** Эффект жребия «Аукциона» из настроек игры (старые игры — монетка). */
+export function drawEffectOfSettings(content: QuizContent): DrawEffect {
+  return settingsOf(content).drawEffect ?? "coin";
+}
+
+/** Отвечают ли на вопрос вариантами (у «Аукциона» — по его настройке). */
+export function usesOptions(q: Pick<QuizQuestion, "kind" | "auctionAnswer">): boolean {
+  return q.kind === "auction" ? q.auctionAnswer !== "open" : hasOptions(q.kind);
+}
+
+/** Пишут ли ответ словами (у «Аукциона» — по его настройке). */
+export function usesAnswers(q: Pick<QuizQuestion, "kind" | "auctionAnswer">): boolean {
+  return q.kind === "auction" ? q.auctionAnswer === "open" : hasAnswers(q.kind);
 }
 
 /** Все верные варианты вопроса с вариантами (по возрастанию). */
@@ -187,6 +216,9 @@ export const LIMITS = {
   maxRace: 20,
   minOrder: 3,
   unit: 20,
+  topic: 80,
+  minBetTime: 10,
+  maxBetTime: 90,
   /** «Угадай число»: границы ответа (и верного числа). */
   maxNumber: 1_000_000_000_000,
 } as const;
@@ -203,7 +235,11 @@ export const DEFAULTS: Record<QuestionKind, { timeLimit: number; points: number 
   super: { timeLimit: 90, points: 100 },
   order: { timeLimit: 45, points: 100 },
   number: { timeLimit: 30, points: 100 },
+  auction: { timeLimit: 30, points: 200 },
 };
+
+/** Секунд на ставки «Аукциона» по умолчанию. */
+export const DEFAULT_BET_TIME = 30;
 
 export const KIND_TITLES: Record<QuestionKind, string> = {
   choice: "Выбор варианта",
@@ -214,6 +250,7 @@ export const KIND_TITLES: Record<QuestionKind, string> = {
   super: "Суперигра",
   order: "Расставь по порядку",
   number: "Угадай число",
+  auction: "Аукцион",
 };
 
 export const KIND_HINTS: Record<QuestionKind, string> = {
@@ -225,12 +262,13 @@ export const KIND_HINTS: Record<QuestionKind, string> = {
   super: "4 уровня: каждый выбирает уровень и отвечает. Верно — очки уровня, ошибка — по правилу.",
   order: "3–6 карточек: впишите их в верном порядке, гости увидят их вперемешку и расставят на телефоне.",
   number: "Ответ — число. Ближе всех — все очки; можно дать очки и 2-му, 3-му месту по близости.",
+  auction: "Сначала видна только тема, все ставят очки. Отвечает поставивший больше всех (равные — жребий): верно +ставка, неверно −ставка.",
 };
 
 /** Блоки в «Добавить вопрос»: плитка — формат, у музыкальных сразу включается трек. */
 export interface QuestionFormat {
   id: string;
-  block: "classic" | "music" | "pictures" | "super";
+  block: "classic" | "music" | "pictures" | "bets" | "super";
   kind: QuestionKind;
   title: string;
   music?: boolean;
@@ -247,6 +285,7 @@ export const QUESTION_FORMATS: QuestionFormat[] = [
   { id: "buzz", block: "music", kind: "buzz", title: "Гонка: кто первый", music: true },
   { id: "image", block: "pictures", kind: "choice", title: "Одна картинка" },
   { id: "pictures", block: "pictures", kind: "pictures", title: "2–4 картинки" },
+  { id: "auction", block: "bets", kind: "auction", title: "Аукцион: ставки" },
   { id: "super", block: "super", kind: "super", title: "Суперигра: 4 уровня" },
 ];
 
@@ -254,6 +293,7 @@ export const FORMAT_BLOCKS: Array<{ id: QuestionFormat["block"]; title: string }
   { id: "classic", title: "Классика" },
   { id: "music", title: "Музыка" },
   { id: "pictures", title: "Картинки" },
+  { id: "bets", title: "Ставки" },
   { id: "super", title: "В конце раунда" },
 ];
 
@@ -277,10 +317,12 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     id: newQuestionId(),
     kind,
     text: kind === "buzz" ? "Узнайте песню" : kind === "super" ? "Суперигра" : "",
-    options: hasOptions(kind) ? ["", ""] : kind === "order" ? ["", "", ""] : [],
+    options: hasOptions(kind) || kind === "auction" ? ["", ""] : kind === "order" ? ["", "", ""] : [],
+    // Аукцион — без заранее отмеченного верного: проверка попросит отметить.
     correct: hasOptions(kind) ? 0 : -1,
     alsoCorrect: [],
-    answers: hasAnswers(kind) ? [""] : [],
+    answers: hasAnswers(kind) || kind === "auction" ? [""] : [],
+    ...(kind === "auction" ? { topic: "", auctionAnswer: "choice" as const, betTime: DEFAULT_BET_TIME } : {}),
     steps: 1,
     pictures: kind === "pictures" ? [newPicture(), newPicture()] : [],
     ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const } : {}),
@@ -300,7 +342,7 @@ export function newPicture(): QuizPicture {
 }
 
 export function createContent(): QuizContent {
-  return { questions: [], settings: { ...DEFAULT_SETTINGS } };
+  return { questions: [], settings: { ...DEFAULT_SETTINGS, drawEffect: "wheel" } };
 }
 
 /** Смена типа вопроса сохраняет всё, что можно сохранить. */
@@ -338,6 +380,13 @@ export function changeKind(question: QuizQuestion, kind: QuestionKind): QuizQues
       const guess = Number((question.answers[0] ?? question.options[question.correct] ?? "").replace(/\s/g, "").replace(",", "."));
       next.number = Number.isFinite(guess) && (question.answers[0] ?? question.options[question.correct] ?? "").trim() !== "" ? guess : null;
     }
+  }
+  if (kind === "auction") {
+    next.auctionAnswer = next.auctionAnswer ?? (hasAnswers(question.kind) ? "open" : "choice");
+    next.topic = next.topic ?? "";
+    next.betTime = next.betTime ?? DEFAULT_BET_TIME;
+    if (next.options.length < LIMITS.minOptions) next.options = [...next.options, "", ""].slice(0, LIMITS.minOptions);
+    if (next.answers.length === 0) next.answers = [question.options[question.correct] ?? ""];
   }
   if (kind === "super") {
     if (!next.levels) next.levels = newLevels();
@@ -402,7 +451,7 @@ export function parseRound(value: unknown): string | null {
 }
 
 function parseKind(value: unknown): QuestionKind {
-  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" || value === "super" || value === "order" || value === "number" ? value : "choice";
+  return value === "open" || value === "speed" || value === "buzz" || value === "pictures" || value === "super" || value === "order" || value === "number" || value === "auction" ? value : "choice";
 }
 
 /** Число из данных: конечное и в разумных границах; иначе null. */
@@ -455,6 +504,13 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     ...(kind === "number"
       ? { number: parseNumber(data.number), unit: text(data.unit, LIMITS.unit).trim(), scoring: data.scoring === "closest" ? ("closest" as const) : ("places" as const) }
       : {}),
+    ...(kind === "auction"
+      ? {
+          topic: text(data.topic, LIMITS.topic).replace(/\s+/g, " "),
+          auctionAnswer: data.auctionAnswer === "open" ? ("open" as const) : ("choice" as const),
+          betTime: int(data.betTime, DEFAULT_BET_TIME, LIMITS.minBetTime, LIMITS.maxBetTime),
+        }
+      : {}),
   };
 }
 
@@ -465,6 +521,7 @@ export function parseSettings(raw: unknown): QuizSettings {
     board: data.board === "rounds" || data.board === "manual" ? data.board : "each",
     phoneImages: data.phoneImages === true,
     raceTarget: int(data.raceTarget, DEFAULT_SETTINGS.raceTarget, LIMITS.minRace, LIMITS.maxRace),
+    ...(typeof data.drawEffect === "string" ? { drawEffect: parseDrawEffect(data.drawEffect) } : {}),
   };
 }
 

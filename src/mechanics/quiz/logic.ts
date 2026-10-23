@@ -2,7 +2,7 @@ import { EMPTY_BUZZ, parseBuzz, type BuzzState } from "../../core/buzz";
 import { parsePenalty, parsePicks, parseVerdicts, superRight, superVerdicts, parseSuperAnswer, type SuperVerdict } from "../../core/supergame";
 import type { Answer } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
-import { correctSet, type QuizContent, type QuizQuestion } from "./content";
+import { correctSet, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
 import { normalizeAnswer } from "./normalize";
 
 /** Шаг квиза — один вопрос. Показ, ответ и таблица — этапы шага (state.stage). */
@@ -37,6 +37,43 @@ export interface QuizResult {
   verdicts?: Record<string, SuperVerdict>;
   /** «Угадай число» после показа ответа: чьё какое число (экран ставит фишки на шкалу). */
   guesses?: Record<string, number>;
+  /** «Аукцион»: этап, ставки, кто отвечает (пишет пульт). */
+  auction?: AuctionState;
+}
+
+/**
+ * «Аукцион» в итогах шага. `bets` — ставки во время ставок (кто поставил — `placed`, суммы пульт видит сам; на экран —
+ * после «Ставки сделаны»), `answer` — отвечает `who` за `bet` (равные ставки — `tie`, жребий на экране), `all` — ставок
+ * не было, отвечают все за очки вопроса.
+ */
+export interface AuctionState {
+  phase: "bets" | "answer" | "all";
+  /** Кто уже поставил (без сумм) — на экран во время ставок. */
+  placed: string[];
+  /** Ставки, принятые при «Ставки сделаны» (участник → очки); «Назад» к ставкам их возвращает. */
+  bets: Record<string, number>;
+  who: string | null;
+  bet: number;
+  /** Самая большая ставка была у нескольких — между ними жребий. */
+  tie: string[];
+}
+
+export function parseAuction(raw: unknown): AuctionState | undefined {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const bets: Record<string, number> = {};
+  if (typeof r.bets === "object" && r.bets !== null && !Array.isArray(r.bets)) {
+    for (const [pid, v] of Object.entries(r.bets as Record<string, unknown>)) if (typeof v === "number" && Number.isInteger(v) && v > 0) bets[pid] = v;
+  }
+  return {
+    phase: r.phase === "answer" || r.phase === "all" ? r.phase : "bets",
+    placed: ids(r.placed),
+    bets,
+    who: typeof r.who === "string" ? r.who : null,
+    bet: typeof r.bet === "number" && Number.isFinite(r.bet) ? Math.max(0, Math.round(r.bet)) : 0,
+    tie: ids(r.tie),
+  };
 }
 
 export function emptyResult(): QuizResult {
@@ -61,6 +98,8 @@ export function parseResult(raw: unknown): QuizResult {
   if (r.buzz !== undefined) result.buzz = parseBuzz(r.buzz);
   if (Array.isArray(r.right)) result.right = nums(r.right);
   if (r.picks !== undefined) result.picks = parsePicks(r.picks);
+  const auction = parseAuction(r.auction);
+  if (auction) result.auction = auction;
   if (r.verdicts !== undefined) result.verdicts = parseVerdicts(r.verdicts);
   if (typeof r.guesses === "object" && r.guesses !== null && !Array.isArray(r.guesses)) {
     const guesses: Record<string, number> = {};
@@ -158,6 +197,10 @@ export function numberDeltas(q: QuizQuestion, answers: Answer[]): Array<{ pid: s
 /** Верен ли ответ: номер варианта или открытый ответ (в том числе засчитанный ведущим). */
 export function isCorrect(question: QuizQuestion, value: unknown, accepted: string[] = []): boolean {
   if (question.kind === "open") return textMatches(question.answers, value, accepted);
+  if (question.kind === "auction") {
+    if (usesAnswers(question)) return textMatches(question.answers, value, accepted);
+    return typeof value === "number" && correctSet(question).includes(value);
+  }
   // Картинки: верно, если угаданы все (для «Верно!» на телефоне; очки — за каждую).
   if (question.kind === "pictures") {
     const right = picturesRight(question, value, accepted);
@@ -189,6 +232,18 @@ export function score(step: QuizStep, answers: Answer[], { state }: ScoreContext
   const q = step.question;
   const result = parseResult(state.result);
   const accepted = result.accepted;
+  // Аукцион: отвечает выигравший ставку — верно +ставка, неверно или молчит −ставка; ставок не было — как обычный вопрос.
+  if (q.kind === "auction") {
+    const auction = result.auction;
+    const fresh = auctionAnswers(answers, state.startedAt);
+    if (auction?.phase === "answer" && auction.who) {
+      const mine = fresh.find((a) => a.pid === auction.who);
+      const right = mine !== undefined && isCorrect(q, mine.value, accepted);
+      return auction.bet > 0 ? [{ pid: auction.who, delta: right ? auction.bet : -auction.bet }] : [];
+    }
+    if (auction?.phase === "all") return fresh.filter((a) => isCorrect(q, a.value, accepted)).map((a) => ({ pid: a.pid, delta: q.points }));
+    return [];
+  }
   // Гонка: очки только тому, кому ведущий сказал «Верно».
   if (q.kind === "buzz") {
     const winner = (result.buzz ?? EMPTY_BUZZ).winner;
@@ -234,6 +289,14 @@ export function score(step: QuizStep, answers: Answer[], { state }: ScoreContext
   });
 }
 
+/**
+ * Ответы «Аукциона» на вопрос: только после старта ответа (ставки этого же шага — ответы того же участника раньше —
+ * не ответ на вопрос; сервер заменяет их ответом).
+ */
+export function auctionAnswers(answers: Answer[], startedAt: number | null): Answer[] {
+  return answers.filter((a) => startedAt === null || a.submittedAt === null || a.submittedAt >= startedAt).filter((a) => typeof a.value === "number" || typeof a.value === "string");
+}
+
 /** Распределение ответов для экрана зала. */
 export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[], buzz?: BuzzState): QuizResult {
   if (q.kind === "buzz") {
@@ -263,7 +326,7 @@ export function resultOf(q: QuizQuestion, answers: Answer[], accepted: string[],
     }
     return { counts: [], correct: answers.filter((a) => isCorrect(q, a.value, accepted)).length, total: answers.length, accepted, guesses };
   }
-  const counts = q.kind === "open" ? [] : q.options.map((_, i) => answers.filter((a) => a.value === i).length);
+  const counts = usesAnswers(q) ? [] : q.options.map((_, i) => answers.filter((a) => a.value === i).length);
   return {
     counts,
     correct: answers.filter((a) => isCorrect(q, a.value, accepted)).length,

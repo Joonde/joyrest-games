@@ -7,7 +7,8 @@ import { placeMoves, startRoundEntries } from "../../core/rounds";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import { quizRounds, roundAt, settingsOf, type QuizContent, type QuizQuestion } from "./content";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, syncBuzz } from "../../core/buzz";
-import { emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
+import { auctionAnswers, emptyResult, parseResult, resultOf, score, startResult, steps } from "./logic";
+import { auctionBackToBets, isAuctionDraw, openBets } from "./auction";
 import { superPicks } from "../../core/supergame";
 
 export type QuizAction = "show" | "reveal" | "board" | "total" | "next" | "podium" | "podiumNext" | "finish";
@@ -86,7 +87,10 @@ export function actionLabel(session: Session, content: QuizContent, action: Quiz
   const q = content.questions[session.state.step];
   if (q?.kind === "super" && action === "show") return "Открыть уровни";
   if (q?.kind === "super" && action === "reveal") return "Показать ответы";
+  if (q?.kind === "auction" && action === "show") return "Открыть ставки";
+  if (q?.kind === "auction" && action === "reveal" && parseResult(session.state.result).auction?.phase === "bets") return "Ставки сделаны";
   if (action === "next" && content.questions[session.state.step + 1]?.kind === "super") return "Суперигра";
+  if (action === "next" && content.questions[session.state.step + 1]?.kind === "auction") return "Аукцион";
   if (action === "board" && endsRound(content, session.state.step)) return "Итоги раунда";
   if (action === "show" && startsRound(content, session.state.step)) return "Начать раунд";
   return ACTION_LABELS[action];
@@ -183,6 +187,8 @@ function limitOf(q: QuizQuestion | undefined): number | null {
 
 export function showQuestion(session: Session, content: QuizContent): SessionChange {
   const q = content.questions[session.state.step];
+  // Аукцион: сначала ставки (вопрос на экране — после «Ставки сделаны»).
+  if (q?.kind === "auction") return openBets(q, carry(session));
   return {
     state: {
       stage: "question",
@@ -261,7 +267,9 @@ export function reveal(
 ): SessionChange {
   const step = steps(content)[session.state.step];
   if (!step) return {};
-  const own = answers.filter((a) => a.step === session.state.step);
+  const stepAnswers = answers.filter((a) => a.step === session.state.step);
+  // Аукцион: ставки того же шага — не ответы на вопрос.
+  const own = step.question.kind === "auction" ? auctionAnswers(stepAnswers, session.state.startedAt) : stepAnswers;
   const board: Record<string, LeaderboardEntry> = {
     ...session.leaderboard,
     ...leaderboardAdditions(session.leaderboard, participants, session.playMode),
@@ -293,7 +301,7 @@ export function reveal(
       stage: "reveal",
       revealed: true,
       answered: own.length,
-      result: { ...resultOf(step.question, own, before.accepted, before.buzz), ...carry(session) },
+      result: { ...resultOf(step.question, own, before.accepted, before.buzz), ...(before.auction ? { auction: before.auction } : {}), ...carry(session) },
     },
     leaderboard,
   };
@@ -321,7 +329,8 @@ export function nextQuestion(session: Session, content: QuizContent): SessionCha
   // Без заставки «Вопрос N из M» вопрос открывается сразу; заставка нового раунда остаётся.
   const q = content.questions[step];
   // Суперигра всегда с заставкой: лучи, сундуки и музыка.
-  const direct = !settingsOf(content).intro && !newRound && q !== undefined && q.kind !== "super";
+  // Аукцион — тоже: сначала тема и ставки.
+  const direct = !settingsOf(content).intro && !newRound && q !== undefined && q.kind !== "super" && q.kind !== "auction";
   const history = pushHistory(session);
   return {
     ...(newRound ? { leaderboard: startRoundEntries(session.leaderboard) } : {}),
@@ -372,14 +381,22 @@ export function back(session: Session, content?: QuizContent): BackPlan | null {
     }
     return {
       change: {
-        state: { stage: "question", revealed: false, result: { ...emptyResult(), accepted: result.accepted, ...(buzz ? { buzz } : {}), ...carry(session) } },
+        state: {
+          stage: "question",
+          revealed: false,
+          result: { ...emptyResult(), accepted: result.accepted, ...(buzz ? { buzz } : {}), ...(result.auction ? { auction: result.auction } : {}), ...carry(session) },
+        },
         leaderboard,
       },
     };
   }
   if (stage === "question") {
+    const q = content?.questions[step];
+    const auction = parseResult(session.state.result).auction;
+    // Аукцион: с ответа — снова ставки (запомненные ставки остаются), жребий уходит с экрана.
+    if (q?.kind === "auction" && auction && auction.phase !== "bets") return { change: auctionBackToBets(session, q, carry(session)) };
     return {
-      change: { state: { stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: Object.keys(carry(session)).length > 0 ? carry(session) : null } },
+      change: { state: { ...(isAuctionDraw(session) ? { slide: null } : {}), stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: Object.keys(carry(session)).length > 0 ? carry(session) : null } },
       clearAnswers: step,
     };
   }

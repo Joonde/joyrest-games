@@ -1,12 +1,14 @@
 import type { PreviewDriver } from "../preview";
 import { scoringIds } from "../preview";
 import { parseBuzz } from "../../core/buzz";
-import { correctSet, settingsOf, type QuizContent, type QuizQuestion } from "./content";
+import { correctSet, drawEffectOfSettings, settingsOf, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
+import { closeBets, isAuctionDraw } from "./auction";
+import { parseResult } from "./logic";
 import { actionLabel, buzzRightAnswer, buzzSync, buzzWrongAnswer, extraAction, nextQuestion, primaryAction, reveal, showBoard, showQuestion, showTotal, superSync } from "./flow";
 
 /** Ответ телефона на вопрос — как его шлёт телефон гостя; `right` — верный или нет. */
 function answerFor(q: QuizQuestion, right: boolean, i: number): unknown {
-  if (q.kind === "open") return right ? (q.answers[i % Math.max(1, q.answers.length)] ?? "") : "не помню";
+  if (q.kind === "open" || (q.kind === "auction" && usesAnswers(q))) return right ? (q.answers[i % Math.max(1, q.answers.length)] ?? "") : "не помню";
   if (q.kind === "pictures") return (q.pictures ?? []).map((p, k) => (right || k === 0 ? (p.answers[0] ?? "") : "не знаю"));
   if (q.kind === "super") {
     // Уровни разные: кто посмелее — дороже.
@@ -50,6 +52,22 @@ export const quizPreview: PreviewDriver<QuizContent> = ({ session, content, part
         // Первый нажавший ошибается — видно, как слово уходит следующему.
         if (buzz.current && buzz.out.length === 0 && buzz.order.length > 1) return { label: "Пульт: «Неверно» — слово следующему", change: buzzWrongAnswer(session) };
         return { label: buzz.current ? "Пульт: «Верно»" : "Пульт: «Показать ответ»", change: buzz.current ? buzzRightAnswer(session, content, answers, participants) : reveal(session, content, answers, participants) };
+      }
+      if (q.kind === "auction") {
+        if (isAuctionDraw(session)) return { label: "Жребий выбрал, кто отвечает", change: { state: { slide: null } } };
+        const auction = parseResult(session.state.result).auction;
+        if (!auction || auction.phase === "bets") {
+          // Двое ставят одинаково больше всех — видно жребий.
+          if (answers.length === 0) return { label: `${who} делают ставки`, answers: teams.map((pid, i) => ({ pid, value: { bet: i < 2 ? q.points : Math.max(1, Math.round(q.points / 2)) } })) };
+          const name = (pid: string) => session.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок";
+          const change = closeBets(session, q, answers, { id: `aucprev${step}`, now: session.state.startedAt ?? 0, name, effect: drawEffectOfSettings(content), pick: (pool) => pool[pool.length - 1] ?? null });
+          return change ? { label: "Пульт: «Ставки сделаны»", change } : null;
+        }
+        if (answers.length === 0) {
+          const pids = auction.phase === "answer" && auction.who ? [auction.who] : teams;
+          return { label: auction.phase === "answer" ? "Отвечает выигравший ставку" : `${who} отвечают`, answers: pids.map((pid, i) => ({ pid, value: answerFor(q, i === 0, i) })) };
+        }
+        return { label: "Пульт: «Показать ответ»", change: reveal(session, content, answers, participants) };
       }
       if (answers.length === 0) {
         // Верно отвечают не все: у каждого вопроса ошибается кто-то свой.

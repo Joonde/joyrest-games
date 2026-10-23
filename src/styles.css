@@ -3202,10 +3202,22 @@ kbd {
   color: var(--color-text);
   font-size: 4.4cqh;
   font-weight: 600;
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  max-width: 64cqw;
+}
+
+/* Имя отвечающего режется многоточием, «+300» после ответа видно всегда. */
+.quiz-auction__who {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 60cqw;
+}
+
+.quiz-screen__counter {
+  white-space: nowrap;
 }
 
 .quiz-auction__plate.is-right {
@@ -3217,6 +3229,7 @@ kbd {
 }
 
 .quiz-auction__delta {
+  flex: none;
   margin-left: 0.6em;
   font-family: var(--font-display);
   font-size: 1.3em;
@@ -4572,6 +4585,16 @@ kbd {
   animation: mil-flash 0.8s ease-out;
 }
 
+/* Длинное имя выпавшего (команда с названием) — не больше двух строк, жребий и подписи остаются в кадре. */
+.slide--draw .draw-winner {
+  max-width: 84cqw;
+  font-size: 9cqh;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
 /* Между кем жребий (у «Аукциона» — равные ставки): плашки под монеткой, после остановки — победитель светится. */
 .draw-pool {
   display: flex;
@@ -4635,6 +4658,17 @@ kbd {
   height: 60cqh;
   overflow: visible;
   filter: drop-shadow(0 2cqh 4cqh rgba(0, 0, 0, 0.55));
+}
+
+/* Жребий остановился: колесо чуть меньше — под ним имя выпавшего (до двух строк) и подпись. */
+.slide--draw.is-done .draw-wheel__svg {
+  width: 48cqh;
+  height: 50cqh;
+}
+
+.slide--draw.is-done .draw-wheel::before {
+  width: 52cqh;
+  height: 52cqh;
 }
 
 .draw-wheel__label {

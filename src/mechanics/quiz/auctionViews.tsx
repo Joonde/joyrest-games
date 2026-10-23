@@ -100,7 +100,9 @@ export function AuctionScreenPlate({ session, auction }: { session: Session; auc
   const last = session.leaderboard[auction.who]?.last ?? 0;
   return (
     <span className={revealed ? `quiz-auction__plate ${last >= 0 ? "is-right" : "is-wrong"}` : "quiz-auction__plate"}>
-      Отвечает <strong>{<NameText name={nameIn(session, auction.who)} />}</strong> · ставка {pointsLabel(auction.bet)}
+      <span className="quiz-auction__who">
+        Отвечает <strong>{<NameText name={nameIn(session, auction.who)} />}</strong> · ставка {pointsLabel(auction.bet)}
+      </span>
       {revealed && <span className="quiz-auction__delta">{signed(last)}</span>}
     </span>
   );
@@ -176,7 +178,7 @@ export function AuctionBetForm({
         </form>
       ) : mine !== null ? (
         <div className="stack">
-          <p className="quiz-phone__verdict">Ставка принята: {pointsLabel(mine)}</p>
+          <p className="quiz-phone__question">Ставка принята: {pointsLabel(mine)}</p>
           {open && (
             <button type="button" className="btn btn--secondary btn--block" onClick={() => setEditing(true)}>
               Изменить ставку

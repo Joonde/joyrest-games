@@ -81,7 +81,9 @@ function QuizScene({ scene, open }: { scene: string; open: boolean }) {
   const ans = (pid: string, value: unknown, at: number): Answer => ({ id: `0_${pid}`, step: 0, pid, uid: pid, value, submittedAt: at });
   const bets = [ans("a", { bet: 300 }, T - 40_000), ans("b", { bet: 300 }, T - 39_000), ans("c", { bet: 100 }, T - 38_000)];
   if (scene !== "splash" && scene !== "phone-ready") {
-    s = applyChange(s, showQuestion(s, content), T - 45_000);
+    // Ставки — ещё идут (время ставок не вышло); дальше — ставки давно закрыты.
+    const betting = scene === "bets" || scene.startsWith("phone-bet");
+    s = applyChange(s, showQuestion(s, content), betting ? T - 5000 : T - 45_000);
     if (scene === "bets" || scene.startsWith("phone-bet")) {
       s = applyChange(s, auctionSync(s, question, bets) ?? {}, T - 1000);
     } else {

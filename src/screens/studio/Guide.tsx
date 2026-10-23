@@ -4,12 +4,19 @@ import { HostGate } from "../../components/HostGate";
 import { StudioSkeleton } from "../../components/Skeleton";
 import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
-import { GAME_GUIDES as ALL_GUIDES, GUIDE_INTRO, GUIDE_TROUBLE, type GameGuide, type GuideFlow } from "../../core/guide";
+import { GAME_GUIDES as AGENCY_GUIDES, GUIDE_INTRO as AGENCY_INTRO, GUIDE_TROUBLE as AGENCY_TROUBLE, type GameGuide, type GuideFlow } from "../../core/guide";
+import { forLite } from "../../core/guideEdition";
 import { HIDDEN_MECHANICS } from "../../mechanics/hidden";
-import type { UserProfile } from "../../data";
+import { edition, type UserProfile } from "../../data";
 import { studioActions } from "./Studio";
 
 /** Скрытые пока форматы (`HIDDEN_MECHANICS`) в инструкции не показываем. */
+// В Лайте — без разделов агентства (фотоотчёт, чаевые, календарь…) и со своим адресом (`core/guideEdition.ts`).
+const LITE = edition() === "lite";
+const HOST = typeof window === "undefined" ? "" : window.location.host;
+const ALL_GUIDES = LITE ? forLite(AGENCY_GUIDES, HOST) : AGENCY_GUIDES;
+const GUIDE_INTRO = LITE ? forLite(AGENCY_INTRO, HOST) : AGENCY_INTRO;
+const GUIDE_TROUBLE = LITE ? forLite(AGENCY_TROUBLE, HOST) : AGENCY_TROUBLE;
 const GAME_GUIDES = ALL_GUIDES.filter((g) => !HIDDEN_MECHANICS.has(g.mechanic));
 
 /**

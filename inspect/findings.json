@@ -1,21 +1,21 @@
 {
  "runs": [
   {
-   "name": "bunker-0-solo-tv",
-   "views": 77,
+   "name": "bunker-0-solo-projector",
+   "views": 78,
    "findings": 1,
    "finished": false
   },
   {
-   "name": "bunker-0-solo-projector",
+   "name": "bunker-0-solo-laptop",
    "views": 80,
-   "findings": 2,
+   "findings": 1,
    "finished": false
   },
   {
-   "name": "bunker-0-solo-laptop",
-   "views": 86,
-   "findings": 4,
+   "name": "bunker-0-solo-tv",
+   "views": 82,
+   "findings": 1,
    "finished": false
   }
  ],
@@ -27,65 +27,13 @@
    "message": "«Первым ходит» закрыт элементом div.draw-coin__rays",
    "path": "div.hall > main.quiz-stage > div.slide.slide--draw > p.slide__eyebrow",
    "text": "Первым ходит",
-   "at": "playing/115/question/discuss",
-   "count": 6,
+   "at": "playing/3/question/open",
+   "count": 11,
    "shot": "shots/bunker-0-solo-laptop-hall-1.jpg",
    "where": [
-    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd",
     "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|закрыт другим элементом|div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span|",
-   "area": "экран зала",
-   "kind": "закрыт другим элементом",
-   "message": "«Голосование» закрыт элементом article.bk-dossier",
-   "path": "div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span",
-   "text": "Голосование",
-   "at": "playing/45/question/vote",
-   "count": 3,
-   "shot": "shots/bunker-0-solo-projector-hall-1.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена",
-    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|бледный текст|div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span|",
-   "area": "экран зала",
-   "kind": "бледный текст",
-   "message": "контраст 1.43 (нужно от 4.5)",
-   "path": "div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span",
-   "text": "Голосование",
-   "at": "playing/45/question/vote",
-   "count": 2,
-   "shot": "shots/bunker-0-solo-laptop-hall-3.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
-   ],
-   "games": [
-    "bunker"
-   ]
-  },
-  {
-   "key": "экран зала|надписи наезжают|div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span|",
-   "area": "экран зала",
-   "kind": "надписи наезжают",
-   "message": "«Речь» и «№4» друг на друге",
-   "path": "div.bk-stage.bk-stage--turn > div.bk-stage__text > div.bk-timer.bk-timer--hall > span",
-   "text": "Речь | №4",
-   "at": "playing/52/question/open",
-   "count": 1,
-   "shot": "shots/bunker-0-solo-laptop-hall-4.jpg",
-   "where": [
-    "bunker 1-й шаблон, каждый сам ×8, ноутбук 16:10, большой зал, длинные имена"
+    "bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена",
+    "bunker 1-й шаблон, каждый сам ×8, телевизор full hd"
    ],
    "games": [
     "bunker"

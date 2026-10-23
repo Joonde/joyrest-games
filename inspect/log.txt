@@ -1,4 +1,4 @@
-• bunker-0-solo-tv: видов 77, находок 1 (до финала не дошла)
-• bunker-0-solo-projector: видов 80, находок 2 (до финала не дошла)
-• bunker-0-solo-laptop: видов 86, находок 4 (до финала не дошла)
-Ревизор: 4 находок → /tmp/inspect/README.md
+• bunker-0-solo-projector: видов 78, находок 1 (до финала не дошла)
+• bunker-0-solo-laptop: видов 80, находок 1 (до финала не дошла)
+• bunker-0-solo-tv: видов 82, находок 1 (до финала не дошла)
+Ревизор: 1 находок → /tmp/inspect/README.md

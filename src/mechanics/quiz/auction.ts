@@ -49,7 +49,7 @@ export function auctionBets(session: Session, q: QuizQuestion, answers: Answer[]
 const BETS: AuctionState = { phase: "bets", placed: [], bets: {}, who: null, bet: 0, tie: [] };
 
 /** «Открыть ставки»: шаг открыт на время ставок, ставку можно поменять, пока идёт время. */
-export function openBets(session: Session, q: QuizQuestion, carry: Record<string, unknown>, keep?: AuctionState): SessionChange {
+export function openBets(q: QuizQuestion, carry: Record<string, unknown>, keep?: AuctionState): SessionChange {
   const auction: AuctionState = keep ? { ...BETS, bets: keep.bets, placed: Object.keys(keep.bets) } : BETS;
   return {
     state: {
@@ -149,6 +149,6 @@ export function isAuctionDraw(session: Pick<Session, "state">): boolean {
 /** «Назад» с ответа «Аукциона» — снова ставки (запомненные ставки возвращаются, время ставок заново). */
 export function auctionBackToBets(session: Session, q: QuizQuestion, carry: Record<string, unknown>): SessionChange {
   const auction = parseResult(session.state.result).auction;
-  const change = openBets(session, q, carry, auction);
+  const change = openBets(q, carry, auction);
   return { ...change, state: { ...change.state, ...(isAuctionDraw(session) ? { slide: null } : {}) } };
 }

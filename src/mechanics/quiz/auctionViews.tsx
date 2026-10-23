@@ -177,7 +177,7 @@ export function AuctionBetForm({
       ) : mine !== null ? (
         <div className="stack">
           <p className="quiz-phone__verdict">Ставка принята: {pointsLabel(mine)}</p>
-          {role !== "member" && open && (
+          {open && (
             <button type="button" className="btn btn--secondary btn--block" onClick={() => setEditing(true)}>
               Изменить ставку
             </button>

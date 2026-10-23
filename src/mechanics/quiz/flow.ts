@@ -188,7 +188,7 @@ function limitOf(q: QuizQuestion | undefined): number | null {
 export function showQuestion(session: Session, content: QuizContent): SessionChange {
   const q = content.questions[session.state.step];
   // Аукцион: сначала ставки (вопрос на экране — после «Ставки сделаны»).
-  if (q?.kind === "auction") return openBets(session, q, carry(session));
+  if (q?.kind === "auction") return openBets(q, carry(session));
   return {
     state: {
       stage: "question",

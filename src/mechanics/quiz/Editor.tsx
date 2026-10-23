@@ -13,7 +13,6 @@ import {
   clipOf,
   correctSet,
   FORMAT_BLOCKS,
-  hasAnswers,
   usesAnswers,
   hasOptions,
   LIMITS as QUIZ_LIMITS,

@@ -1,4 +1,17 @@
 {
  "cases": 72,
- "problems": []
+ "problems": [
+  "quiz-draw-done-joyrest: за краем: slide__eyebrow «Аукцион разыгрывает»",
+  "quiz-draw-done-joyrest: за краем: slide__text «Ставка 300 · отвечает на вопро»",
+  "quiz-reveal-right-joyrest: за краем: quiz-auction__delta «+300 очков»",
+  "quiz-reveal-wrong-joyrest: за краем: quiz-auction__delta «−300 очков»",
+  "quiz-draw-done-open-joyrest: за краем: slide__eyebrow «Аукцион разыгрывает»",
+  "quiz-draw-done-open-joyrest: за краем: slide__text «Ставка 300 · отвечает на вопро»",
+  "quiz-reveal-right-open-joyrest: за краем: quiz-auction__delta «+300 очков»",
+  "quiz-reveal-wrong-open-joyrest: за краем: quiz-auction__delta «−300 очков»",
+  "quiz-draw-done-joyrest-day: за краем: slide__eyebrow «Аукцион разыгрывает»",
+  "quiz-draw-done-joyrest-day: за краем: slide__text «Ставка 300 · отвечает на вопро»",
+  "quiz-reveal-right-joyrest-day: за краем: quiz-auction__delta «+300 очков»",
+  "quiz-reveal-wrong-joyrest-day: за краем: quiz-auction__delta «−300 очков»"
+ ]
 }

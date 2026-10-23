@@ -967,3 +967,21 @@ describe("«Назад» через несколько вопросов (QA 23 �
     expect(first?.score).toBe(s.state.step * 100);
   });
 });
+
+describe("музыка на ответ", () => {
+  it("у любого вопроса: разбор, без трека — нет, трек попадает в список треков игры", async () => {
+    const { parseContent, trackIds, answerClipOf, withAnswerClip } = await import("./content");
+    const c = parseContent({ questions: [
+      { id: "a", kind: "choice", text: "?", options: ["1", "2"], correct: 0, answerMusic: { trackId: "t_win", start: 42, length: 12, fadeIn: 2, fadeOut: 3 } },
+      { id: "b", kind: "open", text: "?", answers: ["x"], answerMusic: { start: 5 } },
+    ] });
+    expect(c.questions[0]!.answerMusic).toEqual({ trackId: "t_win", start: 42, length: 12, fadeIn: 2, fadeOut: 3 });
+    expect(c.questions[1]!.answerMusic).toBeNull();
+    expect(trackIds(c)).toContain("t_win");
+    const clip = answerClipOf(c.questions[0]!);
+    expect(clip.chorusStart).toBeNull();
+    expect(withAnswerClip(c.questions[0]!, { ...clip, trackId: null }).answerMusic).toBeNull();
+    expect(withAnswerClip(c.questions[1]!, { ...clip, start: 7 }).answerMusic?.start).toBe(7);
+  });
+});
+

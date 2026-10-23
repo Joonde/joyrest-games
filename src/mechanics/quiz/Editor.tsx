@@ -21,6 +21,8 @@ import {
   questionImages,
   settingsOf,
   withClip,
+  answerClipOf,
+  withAnswerClip,
   toggleCorrect,
   duplicateQuestion,
   KIND_HINTS,
@@ -1286,6 +1288,15 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       {q.kind !== "super" && tracksRepo && (
         <Fold title={q.kind === "buzz" ? "Трек — что угадывают" : "Трек к вопросу"} value={q.trackId ? "выбран" : "нет"} open={q.kind === "buzz" || Boolean(q.trackId)}>
           <TrackTimeline clip={clipOf(q)} onChange={(clip) => onChange((cur) => withClip(cur, clip))} />
+        </Fold>
+      )}
+      {tracksRepo && (
+        <Fold title="🎵 Музыка на ответ" value={q.answerMusic ? "выбрана" : "нет"} open={Boolean(q.answerMusic)}>
+          <p className="muted small">
+            Отрывок играет на экране зала, когда вы показали верный ответ. Подходит к любому вопросу — с вариантами, картинкой, открытым ответом.
+            {q.trackId ? " У вопроса есть трек — на ответе вместо его припева сыграет эта музыка." : ""}
+          </p>
+          <TrackTimeline answer clip={answerClipOf(q)} onChange={(clip) => onChange((cur) => withAnswerClip(cur, clip))} />
         </Fold>
       )}
     </div>

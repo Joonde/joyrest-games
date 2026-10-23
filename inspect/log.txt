@@ -1,19 +1,9 @@
-✓ lotto-0-solo-tv: видов 30, находок 0
-✓ lotto-0-teams-tv: видов 20, находок 0
-✓ stage-0-teams-tv: видов 56, находок 0
+✓ dragon-1-teams-projector: видов 33, находок 0
+✓ dragon-0-teams-projector: видов 26, находок 0
+✓ dragon-1-teams-tv: видов 33, находок 0
 ✓ dragon-0-teams-tv: видов 26, находок 0
-• dragon-1-teams-tv: видов 32, находок 1
-✓ checkers-0-teams-tv: видов 56, находок 0
-✓ stage-1-teams-tv: видов 56, находок 0
-✓ truth-0-solo-tv: видов 40, находок 0
-✓ truth-0-teams-tv: видов 42, находок 0
-✓ truth-1-solo-tv: видов 40, находок 0
-• durak-0-solo-tv: видов 48, находок 1
-✓ truth-1-teams-tv: видов 42, находок 0
-✓ perudo-0-solo-tv: видов 46, находок 0
-• mafia-0-solo-tv: видов 83, находок 2
-✓ wine-0-solo-tv: видов 14, находок 0
-✓ wine-0-teams-tv: видов 12, находок 0
-✓ perudo-0-teams-tv: видов 44, находок 0
-• bunker-0-solo-tv: видов 75, находок 11 (до финала не дошла)
-Ревизор: 15 находок → /tmp/inspect/README.md
+• mafia-0-solo-tv: видов 87, находок 1
+✓ mafia-0-solo-projector: видов 91, находок 0
+• bunker-0-solo-tv: видов 75, находок 4 (до финала не дошла)
+• bunker-0-solo-projector: видов 83, находок 12 (до финала не дошла)
+Ревизор: 14 находок → /tmp/inspect/README.md

@@ -1,162 +1,152 @@
 # Ревизор — что видят ведущий и гости
 
-Прогонов: 18 · видов игры проверено: 762 · разных находок: 15
+Прогонов: 8 · видов игры проверено: 454 · разных находок: 14
 
-Размеры: Телевизор Full HD (1920x1080).
+Размеры: Телевизор Full HD (1920x1080); Проектор 4:3, маленький телефон, длинные имена (1024x768).
 
-## Мешает игре — 6
-
-### закрыт другим элементом · экран зала
-
-«Гость 2» закрыт элементом p.final__eyebrow — «Гость 2»
-
-- где: `div.podium__stage > div.podium__slot > div.podium__names > p.podium__name`, этап `finished/91/podium/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd
-- раз: 1
-
-![закрыт другим элементом](shots/mafia-0-solo-tv-hall-2.jpg)
+## Мешает игре — 3
 
 ### закрыт другим элементом · экран зала
 
-«0:30» закрыт элементом span.bk-dossier__name — «0:30»
+«Вязание» закрыт элементом p.stage-code — «Вязание»
 
-- где: `section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-timer`, этап `playing/129/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 1
-
-![закрыт другим элементом](shots/bunker-0-solo-tv-hall-3.jpg)
-
-### закрыт другим элементом · экран зала
-
-«Голосование» закрыт элементом span.bk-row__text — «Голосование»
-
-- где: `div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-timer > span`, этап `playing/129/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 1
-
-![закрыт другим элементом](shots/bunker-0-solo-tv-hall-5.jpg)
-
-### надписи наезжают · экран зала
-
-«0:30» и «Гость 4» друг на друге — «0:30 \| Гость 4»
-
-- где: `section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-timer`, этап `playing/129/question/vote`
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--hobby > span.bk-row__text`, этап `playing/143/reveal/final`
 - игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
 - раз: 2
 
-![надписи наезжают](shots/bunker-0-solo-tv-hall-2.jpg)
+![закрыт другим элементом](shots/bunker-0-solo-tv-hall-2.jpg)
 
-### надписи наезжают · экран зала
+### закрыт другим элементом · экран зала
 
-«Снова ничья — решит жребий.» и «№4» друг на друге — «Снова ничья — решит жребий. \| №4»
+«🐻» закрыт элементом span.bk-dossier__stamp — «🐻»
 
-- где: `section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted`, этап `playing/130/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 2
-
-![надписи наезжают](shots/bunker-0-solo-tv-hall-7.jpg)
-
-### надписи наезжают · экран зала
-
-«Голосование» и «Агроном · стаж 14 лет» друг на друге — «Голосование \| Агроном · стаж 14 лет»
-
-- где: `div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-timer > span`, этап `playing/129/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- где: `article.bk-dossier > header.bk-dossier__head > span.bk-dossier__name > span.name-emoji`, этап `playing/48/question/justify`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![надписи наезжают](shots/bunker-0-solo-tv-hall-4.jpg)
+![закрыт другим элементом](shots/bunker-0-solo-projector-hall-2.jpg)
 
-## Заметно — 9
+### закрыт другим элементом · экран зала
+
+«Прыгал с парашютом 50 раз» закрыт элементом p.stage-code — «Прыгал с парашютом 50 раз»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--fact > span.bk-row__text`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![закрыт другим элементом](shots/bunker-0-solo-projector-hall-10.jpg)
+
+## Заметно — 11
 
 ### обрезан текст · телефон
 
-текст обрезан по высоте на 41 px (div.bk-in) — «Поменяйтесь картой «Здоровье» с любым игроком.»
+текст обрезан по высоте на 25 px (div.bk-in) — «Последний изгнанный возвращается в игру.»
 
 - где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__text`, этап `playing/1/question/catastrophe`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 105
+- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 204
 
 ![обрезан текст](shots/bunker-0-solo-tv-phones-1.jpg)
-
-### обрезан текст · экран зала
-
-текст обрезан по высоте на 99 px (div.podium__names) — «Гость 2»
-
-- где: `div.podium__stage > div.podium__slot > div.podium__names > p.podium__name`, этап `finished/91/podium/over`
-- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd
-- раз: 2
-
-![обрезан текст](shots/mafia-0-solo-tv-hall-1.jpg)
 
 ### обрезан текст · телефон
 
 текст обрезан по высоте на 80 px (div.bk-in) — «во время голосования»
 
-- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when`, этап `playing/177/question/discuss`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 2
+- где: `div.bk-phone__specialcard > div.bk-card.bk-special > div.bk-in > span.bk-special__when`, этап `playing/1/question/catastrophe`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd; bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 27
 
-![обрезан текст](shots/bunker-0-solo-tv-phones-3.jpg)
+![обрезан текст](shots/bunker-0-solo-projector-phones-2.jpg)
 
 ### обрезан текст · экран зала
 
-текст обрезан вбок на 18 px (div.bk-in) — «Музыкальная комната»
+текст обрезан вбок на 24 px (article.bk-dossier) — «Перепланировка»
 
-- где: `li > div.bk-card.bk-plan > div.bk-in > span.bk-plan__title`, этап `playing/129/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 2
+- где: `ol.bk-screen__dossiers > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/16/question/open`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 5
 
-![обрезан текст](shots/bunker-0-solo-tv-hall-1.jpg)
+![обрезан текст](shots/bunker-0-solo-projector-hall-1.jpg)
 
-### бледный текст · экран зала
+### обрезан текст · экран зала
 
-контраст 2.58 (нужно от 3) — «А»
+текст обрезан по высоте на 3 px (div.podium__names) — «Гость 1»
 
-- где: `div.dg-q > ol.dg-q__ans > li > b`, этап `playing/14/reveal/`
-- игры (1): dragon 2-й шаблон, команды ×4, телевизор full hd
-- раз: 4
-
-![бледный текст](shots/dragon-1-teams-tv-hall-1.jpg)
-
-### бледный текст · телефон
-
-контраст 1.00 (нужно от 4.5) — «A»
-
-- где: `div.dk-hand__row > button.dk-hand__slot > div.dk-card.dk-d--russia > span.dk-idx.dk-idx--b`, этап `playing/65/question/play`
-- игры (1): durak 1-й шаблон, каждый сам ×4, телевизор full hd
-- раз: 2
-
-![бледный текст](shots/durak-0-solo-tv-phones-1.jpg)
-
-### бледный текст · телефон
-
-контраст 1.07 (нужно от 4.5) — «видите только вы»
-
-- где: `section.bk-phone__mine > ul.bk-phone__cards > li > span.bk-phone__state`, этап `playing/24/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
-- раз: 2
-
-![бледный текст](shots/bunker-0-solo-tv-phones-2.jpg)
-
-### бледный текст · экран зала
-
-контраст 1.11 (нужно от 3) — «0:30»
-
-- где: `section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-timer`, этап `playing/129/question/vote`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- где: `div.podium__stage > div.podium__slot > div.podium__names > p.podium__name`, этап `finished/66/podium/over`
+- игры (1): mafia 1-й шаблон, каждый сам ×9, телевизор full hd
 - раз: 1
 
-![бледный текст](shots/bunker-0-solo-tv-hall-6.jpg)
+![обрезан текст](shots/mafia-0-solo-tv-hall-1.jpg)
 
-### бледный текст · экран зала
+### обрезан текст · экран зала
 
-контраст 1.90 (нужно от 4.5) — «Снова ничья — решит жребий.»
+текст обрезан по высоте на 5 px (div.bk-in) — «Поможет: врач, медсестра, аптечка, антибиотики»
 
-- где: `section.bk-screen__stage > div.bk-stage.bk-stage--turn > div.bk-stage__text > p.bk-lead.bk-lead--muted`, этап `playing/130/question/justify`
-- игры (1): bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
 - раз: 1
 
-![бледный текст](shots/bunker-0-solo-tv-hall-8.jpg)
+![обрезан текст](shots/bunker-0-solo-projector-hall-5.jpg)
+
+### прячется за прокруткой · экран зала
+
+на экране зала текст виден только прокруткой (по высоте на 107 px) — «Допрос»
+
+- где: `ol.bk-screen__dossiers.bk-final__survivors > li > article.bk-dossier > p.bk-dossier__used`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена; bunker 1-й шаблон, каждый сам ×8, телевизор full hd
+- раз: 2
+
+![прячется за прокруткой](shots/bunker-0-solo-tv-hall-1.jpg)
+
+### прячется за прокруткой · экран зала
+
+на экране зала текст виден только прокруткой (по высоте на 41 px) — «Генератор на бензине»
+
+- где: `article.bk-dossier > ul.bk-dossier__rows > li.bk-row.bk-row--baggage > span.bk-row__text`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![прячется за прокруткой](shots/bunker-0-solo-projector-hall-3.jpg)
+
+### прячется за прокруткой · экран зала
+
+на экране зала текст виден только прокруткой (по высоте на 12 px) — «Угроза»
+
+- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__kicker`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![прячется за прокруткой](shots/bunker-0-solo-projector-hall-6.jpg)
+
+### прячется за прокруткой · экран зала
+
+на экране зала текст виден только прокруткой (по высоте на 39 px) — «Кончилась еда»
+
+- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__title`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![прячется за прокруткой](shots/bunker-0-solo-projector-hall-7.jpg)
+
+### прячется за прокруткой · экран зала
+
+на экране зала текст виден только прокруткой (по высоте на 94 px) — «Крысы добрались до склада, еды осталось на неделю.»
+
+- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__text`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![прячется за прокруткой](shots/bunker-0-solo-projector-hall-8.jpg)
+
+### прячется за прокруткой · экран зала
+
+на экране зала текст виден только прокруткой (по высоте на 151 px) — «Поможет: фермер, охотник, семена, повар»
+
+- где: `li > div.bk-card.bk-threat > div.bk-in > span.bk-threat__helps`, этап `playing/152/reveal/final`
+- игры (1): bunker 1-й шаблон, каждый сам ×8, проектор 4:3, маленький телефон, длинные имена
+- раз: 1
+
+![прячется за прокруткой](shots/bunker-0-solo-projector-hall-9.jpg)
 
 ## Мелочи — 0
 

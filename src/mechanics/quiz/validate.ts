@@ -27,7 +27,7 @@ export function validateQuestion(q: QuizQuestion): ValidationError[] {
 
   if (q.kind === "super") {
     for (const problem of levelProblems(q.levels ?? [])) add("levels", problem);
-  } else if (q.kind === "open" || q.kind === "buzz") {
+  } else if (q.kind === "open" || q.kind === "buzz" || (q.kind === "auction" && q.auctionAnswer === "open")) {
     const filled = q.answers.filter((a) => normalizeAnswer(a).length > 0);
     if (filled.length === 0) add("answers", q.kind === "buzz" ? "Напишите правильный ответ — его увидит ведущий." : "Добавьте хотя бы один верный ответ.");
   } else if (q.kind === "pictures") {

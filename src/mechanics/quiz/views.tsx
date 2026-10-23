@@ -15,7 +15,9 @@ import { pointsLabel } from "../../core/results";
 import { acceptsAnswers, secondsLeft } from "../../core/session";
 import type { Session } from "../../data/types";
 import type { PlayerViewProps, ViewProps } from "../types";
-import { clipOf, correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, type QuizContent, type QuizQuestion } from "./content";
+import { clipOf, correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
+import { AuctionBetForm, AuctionScreenPlate, AuctionScreenSplash, AuctionWatch, auctionMyTurn, signed, useDrawSpinning } from "./auctionViews";
+import { parseBet } from "./auction";
 import { boardView, startsRound } from "./flow";
 import { isCorrect, parseGuess, parseOrder, parseResult, picturesRight } from "./logic";
 import { SuperPhone, SuperScreen } from "../../components/live/SuperGame";
@@ -25,7 +27,7 @@ import { parsePenalty, parseStyle, parseSuperAnswer } from "../../core/supergame
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 /** Ответ гостя: номер варианта, текст, ответы к картинкам или нажатие кнопки «кто первый». */
-export type QuizAnswerValue = number | string | string[] | { buzz: true } | { level: number; text: string } | { order: number[] } | { guess: number };
+export type QuizAnswerValue = number | string | string[] | { buzz: true } | { level: number; text: string } | { order: number[] } | { guess: number } | { bet: number };
 
 function plural(n: number, one: string, few: string, many: string): string {
   const d10 = n % 10;
@@ -41,7 +43,7 @@ function currentQuestion(session: Session, content: QuizContent): QuizQuestion |
 
 export function correctText(q: QuizQuestion): string {
   if (q.kind === "order" || q.kind === "number") return orderNumberText(q);
-  if (q.kind === "open" || q.kind === "buzz") return q.answers.filter((a) => a.trim()).join(" / ");
+  if (q.kind === "open" || q.kind === "buzz" || (q.kind === "auction" && usesAnswers(q))) return q.answers.filter((a) => a.trim()).join(" / ");
   if (q.kind === "super") return (q.levels ?? []).map((l, i) => `${["Бронза", "Серебро", "Золото", "Бриллиант"][i]}: ${l.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
   if (q.kind === "pictures") return (q.pictures ?? []).map((p, i) => `${i + 1}. ${p.answers.find((a) => a.trim()) ?? "—"}`).join(" · ");
   return correctSet(q)
@@ -188,6 +190,11 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
     );
   }
 
+  const auction = parsed.auction;
+  if (q.kind === "auction" && (stage === "ready" || (stage === "question" && (auction?.phase ?? "bets") === "bets"))) {
+    return <AuctionScreenSplash session={session} q={q} auction={auction} left={left} counter={`Вопрос ${step + 1} из ${total}`} />;
+  }
+
   if (stage === "ready") {
     return (
       <div className="quiz-screen quiz-screen--intro">
@@ -303,7 +310,9 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
           Вопрос {step + 1} из {total}
         </span>
         <span className="quiz-screen__badge">{KIND_TITLES[q.kind]}</span>
-        {revealed ? (
+        {q.kind === "auction" && auction ? (
+          <AuctionScreenPlate session={session} auction={auction} />
+        ) : revealed ? (
           <span className="quiz-screen__answered">
             Верно ответили: {result.correct} из {result.total}
           </span>
@@ -335,7 +344,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
         <OrderScreenCards q={q} gameId={session.gameId} revealed={revealed} result={result} />
       ) : q.kind === "number" ? (
         <NumberScreen q={q} revealed={revealed} result={result} leaderboard={session.leaderboard} />
-      ) : q.kind === "open" ? (
+      ) : usesAnswers(q) ? (
         <div className="quiz-screen__open">
           {revealed ? (
             <>
@@ -343,7 +352,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
               <strong>{correctText(q) || "—"}</strong>
             </>
           ) : (
-            <span className="quiz-screen__hint">Напишите ответ на телефоне</span>
+            <span className="quiz-screen__hint">{q.kind === "auction" && auction?.phase === "answer" ? "Ответ пишут на телефоне" : "Напишите ответ на телефоне"}</span>
           )}
         </div>
       ) : (
@@ -402,6 +411,7 @@ export function QuizPlayerView({
   const left = secondsLeft(session.state, now);
 
   useEffect(() => setText(""), [q?.id]);
+  const spinning = useDrawSpinning(session);
 
   if (!q) return null;
   const { stage, step } = session.state;
@@ -443,6 +453,58 @@ export function QuizPlayerView({
         onAnswer={(a) => onAnswer(a)}
       />
     );
+  }
+
+  if (q.kind === "auction" && stage !== "board" && stage !== "podium") {
+    const auction = parseResult(session.state.result).auction;
+    if (stage === "ready") {
+      return (
+        <div className="quiz-phone quiz-phone--center">
+          {round && <p className="eyebrow">{roundTitle(round)}</p>}
+          <p className="eyebrow">
+            Вопрос {step + 1} из {total} · Аукцион
+          </p>
+          <h2 className="quiz-phone__question">Аукцион!</h2>
+          <p>{q.topic?.trim() ? `Тема: ${q.topic.trim()}` : "Тема скрыта"}</p>
+          <p className="muted">Готовьте ставку: отвечает тот, кто поставит больше всех.</p>
+          {scoreLine}
+        </div>
+      );
+    }
+    if (stage === "question" && (!auction || auction.phase === "bets")) {
+      return (
+        <AuctionBetForm
+          key={`${q.id}:${session.state.startedAt ?? 0}`}
+          session={session}
+          q={q}
+          pid={pid}
+          role={role}
+          mine={parseBet(myAnswer?.value)}
+          open={open}
+          left={left}
+          sending={sending}
+          onBet={(bet) => onAnswer({ bet })}
+        />
+      );
+    }
+    if (stage === "question" && auction && (spinning || !auctionMyTurn(auction, pid))) {
+      return <AuctionWatch session={session} auction={auction} spinning={spinning} noScreen={noScreen} />;
+    }
+    if (stage === "reveal" && auction?.phase === "answer" && auction.who !== pid) {
+      const last = auction.who ? (session.leaderboard[auction.who]?.last ?? 0) : 0;
+      return (
+        <div className="quiz-phone quiz-phone--center" aria-live="polite">
+          <p className="eyebrow">Аукцион</p>
+          <p className={last > 0 ? "quiz-phone__verdict is-right" : "quiz-phone__verdict is-wrong"}>
+            <NameText name={(auction.who && session.leaderboard[auction.who]?.name) || "Игрок"} />: {last > 0 ? "верно" : "неверно"} {signed(last)}
+          </p>
+          <p>
+            Правильный ответ: <strong>{correctText(q) || "—"}</strong>
+          </p>
+          {scoreLine}
+        </div>
+      );
+    }
   }
 
   if (stage === "ready") {
@@ -595,6 +657,7 @@ export function QuizPlayerView({
           Правильный ответ: <strong>{correctText(q) || "—"}</strong>
         </p>
         {me && (me.last ?? 0) > 0 && <p className="quiz-phone__plus">+{pointsLabel(me.last ?? 0)}</p>}
+        {me && (me.last ?? 0) < 0 && <p className="quiz-phone__minus">{signed(me.last ?? 0)}</p>}
         {scoreLine}
       </div>
     );
@@ -644,7 +707,8 @@ export function QuizPlayerView({
           <span>Подсказывайте ему голосом — на вашем телефоне нажимать ничего не нужно</span>
         </div>
       )}
-      {noScreen ? (
+      {/* Аукцион: отвечающий видит вопрос и на своём телефоне. */}
+      {noScreen || q.kind === "auction" ? (
         <h2 className="quiz-phone__question">{q.text || "Текст вопроса"}</h2>
       ) : (
         <p className="muted">Вопрос на экране зала</p>
@@ -662,7 +726,7 @@ export function QuizPlayerView({
         role === "member" ? null : (
           <NumberPhone key={`${q.id}:${session.state.startedAt ?? 0}`} q={q} mine={answered ? parseGuess(myAnswer?.value) : null} canAnswer={canAnswer} onAnswer={(guess) => onAnswer({ guess })} />
         )
-      ) : q.kind === "open" ? (
+      ) : usesAnswers(q) ? (
         <form className="stack" onSubmit={onSubmit}>
           <label className="field">
             Ваш ответ

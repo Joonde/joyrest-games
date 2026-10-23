@@ -3124,6 +3124,115 @@ kbd {
   font-size: 0.5em;
 }
 
+/* «Аукцион» в квизе (23 октября 2026): заставка с темой, ставки, плашка отвечающего. */
+.quiz-auction {
+  position: relative;
+  gap: 3cqh;
+}
+
+.quiz-auction__top {
+  position: absolute;
+  inset: 5cqh 5cqw auto;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  font-size: 3cqh;
+  color: var(--color-text-muted);
+}
+
+.quiz-auction__top .quiz-screen__timer {
+  margin-left: auto;
+}
+
+.quiz-auction__title {
+  font-size: 13cqh;
+}
+
+.quiz-auction__topic {
+  margin: 0;
+  max-width: 85cqw;
+  font-family: var(--font-display);
+  font-size: 7cqh;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.quiz-auction__topic-label {
+  display: block;
+  color: var(--color-text-muted);
+  font-family: var(--font-body, inherit);
+  font-size: 0.45em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.quiz-auction__placed {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2cqh 1.4cqw;
+  max-width: 88cqw;
+  max-height: 20cqh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+.quiz-auction__placed li {
+  max-width: 26cqw;
+  padding: 0.6cqh 1.6cqw;
+  border: 0.3cqh solid var(--color-highlight);
+  border-radius: 999px;
+  font-size: 3cqh;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quiz-auction__plate {
+  margin-left: auto;
+  padding: 0.4em 1em;
+  border: 0.3cqh solid var(--color-highlight);
+  border-radius: 999px;
+  color: var(--color-text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60cqw;
+}
+
+.quiz-auction__plate.is-right {
+  border-color: var(--color-success);
+}
+
+.quiz-auction__plate.is-wrong {
+  border-color: var(--color-danger);
+}
+
+.quiz-auction__delta {
+  margin-left: 0.6em;
+  font-family: var(--font-display);
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+.quiz-auction__plate.is-right .quiz-auction__delta {
+  color: var(--color-success);
+}
+
+.quiz-auction__plate.is-wrong .quiz-auction__delta {
+  color: var(--color-danger);
+}
+
+.quiz-auction__plate + .quiz-screen__timer {
+  margin-left: 2cqw;
+}
+
 .quiz-screen--board {
   display: flex;
   justify-content: center;
@@ -5528,6 +5637,16 @@ kbd {
   font-size: 24px;
   font-weight: 600;
   color: var(--color-success);
+}
+
+.quiz-phone__minus {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.quiz-auction-phone__quick {
+  justify-content: center;
 }
 
 .quiz-phone__status {

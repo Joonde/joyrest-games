@@ -32,7 +32,17 @@ export function KindIcon({ kind, music = false, picture = false }: { kind: Quest
       </svg>
     );
   }
-  if (kind === "buzz") {
+  if (kind === "auction") {
+    // Молоток аукциониста над подставкой.
+    return (
+      <svg {...common}>
+        <path d="M13 7l7 7M10 10l7 7M11.5 8.5l7 7" />
+        <path d="M15 13l9 9" />
+        <path d="M5 26h12" />
+      </svg>
+    );
+  }
+    if (kind === "buzz") {
     return (
       <svg {...common}>
         <circle cx="16" cy="18" r="9" />

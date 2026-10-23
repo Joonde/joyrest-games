@@ -14,6 +14,7 @@ import {
   correctSet,
   FORMAT_BLOCKS,
   hasAnswers,
+  usesAnswers,
   hasOptions,
   LIMITS as QUIZ_LIMITS,
   newPicture,
@@ -42,6 +43,7 @@ import { TrackTimeline } from "../../components/music/TrackTimeline";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
 import { KindIcon } from "./KindIcon";
+import { DRAW_EFFECTS } from "../../core/draw";
 import { QuizPreview } from "./Preview";
 import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
@@ -74,7 +76,7 @@ function superMeta(q: QuizQuestion): string {
   return [`${q.levels?.length ?? 4} уровня`, STYLE_TITLES[parseStyle(q.superStyle)], range].filter(Boolean).join(" · ");
 }
 
-const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "super"];
+const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "auction", "super"];
 
 /** Конструктор квиза: список вопросов, правка, порядок, импорт списком и предпросмотр. */
 export function QuizEditor({ gameId, themeId, content, onChange, editable }: EditorProps<QuizContent>) {
@@ -440,6 +442,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
         <SettingsCard
           settings={settingsOf(content)}
           hasRace={questions.some((q) => q.kind === "buzz")}
+          hasAuction={questions.some((q) => q.kind === "auction")}
           onChange={(settings) => onChange({ ...content, settings })}
         />
       )}
@@ -737,7 +740,7 @@ const BOARD_MODES: Array<{ id: QuizSettings["board"]; title: string; hint: strin
 ];
 
 /** «Настройки показа» квиза: заставка вопроса, когда таблица, картинки на телефонах. */
-function SettingsCard({ settings, hasRace, onChange }: { settings: QuizSettings; hasRace: boolean; onChange: (settings: QuizSettings) => void }) {
+function SettingsCard({ settings, hasRace, hasAuction, onChange }: { settings: QuizSettings; hasRace: boolean; hasAuction: boolean; onChange: (settings: QuizSettings) => void }) {
   return (
     <details className="card quiz-settings">
       <summary>
@@ -779,6 +782,19 @@ function SettingsCard({ settings, hasRace, onChange }: { settings: QuizSettings;
           <ClampedNumber value={settings.raceTarget} min={QUIZ_LIMITS.minRace} max={QUIZ_LIMITS.maxRace} fallback={5} onChange={(raceTarget) => onChange({ ...settings, raceTarget })} />
           <span className="muted small">Кто первым угадает столько треков (супер-трек — 2–3 деления), тот выигрывает гонку.</span>
         </label>
+      )}
+      {hasAuction && (
+        <fieldset className="stack stack--tight">
+          <legend>Жребий в «Аукционе» при равных ставках</legend>
+          <p className="muted small">Самая большая ставка у нескольких — на экране зала жребий между ними, выпавший отвечает. Ведущий может сменить эффект и на пульте, перед «Ставки сделаны».</p>
+          <div className="pick-chips" role="radiogroup" aria-label="Эффект жребия">
+            {DRAW_EFFECTS.map((f) => (
+              <button key={f.id} type="button" className="pick-chip" role="radio" aria-checked={(settings.drawEffect ?? "coin") === f.id} aria-pressed={(settings.drawEffect ?? "coin") === f.id} title={f.hint} onClick={() => onChange({ ...settings, drawEffect: f.id })}>
+                {f.title}
+              </button>
+            ))}
+          </div>
+        </fieldset>
       )}
     </details>
   );
@@ -918,8 +934,29 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       </fieldset>
       </Fold>
 
+      {q.kind === "auction" && (
+        <>
+          <label className="field">
+            Тема — видна до ставок
+            <input maxLength={LIMITS.topic} value={q.topic ?? ""} placeholder="Например: «Кино 90-х»" onChange={(e) => onChange({ topic: e.target.value })} />
+            <span className="muted small">Сам вопрос гости увидят только после ставок. Пусто — «Тема скрыта».</span>
+          </label>
+          <div className="field">
+            <span>Как отвечает выигравший ставку</span>
+            <div className="seg" role="group" aria-label="Как отвечает выигравший ставку">
+              <button type="button" className={q.auctionAnswer !== "open" ? "seg__btn is-on" : "seg__btn"} aria-pressed={q.auctionAnswer !== "open"} onClick={() => onChange({ auctionAnswer: "choice" })}>
+                Варианты
+              </button>
+              <button type="button" className={q.auctionAnswer === "open" ? "seg__btn is-on" : "seg__btn"} aria-pressed={q.auctionAnswer === "open"} onClick={() => onChange((cur) => ({ ...cur, auctionAnswer: "open", answers: cur.answers.length > 0 ? cur.answers : [""] }))}>
+                Пишет ответ
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       <label className="field">
-        {q.kind === "super" ? "Название на заставке" : "Вопрос"}
+        {q.kind === "super" ? "Название на заставке" : q.kind === "auction" ? "Вопрос — после ставок" : "Вопрос"}
         <textarea
           id={`q-${q.id}-text`}
           rows={3}
@@ -1023,7 +1060,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
           </div>
           <p className="muted small">Одинаково близкие делят место. Точно в цель — ещё +50% очков.</p>
         </fieldset>
-      ) : q.kind === "pictures" || q.kind === "super" ? null : hasAnswers(q.kind) ? (
+      ) : q.kind === "pictures" || q.kind === "super" ? null : usesAnswers(q) ? (
         <fieldset aria-describedby={describedBy("answers")}>
           <legend>{q.kind === "buzz" ? "Правильный ответ — видит только ведущий" : "Верные ответы"}</legend>
           <p className="muted small">
@@ -1141,7 +1178,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         )}
         {q.kind !== "super" && (
         <label className="field">
-          {q.kind === "speed" ? "Очки, максимум" : q.kind === "pictures" ? "Очки за все картинки" : "Очки"}
+          {q.kind === "speed" ? "Очки, максимум" : q.kind === "pictures" ? "Очки за все картинки" : q.kind === "auction" ? "Ставка до — у кого очков меньше" : "Очки"}
           <input
             type="number"
             inputMode="numeric"
@@ -1179,6 +1216,19 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
       )}
       {q.kind === "speed" && <p className="muted small">Самый быстрый верный ответ получает максимум, остальные — меньше.</p>}
       {q.kind === "pictures" && <p className="muted small">Очки делятся на картинки: угадал 3 из 4 — три четверти очков.</p>}
+      {q.kind === "auction" && (
+        <>
+          <p className="muted small">Ставят до своего счёта; у кого очков меньше — до этого числа. Ставок не будет — вопрос для всех за эти очки.</p>
+          <div className="q-quick" role="group" aria-label="Секунд на ставки">
+            <span className="q-quick__label">Ставки:</span>
+            {[15, 20, 30, 45, 60].map((t) => (
+              <button key={t} type="button" className={(q.betTime ?? 30) === t ? "q-quick__btn is-on" : "q-quick__btn"} aria-pressed={(q.betTime ?? 30) === t} onClick={() => onChange({ betTime: t })}>
+                {t} с
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
 
 
@@ -1264,7 +1314,7 @@ function QuestionReadOnly({ gameId, question: q }: { gameId: string; question: Q
             <li key={i}>{p.answers.join(" / ") || "—"}</li>
           ))}
         </ol>
-      ) : hasAnswers(q.kind) ? (
+      ) : usesAnswers(q) ? (
         <p className="muted">Верные ответы: {q.answers.join(" / ")}</p>
       ) : (
         <ul className="import-item__options">

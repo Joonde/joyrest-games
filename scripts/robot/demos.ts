@@ -12,18 +12,21 @@ function robotQ(id: string, text: string, round: string | null) {
 export const ROBOT_DEMOS = [
   {
     mechanic: "quiz",
-    title: "Робот: раунды и суперигра",
+    title: "Робот: раунды, аукцион и суперигра",
     hint: "",
     content: {
       questions: [
         robotQ("rs1", "Кино: первый вопрос", "Кино"),
         robotQ("rs2", "Кино: второй вопрос", null),
+        // Аукцион (23 октября 2026): ставки, жребий при равных, ответ выигравшего на телефоне.
+        { ...robotQ("ra1", "Аукцион: в каком году вышел «Титаник»?", null), kind: "auction", options: ["1997", "1999", "2001"], correct: 0, points: 200, timeLimit: 30, topic: "Кино 90-х", auctionAnswer: "choice", betTime: 20 },
         { id: "rs3", kind: "super", text: "Суперигра «Кино»", options: [], correct: -1, alsoCorrect: [], answers: [], steps: 1, pictures: [], timeLimit: 90, points: 100, imageId: null, trackId: null, trackStart: 0, trackLength: 15, round: null, levels: superLevels("Кино"), superStyle: "chests", penalty: "halfTop" },
         robotQ("rs4", "Музыка: первый вопрос", "Музыка"),
         robotQ("rs5", "Музыка: второй вопрос", null),
+        { ...robotQ("ra2", "Аукцион: кто спел «Yesterday»?", null), kind: "auction", options: [], correct: -1, answers: ["Beatles", "Битлз"], points: 200, timeLimit: 30, topic: "", auctionAnswer: "open", betTime: 20 },
         { id: "rs6", kind: "super", text: "Суперигра «Музыка»", options: [], correct: -1, alsoCorrect: [], answers: [], steps: 1, pictures: [], timeLimit: 90, points: 100, imageId: null, trackId: null, trackStart: 0, trackLength: 15, round: null, levels: superLevels("Музыка"), superStyle: "crowns", penalty: "halfAll" },
       ],
-      settings: { intro: true, board: "rounds", phoneImages: false, raceTarget: 5 },
+      settings: { intro: true, board: "rounds", phoneImages: false, raceTarget: 5, drawEffect: "wheel" },
     },
   },
 ];

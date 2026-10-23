@@ -1,4 +1,4 @@
-import { LIMITS, newQuestion, parseRound, type QuizQuestion } from "./content";
+import { changeKind, LIMITS, newQuestion, parseRound, type QuizQuestion } from "./content";
 import { validateQuestion } from "./validate";
 import { dashMark, dashStartsQuestion, isQuestionHeader, listedOption, markedText, newListedRun, nextLines, parseNumberText, parseOption, QUESTION_NUMBERING, splitAnswers, splitLines, stripBold, type ListedRun } from "./listText";
 
@@ -62,7 +62,12 @@ interface Draft {
   round: string | null;
   /** Строка «Вопрос N» без текста, а сразу под ней варианты — вопрос без текста (ведущий допишет). */
   untitled?: boolean;
+  /** Перед вопросом была строка «# Аукцион: тема» — вопрос-аукцион с этой темой (пусто — тема скрыта). */
+  auction?: string;
 }
+
+/** «# Аукцион: Кино 90-х», «# Аукцион» — следующий вопрос будет аукционом (тема — после двоеточия). */
+const AUCTION_LINE = /^#+\s*аукцион(?![а-яё])\s*[:.—–-]?\s*(.*)$/i;
 
 /** «# Раунд: Кино», «# Кино», «#1 Раунд: Кино», «#2 Кино» → «Кино»; «#1 раунд» → без названия. */
 const ROUND_LINE = /^#+\s*(?:\d{1,3}(?:\s*[.)]\s*|\s+))?(?:раунд(?:\s*\d+)?\s*[:.—-]?\s*)?/i;
@@ -119,6 +124,13 @@ function toQuestion(draft: Draft): ImportedQuestion {
       alsoCorrect: marked.slice(1),
     };
   }
+  if (draft.auction !== undefined) {
+    if (question.kind === "choice" || question.kind === "open") {
+      question = { ...changeKind(question, "auction"), topic: draft.auction.slice(0, LIMITS.topic) };
+    } else {
+      problems.push("«# Аукцион» — только у вопроса с вариантами («-») или ответом («=»): этот вопрос добавлен обычным.");
+    }
+  }
   question.text = draft.text.slice(0, LIMITS.text);
   question.round = draft.round;
   if (draft.text.length > LIMITS.text) problems.push(`Вопрос длиннее ${LIMITS.text} символов — обрезан.`);
@@ -143,6 +155,7 @@ export function parseImport(input: string): ImportResult {
   const skipped: number[] = [];
   let current: Draft | null = null;
   let round: string | null = null;
+  let auction: string | undefined;
   /** Была строка «Вопрос 1» без текста: следующая строка — текст этого вопроса. */
   let header = false;
   let headerLine = 0;
@@ -160,8 +173,10 @@ export function parseImport(input: string): ImportResult {
       number: null,
       round,
       ...(untitled ? { untitled: true } : {}),
+      ...(auction !== undefined ? { auction } : {}),
     };
     round = null;
+    auction = undefined;
     drafts.push(current);
   };
 
@@ -189,6 +204,13 @@ export function parseImport(input: string): ImportResult {
       if (!line.startsWith("#")) {
         startQuestion("", headerLine, true);
       }
+    }
+
+    const auctionLine = AUCTION_LINE.exec(line);
+    if (auctionLine) {
+      auction = (auctionLine[1] ?? "").trim();
+      current = null;
+      return;
     }
 
     if (line.startsWith("#") && !isNumberedQuestion(line)) {

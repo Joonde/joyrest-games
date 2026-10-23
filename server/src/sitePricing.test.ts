@@ -26,7 +26,7 @@ interface Result {
   hint: string;
   travel: number;
 }
-interface Options { pkg: string; tier: number; weekend?: boolean; extras?: string[]; ext?: number; addons?: string[]; date?: string; today?: string }
+interface Options { pkg: string; tier: number; weekend?: boolean; extras?: string[]; ext?: number; addons?: string[]; date?: string; time?: string; today?: string }
 interface Summary { type: string; guests: number | null; parts: string[]; totals: { name: string; price: number }[] | null; duration: string; season: string; date: string; text: string }
 interface Pricing {
   calcPrice(o: Options): Result;
@@ -235,6 +235,17 @@ describe("калькулятор сайта: цены", () => {
     expect(turnkey).toContain("Гостей: больше 90");
     expect(turnkey).toContain("Стоимость: обсудим индивидуально");
     expect(turnkey).not.toMatch(/\u00a0/);
+  });
+  it("время начала — по желанию: строка менеджеру, на цену не влияет, кривое не попадает", () => {
+    const base = { pkg: "quiz", tier: 1, date: "2026-11-20", today: "2026-10-23" };
+    const m = P.calcMessage({ ...base, time: "19:00" }, "standard").split("\n");
+    expect(m[m.indexOf("Дата: 20 ноября 2026, пт") + 1]).toBe("Начало: в 19:00 (примерно, подтвердит менеджер)");
+    expect(P.calcSummary({ ...base, time: "19:00" }).text).toContain("начало в 19:00");
+    expect(P.calcPrice({ ...base, time: "19:00" }).totals).toEqual(P.calcPrice(base).totals);
+    for (const bad of ["25:00", "7:00", "19:60", "", "вечером"]) {
+      expect(P.calcMessage({ ...base, time: bad }, "standard")).not.toContain("Начало");
+      expect(P.calcSummary({ ...base, time: bad }).text).not.toContain("начало в");
+    }
   });
 });
 

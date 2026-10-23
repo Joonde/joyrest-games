@@ -260,6 +260,14 @@
    *          totals: [{ name, price, base, extra }] | null (индивидуально), duration, season: строка | '', date: строка | '',
    *          text — одной строкой для Telegram }.
    */
+  /**
+   * Время начала (решение владельца 23 октября 2026): по желанию, на цену не влияет — только строка менеджеру.
+   * Принимаем «ЧЧ:ММ» (00:00–23:59), иначе пусто. Время подтверждает менеджер: свободны ли ведущие.
+   */
+  function cleanTime(t) {
+    return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : '';
+  }
+
   function calcSummary(opts) {
     var r = calcPrice(opts);
     var pkgId = opts.pkg || 'quiz';
@@ -269,6 +277,7 @@
     var type = turnkey ? 'Под ключ' : 'Пакет «' + pkg.name + '»';
     var parts = [tier < TIERS.length ? 'до ' + TIERS[tier] + ' гостей' : 'больше 90 гостей'];
     if (r.date) parts.push('дата ' + r.date.label);
+    if (cleanTime(opts.time)) parts.push('начало в ' + cleanTime(opts.time));
     parts.push(r.weekend ? 'пятница–воскресенье' : 'будни');
     var extras = (opts.extras || []).filter(function (id) { return id !== pkgId && pkgById(id); });
     if (extras.length) parts.push('ещё в этот вечер: ' + extras.map(function (id) { return pkgById(id).name; }).join(', '));
@@ -311,6 +320,7 @@
     var rows = [['Пакет', pkgId === TURNKEY.id || !pkg ? 'Под ключ' : pkg.name]];
     rows.push(['Гостей', tier < TIERS.length ? 'до ' + TIERS[tier] : 'больше 90']);
     rows.push(['Дата', r.date ? r.date.label : 'не указана']);
+    if (cleanTime(opts.time)) rows.push(['Начало', 'в ' + cleanTime(opts.time) + ' (примерно, подтвердит менеджер)']);
     rows.push(['День', r.weekend ? 'пятница–воскресенье' : 'будни']);
     var extras = (opts.extras || []).filter(function (id) { return id !== pkgId && pkgById(id); });
     if (extras.length) rows.push(['Ещё игры', extras.map(function (id) { return pkgById(id).name; }).join(', ')]);
@@ -356,7 +366,7 @@
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
     MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
     seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,
-    parseDate: parseDate, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
+    parseDate: parseDate, cleanTime: cleanTime, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

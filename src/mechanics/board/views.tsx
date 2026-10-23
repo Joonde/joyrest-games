@@ -234,6 +234,11 @@ export function BoardScreenView({ session, content }: ViewProps<BoardContent>) {
     <div className={`board-screen board-screen--question${image ? " board-screen--image" : ""}${look}`}>
       {confetti}
       {head}
+      {result.auctionTie.length > 1 && (
+        <p className="board-screen__hint board-screen__tie" role="status">
+          Ставки равны ({result.catPrice}) у {result.auctionTie.length} — жребий выбрал: <NameText name={name(result.catTo) ?? ""} />
+        </p>
+      )}
       <h2 className="board-screen__question">
         {cell.trackId && (
           <span className="quiz-screen__note" aria-hidden="true">

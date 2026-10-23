@@ -8,6 +8,7 @@ import { leaderboardAdditions } from "../../core/leaderboard";
 import { buzzOrder, buzzRight, buzzWrong, EMPTY_BUZZ, parseBuzz, syncBuzz, type BuzzState } from "../../core/buzz";
 import { hasPodium, podiumBack, podiumDone } from "../../core/podium";
 import { MAX_TIME_LIMIT } from "../../core/session";
+import { drawSlide, drawWinner } from "../../core/draw";
 import type { Answer, LeaderboardEntry, Participant, Session, SessionChange } from "../../data/types";
 import type { ScoreContext, ScoreDelta, Step } from "../types";
 import { allCells, findCell, roundsOf, type BoardCell, type BoardContent } from "./content";
@@ -76,6 +77,11 @@ export interface BoardResult {
   noAuto: boolean;
   /** Ведущий показал картинку вопроса («Показать картинку»; у клетки `imageShow: "host"`). Новая клетка — снова скрыта. */
   imageShown: boolean;
+  /**
+   * «Аукцион»: у кого самая большая ставка оказалась одинаковой (2 и больше) — среди них жребий монеткой на экране
+   * (решение владельца 23 октября 2026). Пусто — ничьей не было.
+   */
+  auctionTie: string[];
 }
 
 function rec(value: unknown): Record<string, unknown> {
@@ -133,6 +139,7 @@ export function parseBoardResult(raw: unknown): BoardResult {
     speakSince: typeof d.speakSince === "number" && Number.isFinite(d.speakSince) && d.speakSince > 0 ? d.speakSince : null,
     noAuto: d.noAuto === true,
     imageShown: d.imageShown === true,
+    auctionTie: strings(d.auctionTie),
   };
 }
 
@@ -222,7 +229,7 @@ export function openCell(session: Session, content: BoardContent, cellId: string
   if (!found || result.opened.includes(cellId)) return {};
   const cat = found.cell.kind === "cat";
   const auction = found.cell.kind === "auction";
-  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false };
+  const next: BoardResult = { ...result, cell: cellId, mode: cat ? "bet" : auction ? "auction" : "buzz", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, pickerBefore: result.picker, armed: false, openStep: session.state.step, catTo: null, catPrice: found.cell.points, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] };
   return {
     state: {
       stage: "question",
@@ -296,34 +303,64 @@ export function startCatQuestion(session: Session, content: BoardContent): Sessi
  * 1 до своего счёта (у кого меньше стоимости клетки — до стоимости). Отвечает только он: верно — плюс
  * ставка и право выбора, неверно — минус ставка. Ставок нет — отвечает выбиравший клетку за её стоимость.
  */
-export function startAuction(session: Session, content: BoardContent, answers: Answer[]): SessionChange | null {
+/** Жребий при равных ставках «Аукциона»: монетка на экране зала (`src/core/draw.ts`). */
+export interface AuctionDraw {
+  /** id слайда монетки (начинается с `auc`, чтобы пульт убрал его сам). */
+  id: string;
+  /** Часы сервера на пульте. */
+  now: number;
+  name: (pid: string) => string;
+  /** Жребий: по умолчанию — случайный (crypto). */
+  pick?: (pool: string[]) => string | null;
+}
+
+/** Ставки «Аукциона» по шагу: только положительные, не больше разрешённого. */
+export function auctionBets(session: Session, content: BoardContent, answers: Answer[]): Array<{ pid: string; bet: number; at: number }> {
   const result = parseBoardResult(session.state.result);
   const found = findCell(content, result.cell);
-  if (!found || result.mode !== "auction") return null;
-  let best: { pid: string; bet: number; at: number } | null = null;
+  if (!found) return [];
+  const out: Array<{ pid: string; bet: number; at: number }> = [];
   for (const a of answers) {
     if (a.step !== session.state.step) continue;
     const raw = rec(a.value).bet;
     if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) continue;
-    const bet = Math.min(Math.round(raw), maxBet(session.leaderboard[a.pid]?.score ?? 0, found.cell.points));
-    const at = a.submittedAt ?? Number.MAX_SAFE_INTEGER;
-    if (!best || bet > best.bet || (bet === best.bet && at < best.at)) best = { pid: a.pid, bet, at };
+    out.push({ pid: a.pid, bet: Math.min(Math.round(raw), maxBet(session.leaderboard[a.pid]?.score ?? 0, found.cell.points)), at: a.submittedAt ?? Number.MAX_SAFE_INTEGER });
   }
-  const who = best?.pid ?? result.pickerBefore;
-  if (!who) return null;
-  const price = best?.bet ?? found.cell.points;
-  return {
-    state: {
-      step: session.state.step + 1,
-      stage: "question",
-      startedAt: "server",
-      timeLimit: null,
-      revealed: false,
-      answered: 0,
-      result: write({ ...result, mode: "buzz", buzz: { order: [who], current: who, out: [], winner: null }, bets: { [who]: price }, catStep: true, armed: true, catTo: who, catPrice: price, speakSince: null }),
-    },
-  };
+  return out;
 }
+
+/**
+ * «Ставки сделаны»: отвечает поставивший больше всех. Самая большая ставка у нескольких — жребий среди них (монетка на
+ * экране зала, решение владельца 23 октября 2026; без `draw` — кто поставил раньше, как раньше). Ставок нет — выбиравший
+ * клетку за её стоимость.
+ */
+export function startAuction(session: Session, content: BoardContent, answers: Answer[], draw?: AuctionDraw): SessionChange | null {
+  const result = parseBoardResult(session.state.result);
+  const found = findCell(content, result.cell);
+  if (!found || result.mode !== "auction") return null;
+  const bets = auctionBets(session, content, answers);
+  const top = bets.reduce((m, b) => Math.max(m, b.bet), 0);
+  const tied = bets.filter((b) => b.bet === top && top > 0).sort((a, b) => a.at - b.at);
+  let who = tied[0]?.pid ?? result.pickerBefore;
+  const tie = tied.length > 1 && draw ? tied.map((b) => b.pid) : [];
+  if (tie.length > 1 && draw) who = (draw.pick ?? ((pool: string[]) => drawWinner(pool)))(tie) ?? who;
+  if (!who) return null;
+  const price = tied.length > 0 ? top : found.cell.points;
+  const state: SessionChange["state"] = {
+    step: session.state.step + 1,
+    stage: "question",
+    startedAt: "server",
+    timeLimit: null,
+    revealed: false,
+    answered: 0,
+    result: write({ ...result, mode: "buzz", buzz: { order: [who], current: who, out: [], winner: null }, bets: { [who]: price }, catStep: true, armed: true, catTo: who, catPrice: price, speakSince: null, auctionTie: tie }),
+  };
+  if (tie.length > 1 && draw) state.slide = drawSlide(draw.id, tie.map(draw.name), draw.name(who), draw.now);
+  return { state };
+}
+
+/** Монетка жребия «Аукциона» докрутилась и постояла — пульт убирает её сам. */
+export const AUCTION_DRAW_HOLD_MS = 3000;
 
 /** Раунд кончился: клетка гаснет, на экране — поле следующего раунда (дороже). */
 export function nextRound(session: Session, content: BoardContent): SessionChange | null {
@@ -486,7 +523,7 @@ export function toBoard(session: Session): SessionChange {
       timeLimit: null,
       revealed: false,
       answered: 0,
-      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false }),
+      result: write({ ...result, opened: [...result.opened, result.cell], cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, replay: 0, prev, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }),
     },
   };
 }
@@ -526,7 +563,7 @@ export function boardBack(session: Session, content: BoardContent): BoardBack | 
     // Все шаги клетки (ставки, вопрос, отсчёт) убираются — назад к полю на шаг, где клетку открыли.
     const back = result.openStep !== null && result.openStep <= step ? result.openStep : result.catStep ? step - 1 : step;
     const change: SessionChange = {
-      state: { step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false }) },
+      state: { ...(session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? { slide: null } : {}), step: back, stage: "ready", startedAt: null, timeLimit: null, revealed: false, answered: 0, result: write({ ...result, cell: null, mode: "pick", buzz: EMPTY_BUZZ, bets: {}, fines: {}, catStep: false, armed: false, openStep: null, catTo: null, catPrice: 0, pausedAt: null, speakSince: null, noAuto: false, imageShown: false, auctionTie: [] }) },
     };
     if (Object.keys(refund).length > 0) change.addScore = refund;
     return { change, clear: Array.from({ length: step - back + 1 }, (_, i) => back + i) };

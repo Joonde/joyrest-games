@@ -485,3 +485,54 @@ describe("«Ставка на знания»: когда показать кар
     expect(cellImageOf(first, parseBoardResult(s.state.result), false)).toBe("q1");
   });
 });
+
+describe("«Ставка на знания»: «Аукцион», равные ставки — жребий (23 октября 2026)", () => {
+  function auction(c: BoardContent) {
+    const cell = c.categories[0]?.cells[0];
+    if (!cell) throw new Error("клетка");
+    cell.kind = "auction";
+    let s = session();
+    s = { ...s, leaderboard: { p1: { name: "Игрок 1", kind: "player", score: 500 }, p2: { name: "Игрок 2", kind: "player", score: 500 }, p3: { name: "Игрок 3", kind: "player", score: 500 } } };
+    s = apply(s, openCell(s, c, cell.id));
+    return s;
+  }
+  const bet = (pid: string, step: number, value: number, at: number): Answer => ({ id: `${step}_${pid}`, step, pid, uid: pid, value: { bet: value }, submittedAt: at });
+
+  it("самая большая ставка у троих — монетка среди них, победитель отвечает за свою ставку", () => {
+    const c = content();
+    const s = auction(c);
+    const step = s.state.step;
+    const answers = [bet("p1", step, 300, 1), bet("p2", step, 300, 2), bet("p3", step, 300, 3)];
+    const change = startAuction(s, c, answers, { id: "auctest", now: 1000, name: (pid) => pid, pick: (pool) => pool[2] ?? null });
+    const r = parseBoardResult(change?.state?.result);
+    expect(r.catTo).toBe("p3");
+    expect(r.catPrice).toBe(300);
+    expect(r.auctionTie).toEqual(["p1", "p2", "p3"]);
+    expect(change?.state?.slide?.kind).toBe("draw");
+    expect(change?.state?.slide?.title).toBe("p3");
+  });
+
+  it("ставки разные — без монетки; двое равных, но не самые большие — без жребия", () => {
+    const c = content();
+    const s = auction(c);
+    const step = s.state.step;
+    const answers = [bet("p1", step, 200, 1), bet("p2", step, 200, 2), bet("p3", step, 400, 3)];
+    const change = startAuction(s, c, answers, { id: "auctest", now: 1000, name: (pid) => pid });
+    expect(parseBoardResult(change?.state?.result).catTo).toBe("p3");
+    expect(parseBoardResult(change?.state?.result).auctionTie).toEqual([]);
+    expect(change?.state?.slide).toBeUndefined();
+  });
+
+  it("«Назад» с вопроса убирает монетку жребия", () => {
+    const c = content();
+    let s = auction(c);
+    const step = s.state.step;
+    s = apply(s, startAuction(s, c, [bet("p1", step, 300, 1), bet("p2", step, 300, 2)], { id: "auctest", now: 1000, name: (pid) => pid, pick: (pool) => pool[0] ?? null }));
+    expect(s.state.slide?.id).toBe("auctest");
+    const back = boardBack(s, c);
+    if (!back) throw new Error("назад");
+    s = apply(s, back.change);
+    expect(s.state.slide ?? null).toBeNull();
+  });
+});
+

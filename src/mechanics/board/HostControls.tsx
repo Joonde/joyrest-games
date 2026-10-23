@@ -10,7 +10,7 @@ import { MediaImage } from "../../components/media/MediaImage";
 import type { Session } from "../../data/types";
 import type { HostControlsProps } from "../types";
 import { allCells, CELL_MARKS, CELL_TITLES, findCell, roundCategories, roundsOf, type BoardContent } from "./content";
-import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, setImageShown, speakLeft, speakMore, speakTimeout, startAuction, startCatQuestion, toBoard } from "./logic";
+import { armBuzz, boardBack, boardBuzzSync, boardPrimary, boardReveal, boardWrong, CAT_MAX, catGiveOf, collectBets, nextRound, openCell, parseBoardResult, replayCell, roundCells, setCat, setImageShown, speakLeft, speakMore, speakTimeout, startAuction, AUCTION_DRAW_HOLD_MS, startCatQuestion, toBoard } from "./logic";
 
 /** Момент игры для повтора касания: без нажатий кнопки и выбора «Кота в мешке» (их пишет фон пульта). */
 function boardMoment(s: Session): string {
@@ -78,6 +78,20 @@ export function BoardHostControls({ session, content, answers, participants, con
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- новый «время на ответ вышло»
   }, [answerKey, busy]);
+
+  // Жребий «Аукциона» (равные ставки): монетка докрутилась и постояла — убираем сами, на экране вопрос.
+  const drawSlideNow = session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? session.state.slide : null;
+  useEffect(() => {
+    if (!drawSlideNow) return;
+    const wait = Math.max(0, (drawSlideNow.endsAt ?? 0) + AUCTION_DRAW_HOLD_MS - (Date.now() + clock.offset()));
+    const id = drawSlideNow.id;
+    const timer = window.setTimeout(() => {
+      if (latest.current.state.slide?.id !== id) return;
+      void control.apply({ state: { slide: null }, expect: { slide: id } }).catch(() => undefined);
+    }, wait);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- новый слайд жребия
+  }, [drawSlideNow?.id]);
 
   // «Кот в мешке»: выбор того, кто выбирал клетку, сразу на экран (ведущий может поправить).
   const catGive = stage === "question" && result.mode === "bet" ? catGiveOf(session, answers) : null;
@@ -230,7 +244,7 @@ export function BoardHostControls({ session, content, answers, participants, con
     return (
       <div className="stack host-quiz board-host">
         {header}
-        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один (при равных — кто раньше). Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку.</p>
+        <p className="muted small">Аукцион: гости ставят очки на телефонах. Больше всех — отвечает один; у нескольких одинаково больше всех — жребий монеткой на экране. Верно — плюс ставка, неверно — минус. Ставок нет — отвечает выбиравший клетку.</p>
         <div className="host-quiz__live" aria-live="polite">
           <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
             {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
@@ -255,7 +269,7 @@ export function BoardHostControls({ session, content, answers, participants, con
         )}
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers)))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers), { id: `auc${Math.random().toString(36).slice(2, 12)}`, now: Date.now() + clock.offset(), name: (pid) => s.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок" }))}>
             Ставки сделаны — показать вопрос
           </button>
           {backButton}
@@ -329,7 +343,10 @@ export function BoardHostControls({ session, content, answers, participants, con
       {/* Кто нажал первым — сразу сверху, над текстом вопроса (14 октября 2026). */}
       {speaking && (
         <div className="host-buzz" role="status" aria-live="assertive">
-          <span className="host-buzz__label">Отвечает{result.catStep && result.bets[speaking] ? ` · ставка ${result.bets[speaking]}` : ""}</span>
+          <span className="host-buzz__label">
+            Отвечает{result.catStep && result.bets[speaking] ? ` · ставка ${result.bets[speaking]}` : ""}
+            {result.auctionTie.length > 1 ? ` · жребий среди ${result.auctionTie.length} равных ставок` : ""}
+          </span>
           <span className="host-buzz__name">
             <NameText name={nameOf(speaking)} />
           </span>

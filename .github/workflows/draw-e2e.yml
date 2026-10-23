@@ -1,0 +1,54 @@
+# Проверка жребия «Аукциона» (монетка, колесо фортуны, барабан) на настоящем экране зала в браузере, без сервера.
+# Run workflow или коммит с [draw] в ветке claude/* (~3 минуты). Снимки — в ветку e2e-shots (папка draw/).
+name: Проверка жребия
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  draw:
+    name: Жребий на экране зала
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[draw]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Зависимости
+        run: |
+          npm ci --no-audit --no-fund
+          npm i --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Сборка
+        run: |
+          set +e
+          ROBOT_ENTRY=scripts/robot/draw-check.tsx node scripts/robot/build.mjs /tmp/draw > /tmp/build.log 2>&1
+          st=$?; cat /tmp/build.log
+          if [ $st -ne 0 ]; then grep -iE "error|✘|could not" /tmp/build.log | head -20 | sed 's/^/::error::/'; exit 1; fi
+      - name: Проверка
+        run: |
+          set +e
+          node scripts/robot/draw-check.mjs /tmp/draw /tmp/draw/shots > /tmp/draw/log.txt 2>&1
+          st=$?; cat /tmp/draw/log.txt
+          head -40 /tmp/draw/log.txt | sed 's/^/::notice::/'
+          exit $st
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/draw/shots ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf draw && mkdir -p draw && cp /tmp/draw/shots/* /tmp/draw/log.txt draw/ 2>/dev/null || true
+          git add -A draw
+          if git commit -qm "Проверка жребия ${GITHUB_SHA::7}"; then
+            for i in 1 2 3 4 5; do git push -q origin HEAD:e2e-shots && break; git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break; done
+          fi

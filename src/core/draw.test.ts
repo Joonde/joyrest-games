@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DRAW_MS, drawFrame, drawNames, drawSlide, drawWinner } from "./draw";
+import { DRAW_MS, drawCaptionsOf as capsOf, drawEffectOf, drawFrame, reelFrame, wheelFrame, drawNames, drawSlide, drawSlide as slideOf, drawWinner } from "./draw";
 
 describe("жеребьёвка", () => {
   it("жребий — один из участников; пусто — никого", () => {
@@ -30,5 +30,35 @@ describe("жеребьёвка", () => {
     const slide = drawSlide("d", many, "Игрок 199", 0);
     expect(slide.text.length).toBeLessThanOrEqual(400);
     expect(drawNames(slide).at(-1)).toBe("Игрок 199");
+  });
+});
+
+describe("подписи монетки", () => {
+  it("без подписей — «кто ходит первым», с подписями — свои", () => {
+    expect(capsOf(slideOf("d1", ["А", "Б"], "А", 0)).doneEyebrow).toBe("Первым ходит");
+    const s = slideOf("auc1", ["А", "Б"], "Б", 0, { spinEyebrow: "Аукцион", spinText: "равны", doneEyebrow: "Отвечает", doneText: "Ставка 300" });
+    expect(capsOf(s)).toEqual({ spinEyebrow: "Аукцион", spinText: "равны", doneEyebrow: "Отвечает", doneText: "Ставка 300" });
+  });
+});
+
+describe("колесо и барабан", () => {
+  it("останавливаются на победителе, по пути проходят всех", () => {
+    for (const n of [2, 3, 4, 7, 12]) {
+      for (let win = 0; win < n; win++) {
+        expect(wheelFrame(n, win, 0).index).toBe(win);
+        expect(reelFrame(n, win, 0).index).toBe(win);
+        const seen = new Set<number>();
+        for (let t = DRAW_MS; t > 0; t -= 20) seen.add(wheelFrame(n, win, t).index);
+        expect(seen.size).toBe(n);
+      }
+    }
+  });
+  it("эффект из слайда: старые слайды — монетка, колесо больше 12 имён — монетка", () => {
+    expect(drawEffectOf(drawSlide("d", ["А", "Б"], "А", 0))).toBe("coin");
+    expect(drawEffectOf(drawSlide("d", ["А", "Б"], "А", 0, undefined, "wheel"))).toBe("wheel");
+    expect(drawEffectOf(drawSlide("d", ["А", "Б"], "А", 0, undefined, "reel"))).toBe("reel");
+    const many = Array.from({ length: 13 }, (_, i) => `И${i}`);
+    expect(drawEffectOf(drawSlide("d", many, "И0", 0, undefined, "wheel"))).toBe("coin");
+    expect(capsOf(drawSlide("d", ["А", "Б"], "А", 0, undefined, "reel")).doneEyebrow).toBe("Первым ходит");
   });
 });

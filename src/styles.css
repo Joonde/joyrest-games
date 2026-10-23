@@ -4270,50 +4270,190 @@ kbd {
 }
 
 /* Слайды экрана зала (SlideView): крупно, в стиле темы, размеры в единицах контейнера. */
-/* Жеребьёвка: золотая монетка с именем, переворот на каждое имя. */
+/* Жеребьёвка: золотая монета с рифлёным ребром, подпрыгивает и переворачивается на каждое имя, на итоге — лучи и блеск. */
 .draw-coin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46cqh;
+  height: 50cqh;
+  margin: 0;
   perspective: 120cqh;
-  margin: 2cqh 0;
+}
+
+.draw-coin__rays {
+  position: absolute;
+  inset: -6cqh;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(243, 223, 174, 0.28) 0deg 6deg, transparent 6deg 18deg);
+  mask: radial-gradient(circle, #000 20%, transparent 68%);
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+
+.draw-coin.is-done .draw-coin__rays {
+  opacity: 1;
+  animation: draw-rays 14s linear infinite;
+}
+
+.draw-coin__toss {
+  position: relative;
+  z-index: 1;
+  animation: draw-toss 0.9s ease-in-out infinite;
+}
+
+.draw-coin.is-done .draw-coin__toss {
+  animation: none;
 }
 
 .draw-coin__face {
+  position: relative;
   display: grid;
+  grid-template-rows: auto 1fr auto;
   place-items: center;
   width: 38cqh;
   height: 38cqh;
-  padding: 4cqh;
+  padding: 5cqh 4.5cqh;
   box-sizing: border-box;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff3c4, #e9cf8a 35%, #c9a15f 70%, #8c6a2f);
-  box-shadow: inset 0 0 0 1.2cqh rgba(140, 106, 47, 0.55), inset 0 0 0 1.6cqh rgba(255, 243, 196, 0.6), 0 2cqh 6cqh rgba(0, 0, 0, 0.5);
-  color: #2b1d0e;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 250, 230, 0.95), transparent 32%),
+    radial-gradient(circle, #f1d999 0 52%, #d9b56f 53% 60%, #f3dfae 61% 63%, #c9a15f 64% 100%);
+  box-shadow:
+    inset 0 0 0 0.5cqh #8c6a2f,
+    inset 0 0 0 1.1cqh #f3dfae,
+    inset 0 -1.2cqh 2.4cqh rgba(110, 82, 36, 0.55),
+    0 0.7cqh 0 #a07a3a,
+    0 1.4cqh 0 #7a5a26,
+    0 3cqh 5cqh rgba(0, 0, 0, 0.55);
+  color: #3a280f;
+  overflow: hidden;
   animation: draw-flip 0.16s ease-out;
+}
+
+/* Рифлёное ребро — тонкое кольцо насечек по краю. */
+.draw-coin__face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#8c6a2f 0deg 2deg, #f3dfae 2deg 4deg);
+  mask: radial-gradient(circle, transparent 0 66%, #000 67% 70%, transparent 71%);
+  opacity: 0.85;
+}
+
+/* Блик пробегает по монете. */
+.draw-coin__face::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.55) 48%, transparent 58%);
+  transform: translateX(-60%);
+  animation: draw-shine 1.6s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .draw-coin__face.is-final {
   animation: draw-land 0.9s cubic-bezier(0.2, 1.5, 0.4, 1);
-  box-shadow: inset 0 0 0 1.2cqh rgba(140, 106, 47, 0.55), inset 0 0 0 1.6cqh rgba(255, 243, 196, 0.6), 0 0 8cqh rgba(243, 223, 174, 0.75);
+  box-shadow:
+    inset 0 0 0 0.5cqh #8c6a2f,
+    inset 0 0 0 1.1cqh #f3dfae,
+    inset 0 -1.2cqh 2.4cqh rgba(110, 82, 36, 0.55),
+    0 0.7cqh 0 #a07a3a,
+    0 1.4cqh 0 #7a5a26,
+    0 0 9cqh rgba(243, 223, 174, 0.85);
+}
+
+.draw-coin__face.is-final::after {
+  animation: draw-shine 2.4s ease-in-out 1;
+}
+
+.draw-coin__star {
+  position: relative;
+  font-size: 3cqh;
+  line-height: 1;
+  color: #8c6a2f;
+  text-shadow: 0 0.15cqh 0 rgba(255, 243, 196, 0.8);
 }
 
 .draw-coin__name {
+  position: relative;
+  max-width: 100%;
   font-family: "Cormorant Garamond", serif;
   font-weight: 700;
-  font-size: 5.2cqh;
+  font-size: 5cqh;
   line-height: 1.05;
   text-align: center;
   text-wrap: balance;
   overflow-wrap: anywhere;
+  color: #3a280f;
+  text-shadow: 0 0.2cqh 0 rgba(255, 243, 196, 0.85), 0 -0.1cqh 0 rgba(90, 62, 20, 0.45);
+}
+
+.draw-coin__shadow {
+  position: absolute;
+  bottom: 1cqh;
+  width: 28cqh;
+  height: 3cqh;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
+  animation: draw-shadow 0.9s ease-in-out infinite;
+}
+
+.draw-coin.is-done .draw-coin__shadow {
+  animation: none;
 }
 
 @keyframes draw-flip {
   from {
-    transform: rotateY(90deg);
+    transform: rotateY(90deg) scaleY(0.92);
   }
 }
 
 @keyframes draw-land {
-  from {
+  0% {
     transform: rotateY(180deg) scale(0.8);
+  }
+  60% {
+    transform: rotateY(0) scale(1.08);
+  }
+}
+
+@keyframes draw-toss {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4cqh);
+  }
+}
+
+@keyframes draw-shadow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.75);
+    opacity: 0.6;
+  }
+}
+
+@keyframes draw-shine {
+  0% {
+    transform: translateX(-60%);
+  }
+  60%,
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+@keyframes draw-rays {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -4321,9 +4461,208 @@ kbd {
   animation: mil-flash 0.8s ease-out;
 }
 
+/* Между кем жребий (у «Аукциона» — равные ставки): плашки под монеткой, после остановки — победитель светится. */
+.draw-pool {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2cqh 1.6cqh;
+  max-width: 90cqw;
+  margin: 1.6cqh 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draw-pool__name {
+  max-width: 28cqw;
+  padding: 0.8cqh 2.2cqh;
+  border: 0.3cqh solid var(--color-highlight);
+  border-radius: 999px;
+  font-size: 3.2cqh;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.4s, transform 0.4s;
+}
+
+.draw-pool__name.is-win {
+  background: var(--color-highlight);
+  color: var(--color-bg);
+  transform: scale(1.08);
+}
+
+.draw-pool__name.is-out {
+  opacity: 0.45;
+}
+
+/* Колесо фортуны: золотой обод с бегущими огнями, секторы драгоценных тонов, язычок сверху. */
+.draw-wheel {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1cqh;
+  margin: 0;
+}
+
+.draw-wheel::before {
+  content: "";
+  position: absolute;
+  top: 2cqh;
+  left: 50%;
+  width: 62cqh;
+  height: 62cqh;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(243, 223, 174, 0.28), transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.draw-wheel__svg {
+  position: relative;
+  width: 58cqh;
+  height: 60cqh;
+  overflow: visible;
+  filter: drop-shadow(0 2cqh 4cqh rgba(0, 0, 0, 0.55));
+}
+
+.draw-wheel__label {
+  font-family: "Jost", sans-serif;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 0.8px;
+}
+
+.draw-wheel__hub {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+}
+
+.draw-wheel__seg {
+  transition: opacity 0.4s;
+}
+
+.draw-wheel__seg.is-out {
+  opacity: 0.45;
+}
+
+.draw-wheel__seg.is-win path {
+  filter: brightness(1.3) drop-shadow(0 0 3px #f3dfae);
+  stroke: #fff3c4;
+  stroke-width: 2.5px;
+}
+
+.draw-wheel__bulb {
+  fill: #fff3c4;
+  filter: drop-shadow(0 0 1.5px #ffe7a1);
+  animation: draw-bulb 0.7s steps(1) infinite;
+}
+
+.draw-wheel.is-done .draw-wheel__bulb {
+  animation-duration: 0.3s;
+}
+
+@keyframes draw-bulb {
+  50% {
+    fill: #8c6a2f;
+    filter: none;
+  }
+}
+
+.draw-wheel__now {
+  min-height: 5cqh;
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 4.4cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80cqw;
+}
+
+.draw-wheel.is-done .draw-wheel__now {
+  display: none;
+}
+
+/* Барабан: окно на три строки, лента имён бежит снизу вверх. */
+.draw-reel {
+  --reel-row: 9cqh;
+  margin: 2cqh 0;
+}
+
+.draw-reel__window {
+  position: relative;
+  width: min(70cqw, 90cqh);
+  height: calc(var(--reel-row) * 3);
+  overflow: hidden;
+  border: 0.6cqh solid var(--color-highlight);
+  border-radius: 3cqh;
+  background:
+    linear-gradient(180deg, var(--color-bg), transparent 38%, transparent 62%, var(--color-bg)),
+    var(--color-surface);
+  box-shadow: 0 2cqh 6cqh rgba(0, 0, 0, 0.45);
+}
+
+.draw-reel__window::after {
+  content: "";
+  position: absolute;
+  inset: var(--reel-row) 0;
+  border-block: 0.4cqh solid var(--color-highlight);
+  background: rgba(227, 198, 140, 0.12);
+  pointer-events: none;
+}
+
+.draw-reel__row {
+  display: grid;
+  place-items: center;
+  height: var(--reel-row);
+  padding: 0 4cqh;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+  font-size: 5cqh;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.55;
+}
+
+.draw-reel__row.is-now {
+  opacity: 1;
+}
+
+.draw-reel.is-done .draw-reel__window {
+  box-shadow: 0 0 8cqh rgba(243, 223, 174, 0.6);
+}
+
+.draw-reel__mark {
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-block: 1.4cqh solid transparent;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.draw-reel__mark--l {
+  left: 0;
+  border-left: 2cqh solid var(--color-highlight);
+}
+
+.draw-reel__mark--r {
+  right: 0;
+  border-right: 2cqh solid var(--color-highlight);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .draw-coin__face,
   .draw-coin__face.is-final,
+  .draw-coin__face::after,
+  .draw-coin__toss,
+  .draw-coin__shadow,
+  .draw-coin.is-done .draw-coin__rays,
+  .draw-wheel__bulb,
   .draw-winner {
     animation: none;
   }

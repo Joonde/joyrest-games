@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { DRAW_EFFECTS, type DrawEffect } from "../../core/draw";
 import { PodiumHostList } from "../../components/live/Podium";
 import { useHostRun } from "../../components/live/useHostRun";
 import { useServerNow } from "../../components/live/useServerNow";
@@ -93,6 +94,26 @@ export function BoardHostControls({ session, content, answers, participants, con
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- новый «время на ответ вышло»
   }, [answerKey, busy]);
+
+  // Эффект жребия «Аукциона»: по умолчанию — из настроек игры, ведущий меняет на пульте (помнит это устройство).
+  const effectKey = `joyrest.board.draw.${session.id}`;
+  const [drawEffect, setDrawEffectState] = useState<DrawEffect>(() => {
+    try {
+      const v = window.localStorage.getItem(effectKey);
+      if (v === "coin" || v === "wheel" || v === "reel") return v;
+    } catch {
+      // нет хранилища — из настроек игры
+    }
+    return content.drawEffect;
+  });
+  const setDrawEffect = (v: DrawEffect) => {
+    setDrawEffectState(v);
+    try {
+      window.localStorage.setItem(effectKey, v);
+    } catch {
+      // не запомнилось — не страшно
+    }
+  };
 
   // Жребий «Аукциона» (равные ставки): монетка докрутилась и постояла — убираем сами, на экране вопрос.
   const drawSlideNow = session.state.slide?.kind === "draw" && session.state.slide.id.startsWith("auc") ? session.state.slide : null;
@@ -284,9 +305,19 @@ export function BoardHostControls({ session, content, answers, participants, con
               ))}
           </ul>
         )}
+        <div className="stack stack--tight">
+          <p className="muted small">Ставки равны у нескольких — жребий на экране:</p>
+          <div className="row" role="radiogroup" aria-label="Эффект жребия">
+            {DRAW_EFFECTS.map((f) => (
+              <button key={f.id} type="button" className="pick-chip" role="radio" aria-checked={drawEffect === f.id} aria-pressed={drawEffect === f.id} title={f.hint} onClick={() => setDrawEffect(f.id)}>
+                {f.title}
+              </button>
+            ))}
+          </div>
+        </div>
         {errorLine}
         <div className="actions">
-          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers), { id: `auc${Math.random().toString(36).slice(2, 12)}`, now: Date.now() + clock.offset(), name: (pid) => s.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок" }))}>
+          <button type="button" className="btn btn--block host-quiz__primary" disabled={busy} onClick={() => void run(async (s) => startAuction(s, content, await control.freshAnswers(step).catch(() => answers), { id: `auc${Math.random().toString(36).slice(2, 12)}`, effect: drawEffect, now: Date.now() + clock.offset(), name: (pid) => s.leaderboard[pid]?.name ?? participants.find((p) => p.id === pid)?.name ?? "Игрок" }))}>
             Ставки сделаны — показать вопрос
           </button>
           {backButton}

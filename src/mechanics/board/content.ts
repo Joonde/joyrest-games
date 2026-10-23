@@ -5,6 +5,7 @@
 // поле раунда — его категории; во втором раунде стоимость по умолчанию вдвое выше.
 import { clipFields, parseClip, type Clip } from "../../core/clip";
 import { DEFAULT_BOARD_LOOK, parseShowLook, TABLE_LOOKS, type ShowLook } from "../showLook";
+import { parseDrawEffect, type DrawEffect } from "../../core/draw";
 
 export type CellKind = "question" | "track" | "picture" | "cat" | "auction";
 
@@ -60,6 +61,8 @@ export interface BoardContent {
   answerTime: number;
   /** Оформление экрана зала (`../showLook.ts`). Старые игры без поля — «Классика». */
   look: ShowLook;
+  /** Чем на экране зала тянуть жребий, когда в «Аукционе» самая большая ставка у нескольких. Старые игры — монетка. */
+  drawEffect: DrawEffect;
 }
 
 /** Время на вопрос после «Запустить отсчёт» — выбор ведущего в конструкторе. */
@@ -148,6 +151,7 @@ export function createBoard(): BoardContent {
     buzzTime: 15,
     answerTime: DEFAULT_ANSWER_TIME,
     look: DEFAULT_BOARD_LOOK,
+    drawEffect: "wheel",
   };
 }
 
@@ -240,6 +244,7 @@ export function parseBoard(raw: unknown): BoardContent {
     buzzTime: (BUZZ_TIMES as readonly number[]).includes(d.buzzTime as number) ? (d.buzzTime as number) : 15,
     answerTime: (ANSWER_TIMES as readonly number[]).includes(d.answerTime as number) ? (d.answerTime as number) : DEFAULT_ANSWER_TIME,
     look: parseShowLook(d.look, TABLE_LOOKS),
+    drawEffect: parseDrawEffect(d.drawEffect),
   };
 }
 

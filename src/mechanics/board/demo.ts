@@ -107,6 +107,7 @@ const content: BoardContent = {
   buzzTime: 15,
   answerTime: 10,
   look: "table",
+  drawEffect: "wheel",
 };
 
 export const DEMO_BOARD = { title: "Ставка на знания: кино, география, праздники, еда", content };

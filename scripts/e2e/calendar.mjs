@@ -658,6 +658,79 @@ try {
   await ap.getByRole("checkbox", { name: /Вся команда/ }).check();
   await ap.waitForTimeout(300);
   check((await ap.locator("li.cal-person").count()) >= before, "Владелец: «Вся команда» добавляет остальные профессии");
+
+  // ---------- Черновик мероприятия и клиенты из базы (решение владельца 24 октября 2026) ----------
+  const draftClientId = `e2e-draft-${Date.now()}`;
+  await api("POST", "/api/clients", admin.cookie, { id: draftClientId, name: "Анна Проверка Черновик", phone: "+7 915 000-77-66", status: "client" });
+  await ap.goto(`${BASE}/studio/calendar?tab=events`);
+  await ap.getByRole("button", { name: "+ Новое мероприятие" }).click();
+  await ap.getByLabel("Что за мероприятие").fill("Черновик, проверка");
+  const nameField = ap.getByLabel("Клиент — имя");
+  await nameField.click();
+  const pick = ap.locator(".plan-client-pick__item", { hasText: "Анна Проверка Черновик" });
+  await until(async () => (await pick.count()) > 0, WAIT, "свежий «Клиент» под полем имени");
+  ok("Форма: при касании имени — свежие «Клиент» из базы");
+  await nameField.fill("Проверка Черн");
+  await until(async () => (await pick.count()) > 0, WAIT, "клиент по имени");
+  await shot(ap, "владелец-клиент-из-базы");
+  await pick.first().click();
+  check((await nameField.inputValue()) === "Анна Проверка Черновик" && (await ap.getByLabel("Телефон клиента").inputValue()) === "+7 915 000-77-66", "Форма: касание клиента подставило имя и полный телефон");
+  await ap.getByLabel("Телефон клиента").fill("");
+  await ap.getByLabel("Телефон клиента").pressSequentially("77 66", { delay: 30 });
+  await until(async () => (await pick.count()) > 0, WAIT, "клиент по цифрам номера");
+  ok("Форма: клиент находится и по цифрам номера");
+  await pick.first().click();
+  await ap.waitForTimeout(700);
+  // Ушли в «Клиенты» и вернулись — черновик на месте.
+  await ap.goto(`${BASE}/studio/clients`);
+  await ap.waitForTimeout(800);
+  await ap.goto(`${BASE}/studio/calendar?tab=events`);
+  const drafts = ap.locator(".plan-drafts");
+  await drafts.waitFor({ timeout: WAIT });
+  check(((await drafts.textContent()) ?? "").includes("Черновик, проверка · Анна Проверка Черновик"), "Черновик: после ухода в «Клиенты» — в «Черновиках мероприятий»");
+  await shot(ap, "владелец-черновики");
+  await drafts.getByRole("button", { name: "Продолжить" }).first().click();
+  check((await ap.getByLabel("Клиент — имя").inputValue()) === "Анна Проверка Черновик" && (await ap.getByLabel("Что за мероприятие").inputValue()) === "Черновик, проверка", "Черновик: «Продолжить» — форма с тем же заполненным");
+  await ap.getByRole("button", { name: "Закрыть — оставить в черновике" }).click();
+  await drafts.waitFor({ timeout: WAIT });
+  ok("Черновик: «Закрыть — оставить в черновике» — он в списке");
+  // Черновик виден и в «Кто может», «Продолжить» ведёт в «Мероприятия».
+  await ap.goto(`${BASE}/studio/calendar`);
+  await drafts.waitFor({ timeout: WAIT });
+  await drafts.getByRole("button", { name: "Продолжить" }).first().click();
+  await until(async () => (await ap.getByLabel("Клиент — имя").count()) > 0 && (await ap.getByLabel("Клиент — имя").inputValue()) === "Анна Проверка Черновик", WAIT, "черновик из «Кто может»");
+  ok("Черновик: «Продолжить» из «Кто может» открывает его в «Мероприятиях»");
+  await ap.getByRole("button", { name: "Удалить черновик" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Удалить черновик" }).click();
+  await ap.waitForTimeout(300);
+  check((await ap.locator(".plan-drafts").count()) === 0, "Черновик: «Удалить черновик» — списка больше нет");
+  await noSideScroll(ap, "Владелец, черновики");
+  await api("POST", `/api/clients/${draftClientId}/archive`, admin.cookie, {});
+
+  // ---------- Светлая и тёмная тема студии (решение владельца 24 октября 2026) ----------
+  for (const [label, size] of [["телефон", { width: 390, height: 844 }], ["планшет", { width: 820, height: 1180 }], ["ноутбук", { width: 1440, height: 900 }]]) {
+    await ap.setViewportSize(size);
+    await ap.goto(`${BASE}/studio`);
+    const toLight = ap.getByRole("button", { name: "Светлая тема" });
+    await toLight.waitFor({ timeout: WAIT });
+    await toLight.click();
+    await until(async () => (await ap.evaluate(() => document.documentElement.dataset.theme)) === "joyrest-day", WAIT, "светлая тема");
+    await shot(ap, `светлая-студия-${label}`);
+    await ap.reload();
+    await ap.getByRole("button", { name: "Тёмная тема" }).waitFor({ timeout: WAIT });
+    check((await ap.evaluate(() => document.documentElement.dataset.theme)) === "joyrest-day", `Тема (${label}): светлая сохраняется после перезагрузки`);
+    for (const [path, name] of [["/studio/calendar?tab=events", "мероприятия"], ["/studio/clients", "клиенты"], ["/studio/team", "команда"]]) {
+      await ap.goto(BASE + path);
+      await ap.waitForTimeout(1500);
+      await shot(ap, `светлая-${name}-${label}`);
+      await noSideScroll(ap, `Светлая тема, ${name}, ${label}`);
+    }
+    await ap.goto(`${BASE}/studio`);
+    await ap.getByRole("button", { name: "Тёмная тема" }).click();
+    await until(async () => (await ap.evaluate(() => document.documentElement.dataset.theme)) === "joyrest", WAIT, "тёмная тема");
+    ok(`Тема (${label}): переключается в светлую и обратно`);
+  }
+  await ap.setViewportSize(PHONE.viewport);
 } catch (e) {
   bad(`Проверка остановилась: ${String(e?.message ?? e).slice(0, 300)}`);
   for (const [who, page] of pages) await shot(page, `ошибка-${who}`).catch(() => undefined);

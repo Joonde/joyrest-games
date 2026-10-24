@@ -3,6 +3,7 @@ import type { SessionBranding } from "../core/branding";
 import { brandTheme } from "./branding";
 import { conceptThemes } from "./concepts";
 import { joyrest, joyrestDay } from "./joyrest";
+import { saveStudioTheme, studioThemeId, type StudioThemeId } from "./studioTheme";
 import type { AgeRating, Theme } from "./types";
 
 export const DEFAULT_THEME_ID = joyrest.id;
@@ -82,8 +83,15 @@ export function useTheme(themeId: string, branding?: SessionBranding | null): vo
   const colors = branding?.colors.join(",") ?? "";
   useEffect(() => {
     applyTheme(brandTheme(getTheme(themeId), colors ? { name: "", colors: colors.split(","), logo: null } : null));
-    return () => applyTheme(getTheme(DEFAULT_THEME_ID));
+    // Уходя с игры — обратно тема студии этого устройства (тёмная или светлая).
+    return () => applyTheme(getTheme(studioThemeId()));
   }, [themeId, colors]);
+}
+
+/** Переключить тему студии: запомнить и сразу показать. */
+export function setStudioTheme(id: StudioThemeId): void {
+  saveStudioTheme(id);
+  applyTheme(getTheme(id));
 }
 
 /** Номер CSS-переменной цвета команды (`--team-N`) по её порядковому номеру. */

@@ -6,6 +6,8 @@ import { NoticeBell } from "./NoticeBell";
 import { ProfileContext } from "./profileContext";
 import { Logo } from "./Logo";
 import { ActionButton, ActionMenu, type MenuAction } from "./Menu";
+import { setStudioTheme } from "../themes/registry";
+import { useStudioThemeId } from "../themes/studioTheme";
 
 export type TopBarAction = MenuAction;
 
@@ -36,6 +38,8 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
   const profile = useContext(ProfileContext);
   // Колокольчик — владельцу и менеджеру по продажам в студии (не на пульте: там свои дела).
   const bell = !leaveWarning && noticesRepo !== null && profile !== null && permissions.canManageClients(profile);
+  // Светлая и тёмная тема — в студии (вошедший человек), не на пульте: там тема игры.
+  const themeToggle = !leaveWarning && profile !== null;
   return (
     <header className="topbar">
       <div className="topbar__brand">
@@ -61,8 +65,9 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
           <h1>{title}</h1>
         </div>
       </div>
-      {(actions.length > 0 || bell) && (
+      {(actions.length > 0 || bell || themeToggle) && (
         <div className="topbar__tools">
+          {themeToggle && <ThemeToggle />}
           {bell && <NoticeBell />}
           {actions.length > 0 && (
             <>
@@ -84,5 +89,37 @@ export function TopBar({ title, actions = [], leaveWarning, onHome }: Props) {
         </ConfirmDialog>
       )}
     </header>
+  );
+}
+
+/** ☀️ / 🌙 — светлая или тёмная студия на этом устройстве (решение владельца 24 октября 2026). */
+function ThemeToggle() {
+  const id = useStudioThemeId();
+  const light = id === "joyrest-day";
+  const label = light ? "Тёмная тема" : "Светлая тема";
+  return (
+    <button
+      type="button"
+      className="btn btn--secondary menu-button theme-toggle"
+      aria-label={label}
+      title={label}
+      onClick={() => setStudioTheme(light ? "joyrest" : "joyrest-day")}
+    >
+      {light ? (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth={1.8} />
+          <path
+            d="M12 2.5v2.3M12 19.2v2.3M2.5 12h2.3M19.2 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </button>
   );
 }

@@ -1,0 +1,39 @@
+# Проверка ОСНОВНОЙ версии только на чтение (scripts/e2e/prod-check.mjs): версия на сервере, калькуляторы joy-rest.ru
+# (дата и время с клавиатуры, Telegram, почта, Авито) и новые функции в коде студии. Ничего не записывает и не входит.
+# Вручную (Run workflow) или коммитом с [prod-check] в ветке claude/* (~3 минуты).
+name: Проверка основной версии
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  prod:
+    name: Основная версия (только чтение)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[prod-check]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/prod-check.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Какая версия в main
+        id: main
+        run: echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+      - name: Проверка
+        working-directory: /tmp/e2e
+        run: node prod-check.mjs
+        env:
+          EXPECT_VERSION: ${{ steps.main.outputs.sha }}

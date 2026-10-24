@@ -354,6 +354,18 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
   const responsesOf = async (id: string) => Number((await sql<{ n: number }[]>`select count(*)::int as n from client_responses where client_id = ${id}`)[0]?.n ?? 0);
   const statusLines = async (id: string) => Number((await sql<{ n: number }[]>`select count(*)::int as n from client_contacts where client_id = ${id} and source = 'status'`)[0]?.n ?? 0);
 
+  it("новый клиент вручную сразу «В работе» — видно, кто ведёт; таймер и скорость ответа не считаются", async () => {
+    const made = (await post("/api/clients", owner, { id: "kmanualwork", name: "Лиза", phone: "+7 921 555-66-77", links: [], status: "work", marketing: "unknown", notes: "Свадьба, 60 гостей", request: "Свадьба, 60 гостей" })).json();
+    expect(made).toMatchObject({ status: "work", notes: "Свадьба, 60 гостей" });
+    expect(made.statusLine).toMatch(/^В работе · /);
+    expect(made.history.some((h: { source: string; summary: string }) => h.source === "manual" && h.summary.startsWith("Свадьба, 60 гостей"))).toBe(true);
+    expect(await responsesOf("kmanualwork")).toBe(0);
+    expect(await statusLines("kmanualwork")).toBe(1);
+    // Новый «Новый» вручную — по-прежнему без строки статуса.
+    await post("/api/clients", owner, { id: "kmanualnew2", name: "Ян", phone: "+7 921 555-66-78", links: [], status: "new", marketing: "unknown", notes: "" });
+    expect(await statusLines("kmanualnew2")).toBe(0);
+  });
+
   it("M1: правка без статуса и согласия (мои правки поверх) не откатывает чужой статус и согласие «да»", async () => {
     const base = { id: "kforce", name: "Рита", phone: "+7 921 100-20-30", links: [], notes: "" };
     expect((await post("/api/clients", owner, { ...base, status: "new", marketing: "unknown" })).statusCode).toBe(200);

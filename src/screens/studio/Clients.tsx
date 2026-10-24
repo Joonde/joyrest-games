@@ -40,6 +40,8 @@ import {
   originOf,
 } from "../../core/clients";
 import { parseLeadText } from "../../core/events";
+import { composeWish, wishFromText, type ClientWish } from "../../core/clientWish";
+import { PROGRAM_FORMATS } from "../../core/eventProgram";
 import { todayMoscow } from "../../core/calendar";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
@@ -755,7 +757,7 @@ function ClientCard({
 
           {!c.archived && (
             <label className="field">
-              <span className="field__label">Заметка: дата, гости, расчёт, следующий шаг</span>
+              <span className="field__label">Что хочет клиент: дата, гости, пожелания, следующий шаг</span>
               <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           )}
@@ -873,7 +875,7 @@ function PasteMessage({ onFill }: { onFill: (text: string) => string[] }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<string | null>(null);
   return (
-    <Fold title="📋 Заполнить из сообщения клиента" value={result ? "заполнено" : undefined}>
+    <Fold title="📋 Заполнить из сообщения клиента" value={result ? "✓" : undefined}>
       <div className="stack stack--tight">
         <label className="field">
           <span className="field__label">Вставьте сообщение: переписку, заявку или расчёт с сайта</span>
@@ -922,11 +924,20 @@ function ClientForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [links, setLinks] = useState((initial?.links ?? []).join("\n"));
-  const [status, setStatus] = useState<ClientStatus>(initial?.status ?? "new");
+  // Вручную менеджер заводит того, с кем уже говорит (звонок, Авито, переписка) — сразу «В работе», без таймера ответа
+  // (решение владельца 24 октября 2026: статус и рассылка при первом заполнении свёрнуты).
+  const [status, setStatus] = useState<ClientStatus>(initial?.status ?? "work");
   const [marketing, setMarketing] = useState<Marketing>(initial?.marketing ?? "unknown");
-  const [notes, setNotes] = useState(initial?.notes ?? "");
+  // «Что хочет клиент» полями (решение владельца 24 октября 2026): дата, время, гости, формат, пожелания. В карточке —
+  // понятными строками заметки; не трогали поля — заметка уходит как была (старые свободные заметки не переписываются).
+  const [wish, setWishState] = useState<ClientWish>(() => wishFromText(initial?.notes ?? "", todayMoscow(), true));
+  const [wishTouched, setWishTouched] = useState(false);
+  const setWish = (patch: Partial<ClientWish>) => {
+    setWishTouched(true);
+    setWishState((w) => ({ ...w, ...patch }));
+  };
+  const notes = wishTouched ? composeWish(wish).slice(0, CLIENT_LIMITS.notes) : (initial?.notes ?? "");
   const [origin, setOrigin] = useState(initial?.origin ?? "");
-  const [request, setRequest] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Что пошло не так при сохранении: тот же телефон у другого клиента или карточку только что изменил другой.
@@ -942,11 +953,10 @@ function ClientForm({
     name !== (initial?.name ?? "") ||
     phone !== (initial?.phone ?? "") ||
     links !== (initial?.links ?? []).join("\n") ||
-    status !== (initial?.status ?? "new") ||
+    status !== (initial?.status ?? "work") ||
     marketing !== (initial?.marketing ?? "unknown") ||
     notes !== (initial?.notes ?? "") ||
-    origin !== (initial?.origin ?? "") ||
-    request.trim() !== "";
+    origin !== (initial?.origin ?? "");
 
   /**
    * Сохранить. «Мои правки поверх» (`force`): карточку за это время изменил другой — берём свежую версию, и статус с
@@ -976,7 +986,8 @@ function ClientForm({
           marketing: chosen.marketing,
           notes,
           origin,
-          ...(initial ? {} : { request: request.trim() }),
+          // Одно поле «Что хочет клиент»: в заметку карточки и первой записью в историю (как заявка с сайта).
+          ...(initial ? {} : { request: notes.trim() }),
           ...(initial && version ? { expect: version } : {}),
         }),
       );
@@ -1038,10 +1049,21 @@ function ClientForm({
               setLinks([...parsedLinks, ...found].join("\n"));
               got.push("соцсети");
             }
-            if (!request.trim()) {
-              setRequest(text.trim().slice(0, CLIENT_LIMITS.notes));
-              got.push("что хочет клиент");
-            }
+            // Дата, время, гости, формат и пожелания — в свои поля (заполненные не трогаем); имя и телефон — не в пожелания.
+            const w = wishFromText(text, todayMoscow());
+            const patch: Partial<ClientWish> = {};
+            const take = <K extends keyof ClientWish>(k: K, title: string, has: boolean) => {
+              if (has && !(Array.isArray(wish[k]) ? (wish[k] as string[]).length : String(wish[k]).trim())) {
+                patch[k] = w[k];
+                got.push(title);
+              }
+            };
+            take("day", "дата", Boolean(w.day));
+            take("time", "время", Boolean(w.time));
+            take("guests", "гости", Boolean(w.guests));
+            take("formats", "формат", w.formats.length > 0);
+            take("wishes", "пожелания", Boolean(w.wishes));
+            if (Object.keys(patch).length) setWish(patch);
             // Расчёт с калькулятора сайта — клиент пришёл с сайта.
             const o = originOf(text) ?? (/Расч[её]т\s+JoyRest/i.test(text) ? "site" : null);
             if (o && !origin) {
@@ -1077,19 +1099,61 @@ function ClientForm({
       </label>
       {parsedLinks.length > 0 && <p className="muted small">Распознано: {parsedLinks.map(linkTitle).join(", ")}</p>}
       {links.trim() !== "" && parsedLinks.length === 0 && <p className="error small">Ссылку не распознали: вставьте @ник Telegram или ссылку vk.com/…, instagram.com/…, wa.me/…</p>}
-      {!initial && (
+      <fieldset className="stack stack--tight client-wish">
+        <legend>Что хочет клиент</legend>
+        <div className="client-wish__row">
+          <label className="field">
+            <span className="field__label">Дата</span>
+            <input type="date" value={wish.day} onChange={(e) => setWish({ day: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field__label">Время</span>
+            <input type="time" step={900} value={wish.time} onChange={(e) => setWish({ time: e.target.value })} />
+          </label>
+        </div>
         <label className="field">
-          <span className="field__label">Что хочет клиент</span>
-          <textarea
-            rows={2}
-            maxLength={CLIENT_LIMITS.notes}
-            value={request}
-            placeholder="Свадьба, 12 июня, 60 гостей, бюджет до 40 000 ₽"
-            onChange={(e) => setRequest(e.target.value)}
+          <span className="field__label">Гостей</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={5}
+            value={wish.guests}
+            placeholder="Например: 35"
+            onChange={(e) => setWish({ guests: e.target.value.replace(/\D/g, "") })}
           />
-          <span className="field__hint">Первой записью попадёт в историю клиента — как заявка с сайта.</span>
         </label>
-      )}
+        <div className="stack stack--tight">
+          <span className="field__label">Формат — касайтесь по порядку вечера</span>
+          <div className="plan-quick client-wish__formats" role="group" aria-label="Формат по порядку">
+            {PROGRAM_FORMATS.map((f) => {
+              const n = wish.formats.indexOf(f);
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  className={n >= 0 ? "seg__btn is-on" : "seg__btn"}
+                  aria-pressed={n >= 0}
+                  onClick={() => setWish({ formats: n >= 0 ? wish.formats.filter((x) => x !== f) : [...wish.formats, f].slice(0, 4) })}
+                >
+                  {n >= 0 ? `${n + 1} · ${f}` : f}
+                </button>
+              );
+            })}
+          </div>
+          {wish.formats.length > 1 && <p className="muted small">Порядок: {wish.formats.join(" → ")}</p>}
+        </div>
+        <label className="field">
+          <span className="field__label">Пожелания</span>
+          <textarea
+            rows={3}
+            value={wish.wishes}
+            placeholder="Свадьба, тихий зал, без конкурсов с раздеванием. Перезвонить в пятницу."
+            onChange={(e) => setWish({ wishes: e.target.value })}
+          />
+        </label>
+        <p className="muted small">«📅 Записать мероприятие ведущему» перенесёт дату, время, гостей и формат в мероприятие.</p>
+      </fieldset>
       <label className="field">
         <span className="field__label">Откуда пришёл</span>
         <select value={origin} onChange={(e) => setOrigin(e.target.value)}>
@@ -1102,6 +1166,8 @@ function ClientForm({
         </select>
         {!initial && origin === "" && <span className="field__hint">Укажите — по этому считаются «Итоги»: откуда приходят клиенты.</span>}
       </label>
+      <Fold title="Статус и рассылка" value={`${CLIENT_STATUS_TITLES[status]} · рассылка: ${marketing === "yes" ? "согласен" : marketing === "no" ? "отказался" : "не спрашивали"}`}>
+        <div className="stack">
       <fieldset className="stack stack--tight">
         <legend>Статус</legend>
         <div className="plan-quick" role="group" aria-label="Статус">
@@ -1111,15 +1177,13 @@ function ClientForm({
             </button>
           ))}
         </div>
-        {!initial && (
-          <p className="muted small">
-            {status === "new"
-              ? "«Новый» — ещё не связались: пойдёт таймер ответа. Уже разговариваете с клиентом — выберите «В работе»."
-              : status === "work"
-                ? "«В работе» — вы уже говорите с клиентом, таймер не нужен."
-                : STATUS_HINTS[status]}
-          </p>
-        )}
+        <p className="muted small">
+          {status === "new"
+            ? "«Новый» — ещё не связались: пойдёт таймер ответа."
+            : status === "work"
+              ? "«В работе» — вы уже говорите с клиентом, таймер не нужен."
+              : STATUS_HINTS[status]}
+        </p>
       </fieldset>
       <fieldset className="stack stack--tight">
         <legend>Рассылка</legend>
@@ -1136,10 +1200,9 @@ function ClientForm({
           <p className="muted small">Согласие на рассылку отмечает владелец. Клиент согласился в переписке — напишите это в заметке.</p>
         )}
       </fieldset>
-      <label className="field">
-        <span className="field__label">Заметка: дата, гости, расчёт, следующий шаг</span>
-        <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </label>
+        </div>
+      </Fold>
+
       {!ready && !phoneBad && (
         <p className="muted small">{initial ? "Нужны имя, телефон или ссылка." : "Нужен телефон или ссылка на соцсеть — без них клиенту не написать."}</p>
       )}

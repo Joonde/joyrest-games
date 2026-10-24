@@ -24141,3 +24141,21 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Анкета клиента: «Что хочет клиент» полями (решение владельца 24 октября 2026). */
+.client-wish__row {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 8px;
+}
+
+/* Дата и время в одну строку на узком телефоне: меньше отступы, значок календаря не отнимает место у числа. */
+.client-wish__row input {
+  padding-left: 10px;
+  padding-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-wish__row > * {
+  min-width: 0;
+}

@@ -15262,6 +15262,209 @@ button.dance-card:active {
   text-align: center;
 }
 
+/* Трек уровня звучит — строка под заголовком. */
+.super-screen__playing {
+  display: block;
+  margin-top: 1cqh;
+  font-family: var(--font-body);
+  font-size: 3.2cqh;
+  color: var(--color-highlight);
+}
+
+/* Голосование «Играем суперигру?» (решение владельца 25 октября 2026). */
+.super-vote {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2cqh;
+  width: min(80cqw, 100%);
+}
+
+.super-vote__q {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 8cqh;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.super-vote__risk {
+  margin: 0;
+  max-width: 60cqw;
+  font-size: 3.4cqh;
+  color: var(--color-text-muted);
+  text-wrap: balance;
+}
+
+.super-vote__count {
+  margin: 0;
+  font-size: 4.4cqh;
+}
+
+.super-vote__count strong {
+  font-size: 7cqh;
+  color: var(--color-highlight);
+  font-variant-numeric: tabular-nums;
+}
+
+.super-vote__verdict {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 7cqh;
+  font-weight: 700;
+}
+
+.super-vote__verdict.is-yes {
+  color: var(--color-success);
+}
+
+.super-vote__verdict.is-no {
+  color: var(--color-danger);
+}
+
+.super-vote__bars {
+  display: grid;
+  gap: 1.4cqh;
+  width: 100%;
+}
+
+.super-vote__bar {
+  position: relative;
+  display: grid;
+  grid-template-columns: 14cqw 10cqw minmax(0, 1fr);
+  align-items: center;
+  gap: 2cqw;
+  min-height: 7cqh;
+  padding: 0 2cqw;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 3.6cqh;
+  text-align: left;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.super-vote__bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--share, 0%);
+  z-index: -1;
+  background: color-mix(in srgb, var(--color-success) 38%, transparent);
+  transition: width 0.8s ease;
+}
+
+.super-vote__bar.is-no::before {
+  background: color-mix(in srgb, var(--color-danger) 38%, transparent);
+}
+
+.super-vote__bar strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.super-vote__n {
+  justify-self: end;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.super-screen--intro .super-vote--done {
+  width: min(64cqw, 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .super-vote__bar::before {
+    transition: none;
+  }
+}
+
+/* Телефон: ответ уровня в его формате. */
+.super-choices,
+.super-order {
+  display: grid;
+  gap: 8px;
+}
+
+.super-choice,
+.super-order__card {
+  justify-content: flex-start;
+  text-align: left;
+  gap: 12px;
+}
+
+.super-choice__letter,
+.super-order__n {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-highlight);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.super-order__card.is-on {
+  border-color: var(--color-highlight);
+  background: var(--color-surface-alt);
+}
+
+.super-order__card.is-on .super-order__n {
+  background: var(--color-highlight);
+  color: var(--color-bg);
+}
+
+/* Конструктор уровней: отметка верного, номер карточки, число. */
+.q-row__mark,
+.q-row__n {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--color-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-weight: 600;
+}
+
+.q-row__mark {
+  cursor: pointer;
+}
+
+.q-row__mark.is-on {
+  border-color: var(--color-control-checked);
+  background: var(--color-control-checked);
+  color: var(--color-bg);
+}
+
+.q-row--fields {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.q-row--fields > .field {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.add-question__super {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.host-super-vote {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-highlight);
+}
+
 .super-rays {
   position: absolute;
   inset: -50%;

@@ -65,9 +65,15 @@ async function checkSheet(page, ids, where) {
   await page.click(ids.mail);
   const mails = await page.$$eval(`${ids.mailList} [data-mail]`, (as) => as.map((a) => [a.dataset.mail, a.getAttribute("href")]));
   const byKind = Object.fromEntries(mails);
-  const deep = (h) => decodeURIComponent(decodeURIComponent(h ?? ""));
+  const gmailBody = (() => {
+    try {
+      return new URL(byKind.gmail ?? "").searchParams.get("body") ?? "";
+    } catch {
+      return "";
+    }
+  })();
   check(
-    byKind.gmail?.startsWith("https://mail.google.com/") && byKind.yandex?.startsWith("https://mail.yandex.ru/") && byKind.mailru?.startsWith("https://e.mail.ru/") && byKind.app?.startsWith("mailto:joyrest@mail.ru") && deep(byKind.gmail).includes(dateWords),
+    byKind.gmail?.startsWith("https://mail.google.com/") && byKind.yandex?.startsWith("https://mail.yandex.ru/") && byKind.mailru?.startsWith("https://e.mail.ru/") && byKind.app?.startsWith("mailto:joyrest@mail.ru") && gmailBody.includes(dateWords),
     `${where}: «Почта» — выбор Gmail, Яндекс, Mail.ru и почтовой программы, в письме расчёт с датой`,
     `${where}: ссылки почты ${JSON.stringify(mails).slice(0, 200)}`,
   );

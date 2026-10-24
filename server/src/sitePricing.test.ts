@@ -40,6 +40,7 @@ interface Pricing {
   moscowToday(nowMs?: number): string;
   parseDate(iso: string): { y: number; m: number; d: number; t: number; wd: number } | null;
   telegramText(text: string): string;
+  mailLinks(text: string): { gmail: string; yandex: string; mailru: string; app: string };
   ADDONS: { id: string; label: string; price: number; fixed: boolean }[];
   TIERS: number[];
   LEVELS: { id: string; discount: number }[];
@@ -480,6 +481,24 @@ describe("калькулятор сайта: праздничная цена", (
     expect(tg).toContain("Расчёт JoyRest");
     expect(tg).toContain("＋20％");
     expect(P.telegramText("A & B")).toBe("A  и  B");
+  });
+
+  it("почта: письмо на joyrest@mail.ru в Gmail, Яндексе, Mail.ru и почтовой программе — с полным расчётом", () => {
+    const text = P.calcMessage({ pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00", today: "2026-10-24" }, "new");
+    const m = P.mailLinks(text);
+    const gm = new URL(m.gmail);
+    expect(gm.origin).toBe("https://mail.google.com");
+    expect(gm.searchParams.get("to")).toBe("joyrest@mail.ru");
+    expect(gm.searchParams.get("su")).toBe("Расчёт JoyRest");
+    expect(gm.searchParams.get("body")).toBe(text);
+    for (const [url, origin] of [[m.yandex, "https://mail.yandex.ru"], [m.mailru, "https://e.mail.ru"]] as const) {
+      const u = new URL(url);
+      expect(u.origin).toBe(origin);
+      expect(u.searchParams.get("mailto")).toBe(m.app);
+    }
+    expect(m.app.startsWith("mailto:joyrest@mail.ru?subject=")).toBe(true);
+    expect(decodeURIComponent(m.app.split("&body=")[1])).toBe(text);
+    expect(text).toContain("Дата: 20 декабря 2026");
   });
 
   it("«Под ключ» и больше 90 гостей на праздничную дату — без цены, но с причиной", () => {

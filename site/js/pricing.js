@@ -271,6 +271,18 @@
   function telegramText(t) {
     return String(t || '').replace(/%/g, '\uFF05').replace(/\+/g, '\uFF0B').replace(/&/g, ' и ');
   }
+  /** Письмо с расчётом: почта в браузере (Gmail, Яндекс, Mail.ru) или почтовое приложение (mailto).
+   *  Решение владельца 24 октября 2026: клиенту не нужно открывать почтовую программу Mac. */
+  function mailLinks(text) {
+    var to = 'joyrest@mail.ru', su = 'Расчёт JoyRest', enc = encodeURIComponent;
+    var app = 'mailto:' + to + '?subject=' + enc(su) + '&body=' + enc(String(text || ''));
+    return {
+      gmail: 'https://mail.google.com/mail/?view=cm&fs=1&to=' + enc(to) + '&su=' + enc(su) + '&body=' + enc(String(text || '')),
+      yandex: 'https://mail.yandex.ru/compose?mailto=' + enc(app),
+      mailru: 'https://e.mail.ru/compose/?mailto=' + enc(app),
+      app: app
+    };
+  }
   function cleanTime(t) {
     return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : '';
   }
@@ -373,7 +385,7 @@
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
     MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
     seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,
-    parseDate: parseDate, cleanTime: cleanTime, telegramText: telegramText, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
+    parseDate: parseDate, cleanTime: cleanTime, telegramText: telegramText, mailLinks: mailLinks, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

@@ -609,9 +609,11 @@
     $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
     $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
-    $('sendMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(sheetText);
-    const avito = $('sendAvito');
-    if(avitoUrl){ avito.href = avitoUrl; avito.hidden = false; }
+    const mails = P.mailLinks(sheetText);
+    document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => { a.href = mails[a.dataset.mail]; });
+    $('sendMailList').hidden = true; $('sendMail').setAttribute('aria-expanded', 'false');
+    if(avitoUrl){ $('sendAvitoGo').href = avitoUrl; $('sendAvito').hidden = false; }
+    $('sendAvitoBox').hidden = true; $('sendAvito').setAttribute('aria-expanded', 'false');
     // Картинку готовим сразу: «Поделиться» телефона должно открыться прямо по касанию.
     sheetFile = null;
     if(window.JoyCalcImage){
@@ -624,11 +626,27 @@
   }
   if(sheet){
     $('sendWa').addEventListener('click', () => setTimeout(closeSheet, 0));
-    $('sendMail').addEventListener('click', () => setTimeout(closeSheet, 0));
+    // «Почта» — выбор почты: в браузере (Gmail, Яндекс, Mail.ru) или почтовая программа устройства.
+    $('sendMail').addEventListener('click', () => {
+      const list = $('sendMailList'); list.hidden = !list.hidden;
+      $('sendMail').setAttribute('aria-expanded', String(!list.hidden));
+      if(!list.hidden) list.querySelector('a').focus();
+    });
+    document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => a.addEventListener('click', () => {
+      if(a.dataset.mail === 'app'){ setTimeout(closeSheet, 0); return; }
+      copyCalc(sheetText, 'Открываем почту — расчёт уже в письме (и скопирован, если понадобится вставить)'); closeSheet();
+    }));
     // Текст копируем и для Telegram: если приложение не подставит его, останется вставить.
     $('sendTg').addEventListener('click', () => { copyCalc(sheetText, 'Открываем Telegram — расчёт уже в сообщении (и скопирован, если понадобится вставить)'); closeSheet(); });
     // Авито не даёт подставить текст: копируем его, открываем профиль — там «Написать» и вставить.
-    $('sendAvito').addEventListener('click', () => { copyCalc(sheetText, 'Расчёт скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
+    // Авито не даёт подставить текст: сначала шаги прямо в окне (клиент уходит на вкладку Авито и уведомление сайта
+    // не видит — жалоба владельца 24 октября 2026), потом копируем расчёт и открываем профиль.
+    $('sendAvito').addEventListener('click', () => {
+      const box = $('sendAvitoBox'); box.hidden = !box.hidden;
+      $('sendAvito').setAttribute('aria-expanded', String(!box.hidden));
+      if(!box.hidden) $('sendAvitoGo').focus();
+    });
+    $('sendAvitoGo').addEventListener('click', () => { copyCalc(sheetText, 'Расчёт скопирован. На Авито нажмите «Написать» и вставьте его в сообщение'); closeSheet(); });
     $('sendImg').addEventListener('click', () => {
       const go = (f) => window.JoyCalcImage.share(f, sheetText).then((how) => {
         if(how === 'saved') topToast('Картинка расчёта сохранена — прикрепите её в чат с нами', null, null, 6000);

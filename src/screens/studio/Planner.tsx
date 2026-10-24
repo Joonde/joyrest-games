@@ -37,7 +37,9 @@ import {
 import { professionOf } from "../../core/professions";
 import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, type EventProgram } from "../../core/eventProgram";
 import { matchesSearch } from "../../core/search";
-import { durationLabel, originStats, phoneIssueText, phoneKey, responseStats, telHref } from "../../core/clients";
+import { eventFillFromClient, type ClientEventFill } from "../../core/clientToEvent";
+import { draftHasContent, draftsKey, draftTitle, parseDrafts, removeDraft, upsertDraft, type EventFormDraft } from "../../core/eventDrafts";
+import { CLIENT_STATUS_TITLES, durationLabel, originStats, phoneIssueText, phoneKey, phoneLabel, responseStats, telHref } from "../../core/clients";
 import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
@@ -107,18 +109,149 @@ function usePlannerNow(): number {
   return useServerNow(30_000);
 }
 
-type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string };
+type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string; resume?: EventFormDraft; prefill?: ClientEventFill };
+
+// ───────────────────────────── Черновики (на устройстве) ─────────────────────────────
+
+function readDrafts(uid: string): EventFormDraft[] {
+  try {
+    return parseDrafts(localStorage.getItem(draftsKey(uid)), Date.now());
+  } catch {
+    return [];
+  }
+}
+
+function writeDrafts(uid: string, list: EventFormDraft[]): void {
+  try {
+    if (list.length) localStorage.setItem(draftsKey(uid), JSON.stringify(list));
+    else localStorage.removeItem(draftsKey(uid));
+    window.dispatchEvent(new Event(DRAFTS_EVENT));
+  } catch {
+    /* приватный режим или нет места — черновик живёт, пока открыта форма */
+  }
+}
+
+const DRAFTS_EVENT = "joyrest:event-drafts";
+
+/** Черновики этого человека; обновляются, когда форма их пишет (и в другой вкладке). */
+function useEventDrafts(uid: string): EventFormDraft[] {
+  const [list, setList] = useState(() => readDrafts(uid));
+  useEffect(() => {
+    const refresh = () => setList(readDrafts(uid));
+    refresh();
+    window.addEventListener(DRAFTS_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener(DRAFTS_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [uid]);
+  return list;
+}
+
+/** «Черновики мероприятий»: продолжить заполнять или удалить. Нет черновиков — ничего. */
+export function EventDrafts({ uid, onOpen }: { uid: string; onOpen: (draft: EventFormDraft) => void }) {
+  const drafts = useEventDrafts(uid);
+  const [confirm, ask] = useConfirm();
+  if (!drafts.length) return null;
+  return (
+    <section className="card stack stack--tight plan-drafts" aria-labelledby="plan-drafts">
+      <h3 id="plan-drafts">📝 Черновики мероприятий · {drafts.length}</h3>
+      <p className="muted small">Начатые и не записанные — хранятся на этом устройстве. Продолжите с того же места.</p>
+      <ul className="plan-drafts__list">
+        {drafts.map((d) => (
+          <li key={d.id} className="plan-drafts__item">
+            <div className="plan-drafts__text">
+              <b>{draftTitle(d)}</b>
+              <span className="muted small">
+                {dayTitle(d.day)}, {rangeLabel(d.start, d.end)}
+                {d.clientPhone.trim() ? ` · ${d.clientPhone.trim()}` : ""}
+              </span>
+            </div>
+            <div className="plan-drafts__actions">
+              <button type="button" className="btn" onClick={() => onOpen(d)}>
+                Продолжить
+              </button>
+              <button
+                type="button"
+                className="btn btn--quiet"
+                onClick={() =>
+                  ask({
+                    title: "Удалить черновик?",
+                    text: `«${draftTitle(d)}» — введённое пропадёт.`,
+                    confirmLabel: "Удалить черновик",
+                    run: async () => writeDrafts(uid, removeDraft(readDrafts(uid), d.id)),
+                  })
+                }
+              >
+                Удалить
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {confirm}
+    </section>
+  );
+}
 
 /**
  * `owner` — записывает и правит мероприятия (владелец и менеджер по продажам), `admin` — ещё «Итоги» и «Удалить навсегда»
  * (только владелец).
  */
-export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boolean; admin?: boolean; me?: string; onToast: (text: string) => void }) {
+export function Planner({
+  owner,
+  admin = owner,
+  me = "",
+  openDraft,
+  onDraftOpened,
+  openClient,
+  onClientOpened,
+  onToast,
+}: {
+  owner: boolean;
+  admin?: boolean;
+  me?: string;
+  openDraft?: string | null;
+  onDraftOpened?: () => void;
+  /** «📅 Записать мероприятие ведущему» из карточки клиента: форма с его данными. */
+  openClient?: string | null;
+  onClientOpened?: () => void;
+  onToast: (text: string) => void;
+}) {
   const today = todayMoscow();
   const [view, setView] = useState<View>("day");
   const [day, setDay] = useState(today);
   const [filter, setFilter] = useState<ListFilter>("upcoming");
-  const [form, setForm] = useState<FormState | null>(null);
+  const [form, setForm] = useState<FormState | null>(() => {
+    // «Продолжить» черновик из «Кто может» — открываем его сразу.
+    const d = owner && openDraft ? readDrafts(me).find((x) => x.id === openDraft) : undefined;
+    return d ? { day: d.day, resume: d } : null;
+  });
+  useEffect(() => {
+    if (openDraft) onDraftOpened?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Из карточки клиента: имя, телефон и то, что известно о празднике, — сразу в форме.
+  useEffect(() => {
+    if (!owner || !openClient || !clientsRepo) return;
+    let gone = false;
+    clientsRepo
+      .get(openClient)
+      .then((c) => {
+        if (gone) return;
+        const fill = eventFillFromClient(c, todayMoscow());
+        setForm({ day: fill.day ?? todayMoscow(), prefill: fill });
+      })
+      .catch(() => !gone && onToast("Не получилось открыть клиента — заполните мероприятие вручную"))
+      .finally(() => !gone && onClientOpened?.());
+    return () => {
+      gone = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openClient]);
   const [openId, setOpenId] = useState<string | null>(null);
   // Удалённые и изменённые здесь — чтобы списки не показывали устаревшее до перезагрузки.
   const [removed, setRemoved] = useState<string[]>([]);
@@ -211,7 +344,13 @@ export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boo
         initial={form.event}
         template={form.template}
         day={form.day}
-        onCancel={() => setForm(null)}
+        resume={form.resume}
+        prefill={form.prefill}
+        draftOwner={me}
+        onCancel={(kept) => {
+          setForm(null);
+          if (kept) onToast("Черновик сохранён — он сверху, в «Черновиках мероприятий»");
+        }}
         onSaved={(saved) => {
           replace(saved);
           setForm(null);
@@ -255,6 +394,7 @@ export function Planner({ owner, admin = owner, me = "", onToast }: { owner: boo
           ? "Все мероприятия агентства: кто, когда и у кого ведёт. Ведущий видит свои мероприятия, его время в календаре занято."
           : "Мероприятия, закреплённые за вами владельцем."}
       </p>
+      {owner && <EventDrafts uid={me} onOpen={(d) => setForm({ day: d.day, resume: d })} />}
       {owner && (
         <div className="actions">
           <button type="button" className="btn btn--block" onClick={() => setForm({ day: day < today ? today : day })}>
@@ -1146,6 +1286,9 @@ export function EventForm({
   template,
   day: initialDay,
   draft,
+  resume,
+  prefill,
+  draftOwner,
   onSaved,
   onCancel,
 }: {
@@ -1153,31 +1296,50 @@ export function EventForm({
   template?: AgencyEvent;
   day: string;
   draft?: EventDraft;
+  /** Черновик, который продолжаем заполнять. */
+  resume?: EventFormDraft;
+  /** Данные из карточки клиента. */
+  prefill?: ClientEventFill;
+  /** Чьи черновики: задан — новое мероприятие само сохраняется черновиком на устройстве (правка записанного — нет). */
+  draftOwner?: string;
   onSaved: (event: AgencyEvent) => void;
-  onCancel: () => void;
+  /** kept — введённое осталось в черновике. */
+  onCancel: (kept?: boolean) => void;
 }) {
   const base = initial ?? template;
-  const [id] = useState(() => initial?.id ?? newId());
-  const [day, setDay] = useState(initial?.day ?? draft?.day ?? initialDay);
-  const [start, setStart] = useState(base?.start ?? draft?.start ?? DEFAULT_QUERY.start);
-  const [end, setEnd] = useState(base?.end ?? draft?.end ?? DEFAULT_QUERY.end);
-  const [hostId, setHostId] = useState(base?.hostId ?? draft?.hostId ?? "");
-  const [title, setTitle] = useState(base?.title ?? "");
-  const [clientName, setClientName] = useState(base?.clientName ?? "");
-  const [clientPhone, setClientPhone] = useState(base?.clientPhone ?? "");
-  const [place, setPlace] = useState(base?.place ?? "");
-  const [guests, setGuests] = useState(base?.guests != null ? String(base.guests) : "");
-  const [note, setNote] = useState(base?.note ?? "");
-  const [program, setProgram] = useState<EventProgram | null>(base?.program ?? null);
+  const r = initial ? undefined : resume;
+  const pf = initial || resume ? undefined : prefill;
+  const [id] = useState(() => initial?.id ?? r?.id ?? newId());
+  const [day, setDay] = useState(initial?.day ?? r?.day ?? pf?.day ?? draft?.day ?? initialDay);
+  const [start, setStart] = useState(r?.start ?? pf?.start ?? base?.start ?? draft?.start ?? DEFAULT_QUERY.start);
+  const [end, setEnd] = useState(r?.end ?? pf?.end ?? base?.end ?? draft?.end ?? DEFAULT_QUERY.end);
+  const [hostId, setHostId] = useState(r?.hostId ?? base?.hostId ?? draft?.hostId ?? "");
+  const [title, setTitle] = useState(r?.title ?? pf?.title ?? base?.title ?? "");
+  const [clientName, setClientName] = useState(r?.clientName ?? pf?.clientName ?? base?.clientName ?? "");
+  const [clientPhone, setClientPhone] = useState(r?.clientPhone ?? pf?.clientPhone ?? base?.clientPhone ?? "");
+  const [place, setPlace] = useState(r?.place ?? pf?.place ?? base?.place ?? "");
+  const [guests, setGuests] = useState(r ? r.guests : pf?.guests !== undefined ? String(pf.guests) : base?.guests != null ? String(base.guests) : "");
+  const [note, setNote] = useState(r?.note ?? base?.note ?? "");
+  const [program, setProgram] = useState<EventProgram | null>(r ? r.program : (pf?.program ?? base?.program ?? null));
   const [allTeam, setAllTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   // Двойное касание «Записать»: второй запрос не уходит, пока первый не вернулся (иначе ведущему — два уведомления).
   const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [filled, setFilled] = useState<string | null>(null);
+  const [filled, setFilled] = useState<string | null>(() =>
+    pf ? `Из карточки клиента: ${pf.got.join(", ")}. Проверьте и выберите ведущего.${pf.day ? "" : " Даты в заявке нет — выберите её."}` : null,
+  );
   // Клиент попадёт в «Клиенты» только с полным телефоном; мероприятие записать можно и без него.
   const phoneIncomplete = clientPhone.trim() !== "" && phoneKey(clientPhone) === "";
   const nameOnly = clientName.trim() !== "" && clientPhone.trim() === "";
+  // Подсказки из «Клиентов» под полями имени и телефона (решение владельца 24 октября 2026).
+  const clientBase = useClientBase();
+  const [pickFor, setPickFor] = useState<"name" | "phone" | null>(null);
+  const pickClient = (c: ClientRecord) => {
+    setClientName(c.name);
+    setClientPhone(c.phone);
+    setPickFor(null);
+  };
   const [confirm, ask] = useConfirm();
   const [team, retryTeam] = useLoad(
     () => (calendarRepo ? calendarRepo.team(day, addDays(day, 1)) : Promise.resolve({ members: [] as CalendarMember[], entries: [] as AvailabilityEntry[] })),
@@ -1201,6 +1363,44 @@ export function EventForm({
 
   const initialSnapshot = useState(() => JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program]))[0];
   const dirty = JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program]) !== initialSnapshot;
+
+  // Черновик: новое мероприятие само сохраняется на устройстве (через 0,4 с после правки и при уходе со страницы),
+  // менеджер может уйти в «Клиенты» и вернуться. Записали или удалили — черновика больше нет.
+  const drafting = !initial && draftOwner !== undefined;
+  const snapshot: EventFormDraft = { id, savedAt: 0, day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program };
+  const latest = useRef(snapshot);
+  latest.current = snapshot;
+  const draftDone = useRef(false);
+  const draftTouched = useRef(Boolean(r || pf));
+  if (dirty) draftTouched.current = true;
+  const keepDraft = () => {
+    if (!drafting || draftDone.current || !draftTouched.current) return;
+    const uid = draftOwner ?? "";
+    writeDrafts(uid, upsertDraft(readDrafts(uid), { ...latest.current, savedAt: Date.now() }));
+  };
+  const snapKey = JSON.stringify(snapshot);
+  useEffect(() => {
+    if (!drafting || !draftTouched.current) return;
+    const t = window.setTimeout(keepDraft, 400);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapKey]);
+  useEffect(() => {
+    const hide = () => keepDraft();
+    window.addEventListener("pagehide", hide);
+    return () => {
+      window.removeEventListener("pagehide", hide);
+      keepDraft();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const hasDraft = drafting && draftTouched.current && draftHasContent(snapshot);
+  function dropDraft() {
+    if (!drafting) return;
+    draftDone.current = true;
+    const uid = draftOwner ?? "";
+    writeDrafts(uid, removeDraft(readDrafts(uid), id));
+  }
 
   const statusOf = (uid: string) =>
     availabilityOf(
@@ -1242,8 +1442,7 @@ export function EventForm({
     setBusy(true);
     setError(null);
     try {
-      onSaved(
-        await eventsRepo.save({
+      const saved = await eventsRepo.save({
           id,
           hostId,
           day,
@@ -1258,8 +1457,9 @@ export function EventForm({
           program,
           // Правка — с версией, с которой открыли форму (владелец и менеджер могут править одно мероприятие).
           ...(initial?.updatedAt ? { expect: initial.updatedAt } : {}),
-        }),
-      );
+        });
+      dropDraft();
+      onSaved(saved);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -1269,13 +1469,18 @@ export function EventForm({
   }
 
   function close() {
+    // Новое мероприятие: введённое остаётся в черновике — «Отмена» ничего не стирает.
+    if (drafting) {
+      keepDraft();
+      return onCancel(hasDraft);
+    }
     if (!dirty) return onCancel();
     ask({ title: "Не сохранять мероприятие?", text: "Введённое пропадёт.", confirmLabel: "Не сохранять", run: async () => onCancel() });
   }
 
   return (
     <section className="card stack plan-form" aria-labelledby="event-form">
-      <h2 id="event-form">{initial ? "Изменить мероприятие" : template ? "Похожее мероприятие" : "Новое мероприятие"}</h2>
+      <h2 id="event-form">{initial ? "Изменить мероприятие" : r ? "Черновик мероприятия" : template ? "Похожее мероприятие" : "Новое мероприятие"}</h2>
 
       {!initial && <ImportFromLead today={today} onFill={apply} />}
       {filled && (
@@ -1389,16 +1594,23 @@ export function EventForm({
           <input
             type="text"
             autoComplete="off"
-            list="event-clients"
+            list={clientsRepo ? undefined : "event-clients"}
             maxLength={EVENT_LIMITS.client}
             value={clientName}
+            onFocus={() => {
+              setPickFor("name");
+              clientBase.load();
+            }}
+            onBlur={() => window.setTimeout(() => setPickFor((v) => (v === "name" ? null : v)), 250)}
             onChange={(e) => {
+              setPickFor("name");
               setClientName(e.target.value);
               const phone = clientPhones.get(e.target.value);
               if (phone && !clientPhone.trim()) setClientPhone(phone);
             }}
           />
         </label>
+        {pickFor === "name" && <ClientSuggestions base={clientBase} query={clientName} onPick={pickClient} />}
         <datalist id="event-clients">
           {[...clientPhones.keys()].slice(0, 50).map((n) => (
             <option key={n} value={n} />
@@ -1414,9 +1626,18 @@ export function EventForm({
             value={clientPhone}
             placeholder="+7 …"
             aria-invalid={phoneIncomplete}
-            onChange={(e) => setClientPhone(e.target.value)}
+            onFocus={() => {
+              setPickFor("phone");
+              clientBase.load();
+            }}
+            onBlur={() => window.setTimeout(() => setPickFor((v) => (v === "phone" ? null : v)), 250)}
+            onChange={(e) => {
+              setPickFor("phone");
+              setClientPhone(e.target.value);
+            }}
           />
         </label>
+        {pickFor === "phone" && <ClientSuggestions base={clientBase} query={clientPhone} onPick={pickClient} />}
         {phoneIncomplete && (
           <p className="small plan-warn">{phoneIssueText(clientPhone)} Мероприятие записать можно, но клиент не попадёт в «Клиенты».</p>
         )}
@@ -1448,11 +1669,115 @@ export function EventForm({
           {busy ? "Сохраняем…" : initial ? "Сохранить" : "Записать мероприятие"}
         </button>
         <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={close}>
-          Отмена
+          {hasDraft ? "Закрыть — оставить в черновике" : "Отмена"}
         </button>
+        {hasDraft && (
+          <button
+            type="button"
+            className="btn btn--quiet btn--block"
+            disabled={busy}
+            onClick={() =>
+              ask({
+                title: "Удалить черновик?",
+                text: "Введённое в этой форме пропадёт.",
+                confirmLabel: "Удалить черновик",
+                run: async () => {
+                  dropDraft();
+                  onCancel();
+                },
+              })
+            }
+          >
+            Удалить черновик
+          </button>
+        )}
       </div>
+      {hasDraft && <p className="muted small">Черновик сохраняется сам на этом устройстве — можно уйти в «Клиенты» и вернуться.</p>}
       {confirm}
     </section>
+  );
+}
+
+/**
+ * Клиенты из базы (решение владельца 24 октября 2026): менеджер перевела клиента в «Клиент» и записывает мероприятие —
+ * под полями имени и телефона сразу видны свежие «Клиент» и «В работе», по набранному имени или цифрам номера — все
+ * подходящие; касание подставляет имя и полный телефон. Список перечитывается при касании поля и при возврате на вкладку.
+ * Только владельцу и менеджеру по продажам (у остальных «Клиенты» закрыты — подсказок нет).
+ */
+interface ClientBase {
+  list: ClientRecord[] | null;
+  failed: boolean;
+  load: () => void;
+}
+
+function useClientBase(): ClientBase {
+  const [list, setList] = useState<ClientRecord[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const loading = useRef(false);
+  const last = useRef(0);
+  const load = () => {
+    // Не чаще раза в 3 с: касание поля и возврат на вкладку приходят почти одновременно.
+    if (!clientsRepo || loading.current || Date.now() - last.current < 3000) return;
+    loading.current = true;
+    last.current = Date.now();
+    clientsRepo
+      .list(false)
+      .then((data) => {
+        setList(data);
+        setFailed(false);
+      })
+      .catch(() => setFailed(true))
+      .finally(() => {
+        loading.current = false;
+      });
+  };
+  useEffect(() => {
+    const again = () => document.visibilityState === "visible" && load();
+    window.addEventListener("focus", again);
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      window.removeEventListener("focus", again);
+      document.removeEventListener("visibilitychange", again);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return { list, failed, load };
+}
+
+function ClientSuggestions({ base, query, onPick }: { base: ClientBase; query: string; onPick: (c: ClientRecord) => void }) {
+  if (!clientsRepo) return null;
+  const q = query.trim();
+  const digits = q.replace(/\D/g, "");
+  const all = base.list ?? [];
+  const byText = digits.length >= 3 && digits.length === q.replace(/[\s()+-]/g, "").length;
+  const found = q
+    ? all
+        .filter((c) => (byText ? c.phone.replace(/\D/g, "").includes(digits.replace(/^[78]/, "")) : matchesSearch([c.name, phoneLabel(c.phone)], q)))
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, 6)
+    : all
+        .filter((c) => c.status === "client" || c.status === "work")
+        .sort((a, b) => (b.statusAt ?? b.updatedAt) - (a.statusAt ?? a.updatedAt))
+        .slice(0, 5);
+  if (base.list === null) return <p className="muted small">{base.failed ? "Не получилось открыть «Клиентов» — впишите вручную." : "Открываем «Клиентов»…"}</p>;
+  if (!found.length) return q ? <p className="muted small">В «Клиентах» такого нет — впишите вручную.</p> : null;
+  return (
+    <div className="plan-client-pick">
+      <p className="muted small">{q ? "Из «Клиентов» — коснитесь, чтобы подставить:" : "Недавно «Клиент» и «В работе» — коснитесь, чтобы подставить:"}</p>
+      <ul className="plan-client-pick__list">
+        {found.map((c) => (
+          <li key={c.id}>
+            {/* mousedown/pointerdown не уводит фокус из поля — касание срабатывает раньше, чем список спрячется. */}
+            <button type="button" className="plan-client-pick__item" onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(c)}>
+              <b>{c.name || "Без имени"}</b>
+              <span className="muted small">
+                {c.phone ? phoneLabel(c.phone) : "без телефона"} · {CLIENT_STATUS_TITLES[c.status]}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

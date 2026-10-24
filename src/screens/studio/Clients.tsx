@@ -5,7 +5,7 @@
  * боту в Telegram. Один человек — одна карточка (по телефону). Выгрузка для рассылки — только согласившиеся.
  */
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   CLIENT_LIMITS,
   CLIENT_STATUS_TITLES,
@@ -37,10 +37,13 @@ import {
   clientErrorText,
   errorCode,
   errorReason,
+  originOf,
 } from "../../core/clients";
+import { parseLeadText } from "../../core/events";
+import { todayMoscow } from "../../core/calendar";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
-import { clientsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type ClientResponse, type UserProfile } from "../../data";
+import { clientsRepo, eventsRepo, permissions, useLoad, type ClientDetails, type ClientRecord, type ClientResponse, type UserProfile } from "../../data";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { Fold } from "../../components/Fold";
 import { HostGate } from "../../components/HostGate";
@@ -422,6 +425,7 @@ function ClientBase({ profile }: { profile: UserProfile }) {
               startOpen={c.id === focusId}
               now={now}
               manager={profile.name}
+              canBook={eventsRepo !== null && permissions.canManageEvents(profile)}
               onEdit={() => setForm(c)}
               onArchive={() => toggleArchive(c)}
               onChanged={(next, text) => {
@@ -559,6 +563,7 @@ function ClientCard({
   startOpen = false,
   now,
   manager,
+  canBook = false,
   onEdit,
   onArchive,
   onChanged,
@@ -568,6 +573,8 @@ function ClientCard({
   startOpen?: boolean;
   now: number;
   manager: string;
+  /** Может записывать мероприятия — кнопка «📅 Записать мероприятие ведущему». */
+  canBook?: boolean;
   onEdit: () => void;
   onArchive: () => void;
   onChanged: (c: ClientRecord, toast: string) => void;
@@ -592,6 +599,19 @@ function ClientCard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.notes]);
+  const navigate = useNavigate();
+  // В мероприятие ведущему (решение владельца 24 октября 2026): имя, телефон, дата, гости и программа из заметки и
+  // обращений — сразу в форме планировщика. Несохранённую заметку сначала сохраняем: в ней обычно свежие договорённости.
+  async function book() {
+    if (dirty && clientsRepo) {
+      try {
+        await clientsRepo.saveNotes(c.id, note, noteBase);
+      } catch {
+        /* не сохранилась — всё равно открываем форму, заметка остаётся в карточке */
+      }
+    }
+    navigate(`/studio/calendar?tab=events&client=${encodeURIComponent(c.id)}`);
+  }
   const wait = waitingOf(c);
   const waiting = wait ? now - wait.since : 0;
   const late = waiting > ANSWER_MS;
@@ -698,6 +718,17 @@ function ClientCard({
       {open && (
         <div className="stack stack--tight">
           {!c.archived && <StatusPanel client={c} busy={busy} onPick={(st) => void setStatus(st)} />}
+          {canBook && !c.archived && c.status !== "lost" && (
+            <div className="stack stack--tight clients-book">
+              <button type="button" className={c.status === "work" || c.status === "client" ? "btn btn--block" : "btn btn--secondary btn--block"} disabled={busy} onClick={() => void book()}>
+                📅 Записать мероприятие ведущему
+              </button>
+              <p className="muted small">
+                Имя, телефон и то, что известно о празднике (дата, время, гости, программа из расчёта), перенесутся в форму — останется выбрать
+                ведущего. Записали — клиент сам станет «Клиент».
+              </p>
+            </div>
+          )}
 
           {(c.phone || c.links.length > 0) && (
             <h3 className="small clients-section">Связаться</h3>
@@ -834,6 +865,42 @@ function ClientCard({
 }
 
 /**
+ * «📋 Заполнить из сообщения клиента» (решение владельца 24 октября 2026): менеджер вставляет переписку, заявку или расчёт —
+ * имя, телефон, соцсети, «Что хочет клиент» и «Откуда пришёл» заполняются сами (уже введённое не трогаем). Текст целиком
+ * уходит в «Что хочет клиент» — из него потом берутся дата, гости и программа для мероприятия ведущему.
+ */
+function PasteMessage({ onFill }: { onFill: (text: string) => string[] }) {
+  const [text, setText] = useState("");
+  const [result, setResult] = useState<string | null>(null);
+  return (
+    <Fold title="📋 Заполнить из сообщения клиента" value={result ? "заполнено" : undefined}>
+      <div className="stack stack--tight">
+        <label className="field">
+          <span className="field__label">Вставьте сообщение: переписку, заявку или расчёт с сайта</span>
+          <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="🧮 Расчёт JoyRest … или «Здравствуйте, меня зовут Анна, +7 915 …»" />
+        </label>
+        <button
+          type="button"
+          className="btn btn--secondary btn--block"
+          disabled={!text.trim()}
+          onClick={() => {
+            const got = onFill(text);
+            setResult(got.length ? `Заполнено: ${got.join(", ")}. Проверьте поля ниже.` : "Ничего нового не нашлось — заполните вручную.");
+          }}
+        >
+          Заполнить анкету
+        </button>
+        {result && (
+          <p className="small plan-filled" role="status">
+            {result}
+          </p>
+        )}
+      </div>
+    </Fold>
+  );
+}
+
+/**
  * Карточка клиента вручную (звонок, Авито, рекомендация) и правка. Проверки (17 октября 2026): у нового — телефон
  * или ссылка обязательны (без них клиенту не написать), неполный телефон не сохраняется, тот же телефон — «Открыть
  * его карточку», чужая правка — «Сохранить мои правки поверх» без потери введённого, выход с правками — через вопрос.
@@ -953,6 +1020,38 @@ function ClientForm({
   return (
     <section className="card stack plan-form" aria-labelledby="client-form">
       <h2 id="client-form">{initial ? "Изменить клиента" : "Новый клиент"}</h2>
+      {!initial && (
+        <PasteMessage
+          onFill={(text) => {
+            const f = parseLeadText(text, todayMoscow());
+            const got: string[] = [];
+            if (f.clientName && !name.trim()) {
+              setName(f.clientName);
+              got.push("имя");
+            }
+            if (f.clientPhone && !phone.trim()) {
+              setPhone(f.clientPhone);
+              got.push("телефон");
+            }
+            const found = parseLinks(text).filter((l) => !parsedLinks.includes(l));
+            if (found.length) {
+              setLinks([...parsedLinks, ...found].join("\n"));
+              got.push("соцсети");
+            }
+            if (!request.trim()) {
+              setRequest(text.trim().slice(0, CLIENT_LIMITS.notes));
+              got.push("что хочет клиент");
+            }
+            // Расчёт с калькулятора сайта — клиент пришёл с сайта.
+            const o = originOf(text) ?? (/Расч[её]т\s+JoyRest/i.test(text) ? "site" : null);
+            if (o && !origin) {
+              setOrigin(o);
+              got.push("откуда пришёл");
+            }
+            return got;
+          }}
+        />
+      )}
       <label className="field">
         <span className="field__label">Имя</span>
         <input type="text" autoComplete="off" maxLength={CLIENT_LIMITS.name} value={name} placeholder="Как обращаться: Мария" onChange={(e) => setName(e.target.value)} />

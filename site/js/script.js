@@ -608,7 +608,7 @@
     sheetFrom = e && e.currentTarget;
     $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
-    $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(sheetText);
+    $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
     $('sendMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(sheetText);
     const avito = $('sendAvito');
     if(avitoUrl){ avito.href = avitoUrl; avito.hidden = false; }

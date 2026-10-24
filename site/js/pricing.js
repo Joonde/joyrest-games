@@ -266,6 +266,11 @@
    * Время начала (решение владельца 23 октября 2026): по желанию, на цену не влияет — только строка менеджеру.
    * Принимаем «ЧЧ:ММ» (00:00–23:59), иначе пусто. Время подтверждает менеджер: свободны ли ведущие.
    */
+  /** Текст для ссылки t.me/…?text=: Telegram раскодирует её дважды и обрезает сообщение на «%» (и путает «+», «&»),
+   *  поэтому здесь — похожие знаки, которые ему не мешают (жалоба владельца 24 октября 2026: расчёт приходил не целиком). */
+  function telegramText(t) {
+    return String(t || '').replace(/%/g, '\uFF05').replace(/\+/g, '\uFF0B').replace(/&/g, ' и ');
+  }
   function cleanTime(t) {
     return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : '';
   }
@@ -368,7 +373,7 @@
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
     MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
     seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,
-    parseDate: parseDate, cleanTime: cleanTime, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
+    parseDate: parseDate, cleanTime: cleanTime, telegramText: telegramText, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

@@ -275,7 +275,7 @@
     sheetFrom = e && e.currentTarget;
     $('sWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(value);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
-    $('sTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(value);
+    $('sTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(value));
     $('sMail').href = 'mailto:joyrest@mail.ru?subject=' + encodeURIComponent('Расчёт JoyRest') + '&body=' + encodeURIComponent(value);
     // Картинку готовим сразу: «Поделиться» телефона должно открыться прямо по касанию.
     sheetFile = null;

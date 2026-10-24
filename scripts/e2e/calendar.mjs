@@ -350,7 +350,7 @@ try {
   await row.getByLabel("Клиент — имя").fill("Клиент Проверка");
   await row.getByLabel("Телефон клиента").fill("+7 900 000-00-00");
   await row.getByLabel("Гостей (точное число)").fill("45");
-  await row.getByLabel("Комментарий (программа, пожелания)").fill("Квиз и танцы, проверка");
+  await row.getByLabel("Комментарий ведущему (пожелания, особенности)").fill("Квиз и танцы, проверка");
   await shot(ap, "владелец-форма-мероприятия");
   await noSideScroll(ap, "Владелец, форма в «Кто может»");
   await row.locator("summary", { hasText: "Заполнить из заявки" }).click();
@@ -705,6 +705,31 @@ try {
   await ap.waitForTimeout(300);
   check((await ap.locator(".plan-drafts").count()) === 0, "Черновик: «Удалить черновик» — списка больше нет");
   await noSideScroll(ap, "Владелец, черновики");
+  // Карточка клиента → «📅 Записать мероприятие ведущему»: имя, телефон, дата, время и гости — уже в форме.
+  const d2dots = `${D2.slice(8)}.${D2.slice(5, 7)}.${D2.slice(0, 4)}`;
+  await api("POST", "/api/clients", admin.cookie, { id: draftClientId, name: "Анна Проверка Черновик", phone: "+7 915 000-77-66", notes: `Корпоратив ${d2dots}, 30 гостей, с 19:00 до 22:00` });
+  await ap.goto(`${BASE}/studio/clients?id=${draftClientId}`);
+  const bookBtn = ap.getByRole("button", { name: "📅 Записать мероприятие ведущему" });
+  await bookBtn.waitFor({ timeout: WAIT });
+  await shot(ap, "владелец-карточка-клиента-записать");
+  await bookBtn.click();
+  await until(async () => (await ap.getByLabel("Клиент — имя").count()) > 0, WAIT, "форма мероприятия из карточки клиента");
+  await until(async () => (await ap.getByLabel("Клиент — имя").inputValue()) === "Анна Проверка Черновик", WAIT, "имя из карточки");
+  const fromCard = {
+    phone: await ap.getByLabel("Телефон клиента").inputValue(),
+    day: await ap.getByLabel("Дата").first().inputValue(),
+    title: await ap.getByLabel("Что за мероприятие").inputValue(),
+    guests: await ap.getByLabel(/Гостей|гостей/).first().inputValue().catch(() => ""),
+    filled: (await ap.locator(".plan-filled").first().textContent().catch(() => "")) ?? "",
+  };
+  check(
+    fromCard.phone === "+7 915 000-77-66" && fromCard.day === D2 && fromCard.title === "Корпоратив" && fromCard.filled.includes("Из карточки клиента"),
+    "Клиент → мероприятие: имя, телефон, дата и повод перенесены из карточки",
+    `Клиент → мероприятие: ${JSON.stringify(fromCard)}`,
+  );
+  await shot(ap, "владелец-мероприятие-из-клиента");
+  await ap.getByRole("button", { name: "Удалить черновик" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Удалить черновик" }).click();
   await api("POST", `/api/clients/${draftClientId}/archive`, admin.cookie, {});
 
   // ---------- Светлая и тёмная тема студии (решение владельца 24 октября 2026) ----------

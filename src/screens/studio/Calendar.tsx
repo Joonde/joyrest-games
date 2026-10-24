@@ -92,6 +92,8 @@ function CalendarPage({ profile }: { profile: UserProfile }) {
                 admin={permissions.canViewEventStats(profile)}
                 me={profile.uid}
                 openDraft={params.get("draft")}
+                openClient={params.get("client")}
+                onClientOpened={() => setParams({ tab: "events" }, { replace: true })}
                 onDraftOpened={() => setParams({ tab: "events" }, { replace: true })}
                 onToast={showToast}
               />

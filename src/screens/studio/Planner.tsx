@@ -37,6 +37,7 @@ import {
 import { professionOf } from "../../core/professions";
 import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, type EventProgram } from "../../core/eventProgram";
 import { matchesSearch } from "../../core/search";
+import { eventFillFromClient, type ClientEventFill } from "../../core/clientToEvent";
 import { draftHasContent, draftsKey, draftTitle, parseDrafts, removeDraft, upsertDraft, type EventFormDraft } from "../../core/eventDrafts";
 import { CLIENT_STATUS_TITLES, durationLabel, originStats, phoneIssueText, phoneKey, phoneLabel, responseStats, telHref } from "../../core/clients";
 import { calendarRepo, clientsRepo, clock, dataBackend, eventsRepo, useLoad, venuesRepo, type AgencyEvent, type AvailabilityEntry, type ClientRecord, type ClientResponse, type CalendarMember, type VenueRequestRecord } from "../../data";
@@ -108,7 +109,7 @@ function usePlannerNow(): number {
   return useServerNow(30_000);
 }
 
-type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string; resume?: EventFormDraft };
+type FormState = { event?: AgencyEvent; template?: AgencyEvent; day: string; resume?: EventFormDraft; prefill?: ClientEventFill };
 
 // ───────────────────────────── Черновики (на устройстве) ─────────────────────────────
 
@@ -200,7 +201,26 @@ export function EventDrafts({ uid, onOpen }: { uid: string; onOpen: (draft: Even
  * `owner` — записывает и правит мероприятия (владелец и менеджер по продажам), `admin` — ещё «Итоги» и «Удалить навсегда»
  * (только владелец).
  */
-export function Planner({ owner, admin = owner, me = "", openDraft, onDraftOpened, onToast }: { owner: boolean; admin?: boolean; me?: string; openDraft?: string | null; onDraftOpened?: () => void; onToast: (text: string) => void }) {
+export function Planner({
+  owner,
+  admin = owner,
+  me = "",
+  openDraft,
+  onDraftOpened,
+  openClient,
+  onClientOpened,
+  onToast,
+}: {
+  owner: boolean;
+  admin?: boolean;
+  me?: string;
+  openDraft?: string | null;
+  onDraftOpened?: () => void;
+  /** «📅 Записать мероприятие ведущему» из карточки клиента: форма с его данными. */
+  openClient?: string | null;
+  onClientOpened?: () => void;
+  onToast: (text: string) => void;
+}) {
   const today = todayMoscow();
   const [view, setView] = useState<View>("day");
   const [day, setDay] = useState(today);
@@ -214,6 +234,24 @@ export function Planner({ owner, admin = owner, me = "", openDraft, onDraftOpene
     if (openDraft) onDraftOpened?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Из карточки клиента: имя, телефон и то, что известно о празднике, — сразу в форме.
+  useEffect(() => {
+    if (!owner || !openClient || !clientsRepo) return;
+    let gone = false;
+    clientsRepo
+      .get(openClient)
+      .then((c) => {
+        if (gone) return;
+        const fill = eventFillFromClient(c, todayMoscow());
+        setForm({ day: fill.day ?? todayMoscow(), prefill: fill });
+      })
+      .catch(() => !gone && onToast("Не получилось открыть клиента — заполните мероприятие вручную"))
+      .finally(() => !gone && onClientOpened?.());
+    return () => {
+      gone = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openClient]);
   const [openId, setOpenId] = useState<string | null>(null);
   // Удалённые и изменённые здесь — чтобы списки не показывали устаревшее до перезагрузки.
   const [removed, setRemoved] = useState<string[]>([]);
@@ -307,6 +345,7 @@ export function Planner({ owner, admin = owner, me = "", openDraft, onDraftOpene
         template={form.template}
         day={form.day}
         resume={form.resume}
+        prefill={form.prefill}
         draftOwner={me}
         onCancel={(kept) => {
           setForm(null);
@@ -1248,6 +1287,7 @@ export function EventForm({
   day: initialDay,
   draft,
   resume,
+  prefill,
   draftOwner,
   onSaved,
   onCancel,
@@ -1258,6 +1298,8 @@ export function EventForm({
   draft?: EventDraft;
   /** Черновик, который продолжаем заполнять. */
   resume?: EventFormDraft;
+  /** Данные из карточки клиента. */
+  prefill?: ClientEventFill;
   /** Чьи черновики: задан — новое мероприятие само сохраняется черновиком на устройстве (правка записанного — нет). */
   draftOwner?: string;
   onSaved: (event: AgencyEvent) => void;
@@ -1266,24 +1308,27 @@ export function EventForm({
 }) {
   const base = initial ?? template;
   const r = initial ? undefined : resume;
+  const pf = initial || resume ? undefined : prefill;
   const [id] = useState(() => initial?.id ?? r?.id ?? newId());
-  const [day, setDay] = useState(initial?.day ?? r?.day ?? draft?.day ?? initialDay);
-  const [start, setStart] = useState(r?.start ?? base?.start ?? draft?.start ?? DEFAULT_QUERY.start);
-  const [end, setEnd] = useState(r?.end ?? base?.end ?? draft?.end ?? DEFAULT_QUERY.end);
+  const [day, setDay] = useState(initial?.day ?? r?.day ?? pf?.day ?? draft?.day ?? initialDay);
+  const [start, setStart] = useState(r?.start ?? pf?.start ?? base?.start ?? draft?.start ?? DEFAULT_QUERY.start);
+  const [end, setEnd] = useState(r?.end ?? pf?.end ?? base?.end ?? draft?.end ?? DEFAULT_QUERY.end);
   const [hostId, setHostId] = useState(r?.hostId ?? base?.hostId ?? draft?.hostId ?? "");
-  const [title, setTitle] = useState(r?.title ?? base?.title ?? "");
-  const [clientName, setClientName] = useState(r?.clientName ?? base?.clientName ?? "");
-  const [clientPhone, setClientPhone] = useState(r?.clientPhone ?? base?.clientPhone ?? "");
-  const [place, setPlace] = useState(r?.place ?? base?.place ?? "");
-  const [guests, setGuests] = useState(r ? r.guests : base?.guests != null ? String(base.guests) : "");
+  const [title, setTitle] = useState(r?.title ?? pf?.title ?? base?.title ?? "");
+  const [clientName, setClientName] = useState(r?.clientName ?? pf?.clientName ?? base?.clientName ?? "");
+  const [clientPhone, setClientPhone] = useState(r?.clientPhone ?? pf?.clientPhone ?? base?.clientPhone ?? "");
+  const [place, setPlace] = useState(r?.place ?? pf?.place ?? base?.place ?? "");
+  const [guests, setGuests] = useState(r ? r.guests : pf?.guests !== undefined ? String(pf.guests) : base?.guests != null ? String(base.guests) : "");
   const [note, setNote] = useState(r?.note ?? base?.note ?? "");
-  const [program, setProgram] = useState<EventProgram | null>(r ? r.program : (base?.program ?? null));
+  const [program, setProgram] = useState<EventProgram | null>(r ? r.program : (pf?.program ?? base?.program ?? null));
   const [allTeam, setAllTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   // Двойное касание «Записать»: второй запрос не уходит, пока первый не вернулся (иначе ведущему — два уведомления).
   const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [filled, setFilled] = useState<string | null>(null);
+  const [filled, setFilled] = useState<string | null>(() =>
+    pf ? `Из карточки клиента: ${pf.got.join(", ")}. Проверьте и выберите ведущего.${pf.day ? "" : " Даты в заявке нет — выберите её."}` : null,
+  );
   // Клиент попадёт в «Клиенты» только с полным телефоном; мероприятие записать можно и без него.
   const phoneIncomplete = clientPhone.trim() !== "" && phoneKey(clientPhone) === "";
   const nameOnly = clientName.trim() !== "" && clientPhone.trim() === "";
@@ -1326,7 +1371,7 @@ export function EventForm({
   const latest = useRef(snapshot);
   latest.current = snapshot;
   const draftDone = useRef(false);
-  const draftTouched = useRef(Boolean(r));
+  const draftTouched = useRef(Boolean(r || pf));
   if (dirty) draftTouched.current = true;
   const keepDraft = () => {
     if (!drafting || draftDone.current || !draftTouched.current) return;

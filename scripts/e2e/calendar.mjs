@@ -666,7 +666,10 @@ try {
 
   // ---------- Черновик мероприятия и клиенты из базы (решение владельца 24 октября 2026) ----------
   const draftClientId = `e2e-draft-${Date.now()}`;
-  await api("POST", "/api/clients", admin.cookie, { id: draftClientId, name: "Анна Проверка Черновик", phone: "+7 915 000-77-66", status: "client" });
+  // Номер — свой у каждого прогона: клиент прошлого прогона в архиве, но его номер занят (один человек — одна карточка).
+  const runTail = String(Date.now() % 100000).padStart(5, "0");
+  const draftPhone = `+7 915 0${runTail.slice(0, 2)}-${runTail.slice(2, 4)}-6${runTail.slice(4)}`;
+  await api("POST", "/api/clients", admin.cookie, { id: draftClientId, name: "Анна Проверка Черновик", phone: draftPhone, status: "client" });
   await ap.goto(`${BASE}/studio/calendar?tab=events`);
   await ap.getByRole("button", { name: "+ Новое мероприятие" }).click();
   await ap.getByLabel("Что за мероприятие").fill("Черновик, проверка");
@@ -679,9 +682,9 @@ try {
   await until(async () => (await pick.count()) > 0, WAIT, "клиент по имени");
   await shot(ap, "владелец-клиент-из-базы");
   await pick.first().click();
-  check((await nameField.inputValue()) === "Анна Проверка Черновик" && (await ap.getByLabel("Телефон клиента").inputValue()) === "+7 915 000-77-66", "Форма: касание клиента подставило имя и полный телефон");
+  check((await nameField.inputValue()) === "Анна Проверка Черновик" && (await ap.getByLabel("Телефон клиента").inputValue()) === draftPhone, "Форма: касание клиента подставило имя и полный телефон");
   await ap.getByLabel("Телефон клиента").fill("");
-  await ap.getByLabel("Телефон клиента").pressSequentially("77 66", { delay: 30 });
+  await ap.getByLabel("Телефон клиента").pressSequentially(draftPhone.replace(/\D/g, "").slice(-5), { delay: 30 });
   await until(async () => (await pick.count()) > 0, WAIT, "клиент по цифрам номера");
   ok("Форма: клиент находится и по цифрам номера");
   await pick.first().click();
@@ -712,7 +715,7 @@ try {
   await noSideScroll(ap, "Владелец, черновики");
   // Карточка клиента → «📅 Записать мероприятие ведущему»: имя, телефон, дата, время и гости — уже в форме.
   const d2dots = `${D2.slice(8)}.${D2.slice(5, 7)}.${D2.slice(0, 4)}`;
-  await api("POST", "/api/clients", admin.cookie, { id: draftClientId, name: "Анна Проверка Черновик", phone: "+7 915 000-77-66", notes: `Корпоратив ${d2dots}, 30 гостей, с 19:00 до 22:00` });
+  await api("POST", "/api/clients", admin.cookie, { id: draftClientId, name: "Анна Проверка Черновик", phone: draftPhone, notes: `Корпоратив ${d2dots}, 30 гостей, с 19:00 до 22:00` });
   await ap.goto(`${BASE}/studio/clients?id=${draftClientId}`);
   const bookBtn = ap.getByRole("button", { name: "📅 Записать мероприятие ведущему" });
   await bookBtn.waitFor({ timeout: WAIT });
@@ -728,7 +731,7 @@ try {
     filled: (await ap.locator(".plan-filled").first().textContent().catch(() => "")) ?? "",
   };
   check(
-    fromCard.phone === "+7 915 000-77-66" && fromCard.day === D2 && fromCard.title === "Корпоратив" && fromCard.filled.includes("Из карточки клиента"),
+    fromCard.phone === draftPhone && fromCard.day === D2 && fromCard.title === "Корпоратив" && fromCard.filled.includes("Из карточки клиента"),
     "Клиент → мероприятие: имя, телефон, дата и повод перенесены из карточки",
     `Клиент → мероприятие: ${JSON.stringify(fromCard)}`,
   );

@@ -873,7 +873,7 @@ function PasteMessage({ onFill }: { onFill: (text: string) => string[] }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<string | null>(null);
   return (
-    <Fold title="📋 Заполнить из сообщения клиента" value={result ? "заполнено" : undefined}>
+    <Fold title="📋 Заполнить из сообщения клиента" value={result ? "✓" : undefined}>
       <div className="stack stack--tight">
         <label className="field">
           <span className="field__label">Вставьте сообщение: переписку, заявку или расчёт с сайта</span>
@@ -1040,7 +1040,13 @@ function ClientForm({
               got.push("соцсети");
             }
             if (!notes.trim()) {
-              setNotes(text.trim().slice(0, CLIENT_LIMITS.notes));
+              // Имя и телефон уже в своих полях — в «Что хочет клиент» только остальное.
+              const wish = text
+                .split("\n")
+                .filter((line) => !/^\s*(имя|телефон|тел\.?|phone|контакт)\s*:/i.test(line))
+                .join("\n")
+                .trim();
+              setNotes((wish || text.trim()).slice(0, CLIENT_LIMITS.notes));
               got.push("что хочет клиент");
             }
             // Расчёт с калькулятора сайта — клиент пришёл с сайта.

@@ -83,6 +83,8 @@
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof iso === 'string' ? iso : '');
     if (!m) return null;
     var y = +m[1], mo = +m[2], d = +m[3];
+    // Пока год набирают с клавиатуры, браузер отдаёт «0002-12-15», «0020-…» — это ещё не дата.
+    if (y < 2000 || y > 2999) return null;
     var ms = Date.UTC(y, mo - 1, d);
     var back = new Date(ms);
     if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;

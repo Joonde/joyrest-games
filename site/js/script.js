@@ -285,12 +285,14 @@
   };
   dateInput.addEventListener('change', setDate);
   dateInput.addEventListener('input', setDate);
+  dateInput.addEventListener('blur', () => setTimeout(update, 0));
   $('calcDateClear').addEventListener('click', () => { dateInput.value = ''; calc.date = ''; update(); dateInput.focus(); });
   // Время начала — по желанию, на цену не влияет (решение владельца 23 октября 2026), только строка менеджеру.
   const timeInput = $('calcTime');
   const setTime = () => { calc.time = P.cleanTime(timeInput.value); update(); };
   timeInput.addEventListener('change', setTime);
   timeInput.addEventListener('input', setTime);
+  timeInput.addEventListener('blur', () => setTimeout(update, 0));
   $('calcTimeClear').addEventListener('click', () => { timeInput.value = ''; calc.time = ''; update(); timeInput.focus(); });
   [['Будни (пн–чт)', false], ['Пятница–воскресенье · +10%', true]].forEach(([label, wk]) => {
     const b = el('button', 'chip', label);
@@ -378,9 +380,11 @@
     const r = P.calcPrice({ pkg: calc.pkg, tier: calc.tier, weekend: calc.weekend, date: calc.date, today: today(), extras: extrasList(), ext: calc.ext, addons: addonsList() });
     // Дата есть — день недели берётся из неё, кнопки дня только показывают его.
     ui.days.forEach(([wk, b]) => { pressable(b, wk === r.weekend); b.disabled = !!r.date; });
-    if(dateInput.value !== calc.date) dateInput.value = calc.date;
+    // Пока человек вводит дату или время с клавиатуры, браузер отдаёт пустое значение до конца ввода —
+    // поле не перезаписываем, иначе набранное стирается (жалоба владельца 24 октября 2026).
+    if(document.activeElement !== dateInput && dateInput.value !== calc.date) dateInput.value = calc.date;
     $('calcDateClear').hidden = !calc.date;
-    if(timeInput.value !== (calc.time || '')) timeInput.value = calc.time || '';
+    if(document.activeElement !== timeInput && timeInput.value !== (calc.time || '')) timeInput.value = calc.time || '';
     $('calcTimeClear').hidden = !calc.time;
     $('calcDateInfo').innerHTML = r.date
       ? `<b>${esc(r.date.label.replace(/, [а-я]+$/, ''))}, ${esc(r.date.weekday)}</b> — ${r.weekend ? 'пятница–воскресенье, +10%' : 'будний день'}${r.season ? ' · ' + esc(r.season.title.toLowerCase()) : ''}.${calc.date < today() ? ' Эта дата уже прошла — проверьте.' : ''}`

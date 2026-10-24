@@ -79,9 +79,12 @@
 
     var r = P.calcPrice(opts());
     var dateEl = $('date');
-    dateEl.min = today();
-    if (dateEl.value !== state.date) dateEl.value = state.date;
-    if ($('time').value !== state.time) $('time').value = state.time;
+    // min — только если поменялся: запись min посреди ввода с клавиатуры сбрасывает набранное.
+    if (dateEl.min !== today()) dateEl.min = today();
+    // Пока вводят с клавиатуры, браузер отдаёт пустое значение до конца ввода — поле не перезаписываем.
+    if (document.activeElement !== dateEl && dateEl.value !== state.date) dateEl.value = state.date;
+    var timeEl = $('time');
+    if (document.activeElement !== timeEl && timeEl.value !== state.time) timeEl.value = state.time;
     var info = $('dateInfo');
     info.textContent = '';
     if (r.date) {
@@ -315,6 +318,8 @@
   var setTime = function () { set({ time: P.cleanTime($('time').value) }); };
   $('time').addEventListener('change', setTime);
   $('time').addEventListener('input', setTime);
+  $('date').addEventListener('blur', function () { setTimeout(function () { set({}); }, 0); });
+  $('time').addEventListener('blur', function () { setTimeout(function () { set({}); }, 0); });
   // Ранняя бронь Нового года — с 1 сентября по 15 ноября по Москве.
   (function () {
     var t = today(), y = t.slice(0, 4);

@@ -150,8 +150,9 @@ async function salesManager(admin) {
 
 /** Убрать всё созданное проверкой: мероприятия «…проверка менеджера», клиенты «Проверка Менеджер», сессии ведущего. */
 async function cleanup(admin, host) {
+  // Окно запроса мероприятий — до 62 дней: проверка создаёт их с позавчера до праздника клиента (+44 дня).
   const from = addDays(TODAY, -3);
-  const to = addDays(TODAY, 60);
+  const to = addDays(TODAY, 50);
   const events = await api("GET", `/api/events?from=${from}&to=${to}`, admin.cookie);
   for (const e of events.data?.events ?? []) {
     if (!/проверка менеджера/i.test(e.title)) continue;
@@ -280,7 +281,7 @@ async function eventsList(page) {
 }
 async function apiEvent(cookie, id) {
   const from = addDays(TODAY, -3);
-  const to = addDays(TODAY, 60);
+  const to = addDays(TODAY, 50);
   return ((await api("GET", `/api/events?from=${from}&to=${to}`, cookie)).data?.events ?? []).find((e) => e.id === id) ?? null;
 }
 

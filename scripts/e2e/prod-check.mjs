@@ -59,6 +59,10 @@ async function typeDateTime(page, dateSel, timeSel, where) {
 }
 
 async function checkSheet(page, ids, where) {
+  // «Как к вам обращаться» (24 октября 2026) — имя первой строкой расчёта.
+  await page.fill(ids.name, "Анна");
+  const wa = decodeURIComponent((await page.getAttribute(ids.wa, "href")).split("text=")[1] ?? "");
+  check(wa.includes("Имя: Анна"), `${where}: «Как к вам обращаться» — строкой «Имя» в расчёте`, `${where}: в расчёте нет имени`);
   const tg = decodeURIComponent((await page.getAttribute(ids.tg, "href")).split("text=")[1] ?? "");
   check(tg.includes("Расчёт JoyRest") && !/[%+&]/.test(tg), `${where}: текст для Telegram целиком, без «%», «+», «&»`, `${where}: текст Telegram «${tg.slice(0, 120)}»`);
   check(tg.includes(dateWords) && tg.includes("19:30"), `${where}: в расчёте для менеджера есть дата и время`, `${where}: нет даты (${dateWords}) или времени в расчёте`);
@@ -91,7 +95,7 @@ try {
   await typeDateTime(calc, "#date", "#time", "joy-rest.ru/calc/");
   await calc.getByRole("button", { name: /Отправить расчёт/ }).first().click();
   await calc.waitForTimeout(300);
-  await checkSheet(calc, { tg: "#sTg", mail: "#sMail", mailList: "#sMailList", avito: "#sAvito", avitoBox: "#sAvitoBox", avitoGo: "#sAvitoGo" }, "joy-rest.ru/calc/");
+  await checkSheet(calc, { name: "#sName", wa: "#sWa", tg: "#sTg", mail: "#sMail", mailList: "#sMailList", avito: "#sAvito", avitoBox: "#sAvitoBox", avitoGo: "#sAvitoGo" }, "joy-rest.ru/calc/");
   check(errs.length === 0, "joy-rest.ru/calc/: без ошибок на странице", `joy-rest.ru/calc/: ошибки — ${errs.join("; ").slice(0, 200)}`);
 
   // 2б. Главная — если открыта витрина или сайт
@@ -106,7 +110,7 @@ try {
     if (mode === "showcase") {
       await home.click("#calcSubmit");
       await home.waitForTimeout(300);
-      await checkSheet(home, { tg: "#sendTg", mail: "#sendMail", mailList: "#sendMailList", avito: "#sendAvito", avitoBox: "#sendAvitoBox", avitoGo: "#sendAvitoGo" }, "joy-rest.ru (витрина)");
+      await checkSheet(home, { name: "#sendName", wa: "#sendWa", tg: "#sendTg", mail: "#sendMail", mailList: "#sendMailList", avito: "#sendAvito", avitoBox: "#sendAvitoBox", avitoGo: "#sendAvitoGo" }, "joy-rest.ru (витрина)");
     }
     check(herr.length === 0, "joy-rest.ru: без ошибок на странице", `joy-rest.ru: ошибки — ${herr.join("; ").slice(0, 200)}`);
   }
@@ -141,6 +145,11 @@ try {
     ["Формат — касайтесь по порядку вечера", "«Что хочет клиент» полями"],
     ["Статус и рассылка", "статус и рассылка свёрнуты"],
     ["Светлая тема", "светлая и тёмная тема студии"],
+    ["По цвету", "список мероприятий «По цвету»"],
+    ["Заполнено ", "форма мероприятия: «Заполнено N из 8»"],
+    ["Вставить расчёт или заявку", "вставка расчёта в форму"],
+    ["Место пока уточняется", "«Место пока уточняется»"],
+    ["Схема: путь заявки и данных", "схема пути в инструкции менеджера"],
   ];
   say(`ℹ️ Код студии: просмотрено файлов — ${seen.size}`);
   // Сборщик может записать русские буквы как \uXXXX — ищем оба вида.

@@ -24073,3 +24073,71 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 .board-cell-form {
   scroll-margin-top: 88px;
 }
+
+/* Черновики мероприятий и подсказки клиентов из базы (решение владельца 24 октября 2026). */
+.plan-drafts__list,
+.plan-client-pick__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.plan-drafts__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface-alt);
+}
+
+.plan-drafts__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.plan-drafts__text b {
+  overflow-wrap: anywhere;
+}
+
+.plan-drafts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-client-pick {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-client-pick p {
+  margin: 0;
+}
+
+.plan-client-pick__item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-client-pick__item:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}

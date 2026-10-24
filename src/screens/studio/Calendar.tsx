@@ -41,7 +41,7 @@ import { TopBar } from "../../components/TopBar";
 import { brand } from "../../themes/brand";
 import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
 import { alreadyText, entryKey, pendingDays, planRepeat, repeatKey, saveErrorText, splitSaved, type RepeatPlan } from "./calendarRepeat";
-import { EventForm, Planner, type EventDraft } from "./Planner";
+import { EventDrafts, EventForm, Planner, type EventDraft } from "./Planner";
 import { studioActions } from "./Studio";
 
 const KIND_COLORS: Record<AvailabilityKind, string> = { free: brand.sage, busy: brand.coral, booked: brand.gold };
@@ -81,9 +81,20 @@ function CalendarPage({ profile }: { profile: UserProfile }) {
           )}
           <div id={`calendar-panel-${tab}`} role={items.length > 1 ? "tabpanel" : undefined} className="stack">
             {tab === "who" ? (
-              <WhoCan onToast={showToast} />
+              <WhoCan
+                me={profile.uid}
+                onToast={showToast}
+                onOpenDraft={(id) => setParams({ tab: "events", draft: id }, { replace: true })}
+              />
             ) : tab === "events" ? (
-              <Planner owner={permissions.canManageEvents(profile)} admin={permissions.canViewEventStats(profile)} me={profile.uid} onToast={showToast} />
+              <Planner
+                owner={permissions.canManageEvents(profile)}
+                admin={permissions.canViewEventStats(profile)}
+                me={profile.uid}
+                openDraft={params.get("draft")}
+                onDraftOpened={() => setParams({ tab: "events" }, { replace: true })}
+                onToast={showToast}
+              />
             ) : (
               <MyCalendar onToast={showToast} />
             )}
@@ -97,7 +108,7 @@ function CalendarPage({ profile }: { profile: UserProfile }) {
 
 // ───────────────────────────── Кто может (владелец) ─────────────────────────────
 
-function WhoCan({ onToast }: { onToast: (text: string) => void }) {
+function WhoCan({ me, onToast, onOpenDraft }: { me: string; onToast: (text: string) => void; onOpenDraft: (id: string) => void }) {
   const today = todayMoscow();
   const [day, setDay] = useState(today);
   const [start, setStart] = useState(DEFAULT_QUERY.start);
@@ -141,6 +152,7 @@ function WhoCan({ onToast }: { onToast: (text: string) => void }) {
 
   return (
     <>
+      {eventsRepo && <EventDrafts uid={me} onOpen={(d) => onOpenDraft(d.id)} />}
       <section className="card stack" aria-labelledby="who-when">
         <h2 id="who-when">Когда мероприятие</h2>
         <label className="field">
@@ -166,7 +178,7 @@ function WhoCan({ onToast }: { onToast: (text: string) => void }) {
 
       <ul className={state.status === "ready" ? "cal-people" : "cal-people is-stale"} aria-busy={state.status !== "ready"}>
         {rows.map(({ member, info }) => (
-          <PersonRow key={member.uid} member={member} info={info} showProfession={everyone} draft={{ day, start, end, hostId: member.uid }} onBooked={booked} onUnbook={unbook} />
+          <PersonRow key={member.uid} member={member} info={info} showProfession={everyone} draft={{ day, start, end, hostId: member.uid }} me={me} onDraftKept={() => onToast("Черновик сохранён — он сверху, в «Черновиках мероприятий»")} onBooked={booked} onUnbook={unbook} />
         ))}
       </ul>
       {rows.length === 0 && <p className="muted">В команде пока никого — добавьте людей в «Команда JoyRest → Управление».</p>}
@@ -182,6 +194,8 @@ function PersonRow({
   info,
   showProfession,
   draft,
+  me,
+  onDraftKept,
   onBooked,
   onUnbook,
 }: {
@@ -189,6 +203,8 @@ function PersonRow({
   info: MemberAvailability;
   showProfession: boolean;
   draft: EventDraft;
+  me: string;
+  onDraftKept: () => void;
   onBooked: (event: AgencyEvent) => void;
   onUnbook: (member: CalendarMember, entry: AvailabilityEntry) => void;
 }) {
@@ -223,7 +239,11 @@ function PersonRow({
           <EventForm
             day={draft.day}
             draft={draft}
-            onCancel={() => setOpen(false)}
+            draftOwner={me}
+            onCancel={(kept) => {
+              setOpen(false);
+              if (kept) onDraftKept();
+            }}
             onSaved={(event) => {
               setOpen(false);
               onBooked(event);

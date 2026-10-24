@@ -737,6 +737,41 @@ try {
   await ap.getByRole("dialog").getByRole("button", { name: "Удалить черновик" }).click();
   await api("POST", `/api/clients/${draftClientId}/archive`, admin.cookie, {});
 
+  // ---------- Анкета клиента: одно поле «Что хочет клиент», статус и рассылка свёрнуты (решение владельца 24 октября 2026) ----------
+  const tail = String(Date.now() % 10000).padStart(4, "0");
+  const formPhone = `+7 915 001-${tail.slice(0, 2)}-${tail.slice(2)}`;
+  await ap.goto(`${BASE}/studio/clients`);
+  await ap.getByRole("button", { name: "+ Клиент" }).click();
+  check((await ap.locator("legend", { hasText: "Статус" }).isVisible()) === false, "Анкета: статус и рассылка свёрнуты");
+  check(((await ap.locator("summary", { hasText: "Статус и рассылка" }).textContent()) ?? "").includes("В работе"), "Анкета: новый клиент вручную — «В работе»");
+  check((await ap.getByLabel("Что хочет клиент — дата, гости, пожелания").count()) === 1 && (await ap.getByText("Заметка: дата, гости", { exact: false }).count()) === 0, "Анкета: одно поле «Что хочет клиент», отдельной «Заметки» нет");
+  await ap.locator("summary", { hasText: "Заполнить из сообщения клиента" }).click();
+  await ap.getByLabel("Вставьте сообщение: переписку, заявку или расчёт с сайта").fill(`Имя: Ольга Проверка Анкета\nТелефон: ${formPhone}\nКорпоратив ${d2dots}, 35 гостей, с 18:00 до 22:00\nПишу с Авито`);
+  await ap.getByRole("button", { name: "Заполнить анкету" }).click();
+  const formOk = {
+    name: await ap.getByLabel("Имя", { exact: true }).inputValue(),
+    phone: await ap.getByLabel("Телефон", { exact: true }).inputValue(),
+    wish: await ap.getByLabel("Что хочет клиент — дата, гости, пожелания").inputValue(),
+    origin: await ap.getByLabel("Откуда пришёл").inputValue(),
+  };
+  check(formOk.name === "Ольга Проверка Анкета" && formOk.phone.replace(/\D/g, "").endsWith(tail) && formOk.wish.includes("35 гостей") && formOk.origin === "avito", "Анкета: «Заполнить из сообщения» — имя, телефон, что хочет клиент, «Авито»", `Анкета: ${JSON.stringify(formOk)}`);
+  await shot(ap, "владелец-анкета-клиента");
+  await ap.getByRole("button", { name: "Сохранить", exact: true }).click();
+  const madeCard = ap.locator("article.plan-card", { hasText: "Ольга Проверка Анкета" });
+  await madeCard.waitFor({ timeout: WAIT });
+  const madeApi = ((await api("GET", "/api/clients", admin.cookie)).data?.clients ?? []).find((c) => c.name === "Ольга Проверка Анкета");
+  check(madeApi?.status === "work" && /^В работе · /.test(madeApi?.statusLine ?? "") && (madeApi?.notes ?? "").includes("35 гостей"), "Анкета: сохранён «В работе», видно кто ведёт, текст — в карточке", `Анкета: ${JSON.stringify(madeApi ?? null).slice(0, 200)}`);
+  if ((await madeCard.locator(".plan-card__head").getAttribute("aria-expanded")) !== "true") await madeCard.locator(".plan-card__head").click();
+  await madeCard.getByRole("button", { name: "📅 Записать мероприятие ведущему" }).click();
+  await until(async () => (await ap.getByLabel("Клиент — имя").count()) > 0 && (await ap.getByLabel("Клиент — имя").inputValue()) === "Ольга Проверка Анкета", WAIT, "мероприятие из новой анкеты");
+  check(
+    (await ap.getByLabel("Дата").first().inputValue()) === D2 && (await ap.getByLabel("Гостей (точное число)").inputValue()) === "35" && (await ap.getByLabel("Что за мероприятие").inputValue()) === "Корпоратив",
+    "Анкета → мероприятие: дата, гости и повод из «Что хочет клиент»",
+  );
+  await ap.getByRole("button", { name: "Удалить черновик" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Удалить черновик" }).click();
+  if (madeApi?.id) await api("POST", `/api/clients/${madeApi.id}/archive`, admin.cookie, {});
+
   // ---------- Светлая и тёмная тема студии (решение владельца 24 октября 2026) ----------
   for (const [label, size] of [["телефон", { width: 390, height: 844 }], ["планшет", { width: 820, height: 1180 }], ["ноутбук", { width: 1440, height: 900 }]]) {
     await ap.setViewportSize(size);

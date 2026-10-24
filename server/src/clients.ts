@@ -450,6 +450,12 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
           if (!existing) {
             await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'manual',
               ${(request0 ? `${request0}\n— добавлен вручную · ${user.name}` : `Добавлен вручную · ${user.name}`).slice(0, CLIENT_LIMITS.summary)})`;
+            // Менеджер завёл клиента сразу «В работе» (уже говорит с ним — звонок, Авито, переписка): на карточке видно,
+            // кто ведёт («В работе · Мария»). Таймер ответа и скорость ответа не считаются — это не обращение клиента.
+            if (status !== "new") {
+              await t`insert into client_contacts (id, client_id, source, summary) values (${newId("c")}, ${id}, 'status',
+                ${`${CLIENT_STATUS_TITLES[status]} · ${user.name}`.slice(0, CLIENT_LIMITS.summary)})`;
+            }
           } else if (existing.status !== status) {
             // Кто и когда сменил статус — в историю клиента: владелец видит, как идёт работа с заявкой.
             await changeStatus(t, id, existing.status, status, { id: user.id, name: user.name });

@@ -755,7 +755,7 @@ function ClientCard({
 
           {!c.archived && (
             <label className="field">
-              <span className="field__label">Заметка: дата, гости, расчёт, следующий шаг</span>
+              <span className="field__label">Что хочет клиент: дата, гости, пожелания, следующий шаг</span>
               <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={note} onChange={(e) => setNote(e.target.value)} />
             </label>
           )}
@@ -922,11 +922,12 @@ function ClientForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [links, setLinks] = useState((initial?.links ?? []).join("\n"));
-  const [status, setStatus] = useState<ClientStatus>(initial?.status ?? "new");
+  // Вручную менеджер заводит того, с кем уже говорит (звонок, Авито, переписка) — сразу «В работе», без таймера ответа
+  // (решение владельца 24 октября 2026: статус и рассылка при первом заполнении свёрнуты).
+  const [status, setStatus] = useState<ClientStatus>(initial?.status ?? "work");
   const [marketing, setMarketing] = useState<Marketing>(initial?.marketing ?? "unknown");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [origin, setOrigin] = useState(initial?.origin ?? "");
-  const [request, setRequest] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Что пошло не так при сохранении: тот же телефон у другого клиента или карточку только что изменил другой.
@@ -942,11 +943,10 @@ function ClientForm({
     name !== (initial?.name ?? "") ||
     phone !== (initial?.phone ?? "") ||
     links !== (initial?.links ?? []).join("\n") ||
-    status !== (initial?.status ?? "new") ||
+    status !== (initial?.status ?? "work") ||
     marketing !== (initial?.marketing ?? "unknown") ||
     notes !== (initial?.notes ?? "") ||
-    origin !== (initial?.origin ?? "") ||
-    request.trim() !== "";
+    origin !== (initial?.origin ?? "");
 
   /**
    * Сохранить. «Мои правки поверх» (`force`): карточку за это время изменил другой — берём свежую версию, и статус с
@@ -976,7 +976,8 @@ function ClientForm({
           marketing: chosen.marketing,
           notes,
           origin,
-          ...(initial ? {} : { request: request.trim() }),
+          // Одно поле «Что хочет клиент»: в заметку карточки и первой записью в историю (как заявка с сайта).
+          ...(initial ? {} : { request: notes.trim() }),
           ...(initial && version ? { expect: version } : {}),
         }),
       );
@@ -1038,8 +1039,8 @@ function ClientForm({
               setLinks([...parsedLinks, ...found].join("\n"));
               got.push("соцсети");
             }
-            if (!request.trim()) {
-              setRequest(text.trim().slice(0, CLIENT_LIMITS.notes));
+            if (!notes.trim()) {
+              setNotes(text.trim().slice(0, CLIENT_LIMITS.notes));
               got.push("что хочет клиент");
             }
             // Расчёт с калькулятора сайта — клиент пришёл с сайта.
@@ -1077,19 +1078,19 @@ function ClientForm({
       </label>
       {parsedLinks.length > 0 && <p className="muted small">Распознано: {parsedLinks.map(linkTitle).join(", ")}</p>}
       {links.trim() !== "" && parsedLinks.length === 0 && <p className="error small">Ссылку не распознали: вставьте @ник Telegram или ссылку vk.com/…, instagram.com/…, wa.me/…</p>}
-      {!initial && (
-        <label className="field">
-          <span className="field__label">Что хочет клиент</span>
-          <textarea
-            rows={2}
-            maxLength={CLIENT_LIMITS.notes}
-            value={request}
-            placeholder="Свадьба, 12 июня, 60 гостей, бюджет до 40 000 ₽"
-            onChange={(e) => setRequest(e.target.value)}
-          />
-          <span className="field__hint">Первой записью попадёт в историю клиента — как заявка с сайта.</span>
-        </label>
-      )}
+      <label className="field">
+        <span className="field__label">Что хочет клиент — дата, гости, пожелания</span>
+        <textarea
+          rows={3}
+          maxLength={CLIENT_LIMITS.notes}
+          value={notes}
+          placeholder="Свадьба, 12 июня, 60 гостей, квиз и танцы, бюджет до 40 000 ₽. Перезвонить в пятницу."
+          onChange={(e) => setNotes(e.target.value)}
+        />
+        <span className="field__hint">
+          Всё в одном месте: из этого текста «📅 Записать мероприятие ведущему» возьмёт дату, время, гостей и программу.
+        </span>
+      </label>
       <label className="field">
         <span className="field__label">Откуда пришёл</span>
         <select value={origin} onChange={(e) => setOrigin(e.target.value)}>
@@ -1102,6 +1103,8 @@ function ClientForm({
         </select>
         {!initial && origin === "" && <span className="field__hint">Укажите — по этому считаются «Итоги»: откуда приходят клиенты.</span>}
       </label>
+      <Fold title="Статус и рассылка" value={`${CLIENT_STATUS_TITLES[status]} · рассылка: ${marketing === "yes" ? "согласен" : marketing === "no" ? "отказался" : "не спрашивали"}`}>
+        <div className="stack">
       <fieldset className="stack stack--tight">
         <legend>Статус</legend>
         <div className="plan-quick" role="group" aria-label="Статус">
@@ -1111,15 +1114,13 @@ function ClientForm({
             </button>
           ))}
         </div>
-        {!initial && (
-          <p className="muted small">
-            {status === "new"
-              ? "«Новый» — ещё не связались: пойдёт таймер ответа. Уже разговариваете с клиентом — выберите «В работе»."
-              : status === "work"
-                ? "«В работе» — вы уже говорите с клиентом, таймер не нужен."
-                : STATUS_HINTS[status]}
-          </p>
-        )}
+        <p className="muted small">
+          {status === "new"
+            ? "«Новый» — ещё не связались: пойдёт таймер ответа."
+            : status === "work"
+              ? "«В работе» — вы уже говорите с клиентом, таймер не нужен."
+              : STATUS_HINTS[status]}
+        </p>
       </fieldset>
       <fieldset className="stack stack--tight">
         <legend>Рассылка</legend>
@@ -1136,10 +1137,9 @@ function ClientForm({
           <p className="muted small">Согласие на рассылку отмечает владелец. Клиент согласился в переписке — напишите это в заметке.</p>
         )}
       </fieldset>
-      <label className="field">
-        <span className="field__label">Заметка: дата, гости, расчёт, следующий шаг</span>
-        <textarea rows={3} maxLength={CLIENT_LIMITS.notes} value={notes} onChange={(e) => setNotes(e.target.value)} />
-      </label>
+        </div>
+      </Fold>
+
       {!ready && !phoneBad && (
         <p className="muted small">{initial ? "Нужны имя, телефон или ссылка." : "Нужен телефон или ссылка на соцсеть — без них клиенту не написать."}</p>
       )}

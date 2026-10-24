@@ -8,7 +8,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Sql } from "postgres";
-import { bookingId, bookingNote, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
+import { bookingId, bookingNote, contactLinks, eventSpan, parseEventInput, type EventInput } from "../../src/core/events";
 import { cleanProgram, sameProgram } from "../../src/core/eventProgram";
 import * as permissions from "../../src/data/permissions";
 import type { AgencyEvent } from "../../src/data/types";
@@ -54,6 +54,8 @@ interface Row {
   program?: unknown;
   accepted_at?: Date | null;
   accept_rev?: number;
+  client_contact?: string;
+  live?: boolean;
 }
 
 /** Окно итогов: from ≤ to, не больше 370 дней (год с запасом), с прошлым днём (вечер за полночь). */
@@ -75,6 +77,7 @@ export function eventOf(row: Row): AgencyEvent {
     end: row.end_min,
     clientName: row.client_name,
     clientPhone: row.client_phone,
+    clientContact: row.client_contact ?? "",
     title: row.title,
     place: row.place,
     guests: row.guests,
@@ -85,6 +88,7 @@ export function eventOf(row: Row): AgencyEvent {
     program: cleanProgram(row.program),
     acceptedAt: row.accepted_at ? row.accepted_at.getTime() : null,
     acceptRev: row.accept_rev ?? 0,
+    live: row.live === true,
   };
 }
 
@@ -128,7 +132,11 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
     const select = sql`
       select e.id, e.host_id, u.name as host_name, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min,
         e.client_name, e.client_phone, e.title, e.place, e.guests, e.note, (e.cancelled_at is not null) as cancelled, e.held, e.updated_at,
-        e.program, e.accepted_at, e.accept_rev
+        e.program, e.accepted_at, e.accept_rev, e.client_contact,
+        -- Игра этого вечера открыта у ведущего (как в «Мероприятие идёт дольше плана»): кружок «Идёт» / «Сверх плана».
+        (e.cancelled_at is null and exists (select 1 from sessions s where s.host_id = e.host_id and s.phase in ('lobby', 'playing')
+          and s.hidden_at is null and s.created_at between e.starts_at - interval '3 hours' and e.ends_at
+          and s.updated_at > now() - interval '30 minutes')) as live
       from events e left join users u on u.id = e.host_id`;
 
     async function one(id: string): Promise<AgencyEvent | null> {
@@ -189,8 +197,8 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       if (!span) return fail(reply, 400, "invalid-argument");
       const [host] = await sql<{ active: boolean }[]>`select active from users where id = ${input.hostId}`;
       if (!host?.active) return fail(reply, 404, "not-found");
-      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown }[]>`
-        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program
+      const [existing] = await sql<{ cancelled: boolean; host_id: string; day: string; start_min: number; end_min: number; title: string; guests: number | null; updated_at: Date; program: unknown; client_contact: string }[]>`
+        select (cancelled_at is not null) as cancelled, host_id, to_char(day, 'YYYY-MM-DD') as day, start_min, end_min, title, guests, updated_at, program, client_contact
         from events where id = ${input.id}`;
       if (existing?.cancelled) return fail(reply, 409, "failed-precondition");
       // Владелец и менеджер правят одно мероприятие: форма шлёт `expect` — версию, с которой её открыли.
@@ -215,17 +223,19 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
           existing?.title !== input.title ||
           existing?.guests !== input.guests);
       const programJson = newProgram ? sql.json(newProgram as never) : null;
+      // Связь с клиентом: форма её не прислала (старая страница) — остаётся прежняя.
+      const contact = input.clientContact ?? existing?.client_contact ?? "";
       // Двойное касание «Сохранить»: два одинаковых запроса почти одновременно. «Назначено» в Telegram — только тому,
       // чей запрос действительно создал запись (`xmax = 0` — вставка, а не правка), иначе ведущему пришло бы два.
       const inserted = await sql.begin(async (tx) => {
         const t = tx as unknown as Sql;
         const [row] = await t<{ inserted: boolean }[]>`
-          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, title, place, guests, note, program, accept_rev, created_by)
+          insert into events (id, host_id, day, start_min, end_min, starts_at, ends_at, client_name, client_phone, client_contact, title, place, guests, note, program, accept_rev, created_by)
           values (${input.id}, ${input.hostId}, ${input.day}, ${input.start}, ${input.end}, ${new Date(span.from)}, ${new Date(span.to)},
-            ${input.clientName}, ${input.clientPhone}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id})
+            ${input.clientName}, ${input.clientPhone}, ${contact}, ${input.title}, ${input.place}, ${input.guests}, ${input.note}, ${programJson}, 1, ${user.id})
           on conflict (id) do update set host_id = excluded.host_id, day = excluded.day, start_min = excluded.start_min,
             end_min = excluded.end_min, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
-            client_name = excluded.client_name, client_phone = excluded.client_phone, title = excluded.title,
+            client_name = excluded.client_name, client_phone = excluded.client_phone, client_contact = excluded.client_contact, title = excluded.title,
             place = excluded.place, guests = excluded.guests, note = excluded.note, program = excluded.program,
             accepted_at = case when ${reaccept} then null else events.accepted_at end,
             accept_rev = events.accept_rev + case when ${reaccept} then 1 else 0 end, updated_at = now()
@@ -254,10 +264,12 @@ export function registerEvents(app: FastifyInstance, options: EventsOptions): vo
       // Клиент мероприятия — в базу клиентов (по телефону; повтор не дублирует историю). Ждём записи и при сбое
       // повторяем (17 октября 2026: раньше запись шла без ожидания — клиент мог молча не попасть в «Клиентов»).
       // Не записался и после повторов — мероприятие всё равно сохранено, а форма говорит добавить клиента вручную.
-      if (saved.clientName || saved.clientPhone) {
+      const links = contactLinks(saved.clientContact ?? "");
+      if (saved.clientName || saved.clientPhone || links.length) {
         const client: ClientInput = {
           name: saved.clientName,
           phone: saved.clientPhone,
+          links,
           source: "event",
           summary: `${saved.title || "Мероприятие"}, ${dayTitle(saved.day)}${saved.guests ? `, ${saved.guests} гостей` : ""}`,
           ref: saved.id,

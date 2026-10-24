@@ -13,6 +13,8 @@ const SOURCES = new Set(["site", "question", "venue", "telegram", "manual"]);
 export interface ClientLike {
   name: string;
   phone: string;
+  /** Ссылки карточки: https://t.me/ник → связь Telegram, https://wa.me/… → WhatsApp. */
+  links?: string[];
   notes: string;
   history?: Array<{ source: string; summary: string; at: number }>;
 }
@@ -26,6 +28,7 @@ export interface ClientEventFill extends Omit<LeadFill, "note"> {
 const TITLES: Array<[keyof ClientEventFill, string]> = [
   ["clientName", "имя"],
   ["clientPhone", "телефон"],
+  ["contact", "связь"],
   ["title", "повод"],
   ["day", "дата"],
   ["start", "время"],
@@ -49,11 +52,16 @@ export function eventFillFromClient(c: ClientLike, today: string): ClientEventFi
     }
     if (out.guests === undefined && f.guests !== undefined) out.guests = f.guests;
     if (!out.place && f.place) out.place = f.place;
+    if (!out.contact && f.contact) out.contact = f.contact;
     if (!out.program) out.program = programFromCalc(text);
   }
   // Имя и телефон — всегда из самой карточки (в тексте заявки может быть другое написание).
   if (c.name.trim()) out.clientName = c.name.trim();
   if (c.phone.trim()) out.clientPhone = c.phone.trim();
+  // Связь — из ссылок карточки (ник Telegram надёжнее, чем найденный в тексте).
+  const tg = (c.links ?? []).map((l) => /^https:\/\/t\.me\/([A-Za-z][A-Za-z0-9_]{3,31})$/i.exec(l)?.[1]).find(Boolean);
+  if (tg) out.contact = `telegram:@${tg}`;
+  else if (!out.contact && (c.links ?? []).some((l) => /wa\.me\//i.test(l))) out.contact = "whatsapp";
   // Прошедшая дата из старой заявки — не подставляем.
   if (out.day && out.day < today) delete out.day;
   out.got = TITLES.filter(([k]) => out[k] !== undefined && out[k] !== null && out[k] !== "").map(([, t]) => t);

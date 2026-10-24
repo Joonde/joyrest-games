@@ -19,6 +19,8 @@ export interface EventProgram {
 
 /** Пакеты калькулятора (`site/js/pricing.js`, PACKAGES и «Под ключ») — сверяет тест. */
 export const PROGRAM_FORMATS = ["Квиз", "Музыкальный", "Игровой вечер", "Шоу-вечер", "Танцевальный", "Активные настолки", "Под ключ"] as const;
+/** Сколько форматов в одном вечере (решение владельца 24 октября 2026: «＋ Добавить формат», по порядку). */
+export const PROGRAM_MAX_FORMATS = 6;
 export const PROGRAM_EXTENSIONS = ["30 мин", "1 ч", "1,5 ч", "2 ч"] as const;
 /** Допы калькулятора (`ADDONS` в pricing.js) — сверяет тест. */
 export const PROGRAM_ADDONS = ["Квиз под компанию", "Логотип на экранах", "Призы и медали", "Танцевальная пауза", "Игра на открытом воздухе", "Выезд за город"] as const;
@@ -32,7 +34,7 @@ export function cleanProgram(raw: unknown): EventProgram | null {
   const r = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const list = (v: unknown, of: readonly string[]) => [...new Set((Array.isArray(v) ? v : []).filter((x) => known(of, x)) as string[])];
   const program: EventProgram = {
-    formats: list(r.formats, PROGRAM_FORMATS).slice(0, 4),
+    formats: list(r.formats, PROGRAM_FORMATS).slice(0, PROGRAM_MAX_FORMATS),
     extension: known(PROGRAM_EXTENSIONS, r.extension) ? r.extension : "",
     addons: list((Array.isArray(r.addons) ? r.addons : []).map((a) => (typeof a === "string" && ADDON_RENAMES[a]) || a), PROGRAM_ADDONS),
     duration: typeof r.duration === "string" ? r.duration.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 40) : "",
@@ -66,10 +68,10 @@ export function programFromCalc(text: string): EventProgram | null {
   return cleanProgram({ formats: found, extension: ext, addons, duration });
 }
 
-/** Одна-две строки: «Квиз + Музыкальный · продление 30 мин · ≈ 3–3,5 часа» и «Допы: …». */
+/** Одна-две строки: «1 · Квиз → 2 · Музыкальный · продление 30 мин · ≈ 3–3,5 часа» и «Допы: …». */
 export function programLines(p: EventProgram | null | undefined): string[] {
   if (!p || isEmptyProgram(p)) return [];
-  const main = [p.formats.join(" + "), p.extension ? `продление ${p.extension}` : "", p.duration].filter(Boolean).join(" · ");
+  const main = [p.formats.map((f, i) => (p.formats.length > 1 ? `${i + 1} · ${f}` : f)).join(" → "), p.extension ? `продление ${p.extension}` : "", p.duration].filter(Boolean).join(" · ");
   return [main, p.addons.length ? `🎁 Допы: ${p.addons.join(", ")}` : ""].filter(Boolean);
 }
 

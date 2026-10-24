@@ -752,6 +752,12 @@ button[type="submit"]:disabled{ opacity: .6; cursor: wait; transform: none; }
 .send-sheet__box{ width: min(100%, 420px); background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 24px; padding: 24px; box-shadow: var(--shadow); }
 .send-sheet__box h3{ margin: 0 0 8px; }
 .send-sheet__hint{ margin: 0 0 16px; color: var(--ink-soft); font-size: 14px; }
+/* «Как к вам обращаться» в окне отправки расчёта (по желанию; имя уходит только в сообщение клиента). */
+.send-name{ display: grid; gap: 6px; margin: 0 0 16px; }
+.send-name label{ font-size: 14px; font-weight: 600; color: var(--ink); }
+.send-name label span{ font-weight: 400; color: var(--ink-soft); }
+.send-name input{ min-height: 52px; min-width: 0; padding: 0 16px; border-radius: 14px; border: 1px solid var(--btn-outline); background: var(--card); color: var(--ink); font: inherit; font-size: 16px; }
+.send-name input:focus-visible{ outline: 2px solid var(--btn-outline); outline-offset: 2px; }
 .send-sheet__actions{ display: flex; flex-direction: column; gap: 12px; }
 .send-sheet__hint--small{ margin: -4px 0 4px; font-size: 13px; }
 .send-sheet__box{ max-height: calc(100vh - 32px); overflow: auto; }

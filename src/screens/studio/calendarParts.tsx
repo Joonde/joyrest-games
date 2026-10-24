@@ -15,17 +15,34 @@ function endOptionLabel(start: number, value: number): string {
   return endAfter(start, value) > DAY_MINUTES ? `${timeLabel(value)} (след. день)` : timeLabel(value);
 }
 
-export function TimeSelects({ start, end, onChange, disabled }: { start: number; end: number; onChange: (start: number, end: number) => void; disabled?: boolean }) {
+export function TimeSelects({
+  start,
+  end,
+  onChange,
+  disabled,
+  unsetStart = false,
+  unsetEnd = false,
+}: {
+  start: number;
+  end: number;
+  onChange: (start: number, end: number, which: "start" | "end") => void;
+  disabled?: boolean;
+  /** «с» ещё не выбрано: в списке стоит «—:—» (форма мероприятия — время обязательно выбрать). */
+  unsetStart?: boolean;
+  unsetEnd?: boolean;
+}) {
   // В списке «до» — время дня; меньше «с» — значит после полуночи.
   const endValue = end % DAY_MINUTES;
   return (
     <div className="cal-times">
       <label className="field">
         <span className="field__label">С</span>
-        <select value={start} aria-label="С" disabled={disabled} onChange={(e) => {
+        <select value={unsetStart ? "" : start} aria-label="С" disabled={disabled} onChange={(e) => {
+          if (e.target.value === "") return;
           const s = Number(e.target.value);
-          onChange(s, endAfter(s, endValue));
+          onChange(s, endAfter(s, endValue), "start");
         }}>
+          {unsetStart && <option value="">—:—</option>}
           {TIME_OPTIONS.map((t) => (
             <option key={t} value={t}>{timeLabel(t)}</option>
           ))}
@@ -33,7 +50,11 @@ export function TimeSelects({ start, end, onChange, disabled }: { start: number;
       </label>
       <label className="field">
         <span className="field__label">До</span>
-        <select value={endValue} aria-label="До" disabled={disabled} onChange={(e) => onChange(start, Math.min(endAfter(start, Number(e.target.value)), DAY_MINUTES + 6 * 60))}>
+        <select value={unsetEnd ? "" : endValue} aria-label="До" disabled={disabled} onChange={(e) => {
+          if (e.target.value === "") return;
+          onChange(start, Math.min(endAfter(start, Number(e.target.value)), DAY_MINUTES + 6 * 60), "end");
+        }}>
+          {unsetEnd && <option value="">—:—</option>}
           {TIME_OPTIONS.map((t) => (
             <option key={t} value={t} disabled={endAfter(start, t) > DAY_MINUTES + 6 * 60}>
               {endOptionLabel(start, t)}

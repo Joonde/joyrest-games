@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyEvent } from "../data/types";
-import { bookingId, bookingNote, cleanPhone, crowdedClusters, noticeText, periodOf, reminderDue, shiftPeriod, statsOf, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
+import { bookingId, bookingNote, calcHoursMax, cleanPhone, contactLabel, contactLinks, crowdedClusters, formatContact, noticeText, parseContact, telegramNick, validEmail, periodOf, reminderDue, shiftPeriod, statsOf, endIn, eventSpan, eventStatus, fillFromRequest, parseEventInput, parseLeadText, sortEvents, timelineHours, timelineOf, weekStart } from "./events";
 
 const ev = (id: string, day: string, start: number, end: number, extra: Partial<AgencyEvent> = {}): AgencyEvent => ({
   id,
@@ -190,5 +190,69 @@ describe("планировщик: итоги", () => {
       { title: "Корпоратив", planned: 3, held: 0 },
       { title: "Свадьба", planned: 2, held: 2 },
     ]);
+  });
+});
+
+describe("форма мероприятия по расчёту сайта (24 октября 2026)", () => {
+  it("«до» = начало + верхнее число длительности расчёта (в нём уже 30 минут запаса)", () => {
+    const text = "🧮 Расчёт JoyRest\n────────────\nИмя: Анна\nПакет: Квиз\nГостей: до 45\nДата: 4 декабря 2026, пт\nНачало: в 19:00 (примерно, подтвердит менеджер)\nДень: пятница–воскресенье\nДлительность: ≈ 3–3,5 часа";
+    const f = parseLeadText(text, "2026-10-24");
+    expect(f).toMatchObject({ clientName: "Анна", day: "2026-12-04", start: 19 * 60, end: 22 * 60 + 30, guests: 45 });
+    expect(calcHoursMax(text)).toBe(210);
+    expect(calcHoursMax("Квиз, до 25 гостей. Вечер ≈ 1,5–2 часа. Итого")).toBe(120);
+    expect(calcHoursMax("Длительность: ≈ 2 часа")).toBe(120);
+    expect(calcHoursMax("в 19:00, гостей 30")).toBeNull();
+    // Без длительности — как раньше, 4 часа.
+    expect(parseLeadText("Свадьба 20.12 в 18:00", "2026-10-24")).toMatchObject({ start: 18 * 60, end: 22 * 60 });
+    // Вечер за полночь: начало 22:00 + 3,5 ч = 01:30 следующего дня.
+    expect(parseLeadText("Начало: в 22:00\nДлительность: ≈ 3–3,5 часа", "2026-10-24")).toMatchObject({ start: 22 * 60, end: 25 * 60 + 30 });
+  });
+  it("связь из текста: ник Telegram или почта", () => {
+    expect(parseLeadText("Анна, пишите в телеграм @anna_party", "2026-10-24").contact).toBe("telegram:@anna_party");
+    expect(parseLeadText("Анна https://t.me/AnnaParty2", "2026-10-24").contact).toBe("telegram:@AnnaParty2");
+    expect(parseLeadText("почта anna.ivanova@mail.ru", "2026-10-24").contact).toBe("email:anna.ivanova@mail.ru");
+    expect(parseLeadText("Анна, +7 915 012-74-60", "2026-10-24").contact).toBeUndefined();
+  });
+  it("связь хранится строкой «вид:значение», мусор отбрасывается", () => {
+    expect(parseContact("telegram:@anna_party")).toEqual({ kind: "telegram", value: "@anna_party" });
+    expect(parseContact("telegram:https://t.me/anna_party")).toEqual({ kind: "telegram", value: "@anna_party" });
+    expect(parseContact("telegram:@a")).toEqual({ kind: "telegram", value: "" });
+    expect(parseContact("whatsapp:+7915")).toEqual({ kind: "whatsapp", value: "" });
+    expect(parseContact("email:нет")).toEqual({ kind: "email", value: "" });
+    expect(parseContact("pigeon:x")).toEqual({ kind: "", value: "" });
+    expect(parseContact(42)).toEqual({ kind: "", value: "" });
+    expect(formatContact({ kind: "telegram", value: "@anna_party" })).toBe("telegram:@anna_party");
+    expect(formatContact({ kind: "whatsapp", value: "" })).toBe("whatsapp");
+    expect(contactLabel("telegram:@anna_party")).toBe("Telegram @anna_party");
+    expect(contactLabel("telegram")).toBe("Telegram по номеру");
+    expect(contactLabel("whatsapp")).toBe("WhatsApp по номеру");
+    expect(contactLabel("email:a@b.ru")).toBe("Почта a@b.ru");
+    expect(contactLabel("call")).toBe("Звонок");
+    expect(contactLabel("")).toBe("");
+    expect(contactLinks("telegram:@anna_party")).toEqual(["https://t.me/anna_party"]);
+    expect(contactLinks("whatsapp")).toEqual([]);
+    expect(telegramNick("t.me/anna_party?start=1")).toBe("@anna_party");
+    expect(validEmail("anna@mail.ru")).toBe(true);
+    expect(validEmail("anna@mail")).toBe(false);
+  });
+  it("сервер принимает связь только своего вида; старая форма без поля связь не трогает", () => {
+    const now = Date.parse("2026-10-24T12:00:00Z");
+    const body = { id: "ev1", hostId: "h1", day: "2026-12-04", start: 1140, end: 1350, title: "Корпоратив", clientName: "Анна" };
+    expect(parseEventInput({ ...body, clientContact: "telegram:@anna_party" }, now)?.clientContact).toBe("telegram:@anna_party");
+    expect(parseEventInput({ ...body, clientContact: "<script>" }, now)?.clientContact).toBe("");
+    expect(parseEventInput(body, now)).not.toHaveProperty("clientContact");
+  });
+});
+
+describe("дата праздника, а не дата ранней брони (24 октября 2026)", () => {
+  it("строка «Дата:» главнее; «Ранняя бронь: до 15 ноября» датой не считается", () => {
+    const calc = "🧮 Расчёт JoyRest\nПакет: Квиз\nДата: 7 декабря 2026, пн\nНачало: в 19:00\nДлительность: ≈ 3–3,5 часа\nПраздничная цена: +20% — декабрь\nРанняя бронь: до 15 ноября — посчитано 24 октября 2026";
+    expect(parseLeadText(calc, "2026-10-24").day).toBe("2026-12-07");
+    // Заметка карточки: «Дата: 07.12.2026», а ниже в пожеланиях — «до 15 ноября».
+    const notes = "Дата: 07.12.2026\nНачало: в 19:00\nПожелания: Ранняя бронь: до 15 ноября — посчитано 24 октября 2026";
+    expect(parseLeadText(notes, "2026-10-24").day).toBe("2026-12-07");
+    // Без строки «Дата» — самая ранняя дата в тексте.
+    expect(parseLeadText("Корпоратив 20.12, а оплату внесём до 1 ноября", "2026-10-24").day).toBe("2026-12-20");
+    expect(parseLeadText("Свадьба 14 февраля", "2026-10-24").day).toBe("2027-02-14");
   });
 });

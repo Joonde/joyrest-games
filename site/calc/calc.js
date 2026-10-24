@@ -228,7 +228,10 @@
 
   /** Текст расчёта для менеджера: строки «Что: значение» и три цены, выбранный формат отмечен ✅. */
   function text() {
-    return P.calcMessage(opts(), state.level || '');
+    // Имя «Как к вам обращаться» — только в сообщение (сайт его не хранит), 24 октября 2026.
+    var o = opts();
+    o.name = $('sName') ? $('sName').value : '';
+    return P.calcMessage(o, state.level || '');
   }
 
   var toastTimer = 0;
@@ -270,14 +273,18 @@
   }
   var sheetFile = null;
   function levelIds() { return P.LEVELS.map(function (l) { return l.id; }); }
-  function send(e) {
+  function links() {
     var value = text();
-    sheetFrom = e && e.currentTarget;
     $('sWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(value);
     // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
     $('sTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(value));
     var mails = P.mailLinks(value);
     Array.prototype.forEach.call(document.querySelectorAll('#sMailList [data-mail]'), function (a) { a.href = mails[a.getAttribute('data-mail')]; });
+  }
+  $('sName').addEventListener('input', links);
+  function send(e) {
+    sheetFrom = e && e.currentTarget;
+    links();
     $('sAvitoBox').hidden = true; $('sAvito').setAttribute('aria-expanded', 'false');
     $('sMailList').hidden = true; $('sMail').setAttribute('aria-expanded', 'false');
     // Картинку готовим сразу: «Поделиться» телефона должно открыться прямо по касанию.

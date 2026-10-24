@@ -16,6 +16,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     end: num(d.end),
     clientName: asText(d.clientName),
     clientPhone: asText(d.clientPhone),
+    clientContact: asText(d.clientContact),
     title: asText(d.title),
     place: asText(d.place),
     guests: typeof d.guests === "number" ? d.guests : null,
@@ -26,6 +27,7 @@ export function parseEvent(value: unknown): AgencyEvent {
     program: cleanProgram(d.program),
     acceptedAt: typeof d.acceptedAt === "number" ? d.acceptedAt : null,
     acceptRev: typeof d.acceptRev === "number" ? d.acceptRev : 0,
+    live: d.live === true,
     ...(d.clientNotSaved === true ? { clientNotSaved: true } : {}),
     ...(d.clientIncomplete === true ? { clientIncomplete: true } : {}),
   };

@@ -572,7 +572,9 @@
   // Витрина: расчёт — текстом менеджеру, куда удобно клиенту (окно #sendSheet).
   function showcaseText(){
     // Строки «Что: значение» — менеджер сразу видит, что напротив чего (решение владельца 17 октября 2026).
-    return P.calcMessage(calcOpts(), hostLevelField.value || '');
+    // Имя «Как к вам обращаться» — только в сообщение (сайт его не хранит), 24 октября 2026.
+    const nameEl = $('sendName');
+    return P.calcMessage(Object.assign({}, calcOpts(), { name: nameEl ? nameEl.value : '' }), hostLevelField.value || '');
   }
   function copyCalc(value, message){
     const done = () => topToast(message || 'Расчёт скопирован — вставьте его в чат с менеджером', null, null, 6000);
@@ -606,11 +608,7 @@
     sheetText = showcaseText();
     if(!sheet){ copyCalc(sheetText); return; }
     sheetFrom = e && e.currentTarget;
-    $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
-    // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
-    $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
-    const mails = P.mailLinks(sheetText);
-    document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => { a.href = mails[a.dataset.mail]; });
+    sheetLinks();
     $('sendMailList').hidden = true; $('sendMail').setAttribute('aria-expanded', 'false');
     if(avitoUrl){ $('sendAvitoGo').href = avitoUrl; $('sendAvito').hidden = false; }
     $('sendAvitoBox').hidden = true; $('sendAvito').setAttribute('aria-expanded', 'false');
@@ -624,7 +622,17 @@
     sheet.hidden = false; document.body.style.overflow = 'hidden';
     $('sendWa').focus();
   }
+  // Ссылки окна — по текущему тексту (имя меняется прямо в окне).
+  function sheetLinks(){
+    sheetText = showcaseText();
+    $('sendWa').href = 'https://wa.me/79857822689?text=' + encodeURIComponent(sheetText);
+    // Telegram сам вставляет текст в чат по номеру (t.me/+номер?text=…).
+    $('sendTg').href = 'https://t.me/+79857822689?text=' + encodeURIComponent(P.telegramText(sheetText));
+    const mails = P.mailLinks(sheetText);
+    document.querySelectorAll('#sendMailList [data-mail]').forEach((a) => { a.href = mails[a.dataset.mail]; });
+  }
   if(sheet){
+    if($('sendName')) $('sendName').addEventListener('input', sheetLinks);
     $('sendWa').addEventListener('click', () => setTimeout(closeSheet, 0));
     // «Почта» — выбор почты: в браузере (Gmail, Яндекс, Mail.ru) или почтовая программа устройства.
     $('sendMail').addEventListener('click', () => {

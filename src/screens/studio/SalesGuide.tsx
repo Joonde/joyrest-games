@@ -12,7 +12,9 @@ import { Toast, useToast } from "../../components/Toast";
 import { BackButton } from "../../components/BackButton";
 import { TopBar } from "../../components/TopBar";
 import {
+  FLOW_WHO,
   OWNER_CHECKS,
+  SALES_FLOW,
   OWNER_SETUP,
   SALES_DEADLINES,
   SALES_ESCALATE,
@@ -41,6 +43,52 @@ const money = (n: number) => `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
 
 export function SalesGuide() {
   return <HostGate skeleton={<StudioSkeleton />}>{(_user, profile) => <SalesGuidePage profile={profile} />}</HostGate>;
+}
+
+/**
+ * Схема пути заявки (решение владельца 24 октября 2026): шаги сверху вниз по времени, цвет — кто действует, на стрелке —
+ * какие данные идут дальше, развилки — «если …». Та же схема — в начале инструкции и у владельца.
+ */
+function FlowChart() {
+  return (
+    <div className="sales-flow" id="flow">
+      <p className="sales-flow__legend">
+        {(Object.keys(FLOW_WHO) as Array<keyof typeof FLOW_WHO>).map((w) => (
+          <span key={w} className={`sales-flow__who sales-flow__who--${w}`}>
+            {FLOW_WHO[w]}
+          </span>
+        ))}
+      </p>
+      <ol className="sales-flow__list" aria-label="Путь заявки по шагам">
+        {SALES_FLOW.map((step, i) => (
+          <li key={step.title} className="sales-flow__item">
+            <div className={`sales-flow__box sales-flow__box--${step.who}`}>
+              <span className={`sales-flow__who sales-flow__who--${step.who}`}>
+                {i + 1}. {FLOW_WHO[step.who]}
+              </span>
+              <b className="sales-flow__title">{rich(step.title)}</b>
+              <span className="sales-flow__text">{rich(step.text)}</span>
+              {step.branches && (
+                <ul className="sales-flow__branches">
+                  {step.branches.map((b) => (
+                    <li key={b.when}>
+                      <span className="sales-flow__if">Если {b.when}</span> → {rich(b.then)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {i < SALES_FLOW.length - 1 && (
+              <div className="sales-flow__arrow" aria-hidden={!step.data}>
+                <span className="sales-flow__line" aria-hidden="true" />
+                {step.data && <span className="sales-flow__data">{step.data}</span>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 function Steps({ steps }: { steps: SalesStep[] }) {
@@ -130,7 +178,10 @@ function SalesGuidePage({ profile }: { profile: UserProfile }) {
           Вы принимаете анкеты клиентов, подбираете программу и ведущего, записываете мероприятие и ведёте клиента до отзыва. Всё — в студии на телефоне:{" "}
           <Link to="/studio/clients">«Клиенты»</Link>, <Link to="/studio/calendar">«Календарь и мероприятия»</Link>, <Link to="/venues?tab=requests">«Заявки клиентов»</Link>.
         </p>
-        <h3>Путь клиента</h3>
+        <h3>Схема: путь заявки и данных</h3>
+        <p className="muted small">Сверху вниз — по времени. Цвет — кто действует; на стрелке — что переходит дальше; «Если …» — развилки.</p>
+        <FlowChart />
+        <h3>Статусы клиента</h3>
         <ol className="sales-path" aria-label="Статусы клиента по порядку">
           {SALES_PATH.map((p) => (
             <li key={p.status} className="sales-path__step" style={{ "--sales-tone": TONES[p.tone] } as CSSProperties}>
@@ -155,6 +206,9 @@ function SalesGuidePage({ profile }: { profile: UserProfile }) {
       </section>
 
       <nav className="card guide-toc" aria-label="Разделы">
+        <a href="#flow" className="guide-toc__item">
+          🗺 Схема пути заявки
+        </a>
         {SALES_SECTIONS.map((s) => (
           <a key={s.id} href={`#${s.id}`} className="guide-toc__item">
             {s.title}

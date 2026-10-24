@@ -47,6 +47,64 @@ export function cleanText(value: unknown, max: number): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+// ───────────── Связь с клиентом ─────────────
+
+/**
+ * Где писать клиенту (решение владельца 24 октября 2026): Telegram (ник, пусто — по номеру), WhatsApp (по номеру
+ * телефона), почта (адрес), звонок. Хранится строкой `вид:значение` — «telegram:@anna_party», «whatsapp», «email:a@b.ru».
+ */
+export type ContactKind = "telegram" | "whatsapp" | "email" | "call";
+export const CONTACT_KINDS: ContactKind[] = ["telegram", "whatsapp", "email", "call"];
+export const CONTACT_TITLES: Record<ContactKind, string> = { telegram: "Telegram", whatsapp: "WhatsApp", email: "Почта", call: "Звонок" };
+
+export interface EventContact {
+  kind: ContactKind | "";
+  /** Ник Telegram с «@» или адрес почты; у WhatsApp и звонка — пусто (по телефону). */
+  value: string;
+}
+
+/** Ник Telegram из «@anna», «anna», «t.me/anna», «https://t.me/anna»; не ник — пусто. */
+export function telegramNick(value: string): string {
+  const v = value.trim().replace(/^(?:https?:\/\/)?(?:www\.)?(?:t\.me|telegram\.me)\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "");
+  return /^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(v) ? `@${v}` : "";
+}
+
+export function validEmail(value: string): boolean {
+  return value.length <= 100 && /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]{2,}$/.test(value);
+}
+
+export function parseContact(raw: unknown): EventContact {
+  if (typeof raw !== "string") return { kind: "", value: "" };
+  const i = raw.indexOf(":");
+  const kind = (i < 0 ? raw : raw.slice(0, i)).trim() as ContactKind;
+  if (!CONTACT_KINDS.includes(kind)) return { kind: "", value: "" };
+  const value = i < 0 ? "" : raw.slice(i + 1).trim();
+  if (kind === "telegram") return { kind, value: telegramNick(value) };
+  if (kind === "email") return { kind, value: validEmail(value) ? value : "" };
+  return { kind, value: "" };
+}
+
+export function formatContact(c: EventContact): string {
+  if (!c.kind) return "";
+  return c.value ? `${c.kind}:${c.value}` : c.kind;
+}
+
+/** Подпись: «Telegram @anna_party», «WhatsApp по номеру», «Почта a@b.ru», «Звонок». */
+export function contactLabel(raw: string): string {
+  const c = parseContact(raw);
+  if (!c.kind) return "";
+  if (c.kind === "telegram") return c.value ? `Telegram ${c.value}` : "Telegram по номеру";
+  if (c.kind === "whatsapp") return "WhatsApp по номеру";
+  if (c.kind === "email") return c.value ? `Почта ${c.value}` : "Почта";
+  return "Звонок";
+}
+
+/** Ссылка на клиента для базы «Клиентов»: ник Telegram → https://t.me/ник. */
+export function contactLinks(raw: string): string[] {
+  const c = parseContact(raw);
+  return c.kind === "telegram" && c.value ? [`https://t.me/${c.value.slice(1)}`] : [];
+}
+
 /** Телефон: цифры, пробелы, +, -, скобки. */
 export function cleanPhone(value: unknown): string {
   return (typeof value === "string" ? value : "").replace(/[^\d+\-() ]/g, "").replace(/\s+/g, " ").trim().slice(0, EVENT_LIMITS.phone);
@@ -66,6 +124,8 @@ export interface EventInput {
   note: string;
   /** Программа (форматы, продление, допы); `undefined` — форма её не прислала, прежняя остаётся. */
   program?: EventProgram | null;
+  /** Где писать клиенту («telegram:@anna»); `undefined` — форма не прислала, прежнее остаётся. */
+  clientContact?: string;
 }
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
@@ -98,6 +158,7 @@ export function parseEventInput(body: unknown, now = Date.now()): EventInput | n
     guests,
     note: cleanText(b.note, EVENT_LIMITS.note),
     ...("program" in b ? { program: cleanProgram(b.program) } : {}),
+    ...("clientContact" in b ? { clientContact: formatContact(parseContact(b.clientContact)) } : {}),
   };
   if (!input.title && !input.clientName) return null;
   return input;
@@ -252,6 +313,19 @@ export interface LeadFill {
   guests?: number;
   place?: string;
   note?: string;
+  /** Где писать клиенту: «telegram:@ник», «email:адрес» (из ника или почты в тексте). */
+  contact?: string;
+}
+
+/**
+ * Длительность из расчёта сайта («Длительность: ≈ 3–3,5 часа», «Вечер ≈ 3–3,5 часа», «≈ 2 часа»): верхнее число —
+ * уже с 30 минутами запаса (решение владельца 24 октября 2026), в минутах. Не нашлось — null.
+ */
+export function calcHoursMax(text: string): number | null {
+  const m = /(?:длительность\s*[:：]|вечер)\s*≈?\s*(\d{1,2}(?:[.,]\d)?)(?:\s*[–—-]\s*(\d{1,2}(?:[.,]\d)?))?\s*час/i.exec(text.replace(/\u00a0/g, " "));
+  if (!m) return null;
+  const hours = Number((m[2] ?? m[1])!.replace(",", "."));
+  return Number.isFinite(hours) && hours > 0 && hours <= 12 ? Math.round(hours * 60) : null;
 }
 
 const MONTH_STEMS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
@@ -278,6 +352,29 @@ function upcoming(day: number, month: number, year: number | null, today: string
 
 const round15 = (m: number) => Math.round(m / TIME_STEP) * TIME_STEP;
 
+/** Дата в тексте: 2026-10-15, 15.10.2026, 15.10, «15 октября» — та, что раньше в тексте. Нет — null. */
+function dateIn(t: string, today: string): string | null {
+  const found: Array<{ at: number; day: string | null }> = [];
+  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (iso && dayIndex(iso[0]) !== null) found.push({ at: iso.index, day: iso[0] });
+  // «15.10» и «15.10.2026», но не время «18.00» и не часть другого числа.
+  for (const m of t.matchAll(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g)) {
+    const before = t[(m.index ?? 0) - 1] ?? "";
+    const after = t[(m.index ?? 0) + m[0].length] ?? "";
+    const month = Number(m[2]);
+    if (/[\d:.]/.test(before) || /[\d:]/.test(after) || month < 1 || month > 12 || Number(m[1]) < 1 || Number(m[1]) > 31) continue;
+    found.push({ at: m.index ?? 0, day: upcoming(Number(m[1]), month, m[3] ? Number(m[3]) : null, today) });
+    break;
+  }
+  const worded = /(\d{1,2})\s+(янв|фев|мар|апр|ма[яй]|июн|июл|авг|сен|окт|ноя|дек)[а-я]*(?:\s+(\d{4}))?/i.exec(t);
+  if (worded) {
+    const stem = worded[2]!.toLowerCase().replace("май", "мая");
+    const month = MONTH_STEMS.findIndex((m) => stem.startsWith(m.slice(0, 3))) + 1;
+    if (month > 0) found.push({ at: worded.index, day: upcoming(Number(worded[1]), month, worded[3] ? Number(worded[3]) : null, today) });
+  }
+  return found.filter((f) => f.day).sort((a, b) => a.at - b.at)[0]?.day ?? null;
+}
+
 /**
  * Разбор текста заявки (сообщение с сайта в Telegram, переписка, заметка): имя, телефон, что за
  * мероприятие, дата, время, гости, место, комментарий. Всё, что не нашлось, остаётся пустым.
@@ -301,26 +398,10 @@ export function parseLeadText(text: string, today: string): LeadFill {
   if (place) out.place = cleanText(place, EVENT_LIMITS.place);
   const note = field(t, ["Комментарий", "Пожелания", "Заметка"]);
   if (note) out.note = cleanText(note, EVENT_LIMITS.note);
-  // Дата: 2026-10-15, 15.10.2026, 15.10, «15 октября».
-  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(t);
-  // «15.10» и «15.10.2026», но не время «18.00» и не часть другого числа.
-  let dotted: RegExpExecArray | null = null;
-  for (const m of t.matchAll(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g)) {
-    const before = t[(m.index ?? 0) - 1] ?? "";
-    const after = t[(m.index ?? 0) + m[0].length] ?? "";
-    const month = Number(m[2]);
-    if (/[\d:.]/.test(before) || /[\d:]/.test(after) || month < 1 || month > 12 || Number(m[1]) < 1 || Number(m[1]) > 31) continue;
-    dotted = m as RegExpExecArray;
-    break;
-  }
-  const worded = /(\d{1,2})\s+(янв|фев|мар|апр|ма[яй]|июн|июл|авг|сен|окт|ноя|дек)[а-я]*(?:\s+(\d{4}))?/i.exec(t);
-  let day: string | null = null;
-  if (iso && dayIndex(iso[0]) !== null) day = iso[0];
-  else if (worded) {
-    const stem = worded[2]!.toLowerCase().replace("май", "мая");
-    const month = MONTH_STEMS.findIndex((m) => stem.startsWith(m.slice(0, 3))) + 1;
-    if (month > 0) day = upcoming(Number(worded[1]), month, worded[3] ? Number(worded[3]) : null, today);
-  } else if (dotted) day = upcoming(Number(dotted[1]), Number(dotted[2]), dotted[3] ? Number(dotted[3]) : null, today);
+  // Дата: строка «Дата: …» главнее всего (24 октября 2026: в расчёте сайта ниже стоит «Ранняя бронь: до 15 ноября» — это не
+  // дата праздника); нет строки — самая ранняя дата в тексте без строк про раннюю бронь и праздничную цену.
+  const dateLine = field(t, ["Дата праздника", "Дата", "Когда"]);
+  const day = (dateLine && dateIn(dateLine, today)) || dateIn(t.replace(/^\s*(?:ранняя бронь|праздничная цена)\s*[:：].*$/gim, ""), today);
   if (day) out.day = day;
   // Время: 18:00–23:00, 18.00-23.00, «с 18 до 23».
   const range = /(\d{1,2})[:.](\d{2})\s*(?:[–—-]|до)\s*(\d{1,2})[:.](\d{2})/.exec(t) ?? null;
@@ -342,9 +423,16 @@ export function parseLeadText(text: string, today: string): LeadFill {
     if (single && Number(single[1]) < 24) {
       const start = round15(Number(single[1]) * 60 + Number(single[2])) % DAY_MINUTES;
       out.start = start;
-      out.end = endIn(start, 4);
+      // Расчёт сайта: «до» = начало + верхнее число длительности (в нём уже 30 минут запаса); без него — 4 часа.
+      const length = calcHoursMax(t);
+      out.end = length ? Math.min(MAX_END, start + round15(length)) : endIn(start, 4);
     }
   }
+  // Связь: ник Telegram или почта в тексте.
+  const email = /[^\s@<>"(),;:]+@[^\s@<>"(),;:]+\.[A-Za-zА-Яа-я]{2,}/.exec(t)?.[0];
+  const nick = /(?:t\.me\/|telegram\.me\/|(?:^|[\s(:,])@)([A-Za-z][A-Za-z0-9_]{3,31})(?![A-Za-z0-9_.@])/i.exec(t)?.[1];
+  if (nick) out.contact = `telegram:@${nick}`;
+  else if (email && validEmail(email)) out.contact = `email:${email}`;
   return out;
 }
 
@@ -437,7 +525,7 @@ export function unacceptedText(e: Pick<AgencyEvent, "title" | "guests" | "day" |
 
 /**
  * Игра идёт дольше мероприятия по плану (решение владельца 22 октября 2026): ведущему и владельцу в Telegram — сверх
- * 20 минут и потом каждые 30 минут, со стоимостью продления по калькулятору. Без клиента.
+ * «до» (в нём уже 30 минут запаса) и потом каждые 30 минут, со стоимостью продления по калькулятору. Без клиента.
  */
 export function overtimeNoticeText(e: Pick<AgencyEvent, "title" | "guests" | "day" | "start" | "end">, over: Overtime, hostName: string, forHost: boolean, platformUrl: string): string {
   const what = `${e.title || "Мероприятие"}${e.guests ? ` · ${e.guests} гостей` : ""}`;

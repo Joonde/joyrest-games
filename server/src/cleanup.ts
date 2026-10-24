@@ -135,8 +135,8 @@ export async function cleanupPersonalData(sql: Sql, now: number = Date.now()): P
   const cutoff = new Date(now - PERSONAL_DATA_DAYS * DAY_MS);
   const clients = await sql`delete from clients where last_contact_at < ${cutoff} returning id`;
   const requests = await sql`delete from venue_requests where greatest(created_at, updated_at) < ${cutoff} returning id`;
-  const events = await sql`update events set client_name = '', client_phone = '', updated_at = now()
-    where ends_at < ${cutoff} and (client_name <> '' or client_phone <> '') returning id`;
+  const events = await sql`update events set client_name = '', client_phone = '', client_contact = '', updated_at = now()
+    where ends_at < ${cutoff} and (client_name <> '' or client_phone <> '' or client_contact <> '') returning id`;
   const results = await sql`delete from results where coalesce(played_at, saved_at) < ${cutoff} returning id`;
   return { clients: clients.length, requests: requests.length, events: events.length, results: results.length };
 }

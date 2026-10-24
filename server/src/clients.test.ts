@@ -558,6 +558,46 @@ describe.skipIf(!url)("база клиентов, «Проведено» и Tele
     expect(await sql`select 1 from clients where phone_key = '79215006070'`).toHaveLength(1);
   });
 
+  it("связь с клиентом: ник Telegram без телефона — клиент по нику; старая форма связь не трогает; «Данные по номеру» стирают", async () => {
+    const ev = { id: "evcontact", hostId: annaId, day: day(25), start: 1140, end: 1350, title: "Корпоратив", clientName: "Алиса", clientPhone: "", clientContact: "telegram:@alisa_party", place: "Север", guests: 30, note: "", program: { formats: ["Квиз"], extension: "", addons: [], duration: "" } };
+    const saved = (await post("/api/events", owner, ev)).json();
+    expect(saved).toMatchObject({ clientContact: "telegram:@alisa_party", live: false });
+    expect(saved.clientNotSaved).toBeUndefined();
+    const found = ((await get("/api/clients", owner)).json().clients as Array<{ name: string; links: string[]; status: string }>).find((c) => c.links.includes("https://t.me/alisa_party"));
+    expect(found).toMatchObject({ name: "Алиса", status: "client" });
+    // Старая страница без поля clientContact — связь остаётся.
+    const { clientContact: _skip, ...old } = ev;
+    expect((await post("/api/events", owner, { ...old, guests: 31 })).json()).toMatchObject({ clientContact: "telegram:@alisa_party", guests: 31 });
+    // Мусор вместо связи — пусто, а не ошибка.
+    expect((await post("/api/events", owner, { ...ev, clientContact: "pigeon:x" })).json().clientContact).toBe("");
+    await post("/api/events", owner, ev);
+    const privacy = (await get("/api/privacy?q=@alisa_party", owner)).json();
+    expect(privacy.events.map((e: { id: string }) => e.id)).toContain("evcontact");
+    expect((await post("/api/privacy/erase", owner, { q: "@alisa_party" })).statusCode).toBe(200);
+    const [row] = await sql<{ client_contact: string; client_name: string }[]>`select client_contact, client_name from events where id = 'evcontact'`;
+    expect(row).toEqual({ client_contact: "", client_name: "" });
+  });
+
+  it("кружок «Идёт» / «Сверх плана»: сервер знает, что у ведущего открыта игра этого вечера", async () => {
+    const msk = new Date(Date.now() + 3 * 3_600_000);
+    const nowMin = msk.getUTCHours() * 60 + msk.getUTCMinutes();
+    // Мероприятие закончилось 30 минут назад (после полуночи — вчерашнее, идущее за полночь, не проверяем — пропуск).
+    const end = Math.floor((nowMin - 30) / 15) * 15;
+    const start = end - 120;
+    if (start < 0) return;
+    const ev = { id: "evlive", hostId: annaId, day: day(0), start, end, title: "Свадьба", clientName: "Лиза", clientPhone: "", clientContact: "call", place: "Место уточняется", guests: null, note: "", program: { formats: ["Квиз"], extension: "", addons: [], duration: "" } };
+    expect((await post("/api/events", owner, ev)).json()).toMatchObject({ live: false });
+    // Игру открыли во время мероприятия (час назад), пульт двигался только что.
+    await sql`insert into sessions (id, code, host_id, state, created_at) values ('slive1', '424242', ${annaId}, ${sql.json({ phase: "playing", step: 0 })}, now() - interval '1 hour')`;
+    const list = (await get(`/api/events?from=${day(0)}&to=${day(1)}`, owner)).json().events as Array<{ id: string; live: boolean }>;
+    expect(list.find((e) => e.id === "evlive")?.live).toBe(true);
+    // Игру закрыли (или пульт молчит больше 30 минут) — не «идёт».
+    await sql`update sessions set updated_at = now() - interval '31 minutes' where id = 'slive1'`;
+    const after = (await get(`/api/events?from=${day(0)}&to=${day(1)}`, owner)).json().events as Array<{ id: string; live: boolean }>;
+    expect(after.find((e) => e.id === "evlive")?.live).toBe(false);
+    await sql`delete from sessions where id = 'slive1'`;
+  });
+
   it("Telegram: без бота подключение недоступно, ответ понятный", async () => {
     expect((await get("/api/telegram/me", anna)).json()).toEqual({ available: false, linked: false, username: "" });
     expect((await post("/api/telegram/link", anna)).statusCode).toBe(503);

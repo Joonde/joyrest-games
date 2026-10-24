@@ -5,7 +5,8 @@
  */
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { clientsRepo, useLoad, type ClientRecord } from "../../data";
+import { clientsRepo, eventsRepo, useLoad, type AgencyEvent, type ClientRecord } from "../../data";
+import { LIGHT_TITLES, lightCounts } from "../../core/eventLight";
 
 export function SalesDesk() {
   const [state] = useLoad(() => (clientsRepo ? clientsRepo.list(false) : Promise.resolve([] as ClientRecord[])), []);
@@ -17,6 +18,10 @@ export function SalesDesk() {
   const late = list?.filter((c) => c.status === "new" && opened - (c.newSince ?? c.lastContactAt) > 30 * 60_000).length ?? 0;
   // Мероприятие прошло (ведущий отметил «Проведено») — пора попросить отзыв и предложить следующий праздник.
   const held = list?.filter((c) => c.status === "held").length ?? 0;
+  // Мероприятия, которые требуют внимания (цветные кружки, 24 октября 2026): сверх плана, не подтвердил, прошло — отметьте.
+  const [events] = useLoad(async () => (eventsRepo ? (await Promise.all([eventsRepo.list("upcoming"), eventsRepo.list("past")])).flat() : ([] as AgencyEvent[])), []);
+  const counts = events.status === "ready" ? lightCounts(events.data, opened) : null;
+  const attention = counts ? (["over", "late", "check"] as const).filter((l) => counts[l] > 0) : [];
   return (
     <section className="card stack" aria-labelledby="sales-desk">
       <p className="eyebrow">Менеджер по продажам</p>
@@ -30,6 +35,17 @@ export function SalesDesk() {
         </div>
       </div>
       {late > 0 && <p className="clients-late">⏰ Ждут ответа дольше 30 минут: {late}</p>}
+      {counts && attention.length > 0 && (
+        <Link className="sales-desk__lights" to="/studio/calendar?tab=events">
+          <span className="small">Мероприятия — нужно внимание:</span>
+          {attention.map((l) => (
+            <span key={l} className={`plan-light plan-light--${l}`}>
+              <span className="plan-light__dot" aria-hidden="true" />
+              {LIGHT_TITLES[l]} · {counts[l]}
+            </span>
+          ))}
+        </Link>
+      )}
       {held > 0 && (
         <p className="small">
           <Link to="/studio/clients?f=held">Провели — попросите отзыв: {held} →</Link>

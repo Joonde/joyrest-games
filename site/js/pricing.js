@@ -287,6 +287,15 @@
     return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : '';
   }
 
+  /**
+   * «Как к вам обращаться» (решение владельца 24 октября 2026, по желанию): только буквы, пробел, дефис, точка и
+   * апостроф, до 40 знаков. Имя уходит лишь в сообщение, которое клиент отправляет сам, — сайт его не хранит.
+   */
+  function cleanName(n) {
+    if (typeof n !== 'string') return '';
+    return n.replace(/[^A-Za-zА-Яа-яЁё .'’-]/g, ' ').replace(/(^|\s)[-.'’]+(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40).trim();
+  }
+
   function calcSummary(opts) {
     var r = calcPrice(opts);
     var pkgId = opts.pkg || 'quiz';
@@ -336,7 +345,9 @@
     var pkgId = opts.pkg || 'quiz';
     var pkg = pkgById(pkgId);
     var tier = typeof opts.tier === 'number' ? opts.tier : 0;
-    var rows = [['Пакет', pkgId === TURNKEY.id || !pkg ? 'Под ключ' : pkg.name]];
+    var rows = [];
+    if (cleanName(opts.name)) rows.push(['Имя', cleanName(opts.name)]);
+    rows.push(['Пакет', pkgId === TURNKEY.id || !pkg ? 'Под ключ' : pkg.name]);
     rows.push(['Гостей', tier < TIERS.length ? 'до ' + TIERS[tier] : 'больше 90']);
     rows.push(['Дата', r.date ? r.date.label : 'не указана']);
     if (cleanTime(opts.time)) rows.push(['Начало', 'в ' + cleanTime(opts.time) + ' (примерно, подтвердит менеджер)']);
@@ -385,7 +396,7 @@
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
     MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
     seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,
-    parseDate: parseDate, cleanTime: cleanTime, telegramText: telegramText, mailLinks: mailLinks, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
+    parseDate: parseDate, cleanTime: cleanTime, cleanName: cleanName, telegramText: telegramText, mailLinks: mailLinks, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

@@ -1,0 +1,73 @@
+# Проверка пути менеджера (решение владельца 24 октября 2026): калькулятор сайта этого коммита → «Клиенты» → форма
+# мероприятия → ведущий принимает → цветные кружки → «Проведено». Тестовый менеджер sales-check@joy-rest.ru (создаётся
+# сам и в конце отключается), ведущий load@joy-rest.ru и владелец (TEST_ADMIN_*) на test.games.joy-rest.ru.
+# Только вручную (Run workflow) или коммитом с [manager] в ветке claude/* (~10–20 минут).
+# Итог — аннотацией и сводкой задачи; снимки экранов — в ветку e2e-shots (папка manager/).
+name: Проверка пути менеджера
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  manager:
+    name: Путь менеджера на test
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[manager]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Браузер
+        run: |
+          mkdir -p /tmp/e2e && cp scripts/e2e/manager.mjs /tmp/e2e/
+          cd /tmp/e2e && npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Ждём выкладку на test
+        if: ${{ !contains(github.event.head_commit.message, '[no-test]') }}
+        run: |
+          for i in $(seq 1 40); do
+            v=$(curl -fsS https://test.games.joy-rest.ru/health | sed -n 's/.*"version":"\([0-9a-f]*\)".*/\1/p' || true)
+            [ "$v" = "$GITHUB_SHA" ] && echo "На test: $v" && exit 0
+            sleep 15
+          done
+          echo "На test другая версия ($v) — проверяем её."
+      - name: Сайт, менеджер, ведущий и владелец
+        working-directory: /tmp/e2e
+        run: node manager.mjs
+        env:
+          E2E_BASE: https://test.games.joy-rest.ru
+          SITE_DIR: ${{ github.workspace }}/site
+          E2E_SHOTS: /tmp/e2e/shots
+          LOAD_HOST_EMAIL: load@joy-rest.ru
+          LOAD_HOST_PASSWORD: ${{ secrets.LOAD_HOST_PASSWORD }}
+          TEST_ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL }}
+          TEST_ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD }}
+      - name: Снимки в ветку e2e-shots
+        if: always()
+        run: |
+          [ -d /tmp/e2e/shots ] || exit 0
+          git config user.name "joyrest-ci"
+          git config user.email "ci@joy-rest.ru"
+          git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
+          rm -rf manager && mkdir -p manager && cp /tmp/e2e/shots/*.png /tmp/e2e/shots/*.md manager/ 2>/dev/null || true
+          git add -A manager
+          if git commit -qm "Снимки проверки пути менеджера ${GITHUB_SHA::7}"; then
+            sent=""
+            for i in 1 2 3 4 5; do
+              if out=$(git push -q origin HEAD:e2e-shots 2>&1); then sent=1; break; fi
+              git fetch -q origin e2e-shots && git rebase -q FETCH_HEAD || break
+            done
+            [ -n "$sent" ] || echo "::warning::Не отправлено в e2e-shots: $(echo "$out" | tr '\n' ' ' | cut -c1-300)"
+          else
+            echo "::notice::Нечего отправлять в e2e-shots"
+          fi

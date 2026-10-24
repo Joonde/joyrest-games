@@ -182,7 +182,7 @@ describe.skipIf(!url)("бот уведомлений: каждому — сво�
     expect((await post("/api/events", owner, event)).statusCode).toBe(200);
     await until(() => to(BORIS).length === n + 1, "назначение с программой");
     const msg = tg.sent.filter((m) => m.chat === BORIS).at(-1);
-    expect(msg?.text).toContain("🎯 Программа: Квиз + Музыкальный · продление 30 мин");
+    expect(msg?.text).toContain("🎯 Программа: 1 · Квиз → 2 · Музыкальный · продление 30 мин");
     expect(msg?.text).not.toContain("Ольга");
     expect(msg?.buttons).toEqual(["acc:ev5:1"]);
     const mine = async () => ((await get("/api/events?scope=upcoming", boris)).json().events as Array<{ id: string; acceptedAt: number | null; acceptRev: number; program: unknown }>).find((e) => e.id === "ev5");

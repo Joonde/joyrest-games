@@ -7,14 +7,19 @@
  * Время «идёт сейчас» — по часам сервера (часы телефона могут спешить).
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { addDays, availabilityOf, dayIndex, dayTitle, DEFAULT_QUERY, rangeLabel, STATUS_ORDER, STATUS_TITLES, timeLabel, todayMoscow, type MemberStatus } from "../../core/calendar";
+import { addDays, availabilityOf, DAY_MINUTES, dayIndex, dayTitle, DEFAULT_QUERY, MAX_END, rangeLabel, STATUS_ORDER, STATUS_TITLES, timeLabel, todayMoscow, type MemberStatus } from "../../core/calendar";
 import {
   bookingId,
+  CONTACT_KINDS,
+  CONTACT_TITLES,
+  contactLabel,
   crowdedClusters,
-  DURATIONS,
-  endIn,
   EVENT_LIMITS,
-  EVENT_STATUS_TITLES,
+  formatContact,
+  parseContact,
+  telegramNick,
+  validEmail,
+  type ContactKind,
   EVENT_TITLES,
   eventsOfDay,
   eventStatus,
@@ -25,17 +30,16 @@ import {
   shiftPeriod,
   statsOf,
   sortEvents,
-  TIME_PRESETS,
   timelineHours,
   timelineOf,
   weekStart,
-  type EventStatus,
   type LeadFill,
   type PeriodKind,
   type TimelineCluster,
 } from "../../core/events";
 import { professionOf } from "../../core/professions";
-import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, type EventProgram } from "../../core/eventProgram";
+import { cleanProgram, isEmptyProgram, prepareHints, programFromCalc, programLines, PROGRAM_ADDONS, PROGRAM_EXTENSIONS, PROGRAM_FORMATS, PROGRAM_MAX_FORMATS, type EventProgram } from "../../core/eventProgram";
+import { eventLight, LIGHT_HINTS, LIGHT_ORDER, LIGHT_TITLES, lightCounts, sortByLight, type EventLight } from "../../core/eventLight";
 import { matchesSearch } from "../../core/search";
 import { eventFillFromClient, type ClientEventFill } from "../../core/clientToEvent";
 import { draftHasContent, draftsKey, draftTitle, parseDrafts, removeDraft, upsertDraft, type EventFormDraft } from "../../core/eventDrafts";
@@ -53,11 +57,10 @@ import { brand, teamColors } from "../../themes/brand";
 import { MonthGrid, MonthHeader, monthRange, newId, Pill, shiftMonth, TimeSelects, useLastReady } from "./calendarParts";
 
 type View = "day" | "week" | "month" | "list" | "stats";
-type ListFilter = "upcoming" | "now" | "past" | "cancelled";
+type ListFilter = "light" | "upcoming" | "now" | "past" | "cancelled";
 
 const VIEW_TITLES: Record<View, string> = { day: "День", week: "7 дней", month: "Месяц", list: "Список", stats: "Итоги" };
-const FILTER_TITLES: Record<ListFilter, string> = { upcoming: "Предстоящие", now: "Идут сейчас", past: "Архив", cancelled: "Отменённые" };
-const EVENT_STATUS_COLORS: Record<EventStatus, string> = { upcoming: brand.gold, now: brand.sage, past: brand.taupe, cancelled: brand.coral };
+const FILTER_TITLES: Record<ListFilter, string> = { light: "По цвету", upcoming: "Предстоящие", now: "Идут сейчас", past: "Архив", cancelled: "Отменённые" };
 const MEMBER_COLORS: Record<MemberStatus, string> = { free: brand.sage, partial: brand.gold, unknown: brand.taupe, busy: brand.coral };
 
 /** Цвет ведущего на таймлайне — постоянный по его id (пастель, текст тёмный). */
@@ -69,13 +72,19 @@ function hostColor(hostId: string): string {
 
 const eventName = (e: Pick<AgencyEvent, "title">) => e.title || "Мероприятие";
 
-/** Плашка статуса: после окончания — «Проведено», «Не состоялось» или «Прошло — отметьте». */
-function statusPill(e: AgencyEvent, now: number): { title: string; color: string } {
-  const status = eventStatus(e, now);
-  if (e.held === true && !e.cancelled) return { title: "Проведено", color: brand.sage };
-  if (e.held === false && !e.cancelled) return { title: "Не состоялось", color: brand.coral };
-  if (status === "past") return { title: "Прошло — отметьте", color: brand.gold };
-  return { title: EVENT_STATUS_TITLES[status], color: EVENT_STATUS_COLORS[status] };
+/**
+ * Цветной кружок мероприятия (решение владельца 24 октября 2026): что с ним сейчас — ждёт ведущего, не подтвердил,
+ * принято, идёт, сверх плана, прошло — отметьте, проведено, отменено. Ведущему своё «Ждёт ведущего» — «Подтвердите».
+ */
+export function LightBadge({ event, now, mine = false }: { event: AgencyEvent; now: number; mine?: boolean }) {
+  const info = eventLight(event, now);
+  const label = mine && (info.light === "wait" || info.light === "late") ? info.label.replace(/^(Ждёт ведущего|Не подтвердил)/, "Подтвердите") : info.label;
+  return (
+    <span className={`plan-light plan-light--${info.light}`} title={LIGHT_HINTS[info.light]}>
+      <span className="plan-light__dot" aria-hidden="true" />
+      {label}
+    </span>
+  );
 }
 
 /** Окно загрузки для дня, недели и месяца выбранной даты (до 62 дней). */
@@ -222,9 +231,10 @@ export function Planner({
   onToast: (text: string) => void;
 }) {
   const today = todayMoscow();
-  const [view, setView] = useState<View>("day");
+  // Менеджер и владелец отслеживают мероприятия по цветным кружкам — сразу «Список · По цвету» (24 октября 2026).
+  const [view, setView] = useState<View>(owner ? "list" : "day");
   const [day, setDay] = useState(today);
-  const [filter, setFilter] = useState<ListFilter>("upcoming");
+  const [filter, setFilter] = useState<ListFilter>("light");
   const [form, setForm] = useState<FormState | null>(() => {
     // «Продолжить» черновик из «Кто может» — открываем его сразу.
     const d = owner && openDraft ? readDrafts(me).find((x) => x.id === openDraft) : undefined;
@@ -906,18 +916,28 @@ function EventList({
   render: (e: AgencyEvent) => ReactNode;
 }) {
   const scope = filter === "now" ? "upcoming" : filter;
-  const [state, retry] = useLoad(() => (eventsRepo ? eventsRepo.list(scope) : Promise.resolve([] as AgencyEvent[])), [scope]);
+  const [state, retry] = useLoad(async () => {
+    if (!eventsRepo) return [] as AgencyEvent[];
+    // «По цвету»: всё, что можно отслеживать, — предстоящие, прошедшие и отменённые вместе.
+    if (scope === "light") return (await Promise.all([eventsRepo.list("upcoming"), eventsRepo.list("past"), eventsRepo.list("cancelled")])).flat();
+    return eventsRepo.list(scope);
+  }, [scope]);
   const shown = useLastReady(state);
   const [query, setQuery] = useState("");
-  const events = useMemo(() => {
+  const [light, setLight] = useState<EventLight | null>(null);
+  const all = useMemo(() => {
     // Правки на этом экране (отмена, возврат, удаление) — сразу, без перезагрузки списка.
-    const all = [...(shown ?? []).filter((e) => !removed.includes(e.id) && !changed.some((c) => c.id === e.id)), ...changed.filter((c) => !removed.includes(c.id))];
-    const found = query.trim() ? all.filter((e) => matchesSearch([e.title, e.clientName, e.clientPhone, e.hostName, e.place, e.note], query)) : all;
-    if (filter === "cancelled") return sortEvents(found.filter((e) => e.cancelled), true);
-    if (filter === "past") return sortEvents(found.filter((e) => eventStatus(e, now) === "past"), true);
-    if (filter === "upcoming") return sortEvents(found.filter((e) => eventStatus(e, now) === "upcoming"), false);
-    return sortEvents(found.filter((e) => eventStatus(e, now) === "now"), false);
-  }, [shown, filter, now, removed, changed, query]);
+    const list = [...(shown ?? []).filter((e) => !removed.includes(e.id) && !changed.some((c) => c.id === e.id)), ...changed.filter((c) => !removed.includes(c.id))];
+    return query.trim() ? list.filter((e) => matchesSearch([e.title, e.clientName, e.clientPhone, e.hostName, e.place, e.note], query)) : list;
+  }, [shown, removed, changed, query]);
+  const counts = useMemo(() => lightCounts(all, now), [all, now]);
+  const events = useMemo(() => {
+    if (filter === "light") return sortByLight(light ? all.filter((e) => eventLight(e, now).light === light) : all, now);
+    if (filter === "cancelled") return sortEvents(all.filter((e) => e.cancelled), true);
+    if (filter === "past") return sortEvents(all.filter((e) => eventStatus(e, now) === "past"), true);
+    if (filter === "upcoming") return sortEvents(all.filter((e) => eventStatus(e, now) === "upcoming"), false);
+    return sortEvents(all.filter((e) => eventStatus(e, now) === "now"), false);
+  }, [all, filter, now, light]);
   const candidates = useMemo(() => [...new Set((shown ?? []).flatMap((e) => [e.clientName, e.title, e.hostName]).filter(Boolean))], [shown]);
   return (
     <>
@@ -928,6 +948,27 @@ function EventList({
           </button>
         ))}
       </div>
+      {filter === "light" && (
+        <div className="plan-lights" role="group" aria-label="Цвет кружка">
+          <button type="button" className={light === null ? "plan-lights__btn is-on" : "plan-lights__btn"} aria-pressed={light === null} onClick={() => setLight(null)}>
+            Все · {all.length}
+          </button>
+          {LIGHT_ORDER.filter((l) => counts[l] > 0 || light === l).map((l) => (
+            <button
+              key={l}
+              type="button"
+              className={`plan-lights__btn plan-light--${l}${light === l ? " is-on" : ""}`}
+              aria-pressed={light === l}
+              title={LIGHT_HINTS[l]}
+              onClick={() => setLight(light === l ? null : l)}
+            >
+              <span className="plan-light__dot" aria-hidden="true" />
+              {LIGHT_TITLES[l]} · {counts[l]}
+            </button>
+          ))}
+        </div>
+      )}
+      {filter === "light" && <p className="muted small">Сверху — что требует внимания: сверх плана, не подтвердил, идёт, прошло — отметьте. Коснитесь цвета — останутся только такие.</p>}
       <SearchField label="Поиск" value={query} placeholder="Клиент, телефон, ведущий, место" candidates={candidates} onChange={setQuery} />
       {!shown ? (
         state.status === "error" ? <LoadFailedInline onRetry={retry} /> : <ListSkeleton />
@@ -937,13 +978,17 @@ function EventList({
             <p className="muted">
               {query.trim()
                 ? "Ничего не нашлось."
-                : filter === "past"
-                  ? "В архиве пока пусто."
-                  : filter === "cancelled"
-                    ? "Отменённых нет."
-                    : filter === "now"
-                      ? "Сейчас ничего не идёт."
-                      : "Предстоящих мероприятий нет."}
+                : filter === "light"
+                  ? light
+                    ? `Мероприятий «${LIGHT_TITLES[light]}» нет.`
+                    : "Мероприятий пока нет."
+                  : filter === "past"
+                    ? "В архиве пока пусто."
+                    : filter === "cancelled"
+                      ? "Отменённых нет."
+                      : filter === "now"
+                        ? "Сейчас ничего не идёт."
+                        : "Предстоящих мероприятий нет."}
             </p>
           )}
           {events.map(render)}
@@ -986,7 +1031,6 @@ function EventCard({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const status = eventStatus(event, now);
-  const pill = statusPill(event, now);
   const started = !event.cancelled && (status === "now" || status === "past");
   const detailsId = `plan-card-${event.id}`;
   // Отметку «принял» спрашиваем у мероприятий, записанных или изменённых после 22 октября 2026 (`acceptRev` > 0).
@@ -997,20 +1041,19 @@ function EventCard({
     <article className={open ? "card plan-card is-open" : "card plan-card"} style={{ "--plan-color": hostColor(event.hostId) } as CSSProperties}>
       <button type="button" className="plan-card__head" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
         <span className="plan-card__top">
-          <span className="plan-card__title">{eventName(event)}</span>
-          <Pill color={pill.color}>{pill.title}</Pill>
+          <span className="plan-card__title">
+            {eventName(event)}
+            {event.guests !== null ? ` · ${event.guests} гостей` : ""}
+          </span>
+          <LightBadge event={event} now={now} mine={mine} />
         </span>
         <span className="plan-card__when">
           {dayTitle(event.day)}, {rangeLabel(event.start, event.end)}
         </span>
         <span className="plan-card__host">
           Ведёт: <b>{event.hostName || "—"}</b>
+          {owner && event.clientName ? ` · клиент ${event.clientName}` : ""}
         </span>
-        {ahead && (owner || mine) && (
-          <span className="plan-card__accept">
-            <Pill color={accepted ? brand.sage : brand.gold}>{accepted ? (mine ? "✅ Вы приняли" : "✅ Ведущий принял") : mine ? "👉 Примите программу" : "⏳ Не подтвердил"}</Pill>
-          </span>
-        )}
         <span className="plan-card__more" aria-hidden="true">
           {open ? "Свернуть ▲" : "Подробнее ▼"}
         </span>
@@ -1032,6 +1075,22 @@ function EventCard({
                 </dd>
               </>
             )}
+            {event.clientContact && contactLabel(event.clientContact) && (
+              <>
+                <dt>Связь</dt>
+                <dd>
+                  {(() => {
+                    const c = parseContact(event.clientContact);
+                    const label = contactLabel(event.clientContact);
+                    if (c.kind === "telegram" && c.value) return <a href={`https://t.me/${c.value.slice(1)}`} target="_blank" rel="noopener noreferrer">{label}</a>;
+                    if (c.kind === "email" && c.value) return <a href={`mailto:${c.value}`}>{label}</a>;
+                    return label;
+                  })()}
+                </dd>
+              </>
+            )}
+            <dt>Время</dt>
+            <dd>{lengthHint(event.start, event.end)}</dd>
             {event.place && (
               <>
                 <dt>Где</dt>
@@ -1152,53 +1211,74 @@ function ProgramView({ program }: { program: EventProgram | null }) {
 }
 
 /**
- * Программа в форме мероприятия: менеджер вставляет расчёт клиента — форматы, продление и допы отмечаются сами
- * (решение владельца 22 октября 2026). Нет расчёта — те же кнопки вручную. Цена в программу не попадает.
+ * Программа в форме мероприятия (решение владельца 24 октября 2026): форматы по порядку вечера — строками с номером,
+ * ↑ ↓ и ✕, «＋ Добавить формат» (до 6); продление и допы — кнопками. Вставка расчёта сверху формы отмечает всё сама.
+ * Цена в программу не попадает.
  */
 function ProgramField({ program, onChange }: { program: EventProgram | null; onChange: (p: EventProgram | null) => void }) {
-  const [text, setText] = useState("");
-  const [note, setNote] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const p: EventProgram = program ?? { formats: [], extension: "", addons: [], duration: "" };
   const set = (next: Partial<EventProgram>) => onChange(cleanProgram({ ...p, ...next }));
   const toggle = (list: string[], value: string) => (list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  const move = (i: number, d: number) => {
+    const list = [...p.formats];
+    const j = i + d;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j]!, list[i]!];
+    set({ formats: list });
+  };
+  const rest = PROGRAM_FORMATS.filter((f) => !p.formats.includes(f));
+  const full = p.formats.length >= PROGRAM_MAX_FORMATS;
   return (
-    <fieldset className="stack stack--tight">
-      <legend>🎯 Программа</legend>
-      <p className="muted small">Вставьте расчёт, который клиент прислал из калькулятора, — форматы, продление и допы отметятся сами. Ведущий увидит программу и подтвердит, что принял. Цена в программу не попадает.</p>
-      <label className="field">
-        <span className="field__label">Расчёт клиента</span>
-        <textarea rows={3} value={text} placeholder="🧮 Расчёт JoyRest…" onChange={(e) => setText(e.target.value)} />
-      </label>
-      <button
-        type="button"
-        className="btn btn--secondary btn--block"
-        disabled={!text.trim()}
-        onClick={() => {
-          const found = programFromCalc(text);
-          if (found) {
-            onChange(found);
-            setNote(`✅ Нашлось: ${programLines(found).join("; ")}. Проверьте кнопки ниже.`);
-          } else setNote("🤔 В тексте не нашлось ни пакета, ни допов — отметьте программу кнопками.");
-        }}
-      >
-        🧮 Разобрать расчёт
-      </button>
-      {note && (
-        <p className="small plan-filled" role="status">
-          {note}
-        </p>
+    <div className="stack stack--tight">
+      {p.formats.length > 0 && (
+        <ol className="plan-formats" aria-label="Форматы по порядку вечера">
+          {p.formats.map((f, i) => (
+            <li key={f} className="plan-formats__row">
+              <span className="plan-formats__n" aria-hidden="true">
+                {i + 1}
+              </span>
+              <b className="plan-formats__name">{f}</b>
+              <span className="plan-formats__ctl">
+                <button type="button" className="btn btn--quiet plan-icon" aria-label={`${f} — раньше`} disabled={i === 0} onClick={() => move(i, -1)}>
+                  ↑
+                </button>
+                <button type="button" className="btn btn--quiet plan-icon" aria-label={`${f} — позже`} disabled={i === p.formats.length - 1} onClick={() => move(i, 1)}>
+                  ↓
+                </button>
+                <button type="button" className="btn btn--quiet plan-icon" aria-label={`Убрать ${f}`} onClick={() => set({ formats: p.formats.filter((x) => x !== f) })}>
+                  ✕
+                </button>
+              </span>
+            </li>
+          ))}
+        </ol>
       )}
-      <span className="field__label">🎲 Форматы по порядку вечера</span>
-      <div className="plan-quick" role="group" aria-label="Форматы">
-        {PROGRAM_FORMATS.map((f) => {
-          const at = p.formats.indexOf(f);
-          return (
-            <button key={f} type="button" className={at >= 0 ? "seg__btn is-on" : "seg__btn"} aria-pressed={at >= 0} onClick={() => set({ formats: toggle(p.formats, f) })}>
-              {at >= 0 ? `${at + 1} · ${f}` : f}
-            </button>
-          );
-        })}
-      </div>
+      {!full && rest.length > 0 && (
+        <>
+          <button type="button" className="btn btn--secondary btn--block" aria-expanded={adding || p.formats.length === 0} onClick={() => setAdding(!adding)}>
+            ＋ {p.formats.length ? "Добавить ещё формат" : "Добавить формат"}
+          </button>
+          {(adding || p.formats.length === 0) && (
+            <div className="plan-quick" role="group" aria-label="Какой формат добавить">
+              {rest.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  className="seg__btn"
+                  onClick={() => {
+                    set({ formats: [...p.formats, f] });
+                    setAdding(false);
+                  }}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {full && <p className="muted small">В одном вечере — до {PROGRAM_MAX_FORMATS} форматов.</p>}
       <span className="field__label">⏱ Продление</span>
       <div className="plan-quick" role="group" aria-label="Продление">
         {["", ...PROGRAM_EXTENSIONS].map((x) => (
@@ -1223,7 +1303,7 @@ function ProgramField({ program, onChange }: { program: EventProgram | null; onC
           </button>
         </p>
       )}
-    </fieldset>
+    </div>
   );
 }
 
@@ -1236,17 +1316,23 @@ export interface EventDraft {
   hostId?: string;
 }
 
-const FILLED_TITLES: Record<keyof LeadFill, string> = {
-  clientName: "имя",
-  clientPhone: "телефон",
-  title: "что за мероприятие",
-  day: "дата",
-  start: "время",
-  end: "",
-  guests: "гости",
-  place: "место",
-  note: "комментарий",
+/** «Где» ещё не известно — галочка «Место пока уточняется» (поле обязательное, ведущий видит эту строку). */
+export const PLACE_TBD = "Место уточняется";
+
+/** Обязательные поля формы — в порядке на экране (для «Заполнено N из 8 · осталось …»). */
+type Need = "name" | "phone" | "contact" | "when" | "title" | "program" | "place" | "host";
+const NEED_TITLES: Record<Need, string> = {
+  name: "имя",
+  phone: "телефон",
+  contact: "связь",
+  when: "дата и время с … до",
+  title: "повод",
+  program: "программа",
+  place: "где",
+  host: "кто ведёт",
 };
+/** Что подставилось (из расчёта, заявки, карточки клиента) — подсвечено, пока менеджер это поле не поправит. */
+type Got = Need | "guests" | "note";
 
 /** Ближайшие дни для быстрого выбора: сегодня, завтра, пятница, суббота, воскресенье. */
 function quickDays(today: string): Array<{ day: string; label: string }> {
@@ -1276,10 +1362,41 @@ function errorText(e: unknown): string {
   return "Не получилось сохранить. Проверьте интернет и нажмите ещё раз.";
 }
 
+/** «3,5 ч: программа 3 ч + 30 мин запаса без доплаты. После 22:30 — продление за доплату». */
+function lengthHint(start: number, end: number): string {
+  const total = end - start;
+  if (total <= 0) return "";
+  const h = (m: number) => `${String(Math.round((m / 60) * 10) / 10).replace(".", ",")} ч`;
+  const after = `После ${timeLabel(end % DAY_MINUTES)} — продление за доплату.`;
+  if (total <= 30) return `${h(total)}. ${after}`;
+  return `${h(total)}: программа ${h(total - 30)} + 30 мин запаса без доплаты. ${after}`;
+}
+
+/** Метка над полем: обязательное (*), подставлено («из расчёта»), ещё нужно («заполнить»), готово (✓). */
+function NeedMark({ need, done, got }: { need?: boolean; done?: boolean; got?: string }) {
+  return (
+    <>
+      {need && (
+        <span className="plan-star" aria-label="обязательно">
+          *
+        </span>
+      )}
+      {got && <span className="plan-got">{got}</span>}
+      {need && !done && <span className="plan-needt">заполнить</span>}
+      {need && done && (
+        <span className="plan-ok" aria-label="готово">
+          ✓
+        </span>
+      )}
+    </>
+  );
+}
+
 /**
- * Новое мероприятие, правка или «похожее» (только владелец). Быстро: заполнить из текста заявки или из
- * заявки клиента базы площадок, дни, время, гости и вид мероприятия — одним касанием. Ведущие — карточками,
- * сначала те, кто может; занятого записать можно, форма предупреждает.
+ * Новое мероприятие, правка или «похожее» (решение владельца 24 октября 2026 — форма по макету «Заявка ведущему»):
+ * сверху — «Вставить расчёт или заявку» (заполняет только пустые поля, подставленное подсвечено), «Заполнено N из 8».
+ * Для карточки клиента: имя, телефон, связь. Для ведущего: когда (дата, с … до …), повод, программа по порядку, где,
+ * кто ведёт. По желанию: гости и комментарий. «Записать» — когда всё обязательное заполнено.
  */
 export function EventForm({
   initial,
@@ -1313,10 +1430,15 @@ export function EventForm({
   const [day, setDay] = useState(initial?.day ?? r?.day ?? pf?.day ?? draft?.day ?? initialDay);
   const [start, setStart] = useState(r?.start ?? pf?.start ?? base?.start ?? draft?.start ?? DEFAULT_QUERY.start);
   const [end, setEnd] = useState(r?.end ?? pf?.end ?? base?.end ?? draft?.end ?? DEFAULT_QUERY.end);
+  // «Когда» заполнено, только если время выбрали (или оно пришло из расчёта, «Кто может», записанного мероприятия).
+  const [whenSet, setWhenSet] = useState(Boolean(initial || template) || (r ? r.whenSet === true : pf?.start !== undefined || draft?.start !== undefined));
   const [hostId, setHostId] = useState(r?.hostId ?? base?.hostId ?? draft?.hostId ?? "");
   const [title, setTitle] = useState(r?.title ?? pf?.title ?? base?.title ?? "");
   const [clientName, setClientName] = useState(r?.clientName ?? pf?.clientName ?? base?.clientName ?? "");
   const [clientPhone, setClientPhone] = useState(r?.clientPhone ?? pf?.clientPhone ?? base?.clientPhone ?? "");
+  const startContact = parseContact(r?.contact ?? pf?.contact ?? base?.clientContact ?? "");
+  const [contactKind, setContactKind] = useState<ContactKind | "">(startContact.kind);
+  const [contactValue, setContactValue] = useState(startContact.value);
   const [place, setPlace] = useState(r?.place ?? pf?.place ?? base?.place ?? "");
   const [guests, setGuests] = useState(r ? r.guests : pf?.guests !== undefined ? String(pf.guests) : base?.guests != null ? String(base.guests) : "");
   const [note, setNote] = useState(r?.note ?? base?.note ?? "");
@@ -1326,18 +1448,43 @@ export function EventForm({
   // Двойное касание «Записать»: второй запрос не уходит, пока первый не вернулся (иначе ведущему — два уведомления).
   const saving = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // Подставленное: поле → откуда («из расчёта», «из заявки», «из карточки клиента»). Поправили поле — метка уходит.
+  const [got, setGot] = useState<Partial<Record<Got, string>>>(() => {
+    if (!pf) return {};
+    const from = "из карточки клиента";
+    const out: Partial<Record<Got, string>> = {};
+    if (pf.clientName) out.name = from;
+    if (pf.clientPhone) out.phone = from;
+    if (pf.contact) out.contact = from;
+    if (pf.start !== undefined) out.when = from;
+    if (pf.title) out.title = from;
+    if (pf.program && pf.program.formats.length) out.program = from;
+    if (pf.place) out.place = from;
+    if (pf.guests !== undefined) out.guests = from;
+    return out;
+  });
+  const touch = (...keys: Got[]) =>
+    setGot((g) => {
+      if (!keys.some((k) => g[k])) return g;
+      const next = { ...g };
+      for (const k of keys) delete next[k];
+      return next;
+    });
   const [filled, setFilled] = useState<string | null>(() =>
-    pf ? `Из карточки клиента: ${pf.got.join(", ")}. Проверьте и выберите ведущего.${pf.day ? "" : " Даты в заявке нет — выберите её."}` : null,
+    pf ? `Из карточки клиента: ${pf.got.join(", ")}. Проверьте подсвеченное и заполните остальное.${pf.day ? "" : " Даты в заявке нет — выберите её."}` : null,
   );
-  // Клиент попадёт в «Клиенты» только с полным телефоном; мероприятие записать можно и без него.
-  const phoneIncomplete = clientPhone.trim() !== "" && phoneKey(clientPhone) === "";
-  const nameOnly = clientName.trim() !== "" && clientPhone.trim() === "";
   // Подсказки из «Клиентов» под полями имени и телефона (решение владельца 24 октября 2026).
   const clientBase = useClientBase();
   const [pickFor, setPickFor] = useState<"name" | "phone" | null>(null);
   const pickClient = (c: ClientRecord) => {
     setClientName(c.name);
     setClientPhone(c.phone);
+    const tg = c.links.map((l) => /^https:\/\/t\.me\/([A-Za-z][A-Za-z0-9_]{3,31})$/i.exec(l)?.[1]).find(Boolean);
+    if (tg && (!contactKind || contactKind === "telegram")) {
+      setContactKind("telegram");
+      setContactValue(`@${tg}`);
+    } else if (!contactKind && c.links.some((l) => /wa\.me\//i.test(l))) setContactKind("whatsapp");
+    touch("name", "phone");
     setPickFor(null);
   };
   const [confirm, ask] = useConfirm();
@@ -1359,15 +1506,33 @@ export function EventForm({
     for (const e of pastEvents) if (e.clientName && e.clientPhone && !map.has(e.clientName)) map.set(e.clientName, e.clientPhone);
     return map;
   }, [pastEvents]);
-  const places = useMemo(() => [...new Set(pastEvents.map((e) => e.place).filter(Boolean))].slice(0, 30), [pastEvents]);
+  const places = useMemo(() => [...new Set(pastEvents.map((e) => e.place).filter((p) => p && p !== PLACE_TBD))].slice(0, 30), [pastEvents]);
 
-  const initialSnapshot = useState(() => JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program]))[0];
-  const dirty = JSON.stringify([day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program]) !== initialSnapshot;
+  const contact = formatContact({ kind: contactKind, value: contactKind === "telegram" ? telegramNick(contactValue) : contactKind === "email" ? contactValue.trim() : "" });
+  const fields = [day, start, end, whenSet, hostId, title, clientName, clientPhone, contactKind, contactValue, place, guests, note, program];
+  const initialSnapshot = useState(() => JSON.stringify(fields))[0];
+  const dirty = JSON.stringify(fields) !== initialSnapshot;
 
   // Черновик: новое мероприятие само сохраняется на устройстве (через 0,4 с после правки и при уходе со страницы),
   // менеджер может уйти в «Клиенты» и вернуться. Записали или удалили — черновика больше нет.
   const drafting = !initial && draftOwner !== undefined;
-  const snapshot: EventFormDraft = { id, savedAt: 0, day, start, end, hostId, title, clientName, clientPhone, place, guests, note, program };
+  const snapshot: EventFormDraft = {
+    id,
+    savedAt: 0,
+    day,
+    start,
+    end,
+    hostId,
+    title,
+    clientName,
+    clientPhone,
+    place,
+    guests,
+    note,
+    program,
+    contact: contactKind ? `${contactKind}${contactValue.trim() ? `:${contactValue.trim()}` : ""}` : "",
+    whenSet,
+  };
   const latest = useRef(snapshot);
   latest.current = snapshot;
   const draftDone = useRef(false);
@@ -1417,23 +1582,102 @@ export function EventForm({
   const chosen = hostId && !hostGone ? statusOf(hostId) : null;
   const guestsNum = guests.trim() === "" ? null : Number(guests);
   const guestsOk = guestsNum === null || (Number.isInteger(guestsNum) && guestsNum >= 0 && guestsNum <= EVENT_LIMITS.guestsMax);
-  const missing = [!hostId || hostGone ? "ведущий" : "", !title.trim() && !clientName.trim() ? "что за мероприятие или имя клиента" : "", guestsOk ? "" : "число гостей"].filter(Boolean);
-  const ready = missing.length === 0;
 
-  function apply(fill: LeadFill) {
-    if (fill.clientName) setClientName(fill.clientName);
-    if (fill.clientPhone) setClientPhone(fill.clientPhone);
-    if (fill.title) setTitle(fill.title);
-    if (fill.day) setDay(fill.day);
-    if (fill.start !== undefined && fill.end !== undefined) {
-      setStart(fill.start);
-      setEnd(fill.end);
+  // ── Обязательное ──
+  const fullPhone = phoneKey(clientPhone) !== "";
+  const nick = contactKind === "telegram" ? telegramNick(contactValue) : "";
+  const phoneIncomplete = clientPhone.trim() !== "" && !fullPhone;
+  const contactProblem =
+    contactKind === ""
+      ? "Выберите, где писать клиенту."
+      : contactKind === "telegram"
+        ? contactValue.trim() && !nick
+          ? "Ник Telegram — латиницей, от 5 знаков: @anna_party."
+          : !nick && !fullPhone
+            ? "Впишите ник Telegram или полный телефон."
+            : ""
+        : contactKind === "email"
+          ? validEmail(contactValue.trim())
+            ? ""
+            : "Впишите адрес почты: anna@mail.ru."
+          : fullPhone
+            ? ""
+            : `${CONTACT_TITLES[contactKind]} — по номеру: впишите полный телефон.`;
+  const done: Record<Need, boolean> = {
+    name: clientName.trim() !== "",
+    phone: fullPhone || nick !== "",
+    contact: contactProblem === "",
+    when: whenSet,
+    title: title.trim() !== "",
+    program: (program?.formats.length ?? 0) > 0,
+    place: place.trim() !== "",
+    host: Boolean(hostId) && !hostGone,
+  };
+  const needs = (Object.keys(NEED_TITLES) as Need[]).filter((k) => !done[k]);
+  const doneCount = 8 - needs.length;
+  const ready = needs.length === 0 && guestsOk;
+  const secId = (k: Need) => `ef-${k}-${id}`;
+  const goToFirst = () => {
+    const first = needs[0];
+    if (first) document.getElementById(secId(first))?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const secClass = (k: Need) => `plan-sec${done[k] ? " is-done" : " is-need"}${got[k] ? " is-got" : ""}`;
+
+  /** Вставка: заполняет только пустые поля (ничего не затирает), подставленное подсвечивает. */
+  function apply(fill: LeadFill & { program?: EventProgram | null }, from: string) {
+    const took: Got[] = [];
+    if (fill.clientName && !clientName.trim()) {
+      setClientName(fill.clientName);
+      took.push("name");
     }
-    if (fill.guests) setGuests(String(fill.guests));
-    if (fill.place) setPlace(fill.place);
-    if (fill.note) setNote(fill.note);
-    const got = (Object.keys(fill) as Array<keyof LeadFill>).map((k) => FILLED_TITLES[k]).filter(Boolean);
-    setFilled(got.length ? `Заполнено: ${got.join(", ")}. Проверьте и выберите ведущего.` : "В тексте не нашлось ни имени, ни телефона, ни даты — заполните вручную.");
+    if (fill.clientPhone && !clientPhone.trim()) {
+      setClientPhone(fill.clientPhone);
+      took.push("phone");
+    }
+    if (fill.contact && !contactKind) {
+      const c = parseContact(fill.contact);
+      if (c.kind) {
+        setContactKind(c.kind);
+        setContactValue(c.value);
+        took.push("contact");
+      }
+    }
+    if (fill.title && !title.trim()) {
+      setTitle(fill.title);
+      took.push("title");
+    }
+    if (!whenSet && (fill.day || fill.start !== undefined)) {
+      if (fill.day) setDay(fill.day);
+      if (fill.start !== undefined && fill.end !== undefined) {
+        setStart(fill.start);
+        setEnd(fill.end);
+        setWhenSet(true);
+        took.push("when");
+      } else if (fill.day) took.push("when");
+    }
+    if (fill.guests && !guests.trim()) {
+      setGuests(String(fill.guests));
+      took.push("guests");
+    }
+    if (fill.place && !place.trim()) {
+      setPlace(fill.place);
+      took.push("place");
+    }
+    if (fill.note && !note.trim()) {
+      setNote(fill.note);
+      took.push("note");
+    }
+    if (fill.program && !isEmptyProgram(fill.program) && isEmptyProgram(program)) {
+      setProgram(fill.program);
+      took.push("program");
+    }
+    setGot((g) => ({ ...g, ...Object.fromEntries(took.map((k) => [k, from])) }));
+    const titles: Record<Got, string> = { ...NEED_TITLES, when: fill.start !== undefined ? "дата и время" : "дата", guests: "гости", note: "комментарий" };
+    setFilled(
+      took.length
+        ? `Подставлено ${from}: ${took.map((k) => titles[k]).join(", ")}. Проверьте подсвеченное и заполните остальное.${!fill.start && took.includes("when") ? " Время в тексте не нашлось — выберите «с» и «до»." : ""}`
+        : "Новых данных в тексте не нашлось — заполненное не трогали. Заполните остальное вручную.",
+    );
   }
 
   async function save() {
@@ -1443,21 +1687,22 @@ export function EventForm({
     setError(null);
     try {
       const saved = await eventsRepo.save({
-          id,
-          hostId,
-          day,
-          start,
-          end,
-          title: title.trim(),
-          clientName: clientName.trim(),
-          clientPhone: clientPhone.trim(),
-          place: place.trim(),
-          guests: guestsNum,
-          note: note.trim(),
-          program,
-          // Правка — с версией, с которой открыли форму (владелец и менеджер могут править одно мероприятие).
-          ...(initial?.updatedAt ? { expect: initial.updatedAt } : {}),
-        });
+        id,
+        hostId,
+        day,
+        start,
+        end,
+        title: title.trim(),
+        clientName: clientName.trim(),
+        clientPhone: clientPhone.trim(),
+        clientContact: contact,
+        place: place.trim(),
+        guests: guestsNum,
+        note: note.trim(),
+        program,
+        // Правка — с версией, с которой открыли форму (владелец и менеджер могут править одно мероприятие).
+        ...(initial?.updatedAt ? { expect: initial.updatedAt } : {}),
+      });
       dropDraft();
       onSaved(saved);
     } catch (e) {
@@ -1478,125 +1723,64 @@ export function EventForm({
     ask({ title: "Не сохранять мероприятие?", text: "Введённое пропадёт.", confirmLabel: "Не сохранять", run: async () => onCancel() });
   }
 
+  const tbd = place === PLACE_TBD;
   return (
     <section className="card stack plan-form" aria-labelledby="event-form">
       <h2 id="event-form">{initial ? "Изменить мероприятие" : r ? "Черновик мероприятия" : template ? "Похожее мероприятие" : "Новое мероприятие"}</h2>
 
-      {!initial && <ImportFromLead today={today} onFill={apply} />}
+      <div className={needs.length ? "plan-progress" : "plan-progress is-done"} role="status">
+        <button type="button" className="plan-progress__text" onClick={goToFirst} disabled={!needs.length}>
+          {needs.length ? (
+            <>
+              <b>
+                Заполнено {doneCount} из 8 обязательных
+              </b>
+              <span> · осталось: {needs.map((k) => NEED_TITLES[k]).join(", ")}</span>
+            </>
+          ) : (
+            <b>✓ Всё обязательное заполнено</b>
+          )}
+        </button>
+        <span className="plan-progress__track" aria-hidden="true">
+          <i style={{ width: `${(doneCount / 8) * 100}%` }} />
+        </span>
+      </div>
+
+      <ImportFromLead today={today} onFill={apply} />
       {filled && (
         <p className="small plan-filled" role="status">
           {filled}
         </p>
       )}
+      <p className="plan-legend small">
+        <span>
+          <span className="plan-star">*</span> обязательно
+        </span>
+        <span>
+          <span className="plan-got">из расчёта</span> подставлено
+        </span>
+        <span>
+          <span className="plan-needt">заполнить</span> ещё нужно
+        </span>
+      </p>
 
-      <fieldset className="stack stack--tight">
-        <legend>Когда</legend>
-        <div className="plan-quick" role="group" aria-label="Быстрый выбор дня">
-          {quickDays(today).map((q) => (
-            <button key={q.day} type="button" className={day === q.day ? "seg__btn is-on" : "seg__btn"} aria-pressed={day === q.day} onClick={() => setDay(q.day)}>
-              {q.label}
-            </button>
-          ))}
-        </div>
+      <p className="plan-group">Для карточки клиента</p>
+      <fieldset id={secId("name")} className={`plan-sec${done.name && done.phone && done.contact ? " is-done" : " is-need"}${got.name || got.phone || got.contact ? " is-got" : ""}`}>
+        <legend>
+          Клиент <NeedMark need done={done.name && done.phone && done.contact} />
+        </legend>
         <label className="field">
-          <span className="field__label">Дата</span>
-          <input type="date" value={day} min={addDays(today, -31)} onChange={(e) => dayIndex(e.target.value) !== null && setDay(e.target.value)} />
-        </label>
-        <div className="plan-quick" role="group" aria-label="Готовое время">
-          {TIME_PRESETS.map((p) => (
-            <button
-              key={`${p.start}-${p.end}`}
-              type="button"
-              className={start === p.start && end === p.end ? "seg__btn is-on" : "seg__btn"}
-              aria-pressed={start === p.start && end === p.end}
-              onClick={() => {
-                setStart(p.start);
-                setEnd(p.end);
-              }}
-            >
-              {timeLabel(p.start)}–{timeLabel(p.end)}
-            </button>
-          ))}
-        </div>
-        <TimeSelects start={start} end={end} onChange={(s, e) => { setStart(s); setEnd(e); }} />
-        <div className="plan-quick" role="group" aria-label="Сколько часов">
-          {DURATIONS.map((h) => (
-            <button key={h} type="button" className={end === endIn(start, h) ? "seg__btn is-on" : "seg__btn"} aria-pressed={end === endIn(start, h)} onClick={() => setEnd(endIn(start, h))}>
-              {h} ч
-            </button>
-          ))}
-        </div>
-        <p className="plan-when">
-          {dayTitle(day)}, {rangeLabel(start, end)}
-        </p>
-      </fieldset>
-
-      <fieldset className="stack stack--tight">
-        <legend>Кто ведёт</legend>
-        {team.status === "error" && <LoadFailedInline onRetry={retryTeam} />}
-        {!teamData && team.status !== "error" && <p className="muted small">Загружаем команду…</p>}
-        {hostGone && <p className="error small">{initial?.hostName || "Этот ведущий"} сейчас отключён — выберите другого.</p>}
-        <div className="plan-hosts" role="radiogroup" aria-label="Ведущий">
-          {members.map(({ member, info }) => (
-            <label key={member.uid} className="choice plan-host">
-              <input type="radio" name={`host-${id}`} checked={hostId === member.uid} onChange={() => setHostId(member.uid)} />
-              <span className="choice__text">
-                <span className="choice__title">{member.name}</span>
-                <span className="choice__hint">
-                  <Pill color={MEMBER_COLORS[info.status]}>{STATUS_TITLES[info.status]}</Pill>
-                  {info.status === "partial" && ` свободен ${info.free.map((f) => `${timeLabel(f.start)}–${timeLabel(f.end)}`).join(", ")}`}
-                  {info.status === "busy" && ` ${info.busy.map((b) => `${rangeLabel(b.start, b.end)}${b.note ? ` — ${b.note}` : ""}`).join("; ")}`}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <label className="choice">
-          <input type="checkbox" checked={allTeam} onChange={(e) => setAllTeam(e.target.checked)} />
-          <span className="choice__text">
-            <span className="choice__title">Показать всю команду</span>
-            <span className="choice__hint">Не только ведущие: диджеи, музыканты, фокусники и другие.</span>
+          <span className="field__label">
+            Имя <NeedMark need done={done.name} got={got.name} />
           </span>
-        </label>
-        {chosen?.status === "busy" && <p className="small plan-warn">У выбранного ведущего это время занято. Записать всё равно можно.</p>}
-      </fieldset>
-
-      <fieldset className="stack stack--tight">
-        <legend>Что за мероприятие</legend>
-        <div className="plan-quick" role="group" aria-label="Вид мероприятия">
-          {EVENT_TITLES.slice(0, 6).map((t) => (
-            <button key={t} type="button" className={title === t ? "seg__btn is-on" : "seg__btn"} aria-pressed={title === t} onClick={() => setTitle(t)}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <label className="field">
-          <span className="field__label">Что за мероприятие</span>
-          <input type="text" list="event-titles" maxLength={EVENT_LIMITS.title} value={title} placeholder="Свадьба, корпоратив…" onChange={(e) => setTitle(e.target.value)} />
-        </label>
-        <datalist id="event-titles">
-          {EVENT_TITLES.map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
-        <label className="field">
-          <span className="field__label">Гостей (точное число)</span>
-          <input type="number" inputMode="numeric" min={0} max={EVENT_LIMITS.guestsMax} step={1} value={guests} placeholder="Например, 37" onChange={(e) => setGuests(e.target.value.replace(/\D/g, ""))} />
-        </label>
-      </fieldset>
-
-      <ProgramField program={program} onChange={setProgram} />
-
-      <fieldset className="stack stack--tight">
-        <legend>Клиент и место</legend>
-        <label className="field">
-          <span className="field__label">Клиент — имя</span>
           <input
             type="text"
             autoComplete="off"
             list={clientsRepo ? undefined : "event-clients"}
             maxLength={EVENT_LIMITS.client}
             value={clientName}
+            placeholder="Как обращаться"
+            className={got.name ? "is-got" : done.name ? "" : "is-need"}
             onFocus={() => {
               setPickFor("name");
               clientBase.load();
@@ -1605,6 +1789,7 @@ export function EventForm({
             onChange={(e) => {
               setPickFor("name");
               setClientName(e.target.value);
+              touch("name");
               const phone = clientPhones.get(e.target.value);
               if (phone && !clientPhone.trim()) setClientPhone(phone);
             }}
@@ -1616,8 +1801,10 @@ export function EventForm({
             <option key={n} value={n} />
           ))}
         </datalist>
-        <label className="field">
-          <span className="field__label">Телефон клиента</span>
+        <label className="field" id={secId("phone")}>
+          <span className="field__label">
+            Телефон <NeedMark need done={done.phone} got={got.phone} />
+          </span>
           <input
             type="tel"
             inputMode="tel"
@@ -1626,6 +1813,7 @@ export function EventForm({
             value={clientPhone}
             placeholder="+7 …"
             aria-invalid={phoneIncomplete}
+            className={got.phone ? "is-got" : done.phone ? "" : "is-need"}
             onFocus={() => {
               setPickFor("phone");
               clientBase.load();
@@ -1634,31 +1822,302 @@ export function EventForm({
             onChange={(e) => {
               setPickFor("phone");
               setClientPhone(e.target.value);
+              touch("phone");
             }}
           />
         </label>
         {pickFor === "phone" && <ClientSuggestions base={clientBase} query={clientPhone} onPick={pickClient} />}
-        {phoneIncomplete && (
-          <p className="small plan-warn">{phoneIssueText(clientPhone)} Мероприятие записать можно, но клиент не попадёт в «Клиенты».</p>
-        )}
-        {nameOnly && <p className="muted small">Без телефона клиент не попадёт в «Клиенты» — добавьте телефон, если он есть.</p>}
+        {phoneIncomplete && <p className="small plan-warn">{phoneIssueText(clientPhone)}</p>}
+        {!fullPhone && !phoneIncomplete && nick && <p className="muted small">Без телефона клиент попадёт в «Клиенты» по нику Telegram.</p>}
+        <div className="field" id={secId("contact")}>
+          <span className="field__label">
+            Связь — где писать клиенту <NeedMark need done={done.contact} got={got.contact} />
+          </span>
+          <div className="plan-quick plan-contact" role="radiogroup" aria-label="Где писать клиенту">
+            {CONTACT_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={contactKind === k}
+                className={contactKind === k ? "seg__btn is-on" : "seg__btn"}
+                onClick={() => {
+                  setContactKind(k);
+                  if (k !== contactKind) setContactValue("");
+                  touch("contact");
+                }}
+              >
+                {CONTACT_TITLES[k]}
+              </button>
+            ))}
+          </div>
+          {contactKind === "telegram" && (
+            <input
+              type="text"
+              autoComplete="off"
+              aria-label="Ник Telegram"
+              maxLength={60}
+              value={contactValue}
+              placeholder="@ник — или пусто, тогда по номеру"
+              onChange={(e) => {
+                setContactValue(e.target.value);
+                touch("contact");
+              }}
+            />
+          )}
+          {contactKind === "email" && (
+            <input
+              type="email"
+              autoComplete="off"
+              aria-label="Почта клиента"
+              maxLength={100}
+              value={contactValue}
+              placeholder="anna@mail.ru"
+              onChange={(e) => {
+                setContactValue(e.target.value);
+                touch("contact");
+              }}
+            />
+          )}
+          {contactKind && !contactProblem && <p className="muted small">✓ {contactLabel(contact)}</p>}
+          {contactKind && contactProblem && <p className="small plan-warn">{contactProblem}</p>}
+        </div>
+      </fieldset>
+
+      <p className="plan-group">Для ведущего</p>
+      <fieldset id={secId("when")} className={secClass("when")}>
+        <legend>
+          Когда <NeedMark need done={done.when} got={got.when} />
+        </legend>
+        <div className="plan-quick" role="group" aria-label="Быстрый выбор дня">
+          {quickDays(today).map((q) => (
+            <button
+              key={q.day}
+              type="button"
+              className={day === q.day ? "seg__btn is-on" : "seg__btn"}
+              aria-pressed={day === q.day}
+              onClick={() => {
+                setDay(q.day);
+                touch("when");
+              }}
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
         <label className="field">
-          <span className="field__label">Где (адрес или площадка)</span>
-          <input type="text" list="event-places" maxLength={EVENT_LIMITS.place} value={place} onChange={(e) => setPlace(e.target.value)} />
+          <span className="field__label">Дата</span>
+          <input
+            type="date"
+            value={day}
+            min={addDays(today, -31)}
+            onChange={(e) => {
+              if (dayIndex(e.target.value) === null) return;
+              setDay(e.target.value);
+              touch("when");
+            }}
+          />
+        </label>
+        <TimeSelects
+          start={start}
+          end={end}
+          unsetStart={!whenSet}
+          unsetEnd={!whenSet}
+          onChange={(s, e, which) => {
+            setStart(s);
+            // Выбрали «с», а «до» ещё не выбрано — «до» по умолчанию через 3,5 часа (типичный вечер с запасом).
+            setEnd(!whenSet && which === "start" ? Math.min(s + 210, MAX_END) : e);
+            setWhenSet(true);
+            touch("when");
+          }}
+        />
+        {whenSet ? (
+          <p className="plan-when">
+            {dayTitle(day)}, {rangeLabel(start, end)}
+            <span className="muted small plan-when__hint">{lengthHint(start, end)}</span>
+          </p>
+        ) : (
+          <p className="muted small">Выберите время «с» и «до». «До» — вместе с 30 минутами запаса: после него — продление за доплату.</p>
+        )}
+      </fieldset>
+
+      <fieldset id={secId("title")} className={secClass("title")}>
+        <legend>
+          Повод <NeedMark need done={done.title} got={got.title} />
+        </legend>
+        <div className="plan-quick" role="group" aria-label="Повод">
+          {EVENT_TITLES.slice(0, 6).map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={title === t ? "seg__btn is-on" : "seg__btn"}
+              aria-pressed={title === t}
+              onClick={() => {
+                setTitle(t);
+                touch("title");
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <label className="field">
+          <span className="field__label">Или своё</span>
+          <input
+            type="text"
+            list="event-titles"
+            maxLength={EVENT_LIMITS.title}
+            value={title}
+            placeholder="Юбилей, выпускной…"
+            onChange={(e) => {
+              setTitle(e.target.value);
+              touch("title");
+            }}
+          />
+        </label>
+        <datalist id="event-titles">
+          {EVENT_TITLES.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+      </fieldset>
+
+      <fieldset id={secId("program")} className={secClass("program")}>
+        <legend>
+          Программа <NeedMark need done={done.program} got={got.program} />
+        </legend>
+        <p className="muted small">Форматы по порядку вечера. Ведущий увидит программу и подтвердит, что принял. Цена в программу не попадает.</p>
+        <ProgramField
+          program={program}
+          onChange={(p) => {
+            setProgram(p);
+            touch("program");
+          }}
+        />
+      </fieldset>
+
+      <fieldset id={secId("place")} className={secClass("place")}>
+        <legend>
+          Где <NeedMark need done={done.place} got={got.place} />
+        </legend>
+        <label className="field">
+          <span className="field__label">Адрес или площадка</span>
+          <input
+            type="text"
+            list="event-places"
+            maxLength={EVENT_LIMITS.place}
+            value={tbd ? "" : place}
+            disabled={tbd}
+            placeholder={tbd ? PLACE_TBD : "Ресторан «Север», Тверская 7"}
+            onChange={(e) => {
+              setPlace(e.target.value);
+              touch("place");
+            }}
+          />
         </label>
         <datalist id="event-places">
           {places.map((p) => (
             <option key={p} value={p} />
           ))}
         </datalist>
-        <label className="field">
-          <span className="field__label">Комментарий ведущему (пожелания, особенности)</span>
-          <textarea rows={3} maxLength={EVENT_LIMITS.note} value={note} onChange={(e) => setNote(e.target.value)} />
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={tbd}
+            onChange={(e) => {
+              setPlace(e.target.checked ? PLACE_TBD : "");
+              touch("place");
+            }}
+          />
+          <span className="choice__text">
+            <span className="choice__title">Место пока уточняется</span>
+            <span className="choice__hint">Ведущий увидит «Место уточняется». Узнаете адрес — «Изменить».</span>
+          </span>
         </label>
-        <p className="muted small">Имя и телефон клиента видят только вы и ведущий этого мероприятия. Программу и комментарий ведущий видит в студии, программу — ещё в Telegram (без клиента).</p>
       </fieldset>
 
-      {!ready && <p className="muted small">Осталось указать: {missing.join(", ")}.</p>}
+      <fieldset id={secId("host")} className={secClass("host")}>
+        <legend>
+          Кто ведёт <NeedMark need done={done.host} />
+        </legend>
+        {team.status === "error" && <LoadFailedInline onRetry={retryTeam} />}
+        {!teamData && team.status !== "error" && <p className="muted small">Загружаем команду…</p>}
+        {!whenSet && <p className="muted small">Сначала выберите время — покажем, кто свободен.</p>}
+        {hostGone && <p className="error small">{initial?.hostName || "Этот ведущий"} сейчас отключён — выберите другого.</p>}
+        <div className="plan-hosts" role="radiogroup" aria-label="Ведущий">
+          {members.map(({ member, info }) => (
+            <label key={member.uid} className="choice plan-host">
+              <input type="radio" name={`host-${id}`} checked={hostId === member.uid} onChange={() => setHostId(member.uid)} />
+              <span className="choice__text">
+                <span className="choice__title">{member.name}</span>
+                {whenSet && (
+                  <span className="choice__hint">
+                    <Pill color={MEMBER_COLORS[info.status]}>{STATUS_TITLES[info.status]}</Pill>
+                    {info.status === "partial" && ` свободен ${info.free.map((f) => `${timeLabel(f.start)}–${timeLabel(f.end)}`).join(", ")}`}
+                    {info.status === "busy" && ` ${info.busy.map((b) => `${rangeLabel(b.start, b.end)}${b.note ? ` — ${b.note}` : ""}`).join("; ")}`}
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
+        </div>
+        <label className="choice">
+          <input type="checkbox" checked={allTeam} onChange={(e) => setAllTeam(e.target.checked)} />
+          <span className="choice__text">
+            <span className="choice__title">Показать всю команду</span>
+            <span className="choice__hint">Не только ведущие: диджеи, музыканты, фокусники и другие.</span>
+          </span>
+        </label>
+        {whenSet && chosen?.status === "busy" && <p className="small plan-warn">У выбранного ведущего это время занято. Записать всё равно можно.</p>}
+      </fieldset>
+
+      <p className="plan-group">По желанию</p>
+      <fieldset className={`plan-sec${got.guests || got.note ? " is-got" : ""}`}>
+        <legend>Гостей и комментарий</legend>
+        <label className="field">
+          <span className="field__label">
+            Гостей (точное число) <NeedMark got={got.guests} />
+          </span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={EVENT_LIMITS.guestsMax}
+            step={1}
+            value={guests}
+            placeholder="Например, 37"
+            aria-invalid={!guestsOk}
+            onChange={(e) => {
+              setGuests(e.target.value.replace(/\D/g, ""));
+              touch("guests");
+            }}
+          />
+        </label>
+        {!guestsOk && <p className="small plan-warn">Гостей — числом до {EVENT_LIMITS.guestsMax}.</p>}
+        <label className="field">
+          <span className="field__label">
+            Комментарий ведущему <NeedMark got={got.note} />
+          </span>
+          <textarea
+            rows={3}
+            maxLength={EVENT_LIMITS.note}
+            value={note}
+            placeholder="Пожелания, особенности зала, что взять с собой"
+            onChange={(e) => {
+              setNote(e.target.value);
+              touch("note");
+            }}
+          />
+        </label>
+        <p className="muted small">Имя, телефон и связь клиента видят только вы и ведущий этого мероприятия. В Telegram ведущему уходит без клиента и адреса.</p>
+      </fieldset>
+
+      {needs.length > 0 && (
+        <p className="small plan-warn" role="status">
+          Чтобы записать, осталось: {needs.map((k) => NEED_TITLES[k]).join(", ")}.
+        </p>
+      )}
+      {!initial && <p className="muted small">Записывайте, когда клиент согласен и внёс предоплату 2 000 ₽: ведущему сразу уходит заявка, его время занято.</p>}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -1781,20 +2240,29 @@ function ClientSuggestions({ base, query, onPick }: { base: ClientBase; query: s
   );
 }
 
-/** «Заполнить из заявки»: вставить текст (сообщение с сайта, переписка) или взять заявку клиента из базы площадок. */
-function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadFill) => void }) {
+/**
+ * «📋 Вставить расчёт или заявку» (решение владельца 24 октября 2026): текст из WhatsApp, Telegram, Авито, почты или
+ * заявки с сайта — имя, телефон, ник, дата, время «с» и «до» (из длительности расчёта), повод, гости, место и программа.
+ * Заполняет только пустые поля. Или заявка клиента из базы площадок.
+ */
+function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadFill & { program?: EventProgram | null }, from: string) => void }) {
   const [text, setText] = useState("");
   const [showRequests, setShowRequests] = useState(false);
   return (
-    <Fold title="Заполнить из заявки" value="вставить текст или выбрать заявку">
+    <Fold title="📋 Вставить расчёт или заявку" value="поля заполнятся сами">
       <div className="stack stack--tight">
         <label className="field">
-          <span className="field__label">Текст заявки</span>
-          <textarea rows={4} value={text} placeholder="Вставьте сообщение с сайта или из переписки: имя, телефон, дата, время, гости" onChange={(e) => setText(e.target.value)} />
+          <span className="field__label">Расчёт клиента или текст заявки</span>
+          <textarea rows={5} value={text} placeholder="🧮 Расчёт JoyRest… или сообщение клиента: имя, телефон, дата, время, гости" onChange={(e) => setText(e.target.value)} />
         </label>
         <div className="actions">
-          <button type="button" className="btn btn--secondary btn--block" disabled={!text.trim()} onClick={() => onFill(parseLeadText(text, today))}>
-            Заполнить из текста
+          <button
+            type="button"
+            className="btn btn--secondary btn--block"
+            disabled={!text.trim()}
+            onClick={() => onFill({ ...parseLeadText(text, today), program: programFromCalc(text) }, /Расч[её]т JoyRest/i.test(text) ? "из расчёта" : "из заявки")}
+          >
+            Разложить по полям
           </button>
           {venuesRepo && (
             <button type="button" className="btn btn--quiet btn--block" aria-expanded={showRequests} onClick={() => setShowRequests(!showRequests)}>
@@ -1802,7 +2270,7 @@ function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadF
             </button>
           )}
         </div>
-        {showRequests && <RequestPicker onPick={(r) => onFill(fillFromRequest(r.data))} />}
+        {showRequests && <RequestPicker onPick={(r) => onFill(fillFromRequest(r.data), "из заявки")} />}
       </div>
     </Fold>
   );

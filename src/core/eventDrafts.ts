@@ -23,6 +23,10 @@ export interface EventFormDraft {
   guests: string;
   note: string;
   program: EventProgram | null;
+  /** Где писать клиенту («telegram:@ник», «whatsapp»…); у старых черновиков — пусто. */
+  contact?: string;
+  /** Дату и время выбрали сами (или подставили из расчёта) — «Когда» заполнено. */
+  whenSet?: boolean;
 }
 
 /** Не больше 10 черновиков; старше 30 дней — убираются сами. */
@@ -57,6 +61,8 @@ function parseOne(raw: unknown): EventFormDraft | null {
     guests: str(r.guests, 6),
     note: str(r.note, EVENT_LIMITS.note),
     program: cleanProgram(r.program),
+    contact: str(r.contact, 120),
+    whenSet: r.whenSet === true,
   };
 }
 

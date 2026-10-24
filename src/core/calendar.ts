@@ -232,5 +232,5 @@ export function weeklyDays(day: string, weeks: number): string[] {
 /** Время по умолчанию для поиска — типичный вечер. */
 export const DEFAULT_QUERY = { start: 18 * 60, end: 23 * 60 };
 
-/** Варианты времени в выпадающих списках (шаг 30 минут). */
-export const TIME_OPTIONS: number[] = Array.from({ length: 48 }, (_, i) => i * 30);
+/** Варианты времени в выпадающих списках (шаг 15 минут: начало из расчёта сайта бывает 19:15). */
+export const TIME_OPTIONS: number[] = Array.from({ length: 96 }, (_, i) => i * 15);

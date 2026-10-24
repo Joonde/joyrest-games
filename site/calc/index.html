@@ -140,6 +140,10 @@
   .sheet[hidden] { display: none; }
   .sheet__box { max-height: calc(100vh - 32px); overflow: auto; width: min(100%, 420px); background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 24px; display: grid; gap: 12px; }
   .sheet__box h2 { margin-bottom: 4px; }
+  .sname { display: grid; gap: 6px; }
+  .sname label { font-size: 14px; font-weight: 600; }
+  .sname label span { font-weight: 400; color: var(--ink-soft); }
+  .sname input { min-height: 52px; width: 100%; padding: 10px 14px; border: 1.5px solid var(--gold); border-radius: 14px; background: var(--card); color: var(--ink); font: inherit; font-size: 16px; box-sizing: border-box; }
   .sheet__box a.btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
   .help { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0; border: 0; background: none; color: var(--ink); font-weight: 600; cursor: pointer; text-align: left; }
   .help b { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--gold); font-weight: 600; }
@@ -281,6 +285,7 @@
   <div class="sheet__box">
     <h2 id="sheetTitle">Куда отправить расчёт?</h2>
     <p class="small muted">Откроется чат с нами, расчёт уже будет в сообщении — останется нажать «Отправить».</p>
+    <div class="sname"><label for="sName">Как к вам обращаться <span>— по желанию</span></label><input type="text" id="sName" autocomplete="given-name" maxlength="40" placeholder="Например, Анна"></div>
     <a class="btn" id="sWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
     <a class="btn btn--secondary" id="sTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
     <button type="button" class="btn btn--secondary" id="sAvito" aria-expanded="false" aria-controls="sAvitoBox">Авито</button>

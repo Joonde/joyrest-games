@@ -20039,10 +20039,294 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* «По цвету» — первой строкой во всю ширину на телефоне (24 октября 2026). */
+.plan-seg--filters > :first-child {
+  grid-column: 1 / -1;
+}
+
 @media (min-width: 700px) {
   .plan-seg--filters {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+
+  .plan-seg--filters > :first-child {
+    grid-column: auto;
+  }
+}
+
+/*
+ * Цветные кружки мероприятий (решение владельца 24 октября 2026): цвета заметно разные, «Сверх плана» — фиолетовый,
+ * «Не подтвердил» — красный, «Прошло — отметьте» — колечко. Кружок — не текст: подпись всегда рядом, цвет текста — темы.
+ */
+.plan-light--over { --light: #c45ce8; }
+.plan-light--late { --light: #ef3b3b; }
+.plan-light--live { --light: #ff8a1f; }
+.plan-light--check { --light: transparent; }
+.plan-light--wait { --light: #f2c81c; }
+.plan-light--ok { --light: #2fb855; }
+.plan-light--held { --light: #2f8cf0; }
+.plan-light--failed { --light: #6f6863; }
+.plan-light--off { --light: #6f6863; }
+
+.plan-light {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.plan-light__dot {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--light);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--color-text) 35%, transparent);
+}
+
+.plan-light--check .plan-light__dot {
+  box-shadow: inset 0 0 0 2.5px var(--color-text);
+}
+
+.plan-light--over .plan-light__dot,
+.plan-light--late .plan-light__dot,
+.plan-light--live .plan-light__dot {
+  animation: plan-light-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes plan-light-pulse {
+  50% {
+    box-shadow:
+      0 0 0 1.5px color-mix(in srgb, var(--color-text) 35%, transparent),
+      0 0 0 5px color-mix(in srgb, var(--light) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-light__dot {
+    animation: none !important;
+  }
+}
+
+.plan-card__top .plan-light {
+  flex: none;
+  max-width: 55%;
+  text-align: right;
+}
+
+.plan-lights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plan-lights__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-lights__btn.is-on {
+  border-color: var(--color-highlight);
+  background: var(--color-surface-alt);
+  box-shadow: 0 0 0 2px var(--color-highlight);
+}
+
+.plan-lights__btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Форма мероприятия: блоки, обязательные поля, подставленное, «Заполнено N из 8» (24 октября 2026). */
+.plan-progress {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  z-index: 3;
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+}
+
+.plan-progress__text {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-progress__text:disabled {
+  cursor: default;
+}
+
+.plan-progress__track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  overflow: hidden;
+}
+
+.plan-progress__track i {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+  transition: width 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-progress__track i {
+    transition: none;
+  }
+}
+
+.plan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.plan-group {
+  margin: 8px 0 -4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-text);
+}
+
+.plan-form fieldset.plan-sec {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.plan-form fieldset.plan-sec.is-need {
+  border-style: dashed;
+  border-color: var(--color-danger);
+}
+
+.plan-form fieldset.plan-sec.is-done {
+  border-color: color-mix(in srgb, var(--color-success) 70%, transparent);
+}
+
+.plan-form fieldset.plan-sec.is-got {
+  background: color-mix(in srgb, var(--color-highlight) 10%, transparent);
+}
+
+.plan-form fieldset.plan-sec legend {
+  padding: 0 4px;
+}
+
+.plan-form input.is-got {
+  border-color: var(--color-highlight);
+}
+
+.plan-star {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.plan-got,
+.plan-needt,
+.plan-ok {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  vertical-align: middle;
+  color: var(--color-bg);
+}
+
+.plan-got {
+  background: color-mix(in srgb, var(--color-highlight) 28%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px var(--color-highlight);
+  color: var(--color-text);
+}
+
+.plan-needt {
+  background: var(--color-danger);
+}
+
+.plan-ok {
+  background: var(--color-success);
+}
+
+.plan-when__hint {
+  display: block;
+  font-weight: 400;
+}
+
+.plan-formats {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-formats__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  border: 1.5px solid var(--color-highlight);
+  border-radius: 12px;
+  background: var(--color-surface-alt);
+}
+
+.plan-formats__n {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-highlight);
+  color: var(--color-bg);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.plan-formats__name {
+  overflow-wrap: anywhere;
+}
+
+.plan-formats__ctl {
+  display: flex;
+  gap: 2px;
+}
+
+.plan-icon {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
 }
 
 .plan-seg .seg__btn {
@@ -24158,4 +24442,138 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 
 .client-wish__row > * {
   min-width: 0;
+}
+
+/* «Рабочее место»: мероприятия, которые требуют внимания, — кружками (24 октября 2026). */
+.sales-desk__lights {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.sales-desk__lights:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * Схема пути заявки в «Инструкции менеджера» (24 октября 2026): шаги сверху вниз, цвет — кто действует (клиент,
+ * менеджер, ведущий, платформа сама), стрелка с подписью — какие данные идут дальше. Текст — цвета темы.
+ */
+.sales-flow {
+  display: grid;
+  gap: 12px;
+}
+
+.sales-flow__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.sales-flow__who {
+  display: inline-block;
+  width: fit-content;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--who) 30%, var(--color-surface));
+  box-shadow: inset 0 0 0 1.5px var(--who);
+}
+
+.sales-flow__who--client,
+.sales-flow__box--client { --who: #d2a0ac; }
+.sales-flow__who--manager,
+.sales-flow__box--manager { --who: #e3c68c; }
+.sales-flow__who--host,
+.sales-flow__box--host { --who: #a3c2aa; }
+.sales-flow__who--auto,
+.sales-flow__box--auto { --who: #b3aadd; }
+
+.sales-flow__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sales-flow__box {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--who);
+  border-left-width: 6px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--who) 10%, var(--color-surface));
+}
+
+.sales-flow__box--auto {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.sales-flow__title {
+  font-size: 16px;
+}
+
+.sales-flow__text {
+  color: var(--color-text);
+}
+
+.sales-flow__branches {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.sales-flow__if {
+  font-weight: 600;
+}
+
+.sales-flow__arrow {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 0 2px 18px;
+}
+
+.sales-flow__line {
+  position: relative;
+  justify-self: center;
+  width: 2px;
+  height: 100%;
+  min-height: 28px;
+  background: var(--color-text-muted);
+}
+
+.sales-flow__line::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--color-text-muted);
+  border-bottom: 0;
+}
+
+.sales-flow__data {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface-alt);
 }

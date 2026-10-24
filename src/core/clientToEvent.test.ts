@@ -73,3 +73,14 @@ describe("из карточки клиента — в мероприятие в�
     expect(f).toEqual({ clientName: "Без заявки", program: null, got: ["имя"] });
   });
 });
+
+describe("связь клиента — в форму мероприятия", () => {
+  it("ник Telegram из ссылок карточки, иначе из текста; WhatsApp — по ссылке wa.me", () => {
+    const today = "2026-10-24";
+    expect(eventFillFromClient({ name: "Анна", phone: "", notes: "", links: ["https://t.me/anna_party"] }, today).contact).toBe("telegram:@anna_party");
+    expect(eventFillFromClient({ name: "Анна", phone: "+79150127460", notes: "", links: ["https://wa.me/79150127460"] }, today).contact).toBe("whatsapp");
+    expect(eventFillFromClient({ name: "Анна", phone: "", notes: "Пишите на anna@mail.ru" }, today).contact).toBe("email:anna@mail.ru");
+    const fill = eventFillFromClient({ name: "Анна", phone: "", notes: "", links: ["https://t.me/anna_party"] }, today);
+    expect(fill.got).toContain("связь");
+  });
+});

@@ -74,7 +74,7 @@ describe("программа мероприятия из расчёта клие
   it("сообщение ведущему — с программой, без клиента", () => {
     const program = cleanProgram({ formats: ["Квиз", "Музыкальный"], extension: "30 мин", addons: ["Логотип на экранах"] });
     const text = noticeText("created", { title: "Корпоратив", guests: 40, day: "2026-11-14", start: 19 * 60, end: 22 * 60 + 30, program }, "https://games.joy-rest.ru");
-    expect(text).toContain("Программа: Квиз + Музыкальный · продление 30 мин");
+    expect(text).toContain("Программа: 1 · Квиз → 2 · Музыкальный · продление 30 мин");
     expect(text).toContain("Допы: Логотип на экранах");
     expect(programLines(null)).toEqual([]);
     expect(noticeText("cancelled", { title: "Корпоратив", guests: 40, day: "2026-11-14", start: 1140, end: 1350, program }, "x")).not.toContain("Программа");

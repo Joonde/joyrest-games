@@ -318,7 +318,7 @@ export function startBot(options: BotOptions): Bot {
       if (asks(r.accepted ? 1 : null, r.accept_rev)) await sendAsk(r.host_id, text, e);
       else await sendTo(r.host_id, text);
     }
-    // Игра идёт дольше мероприятия по плану: сверх 20 минут и потом каждые 30 — ведущему и владельцу (по одному разу на
+    // Игра идёт дольше мероприятия по плану: после «до» (в нём уже 30 минут запаса) и потом каждые 30 — ведущему и владельцу (по одному разу на
     // каждые полчаса). Игра — открытая (ждёт гостей или идёт) у этого ведущего этим вечером, с действием пульта за полчаса.
     const late = await sql<{ id: string; host_id: string; host_name: string | null; title: string; guests: number | null; day: string; start_min: number; end_min: number; starts_at: Date; ends_at: Date }[]>`
       select e.id, e.host_id, u.name as host_name, e.title, e.guests, to_char(e.day, 'YYYY-MM-DD') as day, e.start_min, e.end_min, e.starts_at, e.ends_at

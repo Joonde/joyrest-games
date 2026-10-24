@@ -26,7 +26,7 @@ interface Result {
   hint: string;
   travel: number;
 }
-interface Options { pkg: string; tier: number; weekend?: boolean; extras?: string[]; ext?: number; addons?: string[]; date?: string; time?: string; today?: string }
+interface Options { pkg: string; tier: number; weekend?: boolean; extras?: string[]; ext?: number; addons?: string[]; date?: string; time?: string; today?: string; name?: string }
 interface Summary { type: string; guests: number | null; parts: string[]; totals: { name: string; price: number }[] | null; duration: string; season: string; date: string; text: string }
 interface Pricing {
   calcPrice(o: Options): Result;
@@ -40,6 +40,7 @@ interface Pricing {
   moscowToday(nowMs?: number): string;
   parseDate(iso: string): { y: number; m: number; d: number; t: number; wd: number } | null;
   telegramText(text: string): string;
+  cleanName(n: unknown): string;
   mailLinks(text: string): { gmail: string; yandex: string; mailru: string; app: string };
   ADDONS: { id: string; label: string; price: number; fixed: boolean }[];
   TIERS: number[];
@@ -248,6 +249,18 @@ describe("калькулятор сайта: цены", () => {
       expect(P.calcMessage({ ...base, time: bad }, "standard")).not.toContain("Начало");
       expect(P.calcSummary({ ...base, time: bad }).text).not.toContain("начало в");
     }
+  });
+  it("«Как к вам обращаться» — по желанию: первой строкой «Имя», мусор вырезается, в краткий расчёт не идёт", () => {
+    const m = P.calcMessage({ pkg: "quiz", tier: 1, name: "  Анна-Мария  " }, "standard").split("\n");
+    expect(m[2]).toBe("Имя: Анна-Мария");
+    expect(m[3]).toBe("Пакет: Квиз");
+    expect(P.calcMessage({ pkg: "quiz", tier: 1, name: "   " }, "standard")).not.toContain("Имя:");
+    expect(P.calcMessage({ pkg: "quiz", tier: 1 }, "standard")).not.toContain("Имя:");
+    expect(P.cleanName("<b>Олег</b> +7 915 000-00-00")).toBe("b Олег b");
+    expect(P.cleanName("Ёлка O'Neil")).toBe("Ёлка O'Neil");
+    expect(P.cleanName("Я".repeat(80)).length).toBe(40);
+    expect(P.cleanName(null)).toBe("");
+    expect(P.calcSummary({ pkg: "quiz", tier: 1, name: "Анна" } as Options).text).not.toContain("Анна");
   });
 });
 

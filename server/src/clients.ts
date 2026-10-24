@@ -30,6 +30,7 @@ import {
   type ClientStatus,
 } from "../../src/core/clients";
 import { contactQuery, matchesContact, queryLabel, type ContactQuery } from "../../src/core/privacy";
+import { contactLinks, parseContact } from "../../src/core/events";
 import * as permissions from "../../src/data/permissions";
 import type { ClientContact, ClientDetails, ClientRecord } from "../../src/data/types";
 import { actorOf, apiGuard, sessionUser, type SessionRow } from "./auth";
@@ -547,9 +548,12 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
       const requests = (await sql<{ id: string; number: number; name: string | null; phone: string | null; event: string | null; date: string | null; guests: unknown; archived_at: Date | null }[]>`
         select id, number, data->>'name' as name, data->>'phone' as phone, data->>'eventType' as event, data->>'date' as date, data->'guests' as guests, archived_at
         from venue_requests`).filter((r) => matchesContact(q, { phones: [r.phone ?? ""], texts: [r.phone ?? ""] }));
-      const events = (await sql<{ id: string; title: string; day: string; client_name: string; client_phone: string; cancelled_at: Date | null }[]>`
-        select id, title, to_char(day, 'YYYY-MM-DD') as day, client_name, client_phone, cancelled_at from events
-        where client_phone <> '' or client_name <> ''`).filter((r) => matchesContact(q, { phones: [r.client_phone], texts: [r.client_phone] }));
+      const events = (await sql<{ id: string; title: string; day: string; client_name: string; client_phone: string; client_contact: string; cancelled_at: Date | null }[]>`
+        select id, title, to_char(day, 'YYYY-MM-DD') as day, client_name, client_phone, client_contact, cancelled_at from events
+        where client_phone <> '' or client_name <> '' or client_contact <> ''`).filter((r) => {
+        const c = parseContact(r.client_contact);
+        return matchesContact(q, { phones: [r.client_phone], texts: [r.client_phone], links: contactLinks(r.client_contact), emails: c.kind === "email" ? [c.value] : [] });
+      });
       const venues = (await sql<{ id: string; name: string | null; person: string | null; phone: string | null; messenger: string | null; email: string | null }[]>`
         select id, data->>'name' as name, data->>'person' as person, data->>'phone' as phone, data->>'messenger' as messenger, data->>'email' as email
         from venues`).filter((r) => matchesContact(q, { phones: [r.phone ?? ""], texts: [r.messenger ?? ""], emails: [r.email ?? ""] }));
@@ -596,7 +600,7 @@ export function registerClients(app: FastifyInstance, options: ClientsOptions): 
         const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
         if (m.clients.length) await tx`delete from clients where id in ${tx(ids(m.clients))}`;
         if (m.requests.length) await tx`delete from venue_requests where id in ${tx(ids(m.requests))}`;
-        if (m.events.length) await tx`update events set client_name = '', client_phone = '', updated_at = now() where id in ${tx(ids(m.events))}`;
+        if (m.events.length) await tx`update events set client_name = '', client_phone = '', client_contact = '', updated_at = now() where id in ${tx(ids(m.events))}`;
         if (m.venues.length) {
           await tx`update venues set data = data || ${tx.json({ person: "", role: "", phone: "", messenger: "", email: "" })}, updated_at = now()
             where id in ${tx(ids(m.venues))}`;

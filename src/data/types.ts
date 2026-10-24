@@ -585,6 +585,8 @@ export interface AgencyEvent {
   end: number;
   clientName: string;
   clientPhone: string;
+  /** Где писать клиенту: «telegram:@anna», «whatsapp», «email:a@b.ru», «call»; пусто — не указано (`parseContact`). */
+  clientContact?: string;
   /** Что за мероприятие: «Свадьба», «Корпоратив»… */
   title: string;
   place: string;
@@ -601,6 +603,8 @@ export interface AgencyEvent {
   acceptRev?: number;
   /** Версия записи (время последнего изменения): форма правки шлёт её как `expect` — чужую правку не затереть. */
   updatedAt?: number;
+  /** У ведущего сейчас открыта игра этого вечера (ждёт гостей или идёт, действие пульта за 30 минут) — считает сервер. */
+  live?: boolean;
   /** Только в ответе на сохранение: мероприятие записано, а клиент в базу клиентов — нет (добавить вручную). */
   clientNotSaved?: boolean;
   /** Только в ответе на сохранение: клиента не записали, потому что нет полного телефона или ссылки. */

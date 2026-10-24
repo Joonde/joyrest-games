@@ -352,6 +352,29 @@ function upcoming(day: number, month: number, year: number | null, today: string
 
 const round15 = (m: number) => Math.round(m / TIME_STEP) * TIME_STEP;
 
+/** Дата в тексте: 2026-10-15, 15.10.2026, 15.10, «15 октября» — та, что раньше в тексте. Нет — null. */
+function dateIn(t: string, today: string): string | null {
+  const found: Array<{ at: number; day: string | null }> = [];
+  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (iso && dayIndex(iso[0]) !== null) found.push({ at: iso.index, day: iso[0] });
+  // «15.10» и «15.10.2026», но не время «18.00» и не часть другого числа.
+  for (const m of t.matchAll(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g)) {
+    const before = t[(m.index ?? 0) - 1] ?? "";
+    const after = t[(m.index ?? 0) + m[0].length] ?? "";
+    const month = Number(m[2]);
+    if (/[\d:.]/.test(before) || /[\d:]/.test(after) || month < 1 || month > 12 || Number(m[1]) < 1 || Number(m[1]) > 31) continue;
+    found.push({ at: m.index ?? 0, day: upcoming(Number(m[1]), month, m[3] ? Number(m[3]) : null, today) });
+    break;
+  }
+  const worded = /(\d{1,2})\s+(янв|фев|мар|апр|ма[яй]|июн|июл|авг|сен|окт|ноя|дек)[а-я]*(?:\s+(\d{4}))?/i.exec(t);
+  if (worded) {
+    const stem = worded[2]!.toLowerCase().replace("май", "мая");
+    const month = MONTH_STEMS.findIndex((m) => stem.startsWith(m.slice(0, 3))) + 1;
+    if (month > 0) found.push({ at: worded.index, day: upcoming(Number(worded[1]), month, worded[3] ? Number(worded[3]) : null, today) });
+  }
+  return found.filter((f) => f.day).sort((a, b) => a.at - b.at)[0]?.day ?? null;
+}
+
 /**
  * Разбор текста заявки (сообщение с сайта в Telegram, переписка, заметка): имя, телефон, что за
  * мероприятие, дата, время, гости, место, комментарий. Всё, что не нашлось, остаётся пустым.
@@ -375,26 +398,10 @@ export function parseLeadText(text: string, today: string): LeadFill {
   if (place) out.place = cleanText(place, EVENT_LIMITS.place);
   const note = field(t, ["Комментарий", "Пожелания", "Заметка"]);
   if (note) out.note = cleanText(note, EVENT_LIMITS.note);
-  // Дата: 2026-10-15, 15.10.2026, 15.10, «15 октября».
-  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(t);
-  // «15.10» и «15.10.2026», но не время «18.00» и не часть другого числа.
-  let dotted: RegExpExecArray | null = null;
-  for (const m of t.matchAll(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g)) {
-    const before = t[(m.index ?? 0) - 1] ?? "";
-    const after = t[(m.index ?? 0) + m[0].length] ?? "";
-    const month = Number(m[2]);
-    if (/[\d:.]/.test(before) || /[\d:]/.test(after) || month < 1 || month > 12 || Number(m[1]) < 1 || Number(m[1]) > 31) continue;
-    dotted = m as RegExpExecArray;
-    break;
-  }
-  const worded = /(\d{1,2})\s+(янв|фев|мар|апр|ма[яй]|июн|июл|авг|сен|окт|ноя|дек)[а-я]*(?:\s+(\d{4}))?/i.exec(t);
-  let day: string | null = null;
-  if (iso && dayIndex(iso[0]) !== null) day = iso[0];
-  else if (worded) {
-    const stem = worded[2]!.toLowerCase().replace("май", "мая");
-    const month = MONTH_STEMS.findIndex((m) => stem.startsWith(m.slice(0, 3))) + 1;
-    if (month > 0) day = upcoming(Number(worded[1]), month, worded[3] ? Number(worded[3]) : null, today);
-  } else if (dotted) day = upcoming(Number(dotted[1]), Number(dotted[2]), dotted[3] ? Number(dotted[3]) : null, today);
+  // Дата: строка «Дата: …» главнее всего (24 октября 2026: в расчёте сайта ниже стоит «Ранняя бронь: до 15 ноября» — это не
+  // дата праздника); нет строки — самая ранняя дата в тексте без строк про раннюю бронь и праздничную цену.
+  const dateLine = field(t, ["Дата праздника", "Дата", "Когда"]);
+  const day = (dateLine && dateIn(dateLine, today)) || dateIn(t.replace(/^\s*(?:ранняя бронь|праздничная цена)\s*[:：].*$/gim, ""), today);
   if (day) out.day = day;
   // Время: 18:00–23:00, 18.00-23.00, «с 18 до 23».
   const range = /(\d{1,2})[:.](\d{2})\s*(?:[–—-]|до)\s*(\d{1,2})[:.](\d{2})/.exec(t) ?? null;

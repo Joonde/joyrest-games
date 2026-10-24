@@ -435,7 +435,7 @@ try {
   const busyRadio = ap.getByRole("radio", { name: new RegExp(hostName) });
   await until(async () => /Занят/.test((await ap.locator("label.plan-host", { hasText: hostName }).first().textContent()) ?? ""), WAIT, "ведущий занят в списке");
   await busyRadio.check();
-  check((await ap.locator(".plan-warn").count()) === 1, "Владелец: форма предупреждает, что у ведущего время занято");
+  check((await ap.locator(".plan-warn", { hasText: "У выбранного ведущего это время занято" }).count()) === 1, "Владелец: форма предупреждает, что у ведущего время занято");
   await ap.getByRole("button", { name: "Корпоратив", exact: true }).click();
   await fillEvent(ap, { title: "Квиз-вечер, проверка", name: "Второй Проверка", phone: "+7 900 000-00-01", contact: "Звонок", formats: ["Квиз"], place: "Где-то, проверка" });
   await ap.getByRole("button", { name: "Записать мероприятие" }).click();
@@ -452,6 +452,8 @@ try {
     await api("POST", "/api/events", admin.cookie, { id: `e2emany${i}${Date.now() % 100000}`, hostId: host.profile.uid, day: D1, start: 1080 + i * 15, end: 1380, title: `Банкет ${i}, проверка` });
   }
   await ap.reload();
+  await until(async () => (await ap.locator(".plan-lights").count()) > 0, WAIT, "список после перезагрузки");
+  await ap.getByRole("button", { name: "День", exact: true }).click();
   await until(async () => (await ap.locator(".plan-timeline").count()) > 0, WAIT, "таймлайн после перезагрузки");
   await ap.locator('input[type="date"]').fill(D1);
   const group = ap.locator(".plan-event--group");

@@ -2249,7 +2249,7 @@ function ImportFromLead({ today, onFill }: { today: string; onFill: (fill: LeadF
   const [text, setText] = useState("");
   const [showRequests, setShowRequests] = useState(false);
   return (
-    <Fold title="📋 Вставить расчёт или заявку" value="текст из чата — поля заполнятся сами">
+    <Fold title="📋 Вставить расчёт или заявку" value="поля заполнятся сами">
       <div className="stack stack--tight">
         <label className="field">
           <span className="field__label">Расчёт клиента или текст заявки</span>

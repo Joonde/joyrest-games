@@ -47,6 +47,13 @@ const check = (cond, good, fail) => (cond ? ok(good) : bad(fail ?? good));
 const section = (title) => say(`\n— ${title} —`);
 
 function finish(code) {
+  // Полный отчёт — файлом рядом со снимками (аннотация Actions обрезается).
+  try {
+    const md = [`# Проверка пути менеджера`, "", problems.length ? `**Замечаний: ${problems.length}**` : "**Всё работает.**", "", ...problems.map((p) => `- ❌ ${p}`), "", ...report.map((l) => (l.startsWith("\n— ") ? `\n## ${l.slice(3, -2)}\n` : `- ${l.trim()}`))];
+    appendFileSync(join(SHOTS, "README.md"), md.join("\n") + "\n");
+  } catch {
+    /* отчёт в журнале уже есть */
+  }
   if (process.env.GITHUB_ACTIONS === "true") {
     const head = problems.length > 0 ? [`Замечаний: ${problems.length}`, ...problems.map((p) => `❌ ${p}`), "", "— Подробно —"] : [];
     const text = [...head, ...report].join("\n").replace(/%/g, "%25").replace(/\r/g, "").replace(/\n/g, "%0A");

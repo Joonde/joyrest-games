@@ -20214,7 +20214,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-accent-text);
+  color: var(--color-highlight);
 }
 
 .plan-form fieldset.plan-sec {
@@ -20315,7 +20315,9 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .plan-formats__name {
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .plan-formats__ctl {
@@ -20324,7 +20326,7 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
 }
 
 .plan-icon {
-  min-width: 44px;
+  min-width: 36px;
   min-height: 44px;
   padding: 0;
 }

@@ -748,7 +748,7 @@ try {
   check((await ap.locator("legend", { hasText: "Статус" }).isVisible()) === false, "Анкета: статус и рассылка свёрнуты");
   check(((await ap.locator("summary", { hasText: "Статус и рассылка" }).textContent()) ?? "").includes("В работе"), "Анкета: новый клиент вручную — «В работе»");
   check(
-    (await ap.getByLabel("Дата", { exact: true }).count()) === 1 && (await ap.getByLabel("Время", { exact: true }).count()) === 1 && (await ap.getByLabel("Гостей", { exact: true }).count()) === 1 && (await ap.getByLabel("Пожелания", { exact: true }).count()) === 1 && (await ap.getByText("Заметка: дата, гости", { exact: false }).count()) === 0,
+    (await ap.getByLabel("Дата", { exact: true }).count()) === 1 && (await ap.getByLabel("Время", { exact: true }).count()) === 1 && (await ap.getByLabel("Гостей", { exact: true }).count()) === 1 && (await ap.locator(".client-wish textarea").count()) === 1 && (await ap.getByText("Заметка: дата, гости", { exact: false }).count()) === 0,
     "Анкета: «Что хочет клиент» — поля дата, время, гости, формат, пожелания; отдельной «Заметки» нет",
   );
   await ap.locator("summary", { hasText: "Заполнить из сообщения клиента" }).click();
@@ -761,7 +761,7 @@ try {
     time: await ap.getByLabel("Время", { exact: true }).inputValue(),
     guests: await ap.getByLabel("Гостей", { exact: true }).inputValue(),
     format: (await ap.getByRole("button", { name: "1 · Квиз" }).count()) === 1,
-    wishes: await ap.getByLabel("Пожелания", { exact: true }).inputValue(),
+    wishes: await ap.locator(".client-wish textarea").inputValue(),
     origin: await ap.getByLabel("Откуда пришёл").inputValue(),
   };
   check(

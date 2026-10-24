@@ -522,10 +522,15 @@ try {
     ((await ap.locator(".plan-when").textContent()) ?? "").includes("18:00–23:00");
   check(filledOk, "Владелец: «Заполнить из текста» — имя, телефон, вид, гости, дата и время подставились", "Владелец: из текста заявки заполнилось не всё");
   await shot(ap, "владелец-из-текста");
-  await ap.getByRole("button", { name: "Отмена", exact: true }).click();
-  await ap.getByRole("dialog").getByRole("button", { name: "Не сохранять" }).click();
+  // С 24 октября 2026 введённое не пропадает: «Закрыть — оставить в черновике», черновик — в списке.
+  await ap.getByRole("button", { name: "Закрыть — оставить в черновике" }).click();
   await until(async () => (await ap.locator(".plan-seg--views").count()) === 1, WAIT, "форма закрыта");
-  ok("Владелец: «Отмена» с введёнными данными — спрашивает «Не сохранять?»");
+  const sofia = ap.locator(".plan-drafts__item", { hasText: "Софья" });
+  check((await sofia.count()) === 1, "Владелец: закрыл форму с введённым — оно в «Черновиках мероприятий»");
+  await sofia.getByRole("button", { name: "Удалить" }).click();
+  await ap.getByRole("dialog").getByRole("button", { name: "Удалить черновик" }).click();
+  await until(async () => (await sofia.count()) === 0, WAIT, "черновик удалён");
+  ok("Владелец: «Удалить» у черновика — с подтверждением, черновик ушёл");
 
   // Узкий телефон (360 px): текст в кнопках и вкладках не вылезает.
   await ap.setViewportSize({ width: 360, height: 780 });

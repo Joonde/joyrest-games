@@ -42,6 +42,7 @@ import { ImportSheet } from "./ImportSheet";
 import { RoundHeader, RoundMap, roundColor, roundName } from "./RoundBlocks";
 import { insertAfter, moveKeepingRounds, moveToRound, nextRoundTitle, removeKeepingRound, removeRoundAt, roundCount, startRoundAt } from "./roundsEdit";
 import { TrackTimeline } from "../../components/music/TrackTimeline";
+import { parseClip } from "../../core/clip";
 import { ClampedNumber } from "../../components/ClampedNumber";
 import { Fold } from "../../components/Fold";
 import { KindIcon } from "./KindIcon";
@@ -50,7 +51,7 @@ import { QuizPreview } from "./Preview";
 import { errorsFor, validateContent, type QuestionField } from "./validate";
 import { LETTERS } from "./views";
 import { LevelIcon } from "../../components/live/SuperGame";
-import { LEVEL_NAMES, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_LIMITS, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
+import { LEVEL_NAMES, levelKind, newLevels, parsePenalty, parseStyle, PENALTY_TITLES, penaltyFor, STYLE_TITLES, SUPER_KIND_HINTS, SUPER_KIND_TITLES, SUPER_KINDS, SUPER_LIMITS, VOTE_TIME, withLevelKind, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
 /**
  * Новый вопрос в конструкторе: правильный вариант не отмечен заранее — ведущий отмечает сам
@@ -78,7 +79,8 @@ function superMeta(q: QuizQuestion): string {
   return [`${q.levels?.length ?? 4} уровня`, STYLE_TITLES[parseStyle(q.superStyle)], range].filter(Boolean).join(" · ");
 }
 
-const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "auction", "super"];
+// Суперигра — не формат вопроса, а отдельный финал раунда (своя кнопка «👑 Суперигра»); её уровни берут форматы ниже.
+const KINDS: QuestionKind[] = ["choice", "open", "speed", "order", "number", "buzz", "pictures", "auction"];
 
 /** Конструктор квиза: список вопросов, правка, порядок, импорт списком и предпросмотр. */
 export function QuizEditor({ gameId, themeId, content, onChange, editable }: EditorProps<QuizContent>) {
@@ -443,7 +445,7 @@ export function QuizEditor({ gameId, themeId, content, onChange, editable }: Edi
       {editable && (
         <SettingsCard
           settings={settingsOf(content)}
-          hasRace={questions.some((q) => q.kind === "buzz")}
+          hasRace={questions.filter((q) => q.kind === "buzz").length}
           hasAuction={questions.some((q) => q.kind === "auction")}
           onChange={(settings) => onChange({ ...content, settings })}
         />
@@ -742,7 +744,7 @@ const BOARD_MODES: Array<{ id: QuizSettings["board"]; title: string; hint: strin
 ];
 
 /** «Настройки показа» квиза: заставка вопроса, когда таблица, картинки на телефонах. */
-function SettingsCard({ settings, hasRace, hasAuction, onChange }: { settings: QuizSettings; hasRace: boolean; hasAuction: boolean; onChange: (settings: QuizSettings) => void }) {
+function SettingsCard({ settings, hasRace, hasAuction, onChange }: { settings: QuizSettings; hasRace: number; hasAuction: boolean; onChange: (settings: QuizSettings) => void }) {
   return (
     <details className="card quiz-settings">
       <summary>
@@ -793,11 +795,11 @@ function SettingsCard({ settings, hasRace, hasAuction, onChange }: { settings: Q
           ))}
         </fieldset>
       </Fold>
-      {hasRace && (
+      {hasRace > 0 && (
         <label className="field">
-          Гонка «Кто быстрее»: делений до финиша
+          Гонка «Кто первый»: делений до финиша
           <ClampedNumber value={settings.raceTarget} min={QUIZ_LIMITS.minRace} max={QUIZ_LIMITS.maxRace} fallback={5} onChange={(raceTarget) => onChange({ ...settings, raceTarget })} />
-          <span className="muted small">Кто первым угадает столько треков (супер-трек — 2–3 деления), тот выигрывает гонку.</span>
+          <span className="muted small">Настройка видна, потому что в игре есть вопросы формата «Гонка: кто первый» ({hasRace} шт.): гости жмут кнопку, кто первый угадал трек — двигается на деление вперёд. Кто первым наберёт столько делений (супер-трек — 2–3 деления), выигрывает гонку. Остальных вопросов это не касается.</span>
         </label>
       )}
       {hasAuction && (
@@ -929,6 +931,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
 
   return (
     <div className="stack">
+      {q.kind !== "super" && (
       <Fold title="Формат вопроса" value={KIND_TITLES[q.kind]} open={!q.text.trim()}>
       <fieldset>
         <legend className="visually-hidden">Формат вопроса</legend>
@@ -950,6 +953,7 @@ function QuestionForm({ gameId, question: q, errors, onChange, onPickImage, onRe
         <p className="muted small">{KIND_HINTS[q.kind]}</p>
       </fieldset>
       </Fold>
+      )}
 
       {q.kind === "auction" && (
         <>
@@ -1378,7 +1382,12 @@ function AddQuestion({ onPick, onClose }: { onPick: (kind: QuestionKind) => void
           </div>
         </Fold>
       ))}
-      <p className="muted small">Суперигру ставьте последним вопросом раунда: её очки войдут в счёт этого раунда.</p>
+      <div className="add-question__super">
+        <button type="button" className="btn btn--secondary btn--block" onClick={() => onPick("super")}>
+          👑 Суперигра — финал раунда
+        </button>
+        <p className="muted small">Отдельный финал в конце раунда: 4 уровня, у каждого — свой формат вопроса, картинка и музыка. Очки войдут в счёт раунда.</p>
+      </div>
     </section>
   );
 }
@@ -1527,6 +1536,30 @@ function SuperEditor({
           ))}
         </div>
       </fieldset>
+      <fieldset>
+        <legend>Голосование перед суперигрой</legend>
+        <label className="choice">
+          <input type="checkbox" checked={q.superVote === true} onChange={(e) => onChange({ superVote: e.target.checked })} />
+          <span className="choice__text">
+            <span className="choice__title">Играем, только если большинство «за»</span>
+            <span className="choice__hint">Гости на телефонах жмут «Голосовать за» или «Против»: суперигра может стоить очков раунда. На экране — сколько за и против.</span>
+          </span>
+        </label>
+        {q.superVote === true && (
+          <label className="field">
+            Время на голосование, секунд
+            <input
+              type="number"
+              inputMode="numeric"
+              min={VOTE_TIME.min}
+              max={VOTE_TIME.max}
+              step={5}
+              value={q.voteTime ?? VOTE_TIME.def}
+              onChange={(e) => onChange({ voteTime: Math.min(VOTE_TIME.max, Math.max(VOTE_TIME.min, Number.parseInt(e.target.value, 10) || VOTE_TIME.def)) })}
+            />
+          </label>
+        )}
+      </fieldset>
       {levels.map((l, i) => (
         <fieldset key={i} className={`super-editor__level super-level--${["bronze", "silver", "gold", "diamond"][i]}`}>
           <legend className="super-editor__legend">
@@ -1548,10 +1581,22 @@ function SuperEditor({
             />
             <span className="muted small">{penaltyFor(penalty, i, l.points) > 0 ? `Ошибка — минус ${penaltyFor(penalty, i, l.points)}` : "Ошибка без штрафа"}</span>
           </label>
+          <div className="field">
+            <span>Формат вопроса уровня</span>
+            <div className="seg seg--wrap" role="group" aria-label={`Формат, ${LEVEL_NAMES[i]}`}>
+              {SUPER_KINDS.map((k) => (
+                <button key={k} type="button" className={levelKind(l) === k ? "seg__btn is-on" : "seg__btn"} aria-pressed={levelKind(l) === k} onClick={() => onChange((cur) => ({ ...cur, levels: (cur.levels ?? newLevels()).map((x, n) => (n === i ? withLevelKind(x, k) : x)) }))}>
+                  {SUPER_KIND_TITLES[k]}
+                </button>
+              ))}
+            </div>
+            <span className="muted small">{SUPER_KIND_HINTS[levelKind(l)]}</span>
+          </div>
           <label className="field">
             Вопрос уровня
             <textarea rows={2} maxLength={SUPER_LIMITS.text} value={l.text} onChange={(e) => setLevel(i, { text: e.target.value })} />
           </label>
+          <SuperLevelAnswers level={l} index={i} setLevel={setLevel} />
           {l.imageId ? (
             <div className="stack stack--tight">
               <MediaImage className="q-image__img" gameId={gameId} mediaId={l.imageId} variant="small" alt={`Картинка уровня «${LEVEL_NAMES[i]}»`} />
@@ -1577,29 +1622,122 @@ function SuperEditor({
               />
             </label>
           )}
-          {l.answers.map((a, j) => (
-            <div key={j} className="q-row">
-              <input
-                className="q-row__input"
-                aria-label={`Верный ответ, ${LEVEL_NAMES[i]}`}
-                placeholder="Верный ответ"
-                maxLength={SUPER_LIMITS.answer}
-                value={a}
-                onChange={(e) => setLevel(i, { answers: l.answers.map((x, k) => (k === j ? e.target.value : x)) })}
+          {tracksRepo && (
+            <Fold title="🎵 Трек уровня" value={l.trackId ? "выбран" : "нет"} open={Boolean(l.trackId)}>
+              <p className="muted small">Музыку уровня ведущий включает на экране зала кнопкой «▶ Трек» на пульте, пока гости отвечают.</p>
+              <TrackTimeline
+                answer
+                clip={parseClip({ trackId: l.trackId ?? null, trackStart: l.trackStart, trackLength: l.trackLength, fadeIn: l.fadeIn, fadeOut: l.fadeOut })}
+                onChange={(clip) => setLevel(i, { trackId: clip.trackId, trackStart: clip.start, trackLength: clip.length, fadeIn: clip.fadeIn, fadeOut: clip.fadeOut })}
               />
-              <RemoveButton label="Удалить вариант написания" disabled={l.answers.length <= 1} onClick={() => setLevel(i, { answers: l.answers.filter((_, k) => k !== j) })} />
-            </div>
-          ))}
-          <button type="button" className="btn btn--quiet" disabled={l.answers.length >= SUPER_LIMITS.answers} onClick={() => setLevel(i, { answers: [...l.answers, ""] })}>
-            + вариант написания
-          </button>
+            </Fold>
+          )}
         </fieldset>
       ))}
       <FieldErrors errors={errors} field="levels" questionId={q.id} />
       <p className="muted small">
-        Капитаны выбирают уровень на телефоне, видят вопрос только своего уровня и пишут ответ. Экран зала показывает, кто какой уровень выбрал, а после «Показать ответы» —
+        Капитаны выбирают уровень на телефоне, видят вопрос только своего уровня и отвечают в его формате. Экран зала показывает, кто какой уровень выбрал, а после «Показать ответы» —
         верно или нет и сколько очков.
       </p>
+    </div>
+  );
+}
+
+/** Ответ уровня по его формату: верные ответы, варианты с отметкой верного, карточки по порядку или число. */
+function SuperLevelAnswers({ level: l, index: i, setLevel }: { level: SuperLevel; index: number; setLevel: (i: number, patch: Partial<SuperLevel>) => void }) {
+  const kind = levelKind(l);
+  const options = l.options ?? [];
+  if (kind === "choice" || kind === "order") {
+    const correct = l.correct ?? [];
+    const min = kind === "choice" ? SUPER_LIMITS.minOptions : SUPER_LIMITS.minOrder;
+    return (
+      <div className="stack stack--tight">
+        <span className="small">{kind === "choice" ? "Варианты — коснитесь ✓ у верного" : "Карточки — сверху вниз в верном порядке"}</span>
+        {options.map((o, j) => (
+          <div key={j} className="q-row">
+            {kind === "choice" ? (
+              <button
+                type="button"
+                className={correct.includes(j) ? "q-row__mark is-on" : "q-row__mark"}
+                aria-pressed={correct.includes(j)}
+                aria-label={`Верный вариант ${j + 1}`}
+                onClick={() => setLevel(i, { correct: correct.includes(j) ? correct.filter((c) => c !== j) : [...correct, j].sort((a, b) => a - b) })}
+              >
+                ✓
+              </button>
+            ) : (
+              <span className="q-row__n">{j + 1}</span>
+            )}
+            <input
+              className="q-row__input"
+              aria-label={`${kind === "choice" ? "Вариант" : "Карточка"} ${j + 1}, ${LEVEL_NAMES[i]}`}
+              maxLength={SUPER_LIMITS.answer}
+              value={o}
+              onChange={(e) => setLevel(i, { options: options.map((x, k) => (k === j ? e.target.value : x)) })}
+            />
+            <RemoveButton
+              label="Удалить"
+              disabled={options.length <= min}
+              onClick={() =>
+                setLevel(i, {
+                  options: options.filter((_, k) => k !== j),
+                  correct: correct.filter((c) => c !== j).map((c) => (c > j ? c - 1 : c)),
+                })
+              }
+            />
+          </div>
+        ))}
+        <button type="button" className="btn btn--quiet" disabled={options.length >= SUPER_LIMITS.maxOptions} onClick={() => setLevel(i, { options: [...options, ""] })}>
+          + {kind === "choice" ? "вариант" : "карточка"}
+        </button>
+      </div>
+    );
+  }
+  if (kind === "number") {
+    return (
+      <div className="q-row q-row--fields">
+        <label className="field">
+          Верное число
+          <input
+            inputMode="decimal"
+            value={l.number === null || l.number === undefined ? "" : String(l.number)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[\s\u00a0]/g, "").replace(",", ".");
+              const n = Number(raw);
+              setLevel(i, { number: raw === "" || !Number.isFinite(n) ? null : n });
+            }}
+          />
+        </label>
+        <label className="field">
+          Единица
+          <input maxLength={SUPER_LIMITS.unit} value={l.unit ?? ""} placeholder="м, год, шт." onChange={(e) => setLevel(i, { unit: e.target.value })} />
+        </label>
+        <label className="field">
+          Засчитать ±
+          <input type="number" inputMode="numeric" min={0} value={l.tolerance ?? 0} onChange={(e) => setLevel(i, { tolerance: Math.max(0, Number(e.target.value) || 0) })} />
+        </label>
+      </div>
+    );
+  }
+  return (
+    <div className="stack stack--tight">
+      <span className="small">Верные ответы — подходит любой</span>
+      {l.answers.map((a, j) => (
+        <div key={j} className="q-row">
+          <input
+            className="q-row__input"
+            aria-label={`Верный ответ, ${LEVEL_NAMES[i]}`}
+            placeholder="Верный ответ"
+            maxLength={SUPER_LIMITS.answer}
+            value={a}
+            onChange={(e) => setLevel(i, { answers: l.answers.map((x, k) => (k === j ? e.target.value : x)) })}
+          />
+          <RemoveButton label="Удалить вариант написания" disabled={l.answers.length <= 1} onClick={() => setLevel(i, { answers: l.answers.filter((_, k) => k !== j) })} />
+        </div>
+      ))}
+      <button type="button" className="btn btn--quiet" disabled={l.answers.length >= SUPER_LIMITS.answers} onClick={() => setLevel(i, { answers: [...l.answers, ""] })}>
+        + вариант написания
+      </button>
     </div>
   );
 }

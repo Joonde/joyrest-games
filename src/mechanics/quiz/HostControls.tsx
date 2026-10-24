@@ -28,14 +28,22 @@ import {
   showBoard,
   showQuestion,
   showTotal,
+  closeSuperVote,
+  openSuperVote,
+  overrideSuperVote,
+  playLevelTrack,
+  skipSuper,
   superSync,
+  superSkipped,
+  superVoteOf,
+  superVoteSync,
   toggleAccepted,
   type QuizAction,
 } from "./flow";
 import { auctionAnswers, groupOpenAnswers, parseResult } from "./logic";
 import { correctText, LETTERS } from "./views";
 import { SuperHostAnswers } from "../../components/live/SuperGame";
-import { parseSuperAnswer, superGroups } from "../../core/supergame";
+import { LEVEL_NAMES, parseSuperAnswer, superGroups, tallySuperVote, votePercent } from "../../core/supergame";
 
 /**
  * Пульт квиза: одна главная кнопка на каждом этапе («Показать вопрос» → «Показать ответ» →
@@ -82,6 +90,18 @@ export function QuizHostControls({ session, content, answers, participants, cont
     void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых выборах
   }, [superKey, busy]);
+
+  // Голосование «Играем суперигру?»: сколько «за» и «против» — на экран зала.
+  const voteOpen = q?.kind === "super" && stage === "question" && superVoteOf(session)?.phase === "open";
+  const voteKey = voteOpen ? answers.filter((a) => a.step === step).map((a) => `${a.pid}:${JSON.stringify(a.value)}:${a.submittedAt ?? 0}`).sort().join(",") : "";
+  useEffect(() => {
+    if (!voteKey || busy) return;
+    const change = superVoteSync(latest.current, answers);
+    if (!change) return;
+    const { phase, step: atStep, stage: atStage } = latest.current.state;
+    void control.apply({ ...change, expect: { phase, step: atStep, stage: atStage } }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- пересчёт только при новых голосах
+  }, [voteKey, busy]);
 
   // Аукцион: кто уже поставил — на экран (без сумм).
   const auctionPhase = q?.kind === "auction" ? parseResult(session.state.result).auction?.phase : undefined;
@@ -152,6 +172,9 @@ export function QuizHostControls({ session, content, answers, participants, cont
   for (const p of scoringParticipants(participants, session.playMode)) if (!expected.has(p.id)) expected.set(p.id, p.name);
   const missing = [...expected.entries()].filter(([id]) => !answeredIds.has(id)).map(([, name]) => name);
   const action = primaryAction(session, content);
+  const superVote = q?.kind === "super" ? superVoteOf(session) : undefined;
+  // Пока голосуют — счёт по ответам, пришедшим на пульт (на экране — то же через минуту синхронизации).
+  const liveVote = superVote?.phase === "open" ? tallySuperVote(stepAnswers, typeof session.state.startedAt === "number" ? session.state.startedAt : null) : { yes: superVote?.yes ?? 0, no: superVote?.no ?? 0 };
 
   /** Новое состояние пришло (или прошло 3 с) — кнопку можно нажимать снова. */
   function nextSession(): Promise<void> {
@@ -222,7 +245,21 @@ export function QuizHostControls({ session, content, answers, participants, cont
     return change ? { ...change, expect: { result: resultKey(cur.state.result) } } : null;
   }
 
+  /** «Подвести итог голосования» — по свежим голосам с сервера; голоса шага стираются, дальше — уровни или пропуск. */
+  async function voteDoneChange(): Promise<SessionChange> {
+    let all: Answer[] = stepAnswers;
+    try {
+      all = await control.freshAnswers(step);
+    } catch {
+      // Нет связи — по тому, что уже пришло.
+    }
+    return closeSuperVote(latest.current, all);
+  }
+
   function perform(action: QuizAction) {
+    if (action === "vote") void run(openSuperVote(session, content));
+    if (action === "voteDone") void run(voteDoneChange, step);
+    if (action === "skip") void run(skipSuper(session));
     if (action === "show") void run(showQuestion(session, content));
     if (action === "reveal" && q?.kind === "auction" && result.auction?.phase === "bets") {
       void run(closeChange);
@@ -357,7 +394,41 @@ export function QuizHostControls({ session, content, answers, participants, cont
         )}
       </div>
 
-      {stage === "question" && (
+      {q.kind === "super" && superVote && (
+        <section className="stack stack--tight host-super-vote" aria-label="Голосование за суперигру" aria-live="polite">
+          <h3 className="host-quiz__subtitle">{superVote.phase === "open" ? "Голосование: играем суперигру?" : superVote.passed ? "Итог: играем суперигру" : "Итог: суперигру не играем"}</h3>
+          <p>
+            За — <strong>{liveVote.yes}</strong> · против — <strong>{liveVote.no}</strong> · проголосовали {liveVote.yes + liveVote.no}
+            {liveVote.yes + liveVote.no > 0 ? ` · за ${votePercent(liveVote.yes, liveVote.no)}%` : ""}
+          </p>
+          {superVote.phase === "open" && <p className="muted small">Играем, если «за» больше, чем «против». Голос можно поменять до итога.</p>}
+          {superVote.phase === "done" && stage === "ready" && (
+            <button type="button" className="btn btn--quiet btn--block" disabled={busy} onClick={() => {
+                const c = overrideSuperVote(session, !superVote.passed);
+                if (c) void run(c);
+              }}>
+              {superVote.passed ? "Всё равно пропустить суперигру" : "Всё равно играть суперигру"}
+            </button>
+          )}
+        </section>
+      )}
+
+      {q.kind === "super" && stage === "question" && !voteOpen && (q.levels ?? []).some((l) => l.trackId) && session.screenMode !== "none" && (
+        <section className="stack stack--tight" aria-label="Музыка уровней">
+          <h3 className="host-quiz__subtitle">Музыка уровней на экран зала</h3>
+          <div className="actions">
+            {(q.levels ?? []).map((l, i) =>
+              l.trackId ? (
+                <button key={i} type="button" className="btn btn--secondary btn--block" disabled={busy} onClick={() => void run(playLevelTrack(session, i))}>
+                  ▶ Трек: {LEVEL_NAMES[i]}
+                </button>
+              ) : null,
+            )}
+          </div>
+        </section>
+      )}
+
+      {stage === "question" && !voteOpen && (
         <div className="host-quiz__live" aria-live="polite">
           <span className={left === 0 ? "host-quiz__timer is-over" : "host-quiz__timer"} role="timer">
             {left === null ? "∞" : left === 0 ? "Время вышло" : `${left} с`}
@@ -374,7 +445,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </div>
       )}
 
-      {stage === "question" && missing.length > 0 && !rehearsal && q.kind !== "buzz" && q.kind !== "auction" && (
+      {stage === "question" && !voteOpen && missing.length > 0 && !rehearsal && q.kind !== "buzz" && q.kind !== "auction" && (
         <div className="stack stack--tight">
           <button type="button" className="btn btn--quiet host-quiz__toggle" aria-expanded={showMissing} onClick={() => setShowMissing((v) => !v)}>
             {showMissing ? "Скрыть, кто ещё не ответил" : `Ещё не ответили: ${missing.length}`}
@@ -382,7 +453,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
           {showMissing && <p className="muted small host-quiz__missing">{missing.join(", ")}</p>}
         </div>
       )}
-      {stage === "question" && missing.length === 0 && expected.size > 0 && q.kind !== "buzz" && q.kind !== "auction" && <p className="success">Ответили все!</p>}
+      {stage === "question" && !voteOpen && missing.length === 0 && expected.size > 0 && q.kind !== "buzz" && q.kind !== "auction" && <p className="success">Ответили все!</p>}
 
       {groups.length > 0 && (stage === "question" || stage === "reveal") && (
         <section className="stack stack--tight" aria-label="Ответы гостей">
@@ -417,7 +488,7 @@ export function QuizHostControls({ session, content, answers, participants, cont
         </section>
       )}
 
-      {q.kind === "super" && (stage === "question" || stage === "reveal") && (
+      {q.kind === "super" && !voteOpen && !superSkipped(session) && (stage === "question" || stage === "reveal") && (
         <SuperHostAnswers
           levels={q.levels ?? []}
           groups={superGroups(q.levels ?? [], own, result.accepted)}

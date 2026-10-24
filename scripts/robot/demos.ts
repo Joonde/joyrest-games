@@ -21,7 +21,7 @@ export const ROBOT_DEMOS = [
         { ...robotQ("rs2", "Кино: второй вопрос", null), answerMusic: { trackId: "robot-answer", start: 30, length: 10, fadeIn: 2, fadeOut: 3 } },
         // Аукцион (23 октября 2026): ставки, жребий при равных, ответ выигравшего на телефоне.
         { ...robotQ("ra1", "Аукцион: в каком году вышел «Титаник»?", null), kind: "auction", options: ["1997", "1999", "2001"], correct: 0, points: 200, timeLimit: 30, topic: "Кино 90-х", auctionAnswer: "choice", betTime: 20 },
-        { id: "rs3", kind: "super", text: "Суперигра «Кино»", options: [], correct: -1, alsoCorrect: [], answers: [], steps: 1, pictures: [], timeLimit: 90, points: 100, imageId: null, trackId: null, trackStart: 0, trackLength: 15, round: null, levels: superLevels("Кино"), superStyle: "chests", penalty: "halfTop" },
+        { id: "rs3", kind: "super", text: "Суперигра «Кино»", options: [], correct: -1, alsoCorrect: [], answers: [], steps: 1, pictures: [], timeLimit: 90, points: 100, imageId: null, trackId: null, trackStart: 0, trackLength: 15, round: null, levels: superLevels("Кино"), superStyle: "chests", penalty: "halfTop", superVote: true, voteTime: 20 },
         robotQ("rs4", "Музыка: первый вопрос", "Музыка"),
         robotQ("rs5", "Музыка: второй вопрос", null),
         { ...robotQ("ra2", "Аукцион: кто спел «Yesterday»?", null), kind: "auction", options: [], correct: -1, answers: ["Beatles", "Битлз"], points: 200, timeLimit: 30, topic: "", auctionAnswer: "open", betTime: 20 },

@@ -39,6 +39,8 @@ export interface QuizResult {
   guesses?: Record<string, number>;
   /** «Аукцион»: этап, ставки, кто отвечает (пишет пульт). */
   auction?: AuctionState;
+  /** Суперигра: ведущий включил трек уровня на экране зала (новый `n` — сыграть заново). */
+  superPlay?: { level: number; n: number };
 }
 
 /**
@@ -101,6 +103,10 @@ export function parseResult(raw: unknown): QuizResult {
   const auction = parseAuction(r.auction);
   if (auction) result.auction = auction;
   if (r.verdicts !== undefined) result.verdicts = parseVerdicts(r.verdicts);
+  if (typeof r.superPlay === "object" && r.superPlay !== null && !Array.isArray(r.superPlay)) {
+    const p = r.superPlay as Record<string, unknown>;
+    if (typeof p.level === "number" && Number.isInteger(p.level) && p.level >= 0 && p.level < 4 && typeof p.n === "number") result.superPlay = { level: p.level, n: p.n };
+  }
   if (typeof r.guesses === "object" && r.guesses !== null && !Array.isArray(r.guesses)) {
     const guesses: Record<string, number> = {};
     for (const [pid, v] of Object.entries(r.guesses as Record<string, unknown>)) if (typeof v === "number" && Number.isFinite(v)) guesses[pid] = v;

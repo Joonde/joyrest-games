@@ -6,15 +6,21 @@ import { Confetti } from "./Confetti";
 import { playSample, playSound, preloadSamples } from "./sound";
 import {
   LEVEL_NAMES,
+  levelAnswerText,
+  levelKind,
   PENALTY_TITLES,
   penaltyFor,
   SUPER_LIMITS,
+  superAnswerText,
+  superOrderShown,
+  votePercent,
   type SuperAnswer,
   type SuperGroup,
   type SuperLevel,
   type SuperPenalty,
   type SuperStyle,
   type SuperVerdict,
+  type SuperVote,
 } from "../../core/supergame";
 import { pointsLabel } from "../../core/results";
 
@@ -134,11 +140,57 @@ export interface SuperScreenProps {
   counter?: string;
   /** Режим команд (по умолчанию): уровень выбирают капитаны; false — «каждый сам». */
   teams?: boolean;
+  /** Перед суперигрой голосуют «Играем?» (настройка вопроса). */
+  voteEnabled?: boolean;
+  /** Голосование: идёт или итог. */
+  vote?: SuperVote;
+  /** Суперигру пропустили по итогам голосования. */
+  skipped?: boolean;
+  /** Трек какого уровня включил ведущий (null — тишина). */
+  playing?: number | null;
+}
+
+/** Голосование и его итог на экране зала: сколько проголосовало, проценты, решение. */
+function VotePanel({ vote, left, timeLimit }: { vote: SuperVote; left: number | null; timeLimit: number }) {
+  const total = vote.yes + vote.no;
+  const yes = votePercent(vote.yes, vote.no);
+  if (vote.phase === "open") {
+    return (
+      <div className="super-vote">
+        <p className="super-vote__q">Играем суперигру?</p>
+        <p className="super-vote__risk">Верный ответ — очки уровня. Ошибка — можно потерять очки, заработанные в раунде.</p>
+        <p className="super-vote__count">
+          Проголосовали: <strong>{total}</strong>
+        </p>
+        <p className="quiz-screen__hint">Голосуйте на телефонах: «За» или «Против»</p>
+        <HallTimer left={left} total={timeLimit} />
+      </div>
+    );
+  }
+  const passed = vote.passed === true;
+  return (
+    <div className="super-vote super-vote--done">
+      <p className={passed ? "super-vote__verdict is-yes" : "super-vote__verdict is-no"}>{passed ? "Играем суперигру!" : "Суперигру не играем"}</p>
+      <div className="super-vote__bars" aria-label={`За ${yes}%, против ${total === 0 ? 0 : 100 - yes}%`}>
+        <div className="super-vote__bar is-yes" style={{ ["--share" as string]: `${total === 0 ? 0 : yes}%` }}>
+          <span>За</span>
+          <strong>{total === 0 ? 0 : yes}%</strong>
+          <span className="super-vote__n">{vote.yes}</span>
+        </div>
+        <div className="super-vote__bar is-no" style={{ ["--share" as string]: `${total === 0 ? 0 : 100 - yes}%` }}>
+          <span>Против</span>
+          <strong>{total === 0 ? 0 : 100 - yes}%</strong>
+          <span className="super-vote__n">{vote.no}</span>
+        </div>
+      </div>
+      <p className="quiz-screen__hint">Проголосовали: {total}</p>
+    </div>
+  );
 }
 
 /** Экран зала: заставка, выбор уровней, ответы. */
 export function SuperScreen(props: SuperScreenProps) {
-  const { stage, gameId, title, levels, style, penalty, picks, verdicts, names, left, timeLimit, burst, counter, teams = true } = props;
+  const { stage, gameId, title, levels, style, penalty, picks, verdicts, names, left, timeLimit, burst, counter, teams = true, voteEnabled = false, vote, skipped = false, playing = null } = props;
   // Музыка заставки и звук каждого нового выбора уровня.
   useEffect(() => preloadSamples(["superChest"]), []);
   useArtPreload(style);
@@ -194,9 +246,36 @@ export function SuperScreen(props: SuperScreenProps) {
             </li>
           ))}
         </ol>
-        <p className="quiz-screen__hint">
-          {teams ? "Капитаны выбирают" : "Каждый выбирает"} уровень на телефоне · {PENALTY_TITLES[penalty].toLowerCase()}
-        </p>
+        {vote?.phase === "done" ? (
+          <VotePanel vote={vote} left={null} timeLimit={0} />
+        ) : (
+          <p className="quiz-screen__hint">
+            {voteEnabled ? "Сначала голосуем: играем суперигру или нет · " : ""}
+            {teams ? "Капитаны выбирают" : "Каждый выбирает"} уровень на телефоне · {PENALTY_TITLES[penalty].toLowerCase()}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (stage === "question" && vote?.phase === "open") {
+    return (
+      <div className={`super-screen super-screen--intro ${stageCls}`}>
+        {counter && <span className="quiz-screen__counter">{counter}</span>}
+        <span className="quiz-screen__badge">Суперигра · голосование</span>
+        <h2 className="super-screen__title">{title || "Суперигра"}</h2>
+        <VotePanel vote={vote} left={left} timeLimit={timeLimit} />
+      </div>
+    );
+  }
+
+  if (stage === "reveal" && skipped) {
+    return (
+      <div className={`super-screen super-screen--intro ${stageCls}`}>
+        <span className="quiz-screen__badge">Суперигра</span>
+        <h2 className="super-screen__title">Суперигру не играем</h2>
+        <p className="quiz-screen__hint">Зал решил не рисковать — очки раунда сохранены.</p>
+        {vote && <VotePanel vote={{ ...vote, phase: "done" }} left={null} timeLimit={0} />}
       </div>
     );
   }
@@ -225,7 +304,10 @@ export function SuperScreen(props: SuperScreenProps) {
           <HallTimer left={left} total={timeLimit} />
         )}
       </div>
-      <h2 className="super-screen__head">{revealed ? "Ответы суперигры" : "Выберите уровень и ответьте"}</h2>
+      <h2 className="super-screen__head">
+        {revealed ? "Ответы суперигры" : "Выберите уровень и ответьте"}
+        {!revealed && playing !== null && levels[playing] && <span className="super-screen__playing">♪ Звучит трек уровня «{LEVEL_NAMES[playing]}»</span>}
+      </h2>
       <ol className="super-levels">
         {levels.map((l, i) => {
           const who = byLevel[i] ?? [];
@@ -263,7 +345,7 @@ export function SuperScreen(props: SuperScreenProps) {
                 <span className="super-level__question">
                   {l.imageId && <MediaImage className="super-level__img" gameId={gameId} mediaId={l.imageId} variant="full" alt="" />}
                   {l.text && <span>{l.text}</span>}
-                  <strong className="super-level__answer">{l.answers.find((a) => a.trim()) ?? "—"}</strong>
+                  <strong className="super-level__answer">{levelAnswerText(l)}</strong>
                 </span>
               )}
               <span className="super-level__who">
@@ -307,14 +389,177 @@ export interface SuperPhoneProps {
   /** Без экрана зала — вопрос и картинки на телефоне всегда. */
   showImages: boolean;
   onAnswer: (answer: SuperAnswer) => void;
+  /** Голосование «Играем?»: идёт или итог. */
+  vote?: SuperVote;
+  /** Суперигру пропустили. */
+  skipped?: boolean;
+  /** Свой голос этого телефона (в командах голосует каждый телефон). */
+  myVote?: "yes" | "no" | null;
+  voteSending?: boolean;
+  onVote?: (vote: "yes" | "no") => void;
 }
 
-/** Телефон: выбор уровня → вопрос уровня и ответ (уровень можно сменить до отправки) → итог. */
-export function SuperPhone(props: SuperPhoneProps) {
-  const { stage, gameId, levels, style, penalty, role, mine, verdict, canAnswer, sending, open, left, showImages, onAnswer } = props;
-  const [level, setLevel] = useState<number | null>(null);
+/** Ответ уровня по его формату: свой ответ, варианты, по порядку, число. */
+function LevelAnswerForm({
+  level,
+  index,
+  canAnswer,
+  sending,
+  onAnswer,
+}: {
+  level: SuperLevel;
+  index: number;
+  canAnswer: boolean;
+  sending: boolean;
+  onAnswer: (answer: SuperAnswer) => void;
+}) {
+  const kind = levelKind(level);
   const [text, setText] = useState("");
+  const [order, setOrder] = useState<number[]>([]);
+  const options = level.options ?? [];
+
+  if (kind === "choice") {
+    return (
+      <div className="super-choices" role="group" aria-label="Варианты ответа">
+        {options.map((o, i) => (
+          <button key={i} type="button" className="btn btn--secondary btn--block super-choice" disabled={!canAnswer || sending} onClick={() => onAnswer({ level: index, text: "", choice: i })}>
+            <span className="super-choice__letter">{LETTERS[i]}</span> {o}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (kind === "order") {
+    const shown = superOrderShown(level, index);
+    const full = order.length === options.length;
+    return (
+      <div className="stack stack--tight">
+        <p className="muted small">Коснитесь карточек по порядку: первая — 1, вторая — 2… Ошиблись — коснитесь ещё раз.</p>
+        <div className="super-order">
+          {shown.map((card) => {
+            const at = order.indexOf(card);
+            return (
+              <button
+                key={card}
+                type="button"
+                className={at >= 0 ? "btn btn--secondary btn--block super-order__card is-on" : "btn btn--secondary btn--block super-order__card"}
+                disabled={!canAnswer || sending}
+                aria-pressed={at >= 0}
+                onClick={() => setOrder((cur) => (cur.includes(card) ? cur.filter((c) => c !== card) : [...cur, card]))}
+              >
+                <span className="super-order__n">{at >= 0 ? at + 1 : "·"}</span> {options[card]}
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" className="btn btn--block" disabled={!canAnswer || sending || !full} onClick={() => onAnswer({ level: index, text: "", order })}>
+          Отправить порядок
+        </button>
+      </div>
+    );
+  }
+
+  if (kind === "number") {
+    const value = readNumber(text);
+    return (
+      <form
+        className="stack stack--tight"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if (value !== null && canAnswer) onAnswer({ level: index, text: "", guess: value });
+        }}
+      >
+        <label className="field">
+          Ваше число{level.unit ? ` (${level.unit})` : ""}
+          <input inputMode="decimal" value={text} maxLength={20} autoComplete="off" enterKeyHint="send" disabled={!canAnswer} onChange={(e) => setText(e.target.value)} />
+        </label>
+        <button className="btn btn--block" type="submit" disabled={!canAnswer || sending || value === null}>
+          Отправить число
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <form
+      className="stack stack--tight"
+      onSubmit={(e: FormEvent) => {
+        e.preventDefault();
+        if (canAnswer && text.trim()) onAnswer({ level: index, text: text.trim().slice(0, SUPER_LIMITS.answer) });
+      }}
+    >
+      <label className="field">
+        Ваш ответ
+        <input value={text} maxLength={SUPER_LIMITS.answer} autoComplete="off" enterKeyHint="send" disabled={!canAnswer} onChange={(e) => setText(e.target.value)} />
+      </label>
+      <button className="btn btn--block" type="submit" disabled={!canAnswer || sending || !text.trim()}>
+        Отправить ответ
+      </button>
+    </form>
+  );
+}
+
+const LETTERS = ["А", "Б", "В", "Г", "Д", "Е"];
+
+/** Число из поля телефона: пробелы и запятая допустимы. */
+function readNumber(text: string): number | null {
+  const clean = text.replace(/[\s\u00a0]/g, "").replace(",", ".");
+  if (!clean) return null;
+  const n = Number(clean);
+  return Number.isFinite(n) && Math.abs(n) <= SUPER_LIMITS.maxNumber ? n : null;
+}
+
+/** Телефон: голосование «Играем?» → выбор уровня → вопрос уровня и ответ (уровень можно сменить до отправки) → итог. */
+export function SuperPhone(props: SuperPhoneProps) {
+  const { stage, gameId, levels, style, penalty, role, mine, verdict, canAnswer, sending, open, left, showImages, onAnswer, vote, skipped = false, myVote = null, voteSending = false, onVote } = props;
+  const [level, setLevel] = useState<number | null>(null);
   const icon = <LevelIcon style={style} level={mine?.level ?? 2} />;
+
+  if (stage === "question" && vote?.phase === "open") {
+    return (
+      <div className="quiz-phone quiz-phone--center super-phone">
+        <p className="eyebrow">Суперигра · голосование</p>
+        <h2 className="quiz-phone__question">Играем суперигру?</h2>
+        <p className="muted">Верный ответ — очки уровня. Ошибка — можно потерять очки, заработанные в раунде.</p>
+        <div className="actions">
+          <button type="button" className={myVote === "yes" ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={myVote === "yes"} disabled={!open || voteSending || !onVote} onClick={() => onVote?.("yes")}>
+            {myVote === "yes" ? "✓ Вы за" : "Голосовать за"}
+          </button>
+          <button type="button" className={myVote === "no" ? "btn btn--block" : "btn btn--secondary btn--block"} aria-pressed={myVote === "no"} disabled={!open || voteSending || !onVote} onClick={() => onVote?.("no")}>
+            {myVote === "no" ? "✓ Вы против" : "Голосовать против"}
+          </button>
+        </div>
+        <p className="quiz-phone__status muted">
+          {voteSending ? "Отправляем голос…" : !open ? "Время вышло" : myVote ? "Голос принят — до итога можно передумать" : left === null ? "" : `Осталось ${left} с`}
+        </p>
+      </div>
+    );
+  }
+
+  if (stage === "ready" && vote?.phase === "done") {
+    const yes = votePercent(vote.yes, vote.no);
+    const total = vote.yes + vote.no;
+    return (
+      <div className="quiz-phone quiz-phone--center super-phone">
+        <p className="eyebrow">Суперигра · итог голосования</p>
+        <h2 className="quiz-phone__question">{vote.passed ? "Играем суперигру!" : "Суперигру не играем"}</h2>
+        <p className="muted">
+          За — {total === 0 ? 0 : yes}% ({vote.yes}) · против — {total === 0 ? 0 : 100 - yes}% ({vote.no})
+        </p>
+      </div>
+    );
+  }
+
+  if (stage === "reveal" && skipped) {
+    return (
+      <div className="quiz-phone quiz-phone--center super-phone">
+        <p className="eyebrow">Суперигра</p>
+        <h2 className="quiz-phone__question">Суперигру не играем</h2>
+        <p className="muted">Очки раунда сохранены. Смотрите на экран.</p>
+      </div>
+    );
+  }
 
   if (stage === "ready") {
     return (
@@ -329,8 +574,8 @@ export function SuperPhone(props: SuperPhoneProps) {
   }
 
   if (stage === "reveal") {
-    const lvl = verdict ? levels[verdict.level] : mine ? levels[mine.level] : undefined;
     const at = verdict?.level ?? mine?.level ?? -1;
+    const lvl = levels[at];
     return (
       <div className="quiz-phone quiz-phone--center super-phone" aria-live="polite">
         <p className="eyebrow">Суперигра</p>
@@ -346,7 +591,7 @@ export function SuperPhone(props: SuperPhoneProps) {
           <p className="muted">
             {LEVEL_NAMES[at]}: {lvl.text}
             <br />
-            Правильный ответ: <strong>{lvl.answers.find((a) => a.trim()) ?? "—"}</strong>
+            Правильный ответ: <strong>{levelAnswerText(lvl)}</strong>
           </p>
         )}
       </div>
@@ -362,7 +607,7 @@ export function SuperPhone(props: SuperPhoneProps) {
           {icon}
         </p>
         <p className="quiz-phone__status success">{role === "member" ? "Капитан ответил" : "Ответ принят"}</p>
-        <p className="muted">«{mine.text}» · ждём, когда ведущий покажет ответы</p>
+        <p className="muted">«{superAnswerText(levels, mine)}» · ждём, когда ведущий покажет ответы</p>
       </div>
     );
   }
@@ -408,29 +653,20 @@ export function SuperPhone(props: SuperPhoneProps) {
   }
 
   const chosen = levels[level];
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (level !== null && canAnswer && text.trim()) onAnswer({ level, text: text.trim().slice(0, SUPER_LIMITS.answer) });
-  }
   return (
-    <form className="quiz-phone stack super-phone" onSubmit={submit}>
+    <div className="quiz-phone stack super-phone">
       <p className="eyebrow">
         Суперигра · {LEVEL_NAMES[level]} · +{pointsLabel(chosen?.points ?? 0)}
       </p>
       {chosen?.imageId && showImages && <MediaImage className="quiz-phone__image" gameId={gameId} mediaId={chosen.imageId} variant="small" alt="" />}
-      <h2 className="quiz-phone__question">{chosen?.text || "Что на картинке?"}</h2>
-      <label className="field">
-        Ваш ответ
-        <input value={text} maxLength={SUPER_LIMITS.answer} autoComplete="off" enterKeyHint="send" disabled={!canAnswer} onChange={(e) => setText(e.target.value)} />
-      </label>
-      <button className="btn btn--block" type="submit" disabled={!canAnswer || !text.trim()}>
-        Отправить ответ
-      </button>
+      <h2 className="quiz-phone__question">{chosen?.text || (chosen?.trackId ? "Что звучит?" : "Что на картинке?")}</h2>
+      {chosen?.trackId && <p className="muted small">🎵 Музыку к вопросу ведущий включит на экране зала.</p>}
+      {chosen && <LevelAnswerForm key={level} level={chosen} index={level} canAnswer={canAnswer} sending={sending} onAnswer={onAnswer} />}
       <button type="button" className="btn btn--secondary btn--block" disabled={sending} onClick={() => setLevel(null)}>
         Сменить уровень
       </button>
       {status && <p className="quiz-phone__status muted">{status}</p>}
-    </form>
+    </div>
   );
 }
 
@@ -460,7 +696,7 @@ export function SuperHostAnswers({
         return (
           <div key={i} className="stack stack--tight">
             <p className="small">
-              <strong>{LEVEL_NAMES[i]}</strong> · {pointsLabel(l.points)} · {n} {plural(n, "ответ", "ответа", "ответов")} · верно: {l.answers.filter((a) => a.trim()).join(" / ") || "—"}
+              <strong>{LEVEL_NAMES[i]}</strong> · {pointsLabel(l.points)} · {n} {plural(n, "ответ", "ответа", "ответов")} · верно: {levelKind(l) === "open" ? l.answers.filter((a) => a.trim()).join(" / ") || "—" : levelAnswerText(l)}
             </p>
             {list.length > 0 && (
               <ul className="open-answers">
@@ -471,7 +707,7 @@ export function SuperHostAnswers({
                     </span>
                     {g.status === "correct" ? (
                       <span className="open-answers__mark">Верно</span>
-                    ) : editable ? (
+                    ) : editable && levelKind(l) === "open" ? (
                       <button
                         type="button"
                         className={g.status === "accepted" ? "btn btn--secondary open-answers__btn" : "btn btn--quiet open-answers__btn"}

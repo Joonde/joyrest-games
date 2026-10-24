@@ -19,16 +19,16 @@ import type { PlayerViewProps, ViewProps } from "../types";
 import { clipOf, correctSet, KIND_TITLES, LIMITS, roundAt, roundTitle, settingsOf, usesAnswers, type QuizContent, type QuizQuestion } from "./content";
 import { AuctionBetForm, AuctionScreenPlate, AuctionScreenSplash, AuctionWatch, auctionMyTurn, signed, useDrawSpinning } from "./auctionViews";
 import { parseBet } from "./auction";
-import { boardView, startsRound } from "./flow";
+import { boardView, startsRound, superSkipped, superVoteOf } from "./flow";
 import { isCorrect, parseGuess, parseOrder, parseResult, picturesRight } from "./logic";
 import { SuperPhone, SuperScreen } from "../../components/live/SuperGame";
 import { NumberPhone, NumberScreen, OrderNumberVerdict, OrderPhone, OrderScreenCards, orderNumberText } from "./orderNumber";
-import { parsePenalty, parseStyle, parseSuperAnswer } from "../../core/supergame";
+import { parsePenalty, parseStyle, parseSuperAnswer, parseVoteAnswer, superTrackIds, type SuperAnswer } from "../../core/supergame";
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 /** Ответ гостя: номер варианта, текст, ответы к картинкам или нажатие кнопки «кто первый». */
-export type QuizAnswerValue = number | string | string[] | { buzz: true } | { level: number; text: string } | { order: number[] } | { guess: number } | { bet: number };
+export type QuizAnswerValue = number | string | string[] | { buzz: true } | SuperAnswer | { vote: "yes" | "no" } | { order: number[] } | { guess: number } | { bet: number };
 
 function plural(n: number, one: string, few: string, many: string): string {
   const d10 = n % 10;
@@ -102,6 +102,7 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
     preloadTrack(q?.trackId);
     preloadTrack(q?.answerMusic?.trackId);
     preloadTrack(next?.trackId);
+    if (q?.kind === "super") for (const id of superTrackIds(q.levels)) preloadTrack(id);
   }, [session.gameId, q, next]);
 
   // Музыка вопроса: угадывание — при показе вопроса и по «Повторить»; на верном ответе — припев
@@ -133,6 +134,16 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
       chorus: chorus ? clip?.join : undefined,
       paused: stage === "question" && Boolean(buzz?.current),
     },
+  );
+  // Суперигра: трек уровня включает ведущий («▶ Трек: Золото»), пока открыты уровни.
+  const superPlay = q?.kind === "super" && stage === "question" ? (parsed.superPlay ?? null) : null;
+  const playLevel = superPlay ? (q?.levels?.[superPlay.level] ?? null) : null;
+  useFragment(
+    playLevel?.trackId ?? null,
+    playLevel?.trackStart ?? 0,
+    playLevel?.trackLength ?? 15,
+    superPlay && playLevel?.trackId ? `s:${step}:${superPlay.level}:${superPlay.n}` : null,
+    { options: { fadeIn: playLevel?.fadeIn ?? 0, fadeOut: playLevel?.fadeOut ?? 0 } },
   );
   // Кто-то нажал кнопку — короткий звук «слово ему».
   useSoundOnChange(buzz?.current ?? "", "gong", isSet);
@@ -184,10 +195,14 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
         verdicts={parsed.verdicts ?? {}}
         names={names}
         left={left}
-        timeLimit={q.timeLimit}
+        timeLimit={typeof session.state.timeLimit === "number" ? session.state.timeLimit : q.timeLimit}
         burst={`${step}:${session.state.startedAt ?? 0}`}
         counter={round ? roundTitle(round) : `Вопрос ${step + 1} из ${total}`}
         teams={session.playMode === "teams"}
+        voteEnabled={q.superVote === true}
+        vote={superVoteOf(session) ?? undefined}
+        skipped={superSkipped(session)}
+        playing={stage === "question" ? (parsed.superPlay?.level ?? null) : null}
       />
     );
   }
@@ -413,6 +428,7 @@ export function QuizPlayerView({
   myAnswer,
   sending,
   onAnswer,
+  personal,
 }: PlayerViewProps<QuizContent, QuizAnswerValue>) {
   const q = currentQuestion(session, content);
   const [text, setText] = useState("");
@@ -443,6 +459,10 @@ export function QuizPlayerView({
   if (q.kind === "super" && stage !== "board" && stage !== "podium") {
     const mine = parseSuperAnswer(myAnswer?.value);
     const verdict = parseResult(session.state.result).verdicts?.[pid] ?? null;
+    const vote = superVoteOf(session) ?? undefined;
+    // Голос «Играем?»: в командах голосует каждый телефон своим ответом, в solo — ответ игрока.
+    const voteRaw = personal ? personal.value : myAnswer;
+    const myVote = parseVoteAnswer(voteRaw?.value);
     return (
       <SuperPhone
         key={`${q.id}:${session.state.startedAt ?? 0}`}
@@ -460,6 +480,15 @@ export function QuizPlayerView({
         left={left}
         showImages
         onAnswer={(a) => onAnswer(a)}
+        vote={vote}
+        skipped={superSkipped(session)}
+        myVote={myVote}
+        voteSending={personal ? personal.sending : sending}
+        onVote={(v) => {
+          const value = { vote: v };
+          if (personal) personal.send(value);
+          else onAnswer(value);
+        }}
       />
     );
   }

@@ -2,7 +2,7 @@
 // Картинок здесь нет — только imageId (документ games/{id}/media/{imageId}).
 import { clipFields, parseClip, type Clip, type ClipJoin } from "../../core/clip";
 import { parseDrawEffect, type DrawEffect } from "../../core/draw";
-import { newLevels, parseLevels, parsePenalty, parseStyle, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
+import { newLevels, parseLevels, parsePenalty, parseStyle, superTrackIds, VOTE_TIME, type SuperLevel, type SuperPenalty, type SuperStyle } from "../../core/supergame";
 
 /**
  * Форматы вопроса. Классика: варианты, открытый, на скорость. Гонка «Кто быстрее» (`buzz`): кнопка,
@@ -68,6 +68,12 @@ export interface QuizQuestion {
   levels?: SuperLevel[];
   superStyle?: SuperStyle;
   penalty?: SuperPenalty;
+  /**
+   * Суперигра: сначала голосование «Играем суперигру?» (решение владельца 25 октября 2026) — играем, если «за» больше
+   * половины голосов. Нет поля (игры до 25 октября 2026) — без голосования. `voteTime` — секунд на голосование.
+   */
+  superVote?: boolean;
+  voteTime?: number;
   /** С этого вопроса начинается раунд с таким названием; null — продолжается прежний. */
   round: string | null;
   /** Заметка ведущему (факт, шутка, подводка): видна только на пульте, не на экране и телефонах. */
@@ -320,7 +326,7 @@ export const KIND_HINTS: Record<QuestionKind, string> = {
   speed: "Варианты ответа; чем быстрее верный ответ, тем больше очков.",
   buzz: "Красная кнопка: слово первому нажавшему, «Верно» — шаг к финишу и очки.",
   pictures: "2–4 картинки, ответ к каждой; очки — за каждую угаданную.",
-  super: "4 уровня: каждый выбирает уровень и отвечает. Верно — очки уровня, ошибка — по правилу.",
+  super: "4 уровня — у каждого свой вопрос любого формата. Каждый выбирает уровень и отвечает. Верно — очки уровня, ошибка — по правилу.",
   order: "3–6 карточек: впишите их в верном порядке, гости увидят их вперемешку и расставят на телефоне.",
   number: "Ответ — число. Ближе всех — все очки; можно дать очки и 2-му, 3-му месту по близости.",
   auction: "Сначала видна только тема, все ставят очки. Отвечает поставивший больше всех (равные — жребий): верно +ставка, неверно −ставка.",
@@ -329,7 +335,7 @@ export const KIND_HINTS: Record<QuestionKind, string> = {
 /** Блоки в «Добавить вопрос»: плитка — формат, у музыкальных сразу включается трек. */
 export interface QuestionFormat {
   id: string;
-  block: "classic" | "music" | "pictures" | "bets" | "super";
+  block: "classic" | "music" | "pictures" | "bets";
   kind: QuestionKind;
   title: string;
   music?: boolean;
@@ -347,7 +353,6 @@ export const QUESTION_FORMATS: QuestionFormat[] = [
   { id: "image", block: "pictures", kind: "choice", title: "Одна картинка" },
   { id: "pictures", block: "pictures", kind: "pictures", title: "2–4 картинки" },
   { id: "auction", block: "bets", kind: "auction", title: "Аукцион: ставки" },
-  { id: "super", block: "super", kind: "super", title: "Суперигра: 4 уровня" },
 ];
 
 export const FORMAT_BLOCKS: Array<{ id: QuestionFormat["block"]; title: string }> = [
@@ -355,7 +360,6 @@ export const FORMAT_BLOCKS: Array<{ id: QuestionFormat["block"]; title: string }
   { id: "music", title: "Музыка" },
   { id: "pictures", title: "Картинки" },
   { id: "bets", title: "Ставки" },
-  { id: "super", title: "В конце раунда" },
 ];
 
 /** Вопросы с вариантами ответа (варианты на телефоне). */
@@ -386,7 +390,7 @@ export function newQuestion(kind: QuestionKind = "choice"): QuizQuestion {
     ...(kind === "auction" ? { topic: "", auctionAnswer: "choice" as const, betTime: DEFAULT_BET_TIME } : {}),
     steps: 1,
     pictures: kind === "pictures" ? [newPicture(), newPicture()] : [],
-    ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const } : {}),
+    ...(kind === "super" ? { levels: newLevels(), superStyle: "chests" as const, penalty: "halfTop" as const, superVote: true, voteTime: VOTE_TIME.def } : {}),
     ...(kind === "order" ? { partial: true } : {}),
     ...(kind === "number" ? { number: null, unit: "", scoring: "places" as const } : {}),
     ...DEFAULTS[kind],
@@ -472,7 +476,9 @@ export function duplicateQuestion(question: QuizQuestion): QuizQuestion {
     alsoCorrect: [...(question.alsoCorrect ?? [])],
     answers: [...question.answers],
     pictures: (question.pictures ?? []).map((p) => ({ imageId: p.imageId, answers: [...p.answers] })),
-    ...(question.levels ? { levels: question.levels.map((l) => ({ ...l, answers: [...l.answers] })) } : {}),
+    ...(question.levels
+      ? { levels: question.levels.map((l) => ({ ...l, answers: [...l.answers], ...(l.options ? { options: [...l.options] } : {}), ...(l.correct ? { correct: [...l.correct] } : {}) })) }
+      : {}),
     round: null,
   };
 }
@@ -559,7 +565,15 @@ function parseQuestion(raw: unknown, index: number, seen: Set<string>): QuizQues
     answerMusic: parseAnswerMusic(data.answerMusic),
     steps: int(data.steps, 1, 1, LIMITS.maxSteps),
     pictures: kind === "pictures" ? parsePictures(data.pictures) : [],
-    ...(kind === "super" ? { levels: parseLevels(data.levels), superStyle: parseStyle(data.superStyle), penalty: parsePenalty(data.penalty) } : {}),
+    ...(kind === "super"
+      ? {
+          levels: parseLevels(data.levels),
+          superStyle: parseStyle(data.superStyle),
+          penalty: parsePenalty(data.penalty),
+          superVote: data.superVote === true,
+          voteTime: int(data.voteTime, VOTE_TIME.def, VOTE_TIME.min, VOTE_TIME.max),
+        }
+      : {}),
     round: parseRound(data.round),
     note: text(data.note, LIMITS.note),
     ...(kind === "order" ? { partial: data.partial !== false } : {}),
@@ -607,7 +621,7 @@ export function mediaIds(content: QuizContent): string[] {
 
 /** Треки игры (чтобы экран зала скачал их заранее). */
 export function trackIds(content: QuizContent): string[] {
-  return [...new Set(content.questions.flatMap((q) => [q.trackId, q.answerMusic?.trackId].filter((id): id is string => Boolean(id))))];
+  return [...new Set(content.questions.flatMap((q) => [q.trackId, q.answerMusic?.trackId, ...superTrackIds(q.levels)].filter((id): id is string => Boolean(id))))];
 }
 
 /** Музыкальный квиз («Узнай по нотам»): есть треки или хотя бы половина вопросов начинается с «♪» (шаблон без треков). */

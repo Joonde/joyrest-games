@@ -148,6 +148,11 @@
   .lv dt { font-weight: 600; margin-top: 8px; }
   .lv dt span { color: var(--gold); }
   .lv dd { margin: 0; color: var(--ink-soft); font-size: 15px; }
+  .mails { display: grid; gap: 12px; padding-left: 16px; border-left: 2px solid var(--line); }
+  .mails[hidden] { display: none; }
+  .steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; }
+  .mails a.btn, a.sheet__close { display: flex; align-items: center; justify-content: center; text-align: center; }
+  a.sheet__close { text-decoration: underline; text-align: center; }
   .sheet__close { min-height: 48px; border: 0; background: none; color: var(--ink-soft); cursor: pointer; }
   footer { color: var(--ink-soft); font-size: 15px; display: grid; gap: 6px; }
   a { color: var(--gold); }
@@ -278,8 +283,24 @@
     <p class="small muted">Откроется чат с нами, расчёт уже будет в сообщении — останется нажать «Отправить».</p>
     <a class="btn" id="sWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
     <a class="btn btn--secondary" id="sTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
-    <a class="btn btn--secondary" id="sAvito" href="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" target="_blank" rel="noopener">Авито</a>
-    <a class="btn btn--secondary" id="sMail" href="#">Почта</a>
+    <button type="button" class="btn btn--secondary" id="sAvito" aria-expanded="false" aria-controls="sAvitoBox">Авито</button>
+    <div class="mails" id="sAvitoBox" hidden>
+      <ol class="steps">
+        <li>Расчёт скопируем сами.</li>
+        <li>На Авито нажмите «Написать».</li>
+        <li>В сообщении: долгое нажатие → «Вставить» (на компьютере — ⌘V или Ctrl+V).</li>
+      </ol>
+      <p class="small muted">Авито не даёт сайтам вставить текст в сообщение — поэтому так.</p>
+      <a class="btn" id="sAvitoGo" href="https://www.avito.ru/brands/ea177461b6df1ce218b27e955ac8a349" target="_blank" rel="noopener">Скопировать и открыть Авито</a>
+    </div>
+    <button type="button" class="btn btn--secondary" id="sMail" aria-expanded="false" aria-controls="sMailList">Почта</button>
+    <div class="mails" id="sMailList" hidden>
+      <p class="small muted">Где ваша почта? Откроется письмо на joyrest@mail.ru с расчётом.</p>
+      <a class="btn btn--secondary" data-mail="gmail" href="#" target="_blank" rel="noopener">Gmail</a>
+      <a class="btn btn--secondary" data-mail="yandex" href="#" target="_blank" rel="noopener">Яндекс Почта</a>
+      <a class="btn btn--secondary" data-mail="mailru" href="#" target="_blank" rel="noopener">Почта Mail.ru</a>
+      <a class="sheet__close" data-mail="app" href="#">Почтовая программа на устройстве</a>
+    </div>
     <button type="button" class="btn btn--secondary" id="sImg">Картинкой расчёта</button>
     <p class="small muted">Картинка уходит через «Поделиться» телефона — выберите мессенджер и чат JoyRest. На компьютере она сохранится, её можно прикрепить в чат.</p>
     <button type="button" class="btn btn--secondary" id="sCopy">Скопировать текст</button>

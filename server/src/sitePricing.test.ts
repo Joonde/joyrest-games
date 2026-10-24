@@ -39,6 +39,8 @@ interface Pricing {
   seasonBadge(s: Season | null): string;
   moscowToday(nowMs?: number): string;
   parseDate(iso: string): { y: number; m: number; d: number; t: number; wd: number } | null;
+  telegramText(text: string): string;
+  mailLinks(text: string): { gmail: string; yandex: string; mailru: string; app: string };
   ADDONS: { id: string; label: string; price: number; fixed: boolean }[];
   TIERS: number[];
   LEVELS: { id: string; discount: number }[];
@@ -462,6 +464,41 @@ describe("калькулятор сайта: праздничная цена", (
     }
     expect(P.parseDate("2028-02-29")).not.toBeNull();
     expect(P.parseDate("2027-02-29")).toBeNull();
+    // Пока год набирают с клавиатуры, браузер отдаёт «0002-12-15» — это ещё не дата, праздничная цена не падает.
+    for (const date of ["0002-12-15", "0020-12-15", "0202-12-15", "1999-12-31", "3000-01-01"]) {
+      expect(P.parseDate(date), date).toBeNull();
+      expect(P.calcPrice({ pkg: "quiz", tier: 1, weekend: true, date, today: "2026-10-24" }).date, date).toBeNull();
+    }
+  });
+
+  it("Telegram: в тексте ссылки нет «%», «+» и «&» — иначе Telegram обрезает расчёт", () => {
+    const opts = { pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00", today: "2026-10-24", ext: 2, addons: ["prizes", "far", "logo"] };
+    const text = P.calcMessage(opts, "new");
+    expect(text).toMatch(/[%+]/);
+    const tg = P.telegramText(text);
+    expect(tg).not.toMatch(/[%+&]/);
+    expect(tg.split("\n").length).toBe(text.split("\n").length);
+    expect(tg).toContain("Расчёт JoyRest");
+    expect(tg).toContain("＋20％");
+    expect(P.telegramText("A & B")).toBe("A  и  B");
+  });
+
+  it("почта: письмо на joyrest@mail.ru в Gmail, Яндексе, Mail.ru и почтовой программе — с полным расчётом", () => {
+    const text = P.calcMessage({ pkg: "quiz", tier: 2, weekend: true, date: "2026-12-20", time: "19:00", today: "2026-10-24" }, "new");
+    const m = P.mailLinks(text);
+    const gm = new URL(m.gmail);
+    expect(gm.origin).toBe("https://mail.google.com");
+    expect(gm.searchParams.get("to")).toBe("joyrest@mail.ru");
+    expect(gm.searchParams.get("su")).toBe("Расчёт JoyRest");
+    expect(gm.searchParams.get("body")).toBe(text);
+    for (const [url, origin] of [[m.yandex, "https://mail.yandex.ru"], [m.mailru, "https://e.mail.ru"]] as const) {
+      const u = new URL(url);
+      expect(u.origin).toBe(origin);
+      expect(u.searchParams.get("mailto")).toBe(m.app);
+    }
+    expect(m.app.startsWith("mailto:joyrest@mail.ru?subject=")).toBe(true);
+    expect(decodeURIComponent(m.app.split("&body=")[1])).toBe(text);
+    expect(text).toContain("Дата: 20 декабря 2026");
   });
 
   it("«Под ключ» и больше 90 гостей на праздничную дату — без цены, но с причиной", () => {

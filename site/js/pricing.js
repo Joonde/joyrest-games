@@ -83,6 +83,8 @@
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof iso === 'string' ? iso : '');
     if (!m) return null;
     var y = +m[1], mo = +m[2], d = +m[3];
+    // Пока год набирают с клавиатуры, браузер отдаёт «0002-12-15», «0020-…» — это ещё не дата.
+    if (y < 2000 || y > 2999) return null;
     var ms = Date.UTC(y, mo - 1, d);
     var back = new Date(ms);
     if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
@@ -264,6 +266,23 @@
    * Время начала (решение владельца 23 октября 2026): по желанию, на цену не влияет — только строка менеджеру.
    * Принимаем «ЧЧ:ММ» (00:00–23:59), иначе пусто. Время подтверждает менеджер: свободны ли ведущие.
    */
+  /** Текст для ссылки t.me/…?text=: Telegram раскодирует её дважды и обрезает сообщение на «%» (и путает «+», «&»),
+   *  поэтому здесь — похожие знаки, которые ему не мешают (жалоба владельца 24 октября 2026: расчёт приходил не целиком). */
+  function telegramText(t) {
+    return String(t || '').replace(/%/g, '\uFF05').replace(/\+/g, '\uFF0B').replace(/&/g, ' и ');
+  }
+  /** Письмо с расчётом: почта в браузере (Gmail, Яндекс, Mail.ru) или почтовое приложение (mailto).
+   *  Решение владельца 24 октября 2026: клиенту не нужно открывать почтовую программу Mac. */
+  function mailLinks(text) {
+    var to = 'joyrest@mail.ru', su = 'Расчёт JoyRest', enc = encodeURIComponent;
+    var app = 'mailto:' + to + '?subject=' + enc(su) + '&body=' + enc(String(text || ''));
+    return {
+      gmail: 'https://mail.google.com/mail/?view=cm&fs=1&to=' + enc(to) + '&su=' + enc(su) + '&body=' + enc(String(text || '')),
+      yandex: 'https://mail.yandex.ru/compose?mailto=' + enc(app),
+      mailru: 'https://e.mail.ru/compose/?mailto=' + enc(app),
+      app: app
+    };
+  }
   function cleanTime(t) {
     return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : '';
   }
@@ -366,7 +385,7 @@
     TIERS: TIERS, PACKAGES: PACKAGES, TURNKEY: TURNKEY, EXTENSIONS: EXTENSIONS, ADDONS: ADDONS, LEVELS: LEVELS,
     MAX_EXTRAS: MAX_EXTRAS, HOLIDAYS: HOLIDAYS, TRAVEL: TRAVEL, NY_MIN: NY_MIN, EARLY_UNTIL: EARLY_UNTIL,
     seasonFor: seasonFor, seasonHint: seasonHint, seasonBadge: seasonBadge, seasonLine: seasonLine, moscowToday: moscowToday,
-    parseDate: parseDate, cleanTime: cleanTime, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
+    parseDate: parseDate, cleanTime: cleanTime, telegramText: telegramText, mailLinks: mailLinks, earlyUntilLabel: earlyUntilLabel, calcPrice: calcPrice, calcSummary: calcSummary, calcMessage: calcMessage, extraPrice: extraPrice, pkgById: pkgById,
     roundUp: roundUp, hoursWord: hoursWord, gamesWord: gamesWord, hh: hh, money: money
   };
   // Браузер: обычный скрипт → window.JoyPricing. Тесты (vitest) импортируют файл и читают globalThis.JoyPricing.

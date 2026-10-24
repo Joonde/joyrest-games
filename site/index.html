@@ -86,8 +86,24 @@
     <div class="send-sheet__actions">
       <a class="hbtn hbtn--primary" id="sendWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
       <a class="hbtn hbtn--secondary" id="sendTg" href="https://t.me/+79857822689" target="_blank" rel="noopener">Telegram</a>
-      <a class="hbtn hbtn--secondary" id="sendAvito" href="" target="_blank" rel="noopener" hidden>Авито</a>
-      <a class="hbtn hbtn--secondary" id="sendMail" href="#">Почта</a>
+      <button type="button" class="hbtn hbtn--secondary" id="sendAvito" aria-expanded="false" aria-controls="sendAvitoBox" hidden>Авито</button>
+      <div class="send-mail" id="sendAvitoBox" hidden>
+        <ol class="send-steps">
+          <li>Расчёт скопируем сами.</li>
+          <li>На Авито нажмите «Написать».</li>
+          <li>В сообщении: долгое нажатие → «Вставить» (на компьютере — ⌘V или Ctrl+V).</li>
+        </ol>
+        <p class="send-sheet__hint send-sheet__hint--small">Авито не даёт сайтам вставить текст в сообщение — поэтому так.</p>
+        <a class="hbtn hbtn--primary" id="sendAvitoGo" href="" target="_blank" rel="noopener">Скопировать и открыть Авито</a>
+      </div>
+      <button type="button" class="hbtn hbtn--secondary" id="sendMail" aria-expanded="false" aria-controls="sendMailList">Почта</button>
+      <div class="send-mail" id="sendMailList" hidden>
+        <p class="send-sheet__hint send-sheet__hint--small">Где ваша почта? Откроется письмо на joyrest@mail.ru с расчётом.</p>
+        <a class="hbtn hbtn--secondary" data-mail="gmail" href="#" target="_blank" rel="noopener">Gmail</a>
+        <a class="hbtn hbtn--secondary" data-mail="yandex" href="#" target="_blank" rel="noopener">Яндекс Почта</a>
+        <a class="hbtn hbtn--secondary" data-mail="mailru" href="#" target="_blank" rel="noopener">Почта Mail.ru</a>
+        <a class="send-sheet__close" data-mail="app" href="#">Почтовая программа на устройстве</a>
+      </div>
       <button type="button" class="hbtn hbtn--secondary" id="sendImg">Картинкой расчёта</button>
       <p class="send-sheet__hint send-sheet__hint--small">Картинка уходит через «Поделиться» телефона — выберите мессенджер и чат JoyRest. На компьютере она сохранится, её можно прикрепить в чат.</p>
       <button type="button" class="hbtn hbtn--secondary" id="sendCopy">Скопировать текст</button>

@@ -40,6 +40,8 @@ import {
   originOf,
 } from "../../core/clients";
 import { parseLeadText } from "../../core/events";
+import { composeWish, wishFromText, type ClientWish } from "../../core/clientWish";
+import { PROGRAM_FORMATS } from "../../core/eventProgram";
 import { todayMoscow } from "../../core/calendar";
 import { firstMessage } from "../../core/salesGuide";
 import { matchesSearch } from "../../core/search";
@@ -926,7 +928,15 @@ function ClientForm({
   // (решение владельца 24 октября 2026: статус и рассылка при первом заполнении свёрнуты).
   const [status, setStatus] = useState<ClientStatus>(initial?.status ?? "work");
   const [marketing, setMarketing] = useState<Marketing>(initial?.marketing ?? "unknown");
-  const [notes, setNotes] = useState(initial?.notes ?? "");
+  // «Что хочет клиент» полями (решение владельца 24 октября 2026): дата, время, гости, формат, пожелания. В карточке —
+  // понятными строками заметки; не трогали поля — заметка уходит как была (старые свободные заметки не переписываются).
+  const [wish, setWishState] = useState<ClientWish>(() => wishFromText(initial?.notes ?? "", todayMoscow(), true));
+  const [wishTouched, setWishTouched] = useState(false);
+  const setWish = (patch: Partial<ClientWish>) => {
+    setWishTouched(true);
+    setWishState((w) => ({ ...w, ...patch }));
+  };
+  const notes = wishTouched ? composeWish(wish).slice(0, CLIENT_LIMITS.notes) : (initial?.notes ?? "");
   const [origin, setOrigin] = useState(initial?.origin ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1039,16 +1049,21 @@ function ClientForm({
               setLinks([...parsedLinks, ...found].join("\n"));
               got.push("соцсети");
             }
-            if (!notes.trim()) {
-              // Имя и телефон уже в своих полях — в «Что хочет клиент» только остальное.
-              const wish = text
-                .split("\n")
-                .filter((line) => !/^\s*(имя|телефон|тел\.?|phone|контакт)\s*:/i.test(line))
-                .join("\n")
-                .trim();
-              setNotes((wish || text.trim()).slice(0, CLIENT_LIMITS.notes));
-              got.push("что хочет клиент");
-            }
+            // Дата, время, гости, формат и пожелания — в свои поля (заполненные не трогаем); имя и телефон — не в пожелания.
+            const w = wishFromText(text, todayMoscow());
+            const patch: Partial<ClientWish> = {};
+            const take = <K extends keyof ClientWish>(k: K, title: string, has: boolean) => {
+              if (has && !(Array.isArray(wish[k]) ? (wish[k] as string[]).length : String(wish[k]).trim())) {
+                patch[k] = w[k];
+                got.push(title);
+              }
+            };
+            take("day", "дата", Boolean(w.day));
+            take("time", "время", Boolean(w.time));
+            take("guests", "гости", Boolean(w.guests));
+            take("formats", "формат", w.formats.length > 0);
+            take("wishes", "пожелания", Boolean(w.wishes));
+            if (Object.keys(patch).length) setWish(patch);
             // Расчёт с калькулятора сайта — клиент пришёл с сайта.
             const o = originOf(text) ?? (/Расч[её]т\s+JoyRest/i.test(text) ? "site" : null);
             if (o && !origin) {
@@ -1084,19 +1099,61 @@ function ClientForm({
       </label>
       {parsedLinks.length > 0 && <p className="muted small">Распознано: {parsedLinks.map(linkTitle).join(", ")}</p>}
       {links.trim() !== "" && parsedLinks.length === 0 && <p className="error small">Ссылку не распознали: вставьте @ник Telegram или ссылку vk.com/…, instagram.com/…, wa.me/…</p>}
-      <label className="field">
-        <span className="field__label">Что хочет клиент — дата, гости, пожелания</span>
-        <textarea
-          rows={3}
-          maxLength={CLIENT_LIMITS.notes}
-          value={notes}
-          placeholder="Свадьба, 12 июня, 60 гостей, квиз и танцы, бюджет до 40 000 ₽. Перезвонить в пятницу."
-          onChange={(e) => setNotes(e.target.value)}
-        />
-        <span className="field__hint">
-          Всё в одном месте: из этого текста «📅 Записать мероприятие ведущему» возьмёт дату, время, гостей и программу.
-        </span>
-      </label>
+      <fieldset className="stack stack--tight client-wish">
+        <legend>Что хочет клиент</legend>
+        <div className="client-wish__row">
+          <label className="field">
+            <span className="field__label">Дата</span>
+            <input type="date" value={wish.day} onChange={(e) => setWish({ day: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field__label">Время</span>
+            <input type="time" step={900} value={wish.time} onChange={(e) => setWish({ time: e.target.value })} />
+          </label>
+        </div>
+        <label className="field">
+          <span className="field__label">Гостей</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={5}
+            value={wish.guests}
+            placeholder="Например: 35"
+            onChange={(e) => setWish({ guests: e.target.value.replace(/\D/g, "") })}
+          />
+        </label>
+        <div className="stack stack--tight">
+          <span className="field__label">Формат — касайтесь по порядку вечера</span>
+          <div className="plan-quick client-wish__formats" role="group" aria-label="Формат по порядку">
+            {PROGRAM_FORMATS.map((f) => {
+              const n = wish.formats.indexOf(f);
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  className={n >= 0 ? "seg__btn is-on" : "seg__btn"}
+                  aria-pressed={n >= 0}
+                  onClick={() => setWish({ formats: n >= 0 ? wish.formats.filter((x) => x !== f) : [...wish.formats, f].slice(0, 4) })}
+                >
+                  {n >= 0 ? `${n + 1} · ${f}` : f}
+                </button>
+              );
+            })}
+          </div>
+          {wish.formats.length > 1 && <p className="muted small">Порядок: {wish.formats.join(" → ")}</p>}
+        </div>
+        <label className="field">
+          <span className="field__label">Пожелания</span>
+          <textarea
+            rows={3}
+            value={wish.wishes}
+            placeholder="Свадьба, тихий зал, без конкурсов с раздеванием. Перезвонить в пятницу."
+            onChange={(e) => setWish({ wishes: e.target.value })}
+          />
+        </label>
+        <p className="muted small">«📅 Записать мероприятие ведущему» перенесёт дату, время, гостей и формат в мероприятие.</p>
+      </fieldset>
       <label className="field">
         <span className="field__label">Откуда пришёл</span>
         <select value={origin} onChange={(e) => setOrigin(e.target.value)}>

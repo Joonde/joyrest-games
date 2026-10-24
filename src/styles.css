@@ -24141,3 +24141,14 @@ button.dk-mini__pair { cursor: pointer; min-height: 44px; }
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Анкета клиента: «Что хочет клиент» полями (решение владельца 24 октября 2026). */
+.client-wish__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.client-wish__row > * {
+  min-width: 0;
+}

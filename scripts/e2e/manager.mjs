@@ -766,6 +766,19 @@ try {
   const petrHref = (await petrCard.locator("a", { hasText: "Telegram" }).first().getAttribute("href").catch(() => "")) ?? "";
   check(petrHref.startsWith(`https://t.me/${nick}?text=`), "Кнопка Telegram у клиента без номера — чат по нику с готовым текстом", `Ссылка: «${petrHref.slice(0, 80)}»`);
   await shot(ap, "excel-добавлены");
+  // Написали — список не перескакивает: карточка на том же месте, тусклая, сверху «Следующий — …».
+  const ids = async () => ap.locator("li.contacts-past").evaluateAll((els) => els.map((e) => e.id));
+  const before = await ids();
+  const popup = ap.waitForEvent("popup", { timeout: 5000 }).catch(() => null);
+  await petrCard.locator("a", { hasText: "Telegram" }).first().click();
+  const pop = await popup;
+  await pop?.close().catch(() => undefined);
+  await ap.bringToFront();
+  const after = await ids();
+  check(before.join() === after.join(), "Прежние клиенты: после «Telegram» порядок списка не меняется", `до ${before.length}, после ${after.length}`);
+  check(await soft(async () => (await petrCard.getAttribute("class"))?.includes("is-done"), WAIT, "написали"), "Написанный — остаётся на месте с отметкой ✓");
+  check(await soft(async () => (await ap.locator(".contacts-last").count()) > 0, WAIT, "следующий"), "Сверху — «✓ Открыли чат» и кнопка следующего");
+  await shot(ap, "excel-написали");
   // Тот же файл ещё раз — никого нового, двойников нет.
   const again = await upload();
   check(again.includes("уже в «Клиентах» — 2") && again.includes("Можно добавить — 0"), "Повторная загрузка: «уже в «Клиентах» — 2», добавить некого", `Повтор: «${again}»`);

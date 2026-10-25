@@ -72,6 +72,10 @@ export function ContactsTab() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [sent, setSent] = useState<Record<string, number>>(readSent);
+  // Порядок списка — по отметкам на момент открытия страницы: отправили — карточка остаётся на месте (тусклая),
+  // список не перескакивает, пока вы ходите в мессенджер и обратно.
+  const [orderSnap] = useState<Record<string, number>>(readSent);
+  const [last, setLast] = useState<string | null>(null);
   const [toast, showToast] = useToast(4000);
   const [confirm, ask] = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -167,6 +171,12 @@ export function ContactsTab() {
     const next = { ...sent, [id]: Date.now() };
     setSent(next);
     writeSent(next);
+    setLast(id);
+  }
+
+  function toNext(id: string | undefined) {
+    if (!id) return;
+    document.getElementById(`past-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   /** Лишний контакт — в архив: из списка пропадает, при следующей загрузке контактов не добавится снова. */
@@ -211,9 +221,13 @@ export function ContactsTab() {
   // Сколько написали сегодня (по Москве — по часам этого телефона): больше 15 в день мессенджеры принимают за спам.
   const todayKey = new Date().toDateString();
   const sentToday = Object.values(sent).filter((t) => new Date(t).toDateString() === todayKey).length;
-  // Сначала те, кому ещё не писали, потом — кому написали (давно — выше).
-  const ordered = [...past].sort((a, b) => (sent[a.id] ?? 0) - (sent[b.id] ?? 0));
+  // Сначала те, кому ещё не писали (на момент открытия), потом — кому написали (давно — выше); дальше — по имени.
+  const ordered = [...past].sort(
+    (a, b) => (orderSnap[a.id] ?? 0) - (orderSnap[b.id] ?? 0) || a.name.localeCompare(b.name, "ru") || a.id.localeCompare(b.id),
+  );
   const notYet = past.filter((c) => !sent[c.id]).length;
+  const next = ordered.find((c) => !sent[c.id] && c.marketing !== "yes");
+  const lastClient = last ? past.find((c) => c.id === last) : undefined;
   const yesMessage = pastClientYesMessage(SITE_CALC_URL);
 
   return (
@@ -309,8 +323,9 @@ export function ContactsTab() {
 
       <h2 className="clients-section">Прежние клиенты · написать</h2>
       <p className="muted small">
-        Касание «Telegram» или «WhatsApp» откроет чат с готовым сообщением от команды JoyRest с именем клиента (оно же копируется — если не
-        вставилось само, вставьте): один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
+        Касание «Telegram» или «WhatsApp» откроет чат и скопирует готовое сообщение от команды JoyRest с именем клиента. Telegram на телефоне
+        часто открывает чат без текста — подержите палец в поле сообщения → «Вставить» → «Отправить». Telegram показал ошибку («не найден»)
+        — у человека нет Telegram или номер скрыт: напишите в WhatsApp, а если и там нет — «Убрать — не клиент». В сообщении: один из наших ведущих проводил у вас праздник, мы обновились, ссылки на канал, калькулятор и Авито,
         извинение, если ошиблись, и вопрос «можно присылать новости?». Пять вариантов текста чередуются. Цен и скидок нет. Отправляйте по
         одному и не больше 15 в день — иначе мессенджер может принять это за спам. Ответил «да» — нажмите «Ответил «да»»: отметим согласие, и
         кнопки откроют сообщение со скидкой 10%.
@@ -320,6 +335,20 @@ export function ContactsTab() {
           Сегодня написали: <strong>{sentToday}</strong> из 15 · ещё не писали: <strong>{notYet}</strong> из {past.length}
           {sentToday >= 15 ? " — на сегодня хватит, продолжите завтра." : ""}
         </p>
+      )}
+      {lastClient && (
+        <section className="card contacts-last" role="status" aria-label="Последнее сообщение">
+          <p className="small">
+            ✓ Открыли чат: <strong>{lastClient.name || who(lastClient)}</strong>. Текст скопирован — если его нет в чате, зажмите поле → «Вставить».
+          </p>
+          {next ? (
+            <button type="button" className="btn btn--secondary btn--block" onClick={() => toNext(next.id)}>
+              Следующий — {next.name || who(next)} ↓
+            </button>
+          ) : (
+            <p className="small">Всем из списка написали 🎉</p>
+          )}
+        </section>
       )}
       {state.status === "loading" && !clients ? (
         <ListSkeleton />
@@ -334,8 +363,15 @@ export function ContactsTab() {
             const yes = c.marketing === "yes";
             const text = yes ? yesMessage : pastClientMessage(c.name, links, messageVariant(c.id));
             return (
-              <li key={c.id} className="card contacts-past">
-                <span className="contacts-row__name">{c.name || "Без имени"}</span>
+              <li
+                key={c.id}
+                id={`past-${c.id}`}
+                className={`card contacts-past${sent[c.id] && !yes ? " is-done" : ""}${next?.id === c.id ? " is-next" : ""}`}
+              >
+                <span className="contacts-row__name">
+                  {next?.id === c.id ? "▶ " : sent[c.id] && !yes ? "✓ " : ""}
+                  {c.name || "Без имени"}
+                </span>
                 <span className="muted small">
                   {who(c)}
                   {contactTitle(c) ? ` · связь: ${contactTitle(c)}` : ""}

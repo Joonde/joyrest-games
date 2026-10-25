@@ -14,7 +14,7 @@ on:
         required: false
         default: ""
       profiles:
-        description: "Размеры: tv, projector, laptop (через запятую)"
+        description: "Размеры: tv, projector, laptop, crowd, crowd50, crowd100 (через запятую)"
         required: false
         default: "tv,projector,laptop"
   push:
@@ -30,7 +30,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[inspect]') || contains(github.event.head_commit.message, '[crowd]')
     runs-on: ubuntu-24.04
     concurrency:
-      group: inspect-${{ contains(github.event.head_commit.message, '[crowd]') && 'crowd' || 'all' }}
+      group: inspect-${{ github.event.inputs.profiles || (contains(github.event.head_commit.message, '[crowd]') && 'crowd') || 'all' }}
       cancel-in-progress: true
     timeout-minutes: 150
     env:
@@ -85,7 +85,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gallery-${{ contains(github.event.head_commit.message, '[crowd]') && 'crowd' || 'all' }}
+          name: gallery-${{ github.event.inputs.profiles || (contains(github.event.head_commit.message, '[crowd]') && 'crowd') || 'all' }}
           path: /tmp/gallery
           retention-days: 7
           if-no-files-found: ignore
@@ -96,7 +96,7 @@ jobs:
           git config user.name "joyrest-ci"
           git config user.email "ci@joy-rest.ru"
           git fetch origin e2e-shots 2>/dev/null && git checkout -B e2e-shots FETCH_HEAD || { git checkout --orphan e2e-shots; git rm -rq --cached . 2>/dev/null || true; }
-          DIR=inspect; case "$PROFILES" in crowd) DIR=inspect-crowd;; esac
+          DIR=inspect; case "$PROFILES" in crowd) DIR=inspect-crowd;; crowd50) DIR=inspect-crowd50;; crowd100) DIR=inspect-crowd100;; esac
           rm -rf "$DIR" && mkdir -p "$DIR" && cp -r /tmp/inspect/. "$DIR"/
           [ -d /tmp/gallery ] && mkdir -p "$DIR"/gallery && cp /tmp/gallery/*.jpg "$DIR"/gallery/ 2>/dev/null || true
           echo "${GITHUB_SHA}" > "$DIR"/commit.txt

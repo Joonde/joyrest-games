@@ -8368,6 +8368,8 @@ ul.chips {
 .quiz-screen__race-answer {
   margin: 0;
   font-size: 2.2cqw;
+  /* Смайлик в имени срезало на 5 px (Ревизор). */
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -12142,6 +12144,8 @@ button.dance-card:active {
 
 .mil-screen__team {
   min-width: 0;
+  /* Смайлик в имени срезало на 4 px (Ревизор). */
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
 }

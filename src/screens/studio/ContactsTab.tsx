@@ -395,8 +395,6 @@ export function ContactsTab() {
           Следующий — {next.name || who(next)} ↓
         </button>
       )}
-        </section>
-      )}
       {state.status === "loading" && !clients ? (
         <ListSkeleton />
       ) : state.status === "error" && !clients ? (

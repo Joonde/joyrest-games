@@ -8280,9 +8280,9 @@ ul.chips {
 }
 
 .quiz-screen__finish {
-  margin: 0;
-  align-self: center;
-  font-size: 2.2cqw;
+  display: inline-block;
+  margin: 0 0 0 1cqw;
+  font-size: 0.85em;
   font-weight: 600;
   padding: 0.8cqh 2cqw;
   border-radius: 999px;

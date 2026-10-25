@@ -275,17 +275,13 @@ export function QuizScreenView({ session, content }: ViewProps<QuizContent>) {
             {winner ? (
               <>
                 Верно — <NameText name={winner.name} />: <strong>{correctText(q) || "—"}</strong>
+                {finish && finisher && <span className="quiz-screen__finish"> 🏁 Финиш! +{finish.bonus} очков за победу в гонке</span>}
               </>
             ) : (
               <>
                 Правильный ответ: <strong>{correctText(q) || "—"}</strong>
               </>
             )}
-          </p>
-        )}
-        {finish && finisher && (
-          <p className="quiz-screen__finish">
-            Финиш! <NameText name={finisher.name} /> выигрывает гонку · +{finish.bonus} очков
           </p>
         )}
         <RaceLanes leaderboard={session.leaderboard} buzz={buzz ?? EMPTY_BUZZ} target={target} />

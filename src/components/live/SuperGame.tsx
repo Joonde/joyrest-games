@@ -234,18 +234,20 @@ export function SuperScreen(props: SuperScreenProps) {
         <h2 className="super-screen__title">
           {title || "Суперигра"}
         </h2>
-        <ol className="super-levels super-levels--intro">
-          {levels.map((l, i) => (
-            <li key={i} className={`super-level super-level--${LEVEL_KEYS[i]}`} style={{ animationDelay: `${0.4 + i * 0.25}s` }}>
-              <span className="super-level__icon" aria-hidden="true">
-                <LevelIcon style={style} level={i} />
-                <span className="super-glint" style={{ animationDelay: `${1.6 + i * 0.4}s`, ["--glint-mask" as string]: `url(${levelArt(style, i)})` }} />
-              </span>
-              <span className="super-level__name">{LEVEL_NAMES[i]}</span>
-              <span className="super-level__points">{pointsLabel(l.points)}</span>
-            </li>
-          ))}
-        </ol>
+        {vote?.phase !== "done" && (
+          <ol className="super-levels super-levels--intro">
+            {levels.map((l, i) => (
+              <li key={i} className={`super-level super-level--${LEVEL_KEYS[i]}`} style={{ animationDelay: `${0.4 + i * 0.25}s` }}>
+                <span className="super-level__icon" aria-hidden="true">
+                  <LevelIcon style={style} level={i} />
+                  <span className="super-glint" style={{ animationDelay: `${1.6 + i * 0.4}s`, ["--glint-mask" as string]: `url(${levelArt(style, i)})` }} />
+                </span>
+                <span className="super-level__name">{LEVEL_NAMES[i]}</span>
+                <span className="super-level__points">{pointsLabel(l.points)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
         {vote?.phase === "done" ? (
           <VotePanel vote={vote} left={null} timeLimit={0} />
         ) : (

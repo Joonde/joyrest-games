@@ -1,0 +1,48 @@
+✓ quiz-1-teams-crowd50: видов 26, находок 0
+✓ quiz-1-solo-crowd50: видов 24, находок 0
+✓ quiz-0-teams-crowd50: видов 38, находок 0
+✓ quiz-2-teams-crowd50: видов 36, находок 0
+✓ quiz-0-solo-crowd50: видов 38, находок 0
+✓ quiz-2-solo-crowd50: видов 34, находок 0
+✓ quiz-3-teams-crowd50: видов 38, находок 0
+• quiz-3-solo-crowd50: видов 43, находок 4
+✓ lotto-0-teams-crowd50: видов 32, находок 0
+• lotto-0-solo-crowd50: видов 38, находок 1
+✓ dance-0-teams-crowd50: видов 28, находок 0
+✓ checkers-0-teams-crowd50: видов 56, находок 0
+✓ board-0-teams-crowd50: видов 74, находок 0 (до финала не дошла)
+• stage-0-teams-crowd50: видов 40, находок 2
+• stage-1-teams-crowd50: видов 40, находок 2
+• millionaire-0-teams-crowd50: видов 36, находок 4
+• millionaire-0-solo-crowd50: видов 26, находок 7
+• board-0-solo-crowd50: видов 82, находок 1 (до финала не дошла)
+✓ quest-0-teams-crowd50: видов 45, находок 0
+✓ quest-1-teams-crowd50: видов 51, находок 0
+• hundred-0-teams-crowd50: видов 68, находок 2
+• hundred-0-solo-crowd50: видов 54, находок 2
+• hundred-1-solo-crowd50: видов 54, находок 1
+• hundred-1-teams-crowd50: видов 68, находок 1
+• hundred-2-solo-crowd50: видов 54, находок 1
+• hundred-2-teams-crowd50: видов 68, находок 1
+• hundred-3-teams-crowd50: видов 38, находок 1
+• dragon-0-teams-crowd50: видов 28, находок 4
+• dragon-1-teams-crowd50: видов 28, находок 4
+✓ survival-0-teams-crowd50: видов 50, находок 0
+• hundred-3-solo-crowd50: видов 44, находок 1
+• durak-0-solo-crowd50: видов 48, находок 2
+• spy-0-solo-crowd50: видов 50, находок 1
+• bunker-0-solo-crowd50: видов 82, находок 1
+• mafia-0-solo-crowd50: видов 77, находок 2 (до финала не дошла)
+• truth-0-teams-crowd50: видов 60, находок 1
+• truth-0-solo-crowd50: видов 40, находок 1 (до финала не дошла)
+✓ perudo-0-solo-crowd50: видов 43, находок 0
+✓ perudo-0-teams-crowd50: видов 48, находок 0
+• wager-0-teams-crowd50: видов 22, находок 1
+✓ wine-0-solo-crowd50: видов 16, находок 0
+✓ wine-0-teams-crowd50: видов 22, находок 0
+• wager-0-solo-crowd50: видов 38, находок 1
+• truth-1-teams-crowd50: видов 60, находок 1
+✓ story-0-teams-crowd50: видов 50, находок 0
+• truth-1-solo-crowd50: видов 42, находок 1 (до финала не дошла)
+✓ story-0-solo-crowd50: видов 42, находок 0
+Ревизор: 27 находок → /tmp/inspect/README.md
